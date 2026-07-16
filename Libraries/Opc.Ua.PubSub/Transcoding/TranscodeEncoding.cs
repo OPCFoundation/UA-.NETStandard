@@ -104,11 +104,11 @@ namespace Opc.Ua.PubSub.Transcoding
             {
                 return TranscodeEncoding.Uadp;
             }
-            if (transportProfileUri.IndexOf("avro", StringComparison.OrdinalIgnoreCase) >= 0)
+            if (transportProfileUri.Contains("avro", StringComparison.OrdinalIgnoreCase))
             {
                 return TranscodeEncoding.Avro;
             }
-            return transportProfileUri.IndexOf("Json", StringComparison.OrdinalIgnoreCase) >= 0
+            return transportProfileUri.Contains("Json", StringComparison.OrdinalIgnoreCase)
                 ? TranscodeEncoding.Json
                 : TranscodeEncoding.Uadp;
         }

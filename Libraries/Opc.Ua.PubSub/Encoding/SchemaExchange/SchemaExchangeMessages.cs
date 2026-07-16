@@ -32,6 +32,7 @@ using System.IO;
 using System.Text;
 using System.Text.Json;
 using Opc.Ua;
+using Opc.Ua.PubSub.Encoding.Json;
 
 namespace Opc.Ua.PubSub.Encoding
 {
@@ -67,6 +68,40 @@ namespace Opc.Ua.PubSub.Encoding
             ByteString schemaBytes = ByteString.From(System.Text.Encoding.UTF8.GetBytes(schemaJson));
             ByteString schemaId = SchemaCache.ComputeSchemaId(schemaBytes, SchemaCache.AvroFormat);
             return new AvroSchemaAnnouncement(schemaId, schemaJson, null);
+        }
+
+        /// <summary>
+        /// Creates a JSON Schema announcement for the first DataSetMessage shape in the current
+        /// JSON NetworkMessage.
+        /// </summary>
+        /// <param name="message">The JSON network message.</param>
+        /// <param name="context">The encoding context (used to resolve DataSetMetaData).</param>
+        /// <param name="schemaProvider">The provider that creates the JSON Schema document.</param>
+        /// <param name="verbose">Whether to generate the verbose OPC UA JSON encoding schema.</param>
+        /// <returns>The schema announcement.</returns>
+        internal static JsonSchemaAnnouncement CreateJsonAnnouncement(
+            Json.JsonNetworkMessage message,
+            PubSubNetworkMessageContext context,
+            IDataSetJsonSchemaProvider schemaProvider,
+            bool verbose = false)
+        {
+            if (message is null)
+            {
+                throw new ArgumentNullException(nameof(message));
+            }
+            if (context is null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            if (schemaProvider is null)
+            {
+                throw new ArgumentNullException(nameof(schemaProvider));
+            }
+
+            DataSetMetaDataType metaData = ResolveJsonMetaData(message, context);
+            string schemaJson = schemaProvider.CreateJsonSchema(metaData, verbose);
+            ByteString schemaId = JsonSchemaAnnouncement.ComputeSchemaId(schemaJson);
+            return new JsonSchemaAnnouncement(schemaId, schemaJson, null);
         }
 
 #if NET8_0_OR_GREATER
@@ -209,6 +244,26 @@ namespace Opc.Ua.PubSub.Encoding
 #endif
                 _ => 0
             };
+        }
+
+        private static DataSetMetaDataType ResolveJsonMetaData(
+            Json.JsonNetworkMessage message,
+            PubSubNetworkMessageContext context)
+        {
+            if (message.DataSetMessages.Count > 0)
+            {
+                DataSetMetaDataType? metaData = PubSubMessageEncoding.ResolveMetaData(
+                    message,
+                    message.DataSetMessages[0],
+                    context,
+                    message.DataSetClassId);
+                if (metaData is not null)
+                {
+                    return metaData;
+                }
+            }
+
+            return message.MetaData ?? new DataSetMetaDataType { Name = "DataSet" };
         }
     }
 }

@@ -27,11 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Text;
 using NUnit.Framework;
 using Opc.Ua;
-
-#nullable enable
 
 namespace Opc.Ua.Core.Tests
 {
@@ -60,6 +59,47 @@ namespace Opc.Ua.Core.Tests
             ulong second = SchemaId.RabinCrc64Avro(canonical);
 
             Assert.That(second, Is.EqualTo(first));
+        }
+
+        [Test]
+        public void JsonSchemaIdUsesStableSha256Prefix()
+        {
+            byte[] schemaJson = Encoding.UTF8.GetBytes("""{"$schema":"https://json-schema.org/draft/2020-12/schema"}""");
+
+            byte[] first = SchemaId.JsonSchemaId(schemaJson);
+            byte[] second = SchemaId.JsonSchemaId(schemaJson);
+
+            Assert.That(first, Has.Length.EqualTo(8));
+            Assert.That(second, Is.EqualTo(first));
+        }
+
+        [Test]
+        public void JsonSchemaIdChangesWhenSchemaChanges()
+        {
+            byte[] firstSchemaJson = Encoding.UTF8.GetBytes("""{"type":"object","properties":{"a":{"type":"string"}}}""");
+            byte[] secondSchemaJson = Encoding.UTF8.GetBytes("""{"type":"object","properties":{"a":{"type":"number"}}}""");
+
+            byte[] first = SchemaId.JsonSchemaId(firstSchemaJson);
+            byte[] second = SchemaId.JsonSchemaId(secondSchemaJson);
+
+            Assert.That(second, Is.Not.EqualTo(first));
+        }
+
+        [Test]
+        public void JsonSchemaIdHonorsRequestedLength()
+        {
+            byte[] schemaJson = Encoding.UTF8.GetBytes("""{"type":"object"}""");
+
+            byte[] full = SchemaId.JsonSchemaId(schemaJson, 32);
+            byte[] empty = SchemaId.JsonSchemaId(schemaJson, 0);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(full, Has.Length.EqualTo(32));
+                Assert.That(empty, Is.Empty);
+                Assert.That(() => SchemaId.JsonSchemaId(schemaJson, -1), Throws.InstanceOf<ArgumentOutOfRangeException>());
+                Assert.That(() => SchemaId.JsonSchemaId(schemaJson, 33), Throws.InstanceOf<ArgumentOutOfRangeException>());
+            });
         }
     }
 }

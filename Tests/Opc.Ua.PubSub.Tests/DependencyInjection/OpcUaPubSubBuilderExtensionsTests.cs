@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
@@ -48,7 +49,11 @@ using Opc.Ua.PubSub.Security;
 using Opc.Ua.PubSub.Security.Sks;
 using Opc.Ua.PubSub.Tests.Security;
 using Opc.Ua.PubSub.Transports;
+using Opc.Ua.Schema;
 using Opc.Ua.Tests;
+using PubSubJsonEncoder = Opc.Ua.PubSub.Encoding.Json.JsonEncoder;
+using PubSubJsonNetworkMessage = Opc.Ua.PubSub.Encoding.Json.JsonNetworkMessage;
+using PubSubJsonDataSetMessage = Opc.Ua.PubSub.Encoding.Json.JsonDataSetMessage;
 
 namespace Opc.Ua.PubSub.Tests.DependencyInjection
 {
@@ -93,6 +98,94 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
                     .Any(d => d.TransportProfileUri == AvroNetworkMessage.PubSubMqttAvroTransport),
                 Is.True,
                 "The Avro NetworkMessage decoder should be registered for transcoding.");
+        }
+
+        [Test]
+        public void AddPubSubAloneKeepsJsonSchemaExchangeDisabled()
+        {
+            var services = new ServiceCollection();
+            services.AddSingleton(NUnitTelemetryContext.Create());
+            services.AddOpcUa().AddPubSub();
+            using ServiceProvider sp = services.BuildServiceProvider();
+
+            PubSubApplicationOptions options = sp.GetRequiredService<IOptions<PubSubApplicationOptions>>().Value;
+            PubSubJsonEncoder encoder = sp.GetServices<INetworkMessageEncoder>().OfType<PubSubJsonEncoder>().Single();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(options.EnableJsonSchemaExchange, Is.False);
+                Assert.That(encoder.EnableSchemaExchange, Is.False);
+                Assert.That(encoder.SchemaProvider, Is.Null);
+                Assert.That(encoder.LastSchemaAnnouncement, Is.Null);
+            });
+        }
+
+        [Test]
+        public void AddJsonSchemaExchangeRegistersProviderAndEnablesJsonEncoder()
+        {
+            var services = new ServiceCollection();
+            services.AddSingleton(NUnitTelemetryContext.Create());
+            services.AddOpcUa().AddPubSub().AddJsonSchemaExchange(options =>
+            {
+                options.Verbose = true;
+                options.DestinationId = "subscriber-a";
+            });
+            using ServiceProvider sp = services.BuildServiceProvider();
+
+            IDataSetJsonSchemaProvider dataSetProvider = sp.GetRequiredService<IDataSetJsonSchemaProvider>();
+            ISchemaProvider schemaProvider = sp.GetRequiredService<ISchemaProvider>();
+            DataTypeDefinitionRegistry registry = sp.GetRequiredService<DataTypeDefinitionRegistry>();
+            IDataTypeDefinitionResolver resolver = sp.GetRequiredService<IDataTypeDefinitionResolver>();
+            PubSubJsonEncoder encoder = sp.GetServices<INetworkMessageEncoder>().OfType<PubSubJsonEncoder>().Single();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(dataSetProvider, Is.Not.Null);
+                Assert.That(schemaProvider, Is.Not.Null);
+                Assert.That(resolver, Is.SameAs(registry));
+                Assert.That(GetProviderRegistry(dataSetProvider), Is.SameAs(registry));
+                Assert.That(encoder.EnableSchemaExchange, Is.True);
+                Assert.That(encoder.SchemaProvider, Is.SameAs(dataSetProvider));
+                Assert.That(encoder.SchemaVerbose, Is.True);
+                Assert.That(encoder.DestinationId, Is.EqualTo("subscriber-a"));
+            });
+        }
+
+        [Test]
+        public async Task AddJsonSchemaExchangeEncoderProducesCacheableAnnouncementAsync()
+        {
+            DataSetMetaDataType metaData = CreateJsonSchemaMetaData();
+            PubSubNetworkMessageContext context = CreateJsonContext(100, metaData);
+            PubSubJsonNetworkMessage message = CreateJsonNetworkMessage(metaData);
+            var services = new ServiceCollection();
+            services.AddSingleton(NUnitTelemetryContext.Create());
+            services.AddOpcUa().AddPubSub().AddJsonSchemaExchange();
+            using ServiceProvider sp = services.BuildServiceProvider();
+            PubSubJsonEncoder encoder = sp.GetServices<INetworkMessageEncoder>().OfType<PubSubJsonEncoder>().Single();
+
+            _ = await encoder.EncodeAsync(message, context);
+            JsonSchemaAnnouncement? announcement = encoder.LastSchemaAnnouncement;
+            SchemaCache cache = new();
+            cache.Add(announcement!);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(announcement, Is.Not.Null);
+                Assert.That(cache.TryGet(announcement!.SchemaId, out SchemaCacheEntry entry), Is.True);
+                Assert.That(entry.Format, Is.EqualTo(SchemaCache.JsonFormat));
+                byte[] schemaBytes = System.Text.Encoding.UTF8.GetBytes(announcement.SchemaJson);
+                Assert.That(entry.Schema.Span.SequenceEqual(schemaBytes), Is.True);
+            });
+        }
+
+        [Test]
+        public void AddJsonSchemaExchangeNullBuilderThrows()
+        {
+            IOpcUaBuilder? builder = null;
+
+            Assert.That(
+                () => builder!.AddJsonSchemaExchange(),
+                Throws.ArgumentNullException);
         }
 
         [Test]
@@ -161,7 +254,8 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
             });
 
             Assert.That(
-                services.Any(static descriptor => descriptor.ServiceType == typeof(IConfigureOptions<PubSubApplicationOptions>)),
+                services.Any(static descriptor =>
+                    descriptor.ServiceType == typeof(IConfigureOptions<PubSubApplicationOptions>)),
                 Is.True);
         }
 
@@ -535,6 +629,66 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
                     }
                 ]
             };
+        }
+
+        private static DataSetMetaDataType CreateJsonSchemaMetaData()
+        {
+            return new DataSetMetaDataType
+            {
+                Name = "JsonSchemaExchangeDataSet",
+                ConfigurationVersion = new ConfigurationVersionDataType { MajorVersion = 1, MinorVersion = 0 },
+                Fields =
+                [
+                    new FieldMetaData
+                    {
+                        Name = "Temperature",
+                        BuiltInType = (byte)BuiltInType.Double,
+                        ValueRank = ValueRanks.Scalar
+                    }
+                ]
+            };
+        }
+
+        private static PubSubJsonNetworkMessage CreateJsonNetworkMessage(DataSetMetaDataType metaData)
+        {
+            return new PubSubJsonNetworkMessage
+            {
+                PublisherId = PublisherId.FromString("publisher"),
+                WriterGroupId = 1,
+                DataSetClassId = new Uuid(new Guid("8c2f8f1c-c9a1-48b0-a90b-7d8f6e725001")),
+                MetaData = metaData,
+                DataSetMessages =
+                [
+                    new PubSubJsonDataSetMessage
+                    {
+                        DataSetWriterId = 100,
+                        MessageType = PubSubDataSetMessageType.KeyFrame,
+                        MetaDataVersion = new ConfigurationVersionDataType { MajorVersion = 1, MinorVersion = 0 }
+                    }
+                ]
+            };
+        }
+
+        private static PubSubNetworkMessageContext CreateJsonContext(ushort writerId, DataSetMetaDataType metaData)
+        {
+            DataSetMetaDataRegistry registry = new();
+            PublisherId publisherId = PublisherId.FromString("publisher");
+            Uuid dataSetClassId = new(new Guid("8c2f8f1c-c9a1-48b0-a90b-7d8f6e725001"));
+            DataSetMetaDataKey key = new(publisherId, 1, writerId, dataSetClassId, 1);
+            registry.Register(in key, metaData);
+            return new PubSubNetworkMessageContext(
+                ServiceMessageContext.CreateEmpty(null!),
+                registry,
+                new PubSubDiagnostics(PubSubDiagnosticsLevel.High),
+                TimeProvider.System);
+        }
+
+        private static DataTypeDefinitionRegistry GetProviderRegistry(IDataSetJsonSchemaProvider provider)
+        {
+            FieldInfo field = typeof(DataSetJsonSchemaProvider).GetField(
+                "m_registry",
+                BindingFlags.NonPublic | BindingFlags.Instance)!;
+            return (DataTypeDefinitionRegistry)field.GetValue(provider)!;
         }
 
         private sealed class StubTransportFactory : IPubSubTransportFactory

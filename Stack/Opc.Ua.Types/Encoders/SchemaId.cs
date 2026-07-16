@@ -32,7 +32,7 @@ using System.Security.Cryptography;
 namespace Opc.Ua
 {
     /// <summary>
-    /// Computes stable schema identifiers used by the experimental Avro, Arrow, and Protobuf encodings.
+    /// Computes stable schema identifiers used by the experimental Avro, Arrow, JSON, and Protobuf encodings.
     /// </summary>
     [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_1")]
     public static class SchemaId
@@ -105,6 +105,17 @@ namespace Opc.Ua
             byte[] id = new byte[nbytes];
             Array.Copy(hash, id, nbytes);
             return id;
+        }
+
+        /// <summary>
+        /// Computes the leading bytes of the SHA-256 digest used as JSON Schema identifiers.
+        /// </summary>
+        /// <param name = "schemaJson">The UTF-8 encoded JSON Schema document to fingerprint.</param>
+        /// <param name = "nbytes">The number of leading SHA-256 digest bytes to return.</param>
+        /// <returns>The requested leading bytes of the SHA-256 digest.</returns>
+        public static byte[] JsonSchemaId(ReadOnlySpan<byte> schemaJson, int nbytes = 8)
+        {
+            return Sha256Id(schemaJson, nbytes);
         }
 
         private static ulong[] CreateRabinAvroTable()

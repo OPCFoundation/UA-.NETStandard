@@ -75,6 +75,57 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <inheritdoc/>
         public int EstimatedHeaderOverhead => 256;
 
+        /// <summary>
+        /// Gets or sets whether this encoder emits JSON schema-exchange announcements.
+        /// </summary>
+        [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_1")]
+        public bool EnableSchemaExchange
+        {
+            get { return m_enableSchemaExchange; }
+            set
+            {
+                m_enableSchemaExchange = value;
+                if (!value)
+                {
+                    LastSchemaAnnouncement = null;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets the SchemaId cache and per-destination announcement tracker used by the encoder.
+        /// </summary>
+        [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_1")]
+        public SchemaCache SchemaCache => m_schemaCache ??= new SchemaCache();
+
+        /// <summary>
+        /// Gets or sets the destination identity used for announce-once tracking.
+        /// </summary>
+        [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_1")]
+        public string DestinationId { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Gets the announcement produced by the most recent encode call, if one was needed.
+        /// </summary>
+        [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_1")]
+        public JsonSchemaAnnouncement? LastSchemaAnnouncement { get; private set; }
+
+        /// <summary>
+        /// Gets or sets the optional JSON Schema provider used when schema exchange is enabled.
+        /// </summary>
+        /// <remarks>
+        /// When schema exchange is enabled but no provider is configured, the encoder leaves the
+        /// wire payload unchanged and skips announcement generation.
+        /// </remarks>
+        [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_1")]
+        public IDataSetJsonSchemaProvider? SchemaProvider { get; set; }
+
+        /// <summary>
+        /// Gets or sets whether generated JSON Schema documents use verbose OPC UA JSON encoding.
+        /// </summary>
+        [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_1")]
+        public bool SchemaVerbose { get; set; }
+
         /// <inheritdoc/>
         public ValueTask<ReadOnlyMemory<byte>> EncodeAsync(
             PubSubNetworkMessage networkMessage,
@@ -90,6 +141,22 @@ namespace Opc.Ua.PubSub.Encoding.Json
                 throw new ArgumentNullException(nameof(context));
             }
             cancellationToken.ThrowIfCancellationRequested();
+            if (EnableSchemaExchange)
+            {
+                LastSchemaAnnouncement = null;
+                if (SchemaProvider is not null && networkMessage is JsonNetworkMessage jsonMessage)
+                {
+                    JsonSchemaAnnouncement announcement = SchemaExchangeMessages.CreateJsonAnnouncement(
+                        jsonMessage,
+                        context,
+                        SchemaProvider,
+                        SchemaVerbose);
+                    LastSchemaAnnouncement = SchemaCache.MarkAnnounced(DestinationId, announcement.SchemaId)
+                        ? announcement
+                        : null;
+                    SchemaCache.Add(announcement);
+                }
+            }
             return networkMessage switch
             {
                 JsonNetworkMessage data => new ValueTask<ReadOnlyMemory<byte>>(
@@ -849,5 +916,8 @@ namespace Opc.Ua.PubSub.Encoding.Json
             }
             return null;
         }
+
+        private bool m_enableSchemaExchange;
+        private SchemaCache? m_schemaCache;
     }
 }

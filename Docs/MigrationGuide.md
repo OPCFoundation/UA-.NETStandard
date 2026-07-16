@@ -43,6 +43,15 @@ Looking for the broader narrative (non-prescriptive overview of what
 changed in a release)? See
 [What's New in 2.0](WhatsNewIn2.0.md).
 
+### New in 2.0.x: optional JSON schema exchange (experimental)
+
+PubSub JSON schema exchange is additive, experimental, and off by default.
+Applications that opt in with
+`services.AddOpcUa().AddPubSub().AddJsonSchemaExchange(...)` or
+`PubSubApplicationOptions.EnableJsonSchemaExchange = true` can announce and cache
+JSON Schema draft 2020-12 documents for JSON DataSetMessages; existing JSON PubSub
+publishers and subscribers require no migration when the option remains disabled.
+
 ## Migrating from 1.05.377 to 1.05.378
 
 ### Asynchronous as default

@@ -51,6 +51,11 @@ namespace Opc.Ua.PubSub.Encoding
         /// </summary>
         public const string ArrowFormat = "arrow";
 
+        /// <summary>
+        /// Gets the JSON Schema format name used by the cache.
+        /// </summary>
+        public const string JsonFormat = "json";
+
         private readonly ConcurrentDictionary<string, SchemaCacheEntry> _schemas = new(StringComparer.Ordinal);
         private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, byte>> _announced =
             new(StringComparer.Ordinal);
@@ -95,6 +100,20 @@ namespace Opc.Ua.PubSub.Encoding
             }
             ByteString schema = ByteString.From(System.Text.Encoding.UTF8.GetBytes(announcement.SchemaJson));
             Add(announcement.SchemaId, schema, AvroFormat);
+        }
+
+        /// <summary>
+        /// Adds a JSON schema announcement after verifying the announced SchemaId.
+        /// </summary>
+        /// <param name="announcement">The JSON schema announcement.</param>
+        public void Add(JsonSchemaAnnouncement announcement)
+        {
+            if (announcement is null)
+            {
+                throw new ArgumentNullException(nameof(announcement));
+            }
+            ByteString schema = ByteString.From(System.Text.Encoding.UTF8.GetBytes(announcement.SchemaJson));
+            Add(announcement.SchemaId, schema, JsonFormat);
         }
 
 #if NET8_0_OR_GREATER
@@ -188,6 +207,10 @@ namespace Opc.Ua.PubSub.Encoding
             if (normalized == ArrowFormat)
             {
                 return ByteString.From(SchemaId.Sha256Id(schema.Span, 8));
+            }
+            if (normalized == JsonFormat)
+            {
+                return ByteString.From(SchemaId.JsonSchemaId(schema.Span, 8));
             }
             throw new ArgumentException("The schema format is not supported.", nameof(format));
         }

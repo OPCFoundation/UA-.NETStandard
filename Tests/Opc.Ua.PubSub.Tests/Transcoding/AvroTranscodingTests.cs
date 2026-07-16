@@ -28,11 +28,13 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Transcoding;
 using static Opc.Ua.PubSub.Tests.Transcoding.TranscodingTestUtilities;
+using JsonEncoderV2 = Opc.Ua.PubSub.Encoding.Json.JsonEncoder;
 using JsonNetworkMessageV2 = Opc.Ua.PubSub.Encoding.Json.JsonNetworkMessage;
 using UadpNetworkMessageV2 = Opc.Ua.PubSub.Encoding.Uadp.UadpNetworkMessage;
 
@@ -296,6 +298,142 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
             Assert.That(json.PublisherId, Is.EqualTo(PublisherId.FromByte(3)));
             Assert.That(json.WriterGroupId, Is.EqualTo((ushort)7));
             Assert.That(json.DataSetMessages[0].Fields[0].Value, Is.EqualTo(new Variant(9)));
+        }
+
+        [Test]
+        public async Task JsonTranscodeDefaultDisabledDoesNotAnnounce()
+        {
+            JsonEncoderV2 jsonEncoder = new()
+            {
+                SchemaProvider = new DeterministicJsonSchemaProvider()
+            };
+            TranscodeContext context = NewContext();
+            var encoders = new Dictionary<string, INetworkMessageEncoder>(StringComparer.Ordinal)
+            {
+                [jsonEncoder.TransportProfileUri] = jsonEncoder
+            };
+            var spec = new TranscodeSpec { TargetEncoding = TranscodeEncoding.Json };
+            var transcoder = new PubSubTranscoder(spec, encoders, context);
+            UadpNetworkMessageV2 message = NewUadpMessage(
+                PublisherId.FromByte(3), 7, 55, Field("x", new Variant(9))) with
+            {
+                MetaData = NewMetaData(includeSecondField: false)
+            };
+
+            TranscodeResult result = await transcoder
+                .TranscodeAsync(new TranscodeInput(message))
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Dropped, Is.False);
+                Assert.That(result.Messages[0], Is.InstanceOf<JsonNetworkMessageV2>());
+                Assert.That(jsonEncoder.EnableSchemaExchange, Is.False);
+                Assert.That(jsonEncoder.LastSchemaAnnouncement, Is.Null);
+            });
+        }
+
+        [Test]
+        public async Task JsonTranscodeEnabledAnnouncesProgressivelyAndReannouncesOnSchemaChange()
+        {
+            JsonEncoderV2 jsonEncoder = new()
+            {
+                EnableSchemaExchange = true,
+                SchemaProvider = new DeterministicJsonSchemaProvider(),
+                DestinationId = "transcode-json-route"
+            };
+            TranscodeContext context = NewContext();
+            var encoders = new Dictionary<string, INetworkMessageEncoder>(StringComparer.Ordinal)
+            {
+                [jsonEncoder.TransportProfileUri] = jsonEncoder
+            };
+            var spec = new TranscodeSpec { TargetEncoding = TranscodeEncoding.Json };
+            var transcoder = new PubSubTranscoder(spec, encoders, context);
+            UadpNetworkMessageV2 first = NewUadpMessage(
+                PublisherId.FromByte(3), 7, 55, Field("x", new Variant(9))) with
+            {
+                MetaData = NewMetaData(includeSecondField: false)
+            };
+            UadpNetworkMessageV2 changed = NewUadpMessage(
+                PublisherId.FromByte(3), 7, 55, Field("x", new Variant(9))) with
+            {
+                MetaData = NewMetaData(includeSecondField: true)
+            };
+
+            _ = await transcoder.TranscodeAsync(new TranscodeInput(first)).ConfigureAwait(false);
+            JsonSchemaAnnouncement? firstAnnouncement = jsonEncoder.LastSchemaAnnouncement;
+            _ = await transcoder.TranscodeAsync(new TranscodeInput(first)).ConfigureAwait(false);
+            JsonSchemaAnnouncement? repeatAnnouncement = jsonEncoder.LastSchemaAnnouncement;
+            _ = await transcoder.TranscodeAsync(new TranscodeInput(changed)).ConfigureAwait(false);
+            JsonSchemaAnnouncement? changedAnnouncement = jsonEncoder.LastSchemaAnnouncement;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(firstAnnouncement, Is.Not.Null);
+                Assert.That(repeatAnnouncement, Is.Null);
+                Assert.That(changedAnnouncement, Is.Not.Null);
+                Assert.That(changedAnnouncement!.SchemaId, Is.Not.EqualTo(firstAnnouncement!.SchemaId));
+            });
+        }
+
+        private static DataSetMetaDataType NewMetaData(bool includeSecondField)
+        {
+            FieldMetaData[] fields = includeSecondField
+                ?
+                [
+                    new FieldMetaData
+                    {
+                        Name = "x",
+                        BuiltInType = (byte)BuiltInType.Int32,
+                        ValueRank = ValueRanks.Scalar
+                    },
+                    new FieldMetaData
+                    {
+                        Name = "y",
+                        BuiltInType = (byte)BuiltInType.Boolean,
+                        ValueRank = ValueRanks.Scalar
+                    }
+                ]
+                :
+                [
+                    new FieldMetaData
+                    {
+                        Name = "x",
+                        BuiltInType = (byte)BuiltInType.Int32,
+                        ValueRank = ValueRanks.Scalar
+                    }
+                ];
+            return new DataSetMetaDataType
+            {
+                Name = "TranscodeDataSet",
+                ConfigurationVersion = new ConfigurationVersionDataType { MajorVersion = 1, MinorVersion = 0 },
+                Fields = fields
+            };
+        }
+
+        private sealed class DeterministicJsonSchemaProvider : IDataSetJsonSchemaProvider
+        {
+            public string CreateJsonSchema(DataSetMetaDataType metaData, bool verbose = false)
+            {
+                using System.IO.MemoryStream stream = new();
+                using (System.Text.Json.Utf8JsonWriter writer = new(stream))
+                {
+                    writer.WriteStartObject();
+                    writer.WriteString("type", "object");
+                    writer.WriteBoolean("verbose", verbose);
+                    writer.WriteStartArray("fields");
+                    if (!metaData.Fields.IsNull)
+                    {
+                        for (int i = 0; i < metaData.Fields.Count; i++)
+                        {
+                            writer.WriteStringValue(metaData.Fields[i].Name ?? string.Empty);
+                        }
+                    }
+                    writer.WriteEndArray();
+                    writer.WriteEndObject();
+                }
+                return System.Text.Encoding.UTF8.GetString(stream.ToArray());
+            }
         }
     }
 }

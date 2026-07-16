@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
@@ -36,44 +37,11 @@ using Opc.Ua;
 namespace Opc.Ua.Core.Tests
 {
     /// <summary>
-    /// Tests schema-exchange descriptor round-trips.
+    /// Tests JSON schema-exchange record round-trips on every target framework.
     /// </summary>
     [TestFixture]
-    public sealed class SchemaExchangeRoundTripTests
+    public sealed class JsonSchemaRoundTripTests
     {
-        /// <summary>
-        /// Verifies the Avro schema announcement field order and nullable epoch branch.
-        /// </summary>
-        [Test]
-        public void AvroSchemaAnnouncement_RoundTrips()
-        {
-            string schemaJson = "{\"type\":\"record\",\"name\":\"T\",\"fields\":[]}";
-            AvroSchemaAnnouncement expected = new(
-                AvroSchemaAnnouncement.ComputeSchemaId(schemaJson),
-                schemaJson,
-                42);
-
-            AvroSchemaAnnouncement actual = AvroSchemaAnnouncement.Decode(expected.Encode());
-
-            Assert.That(actual.SchemaId, Is.EqualTo(expected.SchemaId));
-            Assert.That(actual.SchemaJson, Is.EqualTo(expected.SchemaJson));
-            Assert.That(actual.SchemaEpoch, Is.EqualTo(expected.SchemaEpoch));
-        }
-
-        /// <summary>
-        /// Verifies the Avro schema request field order and array item bytes.
-        /// </summary>
-        [Test]
-        public void AvroSchemaRequest_RoundTrips()
-        {
-            AvroSchemaRequest expected = new("subscriber", CreateIds());
-
-            AvroSchemaRequest actual = AvroSchemaRequest.Decode(expected.Encode());
-
-            Assert.That(actual.RequesterId, Is.EqualTo(expected.RequesterId));
-            Assert.That(actual.SchemaIds, Is.EqualTo(expected.SchemaIds));
-        }
-
         /// <summary>
         /// Verifies the JSON schema announcement envelope round-trip.
         /// </summary>
@@ -192,39 +160,6 @@ namespace Opc.Ua.Core.Tests
                     () => JsonSchemaRequest.Decode(Encoding.UTF8.GetBytes("{\"requesterId\":null,\"schemaIds\":[\"!\"]}")),
                     Throws.Exception);
             });
-        }
-
-        /// <summary>
-        /// Verifies the Arrow schema announcement descriptor round-trip.
-        /// </summary>
-        [Test]
-        public void ArrowSchemaAnnouncement_RoundTrips()
-        {
-            ByteString schema = ByteString.From(1, 2, 3, 4);
-            ArrowSchemaAnnouncement expected = new(
-                ArrowSchemaAnnouncement.ComputeSchemaId(schema),
-                schema,
-                null);
-
-            ArrowSchemaAnnouncement actual = ArrowSchemaAnnouncement.Decode(expected.Encode());
-
-            Assert.That(actual.SchemaId, Is.EqualTo(expected.SchemaId));
-            Assert.That(actual.Schema, Is.EqualTo(expected.Schema));
-            Assert.That(actual.SchemaEpoch, Is.Null);
-        }
-
-        /// <summary>
-        /// Verifies the Arrow schema request descriptor round-trip.
-        /// </summary>
-        [Test]
-        public void ArrowSchemaRequest_RoundTrips()
-        {
-            ArrowSchemaRequest expected = new(null, CreateIds());
-
-            ArrowSchemaRequest actual = ArrowSchemaRequest.Decode(expected.Encode());
-
-            Assert.That(actual.RequesterId, Is.Null);
-            Assert.That(actual.SchemaIds, Is.EqualTo(expected.SchemaIds));
         }
 
         private static ByteString[] CreateIds()
