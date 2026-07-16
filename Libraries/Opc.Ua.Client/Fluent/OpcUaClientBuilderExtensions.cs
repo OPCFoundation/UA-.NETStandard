@@ -1196,8 +1196,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 var failures = new List<string>();
                 if (options.Configuration == null && !hasConfigurationProvider)
                 {
-                    failures.Add(
-                        "OpcUaClientOptions.Configuration is required unless ConfigureApplication is used.");
+                    failures.Add("OpcUaClientOptions.Configuration is required.");
                 }
 
                 return failures.Count == 0
