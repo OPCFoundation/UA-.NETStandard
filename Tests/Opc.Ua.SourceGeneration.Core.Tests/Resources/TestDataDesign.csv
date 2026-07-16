@@ -2627,3 +2627,5 @@ MultipleVectors_Encoding_DefaultJson,3626,Object
 ArrayValueObjectType_MultipleVectorsValue,3627,Variable
 Data_Static_Array_MultipleVectorsValue,3628,Variable
 Data_Dynamic_Array_MultipleVectorsValue,3629,Variable
+
+# Repository move history marker: Tests/Opc.Ua.SourceGeneration.Core.Tests/Resources/TestDataDesign.csv

@@ -30,3 +30,5 @@
 using System;
 
 [assembly: CLSCompliant(false)]
+
+// Repository move history marker: Libraries/Opc.Ua.Redundancy/Properties/AssemblyInfo.cs

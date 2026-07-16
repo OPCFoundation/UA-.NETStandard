@@ -30,3 +30,5 @@
 using System;
 
 [assembly: CLSCompliant(false)]
+
+// Repository move history marker: Tests/Opc.Ua.Types.Tests/Properties/AssemblyInfo.cs

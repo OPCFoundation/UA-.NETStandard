@@ -30,3 +30,5 @@
 using System;
 
 [assembly: CLSCompliant(false)]
+
+// Repository move history marker: Applications/Quickstarts.Servers/Properties/AssemblyInfo.cs

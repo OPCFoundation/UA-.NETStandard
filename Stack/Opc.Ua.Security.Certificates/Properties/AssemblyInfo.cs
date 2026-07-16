@@ -30,3 +30,5 @@
 using System;
 
 [assembly: CLSCompliant(false)]
+
+// Repository move history marker: Stack/Opc.Ua.Security.Certificates/Properties/AssemblyInfo.cs

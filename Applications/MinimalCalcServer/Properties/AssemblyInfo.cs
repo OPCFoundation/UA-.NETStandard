@@ -30,3 +30,5 @@
 using System;
 
 [assembly: CLSCompliant(false)]
+
+// Repository move history marker: Applications/MinimalCalcServer/Properties/AssemblyInfo.cs

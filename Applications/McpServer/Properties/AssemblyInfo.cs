@@ -30,3 +30,5 @@
 using System;
 
 [assembly: CLSCompliant(false)]
+
+// Repository move history marker: Applications/McpServer/Properties/AssemblyInfo.cs
