@@ -1,8 +1,8 @@
-# Fuzzing coverage expansion under `Fuzzing/`
+# Fuzzing coverage expansion under `fuzzing/`
 
 ## Problem & goal
 
-The `Fuzzing/` tree currently fuzzes only the **Encoders** area (Binary / JSON / XML
+The `fuzzing/` tree currently fuzzes only the **Encoders** area (Binary / JSON / XML
 decode + encode) via SharpFuzz (afl-fuzz + libFuzzer), with a deterministic NUnit
 replay suite (`Encoders.Fuzz.Tests`) and corpus/playback tooling (`*.Fuzz.Tools`).
 Large untrusted-input surfaces are not fuzzed, and the per-area scaffolding is
@@ -23,28 +23,28 @@ test projects are wired into `UA.slnx` and CI.
 
 ## Current state (baseline)
 
-* `Fuzzing/common/Fuzz/` — shared host: `Program.cs`, `FuzzMethods.cs`
+* `fuzzing/common/Fuzz/` — shared host: `Program.cs`, `FuzzMethods.cs`
   (reflection-driven target discovery over `FuzzableCode`).
-* `Fuzzing/common/Fuzz.Tools/` — shared `Program.cs`, `Playback.cs`, `Logging.cs`,
+* `fuzzing/common/Fuzz.Tools/` — shared `Program.cs`, `Playback.cs`, `Logging.cs`,
   and `Testcases.cs` (sample `IEncodeable` builders `ReadRequest`/`ReadResponse`).
-* `Fuzzing/Encoders/Fuzz` — `Encoders.Fuzz.csproj` + `FuzzableCode.*` partials.
-* `Fuzzing/Encoders/Fuzz.Tests` — generic NUnit harness `EncoderTests.cs`
+* `fuzzing/Encoders/Fuzz` — `Encoders.Fuzz.csproj` + `FuzzableCode.*` partials.
+* `fuzzing/Encoders/Fuzz.Tests` — generic NUnit harness `EncoderTests.cs`
   (replays `Testcases/` corpus + `Assets/` crash/timeout/slow blobs through every
   `FuzzableCode` target). Already `[Category("Fuzzing")]`.
-* `Fuzzing/Encoders/Fuzz.Tools` — `Encoders.Testcases.cs` corpus generator.
-* `Fuzzing/dictionaries/` — `json.dict`, `xml.dict` (no `binary.dict`).
-* `Fuzzing/scripts/` — `fuzz-afl.ps1`, `fuzz-libfuzzer.ps1`, `install.sh`.
+* `fuzzing/Encoders/Fuzz.Tools` — `Encoders.Testcases.cs` corpus generator.
+* `fuzzing/dictionaries/` — `json.dict`, `xml.dict` (no `binary.dict`).
+* `fuzzing/scripts/` — `fuzz-afl.ps1`, `fuzz-libfuzzer.ps1`, `install.sh`.
 * `UA.slnx` lists the 3 Encoders projects + loose files. Azure `test.yml` / `testcc.yml`
-  overlay `FuzzingArtifacts.zip` into `Fuzzing/Encoders/Fuzz.Tests` and run the suite.
+  overlay `FuzzingArtifacts.zip` into `fuzzing/Encoders/Fuzz.Tests` and run the suite.
 * `Opc.Ua.Core.csproj` already uses `<InternalsVisibleTo>` items (seam pattern exists).
-* `Stack/Opc.Ua.Core.Diagnostics` is new — multi-targets `net8.0;net9.0;net10.0`
+* `src/Opc.Ua.Core.Diagnostics` is new — multi-targets `net8.0;net9.0;net10.0`
   and depends on PacketDotNet + SharpPcap. Public surfaces relevant to fuzzing:
   `OpcUaFrameParser` (TCP → UA-SC chunk splitter), `TcpStreamReassembler`
   (raw TCP), `OfflineSecureChannel` (re-uses the stack's
   `UaSCUaBinaryChannel.ReadSymmetricMessage` so all security profiles are
   covered for free), `ServiceCallReassembler` (chunk → service-call assembly),
   and `MockServerReplay` / `MockClientReplay` (stateful loopback replay drivers).
-* `Tests/Opc.Ua.Core.Diagnostics.Tests` (net10.0-only test project) contains mock
+* `tests/Opc.Ua.Core.Diagnostics.Tests` (net10.0-only test project) contains mock
   handshake / replay helpers (`ReplayTestHelpers`, `MockServerReplayTests`,
   `MockClientReplayTests`, `OfflineSecureChannelSmokeTests`). These cannot be
   project-referenced from a multi-TFM fuzz area; the equivalent live helpers
@@ -66,7 +66,7 @@ test projects are wired into `UA.slnx` and CI.
 ## Proposed target structure
 
 ```
-Fuzzing/
+fuzzing/
   Fuzzing.md                         # updated: areas, priorities, "how to add an area"
   common/
     Fuzz/                            # unchanged host
@@ -128,7 +128,7 @@ are discovered from disk instead of the hardcoded `[".Binary", ".Json", ".Xml"]`
 
 ### Phase 3 — Certificates / CRL / ASN.1 area (NEW, pre-auth surface)
 
-* New `Fuzzing/Certificates/{Fuzz,Fuzz.Tests,Fuzz.Tools}` referencing
+* New `fuzzing/Certificates/{Fuzz,Fuzz.Tests,Fuzz.Tools}` referencing
   `Opc.Ua.Security.Certificates` (+ Core).
 * Targets (libFuzzer span + afl stream):
   * `X509CRL(byte[])` → force `EnsureDecoded` (TBS, revoked entries, extensions,
@@ -151,7 +151,7 @@ are discovered from disk instead of the hardcoded `[".Binary", ".Json", ".Xml"]`
 
 #### Phase 4a — Network-layer fuzzing via `Opc.Ua.Core.Diagnostics` (no Core changes)
 
-* New `Fuzzing/Network/{Fuzz,Fuzz.Tests,Fuzz.Tools}`, referencing
+* New `fuzzing/Network/{Fuzz,Fuzz.Tests,Fuzz.Tools}`, referencing
   `Opc.Ua.Core.Diagnostics` (+ `Opc.Ua.Core` transitively). Multi-targets
   `net8.0;net9.0;net10.0` to match the binding's matrix (no net48/net472 — the
   pcap binding does not support .NET Framework, which is consistent with how
@@ -235,19 +235,19 @@ are discovered from disk instead of the hardcoded `[".Binary", ".Json", ".Xml"]`
 ### Phase 5 — Integration: solution, CI, docs
 
 * Add all new `Fuzz`, `Fuzz.Tests`, `Fuzz.Tools` projects + loose files to `UA.slnx`
-  under the right `Fuzzing/<Area>/` folders. Specifically: Encoders (hardened),
+  under the right `fuzzing/<Area>/` folders. Specifically: Encoders (hardened),
   Certificates (new), Network (new — hosts both Phase 4a pcap-binding targets
   and the optional Phase 4b Core UA-SC seam targets in one project tree).
 * Ensure new `*.Fuzz.Tests` carry `[Category("Fuzzing")]`, are deterministic, and run
   under the same TFMs / filters as `Encoders.Fuzz.Tests`; confirm Azure `test.yml` picks
-  them up (they live under `Fuzzing/<Area>/Fuzz.Tests`).
+  them up (they live under `fuzzing/<Area>/Fuzz.Tests`).
 * `Network.Fuzz.Tests` multi-targets `net8.0;net9.0;net10.0` (matches pcap binding
   matrix); net48/net472 stays in scope for Encoders / Parsers / Certificates areas.
 * Rewrite `Fuzzing.md`: mark XML done, document new areas + targets, dictionaries, the
   dynamic menu, a step-by-step "add a new fuzz area" recipe, and the Network area's
   replay-driven seed pipeline + `Opc.Ua.Core.Diagnostics` dependency note
   (TFM matrix + PacketDotNet/SharpPcap).
-* Cross-link from `Docs/README.md` if a fuzzing doc is referenced there; cross-link
+* Cross-link from `docs/README.md` if a fuzzing doc is referenced there; cross-link
   the pcap binding's diagnostics docs (if present) so they point to the fuzz benefit.
 
 ## Validation strategy
@@ -287,7 +287,7 @@ are discovered from disk instead of the hardcoded `[".Binary", ".Json", ".Xml"]`
   multi-TFM replay helpers.
 * If `PcapFileReader` / `PcapNgFileWriter` / `UaKeyLogTextReader` /
   `UaKeyLogJsonReader` fuzzing is added later (defensive, untrusted-file
-  parsers), fold into the same `Fuzzing/Network/` area as additional
+  parsers), fold into the same `fuzzing/Network/` area as additional
   `FuzzableCode.*` partials rather than spinning up a new area.
 * ASN.1 / cert targets must respect the TFM / BouncyCastle split and NativeAOT rules.
 * Idempotent / round-trip targets can surface real encoder bugs — triage findings as

@@ -145,10 +145,10 @@ jobs:
         if: env.SIGNING_CLIENT_SECRET != ''
         shell: cmd
         run: |
-          dir /b /s Stack\Opc.Ua*.dll > .\list.txt
-          dir /b /s Tools\Opc.Ua*.dll >> .\list.txt
-          dir /b /s Libraries\Opc.Ua*.dll >> .\list.txt
-          dir /b /s Applications\McpServer\bin\Opc.Ua*.dll >> .\list.txt
+          dir /b /s src\Opc.Ua*.dll > .\list.txt
+          dir /b /s tools\Opc.Ua*.dll >> .\list.txt
+          dir /b /s src\Opc.Ua*.dll >> .\list.txt
+          dir /b /s tools\Opc.Ua.Mcp\bin\Opc.Ua*.dll >> .\list.txt
           dir /b /s .azurepipelines\*.* >> .\list.txt
           type .\list.txt
 
@@ -188,7 +188,7 @@ jobs:
 
       - name: Pack NuGet Legacy (nuget/*.nuspec, version from PACK_MODE)
         shell: pwsh
-        # Scoped to nuget/ - the MigrationAnalyzer nuspec at Tools/Opc.Ua.MigrationAnalyzer/
+        # Scoped to nuget/ - the MigrationAnalyzer nuspec at tools/Opc.Ua.MigrationAnalyzer/
         # uses MSBuild $(...) substitutions that only `dotnet pack` resolves; standalone
         # `nuget.exe pack` would crash on it. See PR #3872.
         continue-on-error: true

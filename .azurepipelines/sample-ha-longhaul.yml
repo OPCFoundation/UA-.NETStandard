@@ -27,7 +27,7 @@ parameters:
 variables:
   configuration: 'Release'
   targetFramework: 'net10.0'
-  testProject: 'Tests/Opc.Ua.Redundancy.Samples.Tests/Opc.Ua.Redundancy.Samples.Tests.csproj'
+  testProject: 'tests/Opc.Ua.Redundancy.Samples.Tests/Opc.Ua.Redundancy.Samples.Tests.csproj'
 
 pool:
   vmImage: 'ubuntu-24.04'

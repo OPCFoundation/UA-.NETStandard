@@ -1,0 +1,20 @@
+# OPC UA RedundantServer sample image.
+#
+# The build context must be the repository ROOT so the project references resolve.
+# Build directly:
+#   docker build -f samples/RedundantServer/Dockerfile -t opcua-redundant-server .
+# Or via docker compose (see samples/RedundantServer/docker-compose.*.yml).
+FROM mcr.microsoft.com/dotnet/sdk AS build
+WORKDIR /src
+ENV DOTNET_EnableWriteXorExecute=0
+COPY . .
+RUN dotnet publish "samples/RedundantServer/RedundantServer.csproj" \
+    -c Release -f net10.0 -p:PublishAot=false -p:CustomTestTarget=net10.0 \
+    -o /app/publish
+
+FROM mcr.microsoft.com/dotnet/runtime AS final
+WORKDIR /app
+COPY --from=build /app/publish .
+# OPC UA endpoint port and (active/active) address-space + session gossip ports.
+EXPOSE 62543 4840 4841
+ENTRYPOINT ["dotnet", "RedundantServer.dll"]

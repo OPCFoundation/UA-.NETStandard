@@ -1,0 +1,63 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>$(LibCoreTargetFrameworks)</TargetFrameworks>
+    <AssemblyName>$(AssemblyPrefix).Core</AssemblyName>
+    <PackageId>$(PackagePrefix).Opc.Ua.Core</PackageId>
+    <RootNamespace>Opc.Ua</RootNamespace>
+    <Description>OPC UA Core Class Library</Description>
+    <IsPackable>true</IsPackable>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
+    <NoWarn>$(NoWarn);MODELGEN002</NoWarn>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.Core.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.Core.TestFramework" />
+    <InternalsVisibleTo Include="Opc.Ua.Core.Encoders.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.Security.Certificates.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.MigrationAnalyzer.Core" />
+    <InternalsVisibleTo Include="Opc.Ua.Bindings.Https" />
+    <InternalsVisibleTo Include="Opc.Ua.Core.Diagnostics" />
+    <InternalsVisibleTo Include="Opc.Ua.Core.Diagnostics.Tests" />
+  </ItemGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Diagnostics" />
+    <PackageReference Include="Microsoft.Extensions.Http" />
+    <PackageReference Include="Microsoft.Extensions.Logging" />
+    <PackageReference Include="Microsoft.Bcl.TimeProvider" />
+    <PackageReference Include="System.Threading.Channels" />
+    <PackageReference Include="System.Threading.RateLimiting" />
+    <PackageReference Include="BitFaster.Caching" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net48' OR '$(TargetFramework)' == 'net472'">
+    <Reference Include="System.Net.Http" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Opc.Ua.Security.Certificates\Opc.Ua.Security.Certificates.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Core.Types\Opc.Ua.Core.Types.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Types\Utils\LocalizedData.txt" />
+  </ItemGroup>
+  <!-- Stack source generation -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\tools\Opc.Ua.SourceGeneration.Stack\Opc.Ua.SourceGeneration.Stack.csproj">
+      <OutputItemType>Analyzer</OutputItemType>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\..\tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj">
+      <OutputItemType>Analyzer</OutputItemType>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+  </ItemGroup>
+  <Target Name="GetPackagingOutputs" />
+  <ItemGroup>
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,63 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>$(AssemblyPrefix).PubSub</AssemblyName>
+    <TargetFrameworks>$(LibxTargetFrameworks)</TargetFrameworks>
+    <PackageId>$(PackagePrefix).Opc.Ua.PubSub</PackageId>
+    <RootNamespace>Opc.Ua.PubSub</RootNamespace>
+    <Description>OPC UA PubSub Class Library</Description>
+    <IsPackable>true</IsPackable>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Nullable>enable</Nullable>
+    <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>
+    <!--
+      IUaPubSubDataStore is marked [Obsolete(DiagnosticId = "UA0023")] so consumer
+      code sees the migration warning, but the modern PubSubApplicationBuilder and
+      DataStoreBackedPublishedDataSetSource still consume it, so we suppress
+      UA0023 + CS0618 within the library while keeping the warnings active for
+      downstream consumers.
+    -->
+    <NoWarn>$(NoWarn);UA0023;CS0618</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.PubSub.Tests" />
+  </ItemGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Opc.Ua.Core\Opc.Ua.Core.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Client\Opc.Ua.Client.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Options" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
+  </ItemGroup>
+  <Choose>
+    <When Condition="'$(TargetFramework)' != 'netstandard2.1' AND '$(TargetFramework)' != 'net48' and '$(TargetFramework)' != 'net472'">
+      <ItemGroup>
+        <PackageReference Include="MQTTnet" />
+      </ItemGroup>
+    </When>
+    <Otherwise>
+      <ItemGroup>
+        <PackageReference Include="MQTTnet" VersionOverride="4.3.7.1207" />
+      </ItemGroup>
+    </Otherwise>
+  </Choose>
+  <ItemGroup Condition="'$(TargetFrameworkIdentifier)' == '.NETFramework'">
+    <!--
+      System.Net.NetworkInformation is an in-box assembly on modern TFMs
+      (netstandard2.1, net8.0+); only the .NET Framework targets need an
+      explicit reference to the framework assembly.
+    -->
+    <Reference Include="System.Net.NetworkInformation" />
+  </ItemGroup>
+  <Target Name="GetPackagingOutputs" />
+  <ItemGroup>
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>
