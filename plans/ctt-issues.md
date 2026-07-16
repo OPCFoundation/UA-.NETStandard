@@ -1077,3 +1077,39 @@ parser accepted whitespace through `Convert.ToInt32`, returning Good instead of
 `BadIndexRangeInvalid`. NumericRange parsing now uses strict invariant integer syntax
 (`NumberStyles.None`) and rejects leading, trailing, and embedded whitespace. NumericRange and
 HistoryRead regressions cover the fix.
+
+## 11. Run 19 Base Information model and diagnostics defects
+
+### The Core Structure walker treats permission-hidden Mandatory children as absent
+
+Run 19 reports Mandatory children missing from the standard Role, RoleSet, UserManagement, ServerConfiguration, and ServerDiagnostics instances. The affected children include `RoleType.Identities`, `RoleSetType.AddRole`/`RemoveRole`, `UserManagementType.Users` and its methods, `ServerConfigurationType.UpdateCertificate`/`ApplyChanges`/`CreateSigningRequest`/`GetRejectedList`, and `ServerDiagnosticsType.ServerDiagnosticsSummary`/`SubscriptionDiagnosticsArray`.
+
+The children are present at their standard NodeIds and retain their Mandatory modelling rules. The current OPC UA NodeSet assigns restrictive RolePermissions to these administrative and diagnostics surfaces, primarily SecurityAdmin. A low-privilege Browse therefore omits the references or returns `BadUserAccessDenied`, but the CTT model walker interprets that permission-filtered result as proof that the server failed to instantiate the Mandatory declaration.
+
+This is a CTT defect. OPC UA Part 3 access control requires Browse results to be filtered by the session's permissions; a model-conformance walker cannot distinguish an absent node from a permission-hidden node while running as an identity that is not allowed to browse it.
+
+**Recommended CTT fix:** run structural model validation with a SecurityAdmin identity over an encrypted channel, or make the walker permission-aware and retry restricted parents with an appropriately privileged session before reporting a missing Mandatory child. The repository CTT project now selects the username policy, uses `sysadmin`/`demo`, and requests SignAndEncrypt with Basic256Sha256 for its main session so the current scripts satisfy both RolePermissions and AccessRestrictions without weakening the server security model.
+
+The regression work also found and fixed two separate dynamic-instantiation defects. Generated `CreateInstanceOf<Type>` and optional-child factories now support both path-based NodeId factories and factories that allocate only for null NodeIds, assign distinct roots and descendants where the factory supports allocation, and remap internal references from declaration IDs to the instance IDs; predefined concrete-instance factories remain unchanged. Runtime-created custom roles also used a request context that was not guaranteed to carry a NodeIdFactory and therefore reused type-declaration NodeIds for `Identities` and optional descendants. Dynamic roles now use generated metadata-preserving adders plus a role-specific path NodeId factory, keeping child identifiers disjoint from RoleManager's numeric root identifiers. Neither defect caused run 19 because the reported well-known roles are predefined standard instances.
+
+### The Core Structure comparison uses a UA 1.04 reference model for a UA 1.05 server
+
+The run identifies the server as UA 1.05.006 but compares its address space with a UA 1.04 `NodeSetFile`. That can produce false additions, removals, modelling-rule, DataType, and ValueRank errors for nodes introduced or changed after 1.04.
+
+**Recommended CTT fix:** select a reference NodeSet whose specification version matches the server model under test. At minimum, the CTT must not report a 1.05 node as non-conformant solely because it differs from the bundled 1.04 reference.
+
+### ServerDiagnostics validation reuses stale browse data
+
+The ServerDiagnostics unit reports that its cached model is stale and then continues validating that cache, producing missing-child errors for the always-present `ServerDiagnosticsSummary` and `SubscriptionDiagnosticsArray` containers. Once the cache is known to be stale, subsequent structural assertions do not describe the current server address space.
+
+**Recommended CTT fix:** invalidate and rebuild the ServerDiagnostics browse cache after the stale-cache condition, or abort the affected assertions as inconclusive. The refreshed browse must use the same SecurityAdmin session required for the restricted diagnostics nodes.
+
+### `ConformanceUnits` is tested as a scalar instead of `QualifiedName[]`
+
+The current standard node `i=24101` (`Server.ServerCapabilities.ConformanceUnits`) has `DataType=QualifiedName` and `ValueRank=1`; its value is a one-dimensional `QualifiedName` array. Run 19 expects a scalar QualifiedName and reports the conformant array value as an error.
+
+**Recommended CTT fix:** update the expected ValueRank to one dimension and decode/compare a `QualifiedName[]` value using the matching UA 1.05 NodeSet definition.
+
+### ResendData `007.js` was stopped by the operator
+
+The recorded ResendData `007.js` failure is a user-aborted test and does not identify a server or CTT conformance defect. Re-run the unit to completion before classifying it.

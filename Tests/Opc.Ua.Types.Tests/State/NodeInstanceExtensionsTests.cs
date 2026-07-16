@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Collections.Generic;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 
@@ -57,6 +58,26 @@ namespace Opc.Ua.Types.Tests.State
                         $"{instance.Parent.NodeId.IdentifierAsString}_{instance.SymbolicName}",
                         instance.Parent.NodeId.NamespaceIndex);
                 }
+                return node.NodeId;
+            }
+        }
+
+        private sealed class NullOnlyNodeIdFactory : INodeIdFactory
+        {
+            public NodeId New(ISystemContext context, NodeState node)
+            {
+                return node.NodeId.IsNull
+                    ? new NodeId(++m_nextId, 3)
+                    : node.NodeId;
+            }
+
+            private uint m_nextId;
+        }
+
+        private sealed class PreserveNodeIdFactory : INodeIdFactory
+        {
+            public NodeId New(ISystemContext context, NodeState node)
+            {
                 return node.NodeId;
             }
         }
@@ -130,6 +151,99 @@ namespace Opc.Ua.Types.Tests.State
             context.AssignInstanceChildNodeIds(rootB);
 
             Assert.That(childA.NodeId, Is.Not.EqualTo(childB.NodeId));
+        }
+
+        [Test]
+        public void AssignInstanceChildNodeIdsAllocatesWhenFactoryRequiresNullNodeIds()
+        {
+            SystemContext context = CreateContext(new NullOnlyNodeIdFactory());
+            (BaseObjectState root, BaseObjectState child, PropertyState leaf) =
+                BuildSubtreeWithTypeIds();
+            root.AddReference(ReferenceTypeIds.Organizes, false, leaf.NodeId);
+
+            context.AssignInstanceChildNodeIds(root);
+
+            Assert.That(child.NodeId, Is.Not.EqualTo(new NodeId(100, 3)));
+            Assert.That(leaf.NodeId, Is.Not.EqualTo(new NodeId(101, 3)));
+            Assert.That(child.NodeId, Is.Not.EqualTo(leaf.NodeId));
+
+            var references = new List<IReference>();
+            root.GetReferences(context, references);
+            NodeId targetId = NodeId.Null;
+            foreach (IReference reference in references)
+            {
+                if (reference.ReferenceTypeId == ReferenceTypeIds.Organizes &&
+                    !reference.IsInverse)
+                {
+                    targetId = ExpandedNodeId.ToNodeId(reference.TargetId, context.NamespaceUris);
+                    break;
+                }
+            }
+
+            Assert.That(targetId, Is.EqualTo(leaf.NodeId));
+        }
+
+        [Test]
+        public void AssignInstanceChildNodeIdsPreservesIdsWhenFactoryCannotAllocate()
+        {
+            SystemContext context = CreateContext(new PreserveNodeIdFactory());
+            (BaseObjectState root, BaseObjectState child, PropertyState leaf) =
+                BuildSubtreeWithTypeIds();
+
+            context.AssignInstanceChildNodeIds(root);
+
+            Assert.That(child.NodeId, Is.EqualTo(new NodeId(100, 3)));
+            Assert.That(leaf.NodeId, Is.EqualTo(new NodeId(101, 3)));
+        }
+
+        [Test]
+        public void AssignInstanceChildNodeIdsUpdatesReferencesFromOwningRoot()
+        {
+            SystemContext context = CreateContext(new NullOnlyNodeIdFactory());
+            (BaseObjectState root, BaseObjectState child, _) = BuildSubtreeWithTypeIds();
+            var sibling = new BaseObjectState(root)
+            {
+                NodeId = new NodeId(102, 3),
+                SymbolicName = "Sibling",
+                BrowseName = new QualifiedName("Sibling", 3)
+            };
+            root.AddChild(sibling);
+            sibling.AddReference(ReferenceTypeIds.Organizes, false, child.NodeId);
+
+            NodeId previousNodeId = context.AssignInstanceNodeId(child);
+            context.AssignInstanceChildNodeIds(child, previousNodeId, root);
+
+            var references = new List<IReference>();
+            sibling.GetReferences(context, references);
+            NodeId targetId = NodeId.Null;
+            foreach (IReference reference in references)
+            {
+                if (reference.ReferenceTypeId == ReferenceTypeIds.Organizes &&
+                    !reference.IsInverse)
+                {
+                    targetId = ExpandedNodeId.ToNodeId(reference.TargetId, context.NamespaceUris);
+                    break;
+                }
+            }
+
+            Assert.That(targetId, Is.EqualTo(child.NodeId));
+        }
+
+        [Test]
+        public void AssignInstanceNodeIdRetriesDeclarationIdCollision()
+        {
+            SystemContext context = CreateContext(new NullOnlyNodeIdFactory());
+            var node = new BaseObjectState(null)
+            {
+                NodeId = new NodeId(1, 3),
+                SymbolicName = "Dynamic",
+                BrowseName = new QualifiedName("Dynamic", 3)
+            };
+
+            NodeId previousNodeId = context.AssignInstanceNodeId(node);
+
+            Assert.That(previousNodeId, Is.EqualTo(new NodeId(1, 3)));
+            Assert.That(node.NodeId, Is.EqualTo(new NodeId(2, 3)));
         }
 
         [Test]

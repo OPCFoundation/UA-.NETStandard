@@ -29,6 +29,7 @@
 
 #nullable enable
 
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -462,10 +463,6 @@ namespace Opc.Ua.Server.Tests.Roles
                 "CustomConfiguration sync must mirror SetCustomConfiguration.");
         }
 
-        // ----------------------------------------------------------------
-        // Dynamic AddRole / RemoveRole address-space materialization
-        // ----------------------------------------------------------------
-
         [Test]
         public async Task AddRoleHandler_AdminCaller_MaterializesRoleStateUnderRoleSet()
         {
@@ -504,6 +501,141 @@ namespace Opc.Ua.Server.Tests.Roles
             Assert.That(role.ApplicationsExclude, Is.Not.Null);
             Assert.That(role.EndpointsExclude, Is.Not.Null);
             Assert.That(role.CustomConfiguration, Is.Not.Null);
+            AssertGeneratedRoleProperty(role.ApplicationsExclude!);
+            AssertGeneratedRoleProperty(role.EndpointsExclude!);
+            AssertGeneratedRoleProperty(role.CustomConfiguration!);
+        }
+
+        [Test]
+        public async Task AddRoleHandlerRetainsMandatoryIdentitiesWithUniqueNodeIds()
+        {
+            ISystemContext ctx = BuildAdminContext(MessageSecurityMode.SignAndEncrypt);
+            AddRoleMethodStateResult first = await InvokeAddRoleAsync(
+                ctx, "CustomReporter", "http://test.org/role-binding/").ConfigureAwait(false);
+            AddRoleMethodStateResult second = await InvokeAddRoleAsync(
+                ctx, "CustomAuditor", "http://test.org/role-binding/").ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(first.ServiceResult), Is.True);
+            Assert.That(ServiceResult.IsGood(second.ServiceResult), Is.True);
+
+            var firstRole = (RoleState)m_nodeManager.PredefinedNodes[first.RoleNodeId];
+            var secondRole = (RoleState)m_nodeManager.PredefinedNodes[second.RoleNodeId];
+
+            Assert.That(firstRole.Identities, Is.Not.Null);
+            Assert.That(secondRole.Identities, Is.Not.Null);
+            Assert.That(firstRole.NodeId, Is.Not.EqualTo(secondRole.NodeId));
+
+            BaseInstanceState[] firstChildren =
+            [
+                firstRole.Identities!,
+                firstRole.AddIdentity!,
+                firstRole.RemoveIdentity!,
+                firstRole.AddApplication!,
+                firstRole.RemoveApplication!,
+                firstRole.AddEndpoint!,
+                firstRole.RemoveEndpoint!,
+                firstRole.ApplicationsExclude!,
+                firstRole.EndpointsExclude!,
+                firstRole.CustomConfiguration!
+            ];
+            BaseInstanceState[] secondChildren =
+            [
+                secondRole.Identities!,
+                secondRole.AddIdentity!,
+                secondRole.RemoveIdentity!,
+                secondRole.AddApplication!,
+                secondRole.RemoveApplication!,
+                secondRole.AddEndpoint!,
+                secondRole.RemoveEndpoint!,
+                secondRole.ApplicationsExclude!,
+                secondRole.EndpointsExclude!,
+                secondRole.CustomConfiguration!
+            ];
+
+            for (int ii = 0; ii < firstChildren.Length; ii++)
+            {
+                Assert.That(firstChildren[ii].NodeId.IsNull, Is.False);
+                Assert.That(secondChildren[ii].NodeId.IsNull, Is.False);
+                Assert.That(firstChildren[ii].BrowseName, Is.EqualTo(secondChildren[ii].BrowseName));
+                Assert.That(
+                    firstChildren[ii].NodeId,
+                    Is.Not.EqualTo(secondChildren[ii].NodeId),
+                    $"{firstChildren[ii].BrowseName} must have a per-role NodeId.");
+            }
+        }
+
+        [Test]
+        public void GeneratedRoleFactoryRebasesWithDefaultNodeIdFactory()
+        {
+            ushort namespaceIndex = m_nodeManager.NamespaceIndex;
+            RoleState first = m_nodeManager.SystemContext.CreateInstanceOfRoleType(
+                m_roleSet,
+                new QualifiedName("GeneratedRoleA", namespaceIndex));
+            RoleState second = m_nodeManager.SystemContext.CreateInstanceOfRoleType(
+                m_roleSet,
+                new QualifiedName("GeneratedRoleB", namespaceIndex));
+
+            Assert.That(first.NodeId.IsNull, Is.False);
+            Assert.That(second.NodeId.IsNull, Is.False);
+            Assert.That(first.NodeId, Is.Not.EqualTo(second.NodeId));
+            Assert.That(first.Identities, Is.Not.Null);
+            Assert.That(second.Identities, Is.Not.Null);
+            Assert.That(first.Identities!.NodeId.IsNull, Is.False);
+            Assert.That(second.Identities!.NodeId.IsNull, Is.False);
+            Assert.That(first.Identities.NodeId, Is.Not.EqualTo(second.Identities.NodeId));
+
+            first.AddApplicationsExclude(m_nodeManager.SystemContext);
+            second.AddApplicationsExclude(m_nodeManager.SystemContext);
+
+            Assert.That(first.ApplicationsExclude, Is.Not.Null);
+            Assert.That(second.ApplicationsExclude, Is.Not.Null);
+            Assert.That(first.ApplicationsExclude!.NodeId.IsNull, Is.False);
+            Assert.That(second.ApplicationsExclude!.NodeId.IsNull, Is.False);
+            Assert.That(
+                first.ApplicationsExclude.NodeId,
+                Is.Not.EqualTo(second.ApplicationsExclude.NodeId));
+        }
+
+        [Test]
+        public async Task AddRoleHandlerKeepsRootAndChildNodeIdsDisjoint()
+        {
+            m_nodeManager.SystemContext.NodeIdFactory =
+                new SequentialNodeIdFactory(m_nodeManager.NamespaceIndex);
+            ISystemContext ctx = BuildAdminContext(MessageSecurityMode.SignAndEncrypt);
+            var nodeIds = new HashSet<NodeId>();
+
+            for (int ii = 0; ii < 6; ii++)
+            {
+                AddRoleMethodStateResult result = await InvokeAddRoleAsync(
+                    ctx,
+                    $"CustomRole{ii}",
+                    "http://test.org/role-binding/").ConfigureAwait(false);
+                Assert.That(ServiceResult.IsGood(result.ServiceResult), Is.True);
+
+                var role = (RoleState)m_nodeManager.PredefinedNodes[result.RoleNodeId];
+                Assert.That(nodeIds.Add(role.NodeId), Is.True);
+
+                BaseInstanceState[] children =
+                [
+                    role.Identities!,
+                    role.AddIdentity!,
+                    role.RemoveIdentity!,
+                    role.AddApplication!,
+                    role.RemoveApplication!,
+                    role.AddEndpoint!,
+                    role.RemoveEndpoint!,
+                    role.ApplicationsExclude!,
+                    role.EndpointsExclude!,
+                    role.CustomConfiguration!
+                ];
+                foreach (BaseInstanceState child in children)
+                {
+                    Assert.That(
+                        nodeIds.Add(child.NodeId),
+                        Is.True,
+                        $"{child.BrowseName} must not collide with a role root or sibling.");
+                }
+            }
         }
 
         [Test]
@@ -612,9 +744,29 @@ namespace Opc.Ua.Server.Tests.Roles
             Assert.That(entry.Identities[0].Criteria, Is.EqualTo("carol"));
         }
 
-        // ----------------------------------------------------------------
-        // Test helpers
-        // ----------------------------------------------------------------
+        private static void AssertGeneratedRoleProperty(PropertyState<bool> property)
+        {
+            Assert.That(property.TypeDefinitionId, Is.EqualTo(VariableTypeIds.PropertyType));
+            Assert.That(property.ReferenceTypeId, Is.EqualTo(ReferenceTypeIds.HasProperty));
+            Assert.That(
+                property.AccessRestrictions.GetValueOrDefault()
+                    .HasFlag(AccessRestrictionType.EncryptionRequired),
+                Is.True);
+
+            bool hasSecurityAdmin = false;
+            if (!property.RolePermissions.IsNull)
+            {
+                foreach (RolePermissionType rolePermission in property.RolePermissions)
+                {
+                    if (rolePermission.RoleId == ObjectIds.WellKnownRole_SecurityAdmin)
+                    {
+                        hasSecurityAdmin = true;
+                        break;
+                    }
+                }
+            }
+            Assert.That(hasSecurityAdmin, Is.True);
+        }
 
         private SessionSystemContext BuildContext(
             MessageSecurityMode securityMode, bool anonymous)
@@ -714,6 +866,24 @@ namespace Opc.Ua.Server.Tests.Roles
             return handler!(
                 context, property, NumericRange.Null, QualifiedName.Null,
                 ref working, ref statusCode, ref timestamp);
+        }
+
+        private sealed class SequentialNodeIdFactory : INodeIdFactory
+        {
+            public SequentialNodeIdFactory(ushort namespaceIndex)
+            {
+                m_namespaceIndex = namespaceIndex;
+            }
+
+            public NodeId New(ISystemContext context, NodeState node)
+            {
+                return node.NodeId.IsNull
+                    ? new NodeId(m_nextId++, m_namespaceIndex)
+                    : node.NodeId;
+            }
+
+            private readonly ushort m_namespaceIndex;
+            private uint m_nextId = 1;
         }
     }
 }
