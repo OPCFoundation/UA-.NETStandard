@@ -42,8 +42,8 @@ across industrial control, manufacturing, energy, and IoT systems.
   LLMs / Copilot can drive an OPC UA client.
 
 For the full feature breakdown see
-**[OPC UA Profiles and Facets](Docs/Profiles.md)** and the
-**[What's New in 2.0](Docs/WhatsNewIn2.0.md)** tour.
+**[OPC UA Profiles and Facets](docs/Profiles.md)** and the
+**[What's New in 2.0](docs/WhatsNewIn2.0.md)** tour.
 
 ## 🚀 Getting started
 
@@ -56,7 +56,7 @@ dotnet build UA.slnx
 ```
 
 For the supported target frameworks and platform notes see
-the [Developer Guide](Docs/DeveloperGuide.md#packages-platform-support-and-versioning). The official NuGet packages
+the [Developer Guide](docs/DeveloperGuide.md#packages-platform-support-and-versioning). The official NuGet packages
 are published to nuget.org under the `OPCFoundation.NetStandard`
 prefix — the meta package
 [OPCFoundation.NetStandard.Opc.Ua](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua/)
@@ -72,35 +72,31 @@ Each sample has its own `README.md` with build and run instructions.
 
 **Reference applications**
 
-- [Console Reference Server](Applications/ConsoleReferenceServer/README.md) —
+- [Console Reference Server](samples/ConsoleReferenceServer/README.md) —
   the certified reference server (with Quickstarts, CTT, and Mono
   configs). Also ships as a
-  [Docker container](Docs/ContainerReferenceServer.md).
-- [Console Reference Client](Applications/ConsoleReferenceClient/README.md) —
+  [Docker container](docs/ContainerReferenceServer.md).
+- [Console Reference Client](samples/ConsoleReferenceClient/README.md) —
   cross-platform reference client demonstrating sessions, subscriptions,
   browsing, and method calls.
-- [Console LDS Server](Applications/ConsoleLdsServer) — a standalone
+- [Console LDS Server](samples/ConsoleLdsServer) — a standalone
   Local Discovery Server built on `Opc.Ua.Lds.Server`.
-- [MCP Server](Applications/McpServer/README.md) — Model Context
-  Protocol server that exposes OPC UA client operations as MCP tools,
-  so an LLM / Copilot can browse, read, write, subscribe, and call
-  methods on any OPC UA server.
 
 **PubSub samples**
 
-- [Console Reference PubSub Client](Applications/ConsoleReferencePubSubClient/README.md) —
+- [Console Reference PubSub Client](samples/ConsoleReferencePubSubClient/README.md) —
   one executable with `publisher`, `subscriber`, and `external` (external-server
   adapter) modes across the supported transport profiles.
 
 **Minimal / Device-Integration samples**
 
-- [Minimal Calc Server](Applications/MinimalCalcServer) — minimal
+- [Minimal Calc Server](samples/MinimalCalcServer) — minimal
   server built on the source-generated NodeManager pipeline (Calc
   model).
-- [Minimal Boiler Server](Applications/MinimalBoilerServer) — minimal
+- [Minimal Boiler Server](samples/MinimalBoilerServer) — minimal
   Boiler-model server with the fluent state-machine builder;
   Native-AOT publishable.
-- [Pump Device Integration Server](Applications/PumpDeviceIntegrationServer/README.md) —
+- [Pump Device Integration Server](samples/PumpDeviceIntegrationServer/README.md) —
   minimal Device Integration (Part 100) server using
   `Opc.Ua.Di.Server`'s fluent builder.
 
@@ -108,11 +104,15 @@ More sample projects are maintained in the companion
 [OPC UA .NET Samples](https://github.com/OPCFoundation/UA-.NETStandard-Samples)
 repository.
 
+### Developer tools
+
+- [OPC UA MCP Server](tools/Opc.Ua.Mcp/README.md) — installable .NET tool and container that exposes OPC UA client operations as MCP tools for LLMs and Copilot.
+
 ## 🔧 Migrating from 1.5.378 to 2.0
 
 The 2.0 release introduces breaking API changes, and comes with a full
-[prescriptive migration guide](Docs/MigrationGuide.md) that links to
-[per-area documentation](Docs/migrate/2.0.x/README.md) covering
+[prescriptive migration guide](docs/MigrationGuide.md) that links to
+[per-area documentation](docs/migrate/2.0.x/README.md) covering
 telemetry, packages, source generation, types, encoders, node states,
 identity, certificates, configuration, sessions / subscriptions,
 alarms / model change, and TimeProvider.
@@ -123,7 +123,7 @@ Most of the mechanical migration work is automated:
   install it in your project to get analyzer warnings (`UA0001`–`UA0022`)
   + one-click code fixes for the patterns in the guide. Setup steps
   are in the package's
-  [NugetREADME.md](Tools/Opc.Ua.MigrationAnalyzer/NugetREADME.md).
+  [NugetREADME.md](tools/Opc.Ua.MigrationAnalyzer/NugetREADME.md).
 - **Migration agent skill** — the
   [`opcua-v20-migration`](.agents/skills/opcua-v20-migration/SKILL.md)
   skill walks Copilot / Claude / any coding agent through installing
@@ -152,15 +152,15 @@ vulnerabilities via the process documented in
 
 ## 📚 Further reading
 
-- [Documentation index](Docs/README.md) — every per-feature doc with a
+- [Documentation index](docs/README.md) — every per-feature doc with a
   one-line description.
-- [What's New in 2.0](Docs/WhatsNewIn2.0.md) — narrative tour of the
+- [What's New in 2.0](docs/WhatsNewIn2.0.md) — narrative tour of the
   1.5.378 → 2.0 changes grouped by theme and layer.
-- [OPC UA Profiles and Facets](Docs/Profiles.md) — facets / transports /
+- [OPC UA Profiles and Facets](docs/Profiles.md) — facets / transports /
   security policies the stack implements.
-- [Migration Guide](Docs/MigrationGuide.md) — prescriptive
+- [Migration Guide](docs/MigrationGuide.md) — prescriptive
   per-version migration reference (links to
-  [`Docs/migrate/2.0.x/`](Docs/migrate/2.0.x/README.md)).
+  [`docs/migrate/2.0.x/`](docs/migrate/2.0.x/README.md)).
 - [OPC UA Online Reference](https://reference.opcfoundation.org/) —
   the official OPC 10000 series specification index.
 - [OPC UA .NET Samples](https://github.com/OPCFoundation/UA-.NETStandard-Samples) —

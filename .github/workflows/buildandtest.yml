@@ -47,7 +47,7 @@ jobs:
       aot_matrix: ${{ steps.list.outputs.aot_matrix }}
     steps:
     - uses: actions/checkout@v7
-    - name: Enumerate Tests/Opc.Ua.*.Tests projects
+    - name: Enumerate tests/Opc.Ua.*.Tests projects
       id: list
       shell: pwsh
       env:
@@ -60,7 +60,7 @@ jobs:
         # (AOT has its own workflow; the Stress suite is opt-in via the
         # stress-test workflow).
         $exclude = @('Aot', 'Stress')
-        $projects = Get-ChildItem -Path Tests -Directory -Filter 'Opc.Ua.*.Tests' |
+        $projects = Get-ChildItem -Path tests -Directory -Filter 'Opc.Ua.*.Tests' |
             Where-Object { Test-Path (Join-Path $_.FullName "$($_.Name).csproj") } |
             ForEach-Object { $_.Name -replace '^Opc\.Ua\.', '' -replace '\.Tests$', '' } |
             Where-Object { $exclude -notcontains $_ } |
@@ -111,7 +111,7 @@ jobs:
       DOTNET_VERSION: ${{ matrix.dotnet-version }}
       CONFIGURATION:  ${{ matrix.configuration }}
       CSPROJ: ${{ matrix.csproj }}
-      CSPROJECT: "./Tests/Opc.Ua.${{ matrix.csproj }}.Tests/Opc.Ua.${{ matrix.csproj }}.Tests.csproj"
+      CSPROJECT: "./tests/Opc.Ua.${{ matrix.csproj }}.Tests/Opc.Ua.${{ matrix.csproj }}.Tests.csproj"
       TESTRESULTS: "TestResults-${{matrix.csproj}}-${{matrix.os}}-${{matrix.framework}}-${{matrix.configuration}}"
 
     steps:
@@ -148,7 +148,7 @@ jobs:
           '/p:CustomTestTarget=${{ matrix.customtesttarget }}',
           '--collect:XPlat Code Coverage',
           '--settings',
-          './Tests/coverlet.runsettings.xml',
+          './tests/coverlet.runsettings.xml',
           '--results-directory',
           '${{ env.TESTRESULTS }}')
 
@@ -193,7 +193,7 @@ jobs:
         include: ${{ fromJSON(needs.discover.outputs.aot_matrix) }}
 
     env:
-      AOTPROJECT: './Tests/Opc.Ua.Aot.Tests/Opc.Ua.Aot.Tests.csproj'
+      AOTPROJECT: './tests/Opc.Ua.Aot.Tests/Opc.Ua.Aot.Tests.csproj'
       DOTNET_VERSION: '10.0.x'
       CONFIGURATION: 'Release'
 
@@ -215,7 +215,7 @@ jobs:
       run: dotnet publish ${{ env.AOTPROJECT }} --configuration ${{ env.CONFIGURATION }}
 
     - name: Run NativeAOT Tests
-      run: ./Tests/Opc.Ua.Aot.Tests/bin/${{ env.CONFIGURATION }}/net10.0/${{ matrix.rid }}/publish/Opc.Ua.Aot.Tests
+      run: ./tests/Opc.Ua.Aot.Tests/bin/${{ env.CONFIGURATION }}/net10.0/${{ matrix.rid }}/publish/Opc.Ua.Aot.Tests
 
     - name: Upload test results
       uses: actions/upload-artifact@v7

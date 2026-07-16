@@ -63,7 +63,7 @@ happen on plain 1.5.378 too.
 not published on 2.0.
 
 **Mitigation:** consumers must switch to a `<ProjectReference>` to
-`Applications/Quickstarts.Servers` in this repo, or to an equivalent
+`samples/Quickstarts.Servers` in this repo, or to an equivalent
 first-party project of their own. All 2.0 packages are published to the
 OPC Foundation Azure Artifacts preview feed
 (`https://opcfoundation.visualstudio.com/opcua-netstandard/_packaging/opcua-preview/nuget/v3/index.json`)

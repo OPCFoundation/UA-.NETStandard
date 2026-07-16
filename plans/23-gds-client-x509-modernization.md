@@ -8,7 +8,7 @@ landed; this is the remaining work item.
 
 ## Problem
 
-The public surface of `Libraries/Opc.Ua.Gds.Client.Common` still
+The public surface of `src/Opc.Ua.Gds.Client.Common` still
 exposes legacy .NET certificate types and raw `char[]` passwords:
 
 | File | Line | Signature |
@@ -36,7 +36,7 @@ Goals (per research §3.13):
 ## Why this was deferred
 
 - `Opc.Ua.Security.Certificates.IX509Certificate` (in
-  `Libraries/Opc.Ua.Security.Certificates/X509Certificate/IX509Certificate.cs`)
+  `src/Opc.Ua.Security.Certificates/X509Certificate/IX509Certificate.cs`)
   is a property‑bag interface — it does **not** expose `RawData` and
   there is no static
   `IX509Certificate Certificate.From(X509Certificate2)` factory in the
@@ -45,8 +45,8 @@ Goals (per research §3.13):
   pass `X509Certificate2` instances they already hold; without an
   interop story this turns into a leaky pseudo‑port.
 - The cascade is wide — at minimum
-  `Tests/Opc.Ua.Gds.Tests`, `Tools/GdsAdminUI`, and
-  `Libraries/Opc.Ua.Gds.Server.Common` consume these signatures.
+  `tests/Opc.Ua.Gds.Tests`, `tools/GdsAdminUI`, and
+  `src/Opc.Ua.Gds.Server.Common` consume these signatures.
   Estimated ~50 call sites.
 - All other phases shipped clean (Release build 0/0,
   `Opc.Ua.Gds.Tests` 518 passed). Holding P4.1 keeps the rest
@@ -97,24 +97,24 @@ Goals (per research §3.13):
 
 ### Phase B — Test cascade
 
-- `Tests/Opc.Ua.Gds.Tests` — adjust call sites to either:
+- `tests/Opc.Ua.Gds.Tests` — adjust call sites to either:
   - construct `IX509Certificate` via the new factory, or
   - use the `[Obsolete]` shims for legacy paths during transition.
 - Validate `RegisteredApplicationTests` XML round‑trip parity.
-- Run: `dotnet test Tests/Opc.Ua.Gds.Tests/Opc.Ua.Gds.Tests.csproj -c Release -f net10.0 --filter "TestCategory!=Network"`.
+- Run: `dotnet test tests/Opc.Ua.Gds.Tests/Opc.Ua.Gds.Tests.csproj -c Release -f net10.0 --filter "TestCategory!=Network"`.
 
 ### Phase C — Downstream consumers
 
-- `Libraries/Opc.Ua.Gds.Server.Common` — update where it calls
+- `src/Opc.Ua.Gds.Server.Common` — update where it calls
   `IServerPushConfigurationClient` / `IGlobalDiscoveryServerClient`.
-- `Tools/GdsAdminUI` — UI bindings around the rejected list /
+- `tools/GdsAdminUI` — UI bindings around the rejected list /
   certificate add flow.
 - Verify `dotnet build UA.slnx -c Release` stays at 0/0.
 
 ### Phase D — Cleanup
 
 - Remove `[Obsolete]` legacy overloads in the next major release.
-- Update `Docs/` if certificate handling is documented.
+- Update `docs/` if certificate handling is documented.
 
 ## Acceptance criteria
 
