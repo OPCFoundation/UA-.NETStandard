@@ -28,12 +28,15 @@
  * ======================================================================*/
 
 using System;
+using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.MetaData;
+using Uadp = Opc.Ua.PubSub.Encoding.Uadp;
 
 namespace Opc.Ua.PubSub.Encoding.Tests
 {
@@ -45,6 +48,16 @@ namespace Opc.Ua.PubSub.Encoding.Tests
     {
         private static readonly ushort[] DataSetWriterIds = [101, 102];
         private static readonly double[] SampleValues = [1.0, 2.5, 4.25];
+        private static readonly ushort[] SingleWriterId = [201];
+        private static readonly PublisherId[] PublisherIds =
+        [
+            PublisherId.FromByte(1),
+            PublisherId.FromUInt16(2),
+            PublisherId.FromUInt32(3),
+            PublisherId.FromUInt64(4),
+            PublisherId.FromString("publisher-avro-string"),
+            PublisherId.FromGuid(new Guid("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
+        ];
 
         [Test]
         public async Task EncoderDecoderRoundTripsMultipleDataSetMessages()
@@ -335,6 +348,217 @@ namespace Opc.Ua.PubSub.Encoding.Tests
             Assert.That(label, Is.EqualTo("pump-2"));
         }
 
+        [Test]
+        public async Task PublisherIdKindsAndKeepAliveMessagesRoundTrip()
+        {
+            Uuid dataSetClassId = new(new Guid("8c2f8f1c-c9a1-48b0-a90b-7d8f6e725010"));
+            DataSetMetaDataType metaData = CreateMetaData();
+
+            for (int i = 0; i < PublisherIds.Length; i++)
+            {
+                PubSubDiagnostics diagnostics = new(PubSubDiagnosticsLevel.High);
+                PubSubNetworkMessageContext context = CreateContext(
+                    PublisherIds[i],
+                    writerGroupId: 0,
+                    dataSetClassId,
+                    metaData,
+                    dataSetWriterIds: SingleWriterId,
+                    diagnostics);
+                AvroNetworkMessage message = new()
+                {
+                    PublisherId = PublisherIds[i],
+                    WriterGroupId = null,
+                    DataSetClassId = dataSetClassId,
+                    SchemaId = string.Empty,
+                    MetaData = metaData,
+                    DataSetMessages =
+                    [
+                        new AvroDataSetMessage
+                        {
+                            DataSetWriterId = 201,
+                            SequenceNumber = (uint)i,
+                            Timestamp = new DateTimeUtc(
+                                new DateTime(2026, 7, 4, 10, 0, 0, DateTimeKind.Utc).AddSeconds(i)),
+                            Status = (StatusCode)StatusCodes.Good,
+                            MessageType = PubSubDataSetMessageType.KeepAlive,
+                            MetaDataVersion = metaData.ConfigurationVersion
+                        }
+                    ]
+                };
+
+                ReadOnlyMemory<byte> frame = await new AvroNetworkMessageEncoder().EncodeAsync(message, context);
+                PubSubNetworkMessage? decoded = await new AvroNetworkMessageDecoder().TryDecodeAsync(frame, context);
+
+                Assert.That(decoded, Is.TypeOf<AvroNetworkMessage>(), diagnostics.LastError?.Message);
+                AvroNetworkMessage decodedMessage = (AvroNetworkMessage)decoded!;
+                Assert.That(decodedMessage.PublisherId, Is.EqualTo(PublisherIds[i]));
+                Assert.That(decodedMessage.WriterGroupId, Is.Null);
+                Assert.That(decodedMessage.SchemaId, Is.Empty);
+                Assert.That(decodedMessage.DataSetMessages.Count, Is.EqualTo(1));
+                AvroDataSetMessage keepAlive = (AvroDataSetMessage)decodedMessage.DataSetMessages[0];
+                Assert.That(keepAlive.MessageType, Is.EqualTo(PubSubDataSetMessageType.KeepAlive));
+                Assert.That(keepAlive.Fields.Count, Is.Zero);
+            }
+        }
+
+        [Test]
+        public async Task DecoderUsesIngestedSchemaAnnouncementForParsableSchemaId()
+        {
+            PublisherId publisherId = PublisherId.FromString("publisher-avro-schema");
+            Uuid dataSetClassId = new(new Guid("8c2f8f1c-c9a1-48b0-a90b-7d8f6e725011"));
+            DataSetMetaDataType metaData = CreateMetaData();
+            PubSubDiagnostics diagnostics = new(PubSubDiagnosticsLevel.High);
+            PubSubNetworkMessageContext context = CreateContext(
+                publisherId,
+                writerGroupId: 8,
+                dataSetClassId,
+                metaData,
+                dataSetWriterIds: SingleWriterId,
+                diagnostics);
+            AvroNetworkMessage template = new()
+            {
+                PublisherId = publisherId,
+                WriterGroupId = 8,
+                DataSetClassId = dataSetClassId,
+                SchemaId = string.Empty,
+                MetaData = metaData,
+                DataSetMessages =
+                [
+                    new AvroDataSetMessage
+                    {
+                        DataSetWriterId = 201,
+                        SequenceNumber = 1,
+                        Timestamp = new DateTimeUtc(new DateTime(2026, 7, 4, 11, 0, 0, DateTimeKind.Utc)),
+                        Status = (StatusCode)StatusCodes.Good,
+                        MessageType = PubSubDataSetMessageType.KeyFrame,
+                        MetaDataVersion = metaData.ConfigurationVersion,
+                        Fields = [CreateField("Enabled", new Variant(true), PubSubFieldEncoding.RawData)]
+                    }
+                ]
+            };
+            AvroNetworkMessageEncoder encoder = new();
+            _ = await encoder.EncodeAsync(template, context);
+            AvroSchemaAnnouncement announcement = encoder.LastSchemaAnnouncement!;
+            string schemaId = SchemaCache.ToKey(announcement.SchemaId);
+            AvroNetworkMessage message = template with { SchemaId = schemaId };
+            ReadOnlyMemory<byte> frame = await encoder.EncodeAsync(message, context);
+            AvroNetworkMessageDecoder coldDecoder = new();
+            AvroNetworkMessageDecoder primedDecoder = new();
+            primedDecoder.Ingest(announcement);
+
+            PubSubNetworkMessage? cold = await coldDecoder.TryDecodeAsync(frame, context);
+            PubSubNetworkMessage? primed = await primedDecoder.TryDecodeAsync(frame, context);
+
+            Assert.That(cold, Is.Null);
+            Assert.That(primed, Is.TypeOf<AvroNetworkMessage>(), diagnostics.LastError?.Message);
+            AvroDataSetMessage decodedDataSet =
+                (AvroDataSetMessage)((AvroNetworkMessage)primed!).DataSetMessages[0];
+            Assert.That(FieldByName(decodedDataSet, "Enabled").Value.TryGetValue(out bool enabled), Is.True);
+            Assert.That(enabled, Is.True);
+        }
+
+        [Test]
+        public async Task EncoderRejectsUnsupportedInputsBeforeWritingFrames()
+        {
+            PublisherId publisherId = PublisherId.FromString("publisher-avro-invalid");
+            Uuid dataSetClassId = new(new Guid("8c2f8f1c-c9a1-48b0-a90b-7d8f6e725012"));
+            DataSetMetaDataType metaData = CreateMetaData();
+            PubSubNetworkMessageContext context = CreateContext(
+                publisherId,
+                writerGroupId: 9,
+                dataSetClassId,
+                metaData,
+                dataSetWriterIds: SingleWriterId,
+                new PubSubDiagnostics(PubSubDiagnosticsLevel.High));
+            AvroNetworkMessage valid = CreateMinimalMessage(publisherId, 9, dataSetClassId, metaData);
+            AvroNetworkMessage nonAvroDataSetMessage = CreateMessageWithNonAvroDataSetMessage(
+                publisherId,
+                dataSetClassId,
+                metaData);
+            AvroNetworkMessage rawWithoutMetaData = CreateRawDataMessageWithoutMetaData(publisherId, dataSetClassId);
+            AvroNetworkMessageEncoder encoder = new();
+            using CancellationTokenSource cancellation = new();
+            cancellation.Cancel();
+
+            Assert.That(async () => await encoder.EncodeAsync(null!, context), Throws.TypeOf<ArgumentNullException>());
+            Assert.That(async () => await encoder.EncodeAsync(valid, null!), Throws.TypeOf<ArgumentNullException>());
+            Assert.That(
+                async () => await encoder.EncodeAsync(valid, context, cancellation.Token),
+                Throws.TypeOf<OperationCanceledException>());
+            Assert.That(
+                async () => await encoder.EncodeAsync(new Uadp.UadpNetworkMessage(), context),
+                Throws.TypeOf<ArgumentException>());
+            Assert.That(
+                async () => await encoder.EncodeAsync(nonAvroDataSetMessage, context),
+                Throws.TypeOf<ArgumentException>());
+            Assert.That(
+                async () => await encoder.EncodeAsync(rawWithoutMetaData, context),
+                Throws.TypeOf<ArgumentException>());
+        }
+
+        [Test]
+        public async Task DecoderRejectsMalformedFramesAndQuotaViolations()
+        {
+            PublisherId publisherId = PublisherId.FromString("publisher-avro-malformed");
+            Uuid dataSetClassId = new(new Guid("8c2f8f1c-c9a1-48b0-a90b-7d8f6e725013"));
+            DataSetMetaDataType metaData = CreateMetaData();
+            PubSubDiagnostics diagnostics = new(PubSubDiagnosticsLevel.High);
+            PubSubNetworkMessageContext context = CreateContext(
+                publisherId,
+                writerGroupId: 10,
+                dataSetClassId,
+                metaData,
+                dataSetWriterIds: SingleWriterId,
+                diagnostics);
+            AvroNetworkMessageDecoder decoder = new();
+            using CancellationTokenSource cancellation = new();
+            cancellation.Cancel();
+
+            Assert.That(
+                async () => await decoder.TryDecodeAsync(ReadOnlyMemory<byte>.Empty, null!),
+                Throws.TypeOf<ArgumentNullException>());
+            Assert.That(
+                async () => await decoder.TryDecodeAsync(ReadOnlyMemory<byte>.Empty, context, cancellation.Token),
+                Throws.TypeOf<OperationCanceledException>());
+            Assert.That(await decoder.TryDecodeAsync(ReadOnlyMemory<byte>.Empty, context), Is.Null);
+            Assert.That(await decoder.TryDecodeAsync(CreateHeaderOnlyFrame("bad-magic", 1, context), context), Is.Null);
+            ReadOnlyMemory<byte> badVersionFrame = CreateHeaderOnlyFrame("OPC-UA-PubSub-Avro", 2, context);
+            Assert.That(await decoder.TryDecodeAsync(badVersionFrame, context), Is.Null);
+            Assert.That(await decoder.TryDecodeAsync(CreateFrameWithDataSetCount(-1, context), context), Is.Null);
+
+            PubSubNetworkMessageContext lowNetworkQuotaContext = CreateContext(
+                publisherId,
+                writerGroupId: 10,
+                dataSetClassId,
+                metaData,
+                dataSetWriterIds: SingleWriterId,
+                new PubSubDiagnostics(PubSubDiagnosticsLevel.High));
+            ((ServiceMessageContext)lowNetworkQuotaContext.MessageContext).MaxArrayLength = 1;
+            ReadOnlyMemory<byte> tooManyMessagesFrame = CreateFrameWithDataSetCount(2, lowNetworkQuotaContext);
+            Assert.That(
+                await decoder.TryDecodeAsync(tooManyMessagesFrame, lowNetworkQuotaContext),
+                Is.Null);
+
+            PubSubNetworkMessageContext lowFieldQuotaContext = CreateContext(
+                publisherId,
+                writerGroupId: 10,
+                dataSetClassId,
+                metaData,
+                dataSetWriterIds: SingleWriterId,
+                new PubSubDiagnostics(PubSubDiagnosticsLevel.High));
+            ((ServiceMessageContext)lowFieldQuotaContext.MessageContext).MaxArrayLength = 1;
+            Assert.That(
+                await decoder.TryDecodeAsync(CreateFrameWithFieldCount(2, lowFieldQuotaContext), lowFieldQuotaContext),
+                Is.Null);
+            Assert.That(await decoder.TryDecodeAsync(CreateFrameWithFieldCount(-1, context), context), Is.Null);
+            PubSubNetworkMessageContext emptyRegistryContext = CreateContextWithoutMetaData(
+                new PubSubDiagnostics(PubSubDiagnosticsLevel.High));
+            ReadOnlyMemory<byte> rawDataWithoutMetaData = CreateRawDataFrameWithoutRegisteredMetaData(context);
+            Assert.That(
+                await decoder.TryDecodeAsync(rawDataWithoutMetaData, emptyRegistryContext),
+                Is.Null);
+        }
+
         /// <summary>
         /// Returns the first field in the dataset message with the given name.
         /// </summary>
@@ -364,6 +588,177 @@ namespace Opc.Ua.PubSub.Encoding.Tests
             Assert.That(actual.MetaDataVersion.MinorVersion, Is.EqualTo(expected.MetaDataVersion.MinorVersion));
         }
 
+        private static AvroNetworkMessage CreateMinimalMessage(
+            PublisherId publisherId,
+            ushort writerGroupId,
+            Uuid dataSetClassId,
+            DataSetMetaDataType metaData)
+        {
+            return new AvroNetworkMessage
+            {
+                PublisherId = publisherId,
+                WriterGroupId = writerGroupId,
+                DataSetClassId = dataSetClassId,
+                SchemaId = "schema-minimal",
+                MetaData = metaData,
+                DataSetMessages =
+                [
+                    new AvroDataSetMessage
+                    {
+                        DataSetWriterId = 201,
+                        SequenceNumber = 1,
+                        Timestamp = new DateTimeUtc(new DateTime(2026, 7, 4, 12, 0, 0, DateTimeKind.Utc)),
+                        Status = (StatusCode)StatusCodes.Good,
+                        MessageType = PubSubDataSetMessageType.KeyFrame,
+                        MetaDataVersion = metaData.ConfigurationVersion,
+                        Fields = [CreateField("Enabled", new Variant(true), PubSubFieldEncoding.RawData)]
+                    }
+                ]
+            };
+        }
+
+        private static AvroNetworkMessage CreateMessageWithNonAvroDataSetMessage(
+            PublisherId publisherId,
+            Uuid dataSetClassId,
+            DataSetMetaDataType metaData)
+        {
+            return new AvroNetworkMessage
+            {
+                PublisherId = publisherId,
+                WriterGroupId = 9,
+                DataSetClassId = dataSetClassId,
+                SchemaId = "schema-non-avro",
+                MetaData = metaData,
+                DataSetMessages =
+                [
+                    new Uadp.UadpDataSetMessage
+                    {
+                        DataSetWriterId = 201,
+                        MessageType = PubSubDataSetMessageType.KeyFrame
+                    }
+                ]
+            };
+        }
+
+        private static AvroNetworkMessage CreateRawDataMessageWithoutMetaData(
+            PublisherId publisherId,
+            Uuid dataSetClassId)
+        {
+            return new AvroNetworkMessage
+            {
+                PublisherId = publisherId,
+                WriterGroupId = 9,
+                DataSetClassId = dataSetClassId,
+                SchemaId = "schema-raw-no-metadata",
+                DataSetMessages =
+                [
+                    new AvroDataSetMessage
+                    {
+                        DataSetWriterId = 201,
+                        SequenceNumber = 1,
+                        Timestamp = new DateTimeUtc(new DateTime(2026, 7, 4, 12, 1, 0, DateTimeKind.Utc)),
+                        Status = (StatusCode)StatusCodes.Good,
+                        MessageType = PubSubDataSetMessageType.KeyFrame,
+                        Fields = [CreateField("Enabled", new Variant(true), PubSubFieldEncoding.RawData)]
+                    }
+                ]
+            };
+        }
+
+        private static DataSetField CreateField(string name, Variant value, PubSubFieldEncoding encoding)
+        {
+            return new DataSetField
+            {
+                Name = name,
+                Value = value,
+                Encoding = encoding
+            };
+        }
+
+        private static ReadOnlyMemory<byte> CreateHeaderOnlyFrame(
+            string magic,
+            ushort version,
+            PubSubNetworkMessageContext context)
+        {
+            using MemoryStream stream = new();
+            using AvroEncoder encoder = new(stream, context.MessageContext, leaveOpen: true);
+            encoder.WriteString(null, magic);
+            encoder.WriteUInt16(null, version);
+            encoder.Close();
+            return stream.ToArray();
+        }
+
+        private static ReadOnlyMemory<byte> CreateFrameWithDataSetCount(
+            int dataSetCount,
+            PubSubNetworkMessageContext context)
+        {
+            using MemoryStream stream = new();
+            using AvroEncoder encoder = new(stream, context.MessageContext, leaveOpen: true);
+            WriteEnvelope(encoder, dataSetCount);
+            encoder.Close();
+            return stream.ToArray();
+        }
+
+        private static ReadOnlyMemory<byte> CreateFrameWithFieldCount(
+            int fieldCount,
+            PubSubNetworkMessageContext context)
+        {
+            using MemoryStream stream = new();
+            using AvroEncoder encoder = new(stream, context.MessageContext, leaveOpen: true);
+            WriteEnvelope(encoder, 1);
+            WriteDataSetHeader(encoder);
+            encoder.WriteInt32(null, fieldCount);
+            encoder.Close();
+            return stream.ToArray();
+        }
+
+        private static ReadOnlyMemory<byte> CreateRawDataFrameWithoutRegisteredMetaData(
+            PubSubNetworkMessageContext context)
+        {
+            using MemoryStream stream = new();
+            using AvroEncoder encoder = new(stream, context.MessageContext, leaveOpen: true);
+            WriteEnvelope(encoder, 1);
+            WriteDataSetHeader(encoder);
+            encoder.WriteInt32(null, 1);
+            encoder.WriteString(null, "Enabled");
+            encoder.WriteInt32(null, 0);
+            encoder.WriteEnumerated(null, PubSubFieldEncoding.RawData);
+            using MemoryStream valueStream = new();
+            using (AvroEncoder valueEncoder = new(valueStream, context.MessageContext, leaveOpen: true))
+            {
+                valueEncoder.WriteVariantValue(null, new Variant(true));
+                valueEncoder.Close();
+            }
+            encoder.WriteByteString(null, ByteString.From(valueStream.ToArray()));
+            encoder.Close();
+            return stream.ToArray();
+        }
+
+        private static void WriteEnvelope(AvroEncoder encoder, int dataSetCount)
+        {
+            encoder.WriteString(null, "OPC-UA-PubSub-Avro");
+            encoder.WriteUInt16(null, 1);
+            encoder.WriteEnumerated(null, PublisherIdType.String);
+            encoder.WriteString(null, "publisher-avro-malformed");
+            encoder.WriteBoolean(null, true);
+            encoder.WriteUInt16(null, 10);
+            encoder.WriteGuid(null, new Uuid(new Guid("8c2f8f1c-c9a1-48b0-a90b-7d8f6e725013")));
+            encoder.WriteString(null, null);
+            encoder.WriteInt32(null, dataSetCount);
+        }
+
+        private static void WriteDataSetHeader(AvroEncoder encoder)
+        {
+            encoder.WriteUInt16(null, 201);
+            encoder.WriteEnumerated(null, PubSubDataSetMessageType.KeyFrame);
+            encoder.WriteUInt32(null, 1);
+            encoder.WriteUInt32(null, 2);
+            encoder.WriteUInt32(null, 1);
+            encoder.WriteStatusCode(null, (StatusCode)StatusCodes.Good);
+            encoder.WriteDateTime(null, new DateTimeUtc(new DateTime(2026, 7, 4, 12, 2, 0, DateTimeKind.Utc)));
+            encoder.WriteInt64(null, (long)(uint)DataSetFieldContentMask.None);
+        }
+
         /// <summary>
         /// Builds a PubSub decoding context registered with metadata for all dataset writers used in the test.
         /// </summary>
@@ -390,6 +785,15 @@ namespace Opc.Ua.PubSub.Encoding.Tests
             return new PubSubNetworkMessageContext(
                 ServiceMessageContext.CreateEmpty(null!),
                 registry,
+                diagnostics,
+                TimeProvider.System);
+        }
+
+        private static PubSubNetworkMessageContext CreateContextWithoutMetaData(PubSubDiagnostics diagnostics)
+        {
+            return new PubSubNetworkMessageContext(
+                ServiceMessageContext.CreateEmpty(null!),
+                new DataSetMetaDataRegistry(),
                 diagnostics,
                 TimeProvider.System);
         }

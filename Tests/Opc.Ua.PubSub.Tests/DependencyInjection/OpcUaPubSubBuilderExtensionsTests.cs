@@ -32,8 +32,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Application;
@@ -66,7 +68,7 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
             services.AddSingleton(NUnitTelemetryContext.Create());
             IOpcUaBuilder builder = services.AddOpcUa();
             builder.AddPubSub();
-            ServiceProvider sp = services.BuildServiceProvider();
+            using ServiceProvider sp = services.BuildServiceProvider();
             Assert.That(sp.GetService<IDataSetMetaDataRegistry>(), Is.Not.Null);
             Assert.That(sp.GetService<IPubSubDiagnostics>(), Is.Not.Null);
             Assert.That(sp.GetService<IPubSubScheduler>(), Is.Not.Null);
@@ -79,7 +81,7 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
             services.AddSingleton(NUnitTelemetryContext.Create());
             IOpcUaBuilder builder = services.AddOpcUa();
             builder.AddPubSub();
-            ServiceProvider sp = services.BuildServiceProvider();
+            using ServiceProvider sp = services.BuildServiceProvider();
 
             Assert.That(
                 sp.GetServices<INetworkMessageEncoder>()
@@ -143,6 +145,134 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
             builder.AddPubSubSubscriber();
             ServiceProvider sp = services.BuildServiceProvider();
             Assert.That(sp.GetService<IPubSubApplication>(), Is.Not.Null);
+        }
+
+        [Test]
+        public void AddPubSubConfigureCallbackAppliesOptions()
+        {
+            var services = new ServiceCollection();
+            services.AddSingleton(NUnitTelemetryContext.Create());
+            IOpcUaBuilder builder = services.AddOpcUa();
+
+            builder.AddPubSub(options =>
+            {
+                options.DiagnosticsLevel = PubSubDiagnosticsLevel.High;
+                options.RegisterUdpTransport = false;
+            });
+
+            Assert.That(
+                services.Any(static descriptor => descriptor.ServiceType == typeof(IConfigureOptions<PubSubApplicationOptions>)),
+                Is.True);
+        }
+
+        [Test]
+        public void AddPubSubConfigurationOverloadsBindOptionsAndValidateArguments()
+        {
+            IConfiguration configuration = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["OpcUa:PubSub:DiagnosticsLevel"] = "High",
+                    ["CustomPubSub:DiagnosticsLevel"] = "Low"
+                })
+                .Build();
+            var services = new ServiceCollection();
+            services.AddSingleton(NUnitTelemetryContext.Create());
+            IOpcUaBuilder builder = services.AddOpcUa();
+
+            builder.AddPubSub(configuration);
+            using ServiceProvider sp = services.BuildServiceProvider();
+
+            Assert.That(
+                sp.GetRequiredService<IOptions<PubSubApplicationOptions>>().Value.DiagnosticsLevel,
+                Is.EqualTo(PubSubDiagnosticsLevel.High));
+
+            var customServices = new ServiceCollection();
+            customServices.AddSingleton(NUnitTelemetryContext.Create());
+            IOpcUaBuilder customBuilder = customServices.AddOpcUa();
+            customBuilder.AddPubSub(configuration.GetSection("CustomPubSub"));
+            using ServiceProvider customSp = customServices.BuildServiceProvider();
+            Assert.That(
+                customSp.GetRequiredService<IOptions<PubSubApplicationOptions>>().Value.DiagnosticsLevel,
+                Is.EqualTo(PubSubDiagnosticsLevel.Low));
+
+            IOpcUaBuilder? nullBuilder = null;
+            Assert.That(
+                () => nullBuilder!.AddPubSub(configuration),
+                Throws.ArgumentNullException);
+            Assert.That(
+                () => builder.AddPubSub((IConfiguration)null!),
+                Throws.ArgumentNullException);
+            Assert.That(
+                () => nullBuilder!.AddPubSub(configuration.GetSection("CustomPubSub")),
+                Throws.ArgumentNullException);
+            Assert.That(
+                () => builder.AddPubSub((IConfigurationSection)null!),
+                Throws.ArgumentNullException);
+        }
+
+        [Test]
+        public async Task InlineConfigurationStoreCoversVersionAndPublishedDataSetBranchesAsync()
+        {
+            PubSubConfigurationDataType configuration = CreateConfigurationWithPublishedDataSet();
+            var services = new ServiceCollection();
+            services.AddSingleton(NUnitTelemetryContext.Create());
+            services.AddOpcUa().AddPubSub(options => options.InlineConfiguration = configuration);
+            using ServiceProvider sp = services.BuildServiceProvider();
+            IPubSubConfigurationStore store = sp.GetRequiredService<IPubSubConfigurationStore>();
+
+            PubSubConfigurationDataType loaded = await store.LoadAsync();
+            await store.SaveAsync(new PubSubConfigurationDataType());
+            ConfigurationVersionDataType? initialVersion = await store.GetConfigurationVersionAsync();
+            var appVersion = new ConfigurationVersionDataType { MajorVersion = 7, MinorVersion = 8 };
+            await store.SetConfigurationVersionAsync(appVersion);
+            ConfigurationVersionDataType? storedVersion = await store.GetConfigurationVersionAsync();
+            ConfigurationVersionDataType? dataSetVersion =
+                await store.GetPublishedDataSetConfigurationVersionAsync("PublishedDataSet");
+            ConfigurationVersionDataType? missingDataSetVersion =
+                await store.GetPublishedDataSetConfigurationVersionAsync("Missing");
+            var replacement = new ConfigurationVersionDataType { MajorVersion = 9, MinorVersion = 10 };
+            await store.SetPublishedDataSetConfigurationVersionAsync("PublishedDataSet", replacement);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(loaded, Is.SameAs(configuration));
+                Assert.That(initialVersion, Is.Null);
+                Assert.That(storedVersion, Is.Not.Null);
+                Assert.That(storedVersion!.MajorVersion, Is.EqualTo(7));
+                Assert.That(storedVersion.MinorVersion, Is.EqualTo(8));
+                Assert.That(storedVersion, Is.Not.SameAs(appVersion));
+                Assert.That(dataSetVersion, Is.Not.Null);
+                Assert.That(dataSetVersion!.MajorVersion, Is.EqualTo(1));
+                Assert.That(missingDataSetVersion, Is.Null);
+                Assert.That(
+                    configuration.PublishedDataSets[0].DataSetMetaData!.ConfigurationVersion.MajorVersion,
+                    Is.EqualTo(9));
+            });
+
+            Assert.That(
+                async () => await store.SetConfigurationVersionAsync(null!),
+                Throws.ArgumentNullException);
+            Assert.That(
+                async () => await store.SetPublishedDataSetConfigurationVersionAsync("PublishedDataSet", null!),
+                Throws.ArgumentNullException);
+        }
+
+        [Test]
+        public async Task InlineConfigurationStoreHandlesNullPublishedDataSetsAsync()
+        {
+            var services = new ServiceCollection();
+            services.AddSingleton(NUnitTelemetryContext.Create());
+            services.AddOpcUa().AddPubSub();
+            using ServiceProvider sp = services.BuildServiceProvider();
+            IPubSubConfigurationStore store = sp.GetRequiredService<IPubSubConfigurationStore>();
+
+            ConfigurationVersionDataType? version =
+                await store.GetPublishedDataSetConfigurationVersionAsync("PublishedDataSet");
+            await store.SetPublishedDataSetConfigurationVersionAsync(
+                "PublishedDataSet",
+                new ConfigurationVersionDataType { MajorVersion = 1, MinorVersion = 2 });
+
+            Assert.That(version, Is.Null);
         }
 
         [Test]
@@ -378,6 +508,32 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
                     }
                 ],
                 PublishedDataSets = []
+            };
+        }
+
+        private static PubSubConfigurationDataType CreateConfigurationWithPublishedDataSet()
+        {
+            return new PubSubConfigurationDataType
+            {
+                PublishedDataSets =
+                [
+                    new PublishedDataSetDataType
+                    {
+                        Name = "PublishedDataSet",
+                        DataSetMetaData = new DataSetMetaDataType
+                        {
+                            ConfigurationVersion = new ConfigurationVersionDataType
+                            {
+                                MajorVersion = 1,
+                                MinorVersion = 2
+                            }
+                        }
+                    },
+                    new PublishedDataSetDataType
+                    {
+                        Name = "NoMetaData"
+                    }
+                ]
             };
         }
 
