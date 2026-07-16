@@ -19,7 +19,7 @@ trigger:
     include:
     - '*'
     exclude:
-    - 'Docs/**'
+    - 'docs/**'
     - '**/*.md'
 pr:
   autoCancel: 'true'
@@ -31,7 +31,7 @@ pr:
     include:
     - '*'
     exclude:
-    - 'Docs/**'
+    - 'docs/**'
     - '**/*.md'
 
 # Weekly full-scope run.  Fires every Sunday at 02:00 UTC (late Saturday

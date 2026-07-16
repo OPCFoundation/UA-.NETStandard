@@ -46,7 +46,7 @@ await application.CheckApplicationInstanceCertificatesAsync(true).ConfigureAwait
 ## Additional documentation
 
 See the [main repository README](https://github.com/OPCFoundation/UA-.NETStandard)
-and the [Docs folder](https://github.com/OPCFoundation/UA-.NETStandard/tree/master/Docs)
+and the [documentation folder](https://github.com/OPCFoundation/UA-.NETStandard/tree/master/docs)
 for the full design guides, transport profiles, certificate
 management, identity providers, and the 1.5.378 → 2.0 migration
 guide.

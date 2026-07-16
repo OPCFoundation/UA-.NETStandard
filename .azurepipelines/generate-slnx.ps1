@@ -6,8 +6,8 @@
 .DESCRIPTION
     Replaces the static `UA Core Library.slnx`.  The single source of
     truth for the project graph is `UA.slnx`; this script reads it,
-    drops every folder whose name starts with `/Tests/` or
-    `/Fuzzing/` (and every project inside those folders), and writes
+    drops every folder whose name starts with `/tests/` or
+    `/fuzzing/` (and every project inside those folders), and writes
     the result.
 
     Whether each remaining project actually produces a NuGet on
@@ -30,7 +30,7 @@
 
 .PARAMETER ExcludeFolderPrefixes
     Folder-name prefixes (as they appear inside the source .slnx) to
-    drop entirely.  Default: `/Tests/`, `/Fuzzing/`, `/Solution Items/`.
+    drop entirely.  Default: `/tests/`, `/fuzzing/`, `/Solution Items/`.
     Folder matching is whole-name based on the `Name=` attribute, so
     `/Solution Items/` and any `/Solution Items/...` sub-folder
     matches the prefix.
@@ -43,7 +43,7 @@
 param(
     [string]$OutputPath,
     [string]$SourceSolution,
-    [string[]]$ExcludeFolderPrefixes = @('/Tests/', '/Fuzzing/', '/Solution Items/')
+    [string[]]$ExcludeFolderPrefixes = @('/tests/', '/fuzzing/', '/Solution Items/')
 )
 
 $ErrorActionPreference = 'Stop'

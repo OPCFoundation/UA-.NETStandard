@@ -1,0 +1,58 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <DefineConstants>$(DefineConstants)</DefineConstants>
+    <AssemblyName>Quickstarts.Servers</AssemblyName>
+    <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
+    <PackageId>OPCFoundation.NetStandard.Opc.Ua.Quickstarts.Servers</PackageId>
+    <RootNamespace>Quickstarts.Servers</RootNamespace>
+    <Description>OPC UA Quickstarts Servers Class Library</Description>
+    <Nullable>enable</Nullable>
+    <RestoreProjectStyle>PackageReference</RestoreProjectStyle>
+    <NoWarn>CS1591;CS1573;RCS1139</NoWarn>
+    <IsPackable>true</IsPackable>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="Alarms\Alarms.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Opc.Ua.Core\Opc.Ua.Core.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Server\Opc.Ua.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Gds.Server.Common\Opc.Ua.Gds.Server.Common.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj">
+      <OutputItemType>Analyzer</OutputItemType>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="..\..\tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />
+  <PropertyGroup>
+    <ModelSourceGeneratorUseAllowSubtypes>true</ModelSourceGeneratorUseAllowSubtypes>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Remove="Boiler\Generated\Boiler.NodeIds.csv" />
+    <None Remove="Boiler\Generated\Boiler.NodeSet.xml" />
+    <None Remove="MemoryBuffer\Generated\MemoryBufferDesign.csv" />
+    <None Remove="MemoryBuffer\Generated\MemoryBufferDesign.xml" />
+    <None Remove="TestData\Generated\TestDataDesign.csv" />
+    <None Remove="TestData\Generated\TestDataDesign.xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <AdditionalFiles Include="Boiler\Generated\BoilerDesign.csv" />
+    <AdditionalFiles Include="Boiler\Generated\BoilerDesign.xml" />
+    <AdditionalFiles Include="MemoryBuffer\Generated\MemoryBufferDesign.csv" />
+    <AdditionalFiles Include="MemoryBuffer\Generated\MemoryBufferDesign.xml" />
+    <AdditionalFiles Include="TestData\Generated\TestDataDesign.csv" />
+    <AdditionalFiles Include="TestData\Generated\TestDataDesign.xml" />
+  </ItemGroup>
+  <Target Name="GetPackagingOutputs" />
+  <ItemGroup>
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>

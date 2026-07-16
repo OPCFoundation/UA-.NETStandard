@@ -19,7 +19,7 @@ Trigger this skill when a user asks for any of:
 ## When NOT to use
 
 - The user is starting a new OPC UA project from scratch — point them at
-  `Docs/README.md` and the `Applications/ConsoleReferenceClient` /
+  `docs/README.md` and the `samples/ConsoleReferenceClient` /
   `ConsoleReferenceServer` samples instead.
 - The user is migrating **within** 1.5.x (point or service-release upgrades).
 - The user is debugging server-side OPC UA functional behaviour — try the
@@ -53,16 +53,16 @@ opcua-v20-migration/
 This skill **distils** the following authoritative repo files. When you update
 the skill, also update them (and vice versa) so the views stay in sync:
 
-- [`Docs/MigrationGuide.md`](../../../Docs/MigrationGuide.md) — the migration
+- [`docs/MigrationGuide.md`](../../../docs/MigrationGuide.md) — the migration
   guide landing page (small; just an index across versions).
-- [`Docs/migrate/2.0.x/README.md`](../../../Docs/migrate/2.0.x/README.md) —
+- [`docs/migrate/2.0.x/README.md`](../../../docs/migrate/2.0.x/README.md) —
   the 2.0 version landing page + the same symptom → sub-doc table this skill
   uses to load only what's needed.
-- [`Docs/migrate/2.0.x/`](../../../Docs/migrate/2.0.x/) — the 12 thematic
+- [`docs/migrate/2.0.x/`](../../../docs/migrate/2.0.x/) — the 12 thematic
   sub-docs (telemetry, packages, source-generation, types, encoders,
   node-states, identity, certificates, configuration, sessions-subscriptions,
   alarms-model-change, timeprovider).
-- [`Tools/Opc.Ua.MigrationAnalyzer/NugetREADME.md`](../../../Tools/Opc.Ua.MigrationAnalyzer/NugetREADME.md)
+- [`tools/Opc.Ua.MigrationAnalyzer/NugetREADME.md`](../../../tools/Opc.Ua.MigrationAnalyzer/NugetREADME.md)
   — the package's own NuGet README.
 
 ## License
