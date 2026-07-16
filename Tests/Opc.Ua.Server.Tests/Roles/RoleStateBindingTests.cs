@@ -599,8 +599,8 @@ namespace Opc.Ua.Server.Tests.Roles
         [Test]
         public async Task AddRoleHandlerKeepsRootAndChildNodeIdsDisjoint()
         {
-            m_nodeManager.SystemContext.NodeIdFactory =
-                new SequentialNodeIdFactory(m_nodeManager.NamespaceIndex);
+            var nodeIdFactory = new SequentialNodeIdFactory(m_nodeManager.NamespaceIndex);
+            m_nodeManager.SystemContext.NodeIdFactory = nodeIdFactory;
             ISystemContext ctx = BuildAdminContext(MessageSecurityMode.SignAndEncrypt);
             var nodeIds = new HashSet<NodeId>();
 
@@ -636,6 +636,29 @@ namespace Opc.Ua.Server.Tests.Roles
                         $"{child.BrowseName} must not collide with a role root or sibling.");
                 }
             }
+
+            Assert.That(nodeIdFactory.AllocationCount, Is.GreaterThan(0));
+        }
+
+        [Test]
+        public async Task AddRoleHandlerUsesProvidedNodeIdFactory()
+        {
+            var nodeIdFactory = new PrefixedNodeIdFactory();
+            m_nodeManager.SystemContext.NodeIdFactory = nodeIdFactory;
+            ISystemContext ctx = BuildAdminContext(MessageSecurityMode.SignAndEncrypt);
+
+            AddRoleMethodStateResult result = await InvokeAddRoleAsync(
+                ctx,
+                "FactoryRole",
+                "http://test.org/role-binding/").ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(result.ServiceResult), Is.True);
+            var role = (RoleState)m_nodeManager.PredefinedNodes[result.RoleNodeId];
+            Assert.That(role.Identities, Is.Not.Null);
+            Assert.That(
+                role.Identities!.NodeId.IdentifierAsString,
+                Does.StartWith("provided:"));
+            Assert.That(nodeIdFactory.AllocationCount, Is.GreaterThan(0));
         }
 
         [Test]
@@ -875,15 +898,41 @@ namespace Opc.Ua.Server.Tests.Roles
                 m_namespaceIndex = namespaceIndex;
             }
 
+            public uint AllocationCount { get; private set; }
+
             public NodeId New(ISystemContext context, NodeState node)
             {
-                return node.NodeId.IsNull
-                    ? new NodeId(m_nextId++, m_namespaceIndex)
-                    : node.NodeId;
+                if (!node.NodeId.IsNull)
+                {
+                    return node.NodeId;
+                }
+
+                AllocationCount++;
+                return new NodeId(m_nextId++, m_namespaceIndex);
             }
 
             private readonly ushort m_namespaceIndex;
             private uint m_nextId = 1;
+        }
+
+        private sealed class PrefixedNodeIdFactory : INodeIdFactory
+        {
+            public uint AllocationCount { get; private set; }
+
+            public NodeId New(ISystemContext context, NodeState node)
+            {
+                if (node is BaseInstanceState instance &&
+                    instance.Parent != null)
+                {
+                    AllocationCount++;
+                    return new NodeId(
+                        $"provided:{instance.Parent.NodeId.IdentifierAsString}:" +
+                            instance.SymbolicName,
+                        instance.Parent.NodeId.NamespaceIndex);
+                }
+
+                return node.NodeId;
+            }
         }
     }
 }
