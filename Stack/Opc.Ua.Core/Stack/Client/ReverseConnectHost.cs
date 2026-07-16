@@ -193,18 +193,18 @@ namespace Opc.Ua
                 return;
             }
             ITransportListener listener = m_listener;
+            bool closeCanceled = false;
             try
             {
                 await listener.CloseAsync(ct).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
+                closeCanceled = true;
                 throw;
             }
             catch (Exception closeError)
             {
-                listener.ConnectionWaiting -= m_onConnectionWaiting;
-                listener.ConnectionStatusChanged -= m_onConnectionStatusChanged;
                 try
                 {
                     await listener.DisposeAsync().ConfigureAwait(false);
@@ -216,8 +216,14 @@ namespace Opc.Ua
                 }
                 throw;
             }
-            listener.ConnectionWaiting -= m_onConnectionWaiting;
-            listener.ConnectionStatusChanged -= m_onConnectionStatusChanged;
+            finally
+            {
+                if (!closeCanceled)
+                {
+                    listener.ConnectionWaiting -= m_onConnectionWaiting;
+                    listener.ConnectionStatusChanged -= m_onConnectionStatusChanged;
+                }
+            }
         }
 
         private ITransportListener? m_listener;
