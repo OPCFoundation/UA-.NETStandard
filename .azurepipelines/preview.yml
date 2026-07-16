@@ -101,10 +101,10 @@ jobs:
     displayName: 'List of assemblies to sign'
     inputs:
       script: |
-        dir /b /s Stack\Opc.Ua*.dll > .\list.txt
-        dir /b /s Tools\Opc.Ua*.dll >> .\list.txt
-        dir /b /s Libraries\Opc.Ua*.dll >> .\list.txt
-        dir /b /s Applications\McpServer\bin\Opc.Ua*.dll >> .\list.txt
+        dir /b /s src\Opc.Ua*.dll > .\list.txt
+        dir /b /s tools\Opc.Ua*.dll >> .\list.txt
+        dir /b /s src\Opc.Ua*.dll >> .\list.txt
+        dir /b /s tools\Opc.Ua.Mcp\bin\Opc.Ua*.dll >> .\list.txt
         dir /b /s .azurepipelines\*.* >> .\list.txt
         type .\list.txt
   - task: CmdLine@2
@@ -127,7 +127,7 @@ jobs:
     continueOnError: true
     inputs:
       command: 'pack'
-      # Scoped to nuget/ — the MigrationAnalyzer nuspec at Tools/Opc.Ua.MigrationAnalyzer/
+      # Scoped to nuget/ — the MigrationAnalyzer nuspec at tools/Opc.Ua.MigrationAnalyzer/
       # uses MSBuild $(...) substitutions ($(shimBin), $(repoRoot), $(analyzerDll))
       # that only `dotnet pack`'s _SetMigrationAnalyzerNuspecProperties target can
       # resolve. Standalone `nuget.exe pack` leaves them literal and crashes with

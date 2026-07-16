@@ -32,7 +32,7 @@ nothing fluent on top of it. Each consumer reimplements the same
 
 ## Proposed surface
 
-### `Libraries/Opc.Ua.Server/Fluent/IStateMachineBuilder.cs`
+### `src/Opc.Ua.Server/Fluent/IStateMachineBuilder.cs`
 
 ```csharp
 public interface IStateMachineBuilder<TState>
@@ -104,7 +104,7 @@ builder.Node("SoftwareUpdate/Installation")
 
 ### Client-side observer
 
-`Libraries/Opc.Ua.Di.Client/StateMachineClient.cs`:
+`src/Opc.Ua.Di.Client/StateMachineClient.cs`:
 
 ```csharp
 public sealed class StateMachineClient
@@ -120,12 +120,12 @@ public sealed class StateMachineClient
 
 ## Files to create
 
-- `Libraries/Opc.Ua.Server/Fluent/IStateMachineBuilder.cs`
-- `Libraries/Opc.Ua.Server/Fluent/StateMachineBuilderExtensions.cs`
-- `Libraries/Opc.Ua.Server/Fluent/StateMachineBuilder.cs` (internal impl)
-- `Libraries/Opc.Ua.Di.Client/StateMachineClient.cs`
-- `Tests/Opc.Ua.Server.Tests/Fluent/StateMachineBuilderExtensionsTests.cs`
-- `Docs/StateMachineBuilder.md`
+- `src/Opc.Ua.Server/Fluent/IStateMachineBuilder.cs`
+- `src/Opc.Ua.Server/Fluent/StateMachineBuilderExtensions.cs`
+- `src/Opc.Ua.Server/Fluent/StateMachineBuilder.cs` (internal impl)
+- `src/Opc.Ua.Di.Client/StateMachineClient.cs`
+- `tests/Opc.Ua.Server.Tests/Fluent/StateMachineBuilderExtensionsTests.cs`
+- `docs/StateMachineBuilder.md`
 
 ## Open questions
 

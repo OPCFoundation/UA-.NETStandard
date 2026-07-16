@@ -265,9 +265,9 @@ OPC\ Foundation/
 testEnvironments.json
 
 # UA Fuzzing findings folders
-/Fuzzing/**/findings/
-/Fuzzing/**/Testcases/
-!/Fuzzing/**/Testcases/*.bin
+/fuzzing/**/findings/
+/fuzzing/**/Testcases/
+!/fuzzing/**/Testcases/*.bin
 **/Properties/launchSettings.json
 
 aot-publish*.txt

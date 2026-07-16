@@ -17,10 +17,10 @@ trigger:
     - 'main'
   paths:
     include:
-    - 'Stack/**'
-    - 'Libraries/**'
-    - 'Tools/**'
-    - 'Applications/Opc.Ua.*/**'
+    - 'src/**'
+    - 'src/**'
+    - 'tools/**'
+    - 'samples/Opc.Ua.*/**'
 
 variables:
   # When managedPool is true, route the preview NuGet build to the
