@@ -382,18 +382,30 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 connectGate: gate,
                 ct: cancellation.Token);
 
-            await gate.Started.ConfigureAwait(false);
+            Task startedTask = await Task.WhenAny(
+                    gate.Started,
+                    Task.Delay(TimeSpan.FromSeconds(5)))
+                .ConfigureAwait(false);
+            Assert.That(startedTask, Is.SameAs(gate.Started));
+
             cancellation.Cancel();
+
+            Task completedTask = await Task.WhenAny(
+                    creation,
+                    Task.Delay(TimeSpan.FromSeconds(5)))
+                .ConfigureAwait(false);
+            Assert.That(completedTask, Is.SameAs(creation));
 
             OperationCanceledException exception =
                 Assert.CatchAsync<OperationCanceledException>(async () =>
                     await creation.ConfigureAwait(false))!;
             Assert.That(exception.CancellationToken, Is.EqualTo(cancellation.Token));
 
-            Task completed = await Task.WhenAny(
-                gate.Stopped,
-                Task.Delay(TimeSpan.FromSeconds(5))).ConfigureAwait(false);
-            Assert.That(completed, Is.SameAs(gate.Stopped));
+            Task stoppedTask = await Task.WhenAny(
+                    gate.Stopped,
+                    Task.Delay(TimeSpan.FromSeconds(5)))
+                .ConfigureAwait(false);
+            Assert.That(stoppedTask, Is.SameAs(gate.Stopped));
         }
 
         [Test]
@@ -709,20 +721,14 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                     m_stopped.TrySetResult(null);
                 }
 
-                return new EmptyLease();
+                throw new InvalidOperationException(
+                    "The blocking connect gate unexpectedly completed without cancellation.");
             }
 
             private readonly TaskCompletionSource<object?> m_started =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
             private readonly TaskCompletionSource<object?> m_stopped =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
-        }
-
-        private sealed class EmptyLease : IDisposable
-        {
-            public void Dispose()
-            {
-            }
         }
 
 #pragma warning disable IDE0051, RCS1213 // Test scaffold kept for ManagedSession construction tests.

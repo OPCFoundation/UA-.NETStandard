@@ -162,10 +162,13 @@ namespace Opc.Ua.SourceGeneration
 
             GeneratorRunResult generatorResult = GenerateAndCompile(driver, compilation);
 
-            string generatedSources = string.Join(
-                "\n",
-                generatorResult.GeneratedSources.Select(source => source.SourceText.ToString()));
-            Assert.That(generatedSources, Does.Contain("ISA95JobOrderDataType"));
+            GeneratedSourceResult dataTypesSource = generatorResult.GeneratedSources.Single(
+                source => source.HintName.EndsWith(
+                    ".DataTypes.g.cs",
+                    StringComparison.Ordinal));
+            Assert.That(
+                dataTypesSource.SourceText.ToString(),
+                Does.Contain("ISA95JobOrderDataType"));
         }
 
         [Test]
