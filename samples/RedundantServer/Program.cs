@@ -155,21 +155,27 @@ if (activeActive || useStrongConsistency)
 
 IOpcUaServerBuilder ua = builder.Services
     .AddOpcUa()
-    .ConfigureApplication(options =>
+    .AddServer(o =>
     {
-        options.ApplicationName = "RedundantServer";
-        options.ApplicationUri = applicationUri;
-        options.ProductUri = "uri:opcfoundation.org:RedundantServer";
-        options.AutoAcceptUntrustedCertificates = true;
+        o.ApplicationName = "RedundantServer";
+        o.ApplicationUri = applicationUri;
+        o.ProductUri = "uri:opcfoundation.org:RedundantServer";
+        o.AutoAcceptUntrustedCertificates = true;
+        // Offer an unsecured (SecurityMode.None) endpoint alongside the secure
+        // policies so the sample's --nosecurity client and the transparent
+        // (no certificate exchange) demo can connect. The default
+        // SignAndEncrypt policies remain enabled for secured deployments.
+        o.IncludeUnsecurePolicyNone = true;
+        o.EndpointUrls.Add(endpointUrl);
         // Transparent mode: share one certificate across replicas by pointing them
         // at a common PKI store with a stable subject name.
         if (!string.IsNullOrWhiteSpace(sharedSubjectName))
         {
-            options.SubjectName = sharedSubjectName!;
+            o.SubjectName = sharedSubjectName!;
         }
         if (!string.IsNullOrWhiteSpace(sharedPkiRoot))
         {
-            options.PkiRoot = sharedPkiRoot!;
+            o.PkiRoot = sharedPkiRoot!;
         }
         else
         {
@@ -180,17 +186,8 @@ IOpcUaServerBuilder ua = builder.Services
             // second replica would reject the first replica's certificate because
             // its ApplicationUri SubjectAltName differs. Transparent mode overrides
             // this with a shared HA_PKI_ROOT + HA_SUBJECT_NAME.
-            options.PkiRoot = DefaultPkiRootForNode(nodeId);
+            o.PkiRoot = DefaultPkiRootForNode(nodeId);
         }
-    })
-    .AddServer(o =>
-    {
-        // Offer an unsecured (SecurityMode.None) endpoint alongside the secure
-        // policies so the sample's --nosecurity client and the transparent
-        // (no certificate exchange) demo can connect. The default
-        // SignAndEncrypt policies remain enabled for secured deployments.
-        o.IncludeUnsecurePolicyNone = true;
-        o.EndpointUrls.Add(endpointUrl);
     })
     .AddNodeManager<HaSampleNodeManagerFactory>();
 

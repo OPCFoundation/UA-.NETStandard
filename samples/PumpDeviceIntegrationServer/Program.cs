@@ -57,15 +57,12 @@ builder.Services.AddSingleton<ISoftwarePackageStore, MemoryPackageStore>();
 
 builder.Services
     .AddOpcUa()
-    .ConfigureApplication(options =>
-    {
-        options.ApplicationName = "PumpDeviceIntegrationServer";
-        options.ApplicationUri = "urn:localhost:OPCFoundation:PumpDeviceIntegrationServer";
-        options.ProductUri = "uri:opcfoundation.org:PumpDeviceIntegrationServer";
-        options.AutoAcceptUntrustedCertificates = true;
-    })
     .AddServer(o =>
     {
+        o.ApplicationName = "PumpDeviceIntegrationServer";
+        o.ApplicationUri = "urn:localhost:OPCFoundation:PumpDeviceIntegrationServer";
+        o.ProductUri = "uri:opcfoundation.org:PumpDeviceIntegrationServer";
+        o.AutoAcceptUntrustedCertificates = true;
         o.EndpointUrls.Add($"opc.tcp://{host}:{port}/PumpDeviceIntegrationServer");
     })
     .AddNodeManager<PumpNodeManagerFactory>()

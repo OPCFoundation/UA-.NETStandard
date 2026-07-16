@@ -40,14 +40,14 @@ int port = int.TryParse(builder.Configuration["port"], out int p) ? p : 62541;
 
 builder.Services
     .AddOpcUa()
-    .ConfigureApplication(o =>
+    .AddServer(o =>
     {
         o.ApplicationName = "MinimalBoilerServer";
         o.ApplicationUri = "urn:localhost:OPCFoundation:MinimalBoilerServer";
         o.ProductUri = "uri:opcfoundation.org:MinimalBoilerServer";
         o.AutoAcceptUntrustedCertificates = true;
+        o.EndpointUrls.Add($"opc.tcp://localhost:{port}/MinimalBoilerServer");
     })
-    .AddServer(o => o.EndpointUrls.Add($"opc.tcp://localhost:{port}/MinimalBoilerServer"))
     .AddNodeManager<Boiler.BoilerNodeManagerFactory>();
 
 await builder.Build().RunAsync().ConfigureAwait(false);

@@ -73,14 +73,25 @@ namespace Microsoft.Extensions.DependencyInjection
         /// </summary>
         /// <param name="builder">The OPC UA builder.</param>
         /// <param name="configure">Configuration delegate for
-        /// <see cref="OpcUaClientOptions"/>. Set
-        /// <see cref="OpcUaClientOptions.Configuration"/> unless the root
-        /// builder uses <c>ConfigureApplication(...)</c>. Set
-        /// <see cref="ManagedSessionOptions.Endpoint"/> when using the cached
-        /// fixed-endpoint session delegate.</param>
+        /// <see cref="OpcUaClientOptions"/>. Set an explicit
+        /// <see cref="OpcUaClientOptions.Configuration"/>, or set
+        /// <see cref="OpcUaClientOptions.ApplicationName"/> and the other
+        /// application identity/security properties (mirroring
+        /// <c>OpcUaServerOptions</c>). The latter compose with a root
+        /// <c>ConfigureApplication(...)</c> call made before or after this
+        /// <c>AddClient(...)</c> call: both contribute to one shared
+        /// <see cref="OpcUaApplicationOptions"/>, with fields explicitly set
+        /// via <c>ConfigureApplication(...)</c> winning over the client's
+        /// <c>??=</c> defaults. An explicit <see cref="OpcUaClientOptions.Configuration"/>
+        /// must not be combined with the application identity properties.
+        /// Set <see cref="ManagedSessionOptions.Endpoint"/> when using the
+        /// cached fixed-endpoint session delegate.</param>
         /// <returns>An <see cref="IOpcUaClientBuilder"/> for chaining.</returns>
         /// <exception cref="ArgumentNullException"><paramref name="builder"/>
         /// or <paramref name="configure"/> is <c>null</c>.</exception>
+        /// <exception cref="InvalidOperationException">Client application
+        /// identity options are combined with an explicit
+        /// <see cref="OpcUaClientOptions.Configuration"/>.</exception>
         public static IOpcUaClientBuilder AddClient(
             this IOpcUaBuilder builder,
             Action<OpcUaClientOptions> configure)
@@ -97,6 +108,7 @@ namespace Microsoft.Extensions.DependencyInjection
             var options = new OpcUaClientOptions();
             configure(options);
             EnsureClientConnectGate(options);
+            ApplyClientApplicationOptions(builder, options);
             RegisterClientOptions(builder.Services, options);
 
             RegisterCoreServices(builder.Services);
@@ -175,6 +187,7 @@ namespace Microsoft.Extensions.DependencyInjection
             section.Bind(options);
             postConfigure?.Invoke(options);
             EnsureClientConnectGate(options);
+            ApplyClientApplicationOptions(builder, options);
             RegisterClientOptions(builder.Services, options);
 
             RegisterCoreServices(builder.Services);
@@ -882,13 +895,8 @@ namespace Microsoft.Extensions.DependencyInjection
 
             services.TryAddSingleton<OpcUaClientOptions>(sp =>
             {
-                var resolvedOptions = new OpcUaClientOptions
-                {
-                    Configuration = options.Configuration,
-                    Session = options.Session,
-                    Identity = options.Identity,
-                    ReverseConnect = options.ReverseConnect
-                };
+                var resolvedOptions = new OpcUaClientOptions();
+                CopyClientOptions(options, resolvedOptions);
                 if (resolvedOptions.Configuration == null)
                 {
                     resolvedOptions.ConfigurationProvider =
@@ -908,14 +916,73 @@ namespace Microsoft.Extensions.DependencyInjection
             services.TryAddEnumerable(
                 ServiceDescriptor.Singleton<IValidateOptions<OpcUaClientOptions>, OpcUaClientOptionsValidator>());
             services.AddOptions<OpcUaClientOptions>()
-                .Configure(configuredOptions =>
-                {
-                    configuredOptions.Configuration = options.Configuration;
-                    configuredOptions.Session = options.Session;
-                    configuredOptions.Identity = options.Identity;
-                    configuredOptions.ReverseConnect = options.ReverseConnect;
-                })
+                .Configure(configuredOptions => CopyClientOptions(options, configuredOptions))
                 .ValidateOnStart();
+        }
+
+        /// <summary>
+        /// Copies every publicly settable field of <paramref name="source"/>
+        /// (application identity/security options, <see cref="OpcUaClientOptions.Configuration"/>,
+        /// <see cref="OpcUaClientOptions.Session"/>, <see cref="OpcUaClientOptions.Identity"/>
+        /// and <see cref="OpcUaClientOptions.ReverseConnect"/>) into
+        /// <paramref name="target"/>.
+        /// </summary>
+        private static void CopyClientOptions(OpcUaClientOptions source, OpcUaClientOptions target)
+        {
+            target.Configuration = source.Configuration;
+            target.ApplicationName = source.ApplicationName;
+            target.ApplicationUri = source.ApplicationUri;
+            target.ProductUri = source.ProductUri;
+            target.SubjectName = source.SubjectName;
+            target.PkiRoot = source.PkiRoot;
+            target.AutoAcceptUntrustedCertificates = source.AutoAcceptUntrustedCertificates;
+            target.RejectSHA1SignedCertificates = source.RejectSHA1SignedCertificates;
+            target.MinimumCertificateKeySize = source.MinimumCertificateKeySize;
+            target.Session = source.Session;
+            target.Identity = source.Identity;
+            target.ReverseConnect = source.ReverseConnect;
+        }
+
+        /// <summary>
+        /// Ensures the root <c>ConfigureApplication(...)</c> infrastructure
+        /// (shared <see cref="OpcUaApplicationOptions"/>,
+        /// <see cref="IApplicationInstanceFactory"/>, and
+        /// <see cref="IOpcUaApplicationConfigurationProvider"/>) is
+        /// registered when client application identity/security options are
+        /// set directly on <see cref="OpcUaClientOptions"/> (mirroring
+        /// <c>OpcUaServerOptions</c>). The call is idempotent: whether the
+        /// root builder calls <c>ConfigureApplication(...)</c> before or
+        /// after <c>AddClient(...)</c>, both contribute to the same shared
+        /// <see cref="OpcUaApplicationOptions"/> instance, with explicitly
+        /// set fields winning over the client's <c>??=</c> defaults (see
+        /// <see cref="OpcUaClientApplicationConfigurationFeature.ApplyDefaults"/>).
+        /// </summary>
+        /// <exception cref="InvalidOperationException">The client
+        /// application options are combined with an explicit
+        /// <see cref="OpcUaClientOptions.Configuration"/>.</exception>
+        private static void ApplyClientApplicationOptions(
+            IOpcUaBuilder builder,
+            OpcUaClientOptions options)
+        {
+            if (!options.HasApplicationOptions)
+            {
+                return;
+            }
+            if (options.Configuration != null)
+            {
+                throw new InvalidOperationException(
+                    "OpcUaClientOptions.Configuration cannot be combined with client " +
+                    "application identity options (ApplicationName, ApplicationUri, " +
+                    "ProductUri, SubjectName, PkiRoot, AutoAcceptUntrustedCertificates, " +
+                    "RejectSHA1SignedCertificates, MinimumCertificateKeySize). Set " +
+                    "Configuration directly, or use the application identity options, " +
+                    "not both.");
+            }
+
+            // Idempotent: reuses/mutates the shared OpcUaApplicationOptions
+            // instance registered by a root ConfigureApplication(...) call
+            // made before or after this AddClient(...) call.
+            builder.ConfigureApplication(_ => { });
         }
 
         private static void ValidateClientOptions(

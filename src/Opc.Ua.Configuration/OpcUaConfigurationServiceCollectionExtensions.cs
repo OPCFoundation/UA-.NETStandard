@@ -44,6 +44,15 @@ namespace Microsoft.Extensions.DependencyInjection
         /// Configures the common OPC UA application identity and security
         /// settings used by subsequently registered client and server features.
         /// </summary>
+        /// <remarks>
+        /// Calling this method more than once on the same
+        /// <see cref="IServiceCollection"/> (directly, or indirectly through
+        /// <c>AddClient(...)</c> application identity options) reuses and
+        /// mutates the single already-registered <see cref="OpcUaApplicationOptions"/>
+        /// instance instead of registering a competing, order-dependent copy.
+        /// Fields explicitly set by any caller win; the combination is
+        /// independent of call order.
+        /// </remarks>
         /// <param name="builder">The OPC UA builder.</param>
         /// <param name="configure">The application-options callback.</param>
         /// <returns>The same <paramref name="builder"/> instance.</returns>
@@ -62,9 +71,8 @@ namespace Microsoft.Extensions.DependencyInjection
                 throw new ArgumentNullException(nameof(configure));
             }
 
-            var options = new OpcUaApplicationOptions();
+            OpcUaApplicationOptions options = GetOrRegisterApplicationOptions(builder.Services);
             configure(options);
-            builder.Services.AddSingleton(options);
             builder.AddApplicationInstance();
             builder.Services.TryAddSingleton(sp =>
                 new OpcUaApplicationConfigurationProvider(
@@ -101,6 +109,30 @@ namespace Microsoft.Extensions.DependencyInjection
             builder.Services.TryAddSingleton<IApplicationInstanceFactory,
                 DefaultApplicationInstanceFactory>();
             return builder;
+        }
+
+        /// <summary>
+        /// Returns the <see cref="OpcUaApplicationOptions"/> singleton
+        /// instance already registered on <paramref name="services"/> (by an
+        /// earlier <see cref="ConfigureApplication"/> call), so repeated
+        /// calls mutate one shared instance. Registers and returns a new
+        /// instance when none exists yet.
+        /// </summary>
+        private static OpcUaApplicationOptions GetOrRegisterApplicationOptions(
+            IServiceCollection services)
+        {
+            foreach (ServiceDescriptor descriptor in services)
+            {
+                if (descriptor.ServiceType == typeof(OpcUaApplicationOptions) &&
+                    descriptor.ImplementationInstance is OpcUaApplicationOptions existing)
+                {
+                    return existing;
+                }
+            }
+
+            var options = new OpcUaApplicationOptions();
+            services.AddSingleton(options);
+            return options;
         }
     }
 }

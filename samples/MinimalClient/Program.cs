@@ -65,15 +65,12 @@ try
 
     builder.Services
         .AddOpcUa()
-        .ConfigureApplication(options =>
+        .AddClient(options =>
         {
             options.ApplicationName = "MinimalClient";
             options.ApplicationUri = "urn:localhost:OPCFoundation:MinimalClient";
             options.ProductUri = "uri:opcfoundation.org:MinimalClient";
             options.AutoAcceptUntrustedCertificates = autoAccept;
-        })
-        .AddClient(options =>
-        {
             options.Session = new ManagedSessionOptions
             {
                 SessionName = "MinimalClient",

@@ -6,7 +6,7 @@ The minimal console client demonstrates a clean, lightweight OPC UA client imple
 
 ## Key Features
 
-- **Fluent DI API**: Uses `HostApplicationBuilder` with fluent `.AddOpcUa()`, `.ConfigureApplication()`, `.AddClient()`, `.AddSubscriptions()`, and `.AddAlarms()` configuration
+- **Fluent DI API**: Uses `HostApplicationBuilder` with fluent `.AddOpcUa()`, `.AddClient()`, `.AddSubscriptions()`, and `.AddAlarms()` configuration
 - **Secure by Default**: Discovers a `SignAndEncrypt` / `Basic256Sha256` endpoint unless `--insecure` is explicitly supplied
 - **Managed Sessions**: Leverages the modern `IManagedSessionFactory` for simplified session management
 - **Fluent Subscriptions**: Creates a V2 subscription and monitored item with `AddSubscription()` and `TryAddMonitoredItem()`
@@ -69,10 +69,10 @@ The minimal client demonstrates the following operations:
 
 The application uses top-level statements and demonstrates:
 
-- Configuring application identity and security through `.ConfigureApplication(...)`
+- Configuring application identity and security directly inside `.AddClient(...)`
 - Setting up `HostApplicationBuilder` with OPC UA client services
 - Building and validating the `ApplicationConfiguration` inside the DI infrastructure
-- Configuring services via fluent API: `.AddOpcUa().ConfigureApplication(...).AddClient(...).AddSubscriptions().AddAlarms()`
+- Configuring services via fluent API: `.AddOpcUa().AddClient(...).AddSubscriptions().AddAlarms()`
 - Discovering a secure endpoint and connecting through the DI-provided managed-session delegate
 - Creating a V2 subscription and monitored item with the fluent session extensions
 - Resolving `AlarmClientFactory` for Part 9 Alarms & Conditions operations
@@ -84,8 +84,7 @@ The application uses top-level statements and demonstrates:
 The client follows the patterns described in [DependencyInjection.md](../../docs/DependencyInjection.md):
 
 - **HostApplicationBuilder**: Central entry point for DI and host setup
-- **Application Options**: `OpcUaApplicationOptions` builds one validated application configuration
-- **Client Options**: `OpcUaClientOptions` contains managed-session defaults without requiring explicit configuration construction
+- **Client Options**: `OpcUaClientOptions` exposes the application identity fields (`ApplicationName`, `ApplicationUri`, `ProductUri`, `AutoAcceptUntrustedCertificates`, etc.) directly alongside managed-session defaults, so a client-only host can configure everything inside `.AddClient(...)` without a separate configuration construction step
 - **Factory Pattern**: `IManagedSessionFactory` for runtime endpoint selection
 - **Fluent API**: Chainable `.AddXxx()` methods on `IOpcUaBuilder`
 

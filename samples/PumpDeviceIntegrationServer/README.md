@@ -94,7 +94,7 @@ workflow on every push to `master` and on manual dispatch.
 
 | Feature | Where |
 |---------|-------|
-| `AddOpcUa().ConfigureApplication(...).AddServer(...).AddNodeManager<T>()` hosting | `Program.cs` |
+| `AddOpcUa().AddServer(...).AddNodeManager<T>()` hosting | `Program.cs` |
 | Multi-model composition (DI library + locally source-generated Machinery + Pumps) | `PumpNodeManager.cs` `LoadPredefinedNodesAsync` |
 | Identification properties via `WithProperty(name, value)` | `PumpNodeManager.Configure.cs` `WithIdentification` |
 | Optional-child materialisation via generator-emitted `AddXxx(context)` helpers (Operational / Measurements / Events / SupervisionProcessFluid / SupervisionPumpOperation / Maintenance) | `PumpNodeManager.cs` `MaterialisePumpOptionalChildren` |
@@ -112,8 +112,7 @@ workflow on every push to `master` and on manual dispatch.
 
 ```
 PumpDeviceIntegrationServer/
-├── Program.cs                          # AddOpcUa().ConfigureApplication(...).AddServer(...)
-│                                       # .AddNodeManager<T>()
+├── Program.cs                          # AddOpcUa().AddServer(...).AddNodeManager<T>()
 │                                       # + ConfigureDevicesFor declarative Pump #2 + SU
 ├── PumpNodeManager.cs                  # Hand-written FluentNodeManagerBase
 │                                       # + LoadPredefinedNodesAsync (multi-model)
