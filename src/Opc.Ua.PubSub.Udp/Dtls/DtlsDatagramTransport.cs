@@ -42,7 +42,10 @@ namespace Opc.Ua.PubSub.Udp.Dtls
     /// <summary>
     /// DTLS wrapper around the UDP datagram transport for Part 14 §7.3.2.4 unicast PubSub.
     /// </summary>
-    public sealed class DtlsDatagramTransport : IPubSubTransport, IDtlsDatagramChannel
+    public sealed class DtlsDatagramTransport :
+        IPubSubTransport,
+        IDtlsDatagramChannel,
+        IDtlsAuthenticatedPeerChannel
     {
         /// <summary>
         /// Initializes a new <see cref="DtlsDatagramTransport"/>.
@@ -82,7 +85,8 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                 timeProvider,
                 udpOptions,
                 diagnostics,
-                useConnectedUnicastClient: direction == PubSubTransportDirection.Send);
+                useConnectedUnicastClient: direction == PubSubTransportDirection.Send,
+                trackLastSeenUnicastPeer: false);
         }
 
         /// <inheritdoc/>
@@ -198,7 +202,15 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                     // silently dropped so a forged datagram cannot tear down the transport.
                     continue;
                 }
-                yield return new PubSubTransportFrame(payload, frame.Topic, frame.ReceivedAt);
+                if (frame.SourceEndpoint is IPEndPoint authenticatedPeer)
+                {
+                    m_innerTransport.SetAuthenticatedRemoteEndpoint(authenticatedPeer);
+                }
+                yield return new PubSubTransportFrame(
+                    payload,
+                    frame.Topic,
+                    frame.ReceivedAt,
+                    frame.SourceEndpoint);
             }
         }
 
@@ -237,6 +249,11 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             }
 
             throw new InvalidOperationException("DTLS datagram channel closed while waiting for a handshake datagram.");
+        }
+
+        void IDtlsAuthenticatedPeerChannel.SetAuthenticatedPeer(IPEndPoint peer)
+        {
+            m_innerTransport.SetAuthenticatedRemoteEndpoint(peer);
         }
 
         /// <summary>

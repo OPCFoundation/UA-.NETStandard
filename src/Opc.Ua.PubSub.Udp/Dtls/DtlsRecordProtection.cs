@@ -31,6 +31,7 @@ using System;
 using System.Buffers;
 using System.Buffers.Binary;
 using System.Security.Cryptography;
+using System.Threading;
 
 namespace Opc.Ua.PubSub.Udp.Dtls
 {
@@ -91,8 +92,23 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// <exception cref="NotSupportedException"></exception>
         public byte[] Seal(ReadOnlySpan<byte> plaintext)
         {
+            lock (m_lock)
+            {
+                return SealCore(plaintext);
+            }
+        }
+
+        private byte[] SealCore(ReadOnlySpan<byte> plaintext)
+        {
             ThrowIfDisposed();
-            ulong sequenceNumber = m_writeSequenceNumber++;
+            if (m_writeSequenceNumber > MaximumRecordSequenceNumber)
+            {
+                throw new InvalidOperationException(
+                    "DTLS record sequence number exhausted for this epoch; install new traffic keys.");
+            }
+
+            ulong sequenceNumber = m_writeSequenceNumber;
+            m_writeSequenceNumber++;
             int innerPlaintextLength = plaintext.Length + 1;
             int protectedLength = innerPlaintextLength + m_tagLength;
             byte[] record = new byte[HeaderLength + protectedLength];
@@ -169,6 +185,14 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// </summary>
         /// <exception cref="NotSupportedException"></exception>
         public bool TryOpen(ReadOnlySpan<byte> record, out byte[]? applicationData)
+        {
+            lock (m_lock)
+            {
+                return TryOpenCore(record, out applicationData);
+            }
+        }
+
+        private bool TryOpenCore(ReadOnlySpan<byte> record, out byte[]? applicationData)
         {
             ThrowIfDisposed();
             applicationData = null;
@@ -288,19 +312,22 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// <inheritdoc/>
         public void Dispose()
         {
-            if (m_disposed)
+            lock (m_lock)
             {
-                return;
-            }
+                if (m_disposed)
+                {
+                    return;
+                }
 
-            CryptoUtils.ZeroMemory(m_key);
-            CryptoUtils.ZeroMemory(m_iv);
-            CryptoUtils.ZeroMemory(m_snKey);
+                CryptoUtils.ZeroMemory(m_key);
+                CryptoUtils.ZeroMemory(m_iv);
+                CryptoUtils.ZeroMemory(m_snKey);
 #if NET8_0_OR_GREATER
-            m_aesGcm?.Dispose();
-            m_chacha20Poly1305?.Dispose();
+                m_aesGcm?.Dispose();
+                m_chacha20Poly1305?.Dispose();
 #endif
-            m_disposed = true;
+                m_disposed = true;
+            }
         }
 
         private static void WriteHeader(Span<byte> destination, ushort epoch, ulong sequenceNumber, int protectedLength)
@@ -629,7 +656,9 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         private const byte ApplicationDataContentType = 0x17;
         private const int NonceLength = 12;
         private const int SequenceNumberSampleLength = 16;
+        internal const ulong MaximumRecordSequenceNumber = (1UL << 48) - 1;
 
+        private readonly Lock m_lock = new();
         private readonly HashAlgorithmName m_hashAlgorithmName;
         private readonly byte[] m_key;
         private readonly byte[] m_iv;

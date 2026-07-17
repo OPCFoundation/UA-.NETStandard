@@ -29,7 +29,10 @@
 
 #if NET8_0_OR_GREATER
 using System;
+using System.Linq;
+using System.Reflection;
 using System.Security.Cryptography;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Tests;
 using Opc.Ua.PubSub.Udp.Dtls;
@@ -177,6 +180,66 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
                 Assert.That(reader.Open(record), Is.EqualTo(payload),
                     "Record at sequence " + i + " must decrypt after 16-bit wraparound.");
             }
+        }
+
+        [Test]
+        public async Task ParallelAeadProtectionSerializesSequenceAndCryptoUseAsync()
+        {
+            const int recordCount = 64;
+            byte[] secret = CreateSecret(DtlsCipherSuite.TlsAes128GcmSha256);
+            using var writer = new DtlsRecordProtection(
+                CreateProfile(DtlsCipherSuite.TlsAes128GcmSha256), secret, epoch: 1);
+            using var reader = new DtlsRecordProtection(
+                CreateProfile(DtlsCipherSuite.TlsAes128GcmSha256), secret, epoch: 1);
+            var startSealing = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            Task<byte[]>[] sealTasks = Enumerable.Range(0, recordCount)
+                .Select(index => Task.Run(async () =>
+                {
+                    await startSealing.Task.ConfigureAwait(false);
+                    return writer.Seal(BitConverter.GetBytes(index));
+                }))
+                .ToArray();
+
+            startSealing.SetResult(true);
+            byte[][] records = await Task.WhenAll(sealTasks).ConfigureAwait(false);
+
+            var startOpening = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            Task<byte[]>[] openTasks = records
+                .Select(record => Task.Run(async () =>
+                {
+                    await startOpening.Task.ConfigureAwait(false);
+                    return reader.Open(record);
+                }))
+                .ToArray();
+
+            startOpening.SetResult(true);
+            byte[][] plaintexts = await Task.WhenAll(openTasks).ConfigureAwait(false);
+
+            for (int index = 0; index < plaintexts.Length; index++)
+            {
+                Assert.That(plaintexts[index], Is.EqualTo(BitConverter.GetBytes(index)));
+            }
+        }
+
+        [Test]
+        public void SealRejectsSequenceNumberExhaustion()
+        {
+            byte[] secret = CreateSecret(DtlsCipherSuite.TlsAes128GcmSha256);
+            using var writer = new DtlsRecordProtection(
+                CreateProfile(DtlsCipherSuite.TlsAes128GcmSha256), secret, epoch: 1);
+            FieldInfo? sequenceField = typeof(DtlsRecordProtection).GetField(
+                "m_writeSequenceNumber",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(sequenceField, Is.Not.Null);
+            sequenceField!.SetValue(writer, DtlsRecordProtection.MaximumRecordSequenceNumber);
+
+            Assert.That(writer.Seal([0x01]), Is.Not.Empty);
+            Assert.That(
+                () => writer.Seal([0x02]),
+                Throws.TypeOf<InvalidOperationException>()
+                    .With.Message.Contains("sequence number exhausted"));
         }
 
         private static byte[] CreateSecret(DtlsCipherSuite cipherSuite)

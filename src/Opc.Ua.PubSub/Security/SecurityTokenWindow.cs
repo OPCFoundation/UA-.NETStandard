@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using Opc.Ua.PubSub.Encoding;
 
 namespace Opc.Ua.PubSub.Security
 {
@@ -49,15 +50,15 @@ namespace Opc.Ua.PubSub.Security
     /// Part 14 §7.2.4.4.3.1 PubSub security policies</see>.
     /// </para>
     /// <para>
-    /// State per registered <c>TokenId</c>: the highest accepted
-    /// sequence number and a sliding bitmap of the most recent
-    /// <see cref="HistorySize"/> sequence numbers (IPsec-style
-    /// anti-replay). A sequence number that falls below the lower
-    /// edge of the window — i.e. more than <see cref="HistorySize"/>
-    /// behind the highest accepted value — is permanently rejected as
-    /// "too old", so a captured message can never be replayed once the
-    /// window has advanced past it (no eviction-replay). Duplicates
-    /// inside the window are rejected via the bitmap.
+    /// The stack receive path keeps independent state per authenticated
+    /// <c>(PublisherId, WriterGroupId, TokenId)</c> scope. The legacy
+    /// <see cref="ISecurityTokenWindow.TryAccept"/> contract retains a
+    /// token-only scope for compatibility. Each scope tracks the highest
+    /// accepted sequence number and a sliding bitmap of the most recent
+    /// <see cref="HistorySize"/> sequence numbers (IPsec-style anti-replay).
+    /// A sequence number that falls below the lower edge of the window is
+    /// permanently rejected as "too old", so a captured message can never
+    /// be replayed once the window has advanced past it (no eviction-replay).
     /// </para>
     /// <para>
     /// In addition the window retains the <b>full</b> bytes of the
@@ -69,10 +70,11 @@ namespace Opc.Ua.PubSub.Security
     /// by the monotonic check.
     /// </para>
     /// </remarks>
-    public sealed class SecurityTokenWindow : ISecurityTokenWindow
+    public sealed class SecurityTokenWindow : ISecurityTokenWindow, IScopedSecurityTokenWindow
     {
         private readonly Lock m_lock = new();
         private readonly Dictionary<uint, TokenState> m_states = [];
+        private readonly Dictionary<ScopedTokenKey, TokenState> m_scopedStates = [];
 
         /// <summary>
         /// Initializes a new <see cref="SecurityTokenWindow"/>.
@@ -149,6 +151,22 @@ namespace Opc.Ua.PubSub.Security
             lock (m_lock)
             {
                 m_states.Remove(tokenId);
+                List<ScopedTokenKey>? retiredScopes = null;
+                foreach (ScopedTokenKey key in m_scopedStates.Keys)
+                {
+                    if (key.TokenId == tokenId)
+                    {
+                        retiredScopes ??= [];
+                        retiredScopes.Add(key);
+                    }
+                }
+                if (retiredScopes is not null)
+                {
+                    foreach (ScopedTokenKey key in retiredScopes)
+                    {
+                        m_scopedStates.Remove(key);
+                    }
+                }
             }
         }
 
@@ -170,33 +188,33 @@ namespace Opc.Ua.PubSub.Security
                     return false;
                 }
 
-                // Reject exact nonce reuse before mutating any state.
-                if (nonceKey != null && state.SeenNonces.Contains(nonceKey))
+                return TryAcceptState(state, sequenceNumber, nonceKey);
+            }
+        }
+
+        bool IScopedSecurityTokenWindow.TryAccept(
+            PublisherId publisherId,
+            ushort writerGroupId,
+            uint tokenId,
+            ulong sequenceNumber,
+            ReadOnlySpan<byte> nonce)
+        {
+            byte[]? nonceKey = nonce.Length == 0 ? null : nonce.ToArray();
+            lock (m_lock)
+            {
+                if (!m_states.ContainsKey(tokenId))
                 {
                     return false;
                 }
 
-                // Reject too-old / duplicate sequence numbers without
-                // mutating the window when the nonce check passed.
-                if (!state.WouldAcceptSequence(sequenceNumber, HistorySize))
+                var key = new ScopedTokenKey(publisherId, writerGroupId, tokenId);
+                if (!m_scopedStates.TryGetValue(key, out TokenState? state))
                 {
-                    return false;
+                    state = new TokenState(HistorySize);
+                    m_scopedStates.Add(key, state);
                 }
 
-                state.CommitSequence(sequenceNumber, HistorySize);
-
-                if (nonceKey != null)
-                {
-                    if (state.SeenNonces.Count >= HistorySize)
-                    {
-                        byte[] evicted = state.NonceOrder.Dequeue();
-                        state.SeenNonces.Remove(evicted);
-                    }
-                    state.SeenNonces.Add(nonceKey);
-                    state.NonceOrder.Enqueue(nonceKey);
-                }
-
-                return true;
+                return TryAcceptState(state, sequenceNumber, nonceKey);
             }
         }
 
@@ -206,8 +224,45 @@ namespace Opc.Ua.PubSub.Security
             lock (m_lock)
             {
                 m_states.Clear();
+                m_scopedStates.Clear();
             }
         }
+
+        private bool TryAcceptState(
+            TokenState state,
+            ulong sequenceNumber,
+            byte[]? nonceKey)
+        {
+            if (nonceKey != null && state.SeenNonces.Contains(nonceKey))
+            {
+                return false;
+            }
+
+            if (!state.WouldAcceptSequence(sequenceNumber, HistorySize))
+            {
+                return false;
+            }
+
+            state.CommitSequence(sequenceNumber, HistorySize);
+
+            if (nonceKey != null)
+            {
+                if (state.SeenNonces.Count >= HistorySize)
+                {
+                    byte[] evicted = state.NonceOrder.Dequeue();
+                    state.SeenNonces.Remove(evicted);
+                }
+                state.SeenNonces.Add(nonceKey);
+                state.NonceOrder.Enqueue(nonceKey);
+            }
+
+            return true;
+        }
+
+        private readonly record struct ScopedTokenKey(
+            PublisherId PublisherId,
+            ushort WriterGroupId,
+            uint TokenId);
 
         private sealed class TokenState
         {
