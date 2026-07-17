@@ -127,16 +127,22 @@ namespace Opc.Ua.Client
         /// </summary>
         private class ReverseConnectInfo
         {
-            public ReverseConnectInfo(ReverseConnectHost reverseConnectHost, bool configEntry)
+            public ReverseConnectInfo(
+                Uri endpointUrl,
+                ReverseConnectHost reverseConnectHost,
+                bool configEntry)
             {
+                EndpointUrl = endpointUrl;
                 ReverseConnectHost = reverseConnectHost;
                 State = ReverseConnectHostState.New;
                 ConfigEntry = configEntry;
             }
 
+            public readonly Uri EndpointUrl;
             public ReverseConnectHost ReverseConnectHost;
             public ReverseConnectHostState State;
             public bool ConfigEntry;
+            public Exception? Error;
         }
 
         /// <summary>
@@ -253,8 +259,7 @@ namespace Opc.Ua.Client
         protected virtual void Dispose(bool disposing)
         {
             // close the watcher.
-            m_configurationWatcher?.Dispose();
-            m_configurationWatcher = null;
+            DisposeConfigurationWatcher();
             m_cts?.Dispose();
             DisposeHosts();
         }
@@ -278,6 +283,14 @@ namespace Opc.Ua.Client
                         m_telemetry)
                     .ConfigureAwait(false);
 
+                lock (m_lock)
+                {
+                    if (!ReferenceEquals(sender, m_configurationWatcher))
+                    {
+                        return;
+                    }
+                }
+
                 OnUpdateConfiguration(configuration);
             }
             catch (Exception e)
@@ -296,18 +309,28 @@ namespace Opc.Ua.Client
             Justification = "The configuration type was loaded with PublicParameterlessConstructor, so GetType() is safe to store.")]
         protected virtual void OnUpdateConfiguration(ApplicationConfiguration configuration)
         {
-            // save types for config watcher
-            m_applicationType = configuration.ApplicationType;
-            m_configType = configuration.GetType();
             // capture the application configuration so AddEndpointInternal
             // can plumb the CertificateManager into ReverseConnectHost.CreateListener
             // for transports that terminate TLS (e.g. opc.wss).
+            ApplicationConfiguration? previousConfiguration = m_appConfig;
             m_appConfig = configuration;
 
-            // ClientConfiguration and ReverseConnect are nullable on ApplicationConfiguration,
-            // but the file watcher is only enabled for client configurations that include a
-            // populated ReverseConnect section, so both are guaranteed non-null here.
-            OnUpdateConfiguration(configuration.ClientConfiguration!.ReverseConnect!);
+            try
+            {
+                // ClientConfiguration and ReverseConnect are nullable on ApplicationConfiguration,
+                // but the file watcher is only enabled for client configurations that include a
+                // populated ReverseConnect section, so both are guaranteed non-null here.
+                OnUpdateConfiguration(configuration.ClientConfiguration!.ReverseConnect!);
+            }
+            catch
+            {
+                m_appConfig = previousConfiguration;
+                throw;
+            }
+
+            // save types for config watcher
+            m_applicationType = configuration.ApplicationType;
+            m_configType = configuration.GetType();
         }
 
         /// <summary>
@@ -320,6 +343,50 @@ namespace Opc.Ua.Client
         protected virtual void OnUpdateConfiguration(
             ReverseConnectClientConfiguration configuration)
         {
+            var configuredEndpointUrls = new List<Uri>();
+            var uniqueEndpointUrls = new HashSet<Uri>();
+            var configuredEndpoints = new Dictionary<Uri, ReverseConnectInfo>();
+            ReverseConnectClientConfiguration nextConfiguration =
+                configuration ?? new ReverseConnectClientConfiguration();
+            if (!nextConfiguration.ClientEndpoints.IsNull)
+            {
+                foreach (ReverseConnectClientEndpoint endpoint in nextConfiguration.ClientEndpoints)
+                {
+                    string? endpointUrl = endpoint.EndpointUrl;
+                    Uri? uri = Utils.ParseUri(endpointUrl);
+                    if (uri == null)
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadTcpEndpointUrlInvalid,
+                            "Invalid reverse connect listener endpoint URL: {0}.",
+                            endpointUrl ?? "<null>");
+                    }
+                    ValidateEndpointUrl(uri);
+                    if (uniqueEndpointUrls.Add(uri))
+                    {
+                        configuredEndpointUrls.Add(uri);
+                    }
+                }
+            }
+
+            try
+            {
+                foreach (Uri endpointUrl in configuredEndpointUrls)
+                {
+                    configuredEndpoints[endpointUrl] = CreateEndpointInfo(endpointUrl, true);
+                }
+            }
+            catch
+            {
+                List<ReverseConnectInfo> snapshot = [.. configuredEndpoints.Values];
+                foreach (ReverseConnectInfo endpoint in snapshot)
+                {
+                    endpoint.State = ReverseConnectHostState.Errored;
+                }
+                CloseHostsAsync(snapshot, CancellationToken.None).AsTask().GetAwaiter().GetResult();
+                throw;
+            }
+
             bool restartService = false;
 
             lock (m_lock)
@@ -331,21 +398,14 @@ namespace Opc.Ua.Client
                     restartService = true;
                 }
 
-                m_configuration = configuration ?? new ReverseConnectClientConfiguration();
+                m_configuration = nextConfiguration;
 
                 // clear configured endpoints
                 ClearEndpoints(true);
 
-                if (configuration?.ClientEndpoints != null)
+                foreach (KeyValuePair<Uri, ReverseConnectInfo> endpoint in configuredEndpoints)
                 {
-                    foreach (ReverseConnectClientEndpoint endpoint in configuration.ClientEndpoints)
-                    {
-                        Uri? uri = Utils.ParseUri(endpoint.EndpointUrl);
-                        if (uri != null)
-                        {
-                            AddEndpointInternal(uri, true);
-                        }
-                    }
+                    m_endpointUrls[endpoint.Key] = endpoint.Value;
                 }
 
                 if (restartService)
@@ -366,24 +426,60 @@ namespace Opc.Ua.Client
                 snapshot = [.. m_endpointUrls.Values];
             }
 
+            var failures = new List<(Uri? Url, Exception Error)>();
             foreach (ReverseConnectInfo value in snapshot)
             {
+                if (value.State == ReverseConnectHostState.Errored)
+                {
+                    failures.Add((
+                        value.EndpointUrl,
+                        value.Error ?? new ServiceResultException(StatusCodes.BadNoCommunication)));
+                    continue;
+                }
+
                 try
                 {
                     if (value.State < ReverseConnectHostState.Open)
                     {
                         await value.ReverseConnectHost.OpenAsync(ct).ConfigureAwait(false);
                         value.State = ReverseConnectHostState.Open;
+                        value.Error = null;
                     }
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    await CloseHostsAsync(snapshot, CancellationToken.None).ConfigureAwait(false);
+                    throw;
                 }
                 catch (Exception e)
                 {
                     m_logger.FailedOpenUri(
                         e,
-                        value.ReverseConnectHost.Url);
+                        value.EndpointUrl);
                     value.State = ReverseConnectHostState.Errored;
+                    value.Error = e;
+                    failures.Add((value.EndpointUrl, e));
                 }
             }
+
+            if (failures.Count == 0)
+            {
+                return;
+            }
+
+            await CloseHostsAsync(snapshot, CancellationToken.None).ConfigureAwait(false);
+
+            string failedUrls = string.Join(
+                ", ",
+                failures.Select(failure => failure.Url?.ToString() ?? "<unknown>"));
+            Exception error = failures.Count == 1
+                ? failures[0].Error
+                : new AggregateException(failures.Select(failure => failure.Error));
+            throw ServiceResultException.Create(
+                StatusCodes.BadNoCommunication,
+                error,
+                "Failed to open reverse connect listener(s): {0}.",
+                failedUrls);
         }
 
         /// <summary>
@@ -397,22 +493,34 @@ namespace Opc.Ua.Client
                 snapshot = [.. m_endpointUrls.Values];
             }
 
+            await CloseHostsAsync(snapshot, ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Close the provided reverse-connect hosts without acquiring the manager lock.
+        /// </summary>
+        private async ValueTask CloseHostsAsync(
+            List<ReverseConnectInfo> snapshot,
+            CancellationToken ct)
+        {
             foreach (ReverseConnectInfo value in snapshot)
             {
                 try
                 {
-                    if (value.State == ReverseConnectHostState.Open)
+                    if (value.State is ReverseConnectHostState.Open or ReverseConnectHostState.Errored)
                     {
                         await value.ReverseConnectHost.CloseAsync(ct).ConfigureAwait(false);
                         value.State = ReverseConnectHostState.Closed;
+                        value.Error = null;
                     }
                 }
                 catch (Exception e)
                 {
                     m_logger.FailedCloseUri(
                         e,
-                        value.ReverseConnectHost.Url);
+                        value.EndpointUrl);
                     value.State = ReverseConnectHostState.Errored;
+                    value.Error = e;
                 }
             }
         }
@@ -430,6 +538,22 @@ namespace Opc.Ua.Client
             {
                 m_endpointUrls.Clear();
             }
+        }
+
+        /// <summary>
+        /// Stop monitoring the application configuration.
+        /// </summary>
+        private void DisposeConfigurationWatcher()
+        {
+            ConfigurationWatcher? watcher = m_configurationWatcher;
+            if (watcher == null)
+            {
+                return;
+            }
+
+            watcher.Changed -= OnConfigurationChangedAsync;
+            watcher.Dispose();
+            m_configurationWatcher = null;
         }
 
         /// <summary>
@@ -490,7 +614,11 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="configuration">The configuration.</param>
         /// <exception cref="ArgumentNullException"><paramref name="configuration"/> is <c>null</c>.</exception>
-        /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="ServiceResultException">
+        /// The manager is already started, or a configured listener endpoint is invalid or could not be opened.
+        /// Listener startup is atomic; bind and listener-open failures use
+        /// <see cref="StatusCodes.BadNoCommunication"/>.
+        /// </exception>
         public void StartService(ApplicationConfiguration configuration)
         {
             if (configuration == null)
@@ -505,17 +633,31 @@ namespace Opc.Ua.Client
                     throw new ServiceResultException(StatusCodes.BadInvalidState);
                 }
 
+                DisposeConfigurationWatcher();
+
+                ConfigurationWatcher? configurationWatcher = null;
                 try
                 {
+                    if (!string.IsNullOrEmpty(configuration.SourceFilePath))
+                    {
+                        configurationWatcher = new ConfigurationWatcher(configuration, m_telemetry);
+                    }
+
                     OnUpdateConfiguration(configuration);
                     StartService();
 
                     // monitor the configuration file.
-                    if (!string.IsNullOrEmpty(configuration.SourceFilePath))
+                    if (configurationWatcher != null)
                     {
-                        m_configurationWatcher = new ConfigurationWatcher(configuration, m_telemetry);
-                        m_configurationWatcher.Changed += OnConfigurationChangedAsync;
+                        configurationWatcher.Changed += OnConfigurationChangedAsync;
+                        m_configurationWatcher = configurationWatcher;
+                        configurationWatcher = null;
                     }
+                }
+                catch (ServiceResultException)
+                {
+                    m_state = ReverseConnectManagerState.Errored;
+                    throw;
                 }
                 catch (Exception e)
                 {
@@ -527,6 +669,10 @@ namespace Opc.Ua.Client
                         "Unexpected error starting application");
                     throw new ServiceResultException(error);
                 }
+                finally
+                {
+                    configurationWatcher?.Dispose();
+                }
             }
         }
 
@@ -535,7 +681,11 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="configuration">The configuration.</param>
         /// <exception cref="ArgumentNullException"><paramref name="configuration"/> is <c>null</c>.</exception>
-        /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="ServiceResultException">
+        /// The manager is already started, or a configured listener endpoint is invalid or could not be opened.
+        /// Listener startup is atomic; bind and listener-open failures use
+        /// <see cref="StatusCodes.BadNoCommunication"/>.
+        /// </exception>
         public void StartService(ReverseConnectClientConfiguration configuration)
         {
             if (configuration == null)
@@ -550,9 +700,10 @@ namespace Opc.Ua.Client
                     throw new ServiceResultException(StatusCodes.BadInvalidState);
                 }
 
+                DisposeConfigurationWatcher();
+
                 try
                 {
-                    m_configurationWatcher = null;
                     OnUpdateConfiguration(configuration);
                     // Sync bridge: OpenHostsAsync snapshots under m_lock and
                     // awaits OpenAsync() outside, so calling it from inside
@@ -560,6 +711,11 @@ namespace Opc.Ua.Client
                     // happens reentrantly on the same thread.
                     OpenHostsAsync().AsTask().GetAwaiter().GetResult();
                     m_state = ReverseConnectManagerState.Started;
+                }
+                catch (ServiceResultException)
+                {
+                    m_state = ReverseConnectManagerState.Errored;
+                    throw;
                 }
                 catch (Exception e)
                 {
@@ -729,14 +885,25 @@ namespace Opc.Ua.Client
         /// </summary>
         private void StartService()
         {
-            // OpenHostsAsync snapshots under lock then awaits OpenAsync()
-            // outside — sync bridge at the existing public StartService
-            // boundary keeps callers (samples, builder, tests) source-
-            // compatible.
-            OpenHostsAsync().AsTask().GetAwaiter().GetResult();
-            lock (m_lock)
+            try
             {
-                m_state = ReverseConnectManagerState.Started;
+                // OpenHostsAsync snapshots under lock then awaits OpenAsync()
+                // outside — sync bridge at the existing public StartService
+                // boundary keeps callers (samples, builder, tests) source-
+                // compatible.
+                OpenHostsAsync().AsTask().GetAwaiter().GetResult();
+                lock (m_lock)
+                {
+                    m_state = ReverseConnectManagerState.Started;
+                }
+            }
+            catch
+            {
+                lock (m_lock)
+                {
+                    m_state = ReverseConnectManagerState.Errored;
+                }
+                throw;
             }
         }
 
@@ -763,11 +930,20 @@ namespace Opc.Ua.Client
         /// <param name="configEntry">Tf this is an entry in the application configuration.</param>
         private void AddEndpointInternal(Uri endpointUrl, bool configEntry)
         {
+            m_endpointUrls[endpointUrl] = CreateEndpointInfo(endpointUrl, configEntry);
+        }
+
+        /// <summary>
+        /// Create an endpoint entry and its transport listener.
+        /// </summary>
+        private ReverseConnectInfo CreateEndpointInfo(Uri endpointUrl, bool configEntry)
+        {
+            ValidateEndpointUrl(endpointUrl);
+
             var reverseConnectHost = new ReverseConnectHost(m_telemetry, TransportBindings);
-            var info = new ReverseConnectInfo(reverseConnectHost, configEntry);
+            var info = new ReverseConnectInfo(endpointUrl, reverseConnectHost, configEntry);
             try
             {
-                m_endpointUrls[endpointUrl] = info;
                 // Listener bindings that terminate TLS (WSS) need a server
                 // TLS certificate + validator at Open time. Pull them from
                 // the captured ApplicationConfiguration's CertificateManager
@@ -787,12 +963,36 @@ namespace Opc.Ua.Client
                     serverCertificates,
                     certificateValidator);
             }
+            catch (ServiceResultException e)
+            {
+                throw ServiceResultException.Create(
+                    e.StatusCode,
+                    e,
+                    "Could not create reverse connect listener for endpoint {0}.",
+                    endpointUrl);
+            }
             catch (ArgumentException ae)
             {
-                m_logger.NoListenerFoundEndpointEndpointUrl(
+                throw ServiceResultException.Create(
+                    StatusCodes.BadTcpEndpointUrlInvalid,
                     ae,
+                    "Invalid reverse connect listener endpoint URL: {0}.",
                     endpointUrl);
-                info.State = ReverseConnectHostState.Errored;
+            }
+            return info;
+        }
+
+        /// <summary>
+        /// Validate a reverse-connect listener endpoint URL.
+        /// </summary>
+        private static void ValidateEndpointUrl(Uri endpointUrl)
+        {
+            if (!endpointUrl.IsAbsoluteUri || string.IsNullOrWhiteSpace(endpointUrl.Host))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadTcpEndpointUrlInvalid,
+                    "Invalid reverse connect listener endpoint URL: {0}.",
+                    endpointUrl);
             }
         }
 

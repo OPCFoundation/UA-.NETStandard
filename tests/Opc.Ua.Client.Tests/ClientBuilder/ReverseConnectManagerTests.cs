@@ -30,10 +30,14 @@
 #nullable enable
 
 using System;
+using System.Globalization;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
+using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.Client.Tests.ClientBuilder
@@ -41,8 +45,8 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
     /// <summary>
     /// Unit tests for <see cref="ReverseConnectManager"/> public API:
     /// AddEndpoint overloads, RegisterWaitingConnection, UnregisterWaitingConnection,
-    /// ClearWaitingConnections, StartService overloads (no-network paths), and
-    /// Dispose lifecycle.
+    /// ClearWaitingConnections, StartService overloads and failure diagnostics,
+    /// and Dispose lifecycle.
     /// </summary>
     [TestFixture]
     [Category("Client")]
@@ -70,9 +74,14 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             };
         }
 
-        // ----------------------------------------------------------------
-        // Constructors
-        // ----------------------------------------------------------------
+        private static Uri CreateListenerUri()
+        {
+            int port = ServerFixtureUtils.GetNextFreeIPPort();
+            return new Uri(
+                "opc.tcp://localhost:" +
+                port.ToString(CultureInfo.InvariantCulture) +
+                "/reverse");
+        }
 
         [Test]
         public void Constructor_WithTelemetry_Succeeds()
@@ -101,10 +110,6 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             Assert.That(manager, Is.Not.Null);
         }
 
-        // ----------------------------------------------------------------
-        // TransportBindings property
-        // ----------------------------------------------------------------
-
         [Test]
         public void TransportBindings_DefaultsToNull()
         {
@@ -126,10 +131,6 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             Assert.That(manager.TransportBindings, Is.SameAs(registry));
         }
 
-        // ----------------------------------------------------------------
-        // AddEndpoint(Uri) — single-argument overload
-        // ----------------------------------------------------------------
-
         [Test]
         public void AddEndpoint_NullUrl_ThrowsArgumentNullException()
         {
@@ -148,10 +149,43 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             using var manager = new ReverseConnectManager(telemetry);
             var uri = new Uri("opc.tcp://localhost:54321/reverse");
 
-            // AddEndpoint succeeds even if no matching transport listener is
-            // registered; the internal host is simply placed in Errored state
-            // and the exception is logged rather than re-thrown.
+            // The listener is created here but does not bind until StartService.
             Assert.That(() => manager.AddEndpoint(uri), Throws.Nothing);
+        }
+
+        [Test]
+        public void AddEndpointHostlessUrlThrowsBadTcpEndpointUrlInvalid()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            using var manager = new ReverseConnectManager(telemetry);
+            var uri = new Uri("opc.tcp:///reverse");
+
+            ServiceResultException exception = Assert.Throws<ServiceResultException>(
+                () => manager.AddEndpoint(uri))!;
+
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadTcpEndpointUrlInvalid));
+            Assert.That(exception.Message, Does.Contain(uri.ToString()));
+        }
+
+        [Test]
+        public void AddEndpointFactoryArgumentExceptionThrowsBadTcpEndpointUrlInvalid()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            var registry = new Mock<ITransportBindingRegistry>();
+            registry
+                .Setup(r => r.CreateListener("opc.test", telemetry))
+                .Throws(new ArgumentException("Invalid listener."));
+            using var manager = new ReverseConnectManager(telemetry)
+            {
+                TransportBindings = registry.Object
+            };
+            var uri = new Uri("opc.test://localhost:4840");
+
+            ServiceResultException exception = Assert.Throws<ServiceResultException>(
+                () => manager.AddEndpoint(uri))!;
+
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadTcpEndpointUrlInvalid));
+            Assert.That(exception.Message, Does.Contain(uri.ToString()));
         }
 
         [Test]
@@ -169,10 +203,6 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                       .With.Property(nameof(ServiceResultException.StatusCode))
                            .EqualTo(StatusCodes.BadInvalidState));
         }
-
-        // ----------------------------------------------------------------
-        // AddEndpoint(Uri, ApplicationConfiguration?) — two-argument overload
-        // ----------------------------------------------------------------
 
         [Test]
         public void AddEndpointWithConfig_NullUrl_ThrowsArgumentNullException()
@@ -221,10 +251,6 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                            .EqualTo(StatusCodes.BadInvalidState));
         }
 
-        // ----------------------------------------------------------------
-        // StartService(ReverseConnectClientConfiguration)
-        // ----------------------------------------------------------------
-
         [Test]
         public void StartServiceClientConfig_NullConfig_ThrowsArgumentNullException()
         {
@@ -264,9 +290,120 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                            .EqualTo(StatusCodes.BadInvalidState));
         }
 
-        // ----------------------------------------------------------------
-        // StartService(ApplicationConfiguration)
-        // ----------------------------------------------------------------
+        [TestCase("not a uri")]
+        [TestCase("opc.tcp:///reverse")]
+        public void StartServiceClientConfigInvalidEndpointThrowsBadTcpEndpointUrlInvalid(
+            string endpointUrl)
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            using var manager = new ReverseConnectManager(telemetry);
+            var configuration = new ReverseConnectClientConfiguration
+            {
+                ClientEndpoints = new ArrayOf<ReverseConnectClientEndpoint>(
+                new ReverseConnectClientEndpoint[]
+                {
+                    new ReverseConnectClientEndpoint
+                    {
+                        EndpointUrl = endpointUrl
+                    }
+                })
+            };
+
+            ServiceResultException exception = Assert.Throws<ServiceResultException>(
+                () => manager.StartService(configuration))!;
+
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadTcpEndpointUrlInvalid));
+            Assert.That(exception.Message, Does.Contain(endpointUrl));
+        }
+
+        [Test]
+        public void StartServiceClientConfigOccupiedPortThrowsBadNoCommunication()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            Uri listenerUrl = CreateListenerUri();
+            using var firstManager = new ReverseConnectManager(telemetry);
+            firstManager.AddEndpoint(listenerUrl);
+            firstManager.StartService(new ReverseConnectClientConfiguration());
+            using var secondManager = new ReverseConnectManager(telemetry);
+            secondManager.AddEndpoint(listenerUrl);
+
+            ServiceResultException exception = Assert.Throws<ServiceResultException>(
+                () => secondManager.StartService(new ReverseConnectClientConfiguration()))!;
+
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadNoCommunication));
+            Assert.That(exception.Message, Does.Contain(listenerUrl.ToString()));
+        }
+
+        [Test]
+        public void StartServiceClientConfigMultipleOccupiedPortsReportsAllEndpoints()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            Uri firstUrl = CreateListenerUri();
+            Uri secondUrl;
+            do
+            {
+                secondUrl = CreateListenerUri();
+            } while (secondUrl.Port == firstUrl.Port);
+            using var occupyingManager = new ReverseConnectManager(telemetry);
+            occupyingManager.AddEndpoint(firstUrl);
+            occupyingManager.AddEndpoint(secondUrl);
+            occupyingManager.StartService(new ReverseConnectClientConfiguration());
+            using var failingManager = new ReverseConnectManager(telemetry);
+            failingManager.AddEndpoint(firstUrl);
+            failingManager.AddEndpoint(secondUrl);
+
+            ServiceResultException exception = Assert.Throws<ServiceResultException>(
+                () => failingManager.StartService(new ReverseConnectClientConfiguration()))!;
+
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadNoCommunication));
+            Assert.That(exception.Message, Does.Contain(firstUrl.ToString()));
+            Assert.That(exception.Message, Does.Contain(secondUrl.ToString()));
+            Assert.That(exception.InnerException, Is.TypeOf<AggregateException>());
+        }
+
+        [Test]
+        public void StartServiceClientConfigCreationFailureClosesStagedListeners()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            var listener = new Mock<ITransportListener>();
+            listener
+                .Setup(l => l.CloseAsync(It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask));
+            var factory = new Mock<ITransportListenerFactory>();
+            factory.SetupGet(f => f.UriScheme).Returns("opc.first");
+            factory
+                .Setup(f => f.Create(telemetry))
+                .Returns(listener.Object);
+            var registry = new DefaultTransportBindingRegistry();
+            registry.RegisterListenerFactory(factory.Object);
+            using var manager = new ReverseConnectManager(telemetry)
+            {
+                TransportBindings = registry
+            };
+            var configuration = new ReverseConnectClientConfiguration
+            {
+                ClientEndpoints = new ArrayOf<ReverseConnectClientEndpoint>(
+                new ReverseConnectClientEndpoint[]
+                {
+                    new ReverseConnectClientEndpoint
+                    {
+                        EndpointUrl = "opc.first://localhost:4840"
+                    },
+                    new ReverseConnectClientEndpoint
+                    {
+                        EndpointUrl = "opc.missing://localhost:4840"
+                    }
+                })
+            };
+
+            ServiceResultException exception = Assert.Throws<ServiceResultException>(
+                () => manager.StartService(configuration))!;
+
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadProtocolVersionUnsupported));
+            listener.Verify(
+                l => l.CloseAsync(It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
 
         [Test]
         public void StartServiceAppConfig_NullConfig_ThrowsArgumentNullException()
@@ -305,9 +442,105 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                            .EqualTo(StatusCodes.BadInvalidState));
         }
 
-        // ----------------------------------------------------------------
-        // RegisterWaitingConnection / UnregisterWaitingConnection
-        // ----------------------------------------------------------------
+        [Test]
+        public void StartServiceAppConfigInvalidEndpointThrowsBadTcpEndpointUrlInvalid()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            using var manager = new ReverseConnectManager(telemetry);
+            ApplicationConfiguration configuration = CreateAppConfig(telemetry);
+            configuration.ClientConfiguration!.ReverseConnect!.ClientEndpoints =
+                new ArrayOf<ReverseConnectClientEndpoint>(
+                new ReverseConnectClientEndpoint[]
+                {
+                    new ReverseConnectClientEndpoint
+                    {
+                        EndpointUrl = "not a uri"
+                    }
+                });
+
+            ServiceResultException exception = Assert.Throws<ServiceResultException>(
+                () => manager.StartService(configuration))!;
+
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadTcpEndpointUrlInvalid));
+            Assert.That(
+                () => manager.StartService(new ReverseConnectClientConfiguration()),
+                Throws.Nothing);
+        }
+
+        [Test]
+        public void StartServiceAppConfigFailureRollsBackOpenedListeners()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            Uri occupiedUrl = CreateListenerUri();
+            using var firstManager = new ReverseConnectManager(telemetry);
+            firstManager.AddEndpoint(occupiedUrl);
+            firstManager.StartService(new ReverseConnectClientConfiguration());
+            Uri availableUrl = CreateListenerUri();
+            using var failingManager = new ReverseConnectManager(telemetry);
+            failingManager.AddEndpoint(availableUrl);
+            failingManager.AddEndpoint(occupiedUrl);
+
+            ServiceResultException exception = Assert.Throws<ServiceResultException>(
+                () => failingManager.StartService(CreateAppConfig(telemetry)))!;
+
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadNoCommunication));
+            Assert.That(exception.Message, Does.Contain(occupiedUrl.ToString()));
+
+            using var retryManager = new ReverseConnectManager(telemetry);
+            retryManager.AddEndpoint(availableUrl);
+            Assert.That(
+                () => retryManager.StartService(new ReverseConnectClientConfiguration()),
+                Throws.Nothing);
+        }
+
+        [Test]
+        public void StartServiceAppConfigWatcherFailureDoesNotBindListener()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            Uri listenerUrl = CreateListenerUri();
+            using var failingManager = new ReverseConnectManager(telemetry);
+            failingManager.AddEndpoint(listenerUrl);
+            ApplicationConfiguration configuration = CreateAppConfig(telemetry);
+            string sourceFilePath = Path.Combine(
+                Path.GetTempPath(),
+                Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture),
+                "missing.config.xml");
+            typeof(ApplicationConfiguration)
+                .GetProperty(nameof(ApplicationConfiguration.SourceFilePath))!
+                .SetValue(configuration, sourceFilePath);
+
+            ServiceResultException exception = Assert.Throws<ServiceResultException>(
+                () => failingManager.StartService(configuration))!;
+
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadInternalError));
+
+            using var retryManager = new ReverseConnectManager(telemetry);
+            retryManager.AddEndpoint(listenerUrl);
+            Assert.That(
+                () => retryManager.StartService(new ReverseConnectClientConfiguration()),
+                Throws.Nothing);
+        }
+
+        [Test]
+        public void DisposeAfterStartWithSourceFileDisposesWatcher()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            string sourceFilePath = Path.GetTempFileName();
+            try
+            {
+                using var manager = new ReverseConnectManager(telemetry);
+                ApplicationConfiguration configuration = CreateAppConfig(telemetry);
+                typeof(ApplicationConfiguration)
+                    .GetProperty(nameof(ApplicationConfiguration.SourceFilePath))!
+                    .SetValue(configuration, sourceFilePath);
+
+                Assert.That(() => manager.StartService(configuration), Throws.Nothing);
+            }
+            finally
+            {
+                File.Delete(sourceFilePath);
+            }
+        }
 
         [Test]
         public void RegisterWaitingConnection_NullUrl_ThrowsArgumentNullException()
@@ -383,10 +616,6 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             Assert.That(hc1, Is.Not.EqualTo(hc2));
         }
 
-        // ----------------------------------------------------------------
-        // ClearWaitingConnections
-        // ----------------------------------------------------------------
-
         [Test]
         public void ClearWaitingConnections_RemovesAll()
         {
@@ -411,19 +640,11 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             Assert.That(manager.ClearWaitingConnections, Throws.Nothing);
         }
 
-        // ----------------------------------------------------------------
-        // DefaultWaitTimeout constant
-        // ----------------------------------------------------------------
-
         [Test]
         public void DefaultWaitTimeout_Is20000Ms()
         {
             Assert.That(ReverseConnectManager.DefaultWaitTimeout, Is.EqualTo(20000));
         }
-
-        // ----------------------------------------------------------------
-        // Dispose lifecycle
-        // ----------------------------------------------------------------
 
         [Test]
         public void Dispose_CanBeCalledOnNewManager()
@@ -458,10 +679,6 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             // A second Dispose must not throw.
             Assert.That(manager.Dispose, Throws.Nothing);
         }
-
-        // ----------------------------------------------------------------
-        // WaitForConnectionAsync — timeout path (cancelled early)
-        // ----------------------------------------------------------------
 
         [Test]
         public async Task WaitForConnectionAsync_Cancelled_ThrowsServiceResultException()

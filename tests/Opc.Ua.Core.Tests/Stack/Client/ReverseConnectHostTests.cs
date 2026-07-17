@@ -30,7 +30,9 @@
 #nullable enable
 
 using System;
+using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
 using Opc.Ua.Tests;
@@ -199,6 +201,60 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 Throws.Nothing);
 
             await host.CloseAsync().ConfigureAwait(false);
+        }
+
+        [Test]
+        public void CloseFailureDisposesListener()
+        {
+            var closeError = new InvalidOperationException("close failed");
+            var listener = new Mock<ITransportListener>();
+            listener
+                .Setup(l => l.CloseAsync(It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask(Task.FromException(closeError)));
+            listener
+                .Setup(l => l.DisposeAsync())
+                .Returns(default(ValueTask));
+            var registry = new Mock<ITransportBindingRegistry>();
+            registry
+                .Setup(r => r.CreateListener("opc.test", m_telemetry))
+                .Returns(listener.Object);
+            var host = new ReverseConnectHost(m_telemetry, registry.Object);
+            host.CreateListener(new Uri("opc.test://localhost:4840"), null!, null!);
+
+            InvalidOperationException exception = Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await host.CloseAsync().ConfigureAwait(false))!;
+
+            Assert.That(exception, Is.SameAs(closeError));
+            listener.Verify(l => l.DisposeAsync(), Times.Once);
+            Assert.That(async () => await host.CloseAsync().ConfigureAwait(false), Throws.Nothing);
+        }
+
+        [Test]
+        public async Task CanceledCloseKeepsListenerRetryableAsync()
+        {
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+            var listener = new Mock<ITransportListener>();
+            listener
+                .Setup(l => l.CloseAsync(cts.Token))
+                .Returns(new ValueTask(Task.FromCanceled(cts.Token)));
+            var registry = new Mock<ITransportBindingRegistry>();
+            registry
+                .Setup(r => r.CreateListener("opc.test", m_telemetry))
+                .Returns(listener.Object);
+            var host = new ReverseConnectHost(m_telemetry, registry.Object);
+            host.CreateListener(new Uri("opc.test://localhost:4840"), null!, null!);
+
+            Assert.That(
+                async () => await host.CloseAsync(cts.Token).ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>());
+            listener.Verify(l => l.DisposeAsync(), Times.Never);
+
+            listener
+                .Setup(l => l.CloseAsync(default))
+                .Returns(default(ValueTask));
+            await host.CloseAsync().ConfigureAwait(false);
+            listener.Verify(l => l.CloseAsync(default), Times.Once);
         }
     }
 }
