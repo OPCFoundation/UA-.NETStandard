@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
@@ -65,6 +66,7 @@ namespace Opc.Ua.Server
         Historian.IHistorianRegistryProvider,
         ITransportListenerRegistryProvider,
         IServerEndpointRegistryProvider,
+        ISessionClosingRegistry,
         ITimeProviderProvider
     {
         /// <summary>
@@ -695,11 +697,51 @@ namespace Opc.Ua.Server
             bool deleteSubscriptions,
             CancellationToken cancellationToken = default)
         {
-            await NodeManager.SessionClosingAsync(context, sessionId, deleteSubscriptions, cancellationToken)
-                .ConfigureAwait(false);
-            await SubscriptionManager.SessionClosingAsync(context, sessionId, deleteSubscriptions, cancellationToken)
-                .ConfigureAwait(false);
-            await SessionManager.CloseSessionAsync(sessionId, cancellationToken).ConfigureAwait(false);
+            m_closingSessions.AddOrUpdate(
+                sessionId,
+                1,
+                static (_, count) => count + 1);
+            try
+            {
+                await NodeManager.SessionClosingAsync(context, sessionId, deleteSubscriptions, cancellationToken)
+                    .ConfigureAwait(false);
+                await SubscriptionManager.SessionClosingAsync(context, sessionId, deleteSubscriptions, cancellationToken)
+                    .ConfigureAwait(false);
+                await SessionManager.CloseSessionAsync(sessionId, cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                UnmarkSessionClosing(sessionId);
+            }
+        }
+
+        bool ISessionClosingRegistry.IsSessionClosing(NodeId sessionId)
+        {
+            return m_closingSessions.ContainsKey(sessionId);
+        }
+
+        private void UnmarkSessionClosing(NodeId sessionId)
+        {
+            while (m_closingSessions.TryGetValue(
+                sessionId,
+                out int count))
+            {
+                if (count <= 1)
+                {
+                    if (((ICollection<KeyValuePair<NodeId, int>>)m_closingSessions)
+                        .Remove(new KeyValuePair<NodeId, int>(sessionId, count)))
+                    {
+                        return;
+                    }
+                }
+                else if (m_closingSessions.TryUpdate(
+                    sessionId,
+                    count - 1,
+                    count))
+                {
+                    return;
+                }
+            }
         }
 
         /// <summary>
@@ -1244,6 +1286,7 @@ namespace Opc.Ua.Server
 
         private readonly ServerProperties m_serverDescription;
         private readonly ApplicationConfiguration m_configuration;
+        private readonly ConcurrentDictionary<NodeId, int> m_closingSessions = [];
         private readonly List<Uri> m_endpointAddresses;
         private readonly Lock m_serviceLevelLock = new();
         private RoleStateBinding? m_roleStateBinding;

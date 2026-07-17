@@ -823,7 +823,6 @@ namespace Opc.Ua.Server
             {
                 throw new ArgumentNullException(nameof(context));
             }
-
             NotificationMessage? message = null;
 
             lock (m_lock)
@@ -1562,15 +1561,47 @@ namespace Opc.Ua.Server
         /// Adds monitored items to a subscription.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
-        public async ValueTask<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
+        public ValueTask<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
             OperationContext context,
             TimestampsToReturn timestampsToReturn,
             ArrayOf<MonitoredItemCreateRequest> itemsToCreate,
             CancellationToken cancellationToken = default)
         {
+            if (m_server.NodeManager is INodeManagerMutationCoordinator coordinator)
+            {
+                return coordinator.ExecuteMonitoredItemMutationAsync(
+                    () => CreateMonitoredItemsCoreAsync(
+                        context,
+                        timestampsToReturn,
+                        itemsToCreate,
+                        cancellationToken),
+                    cancellationToken);
+            }
+
+            return CreateMonitoredItemsCoreAsync(
+                context,
+                timestampsToReturn,
+                itemsToCreate,
+                cancellationToken);
+        }
+
+        private async ValueTask<CreateMonitoredItemsResponse>
+            CreateMonitoredItemsCoreAsync(
+                OperationContext context,
+                TimestampsToReturn timestampsToReturn,
+                ArrayOf<MonitoredItemCreateRequest> itemsToCreate,
+                CancellationToken cancellationToken)
+        {
             if (context == null)
             {
                 throw new ArgumentNullException(nameof(context));
+            }
+            EnsureSessionNotClosing(context);
+            if (m_server.SubscriptionManager is ISubscriptionDeletionRegistry deletionRegistry &&
+                deletionRegistry.IsDeleting(Id))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSubscriptionIdInvalid);
             }
 
             int count = itemsToCreate.Count;
@@ -1607,6 +1638,38 @@ namespace Opc.Ua.Server
                 monitoredItems,
                 IsDurable,
                 cancellationToken).ConfigureAwait(false);
+
+            if (m_server.SubscriptionManager is
+                ISubscriptionDeletionRegistry currentDeletionRegistry &&
+                currentDeletionRegistry.IsDeleting(Id))
+            {
+                var cleanupErrors = new List<ServiceResult>(errors.Count);
+                for (int ii = 0; ii < errors.Count; ii++)
+                {
+                    cleanupErrors.Add(
+                        ServiceResult.IsBad(errors[ii])
+                            ? errors[ii]
+                            : null!);
+                }
+                try
+                {
+                    await m_server.NodeManager.DeleteMonitoredItemsAsync(
+                        context,
+                        Id,
+                        monitoredItems,
+                        cleanupErrors,
+                        CancellationToken.None).ConfigureAwait(false);
+                }
+                finally
+                {
+                    foreach (IMonitoredItem monitoredItem in monitoredItems)
+                    {
+                        monitoredItem?.Dispose();
+                    }
+                }
+                throw new ServiceResultException(
+                    StatusCodes.BadSubscriptionIdInvalid);
+            }
 
             // allocate results.
             bool diagnosticsExist = false;
@@ -1770,15 +1833,47 @@ namespace Opc.Ua.Server
         /// Modifies monitored items in a subscription.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
-        public async ValueTask<ModifyMonitoredItemsResponse> ModifyMonitoredItemsAsync(
+        public ValueTask<ModifyMonitoredItemsResponse> ModifyMonitoredItemsAsync(
             OperationContext context,
             TimestampsToReturn timestampsToReturn,
             ArrayOf<MonitoredItemModifyRequest> itemsToModify,
             CancellationToken cancellationToken = default)
         {
+            if (m_server.NodeManager is INodeManagerMutationCoordinator coordinator)
+            {
+                return coordinator.ExecuteMonitoredItemMutationAsync(
+                    () => ModifyMonitoredItemsCoreAsync(
+                        context,
+                        timestampsToReturn,
+                        itemsToModify,
+                        cancellationToken),
+                    cancellationToken);
+            }
+
+            return ModifyMonitoredItemsCoreAsync(
+                context,
+                timestampsToReturn,
+                itemsToModify,
+                cancellationToken);
+        }
+
+        private async ValueTask<ModifyMonitoredItemsResponse>
+            ModifyMonitoredItemsCoreAsync(
+                OperationContext context,
+                TimestampsToReturn timestampsToReturn,
+                ArrayOf<MonitoredItemModifyRequest> itemsToModify,
+                CancellationToken cancellationToken)
+        {
             if (context == null)
             {
                 throw new ArgumentNullException(nameof(context));
+            }
+            EnsureSessionNotClosing(context);
+            if (m_server.SubscriptionManager is ISubscriptionDeletionRegistry deletionRegistry &&
+                deletionRegistry.IsDeleting(Id))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSubscriptionIdInvalid);
             }
 
             int count = itemsToModify.Count;
@@ -1953,15 +2048,44 @@ namespace Opc.Ua.Server
         /// Deletes the monitored items in a subscription.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
-        private async ValueTask<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(
+        private ValueTask<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(
             OperationContext context,
             ArrayOf<uint> monitoredItemIds,
             bool doNotCheckSession,
             CancellationToken cancellationToken = default)
         {
+            if (m_server.NodeManager is INodeManagerMutationCoordinator coordinator)
+            {
+                return coordinator.ExecuteMonitoredItemMutationAsync(
+                    () => DeleteMonitoredItemsCoreAsync(
+                        context,
+                        monitoredItemIds,
+                        doNotCheckSession,
+                        cancellationToken),
+                    cancellationToken);
+            }
+
+            return DeleteMonitoredItemsCoreAsync(
+                context,
+                monitoredItemIds,
+                doNotCheckSession,
+                cancellationToken);
+        }
+
+        private async ValueTask<DeleteMonitoredItemsResponse>
+            DeleteMonitoredItemsCoreAsync(
+                OperationContext context,
+                ArrayOf<uint> monitoredItemIds,
+                bool doNotCheckSession,
+                CancellationToken cancellationToken)
+        {
             if (context == null)
             {
                 throw new ArgumentNullException(nameof(context));
+            }
+            if (!doNotCheckSession)
+            {
+                EnsureSessionNotClosing(context);
             }
 
             int count = monitoredItemIds.Count;
@@ -2126,15 +2250,48 @@ namespace Opc.Ua.Server
         /// Changes the monitoring mode for a set of items.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
-        public async ValueTask<(ArrayOf<StatusCode> results, ArrayOf<DiagnosticInfo> diagnosticInfos)> SetMonitoringModeAsync(
+        public ValueTask<(ArrayOf<StatusCode> results, ArrayOf<DiagnosticInfo> diagnosticInfos)> SetMonitoringModeAsync(
             OperationContext context,
             MonitoringMode monitoringMode,
             ArrayOf<uint> monitoredItemIds,
             CancellationToken cancellationToken = default)
         {
+            if (m_server.NodeManager is INodeManagerMutationCoordinator coordinator)
+            {
+                return coordinator.ExecuteMonitoredItemMutationAsync(
+                    () => SetMonitoringModeCoreAsync(
+                        context,
+                        monitoringMode,
+                        monitoredItemIds,
+                        cancellationToken),
+                    cancellationToken);
+            }
+
+            return SetMonitoringModeCoreAsync(
+                context,
+                monitoringMode,
+                monitoredItemIds,
+                cancellationToken);
+        }
+
+        private async ValueTask<(
+            ArrayOf<StatusCode> results,
+            ArrayOf<DiagnosticInfo> diagnosticInfos)> SetMonitoringModeCoreAsync(
+                OperationContext context,
+                MonitoringMode monitoringMode,
+                ArrayOf<uint> monitoredItemIds,
+                CancellationToken cancellationToken)
+        {
             if (context == null)
             {
                 throw new ArgumentNullException(nameof(context));
+            }
+            EnsureSessionNotClosing(context);
+            if (m_server.SubscriptionManager is ISubscriptionDeletionRegistry deletionRegistry &&
+                deletionRegistry.IsDeleting(Id))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSubscriptionIdInvalid);
             }
 
             int count = monitoredItemIds.Count;
@@ -2658,6 +2815,16 @@ namespace Opc.Ua.Server
                 throw new ServiceResultException(
                     StatusCodes.BadSubscriptionIdInvalid,
                     "Subscription belongs to a different session.");
+            }
+        }
+
+        private void EnsureSessionNotClosing(OperationContext context)
+        {
+            if (context.Session is not null &&
+                m_server is ISessionClosingRegistry closingRegistry &&
+                closingRegistry.IsSessionClosing(context.Session.Id))
+            {
+                throw new ServiceResultException(StatusCodes.BadSessionClosed);
             }
         }
 

@@ -201,6 +201,55 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             Assert.That(urisVersionAfter, Is.EqualTo(urisVersionBefore + 1));
         }
 
+        [Test]
+        public async Task PreparedRuntimeNodeSetRemainsHiddenUntilCommitAsync()
+        {
+            IServerInternal server = m_server.CurrentInstance;
+            var master = (MasterNodeManager)server.NodeManager;
+            var host = (IDynamicNodeManagerHost)master;
+            var factory = new RuntimeNodeSetNodeManagerFactory(
+                CreateOptions(generation: 1));
+            IAsyncNodeManager nodeManager = await factory
+                .CreateAsync(server, m_fixture.Config)
+                .ConfigureAwait(false);
+            PreparedNodeManager prepared = await host
+                .PrepareAsync(nodeManager)
+                .ConfigureAwait(false);
+
+            try
+            {
+                await host.PublishAsync(prepared).ConfigureAwait(false);
+
+                ushort ns = (ushort)server.NamespaceUris.GetIndex(
+                    kModelNamespaceUri);
+                var rootNodeId = new NodeId(kRootNodeId, ns);
+                Assert.That(
+                    master.AsyncNodeManagers.Any(manager =>
+                        ReferenceEquals(manager, nodeManager)),
+                    Is.False);
+                Assert.That(
+                    await master.FindNodeInAddressSpaceAsync(rootNodeId)
+                        .ConfigureAwait(false),
+                    Is.Null);
+
+                await host.CommitAsync(prepared).ConfigureAwait(false);
+
+                Assert.That(
+                    master.AsyncNodeManagers.Any(manager =>
+                        ReferenceEquals(manager, nodeManager)),
+                    Is.True);
+                Assert.That(
+                    await master.FindNodeInAddressSpaceAsync(rootNodeId)
+                        .ConfigureAwait(false),
+                    Is.Not.Null);
+            }
+            finally
+            {
+                await host.RollbackAsync(prepared).ConfigureAwait(false);
+                (nodeManager as IDisposable)?.Dispose();
+            }
+        }
+
         /// <summary>
         /// Nodes added through a live runtime NodeSet must be directly findable, browsable
         /// from both the Objects folder and their parent, translatable via a relative browse

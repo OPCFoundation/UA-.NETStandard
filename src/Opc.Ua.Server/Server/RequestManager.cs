@@ -135,6 +135,9 @@ namespace Opc.Ua.Server
         /// Called when a new request arrives.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        /// <exception cref="InvalidOperationException">
+        /// A different request with the same request id is already active.
+        /// </exception>
         public void RequestReceived(OperationContext context)
         {
             if (context == null)
@@ -144,7 +147,19 @@ namespace Opc.Ua.Server
 
             lock (m_requestsLock)
             {
+                if (m_requests.TryGetValue(
+                    context.RequestId,
+                    out OperationContext? existingContext))
+                {
+                    if (ReferenceEquals(existingContext, context))
+                    {
+                        return;
+                    }
+                    throw new InvalidOperationException(
+                        $"A different request with id {context.RequestId} is already active.");
+                }
                 m_requests.Add(context.RequestId, context);
+                m_currentValidationScope.Value?.Register(context);
 
                 if (context.OperationDeadline < DateTime.MaxValue && m_requestTimer == null)
                 {
@@ -168,19 +183,79 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(context));
             }
 
+            bool removed;
             lock (m_requestsLock)
             {
                 // remove the request.
-                m_requests.Remove(context.RequestId);
-                for (int ii = m_requestDrains.Count - 1; ii >= 0; ii--)
+                removed = m_requests.TryGetValue(
+                    context.RequestId,
+                    out OperationContext? existingContext) &&
+                    ReferenceEquals(existingContext, context) &&
+                    m_requests.Remove(context.RequestId);
+                if (removed)
                 {
-                    if (m_requestDrains[ii].Complete(context.RequestId))
+                    for (int ii = m_requestDrains.Count - 1; ii >= 0; ii--)
                     {
-                        m_requestDrains.RemoveAt(ii);
+                        if (m_requestDrains[ii].Complete(context.RequestId))
+                        {
+                            m_requestDrains.RemoveAt(ii);
+                        }
                     }
                 }
             }
-            context.RequestLifetime?.MarkCompleted();
+            if (removed)
+            {
+                context.RequestLifetime?.MarkCompleted();
+            }
+        }
+
+        internal bool IsExecutingRequest => m_currentRequestId.Value.HasValue;
+
+        internal IDisposable EnterValidationScope()
+        {
+            long validationId = Interlocked.Increment(
+                ref m_lastValidationScopeId);
+            lock (m_requestsLock)
+            {
+                m_activeValidationScopes.Add(validationId);
+            }
+
+            uint? previousRequestId = m_currentRequestId.Value;
+            RequestValidationScope? previousValidationScope =
+                m_currentValidationScope.Value;
+            m_currentRequestId.Value = uint.MaxValue;
+            var scope = new RequestValidationScope(
+                this,
+                validationId,
+                previousRequestId,
+                previousValidationScope);
+            m_currentValidationScope.Value = scope;
+            return scope;
+        }
+
+        internal IDisposable EnterRequestScope(OperationContext context)
+        {
+            if (context is null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
+            RequestReceived(context);
+            uint? previousRequestId = m_currentRequestId.Value;
+            m_currentRequestId.Value = context.RequestId;
+            return new RequestExecutionScope(
+                this,
+                context,
+                previousRequestId);
+        }
+
+        internal void PromoteValidatedRequest(OperationContext context)
+        {
+            if (context is null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            m_currentValidationScope.Value?.Promote(context);
         }
 
         internal async ValueTask WaitForCurrentRequestsAsync(
@@ -189,12 +264,15 @@ namespace Opc.Ua.Server
             RequestDrain requestDrain;
             lock (m_requestsLock)
             {
-                if (m_requests.Count == 0)
+                if (m_requests.Count == 0 &&
+                    m_activeValidationScopes.Count == 0)
                 {
                     return;
                 }
 
-                requestDrain = new RequestDrain(m_requests.Keys);
+                requestDrain = new RequestDrain(
+                    m_requests.Keys,
+                    m_activeValidationScopes);
                 m_requestDrains.Add(requestDrain);
             }
 
@@ -326,17 +404,27 @@ namespace Opc.Ua.Server
         private readonly ILogger m_logger;
         private readonly IServerInternal m_server;
         private readonly TimeProvider m_timeProvider;
+        private readonly AsyncLocal<uint?> m_currentRequestId = new();
+
+        private readonly AsyncLocal<RequestValidationScope?>
+            m_currentValidationScope = new();
+
         private readonly Dictionary<uint, OperationContext> m_requests;
         private readonly List<RequestDrain> m_requestDrains = [];
         private readonly Lock m_requestsLock = new();
+        private readonly HashSet<long> m_activeValidationScopes = [];
+        private long m_lastValidationScopeId;
         private ITimer? m_requestTimer;
         private event RequestCancelledEventHandler? m_RequestCancelled;
 
         private sealed class RequestDrain
         {
-            public RequestDrain(IEnumerable<uint> requestIds)
+            public RequestDrain(
+                IEnumerable<uint> requestIds,
+                IEnumerable<long> validationIds)
             {
                 m_requestIds = [.. requestIds];
+                m_validationIds = [.. validationIds];
             }
 
             public Task Completion => m_completion.Task;
@@ -344,12 +432,13 @@ namespace Opc.Ua.Server
             public bool Complete(uint requestId)
             {
                 m_requestIds.Remove(requestId);
-                if (m_requestIds.Count == 0)
-                {
-                    m_completion.TrySetResult(true);
-                    return true;
-                }
-                return false;
+                return TryComplete();
+            }
+
+            public bool CompleteValidation(long validationId)
+            {
+                m_validationIds.Remove(validationId);
+                return TryComplete();
             }
 
             public void Cancel()
@@ -358,9 +447,117 @@ namespace Opc.Ua.Server
             }
 
             private readonly HashSet<uint> m_requestIds;
+            private readonly HashSet<long> m_validationIds;
 
             private readonly TaskCompletionSource<bool> m_completion = new(
                 TaskCreationOptions.RunContinuationsAsynchronously);
+
+            private bool TryComplete()
+            {
+                if (m_requestIds.Count == 0 &&
+                    m_validationIds.Count == 0)
+                {
+                    m_completion.TrySetResult(true);
+                    return true;
+                }
+                return false;
+            }
+        }
+
+        private sealed class RequestExecutionScope : IDisposable
+        {
+            public RequestExecutionScope(
+                RequestManager requestManager,
+                OperationContext context,
+                uint? previousRequestId)
+            {
+                m_requestManager = requestManager;
+                m_context = context;
+                m_previousRequestId = previousRequestId;
+            }
+
+            public void Dispose()
+            {
+                if (!m_disposed)
+                {
+                    m_disposed = true;
+                    m_requestManager.RequestCompleted(m_context);
+                    m_requestManager.m_currentRequestId.Value =
+                        m_previousRequestId;
+                }
+            }
+
+            private readonly RequestManager m_requestManager;
+            private readonly OperationContext m_context;
+            private readonly uint? m_previousRequestId;
+            private bool m_disposed;
+        }
+
+        private sealed class RequestValidationScope : IDisposable
+        {
+            public RequestValidationScope(
+                RequestManager requestManager,
+                long validationId,
+                uint? previousRequestId,
+                RequestValidationScope? previousValidationScope)
+            {
+                m_requestManager = requestManager;
+                m_validationId = validationId;
+                m_previousRequestId = previousRequestId;
+                m_previousValidationScope = previousValidationScope;
+            }
+
+            public void Register(OperationContext context)
+            {
+                if (!m_registeredContexts.Contains(context))
+                {
+                    m_registeredContexts.Add(context);
+                }
+            }
+
+            public void Promote(OperationContext context)
+            {
+                m_registeredContexts.Remove(context);
+            }
+
+            public void Dispose()
+            {
+                if (!m_disposed)
+                {
+                    m_disposed = true;
+                    foreach (OperationContext context in m_registeredContexts)
+                    {
+                        m_requestManager.RequestCompleted(context);
+                    }
+                    lock (m_requestManager.m_requestsLock)
+                    {
+                        m_requestManager.m_activeValidationScopes.Remove(
+                            m_validationId);
+                        for (int ii =
+                            m_requestManager.m_requestDrains.Count - 1;
+                            ii >= 0;
+                            ii--)
+                        {
+                            if (m_requestManager.m_requestDrains[ii]
+                                .CompleteValidation(m_validationId))
+                            {
+                                m_requestManager.m_requestDrains.RemoveAt(ii);
+                            }
+                        }
+                    }
+                    m_requestManager.m_currentRequestId.Value =
+                        m_previousRequestId;
+                    m_requestManager.m_currentValidationScope.Value =
+                        m_previousValidationScope;
+                }
+            }
+
+            private readonly RequestManager m_requestManager;
+            private readonly long m_validationId;
+            private readonly uint? m_previousRequestId;
+            private readonly RequestValidationScope? m_previousValidationScope;
+            private readonly List<OperationContext> m_registeredContexts = [];
+            private bool m_disposed;
         }
     }
 

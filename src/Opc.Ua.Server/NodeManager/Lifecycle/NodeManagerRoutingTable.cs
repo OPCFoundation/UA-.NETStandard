@@ -43,7 +43,7 @@ namespace Opc.Ua.Server
             => Volatile.Read(ref m_snapshot).NodeManagers[index];
 
         public IReadOnlyDictionary<int, IReadOnlyList<IAsyncNodeManager>> NamespaceManagers
-            => Volatile.Read(ref m_snapshot).NamespaceManagers;
+            => Volatile.Read(ref m_snapshot).VisibleNamespaceManagers;
 
         public void AddInitial(IAsyncNodeManager nodeManager)
         {
@@ -57,7 +57,8 @@ namespace Opc.Ua.Server
                 RoutingSnapshot snapshot = m_snapshot;
                 m_snapshot = new RoutingSnapshot(
                     [.. snapshot.NodeManagers, nodeManager],
-                    snapshot.NamespaceManagers);
+                    snapshot.NamespaceManagers,
+                    snapshot.HiddenNodeManagers);
             }
         }
 
@@ -75,13 +76,15 @@ namespace Opc.Ua.Server
                     m_snapshot.NodeManagers,
                     namespaceManagers.ToDictionary(
                         entry => entry.Key,
-                        entry => (IReadOnlyList<IAsyncNodeManager>)[.. entry.Value]));
+                        entry => (IReadOnlyList<IAsyncNodeManager>)[.. entry.Value]),
+                    m_snapshot.HiddenNodeManagers);
             }
         }
 
         public void Add(
             IAsyncNodeManager nodeManager,
-            IEnumerable<int> namespaceIndexes)
+            IEnumerable<int> namespaceIndexes,
+            bool visible = true)
         {
             if (nodeManager is null)
             {
@@ -107,21 +110,43 @@ namespace Opc.Ua.Server
                     routes.TryGetValue(
                         namespaceIndex,
                         out IReadOnlyList<IAsyncNodeManager>? existing);
-                    routes[namespaceIndex] = existing is null
-                        ? [nodeManager]
-                        : [.. existing, nodeManager];
+                    if (existing is null)
+                    {
+                        routes[namespaceIndex] = [nodeManager];
+                    }
+                    else if (!existing.Any(manager =>
+                        AreSameManager(manager, nodeManager)))
+                    {
+                        routes[namespaceIndex] = [.. existing, nodeManager];
+                    }
+                }
+
+                IAsyncNodeManager[] hiddenNodeManagers =
+                [
+                    .. snapshot.HiddenNodeManagers.Where(manager =>
+                        !ReferenceEquals(manager, nodeManager))
+                ];
+                if (!visible)
+                {
+                    hiddenNodeManagers =
+                    [
+                        .. hiddenNodeManagers,
+                        nodeManager
+                    ];
                 }
 
                 m_snapshot = new RoutingSnapshot(
                     [.. snapshot.NodeManagers, nodeManager],
-                    routes);
+                    routes,
+                    hiddenNodeManagers);
             }
         }
 
         public void Replace(
             IAsyncNodeManager current,
             IAsyncNodeManager replacement,
-            IEnumerable<int> replacementNamespaceIndexes)
+            IEnumerable<int> replacementNamespaceIndexes,
+            bool replacementVisible = true)
         {
             if (current is null)
             {
@@ -158,16 +183,36 @@ namespace Opc.Ua.Server
 
                 Dictionary<int, IReadOnlyList<IAsyncNodeManager>> routes =
                     CopyRoutes(snapshot.NamespaceManagers);
+                foreach (KeyValuePair<int, IReadOnlyList<IAsyncNodeManager>> route in routes)
+                {
+                    if (route.Value.Any(manager =>
+                        AreSameManager(manager, replacement)))
+                    {
+                        replacementNamespaceSet.Add(route.Key);
+                    }
+                }
                 foreach (int namespaceIndex in routes.Keys.ToArray())
                 {
                     IReadOnlyList<IAsyncNodeManager> existing = routes[namespaceIndex];
-                    int routeIndex = IndexOf(existing, current);
+                    var updated = existing
+                        .Where(manager => !AreSameManager(
+                            manager,
+                            replacement))
+                        .ToList();
+                    int routeIndex = IndexOf(updated, current);
                     if (routeIndex < 0)
                     {
+                        if (updated.Count == 0)
+                        {
+                            routes.Remove(namespaceIndex);
+                        }
+                        else if (updated.Count != existing.Count)
+                        {
+                            routes[namespaceIndex] = [.. updated];
+                        }
                         continue;
                     }
 
-                    var updated = existing.ToList();
                     if (replacementNamespaceSet.Remove(namespaceIndex))
                     {
                         updated[routeIndex] = replacement;
@@ -197,7 +242,25 @@ namespace Opc.Ua.Server
                         : [.. existing, replacement];
                 }
 
-                m_snapshot = new RoutingSnapshot(managers, routes);
+                IAsyncNodeManager[] hiddenNodeManagers =
+                [
+                    .. snapshot.HiddenNodeManagers.Where(manager =>
+                        !ReferenceEquals(manager, current) &&
+                        !ReferenceEquals(manager, replacement))
+                ];
+                if (!replacementVisible)
+                {
+                    hiddenNodeManagers =
+                    [
+                        .. hiddenNodeManagers,
+                        replacement
+                    ];
+                }
+
+                m_snapshot = new RoutingSnapshot(
+                    managers,
+                    routes,
+                    hiddenNodeManagers);
             }
         }
 
@@ -237,11 +300,20 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                m_snapshot = new RoutingSnapshot([.. managers], routes);
+                m_snapshot = new RoutingSnapshot(
+                    [.. managers],
+                    routes,
+                    [
+                        .. snapshot.HiddenNodeManagers.Where(manager =>
+                            !ReferenceEquals(manager, nodeManager))
+                    ]);
             }
         }
 
-        public void RegisterNamespace(int namespaceIndex, IAsyncNodeManager nodeManager)
+        public void RegisterNamespace(
+            int namespaceIndex,
+            IAsyncNodeManager nodeManager,
+            bool visible = true)
         {
             lock (m_lock)
             {
@@ -258,7 +330,24 @@ namespace Opc.Ua.Server
                 routes[namespaceIndex] = existing is null
                     ? [nodeManager]
                     : [.. existing, nodeManager];
-                m_snapshot = new RoutingSnapshot(snapshot.NodeManagers, routes);
+                IAsyncNodeManager[] hiddenNodeManagers =
+                [
+                    .. snapshot.HiddenNodeManagers.Where(manager =>
+                        !ReferenceEquals(manager, nodeManager))
+                ];
+                if (!visible)
+                {
+                    hiddenNodeManagers =
+                    [
+                        .. hiddenNodeManagers,
+                        nodeManager
+                    ];
+                }
+
+                m_snapshot = new RoutingSnapshot(
+                    snapshot.NodeManagers,
+                    routes,
+                    hiddenNodeManagers);
             }
         }
 
@@ -281,7 +370,8 @@ namespace Opc.Ua.Server
                 int removed = updated.RemoveAll(manager =>
                     asyncNodeManager is not null
                         ? ReferenceEquals(manager, asyncNodeManager)
-                        : ReferenceEquals(manager.SyncNodeManager, nodeManager));
+                        : manager.SyncNodeManager is { } syncNodeManager &&
+                            ReferenceEquals(syncNodeManager, nodeManager));
                 if (removed == 0)
                 {
                     return false;
@@ -297,8 +387,97 @@ namespace Opc.Ua.Server
                 {
                     routes[namespaceIndex] = [.. updated];
                 }
-                m_snapshot = new RoutingSnapshot(snapshot.NodeManagers, routes);
+                m_snapshot = new RoutingSnapshot(
+                    snapshot.NodeManagers,
+                    routes,
+                    snapshot.HiddenNodeManagers);
                 return true;
+            }
+        }
+
+        public void RemoveNamespaceManager(IAsyncNodeManager nodeManager)
+        {
+            if (nodeManager is null)
+            {
+                throw new ArgumentNullException(nameof(nodeManager));
+            }
+
+            lock (m_lock)
+            {
+                RoutingSnapshot snapshot = m_snapshot;
+                Dictionary<int, IReadOnlyList<IAsyncNodeManager>> routes =
+                    CopyRoutes(snapshot.NamespaceManagers);
+                foreach (int namespaceIndex in routes.Keys.ToArray())
+                {
+                    var updated = routes[namespaceIndex].ToList();
+                    updated.RemoveAll(manager =>
+                        AreSameManager(manager, nodeManager));
+                    if (updated.Count == 0)
+                    {
+                        routes.Remove(namespaceIndex);
+                    }
+                    else
+                    {
+                        routes[namespaceIndex] = [.. updated];
+                    }
+                }
+
+                m_snapshot = new RoutingSnapshot(
+                    snapshot.NodeManagers,
+                    routes,
+                    [
+                        .. snapshot.HiddenNodeManagers.Where(manager =>
+                            !AreSameManager(manager, nodeManager))
+                    ]);
+            }
+        }
+
+        public bool IsVisible(IAsyncNodeManager nodeManager)
+        {
+            RoutingSnapshot snapshot = Volatile.Read(ref m_snapshot);
+            return snapshot.NodeManagers.Any(manager =>
+                ReferenceEquals(manager, nodeManager)) &&
+                !snapshot.HiddenNodeManagers.Any(manager =>
+                    ReferenceEquals(manager, nodeManager));
+        }
+
+        public void SetVisible(
+            IAsyncNodeManager nodeManager,
+            bool visible)
+        {
+            if (nodeManager is null)
+            {
+                throw new ArgumentNullException(nameof(nodeManager));
+            }
+
+            lock (m_lock)
+            {
+                RoutingSnapshot snapshot = m_snapshot;
+                if (!snapshot.NodeManagers.Any(manager =>
+                    ReferenceEquals(manager, nodeManager)))
+                {
+                    throw new InvalidOperationException(
+                        "The NodeManager is not registered.");
+                }
+
+                IAsyncNodeManager[] hiddenNodeManagers =
+                [
+                    .. snapshot.HiddenNodeManagers.Where(manager =>
+                        !ReferenceEquals(manager, nodeManager))
+                ];
+                if (!visible)
+                {
+                    hiddenNodeManagers =
+                    [
+                        .. hiddenNodeManagers,
+                        nodeManager
+                    ];
+                }
+
+                m_snapshot = new RoutingSnapshot(
+                    snapshot.NodeManagers,
+                    snapshot.NamespaceManagers,
+                    hiddenNodeManagers);
             }
         }
 
@@ -312,8 +491,9 @@ namespace Opc.Ua.Server
 
         public IEnumerator<IAsyncNodeManager> GetEnumerator()
         {
-            return ((IEnumerable<IAsyncNodeManager>)
-                Volatile.Read(ref m_snapshot).NodeManagers).GetEnumerator();
+            IAsyncNodeManager[] nodeManagers =
+                Volatile.Read(ref m_snapshot).VisibleNodeManagers;
+            return ((IEnumerable<IAsyncNodeManager>)nodeManagers).GetEnumerator();
         }
 
         IEnumerator IEnumerable.GetEnumerator()
@@ -322,7 +502,7 @@ namespace Opc.Ua.Server
         }
 
         private static int IndexOf(
-            IReadOnlyList<IAsyncNodeManager> managers,
+            List<IAsyncNodeManager> managers,
             IAsyncNodeManager manager)
         {
             for (int ii = 0; ii < managers.Count; ii++)
@@ -333,6 +513,23 @@ namespace Opc.Ua.Server
                 }
             }
             return -1;
+        }
+
+        private static bool AreSameManager(
+            IAsyncNodeManager left,
+            IAsyncNodeManager right)
+        {
+            if (ReferenceEquals(left, right))
+            {
+                return true;
+            }
+            INodeManager? leftSyncNodeManager = left.SyncNodeManager;
+            INodeManager? rightSyncNodeManager = right.SyncNodeManager;
+            return leftSyncNodeManager is not null &&
+                rightSyncNodeManager is not null &&
+                ReferenceEquals(
+                    leftSyncNodeManager,
+                    rightSyncNodeManager);
         }
 
         private static Dictionary<int, IReadOnlyList<IAsyncNodeManager>> CopyRoutes(
@@ -348,19 +545,63 @@ namespace Opc.Ua.Server
         {
             public RoutingSnapshot(
                 IAsyncNodeManager[] nodeManagers,
-                IReadOnlyDictionary<int, IReadOnlyList<IAsyncNodeManager>> namespaceManagers)
+                IReadOnlyDictionary<int, IReadOnlyList<IAsyncNodeManager>> namespaceManagers,
+                IAsyncNodeManager[] hiddenNodeManagers)
             {
                 NodeManagers = nodeManagers;
                 NamespaceManagers = namespaceManagers;
+                HiddenNodeManagers = hiddenNodeManagers;
+                VisibleNodeManagers =
+                [
+                    .. nodeManagers.Where(manager =>
+                        !hiddenNodeManagers.Any(hidden =>
+                            ReferenceEquals(hidden, manager)))
+                ];
+                VisibleNamespaceManagers =
+                    CreateVisibleNamespaceManagers(
+                        namespaceManagers,
+                        hiddenNodeManagers);
             }
 
             public static RoutingSnapshot Empty { get; } = new(
                 [],
-                new Dictionary<int, IReadOnlyList<IAsyncNodeManager>>());
+                new Dictionary<int, IReadOnlyList<IAsyncNodeManager>>(),
+                []);
 
             public IAsyncNodeManager[] NodeManagers { get; }
 
             public IReadOnlyDictionary<int, IReadOnlyList<IAsyncNodeManager>> NamespaceManagers { get; }
+
+            public IAsyncNodeManager[] HiddenNodeManagers { get; }
+
+            public IAsyncNodeManager[] VisibleNodeManagers { get; }
+
+            public IReadOnlyDictionary<int, IReadOnlyList<IAsyncNodeManager>>
+                VisibleNamespaceManagers
+            { get; }
+
+            private static Dictionary<int, IReadOnlyList<IAsyncNodeManager>>
+                CreateVisibleNamespaceManagers(
+                    IReadOnlyDictionary<int, IReadOnlyList<IAsyncNodeManager>> routes,
+                    IAsyncNodeManager[] hiddenNodeManagers)
+            {
+                var visibleRoutes =
+                    new Dictionary<int, IReadOnlyList<IAsyncNodeManager>>();
+                foreach (KeyValuePair<int, IReadOnlyList<IAsyncNodeManager>> route in routes)
+                {
+                    IAsyncNodeManager[] visibleManagers =
+                    [
+                        .. route.Value.Where(manager =>
+                            !hiddenNodeManagers.Any(hidden =>
+                                ReferenceEquals(hidden, manager)))
+                    ];
+                    if (visibleManagers.Length > 0)
+                    {
+                        visibleRoutes[route.Key] = visibleManagers;
+                    }
+                }
+                return visibleRoutes;
+            }
         }
     }
 }

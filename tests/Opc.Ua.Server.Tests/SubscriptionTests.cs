@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Threading;
@@ -94,6 +95,171 @@ namespace Opc.Ua.Server.Tests
                 priority: 0,
                 publishingEnabled: true,
                 maxMessageCount: 10);
+        }
+
+        [Test]
+        [Category("NodeManagerLifecycle")]
+        public void CreateMonitoredItemsRejectsClosingSession()
+        {
+            using ServerInternalData server = CreateServerInternalData();
+            ConcurrentDictionary<NodeId, int> closingSessions =
+                GetPrivateField<ConcurrentDictionary<NodeId, int>>(
+                    server,
+                    "m_closingSessions");
+            closingSessions.TryAdd(m_sessionMock.Object.Id, 1);
+            using var subscription = new Subscription(
+                server,
+                m_sessionMock.Object,
+                subscriptionId: 1,
+                publishingInterval: 1000,
+                maxLifetimeCount: 10,
+                maxKeepAliveCount: 5,
+                maxNotificationsPerPublish: 0,
+                priority: 0,
+                publishingEnabled: true,
+                maxMessageCount: 10);
+            var context = new OperationContext(
+                m_sessionMock.Object,
+                DiagnosticsMasks.None);
+
+            ServiceResultException exception =
+                Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await subscription
+                        .CreateMonitoredItemsAsync(
+                            context,
+                            TimestampsToReturn.Both,
+                            [],
+                            CancellationToken.None)
+                        .ConfigureAwait(false));
+
+            Assert.That(
+                exception.StatusCode,
+                Is.EqualTo(StatusCodes.BadSessionClosed));
+        }
+
+        private ServerInternalData CreateServerInternalData()
+        {
+            var configuration = new ApplicationConfiguration
+            {
+                ApplicationUri = "urn:opcfoundation.org:Tests:Subscription",
+                ServerConfiguration = new ServerConfiguration
+                {
+                    BaseAddresses = []
+                }
+            };
+            var server = new ServerInternalData(
+                new ServerProperties(),
+                configuration,
+                ServiceMessageContext.Create(m_telemetry));
+            var masterNodeManager = new Mock<IMasterNodeManager>();
+            masterNodeManager
+                .SetupGet(manager => manager.DiagnosticsNodeManager)
+                .Returns(m_diagnosticsNodeManagerMock.Object);
+            masterNodeManager
+                .SetupGet(manager => manager.ConfigurationNodeManager)
+                .Returns((IConfigurationNodeManager)null);
+            masterNodeManager
+                .SetupGet(manager => manager.CoreNodeManager)
+                .Returns((ICoreNodeManager)null);
+            server.SetNodeManager(masterNodeManager.Object);
+            server.SetMonitoredItemQueueFactory(m_queueFactoryMock.Object);
+            return server;
+        }
+
+        [Test]
+        [Category("NodeManagerLifecycle")]
+        public void ClosePublishQueueRetainsClaimedDeletingSubscription()
+        {
+            var configuration = new ApplicationConfiguration
+            {
+                ServerConfiguration = new ServerConfiguration()
+            };
+            using var manager = new SubscriptionManager(
+                m_serverMock.Object,
+                configuration);
+            var sessionId = new NodeId(Guid.NewGuid());
+            NodeId currentSessionId = sessionId;
+            var subscription = new Mock<ISubscription>();
+            subscription.SetupGet(value => value.Id).Returns(1);
+            subscription
+                .SetupGet(value => value.SessionId)
+                .Returns(() => currentSessionId);
+            subscription
+                .Setup(value => value.SessionClosed())
+                .Callback(() => currentSessionId = NodeId.Null);
+
+            ConcurrentDictionary<uint, ISubscription> activeSubscriptions =
+                GetPrivateField<ConcurrentDictionary<uint, ISubscription>>(
+                    manager,
+                    "m_subscriptions");
+            ConcurrentDictionary<uint, byte> deletingSubscriptions =
+                GetPrivateField<ConcurrentDictionary<uint, byte>>(
+                    manager,
+                    "m_deletingSubscriptions");
+            ConcurrentDictionary<uint, ISubscription> abandonedSubscriptions =
+                GetPrivateField<ConcurrentDictionary<uint, ISubscription>>(
+                    manager,
+                    "m_abandonedSubscriptions");
+            ConcurrentDictionary<NodeId, IList<ISubscription>>
+                closedSessionSubscriptions =
+                    GetPrivateField<
+                        ConcurrentDictionary<NodeId, IList<ISubscription>>>(
+                            manager,
+                            "m_closedSessionSubscriptions");
+            activeSubscriptions.TryAdd(subscription.Object.Id, subscription.Object);
+            deletingSubscriptions.TryAdd(subscription.Object.Id, 0);
+
+            MethodInfo closePublishQueue = typeof(SubscriptionManager).GetMethod(
+                "ClosePublishQueue",
+                BindingFlags.Instance | BindingFlags.NonPublic)
+                ?? throw new InvalidOperationException(
+                    "ClosePublishQueue method not found.");
+            object closeWork = closePublishQueue.Invoke(
+                manager,
+                [sessionId, true]);
+
+            Assert.That(closeWork, Is.Not.Null);
+            Assert.That(
+                closedSessionSubscriptions.TryGetValue(
+                    sessionId,
+                    out IList<ISubscription> subscriptions),
+                Is.True);
+            Assert.That(subscriptions, Has.Count.EqualTo(1));
+            Assert.That(subscriptions![0], Is.SameAs(subscription.Object));
+            Assert.That(currentSessionId.IsNull, Is.True);
+            subscription.Verify(value => value.SessionClosed(), Times.Once);
+
+            Type claimType = typeof(SubscriptionManager).GetNestedType(
+                "SubscriptionDeletionClaim",
+                BindingFlags.NonPublic)
+                ?? throw new InvalidOperationException(
+                    "SubscriptionDeletionClaim type not found.");
+            ConstructorInfo claimConstructor = claimType.GetConstructors(
+                BindingFlags.Instance | BindingFlags.Public |
+                BindingFlags.NonPublic)[0];
+            object claim = claimConstructor.Invoke(
+                [subscription.Object, sessionId, null, false]);
+            MethodInfo restoreSubscriptionDeletion =
+                typeof(SubscriptionManager).GetMethod(
+                    "RestoreSubscriptionDeletion",
+                    BindingFlags.Instance | BindingFlags.NonPublic)
+                ?? throw new InvalidOperationException(
+                    "RestoreSubscriptionDeletion method not found.");
+
+            Assert.That(
+                restoreSubscriptionDeletion.Invoke(manager, [claim]),
+                Is.True);
+            Assert.That(
+                abandonedSubscriptions.TryGetValue(
+                    subscription.Object.Id,
+                    out ISubscription restoredSubscription),
+                Is.True);
+            Assert.That(
+                restoredSubscription,
+                Is.SameAs(subscription.Object));
+            Assert.That(
+                deletingSubscriptions.ContainsKey(subscription.Object.Id),
+                Is.False);
         }
 
         [Test]
@@ -208,6 +374,20 @@ namespace Opc.Ua.Server.Tests
             FieldInfo field = typeof(Subscription).GetField("m_publishTimerExpiry", BindingFlags.NonPublic | BindingFlags.Instance)
                 ?? throw new InvalidOperationException("Field m_publishTimerExpiry not found");
             field.SetValue(subscription, expiryTime);
+        }
+
+        private static T GetPrivateField<T>(
+            object instance,
+            string fieldName)
+        {
+            FieldInfo field = instance.GetType().GetField(
+                fieldName,
+                BindingFlags.Instance | BindingFlags.NonPublic)
+                ?? throw new InvalidOperationException(
+                    $"Field {fieldName} not found.");
+            return (T)(field.GetValue(instance) ??
+                throw new InvalidOperationException(
+                    $"Field {fieldName} is null."));
         }
 
         private static void ResetKeepAlive(Subscription subscription)

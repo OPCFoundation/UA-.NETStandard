@@ -210,12 +210,22 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(registration));
             }
 
+            EnsureNotRequestCallback();
             await m_lifecycleSemaphore.WaitAsync(ct).ConfigureAwait(false);
             try
             {
                 (IServerInternal server, IDynamicNodeManagerHost host) = GetRunningServer();
                 await CleanupRetiredNodeManagersAsync(server, host).ConfigureAwait(false);
                 RegistrationState state = GetCurrentState(registration);
+                if (!state.Prepared.Published &&
+                    state.Prepared.Staged)
+                {
+                    await UnbindFromServerAsync(
+                        server,
+                        state.Prepared.NodeManager,
+                        CancellationToken.None).ConfigureAwait(false);
+                    state.Prepared.Staged = false;
+                }
                 if (state.Prepared.Published)
                 {
                     EnsureNoActiveMonitoredItems(server, state.Prepared.NodeManager);
@@ -226,6 +236,9 @@ namespace Opc.Ua.Server
 
                     try
                     {
+                        InvalidateContinuationPoints(
+                            server,
+                            state.Prepared.NodeManager);
                         await server.RequestManager
                             .WaitForCurrentRequestsAsync(ct)
                             .ConfigureAwait(false);
@@ -242,6 +255,7 @@ namespace Opc.Ua.Server
                     }
                     catch (Exception ex) when (ex is not OutOfMemoryException)
                     {
+                        ServerBindings? rollbackBindings = null;
                         try
                         {
                             await host
@@ -249,14 +263,60 @@ namespace Opc.Ua.Server
                                     state.Prepared,
                                     CancellationToken.None)
                                 .ConfigureAwait(false);
-                            _ = await BindToServerAsync(
+                            rollbackBindings = await BindToServerAsync(
                                 server,
                                 state.Prepared.NodeManager,
+                                CancellationToken.None).ConfigureAwait(false);
+                            await CommitWithReconciliationAsync(
+                                server,
+                                host,
+                                state.Prepared,
+                                state.Prepared.NodeManager,
+                                rollbackBindings,
+                                CancellationToken.None).ConfigureAwait(false);
+                            await server.RequestManager
+                                .WaitForCurrentRequestsAsync(CancellationToken.None)
+                                .ConfigureAwait(false);
+                            await ReconcileBindingsAsync(
+                                server,
+                                state.Prepared.NodeManager,
+                                rollbackBindings,
                                 CancellationToken.None).ConfigureAwait(false);
                         }
                         catch (Exception rollbackException) when (
                             rollbackException is not OutOfMemoryException)
                         {
+                            Exception? cleanupException = null;
+                            if (!state.Prepared.Published)
+                            {
+                                try
+                                {
+                                    if (rollbackBindings is not null)
+                                    {
+                                        await UnbindBindingsAsync(
+                                            state.Prepared.NodeManager,
+                                            rollbackBindings,
+                                            CancellationToken.None).ConfigureAwait(false);
+                                    }
+                                    await UnbindFromServerAsync(
+                                        server,
+                                        state.Prepared.NodeManager,
+                                        CancellationToken.None).ConfigureAwait(false);
+                                    state.Prepared.Staged = false;
+                                }
+                                catch (Exception ex2) when (
+                                    ex2 is not OutOfMemoryException)
+                                {
+                                    cleanupException = ex2;
+                                }
+                            }
+                            if (cleanupException is not null)
+                            {
+                                rollbackException = new AggregateException(
+                                    "NodeManager rollback binding cleanup failed.",
+                                    rollbackException,
+                                    cleanupException);
+                            }
                             throw new AggregateException(
                                 "NodeManager removal and rollback both failed.",
                                 ex,
@@ -296,6 +356,7 @@ namespace Opc.Ua.Server
             CreateNodeManagerAsync createNodeManager,
             CancellationToken ct)
         {
+            EnsureNotRequestCallback();
             await m_lifecycleSemaphore.WaitAsync(ct).ConfigureAwait(false);
             IAsyncNodeManager? nodeManager = null;
             PreparedNodeManager? prepared = null;
@@ -327,6 +388,14 @@ namespace Opc.Ua.Server
                     ct).ConfigureAwait(false);
                 await host.PublishAsync(prepared, ct).ConfigureAwait(false);
 
+                await CommitWithReconciliationAsync(
+                    server,
+                    host,
+                    prepared,
+                    nodeManager,
+                    bindings,
+                    ct).ConfigureAwait(false);
+
                 var registration = new NodeManagerRegistration(
                     Guid.NewGuid(),
                     1,
@@ -339,6 +408,9 @@ namespace Opc.Ua.Server
                 }
                 committed = true;
 
+                await server.RequestManager
+                    .WaitForCurrentRequestsAsync(CancellationToken.None)
+                    .ConfigureAwait(false);
                 await ReconcileBindingsAsync(
                     server,
                     nodeManager,
@@ -361,18 +433,59 @@ namespace Opc.Ua.Server
                         ex);
                 }
 
+                Exception? cleanupException = null;
                 if (prepared is not null && host is not null)
                 {
-                    Exception? cleanupException = await CleanupPreparedAsync(
+                    cleanupException = await CleanupPreparedAsync(
                         server,
                         host,
                         prepared).ConfigureAwait(false);
-                    if (cleanupException is not null)
+                }
+
+                NodeManagerRegistration? retainedRegistration = null;
+                Exception? recoveryException = null;
+                if (prepared?.Published == true &&
+                    nodeManager is not null &&
+                    server is not null &&
+                    host is not null)
+                {
+                    retainedRegistration = new NodeManagerRegistration(
+                        Guid.NewGuid(),
+                        1,
+                        nodeManager);
+                    lock (m_registrationLock)
                     {
-                        throw new AggregateException(
-                            "NodeManager creation and rollback both failed.",
-                            ex,
-                            cleanupException);
+                        m_registrations[retainedRegistration.Id] =
+                            new RegistrationState(
+                                retainedRegistration,
+                                prepared);
+                    }
+
+                    try
+                    {
+                        ServerBindings recoveryBindings =
+                            await BindToServerAsync(
+                                server,
+                                nodeManager,
+                                CancellationToken.None).ConfigureAwait(false);
+                        await ReconcileBindingsAsync(
+                            server,
+                            nodeManager,
+                            recoveryBindings,
+                            CancellationToken.None).ConfigureAwait(false);
+                        await server.RequestManager
+                            .WaitForCurrentRequestsAsync(CancellationToken.None)
+                            .ConfigureAwait(false);
+                        await ReconcileBindingsAsync(
+                            server,
+                            nodeManager,
+                            recoveryBindings,
+                            CancellationToken.None).ConfigureAwait(false);
+                    }
+                    catch (Exception recoveryFailure) when (
+                        recoveryFailure is not OutOfMemoryException)
+                    {
+                        recoveryException = recoveryFailure;
                     }
                 }
 
@@ -388,9 +501,45 @@ namespace Opc.Ua.Server
                         CancellationToken.None).ConfigureAwait(false);
                 }
 
-                if (nodeManager is not null)
+                Exception? disposeException = null;
+                if (nodeManager is not null &&
+                    prepared?.Published != true)
                 {
-                    await DisposeNodeManagerAsync(nodeManager).ConfigureAwait(false);
+                    disposeException = await TryDisposeNodeManagerAsync(nodeManager)
+                        .ConfigureAwait(false);
+                }
+                if (retainedRegistration is not null)
+                {
+                    var failures = new List<Exception> { ex };
+                    if (cleanupException is not null)
+                    {
+                        failures.Add(cleanupException);
+                    }
+                    if (recoveryException is not null)
+                    {
+                        failures.Add(recoveryException);
+                    }
+                    throw new InvalidOperationException(
+                        "NodeManager creation failed during rollback. " +
+                        "The published generation was retained and is available " +
+                        "from Registrations for retry or removal.",
+                        new AggregateException(failures));
+                }
+                if (cleanupException is not null ||
+                    disposeException is not null)
+                {
+                    var failures = new List<Exception> { ex };
+                    if (cleanupException is not null)
+                    {
+                        failures.Add(cleanupException);
+                    }
+                    if (disposeException is not null)
+                    {
+                        failures.Add(disposeException);
+                    }
+                    throw new AggregateException(
+                        "NodeManager creation and cleanup failed.",
+                        failures);
                 }
                 throw;
             }
@@ -410,9 +559,12 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(registration));
             }
 
+            EnsureNotRequestCallback();
             await m_lifecycleSemaphore.WaitAsync(ct).ConfigureAwait(false);
             IAsyncNodeManager? replacementManager = null;
             PreparedNodeManager? replacement = null;
+            RegistrationState? current = null;
+            List<LocalReference> droppedInboundReferences = [];
             IServerInternal? server = null;
             IDynamicNodeManagerHost? host = null;
             int namespaceCountBefore = 0;
@@ -421,7 +573,7 @@ namespace Opc.Ua.Server
                 (server, host) = GetRunningServer();
                 await CleanupRetiredNodeManagersAsync(server, host).ConfigureAwait(false);
                 namespaceCountBefore = server.NamespaceUris.Count;
-                RegistrationState current = GetCurrentState(registration);
+                current = GetCurrentState(registration);
                 EnsureNoActiveMonitoredItems(server, current.Prepared.NodeManager);
 
                 replacementManager = await createNodeManager(
@@ -451,8 +603,7 @@ namespace Opc.Ua.Server
                     await reloadParticipant
                         .PrepareReloadAsync(replacementManager, ct)
                         .ConfigureAwait(false);
-                List<LocalReference> droppedInboundReferences =
-                    [.. droppedReferences];
+                droppedInboundReferences = [.. droppedReferences];
                 await m_server
                     .RefreshComplexTypesAsync(server, replacementManager, ct)
                     .ConfigureAwait(false);
@@ -464,59 +615,14 @@ namespace Opc.Ua.Server
                 await host
                     .ReplaceAsync(current.Prepared.NodeManager, replacement, ct)
                     .ConfigureAwait(false);
+                await CommitWithReconciliationAsync(
+                    server,
+                    host,
+                    replacement,
+                    replacementManager,
+                    bindings,
+                    ct).ConfigureAwait(false);
                 current.Prepared.Published = false;
-
-                try
-                {
-                    await ReconcileBindingsAsync(
-                        server,
-                        replacementManager,
-                        bindings,
-                        ct).ConfigureAwait(false);
-                    await server.RequestManager
-                        .WaitForCurrentRequestsAsync(ct)
-                        .ConfigureAwait(false);
-                    InvalidateContinuationPoints(
-                        server,
-                        current.Prepared.NodeManager);
-                    EnsureNoActiveMonitoredItems(
-                        server,
-                        current.Prepared.NodeManager);
-                    await UnbindFromServerAsync(
-                        server,
-                        current.Prepared.NodeManager,
-                        ct).ConfigureAwait(false);
-                }
-                catch (Exception ex) when (ex is not OutOfMemoryException)
-                {
-                    try
-                    {
-                        await host
-                            .ReplaceAsync(
-                                replacement.NodeManager,
-                                current.Prepared,
-                                CancellationToken.None)
-                            .ConfigureAwait(false);
-                        replacement.Published = false;
-                        await server.RequestManager
-                            .WaitForCurrentRequestsAsync(CancellationToken.None)
-                            .ConfigureAwait(false);
-                        _ = await BindToServerAsync(
-                            server,
-                            current.Prepared.NodeManager,
-                            CancellationToken.None).ConfigureAwait(false);
-                    }
-                    catch (Exception rollbackException) when (
-                        rollbackException is not OutOfMemoryException)
-                    {
-                        throw new AggregateException(
-                            "NodeManager reload and rollback both failed.",
-                            ex,
-                            rollbackException);
-                    }
-                    throw;
-                }
-
                 var nextRegistration = new NodeManagerRegistration(
                     current.Registration.Id,
                     current.Registration.Generation + 1,
@@ -530,18 +636,31 @@ namespace Opc.Ua.Server
 
                 var retired = new RetiredNodeManager(
                     current.Prepared.NodeManager,
-                    droppedInboundReferences);
+                    droppedInboundReferences,
+                    needsDetachment: true);
+                lock (m_registrationLock)
+                {
+                    m_retiredNodeManagers.Add(retired);
+                }
                 try
                 {
+                    await server.RequestManager
+                        .WaitForCurrentRequestsAsync(CancellationToken.None)
+                        .ConfigureAwait(false);
+                    await ReconcileBindingsAsync(
+                        server,
+                        replacementManager,
+                        bindings,
+                        CancellationToken.None).ConfigureAwait(false);
                     await CleanupRetiredNodeManagerAsync(server, host, retired)
                         .ConfigureAwait(false);
+                    lock (m_registrationLock)
+                    {
+                        m_retiredNodeManagers.Remove(retired);
+                    }
                 }
                 catch (Exception ex) when (ex is not OutOfMemoryException)
                 {
-                    lock (m_registrationLock)
-                    {
-                        m_retiredNodeManagers.Add(retired);
-                    }
                     throw new InvalidOperationException(
                         "The replacement NodeManager is live, but the retired generation " +
                         "could not be cleaned up. A later lifecycle operation will retry cleanup.",
@@ -558,20 +677,82 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)
             {
+                Exception? cleanupException = null;
                 if (replacement is not null &&
                     !replacement.Published &&
                     host is not null)
                 {
-                    Exception? cleanupException = await CleanupPreparedAsync(
+                    cleanupException = await CleanupPreparedAsync(
                         server,
                         host,
                         replacement).ConfigureAwait(false);
-                    if (cleanupException is not null)
+                }
+
+                NodeManagerRegistration? retainedRegistration = null;
+                Exception? recoveryException = null;
+                if (replacement?.Published == true &&
+                    replacementManager is not null &&
+                    current is not null &&
+                    server is not null &&
+                    host is not null)
+                {
+                    bool registrationAlreadyUpdated;
+                    lock (m_registrationLock)
                     {
-                        throw new AggregateException(
-                            "NodeManager reload preparation and rollback both failed.",
-                            ex,
-                            cleanupException);
+                        registrationAlreadyUpdated =
+                            m_registrations.TryGetValue(
+                                current.Registration.Id,
+                                out RegistrationState? retainedState) &&
+                            ReferenceEquals(
+                                retainedState.Registration.NodeManager,
+                                replacementManager);
+                    }
+
+                    if (!registrationAlreadyUpdated)
+                    {
+                        retainedRegistration = new NodeManagerRegistration(
+                            current.Registration.Id,
+                            current.Registration.Generation + 1,
+                            replacementManager);
+                        lock (m_registrationLock)
+                        {
+                            m_registrations[current.Registration.Id] =
+                                new RegistrationState(
+                                    retainedRegistration,
+                                    replacement);
+                            m_retiredNodeManagers.Add(
+                                new RetiredNodeManager(
+                                    current.Prepared.NodeManager,
+                                    droppedInboundReferences,
+                                    needsDetachment: true));
+                        }
+
+                        try
+                        {
+                            ServerBindings recoveryBindings =
+                                await BindToServerAsync(
+                                    server,
+                                    replacementManager,
+                                    CancellationToken.None).ConfigureAwait(false);
+                            await ReconcileBindingsAsync(
+                                server,
+                                replacementManager,
+                                recoveryBindings,
+                                CancellationToken.None).ConfigureAwait(false);
+                            await server.RequestManager
+                                .WaitForCurrentRequestsAsync(CancellationToken.None)
+                                .ConfigureAwait(false);
+                            await ReconcileBindingsAsync(
+                                server,
+                                replacementManager,
+                                recoveryBindings,
+                                CancellationToken.None).ConfigureAwait(false);
+                        }
+                        catch (Exception recoveryFailure) when (
+                            recoveryFailure is not OutOfMemoryException)
+                        {
+                            recoveryException = recoveryFailure;
+                        }
                     }
                 }
 
@@ -587,9 +768,43 @@ namespace Opc.Ua.Server
                         CancellationToken.None).ConfigureAwait(false);
                 }
 
+                Exception? disposeException = null;
                 if (replacementManager is not null && replacement?.Published != true)
                 {
-                    await DisposeNodeManagerAsync(replacementManager).ConfigureAwait(false);
+                    disposeException = await TryDisposeNodeManagerAsync(
+                        replacementManager).ConfigureAwait(false);
+                }
+                if (retainedRegistration is not null)
+                {
+                    var failures = new List<Exception> { ex };
+                    if (cleanupException is not null)
+                    {
+                        failures.Add(cleanupException);
+                    }
+                    if (recoveryException is not null)
+                    {
+                        failures.Add(recoveryException);
+                    }
+                    throw new InvalidOperationException(
+                        "NodeManager reload failed during rollback. " +
+                        "The replacement generation was retained and is available " +
+                        "from Registrations for retry or removal.",
+                        new AggregateException(failures));
+                }
+                if (cleanupException is not null || disposeException is not null)
+                {
+                    var failures = new List<Exception> { ex };
+                    if (cleanupException is not null)
+                    {
+                        failures.Add(cleanupException);
+                    }
+                    if (disposeException is not null)
+                    {
+                        failures.Add(disposeException);
+                    }
+                    throw new AggregateException(
+                        "NodeManager reload preparation and cleanup failed.",
+                        failures);
                 }
                 throw;
             }
@@ -618,12 +833,27 @@ namespace Opc.Ua.Server
             }
 
             IServerInternal server = m_server.CurrentInstance;
+            if (server.RequestManager.IsExecutingRequest)
+            {
+                throw new InvalidOperationException(
+                    "NodeManager lifecycle operations cannot run from an OPC UA request callback.");
+            }
             if (server.NodeManager is not IDynamicNodeManagerHost host)
             {
                 throw new NotSupportedException(
                     "The configured master NodeManager does not support live lifecycle operations.");
             }
             return (server, host);
+        }
+
+        private void EnsureNotRequestCallback()
+        {
+            if (m_server.CurrentState == ServerState.Running &&
+                m_server.CurrentInstance.RequestManager.IsExecutingRequest)
+            {
+                throw new InvalidOperationException(
+                    "NodeManager lifecycle operations cannot run from an OPC UA request callback.");
+            }
         }
 
         private RegistrationState GetCurrentState(NodeManagerRegistration registration)
@@ -681,44 +911,88 @@ namespace Opc.Ua.Server
             }
         }
 
+        private static async ValueTask CommitWithReconciliationAsync(
+            IServerInternal server,
+            IDynamicNodeManagerHost host,
+            PreparedNodeManager prepared,
+            IAsyncNodeManager nodeManager,
+            ServerBindings bindings,
+            CancellationToken ct)
+        {
+            await host.CommitAsync(
+                prepared,
+                () => ReconcileBindingsAsync(
+                    server,
+                    nodeManager,
+                    bindings,
+                    ct),
+                ct).ConfigureAwait(false);
+        }
+
         private static async ValueTask<ServerBindings> BindToServerAsync(
             IServerInternal server,
             IAsyncNodeManager nodeManager,
             CancellationToken ct)
         {
             var bindings = new ServerBindings();
-            foreach (ISession session in server.SessionManager.GetSessions())
+            try
             {
-                if (!session.Activated)
+                foreach (ISession session in server.SessionManager.GetSessions())
                 {
-                    continue;
+                    if (!session.Activated ||
+                        IsSessionClosing(server, session))
+                    {
+                        continue;
+                    }
+
+                    SessionBinding? binding = await ActivateSessionAsync(
+                        server,
+                        nodeManager,
+                        session,
+                        ct).ConfigureAwait(false);
+                    if (binding is not null)
+                    {
+                        bindings.Sessions[session.Id] = binding;
+                    }
                 }
 
-                var context = new OperationContext(session, DiagnosticsMasks.None);
-                await nodeManager
-                    .SessionActivatedAsync(context, session.Id, ct)
-                    .ConfigureAwait(false);
-                bindings.Sessions[session.Id] = new SessionBinding(session);
-            }
-
-            foreach (IEventMonitoredItem monitoredItem in server.EventManager.GetMonitoredItems())
-            {
-                if (!monitoredItem.MonitoringAllEvents)
+                foreach (IEventMonitoredItem monitoredItem in server.EventManager.GetMonitoredItems())
                 {
-                    continue;
-                }
+                    if (!monitoredItem.MonitoringAllEvents)
+                    {
+                        continue;
+                    }
 
-                await nodeManager
-                    .SubscribeToAllEventsAsync(
-                        new OperationContext(monitoredItem),
-                        monitoredItem.SubscriptionId,
+                    if (await SubscribeToAllEventsAsync(
+                        server,
+                        nodeManager,
                         monitoredItem,
-                        false,
-                        ct)
-                    .ConfigureAwait(false);
-                bindings.EventMonitoredItems[monitoredItem.Id] = monitoredItem;
+                        ct).ConfigureAwait(false))
+                    {
+                        bindings.EventMonitoredItems[monitoredItem.Id] = monitoredItem;
+                    }
+                }
+                return bindings;
             }
-            return bindings;
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                try
+                {
+                    await UnbindBindingsAsync(
+                        nodeManager,
+                        bindings,
+                        CancellationToken.None).ConfigureAwait(false);
+                }
+                catch (Exception cleanupException) when (
+                    cleanupException is not OutOfMemoryException)
+                {
+                    throw new AggregateException(
+                        "NodeManager binding and cleanup both failed.",
+                        ex,
+                        cleanupException);
+                }
+                throw;
+            }
         }
 
         private static async ValueTask ReconcileBindingsAsync(
@@ -731,14 +1005,21 @@ namespace Opc.Ua.Server
             [
                 .. server.SessionManager
                     .GetSessions()
-                    .Where(session => session.Activated)
+                    .Where(session =>
+                        session.Activated &&
+                        !IsSessionClosing(server, session))
             ];
-            var currentSessionIds = new HashSet<NodeId>(
-                currentSessions.Select(session => session.Id));
+            Dictionary<NodeId, ISession> currentSessionsById =
+                currentSessions.ToDictionary(session => session.Id);
             foreach (KeyValuePair<NodeId, SessionBinding> binding in
                 bindings.Sessions.ToArray())
             {
-                if (currentSessionIds.Contains(binding.Key))
+                if (currentSessionsById.TryGetValue(
+                    binding.Key,
+                    out ISession? currentSession) &&
+                    ReferenceEquals(
+                        currentSession,
+                        binding.Value.Session))
                 {
                     continue;
                 }
@@ -767,21 +1048,31 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                var context = new OperationContext(session, DiagnosticsMasks.None);
-                await nodeManager
-                    .SessionActivatedAsync(context, session.Id, ct)
-                    .ConfigureAwait(false);
-                bindings.Sessions[session.Id] = new SessionBinding(session);
+                SessionBinding? newBinding = await ActivateSessionAsync(
+                    server,
+                    nodeManager,
+                    session,
+                    ct).ConfigureAwait(false);
+                if (newBinding is not null)
+                {
+                    bindings.Sessions[session.Id] = newBinding;
+                }
             }
 
             IList<IEventMonitoredItem> currentEventMonitoredItems =
                 server.EventManager.GetMonitoredItems();
-            var currentEventIds = new HashSet<uint>(
-                currentEventMonitoredItems.Select(monitoredItem => monitoredItem.Id));
+            var currentEventsById =
+                currentEventMonitoredItems.ToDictionary(
+                    monitoredItem => monitoredItem.Id);
             foreach (KeyValuePair<uint, IEventMonitoredItem> binding in
                 bindings.EventMonitoredItems.ToArray())
             {
-                if (currentEventIds.Contains(binding.Key))
+                if (currentEventsById.TryGetValue(
+                    binding.Key,
+                    out IEventMonitoredItem? currentMonitoredItem) &&
+                    ReferenceEquals(
+                        currentMonitoredItem,
+                        binding.Value))
                 {
                     continue;
                 }
@@ -805,15 +1096,14 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                await nodeManager
-                    .SubscribeToAllEventsAsync(
-                        new OperationContext(monitoredItem),
-                        monitoredItem.SubscriptionId,
-                        monitoredItem,
-                        false,
-                        ct)
-                    .ConfigureAwait(false);
-                bindings.EventMonitoredItems[monitoredItem.Id] = monitoredItem;
+                if (await SubscribeToAllEventsAsync(
+                    server,
+                    nodeManager,
+                    monitoredItem,
+                    ct).ConfigureAwait(false))
+                {
+                    bindings.EventMonitoredItems[monitoredItem.Id] = monitoredItem;
+                }
             }
         }
 
@@ -850,6 +1140,171 @@ namespace Opc.Ua.Server
                         ct)
                     .ConfigureAwait(false);
             }
+        }
+
+        private static async ValueTask UnbindBindingsAsync(
+            IAsyncNodeManager nodeManager,
+            ServerBindings bindings,
+            CancellationToken ct)
+        {
+            foreach (IEventMonitoredItem monitoredItem in
+                bindings.EventMonitoredItems.Values)
+            {
+                await nodeManager
+                    .SubscribeToAllEventsAsync(
+                        new OperationContext(monitoredItem),
+                        monitoredItem.SubscriptionId,
+                        monitoredItem,
+                        true,
+                        ct)
+                    .ConfigureAwait(false);
+            }
+
+            foreach (KeyValuePair<NodeId, SessionBinding> binding in
+                bindings.Sessions)
+            {
+                await nodeManager
+                    .SessionClosingAsync(
+                        new OperationContext(
+                            binding.Value.Session,
+                            DiagnosticsMasks.None),
+                        binding.Key,
+                        deleteSubscriptions: false,
+                        ct)
+                    .ConfigureAwait(false);
+            }
+        }
+
+        private static async ValueTask<SessionBinding?> ActivateSessionAsync(
+            IServerInternal server,
+            IAsyncNodeManager nodeManager,
+            ISession session,
+            CancellationToken ct)
+        {
+            while (true)
+            {
+                var context = new OperationContext(session, DiagnosticsMasks.None);
+                IUserIdentity identity = context.UserIdentity;
+                try
+                {
+                    await nodeManager
+                        .SessionActivatedAsync(context, session.Id, ct)
+                        .ConfigureAwait(false);
+                }
+                catch (Exception ex) when (ex is not OutOfMemoryException)
+                {
+                    try
+                    {
+                        await nodeManager
+                            .SessionClosingAsync(
+                                context,
+                                session.Id,
+                                deleteSubscriptions: false,
+                                CancellationToken.None)
+                            .ConfigureAwait(false);
+                    }
+                    catch (Exception cleanupException) when (
+                        cleanupException is not OutOfMemoryException)
+                    {
+                        throw new AggregateException(
+                            "NodeManager session activation and cleanup both failed.",
+                            ex,
+                            cleanupException);
+                    }
+                    throw;
+                }
+                if (ReferenceEquals(identity, session.EffectiveIdentity) &&
+                    session.Activated &&
+                    !IsSessionClosing(server, session) &&
+                    server.SessionManager.GetSessions().Any(current =>
+                        ReferenceEquals(current, session)))
+                {
+                    return new SessionBinding(session, identity);
+                }
+                if (!session.Activated ||
+                    IsSessionClosing(server, session) ||
+                    !server.SessionManager.GetSessions().Any(current =>
+                        ReferenceEquals(current, session)))
+                {
+                    await nodeManager
+                        .SessionClosingAsync(
+                            context,
+                            session.Id,
+                            deleteSubscriptions: false,
+                            ct)
+                        .ConfigureAwait(false);
+                    return null;
+                }
+                ct.ThrowIfCancellationRequested();
+            }
+        }
+
+        private static bool IsSessionClosing(
+            IServerInternal server,
+            ISession session)
+        {
+            return server is ISessionClosingRegistry registry &&
+                registry.IsSessionClosing(session.Id);
+        }
+
+        private static async ValueTask<bool> SubscribeToAllEventsAsync(
+            IServerInternal server,
+            IAsyncNodeManager nodeManager,
+            IEventMonitoredItem monitoredItem,
+            CancellationToken ct)
+        {
+            var context = new OperationContext(monitoredItem);
+            try
+            {
+                await nodeManager
+                    .SubscribeToAllEventsAsync(
+                        context,
+                        monitoredItem.SubscriptionId,
+                        monitoredItem,
+                        false,
+                        ct)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                try
+                {
+                    await nodeManager
+                        .SubscribeToAllEventsAsync(
+                            context,
+                            monitoredItem.SubscriptionId,
+                            monitoredItem,
+                            true,
+                            CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
+                catch (Exception cleanupException) when (
+                    cleanupException is not OutOfMemoryException)
+                {
+                    throw new AggregateException(
+                        "NodeManager event binding and cleanup both failed.",
+                        ex,
+                        cleanupException);
+                }
+                throw;
+            }
+
+            if (monitoredItem.MonitoringAllEvents &&
+                server.EventManager.GetMonitoredItems().Any(current =>
+                    ReferenceEquals(current, monitoredItem)))
+            {
+                return true;
+            }
+
+            await nodeManager
+                .SubscribeToAllEventsAsync(
+                    new OperationContext(monitoredItem),
+                    monitoredItem.SubscriptionId,
+                    monitoredItem,
+                    true,
+                    ct)
+                .ConfigureAwait(false);
+            return false;
         }
 
         private static async ValueTask ValidateDataTypeCompatibilityAsync(
@@ -1156,6 +1611,20 @@ namespace Opc.Ua.Server
             }
         }
 
+        private static async ValueTask<Exception?> TryDisposeNodeManagerAsync(
+            IAsyncNodeManager nodeManager)
+        {
+            try
+            {
+                await DisposeNodeManagerAsync(nodeManager).ConfigureAwait(false);
+                return null;
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                return ex;
+            }
+        }
+
         private static async ValueTask<Exception?> CleanupPreparedAsync(
             IServerInternal? server,
             IDynamicNodeManagerHost host,
@@ -1227,6 +1696,21 @@ namespace Opc.Ua.Server
             IDynamicNodeManagerHost host,
             RetiredNodeManager retired)
         {
+            if (retired.NeedsDetachment)
+            {
+                InvalidateContinuationPoints(server, retired.NodeManager);
+                await server.RequestManager
+                    .WaitForCurrentRequestsAsync(CancellationToken.None)
+                    .ConfigureAwait(false);
+                InvalidateContinuationPoints(server, retired.NodeManager);
+                EnsureNoActiveMonitoredItems(server, retired.NodeManager);
+                await UnbindFromServerAsync(
+                    server,
+                    retired.NodeManager,
+                    CancellationToken.None).ConfigureAwait(false);
+                retired.NeedsDetachment = false;
+            }
+
             if (retired.PendingReferences.Count > 0)
             {
                 await server.NodeManager
@@ -1276,10 +1760,12 @@ namespace Opc.Ua.Server
 
         private sealed class SessionBinding
         {
-            public SessionBinding(ISession session)
+            public SessionBinding(
+                ISession session,
+                IUserIdentity identity)
             {
                 Session = session;
-                Identity = session.EffectiveIdentity;
+                Identity = identity;
             }
 
             public ISession Session { get; }
@@ -1291,15 +1777,19 @@ namespace Opc.Ua.Server
         {
             public RetiredNodeManager(
                 IAsyncNodeManager nodeManager,
-                List<LocalReference> pendingReferences)
+                List<LocalReference> pendingReferences,
+                bool needsDetachment)
             {
                 NodeManager = nodeManager;
                 PendingReferences = pendingReferences;
+                NeedsDetachment = needsDetachment;
             }
 
             public IAsyncNodeManager NodeManager { get; }
 
             public List<LocalReference> PendingReferences { get; }
+
+            public bool NeedsDetachment { get; set; }
         }
 
         private readonly StandardServer m_server;

@@ -38,7 +38,11 @@ using Microsoft.Extensions.Logging;
 namespace Opc.Ua.Server
 {
     /// <inheritdoc/>
-    public class MasterNodeManager : IDisposable, IMasterNodeManager, IDynamicNodeManagerHost
+    public class MasterNodeManager :
+        IDisposable,
+        IMasterNodeManager,
+        IDynamicNodeManagerHost,
+        INodeManagerMutationCoordinator
     {
         /// <summary>
         /// Initializes the object with default values.
@@ -212,6 +216,7 @@ namespace Opc.Ua.Server
                 }
 
                 m_startupShutdownSemaphoreSlim.Dispose();
+                m_dynamicMutationSemaphore.Dispose();
             }
         }
 
@@ -363,6 +368,9 @@ namespace Opc.Ua.Server
             bool deleteSubscriptions,
             CancellationToken cancellationToken = default)
         {
+            await m_dynamicMutationSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+            m_dynamicMutationSemaphore.Release();
+
             await m_startupShutdownSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
@@ -436,17 +444,21 @@ namespace Opc.Ua.Server
             }
 
             await m_startupShutdownSemaphoreSlim.WaitAsync(ct).ConfigureAwait(false);
+            bool prepared = false;
             try
             {
+                SetPreparing(nodeManager, preparing: true);
                 SetExistingEventSubscriptionSuppression(nodeManager, suppress: true);
                 var externalReferences = new Dictionary<NodeId, IList<IReference>>();
                 await nodeManager
                     .CreateAddressSpaceAsync(externalReferences, ct)
                     .ConfigureAwait(false);
+                prepared = true;
                 return new PreparedNodeManager(nodeManager, externalReferences);
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)
             {
+                m_nodeManagers.RemoveNamespaceManager(nodeManager);
                 try
                 {
                     await nodeManager
@@ -465,6 +477,10 @@ namespace Opc.Ua.Server
             }
             finally
             {
+                if (!prepared)
+                {
+                    SetPreparing(nodeManager, preparing: false);
+                }
                 SetExistingEventSubscriptionSuppression(nodeManager, suppress: false);
                 m_startupShutdownSemaphoreSlim.Release();
             }
@@ -477,33 +493,20 @@ namespace Opc.Ua.Server
             ValidatePreparedNodeManager(prepared);
 
             await m_startupShutdownSemaphoreSlim.WaitAsync(ct).ConfigureAwait(false);
-            bool routePublished = false;
             try
             {
-                await AddExternalReferencesAsync(
-                    prepared.ExternalReferences,
-                    prepared.NodeManager,
-                    CancellationToken.None).ConfigureAwait(false);
-
-                m_nodeManagers.Add(
-                    prepared.NodeManager,
-                    ResolveNamespaceIndexes(prepared.NodeManager));
-                routePublished = true;
-                m_dynamicExternalReferences.Add(
-                    prepared.NodeManager,
-                    prepared.ExternalReferences);
-                prepared.Published = true;
-            }
-            catch
-            {
-                if (routePublished)
+                if (prepared.Staged)
                 {
-                    m_nodeManagers.Remove(prepared.NodeManager);
+                    throw new InvalidOperationException(
+                        "The prepared NodeManager has already been staged.");
                 }
-                await RemoveExternalReferencesAsync(
-                    prepared.ExternalReferences,
-                    CancellationToken.None).ConfigureAwait(false);
-                throw;
+                if (m_dynamicExternalReferences.ContainsKey(
+                    prepared.NodeManager))
+                {
+                    throw new InvalidOperationException(
+                        "The NodeManager is already registered.");
+                }
+                prepared.Staged = true;
             }
             finally
             {
@@ -523,75 +526,80 @@ namespace Opc.Ua.Server
             ValidatePreparedNodeManager(replacement);
 
             await m_startupShutdownSemaphoreSlim.WaitAsync(ct).ConfigureAwait(false);
-            bool routeReplaced = false;
-            Dictionary<NodeId, IList<IReference>>? currentExternalReferences = null;
             try
             {
                 if (!m_dynamicExternalReferences.TryGetValue(
                     current,
-                    out currentExternalReferences))
+                    out Dictionary<NodeId, IList<IReference>>? currentExternalReferences))
                 {
                     throw new InvalidOperationException(
                         "The NodeManager is not owned by the live lifecycle provider.");
                 }
-
-                await AddExternalReferencesAsync(
-                    replacement.ExternalReferences,
-                    replacement.NodeManager,
-                    CancellationToken.None).ConfigureAwait(false);
-
-                m_nodeManagers.Replace(
-                    current,
-                    replacement.NodeManager,
-                    ResolveNamespaceIndexes(replacement.NodeManager));
-                routeReplaced = true;
-
-                await RemoveExternalReferencesAsync(
-                    currentExternalReferences,
-                    CancellationToken.None).ConfigureAwait(false);
-                await AddExternalReferencesAsync(
-                    replacement.ExternalReferences,
-                    replacement.NodeManager,
-                    CancellationToken.None).ConfigureAwait(false);
-
-                m_dynamicExternalReferences.Remove(current);
-                m_dynamicExternalReferences.Add(
-                    replacement.NodeManager,
-                    replacement.ExternalReferences);
-                replacement.Published = true;
-            }
-            catch
-            {
-                if (routeReplaced && currentExternalReferences is not null)
+                if (replacement.Staged)
                 {
-                    m_nodeManagers.Replace(
-                        replacement.NodeManager,
-                        current,
-                        ResolveNamespaceIndexes(current));
-                    await RemoveExternalReferencesAsync(
-                        replacement.ExternalReferences,
-                        CancellationToken.None).ConfigureAwait(false);
-                    await AddExternalReferencesAsync(
-                        currentExternalReferences,
-                        current,
-                        CancellationToken.None).ConfigureAwait(false);
-                    m_dynamicExternalReferences.Remove(replacement.NodeManager);
-                    m_dynamicExternalReferences[current] = currentExternalReferences;
+                    throw new InvalidOperationException(
+                        "The replacement NodeManager has already been staged.");
+                }
+                replacement.ReplacedNodeManager = current;
+                replacement.ReplacedExternalReferences = currentExternalReferences;
+                replacement.Staged = true;
+            }
+            finally
+            {
+                m_startupShutdownSemaphoreSlim.Release();
+            }
+        }
+
+        async ValueTask IDynamicNodeManagerHost.CommitAsync(
+            PreparedNodeManager prepared,
+            Func<ValueTask>? beforeCommit,
+            CancellationToken ct)
+        {
+            ValidatePreparedNodeManager(prepared);
+            if (!prepared.Staged)
+            {
+                throw new InvalidOperationException(
+                    "The prepared NodeManager has not been staged.");
+            }
+
+            await m_dynamicMutationSemaphore.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                if (beforeCommit is not null)
+                {
+                    await beforeCommit().ConfigureAwait(false);
+                }
+                await CommitPreparedNodeManagerAsync(prepared, ct)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                m_dynamicMutationSemaphore.Release();
+            }
+        }
+
+        private async ValueTask CommitPreparedNodeManagerAsync(
+            PreparedNodeManager prepared,
+            CancellationToken ct)
+        {
+            await m_startupShutdownSemaphoreSlim.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                if (prepared.ReplacedNodeManager is null)
+                {
+                    await CommitAddAsync(prepared).ConfigureAwait(false);
                 }
                 else
                 {
-                    await RemoveExternalReferencesAsync(
-                        replacement.ExternalReferences,
-                        CancellationToken.None).ConfigureAwait(false);
-                    if (currentExternalReferences is not null)
-                    {
-                        await AddExternalReferencesAsync(
-                            currentExternalReferences,
-                            current,
-                            CancellationToken.None).ConfigureAwait(false);
-                    }
+                    EnsureNoActiveMonitoredItems(
+                        prepared.ReplacedNodeManager);
+                    await CommitReplacementAsync(prepared).ConfigureAwait(false);
                 }
-                throw;
+                prepared.Staged = false;
+                prepared.Published = true;
+                prepared.ReplacedNodeManager = null;
+                prepared.ReplacedExternalReferences = null;
+                SetPreparing(prepared.NodeManager, preparing: false);
             }
             finally
             {
@@ -608,48 +616,68 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(nodeManager));
             }
 
-            await m_startupShutdownSemaphoreSlim.WaitAsync(ct).ConfigureAwait(false);
-            bool routeRemoved = false;
+            await m_dynamicMutationSemaphore.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                if (!m_dynamicExternalReferences.TryGetValue(
-                    nodeManager,
-                    out Dictionary<NodeId, IList<IReference>>? externalReferences))
+                await m_startupShutdownSemaphoreSlim.WaitAsync(ct).ConfigureAwait(false);
+                bool routeRemoved = false;
+                bool referenceMutationStarted = false;
+                bool wasVisible = m_nodeManagers.IsVisible(nodeManager);
+                try
                 {
-                    throw new InvalidOperationException(
-                        "The NodeManager is not owned by the live lifecycle provider.");
-                }
-
-                m_nodeManagers.Remove(nodeManager);
-                routeRemoved = true;
-                await RemoveExternalReferencesAsync(
-                    externalReferences,
-                    CancellationToken.None)
-                    .ConfigureAwait(false);
-                m_dynamicExternalReferences.Remove(nodeManager);
-            }
-            catch
-            {
-                if (routeRemoved)
-                {
-                    m_nodeManagers.Add(
-                        nodeManager,
-                        ResolveNamespaceIndexes(nodeManager));
-                    if (m_dynamicExternalReferences.TryGetValue(
+                    if (!m_dynamicExternalReferences.TryGetValue(
                         nodeManager,
                         out Dictionary<NodeId, IList<IReference>>? externalReferences))
+                    {
+                        throw new InvalidOperationException(
+                            "The NodeManager is not owned by the live lifecycle provider.");
+                    }
+
+                    EnsureNoActiveMonitoredItems(nodeManager);
+                    referenceMutationStarted = true;
+                    await RemoveExternalReferencesAsync(
+                        externalReferences,
+                        CancellationToken.None)
+                        .ConfigureAwait(false);
+                    m_nodeManagers.Remove(nodeManager);
+                    routeRemoved = true;
+                    m_dynamicExternalReferences.Remove(nodeManager);
+                }
+                catch
+                {
+                    if (routeRemoved)
+                    {
+                        m_nodeManagers.Add(
+                            nodeManager,
+                            ResolveNamespaceIndexes(nodeManager),
+                            visible: false);
+                    }
+                    if (referenceMutationStarted &&
+                        m_dynamicExternalReferences.TryGetValue(
+                            nodeManager,
+                            out Dictionary<NodeId, IList<IReference>>? externalReferences))
                     {
                         await AddExternalReferencesAsync(
                             externalReferences,
                             nodeManager,
                             CancellationToken.None).ConfigureAwait(false);
                     }
+                    if (routeRemoved)
+                    {
+                        m_nodeManagers.SetVisible(
+                            nodeManager,
+                            wasVisible);
+                    }
+                    throw;
                 }
-                throw;
+                finally
+                {
+                    m_startupShutdownSemaphoreSlim.Release();
+                }
             }
             finally
             {
-                m_startupShutdownSemaphoreSlim.Release();
+                m_dynamicMutationSemaphore.Release();
             }
         }
 
@@ -714,6 +742,9 @@ namespace Opc.Ua.Server
                     .ConfigureAwait(false);
                 prepared.Published = false;
             }
+            prepared.Staged = false;
+            m_nodeManagers.RemoveNamespaceManager(prepared.NodeManager);
+            SetPreparing(prepared.NodeManager, preparing: false);
 
             await ((IDynamicNodeManagerHost)this)
                 .DestroyAsync(
@@ -733,6 +764,27 @@ namespace Opc.Ua.Server
             if (m_dynamicExternalReferences.Remove(nodeManager))
             {
                 m_nodeManagers.Remove(nodeManager);
+            }
+        }
+
+        async ValueTask<T> INodeManagerMutationCoordinator
+            .ExecuteMonitoredItemMutationAsync<T>(
+                Func<ValueTask<T>> mutation,
+                CancellationToken ct)
+        {
+            if (mutation is null)
+            {
+                throw new ArgumentNullException(nameof(mutation));
+            }
+
+            await m_dynamicMutationSemaphore.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                return await mutation().ConfigureAwait(false);
+            }
+            finally
+            {
+                m_dynamicMutationSemaphore.Release();
             }
         }
 
@@ -763,7 +815,12 @@ namespace Opc.Ua.Server
                 index = Server.NamespaceUris.Append(namespaceUri);
             }
 
-            m_nodeManagers.RegisterNamespace(index, nodeManager);
+            IAsyncNodeManager? preparingNodeManager =
+                GetPreparingNodeManager(nodeManager);
+            m_nodeManagers.RegisterNamespace(
+                index,
+                preparingNodeManager ?? nodeManager,
+                visible: preparingNodeManager is null);
         }
 
         /// <inheritdoc/>
@@ -1607,7 +1664,6 @@ namespace Opc.Ua.Server
                     return nodeManagers[ii];
                 }
             }
-
             return null;
         }
 
@@ -3389,6 +3445,31 @@ namespace Opc.Ua.Server
             bool createDurable,
             CancellationToken cancellationToken = default)
         {
+            await CreateMonitoredItemsCoreAsync(
+                context,
+                subscriptionId,
+                publishingInterval,
+                timestampsToReturn,
+                itemsToCreate,
+                errors,
+                filterResults,
+                monitoredItems,
+                createDurable,
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        private async ValueTask CreateMonitoredItemsCoreAsync(
+            OperationContext context,
+            uint subscriptionId,
+            double publishingInterval,
+            TimestampsToReturn timestampsToReturn,
+            ArrayOf<MonitoredItemCreateRequest> itemsToCreate,
+            IList<ServiceResult> errors,
+            IList<MonitoringFilterResult> filterResults,
+            IList<IMonitoredItem> monitoredItems,
+            bool createDurable,
+            CancellationToken cancellationToken)
+        {
             if (context == null)
             {
                 throw new ArgumentNullException(nameof(context));
@@ -4330,6 +4411,254 @@ namespace Opc.Ua.Server
             }
         }
 
+        private async ValueTask CommitAddAsync(
+            PreparedNodeManager prepared)
+        {
+            bool routeAdded = false;
+            try
+            {
+                m_nodeManagers.Add(
+                    prepared.NodeManager,
+                    ResolveNamespaceIndexes(prepared.NodeManager));
+                routeAdded = true;
+                await AddExternalReferencesAsync(
+                    prepared.ExternalReferences,
+                    prepared.NodeManager,
+                    CancellationToken.None).ConfigureAwait(false);
+                m_dynamicExternalReferences.Add(
+                    prepared.NodeManager,
+                    prepared.ExternalReferences);
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                var failures = new List<Exception> { ex };
+                if (routeAdded)
+                {
+                    bool referencesRemoved = false;
+                    try
+                    {
+                        await RemoveExternalReferencesAsync(
+                            prepared.ExternalReferences,
+                            CancellationToken.None).ConfigureAwait(false);
+                        referencesRemoved = true;
+                    }
+                    catch (Exception rollbackException) when (
+                        rollbackException is not OutOfMemoryException)
+                    {
+                        failures.Add(rollbackException);
+                    }
+
+                    if (referencesRemoved)
+                    {
+                        try
+                        {
+                            m_nodeManagers.Remove(prepared.NodeManager);
+                        }
+                        catch (Exception rollbackException) when (
+                            rollbackException is not OutOfMemoryException)
+                        {
+                            failures.Add(rollbackException);
+                        }
+                    }
+
+                    if (m_nodeManagers.IsVisible(prepared.NodeManager))
+                    {
+                        try
+                        {
+                            await AddExternalReferencesAsync(
+                                prepared.ExternalReferences,
+                                prepared.NodeManager,
+                                CancellationToken.None).ConfigureAwait(false);
+                        }
+                        catch (Exception rollbackException) when (
+                            rollbackException is not OutOfMemoryException)
+                        {
+                            failures.Add(rollbackException);
+                        }
+                        m_dynamicExternalReferences[prepared.NodeManager] =
+                            prepared.ExternalReferences;
+                        RetainPreparedNodeManager(prepared);
+                    }
+                }
+                if (failures.Count > 1)
+                {
+                    throw new AggregateException(
+                        "NodeManager publication and rollback both failed.",
+                        failures);
+                }
+                throw;
+            }
+        }
+
+        private async ValueTask CommitReplacementAsync(
+            PreparedNodeManager prepared)
+        {
+            IAsyncNodeManager current = prepared.ReplacedNodeManager!;
+            Dictionary<NodeId, IList<IReference>> currentExternalReferences =
+                prepared.ReplacedExternalReferences!;
+            bool currentWasVisible = m_nodeManagers.IsVisible(current);
+            bool currentReferenceMutationStarted = false;
+            bool replacementReferenceMutationStarted = false;
+            bool routeReplaced = false;
+            try
+            {
+                currentReferenceMutationStarted = true;
+                await RemoveExternalReferencesAsync(
+                    currentExternalReferences,
+                    CancellationToken.None).ConfigureAwait(false);
+                m_nodeManagers.Replace(
+                    current,
+                    prepared.NodeManager,
+                    ResolveNamespaceIndexes(prepared.NodeManager));
+                routeReplaced = true;
+                replacementReferenceMutationStarted = true;
+                await AddExternalReferencesAsync(
+                    prepared.ExternalReferences,
+                    prepared.NodeManager,
+                    CancellationToken.None).ConfigureAwait(false);
+                m_dynamicExternalReferences.Add(
+                    prepared.NodeManager,
+                    prepared.ExternalReferences);
+                m_dynamicExternalReferences.Remove(current);
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                var failures = new List<Exception> { ex };
+                bool replacementReferencesRemoved =
+                    !replacementReferenceMutationStarted;
+                if (replacementReferenceMutationStarted)
+                {
+                    try
+                    {
+                        await RemoveExternalReferencesAsync(
+                            prepared.ExternalReferences,
+                            CancellationToken.None).ConfigureAwait(false);
+                        replacementReferencesRemoved = true;
+                    }
+                    catch (Exception rollbackException) when (
+                        rollbackException is not OutOfMemoryException)
+                    {
+                        failures.Add(rollbackException);
+                    }
+                }
+                bool currentRestored = !routeReplaced;
+                if (routeReplaced &&
+                    replacementReferencesRemoved)
+                {
+                    try
+                    {
+                        m_nodeManagers.Replace(
+                            prepared.NodeManager,
+                            current,
+                            ResolveNamespaceIndexes(current),
+                            replacementVisible: false);
+                        currentRestored = true;
+                    }
+                    catch (Exception rollbackException) when (
+                        rollbackException is not OutOfMemoryException)
+                    {
+                        failures.Add(rollbackException);
+                    }
+                }
+
+                if (currentRestored)
+                {
+                    if (currentReferenceMutationStarted)
+                    {
+                        try
+                        {
+                            await AddExternalReferencesAsync(
+                                currentExternalReferences,
+                                current,
+                                CancellationToken.None).ConfigureAwait(false);
+                        }
+                        catch (Exception rollbackException) when (
+                            rollbackException is not OutOfMemoryException)
+                        {
+                            failures.Add(rollbackException);
+                        }
+                    }
+                    m_dynamicExternalReferences.Remove(prepared.NodeManager);
+                    m_dynamicExternalReferences[current] =
+                        currentExternalReferences;
+                    if (routeReplaced)
+                    {
+                        try
+                        {
+                            m_nodeManagers.SetVisible(
+                                current,
+                                currentWasVisible);
+                        }
+                        catch (Exception rollbackException) when (
+                            rollbackException is not OutOfMemoryException)
+                        {
+                            failures.Add(rollbackException);
+                        }
+                    }
+                }
+                else
+                {
+                    try
+                    {
+                        await AddExternalReferencesAsync(
+                            prepared.ExternalReferences,
+                            prepared.NodeManager,
+                            CancellationToken.None).ConfigureAwait(false);
+                    }
+                    catch (Exception rollbackException) when (
+                        rollbackException is not OutOfMemoryException)
+                    {
+                        failures.Add(rollbackException);
+                    }
+                    m_dynamicExternalReferences.Remove(current);
+                    m_dynamicExternalReferences[prepared.NodeManager] =
+                        prepared.ExternalReferences;
+                    RetainPreparedNodeManager(prepared);
+                }
+
+                if (failures.Count > 1)
+                {
+                    throw new AggregateException(
+                        "NodeManager replacement and rollback both failed.",
+                        failures);
+                }
+                throw;
+            }
+        }
+
+        private void RetainPreparedNodeManager(
+            PreparedNodeManager prepared)
+        {
+            prepared.Staged = false;
+            prepared.Published = true;
+            prepared.ReplacedNodeManager = null;
+            prepared.ReplacedExternalReferences = null;
+            SetPreparing(prepared.NodeManager, preparing: false);
+        }
+
+        private void EnsureNoActiveMonitoredItems(
+            IAsyncNodeManager nodeManager)
+        {
+            foreach (ISubscription subscription in
+                Server.SubscriptionManager.GetSubscriptions())
+            {
+                if (subscription.MonitoredItemCount == 0)
+                {
+                    continue;
+                }
+                if (subscription is not INodeManagerMonitoredItemTracker tracker)
+                {
+                    throw new NotSupportedException(
+                        "The configured subscription cannot verify NodeManager ownership.");
+                }
+                if (tracker.HasMonitoredItems(nodeManager))
+                {
+                    throw new InvalidOperationException(
+                        "The NodeManager cannot be reloaded or removed while it owns monitored items.");
+                }
+            }
+        }
+
         private static void SetExistingEventSubscriptionSuppression(
             IAsyncNodeManager nodeManager,
             bool suppress)
@@ -4341,6 +4670,39 @@ namespace Opc.Ua.Server
             else if (nodeManager.SyncNodeManager is CustomNodeManager2 customNodeManager)
             {
                 customNodeManager.SuppressExistingEventSubscriptions = suppress;
+            }
+        }
+
+        private IAsyncNodeManager? GetPreparingNodeManager(
+            IAsyncNodeManager nodeManager)
+        {
+            lock (m_preparingNodeManagersLock)
+            {
+                return m_preparingNodeManagers.FirstOrDefault(candidate =>
+                    ReferenceEquals(candidate, nodeManager) ||
+                    (candidate.SyncNodeManager is { } candidateSync &&
+                        nodeManager.SyncNodeManager is { } nodeManagerSync &&
+                        ReferenceEquals(
+                            candidateSync,
+                            nodeManagerSync)));
+            }
+        }
+
+        private void SetPreparing(
+            IAsyncNodeManager nodeManager,
+            bool preparing)
+        {
+            lock (m_preparingNodeManagersLock)
+            {
+                if (preparing)
+                {
+                    m_preparingNodeManagers.Add(nodeManager);
+                }
+                else
+                {
+                    m_preparingNodeManagers.RemoveAll(candidate =>
+                        ReferenceEquals(candidate, nodeManager));
+                }
             }
         }
 
@@ -5095,9 +5457,12 @@ namespace Opc.Ua.Server
         }
 
         private readonly ILogger m_logger;
+        private readonly SemaphoreSlim m_dynamicMutationSemaphore = new(1, 1);
         private readonly SemaphoreSlim m_startupShutdownSemaphoreSlim = new(1, 1);
         private readonly NodeManagerRoutingTable m_nodeManagers;
         private readonly MonitoredItemIdFactory m_monitoredItemIdFactory = new();
+        private readonly List<IAsyncNodeManager> m_preparingNodeManagers = [];
+        private readonly Lock m_preparingNodeManagersLock = new();
         private readonly uint m_maxContinuationPointsPerBrowse;
 
         private readonly Dictionary<IAsyncNodeManager, Dictionary<NodeId, IList<IReference>>>

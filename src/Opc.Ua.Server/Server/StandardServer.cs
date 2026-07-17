@@ -482,11 +482,13 @@ namespace Opc.Ua.Server
             ArrayOf<EndpointDescription> serverEndpoints = default;
             uint maxRequestMessageSize = (uint)MessageContext.MaxMessageSize;
 
-            OperationContext context = await ValidateRequestAsync(
+            OperationContext context = await ValidateRequestInScopeAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.CreateSession,
                 requestLifetime).ConfigureAwait(false);
+            using IDisposable requestScope =
+                ServerInternal.RequestManager.EnterRequestScope(context);
 
             // Admission control: reject with BadServerTooBusy before doing the
             // CPU-bound certificate validation / signing when at capacity. The
@@ -871,11 +873,13 @@ namespace Opc.Ua.Server
         {
             ByteString serverNonce;
 
-            OperationContext context = await ValidateRequestAsync(
+            OperationContext context = await ValidateRequestInScopeAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.ActivateSession,
                 requestLifetime).ConfigureAwait(false);
+            using IDisposable requestScope =
+                ServerInternal.RequestManager.EnterRequestScope(context);
 
             // Admission control: reject with BadServerTooBusy before the CPU-bound
             // signature / identity-token verification when at capacity. The lease
@@ -1055,11 +1059,13 @@ namespace Opc.Ua.Server
             bool deleteSubscriptions,
             RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(
+            OperationContext context = await ValidateRequestInScopeAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.CloseSession,
                 requestLifetime).ConfigureAwait(false);
+            using IDisposable requestScope =
+                ServerInternal.RequestManager.EnterRequestScope(context);
             try
             {
                 ISession? session = ServerInternal.SessionManager
@@ -1105,11 +1111,13 @@ namespace Opc.Ua.Server
             uint requestHandle,
             RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(
+            OperationContext context = await ValidateRequestInScopeAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.Cancel,
                 requestLifetime).ConfigureAwait(false);
+            using IDisposable requestScope =
+                ServerInternal.RequestManager.EnterRequestScope(context);
             CancelResponse response;
             try
             {
@@ -1154,11 +1162,13 @@ namespace Opc.Ua.Server
             ArrayOf<BrowseDescription> nodesToBrowse,
             RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(
+            OperationContext context = await ValidateRequestInScopeAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.Browse,
                 requestLifetime).ConfigureAwait(false);
+            using IDisposable requestScope =
+                ServerInternal.RequestManager.EnterRequestScope(context);
 
             try
             {
@@ -1208,11 +1218,13 @@ namespace Opc.Ua.Server
             ArrayOf<ByteString> continuationPoints,
             RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(
+            OperationContext context = await ValidateRequestInScopeAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.BrowseNext,
                 requestLifetime).ConfigureAwait(false);
+            using IDisposable requestScope =
+                ServerInternal.RequestManager.EnterRequestScope(context);
 
             try
             {
@@ -1260,11 +1272,13 @@ namespace Opc.Ua.Server
             ArrayOf<AddNodesItem> nodesToAdd,
             RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(
+            OperationContext context = await ValidateRequestInScopeAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.AddNodes,
                 requestLifetime).ConfigureAwait(false);
+            using IDisposable requestScope =
+                ServerInternal.RequestManager.EnterRequestScope(context);
 
             try
             {
@@ -1324,11 +1338,13 @@ namespace Opc.Ua.Server
             ArrayOf<DeleteNodesItem> nodesToDelete,
             RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(
+            OperationContext context = await ValidateRequestInScopeAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.DeleteNodes,
                 requestLifetime).ConfigureAwait(false);
+            using IDisposable requestScope =
+                ServerInternal.RequestManager.EnterRequestScope(context);
 
             try
             {
@@ -1388,11 +1404,13 @@ namespace Opc.Ua.Server
             ArrayOf<AddReferencesItem> referencesToAdd,
             RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(
+            OperationContext context = await ValidateRequestInScopeAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.AddReferences,
                 requestLifetime).ConfigureAwait(false);
+            using IDisposable requestScope =
+                ServerInternal.RequestManager.EnterRequestScope(context);
 
             try
             {
@@ -1452,11 +1470,13 @@ namespace Opc.Ua.Server
             ArrayOf<DeleteReferencesItem> referencesToDelete,
             RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(
+            OperationContext context = await ValidateRequestInScopeAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.DeleteReferences,
                 requestLifetime).ConfigureAwait(false);
+            using IDisposable requestScope =
+                ServerInternal.RequestManager.EnterRequestScope(context);
 
             try
             {
@@ -1554,11 +1574,13 @@ namespace Opc.Ua.Server
             ArrayOf<NodeId> nodesToRegister,
             RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(
+            OperationContext context = await ValidateRequestInScopeAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.RegisterNodes,
                 requestLifetime).ConfigureAwait(false);
+            using IDisposable requestScope =
+                ServerInternal.RequestManager.EnterRequestScope(context);
             RegisterNodesResponse response;
             try
             {
@@ -1601,11 +1623,13 @@ namespace Opc.Ua.Server
             ArrayOf<NodeId> nodesToUnregister,
             RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(
+            OperationContext context = await ValidateRequestInScopeAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.UnregisterNodes,
                 requestLifetime).ConfigureAwait(false);
+            using IDisposable requestScope =
+                ServerInternal.RequestManager.EnterRequestScope(context);
 
             UnregisterNodesResponse response;
             try
@@ -1649,11 +1673,13 @@ namespace Opc.Ua.Server
             ArrayOf<BrowsePath> browsePaths,
             RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(
+            OperationContext context = await ValidateRequestInScopeAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.TranslateBrowsePathsToNodeIds,
                 requestLifetime).ConfigureAwait(false);
+            using IDisposable requestScope =
+                ServerInternal.RequestManager.EnterRequestScope(context);
 
             try
             {
@@ -1711,11 +1737,13 @@ namespace Opc.Ua.Server
             ArrayOf<ReadValueId> nodesToRead,
             RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(
+            OperationContext context = await ValidateRequestInScopeAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.Read,
                 requestLifetime).ConfigureAwait(false);
+            using IDisposable requestScope =
+                ServerInternal.RequestManager.EnterRequestScope(context);
 
             try
             {
@@ -1768,11 +1796,13 @@ namespace Opc.Ua.Server
             ArrayOf<HistoryReadValueId> nodesToRead,
             RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(
+            OperationContext context = await ValidateRequestInScopeAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.HistoryRead,
                 requestLifetime).ConfigureAwait(false);
+            using IDisposable requestScope =
+                ServerInternal.RequestManager.EnterRequestScope(context);
 
             try
             {
@@ -1835,11 +1865,13 @@ namespace Opc.Ua.Server
             ArrayOf<WriteValue> nodesToWrite,
             RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(
+            OperationContext context = await ValidateRequestInScopeAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.Write,
                 requestLifetime).ConfigureAwait(false);
+            using IDisposable requestScope =
+                ServerInternal.RequestManager.EnterRequestScope(context);
 
             try
             {
@@ -1884,11 +1916,13 @@ namespace Opc.Ua.Server
             ArrayOf<ExtensionObject> historyUpdateDetails,
             RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(
+            OperationContext context = await ValidateRequestInScopeAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.HistoryUpdate,
                 requestLifetime).ConfigureAwait(false);
+            using IDisposable requestScope =
+                ServerInternal.RequestManager.EnterRequestScope(context);
 
             try
             {
@@ -1942,11 +1976,13 @@ namespace Opc.Ua.Server
             byte priority,
             RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(
+            OperationContext context = await ValidateRequestInScopeAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.CreateSubscription,
                 requestLifetime).ConfigureAwait(false);
+            using IDisposable requestScope =
+                ServerInternal.RequestManager.EnterRequestScope(context);
 
             try
             {
@@ -1992,11 +2028,13 @@ namespace Opc.Ua.Server
             bool sendInitialValues,
             RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(
+            OperationContext context = await ValidateRequestInScopeAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.TransferSubscriptions,
                 requestLifetime).ConfigureAwait(false);
+            using IDisposable requestScope =
+                ServerInternal.RequestManager.EnterRequestScope(context);
 
             try
             {
@@ -2039,11 +2077,13 @@ namespace Opc.Ua.Server
             ArrayOf<uint> subscriptionIds,
             RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(
+            OperationContext context = await ValidateRequestInScopeAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.DeleteSubscriptions,
                 requestLifetime).ConfigureAwait(false);
+            using IDisposable requestScope =
+                ServerInternal.RequestManager.EnterRequestScope(context);
 
             try
             {
@@ -2085,11 +2125,13 @@ namespace Opc.Ua.Server
             ArrayOf<SubscriptionAcknowledgement> subscriptionAcknowledgements,
             RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(
+            OperationContext context = await ValidateRequestInScopeAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.Publish,
                 requestLifetime).ConfigureAwait(false);
+            using IDisposable requestScope =
+                ServerInternal.RequestManager.EnterRequestScope(context);
 
             try
             {
@@ -2135,11 +2177,13 @@ namespace Opc.Ua.Server
             uint retransmitSequenceNumber,
             RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(
+            OperationContext context = await ValidateRequestInScopeAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.Republish,
                 requestLifetime).ConfigureAwait(false);
+            using IDisposable requestScope =
+                ServerInternal.RequestManager.EnterRequestScope(context);
             RepublishResponse response;
             try
             {
@@ -2187,11 +2231,13 @@ namespace Opc.Ua.Server
             byte priority,
             RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(
+            OperationContext context = await ValidateRequestInScopeAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.ModifySubscription,
                 requestLifetime).ConfigureAwait(false);
+            using IDisposable requestScope =
+                ServerInternal.RequestManager.EnterRequestScope(context);
 
             ModifySubscriptionResponse response;
             try
@@ -2245,11 +2291,13 @@ namespace Opc.Ua.Server
             ArrayOf<uint> subscriptionIds,
             RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(
+            OperationContext context = await ValidateRequestInScopeAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.SetPublishingMode,
                 requestLifetime).ConfigureAwait(false);
+            using IDisposable requestScope =
+                ServerInternal.RequestManager.EnterRequestScope(context);
 
             SetPublishingModeResponse response;
             try
@@ -2301,11 +2349,13 @@ namespace Opc.Ua.Server
             ArrayOf<uint> linksToRemove,
             RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(
+            OperationContext context = await ValidateRequestInScopeAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.SetTriggering,
                 requestLifetime).ConfigureAwait(false);
+            using IDisposable requestScope =
+                ServerInternal.RequestManager.EnterRequestScope(context);
             SetTriggeringResponse response;
             try
             {
@@ -2371,11 +2421,13 @@ namespace Opc.Ua.Server
             ArrayOf<MonitoredItemCreateRequest> itemsToCreate,
             RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(
+            OperationContext context = await ValidateRequestInScopeAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.CreateMonitoredItems,
                 requestLifetime).ConfigureAwait(false);
+            using IDisposable requestScope =
+                ServerInternal.RequestManager.EnterRequestScope(context);
 
             try
             {
@@ -2421,11 +2473,13 @@ namespace Opc.Ua.Server
             ArrayOf<MonitoredItemModifyRequest> itemsToModify,
             RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(
+            OperationContext context = await ValidateRequestInScopeAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.ModifyMonitoredItems,
                 requestLifetime).ConfigureAwait(false);
+            using IDisposable requestScope =
+                ServerInternal.RequestManager.EnterRequestScope(context);
 
             try
             {
@@ -2470,11 +2524,13 @@ namespace Opc.Ua.Server
             ArrayOf<uint> monitoredItemIds,
             RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(
+            OperationContext context = await ValidateRequestInScopeAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.DeleteMonitoredItems,
                 requestLifetime).ConfigureAwait(false);
+            using IDisposable requestScope =
+                ServerInternal.RequestManager.EnterRequestScope(context);
 
             try
             {
@@ -2519,11 +2575,13 @@ namespace Opc.Ua.Server
             ArrayOf<uint> monitoredItemIds,
             RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(
+            OperationContext context = await ValidateRequestInScopeAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.SetMonitoringMode,
                 requestLifetime).ConfigureAwait(false);
+            using IDisposable requestScope =
+                ServerInternal.RequestManager.EnterRequestScope(context);
 
             try
             {
@@ -2572,11 +2630,13 @@ namespace Opc.Ua.Server
             ArrayOf<CallMethodRequest> methodsToCall,
             RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(
+            OperationContext context = await ValidateRequestInScopeAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.Call,
                 requestLifetime).ConfigureAwait(false);
+            using IDisposable requestScope =
+                ServerInternal.RequestManager.EnterRequestScope(context);
 
             try
             {
@@ -3021,10 +3081,48 @@ namespace Opc.Ua.Server
             }
             m_logger.ServerCallRequestTypeIdRequestId(context.RequestType, context.RequestId);
 
-            // notify the request manager.
             ServerInternal.RequestManager.RequestReceived(context);
-
             return context;
+        }
+
+        /// <summary>
+        /// Executes virtual request validation within a tracked validation scope.
+        /// </summary>
+        /// <param name="secureChannelContext">The secure channel context.</param>
+        /// <param name="requestHeader">The request header.</param>
+        /// <param name="requestType">The request type.</param>
+        /// <param name="requestLifetime">The request lifetime.</param>
+        /// <returns>The validated operation context.</returns>
+        protected async ValueTask<OperationContext> ValidateRequestInScopeAsync(
+            SecureChannelContext secureChannelContext,
+            [NotNull] RequestHeader? requestHeader,
+            RequestType requestType,
+            RequestLifetime requestLifetime)
+        {
+            using IDisposable validationScope =
+                ServerInternal.RequestManager.EnterValidationScope();
+            OperationContext context = await ValidateRequestAsync(
+                secureChannelContext,
+                requestHeader,
+                requestType,
+                requestLifetime).ConfigureAwait(false);
+            ServerInternal.RequestManager.PromoteValidatedRequest(context);
+            return context;
+        }
+
+        /// <summary>
+        /// Registers a validated request and establishes its ambient execution scope.
+        /// </summary>
+        /// <remarks>
+        /// Derived service handlers must dispose the returned scope after request processing.
+        /// The scope guarantees request completion even when processing fails before the
+        /// handler enters its normal <see cref="OnRequestComplete"/> path.
+        /// </remarks>
+        /// <param name="context">The validated request context.</param>
+        /// <returns>The request execution scope.</returns>
+        protected IDisposable EnterRequestScope(OperationContext context)
+        {
+            return ServerInternal.RequestManager.EnterRequestScope(context);
         }
 
         /// <summary>
@@ -3774,20 +3872,23 @@ namespace Opc.Ua.Server
                     await RegisterWithDiscoveryServerAsync(cancellationToken).ConfigureAwait(false);
                 }
 
+                var lifecycle =
+                    NodeManagerLifecycle as NodeManagerLifecycle;
+                IServerInternal? lifecycleServer = m_serverInternal;
+                if (lifecycle is not null &&
+                    lifecycleServer is not null)
+                {
+                    await lifecycle.BeginShutdownAsync(
+                        lifecycleServer,
+                        cancellationToken)
+                        .ConfigureAwait(false);
+                }
+
                 await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
                 try
                 {
                     if (m_serverInternal != null)
                     {
-                        var lifecycle =
-                            NodeManagerLifecycle as NodeManagerLifecycle;
-                        if (lifecycle is not null)
-                        {
-                            await lifecycle.BeginShutdownAsync(
-                                m_serverInternal,
-                                cancellationToken)
-                                .ConfigureAwait(false);
-                        }
                         ServerInternal.SessionManager.SessionChannelKeepAlive
                             -= SessionChannelKeepAliveEvent;
                         await ServerInternal.SubscriptionManager.ShutdownAsync(cancellationToken).ConfigureAwait(false);

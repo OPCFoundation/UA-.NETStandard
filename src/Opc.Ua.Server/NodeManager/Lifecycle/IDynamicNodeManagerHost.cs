@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -46,6 +47,11 @@ namespace Opc.Ua.Server
         ValueTask ReplaceAsync(
             IAsyncNodeManager current,
             PreparedNodeManager replacement,
+            CancellationToken ct = default);
+
+        ValueTask CommitAsync(
+            PreparedNodeManager prepared,
+            Func<ValueTask>? beforeCommit = null,
             CancellationToken ct = default);
 
         ValueTask UnpublishAsync(
@@ -79,5 +85,11 @@ namespace Opc.Ua.Server
         public Dictionary<NodeId, IList<IReference>> ExternalReferences { get; }
 
         public bool Published { get; set; }
+
+        public bool Staged { get; set; }
+
+        public IAsyncNodeManager? ReplacedNodeManager { get; set; }
+
+        public Dictionary<NodeId, IList<IReference>>? ReplacedExternalReferences { get; set; }
     }
 }

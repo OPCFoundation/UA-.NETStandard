@@ -397,6 +397,41 @@ namespace Opc.Ua.Server.Tests.NodeManager
             return Task.CompletedTask;
         }
 
+        [Test]
+        public void AddAsyncFromRequestScopeRejectsWithoutInvokingFactory()
+        {
+            IServerInternal server = m_server.CurrentInstance;
+            var factory = new Mock<IAsyncNodeManagerFactory>(MockBehavior.Strict);
+            var context = new OperationContext(
+                new RequestHeader(),
+                secureChannelContext: null,
+                RequestType.Read,
+                RequestLifetime.None);
+
+            try
+            {
+                using IDisposable requestScope =
+                    server.RequestManager.EnterRequestScope(context);
+
+                Assert.That(
+                    async () => await m_server.NodeManagerLifecycle
+                        .AddAsync(factory.Object)
+                        .ConfigureAwait(false),
+                    Throws.InvalidOperationException.With.Message.Contains(
+                        "cannot run from an OPC UA request callback"));
+                factory.Verify(
+                    candidate => candidate.CreateAsync(
+                        It.IsAny<IServerInternal>(),
+                        It.IsAny<ApplicationConfiguration>(),
+                        It.IsAny<CancellationToken>()),
+                    Times.Never);
+            }
+            finally
+            {
+                server.RequestManager.RequestCompleted(context);
+            }
+        }
+
         /// <summary>
         /// When the replacement factory throws during Reload, the sentinel exception must
         /// propagate unchanged, the current generation's registration, routing, value, and
@@ -884,6 +919,124 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 master.AsyncNodeManagers.Count(m => ReferenceEquals(m, nodeManager.Object)),
                 Is.Zero);
             Assert.That(master.NamespaceManagers.ContainsKey(namespaceIndex), Is.False);
+        }
+
+        [Test]
+        public async Task SessionClosingWaitsForMonitoredItemMutationAsync()
+        {
+            IServerInternal server = m_server.CurrentInstance;
+            var master = (MasterNodeManager)server.NodeManager;
+            var coordinator = (INodeManagerMutationCoordinator)master;
+            var mutationStarted = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseMutation = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+
+            async ValueTask<bool> BlockMutationAsync()
+            {
+                mutationStarted.TrySetResult(true);
+                await releaseMutation.Task.ConfigureAwait(false);
+                return true;
+            }
+
+            Task<bool> mutationTask = coordinator
+                .ExecuteMonitoredItemMutationAsync(
+                    BlockMutationAsync,
+                    CancellationToken.None)
+                .AsTask();
+            await mutationStarted.Task.ConfigureAwait(false);
+
+            var context = new OperationContext(
+                new RequestHeader(),
+                null,
+                RequestType.CloseSession,
+                RequestLifetime.None);
+            Task closingTask = master
+                .SessionClosingAsync(
+                    context,
+                    new NodeId(Guid.NewGuid()),
+                    deleteSubscriptions: false,
+                    CancellationToken.None)
+                .AsTask();
+
+            Task earlyCompletion = await Task.WhenAny(
+                closingTask,
+                Task.Delay(TimeSpan.FromMilliseconds(100))).ConfigureAwait(false);
+            Assert.That(earlyCompletion, Is.Not.SameAs(closingTask));
+
+            releaseMutation.TrySetResult(true);
+            Assert.That(await mutationTask.ConfigureAwait(false), Is.True);
+            await closingTask.ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task AddAsyncCleansFailedSessionActivationAsync()
+        {
+            const string NamespaceUri =
+                "urn:opcfoundation.org:Tests:NodeManagerLifecycle:ActivationFailure";
+            const string ExpectedMessage = "SessionActivatedAsync failed.";
+            var nodeManager = new Mock<IAsyncNodeManager>();
+            var syncNodeManager = new Mock<INodeManager>();
+            nodeManager
+                .Setup(manager => manager.NamespaceUris)
+                .Returns([NamespaceUri]);
+            nodeManager
+                .Setup(manager => manager.SyncNodeManager)
+                .Returns(syncNodeManager.Object);
+            nodeManager
+                .Setup(manager => manager.CreateAddressSpaceAsync(
+                    It.IsAny<IDictionary<NodeId, IList<IReference>>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask));
+            nodeManager
+                .Setup(manager => manager.DeleteAddressSpaceAsync(
+                    It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask));
+            nodeManager
+                .Setup(manager => manager.SessionActivatedAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<NodeId>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(() => new ValueTask(
+                    Task.FromException(
+                        new SentinelException(ExpectedMessage))));
+            nodeManager
+                .Setup(manager => manager.SessionClosingAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<NodeId>(),
+                    false,
+                    It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask));
+
+            var factory = new Mock<IAsyncNodeManagerFactory>();
+            factory
+                .Setup(value => value.CreateAsync(
+                    It.IsAny<IServerInternal>(),
+                    It.IsAny<ApplicationConfiguration>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(nodeManager.Object);
+
+            Assert.That(
+                async () => await m_server.NodeManagerLifecycle
+                    .AddAsync(factory.Object)
+                    .ConfigureAwait(false),
+                Throws.TypeOf<SentinelException>()
+                    .With.Message.EqualTo(ExpectedMessage));
+
+            nodeManager.Verify(
+                manager => manager.SessionClosingAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<NodeId>(),
+                    false,
+                    CancellationToken.None),
+                Times.AtLeastOnce);
+            nodeManager.Verify(
+                manager => manager.DeleteAddressSpaceAsync(
+                    CancellationToken.None),
+                Times.Once);
+            Assert.That(
+                m_server.NodeManagerLifecycle.Registrations,
+                Is.Empty);
         }
 
         /// <summary>
