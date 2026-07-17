@@ -124,7 +124,7 @@ namespace Opc.Ua.Mcp
             await m_lock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                await EnsureConfigurationInternalAsync(false, ct).ConfigureAwait(false);
+                await EnsureConfigurationInternalAsync(ct).ConfigureAwait(false);
                 return m_configuration!;
             }
             finally
@@ -204,18 +204,15 @@ namespace Opc.Ua.Mcp
         {
             ObjectDisposedException.ThrowIf(m_disposed, this);
 
-            await EnsureConfigurationInternalAsync(false, ct).ConfigureAwait(false);
-
-            var uri = new Uri(discoveryUrl);
-            var endpointConfiguration = EndpointConfiguration.Create(m_configuration!);
-
-            using DiscoveryClient client = await DiscoveryClient.CreateAsync(
-                m_configuration!,
-                uri,
-                endpointConfiguration,
-                ct: ct).ConfigureAwait(false);
-
-            return await client.GetEndpointsAsync(default, ct).ConfigureAwait(false);
+            await m_lock.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                return await DiscoverEndpointsInternalAsync(discoveryUrl, ct).ConfigureAwait(false);
+            }
+            finally
+            {
+                m_lock.Release();
+            }
         }
 
         /// <summary>
@@ -256,12 +253,10 @@ namespace Opc.Ua.Mcp
                     m_sessions.TryRemove(name, out _);
                 }
 
-                await EnsureConfigurationInternalAsync(autoAcceptCerts, ct).ConfigureAwait(false);
-
-                if (autoAcceptCerts)
-                {
-                    m_configuration!.CertificateManager.AcceptError = AutoAcceptError;
-                }
+                await EnsureConfigurationInternalAsync(ct).ConfigureAwait(false);
+                using IDisposable? autoAcceptCertificateScope = CreateAutoAcceptCertificateScope(
+                    m_configuration!.CertificateManager,
+                    autoAcceptCerts);
 
                 m_logger.Connecting(endpointUrl, name);
 
@@ -412,7 +407,16 @@ namespace Opc.Ua.Mcp
             info.Session.Dispose();
         }
 
-        private async Task EnsureConfigurationInternalAsync(bool autoAcceptCerts, CancellationToken ct)
+        internal static IDisposable? CreateAutoAcceptCertificateScope(
+            ICertificateValidatorEx certificateValidator,
+            bool autoAcceptCertificates)
+        {
+            return autoAcceptCertificates
+                ? new AutoAcceptCertificateScope(certificateValidator)
+                : null;
+        }
+
+        private async Task EnsureConfigurationInternalAsync(CancellationToken ct)
         {
             if (m_configuration != null)
             {
@@ -448,13 +452,26 @@ namespace Opc.Ua.Mcp
                 m_logger.ApplicationCertificateNotFound();
             }
 
-            if (autoAcceptCerts)
-            {
-                config.CertificateManager.AcceptError = AutoAcceptError;
-            }
-
             m_clientOptions.Configuration = config;
             m_configuration = config;
+        }
+
+        private async Task<ArrayOf<EndpointDescription>> DiscoverEndpointsInternalAsync(
+            string discoveryUrl,
+            CancellationToken ct)
+        {
+            await EnsureConfigurationInternalAsync(ct).ConfigureAwait(false);
+
+            var uri = new Uri(discoveryUrl);
+            var endpointConfiguration = EndpointConfiguration.Create(m_configuration!);
+
+            using DiscoveryClient client = await DiscoveryClient.CreateAsync(
+                m_configuration!,
+                uri,
+                endpointConfiguration,
+                ct: ct).ConfigureAwait(false);
+
+            return await client.GetEndpointsAsync(default, ct).ConfigureAwait(false);
         }
 
         private async Task<EndpointDescription> SelectEndpointAsync(
@@ -487,7 +504,7 @@ namespace Opc.Ua.Mcp
             }
 
             ArrayOf<EndpointDescription> allEndpoints =
-                await DiscoverEndpointsAsync(endpointUrl, ct).ConfigureAwait(false);
+                await DiscoverEndpointsInternalAsync(endpointUrl, ct).ConfigureAwait(false);
 
             IEnumerable<EndpointDescription> candidates = allEndpoints.ToArray() ??
                 [];
@@ -660,6 +677,32 @@ namespace Opc.Ua.Mcp
             ServiceResult error)
         {
             return true;
+        }
+
+        private sealed class AutoAcceptCertificateScope : IDisposable
+        {
+            public AutoAcceptCertificateScope(ICertificateValidatorEx certificateValidator)
+            {
+                m_certificateValidator = certificateValidator ??
+                    throw new ArgumentNullException(nameof(certificateValidator));
+                m_previousAcceptError = certificateValidator.AcceptError;
+                certificateValidator.AcceptError = AutoAcceptError;
+            }
+
+            public void Dispose()
+            {
+                if (m_disposed)
+                {
+                    return;
+                }
+
+                m_disposed = true;
+                m_certificateValidator.AcceptError = m_previousAcceptError;
+            }
+
+            private readonly ICertificateValidatorEx m_certificateValidator;
+            private readonly Func<Certificate, ServiceResult, bool>? m_previousAcceptError;
+            private bool m_disposed;
         }
     }
 

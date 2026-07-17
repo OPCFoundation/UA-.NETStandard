@@ -29,7 +29,6 @@
 
 using System.IO;
 using NUnit.Framework;
-using Opc.Ua.Tests;
 
 namespace Opc.Ua.Fuzzing
 {
@@ -57,13 +56,6 @@ namespace Opc.Ua.Fuzzing
     public class Issue3546RoundTripTests
     {
         private static readonly uint[] s_arrayDimensions = [1u, 2u];
-
-        [SetUp]
-        public void Setup()
-        {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            FuzzableCode.MessageContext = ServiceMessageContext.Create(telemetry);
-        }
 
         [Test]
         public void DataTypeNodeWithReferencesRoundTripsCleanly()
