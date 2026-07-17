@@ -157,39 +157,28 @@ namespace Opc.Ua.Redundancy.Server
             return result;
         }
 
-        /// <inheritdoc/>
-        public override async ValueTask<(bool IdentityContextChanged, ByteString ServerNonce, ServiceResult ActivationStatus)> ActivateSessionAsync(
-            OperationContext context,
+        internal override async ValueTask OnSessionActivatedAsync(
             NodeId authenticationToken,
-            SignatureData? clientSignature,
-            ExtensionObject userIdentityToken,
-            SignatureData? userTokenSignature,
-            ArrayOf<string> localeIds,
-            CancellationToken cancellationToken = default)
+            ISession session,
+            ByteString serverNonce,
+            string clientUserId,
+            CancellationToken cancellationToken)
         {
-            (bool IdentityContextChanged, ByteString ServerNonce, ServiceResult ActivationStatus) result =
-                await base.ActivateSessionAsync(
-                    context,
-                    authenticationToken,
-                    clientSignature,
-                    userIdentityToken,
-                    userTokenSignature,
-                    localeIds,
-                    cancellationToken).ConfigureAwait(false);
-
             // Mirror the freshly issued serverNonce so a standby validates the
             // client's next activation against it (and consumes it single-use).
             try
             {
-                await MirrorActivationAsync(authenticationToken, result.ServerNonce, cancellationToken)
+                await MirrorActivationAsync(
+                    authenticationToken,
+                    serverNonce,
+                    clientUserId,
+                    cancellationToken)
                     .ConfigureAwait(false);
             }
             catch (Exception ex)
             {
                 m_logger.FailedToMirrorActivatedSessionToSharedStore(ex);
             }
-
-            return result;
         }
 
         /// <inheritdoc/>
@@ -242,6 +231,7 @@ namespace Opc.Ua.Redundancy.Server
                 entry,
                 endpoint.SecurityPolicyUri ?? string.Empty,
                 endpoint.SecurityMode,
+                context.ChannelContext.ClientChannelCertificate.ToByteString(),
                 cancellationToken).ConfigureAwait(false);
             if (decision != RestoreDecision.Authorized)
             {
@@ -292,8 +282,17 @@ namespace Opc.Ua.Redundancy.Server
             /// <summary>The mirrored session timed out before the restore attempt.</summary>
             Expired,
 
+            /// <summary>The mirrored record predates or omits required security state.</summary>
+            SecurityStateMissing,
+
             /// <summary>The SecurityPolicy/Mode does not match the original.</summary>
             PolicyMismatch,
+
+            /// <summary>The new SecureChannel uses a different client certificate.</summary>
+            ClientCertificateMismatch,
+
+            /// <summary>The mirrored nonce is malformed.</summary>
+            NonceInvalid,
 
             /// <summary>The mirrored nonce is missing or was already consumed (replay).</summary>
             NonceReplayed
@@ -308,11 +307,18 @@ namespace Opc.Ua.Redundancy.Server
             SharedSessionEntry entry,
             string securityPolicyUri,
             MessageSecurityMode securityMode,
+            ByteString clientChannelCertificate,
             CancellationToken cancellationToken = default)
         {
             if (IsRestoreExpired(entry))
             {
                 return RestoreDecision.Expired;
+            }
+
+            if (entry.SecurityStateVersion != SharedSessionEntry.CurrentSecurityStateVersion ||
+                string.IsNullOrEmpty(entry.ClientUserId))
+            {
+                return RestoreDecision.SecurityStateMissing;
             }
 
             if (!string.Equals(entry.SecurityPolicyUri, securityPolicyUri, StringComparison.Ordinal) ||
@@ -321,9 +327,19 @@ namespace Opc.Ua.Redundancy.Server
                 return RestoreDecision.PolicyMismatch;
             }
 
-            if (entry.ServerNonce.IsNull || entry.ServerNonce.IsEmpty)
+            bool requiresClientCertificate =
+                securityMode != MessageSecurityMode.None ||
+                !string.Equals(securityPolicyUri, SecurityPolicies.None, StringComparison.Ordinal);
+            if ((requiresClientCertificate &&
+                    entry.OriginalClientChannelCertificate.IsEmpty) ||
+                entry.OriginalClientChannelCertificate != clientChannelCertificate)
             {
-                return RestoreDecision.NonceReplayed;
+                return RestoreDecision.ClientCertificateMismatch;
+            }
+
+            if (!IsValidSessionNonce(entry.ServerNonce))
+            {
+                return RestoreDecision.NonceInvalid;
             }
 
             bool consumed = await m_nonceRegistry
@@ -337,13 +353,27 @@ namespace Opc.Ua.Redundancy.Server
             NodeId authenticationToken,
             OperationContext context)
         {
+            if (entry.SecurityStateVersion != SharedSessionEntry.CurrentSecurityStateVersion ||
+                string.IsNullOrEmpty(entry.ClientUserId))
+            {
+                return null;
+            }
+
             bool requiresClientCertificate =
                 entry.SecurityMode != (int)MessageSecurityMode.None ||
                 !string.Equals(entry.SecurityPolicyUri, SecurityPolicies.None, StringComparison.Ordinal);
             if (requiresClientCertificate &&
-                (entry.ClientCertificateChain.IsNull || entry.ClientCertificateChain.IsEmpty))
+                (entry.ClientCertificateChain.IsNull ||
+                    entry.ClientCertificateChain.IsEmpty ||
+                    entry.OriginalClientChannelCertificate.IsEmpty))
             {
                 m_logger.MirroredSessionHasNoClientCertificate();
+                return null;
+            }
+
+            if (entry.OriginalClientChannelCertificate !=
+                context.ChannelContext!.ClientChannelCertificate.ToByteString())
+            {
                 return null;
             }
 
@@ -378,7 +408,7 @@ namespace Opc.Ua.Redundancy.Server
             {
                 clientCertificate = parsed.Count == 0 ? null : parsed[0].AddRef();
                 issuers = [];
-                serverNonce = Nonce.CreateNonce(entry.SecurityPolicyUri, entry.ServerNonce.ToArray());
+                serverNonce = Nonce.CreateNonce(SecurityPolicies.None, entry.ServerNonce.ToArray());
                 ISession session = CreateSession(
                     context,
                     m_server,
@@ -395,6 +425,10 @@ namespace Opc.Ua.Redundancy.Server
                     0,
                     0,
                     0);
+                SetRestoredSessionSecurityState(
+                    session,
+                    entry.OriginalClientChannelCertificate,
+                    entry.ClientUserId);
 
                 // Ownership transferred to the session; prevent the finally below
                 // from disposing handles the session now manages.
@@ -438,6 +472,9 @@ namespace Opc.Ua.Redundancy.Server
                 ServerNonce = result.ServerNonce,
                 ClientNonce = clientNonce,
                 ClientCertificateChain = clientCertBlob,
+                SecurityStateVersion = SharedSessionEntry.CurrentSecurityStateVersion,
+                OriginalClientChannelCertificate =
+                    context.ChannelContext!.ClientChannelCertificate.ToByteString(),
                 SecurityPolicyUri = endpoint.SecurityPolicyUri ?? string.Empty,
                 SecurityMode = (int)endpoint.SecurityMode,
                 EndpointUrl = endpointUrl ?? string.Empty,
@@ -449,6 +486,7 @@ namespace Opc.Ua.Redundancy.Server
         private async ValueTask MirrorActivationAsync(
             NodeId authenticationToken,
             ByteString serverNonce,
+            string clientUserId,
             CancellationToken cancellationToken)
         {
             SharedSessionEntry? existing = await m_sessionStore
@@ -462,7 +500,9 @@ namespace Opc.Ua.Redundancy.Server
             SharedSessionEntry updated = existing with
             {
                 ServerNonce = serverNonce,
-                LastActivatedAt = UtcNow()
+                LastActivatedAt = UtcNow(),
+                SecurityStateVersion = SharedSessionEntry.CurrentSecurityStateVersion,
+                ClientUserId = clientUserId
             };
             await m_sessionStore.PutAsync(updated, cancellationToken).ConfigureAwait(false);
         }
@@ -478,6 +518,13 @@ namespace Opc.Ua.Redundancy.Server
                 .ToDateTime()
                 .AddMilliseconds(Math.Max(entry.SessionTimeout, 0));
             return m_restoreTimeProvider.GetUtcNow().UtcDateTime >= expiry;
+        }
+
+        private static bool IsValidSessionNonce(ByteString nonce)
+        {
+            return !nonce.IsNull &&
+                nonce.Length is >= 32 and <= 128 &&
+                Nonce.ValidateNonce(nonce.ToArray(), MessageSecurityMode.Sign, 32);
         }
 
         private DateTimeUtc UtcNow()

@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
@@ -95,7 +96,18 @@ namespace Opc.Ua.Redundancy.Server
                 .ConfigureAwait(false);
             if (found && m_protector.TryUnprotect(value, out ByteString payload))
             {
-                return Decode(payload);
+                try
+                {
+                    return Decode(payload);
+                }
+                catch (ServiceResultException)
+                {
+                    return null;
+                }
+                catch (EndOfStreamException)
+                {
+                    return null;
+                }
             }
             return null;
         }
@@ -145,6 +157,9 @@ namespace Opc.Ua.Redundancy.Server
             encoder.WriteDouble(null, entry.SessionTimeout);
             encoder.WriteEncodeable(null, entry.ClientDescription ?? new ApplicationDescription());
             encoder.WriteByteString(null, entry.SecretMaterial);
+            encoder.WriteUInt32(null, entry.SecurityStateVersion);
+            encoder.WriteByteString(null, entry.OriginalClientChannelCertificate);
+            encoder.WriteString(null, entry.ClientUserId);
             byte[]? buffer = encoder.CloseAndReturnBuffer();
             return buffer is null ? ByteString.Empty : new ByteString(buffer);
         }
@@ -152,7 +167,7 @@ namespace Opc.Ua.Redundancy.Server
         private SharedSessionEntry Decode(ByteString payload)
         {
             using var decoder = new BinaryDecoder(payload.ToArray(), m_context);
-            return new SharedSessionEntry
+            var entry = new SharedSessionEntry
             {
                 SessionId = decoder.ReadNodeId(null),
                 AuthenticationToken = decoder.ReadNodeId(null),
@@ -169,6 +184,36 @@ namespace Opc.Ua.Redundancy.Server
                 ClientDescription = decoder.ReadEncodeable<ApplicationDescription>(null),
                 SecretMaterial = decoder.ReadByteString(null)
             };
+
+            if (decoder.Position == payload.Length)
+            {
+                return entry;
+            }
+
+            uint securityStateVersion = decoder.ReadUInt32(null);
+            if (securityStateVersion != SharedSessionEntry.CurrentSecurityStateVersion)
+            {
+                return entry with
+                {
+                    SecurityStateVersion = securityStateVersion
+                };
+            }
+
+            SharedSessionEntry decoded = entry with
+            {
+                SecurityStateVersion = securityStateVersion,
+                OriginalClientChannelCertificate = decoder.ReadByteString(null),
+                ClientUserId = decoder.ReadString(null) ?? string.Empty
+            };
+
+            if (decoder.Position != payload.Length)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Unexpected trailing data in a shared Session entry.");
+            }
+
+            return decoded;
         }
 
         private const string Prefix = "session/";
