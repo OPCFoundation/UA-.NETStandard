@@ -5702,6 +5702,22 @@ namespace Quickstarts.ReferenceServer
             "Scalar_Static_Decimal"
         ];
 
+        /// <summary>
+        /// Identifiers of the AccessRights nodes that are marked as supporting
+        /// history archiving so History Access clients (and the CTT) can
+        /// exercise access-right handling on historizing nodes. These nodes are
+        /// registered with the historian but are intentionally not seeded with
+        /// any historical data.
+        /// </summary>
+        private static readonly string[] AccessRightsHistoricalNodeNames =
+        [
+            "AccessRights_AccessAll_RO",
+            "AccessRights_AccessAll_WO",
+            "AccessRights_AccessAll_NoAccess",
+            "AccessRights_AccessAll_RW_NotUser",
+            "AccessRights_AccessAll_RO_NotUser"
+        ];
+
         /// <inheritdoc/>
         protected override IHistorianProvider? GetHistorianProvider(NodeState node)
         {
@@ -5746,7 +5762,8 @@ namespace Quickstarts.ReferenceServer
             foreach (string name in HistoricalNodeNames
                 .Concat(HistoricalArrayNodeNames)
                 .Concat(HistoricalMatrixNodeNames)
-                .Concat(HistoricalStructureNodeNames))
+                .Concat(HistoricalStructureNodeNames)
+                .Concat(AccessRightsHistoricalNodeNames))
             {
                 var nodeId = new NodeId(name, NamespaceIndex);
 
@@ -5765,7 +5782,14 @@ namespace Quickstarts.ReferenceServer
                 variable.UserAccessLevel = (byte)(variable.UserAccessLevel | AccessLevels.HistoryRead | AccessLevels.HistoryWrite);
 
                 m_historian.Register(nodeId, capabilities);
-                await SeedHistoricalNodeAsync(variable, cancellationToken).ConfigureAwait(false);
+
+                // The AccessRights nodes are registered with the historian to
+                // exercise access-right handling on historizing nodes, but are
+                // intentionally not seeded with any historical data.
+                if (!AccessRightsHistoricalNodeNames.Contains(name))
+                {
+                    await SeedHistoricalNodeAsync(variable, cancellationToken).ConfigureAwait(false);
+                }
 
                 // Attach a HistoricalDataConfigurationType companion object
                 // (browse name "HA Configuration") and wire it via the
