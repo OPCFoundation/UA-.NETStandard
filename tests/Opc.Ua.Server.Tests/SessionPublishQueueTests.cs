@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -125,6 +126,78 @@ namespace Opc.Ua.Server.Tests
             ISubscription result = await queue.PublishAsync("channel1", DateTime.MaxValue, false, null, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(result, Is.SameAs(subMock.Object));
+        }
+
+        [Test]
+        [CancelAfter(10000)]
+        public async Task PublishReadyTransitionCompletesQueuedRequestAsync()
+        {
+            using var queue = new SessionPublishQueue(
+                m_serverMock.Object,
+                m_sessionMock.Object,
+                kMaxPublishRequests);
+            var subscription = new Mock<ISubscription>();
+            subscription.Setup(s => s.Id).Returns(1);
+            queue.Add(subscription.Object);
+
+            Lock queueLock = GetPrivateLock(queue, "m_lock");
+            Lock splitPublishLock = TryGetPrivateLock(queue, "m_subscriptionPublishLock");
+            using var publishStarted = new ManualResetEventSlim();
+            Task<ISubscription> publishTask;
+
+            // The legacy split lock lets PublishAsync finish its ready check
+            // before it blocks on the request-queue lock.
+            queueLock.Enter();
+            try
+            {
+                splitPublishLock?.Enter();
+                try
+                {
+                    publishTask = Task.Run(() =>
+                    {
+                        publishStarted.Set();
+                        return queue.PublishAsync(
+                            "channel1",
+                            DateTime.MaxValue,
+                            false,
+                            null,
+                            CancellationToken.None);
+                    });
+                    Assert.That(
+                        publishStarted.Wait(TimeSpan.FromSeconds(2)),
+                        Is.True,
+                        "The Publish request did not start.");
+                }
+                finally
+                {
+                    splitPublishLock?.Exit();
+                }
+
+                if (splitPublishLock != null)
+                {
+                    Thread.Sleep(100);
+                    splitPublishLock.Enter();
+                    splitPublishLock.Exit();
+                }
+
+                queue.Requeue(subscription.Object);
+            }
+            finally
+            {
+                queueLock.Exit();
+            }
+
+            Task completed = await Task.WhenAny(
+                publishTask,
+                Task.Delay(TimeSpan.FromSeconds(2))).ConfigureAwait(false);
+
+            Assert.That(
+                completed,
+                Is.SameAs(publishTask),
+                "The ready Subscription and queued Publish request lost their wake-up.");
+            Assert.That(
+                await publishTask.ConfigureAwait(false),
+                Is.SameAs(subscription.Object));
         }
 
         [Test]
@@ -663,6 +736,19 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(validSubscriptions, Is.EqualTo(numItems), "All publish requests should have received a subscription.");
             Assert.That(returnedSubIds, Has.Count.EqualTo(numItems), "All subscriptions should have been processed.");
+        }
+
+        private static Lock GetPrivateLock(SessionPublishQueue queue, string fieldName)
+        {
+            return TryGetPrivateLock(queue, fieldName) ??
+                throw new InvalidOperationException($"Field '{fieldName}' was not found.");
+        }
+
+        private static Lock TryGetPrivateLock(SessionPublishQueue queue, string fieldName)
+        {
+            return typeof(SessionPublishQueue)
+                .GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic)?
+                .GetValue(queue) as Lock;
         }
     }
 }
