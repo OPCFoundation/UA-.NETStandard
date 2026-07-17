@@ -191,28 +191,16 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <summary>
-        /// Computes the raw SchemaId for a schema and format.
+        /// Computes the raw SchemaId for a schema and format using the registered
+        /// per-format fingerprint provider (see <see cref="SchemaIdProviders"/>).
         /// </summary>
         /// <param name="schema">The schema bytes.</param>
         /// <param name="format">The schema format.</param>
         /// <returns>The raw SchemaId bytes.</returns>
+        /// <exception cref="ArgumentException">Thrown when the schema format is not supported.</exception>
         public static ByteString ComputeSchemaId(ByteString schema, string format)
         {
-            string normalized = NormalizeFormat(format);
-            if (normalized == AvroFormat)
-            {
-                ulong fingerprint = SchemaId.RabinCrc64Avro(schema.Span);
-                return ByteString.From(SchemaId.AvroSingleObjectPrefix(fingerprint).AsSpan(2, 8));
-            }
-            if (normalized == ArrowFormat)
-            {
-                return ByteString.From(SchemaId.Sha256Id(schema.Span, 8));
-            }
-            if (normalized == JsonFormat)
-            {
-                return ByteString.From(SchemaId.JsonSchemaId(schema.Span, 8));
-            }
-            throw new ArgumentException("The schema format is not supported.", nameof(format));
+            return ByteString.From(SchemaIdProviders.ComputeSchemaId(format, schema.Span));
         }
 
         /// <summary>

@@ -38,5 +38,13 @@ namespace Opc.Ua.PubSub.Encoding
     /// <param name="Schema">The schema bytes.</param>
     /// <param name="Format">The schema format.</param>
     [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_Encoders")]
-    public readonly record struct SchemaCacheEntry(ByteString SchemaId, ByteString Schema, string Format);
+    public readonly record struct SchemaCacheEntry(ByteString SchemaId, ByteString Schema, string Format)
+    {
+        /// <summary>
+        /// Gets the SchemaIdAlg name (for example SHA-256/JCS) derived from the schema
+        /// <see cref="Format"/> through the registered fingerprint provider, or <c>null</c>
+        /// when the format has no registered provider.
+        /// </summary>
+        public string? SchemaIdAlg => SchemaIdProviders.AlgorithmFor(Format);
+    }
 }
