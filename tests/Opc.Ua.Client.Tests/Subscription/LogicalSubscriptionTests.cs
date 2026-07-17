@@ -233,7 +233,7 @@ namespace Opc.Ua.Client.Subscriptions
             LogicalSubscription sut = new(fake);
             try
             {
-                await sut.RecreateAsync().ConfigureAwait(false);
+                await ((ISubscription)sut).RecreateAsync().ConfigureAwait(false);
                 Assert.That(fake.RecreateAsyncCalls, Is.EqualTo(1));
             }
             finally

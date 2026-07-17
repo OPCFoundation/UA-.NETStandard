@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -57,17 +58,24 @@ namespace Opc.Ua.Client.Subscriptions
             CancellationToken ct = default);
 
         /// <summary>
+        /// Pauses publish ingress, drains in-flight publish requests, runs the
+        /// supplied operation, and then restores the manager's requested
+        /// publishing state.
+        /// </summary>
+        /// <param name="operation">Operation to run while publish ingress is
+        /// quiesced.</param>
+        /// <param name="ct">Cancellation token.</param>
+        ValueTask RunWithPublishingQuiescedAsync(
+            Func<CancellationToken, ValueTask> operation,
+            CancellationToken ct = default);
+
+        /// <summary>
         /// Drops every queued acknowledgement targeting the given
         /// <paramref name="subscriptionId"/>. Used by the
-        /// recovery-on-unsolicited-transfer path to prevent stale
-        /// acks from generating <c>BadSubscriptionIdInvalid</c>
-        /// responses after the subscription has been invalidated
-        /// and is about to be recreated. Must be invoked while the
-        /// old subscription id is still uniquely "dead" — i.e.
-        /// before recreate assigns a new id — because servers that
-        /// re-use subscription identifiers (e.g. Kepware always
-        /// starting at <c>1</c>) would otherwise collide
-        /// generations.
+        /// recreate path after the old server-side subscription has
+        /// been retired and while publish ingress remains quiesced.
+        /// This prevents stale acknowledgements from crossing into a
+        /// replacement generation when a server reuses identifiers.
         /// </summary>
         /// <param name="subscriptionId">The subscription id whose
         /// queued acknowledgements should be dropped.</param>

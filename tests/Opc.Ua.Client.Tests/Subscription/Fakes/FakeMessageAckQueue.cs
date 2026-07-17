@@ -46,6 +46,7 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         public List<SubscriptionAcknowledgement> QueuedAcks { get; } = [];
         public List<uint> CompletedSubscriptions { get; } = [];
         public int UpdateCalls { get; private set; }
+        public int PublishingQuiescenceCalls { get; private set; }
 
         /// <summary>
         /// Optional override for <see cref="QueueAsync"/>. If null, returns
@@ -71,6 +72,14 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         {
             CompletedSubscriptions.Add(subscriptionId);
             return OnCompleteAsync?.Invoke(subscriptionId, ct) ?? default;
+        }
+
+        public ValueTask RunWithPublishingQuiescedAsync(
+            Func<CancellationToken, ValueTask> operation,
+            CancellationToken ct = default)
+        {
+            PublishingQuiescenceCalls++;
+            return operation(ct);
         }
 
         /// <summary>

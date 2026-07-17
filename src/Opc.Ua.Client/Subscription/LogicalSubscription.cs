@@ -347,7 +347,9 @@ namespace Opc.Ua.Client.Subscriptions
         /// <inheritdoc/>
         public async ValueTask RecreateAsync(CancellationToken ct = default)
         {
-            foreach (IManagedSubscription partition in SnapshotPartitions())
+            IReadOnlyList<IManagedSubscription> partitions = SnapshotPartitions();
+            ThrowIfDispatchingNotification(partitions, "recreated");
+            foreach (IManagedSubscription partition in partitions)
             {
                 await partition.RecreateAsync(ct).ConfigureAwait(false);
             }
@@ -602,6 +604,8 @@ namespace Opc.Ua.Client.Subscriptions
 
         private async ValueTask DisposeCoreAsync()
         {
+            IReadOnlyList<IManagedSubscription> snapshot = SnapshotPartitions();
+            ThrowIfDispatchingNotification(snapshot, "disposed");
             // Stop any armed secondary-partition idle timers first so
             // they cannot fire against partitions we are tearing
             // down.
@@ -611,7 +615,6 @@ namespace Opc.Ua.Client.Subscriptions
             // notification handler in subsequent milestones, so removing
             // them first avoids the secondary's dispatch worker observing
             // a disposed primary handler.
-            IReadOnlyList<IManagedSubscription> snapshot = SnapshotPartitions();
             for (int i = snapshot.Count - 1; i >= 0; i--)
             {
                 await snapshot[i].DisposeAsync().ConfigureAwait(false);
@@ -620,6 +623,23 @@ namespace Opc.Ua.Client.Subscriptions
             // their in-flight notification callbacks can run their
             // semaphore release before the primitive is freed.
             m_forwardingHandler?.Dispose();
+        }
+
+        private static void ThrowIfDispatchingNotification(
+            IReadOnlyList<IManagedSubscription> partitions,
+            string operation)
+        {
+            foreach (IManagedSubscription partition in partitions)
+            {
+                if (partition is Subscription concrete &&
+                    concrete.IsDispatchingCallback)
+                {
+                    throw new InvalidOperationException(
+                        $"A logical subscription cannot be {operation} from " +
+                        "one of its notification callbacks. Schedule the " +
+                        "operation after the callback returns.");
+                }
+            }
         }
 
         /// <summary>
@@ -670,11 +690,9 @@ namespace Opc.Ua.Client.Subscriptions
         /// <summary>
         /// Wire the partition's
         /// <see cref="Subscription.OnAfterCreateAsync"/> hook to
-        /// invoke <see cref="Subscription.SetAsDurableAsync"/>. The
-        /// hook fires once per partition lifetime — the state
-        /// machine clears it after the first Create — so the wrapper
-        /// reinstalls it on every <see cref="SetAsDurableAsync"/>
-        /// call to cover reconnect / recreate cycles.
+        /// invoke <see cref="Subscription.SetAsDurableAsync"/> after every
+        /// physical create, preserving durable intent through reconnect and
+        /// automatic recovery.
         /// </summary>
         private static void InstallDurableHook(
             IManagedSubscription partition, TimeSpan lifetime)
