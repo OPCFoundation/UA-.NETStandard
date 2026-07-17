@@ -106,6 +106,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(loaded.SecurityMode, Is.EqualTo(entry.SecurityMode));
             Assert.That(loaded.EndpointUrl, Is.EqualTo(entry.EndpointUrl));
             Assert.That(loaded.SessionTimeout, Is.EqualTo(entry.SessionTimeout));
+            Assert.That(loaded.SecurityStateVersion, Is.EqualTo(entry.SecurityStateVersion));
+            Assert.That(
+                loaded.OriginalClientChannelCertificate,
+                Is.EqualTo(entry.OriginalClientChannelCertificate));
+            Assert.That(loaded.ClientUserId, Is.EqualTo(entry.ClientUserId));
             Assert.That(
                 loaded.ClientDescription.ApplicationUri,
                 Is.EqualTo(entry.ClientDescription.ApplicationUri));
@@ -194,6 +199,26 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         [Test]
+        public async Task LegacyEntryDecodesWithoutSecurityStateForFailClosedRestoreAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            var store = new SharedKeyValueSessionStore(kv, m_context);
+            SharedSessionEntry entry = NewEntry("tok-legacy");
+            await kv.SetAsync(
+                SharedKeyValueSessionStore.KeyFor(entry.AuthenticationToken),
+                EncodeLegacyEntry(entry)).ConfigureAwait(false);
+
+            SharedSessionEntry? loaded = await store
+                .TryGetAsync(entry.AuthenticationToken)
+                .ConfigureAwait(false);
+
+            Assert.That(loaded, Is.Not.Null);
+            Assert.That(loaded!.SecurityStateVersion, Is.Zero);
+            Assert.That(loaded.OriginalClientChannelCertificate.IsNull, Is.True);
+            Assert.That(loaded.ClientUserId, Is.Empty);
+        }
+
+        [Test]
         public async Task KeyspaceDoesNotExposeRawTokenAsync()
         {
             using var kv = new InMemorySharedKeyValueStore();
@@ -256,9 +281,12 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 SessionName = "Session " + token,
                 CreatedAt = DateTimeUtc.Now,
                 LastActivatedAt = DateTimeUtc.Now,
-                ServerNonce = ByteString.From(new byte[] { 40, 50, 60, 70 }),
+                ServerNonce = ByteString.From(CreateBytes(32, 40)),
                 ClientNonce = ByteString.From(new byte[] { 1, 2, 3, 4 }),
                 ClientCertificateChain = ByteString.From(new byte[] { 5, 6, 7, 8, 9 }),
+                SecurityStateVersion = SharedSessionEntry.CurrentSecurityStateVersion,
+                OriginalClientChannelCertificate = ByteString.From(CreateBytes(64, 5)),
+                ClientUserId = "Anonymous",
                 SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256",
                 SecurityMode = (int)MessageSecurityMode.SignAndEncrypt,
                 EndpointUrl = "opc.tcp://localhost:4840",
@@ -271,6 +299,36 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 },
                 SecretMaterial = ByteString.From(new byte[] { 10, 20, 30 })
             };
+        }
+
+        private ByteString EncodeLegacyEntry(SharedSessionEntry entry)
+        {
+            using var encoder = new BinaryEncoder(m_context);
+            encoder.WriteNodeId(null, entry.SessionId);
+            encoder.WriteNodeId(null, entry.AuthenticationToken);
+            encoder.WriteString(null, entry.SessionName);
+            encoder.WriteInt64(null, entry.CreatedAt);
+            encoder.WriteInt64(null, entry.LastActivatedAt);
+            encoder.WriteByteString(null, entry.ServerNonce);
+            encoder.WriteByteString(null, entry.ClientNonce);
+            encoder.WriteByteString(null, entry.ClientCertificateChain);
+            encoder.WriteString(null, entry.SecurityPolicyUri);
+            encoder.WriteInt32(null, entry.SecurityMode);
+            encoder.WriteString(null, entry.EndpointUrl);
+            encoder.WriteDouble(null, entry.SessionTimeout);
+            encoder.WriteEncodeable(null, entry.ClientDescription);
+            encoder.WriteByteString(null, entry.SecretMaterial);
+            return ByteString.From(encoder.CloseAndReturnBuffer());
+        }
+
+        private static byte[] CreateBytes(int length, byte seed)
+        {
+            byte[] bytes = new byte[length];
+            for (int i = 0; i < bytes.Length; i++)
+            {
+                bytes[i] = (byte)(seed + i);
+            }
+            return bytes;
         }
     }
 }

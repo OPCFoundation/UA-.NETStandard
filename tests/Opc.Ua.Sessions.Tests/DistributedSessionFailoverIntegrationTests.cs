@@ -145,6 +145,20 @@ namespace Opc.Ua.Sessions.Tests
 
                 NodeId sessionIdBefore = session.InnerSession.SessionId;
                 Assert.That(sessionIdBefore.IsNull, Is.False);
+                SessionConfiguration saved = session.InnerSession.SaveSessionConfiguration();
+                var mirroredStore = new SharedKeyValueSessionStore(
+                    sharedStore,
+                    fixtureA.Server.CurrentInstance.MessageContext,
+                    protector);
+                SharedSessionEntry? mirrored = await mirroredStore
+                    .TryGetAsync(saved.AuthenticationToken, ct)
+                    .ConfigureAwait(false);
+                Assert.That(mirrored, Is.Not.Null);
+                Assert.That(
+                    mirrored!.SecurityStateVersion,
+                    Is.EqualTo(SharedSessionEntry.CurrentSecurityStateVersion));
+                Assert.That(mirrored.ClientUserId, Is.EqualTo("Anonymous"));
+                Assert.That(mirrored.OriginalClientChannelCertificate.IsEmpty, Is.False);
 
                 // Force a failover: make the in-place reconnect fail so the state
                 // machine selects the redundant endpoint B.

@@ -570,111 +570,139 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                // verify that a secure channel was specified.
-                if (context.ChannelContext == null)
-                {
-                    throw new ServiceResultException(StatusCodes.BadSecureChannelIdInvalid);
-                }
+                ValidateChannelBeforeActivate(context, clientSignature);
 
-                // verify that the same security policy has been used.
-                EndpointDescription? endpoint = context.ChannelContext.EndpointDescription;
+                // validate the user identity token.
+                identityToken = ValidateUserIdentityToken(
+                    userIdentityToken,
+                    out userTokenPolicy);
 
-                if (endpoint!.SecurityPolicyUri != EndpointDescription.SecurityPolicyUri ||
-                    endpoint.SecurityMode != EndpointDescription.SecurityMode)
-                {
-                    throw new ServiceResultException(StatusCodes.BadSecurityPolicyRejected);
-                }
+                TraceState("VALIDATED");
+            }
+        }
 
-                // verify the client signature.
-                if (ClientCertificate != null)
+        internal async ValueTask<(
+            IUserIdentityTokenHandler IdentityToken,
+            UserTokenPolicy? UserTokenPolicy)> ValidateBeforeActivateAsync(
+                OperationContext context,
+                SignatureData clientSignature,
+                ExtensionObject userIdentityToken,
+                SignatureData userTokenSignature,
+                CancellationToken cancellationToken)
+        {
+            lock (m_lock)
+            {
+                ValidateChannelBeforeActivate(context, clientSignature);
+            }
+
+            (IUserIdentityTokenHandler identityToken, UserTokenPolicy? userTokenPolicy) =
+                await ValidateUserIdentityTokenAsync(
+                    context,
+                    userIdentityToken,
+                    userTokenSignature,
+                    cancellationToken).ConfigureAwait(false);
+
+            TraceState("VALIDATED");
+            return (identityToken, userTokenPolicy);
+        }
+
+        private void ValidateChannelBeforeActivate(
+            OperationContext context,
+            SignatureData clientSignature)
+        {
+            // verify that a secure channel was specified.
+            if (context.ChannelContext == null)
+            {
+                throw new ServiceResultException(StatusCodes.BadSecureChannelIdInvalid);
+            }
+
+            // verify that the same security policy has been used.
+            EndpointDescription? endpoint = context.ChannelContext.EndpointDescription;
+
+            if (endpoint!.SecurityPolicyUri != EndpointDescription.SecurityPolicyUri ||
+                endpoint.SecurityMode != EndpointDescription.SecurityMode)
+            {
+                throw new ServiceResultException(StatusCodes.BadSecurityPolicyRejected);
+            }
+
+            // verify the client signature.
+            if (EndpointDescription.SecurityPolicyUri != SecurityPolicies.None &&
+                (ClientCertificate == null ||
+                    clientSignature == null ||
+                    clientSignature.Signature.IsEmpty))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadApplicationSignatureInvalid);
+            }
+
+            if (ClientCertificate != null)
+            {
+                SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(
+                    EndpointDescription.SecurityPolicyUri!)!;
+
+                byte[] clientNonceData = ClientNonce.ToArray();
+
+                byte[] dataToSign = securityPolicy.GetClientSignatureData(
+                    context.ChannelContext.ChannelThumbprint,
+                    m_serverNonce.Data,
+                    m_serverCertificate.RawData,
+                    context.ChannelContext.ServerChannelCertificate,
+                    context.ChannelContext.ClientChannelCertificate,
+                    clientNonceData);
+
+                if (!SecurityPolicies.VerifySignatureData(
+                        clientSignature!,
+                        EndpointDescription.SecurityPolicyUri!,
+                        ClientCertificate,
+                        dataToSign))
                 {
-                    if (EndpointDescription.SecurityPolicyUri != SecurityPolicies.None &&
-                        clientSignature != null &&
-                        clientSignature.Signature.IsEmpty)
+                    // verify for certificate chain in endpoint.
+                    // validate the signature with complete chain if the check with leaf certificate failed.
+                    using CertificateCollection serverCertificateChain =
+                        Utils.ParseCertificateChainBlob(
+                            EndpointDescription.ServerCertificate,
+                            m_server.Telemetry);
+                    if (serverCertificateChain.Count > 1)
                     {
-                        throw new ServiceResultException(
-                            StatusCodes.BadApplicationSignatureInvalid);
-                    }
+                        var serverCertificateChainList = new List<byte>();
 
-                    SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(EndpointDescription.SecurityPolicyUri!)!;
-
-                    byte[] clientNonceData = ClientNonce.ToArray();
-
-                    byte[] dataToSign = securityPolicy!.GetClientSignatureData(
-                        context.ChannelContext.ChannelThumbprint,
-                        m_serverNonce.Data,
-                        m_serverCertificate.RawData,
-                        context.ChannelContext.ServerChannelCertificate,
-                        context.ChannelContext.ClientChannelCertificate,
-                        clientNonceData);
-
-                    if (!SecurityPolicies.VerifySignatureData(
-                            clientSignature!,
-                            EndpointDescription.SecurityPolicyUri!,
-                            ClientCertificate,
-                            dataToSign))
-                    {
-                        // verify for certificate chain in endpoint.
-                        // validate the signature with complete chain if the check with leaf certificate failed.
-                        using CertificateCollection serverCertificateChain =
-                            Utils.ParseCertificateChainBlob(
-                                EndpointDescription.ServerCertificate,
-                                m_server.Telemetry);
-                        if (serverCertificateChain.Count > 1)
+                        for (int i = 0; i < serverCertificateChain.Count; i++)
                         {
-                            var serverCertificateChainList = new List<byte>();
-
-                            for (int i = 0; i < serverCertificateChain.Count; i++)
-                            {
-                                serverCertificateChainList.AddRange(
-                                    serverCertificateChain[i].RawData);
-                            }
-
-                            byte[] serverCertificateChainData = [.. serverCertificateChainList];
-
-                            dataToSign = securityPolicy.GetClientSignatureData(
-                                context.ChannelContext.ChannelThumbprint,
-                                m_serverNonce.Data,
-                                serverCertificateChainData,
-                                context.ChannelContext.ServerChannelCertificate,
-                                context.ChannelContext.ClientChannelCertificate,
-                                clientNonceData);
-
-                            if (!SecurityPolicies.VerifySignatureData(
-                                  clientSignature!,
-                                  EndpointDescription.SecurityPolicyUri!,
-                                  ClientCertificate,
-                                  dataToSign))
-                            {
-                                throw new ServiceResultException(
-                                    StatusCodes.BadApplicationSignatureInvalid);
-                            }
+                            serverCertificateChainList.AddRange(
+                                serverCertificateChain[i].RawData);
                         }
-                        else
+
+                        byte[] serverCertificateChainData = [.. serverCertificateChainList];
+
+                        dataToSign = securityPolicy.GetClientSignatureData(
+                            context.ChannelContext.ChannelThumbprint,
+                            m_serverNonce.Data,
+                            serverCertificateChainData,
+                            context.ChannelContext.ServerChannelCertificate,
+                            context.ChannelContext.ClientChannelCertificate,
+                            clientNonceData);
+
+                        if (!SecurityPolicies.VerifySignatureData(
+                              clientSignature!,
+                              EndpointDescription.SecurityPolicyUri!,
+                              ClientCertificate,
+                              dataToSign))
                         {
                             throw new ServiceResultException(
                                 StatusCodes.BadApplicationSignatureInvalid);
                         }
                     }
-                }
-
-                if (!Activated)
-                {
-                    // must active the session on the channel that was used to create it.
-                    if (SecureChannelId != context.ChannelContext.SecureChannelId)
+                    else
                     {
-                        throw new ServiceResultException(StatusCodes.BadSecureChannelIdInvalid);
+                        throw new ServiceResultException(
+                            StatusCodes.BadApplicationSignatureInvalid);
                     }
                 }
+            }
 
-                // validate the user identity token.
-                identityToken = ValidateUserIdentityToken(
-                    context,
-                    userIdentityToken,
-                    userTokenSignature,
-                    out userTokenPolicy);
-
-                TraceState("VALIDATED");
+            if (!Activated && SecureChannelId != context.ChannelContext.SecureChannelId)
+            {
+                throw new ServiceResultException(StatusCodes.BadSecureChannelIdInvalid);
             }
         }
 
@@ -869,9 +897,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         private IUserIdentityTokenHandler ValidateUserIdentityToken(
-            OperationContext context,
             ExtensionObject identityToken,
-            SignatureData userTokenSignature,
             out UserTokenPolicy? policy)
         {
             policy = null!;
@@ -995,6 +1021,144 @@ namespace Opc.Ua.Server
 
             token.UpdatePolicy(policy);
 
+            if (ServerBase.RequireEncryption(EndpointDescription))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported,
+                    "Secure user identity validation requires the asynchronous activation path.");
+            }
+
+            // validate user identity token.
+            return token;
+        }
+
+        private async ValueTask<(
+            IUserIdentityTokenHandler IdentityToken,
+            UserTokenPolicy? UserTokenPolicy)> ValidateUserIdentityTokenAsync(
+                OperationContext context,
+                ExtensionObject identityToken,
+                SignatureData userTokenSignature,
+                CancellationToken cancellationToken)
+        {
+            UserTokenPolicy? policy = null;
+
+            // check for anonymous (same as empty) token.
+            if (identityToken.IsNull ||
+                identityToken.TryGetValue(out AnonymousIdentityToken? _))
+            {
+                // check if an anonymous login is permitted.
+                if (!EndpointDescription.UserIdentityTokens.IsEmpty)
+                {
+                    bool found = false;
+
+                    for (int ii = 0; ii < EndpointDescription.UserIdentityTokens.Count; ii++)
+                    {
+                        if (EndpointDescription.UserIdentityTokens[ii]
+                            .TokenType == UserTokenType.Anonymous)
+                        {
+                            found = true;
+                            policy = EndpointDescription.UserIdentityTokens[ii];
+                            break;
+                        }
+                    }
+
+                    if (!found)
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadIdentityTokenRejected,
+                            "Anonymous user token policy not supported.");
+                    }
+                }
+
+                return (AnonymousIdentityTokenHandler.Create(policy!), policy);
+            }
+
+            IUserIdentityTokenHandler token;
+            // check for unrecognized token.
+            if (identityToken.TryGetValue(out UserIdentityToken? decodedToken))
+            {
+                token = decodedToken.AsTokenHandler();
+            }
+            else
+            {
+                // handle the use case when the UserIdentityToken is binary encoded over xml message encoding
+                if (identityToken.Encoding != ExtensionObjectEncoding.Binary ||
+                    !identityToken.TryGetAsBinary(out ByteString _))
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadUserAccessDenied,
+                        "Invalid user identity token provided.");
+                }
+                if (BaseVariableState.DecodeExtensionObject(
+                        null!,
+                        typeof(UserIdentityToken),
+                        identityToken,
+                        false)
+                    is not UserIdentityToken newToken)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadUserAccessDenied,
+                        "Invalid user identity token provided.");
+                }
+
+                policy = EndpointDescription.FindUserTokenPolicy(
+                    newToken.PolicyId!,
+                    EndpointDescription.SecurityPolicyUri!) ??
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadUserAccessDenied,
+                        "User token policy not supported.",
+                        "Opc.Ua.Server.Session.ValidateUserIdentityTokenAsync");
+
+                UserIdentityToken? userToken;
+                switch (policy.TokenType)
+                {
+                    case UserTokenType.Anonymous:
+                        userToken = (AnonymousIdentityToken)BaseVariableState.DecodeExtensionObject(
+                            null!,
+                            typeof(AnonymousIdentityToken),
+                            identityToken,
+                            true)!;
+                        break;
+                    case UserTokenType.UserName:
+                        userToken = (UserNameIdentityToken)BaseVariableState.DecodeExtensionObject(
+                            null!,
+                            typeof(UserNameIdentityToken),
+                            identityToken,
+                            true)!;
+                        break;
+                    case UserTokenType.Certificate:
+                        userToken = (X509IdentityToken)BaseVariableState.DecodeExtensionObject(
+                            null!,
+                            typeof(X509IdentityToken),
+                            identityToken,
+                            true)!;
+                        break;
+                    case UserTokenType.IssuedToken:
+                        userToken = (IssuedIdentityToken)BaseVariableState.DecodeExtensionObject(
+                            null!,
+                            typeof(IssuedIdentityToken),
+                            identityToken,
+                            true)!;
+                        break;
+                    default:
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadUserAccessDenied,
+                            "Invalid user identity token provided.");
+                }
+
+                token = userToken.AsTokenHandler()!;
+            }
+
+            // find the user token policy.
+            policy = EndpointDescription.FindUserTokenPolicy(
+                token.Token.PolicyId!,
+                EndpointDescription.SecurityPolicyUri!) ??
+                throw ServiceResultException.Create(
+                    StatusCodes.BadIdentityTokenInvalid,
+                    "User token policy not supported.");
+
+            token.UpdatePolicy(policy);
+
             // determine the security policy uri.
             string? securityPolicyUri = policy.SecurityPolicyUri;
 
@@ -1006,7 +1170,6 @@ namespace Opc.Ua.Server
             if (ServerBase.RequireEncryption(EndpointDescription))
             {
                 // decrypt the token.
-                // check for valid certificate.
                 m_serverCertificate ??= Certificate.FromRawData(
                     EndpointDescription.ServerCertificate) ??
                     throw ServiceResultException.ConfigurationError(
@@ -1014,21 +1177,15 @@ namespace Opc.Ua.Server
 
                 try
                 {
-                    // Sync-completing ValueTask in current implementations;
-                    // safe to block. Future async stores will require
-                    // hoisting decryption out of the lock.
-                    ValueTask decryptTask = token.DecryptAsync(
+                    await token.DecryptAsync(
                         m_serverCertificate,
                         m_serverNonce,
                         securityPolicyUri!,
                         m_server.MessageContext,
                         m_userTokenNonce,
                         ClientCertificate,
-                        m_clientIssuerCertificates);
-                    if (!decryptTask.IsCompletedSuccessfully)
-                    {
-                        decryptTask.AsTask().GetAwaiter().GetResult();
-                    }
+                        m_clientIssuerCertificates,
+                        ct: cancellationToken).ConfigureAwait(false);
                 }
                 catch (Exception e) when (e is not ServiceResultException)
                 {
@@ -1041,15 +1198,13 @@ namespace Opc.Ua.Server
                 // verify the signature.
                 if (securityPolicyUri != SecurityPolicies.None)
                 {
-                    SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri!)!;
+                    SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(
+                        securityPolicyUri!)!;
 
-                    // ValidateUserIdentityToken runs inside session activation, which
-                    // always carries a channel context.
                     SecureChannelContext channelContext = context.ChannelContext!;
-
                     byte[] clientNonceData = ClientNonce.ToArray();
 
-                    byte[] dataToSign = securityPolicy!.GetUserTokenSignatureData(
+                    byte[] dataToSign = securityPolicy.GetUserTokenSignatureData(
                         channelContext.ChannelThumbprint,
                         m_serverNonce.Data,
                         m_serverCertificate.RawData,
@@ -1058,7 +1213,11 @@ namespace Opc.Ua.Server
                         channelContext.ClientChannelCertificate,
                         clientNonceData);
 
-                    if (!VerifySync(token, dataToSign, userTokenSignature, securityPolicyUri!))
+                    if (!await token.VerifyAsync(
+                            dataToSign,
+                            userTokenSignature,
+                            securityPolicyUri!,
+                            cancellationToken).ConfigureAwait(false))
                     {
                         // verify for certificate chain in endpoint.
                         // validate the signature with complete chain if the check with leaf certificate failed.
@@ -1085,7 +1244,11 @@ namespace Opc.Ua.Server
                                 channelContext.ClientChannelCertificate,
                                 clientNonceData);
 
-                            if (!VerifySync(token, dataToSign, userTokenSignature, securityPolicyUri!))
+                            if (!await token.VerifyAsync(
+                                    dataToSign,
+                                    userTokenSignature,
+                                    securityPolicyUri!,
+                                    cancellationToken).ConfigureAwait(false))
                             {
                                 throw new ServiceResultException(
                                     StatusCodes.BadIdentityTokenRejected,
@@ -1102,31 +1265,7 @@ namespace Opc.Ua.Server
                 }
             }
 
-            // validate user identity token.
-            return token;
-        }
-
-        /// <summary>
-        /// Synchronously invokes <see cref="IUserIdentityTokenHandler.VerifyAsync"/>
-        /// on the assumption that the underlying implementation completes
-        /// synchronously (no real I/O). Used inside locked regions of
-        /// <see cref="ValidateBeforeActivate"/> where awaiting is not
-        /// possible. Future async-store implementations will require
-        /// hoisting verification out of the lock.
-        /// </summary>
-        private static bool VerifySync(
-            IUserIdentityTokenHandler token,
-            byte[] dataToSign,
-            SignatureData userTokenSignature,
-            string securityPolicyUri)
-        {
-            ValueTask<bool> task = token.VerifyAsync(
-                dataToSign,
-                userTokenSignature,
-                securityPolicyUri);
-            return task.IsCompletedSuccessfully
-                ? task.Result
-                : task.AsTask().GetAwaiter().GetResult();
+            return (token, policy);
         }
 
         /// <summary>

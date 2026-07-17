@@ -29,6 +29,7 @@
     <InternalsVisibleTo Include="Opc.Ua.History.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Lds.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Core.Security.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.Redundancy.Server" />
   </ItemGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>

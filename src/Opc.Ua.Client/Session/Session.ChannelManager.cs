@@ -113,6 +113,11 @@ namespace Opc.Ua.Client
                 return ParticipantReconnectResult.Reactivated;
             }
 
+            if (RequiresAnonymousSignSessionRecreation())
+            {
+                return ParticipantReconnectResult.RequiresSessionRecreate;
+            }
+
             try
             {
                 // Pass the wrapper back in as the "channel" so the
@@ -161,6 +166,12 @@ namespace Opc.Ua.Client
                     SessionId);
                 return ParticipantReconnectResult.TransientFailure;
             }
+        }
+
+        private bool RequiresAnonymousSignSessionRecreation()
+        {
+            return (m_identity?.TokenType ?? UserTokenType.Anonymous) == UserTokenType.Anonymous &&
+                m_endpoint.Description.SecurityMode == MessageSecurityMode.Sign;
         }
 
         async ValueTask IRecreateAwareReconnectParticipant.RecreateAsync(CancellationToken ct)

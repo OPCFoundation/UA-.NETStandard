@@ -931,17 +931,11 @@ namespace Opc.Ua.Sessions.Tests
             using IDisposable expectation = MockController.WhenRequest<CreateSessionRequest, CreateSessionResponse>(
                 (req, resp) => resp.ServerSignature = new SignatureData());
 
-            // On a SecurityPolicy=None channel the empty signature is
-            // not validated, so the open completes.
             ISession session = null;
             try
             {
                 session = await OpenAuxSessionAsync().ConfigureAwait(false);
                 Assert.That(session.Connected, Is.True);
-            }
-            catch (ServiceResultException)
-            {
-                // Acceptable on signed channels.
             }
             finally
             {
@@ -957,6 +951,214 @@ namespace Opc.Ua.Sessions.Tests
                     }
                     session.Dispose();
                 }
+            }
+        }
+
+        [Test]
+        public async Task SecuredCreateSessionRejectsEmptyServerSignatureAsync()
+        {
+            using IDisposable expectation = MockController
+                .ExpectNextResponse<CreateSessionResponse>(
+                    response => response.ServerSignature = new SignatureData());
+            ConfiguredEndpoint endpoint = await CreateConfiguredEndpointAsync(
+                MessageSecurityMode.SignAndEncrypt).ConfigureAwait(false);
+
+            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await ClientFixture.ConnectAsync(endpoint).ConfigureAwait(false))!;
+
+            Assert.That(
+                exception.StatusCode,
+                Is.EqualTo(StatusCodes.BadApplicationSignatureInvalid));
+        }
+
+        [TestCase(InvalidNonceKind.Null)]
+        [TestCase(InvalidNonceKind.Empty)]
+        [TestCase(InvalidNonceKind.Short)]
+        [TestCase(InvalidNonceKind.AllZero)]
+        [TestCase(InvalidNonceKind.TooLong)]
+        public async Task SecuredCreateSessionRejectsInvalidServerNonceAsync(
+            InvalidNonceKind nonceKind)
+        {
+            using IDisposable expectation = MockController
+                .ExpectNextResponse<CreateSessionResponse>(
+                    response => response.ServerNonce = CreateInvalidNonce(nonceKind));
+            ConfiguredEndpoint endpoint = await CreateConfiguredEndpointAsync(
+                MessageSecurityMode.SignAndEncrypt).ConfigureAwait(false);
+
+            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await ClientFixture.ConnectAsync(endpoint).ConfigureAwait(false))!;
+
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadNonceInvalid));
+        }
+
+        [TestCase(InvalidNonceKind.Null, false)]
+        [TestCase(InvalidNonceKind.Empty, false)]
+        [TestCase(InvalidNonceKind.Short, false)]
+        [TestCase(InvalidNonceKind.AllZero, false)]
+        [TestCase(InvalidNonceKind.TooLong, false)]
+        [TestCase(InvalidNonceKind.Null, true)]
+        [TestCase(InvalidNonceKind.Empty, true)]
+        [TestCase(InvalidNonceKind.Short, true)]
+        [TestCase(InvalidNonceKind.AllZero, true)]
+        [TestCase(InvalidNonceKind.TooLong, true)]
+        public async Task SecuredActivateSessionRejectsInvalidServerNonceForAllIdentitiesAsync(
+            InvalidNonceKind nonceKind,
+            bool useUserName)
+        {
+            using IDisposable expectation = MockController
+                .ExpectNextResponse<ActivateSessionResponse>(
+                    response => response.ServerNonce = CreateInvalidNonce(nonceKind));
+            ConfiguredEndpoint endpoint = await CreateConfiguredEndpointAsync(
+                MessageSecurityMode.SignAndEncrypt).ConfigureAwait(false);
+            IUserIdentity identity = useUserName
+                ? new UserIdentity("user1", "password"u8)
+                : new UserIdentity();
+
+            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await ClientFixture
+                    .ConnectAsync(endpoint, identity)
+                    .ConfigureAwait(false))!;
+
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadNonceInvalid));
+        }
+
+        [Test]
+        public async Task SecuredActivateSessionRejectsReusedServerNonceAsync()
+        {
+            ByteString createSessionNonce = default;
+            using IDisposable capture = MockController
+                .WhenRequest<CreateSessionRequest, CreateSessionResponse>(
+                    (_, response) => createSessionNonce = response.ServerNonce);
+            using IDisposable reuse = MockController
+                .ExpectNextResponse<ActivateSessionResponse>(
+                    response => response.ServerNonce = createSessionNonce);
+            ConfiguredEndpoint endpoint = await CreateConfiguredEndpointAsync(
+                MessageSecurityMode.SignAndEncrypt).ConfigureAwait(false);
+
+            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await ClientFixture.ConnectAsync(endpoint).ConfigureAwait(false))!;
+
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadNonceInvalid));
+        }
+
+        [Test]
+        public async Task SecuredActivateSessionRejectsNonConsecutiveReusedServerNonceAsync()
+        {
+            ByteString firstActivationNonce = default;
+            int activationCount = 0;
+            using IDisposable mutation = MockController
+                .WhenRequest<ActivateSessionRequest, ActivateSessionResponse>(
+                    (_, response) =>
+                    {
+                        activationCount++;
+                        if (activationCount == 1)
+                        {
+                            firstActivationNonce = response.ServerNonce;
+                        }
+                        else if (activationCount == 3)
+                        {
+                            response.ServerNonce = firstActivationNonce;
+                        }
+                    });
+            ConfiguredEndpoint endpoint = await CreateConfiguredEndpointAsync(
+                MessageSecurityMode.SignAndEncrypt).ConfigureAwait(false);
+            ISession session = await ClientFixture.ConnectAsync(endpoint).ConfigureAwait(false);
+            try
+            {
+                await session.UpdateSessionAsync(
+                    session.Identity,
+                    default,
+                    CancellationToken.None).ConfigureAwait(false);
+
+                ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await session.UpdateSessionAsync(
+                        session.Identity,
+                        default,
+                        CancellationToken.None).ConfigureAwait(false))!;
+
+                Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadNonceInvalid));
+            }
+            finally
+            {
+                await session.CloseAsync(5000, true).ConfigureAwait(false);
+                session.Dispose();
+            }
+        }
+
+        [Test]
+        public async Task SuppressNonceValidationErrorsDoesNotAllowInvalidNonceAsync()
+        {
+            bool original = ClientFixture.Config.SecurityConfiguration
+                .SuppressNonceValidationErrors;
+            ClientFixture.Config.SecurityConfiguration.SuppressNonceValidationErrors = true;
+            try
+            {
+                using IDisposable expectation = MockController
+                    .ExpectNextResponse<ActivateSessionResponse>(
+                        response => response.ServerNonce = CreateInvalidNonce(
+                            InvalidNonceKind.AllZero));
+                ConfiguredEndpoint endpoint = await CreateConfiguredEndpointAsync(
+                    MessageSecurityMode.SignAndEncrypt).ConfigureAwait(false);
+
+                ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await ClientFixture.ConnectAsync(endpoint).ConfigureAwait(false))!;
+
+                Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadNonceInvalid));
+            }
+            finally
+            {
+                ClientFixture.Config.SecurityConfiguration.SuppressNonceValidationErrors =
+                    original;
+            }
+        }
+
+        [Test]
+        public async Task AnonymousSignReconnectRecreatesSessionAsync()
+        {
+            ConfiguredEndpoint endpoint = await CreateConfiguredEndpointAsync(
+                MessageSecurityMode.Sign).ConfigureAwait(false);
+            ISession session = await ClientFixture.ConnectAsync(endpoint).ConfigureAwait(false);
+            try
+            {
+                NodeId originalSessionId = session.SessionId;
+
+                await session.ReconnectAsync(
+                    connection: null,
+                    channel: null,
+                    CancellationToken.None).ConfigureAwait(false);
+
+                Assert.That(session.SessionId, Is.Not.EqualTo(originalSessionId));
+                Assert.That(session.Connected, Is.True);
+            }
+            finally
+            {
+                await session.CloseAsync(5000, true).ConfigureAwait(false);
+                session.Dispose();
+            }
+        }
+
+        [Test]
+        public async Task AnonymousSignAndEncryptReconnectReactivatesSessionAsync()
+        {
+            ConfiguredEndpoint endpoint = await CreateConfiguredEndpointAsync(
+                MessageSecurityMode.SignAndEncrypt).ConfigureAwait(false);
+            ISession session = await ClientFixture.ConnectAsync(endpoint).ConfigureAwait(false);
+            try
+            {
+                NodeId originalSessionId = session.SessionId;
+
+                await session.ReconnectAsync(
+                    connection: null,
+                    channel: null,
+                    CancellationToken.None).ConfigureAwait(false);
+
+                Assert.That(session.SessionId, Is.EqualTo(originalSessionId));
+                Assert.That(session.Connected, Is.True);
+            }
+            finally
+            {
+                await session.CloseAsync(5000, true).ConfigureAwait(false);
+                session.Dispose();
             }
         }
 
@@ -1287,6 +1489,63 @@ namespace Opc.Ua.Sessions.Tests
                     session.Dispose();
                 }
             }
+        }
+
+        private async Task<ConfiguredEndpoint> CreateConfiguredEndpointAsync(
+            MessageSecurityMode securityMode)
+        {
+            ArrayOf<EndpointDescription> endpoints = await ClientFixture
+                .GetEndpointsAsync(ServerUrl)
+                .ConfigureAwait(false);
+            EndpointDescription selected = null;
+            for (int i = 0; i < endpoints.Count; i++)
+            {
+                EndpointDescription candidate = endpoints[i];
+                if (candidate.SecurityMode == securityMode &&
+                    candidate.SecurityPolicyUri == SecurityPolicies.Basic256Sha256)
+                {
+                    selected = candidate;
+                    break;
+                }
+            }
+
+            Assert.That(selected, Is.Not.Null);
+            return new ConfiguredEndpoint(
+                null,
+                selected,
+                EndpointConfiguration.Create(ClientFixture.Config));
+        }
+
+        private static ByteString CreateInvalidNonce(InvalidNonceKind nonceKind)
+        {
+            return nonceKind switch
+            {
+                InvalidNonceKind.Null => default,
+                InvalidNonceKind.Empty => ByteString.Empty,
+                InvalidNonceKind.Short => ByteString.From(CreateNonceBytes(31)),
+                InvalidNonceKind.AllZero => ByteString.From(new byte[32]),
+                InvalidNonceKind.TooLong => ByteString.From(CreateNonceBytes(129)),
+                _ => throw new ArgumentOutOfRangeException(nameof(nonceKind))
+            };
+        }
+
+        private static byte[] CreateNonceBytes(int length)
+        {
+            byte[] bytes = new byte[length];
+            for (int i = 0; i < bytes.Length; i++)
+            {
+                bytes[i] = (byte)(i + 1);
+            }
+            return bytes;
+        }
+
+        public enum InvalidNonceKind
+        {
+            Null,
+            Empty,
+            Short,
+            AllZero,
+            TooLong
         }
     }
 }

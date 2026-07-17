@@ -375,54 +375,42 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         private void ValidateServerNonce(
-            IUserIdentity identity,
             ByteString serverNonce,
-            string? securityPolicyUri,
             ByteString previousServerNonce,
-            MessageSecurityMode channelSecurityMode = MessageSecurityMode.None)
+            MessageSecurityMode channelSecurityMode = MessageSecurityMode.None,
+            bool isNewNonce = true)
         {
-            // skip validation if server nonce is not used for encryption.
-            if (string.IsNullOrEmpty(securityPolicyUri) ||
-                securityPolicyUri == SecurityPolicies.None)
+            if (channelSecurityMode == MessageSecurityMode.None)
             {
                 return;
             }
 
-            if (identity != null && identity.TokenType != UserTokenType.Anonymous)
-            {
-                // the server nonce should be validated if the token includes a secret.
-                if (!Nonce.ValidateNonce(
+            if (serverNonce.IsNull ||
+                serverNonce.Length < 32 ||
+                serverNonce.Length > 128 ||
+                !Nonce.ValidateNonce(
                     serverNonce.ToArray(),
-                    MessageSecurityMode.SignAndEncrypt,
-                    m_configuration.SecurityConfiguration.NonceLength))
+                    MessageSecurityMode.Sign,
+                    32))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadNonceInvalid,
+                    "The server nonce must contain 32 to 128 non-zero bytes.");
+            }
+
+            lock (m_lock)
+            {
+                if ((!previousServerNonce.IsNull && serverNonce == previousServerNonce) ||
+                    (isNewNonce && m_serverNonceHistory.Contains(serverNonce)))
                 {
-                    if (channelSecurityMode == MessageSecurityMode.SignAndEncrypt ||
-                        m_configuration.SecurityConfiguration.SuppressNonceValidationErrors)
-                    {
-                        m_logger.WarningServerNonceHasNotCorrect();
-                    }
-                    else
-                    {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadNonceInvalid,
-                            "The server nonce has not the correct length or is not random enough.");
-                    }
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadNonceInvalid,
+                        "The server reused a previously returned nonce.");
                 }
 
-                // check that new nonce is different from the previously returned server nonce.
-                if (!previousServerNonce.IsEmpty && serverNonce == previousServerNonce)
+                if (isNewNonce)
                 {
-                    if (channelSecurityMode == MessageSecurityMode.SignAndEncrypt ||
-                        m_configuration.SecurityConfiguration.SuppressNonceValidationErrors)
-                    {
-                        m_logger.WarningServerNonceEqualPreviouslyReturned();
-                    }
-                    else
-                    {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadNonceInvalid,
-                            "Server nonce is equal with previously returned nonce.");
-                    }
+                    m_serverNonceHistory.Add(ByteString.From(serverNonce.Span));
                 }
             }
         }
@@ -1083,6 +1071,12 @@ namespace Opc.Ua.Client
 
             lock (m_lock)
             {
+                m_previousServerNonce = default;
+                m_serverNonceHistory.Clear();
+                if (!m_serverNonce.IsNull)
+                {
+                    m_serverNonceHistory.Add(ByteString.From(m_serverNonce.Span));
+                }
                 SessionCreated(
                     sessionConfiguration.SessionId,
                     sessionConfiguration.AuthenticationToken);
@@ -1432,6 +1426,11 @@ namespace Opc.Ua.Client
                     m_clientNonce,
                     serverNonce);
 
+                ValidateServerNonce(
+                    serverNonce,
+                    m_serverNonce,
+                    m_endpoint.Description.SecurityMode);
+
                 //  process additional header
                 ProcessResponseAdditionalHeader(response.ResponseHeader, serverCertificate);
 
@@ -1458,14 +1457,6 @@ namespace Opc.Ua.Client
                     // identityPolicy.SecurityPolicyUri is non-empty here; legacy BCL targets
                     // lack [NotNullWhen(false)] on string.IsNullOrEmpty.
                     : identityPolicy.SecurityPolicyUri!;
-
-                // validate server nonce and security parameters for user identity.
-                ValidateServerNonce(
-                    identity,
-                    serverNonce,
-                    tokenSecurityPolicyUri,
-                    m_previousServerNonce,
-                    m_endpoint.Description.SecurityMode);
 
                 // remember the policy actually used to encrypt the user token
                 m_userTokenSecurityPolicyUri = tokenSecurityPolicyUri;
@@ -1513,6 +1504,7 @@ namespace Opc.Ua.Client
                 RequestHeader? header = CreateRequestHeaderForActivateSession(tokenSecurityPolicyUri!);
 
                 // activate session.
+                ByteString activationRequestNonce = serverNonce;
                 ActivateSessionResponse activateResponse = await ActivateSessionAsync(
                     header,
                     clientSignature,
@@ -1523,10 +1515,14 @@ namespace Opc.Ua.Client
                     ct)
                 .ConfigureAwait(false);
 
+                serverNonce = activateResponse.ServerNonce;
+                ValidateServerNonce(
+                    serverNonce,
+                    activationRequestNonce,
+                    m_endpoint.Description.SecurityMode);
+
                 //  process additional header
                 ProcessResponseAdditionalHeader(activateResponse.ResponseHeader, serverCertificate);
-
-                serverNonce = activateResponse.ServerNonce;
                 ArrayOf<StatusCode> certificateResults = activateResponse.Results;
                 ArrayOf<DiagnosticInfo> certificateDiagnosticInfos = activateResponse.DiagnosticInfos;
 
@@ -1545,7 +1541,7 @@ namespace Opc.Ua.Client
                     // save nonces.
                     m_sessionName = sessionName;
                     m_identity = identity;
-                    m_previousServerNonce = m_serverNonce;
+                    m_previousServerNonce = activationRequestNonce;
                     m_serverNonce = serverNonce;
                     m_serverCertificate?.Dispose();
                     m_serverCertificate = serverCertificate;
@@ -1921,11 +1917,10 @@ namespace Opc.Ua.Client
 
             // validate server nonce and security parameters for user identity.
             ValidateServerNonce(
-                identity,
                 serverNonce,
-                tokenSecurityPolicyUri,
                 m_previousServerNonce,
-                m_endpoint.Description.SecurityMode);
+                m_endpoint.Description.SecurityMode,
+                isNewNonce: false);
 
             // sign/encrypt with a disposable token handler copy to avoid mutating stored credentials.
             IUserIdentityTokenHandler identityToken = identity.TokenHandler.Copy();
@@ -1969,6 +1964,7 @@ namespace Opc.Ua.Client
             RequestHeader? requestHeader = CreateRequestHeaderForActivateSession(
                 tokenSecurityPolicyUri!);
 
+            ByteString activationRequestNonce = serverNonce;
             ActivateSessionResponse response = await ActivateSessionAsync(
                 requestHeader,
                 clientSignature,
@@ -1979,6 +1975,10 @@ namespace Opc.Ua.Client
                 ct).ConfigureAwait(false);
 
             serverNonce = response.ServerNonce;
+            ValidateServerNonce(
+                serverNonce,
+                activationRequestNonce,
+                m_endpoint.Description.SecurityMode);
 
             ProcessResponseAdditionalHeader(response.ResponseHeader, m_serverCertificate);
 
@@ -1990,7 +1990,7 @@ namespace Opc.Ua.Client
                     m_identity = identity;
                 }
 
-                m_previousServerNonce = m_serverNonce;
+                m_previousServerNonce = activationRequestNonce;
                 m_serverNonce = serverNonce;
                 m_preferredLocales = preferredLocales;
 
@@ -3307,6 +3307,17 @@ namespace Opc.Ua.Client
                 return;
             }
 
+            if (RequiresAnonymousSignSessionRecreation())
+            {
+                await RecreateInPlaceCoreAsync(
+                    endpoint: null,
+                    connection,
+                    channel,
+                    budget,
+                    ct).ConfigureAwait(false);
+                return;
+            }
+
             using Activity? activity = m_telemetry.StartActivity();
             bool resetReconnect = false;
             try
@@ -3389,11 +3400,10 @@ namespace Opc.Ua.Client
 
                 // validate server nonce and security parameters for user identity.
                 ValidateServerNonce(
-                    m_identity,
                     m_serverNonce,
-                    m_userTokenSecurityPolicyUri,
                     m_previousServerNonce,
-                    m_endpoint.Description.SecurityMode);
+                    m_endpoint.Description.SecurityMode,
+                    isNewNonce: false);
 
                 // sign/encrypt with a disposable token handler copy to avoid mutating stored credentials.
                 IUserIdentityTokenHandler identityToken = m_identity.TokenHandler.Copy();
@@ -3559,6 +3569,10 @@ namespace Opc.Ua.Client
                         timeout.Token).ConfigureAwait(false);
 
                     ByteString serverNonce = activateResult.ServerNonce;
+                    ValidateServerNonce(
+                        serverNonce,
+                        m_serverNonce,
+                        m_endpoint.Description.SecurityMode);
                     ArrayOf<StatusCode> certificateResults = activateResult.Results;
                     ArrayOf<DiagnosticInfo> certificateDiagnosticInfos = activateResult.DiagnosticInfos;
 
@@ -4657,6 +4671,12 @@ namespace Opc.Ua.Client
             if (serverSignature == null || serverSignature.Signature.IsEmpty)
             {
                 m_logger.ServerSignatureNullEmpty();
+                if (m_endpoint.Description.SecurityMode != MessageSecurityMode.None)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadApplicationSignatureInvalid,
+                        "The server did not sign the secured CreateSession response.");
+                }
                 return;
             }
 
@@ -5417,6 +5437,7 @@ namespace Opc.Ua.Client
         private byte[]? m_clientNonce;
         private ByteString m_serverNonce;
         private ByteString m_previousServerNonce;
+        private readonly HashSet<ByteString> m_serverNonceHistory = [];
 #pragma warning disable CA2213 // Disposed in Dispose method (m_serverCertificate?.Dispose() in cleanup path)
         private Certificate? m_serverCertificate;
 #pragma warning restore CA2213
