@@ -20,14 +20,15 @@ This is the official OPC UA .NET Standard Stack from the OPC Foundation. It prov
 - **Build**: Use Visual Studio 2026 or `dotnet build`
 - **Key solutions**:
   - `UA.slnx` - Contains all projects
-- **Contributor guide**: see [`Docs/DeveloperGuide.md`](../Docs/DeveloperGuide.md) for prerequisites, building (including per-TFM), testing, coding standards, and how-to recipes.
+- **Contributor guide**: see [`docs/DeveloperGuide.md`](../docs/DeveloperGuide.md) for prerequisites, building (including per-TFM), testing, coding standards, and how-to recipes.
 
 ### Project Structure
-- `Libraries/` - Core OPC UA libraries (Client, Server, Configuration, etc.)
-- `Applications/` - Reference applications (ConsoleReferenceServer, etc.)
-- `Tests/` - Unit and integration tests
-- `Stack/` - Core stack implementation
-- `Docs/` - Documentation files
+- `src/` - Core OPC UA libraries (Client, Server, Configuration, etc.)
+- `samples/` - Reference applications (ConsoleReferenceServer, etc.)
+- `tests/` - Unit and integration tests
+- `tools/` - Source generators, analyzers, and the OPC UA MCP tool
+- `docs/` - Documentation files
+- `fuzzing/` - Fuzz targets, corpora, and support scripts
 
 ### Build Properties
 - `Directory.Build.props` - Central build properties
@@ -77,7 +78,7 @@ This is the official OPC UA .NET Standard Stack from the OPC Foundation. It prov
   - All source generated code, in particular ObjectType proxies should be used over manually calling service calls inside new clients.
   - Consider using the source generators to implement emitting "boilerplate", especially if it is related to the OPC UA standard (e.g. information model).
   - Base services: File System, Certificate manager, Secret store, State machine, Alarms and conditions Streaming subscription, Sessions, etc. in new code. (Documented in docs/*).
-  - Observability is plumbed through via `ITelemetryContext`. Use it to create an `ILogger` for logging; follow the source-generated logging conventions in [`Docs/DeveloperGuide.md`](../Docs/DeveloperGuide.md#add-a-log-message-source-generated).
+  - Observability is plumbed through via `ITelemetryContext`. Use it to create an `ILogger` for logging; follow the source-generated logging conventions in [`docs/DeveloperGuide.md`](../docs/DeveloperGuide.md#add-a-log-message-source-generated).
 - If reuse is not possible, ASK whether to extend an existing feature so it becomes reuseable.
 
 ### Code Style
@@ -103,12 +104,12 @@ This is the official OPC UA .NET Standard Stack from the OPC Foundation. It prov
 - Assembly prefix: `Opc.Ua` (Except applications, or if otherwise requested)
 - Package prefix: `OPCFoundation.NetStandard`
 - Always use a line break after `<summary>` and before `</summary>` for all members (except for documentation of fields). This applies to **every** XML-doc summary, including in sample/application code — never write a single-line `/// <summary> ... </summary>`; always put the text on its own line between the opening and closing tags.
-- Use source-generated `[LoggerMessage]` logging; never call `ILogger.LogInformation/LogError/...` directly. Follow the per-file `<Class>Log` and per-assembly `<AssemblyToken>EventIds` conventions in [`Docs/DeveloperGuide.md`](../Docs/DeveloperGuide.md#add-a-log-message-source-generated).
+- Use source-generated `[LoggerMessage]` logging; never call `ILogger.LogInformation/LogError/...` directly. Follow the per-file `<Class>Log` and per-assembly `<AssemblyToken>EventIds` conventions in [`docs/DeveloperGuide.md`](../docs/DeveloperGuide.md#add-a-log-message-source-generated).
 
 ### Security Requirements
 - **Never hardcode credentials, certificates, or secrets** in source code
-- **Certificate Management**: All certificates must be managed through the certificate store system (see `Docs/CertificateManager.md`)
-- **Secrets**: All secrets must be managed through the secret store system (see `Docs/CertificateManager.md`)
+- **Certificate Management**: All certificates must be managed through the certificate store system (see `docs/CertificateManager.md`)
+- **Secrets**: All secrets must be managed through the secret store system (see `docs/CertificateManager.md`)
 - **Security Profiles**: do not use hash algorithms other than SHA2 or higher.
 - **Authentication**: Properly implement anonymous, username, and X.509 certificate user authentication
 - **Audit and Redaction**: Use the audit and redaction APIs for sensitive information
@@ -121,7 +122,7 @@ This is the official OPC UA .NET Standard Stack from the OPC Foundation. It prov
   - DO NOT USE the classic Nunit asserts (E.g. Assert.AreEquals) or other libraries.
 - All new features must include unit tests. Tests should be simple and cover positive and negative scenarios. Unit tests go into the corresponding <project>.Tests project
   - DO Maintain or improve code coverage 
-  - All projects should have at least 80% coverage (exception Applications, and Test projects).
+  - All projects should have at least 80% coverage (except sample and test projects).
 - All client/server as well as pub/sub features must also have Integration tests. Integration tests go into integration projects <component/area>.Tests.
 - Tests must be deterministic and pass in CI/CD environment
 - Code coverage is monitored via Coverlet and MUST NOT decrease
@@ -135,13 +136,13 @@ This is the official OPC UA .NET Standard Stack from the OPC Foundation. It prov
 ### Documentation
 
 #### When to Update Documentation
-- Add a new doc in `Docs/` when adding new features and link from `/docs/README.md`
+- Add a new doc in `docs/` when adding new features and link from `/docs/README.md`
 - Review all other docs for consistency and when needed, link the new doc from other docs.
 - When manual migration from 1.5.378 (master378) is required or code was marked [Obsolete], update migrationguide.md
 - Update `/README.md` for significant changes
 - Keep `NugetREADME.md` updated for package-related changes
 - Document breaking changes prominently
-- Keep [`Docs/DeveloperGuide.md`](../Docs/DeveloperGuide.md) (the contributor onboarding guide) current when build, test, or coding-convention changes affect contributors.
+- Keep [`docs/DeveloperGuide.md`](../docs/DeveloperGuide.md) (the contributor onboarding guide) current when build, test, or coding-convention changes affect contributors.
 
 #### Documentation Style
 - Use clear, technical language
@@ -188,7 +189,7 @@ This is the official OPC UA .NET Standard Stack from the OPC Foundation. It prov
 ### Certificate Management
 - NEVER commit certificates or secrets of any kind to the repository
 - Use the certificate manager APIs
-- Follow guidelines in `Docs/Certificates.md`
+- Follow guidelines in `docs/Certificates.md`
 - Test with different certificate configurations
 
 ### Performance Considerations
@@ -203,7 +204,7 @@ This is the official OPC UA .NET Standard Stack from the OPC Foundation. It prov
 ## Resources
 
 - OPC UA Specification: https://reference.opcfoundation.org/
-- Documentation: See `Docs/` directory
+- Documentation: See `docs/` directory
 - Samples Repository: https://github.com/OPCFoundation/UA-.NETStandard-Samples
 - NuGet Packages:
   - Types: https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Types/

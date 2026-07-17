@@ -773,7 +773,7 @@ no speculative compatibility changes were made.
   (42):** these need a live A&C loop to attribute conclusively; the console log shows the disabling
   transition (`Disabling alarm … / Disabled State ConditionDisabled`) and the input-node read
   (`Test_004.js:43`) failing at the **service** level (`readResult` falsy). Verify the reference
-  server's alarm source variable (`ns=7;s=Alarms.AnalogSource`, `Applications/Quickstarts.Servers/Alarms/
+  server's alarm source variable (`ns=7;s=Alarms.AnalogSource`, `samples/Quickstarts.Servers/Alarms/
   AlarmNodeManager.cs`) is readable and that the disabled-condition event fields match Part 9 §5.5.2.
   Not pinned to a concrete server defect from the log alone.
 

@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!-- Follow CustomTestTarget like the Opc.Ua.Core.Diagnostics project this
+         tool indirectly references; see Opc.Ua.Network.Fuzz.csproj for
+         the rationale. -->
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net8.0;net9.0;net10.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == 'net8.0' OR '$(CustomTestTarget)' == 'net9.0' OR '$(CustomTestTarget)' == 'net10.0'">$(CustomTestTarget)</TargetFrameworks>
+    <!-- netstandard2.0/2.1 can't host the empty $(RestrictForLegacyTfm) shell
+         (CS8021 - no reference assembly defines System.Object), so build those
+         shells as net10.0. net472/net48 shells compile empty fine. -->
+    <TargetFrameworks Condition="'$(TargetFrameworks)' == '' AND ('$(CustomTestTarget)' == 'netstandard2.0' OR '$(CustomTestTarget)' == 'netstandard2.1')">net10.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(TargetFrameworks)' == ''">$(CustomTestTarget)</TargetFrameworks>
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
+    <AssemblyName>Opc.Ua.Network.Fuzz.Tools</AssemblyName>
+    <RootNamespace>Network.Fuzz.Tools</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\Opc.Ua.Network.Fuzz\FuzzableCode.cs" Link="FuzzableCode.cs" />
+    <Compile Include="..\Opc.Ua.Network.Fuzz\FuzzableCode.*.cs" Link="%(FileName)%(Extension)" />
+    <Compile Include="..\Common\Fuzz\FuzzMethods.cs" Link="FuzzMethods.cs" />
+    <Compile Include="..\Common\Fuzz.Tools\Program.cs" Link="Program.cs" />
+    <Compile Include="..\Common\Fuzz.Tools\Playback.cs" Link="Playback.cs" />
+    <Compile Include="..\Common\Fuzz.Tools\Testcases.cs" Link="Testcases.cs" />
+    <Compile Include="..\Common\Fuzz.Tools\Logging.cs" Link="Logging.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="SharpFuzz" />
+    <PackageReference Include="System.CommandLine" />
+    <PackageReference Include="Microsoft.Extensions.Logging" />
+    <PackageReference Include="Serilog" />
+    <PackageReference Include="Serilog.Expressions" />
+    <PackageReference Include="Serilog.Sinks.Console" />
+    <PackageReference Include="Serilog.Extensions.Logging" />
+    <PackageReference Include="Serilog.Sinks.File" />
+    <PackageReference Include="Serilog.Sinks.Debug" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Opc.Ua.Core.Diagnostics\Opc.Ua.Core.Diagnostics.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Core\Opc.Ua.Core.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Client\Opc.Ua.Client.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Server\Opc.Ua.Server.csproj" />
+  </ItemGroup>
+</Project>

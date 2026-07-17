@@ -46,12 +46,12 @@ jobs:
       run: dotnet restore 'UA.slnx'
 
     - name: Build Client Tests
-      run: dotnet build ./Tests/Opc.Ua.Client.Tests/Opc.Ua.Client.Tests.csproj --configuration ${{ env.CONFIGURATION }} --no-restore
+      run: dotnet build ./tests/Opc.Ua.Client.Tests/Opc.Ua.Client.Tests.csproj --configuration ${{ env.CONFIGURATION }} --no-restore
 
     - name: Run Connection Stability Test
       run: |
         echo "Starting connection stability test for $TEST_DURATION_MINUTES minutes"
-        dotnet test ./Tests/Opc.Ua.Client.Tests/Opc.Ua.Client.Tests.csproj \
+        dotnet test ./tests/Opc.Ua.Client.Tests/Opc.Ua.Client.Tests.csproj \
           --configuration ${{ env.CONFIGURATION }} \
           --no-build \
           --framework ${{ env.TARGET_FRAMEWORK }} \

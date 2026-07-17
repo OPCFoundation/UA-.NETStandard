@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Server-only test infrastructure helper. Keep this project as a LEAF
+    helper in the test dependency graph: do not add types that consume
+    client fixtures. The integration TestFixture lives in
+    Opc.Ua.Client.TestFramework so the helper graph stays acyclic
+    (Client.TestFramework -> Server.TestFramework, both leaves below).
+  -->
+  <PropertyGroup>
+    <TargetFrameworks>$(TestsTargetFrameworks)</TargetFrameworks>
+    <RootNamespace>Opc.Ua.Server.TestFramework</RootNamespace>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(NetStandardTests)' == 'true'">
+    <DefineConstants>$(DefineConstants);NET_STANDARD_TESTS</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="NUnit" />
+    <PackageReference Include="BenchmarkDotNet" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\samples\Quickstarts.Servers\Quickstarts.Servers.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Server\Opc.Ua.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Bindings.Https\Opc.Ua.Bindings.Https.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Test.Common\Opc.Ua.Test.Common.csproj" />
+  </ItemGroup>
+</Project>

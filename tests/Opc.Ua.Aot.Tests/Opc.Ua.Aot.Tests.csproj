@@ -1,0 +1,66 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Opc.Ua.Aot.Tests</RootNamespace>
+    <PublishAot>true</PublishAot>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <!-- Suppress the assembly-level IL2104 (trim) and IL3053 (AOT) rollup
+         warnings from third-party packages that are not trim/AOT-analysis-clean
+         (e.g. Dekaf, the pure-managed Kafka client used on net10.0). These are
+         referenced-assembly rollups only; our own assemblies are still analyzed
+         individually per-project via IsAotCompatible on net8.0+. -->
+    <NoWarn>$(NoWarn);IL2104;IL3053</NoWarn>
+    <!-- Opt into the root Directory.Build.targets no-op shape on
+         per-TFM CI matrix entries that pin CustomTestTarget to a
+         legacy TFM this test project cannot target. -->
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="TUnit" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Opc.Ua.Core\Opc.Ua.Core.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Core\Opc.Ua.Core.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Core.Schema\Opc.Ua.Core.Schema.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Bindings.Https\Opc.Ua.Bindings.Https.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Client\Opc.Ua.Client.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Client.ComplexTypes\Opc.Ua.Client.ComplexTypes.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Server\Opc.Ua.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Redundancy.Server\Opc.Ua.Redundancy.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Redundancy.Kubernetes\Opc.Ua.Redundancy.Kubernetes.csproj" />
+    <ProjectReference Include="..\..\samples\Quickstarts.Servers\Quickstarts.Servers.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Gds.Client.Common\Opc.Ua.Gds.Client.Common.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Gds.Server.Common\Opc.Ua.Gds.Server.Common.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.PubSub\Opc.Ua.PubSub.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.PubSub.Udp\Opc.Ua.PubSub.Udp.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.PubSub.Eth\Opc.Ua.PubSub.Eth.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.PubSub.Mqtt\Opc.Ua.PubSub.Mqtt.csproj" />
+    <ProjectReference Include="..\..\samples\MinimalBoilerServer\MinimalBoilerServer.csproj">
+      <Aliases>boilersample</Aliases>
+    </ProjectReference>
+    <ProjectReference Include="..\..\samples\MinimalCalcServer\MinimalCalcServer.csproj">
+      <Aliases>calcsample</Aliases>
+    </ProjectReference>
+    <ProjectReference Include="..\..\samples\ConsoleReferencePubSubClient\ConsoleReferencePubSubClient.csproj">
+      <Aliases>pubsubsample</Aliases>
+    </ProjectReference>
+  </ItemGroup>
+  <!-- WebApi binding (folded into Opc.Ua.Bindings.Https) needs the
+       Microsoft.AspNetCore.App framework reference for Kestrel +
+       Minimal-API endpoints; required only when the WebApi AOT
+       tests run. -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="Quickstarts.ReferenceServer.Config.xml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Quickstarts.ReferenceClient.Config.xml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+</Project>
