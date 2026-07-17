@@ -2380,28 +2380,18 @@ namespace Opc.Ua.Bindings
                 .ConfigureAwait(false);
         }
 
-        /// <summary>
-        /// Validate TLS client certificate at TLS handshake.
-        /// </summary>
-        /// <param name="clientCertificate">Client certificate</param>
-        /// <param name="chain">Certificate chain</param>
-        /// <param name="sslPolicyErrors">SSl policy errors</param>
-        private bool ValidateClientCertificate(
+        internal static bool ValidateClientCertificateWithUaValidator(
+            ICertificateValidatorEx? certificateValidator,
             X509Certificate2? clientCertificate,
-            X509Chain? chain,
             SslPolicyErrors sslPolicyErrors)
         {
-            if (sslPolicyErrors == SslPolicyErrors.None)
-            {
-                // certificate is valid
-                return true;
-            }
-
             if (clientCertificate == null)
             {
-                // TLS reported policy errors but no client certificate was
-                // presented; there is nothing to validate against the UA trust
-                // list, so reject.
+                return sslPolicyErrors == SslPolicyErrors.None;
+            }
+
+            if (certificateValidator == null)
+            {
                 return false;
             }
 
@@ -2416,22 +2406,34 @@ namespace Opc.Ua.Bindings
                 // TODO: replace with a non-blocking validation bridge to remove the
                 // thread-pool-starvation risk under connection floods.
 #pragma warning disable CA2025
-                CertificateValidationResult result = m_quotas.CertificateValidator!
+                CertificateValidationResult result = certificateValidator
                     .ValidateAsync(cert, ct: default)
                     .GetAwaiter()
                     .GetResult();
 #pragma warning restore CA2025
-                if (!result.IsValid)
-                {
-                    return false;
-                }
+                return result.IsValid;
             }
             catch (Exception)
             {
                 return false;
             }
+        }
 
-            return true;
+        /// <summary>
+        /// Validate TLS client certificate at TLS handshake.
+        /// </summary>
+        /// <param name="clientCertificate">Client certificate</param>
+        /// <param name="chain">Certificate chain</param>
+        /// <param name="sslPolicyErrors">SSl policy errors</param>
+        private bool ValidateClientCertificate(
+            X509Certificate2? clientCertificate,
+            X509Chain? chain,
+            SslPolicyErrors sslPolicyErrors)
+        {
+            return ValidateClientCertificateWithUaValidator(
+                m_quotas.CertificateValidator,
+                clientCertificate,
+                sslPolicyErrors);
         }
 
         private List<EndpointDescription> m_descriptions = null!;

@@ -30,6 +30,7 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -110,6 +111,48 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 }
                 Assert.That(received, Is.EqualTo(payload));
             }
+        }
+
+        [Test]
+        public async Task SendAllAsyncHandlesPartialSendsWithoutMutatingCallerBuffers()
+        {
+            byte[] first = [0, 1, 2, 3, 4, 5];
+            byte[] second = [10, 11, 12, 13, 14, 15];
+            byte[] third = [20, 21, 22, 23, 24];
+            var buffers = new BufferCollection
+            {
+                new(first, 1, 4),
+                new(second, 2, 3),
+                new(third, 0, 5)
+            };
+            ArraySegment<byte>[] original = [.. buffers];
+            int[] partialSends = [3, 4, 5];
+            int sendIndex = 0;
+            var snapshots = new List<ArraySegment<byte>[]>();
+
+            await TcpByteTransport.SendAllAsync(
+                buffers,
+                pending =>
+                {
+                    snapshots.Add(CopySegments(pending));
+                    return Task.FromResult(partialSends[sendIndex++]);
+                }).ConfigureAwait(false);
+
+            Assert.That(sendIndex, Is.EqualTo(partialSends.Length));
+            Assert.That(snapshots, Has.Count.EqualTo(3));
+            Assert.That(snapshots[0], Is.EqualTo(original));
+            Assert.That(
+                snapshots[1],
+                Is.EqualTo(
+                [
+                    new ArraySegment<byte>(first, 4, 1),
+                    new ArraySegment<byte>(second, 2, 3),
+                    new ArraySegment<byte>(third, 0, 5)
+                ]));
+            Assert.That(
+                snapshots[2],
+                Is.EqualTo([new ArraySegment<byte>(third, 0, 5)]));
+            Assert.That(buffers, Is.EqualTo(original));
         }
 
         [Test]
@@ -269,6 +312,16 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 .ConfigureAwait(false);
             Socket serverSocket = await acceptTask.ConfigureAwait(false);
             return (transport, serverSocket, listener);
+        }
+
+        private static ArraySegment<byte>[] CopySegments(IList<ArraySegment<byte>> buffers)
+        {
+            var copy = new ArraySegment<byte>[buffers.Count];
+            for (int i = 0; i < buffers.Count; i++)
+            {
+                copy[i] = buffers[i];
+            }
+            return copy;
         }
 
         private static byte[] BuildValidChunk(uint messageType, int size)

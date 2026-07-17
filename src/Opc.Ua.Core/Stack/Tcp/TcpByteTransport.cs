@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
@@ -278,26 +279,13 @@ namespace Opc.Ua.Bindings
             await m_sendLock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
                 // Socket.SendAsync(IList<ArraySegment<byte>>) is a vectored send
                 // available on all targets but does not accept a CancellationToken,
                 // so we use it directly and rely on Close()/Dispose() for cancel.
-                int sent = await socket
-                    .SendAsync(buffers, SocketFlags.None)
+                await SendAllAsync(
+                    buffers,
+                    pending => socket.SendAsync(pending, SocketFlags.None))
                     .ConfigureAwait(false);
-#else
-                int sent = await socket
-                    .SendAsync(buffers, SocketFlags.None)
-                    .ConfigureAwait(false);
-#endif
-                if (sent < buffers.TotalSize)
-                {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadConnectionClosed,
-                        "Remote side closed the connection while sending (sent {0} of {1} bytes).",
-                        sent,
-                        buffers.TotalSize);
-                }
             }
             finally
             {
@@ -415,6 +403,56 @@ namespace Opc.Ua.Bindings
             Close();
         }
 
+        internal static async ValueTask SendAllAsync(
+            BufferCollection buffers,
+            Func<IList<ArraySegment<byte>>, Task<int>> sendAsync)
+        {
+            if (buffers == null)
+            {
+                throw new ArgumentNullException(nameof(buffers));
+            }
+            if (sendAsync == null)
+            {
+                throw new ArgumentNullException(nameof(sendAsync));
+            }
+
+            var pending = new List<ArraySegment<byte>>(buffers.Count);
+            int totalSize = 0;
+            foreach (ArraySegment<byte> buffer in buffers)
+            {
+                if (buffer.Count > 0)
+                {
+                    pending.Add(buffer);
+                    totalSize += buffer.Count;
+                }
+            }
+
+            int remaining = totalSize;
+            while (remaining > 0)
+            {
+                int sent = await sendAsync(pending).ConfigureAwait(false);
+                if (sent <= 0)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadConnectionClosed,
+                        "Remote side closed the connection while sending (sent {0} of {1} bytes).",
+                        totalSize - remaining,
+                        totalSize);
+                }
+                if (sent > remaining)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadInternalError,
+                        "Socket reported sending {0} bytes with only {1} bytes pending.",
+                        sent,
+                        remaining);
+                }
+
+                AdvanceBuffers(pending, sent);
+                remaining -= sent;
+            }
+        }
+
         private Socket RequireConnectedSocket()
         {
             Socket? socket = m_socket;
@@ -425,6 +463,30 @@ namespace Opc.Ua.Bindings
                     "The transport is not connected.");
             }
             return socket;
+        }
+
+        private static void AdvanceBuffers(List<ArraySegment<byte>> buffers, int count)
+        {
+            int removeCount = 0;
+            while (removeCount < buffers.Count && count >= buffers[removeCount].Count)
+            {
+                count -= buffers[removeCount].Count;
+                removeCount++;
+            }
+
+            if (removeCount > 0)
+            {
+                buffers.RemoveRange(0, removeCount);
+            }
+
+            if (count > 0)
+            {
+                ArraySegment<byte> buffer = buffers[0];
+                buffers[0] = new ArraySegment<byte>(
+                    buffer.Array!,
+                    buffer.Offset + count,
+                    buffer.Count - count);
+            }
         }
 
         private static async ValueTask ReadExactAsync(

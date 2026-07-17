@@ -260,9 +260,9 @@ namespace Opc.Ua.Security.Certificates
         /// <returns>The signed CRL.</returns>
         public IX509CRL CreateSignature(X509SignatureGenerator generator)
         {
-            byte[] tbsRawData = Encode();
             byte[] signatureAlgorithm = generator.GetSignatureAlgorithmIdentifier(
                 HashAlgorithmName);
+            byte[] tbsRawData = Encode(signatureAlgorithm);
             byte[] signature = generator.SignData(tbsRawData, HashAlgorithmName);
             var crlSigner = new X509Signature(tbsRawData, signature, signatureAlgorithm);
             RawData = crlSigner.Encode();
@@ -328,6 +328,16 @@ namespace Opc.Ua.Security.Certificates
         /// </remarks>
         internal byte[] Encode()
         {
+            var algorithmWriter = new AsnWriter(AsnEncodingRules.DER);
+            algorithmWriter.PushSequence();
+            algorithmWriter.WriteObjectIdentifier(Oids.GetRSAOid(HashAlgorithmName));
+            algorithmWriter.WriteNull();
+            algorithmWriter.PopSequence();
+            return Encode(algorithmWriter.Encode());
+        }
+
+        private byte[] Encode(ReadOnlySpan<byte> signatureAlgorithmIdentifier)
+        {
             var crlWriter = new AsnWriter(AsnEncodingRules.DER);
             {
                 // tbsCertList
@@ -337,13 +347,7 @@ namespace Opc.Ua.Security.Certificates
                 crlWriter.WriteInteger(1);
 
                 // Signature Algorithm Identifier
-                crlWriter.PushSequence();
-                string signatureAlgorithm = Oids.GetRSAOid(HashAlgorithmName);
-                crlWriter.WriteObjectIdentifier(signatureAlgorithm);
-                crlWriter.WriteNull();
-
-                // pop
-                crlWriter.PopSequence();
+                crlWriter.WriteEncodedValue(signatureAlgorithmIdentifier);
 
                 // Issuer
                 crlWriter.WriteEncodedValue((ReadOnlySpan<byte>)IssuerName.RawData);
