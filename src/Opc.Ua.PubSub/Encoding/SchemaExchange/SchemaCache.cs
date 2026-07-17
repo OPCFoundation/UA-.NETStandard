@@ -244,7 +244,9 @@ namespace Opc.Ua.PubSub.Encoding
         public static bool TryParseKey(string? text, out ByteString schemaId)
         {
             schemaId = default;
-            if (string.IsNullOrWhiteSpace(text) || text!.Length != 16)
+            // A SchemaId is a variable-length fingerprint (§6.4): accept any non-empty,
+            // even-length hexadecimal string rather than assuming a fixed 8-byte id.
+            if (string.IsNullOrWhiteSpace(text) || (text!.Length % 2) != 0)
             {
                 return false;
             }

@@ -27,7 +27,11 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Security.Cryptography;
+using System.Text.Encodings.Web;
+using System.Text.Json;
 
 namespace Opc.Ua
 {
@@ -109,13 +113,106 @@ namespace Opc.Ua
 
         /// <summary>
         /// Computes the leading bytes of the SHA-256 digest used as JSON Schema identifiers.
+        /// The JSON Schema document is first canonicalized with the RFC 8785 JSON
+        /// Canonicalization Scheme (JCS) so the fingerprint is stable across incidental
+        /// formatting differences (member order, whitespace, number formatting). The
+        /// corresponding <c>SchemaIdAlg</c> is <c>SHA-256/JCS</c>.
         /// </summary>
         /// <param name = "schemaJson">The UTF-8 encoded JSON Schema document to fingerprint.</param>
         /// <param name = "nbytes">The number of leading SHA-256 digest bytes to return.</param>
         /// <returns>The requested leading bytes of the SHA-256 digest.</returns>
         public static byte[] JsonSchemaId(ReadOnlySpan<byte> schemaJson, int nbytes = 8)
         {
-            return Sha256Id(schemaJson, nbytes);
+            byte[] canonical = CanonicalizeJcs(schemaJson);
+            return Sha256Id(canonical, nbytes);
+        }
+
+        /// <summary>
+        /// Canonicalizes a UTF-8 JSON document per RFC 8785 (JSON Canonicalization Scheme):
+        /// object members are sorted by UTF-16 code unit, insignificant whitespace is removed,
+        /// and numbers are emitted in canonical form. Falls back to the original bytes when the
+        /// input is not valid JSON so a fingerprint can still be produced.
+        /// </summary>
+        /// <param name = "json">The UTF-8 encoded JSON document.</param>
+        /// <returns>The canonical UTF-8 bytes.</returns>
+        public static byte[] CanonicalizeJcs(ReadOnlySpan<byte> json)
+        {
+            try
+            {
+                using var document = JsonDocument.Parse(json.ToArray());
+                using var stream = new MemoryStream();
+                var options = new JsonWriterOptions
+                {
+                    Indented = false,
+                    // Only escape the JSON-mandatory characters, matching JCS rather than
+                    // the HTML-safe default that also escapes '<', '>', '&', '+'.
+                    Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+                };
+                using (var writer = new Utf8JsonWriter(stream, options))
+                {
+                    WriteCanonicalJcs(document.RootElement, writer);
+                }
+                return stream.ToArray();
+            }
+            catch (JsonException)
+            {
+                return json.ToArray();
+            }
+        }
+
+        private static void WriteCanonicalJcs(JsonElement element, Utf8JsonWriter writer)
+        {
+            switch (element.ValueKind)
+            {
+                case JsonValueKind.Object:
+                    writer.WriteStartObject();
+                    var members = new List<JsonProperty>();
+                    foreach (JsonProperty member in element.EnumerateObject())
+                    {
+                        members.Add(member);
+                    }
+                    // RFC 8785 sorts object members by the UTF-16 code units of their names.
+                    members.Sort(static (a, b) => string.CompareOrdinal(a.Name, b.Name));
+                    foreach (JsonProperty member in members)
+                    {
+                        writer.WritePropertyName(member.Name);
+                        WriteCanonicalJcs(member.Value, writer);
+                    }
+                    writer.WriteEndObject();
+                    break;
+                case JsonValueKind.Array:
+                    writer.WriteStartArray();
+                    foreach (JsonElement item in element.EnumerateArray())
+                    {
+                        WriteCanonicalJcs(item, writer);
+                    }
+                    writer.WriteEndArray();
+                    break;
+                case JsonValueKind.String:
+                    writer.WriteStringValue(element.GetString());
+                    break;
+                case JsonValueKind.Number:
+                    // Prefer exact integer form; otherwise the shortest round-trippable double,
+                    // which matches the ECMAScript number serialization JCS is defined against.
+                    if (element.TryGetInt64(out long integer))
+                    {
+                        writer.WriteNumberValue(integer);
+                    }
+                    else
+                    {
+                        writer.WriteNumberValue(element.GetDouble());
+                    }
+                    break;
+                case JsonValueKind.True:
+                case JsonValueKind.False:
+                    writer.WriteBooleanValue(element.GetBoolean());
+                    break;
+                case JsonValueKind.Null:
+                case JsonValueKind.Undefined:
+                default:
+                    writer.WriteNullValue();
+                    break;
+            }
         }
 
         private static ulong[] CreateRabinAvroTable()
