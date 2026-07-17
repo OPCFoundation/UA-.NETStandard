@@ -768,6 +768,24 @@ namespace Opc.Ua.SourceGeneration
                 {
                     public FolderState(NodeState? parent) : base(parent) { }
                 }
+                public class NamespaceMetadataState : BaseObjectState
+                {
+                    public NamespaceMetadataState(NodeState? parent) : base(parent) { }
+                    public void CreateOrReplaceNamespaceUri(
+                        ISystemContext context, BaseInstanceState replacement) { }
+                    public void CreateOrReplaceNamespaceVersion(
+                        ISystemContext context, BaseInstanceState replacement) { }
+                    public void CreateOrReplaceNamespacePublicationDate(
+                        ISystemContext context, BaseInstanceState replacement) { }
+                    public void CreateOrReplaceIsNamespaceSubset(
+                        ISystemContext context, BaseInstanceState replacement) { }
+                    public void CreateOrReplaceStaticNodeIdTypes(
+                        ISystemContext context, BaseInstanceState replacement) { }
+                    public void CreateOrReplaceStaticNumericNodeIdRange(
+                        ISystemContext context, BaseInstanceState replacement) { }
+                    public void CreateOrReplaceStaticStringNodeIdPattern(
+                        ISystemContext context, BaseInstanceState replacement) { }
+                }
                 public class InstrumentDiagnosticAlarmState : BaseEventState
                 {
                     public InstrumentDiagnosticAlarmState(NodeState? parent) : base(parent) { }
