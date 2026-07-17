@@ -406,7 +406,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
                 {
                     return new DataValue(new Variant(node.Name));
                 }
-                return new DataValue(StatusCodes.BadNodeIdUnknown);
+                return DataValue.FromStatusCode(StatusCodes.BadNodeIdUnknown);
             }
             if (rvi.AttributeId == Attributes.Value)
             {
@@ -424,9 +424,9 @@ namespace Opc.Ua.Client.Tests.FileSystem
                         return new DataValue(value.Value);
                     }
                 }
-                return new DataValue(StatusCodes.BadNodeIdUnknown);
+                return DataValue.FromStatusCode(StatusCodes.BadNodeIdUnknown);
             }
-            return new DataValue(StatusCodes.BadAttributeIdInvalid);
+            return DataValue.FromStatusCode(StatusCodes.BadAttributeIdInvalid);
         }
 
         private static int s_nextId = 2000;

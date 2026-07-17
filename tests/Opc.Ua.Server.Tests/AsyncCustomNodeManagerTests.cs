@@ -439,6 +439,126 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task AddPredefinedNodeAsyncRebasesDeclarationCollisions()
+        {
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(manager is TestableAsyncCustomNodeManager,
+                "Requires AsyncCustomNodeManager registration features");
+            var asyncManager = (TestableAsyncCustomNodeManager)manager;
+            ServerSystemContext context = manager.SystemContext;
+            ushort namespaceIndex = manager.NamespaceIndexes[0];
+
+            var type = new BaseObjectTypeState
+            {
+                NodeId = new NodeId(900),
+                BrowseName = new QualifiedName("TestType"),
+                IsPartOfTypeHierarchy = true
+            };
+            var declaration = new BaseObjectState(type)
+            {
+                NodeId = new NodeId(901),
+                BrowseName = new QualifiedName("DynamicChild"),
+                ModellingRuleId = ObjectIds.ModellingRule_Optional,
+                TypeDefinitionId = ObjectTypeIds.BaseObjectType
+            };
+            var declarationLeaf = new PropertyState(declaration)
+            {
+                NodeId = new NodeId(902),
+                BrowseName = new QualifiedName("Leaf"),
+                ModellingRuleId = ObjectIds.ModellingRule_Mandatory,
+                TypeDefinitionId = VariableTypeIds.PropertyType
+            };
+            declaration.AddChild(declarationLeaf);
+            type.AddChild(declaration);
+            await manager.AddPredefinedNodeAsync(context, type).ConfigureAwait(false);
+
+            var externalParent = new BaseObjectState(null)
+            {
+                NodeId = ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup,
+                BrowseName = new QualifiedName("ExternalParent")
+            };
+            var instance = new BaseObjectState(externalParent)
+            {
+                NodeId = declaration.NodeId,
+                BrowseName = declaration.BrowseName,
+                ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                TypeDefinitionId = ObjectTypeIds.BaseObjectType
+            };
+            var instanceLeaf = new PropertyState(instance)
+            {
+                NodeId = declarationLeaf.NodeId,
+                BrowseName = declarationLeaf.BrowseName,
+                TypeDefinitionId = VariableTypeIds.PropertyType
+            };
+            instance.AddChild(instanceLeaf);
+            externalParent.AddChild(instance);
+            var externalReferences = new Dictionary<NodeId, IList<IReference>>();
+
+            await asyncManager.AddPredefinedNodeWithExternalReferencesAsync(
+                context,
+                instance,
+                externalReferences).ConfigureAwait(false);
+            await asyncManager.AddPredefinedNodeWithExternalReferencesAsync(
+                context,
+                instance,
+                externalReferences).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(manager.Find(declaration.NodeId), Is.SameAs(declaration));
+                Assert.That(manager.Find(declarationLeaf.NodeId), Is.SameAs(declarationLeaf));
+                Assert.That(instance.NodeId.NamespaceIndex, Is.EqualTo(namespaceIndex));
+                Assert.That(instanceLeaf.NodeId.NamespaceIndex, Is.EqualTo(namespaceIndex));
+                Assert.That(instance.NodeId, Is.Not.EqualTo(instanceLeaf.NodeId));
+                Assert.That(
+                    instance.TypeDefinitionId,
+                    Is.EqualTo(ObjectTypeIds.BaseObjectType));
+                Assert.That(externalReferences, Contains.Key(externalParent.NodeId));
+                Assert.That(externalReferences[externalParent.NodeId], Has.Count.EqualTo(1));
+                Assert.That(
+                    ExpandedNodeId.ToNodeId(
+                        externalReferences[externalParent.NodeId][0].TargetId,
+                        context.NamespaceUris),
+                    Is.EqualTo(instance.NodeId));
+            });
+        }
+
+        [Test]
+        public async Task AddPredefinedNodeAsyncPreservesRuntimeReplacementNodeId()
+        {
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(manager is TestableAsyncCustomNodeManager,
+                "Requires AsyncCustomNodeManager registration features");
+            ServerSystemContext context = manager.SystemContext;
+            ushort namespaceIndex = manager.NamespaceIndexes[0];
+            var nodeId = new NodeId("ReplicatedNode", namespaceIndex);
+
+            var existing = new BaseObjectState(null)
+            {
+                NodeId = nodeId,
+                BrowseName = new QualifiedName("Existing", namespaceIndex)
+            };
+            await manager.AddPredefinedNodeAsync(context, existing).ConfigureAwait(false);
+
+            var replacement = new BaseObjectState(null)
+            {
+                NodeId = nodeId,
+                BrowseName = new QualifiedName("Replacement", namespaceIndex)
+            };
+            await manager.AddPredefinedNodeAsync(context, replacement).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(replacement.NodeId, Is.EqualTo(nodeId));
+                Assert.That(manager.Find(nodeId), Is.SameAs(replacement));
+                Assert.That(
+                    manager.PredefinedNodes.Values.Count(
+                        node => ReferenceEquals(node, replacement)),
+                    Is.EqualTo(1));
+            });
+        }
+
+        [Test]
         public async Task ReplacePredefinedInstanceSubtypeAsyncPreservesIdentityAndChildIdsAsync()
         {
             using ITestNodeManager manager = CreateManager();
@@ -4445,6 +4565,19 @@ namespace Opc.Ua.Server.Tests
         public ValueTask AddRootNotifierPublicAsync(NodeState notifier, CancellationToken cancellationToken = default)
         {
             return AddRootNotifierAsync(notifier, cancellationToken);
+        }
+
+        public ValueTask AddPredefinedNodeWithExternalReferencesAsync(
+            ISystemContext context,
+            NodeState node,
+            IDictionary<NodeId, IList<IReference>> externalReferences,
+            CancellationToken cancellationToken = default)
+        {
+            return AddPredefinedNodeAsync(
+                context,
+                node,
+                externalReferences,
+                cancellationToken);
         }
 
         public ValueTask RemoveRootNotifierPublicAsync(NodeState notifier, CancellationToken cancellationToken = default)

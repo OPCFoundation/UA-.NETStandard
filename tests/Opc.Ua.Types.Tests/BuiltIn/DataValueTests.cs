@@ -116,12 +116,69 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
+        public void ObsoleteStatusCodeConstructorWinsOverVariantConversion()
+        {
+            // TODO: Remove this compatibility test when the obsolete constructor is removed.
+#pragma warning disable CS0618 // Regression coverage for the obsolete compatibility constructor.
+            var dv = new DataValue(StatusCodes.BadUnexpectedError);
+#pragma warning restore CS0618
+
+            Assert.That(dv.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
+            Assert.That(dv.WrappedValue.IsNull, Is.True);
+        }
+
+        [Test]
         public void ConstructorWithIntLiteralWrapsInVariant()
         {
             var dv = new DataValue(42);
 
             Assert.That(dv.WrappedValue.IsNull, Is.False);
             Assert.That(dv.WrappedValue, Is.EqualTo(new Variant(42)));
+            Assert.That(dv.StatusCode, Is.EqualTo(StatusCodes.Good));
+        }
+
+        [Test]
+        public void ConstructorWithUInt32WrapsInVariant()
+        {
+            var dv = new DataValue(42u);
+
+            Assert.That(dv.WrappedValue, Is.EqualTo(Variant.From(42u)));
+            Assert.That(dv.StatusCode, Is.EqualTo(StatusCodes.Good));
+        }
+
+        [Test]
+        public void ConstructorWithByteWrapsInVariant()
+        {
+            var dv = new DataValue((byte)42);
+
+            Assert.That(dv.WrappedValue, Is.EqualTo(Variant.From((byte)42)));
+            Assert.That(dv.StatusCode, Is.EqualTo(StatusCodes.Good));
+        }
+
+        [Test]
+        public void ConstructorWithSByteWrapsInVariant()
+        {
+            var dv = new DataValue((sbyte)42);
+
+            Assert.That(dv.WrappedValue, Is.EqualTo(Variant.From((sbyte)42)));
+            Assert.That(dv.StatusCode, Is.EqualTo(StatusCodes.Good));
+        }
+
+        [Test]
+        public void ConstructorWithInt16WrapsInVariant()
+        {
+            var dv = new DataValue((short)42);
+
+            Assert.That(dv.WrappedValue, Is.EqualTo(Variant.From((short)42)));
+            Assert.That(dv.StatusCode, Is.EqualTo(StatusCodes.Good));
+        }
+
+        [Test]
+        public void ConstructorWithUInt16WrapsInVariant()
+        {
+            var dv = new DataValue((ushort)42);
+
+            Assert.That(dv.WrappedValue, Is.EqualTo(Variant.From((ushort)42)));
             Assert.That(dv.StatusCode, Is.EqualTo(StatusCodes.Good));
         }
 

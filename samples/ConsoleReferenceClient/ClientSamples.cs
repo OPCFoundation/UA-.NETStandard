@@ -1205,7 +1205,7 @@ namespace Quickstarts
                             catch (ServiceResultException sre)
                             {
                                 m_logger.Error(sre);
-                                values.Add(new DataValue(sre.StatusCode));
+                                values.Add(DataValue.FromStatusCode(sre.StatusCode));
                                 errors.Add(sre.Result);
                             }
                         }

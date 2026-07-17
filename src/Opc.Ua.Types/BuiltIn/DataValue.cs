@@ -119,7 +119,6 @@ namespace Opc.Ua
         /// Initializes the object with a value from a <see cref="Variant"/>
         /// </remarks>
         /// <param name="value">The value to set</param>
-        [OverloadResolutionPriority(1)]
         public DataValue(Variant value)
         {
             WrappedValue = value;
@@ -127,6 +126,64 @@ namespace Opc.Ua
             SourceTimestamp = DateTimeUtc.MinValue;
             ServerTimestamp = DateTimeUtc.MinValue;
             m_set = true;
+        }
+
+        /// <summary>
+        /// Initializes the object with a signed integer value.
+        /// </summary>
+        /// <param name="value">The Int32 value to wrap in a Variant.</param>
+        public DataValue(int value)
+            : this(Variant.From(value))
+        {
+        }
+
+        /// <summary>
+        /// Initializes the object with a byte value.
+        /// </summary>
+        /// <param name="value">The Byte value to wrap in a Variant.</param>
+        public DataValue(byte value)
+            : this(Variant.From(value))
+        {
+        }
+
+        /// <summary>
+        /// Initializes the object with a signed byte value.
+        /// </summary>
+        /// <param name="value">The SByte value to wrap in a Variant.</param>
+        public DataValue(sbyte value)
+            : this(Variant.From(value))
+        {
+        }
+
+        /// <summary>
+        /// Initializes the object with a signed short value.
+        /// </summary>
+        /// <param name="value">The Int16 value to wrap in a Variant.</param>
+        public DataValue(short value)
+            : this(Variant.From(value))
+        {
+        }
+
+        /// <summary>
+        /// Initializes the object with an unsigned short value.
+        /// </summary>
+        /// <param name="value">The UInt16 value to wrap in a Variant.</param>
+        public DataValue(ushort value)
+            : this(Variant.From(value))
+        {
+        }
+
+        /// <summary>
+        /// Initializes the object with an unsigned integer value.
+        /// </summary>
+        /// <remarks>
+        /// This overload prevents a UInt32 value from binding to the
+        /// <see cref="DataValue(StatusCode)"/> compatibility constructor.
+        /// </remarks>
+        /// <param name="value">The UInt32 value to wrap in a Variant.</param>
+        public DataValue(uint value)
+            : this(Variant.From(value))
+        {
         }
 
         /// <summary>
