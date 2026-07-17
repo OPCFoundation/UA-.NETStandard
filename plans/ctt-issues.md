@@ -195,8 +195,8 @@ index, so the current-subset ordering is irrelevant.
   ---
 
 
-* **CTT-script defect — `AliasName Hierarchy/002.js:80` references an undefined variable.** After the
-  per-alias loop the success branch reads `TC_Variables.ListOfNodes.length`, but `ListOfNodes` is never
+## `AliasName Hierarchy/002.js:80` references an undefined variable.** (https://mantis.opcfoundation.org/view.php?id=11262)
+After the per-alias loop the success branch reads `TC_Variables.ListOfNodes.length`, but `ListOfNodes` is never
   assigned in this test (the results were stored in `TC_Variables.OutputArguments`), raising
   `Result of expression 'TC_Variables.ListOfNodes' [undefined] is not an object`. **Recommended CTT
   fix:** use `TC_Variables.OutputArguments.length` (the array actually populated at line 37), or track a
@@ -247,12 +247,7 @@ Alternatively, skip the test with a clear configuration error when a positive in
 Apply the same guard to `PerformMismatchTest`. The immediate configuration workaround is to set
 Aggregate `ProcessingInterval` to a positive value.
 
-## 8. Historical Access Read Raw scripts contain independent result-validation defects
-
-Run 15 exposed five CTT script defects alongside genuine server raw-history defects (the server
-ordering/bounds/paging/continuation fixes are described below).
-
-### `004.js` rejects correct reverse ordering
+## Historical Access Read Raw `004.js` rejects correct reverse ordering (https://mantis.opcfoundation.org/view.php?id=11263)
 
 At lines 78, 91, and 105 the test uses:
 
@@ -269,13 +264,13 @@ if (!OPCF.HA.Analysis.Date.FlowsBackward(...)) result = false;
 
 Part 11 §6.5.3.2 requires raw values to be returned in the direction implied by StartTime/EndTime.
 
-### `014.js` indexes a nonexistent second node result
+## Historical Access Read Raw `014.js` indexes a nonexistent second node result (https://mantis.opcfoundation.org/view.php?id=11264)
 
 The test requests one node but lines 46 and 78 inspect `Response.Results[1]`. The intended check is the
 second returned `DataValue` for the first node. Validate
 `haItems[0].Value[1].StatusCode` (with length guards) and describe it as record 2, not result 2.
 
-### `019.js` bypasses the CTT test harness
+## Historical Access Read Raw `019.js` bypasses the CTT test harness (https://mantis.opcfoundation.org/view.php?id=11265)
 
 The script invokes `readraw019()` directly while the normal `Test.Execute` wrapper is commented out.
 Use:
@@ -330,7 +325,7 @@ configured parent and a Variable target—typically `Organizes`, `HasProperty`, 
 Do not mark every known ReferenceType as supported merely because the server supports that
 ReferenceType elsewhere in its information model.
 
-### `Err-008.js` tests duplicate NodeIds while client-specified NodeIds are disabled
+### Node Management AddNodes `Err-008.js` tests duplicate NodeIds while client-specified NodeIds are disabled (https://mantis.opcfoundation.org/view.php?id=11266)
 
 `Err-008.js` sends the same AddNodes item twice and expects the second call to return
 `BadNodeIdExists`. In this project `/NodeManagement/RequestedNodeId` is disabled, so
@@ -343,7 +338,7 @@ NodeManagement before testing duplication.
 
 ## 10. Run 18 Historical Access and Attribute script/configuration defects
 
-### Historical Access `012.js` expects `BadIndexRangeNoData` at the wrong level
+### Historical Access `012.js` expects `BadIndexRangeNoData` at the wrong level (https://mantis.opcfoundation.org/view.php?id=11267)
 
 The test reads historized array values with a syntactically valid IndexRange that is outside the
 array bounds. The server returns:
@@ -390,13 +385,13 @@ As with the existing StatusCode-array defect (`026.js`/`036.js`), a generic buil
 support every configured built-in type or explicitly exclude unsupported types before executing.
 
 
-### The Core Structure comparison uses a UA 1.04 reference model for a UA 1.05 server
+### The Core Structure comparison uses a UA 1.04 reference model for a UA 1.05 server (https://mantis.opcfoundation.org/view.php?id=11268)
 
 The run identifies the server as UA 1.05.006 but compares its address space with a UA 1.04 `NodeSetFile`. That can produce false additions, removals, modelling-rule, DataType, and ValueRank errors for nodes introduced or changed after 1.04.
 
 **Recommended CTT fix:** select a reference NodeSet whose specification version matches the server model under test. At minimum, the CTT must not report a 1.05 node as non-conformant solely because it differs from the bundled 1.04 reference.
 
-### `ConformanceUnits` is tested as a scalar instead of `QualifiedName[]`
+### `ConformanceUnits` is tested as a scalar instead of `QualifiedName[]`(https://mantis.opcfoundation.org/view.php?id=11269)
 
 The current standard node `i=24101` (`Server.ServerCapabilities.ConformanceUnits`) has `DataType=QualifiedName` and `ValueRank=1`; its value is a one-dimensional `QualifiedName` array. Run 19 expects a scalar QualifiedName and reports the conformant array value as an error.
 
