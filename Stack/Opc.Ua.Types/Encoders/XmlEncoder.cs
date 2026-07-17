@@ -731,11 +731,11 @@ namespace Opc.Ua
         /// </summary>
         private void WriteLocalizedText(string? fieldName, LocalizedText value, bool isArrayElement)
         {
-            if (BeginField(fieldName, value.IsNullOrEmpty, true, isArrayElement))
+            if (BeginField(fieldName, value.IsNull, true, isArrayElement))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
 
-                if (!value.IsNullOrEmpty)
+                if (!value.IsNull)
                 {
                     if (!string.IsNullOrEmpty(value.Locale))
                     {

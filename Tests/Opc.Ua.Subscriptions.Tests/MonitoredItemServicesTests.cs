@@ -829,6 +829,157 @@ namespace Opc.Ua.Subscriptions.Tests
         }
 
         [Test]
+        public async Task MatrixIndexRangeReportsEveryChangedTypeAsync()
+        {
+            string[] matrixTypes =
+            [
+                "Boolean",
+                "Byte",
+                "ByteString",
+                "DateTime",
+                "Double",
+                "Float",
+                "Guid",
+                "Int16",
+                "Int32",
+                "Int64",
+                "SByte",
+                "String",
+                "UInt16",
+                "UInt32",
+                "UInt64",
+                "XmlElement",
+                "Variant",
+                "LocalizedText",
+                "QualifiedName"
+            ];
+            NodeId[] nodeIds = [.. matrixTypes
+                .Select(type => ToNodeId(
+                    new ExpandedNodeId(
+                        $"Scalar_Static_Arrays2D_{type}",
+                        Constants.ReferenceServerNamespaceUri)))];
+
+            var reads = nodeIds
+                .Select(nodeId => new ReadValueId
+                {
+                    NodeId = nodeId,
+                    AttributeId = Attributes.Value
+                })
+                .ToArrayOf();
+            ReadResponse readResponse = await Session.ReadAsync(
+                null,
+                0,
+                TimestampsToReturn.Both,
+                reads,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(readResponse.Results.Count, Is.EqualTo(matrixTypes.Length));
+            for (int ii = 0; ii < readResponse.Results.Count; ii++)
+            {
+                Assert.That(
+                    StatusCode.IsGood(readResponse.Results[ii].StatusCode),
+                    Is.True,
+                    $"Initial read failed for {matrixTypes[ii]}.");
+            }
+
+            var requests = nodeIds
+                .Select((nodeId, index) => new MonitoredItemCreateRequest
+                {
+                    ItemToMonitor = new ReadValueId
+                    {
+                        NodeId = nodeId,
+                        AttributeId = Attributes.Value,
+                        IndexRange = "1,1"
+                    },
+                    MonitoringMode = MonitoringMode.Reporting,
+                    RequestedParameters = new MonitoringParameters
+                    {
+                        ClientHandle = (uint)index + 1,
+                        SamplingInterval = 0,
+                        QueueSize = 10,
+                        DiscardOldest = true
+                    }
+                })
+                .ToArrayOf();
+            CreateMonitoredItemsResponse createResponse = await Session.CreateMonitoredItemsAsync(
+                null,
+                m_subscriptionId,
+                TimestampsToReturn.Both,
+                requests,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(createResponse.Results.Count, Is.EqualTo(matrixTypes.Length));
+            for (int ii = 0; ii < createResponse.Results.Count; ii++)
+            {
+                Assert.That(
+                    StatusCode.IsGood(createResponse.Results[ii].StatusCode),
+                    Is.True,
+                    $"CreateMonitoredItems failed for {matrixTypes[ii]}.");
+            }
+
+            await Task.Delay(1200).ConfigureAwait(false);
+            HashSet<uint> initialHandles = await CollectDataChangeClientHandlesAsync(
+                matrixTypes.Length).ConfigureAwait(false);
+            Assert.That(
+                initialHandles,
+                Is.EquivalentTo(Enumerable.Range(1, matrixTypes.Length).Select(value => (uint)value)),
+                "The initial Publish did not contain every configured matrix item.");
+
+            var changedWrites = new WriteValue[matrixTypes.Length];
+            var restoreWrites = new WriteValue[matrixTypes.Length];
+            for (int ii = 0; ii < matrixTypes.Length; ii++)
+            {
+                changedWrites[ii] = new WriteValue
+                {
+                    NodeId = nodeIds[ii],
+                    AttributeId = Attributes.Value,
+                    Value = new DataValue(ChangeSelectedMatrixElement(readResponse.Results[ii].WrappedValue))
+                };
+                restoreWrites[ii] = new WriteValue
+                {
+                    NodeId = nodeIds[ii],
+                    AttributeId = Attributes.Value,
+                    Value = readResponse.Results[ii]
+                };
+            }
+
+            try
+            {
+                WriteResponse writeResponse = await Session.WriteAsync(
+                    null,
+                    changedWrites.ToArrayOf(),
+                    CancellationToken.None).ConfigureAwait(false);
+                Assert.That(writeResponse.Results.Count, Is.EqualTo(matrixTypes.Length));
+                for (int ii = 0; ii < writeResponse.Results.Count; ii++)
+                {
+                    Assert.That(
+                        StatusCode.IsGood(writeResponse.Results[ii]),
+                        Is.True,
+                        $"Whole-matrix write failed for {matrixTypes[ii]}.");
+                }
+
+                await Task.Delay(1200).ConfigureAwait(false);
+                HashSet<uint> changedHandles = await CollectDataChangeClientHandlesAsync(
+                    matrixTypes.Length).ConfigureAwait(false);
+                string[] missingTypes = [.. Enumerable.Range(0, matrixTypes.Length)
+                    .Where(index => !changedHandles.Contains((uint)index + 1))
+                    .Select(index => matrixTypes[index])];
+
+                Assert.That(
+                    missingTypes,
+                    Is.Empty,
+                    $"Missing matrix notifications: {string.Join(", ", missingTypes)}.");
+            }
+            finally
+            {
+                await Session.WriteAsync(
+                    null,
+                    restoreWrites.ToArrayOf(),
+                    CancellationToken.None).ConfigureAwait(false);
+            }
+        }
+
+        [Test]
         public async Task PublishReturnsCorrectMonitoredItemClientHandleAsync()
         {
             NodeId nodeId = VariableIds.Server_ServerStatus_CurrentTime;
@@ -1375,6 +1526,160 @@ queueSize: 2, discardOldest: false))
                 CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(StatusCode.IsGood(writeResp.Results[0]), Is.True);
+        }
+
+        private async Task<HashSet<uint>> CollectDataChangeClientHandlesAsync(int expectedCount)
+        {
+            var handles = new HashSet<uint>();
+            for (int ii = 0; ii < 3 && handles.Count < expectedCount; ii++)
+            {
+                PublishResponse response = await Session
+                    .PublishWithTimeoutAsync()
+                    .ConfigureAwait(false);
+                handles.UnionWith(GetDataChangeClientHandles(response));
+            }
+            return handles;
+        }
+
+        private static HashSet<uint> GetDataChangeClientHandles(PublishResponse response)
+        {
+            var handles = new HashSet<uint>();
+            foreach (ExtensionObject notification in response.NotificationMessage.NotificationData)
+            {
+                if (ExtensionObject.ToEncodeable(notification) is DataChangeNotification dataChange)
+                {
+                    foreach (MonitoredItemNotification item in dataChange.MonitoredItems)
+                    {
+                        handles.Add(item.ClientHandle);
+                    }
+                }
+            }
+            return handles;
+        }
+
+        private static Variant ChangeSelectedMatrixElement(Variant value)
+        {
+            switch (value.TypeInfo.BuiltInType)
+            {
+                case BuiltInType.Boolean when value.TryGetValue(out MatrixOf<bool> matrix):
+                    return new Variant(ChangeSelectedMatrixElement(matrix, item => !item));
+                case BuiltInType.Byte when value.TryGetValue(out MatrixOf<byte> matrix):
+                    return new Variant(ChangeSelectedMatrixElement(
+                        matrix,
+                        item => item == byte.MaxValue ? (byte)0 : (byte)(item + 1)));
+                case BuiltInType.ByteString when value.TryGetValue(out MatrixOf<ByteString> matrix):
+                    return new Variant(ChangeSelectedMatrixElement(
+                        matrix,
+                        item => ByteString.From(item.ToArray().Append((byte)1).ToArray())));
+                case BuiltInType.DateTime when value.TryGetValue(out MatrixOf<DateTimeUtc> matrix):
+                    return new Variant(ChangeSelectedMatrixElement(
+                        matrix,
+                        item => item == DateTimeUtc.MaxValue
+                            ? DateTimeUtc.MinValue
+                            : item.AddMilliseconds(1)));
+                case BuiltInType.Double when value.TryGetValue(out MatrixOf<double> matrix):
+                    return new Variant(ChangeSelectedMatrixElement(
+                        matrix,
+                        item => item == 1.25 ? 2.5 : 1.25));
+                case BuiltInType.Float when value.TryGetValue(out MatrixOf<float> matrix):
+                    return new Variant(ChangeSelectedMatrixElement(
+                        matrix,
+                        item => item == 1.25f ? 2.5f : 1.25f));
+                case BuiltInType.Guid when value.TryGetValue(out MatrixOf<Uuid> matrix):
+                    return new Variant(ChangeSelectedMatrixElement(
+                        matrix,
+                        item => item == new Uuid("00112233-4455-6677-8899-aabbccddeeff")
+                            ? new Uuid("ffeeddcc-bbaa-9988-7766-554433221100")
+                            : new Uuid("00112233-4455-6677-8899-aabbccddeeff")));
+                case BuiltInType.Int16 when value.TryGetValue(out MatrixOf<short> matrix):
+                    return new Variant(ChangeSelectedMatrixElement(
+                        matrix,
+                        item => item == short.MaxValue ? short.MinValue : (short)(item + 1)));
+                case BuiltInType.Int32 when value.TryGetValue(out MatrixOf<int> matrix):
+                    return new Variant(ChangeSelectedMatrixElement(
+                        matrix,
+                        item => item == int.MaxValue ? int.MinValue : item + 1));
+                case BuiltInType.Int64 when value.TryGetValue(out MatrixOf<long> matrix):
+                    return new Variant(ChangeSelectedMatrixElement(
+                        matrix,
+                        item => item == long.MaxValue ? long.MinValue : item + 1));
+                case BuiltInType.SByte when value.TryGetValue(out MatrixOf<sbyte> matrix):
+                    return new Variant(ChangeSelectedMatrixElement(
+                        matrix,
+                        item => item == sbyte.MaxValue ? sbyte.MinValue : (sbyte)(item + 1)));
+                case BuiltInType.String when value.TryGetValue(out MatrixOf<string> matrix):
+                    return new Variant(ChangeSelectedMatrixElement(
+                        matrix,
+                        item => (item ?? string.Empty) + "x"));
+                case BuiltInType.UInt16 when value.TryGetValue(out MatrixOf<ushort> matrix):
+                    return new Variant(ChangeSelectedMatrixElement(
+                        matrix,
+                        item => item == ushort.MaxValue ? (ushort)0 : (ushort)(item + 1)));
+                case BuiltInType.UInt32 when value.TryGetValue(out MatrixOf<uint> matrix):
+                    return new Variant(ChangeSelectedMatrixElement(
+                        matrix,
+                        item => item == uint.MaxValue ? 0 : item + 1));
+                case BuiltInType.UInt64 when value.TryGetValue(out MatrixOf<ulong> matrix):
+                    return new Variant(ChangeSelectedMatrixElement(
+                        matrix,
+                        item => item == ulong.MaxValue ? 0 : item + 1));
+                case BuiltInType.XmlElement
+                    when value.TryGetValue(out MatrixOf<XmlElement> matrix):
+                    return new Variant(ChangeSelectedMatrixElement(
+                        matrix,
+                        item => item == XmlElement.From("<changed/>")
+                            ? XmlElement.From("<changed2/>")
+                            : XmlElement.From("<changed/>")));
+                case BuiltInType.Variant when value.TryGetValue(out MatrixOf<Variant> matrix):
+                    return new Variant(ChangeSelectedMatrixElement(
+                        matrix,
+                        item => item.Equals(Variant.From("changed"))
+                            ? Variant.From("changed2")
+                            : Variant.From("changed")));
+                case BuiltInType.LocalizedText
+                    when value.TryGetValue(out MatrixOf<LocalizedText> matrix):
+                    return new Variant(ChangeSelectedMatrixElement(
+                        matrix,
+                        item => new LocalizedText(
+                            item.Locale,
+                            (item.Text ?? string.Empty) + "x")));
+                case BuiltInType.QualifiedName
+                    when value.TryGetValue(out MatrixOf<QualifiedName> matrix):
+                    return new Variant(ChangeSelectedMatrixElement(
+                        matrix,
+                        item => new QualifiedName(
+                            (item.Name ?? string.Empty) + "x",
+                            item.NamespaceIndex)));
+                default:
+                    throw new AssertionException(
+                        $"Unsupported matrix type {value.TypeInfo.BuiltInType}.");
+            }
+        }
+
+        private static MatrixOf<T> ChangeSelectedMatrixElement<T>(
+            MatrixOf<T> matrix,
+            Func<T, T> change)
+        {
+            int[] dimensions = matrix.Dimensions;
+            Assert.That(dimensions, Has.Length.GreaterThanOrEqualTo(2));
+
+            T[] elements = matrix.Memory.ToArray();
+            int selectedIndex = GetSelectedMatrixIndex(dimensions);
+            elements[selectedIndex] = change(elements[selectedIndex]);
+            return elements.ToMatrixOf(dimensions);
+        }
+
+        private static int GetSelectedMatrixIndex(int[] dimensions)
+        {
+            int selectedIndex = 0;
+            int stride = 1;
+            for (int ii = dimensions.Length - 1; ii >= 0; ii--)
+            {
+                Assert.That(dimensions[ii], Is.GreaterThan(1));
+                selectedIndex += stride;
+                stride *= dimensions[ii];
+            }
+            return selectedIndex;
         }
 
         private uint m_subscriptionId;

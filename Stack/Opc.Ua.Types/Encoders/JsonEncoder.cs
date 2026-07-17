@@ -595,7 +595,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void WriteLocalizedText(string? fieldName, LocalizedText value)
         {
-            if (value.IsNullOrEmpty)
+            if (value.IsNull)
             {
                 WriteNull(fieldName);
                 return;
@@ -1495,7 +1495,7 @@ namespace Opc.Ua
         /// </summary>
         private void WriteLocalizedText(LocalizedText value)
         {
-            if (value.IsNullOrEmpty)
+            if (value.IsNull)
             {
                 m_writer.WriteNullValue();
                 return;

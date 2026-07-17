@@ -799,7 +799,7 @@ namespace Opc.Ua
         public void WriteLocalizedText(string? fieldName, LocalizedText value)
         {
             // check for null.
-            if (value.IsNullOrEmpty)
+            if (value.IsNull)
             {
                 WriteByte(null, 0);
                 return;

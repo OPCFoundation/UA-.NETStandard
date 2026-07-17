@@ -393,6 +393,40 @@ ObjectIds.Server,
         }
 
         [Test]
+        public async Task StandardAlarmDeclarationsRetainMandatoryModellingRulesAsync()
+        {
+            var config = new ApplicationConfiguration
+            {
+                ServerConfiguration = new ServerConfiguration()
+            };
+            SetupServerMock();
+
+            using var manager = new DiagnosticsNodeManager(
+                m_serverMock.Object,
+                config,
+                NullLogger.Instance);
+            var externalRefs = new Dictionary<NodeId, IList<IReference>>();
+            await manager.CreateAddressSpaceAsync(externalRefs).ConfigureAwait(false);
+
+            BaseInstanceState expirationDate = manager.FindPredefinedNode<BaseInstanceState>(
+                VariableIds.CertificateExpirationAlarmType_ExpirationDate);
+            BaseInstanceState trustListId = manager.FindPredefinedNode<BaseInstanceState>(
+                VariableIds.TrustListOutOfDateAlarmType_TrustListId);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(expirationDate, Is.Not.Null);
+                Assert.That(
+                    expirationDate.ModellingRuleId,
+                    Is.EqualTo(ObjectIds.ModellingRule_Mandatory));
+                Assert.That(trustListId, Is.Not.Null);
+                Assert.That(
+                    trustListId.ModellingRuleId,
+                    Is.EqualTo(ObjectIds.ModellingRule_Mandatory));
+            });
+        }
+
+        [Test]
         public async Task SetDiagnosticsEnabledAsync_SameState_DoesNothingAsync()
         {
             var config = new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() };

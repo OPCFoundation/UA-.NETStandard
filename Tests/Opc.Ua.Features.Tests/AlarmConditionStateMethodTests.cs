@@ -1014,5 +1014,23 @@ namespace Opc.Ua.Features.Tests
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(alarm.Comment!.Value.Text, Is.EqualTo("Operator comment"));
         }
+
+        [Test]
+        public void OnAcknowledgeWithLocaleOnlyCommentUpdatesComment()
+        {
+            TestableAlarm alarm = CreateTestableAlarm();
+            EnsureComment(alarm);
+            alarm.Comment!.Value = new LocalizedText("en", "Original comment");
+
+            ByteString eventId = ByteString.FromHexString("090A0B0C");
+            ServiceResult result = alarm.CallAcknowledge(
+                m_context,
+                eventId,
+                new LocalizedText("en", string.Empty));
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(alarm.Comment!.Value.Locale, Is.EqualTo("en"));
+            Assert.That(alarm.Comment.Value.Text, Is.EqualTo(string.Empty));
+        }
     }
 }

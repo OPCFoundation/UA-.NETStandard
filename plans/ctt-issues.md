@@ -490,13 +490,6 @@ a conformance requirement).
   `SecurityUserX509DepthTests` run (23 pass, 0 skipped) and assert success/rejection rather than
   skipping. No CTT-script change is warranted.
 
-* **Security User Name Password 2** (`015`, duplicate `PolicyId`): *"The PolicyId: 2, is used for
-  multiple UserIdentityTokens."* **Not reproducible** on the current build — fix #3525 (commit
-  `029a8fbaa`) is present and a live `GetEndpoints` returns distinct `PolicyId`s (UserName+none and
-  UserName+Basic256Sha256). The CTT run most likely exercised a **stale server binary**; re-run
-  against the current build. Per Part 4 §7.37 (`UserTokenPolicy`) each `PolicyId` must be unique,
-  which the current server satisfies.
-
 * **Security None / Basic256Sha256 CloseSecureChannel** (`007`, `005`): the client-side
   `CloseSecureChannel()` result is `BadInvalidState (0x80af0000)` where `Good` is expected
   (`library/ServiceBased/SecureChannel/CloseSecureChannel.js:26`). This is the **final** operation
@@ -1113,3 +1106,78 @@ The current standard node `i=24101` (`Server.ServerCapabilities.ConformanceUnits
 ### ResendData `007.js` was stopped by the operator
 
 The recorded ResendData `007.js` failure is a user-aborted test and does not identify a server or CTT conformance defect. Re-run the unit to completion before classifying it.
+
+## 12. Latest MonitoredItem and A&C regressions
+
+### Monitor Value Change V2 `036.js` exposed an ambiguous `DataValue` constructor call (server defect fixed)
+
+`036.js` monitors an array with IndexRange `2:4`, then replaces the array with two elements. The next notification shall carry `BadIndexRangeNoData`. `MonitoredNode2.ApplyRangeAndEncoding` correctly received that range error, but constructed the result with `new DataValue(applyResult.StatusCode)`. Because `StatusCode` is also convertible to `Variant` and the `Variant` constructor has overload priority, the compiler selected the value constructor: the error code became the Variant value while `DataValue.StatusCode` remained `Good`.
+
+The server now constructs an explicit null-valued `DataValue` with the range status and the original snapshot timestamps. `IndexRangeBecomesOutOfBoundsQueuesBadIndexRangeNoData` reproduces the exact five-element-to-two-element sequence and verifies the initial slice plus the subsequent `BadIndexRangeNoData` notification on net10 and net48.
+
+### Monitor Value Change V2 `042.js` does not identify the missing item and does not guarantee its write changes the value
+
+`042.js` creates 19 matrix monitored items with IndexRange `1,1,...`, writes each whole matrix, and only reports the aggregate count (`Expected 19 but got 18`). It never reports the missing ClientHandle/NodeId, so the result cannot identify which data type failed. The repository's `MatrixIndexRangeReportsEveryChangedTypeAsync` creates the same 19 configured monitored items, writes a representably different selected element for every matrix type, and receives every ClientHandle.
+
+The script also computes `indexValue` from itself before initialization at line 243 (`var indexValue = Dimensions[u] * (indexValue + 1)`), so value verification is invalid once the count assertion passes. In addition, the configured deterministic Double and Float matrix elements can be very large (for example approximately `-8.19E+24` and `-1.03E+33`); adding one does not necessarily produce a representably different floating-point value. **Recommended CTT fix:** initialize the flat index, record and report missing ClientHandles, and verify that `UaVariant.Increment` actually changed each selected value (use the next representable floating-point value or a known different finite value).
+
+### Dynamic certificate alarm instances replaced standard type declarations (server defect fixed)
+
+Run 20 reported two dynamic Diagnostics-namespace NodeIds missing from the CTT model map and six standard alarm declarations without ModellingRules. The two dynamic IDs were the per-group `CertificateExpired` and `TrustListOutOfDate` roots. Their pre-materialized descendants retained namespace-0 declaration NodeIds such as `i=13325`; registering the runtime subtrees therefore replaced the real `CertificateExpirationAlarmType` and `TrustListOutOfDateAlarmType` declarations in the Configuration node manager. The dynamic roots were also children of namespace-0 certificate-group nodes owned by another node manager, but no external forward references made them reachable to the global model crawler.
+
+`ConfigurationNodeManager` now removes only stale runtime index entries, rebases each dynamic root and every descendant, restores the standard type declaration subtrees, and publishes the cross-node-manager certificate-group references. Client/server regressions verify both dynamic alarms are reachable, every runtime descendant has a nonstandard NodeId, and all six reported declarations expose `HasModellingRule -> Mandatory`.
+
+### Method-triggered events were incorrectly restricted to the caller's Session (server defect fixed)
+
+The channel-based `MonitoredNode2` event path discarded an event whenever the event's `ISessionSystemContext.SessionId` differed from the Session owning the event MonitoredItem. That made an Acknowledge event visible only to the Session that called Acknowledge and caused Confirm `Err_004.js` to report `Acknowledged Alarm extra event not received` for every alarm type. OPC UA event delivery is notifier- and permission-scoped; it is not restricted to the Session that caused the state change.
+
+The caller-Session filter is removed. Permission validation remains per monitored item. Unit coverage verifies both Sessions receive the event, and the live two-Session Confirm test now proves both subscriptions receive the same Acknowledge EventId before the second Confirm returns `BadConditionBranchAlreadyConfirmed`.
+
+### Remaining run-20 A&C script findings
+
+* Alarm `Test_002.js` still evaluates Retain from only the main event's Active/Acked/Confirmed fields. The focused cycle confirms `Retain=true` after Confirm while the prior active branch remains outstanding; this is the Part 9 branch case already documented above, not a stale server value.
+* Alarm `Test_004.js` invokes the global `ReadHelper` synchronously from its alarm callback and receives a client-side `BadInvalidState`. An independent client/server regression resolves every AlarmCondition `InputNode` from the event model and reads every referenced source with `Good`. **Recommended CTT fix:** queue the Read outside the callback or use a Read helper/session that is valid on the alarm thread.
+* Enable `Test_002.js` calls `collector.AddMessage(testCase, category, conditionId, reason)` even though `AddMessage` accepts only three arguments. JavaScript drops the fourth argument, producing the empty `Error: ns=...` entries and hiding whether EnabledState, Retain, Event Time, or TransitionTime failed. The representative type- and instance-method disable/enable cycle passes with correct EnabledState and Retain. **Recommended CTT fix:** concatenate `conditionId` and `reason` into the third argument, then rerun before attributing the generic `Error validating variables for state ConditionDisabled`.
+* Enable `Test_003.js` was stopped by the operator and is not a conformance result.
+
+## 13. Additional defects in the latest full-run CTT scripts
+
+### Core Structure reads TransactionDiagnostics as if a transaction had already occurred
+
+Core Structure `001.js` reports `BadOutOfService` for `i=32337` through `i=32340` as a datatype/read failure. OPC UA Part 12 §7.10.17 explicitly states: *"If no transaction has started the values of all Variables have a status of Bad_OutOfService."* The server implements that requirement and `TransactionDiagnosticsReportBadOutOfServiceBeforeAnyTransactionAsync` verifies every TransactionDiagnostics variable. **Recommended CTT fix:** accept `BadOutOfService` while walking TransactionDiagnostics before the first transaction, or create a completed transaction before validating values.
+
+### SemanticChange `001.js` decodes the `Changes` array as one ExtensionObject
+
+The test receives a SemanticChange event, then calls `EventFields[0].toExtensionObject()` at line 275. OPC UA Part 5 Table 174 defines `SemanticChangeEventType.Changes` as `SemanticChangeStructureDataType[]` with ValueRank 1, not a scalar ExtensionObject. The scalar conversion therefore returns null and the script throws before validating the event. **Recommended CTT fix:** decode the field as an ExtensionObject array and convert each element to `SemanticChangeStructureDataType`.
+
+### Historical Access Read Raw `013.js` reuses continuation points after changing IndexRange
+
+`013.js` reuses the same `HistoryReadValueId` objects for three different IndexRanges and does not clear or consume the ContinuationPoints returned by the preceding call. With seven configured matrix nodes, the two later iterations produce the observed 14 `BadContinuationPointInvalid` results. A HistoryRead continuation point is opaque state for the original request (Part 11 §6.4.3.3); changing IndexRange while resubmitting it invalidates that state. **Recommended CTT fix:** fully drain/release every continuation point before the next IndexRange, or create fresh `HistoryReadValueId` objects with empty ContinuationPoints for each independent request.
+
+### Security User Name Password `015.js` requires PolicyId uniqueness across unrelated endpoints
+
+The script flattens `UserIdentityTokens` from every `EndpointDescription` into one array and compares `PolicyId` globally. OPC UA Part 4 §7.36.2.2 requires each `UserTokenPolicy` to have a unique `PolicyId` within the `UserIdentityTokens` array of one `EndpointDescription`; it does not require global uniqueness across all endpoints. The current reference server's live endpoints have unique PolicyIds within every endpoint. The script also uses `foundTokens[i]` instead of the token it just appended inside the nested loop at line 20. **Recommended CTT fix:** reset the seen-PolicyId set for each endpoint and validate only that endpoint's array.
+
+### Security Certificate Validation residuals do not reproduce on the current server
+
+The latest XML again reports generic `BadSecurityChecksFailed` for expired/not-yet-valid trusted certificates (`007`/`008`) and rejection of valid certificates (`037`/`044`/`051`/`052`). Current focused tests strictly receive `BadCertificateTimeInvalid` for `007`/`008` and pass all six scenarios when their certificates are provisioned. The valid-certificate CTT cases still require the CTT certificates/issuers in the configured trust stores as documented above. Re-run the security pass against the rebuilt server with the expected trust material before reopening server code.
+
+### Aggregate value failures still require the value-bearing console log
+
+The latest full run has 4,542 Aggregate errors but no matching console log. The XML contains only the summary comparisons, while the server value, CTT value, StatusCode, and timestamp evidence is printed to the console. Existing focused Part 13 regressions cover the previously proven server fixes. No additional calculator change is justified from this XML alone; capture the corresponding CTT console output for the next aggregate run.
+
+### Durable Subscription `008.js` misspells `MoreNotifications` and does not drain the queue
+
+The script correctly checks `PublishHelper.Response.MoreNotifications` at line 35, but line 101 uses the misspelled `MoreNotifcations`. The drain loop therefore does not run when additional notification responses are queued, and the final Publish sees a notification that the script incorrectly calls unexpected. OPC UA Part 4 §5.14.5.2 permits subsequent responses when `moreNotifications=TRUE`. Lines 105-108 also omit braces, leaving `result = false` unconditional. **Recommended CTT fix:** use `MoreNotifications`, drain until it is false, then perform the no-more-data assertion with braces around the failure branch.
+
+### Durable Subscription `012.js` uses an insufficiently secured diagnostics Session and then sends an empty Read
+
+The unit's `initialize.js` selects a username endpoint but does not require SignAndEncrypt. `012.js` then assumes the restricted SubscriptionDiagnostics children are browsable. The reference server requires an encrypted SecurityAdmin Session for these standard diagnostics; an insecure or non-admin Browse correctly returns `BadUserAccessDenied`. After that Browse fails, `subscriptionIdProperties` is empty but line 30 still calls Read, so the helper sends an empty operation list and the server correctly returns `BadNothingToDo` (Part 4 §§5.11.2.3 and 7.38.2).
+
+**Recommended CTT fix:** select a SignAndEncrypt username endpoint and the configured SecurityAdmin credentials before browsing diagnostics; if Browse is denied or returns no properties, skip/abort this verification instead of issuing an empty Read.
+
+### Subscription Minimum 02 `020.js` accepts unrelated audit events
+
+The event MonitoredItem has SelectClauses but no WhereClause, so it accepts every event emitted by the Server. The test's scalar Write generates an `AuditWriteUpdateEvent` when auditing is enabled, and a Server-root event subscriber is expected to receive it. The script then reports any event as unexpected; it may also leave a trigger event queued because the preceding step does not drain `MoreNotifications`.
+
+**Recommended CTT fix:** select EventType, filter for only the trigger event the test is validating, and drain every response while `MoreNotifications` is true. Do not treat correctly emitted audit events as Subscription-Minimum failures.

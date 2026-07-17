@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
+using System.Linq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 
@@ -247,6 +248,35 @@ namespace Opc.Ua.Types.Tests.State
         }
 
         [Test]
+        public void GeneratedCertificateAlarmAdderRebasesAllDescendants()
+        {
+            SystemContext context = CreateContext(new NullOnlyNodeIdFactory());
+            var group = new CertificateGroupState(null)
+            {
+                NodeId = new NodeId("CertificateGroup", 3),
+                SymbolicName = "CertificateGroup",
+                BrowseName = new QualifiedName("CertificateGroup", 3)
+            };
+
+            group.AddCertificateExpired(context);
+
+            CertificateExpirationAlarmState alarm = group.CertificateExpired;
+            Assert.That(alarm, Is.Not.Null);
+            var descendants = new List<BaseInstanceState>();
+            CollectDescendants(context, alarm, descendants);
+
+            Assert.That(descendants, Is.Not.Empty);
+            Assert.That(
+                descendants.Select(node => node.NodeId.NamespaceIndex),
+                Is.All.EqualTo(3),
+                "Runtime alarm descendants must not retain standard declaration NodeIds.");
+            Assert.That(
+                descendants.Select(node => node.NodeId).Distinct().Count(),
+                Is.EqualTo(descendants.Count),
+                "Every runtime alarm descendant must receive a unique NodeId.");
+        }
+
+        [Test]
         public void AssignInstanceChildNodeIdsIsNoOpWithoutNodeIdFactory()
         {
             SystemContext context = CreateContext(null);
@@ -263,6 +293,20 @@ namespace Opc.Ua.Types.Tests.State
         {
             SystemContext context = CreateContext(new ChildIdFactory());
             Assert.DoesNotThrow(() => context.AssignInstanceChildNodeIds(null));
+        }
+
+        private static void CollectDescendants(
+            ISystemContext context,
+            NodeState node,
+            List<BaseInstanceState> descendants)
+        {
+            var children = new List<BaseInstanceState>();
+            node.GetChildren(context, children);
+            foreach (BaseInstanceState child in children)
+            {
+                descendants.Add(child);
+                CollectDescendants(context, child, descendants);
+            }
         }
     }
 }

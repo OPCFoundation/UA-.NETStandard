@@ -433,7 +433,10 @@ namespace Opc.Ua.Server
             await base.CreateAddressSpaceAsync(externalReferences, cancellationToken)
                 .ConfigureAwait(false);
 
-            await CreateCertificateAlarmsAsync(SystemContext, cancellationToken)
+            await CreateCertificateAlarmsAsync(
+                SystemContext,
+                externalReferences,
+                cancellationToken)
                 .ConfigureAwait(false);
         }
 
@@ -4305,11 +4308,22 @@ namespace Opc.Ua.Server
         /// initializes their condition state without emitting any event.
         /// </summary>
         /// <param name="context">The system context.</param>
+        /// <param name="externalReferences">
+        /// References from standard certificate-group nodes owned by another node manager.
+        /// </param>
         /// <param name="cancellationToken">The cancellation token.</param>
         private async ValueTask CreateCertificateAlarmsAsync(
             ISystemContext context,
+            IDictionary<NodeId, IList<IReference>> externalReferences,
             CancellationToken cancellationToken)
         {
+            BaseObjectTypeState certificateExpirationAlarmType =
+                FindPredefinedNode<BaseObjectTypeState>(
+                    ObjectTypeIds.CertificateExpirationAlarmType);
+            BaseObjectTypeState trustListOutOfDateAlarmType =
+                FindPredefinedNode<BaseObjectTypeState>(
+                    ObjectTypeIds.TrustListOutOfDateAlarmType);
+
             foreach (ServerCertificateGroup certGroup in m_certificateGroups)
             {
                 CertificateGroupState? node = certGroup.Node;
@@ -4328,12 +4342,22 @@ namespace Opc.Ua.Server
                         WireConditionMethodHandlers(context, node.CertificateExpired!);
                         node.CertificateExpired!.AddExpirationLimit(context);
                     }
+                    RebasePredefinedInstanceSubtree(
+                        context,
+                        node,
+                        node.CertificateExpired!,
+                        ObjectTypeIds.CertificateExpirationAlarmType);
 
                     if (node.TrustListOutOfDate == null)
                     {
                         node.AddTrustListOutOfDate(context);
                         WireConditionMethodHandlers(context, node.TrustListOutOfDate!);
                     }
+                    RebasePredefinedInstanceSubtree(
+                        context,
+                        node,
+                        node.TrustListOutOfDate!,
+                        ObjectTypeIds.TrustListOutOfDateAlarmType);
 
                     var monitor = new CertificateGroupAlarmMonitor(
                         node,
@@ -4350,6 +4374,11 @@ namespace Opc.Ua.Server
                     {
                         await AddPredefinedNodeAsync(context, node.CertificateExpired, cancellationToken)
                             .ConfigureAwait(false);
+                        AddExternalReferenceIfMissing(
+                            context,
+                            node,
+                            node.CertificateExpired,
+                            externalReferences);
                         await AddRootNotifierAsync(node.CertificateExpired, cancellationToken)
                             .ConfigureAwait(false);
                     }
@@ -4358,6 +4387,11 @@ namespace Opc.Ua.Server
                     {
                         await AddPredefinedNodeAsync(context, node.TrustListOutOfDate, cancellationToken)
                             .ConfigureAwait(false);
+                        AddExternalReferenceIfMissing(
+                            context,
+                            node,
+                            node.TrustListOutOfDate,
+                            externalReferences);
                         await AddRootNotifierAsync(node.TrustListOutOfDate, cancellationToken)
                             .ConfigureAwait(false);
                     }
@@ -4367,6 +4401,81 @@ namespace Opc.Ua.Server
                     m_logger.FailedToCreateCertificateAlarms(ex, certGroup.BrowseName);
                 }
             }
+
+            if (certificateExpirationAlarmType != null)
+            {
+                AddPredefinedNodeSynchronously(certificateExpirationAlarmType);
+            }
+            if (trustListOutOfDateAlarmType != null)
+            {
+                AddPredefinedNodeSynchronously(trustListOutOfDateAlarmType);
+            }
+        }
+
+        private void RebasePredefinedInstanceSubtree(
+            ISystemContext context,
+            NodeState referenceRoot,
+            BaseInstanceState instance,
+            NodeId typeDefinitionId)
+        {
+            var subtree = new List<NodeState> { instance };
+            for (int ii = 0; ii < subtree.Count; ii++)
+            {
+                var children = new List<BaseInstanceState>();
+                subtree[ii].GetChildren(context, children);
+                subtree.AddRange(children);
+            }
+
+            if (subtree.All(node => node.NodeId.NamespaceIndex != 0))
+            {
+                return;
+            }
+
+            foreach (NodeState node in subtree)
+            {
+                if (PredefinedNodes.TryGetValue(node.NodeId, out NodeState? indexedNode) &&
+                    ReferenceEquals(indexedNode, node))
+                {
+                    PredefinedNodes.TryRemove(node.NodeId, out _);
+                }
+            }
+
+            NodeId previousNodeId = context.AssignInstanceNodeId(instance);
+            context.AssignInstanceChildNodeIds(
+                instance,
+                previousNodeId,
+                referenceRoot);
+            instance.TypeDefinitionId = typeDefinitionId;
+        }
+
+        private void AddExternalReferenceIfMissing(
+            ISystemContext context,
+            NodeState source,
+            BaseInstanceState target,
+            IDictionary<NodeId, IList<IReference>> externalReferences)
+        {
+            NodeId referenceTypeId = target.ReferenceTypeId.IsNull
+                ? ReferenceTypeIds.HasComponent
+                : target.ReferenceTypeId;
+            target.ReferenceTypeId = referenceTypeId;
+
+            if (externalReferences.TryGetValue(source.NodeId, out IList<IReference>? references) &&
+                references.Any(reference =>
+                    reference.ReferenceTypeId == referenceTypeId &&
+                    !reference.IsInverse &&
+                    !reference.TargetId.IsAbsolute &&
+                    ExpandedNodeId.ToNodeId(reference.TargetId, context.NamespaceUris) ==
+                        target.NodeId))
+            {
+                return;
+            }
+
+            AddExternalReference(
+                source.NodeId,
+                referenceTypeId,
+                false,
+                target.NodeId,
+                externalReferences);
         }
 
         /// <summary>
