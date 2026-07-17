@@ -349,9 +349,33 @@ namespace Opc.Ua.Client.Subscriptions
         {
             IReadOnlyList<IManagedSubscription> partitions = SnapshotPartitions();
             ThrowIfDispatchingNotification(partitions, "recreated");
-            foreach (IManagedSubscription partition in partitions)
+            await m_recreateGate.WaitAsync(ct).ConfigureAwait(false);
+            try
             {
-                await partition.RecreateAsync(ct).ConfigureAwait(false);
+                partitions = SnapshotPartitions();
+                ThrowIfDispatchingNotification(partitions, "recreated");
+                if (m_pendingRecreatePartitions == null)
+                {
+                    m_pendingRecreatePartitions = [.. partitions];
+                }
+                else
+                {
+                    var current = new HashSet<IManagedSubscription>(partitions);
+                    m_pendingRecreatePartitions.RemoveAll(
+                        partition => !current.Contains(partition));
+                }
+
+                while (m_pendingRecreatePartitions.Count != 0)
+                {
+                    IManagedSubscription partition = m_pendingRecreatePartitions[0];
+                    await partition.RecreateAsync(ct).ConfigureAwait(false);
+                    m_pendingRecreatePartitions.RemoveAt(0);
+                }
+                m_pendingRecreatePartitions = null;
+            }
+            finally
+            {
+                m_recreateGate.Release();
             }
         }
 
@@ -761,6 +785,10 @@ namespace Opc.Ua.Client.Subscriptions
         private readonly List<IManagedSubscription> m_partitions;
         private readonly object m_partitionLock;
         private readonly CompositeMonitoredItemCollection m_monitoredItems;
+#pragma warning disable CA2213 // Retained so concurrent recreate waiters can release safely.
+        private readonly SemaphoreSlim m_recreateGate = new(1, 1);
+#pragma warning restore CA2213 // Disposable fields should be disposed
+        private List<IManagedSubscription>? m_pendingRecreatePartitions;
         private PartitionForwardingHandler? m_forwardingHandler;
         private TimeSpan? m_durableLifetime;
         private string? m_logicalGroupId;

@@ -29,8 +29,10 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client.Subscriptions.Fakes;
 using Opc.Ua.Client.Subscriptions.MonitoredItems;
@@ -243,6 +245,39 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         [Test]
+        public async Task RecreateRetryResumesAtFailedPartitionAsync()
+        {
+            FakeManagedSubscription primary = CreateFake(id: 11, created: true);
+            FakeManagedSubscription secondary = CreateFake(id: 12, created: true);
+            var fail = true;
+            secondary.OnRecreateAsync = _ =>
+            {
+                if (fail)
+                {
+                    fail = false;
+                    throw new InvalidOperationException("retry");
+                }
+                return default;
+            };
+            LogicalSubscription sut = new(primary);
+            sut.AppendPreloadedPartition(secondary);
+            try
+            {
+                Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                    await ((ISubscription)sut).RecreateAsync().ConfigureAwait(false));
+
+                await ((ISubscription)sut).RecreateAsync().ConfigureAwait(false);
+
+                Assert.That(primary.RecreateAsyncCalls, Is.EqualTo(1));
+                Assert.That(secondary.RecreateAsyncCalls, Is.EqualTo(2));
+            }
+            finally
+            {
+                await sut.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        [Test]
         public async Task NotifyPausedFanOutsToEveryPartitionAsync()
         {
             FakeManagedSubscription fake = CreateFake(id: 11, created: true);
@@ -301,6 +336,52 @@ namespace Opc.Ua.Client.Subscriptions
             }
         }
 
+        [Test]
+        public async Task ForwardingHandlerAggregatesPartitionPublishStateAsync()
+        {
+            FakeManagedSubscription primary = CreateFake(id: 11, created: true);
+            FakeManagedSubscription secondary = CreateFake(id: 12, created: true);
+            LogicalSubscription sut = new(primary);
+            var masks = new List<PublishState>();
+            var userHandler = new Mock<ISubscriptionNotificationHandler>();
+            userHandler
+                .Setup(handler => handler.OnSubscriptionStateChangedAsync(
+                    It.IsAny<ISubscription>(),
+                    It.IsAny<SubscriptionState>(),
+                    It.IsAny<PublishState>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback((ISubscription subscription, SubscriptionState _,
+                    PublishState mask, CancellationToken _) =>
+                {
+                    Assert.That(subscription, Is.SameAs(sut));
+                    masks.Add(mask);
+                })
+                .Returns(ValueTask.CompletedTask);
+            using var forwarding = new PartitionForwardingHandler(userHandler.Object);
+            forwarding.BindLogical(sut);
+            try
+            {
+                await forwarding.OnSubscriptionStateChangedAsync(primary,
+                    SubscriptionState.Modified, PublishState.Stopped)
+                    .ConfigureAwait(false);
+                await forwarding.OnSubscriptionStateChangedAsync(secondary,
+                    SubscriptionState.Modified, PublishState.Stopped)
+                    .ConfigureAwait(false);
+                await forwarding.OnSubscriptionStateChangedAsync(primary,
+                    SubscriptionState.Modified, PublishState.Recovered)
+                    .ConfigureAwait(false);
+                await forwarding.OnSubscriptionStateChangedAsync(secondary,
+                    SubscriptionState.Modified, PublishState.Recovered)
+                    .ConfigureAwait(false);
+
+                Assert.That(masks, Is.EqualTo(s_aggregatePublishStates));
+            }
+            finally
+            {
+                await sut.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
         private static FakeManagedSubscription CreateFake(uint id, bool created)
         {
             return new FakeManagedSubscription
@@ -312,6 +393,13 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         private static readonly bool[] s_pausedTrueFalseSequence = [true, false];
+        private static readonly PublishState[] s_aggregatePublishStates =
+        [
+            PublishState.Stopped,
+            PublishState.Stopped,
+            PublishState.Stopped,
+            PublishState.Recovered
+        ];
 
         /// <summary>
         /// Minimal pass-through implementation of
