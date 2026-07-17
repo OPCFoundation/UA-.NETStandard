@@ -41,6 +41,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Opc.Ua;
+using Opc.Ua.Configuration;
 using Opc.Ua.Identity;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
@@ -1258,6 +1259,10 @@ namespace Microsoft.Extensions.DependencyInjection
             services
                 .TryAddSingleton<IPushConfigurationTrustListEffectHandler, PushConfigurationTrustListEffectHandler>();
             services.AddOptions<RoleConfigurationOptions>();
+            services.TryAddEnumerable(
+                ServiceDescriptor.Singleton<
+                    IOpcUaApplicationConfigurationFeature,
+                    OpcUaServerApplicationConfigurationFeature>());
             if (enableConfiguredIdentityAuthenticators)
             {
                 services.AddSingleton(new OpcUaServerIdentityAuthenticatorRegistration(

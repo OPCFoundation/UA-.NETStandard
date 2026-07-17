@@ -35,6 +35,7 @@ you need finer control.
 | Feature library                | Method on `IOpcUaBuilder`               | Returns                  | Hosted? | Section                  |
 |--------------------------------|------------------------------------------|--------------------------|---------|--------------------------|
 | `Opc.Ua.Core` (root)           | `services.AddOpcUa()`                    | `IOpcUaBuilder`          | —       | —                        |
+| `Opc.Ua.Configuration`         | `builder.ConfigureApplication(opt => …)` | `IOpcUaBuilder`          | —       | —                        |
 | `Opc.Ua.Configuration`         | `builder.AddApplicationInstance()`       | `IOpcUaBuilder`          | —       | —                        |
 | `Opc.Ua.Client`                | `builder.AddClient(opt => …)`            | `IOpcUaClientBuilder`    | —       | `OpcUa:Client`           |
 | `Opc.Ua.Client.ComplexTypes`   | `builder.AddComplexTypes()`              | `IOpcUaBuilder`          | —       | —                        |
@@ -144,6 +145,36 @@ services.AddOpcUa();
 ```
 
 The existing `new BufferManager(name, maxBufferSize, telemetry)` path remains available for direct creation. `BufferManager` is a compatibility facade over `IBufferManager`; `FastBufferManager`, `CookieBufferManager`, `TracingBufferManager`, and `LimitingBufferManager` can also be created directly for advanced scenarios.
+
+## Shared application configuration
+
+`ConfigureApplication(...)` defines the application identity, PKI root, and common certificate-validation settings once. `AddClient(...)`, `AddServer(...)`, or both contribute their feature-specific sections to one `ApplicationConfiguration`; the provider calls `ApplicationConfigurationBuilder.CreateAsync`, validates the completed configuration, and ensures the application instance certificate exists before a client connects or a hosted server starts. Use `ConfigureApplication(...)` for combined client/server hosts, or when several `AddClient(...)`/`AddServer(...)` registrations must share one application identity and certificate lifecycle. A client-only host can instead set the same identity fields directly on `OpcUaClientOptions` inside `AddClient(...)` (see [Client feature](#client-feature)) without a separate `ConfigureApplication(...)` call.
+
+```csharp
+IOpcUaBuilder opcUa = services.AddOpcUa()
+    .ConfigureApplication(options =>
+    {
+        options.ApplicationName = "MyApplication";
+        options.ApplicationUri = "urn:localhost:MyApplication";
+        options.ProductUri = "uri:example.com:MyApplication";
+        options.AutoAcceptUntrustedCertificates = true;
+    });
+
+opcUa.AddClient(options =>
+{
+    options.Session = new ManagedSessionOptions
+    {
+        SessionName = "MyClient"
+    };
+});
+
+opcUa.AddServer(options =>
+{
+    options.EndpointUrls.Add("opc.tcp://localhost:4840/MyApplication");
+});
+```
+
+When both features are registered, the shared configuration has `ApplicationType.ClientAndServer` and one application-certificate lifecycle. An explicitly supplied `OpcUaClientOptions.Configuration` still wins for that client registration.
 
 Discovery servers expose the same transport and reverse-connect shortcuts as
 the regular server builder:
@@ -501,7 +532,9 @@ services
     .AddOpcUa()
     .AddClient(opt =>
     {
-        opt.Configuration = applicationConfiguration;
+        opt.ApplicationName = "MyClient";
+        opt.ApplicationUri = "urn:localhost:MyClient";
+        opt.ProductUri = "uri:example.com:MyClient";
         opt.Session = new ManagedSessionOptions
         {
             Endpoint = endpoint,
@@ -529,9 +562,7 @@ var managedSessions = sp.GetRequiredService<IManagedSessionFactory>();
 ManagedSession dynamicSession = await managedSessions.ConnectAsync(endpoint, ct);
 ```
 
-Misconfiguration is validated through `IValidateOptions<OpcUaClientOptions>`
-when the host starts and again before a DI-created session connects. Set
-`Configuration` and `Session.Endpoint` in every `AddClient` registration.
+Misconfiguration is validated through `IValidateOptions<OpcUaClientOptions>` when the host starts and again before a DI-created session connects. Supply either an explicit `Configuration`, the application identity fields directly on `OpcUaClientOptions` (as shown above), or the shared `ConfigureApplication(...)` options for a combined client/server host (see [Shared application configuration](#shared-application-configuration)). `Session.Endpoint` is required by the cached fixed-endpoint delegate; `IManagedSessionFactory.ConnectAsync(endpoint, ...)` supplies it at runtime.
 
 ### Fluent shortcuts
 

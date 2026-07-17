@@ -58,6 +58,7 @@ namespace Opc.Ua.Server.Hosting
         private readonly OpcUaServerOptions m_options;
         private readonly ITelemetryContext m_telemetry;
         private readonly IApplicationInstanceFactory m_applicationFactory;
+        private readonly IOpcUaApplicationConfigurationProvider? m_configurationProvider;
         private readonly IEnumerable<OpcUaServerNodeManagerRegistration> m_registrations;
         private readonly IEnumerable<OpcUaServerIdentityAuthenticatorRegistration> m_identityRegistrations;
         private readonly IEnumerable<OpcUaServerIdentityAugmenterRegistration> m_augmenterRegistrations;
@@ -66,18 +67,19 @@ namespace Opc.Ua.Server.Hosting
         private readonly IOpcUaServerFactory m_serverFactory;
         private readonly TimeProvider m_timeProvider;
         private readonly ILogger<OpcUaServerHostedService> m_logger;
-        // CA2213: ApplicationInstance is IAsyncDisposable; the lifecycle here is
-        // managed via the async StopAsync override which disposes m_application
-        // via DisposeAsync.
+        // CA2213: ApplicationInstance is IAsyncDisposable; it is owned either
+        // by this service and disposed in StopAsync or by the shared provider.
 #pragma warning disable CA2213
         private IApplicationInstance? m_application;
 #pragma warning restore CA2213
         private StandardServer? m_server;
+        private bool m_ownsApplication;
 
         public OpcUaServerHostedService(
             IOptions<OpcUaServerOptions> options,
             ITelemetryContext telemetry,
             IApplicationInstanceFactory applicationFactory,
+            IEnumerable<IOpcUaApplicationConfigurationProvider> configurationProviders,
             IEnumerable<OpcUaServerNodeManagerRegistration> registrations,
             IEnumerable<OpcUaServerIdentityAuthenticatorRegistration> identityRegistrations,
             IEnumerable<OpcUaServerIdentityAugmenterRegistration> augmenterRegistrations,
@@ -94,6 +96,14 @@ namespace Opc.Ua.Server.Hosting
             m_options = options.Value ?? throw new ArgumentNullException(nameof(options));
             m_telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
             m_applicationFactory = applicationFactory ?? throw new ArgumentNullException(nameof(applicationFactory));
+            if (configurationProviders is null)
+            {
+                throw new ArgumentNullException(nameof(configurationProviders));
+            }
+            foreach (IOpcUaApplicationConfigurationProvider provider in configurationProviders)
+            {
+                m_configurationProvider = provider;
+            }
             m_registrations = registrations ?? throw new ArgumentNullException(nameof(registrations));
             m_identityRegistrations = identityRegistrations ??
                 throw new ArgumentNullException(nameof(identityRegistrations));
@@ -109,117 +119,42 @@ namespace Opc.Ua.Server.Hosting
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            string appName = string.IsNullOrEmpty(m_options.ApplicationName)
-                ? "OpcUaServer"
-                : m_options.ApplicationName;
-
-            string pkiRoot = string.IsNullOrEmpty(m_options.PkiRoot)
-                ? Path.Combine(Path.GetTempPath(), "OPC Foundation", appName, "pki")
-                : m_options.PkiRoot;
-
-            string subject = string.IsNullOrEmpty(m_options.SubjectName)
-                ? $"CN={appName}, O=OPC Foundation, DC=localhost"
-                : m_options.SubjectName;
-
-            m_application = m_applicationFactory.Create(m_telemetry);
-            m_application.ApplicationName = appName;
-            m_application.ApplicationType = ApplicationType.Server;
-
-            ArrayOf<CertificateIdentifier> certs =
-                ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
-                    subject, CertificateStoreType.Directory, pkiRoot);
-
             string[] urls = new string[m_options.EndpointUrls.Count];
             m_options.EndpointUrls.CopyTo(urls, 0);
-
-            IApplicationConfigurationBuilderTransportQuotas quotasBuilder = m_application
-                .Build(m_options.ApplicationUri, m_options.ProductUri)
-                .SetMaxByteStringLength((int)m_options.MaxByteStringLength)
-                .SetMaxArrayLength((int)m_options.MaxArrayLength);
-
-            if (m_options.MaxMessageSize is int maxMessageSize)
+            ICertificateManager? certificateManager =
+                m_services.GetService<ICertificateManager>();
+            if (m_configurationProvider != null)
             {
-                quotasBuilder = quotasBuilder.SetMaxMessageSize(maxMessageSize);
-            }
-            if (m_options.OperationTimeoutMs is int operationTimeout)
-            {
-                quotasBuilder = quotasBuilder.SetOperationTimeout(operationTimeout);
-            }
-
-            IApplicationConfigurationBuilderServerSelected serverBuilder =
-                quotasBuilder.AsServer(urls);
-
-            if (m_options.IncludeSignAndEncryptPolicies)
-            {
-                serverBuilder = serverBuilder.AddSignAndEncryptPolicies();
-            }
-
-            if (m_options.IncludeEccPolicies)
-            {
-                serverBuilder = serverBuilder.AddEccSignAndEncryptPolicies();
-            }
-
-            if (m_options.IncludeUnsecurePolicyNone)
-            {
-                serverBuilder = serverBuilder.AddUnsecurePolicyNone();
-            }
-
-            if (m_options.UserTokenPolicies.Count == 0)
-            {
-                serverBuilder = serverBuilder.AddUserTokenPolicy(UserTokenType.Anonymous);
+                m_application = m_configurationProvider.Application;
+                ApplyDependencyInjectedCertificateManager(certificateManager);
+                await m_configurationProvider.GetAsync(stoppingToken).ConfigureAwait(false);
             }
             else
             {
-                foreach (OpcUaUserTokenPolicy policy in m_options.UserTokenPolicies)
-                {
-                    serverBuilder = serverBuilder.AddUserTokenPolicy(policy.TokenType);
-                }
+                m_ownsApplication = true;
+                await CreateApplicationConfigurationAsync(
+                    certificateManager,
+                    stoppingToken).ConfigureAwait(false);
             }
 
-            IApplicationConfigurationBuilderServerOptions optionsBuilder =
-                serverBuilder.SetDiagnosticsEnabled(m_options.DiagnosticsEnabled);
-
-            if (m_options.OperationLimits is OperationLimitsOptions operationLimits)
-            {
-                optionsBuilder = optionsBuilder.SetOperationLimits(
-                    operationLimits.ToOperationLimits());
-            }
-
-            if (m_options.ReverseConnect is ServerReverseConnectOptions reverseConnect)
-            {
-                optionsBuilder = optionsBuilder.SetReverseConnect(
-                    ToReverseConnectConfiguration(reverseConnect));
-            }
-
-            if (!string.IsNullOrEmpty(m_options.RegistrationEndpointUrl))
-            {
-                optionsBuilder = optionsBuilder.SetRegistrationEndpoint(
-                    new EndpointDescription { EndpointUrl = m_options.RegistrationEndpointUrl });
-            }
-
-            m_options.ConfigureBuilder?.Invoke(serverBuilder);
-
-            IApplicationConfigurationBuilderSecurityOptions securityOptions = optionsBuilder
-                .AddSecurityConfiguration(certs, pkiRoot)
-                .SetAutoAcceptUntrustedCertificates(m_options.AutoAcceptUntrustedCertificates)
-                .SetRejectSHA1SignedCertificates(m_options.RejectSHA1Certificates);
-
-            if (m_options.MinCertificateKeySize > 0)
-            {
-                securityOptions = securityOptions.SetMinimumCertificateKeySize(
-                    m_options.MinCertificateKeySize);
-            }
-
-            await securityOptions
-                .CreateAsync(stoppingToken)
-                .ConfigureAwait(false);
-
-            ApplyDependencyInjectedCertificateManager();
-
-            bool haveCert = await m_application
-                .CheckApplicationInstanceCertificatesAsync(
-                    silent: true, CertificateFactory.DefaultLifeTime, stoppingToken)
-                .ConfigureAwait(false);
+            IApplicationInstance application = m_application ??
+                throw new InvalidOperationException(
+                    "The application configuration was not created.");
+            ApplicationConfiguration configuration =
+                application.ApplicationConfiguration ??
+                throw new InvalidOperationException(
+                    "The application configuration was not assigned.");
+            bool haveCert = certificateManager is null or CertificateManager
+                ? await application
+                    .CheckApplicationInstanceCertificatesAsync(
+                        silent: true,
+                        CertificateFactory.DefaultLifeTime,
+                        stoppingToken)
+                    .ConfigureAwait(false)
+                : await HasApplicationCertificateAsync(
+                    certificateManager,
+                    configuration,
+                    stoppingToken).ConfigureAwait(false);
             if (!haveCert)
             {
                 throw new InvalidOperationException(
@@ -283,7 +218,7 @@ namespace Opc.Ua.Server.Hosting
                 }
             }
 
-            await m_application.StartAsync(m_server, stoppingToken).ConfigureAwait(false);
+            await application.StartAsync(m_server, stoppingToken).ConfigureAwait(false);
             RegisterPostStartRegistries();
             await BindKeyCredentialPushAsync(stoppingToken).ConfigureAwait(false);
             RegisterIdentityAuthenticators();
@@ -326,6 +261,47 @@ namespace Opc.Ua.Server.Hosting
             {
                 // Expected on host shutdown.
             }
+        }
+
+        private async Task CreateApplicationConfigurationAsync(
+            ICertificateManager? certificateManager,
+            CancellationToken ct)
+        {
+            string appName = string.IsNullOrEmpty(m_options.ApplicationName)
+                ? "OpcUaServer"
+                : m_options.ApplicationName;
+            string pkiRoot = string.IsNullOrEmpty(m_options.PkiRoot)
+                ? Path.Combine(Path.GetTempPath(), "OPC Foundation", appName, "pki")
+                : m_options.PkiRoot;
+            string subject = string.IsNullOrEmpty(m_options.SubjectName)
+                ? $"CN={appName}, O=OPC Foundation, DC=localhost"
+                : m_options.SubjectName;
+
+            m_application = m_applicationFactory.Create(m_telemetry);
+            m_application.ApplicationName = appName;
+            m_application.ApplicationType = ApplicationType.Server;
+
+            IApplicationConfigurationBuilderSecurity securityBuilder =
+                OpcUaServerApplicationConfigurationFeature.Configure(
+                    m_application.Build(m_options.ApplicationUri, m_options.ProductUri),
+                    m_options);
+            ArrayOf<CertificateIdentifier> certificates =
+                ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
+                    subject,
+                    CertificateStoreType.Directory,
+                    pkiRoot);
+            IApplicationConfigurationBuilderSecurityOptions securityOptions = securityBuilder
+                .AddSecurityConfiguration(certificates, pkiRoot)
+                .SetAutoAcceptUntrustedCertificates(m_options.AutoAcceptUntrustedCertificates)
+                .SetRejectSHA1SignedCertificates(m_options.RejectSHA1Certificates);
+            if (m_options.MinCertificateKeySize > 0)
+            {
+                securityOptions = securityOptions.SetMinimumCertificateKeySize(
+                    m_options.MinCertificateKeySize);
+            }
+
+            ApplyDependencyInjectedCertificateManager(certificateManager);
+            await securityOptions.CreateAsync(ct).ConfigureAwait(false);
         }
 
         private async Task BindKeyCredentialPushAsync(CancellationToken ct)
@@ -425,17 +401,30 @@ namespace Opc.Ua.Server.Hosting
             }
         }
 
-        private void ApplyDependencyInjectedCertificateManager()
+        private void ApplyDependencyInjectedCertificateManager(
+            ICertificateManager? certificateManager)
         {
-            if (m_application?.ApplicationConfiguration == null)
+            if (certificateManager == null ||
+                m_application?.ApplicationConfiguration == null)
             {
                 return;
             }
 
-            if (m_services.GetService<ICertificateManager>() is { } certificateManager)
-            {
-                m_application.ApplicationConfiguration.CertificateManager = certificateManager;
-            }
+            m_application.ApplicationConfiguration.CertificateManager = certificateManager;
+        }
+
+        private static async Task<bool> HasApplicationCertificateAsync(
+            ICertificateManager certificateManager,
+            ApplicationConfiguration configuration,
+            CancellationToken ct)
+        {
+            await certificateManager.UpdateAsync(
+                configuration.SecurityConfiguration,
+                configuration.ApplicationUri,
+                ct).ConfigureAwait(false);
+            using var certificates =
+                certificateManager.SnapshotApplicationCertificates();
+            return certificates.Count > 0;
         }
 
         private void WarnForUnmatchedUserTokenPolicies(IReadOnlyList<IUserTokenAuthenticator> authenticators)
@@ -497,7 +486,10 @@ namespace Opc.Ua.Server.Hosting
                 }
                 finally
                 {
-                    await m_application.DisposeAsync().ConfigureAwait(false);
+                    if (m_ownsApplication)
+                    {
+                        await m_application.DisposeAsync().ConfigureAwait(false);
+                    }
                     m_application = null;
                 }
             }
@@ -509,29 +501,6 @@ namespace Opc.Ua.Server.Hosting
             base.Dispose();
         }
 
-        private static ReverseConnectServerConfiguration ToReverseConnectConfiguration(
-            ServerReverseConnectOptions options)
-        {
-            var clients = new ReverseConnectClient[options.Clients.Count];
-            for (int i = 0; i < options.Clients.Count; i++)
-            {
-                ServerReverseConnectClientOptions c = options.Clients[i];
-                clients[i] = new ReverseConnectClient
-                {
-                    EndpointUrl = c.EndpointUrl,
-                    Timeout = c.Timeout,
-                    MaxSessionCount = c.MaxSessionCount,
-                    Enabled = c.Enabled
-                };
-            }
-            return new ReverseConnectServerConfiguration
-            {
-                Clients = new ArrayOf<ReverseConnectClient>(clients),
-                ConnectInterval = options.ConnectIntervalMs,
-                ConnectTimeout = options.ConnectTimeoutMs,
-                RejectTimeout = options.RejectTimeoutMs
-            };
-        }
     }
 
     /// <summary>
