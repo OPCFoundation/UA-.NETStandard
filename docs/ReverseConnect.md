@@ -36,6 +36,39 @@ If the Client accepts the connection, a secure connection requires that the Clie
 
 The auto-reconnect behavior on the Server is essential to any real application, because Clients close the Socket when the SecureChannel is closed. According to the specification a Server needs to abort the auto-reconnect if it receives a *BadTcpMessageTypeInvalid* code, because that is the error it will receive from peers that have not been upgraded to support the *ReverseHello*. Because of this a Client can use the same error code to tell the Server to stop reconnecting, if a user has rejected the connection. However, in this implementation, only if the Server is configured for a single connection it applies an extended timeout before reconnecting to the Client to reduce the overall traffic. In other configurations the Server keeps sending the *ReverseHello* messages at the configured time interval.
 
+## Sharing a listener across multiple Servers
+
+A reverse-connect listener remains bound for the lifetime of its `ReverseConnectManager`. Seeing the listener port remain in the `LISTENING` state after a Session is established is expected. The listening socket accepts additional transport connections while each accepted socket is handed to the Session that claimed its `ReverseHello` message. Dispose the manager when the listener should be released.
+
+Use one shared `ReverseConnectManager` for all Servers that connect to the same Client URL. Register or wait for each Server separately by using its Server `EndpointUrl` and, preferably, its `ServerUri`. The fluent dependency-injection integration registers the manager as a singleton.
+
+``` csharp
+using var manager = new ReverseConnectManager(telemetry);
+manager.AddEndpoint(new Uri("opc.tcp://client-host:65300"));
+manager.StartService(new ReverseConnectClientConfiguration
+{
+    HoldTime = 15000,
+    WaitTimeout = 20000
+});
+
+Task<ITransportWaitingConnection> serverA = manager.WaitForConnectionAsync(
+    new Uri("opc.tcp://server-a:4840"),
+    "urn:example:server-a",
+    cancellationToken);
+Task<ITransportWaitingConnection> serverB = manager.WaitForConnectionAsync(
+    new Uri("opc.tcp://server-b:4840"),
+    "urn:example:server-b",
+    cancellationToken);
+
+await Task.WhenAll(serverA, serverB).ConfigureAwait(false);
+```
+
+Pass each returned `ITransportWaitingConnection` to the session factory for the corresponding Server.
+
+Do not create a separate manager for each Server when those managers use the same local listener URL. Only one listener can bind a given host and port. `StartService` validates and opens all configured listener endpoints atomically. An invalid URL reports `BadTcpEndpointUrlInvalid`, an unsupported transport retains its transport-specific status, and a bind or listener-open failure reports `BadNoCommunication`. Startup diagnostics identify the affected endpoint URLs, and listeners opened by a failed attempt are closed instead of allowing a later connection wait to time out.
+
+This behavior follows [OPC UA Part 6, 7.1.3](https://reference.opcfoundation.org/specs/OPC-10000-6/v1.05.07/7.1.3), which defines a separate transport connection for each reverse connection and requires Servers to maintain an available socket to each configured Client. [OPC UA Part 12, 4.4.2](https://reference.opcfoundation.org/specs/OPC-10000-12/v1.05.07/4.4.2) defines one or more Client URLs that allow Servers to connect. Clients shall validate the `ServerUri` and `EndpointUrl` as described in [OPC UA Part 2, 6.14](https://reference.opcfoundation.org/specs/OPC-10000-2/v1.05.06/6.14).
+
 ## Configuration Extensions
 
 This configuration sample shows the configuration setting for a reverse connection on port 65300.
