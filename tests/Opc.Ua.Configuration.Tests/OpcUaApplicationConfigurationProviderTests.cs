@@ -177,6 +177,194 @@ namespace Opc.Ua.Configuration.Tests
             }
         }
 
+        [Test]
+        public async Task GetAsyncThrowsObjectDisposedExceptionAfterDisposeAsync()
+        {
+            string pkiRoot = CreatePkiRoot();
+            var provider = new OpcUaApplicationConfigurationProvider(
+                new OpcUaApplicationOptions
+                {
+                    ApplicationName = "DisposedProvider",
+                    ApplicationUri = "urn:localhost:DisposedProvider",
+                    ProductUri = "uri:opcfoundation.org:DisposedProvider",
+                    PkiRoot = pkiRoot
+                },
+                new TestApplicationInstanceFactory(),
+                NUnitTelemetryContext.Create(),
+                [new ClientFeature()]);
+
+            await provider.DisposeAsync().ConfigureAwait(false);
+
+            try
+            {
+                Assert.ThrowsAsync<ObjectDisposedException>(
+                    async () => await provider.GetAsync().ConfigureAwait(false));
+            }
+            finally
+            {
+                DeletePkiRoot(pkiRoot);
+            }
+        }
+
+        [Test]
+        public void ConstructorThrowsForNullOptions()
+        {
+            Assert.That(
+                () => new OpcUaApplicationConfigurationProvider(
+                    null!,
+                    new TestApplicationInstanceFactory(),
+                    NUnitTelemetryContext.Create(),
+                    [new ClientFeature()]),
+                Throws.ArgumentNullException.With.Property(nameof(ArgumentNullException.ParamName))
+                    .EqualTo("options"));
+        }
+
+        [Test]
+        public void ConstructorThrowsForNullApplicationFactory()
+        {
+            Assert.That(
+                () => new OpcUaApplicationConfigurationProvider(
+                    new OpcUaApplicationOptions { ApplicationName = "NullFactory" },
+                    null!,
+                    NUnitTelemetryContext.Create(),
+                    [new ClientFeature()]),
+                Throws.ArgumentNullException.With.Property(nameof(ArgumentNullException.ParamName))
+                    .EqualTo("applicationFactory"));
+        }
+
+        [Test]
+        public void ConstructorThrowsForNullTelemetry()
+        {
+            Assert.That(
+                () => new OpcUaApplicationConfigurationProvider(
+                    new OpcUaApplicationOptions { ApplicationName = "NullTelemetry" },
+                    new TestApplicationInstanceFactory(),
+                    null!,
+                    [new ClientFeature()]),
+                Throws.ArgumentNullException.With.Property(nameof(ArgumentNullException.ParamName))
+                    .EqualTo("telemetry"));
+        }
+
+        [Test]
+        public void ConstructorThrowsForNullFeatures()
+        {
+            Assert.That(
+                () => new OpcUaApplicationConfigurationProvider(
+                    new OpcUaApplicationOptions { ApplicationName = "NullFeatures" },
+                    new TestApplicationInstanceFactory(),
+                    NUnitTelemetryContext.Create(),
+                    ArrayOf<IOpcUaApplicationConfigurationFeature>.Null),
+                Throws.ArgumentNullException.With.Property(nameof(ArgumentNullException.ParamName))
+                    .EqualTo("features"));
+        }
+
+        [Test]
+        public void ConstructorThrowsForEmptyFeatures()
+        {
+            Assert.That(
+                () => new OpcUaApplicationConfigurationProvider(
+                    new OpcUaApplicationOptions { ApplicationName = "EmptyFeatures" },
+                    new TestApplicationInstanceFactory(),
+                    NUnitTelemetryContext.Create(),
+                    ArrayOf<IOpcUaApplicationConfigurationFeature>.Empty),
+                Throws.InvalidOperationException.With.Message.Contains("AddClient, AddServer"));
+        }
+
+        [Test]
+        public void ConstructorThrowsForMissingApplicationName()
+        {
+            Assert.That(
+                () => new OpcUaApplicationConfigurationProvider(
+                    new OpcUaApplicationOptions(),
+                    new TestApplicationInstanceFactory(),
+                    NUnitTelemetryContext.Create(),
+                    [new ClientFeature()]),
+                Throws.InvalidOperationException.With.Message.Contains("ApplicationName is required"));
+        }
+
+        [Test]
+        public void ConstructorThrowsWhenNoFeatureSelectsSecurityBuilder()
+        {
+            Assert.That(
+                () => new OpcUaApplicationConfigurationProvider(
+                    new OpcUaApplicationOptions { ApplicationName = "NoBuilderSelected" },
+                    new TestApplicationInstanceFactory(),
+                    NUnitTelemetryContext.Create(),
+                    [new NonSelectingFeature()]),
+                Throws.InvalidOperationException.With.Message.Contains(
+                    "No application configuration feature selected"));
+        }
+
+        [Test]
+        public void ConstructorUsesDefaultPkiRootAndSubjectNameWhenNotSet()
+        {
+            var provider = new OpcUaApplicationConfigurationProvider(
+                new OpcUaApplicationOptions
+                {
+                    ApplicationName = "DefaultPkiAndSubject-" + Guid.NewGuid().ToString("N"),
+                    ApplicationUri = "urn:localhost:DefaultPkiAndSubject",
+                    ProductUri = "uri:opcfoundation.org:DefaultPkiAndSubject"
+                },
+                new TestApplicationInstanceFactory(),
+                NUnitTelemetryContext.Create(),
+                [new ClientFeature()]);
+
+            try
+            {
+                string expectedPkiSegment = Path.Combine("OPC Foundation", provider.Application.ApplicationName);
+                Assert.That(
+                    provider.Configuration.SecurityConfiguration.ApplicationCertificates[0].StorePath,
+                    Does.Contain(expectedPkiSegment));
+                Assert.That(
+                    provider.Configuration.SecurityConfiguration.ApplicationCertificates[0].SubjectName,
+                    Does.Contain("CN=" + provider.Application.ApplicationName));
+            }
+            finally
+            {
+                provider.DisposeAsync().AsTask().GetAwaiter().GetResult();
+                DeletePkiRoot(Path.Combine(
+                    Path.GetTempPath(),
+                    "OPC Foundation",
+                    provider.Application.ApplicationName));
+            }
+        }
+
+        [Test]
+        public async Task ConstructorAppliesRejectSha1AndMinimumKeySizeWhenSetAsync()
+        {
+            string pkiRoot = CreatePkiRoot();
+            var provider = new OpcUaApplicationConfigurationProvider(
+                new OpcUaApplicationOptions
+                {
+                    ApplicationName = "ExplicitSecurityOptions",
+                    ApplicationUri = "urn:localhost:ExplicitSecurityOptions",
+                    ProductUri = "uri:opcfoundation.org:ExplicitSecurityOptions",
+                    PkiRoot = pkiRoot,
+                    RejectSHA1SignedCertificates = false,
+                    MinimumCertificateKeySize = 3072
+                },
+                new TestApplicationInstanceFactory(),
+                NUnitTelemetryContext.Create(),
+                [new ClientFeature()]);
+
+            try
+            {
+                await provider.GetAsync().ConfigureAwait(false);
+
+                Assert.That(
+                    provider.Configuration.SecurityConfiguration.RejectSHA1SignedCertificates,
+                    Is.False);
+                Assert.That(
+                    provider.Configuration.SecurityConfiguration.MinimumCertificateKeySize,
+                    Is.EqualTo(3072));
+            }
+            finally
+            {
+                await provider.DisposeAsync().ConfigureAwait(false);
+                DeletePkiRoot(pkiRoot);
+            }
+        }
+
         private static string CreatePkiRoot()
         {
             return Path.Combine(
@@ -203,6 +391,19 @@ namespace Opc.Ua.Configuration.Tests
                 IApplicationConfigurationBuilderTypes builder)
             {
                 return builder.AsClient();
+            }
+        }
+
+        private sealed class NonSelectingFeature : IOpcUaApplicationConfigurationFeature
+        {
+            public void ApplyDefaults(OpcUaApplicationOptions options)
+            {
+            }
+
+            public IApplicationConfigurationBuilderSecurity Configure(
+                IApplicationConfigurationBuilderTypes builder)
+            {
+                return null!;
             }
         }
 
