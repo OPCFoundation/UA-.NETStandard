@@ -84,4 +84,9 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// </summary>
         ValueTask<DtlsDatagram> ReceiveAsync(CancellationToken cancellationToken = default);
     }
+
+    internal interface IDtlsAuthenticatedPeerChannel
+    {
+        void SetAuthenticatedPeer(IPEndPoint peer);
+    }
 }

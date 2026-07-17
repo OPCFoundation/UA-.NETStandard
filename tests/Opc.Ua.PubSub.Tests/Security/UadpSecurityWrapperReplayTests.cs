@@ -178,6 +178,135 @@ namespace Opc.Ua.PubSub.Tests.Security
                 Throws.TypeOf<InvalidOperationException>());
         }
 
+        [Test]
+        public async Task ReplayStateIsScopedByPublisherWriterGroupAndTokenAsync()
+        {
+            PubSubAes256CtrPolicy policy = PubSubAes256CtrPolicy.Instance;
+            PubSubSecurityKey key = TestSecurityKeyFactory.Create(
+                TokenId,
+                signingKeyLength: policy.SigningKeyLength,
+                encryptingKeyLength: policy.EncryptingKeyLength,
+                keyNonceLength: policy.NonceLength);
+            PublisherId publisherA = PublisherId.FromUInt32(100U);
+            PublisherId publisherB = PublisherId.FromUInt32(200U);
+            UadpSecurityWrapper senderAGroup1 = CreateWrapper(policy, key, publisherA);
+            UadpSecurityWrapper senderBGroup1 = CreateWrapper(policy, key, publisherB);
+            UadpSecurityWrapper senderAGroup2 = CreateWrapper(policy, key, publisherA);
+            var receiverWindow = new SecurityTokenWindow();
+            receiverWindow.RegisterToken(TokenId);
+            UadpSecurityWrapper receiver = CreateWrapper(
+                policy,
+                key,
+                PublisherId.FromUInt32(999U),
+                receiverWindow);
+
+            ReadOnlyMemory<byte> publisherAGroup1 = await senderAGroup1
+                .WrapAsync(s_outerPrefix, s_innerPayload)
+                .ConfigureAwait(false);
+            ReadOnlyMemory<byte> publisherBGroup1 = await senderBGroup1
+                .WrapAsync(s_outerPrefix, s_innerPayload)
+                .ConfigureAwait(false);
+            ReadOnlyMemory<byte> publisherAGroup2 = await senderAGroup2
+                .WrapAsync(s_outerPrefix, s_innerPayload)
+                .ConfigureAwait(false);
+
+            UadpSecurityWrapper.UnwrapResult first = await UnwrapScopedAsync(
+                receiver, publisherAGroup1, publisherA, writerGroupId: 1).ConfigureAwait(false);
+            UadpSecurityWrapper.UnwrapResult secondPublisher = await UnwrapScopedAsync(
+                receiver, publisherBGroup1, publisherB, writerGroupId: 1).ConfigureAwait(false);
+            UadpSecurityWrapper.UnwrapResult secondGroup = await UnwrapScopedAsync(
+                receiver, publisherAGroup2, publisherA, writerGroupId: 2).ConfigureAwait(false);
+            UadpSecurityWrapper.UnwrapResult replay = await UnwrapScopedAsync(
+                receiver, publisherAGroup1, publisherA, writerGroupId: 1).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(first.IsSuccess, Is.True, first.Reason);
+                Assert.That(secondPublisher.IsSuccess, Is.True, secondPublisher.Reason);
+                Assert.That(secondGroup.IsSuccess, Is.True, secondGroup.Reason);
+                Assert.That(replay.IsSuccess, Is.False);
+            });
+        }
+
+        [Test]
+        public async Task RequiredModeRejectionDoesNotPoisonReplayStateAsync()
+        {
+            PubSubAes256CtrPolicy policy = PubSubAes256CtrPolicy.Instance;
+            PubSubSecurityKey key = TestSecurityKeyFactory.Create(
+                TokenId,
+                signingKeyLength: policy.SigningKeyLength,
+                encryptingKeyLength: policy.EncryptingKeyLength,
+                keyNonceLength: policy.NonceLength);
+            PublisherId publisherId = PublisherId.FromUInt32(300U);
+            UadpSecurityWrapper signOnlySender = CreateWrapper(policy, key, publisherId);
+            UadpSecurityWrapper securedSender = CreateWrapper(policy, key, publisherId);
+            var receiverWindow = new SecurityTokenWindow();
+            receiverWindow.RegisterToken(TokenId);
+            UadpSecurityWrapper receiver = CreateWrapper(
+                policy,
+                key,
+                PublisherId.FromUInt32(999U),
+                receiverWindow);
+
+            ReadOnlyMemory<byte> signOnly = await signOnlySender
+                .WrapAsync(s_outerPrefix, s_innerPayload, UadpSecurityWrapOptions.SignOnly)
+                .ConfigureAwait(false);
+            ReadOnlyMemory<byte> secured = await securedSender
+                .WrapAsync(s_outerPrefix, s_innerPayload, UadpSecurityWrapOptions.SignAndEncrypt)
+                .ConfigureAwait(false);
+
+            UadpSecurityWrapper.UnwrapResult rejected = await UnwrapScopedAsync(
+                receiver,
+                signOnly,
+                publisherId,
+                writerGroupId: 7,
+                MessageSecurityMode.SignAndEncrypt).ConfigureAwait(false);
+            UadpSecurityWrapper.UnwrapResult accepted = await UnwrapScopedAsync(
+                receiver,
+                secured,
+                publisherId,
+                writerGroupId: 7,
+                MessageSecurityMode.SignAndEncrypt).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(rejected.IsSuccess, Is.False);
+                Assert.That(rejected.Status, Is.EqualTo(StatusCodes.BadSecurityModeRejected));
+                Assert.That(accepted.IsSuccess, Is.True, accepted.Reason);
+            });
+        }
+
+        private static UadpSecurityWrapper CreateWrapper(
+            PubSubAes256CtrPolicy policy,
+            PubSubSecurityKey key,
+            PublisherId publisherId,
+            SecurityTokenWindow? window = null)
+        {
+            var ring = new PubSubSecurityKeyRing("group");
+            ring.SetCurrent(key);
+            return new UadpSecurityWrapper(
+                policy,
+                new StaticSecurityKeyProvider("group", ring),
+                new RandomNonceProvider(publisherId),
+                window ?? new SecurityTokenWindow(),
+                NUnitTelemetryContext.Create());
+        }
+
+        private static ValueTask<UadpSecurityWrapper.UnwrapResult> UnwrapScopedAsync(
+            UadpSecurityWrapper receiver,
+            ReadOnlyMemory<byte> wrapped,
+            PublisherId publisherId,
+            ushort writerGroupId,
+            MessageSecurityMode requiredMode = MessageSecurityMode.SignAndEncrypt)
+        {
+            return receiver.TryUnwrapAsync(
+                s_outerPrefix.AsMemory(),
+                wrapped[s_outerPrefix.Length..],
+                publisherId,
+                writerGroupId,
+                requiredMode);
+        }
+
         private static (ulong SequenceNumber, byte[] Nonce) ReadNonce(
             ReadOnlyMemory<byte> wrapped)
         {
