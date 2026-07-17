@@ -40,11 +40,10 @@ using Opc.Ua.Tests;
 namespace Opc.Ua.Server.Tests
 {
     /// <summary>
-    /// Part 13 oracle tests that reproduce the exact data pattern used by the CTT aggregate
-    /// Conformance Units against the reference server (SeedHistoricalNodeAsync): a pure all-Good
-    /// linear ramp of 1000 samples spaced 10 s apart (value == sample index). These tests pin the
-    /// server's Part 13 behaviour for the residual value families reported by CTT run 14 and record
-    /// where the divergence is on the CTT oracle side rather than a server defect:
+    /// Part 13 oracle tests that reproduce the all-Good linear ramp used by the reference server
+    /// during CTT run 14: 1000 samples spaced 10 s apart with value equal to the sample index.
+    /// The current reference server uses a mixed-quality seed, but these tests preserve the exact
+    /// run-14 scenarios and record where the divergence was on the CTT oracle side:
     /// <list type="bullet">
     /// <item>Sloped interpolation of Float/Double bounds is byte-exact (server matches the CTT
     /// oracle); the CTT "not equal" comparisons only appear for integer-typed nodes.</item>
@@ -73,7 +72,7 @@ namespace Opc.Ua.Server.Tests
             return s_baseTime.AddMilliseconds(seconds * 1000.0);
         }
 
-        // Linear ramp: value v at t = v*10 s + 1.234 s, all Good (mirrors the reference server seed).
+        // Linear ramp: value v at t = v*10 s + 1.234 s, all Good (mirrors the run-14 seed).
         private static List<DataValue> CreateRamp(BuiltInType type, int count = 40)
         {
             var raw = new List<DataValue>(count + 1);

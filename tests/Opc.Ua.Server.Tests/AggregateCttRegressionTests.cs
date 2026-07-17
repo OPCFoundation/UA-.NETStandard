@@ -292,6 +292,42 @@ namespace Opc.Ua.Server.Tests
             AssertSingleNumericResult(live, 10_000, expectedTimestamp, AggregateBits.Calculated);
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task DirectAndLiveNumberOfTransitionsMatchesPart13BoundaryRulesAsync(bool reverse)
+        {
+            List<DataValue> rawValues =
+            [
+                CreateValue(5, StatusCodes.Good, 0),
+                CreateValue(5, StatusCodes.Good, 1),
+                CreateValue(6, StatusCodes.Good, 2),
+                CreateValue(7, StatusCodes.Good, 3)
+            ];
+            DateTimeUtc startTime = reverse ? AtSeconds(3) : s_baseTime;
+            DateTimeUtc endTime = reverse ? s_baseTime : AtSeconds(3);
+            AggregateConfiguration configuration = CreateConfiguration();
+
+            List<DataValue> direct = RunDirect(
+                ObjectIds.AggregateFunction_NumberOfTransitions,
+                rawValues,
+                startTime,
+                endTime,
+                3_000,
+                configuration);
+
+            using var harness = new AggregateHarness();
+            List<DataValue> live = await harness.ReadProcessedAsync(
+                ObjectIds.AggregateFunction_NumberOfTransitions,
+                rawValues,
+                startTime,
+                endTime,
+                3_000,
+                configuration).ConfigureAwait(false);
+
+            AssertSingleNumericResult(direct, 2, startTime, AggregateBits.Calculated);
+            AssertSingleNumericResult(live, 2, startTime, AggregateBits.Calculated);
+        }
+
         [Test]
         public async Task LiveProcessedReadWithEqualTimesReturnsBadInvalidArgumentAsync()
         {
