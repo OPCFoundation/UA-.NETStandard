@@ -1308,14 +1308,19 @@ namespace Opc.Ua.Redundancy.Client
                     m_attachedSession = s;
                     AttachEvents(m_attachedSession);
                 }
+                ISession? previousSession = m_currentSession;
                 m_currentSession = s;
                 if (s == null)
                 {
-                    if (m_activeSession.Task.IsCompleted)
+                    if (previousSession != null || m_activeSession.Task.IsCompleted)
                     {
                         m_activeSession = CreateSessionCompletionSource();
                     }
                     return;
+                }
+                if (previousSession != null && !ReferenceEquals(previousSession, s))
+                {
+                    m_activeSession = CreateSessionCompletionSource();
                 }
                 ApplyRememberedValues(s);
                 release = m_activeSession;

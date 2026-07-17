@@ -39,6 +39,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -103,6 +104,61 @@ namespace Opc.Ua.Client.Redundancy.Tests
 
             Assert.That(await readTask.ConfigureAwait(false), Is.SameAs(response));
             session.VerifyAll();
+        }
+
+        [Test]
+        public async Task ConcurrentAsyncCallsUseNewSessionAfterLiveSwapAsync()
+        {
+            ISession? current = null;
+            using var store = new InMemorySharedKeyValueStore();
+            var coordinator = new ClientReplicaCoordinator(
+                new ClientReplicaOptions { CreateSessionAsync = _ => default },
+                new StaticLeaderElection(true),
+                store,
+                NullRecordProtector.Instance,
+                m_telemetry);
+            var first = new Mock<ISession>();
+            var second = new Mock<ISession>();
+            var response = new ReadResponse();
+            second
+                .Setup(session => session.ReadAsync(
+                    null,
+                    0,
+                    TimestampsToReturn.Neither,
+                    It.IsAny<ArrayOf<ReadValueId>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ReadResponse>(response));
+            current = first.Object;
+            await using var facade = new RedundantClientSession(coordinator, () => current);
+
+            current = second.Object;
+            facade.RefreshActiveSessionForTesting();
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            Task<ReadResponse>[] calls = Enumerable.Range(0, 16)
+                .Select(_ => Task.Run(
+                    async () => await facade
+                        .ReadAsync(null, 0, TimestampsToReturn.Neither, [], cts.Token)
+                        .ConfigureAwait(false)))
+                .ToArray();
+            ReadResponse[] results = await Task.WhenAll(calls).ConfigureAwait(false);
+
+            Assert.That(results, Is.All.SameAs(response));
+            second.Verify(
+                session => session.ReadAsync(
+                    null,
+                    0,
+                    TimestampsToReturn.Neither,
+                    It.IsAny<ArrayOf<ReadValueId>>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Exactly(calls.Length));
+            first.Verify(
+                session => session.ReadAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<double>(),
+                    It.IsAny<TimestampsToReturn>(),
+                    It.IsAny<ArrayOf<ReadValueId>>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
         }
 
         [Test]

@@ -140,15 +140,53 @@ namespace Opc.Ua.Redundancy.Server
         }
 
         /// <inheritdoc/>
-        public ValueTask<RestoreSubscriptionResult> RestoreSubscriptionsAsync(
+        public async ValueTask<RestoreSubscriptionResult> RestoreSubscriptionsAsync(
             CancellationToken cancellationToken = default)
         {
+            var restored = new Dictionary<uint, StoredSubscription>();
+            await foreach (KeyValuePair<string, ByteString> pair in m_store
+                .ScanAsync(Prefix, cancellationToken)
+                .ConfigureAwait(false))
+            {
+                if (!TryParseSubscriptionKey(pair.Key, out uint subscriptionId))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadDecodingError,
+                        "The persisted subscription key is malformed.");
+                }
+                if (!m_protector.TryUnprotect(pair.Value, out ByteString payload) || payload.IsNull)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadSecurityChecksFailed,
+                        "The persisted subscription record could not be authenticated.");
+                }
+
+                StoredSubscription subscription = Decode(payload);
+                ValidateSubscription(subscriptionId, subscription);
+                if (restored.ContainsKey(subscriptionId))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadDecodingError,
+                        "The persisted subscription snapshot contains duplicate records.");
+                }
+                restored.Add(subscriptionId, subscription);
+            }
+
+            List<StoredSubscription> subscriptions = restored.Values
+                .OrderBy(static subscription => subscription.Id)
+                .ToList();
             lock (m_definitionCache.Lock)
             {
-                return new ValueTask<RestoreSubscriptionResult>(new RestoreSubscriptionResult(
-                    true,
-                    m_definitionCache.Subscriptions.Values.Select(CloneSubscription).ToList()));
+                m_definitionCache.Subscriptions.Clear();
+                foreach (StoredSubscription subscription in subscriptions)
+                {
+                    m_definitionCache.Subscriptions.Add(
+                        subscription.Id,
+                        CloneSubscription(subscription));
+                }
             }
+
+            return new RestoreSubscriptionResult(true, subscriptions);
         }
 
         /// <inheritdoc/>
@@ -744,6 +782,55 @@ namespace Opc.Ua.Redundancy.Server
                 id.ToString("N", System.Globalization.CultureInfo.InvariantCulture);
         }
 
+        private static bool TryParseSubscriptionKey(string key, out uint subscriptionId)
+        {
+            subscriptionId = 0;
+            if (!key.StartsWith(Prefix, StringComparison.Ordinal) || key.Length == Prefix.Length)
+            {
+                return false;
+            }
+
+            for (int ii = Prefix.Length; ii < key.Length; ii++)
+            {
+                char character = key[ii];
+                if (character is < '0' or > '9')
+                {
+                    return false;
+                }
+
+                uint digit = (uint)(character - '0');
+                if (subscriptionId > (uint.MaxValue - digit) / 10)
+                {
+                    return false;
+                }
+                subscriptionId = (subscriptionId * 10) + digit;
+            }
+
+            return string.Equals(key, KeyFor(subscriptionId), StringComparison.Ordinal);
+        }
+
+        private static void ValidateSubscription(uint subscriptionId, StoredSubscription subscription)
+        {
+            if (subscription.Id != subscriptionId)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadDecodingError,
+                    "The persisted subscription id does not match its key.");
+            }
+
+            var monitoredItemIds = new HashSet<uint>();
+            foreach (IStoredMonitoredItem monitoredItem in subscription.MonitoredItems)
+            {
+                if (monitoredItem.SubscriptionId != subscriptionId ||
+                    !monitoredItemIds.Add(monitoredItem.Id))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadDecodingError,
+                        "The persisted subscription contains invalid monitored-item identities.");
+                }
+            }
+        }
+
         private static StoredSubscription CloneSubscription(IStoredSubscription subscription)
         {
             return new StoredSubscription
@@ -923,11 +1010,6 @@ namespace Opc.Ua.Redundancy.Server
             };
         }
 
-        // Decodes a stored subscription record. Retained as the symmetric counterpart to
-        // Encode and exercised directly by the store's unit tests via reflection, so it is
-        // not statically referenced from production code paths.
-#pragma warning disable IDE0051 // Remove unused private members
-#pragma warning disable RCS1213 // Remove unused member declaration
         private StoredSubscription Decode(ByteString payload)
         {
             using var decoder = new BinaryDecoder(payload.ToArray(), m_context);
@@ -940,10 +1022,15 @@ namespace Opc.Ua.Redundancy.Server
             ArrayOf<string?> namespaceUris = decoder.ReadStringArray(null);
             ArrayOf<string?> serverUris = decoder.ReadStringArray(null);
             decoder.SetMappingTables(CreateNamespaceTable(namespaceUris), CreateStringTable(serverUris));
-            return DecodeSubscription(decoder);
+            StoredSubscription subscription = DecodeSubscription(decoder);
+            if (decoder.Position != payload.Length)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadDecodingError,
+                    "The persisted subscription record contains trailing data.");
+            }
+            return subscription;
         }
-#pragma warning restore RCS1213 // Remove unused member declaration
-#pragma warning restore IDE0051 // Remove unused private members
 
         private static void EncodeSubscription(BinaryEncoder encoder, StoredSubscription subscription)
         {

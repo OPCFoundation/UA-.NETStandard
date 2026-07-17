@@ -98,7 +98,39 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         [Test]
-        public async Task ProtectedDefinitionCacheSurvivesTamperedBackendRecordAsync()
+        public async Task RestoreLoadsPersistedDefinitionsAfterProcessRestartAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            SharedKeyValueSubscriptionStore active = CreateStore(kv);
+            StoredSubscription expected = NewSubscription(250, 25);
+            await active.StoreSubscriptionsAsync([expected]).ConfigureAwait(false);
+
+            var restartedBackend = new AsyncSharedKeyValueStore(kv);
+            var restarted = new SharedKeyValueSubscriptionStore(restartedBackend, CreateContext());
+            RestoreSubscriptionResult result = await restarted.RestoreSubscriptionsAsync().ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.True);
+            var actual = (StoredSubscription)result.Subscriptions!.Single();
+            AssertSubscription(actual, expected);
+        }
+
+        [Test]
+        public async Task EmptyPersistedSnapshotClearsCachedDefinitionsAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            SharedKeyValueSubscriptionStore store = CreateStore(kv);
+            await store.StoreSubscriptionsAsync([NewSubscription(275, 27)]).ConfigureAwait(false);
+            await kv.DeleteAsync(SharedKeyValueSubscriptionStore.KeyFor(275)).ConfigureAwait(false);
+
+            RestoreSubscriptionResult result = await store.RestoreSubscriptionsAsync().ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Subscriptions, Is.Empty);
+            Assert.That(GetCachedSubscriptionIds(store), Is.Empty);
+        }
+
+        [Test]
+        public async Task ProtectedDefinitionRestoreFailsWhenBackendRecordIsTamperedAsync()
         {
             using var kv = new InMemorySharedKeyValueStore();
             using var protector = new AesCbcHmacRecordProtector(MakeKey(11));
@@ -109,10 +141,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
             await kv.SetAsync(
                 SharedKeyValueSubscriptionStore.KeyFor(subscription.Id),
                 ByteString.From(new byte[] { 1, 2, 3, 4, 5 })).ConfigureAwait(false);
-            RestoreSubscriptionResult result = await store.RestoreSubscriptionsAsync().ConfigureAwait(false);
 
-            Assert.That(result.Success, Is.True);
-            Assert.That(result.Subscriptions, Is.Not.Empty);
+            ServiceResultException? exception = Assert.ThrowsAsync<ServiceResultException>(
+                () => store.RestoreSubscriptionsAsync().AsTask());
+
+            Assert.That(exception!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
         }
 
         [Test]
@@ -129,6 +162,64 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(found, Is.True);
             Assert.That(Contains(raw.ToArray(), BitConverter.GetBytes(subscription.Id)), Is.False);
             Assert.That((await store.RestoreSubscriptionsAsync().ConfigureAwait(false)).Subscriptions!.Single().Id, Is.EqualTo(subscription.Id));
+        }
+
+        [Test]
+        public async Task CorruptSnapshotFailsWithoutPartiallyReplacingCacheAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            SharedKeyValueSubscriptionStore reader = CreateStore(kv);
+            await reader.StoreSubscriptionsAsync([NewSubscription(450, 45)]).ConfigureAwait(false);
+
+            var writerBackend = new AsyncSharedKeyValueStore(kv);
+            var writer = new SharedKeyValueSubscriptionStore(writerBackend, CreateContext());
+            await writer
+                .StoreSubscriptionsAsync([NewSubscription(451, 46), NewSubscription(452, 47)])
+                .ConfigureAwait(false);
+            await kv.DeleteAsync(SharedKeyValueSubscriptionStore.KeyFor(450)).ConfigureAwait(false);
+            (bool found, ByteString validRecord) = await kv
+                .TryGetAsync(SharedKeyValueSubscriptionStore.KeyFor(452))
+                .ConfigureAwait(false);
+            Assert.That(found, Is.True);
+            await kv
+                .SetAsync(
+                    SharedKeyValueSubscriptionStore.KeyFor(452),
+                    ByteString.From(new byte[] { 1, 2, 3, 4, 5 }))
+                .ConfigureAwait(false);
+
+            ServiceResultException? exception = Assert.ThrowsAsync<ServiceResultException>(
+                () => reader.RestoreSubscriptionsAsync().AsTask());
+            Assert.That(exception!.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+            Assert.That(GetCachedSubscriptionIds(reader), Is.EqualTo(new uint[] { 450 }));
+
+            await kv
+                .SetAsync(SharedKeyValueSubscriptionStore.KeyFor(452), validRecord)
+                .ConfigureAwait(false);
+            RestoreSubscriptionResult result = await reader.RestoreSubscriptionsAsync().ConfigureAwait(false);
+
+            Assert.That(result.Subscriptions!.Select(subscription => subscription.Id), Is.EqualTo(new uint[] { 451, 452 }));
+            Assert.That(GetCachedSubscriptionIds(reader), Is.EqualTo(new uint[] { 451, 452 }));
+        }
+
+        [Test]
+        public async Task RestoreRejectsSubscriptionIdThatDoesNotMatchPersistedKeyAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            SharedKeyValueSubscriptionStore writer = CreateStore(kv);
+            await writer.StoreSubscriptionsAsync([NewSubscription(475, 48)]).ConfigureAwait(false);
+            (bool found, ByteString record) = await kv
+                .TryGetAsync(SharedKeyValueSubscriptionStore.KeyFor(475))
+                .ConfigureAwait(false);
+            Assert.That(found, Is.True);
+            await kv.DeleteAsync(SharedKeyValueSubscriptionStore.KeyFor(475)).ConfigureAwait(false);
+            await kv.SetAsync(SharedKeyValueSubscriptionStore.KeyFor(476), record).ConfigureAwait(false);
+
+            var restartedBackend = new AsyncSharedKeyValueStore(kv);
+            var restarted = new SharedKeyValueSubscriptionStore(restartedBackend, CreateContext());
+            ServiceResultException? exception = Assert.ThrowsAsync<ServiceResultException>(
+                () => restarted.RestoreSubscriptionsAsync().AsTask());
+
+            Assert.That(exception!.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
         }
 
         [Test]
@@ -740,6 +831,25 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 null);
             Assert.That(method, Is.Not.Null);
             return method!;
+        }
+
+        private static uint[] GetCachedSubscriptionIds(SharedKeyValueSubscriptionStore store)
+        {
+            FieldInfo? cacheField = typeof(SharedKeyValueSubscriptionStore).GetField(
+                "m_definitionCache",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(cacheField, Is.Not.Null);
+            object? cache = cacheField!.GetValue(store);
+            Assert.That(cache, Is.Not.Null);
+            PropertyInfo? subscriptionsProperty = cache!.GetType().GetProperty(
+                "Subscriptions",
+                BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(subscriptionsProperty, Is.Not.Null);
+            var subscriptions =
+                (Dictionary<uint, StoredSubscription>)subscriptionsProperty!.GetValue(cache)!;
+            uint[] ids = [.. subscriptions.Keys];
+            Array.Sort(ids);
+            return ids;
         }
 
         private static NotificationMessage NewNotification(uint sequenceNumber)

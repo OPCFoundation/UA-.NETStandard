@@ -113,21 +113,48 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
         }
 
         [Test]
-        public async Task ExpiredForeignHolderCanBeTakenOverAsync()
+        public async Task ForeignHolderCanBeTakenOverAfterUnchangedResourceVersionDurationAsync()
         {
             Mock<IKubernetesApiClient> api = NewApi();
-            KubernetesLease lease = HeldLease("pod-b", ParseUtc("2026-01-01T00:00:00Z"));
-            var time = new FakeTimeProvider(ParseUtc("2026-01-01T00:00:31Z"));
+            KubernetesLease lease = HeldLease("pod-b", ParseUtc("2100-01-01T00:00:00Z"));
+            var time = new FakeTimeProvider(ParseUtc("2026-01-01T00:00:00Z"));
             api.Setup(x => x.GetLeaseAsync("ns", "opcua", It.IsAny<CancellationToken>())).ReturnsAsync(lease);
             api.Setup(x => x.ReplaceLeaseAsync("ns", "opcua", lease, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(lease);
 
             await using var election = new KubernetesLeaseLeaderElection(api.Object, NewOptions(), time);
+            Assert.That(await election.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.False);
+            time.Advance(TimeSpan.FromSeconds(29));
+            Assert.That(await election.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.False);
+            time.Advance(TimeSpan.FromSeconds(1));
             bool acquired = await election.TryAcquireOrRenewAsync().ConfigureAwait(false);
 
             Assert.That(acquired, Is.True);
             Assert.That(lease.Spec.HolderIdentity, Is.EqualTo("pod-a"));
             Assert.That(lease.Spec.LeaseTransitions, Is.EqualTo(1));
+        }
+
+        [Test]
+        public async Task ResourceVersionChangeRestartsForeignLeaseObservationAsync()
+        {
+            Mock<IKubernetesApiClient> api = NewApi();
+            KubernetesLease lease = HeldLease("pod-b", ParseUtc("2000-01-01T00:00:00Z"));
+            var time = new FakeTimeProvider(ParseUtc("2026-01-01T00:00:00Z"));
+            api.Setup(x => x.GetLeaseAsync("ns", "opcua", It.IsAny<CancellationToken>())).ReturnsAsync(lease);
+            api.Setup(x => x.ReplaceLeaseAsync("ns", "opcua", lease, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(lease);
+
+            await using var election = new KubernetesLeaseLeaderElection(api.Object, NewOptions(), time);
+            Assert.That(await election.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.False);
+            time.Advance(TimeSpan.FromSeconds(29));
+            lease.Metadata.ResourceVersion = "2";
+            Assert.That(await election.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.False);
+            time.Advance(TimeSpan.FromSeconds(29));
+            Assert.That(await election.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.False);
+            time.Advance(TimeSpan.FromSeconds(1));
+
+            Assert.That(await election.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.True);
+            Assert.That(lease.Spec.HolderIdentity, Is.EqualTo("pod-a"));
         }
 
         [Test]
@@ -198,7 +225,7 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
         }
 
         [Test]
-        public async Task MissingRenewTimeUsesExpiredFallbackAsync()
+        public async Task MissingRenewTimeStillRequiresLocalObservationWindowAsync()
         {
             Mock<IKubernetesApiClient> api = NewApi();
             KubernetesLease lease = HeldLease("pod-b", ParseUtc("2026-01-01T00:00:00Z"));
@@ -206,11 +233,14 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
             api.Setup(x => x.GetLeaseAsync("ns", "opcua", It.IsAny<CancellationToken>())).ReturnsAsync(lease);
             api.Setup(x => x.ReplaceLeaseAsync("ns", "opcua", lease, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(lease);
+            var time = new FakeTimeProvider(ParseUtc("2026-01-01T00:00:05Z"));
 
             await using var election = new KubernetesLeaseLeaderElection(
                 api.Object,
                 NewOptions(),
-                new FakeTimeProvider(ParseUtc("2026-01-01T00:00:05Z")));
+                time);
+            Assert.That(await election.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.False);
+            time.Advance(TimeSpan.FromSeconds(30));
             bool acquired = await election.TryAcquireOrRenewAsync().ConfigureAwait(false);
 
             Assert.That(acquired, Is.True);
@@ -334,6 +364,91 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
                 async () => await election.TryAcquireOrRenewAsync().ConfigureAwait(false),
                 Throws.TypeOf<HttpRequestException>().With.Message.EqualTo("connection lost"));
             Assert.That(election.IsLeader, Is.False);
+        }
+
+        [Test]
+        public async Task HungApiAttemptTimesOutAtRenewIntervalAsync()
+        {
+            Mock<IKubernetesApiClient> api = NewApi();
+            var time = new FakeTimeProvider(ParseUtc("2026-01-01T00:00:00Z"));
+            var getStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var hungGet = new TaskCompletionSource<KubernetesLease?>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            int getCalls = 0;
+            CancellationToken requestToken = default;
+            api.Setup(x => x.GetLeaseAsync("ns", "opcua", It.IsAny<CancellationToken>()))
+                .Returns((string _, string _, CancellationToken token) =>
+                {
+                    int call = Interlocked.Increment(ref getCalls);
+                    if (call == 1)
+                    {
+                        requestToken = token;
+                        getStarted.TrySetResult();
+                        return new ValueTask<KubernetesLease?>(hungGet.Task);
+                    }
+                    return new ValueTask<KubernetesLease?>((KubernetesLease?)null);
+                });
+            KubernetesLeaderElectionOptions options = NewOptions();
+            options.RenewInterval = TimeSpan.FromSeconds(5);
+
+            await using var election = new KubernetesLeaseLeaderElection(api.Object, options, time);
+            Task<bool> attempt = election.TryAcquireOrRenewAsync().AsTask();
+            await getStarted.Task.ConfigureAwait(false);
+            time.Advance(TimeSpan.FromSeconds(5));
+
+            Assert.That(
+                () => attempt,
+                Throws.TypeOf<TimeoutException>());
+            Assert.That(election.IsLeader, Is.False);
+            Assert.That(requestToken.IsCancellationRequested, Is.True);
+            hungGet.TrySetResult(null);
+        }
+
+        [Test]
+        public async Task WatchdogFencesHungRenewalAndRejectsStaleCompletionAsync()
+        {
+            Mock<IKubernetesApiClient> api = NewApi();
+            var time = new FakeTimeProvider(ParseUtc("2026-01-01T00:00:00Z"));
+            var renewStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var hungRenew = new TaskCompletionSource<KubernetesLease?>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            int getCalls = 0;
+            api.Setup(x => x.GetLeaseAsync("ns", "opcua", It.IsAny<CancellationToken>()))
+                .Returns((string _, string _, CancellationToken _) =>
+                {
+                    int call = Interlocked.Increment(ref getCalls);
+                    if (call == 1 || call > 2)
+                    {
+                        return new ValueTask<KubernetesLease?>((KubernetesLease?)null);
+                    }
+                    renewStarted.TrySetResult();
+                    return new ValueTask<KubernetesLease?>(hungRenew.Task);
+                });
+            api.Setup(x => x.CreateLeaseAsync("ns", It.IsAny<KubernetesLease>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync((string _, KubernetesLease lease, CancellationToken _) => lease);
+            KubernetesLeaderElectionOptions options = NewOptions();
+            options.RenewInterval = TimeSpan.FromMinutes(1);
+
+            await using var election = new KubernetesLeaseLeaderElection(api.Object, options, time);
+            Assert.That(await election.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.True);
+            Task<bool> staleAttempt = election.TryAcquireOrRenewAsync().AsTask();
+            await renewStarted.Task.ConfigureAwait(false);
+            time.Advance(TimeSpan.FromSeconds(29));
+            Assert.That(election.IsLeader, Is.True);
+
+            time.Advance(TimeSpan.FromSeconds(1));
+            Assert.That(election.IsLeader, Is.False);
+            hungRenew.TrySetResult(HeldLease("pod-a", ParseUtc("2026-01-01T00:00:00Z")));
+
+            Assert.That(await staleAttempt.ConfigureAwait(false), Is.False);
+            Assert.That(election.IsLeader, Is.False);
+            api.Verify(
+                x => x.ReplaceLeaseAsync(
+                    It.IsAny<string>(),
+                    It.IsAny<string>(),
+                    It.IsAny<KubernetesLease>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
         }
 
         [Test]
