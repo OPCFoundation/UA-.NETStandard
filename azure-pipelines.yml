@@ -3,10 +3,14 @@
 # https://aka.ms/yaml
 
 parameters:
-- name: managedPool
-  displayName: 'Use the netstandard Managed DevOps Pool (adds ImageOverride demands per OS)'
-  type: boolean
-  default: false
+- name: poolMode
+  displayName: 'Pool routing: mixed shares the netstandard Managed DevOps Pool and Microsoft-hosted agents across stages; managed forces all stages onto the managed pool; hosted forces all stages onto hosted agents'
+  type: string
+  default: mixed
+  values:
+  - mixed
+  - managed
+  - hosted
 
 trigger:
   batch: 'true'
@@ -52,20 +56,42 @@ schedules:
 variables:
   FullBuild: ${{ ne(variables['Build.Reason'], 'PullRequest') }}
   ScheduledBuild: ${{ in(variables['Build.Reason'], 'Schedule', 'Manual') }}
-  # When managedPool is true, route Windows/Linux jobs to the 'netstandard'
-  # Managed DevOps Pool and select images via ImageOverride demands.  See
-  # https://learn.microsoft.com/azure/devops/managed-devops-pools/configure-images#use-demands-to-specify-an-image
-  # Mac jobs always run on Microsoft-hosted agents because Managed DevOps Pools
+  # macOS jobs always run on Microsoft-hosted agents because Managed DevOps Pools
   # does not provide macOS images.
-  ${{ if parameters.managedPool }}:
-    poolName: 'netstandard'
-    windowsImage: 'windows-2022-g2'
-    linuxImage: 'ubuntu-22.04-g2'
-  ${{ else }}:
-    poolName: ''
-    windowsImage: 'windows-2025-vs2026'
-    linuxImage: 'ubuntu-24.04'
   macImage: 'macOS-15'
+  # Two pool profiles are defined so stages can be routed independently and the
+  # netstandard Managed DevOps Pool and the Microsoft-hosted agents share the
+  # workload of a single run (see the per-stage mapping below).  Each profile is
+  # a (poolName, windowsImage, linuxImage) triple; poolName='' selects hosted
+  # agents (vmImage), otherwise the named Managed DevOps Pool is used with an
+  # ImageOverride demand per OS.  See
+  # https://learn.microsoft.com/azure/devops/managed-devops-pools/configure-images#use-demands-to-specify-an-image
+  #
+  # poolMode collapses the two profiles for the all-managed / all-hosted
+  # overrides; 'mixed' (default) keeps them distinct so both pools run in
+  # parallel.  Stages reference mgd*/host* only, so no per-stage conditionals
+  # are needed.
+  ${{ if eq(parameters.poolMode, 'hosted') }}:
+    mgdPoolName: ''
+    mgdWindowsImage: 'windows-2025-vs2026'
+    mgdLinuxImage: 'ubuntu-24.04'
+    hostPoolName: ''
+    hostWindowsImage: 'windows-2025-vs2026'
+    hostLinuxImage: 'ubuntu-24.04'
+  ${{ elseif eq(parameters.poolMode, 'managed') }}:
+    mgdPoolName: 'netstandard'
+    mgdWindowsImage: 'windows-2022-g2'
+    mgdLinuxImage: 'ubuntu-22.04-g2'
+    hostPoolName: 'netstandard'
+    hostWindowsImage: 'windows-2022-g2'
+    hostLinuxImage: 'ubuntu-22.04-g2'
+  ${{ else }}:
+    mgdPoolName: 'netstandard'
+    mgdWindowsImage: 'windows-2022-g2'
+    mgdLinuxImage: 'ubuntu-22.04-g2'
+    hostPoolName: ''
+    hostWindowsImage: 'windows-2025-vs2026'
+    hostLinuxImage: 'ubuntu-24.04'
 
 stages:
 - stage: build
@@ -74,8 +100,8 @@ stages:
   jobs:
   - template: .azurepipelines/sln.yml
     parameters:
-      poolImage: ${{ variables.windowsImage }}
-      poolName: ${{ variables.poolName }}
+      poolImage: ${{ variables.hostWindowsImage }}
+      poolName: ${{ variables.hostPoolName }}
       jobnamesuffix: win2025
       # PR builds discover every *.slnx and restrict to a small TFM set so each
       # matrix job's bin tree fits on the managed-pool agent's small temp
@@ -94,19 +120,19 @@ stages:
     parameters:
       configuration: Release
       framework: net48
-      agents: '@{ windows = "${{ variables.windowsImage }}" }'
+      agents: '@{ windows = "${{ variables.mgdWindowsImage }}" }'
       jobnamesuffix: net48
-      poolName: ${{ variables.poolName }}
-      windowsImage: ${{ variables.windowsImage }}
+      poolName: ${{ variables.mgdPoolName }}
+      windowsImage: ${{ variables.mgdWindowsImage }}
   - template: .azurepipelines/test.yml
     parameters:
       configuration: Release
       framework: net10.0
-      agents: '@{ windows = "${{ variables.windowsImage }}" }'
+      agents: '@{ windows = "${{ variables.mgdWindowsImage }}" }'
       jobnamesuffix: net100
       customtestarget: net10.0
-      poolName: ${{ variables.poolName }}
-      windowsImage: ${{ variables.windowsImage }}
+      poolName: ${{ variables.mgdPoolName }}
+      windowsImage: ${{ variables.mgdWindowsImage }}
   - template: .azurepipelines/test.yml
     parameters:
       configuration: Release
@@ -115,8 +141,8 @@ stages:
       jobnamesuffix: net100mac
       customtestarget: net10.0
       hosted: true
-      poolName: ${{ variables.poolName }}
-      windowsImage: ${{ variables.windowsImage }}
+      poolName: ${{ variables.mgdPoolName }}
+      windowsImage: ${{ variables.mgdWindowsImage }}
       # macOS runs only on Schedule/Manual (nightly + on-demand), not on
       # PR or master push, to keep the PR gate fast and Windows-focused.
       condition: and(succeeded(), ne(variables.ScheduledBuild, 'False'))
@@ -128,10 +154,10 @@ stages:
   - template: .azurepipelines/test-aot.yml
     parameters:
       configuration: Release
-      agents: '@{ windows = "${{ variables.windowsImage }}"; linux="${{ variables.linuxImage }}"}'
+      agents: '@{ windows = "${{ variables.mgdWindowsImage }}"; linux="${{ variables.mgdLinuxImage }}"}'
       jobnamesuffix: net100aot
-      poolName: ${{ variables.poolName }}
-      windowsImage: ${{ variables.windowsImage }}
+      poolName: ${{ variables.mgdPoolName }}
+      windowsImage: ${{ variables.mgdWindowsImage }}
 - stage: testdebug
   dependsOn: [build]
   displayName: 'Test Core and SDK Debug'
@@ -142,9 +168,9 @@ stages:
       framework: net10.0
       configuration: Debug
       jobnamesuffix: net100debug
-      poolName: ${{ variables.poolName }}
-      windowsImage: ${{ variables.windowsImage }}
-      agents: '@{ windows = "${{ variables.windowsImage }}"; linux = "${{ variables.linuxImage }}" }'
+      poolName: ${{ variables.hostPoolName }}
+      windowsImage: ${{ variables.hostWindowsImage }}
+      agents: '@{ windows = "${{ variables.hostWindowsImage }}"; linux = "${{ variables.hostLinuxImage }}" }'
   - template: .azurepipelines/test.yml
     parameters:
       framework: net10.0
@@ -152,8 +178,8 @@ stages:
       jobnamesuffix: net100debugmac
       agents: '@{ mac = "${{ variables.macImage }}" }'
       hosted: true
-      poolName: ${{ variables.poolName }}
-      windowsImage: ${{ variables.windowsImage }}
+      poolName: ${{ variables.hostPoolName }}
+      windowsImage: ${{ variables.hostWindowsImage }}
 - stage: testnet90
   dependsOn: [build]
   displayName: 'Test .NET 9.0'
@@ -164,9 +190,9 @@ stages:
       framework: net9.0
       configuration: Release
       jobnamesuffix: net90
-      poolName: ${{ variables.poolName }}
-      windowsImage: ${{ variables.windowsImage }}
-      agents: '@{ windows = "${{ variables.windowsImage }}"; linux = "${{ variables.linuxImage }}" }'
+      poolName: ${{ variables.mgdPoolName }}
+      windowsImage: ${{ variables.mgdWindowsImage }}
+      agents: '@{ windows = "${{ variables.mgdWindowsImage }}"; linux = "${{ variables.mgdLinuxImage }}" }'
   - template: .azurepipelines/test.yml
     parameters:
       framework: net9.0
@@ -174,8 +200,8 @@ stages:
       jobnamesuffix: net90mac
       agents: '@{ mac = "${{ variables.macImage }}" }'
       hosted: true
-      poolName: ${{ variables.poolName }}
-      windowsImage: ${{ variables.windowsImage }}
+      poolName: ${{ variables.mgdPoolName }}
+      windowsImage: ${{ variables.mgdWindowsImage }}
 - stage: testnet80
   dependsOn: [build]
   displayName: 'Test .NET 8.0'
@@ -186,9 +212,9 @@ stages:
       framework: net8.0
       configuration: Release
       jobnamesuffix: net80
-      poolName: ${{ variables.poolName }}
-      windowsImage: ${{ variables.windowsImage }}
-      agents: '@{ windows = "${{ variables.windowsImage }}"; linux = "${{ variables.linuxImage }}" }'
+      poolName: ${{ variables.hostPoolName }}
+      windowsImage: ${{ variables.hostWindowsImage }}
+      agents: '@{ windows = "${{ variables.hostWindowsImage }}"; linux = "${{ variables.hostLinuxImage }}" }'
   - template: .azurepipelines/test.yml
     parameters:
       framework: net8.0
@@ -196,8 +222,8 @@ stages:
       jobnamesuffix: net80mac
       agents: '@{ mac = "${{ variables.macImage }}" }'
       hosted: true
-      poolName: ${{ variables.poolName }}
-      windowsImage: ${{ variables.windowsImage }}
+      poolName: ${{ variables.hostPoolName }}
+      windowsImage: ${{ variables.hostWindowsImage }}
 - stage: testnet472
   dependsOn: [build]
   displayName: 'Test .NET 4.7.2'
@@ -208,10 +234,10 @@ stages:
       framework: net472
       configuration: Release
       jobnamesuffix: net472
-      agents: '@{ windows = "${{ variables.windowsImage }}" }'
+      agents: '@{ windows = "${{ variables.hostWindowsImage }}" }'
       customtestarget: net472
-      poolName: ${{ variables.poolName }}
-      windowsImage: ${{ variables.windowsImage }}
+      poolName: ${{ variables.hostPoolName }}
+      windowsImage: ${{ variables.hostWindowsImage }}
 - stage: testnetstandard20
   dependsOn: [build]
   displayName: 'Test .NETStandard 2.0'
@@ -222,10 +248,10 @@ stages:
       framework: net48
       configuration: Release
       jobnamesuffix: netstandard20
-      agents: '@{ windows = "${{ variables.windowsImage }}"}'
+      agents: '@{ windows = "${{ variables.mgdWindowsImage }}"}'
       customtestarget: netstandard2.0
-      poolName: ${{ variables.poolName }}
-      windowsImage: ${{ variables.windowsImage }}
+      poolName: ${{ variables.mgdPoolName }}
+      windowsImage: ${{ variables.mgdWindowsImage }}
 - stage: testnetstandard21
   dependsOn: [build]
   displayName: 'Test .NETStandard 2.1'
@@ -237,9 +263,9 @@ stages:
       configuration: Release
       jobnamesuffix: netstandard21
       customtestarget: netstandard2.1
-      poolName: ${{ variables.poolName }}
-      windowsImage: ${{ variables.windowsImage }}
-      agents: '@{ windows = "${{ variables.windowsImage }}"; linux = "${{ variables.linuxImage }}" }'
+      poolName: ${{ variables.mgdPoolName }}
+      windowsImage: ${{ variables.mgdWindowsImage }}
+      agents: '@{ windows = "${{ variables.mgdWindowsImage }}"; linux = "${{ variables.mgdLinuxImage }}" }'
   - template: .azurepipelines/test.yml
     parameters:
       framework: net8.0
@@ -248,8 +274,8 @@ stages:
       customtestarget: netstandard2.1
       agents: '@{ mac = "${{ variables.macImage }}" }'
       hosted: true
-      poolName: ${{ variables.poolName }}
-      windowsImage: ${{ variables.windowsImage }}
+      poolName: ${{ variables.mgdPoolName }}
+      windowsImage: ${{ variables.mgdWindowsImage }}
 - stage: coverage
   dependsOn: [testdebug,testfastpr]
   displayName: 'Code Coverage'
@@ -258,7 +284,7 @@ stages:
   - template: .azurepipelines/testcc.yml
     parameters:
       configuration: Release
-      poolImage: ${{ variables.linuxImage }}
+      poolImage: ${{ variables.hostLinuxImage }}
       framework: net10.0
       jobnamesuffix: net100cc
-      poolName: ${{ variables.poolName }}
+      poolName: ${{ variables.hostPoolName }}
