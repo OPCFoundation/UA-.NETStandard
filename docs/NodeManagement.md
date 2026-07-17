@@ -22,9 +22,13 @@ override the four `StandardServer` service methods themselves.
    per-item collection to the matching
    `IMasterNodeManager.AddNodesAsync` etc. dispatcher.
 3. `MasterNodeManager` looks up the owning NodeManager for every item
-   (parent's owner for `AddNodes`, target node's owner for the rest)
-   and asks it to perform the work via the optional
-   `INodeManagementAsyncNodeManager` interface.
+   (requested namespace or parent for `AddNodes`, node for `DeleteNodes`,
+   and source for reference changes)
+   and validates the matching `PermissionType` before asking it to
+   perform the work via the optional `INodeManagementAsyncNodeManager`
+   interface. `AddNode` is evaluated against the target namespace's
+   default permissions; the other permissions are evaluated on the
+   affected Node.
 4. The aggregated per-item results are wrapped in the matching response
    envelope and the audit event (`AuditAddNodesEvent`,
    `AuditDeleteNodesEvent`, `AuditAddReferencesEvent`,
@@ -99,9 +103,10 @@ use it as the working example.
 - **AddReferences / DeleteReferences**: routed to the source node's
   owning NodeManager. When the target node lives in a different
   NodeManager that has also opted in, the dispatcher mirrors the
-  complementary (inverse) edge on the target's owning NodeManager —
-  best-effort; a failure on the target side is logged at Warning level
-  and does not roll the source side back.
+  complementary (inverse) edge on the target's owning NodeManager.
+  Permissions for both local endpoints are checked before either side
+  is changed. If the inverse mutation fails, the source mutation is
+  rolled back and the target-side failure is returned.
 
 ## Request handling on `AsyncCustomNodeManager`
 
@@ -130,7 +135,7 @@ The default implementation honors the following request fields:
 | AddNodes | `BadBrowseNameDuplicated` | A sibling beneath the same local parent already uses the browse name. |
 | AddNodes | `BadNodeClassInvalid` | Only `Object` and `Variable` are supported by the default implementation. |
 | AddNodes | `BadNodeAttributesInvalid` | The supplied attributes extension object does not match the node class. |
-| AddNodes / DeleteNodes / AddReferences / DeleteReferences | `BadUserAccessDenied` | The owning NodeManager has not opted in to NodeManagement. |
+| AddNodes / DeleteNodes / AddReferences / DeleteReferences | `BadUserAccessDenied` | The owning NodeManager has not opted in to NodeManagement or the Session lacks `AddNode`, `DeleteNode`, `AddReference`, or `RemoveReference` permission. |
 | DeleteNodes | `BadNodeIdInvalid` / `BadNodeIdUnknown` | The node to delete is null or unknown. |
 | AddReferences | `BadSourceNodeIdInvalid` | Source is null or unknown to this NodeManager. |
 | AddReferences | `BadTargetNodeIdInvalid` | Target is null. |

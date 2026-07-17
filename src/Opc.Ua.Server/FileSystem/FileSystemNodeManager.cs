@@ -173,6 +173,28 @@ namespace Opc.Ua.Server.FileSystem
         }
 
         /// <inheritdoc/>
+        public override ValueTask SessionClosingAsync(
+            OperationContext context,
+            NodeId sessionId,
+            bool deleteSubscriptions,
+            CancellationToken cancellationToken = default)
+        {
+            lock (m_lock)
+            {
+                foreach (FileHandle handle in m_handles.Values)
+                {
+                    handle.CloseSession(sessionId);
+                }
+            }
+
+            return base.SessionClosingAsync(
+                context,
+                sessionId,
+                deleteSubscriptions,
+                cancellationToken);
+        }
+
+        /// <inheritdoc/>
         protected override void Dispose(bool disposing)
         {
             if (disposing)

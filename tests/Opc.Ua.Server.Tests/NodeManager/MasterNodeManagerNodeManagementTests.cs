@@ -29,12 +29,14 @@
 
 #nullable enable
 
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.TestFramework;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests
 {
@@ -470,6 +472,288 @@ namespace Opc.Ua.Server.Tests
                 Throws.TypeOf<System.ArgumentNullException>());
         }
 
+        [Test]
+        public async Task AddNodesDeniedAddNodePermissionDoesNotMutateAsync()
+        {
+            using var harness = new AuthorizationHarness();
+            harness.SetAddNodePermissions(PermissionType.Browse);
+            AddNodesItem item = harness.CreateAddNodesItem();
+
+            (ArrayOf<AddNodesResult> results, _) = await harness.Sut.AddNodesAsync(
+                harness.Context,
+                new AddNodesItem[] { item }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            harness.SourceManager.Verify(
+                manager => manager.AddNodeAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<AddNodesItem>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
+        [Test]
+        public async Task AddNodesGrantedAddNodePermissionMutatesAsync()
+        {
+            using var harness = new AuthorizationHarness();
+            harness.SetAddNodePermissions(PermissionType.AddNode);
+            AddNodesItem item = harness.CreateAddNodesItem();
+
+            (ArrayOf<AddNodesResult> results, _) = await harness.Sut.AddNodesAsync(
+                harness.Context,
+                new AddNodesItem[] { item }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            harness.SourceManager.Verify(
+                manager => manager.AddNodeAsync(
+                    harness.Context,
+                    item,
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+
+        [Test]
+        public async Task DeleteNodesDeniedDeleteNodePermissionDoesNotMutateAsync()
+        {
+            using var harness = new AuthorizationHarness
+            {
+                SourcePermissionResult = new ServiceResult(StatusCodes.BadUserAccessDenied)
+            };
+            var item = new DeleteNodesItem
+            {
+                NodeId = harness.SourceNodeId
+            };
+
+            (ArrayOf<StatusCode> results, _) = await harness.Sut.DeleteNodesAsync(
+                harness.Context,
+                new DeleteNodesItem[] { item }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(results[0], Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            harness.SourceManager.Verify(
+                manager => manager.ValidateRolePermissionsAsync(
+                    harness.Context,
+                    harness.SourceNodeId,
+                    PermissionType.DeleteNode,
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+            harness.SourceManager.Verify(
+                manager => manager.DeleteNodeAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<DeleteNodesItem>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
+        [Test]
+        public async Task DeleteNodesGrantedDeleteNodePermissionMutatesAsync()
+        {
+            using var harness = new AuthorizationHarness();
+            var item = new DeleteNodesItem
+            {
+                NodeId = harness.SourceNodeId
+            };
+
+            (ArrayOf<StatusCode> results, _) = await harness.Sut.DeleteNodesAsync(
+                harness.Context,
+                new DeleteNodesItem[] { item }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(results[0], Is.EqualTo(StatusCodes.Good));
+            harness.SourceManager.Verify(
+                manager => manager.DeleteNodeAsync(
+                    harness.Context,
+                    item,
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+
+        [Test]
+        public async Task AddReferencesDeniedTargetPermissionDoesNotHalfApplyAsync()
+        {
+            using var harness = new AuthorizationHarness
+            {
+                TargetPermissionResult = new ServiceResult(StatusCodes.BadUserAccessDenied)
+            };
+            AddReferencesItem item = harness.CreateAddReferencesItem();
+
+            (ArrayOf<StatusCode> results, _) = await harness.Sut.AddReferencesAsync(
+                harness.Context,
+                new AddReferencesItem[] { item }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(results[0], Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            harness.SourceManager.Verify(
+                manager => manager.AddReferenceAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<AddReferencesItem>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+            harness.TargetManager.Verify(
+                manager => manager.AddReferenceAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<AddReferencesItem>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
+        [Test]
+        public async Task AddReferencesGrantedPermissionsMutateBothSidesAsync()
+        {
+            using var harness = new AuthorizationHarness();
+            AddReferencesItem item = harness.CreateAddReferencesItem();
+
+            (ArrayOf<StatusCode> results, _) = await harness.Sut.AddReferencesAsync(
+                harness.Context,
+                new AddReferencesItem[] { item }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(results[0], Is.EqualTo(StatusCodes.Good));
+            harness.SourceManager.Verify(
+                manager => manager.AddReferenceAsync(
+                    harness.Context,
+                    item,
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+            harness.TargetManager.Verify(
+                manager => manager.AddReferenceAsync(
+                    harness.Context,
+                    It.Is<AddReferencesItem>(inverse =>
+                        inverse.SourceNodeId == harness.TargetNodeId &&
+                        inverse.TargetNodeId == harness.SourceNodeId &&
+                        inverse.ReferenceTypeId == item.ReferenceTypeId &&
+                        inverse.IsForward != item.IsForward),
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+
+        [Test]
+        public async Task AddReferencesInverseFailureRollsBackSourceAsync()
+        {
+            using var harness = new AuthorizationHarness();
+            AddReferencesItem item = harness.CreateAddReferencesItem();
+            harness.TargetManager
+                .Setup(manager => manager.AddReferenceAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<AddReferencesItem>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ServiceResult>(
+                    new ServiceResult(StatusCodes.BadDuplicateReferenceNotAllowed)));
+
+            (ArrayOf<StatusCode> results, _) = await harness.Sut.AddReferencesAsync(
+                harness.Context,
+                new AddReferencesItem[] { item }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(
+                results[0],
+                Is.EqualTo(StatusCodes.BadDuplicateReferenceNotAllowed));
+            harness.SourceManager.Verify(
+                manager => manager.DeleteReferenceAsync(
+                    harness.Context,
+                    It.Is<DeleteReferencesItem>(rollback =>
+                        rollback.SourceNodeId == item.SourceNodeId &&
+                        rollback.TargetNodeId == item.TargetNodeId &&
+                        rollback.ReferenceTypeId == item.ReferenceTypeId &&
+                        rollback.IsForward == item.IsForward &&
+                        !rollback.DeleteBidirectional),
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+
+        [Test]
+        public async Task DeleteReferencesDeniedTargetPermissionDoesNotHalfApplyAsync()
+        {
+            using var harness = new AuthorizationHarness
+            {
+                TargetPermissionResult = new ServiceResult(StatusCodes.BadUserAccessDenied)
+            };
+            DeleteReferencesItem item = harness.CreateDeleteReferencesItem();
+
+            (ArrayOf<StatusCode> results, _) = await harness.Sut.DeleteReferencesAsync(
+                harness.Context,
+                new DeleteReferencesItem[] { item }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(results[0], Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            harness.SourceManager.Verify(
+                manager => manager.DeleteReferenceAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<DeleteReferencesItem>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+            harness.TargetManager.Verify(
+                manager => manager.DeleteReferenceAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<DeleteReferencesItem>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
+        [Test]
+        public async Task DeleteReferencesGrantedPermissionsMutateBothSidesAsync()
+        {
+            using var harness = new AuthorizationHarness();
+            DeleteReferencesItem item = harness.CreateDeleteReferencesItem();
+
+            (ArrayOf<StatusCode> results, _) = await harness.Sut.DeleteReferencesAsync(
+                harness.Context,
+                new DeleteReferencesItem[] { item }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(results[0], Is.EqualTo(StatusCodes.Good));
+            harness.SourceManager.Verify(
+                manager => manager.DeleteReferenceAsync(
+                    harness.Context,
+                    item,
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+            harness.TargetManager.Verify(
+                manager => manager.DeleteReferenceAsync(
+                    harness.Context,
+                    It.Is<DeleteReferencesItem>(inverse =>
+                        inverse.SourceNodeId == harness.TargetNodeId &&
+                        inverse.TargetNodeId == harness.SourceNodeId &&
+                        inverse.ReferenceTypeId == item.ReferenceTypeId &&
+                        inverse.IsForward != item.IsForward &&
+                        !inverse.DeleteBidirectional),
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+
+        [Test]
+        public async Task DeleteReferencesInverseFailureRestoresSourceAsync()
+        {
+            using var harness = new AuthorizationHarness();
+            DeleteReferencesItem item = harness.CreateDeleteReferencesItem();
+            harness.TargetManager
+                .Setup(manager => manager.DeleteReferenceAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<DeleteReferencesItem>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ServiceResult>(
+                    new ServiceResult(StatusCodes.BadNoMatch)));
+
+            (ArrayOf<StatusCode> results, _) = await harness.Sut.DeleteReferencesAsync(
+                harness.Context,
+                new DeleteReferencesItem[] { item }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(results[0], Is.EqualTo(StatusCodes.BadNoMatch));
+            harness.SourceManager.Verify(
+                manager => manager.AddReferenceAsync(
+                    harness.Context,
+                    It.Is<AddReferencesItem>(rollback =>
+                        rollback.SourceNodeId == item.SourceNodeId &&
+                        rollback.TargetNodeId == item.TargetNodeId &&
+                        rollback.ReferenceTypeId == item.ReferenceTypeId &&
+                        rollback.IsForward == item.IsForward),
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+
         private MasterNodeManager CreateMasterNodeManager(params INodeManager[] additional)
         {
             var nodeManagers = new List<INodeManager>(additional);
@@ -497,6 +781,254 @@ namespace Opc.Ua.Server.Tests
             var requestHeader = new RequestHeader { ReturnDiagnostics = (uint)diagnosticsMask };
             return new OperationContext(
                 requestHeader, null!, RequestType.AddNodes, RequestLifetime.None, session.Object);
+        }
+
+        private sealed class AuthorizationHarness : IDisposable
+        {
+            private const string SourceNamespaceUri =
+                "urn:opcfoundation:server:tests:node-management-source";
+            private const string TargetNamespaceUri =
+                "urn:opcfoundation:server:tests:node-management-target";
+
+            private static readonly NodeId s_roleId = ObjectIds.WellKnownRole_SecurityAdmin;
+            private readonly NamespaceMetadataState m_sourceNamespaceMetadata;
+
+            public AuthorizationHarness()
+            {
+                var namespaceTable = new NamespaceTable();
+                namespaceTable.Append("urn:opcfoundation:server:tests");
+                SourceNamespaceIndex = (ushort)namespaceTable.Append(SourceNamespaceUri);
+                TargetNamespaceIndex = (ushort)namespaceTable.Append(TargetNamespaceUri);
+
+                var typeTree = new TypeTable(namespaceTable);
+                typeTree.AddSubtype(ReferenceTypeIds.References, NodeId.Null);
+                typeTree.AddSubtype(
+                    ReferenceTypeIds.HierarchicalReferences,
+                    ReferenceTypeIds.References);
+                typeTree.AddSubtype(
+                    ReferenceTypeIds.Organizes,
+                    ReferenceTypeIds.HierarchicalReferences);
+
+                SourceNodeId = new NodeId("Source", SourceNamespaceIndex);
+                TargetNodeId = new NodeId("Target", TargetNamespaceIndex);
+
+                var configurationManager = new Mock<IConfigurationNodeManager>();
+                var coreNodeManager = new Mock<ICoreNodeManager>();
+                var factory = new Mock<IMainNodeManagerFactory>();
+                factory.Setup(managerFactory => managerFactory.CreateConfigurationNodeManager())
+                    .Returns(configurationManager.Object);
+                factory.Setup(managerFactory =>
+                        managerFactory.CreateCoreNodeManager(It.IsAny<ushort>()))
+                    .Returns(coreNodeManager.Object);
+
+                var server = new Mock<IServerInternal>();
+                server.Setup(instance => instance.Telemetry)
+                    .Returns(NUnitTelemetryContext.Create());
+                server.Setup(instance => instance.NamespaceUris).Returns(namespaceTable);
+                server.Setup(instance => instance.ServerUris).Returns(new StringTable());
+                server.Setup(instance => instance.TypeTree).Returns(typeTree);
+                server.Setup(instance => instance.Factory).Returns(EncodeableFactory.Create());
+                server.Setup(instance => instance.MainNodeManagerFactory).Returns(factory.Object);
+
+                SourceManager = CreateNodeManager(
+                    SourceNamespaceUri,
+                    SourceNodeId,
+                    () => SourcePermissionResult);
+                TargetManager = CreateNodeManager(
+                    TargetNamespaceUri,
+                    TargetNodeId,
+                    () => TargetPermissionResult);
+
+                var addedNodeId = new NodeId("Added", SourceNamespaceIndex);
+                SourceManager
+                    .Setup(manager => manager.AddNodeAsync(
+                        It.IsAny<OperationContext>(),
+                        It.IsAny<AddNodesItem>(),
+                        It.IsAny<CancellationToken>()))
+                    .Returns(new ValueTask<(ServiceResult result, NodeId addedNodeId)>(
+                        (ServiceResult.Good, addedNodeId)));
+                SourceManager
+                    .Setup(manager => manager.DeleteNodeAsync(
+                        It.IsAny<OperationContext>(),
+                        It.IsAny<DeleteNodesItem>(),
+                        It.IsAny<CancellationToken>()))
+                    .Returns(new ValueTask<ServiceResult>(ServiceResult.Good));
+                SourceManager
+                    .Setup(manager => manager.AddReferenceAsync(
+                        It.IsAny<OperationContext>(),
+                        It.IsAny<AddReferencesItem>(),
+                        It.IsAny<CancellationToken>()))
+                    .Returns(new ValueTask<ServiceResult>(ServiceResult.Good));
+                SourceManager
+                    .Setup(manager => manager.DeleteReferenceAsync(
+                        It.IsAny<OperationContext>(),
+                        It.IsAny<DeleteReferencesItem>(),
+                        It.IsAny<CancellationToken>()))
+                    .Returns(new ValueTask<ServiceResult>(ServiceResult.Good));
+                TargetManager
+                    .Setup(manager => manager.AddReferenceAsync(
+                        It.IsAny<OperationContext>(),
+                        It.IsAny<AddReferencesItem>(),
+                        It.IsAny<CancellationToken>()))
+                    .Returns(new ValueTask<ServiceResult>(ServiceResult.Good));
+                TargetManager
+                    .Setup(manager => manager.DeleteReferenceAsync(
+                        It.IsAny<OperationContext>(),
+                        It.IsAny<DeleteReferencesItem>(),
+                        It.IsAny<CancellationToken>()))
+                    .Returns(new ValueTask<ServiceResult>(ServiceResult.Good));
+
+                m_sourceNamespaceMetadata = new NamespaceMetadataState(null)
+                {
+                    NodeId = new NodeId("SourceNamespaceMetadata", 0)
+                };
+                m_sourceNamespaceMetadata.DefaultRolePermissions =
+                    new PropertyState<ArrayOf<RolePermissionType>>
+                        .Implementation<StructureBuilder<RolePermissionType>>(
+                            m_sourceNamespaceMetadata);
+                configurationManager
+                    .Setup(manager => manager.GetNamespaceMetadataStateAsync(
+                        SourceNamespaceIndex,
+                        It.IsAny<CancellationToken>()))
+                    .Returns(new ValueTask<NamespaceMetadataState?>(
+                        m_sourceNamespaceMetadata));
+
+                var identity = new Mock<IUserIdentity>();
+                identity.Setup(user => user.GrantedRoleIds)
+                    .Returns(new NodeId[] { s_roleId }.ToArrayOf());
+                var session = new Mock<ISession>();
+                session.Setup(activeSession => activeSession.Id)
+                    .Returns(new NodeId("NodeManagementSession", 0));
+                session.Setup(activeSession => activeSession.EffectiveIdentity)
+                    .Returns(identity.Object);
+                session.Setup(activeSession => activeSession.PreferredLocales)
+                    .Returns([]);
+                Context = new OperationContext(
+                    new RequestHeader(),
+                    null!,
+                    RequestType.AddNodes,
+                    RequestLifetime.None,
+                    session.Object);
+
+                var configuration = new ApplicationConfiguration
+                {
+                    ServerConfiguration = new ServerConfiguration()
+                };
+                Sut = new MasterNodeManager(
+                    server.Object,
+                    configuration,
+                    null,
+                    new IAsyncNodeManager[]
+                    {
+                        SourceManager.Object,
+                        TargetManager.Object
+                    });
+            }
+
+            public MasterNodeManager Sut { get; }
+
+            public OperationContext Context { get; }
+
+            public Mock<IAsyncNodeManager> SourceManager { get; }
+
+            public Mock<IAsyncNodeManager> TargetManager { get; }
+
+            public ushort SourceNamespaceIndex { get; }
+
+            public ushort TargetNamespaceIndex { get; }
+
+            public NodeId SourceNodeId { get; }
+
+            public NodeId TargetNodeId { get; }
+
+            public ServiceResult SourcePermissionResult { get; set; } = ServiceResult.Good;
+
+            public ServiceResult TargetPermissionResult { get; set; } = ServiceResult.Good;
+
+            public AddNodesItem CreateAddNodesItem()
+            {
+                return new AddNodesItem
+                {
+                    ParentNodeId = SourceNodeId,
+                    ReferenceTypeId = ReferenceTypeIds.Organizes,
+                    BrowseName = new QualifiedName("Added", SourceNamespaceIndex),
+                    NodeClass = NodeClass.Object,
+                    RequestedNewNodeId = new NodeId("Added", SourceNamespaceIndex)
+                };
+            }
+
+            public AddReferencesItem CreateAddReferencesItem()
+            {
+                return new AddReferencesItem
+                {
+                    SourceNodeId = SourceNodeId,
+                    ReferenceTypeId = ReferenceTypeIds.Organizes,
+                    IsForward = true,
+                    TargetNodeId = TargetNodeId,
+                    TargetNodeClass = NodeClass.Object
+                };
+            }
+
+            public DeleteReferencesItem CreateDeleteReferencesItem()
+            {
+                return new DeleteReferencesItem
+                {
+                    SourceNodeId = SourceNodeId,
+                    ReferenceTypeId = ReferenceTypeIds.Organizes,
+                    IsForward = true,
+                    TargetNodeId = TargetNodeId,
+                    DeleteBidirectional = true
+                };
+            }
+
+            public void SetAddNodePermissions(PermissionType permissions)
+            {
+                m_sourceNamespaceMetadata.DefaultRolePermissions!.Value =
+                [
+                    new RolePermissionType
+                    {
+                        RoleId = s_roleId,
+                        Permissions = (uint)permissions
+                    }
+                ];
+            }
+
+            public void Dispose()
+            {
+                Sut.Dispose();
+            }
+
+            private static Mock<IAsyncNodeManager> CreateNodeManager(
+                string namespaceUri,
+                NodeId nodeId,
+                Func<ServiceResult> permissionResult)
+            {
+                var manager = new Mock<IAsyncNodeManager>();
+                manager.Setup(nodeManager => nodeManager.NamespaceUris)
+                    .Returns(new[] { namespaceUri });
+                manager.Setup(nodeManager => nodeManager.AllowNodeManagement)
+                    .Returns(true);
+                manager
+                    .Setup(nodeManager => nodeManager.GetManagerHandleAsync(
+                        It.IsAny<NodeId>(),
+                        It.IsAny<CancellationToken>()))
+                    .Returns((NodeId requestedNodeId, CancellationToken _) =>
+                        new ValueTask<object>(
+                            requestedNodeId == nodeId ? nodeId : null!));
+                manager
+                    .Setup(nodeManager => nodeManager.ValidateRolePermissionsAsync(
+                        It.IsAny<OperationContext>(),
+                        It.IsAny<NodeId>(),
+                        It.IsAny<PermissionType>(),
+                        It.IsAny<CancellationToken>()))
+                    .Returns((
+                        OperationContext _,
+                        NodeId _,
+                        PermissionType _,
+                        CancellationToken _) =>
+                        new ValueTask<ServiceResult>(permissionResult()));
+                return manager;
+            }
         }
     }
 }

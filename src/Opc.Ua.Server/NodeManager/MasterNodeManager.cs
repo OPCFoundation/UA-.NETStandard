@@ -967,7 +967,8 @@ namespace Opc.Ua.Server
             //     not opted in to NodeManagement, fall back to the first
             //     opted-in NodeManager so cross-NodeManager AddNodes under a
             //     read-only parent (e.g. ObjectsFolder) is still serviceable.
-            INodeManagementAsyncNodeManager? nodeManagement;
+            IAsyncNodeManager? nodeManagement;
+            ushort targetNamespaceIndex;
             if (!item.RequestedNewNodeId.IsNull)
             {
                 var requestedNodeId = ExpandedNodeId.ToNodeId(
@@ -982,6 +983,8 @@ namespace Opc.Ua.Server
                 {
                     return (new ServiceResult(StatusCodes.BadUserAccessDenied), NodeId.Null);
                 }
+
+                targetNamespaceIndex = requestedNodeId.NamespaceIndex;
             }
             else
             {
@@ -1004,6 +1007,23 @@ namespace Opc.Ua.Server
                         return (new ServiceResult(StatusCodes.BadUserAccessDenied), NodeId.Null);
                     }
                 }
+
+                string? namespaceUri = nodeManagement.NamespaceUris?.FirstOrDefault();
+                int namespaceIndex = namespaceUri == null
+                    ? -1
+                    : Server.NamespaceUris.GetIndex(namespaceUri);
+                targetNamespaceIndex = namespaceIndex >= 0
+                    ? (ushort)namespaceIndex
+                    : parentNodeId.NamespaceIndex;
+            }
+
+            ServiceResult permissionResult = await ValidateAddNodePermissionAsync(
+                context,
+                targetNamespaceIndex,
+                cancellationToken).ConfigureAwait(false);
+            if (ServiceResult.IsBad(permissionResult))
+            {
+                return (permissionResult, NodeId.Null);
             }
 
             try
@@ -1042,6 +1062,17 @@ namespace Opc.Ua.Server
             if (!owner.AllowNodeManagement)
             {
                 return new ServiceResult(StatusCodes.BadUserAccessDenied);
+            }
+
+            ServiceResult permissionResult = await ValidateNodeManagementPermissionAsync(
+                owner,
+                context,
+                item.NodeId,
+                PermissionType.DeleteNode,
+                cancellationToken).ConfigureAwait(false);
+            if (ServiceResult.IsBad(permissionResult))
+            {
+                return permissionResult;
             }
 
             try
@@ -1093,6 +1124,47 @@ namespace Opc.Ua.Server
                 return new ServiceResult(StatusCodes.BadUserAccessDenied);
             }
 
+            ServiceResult permissionResult = await ValidateNodeManagementPermissionAsync(
+                sourceOwner,
+                context,
+                item.SourceNodeId,
+                PermissionType.AddReference,
+                cancellationToken).ConfigureAwait(false);
+            if (ServiceResult.IsBad(permissionResult))
+            {
+                return permissionResult;
+            }
+
+            var targetNodeId = ExpandedNodeId.ToNodeId(item.TargetNodeId, Server.NamespaceUris);
+            object? targetHandle = null;
+            IAsyncNodeManager? targetOwner = null;
+            if (!targetNodeId.IsNull)
+            {
+                (targetHandle, targetOwner) = await GetManagerHandleAsync(
+                    targetNodeId,
+                    cancellationToken).ConfigureAwait(false);
+
+                if (targetHandle != null && targetOwner != null)
+                {
+                    if (!ReferenceEquals(targetOwner, sourceOwner) &&
+                        !targetOwner.AllowNodeManagement)
+                    {
+                        return new ServiceResult(StatusCodes.BadUserAccessDenied);
+                    }
+
+                    permissionResult = await ValidateNodeManagementPermissionAsync(
+                        targetOwner,
+                        context,
+                        targetNodeId,
+                        PermissionType.AddReference,
+                        cancellationToken).ConfigureAwait(false);
+                    if (ServiceResult.IsBad(permissionResult))
+                    {
+                        return permissionResult;
+                    }
+                }
+            }
+
             ServiceResult sourceResult;
             try
             {
@@ -1109,51 +1181,54 @@ namespace Opc.Ua.Server
                 return sourceResult;
             }
 
-            // Best-effort: write the complementary edge into the target's owning manager
-            // when the target is local. Failures here are logged but do not change the
-            // source-side success so the source half stays consistent.
-            var targetNodeId = ExpandedNodeId.ToNodeId(item.TargetNodeId, Server.NamespaceUris);
-            if (!targetNodeId.IsNull)
+            // Write the complementary edge into the target's owning manager when the
+            // target is local. Roll back the source edge if the target mutation fails.
+            if (targetHandle != null &&
+                targetOwner != null &&
+                !ReferenceEquals(targetOwner, sourceOwner))
             {
-                (object? targetHandle, IAsyncNodeManager? targetOwner) = await GetManagerHandleAsync(
-                    targetNodeId, cancellationToken).ConfigureAwait(false);
-
-                if (targetHandle != null &&
-                    targetOwner != null &&
-                    !ReferenceEquals(targetOwner, sourceOwner) &&
-                    targetOwner.AllowNodeManagement)
+                var inverseItem = new AddReferencesItem
                 {
-                    var inverseItem = new AddReferencesItem
-                    {
-                        SourceNodeId = targetNodeId,
-                        ReferenceTypeId = item.ReferenceTypeId,
-                        IsForward = !item.IsForward,
-                        TargetServerUri = item.TargetServerUri,
-                        TargetNodeId = item.SourceNodeId,
-                        TargetNodeClass = item.TargetNodeClass
-                    };
+                    SourceNodeId = targetNodeId,
+                    ReferenceTypeId = item.ReferenceTypeId,
+                    IsForward = !item.IsForward,
+                    TargetServerUri = item.TargetServerUri,
+                    TargetNodeId = item.SourceNodeId,
+                    TargetNodeClass = item.TargetNodeClass
+                };
 
-                    try
+                try
+                {
+                    ServiceResult inverseResult = await targetOwner.AddReferenceAsync(
+                        context, inverseItem, cancellationToken).ConfigureAwait(false);
+                    if (ServiceResult.IsBad(inverseResult))
                     {
-                        ServiceResult inverseResult = await targetOwner.AddReferenceAsync(
-                            context, inverseItem, cancellationToken).ConfigureAwait(false);
-                        if (ServiceResult.IsBad(inverseResult))
-                        {
-                            m_logger.AddReferencesFailedToMirrorInverseEdgeRefType(
-                                item.ReferenceTypeId,
-                                item.SourceNodeId,
-                                item.TargetNodeId,
-                                inverseResult.StatusCode);
-                        }
-                    }
-                    catch (ServiceResultException ex)
-                    {
-                        m_logger.AddReferencesFailedToMirrorInverseEdgeRefType2(
-                            ex,
+                        m_logger.AddReferencesFailedToMirrorInverseEdgeRefType(
                             item.ReferenceTypeId,
                             item.SourceNodeId,
-                            item.TargetNodeId);
+                            item.TargetNodeId,
+                            inverseResult.StatusCode);
+                        await RollbackAddedReferenceAsync(
+                            sourceOwner,
+                            context,
+                            item,
+                            cancellationToken).ConfigureAwait(false);
+                        return inverseResult;
                     }
+                }
+                catch (ServiceResultException ex)
+                {
+                    m_logger.AddReferencesFailedToMirrorInverseEdgeRefType2(
+                        ex,
+                        item.ReferenceTypeId,
+                        item.SourceNodeId,
+                        item.TargetNodeId);
+                    await RollbackAddedReferenceAsync(
+                        sourceOwner,
+                        context,
+                        item,
+                        cancellationToken).ConfigureAwait(false);
+                    return new ServiceResult(ex);
                 }
             }
 
@@ -1193,6 +1268,51 @@ namespace Opc.Ua.Server
                 return new ServiceResult(StatusCodes.BadUserAccessDenied);
             }
 
+            ServiceResult permissionResult = await ValidateNodeManagementPermissionAsync(
+                sourceOwner,
+                context,
+                item.SourceNodeId,
+                PermissionType.RemoveReference,
+                cancellationToken).ConfigureAwait(false);
+            if (ServiceResult.IsBad(permissionResult))
+            {
+                return permissionResult;
+            }
+
+            NodeId targetNodeId = NodeId.Null;
+            object? targetHandle = null;
+            IAsyncNodeManager? targetOwner = null;
+            if (item.DeleteBidirectional)
+            {
+                targetNodeId = ExpandedNodeId.ToNodeId(item.TargetNodeId, Server.NamespaceUris);
+                if (!targetNodeId.IsNull)
+                {
+                    (targetHandle, targetOwner) = await GetManagerHandleAsync(
+                        targetNodeId,
+                        cancellationToken).ConfigureAwait(false);
+
+                    if (targetHandle != null && targetOwner != null)
+                    {
+                        if (!ReferenceEquals(targetOwner, sourceOwner) &&
+                            !targetOwner.AllowNodeManagement)
+                        {
+                            return new ServiceResult(StatusCodes.BadUserAccessDenied);
+                        }
+
+                        permissionResult = await ValidateNodeManagementPermissionAsync(
+                            targetOwner,
+                            context,
+                            targetNodeId,
+                            PermissionType.RemoveReference,
+                            cancellationToken).ConfigureAwait(false);
+                        if (ServiceResult.IsBad(permissionResult))
+                        {
+                            return permissionResult;
+                        }
+                    }
+                }
+            }
+
             ServiceResult sourceResult;
             try
             {
@@ -1215,19 +1335,14 @@ namespace Opc.Ua.Server
             }
 
             // Cross-manager: remove the complementary edge on the target's owner.
-            var targetNodeId = ExpandedNodeId.ToNodeId(item.TargetNodeId, Server.NamespaceUris);
             if (targetNodeId.IsNull)
             {
                 return sourceResult;
             }
 
-            (object? targetHandle2, IAsyncNodeManager? targetOwner2) = await GetManagerHandleAsync(
-                targetNodeId, cancellationToken).ConfigureAwait(false);
-
-            if (targetHandle2 != null &&
-                targetOwner2 != null &&
-                !ReferenceEquals(targetOwner2, sourceOwner) &&
-                targetOwner2.AllowNodeManagement)
+            if (targetHandle != null &&
+                targetOwner != null &&
+                !ReferenceEquals(targetOwner, sourceOwner))
             {
                 var inverseItem = new DeleteReferencesItem
                 {
@@ -1240,7 +1355,7 @@ namespace Opc.Ua.Server
 
                 try
                 {
-                    ServiceResult inverseResult = await targetOwner2.DeleteReferenceAsync(
+                    ServiceResult inverseResult = await targetOwner.DeleteReferenceAsync(
                         context, inverseItem, cancellationToken).ConfigureAwait(false);
                     if (ServiceResult.IsBad(inverseResult))
                     {
@@ -1249,6 +1364,12 @@ namespace Opc.Ua.Server
                             item.SourceNodeId,
                             item.TargetNodeId,
                             inverseResult.StatusCode);
+                        await RollbackDeletedReferenceAsync(
+                            sourceOwner,
+                            context,
+                            item,
+                            cancellationToken).ConfigureAwait(false);
+                        return inverseResult;
                     }
                 }
                 catch (ServiceResultException ex)
@@ -1258,10 +1379,164 @@ namespace Opc.Ua.Server
                         item.ReferenceTypeId,
                         item.SourceNodeId,
                         item.TargetNodeId);
+                    await RollbackDeletedReferenceAsync(
+                        sourceOwner,
+                        context,
+                        item,
+                        cancellationToken).ConfigureAwait(false);
+                    return new ServiceResult(ex);
                 }
             }
 
             return sourceResult;
+        }
+
+        private async ValueTask RollbackAddedReferenceAsync(
+            IAsyncNodeManager sourceOwner,
+            OperationContext context,
+            AddReferencesItem item,
+            CancellationToken cancellationToken)
+        {
+            var rollbackItem = new DeleteReferencesItem
+            {
+                SourceNodeId = item.SourceNodeId,
+                ReferenceTypeId = item.ReferenceTypeId,
+                IsForward = item.IsForward,
+                TargetNodeId = item.TargetNodeId,
+                DeleteBidirectional = false
+            };
+
+            try
+            {
+                ServiceResult rollbackResult = await sourceOwner.DeleteReferenceAsync(
+                    context,
+                    rollbackItem,
+                    cancellationToken).ConfigureAwait(false);
+                if (ServiceResult.IsBad(rollbackResult))
+                {
+                    m_logger.AddReferencesRollbackFailed(
+                        item.ReferenceTypeId,
+                        item.SourceNodeId,
+                        item.TargetNodeId,
+                        rollbackResult.StatusCode);
+                }
+            }
+            catch (ServiceResultException ex)
+            {
+                m_logger.AddReferencesRollbackFailed2(
+                    ex,
+                    item.ReferenceTypeId,
+                    item.SourceNodeId,
+                    item.TargetNodeId);
+            }
+        }
+
+        private async ValueTask RollbackDeletedReferenceAsync(
+            IAsyncNodeManager sourceOwner,
+            OperationContext context,
+            DeleteReferencesItem item,
+            CancellationToken cancellationToken)
+        {
+            var rollbackItem = new AddReferencesItem
+            {
+                SourceNodeId = item.SourceNodeId,
+                ReferenceTypeId = item.ReferenceTypeId,
+                IsForward = item.IsForward,
+                TargetNodeId = item.TargetNodeId
+            };
+
+            try
+            {
+                ServiceResult rollbackResult = await sourceOwner.AddReferenceAsync(
+                    context,
+                    rollbackItem,
+                    cancellationToken).ConfigureAwait(false);
+                if (ServiceResult.IsBad(rollbackResult))
+                {
+                    m_logger.DeleteReferencesRollbackFailed(
+                        item.ReferenceTypeId,
+                        item.SourceNodeId,
+                        item.TargetNodeId,
+                        rollbackResult.StatusCode);
+                }
+            }
+            catch (ServiceResultException ex)
+            {
+                m_logger.DeleteReferencesRollbackFailed2(
+                    ex,
+                    item.ReferenceTypeId,
+                    item.SourceNodeId,
+                    item.TargetNodeId);
+            }
+        }
+
+        private async ValueTask<ServiceResult> ValidateAddNodePermissionAsync(
+            OperationContext context,
+            ushort namespaceIndex,
+            CancellationToken cancellationToken)
+        {
+            if (context.Session == null || ConfigurationNodeManager == null)
+            {
+                return StatusCodes.Good;
+            }
+
+            try
+            {
+                NamespaceMetadataState? namespaceMetadata =
+                    await ConfigurationNodeManager.GetNamespaceMetadataStateAsync(
+                        namespaceIndex,
+                        cancellationToken).ConfigureAwait(false);
+                if (namespaceMetadata == null)
+                {
+                    return StatusCodes.Good;
+                }
+
+                var metadata = new NodeMetadata(
+                    namespaceMetadata,
+                    new NodeId(0u, namespaceIndex))
+                {
+                    DefaultRolePermissions =
+                        namespaceMetadata.DefaultRolePermissions?.Value ?? default,
+                    DefaultUserRolePermissions =
+                        namespaceMetadata.DefaultUserRolePermissions?.Value ?? default
+                };
+
+                return ValidateRolePermissions(
+                    context,
+                    metadata,
+                    PermissionType.AddNode,
+                    m_logger);
+            }
+            catch (ServiceResultException ex)
+            {
+                return new ServiceResult(ex);
+            }
+        }
+
+        private static async ValueTask<ServiceResult> ValidateNodeManagementPermissionAsync(
+            IAsyncNodeManager nodeManager,
+            OperationContext context,
+            NodeId nodeId,
+            PermissionType permission,
+            CancellationToken cancellationToken)
+        {
+            if (context.Session == null)
+            {
+                return StatusCodes.Good;
+            }
+
+            try
+            {
+                return await nodeManager.ValidateRolePermissionsAsync(
+                    context,
+                    nodeId,
+                    permission,
+                    cancellationToken).ConfigureAwait(false);
+            }
+            catch (ServiceResultException ex)
+            {
+                return new ServiceResult(ex);
+            }
         }
 
         /// <summary>
@@ -1271,7 +1546,7 @@ namespace Opc.Ua.Server
         /// <see cref="IAsyncNodeManager"/> every owner exposes the surface;
         /// callers should still check <see cref="INodeManagementAsyncNodeManager.AllowNodeManagement"/>.
         /// </summary>
-        private INodeManagementAsyncNodeManager? FindNodeManagementOwner(ushort namespaceIndex)
+        private IAsyncNodeManager? FindNodeManagementOwner(ushort namespaceIndex)
         {
             if (!NamespaceManagers.TryGetValue(namespaceIndex, out IReadOnlyList<IAsyncNodeManager>? nodeManagers))
             {
@@ -1287,7 +1562,7 @@ namespace Opc.Ua.Server
         /// as the cross-NodeManager AddNodes fallback when the parent's
         /// owning NodeManager does not allow NodeManagement.
         /// </summary>
-        private INodeManagementAsyncNodeManager? FindFirstOptedInNodeManager()
+        private IAsyncNodeManager? FindFirstOptedInNodeManager()
         {
             for (int ii = 0; ii < m_nodeManagers.Count; ii++)
             {
@@ -4880,6 +5155,42 @@ namespace Opc.Ua.Server
             NodeId nodeId,
             PermissionType requestedPermission,
             PermissionType userPermissions);
+
+        [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 19, Level = LogLevel.Error,
+            Message = "AddReferences: failed to roll back {RefType} from {Source} to {Target}: {Status}")]
+        public static partial void AddReferencesRollbackFailed(
+            this ILogger logger,
+            NodeId refType,
+            NodeId source,
+            ExpandedNodeId target,
+            StatusCode status);
+
+        [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 20, Level = LogLevel.Error,
+            Message = "AddReferences: failed to roll back {RefType} from {Source} to {Target}.")]
+        public static partial void AddReferencesRollbackFailed2(
+            this ILogger logger,
+            Exception ex,
+            NodeId refType,
+            NodeId source,
+            ExpandedNodeId target);
+
+        [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 21, Level = LogLevel.Error,
+            Message = "DeleteReferences: failed to restore {RefType} from {Source} to {Target}: {Status}")]
+        public static partial void DeleteReferencesRollbackFailed(
+            this ILogger logger,
+            NodeId refType,
+            NodeId source,
+            ExpandedNodeId target,
+            StatusCode status);
+
+        [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 22, Level = LogLevel.Error,
+            Message = "DeleteReferences: failed to restore {RefType} from {Source} to {Target}.")]
+        public static partial void DeleteReferencesRollbackFailed2(
+            this ILogger logger,
+            Exception ex,
+            NodeId refType,
+            NodeId source,
+            ExpandedNodeId target);
     }
 
 }
