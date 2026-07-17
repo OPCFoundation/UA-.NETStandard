@@ -30,6 +30,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using Opc.Ua.Gds.Server.Database;
 using Opc.Ua.Server;
 
@@ -39,6 +40,7 @@ namespace Opc.Ua.Gds.Server
     {
         internal static List<Role> AuthenticatedUser { get; } = [Role.AuthenticatedUser];
         internal static List<Role> DiscoveryAdmin { get; } = [GdsRole.DiscoveryAdmin];
+        internal static List<Role> KeyCredentialAdmin { get; } = [GdsRole.KeyCredentialAdmin];
 
         /// <summary>
         /// Roles/privileges accepted by <c>RegisterApplication</c>
@@ -211,19 +213,7 @@ namespace Opc.Ua.Gds.Server
             ISystemContext context,
             bool requireEncryption = false)
         {
-            // Extract the OperationContext from whichever concrete
-            // system context type is in use. ServerSystemContext
-            // extends SessionSystemContext (server path); SystemContext
-            // is the standalone variant (Opc.Ua.Types).
-            OperationContext? operationContext = context switch
-            {
-                SessionSystemContext sc => sc.OperationContext as OperationContext,
-                SystemContext sc => sc.OperationContext as OperationContext,
-                _ => null
-            } ??
-                throw new ServiceResultException(
-                    StatusCodes.BadSecurityModeInsufficient,
-                    "Unable to verify secure channel requirements.");
+            OperationContext operationContext = GetOperationContext(context);
 
             MessageSecurityMode securityMode = operationContext
                 .ChannelContext?
@@ -244,6 +234,54 @@ namespace Opc.Ua.Gds.Server
                         ? "Method has to be called from an encrypted secure channel."
                         : "Method has to be called from an authenticated secure channel.");
             }
+        }
+
+        /// <summary>
+        /// Returns the SHA-256 fingerprint of the client certificate that
+        /// established the current SecureChannel.
+        /// </summary>
+        /// <exception cref="ServiceResultException">
+        /// Thrown with <see cref="StatusCodes.BadSecurityChecksFailed"/> when
+        /// the request is not associated with a client certificate.
+        /// </exception>
+        public static ByteString GetClientCertificateFingerprint(ISystemContext context)
+        {
+            OperationContext operationContext = GetOperationContext(context);
+            byte[] clientCertificate = operationContext.ChannelContext?.ClientChannelCertificate ??
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "Unable to bind the request to a SecureChannel client certificate.");
+
+            if (clientCertificate.Length == 0)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "Unable to bind the request to a SecureChannel client certificate.");
+            }
+
+#if NET6_0_OR_GREATER
+            return ByteString.From(SHA256.HashData(clientCertificate));
+#else
+            using SHA256 sha256 = SHA256.Create();
+            return ByteString.From(sha256.ComputeHash(clientCertificate));
+#endif
+        }
+
+        private static OperationContext GetOperationContext(ISystemContext context)
+        {
+            // Extract the OperationContext from whichever concrete
+            // system context type is in use. ServerSystemContext
+            // extends SessionSystemContext (server path); SystemContext
+            // is the standalone variant (Opc.Ua.Types).
+            return context switch
+            {
+                SessionSystemContext sc => sc.OperationContext as OperationContext,
+                SystemContext sc => sc.OperationContext as OperationContext,
+                _ => null
+            } ??
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityModeInsufficient,
+                    "Unable to verify secure channel requirements.");
         }
 
         private static bool HasRole(IUserIdentity? userIdentity, IEnumerable<Role> roles, NamespaceTable namespaces)

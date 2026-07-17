@@ -258,6 +258,98 @@ namespace Opc.Ua.Di.Tests
             }
         }
 
+        [TestCase(".")]
+        [TestCase("..")]
+        public void FileSystemStoreRejectsDotSegmentId(string packageId)
+        {
+            string tempRoot = Path.Combine(
+                Path.GetTempPath(),
+                "di-pkg-tests-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempRoot);
+            try
+            {
+                var provider = new PhysicalFileSystemProvider(
+                    rootDirectory: tempRoot,
+                    mountName: "Packages",
+                    isWritable: true);
+                var store = new FileSystemPackageStore(provider, rootPath: "/Pkgs");
+
+                Assert.ThrowsAsync<ArgumentException>(
+                    async () => await store.GetAsync(packageId).ConfigureAwait(false));
+            }
+            finally
+            {
+                if (Directory.Exists(tempRoot))
+                {
+                    Directory.Delete(tempRoot, recursive: true);
+                }
+            }
+        }
+
+        [TestCase("/Pkgs/./Nested")]
+        [TestCase("/Pkgs/../Outside")]
+        [TestCase("\\Pkgs\\..\\Outside")]
+        public void FileSystemStoreRejectsRootWithDotSegment(string rootPath)
+        {
+            string tempRoot = Path.Combine(
+                Path.GetTempPath(),
+                "di-pkg-tests-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempRoot);
+            try
+            {
+                var provider = new PhysicalFileSystemProvider(
+                    rootDirectory: tempRoot,
+                    mountName: "Packages",
+                    isWritable: true);
+
+                Assert.That(
+                    () => new FileSystemPackageStore(provider, rootPath),
+                    Throws.TypeOf<ArgumentException>());
+            }
+            finally
+            {
+                if (Directory.Exists(tempRoot))
+                {
+                    Directory.Delete(tempRoot, recursive: true);
+                }
+            }
+        }
+
+        [Test]
+        public async Task FileSystemStoreCanonicalizesProviderRelativeRootAsync()
+        {
+            string tempRoot = Path.Combine(
+                Path.GetTempPath(),
+                "di-pkg-tests-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempRoot);
+            try
+            {
+                var provider = new PhysicalFileSystemProvider(
+                    rootDirectory: tempRoot,
+                    mountName: "Packages",
+                    isWritable: true);
+                var store = new FileSystemPackageStore(
+                    provider,
+                    rootPath: "\\Pkgs\\\\Nested\\");
+
+                await store.AddAsync(
+                    NewMetadata("firmware"),
+                    new MemoryStream([1, 2, 3])).ConfigureAwait(false);
+
+                string packageRoot = Path.Combine(tempRoot, "Pkgs", "Nested", "firmware");
+                Assert.That(File.Exists(Path.Combine(packageRoot, "payload.bin")), Is.True);
+                Assert.That(File.Exists(Path.Combine(packageRoot, "metadata.json")), Is.True);
+                Assert.That(File.Exists(Path.Combine(tempRoot, "payload.bin")), Is.False);
+            }
+            finally
+            {
+                if (Directory.Exists(tempRoot))
+                {
+                    Directory.Delete(tempRoot, recursive: true);
+                }
+            }
+        }
+
         private static SoftwarePackage NewMetadata(string id)
         {
             return new(

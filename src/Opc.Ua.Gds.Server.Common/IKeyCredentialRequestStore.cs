@@ -124,6 +124,12 @@ namespace Opc.Ua.Gds.Server
         /// When the request was created.
         /// </summary>
         public DateTime CreatedAt { get; set; }
+
+        /// <summary>
+        /// SHA-256 fingerprint of the SecureChannel client certificate that
+        /// initiated the request.
+        /// </summary>
+        public ByteString ClientCertificateFingerprint { get; set; }
     }
 
     /// <summary>
@@ -175,6 +181,29 @@ namespace Opc.Ua.Gds.Server
             ArrayOf<NodeId> requestedRoles,
             CancellationToken cancellationToken = default);
 
+#if NETSTANDARD2_1 || NET8_0_OR_GREATER
+        /// <summary>
+        /// Starts a request bound to the initiating SecureChannel client
+        /// certificate.
+        /// </summary>
+        /// <remarks>
+        /// The default implementation rejects the request so legacy stores
+        /// cannot silently bypass certificate binding.
+        /// </remarks>
+        ValueTask<NodeId> StartBoundRequestAsync(
+            string applicationUri,
+            ByteString publicKey,
+            string? securityPolicyUri,
+            ArrayOf<NodeId> requestedRoles,
+            ByteString clientCertificateFingerprint,
+            CancellationToken cancellationToken = default)
+        {
+            throw new ServiceResultException(
+                StatusCodes.BadSecurityChecksFailed,
+                "The key-credential store does not support client certificate binding.");
+        }
+#endif
+
         /// <summary>
         /// Finish (approve or cancel) a key-credential request.
         /// </summary>
@@ -190,12 +219,135 @@ namespace Opc.Ua.Gds.Server
             bool cancelRequest,
             CancellationToken cancellationToken = default);
 
+#if NETSTANDARD2_1 || NET8_0_OR_GREATER
+        /// <summary>
+        /// Finishes a request only when it is bound to the supplied
+        /// SecureChannel client certificate fingerprint.
+        /// </summary>
+        /// <remarks>
+        /// The default implementation rejects the request so legacy stores
+        /// cannot silently bypass certificate binding.
+        /// </remarks>
+        ValueTask<FinishKeyCredentialRequestResult> FinishBoundRequestAsync(
+            NodeId requestId,
+            bool cancelRequest,
+            ByteString clientCertificateFingerprint,
+            CancellationToken cancellationToken = default)
+        {
+            throw new ServiceResultException(
+                StatusCodes.BadSecurityChecksFailed,
+                "The key-credential store does not support client certificate binding.");
+        }
+#endif
+
         /// <summary>
         /// Revoke a previously issued credential.
         /// </summary>
         /// <param name="credentialId">The credential to revoke.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
         ValueTask RevokeAsync(string credentialId, CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// Optional compatibility surface for stores that enforce SecureChannel
+    /// client-certificate binding on TFMs without default interface methods.
+    /// </summary>
+    public interface IClientCertificateBoundKeyCredentialRequestStore : IKeyCredentialRequestStore
+    {
+        /// <summary>
+        /// Starts a request bound to the supplied client-certificate fingerprint.
+        /// </summary>
+#if NETSTANDARD2_1 || NET8_0_OR_GREATER
+        new ValueTask<NodeId> StartBoundRequestAsync(
+#else
+        ValueTask<NodeId> StartBoundRequestAsync(
+#endif
+            string applicationUri,
+            ByteString publicKey,
+            string? securityPolicyUri,
+            ArrayOf<NodeId> requestedRoles,
+            ByteString clientCertificateFingerprint,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Finishes a request bound to the supplied client-certificate fingerprint.
+        /// </summary>
+#if NETSTANDARD2_1 || NET8_0_OR_GREATER
+        new ValueTask<FinishKeyCredentialRequestResult> FinishBoundRequestAsync(
+#else
+        ValueTask<FinishKeyCredentialRequestResult> FinishBoundRequestAsync(
+#endif
+            NodeId requestId,
+            bool cancelRequest,
+            ByteString clientCertificateFingerprint,
+            CancellationToken cancellationToken = default);
+    }
+
+    internal static class KeyCredentialRequestStoreBinding
+    {
+        public static ValueTask<NodeId> StartBoundRequestCompatAsync(
+            this IKeyCredentialRequestStore store,
+            string applicationUri,
+            ByteString publicKey,
+            string? securityPolicyUri,
+            ArrayOf<NodeId> requestedRoles,
+            ByteString clientCertificateFingerprint,
+            CancellationToken cancellationToken)
+        {
+#if NETSTANDARD2_1 || NET8_0_OR_GREATER
+            return store.StartBoundRequestAsync(
+                applicationUri,
+                publicKey,
+                securityPolicyUri,
+                requestedRoles,
+                clientCertificateFingerprint,
+                cancellationToken);
+#else
+            if (store is IClientCertificateBoundKeyCredentialRequestStore boundStore)
+            {
+                return boundStore.StartBoundRequestAsync(
+                    applicationUri,
+                    publicKey,
+                    securityPolicyUri,
+                    requestedRoles,
+                    clientCertificateFingerprint,
+                    cancellationToken);
+            }
+
+            throw new ServiceResultException(
+                StatusCodes.BadSecurityChecksFailed,
+                "The key-credential store does not support client certificate binding.");
+#endif
+        }
+
+        public static ValueTask<FinishKeyCredentialRequestResult> FinishBoundRequestCompatAsync(
+            this IKeyCredentialRequestStore store,
+            NodeId requestId,
+            bool cancelRequest,
+            ByteString clientCertificateFingerprint,
+            CancellationToken cancellationToken)
+        {
+#if NETSTANDARD2_1 || NET8_0_OR_GREATER
+            return store.FinishBoundRequestAsync(
+                requestId,
+                cancelRequest,
+                clientCertificateFingerprint,
+                cancellationToken);
+#else
+            if (store is IClientCertificateBoundKeyCredentialRequestStore boundStore)
+            {
+                return boundStore.FinishBoundRequestAsync(
+                    requestId,
+                    cancelRequest,
+                    clientCertificateFingerprint,
+                    cancellationToken);
+            }
+
+            throw new ServiceResultException(
+                StatusCodes.BadSecurityChecksFailed,
+                "The key-credential store does not support client certificate binding.");
+#endif
+        }
     }
 
     /// <summary>
@@ -209,8 +361,10 @@ namespace Opc.Ua.Gds.Server
     /// Kubernetes secrets, or any other backend that implements
     /// <see cref="ISecretStore"/> without changing the GDS code.
     /// </remarks>
-    public sealed class InMemoryKeyCredentialRequestStore : IKeyCredentialRequestStore
+    public sealed class InMemoryKeyCredentialRequestStore : IClientCertificateBoundKeyCredentialRequestStore
     {
+        private const int Sha256FingerprintLength = 32;
+
         private int m_nextId;
         private readonly ConcurrentDictionary<NodeId, KeyCredentialRequestRecord> m_requests = new();
         private readonly ConcurrentDictionary<string, KeyCredentialRequestRecord> m_credentials = new(StringComparer.Ordinal);
@@ -239,12 +393,48 @@ namespace Opc.Ua.Gds.Server
         }
 
         /// <inheritdoc/>
-        public async ValueTask<NodeId> StartRequestAsync(
+        public ValueTask<NodeId> StartRequestAsync(
             string applicationUri,
             ByteString publicKey,
             string? securityPolicyUri,
             ArrayOf<NodeId> requestedRoles,
             CancellationToken cancellationToken = default)
+        {
+            return StartRequestCoreAsync(
+                applicationUri,
+                publicKey,
+                securityPolicyUri,
+                requestedRoles,
+                default,
+                cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<NodeId> StartBoundRequestAsync(
+            string applicationUri,
+            ByteString publicKey,
+            string? securityPolicyUri,
+            ArrayOf<NodeId> requestedRoles,
+            ByteString clientCertificateFingerprint,
+            CancellationToken cancellationToken = default)
+        {
+            ValidateClientCertificateFingerprint(clientCertificateFingerprint);
+            return StartRequestCoreAsync(
+                applicationUri,
+                publicKey,
+                securityPolicyUri,
+                requestedRoles,
+                ByteString.From(clientCertificateFingerprint.ToArray()),
+                cancellationToken);
+        }
+
+        private async ValueTask<NodeId> StartRequestCoreAsync(
+            string applicationUri,
+            ByteString publicKey,
+            string? securityPolicyUri,
+            ArrayOf<NodeId> requestedRoles,
+            ByteString clientCertificateFingerprint,
+            CancellationToken cancellationToken)
         {
             int id = Interlocked.Increment(ref m_nextId);
             var requestId = new NodeId((uint)id);
@@ -268,7 +458,8 @@ namespace Opc.Ua.Gds.Server
                 CredentialSecret = ByteString.From(secretBytes),
                 CertificateThumbprint = null,
                 GrantedSecurityPolicyUri = securityPolicyUri,
-                GrantedRoles = requestedRoles
+                GrantedRoles = requestedRoles,
+                ClientCertificateFingerprint = clientCertificateFingerprint
             };
 
             m_requests[requestId] = record;
@@ -277,18 +468,39 @@ namespace Opc.Ua.Gds.Server
         }
 
         /// <inheritdoc/>
-        public async ValueTask<FinishKeyCredentialRequestResult> FinishRequestAsync(
+        public ValueTask<FinishKeyCredentialRequestResult> FinishRequestAsync(
             NodeId requestId,
             bool cancelRequest,
             CancellationToken cancellationToken = default)
         {
-            if (!m_requests.TryGetValue(requestId, out KeyCredentialRequestRecord? record))
+            KeyCredentialRequestRecord record = GetRequest(requestId);
+            if (!record.ClientCertificateFingerprint.IsEmpty)
             {
                 throw new ServiceResultException(
-                    StatusCodes.BadNotFound,
-                    "The RequestId is not known.");
+                    StatusCodes.BadSecurityChecksFailed,
+                    "A client certificate fingerprint is required to finish the bound request.");
             }
+            return FinishRequestCoreAsync(record, cancelRequest, cancellationToken);
+        }
 
+        /// <inheritdoc/>
+        public ValueTask<FinishKeyCredentialRequestResult> FinishBoundRequestAsync(
+            NodeId requestId,
+            bool cancelRequest,
+            ByteString clientCertificateFingerprint,
+            CancellationToken cancellationToken = default)
+        {
+            ValidateClientCertificateFingerprint(clientCertificateFingerprint);
+            KeyCredentialRequestRecord record = GetRequest(requestId);
+            ValidateRequestBinding(record, clientCertificateFingerprint);
+            return FinishRequestCoreAsync(record, cancelRequest, cancellationToken);
+        }
+
+        private async ValueTask<FinishKeyCredentialRequestResult> FinishRequestCoreAsync(
+            KeyCredentialRequestRecord record,
+            bool cancelRequest,
+            CancellationToken cancellationToken)
+        {
             if (cancelRequest)
             {
                 record.State = KeyCredentialRequestState.Rejected;
@@ -347,6 +559,49 @@ namespace Opc.Ua.Gds.Server
             using var rng = System.Security.Cryptography.RandomNumberGenerator.Create();
             rng.GetBytes(buffer);
             return buffer;
+        }
+
+        private KeyCredentialRequestRecord GetRequest(NodeId requestId)
+        {
+            if (m_requests.TryGetValue(requestId, out KeyCredentialRequestRecord? record))
+            {
+                return record;
+            }
+
+            throw new ServiceResultException(
+                StatusCodes.BadNotFound,
+                "The RequestId is not known.");
+        }
+
+        private static void ValidateClientCertificateFingerprint(ByteString clientCertificateFingerprint)
+        {
+            if (clientCertificateFingerprint.Length != Sha256FingerprintLength)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "A valid SHA-256 client certificate fingerprint is required.");
+            }
+        }
+
+        private static void ValidateRequestBinding(
+            KeyCredentialRequestRecord record,
+            ByteString clientCertificateFingerprint)
+        {
+            if (record.ClientCertificateFingerprint.Length != Sha256FingerprintLength)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "The key-credential request has no client certificate binding.");
+            }
+
+            if (!CryptoUtils.FixedTimeEquals(
+                    record.ClientCertificateFingerprint.Span,
+                    clientCertificateFingerprint.Span))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "The key-credential request belongs to a different client certificate.");
+            }
         }
     }
 }

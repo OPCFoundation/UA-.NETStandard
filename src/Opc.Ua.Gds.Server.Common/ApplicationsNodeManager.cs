@@ -2595,18 +2595,32 @@ namespace Opc.Ua.Gds.Server
             ArrayOf<NodeId> requestedRoles,
             CancellationToken cancellationToken)
         {
-            AuthorizationHelper.HasAuthenticatedSecureChannel(context, requireEncryption: true);
-
-            m_logger.OnKeyCredentialStartRequest(applicationUri);
-
-            NodeId requestId = await KeyCredentialRequestStore.StartRequestAsync(
-                applicationUri,
-                publicKey,
-                securityPolicyUri,
-                requestedRoles,
-                cancellationToken).ConfigureAwait(false);
-
             ArrayOf<Variant> auditInputs = [applicationUri, publicKey, securityPolicyUri, requestedRoles];
+            NodeId requestId;
+            try
+            {
+                AuthorizationHelper.HasAuthenticatedSecureChannel(context, requireEncryption: true);
+                ByteString clientCertificateFingerprint =
+                    AuthorizationHelper.GetClientCertificateFingerprint(context);
+                AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.KeyCredentialAdmin);
+
+                m_logger.OnKeyCredentialStartRequest(applicationUri);
+
+                requestId = await KeyCredentialRequestStore.StartBoundRequestCompatAsync(
+                    applicationUri,
+                    publicKey,
+                    securityPolicyUri,
+                    requestedRoles,
+                    clientCertificateFingerprint,
+                    cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                Server.ReportKeyCredentialRequestedAuditEvent(
+                    context, objectId, method, auditInputs, m_logger, ex);
+                throw;
+            }
+
             Server.ReportKeyCredentialRequestedAuditEvent(
                 context, objectId, method, auditInputs, m_logger);
 
@@ -2625,36 +2639,53 @@ namespace Opc.Ua.Gds.Server
             bool cancelRequest,
             CancellationToken cancellationToken)
         {
-            AuthorizationHelper.HasAuthenticatedSecureChannel(context, requireEncryption: true);
-
-            m_logger.OnKeyCredentialFinishRequest(requestId);
-
-            FinishKeyCredentialRequestResult finished = await KeyCredentialRequestStore.FinishRequestAsync(
-                requestId,
-                cancelRequest,
-                cancellationToken).ConfigureAwait(false);
-
-            var result = new KeyCredentialFinishRequestMethodStateResult
+            ArrayOf<Variant> auditInputs = [requestId, cancelRequest];
+            try
             {
-                CredentialId = finished.CredentialId ?? string.Empty,
-                CredentialSecret = finished.CredentialSecret,
-                CertificateThumbprint = finished.CertificateThumbprint ?? string.Empty,
-                SecurityPolicyUri = finished.SecurityPolicyUri ?? string.Empty,
-                GrantedRoles = finished.GrantedRoles
-            };
+                AuthorizationHelper.HasAuthenticatedSecureChannel(context, requireEncryption: true);
+                ByteString clientCertificateFingerprint =
+                    AuthorizationHelper.GetClientCertificateFingerprint(context);
+                AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.KeyCredentialAdmin);
 
-            if (finished.State == KeyCredentialRequestState.New)
-            {
-                result.ServiceResult = new ServiceResult(StatusCodes.BadNothingToDo);
+                m_logger.OnKeyCredentialFinishRequest(requestId);
+
+                FinishKeyCredentialRequestResult finished =
+                    await KeyCredentialRequestStore.FinishBoundRequestCompatAsync(
+                        requestId,
+                        cancelRequest,
+                        clientCertificateFingerprint,
+                        cancellationToken).ConfigureAwait(false);
+
+                var result = new KeyCredentialFinishRequestMethodStateResult
+                {
+                    CredentialId = finished.CredentialId ?? string.Empty,
+                    CredentialSecret = finished.CredentialSecret,
+                    CertificateThumbprint = finished.CertificateThumbprint ?? string.Empty,
+                    SecurityPolicyUri = finished.SecurityPolicyUri ?? string.Empty,
+                    GrantedRoles = finished.GrantedRoles
+                };
+
+                if (finished.State == KeyCredentialRequestState.New)
+                {
+                    var exception = new ServiceResultException(StatusCodes.BadNothingToDo);
+                    Server.ReportKeyCredentialDeliveredAuditEvent(
+                        context, objectId, method, auditInputs, m_logger, exception);
+                    result.ServiceResult = new ServiceResult(StatusCodes.BadNothingToDo);
+                    return result;
+                }
+
+                Server.ReportKeyCredentialDeliveredAuditEvent(
+                    context, objectId, method, auditInputs, m_logger);
+
+                result.ServiceResult = ServiceResult.Good;
                 return result;
             }
-
-            ArrayOf<Variant> auditInputs = [requestId, cancelRequest];
-            Server.ReportKeyCredentialDeliveredAuditEvent(
-                context, objectId, method, auditInputs, m_logger);
-
-            result.ServiceResult = ServiceResult.Good;
-            return result;
+            catch (Exception ex)
+            {
+                Server.ReportKeyCredentialDeliveredAuditEvent(
+                    context, objectId, method, auditInputs, m_logger, ex);
+                throw;
+            }
         }
 
         private async ValueTask<KeyCredentialRevokeMethodStateResult> OnKeyCredentialRevokeAsync(
@@ -2664,13 +2695,24 @@ namespace Opc.Ua.Gds.Server
             string credentialId,
             CancellationToken cancellationToken)
         {
-            AuthorizationHelper.HasAuthenticatedSecureChannel(context, requireEncryption: true);
-
-            m_logger.OnKeyCredentialRevoke(credentialId);
-
-            await KeyCredentialRequestStore.RevokeAsync(credentialId, cancellationToken).ConfigureAwait(false);
-
             ArrayOf<Variant> auditInputs = [credentialId];
+            try
+            {
+                AuthorizationHelper.HasAuthenticatedSecureChannel(context, requireEncryption: true);
+                _ = AuthorizationHelper.GetClientCertificateFingerprint(context);
+                AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.KeyCredentialAdmin);
+
+                m_logger.OnKeyCredentialRevoke(credentialId);
+
+                await KeyCredentialRequestStore.RevokeAsync(credentialId, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                Server.ReportKeyCredentialRevokedAuditEvent(
+                    context, objectId, method, auditInputs, m_logger, ex);
+                throw;
+            }
+
             Server.ReportKeyCredentialRevokedAuditEvent(
                 context, objectId, method, auditInputs, m_logger);
 

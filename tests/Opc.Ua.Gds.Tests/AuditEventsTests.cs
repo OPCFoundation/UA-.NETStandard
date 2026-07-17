@@ -27,8 +27,14 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.Collections.Generic;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.Gds.Server.Diagnostics;
+using Opc.Ua.Server;
+using Opc.Ua.Tests;
+using GdsAuditEvents = Opc.Ua.Gds.Server.Diagnostics.AuditEvents;
 
 namespace Opc.Ua.Gds.Tests
 {
@@ -50,7 +56,7 @@ namespace Opc.Ua.Gds.Tests
             // The placeholder is part of the public contract; downstream
             // audit consumers may filter on this exact value to spot
             // redacted entries. Do not change the value.
-            Assert.That(AuditEvents.RedactedPrivateKeyPassword, Is.EqualTo("<redacted>"));
+            Assert.That(GdsAuditEvents.RedactedPrivateKeyPassword, Is.EqualTo("<redacted>"));
         }
 
         [Test]
@@ -59,7 +65,56 @@ namespace Opc.Ua.Gds.Tests
             // Private keys must never appear in audit payloads; the
             // helper exposes an empty ByteString as the standard
             // placeholder.
-            Assert.That(AuditEvents.RedactedPrivateKey.IsEmpty, Is.True);
+            Assert.That(GdsAuditEvents.RedactedPrivateKey.IsEmpty, Is.True);
+        }
+
+        [Test]
+        public void KeyCredentialFailureAuditRedactsExceptionDetails()
+        {
+            const string secret = "credential-secret-must-not-appear";
+            var auditServer = new CapturingAuditEventServer();
+            ILogger logger = NUnitTelemetryContext.Create().CreateLogger<AuditEventsTests>();
+
+            auditServer.ReportKeyCredentialDeliveredAuditEvent(
+                auditServer.DefaultAuditContext,
+                Ua.ObjectIds.Server,
+                new MethodState(null),
+                [new NodeId(1), false],
+                logger,
+                new InvalidOperationException($"Store failed with {secret}."));
+
+            Assert.That(auditServer.Events, Has.Count.EqualTo(1));
+            AuditUpdateMethodEventState auditEvent = auditServer.Events[0];
+            Assert.That(auditEvent.Status!.Value, Is.False);
+            Assert.That(auditEvent.Message!.Value.Text, Does.Not.Contain(secret));
+            Assert.That(auditEvent.Message.Value.Text, Is.EqualTo("KeyCredentialDeliveredAuditEvent failed."));
+        }
+
+        private sealed class CapturingAuditEventServer : IAuditEventServer
+        {
+            public CapturingAuditEventServer()
+            {
+                var context = new SystemContext(NUnitTelemetryContext.Create())
+                {
+                    NamespaceUris = new NamespaceTable()
+                };
+                context.NamespaceUris.GetIndexOrAppend(Namespaces.OpcUaGds);
+                DefaultAuditContext = context;
+            }
+
+            public bool Auditing => true;
+
+            public ISystemContext DefaultAuditContext { get; }
+
+            public List<AuditUpdateMethodEventState> Events { get; } = [];
+
+            public void ReportAuditEvent(ISystemContext context, AuditEventState e)
+            {
+                if (e is AuditUpdateMethodEventState auditEvent)
+                {
+                    Events.Add(auditEvent);
+                }
+            }
         }
     }
 }
