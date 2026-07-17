@@ -32,7 +32,7 @@ namespace Opc.Ua.PubSub.Encoding
     /// <summary>
     /// Creates JSON Schema documents for PubSub DataSet message shapes.
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_1")]
+    [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_Encoders")]
     public interface IDataSetJsonSchemaProvider
     {
         /// <summary>

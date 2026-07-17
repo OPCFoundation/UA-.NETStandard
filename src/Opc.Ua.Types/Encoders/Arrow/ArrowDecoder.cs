@@ -44,7 +44,7 @@ namespace Opc.Ua
     /// <summary>
     /// Decodes OPC UA values from the experimental Apache Arrow stream representation.
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_1")]
+    [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_Encoders")]
     public sealed class ArrowDecoder : IDecoder
     {
         private readonly RecordBatch _batch;

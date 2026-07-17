@@ -863,8 +863,7 @@ PubSub services are registered from configuration:
 {
   "OpcUa": {
     "PubSub": {
-      "EnableJsonSchemaExchange": true,
-      "JsonSchemaExchangeVerbose": false
+      "JsonSchemaExchange": "Compact"
     }
   }
 }
@@ -872,9 +871,11 @@ PubSub services are registered from configuration:
 
 The fluent API also registers the default `DataSetJsonSchemaProvider` and the Core
 schema-generation services. Configuration-only enablement uses the same provider;
-`JsonSchemaExchangeVerbose` selects verbose OPC UA JSON encoding, otherwise compact
-schemas are generated. `JsonSchemaExchangeOptions.DestinationId` controls the
-announce-once key and defaults to the PubSub application id when it is not supplied.
+set `JsonSchemaExchange` to `Compact` or `Verbose` to enable the feature (`Verbose`
+selects verbose OPC UA JSON encoding, `Compact` the compact form; the default
+`Disabled` leaves the standard JSON path unchanged). `JsonSchemaExchangeOptions.DestinationId`
+controls the announce-once key and defaults to the PubSub application id when it is
+not supplied.
 
 A publisher can send the JSON payload normally and forward the out-of-band schema
 announcement through the same control channel used for Avro / Arrow announcements;

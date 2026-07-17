@@ -78,7 +78,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <summary>
         /// Gets or sets whether this encoder emits JSON schema-exchange announcements.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_1")]
+        [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_Encoders")]
         public bool EnableSchemaExchange
         {
             get { return m_enableSchemaExchange; }
@@ -95,19 +95,19 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <summary>
         /// Gets the SchemaId cache and per-destination announcement tracker used by the encoder.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_1")]
+        [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_Encoders")]
         public SchemaCache SchemaCache => m_schemaCache ??= new SchemaCache();
 
         /// <summary>
         /// Gets or sets the destination identity used for announce-once tracking.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_1")]
+        [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_Encoders")]
         public string DestinationId { get; set; } = string.Empty;
 
         /// <summary>
         /// Gets the announcement produced by the most recent encode call, if one was needed.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_1")]
+        [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_Encoders")]
         public JsonSchemaAnnouncement? LastSchemaAnnouncement { get; private set; }
 
         /// <summary>
@@ -117,13 +117,13 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// When schema exchange is enabled but no provider is configured, the encoder leaves the
         /// wire payload unchanged and skips announcement generation.
         /// </remarks>
-        [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_1")]
+        [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_Encoders")]
         public IDataSetJsonSchemaProvider? SchemaProvider { get; set; }
 
         /// <summary>
         /// Gets or sets whether generated JSON Schema documents use verbose OPC UA JSON encoding.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_1")]
+        [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_Encoders")]
         public bool SchemaVerbose { get; set; }
 
         /// <inheritdoc/>

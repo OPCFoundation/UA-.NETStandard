@@ -26,7 +26,7 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
-
+#if NET8_0_OR_GREATER
 using Opc.Ua;
 using System;
 using System.Collections.Generic;
@@ -51,7 +51,7 @@ namespace Opc.Ua.PubSub.Encoding
     /// Float, Double, String, DateTime, Guid, ByteString, StatusCode and
     /// one-dimensional arrays of those types; other BuiltInTypes throw.
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_1")]
+    [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_Encoders")]
     public sealed class ArrowNetworkMessageEncoder : INetworkMessageEncoder
     {
         private const string Magic = "OPC-UA-PubSub-Arrow";
@@ -1201,3 +1201,4 @@ namespace Opc.Ua.PubSub.Encoding
         private readonly record struct FieldPlan(string Name, int Index, TypeInfo TypeInfo, IArrowType ArrowType);
     }
 }
+#endif

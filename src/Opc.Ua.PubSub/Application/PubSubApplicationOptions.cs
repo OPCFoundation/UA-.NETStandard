@@ -92,14 +92,10 @@ namespace Opc.Ua.PubSub.Application
         public bool RegisterAllStandardEncoders { get; set; } = true;
 
         /// <summary>
-        /// When <see langword="true"/> JSON NetworkMessage encoders emit experimental schema announcements.
+        /// Selects whether JSON NetworkMessage encoders emit experimental schema
+        /// announcements and which JSON flavor to use.
         /// </summary>
-        public bool EnableJsonSchemaExchange { get; set; }
-
-        /// <summary>
-        /// When <see langword="true"/> generated JSON Schema documents use verbose OPC UA JSON encoding.
-        /// </summary>
-        public bool JsonSchemaExchangeVerbose { get; set; }
+        public JsonSchemaExchangeMode JsonSchemaExchange { get; set; } = JsonSchemaExchangeMode.Disabled;
 
         /// <summary>
         /// When <see langword="true"/> the builder registers the

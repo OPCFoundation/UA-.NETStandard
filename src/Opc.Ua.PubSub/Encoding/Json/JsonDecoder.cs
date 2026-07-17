@@ -62,14 +62,14 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <summary>
         /// Gets the SchemaId cache used by the decoder.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_1")]
+        [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_Encoders")]
         public SchemaCache SchemaCache => m_schemaCache ??= new SchemaCache();
 
         /// <summary>
         /// Ingests a JSON schema announcement into the decoder cache.
         /// </summary>
         /// <param name="announcement">The schema announcement to ingest.</param>
-        [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_1")]
+        [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_Encoders")]
         public void Ingest(JsonSchemaAnnouncement announcement)
         {
             SchemaCache.Add(announcement);

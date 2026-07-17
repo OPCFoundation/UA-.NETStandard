@@ -43,7 +43,7 @@ namespace Opc.Ua
     /// </summary>
     /// <param name = "RequesterId">The optional receiver or session identifier.</param>
     /// <param name = "SchemaIds">The raw 8-byte SchemaId values requested by the receiver.</param>
-    [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_1")]
+    [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_Encoders")]
     public sealed record ArrowSchemaRequest(string? RequesterId, IReadOnlyList<ByteString> SchemaIds)
     {
         /// <summary>

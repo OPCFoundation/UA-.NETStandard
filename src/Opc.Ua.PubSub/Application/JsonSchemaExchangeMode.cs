@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -27,22 +27,27 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua;
-
-namespace Opc.Ua.PubSub.Encoding
+namespace Opc.Ua.PubSub.Application
 {
     /// <summary>
-    /// Resolves a missing SchemaId through a deployment-specific schema source.
+    /// Selects the experimental JSON schema-exchange mode for JSON NetworkMessage encoders.
     /// </summary>
     [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_Encoders")]
-    public interface ISchemaResolver
+    public enum JsonSchemaExchangeMode
     {
         /// <summary>
-        /// Attempts to resolve a schema for a raw SchemaId.
+        /// JSON schema exchange is disabled.
         /// </summary>
-        /// <param name="schemaId">The raw schema identifier.</param>
-        /// <param name="result">The resolved schema bytes and format name.</param>
-        /// <returns><c>true</c> if the schema was resolved; otherwise <c>false</c>.</returns>
-        bool TryResolve(ByteString schemaId, out (ByteString schema, string format) result);
+        Disabled = 0,
+
+        /// <summary>
+        /// JSON schema exchange is enabled with compact OPC UA JSON encoding.
+        /// </summary>
+        Compact,
+
+        /// <summary>
+        /// JSON schema exchange is enabled with verbose OPC UA JSON encoding.
+        /// </summary>
+        Verbose
     }
 }

@@ -26,7 +26,7 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
-
+#if NET8_0_OR_GREATER
 namespace Opc.Ua.PubSub.Encoding
 {
     /// <summary>
@@ -50,3 +50,4 @@ namespace Opc.Ua.PubSub.Encoding
         Batch
     }
 }
+#endif

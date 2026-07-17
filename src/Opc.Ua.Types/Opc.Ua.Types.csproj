@@ -20,12 +20,6 @@
     <InternalsVisibleTo Include="Opc.Ua.Core.Encoders.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.SourceGeneration.Core.Tests" />
   </ItemGroup>
-  <!-- The Arrow reference encoder requires Apache.Arrow and modern .NET; its source
-       files self-exclude on the legacy target frameworks (net472/net48/netstandard2.0/
-       netstandard2.1) via #if NET8_0_OR_GREATER guards. The Avro reference encoder is
-       supported on every target framework: net5+ BCL APIs (BitConverter bit-casts,
-       Convert.ToHexString, Stream.ReadExactly, span-based Encoding) are provided by
-       EncoderCompat and the polyfills under Polyfills\ on the legacy frameworks. -->
   <ItemGroup>
     <PackageReference Include="System.Collections.Immutable" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />

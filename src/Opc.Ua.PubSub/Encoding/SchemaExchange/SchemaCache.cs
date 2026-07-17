@@ -38,7 +38,7 @@ namespace Opc.Ua.PubSub.Encoding
     /// <summary>
     /// Thread-safe cache and per-destination announcement tracker for SchemaId handshakes.
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_1")]
+    [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_Encoders")]
     public sealed class SchemaCache
     {
         /// <summary>

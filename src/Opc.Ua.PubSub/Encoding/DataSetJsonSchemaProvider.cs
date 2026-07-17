@@ -36,7 +36,7 @@ namespace Opc.Ua.PubSub.Encoding
     /// <summary>
     /// Default DataSet JSON Schema provider backed by the OPC UA Core.Schema generator.
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_1")]
+    [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_Encoders")]
     public sealed class DataSetJsonSchemaProvider : IDataSetJsonSchemaProvider
     {
         /// <summary>

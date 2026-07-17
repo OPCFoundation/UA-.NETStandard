@@ -26,7 +26,7 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
-
+#if NET8_0_OR_GREATER
 using Opc.Ua;
 using System;
 using System.Buffers.Binary;
@@ -51,7 +51,7 @@ namespace Opc.Ua.PubSub.Encoding
     /// typed RawData field columns; unsupported Arrow/OPC UA type pairings
     /// throw rather than falling back to blobs or JSON.
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_1")]
+    [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_Encoders")]
     public sealed class ArrowNetworkMessageDecoder : INetworkMessageDecoder
     {
         private const string Magic = "OPC-UA-PubSub-Arrow";
@@ -232,7 +232,6 @@ namespace Opc.Ua.PubSub.Encoding
                 return null;
             }
         }
-
         private static ArrowDataSetMessage ReadDataSetMessage(
             RecordBatch batch,
             ArrowNetworkMessage envelope,
@@ -516,3 +515,4 @@ namespace Opc.Ua.PubSub.Encoding
         }
     }
 }
+#endif

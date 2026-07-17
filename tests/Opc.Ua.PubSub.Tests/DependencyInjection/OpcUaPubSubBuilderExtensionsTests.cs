@@ -113,7 +113,7 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
 
             Assert.Multiple(() =>
             {
-                Assert.That(options.EnableJsonSchemaExchange, Is.False);
+                Assert.That(options.JsonSchemaExchange, Is.EqualTo(JsonSchemaExchangeMode.Disabled));
                 Assert.That(encoder.EnableSchemaExchange, Is.False);
                 Assert.That(encoder.SchemaProvider, Is.Null);
                 Assert.That(encoder.LastSchemaAnnouncement, Is.Null);

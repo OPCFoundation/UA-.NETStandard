@@ -17,18 +17,10 @@
       UA0023 + CS0618 within the library while keeping the warnings active for
       downstream consumers.
     -->
-    <NoWarn>$(NoWarn);UA0023;CS0618</NoWarn>
+    <NoWarn>$(NoWarn);UA0023;CS0618;UA_NETStandard_Encoders</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.PubSub.Tests" />
-  </ItemGroup>
-  <!-- The Arrow PubSub adapter requires Apache.Arrow and modern .NET; it stays
-       excluded on the legacy target frameworks (net472/net48/netstandard2.1). The
-       Avro PubSub adapter and the shared schema-exchange support are available on
-       every target framework; Arrow-specific members in the shared files are gated
-       with #if NET8_0_OR_GREATER. -->
-  <ItemGroup Condition="!$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">
-    <Compile Remove="Encoding\Arrow\**\*.cs" />
   </ItemGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>

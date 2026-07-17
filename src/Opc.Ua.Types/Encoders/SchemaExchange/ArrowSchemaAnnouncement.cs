@@ -45,7 +45,7 @@ namespace Opc.Ua
     /// <param name = "SchemaId">The raw 8-byte SHA-256-prefix schema identifier.</param>
     /// <param name = "Schema">The serialized Arrow schema bytes.</param>
     /// <param name = "SchemaEpoch">The optional operational schema epoch.</param>
-    [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_1")]
+    [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_Encoders")]
     public sealed record ArrowSchemaAnnouncement(ByteString SchemaId, ByteString Schema, long? SchemaEpoch)
     {
         private static readonly MemoryAllocator s_allocator = MemoryAllocator.Default.Value;

@@ -32,10 +32,6 @@
   <ItemGroup>
     <Compile Include="..\Common\Main.cs" />
   </ItemGroup>
-  <!-- The Avro PubSub adapter and the schema-exchange support build on every target
-       framework; the Arrow PubSub adapter requires Apache.Arrow (net8.0+), so its
-       tests self-exclude on the legacy frameworks via #if NET8_0_OR_GREATER guards
-       in the test sources. -->
   <ItemGroup>
     <ProjectReference Include="..\..\src\Opc.Ua.Core\Opc.Ua.Core.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.PubSub\Opc.Ua.PubSub.csproj" />

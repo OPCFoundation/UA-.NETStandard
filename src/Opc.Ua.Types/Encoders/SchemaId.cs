@@ -34,7 +34,7 @@ namespace Opc.Ua
     /// <summary>
     /// Computes stable schema identifiers used by the experimental Avro, Arrow, JSON, and Protobuf encodings.
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_1")]
+    [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_Encoders")]
     public static class SchemaId
     {
         private const ulong RabinAvroEmpty = 0xC15D213AA4D7A795UL;

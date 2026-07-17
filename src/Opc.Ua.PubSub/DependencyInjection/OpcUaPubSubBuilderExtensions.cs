@@ -217,7 +217,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <param name="configure">Optional JSON schema-exchange options callback.</param>
         /// <returns>The original <paramref name="builder"/>.</returns>
         /// <exception cref="ArgumentNullException"></exception>
-        [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_1")]
+        [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_Encoders")]
         public static IOpcUaBuilder AddJsonSchemaExchange(
             this IOpcUaBuilder builder,
             Action<JsonSchemaExchangeOptions>? configure = null)
@@ -235,7 +235,7 @@ namespace Microsoft.Extensions.DependencyInjection
             }
             builder.Services.Configure<PubSubApplicationOptions>(options =>
             {
-                options.EnableJsonSchemaExchange = true;
+                options.JsonSchemaExchange = JsonSchemaExchangeMode.Compact;
             });
             return builder;
         }
@@ -361,7 +361,7 @@ namespace Microsoft.Extensions.DependencyInjection
             var encoder = new Opc.Ua.PubSub.Encoding.Json.JsonEncoder();
             PubSubApplicationOptions options =
                 sp.GetRequiredService<IOptions<PubSubApplicationOptions>>().Value;
-            if (!options.EnableJsonSchemaExchange)
+            if (options.JsonSchemaExchange == JsonSchemaExchangeMode.Disabled)
             {
                 return encoder;
             }
@@ -370,7 +370,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 sp.GetService<IOptions<JsonSchemaExchangeOptions>>()?.Value ?? new JsonSchemaExchangeOptions();
             encoder.EnableSchemaExchange = true;
             encoder.SchemaProvider = sp.GetRequiredService<IDataSetJsonSchemaProvider>();
-            encoder.SchemaVerbose = options.JsonSchemaExchangeVerbose || jsonOptions.Verbose;
+            encoder.SchemaVerbose = options.JsonSchemaExchange == JsonSchemaExchangeMode.Verbose || jsonOptions.Verbose;
             encoder.DestinationId = jsonOptions.DestinationId ?? options.ApplicationId ?? "pubsub-json-schema-exchange";
             return encoder;
         }

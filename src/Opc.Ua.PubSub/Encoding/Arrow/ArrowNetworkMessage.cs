@@ -26,7 +26,7 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
-
+#if NET8_0_OR_GREATER
 using Opc.Ua;
 
 namespace Opc.Ua.PubSub.Encoding
@@ -36,7 +36,7 @@ namespace Opc.Ua.PubSub.Encoding
     /// describes one DataSet; each RecordBatch row is one DataSetMessage
     /// sample and each DataSet field is a typed Arrow column.
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_1")]
+    [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_Encoders")]
     public sealed record ArrowNetworkMessage : PubSubNetworkMessage
     {
         /// <summary>
@@ -61,3 +61,4 @@ namespace Opc.Ua.PubSub.Encoding
         }
     }
 }
+#endif
