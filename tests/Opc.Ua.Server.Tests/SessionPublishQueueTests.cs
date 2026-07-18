@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -129,6 +130,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        [NonParallelizable]
         [CancelAfter(10000)]
         public async Task PublishReadyTransitionCompletesQueuedRequestAsync()
         {
@@ -140,8 +142,7 @@ namespace Opc.Ua.Server.Tests
             subscription.Setup(s => s.Id).Returns(1);
             queue.Add(subscription.Object);
 
-            Lock queueLock = GetPrivateLock(queue, "m_lock");
-            Lock splitPublishLock = TryGetPrivateLock(queue, "m_subscriptionPublishLock");
+            (Lock queueLock, Lock splitPublishLock) = GetPrivateLocks(queue);
             using var publishStarted = new ManualResetEventSlim();
             Task<ISubscription> publishTask;
 
@@ -175,11 +176,11 @@ namespace Opc.Ua.Server.Tests
 
                 if (splitPublishLock != null)
                 {
-                    Thread.Sleep(100);
-                    splitPublishLock.Enter();
-                    splitPublishLock.Exit();
+                    WaitForSplitLockTransition(splitPublishLock);
                 }
 
+                // System.Threading.Lock is reentrant. Keeping the queue lock
+                // held preserves the historical check-before-enqueue window.
                 queue.Requeue(subscription.Object);
             }
             finally
@@ -738,17 +739,66 @@ namespace Opc.Ua.Server.Tests
             Assert.That(returnedSubIds, Has.Count.EqualTo(numItems), "All subscriptions should have been processed.");
         }
 
-        private static Lock GetPrivateLock(SessionPublishQueue queue, string fieldName)
+        private static (Lock QueueLock, Lock SplitPublishLock) GetPrivateLocks(
+            SessionPublishQueue queue)
         {
-            return TryGetPrivateLock(queue, fieldName) ??
-                throw new InvalidOperationException($"Field '{fieldName}' was not found.");
+            FieldInfo[] lockFields = [.. typeof(SessionPublishQueue)
+                .GetFields(BindingFlags.Instance | BindingFlags.NonPublic)
+                .Where(field => field.FieldType == typeof(Lock))];
+            if (lockFields.Length is 0 or > 2)
+            {
+                throw new InvalidOperationException(
+                    $"Expected one or two private Lock fields, found: " +
+                    $"{string.Join(", ", lockFields.Select(field => field.Name))}.");
+            }
+
+            FieldInfo queueLockField = lockFields.FirstOrDefault(field => field.Name == "m_lock") ??
+                (lockFields.Length == 1
+                    ? lockFields[0]
+                    : throw new InvalidOperationException(
+                        $"Could not identify the queue lock from: " +
+                        $"{string.Join(", ", lockFields.Select(field => field.Name))}."));
+            var queueLock = (Lock)queueLockField.GetValue(queue);
+            Lock splitPublishLock = lockFields
+                .Where(field => !ReferenceEquals(field, queueLockField))
+                .Select(field => (Lock)field.GetValue(queue))
+                .SingleOrDefault();
+            return (queueLock, splitPublishLock);
         }
 
-        private static Lock TryGetPrivateLock(SessionPublishQueue queue, string fieldName)
+        private static void WaitForSplitLockTransition(Lock splitPublishLock)
         {
-            return typeof(SessionPublishQueue)
-                .GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic)?
-                .GetValue(queue) as Lock;
+            bool enteredByPublisher = SpinWait.SpinUntil(
+                () =>
+                {
+                    if (!splitPublishLock.TryEnter())
+                    {
+                        return true;
+                    }
+                    splitPublishLock.Exit();
+                    return false;
+                },
+                TimeSpan.FromSeconds(2));
+            Assert.That(
+                enteredByPublisher,
+                Is.True,
+                "PublishAsync did not enter the legacy split lock.");
+
+            bool releasedByPublisher = SpinWait.SpinUntil(
+                () =>
+                {
+                    if (!splitPublishLock.TryEnter())
+                    {
+                        return false;
+                    }
+                    splitPublishLock.Exit();
+                    return true;
+                },
+                TimeSpan.FromSeconds(2));
+            Assert.That(
+                releasedByPublisher,
+                Is.True,
+                "PublishAsync did not leave the legacy split lock.");
         }
     }
 }
