@@ -184,6 +184,60 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 "state.RolePermissions = new global::Opc.Ua.RolePermissionType[]"));
         }
 
+        [Test]
+        public void CreateInstanceOfFactoriesRebaseOnlyDynamicTypeInstances()
+        {
+            Dictionary<string, string> files = GenerateForTestModel(generateNodeManager: false);
+
+            string ex = files
+                .Single(kv => kv.Key.EndsWith(".NodeStates.ex.g.cs", StringComparison.Ordinal))
+                .Value;
+
+            const string rebaseCall =
+                "global::Opc.Ua.NodeInstanceExtensions.AssignInstanceChildNodeIds(";
+            const string assignNodeId =
+                "global::Opc.Ua.NodeInstanceExtensions.AssignInstanceNodeId(context, state);";
+            const string captureNodeId = "global::Opc.Ua.NodeId previousNodeId =";
+
+            string variableFactory = ExtractFactoryBody(ex, "CreateInstanceOfRestrictedVariableType");
+            string objectFactory = ExtractFactoryBody(ex, "CreateInstanceOfRestrictedObjectType");
+            string methodFactory = ExtractFactoryBody(ex, "CreateInstanceOfRestrictedMethodType");
+
+            Assert.That(variableFactory, Does.Contain(captureNodeId));
+            Assert.That(variableFactory, Does.Contain(assignNodeId));
+            Assert.That(variableFactory, Does.Contain(rebaseCall));
+            Assert.That(objectFactory, Does.Contain(captureNodeId));
+            Assert.That(objectFactory, Does.Contain(assignNodeId));
+            Assert.That(objectFactory, Does.Contain(rebaseCall));
+            Assert.That(methodFactory, Does.Contain(captureNodeId));
+            Assert.That(methodFactory, Does.Contain(assignNodeId));
+            Assert.That(methodFactory, Does.Contain(rebaseCall));
+
+            Assert.That(
+                ExtractFactoryBody(ex, "CreateTestObject"),
+                Does.Not.Contain(captureNodeId)
+                    .And.Not.Contain(assignNodeId)
+                    .And.Not.Contain(rebaseCall),
+                "Predefined concrete instance factories must retain their standard NodeIds.");
+        }
+
+        [Test]
+        public void OptionalChildAddersAttachBeforeReferenceRemapping()
+        {
+            Dictionary<string, string> files = GenerateForTestModel(generateNodeManager: false);
+            string source = files.Values.Single(value =>
+                value.Contains(" AddX(", StringComparison.Ordinal));
+            string addX = ExtractInstanceMethodBody(source, "AddX");
+
+            int attachIndex = addX.IndexOf("X = state;", StringComparison.Ordinal);
+            int rebaseIndex = addX.IndexOf(
+                "AssignInstanceChildNodeIds(",
+                StringComparison.Ordinal);
+
+            Assert.That(attachIndex, Is.GreaterThanOrEqualTo(0));
+            Assert.That(rebaseIndex, Is.GreaterThan(attachIndex));
+        }
+
         /// <summary>
         /// Extracts the body of a generated factory method (from the line that
         /// declares it through the matching closing brace) so individual
@@ -195,7 +249,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             string[] lines = source.Split('\n');
             for (int i = 0; i < lines.Length; i++)
             {
-                if (!lines[i].Contains("public static ", StringComparison.Ordinal) ||
+                if (!lines[i].Contains(" static ", StringComparison.Ordinal) ||
                     !lines[i].Contains(methodName + "(", StringComparison.Ordinal))
                 {
                     continue;
@@ -226,6 +280,46 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 }
             }
             Assert.Fail("Method definition not found: " + methodName);
+            return string.Empty;
+        }
+
+        private static string ExtractInstanceMethodBody(string source, string methodName)
+        {
+            string[] lines = source.Split('\n');
+            for (int i = 0; i < lines.Length; i++)
+            {
+                if (!lines[i].Contains(" " + methodName + "(", StringComparison.Ordinal) ||
+                    lines[i].TrimStart().StartsWith("///", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                int braces = 0;
+                bool started = false;
+                var sb = new StringBuilder();
+                for (int j = i; j < lines.Length; j++)
+                {
+                    sb.AppendLine(lines[j]);
+                    foreach (char c in lines[j])
+                    {
+                        if (c == '{')
+                        {
+                            braces++;
+                            started = true;
+                        }
+                        else if (c == '}')
+                        {
+                            braces--;
+                        }
+                    }
+                    if (started && braces == 0)
+                    {
+                        return sb.ToString();
+                    }
+                }
+            }
+
+            Assert.Fail("Instance method definition not found: " + methodName);
             return string.Empty;
         }
 

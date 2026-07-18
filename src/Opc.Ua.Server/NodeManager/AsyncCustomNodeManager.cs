@@ -1338,6 +1338,7 @@ namespace Opc.Ua.Server
         protected virtual async ValueTask AddPredefinedNodeAsync(ISystemContext context, NodeState node, CancellationToken cancellationToken = default)
         {
             NodeState activeNode = await AddBehaviourToPredefinedNodeAsync(context, node, cancellationToken).ConfigureAwait(false);
+            PrepareInstanceNodeIdsForRegistration(context, activeNode);
             IndexPredefinedNode(activeNode);
 
             var children = new List<BaseInstanceState>();
@@ -1353,6 +1354,128 @@ namespace Opc.Ua.Server
 
                 await AddPredefinedNodeAsync(context, children[ii], cancellationToken).ConfigureAwait(false);
             }
+        }
+
+        /// <summary>
+        /// Adds a predefined node and publishes its parent reference when the
+        /// parent is owned by another NodeManager.
+        /// </summary>
+        protected async ValueTask AddPredefinedNodeAsync(
+            ISystemContext context,
+            NodeState node,
+            IDictionary<NodeId, IList<IReference>> externalReferences,
+            CancellationToken cancellationToken = default)
+        {
+            await AddPredefinedNodeAsync(context, node, cancellationToken).ConfigureAwait(false);
+            AddExternalParentReferenceIfNeeded(context, node, externalReferences);
+        }
+
+        private void PrepareInstanceNodeIdsForRegistration(
+            ISystemContext context,
+            NodeState node)
+        {
+            if (context.NodeIdFactory == null ||
+                node is not BaseInstanceState instance ||
+                node.IsPartOfTypeHierarchy)
+            {
+                return;
+            }
+
+            bool rootCollision = HasDeclarationNodeIdCollision(node);
+            if (!rootCollision && !node.NodeId.IsNull && node.NodeId.NamespaceIndex == 0)
+            {
+                return;
+            }
+
+            var children = new List<BaseInstanceState>();
+            node.GetChildren(context, children);
+            bool requiresRebase = rootCollision ||
+                node.NodeId.IsNull ||
+                children.Any(child =>
+                    child.NodeId.IsNull ||
+                    (node.NodeId.NamespaceIndex != 0 &&
+                        child.NodeId.NamespaceIndex == 0) ||
+                    HasDeclarationNodeIdCollision(child));
+            if (!requiresRebase)
+            {
+                return;
+            }
+
+            var subtree = new List<NodeState> { node };
+            for (int ii = 0; ii < subtree.Count; ii++)
+            {
+                children.Clear();
+                subtree[ii].GetChildren(context, children);
+                subtree.AddRange(children);
+            }
+
+            foreach (NodeState candidate in subtree)
+            {
+                if (!candidate.NodeId.IsNull &&
+                    PredefinedNodes.TryGetValue(
+                        candidate.NodeId,
+                        out NodeState? indexedNode) &&
+                    ReferenceEquals(indexedNode, candidate))
+                {
+                    PredefinedNodes.TryRemove(candidate.NodeId, out _);
+                }
+            }
+
+            NodeId previousNodeId = node.NodeId.IsNull || rootCollision
+                ? context.AssignInstanceNodeId(node)
+                : NodeId.Null;
+            context.AssignInstanceChildNodeIds(
+                node,
+                previousNodeId,
+                instance.Parent ?? node);
+        }
+
+        private bool HasDeclarationNodeIdCollision(NodeState node)
+        {
+            return !node.NodeId.IsNull &&
+                PredefinedNodes.TryGetValue(node.NodeId, out NodeState? indexedNode) &&
+                !ReferenceEquals(indexedNode, node) &&
+                indexedNode.IsPartOfTypeHierarchy &&
+                !node.IsPartOfTypeHierarchy;
+        }
+
+        private void AddExternalParentReferenceIfNeeded(
+            ISystemContext context,
+            NodeState node,
+            IDictionary<NodeId, IList<IReference>> externalReferences)
+        {
+            if (node is not BaseInstanceState instance ||
+                instance.Parent == null ||
+                instance.Parent.NodeId.IsNull)
+            {
+                return;
+            }
+
+            NodeId referenceTypeId = instance.ReferenceTypeId.IsNull
+                ? ReferenceTypeIds.HasComponent
+                : instance.ReferenceTypeId;
+            instance.ReferenceTypeId = referenceTypeId;
+
+            if (externalReferences.TryGetValue(
+                    instance.Parent.NodeId,
+                    out IList<IReference>? references) &&
+                references.Any(reference =>
+                    reference.ReferenceTypeId == referenceTypeId &&
+                    !reference.IsInverse &&
+                    !reference.TargetId.IsAbsolute &&
+                    ExpandedNodeId.ToNodeId(
+                        reference.TargetId,
+                        context.NamespaceUris) == node.NodeId))
+            {
+                return;
+            }
+
+            AddExternalReference(
+                instance.Parent.NodeId,
+                referenceTypeId,
+                false,
+                node.NodeId,
+                externalReferences);
         }
 
         /// <summary>

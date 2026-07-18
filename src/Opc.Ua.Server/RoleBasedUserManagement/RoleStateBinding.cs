@@ -515,7 +515,6 @@ namespace Opc.Ua.Server
                 try
                 {
                     await MaterializeDynamicRoleAsync(
-                        context,
                         newRoleId,
                         roleName,
                         cancellationToken).ConfigureAwait(false);
@@ -576,11 +575,10 @@ namespace Opc.Ua.Server
         /// <see cref="IRoleManager.AddRole"/>. The factory
         /// <c>CreateInstanceOfRoleType</c> sets the well-known RoleType NodeId
         /// (15620) as the default — we overwrite it with the dynamic role's
-        /// allocated NodeId and allocate fresh NodeIds for each optional child
-        /// via <see cref="ISystemContext.NodeIdFactory"/>.
+        /// allocated NodeId and rebase its mandatory and optional descendants
+        /// through the owning NodeManager's <see cref="ISystemContext.NodeIdFactory"/>.
         /// </remarks>
         private async ValueTask MaterializeDynamicRoleAsync(
-            ISystemContext context,
             NodeId roleNodeId,
             string roleName,
             CancellationToken cancellationToken)
@@ -591,8 +589,14 @@ namespace Opc.Ua.Server
             }
 
             ushort browseNs = roleNodeId.NamespaceIndex;
+            // The request context is not guaranteed to carry a NodeIdFactory.
+            ServerSystemContext nodeContext = m_nodeManager.SystemContext.Copy();
+            nodeContext.NodeIdFactory = new DynamicRoleNodeIdFactory(
+                nodeContext.NodeIdFactory,
+                m_roleSet,
+                roleNodeId);
 
-            RoleState roleState = context.CreateInstanceOfRoleType(
+            RoleState roleState = nodeContext.CreateInstanceOfRoleType(
                 parent: m_roleSet,
                 browseName: new QualifiedName(roleName, browseNs));
             roleState.NodeId = roleNodeId;
@@ -610,54 +614,40 @@ namespace Opc.Ua.Server
             // Pass the spec-defined BrowseName so the standard browse-path
             // lookups (e.g. "/AddIdentity") match the instance.
             const ushort opcUaNs = 0;
-            roleState.AddIdentity = context.CreateInstanceOfAddIdentityMethodType(
+            roleState.AddIdentity = nodeContext.CreateInstanceOfAddIdentityMethodType(
                 roleState, new QualifiedName(BrowseNames.AddIdentity, opcUaNs));
-            AssignChildNodeId(context, roleState.AddIdentity);
             LinkChild(roleState, roleState.AddIdentity);
 
-            roleState.RemoveIdentity = context.CreateInstanceOfRemoveIdentityMethodType(
+            roleState.RemoveIdentity = nodeContext.CreateInstanceOfRemoveIdentityMethodType(
                 roleState, new QualifiedName(BrowseNames.RemoveIdentity, opcUaNs));
-            AssignChildNodeId(context, roleState.RemoveIdentity);
             LinkChild(roleState, roleState.RemoveIdentity);
 
-            roleState.AddApplication = context.CreateInstanceOfAddApplicationMethodType(
+            roleState.AddApplication = nodeContext.CreateInstanceOfAddApplicationMethodType(
                 roleState, new QualifiedName(BrowseNames.AddApplication, opcUaNs));
-            AssignChildNodeId(context, roleState.AddApplication);
             LinkChild(roleState, roleState.AddApplication);
 
-            roleState.RemoveApplication = context.CreateInstanceOfRemoveApplicationMethodType(
+            roleState.RemoveApplication = nodeContext.CreateInstanceOfRemoveApplicationMethodType(
                 roleState, new QualifiedName(BrowseNames.RemoveApplication, opcUaNs));
-            AssignChildNodeId(context, roleState.RemoveApplication);
             LinkChild(roleState, roleState.RemoveApplication);
 
-            roleState.AddEndpoint = context.CreateInstanceOfAddEndpointMethodType(
+            roleState.AddEndpoint = nodeContext.CreateInstanceOfAddEndpointMethodType(
                 roleState, new QualifiedName(BrowseNames.AddEndpoint, opcUaNs));
-            AssignChildNodeId(context, roleState.AddEndpoint);
             LinkChild(roleState, roleState.AddEndpoint);
 
-            roleState.RemoveEndpoint = context.CreateInstanceOfRemoveEndpointMethodType(
+            roleState.RemoveEndpoint = nodeContext.CreateInstanceOfRemoveEndpointMethodType(
                 roleState, new QualifiedName(BrowseNames.RemoveEndpoint, opcUaNs));
-            AssignChildNodeId(context, roleState.RemoveEndpoint);
             LinkChild(roleState, roleState.RemoveEndpoint);
 
             // Optional property children — ApplicationsExclude / EndpointsExclude
             // / CustomConfiguration are all PropertyState<bool>. Use the
             // HasProperty reference type rather than HasComponent so the
             // browse classification matches the standard nodeset.
-            roleState.ApplicationsExclude = BuildBoolProperty(context, roleState, BrowseNames.ApplicationsExclude);
+            roleState.AddApplicationsExclude(nodeContext);
             LinkChild(roleState, roleState.ApplicationsExclude, ReferenceTypeIds.HasProperty);
-            roleState.EndpointsExclude = BuildBoolProperty(context, roleState, BrowseNames.EndpointsExclude);
+            roleState.AddEndpointsExclude(nodeContext);
             LinkChild(roleState, roleState.EndpointsExclude, ReferenceTypeIds.HasProperty);
-            roleState.CustomConfiguration = BuildBoolProperty(context, roleState, BrowseNames.CustomConfiguration);
+            roleState.AddCustomConfiguration(nodeContext);
             LinkChild(roleState, roleState.CustomConfiguration, ReferenceTypeIds.HasProperty);
-
-            // The Identities child is created by the factory but its NodeId
-            // still points at the type definition — give it a dynamic id too
-            // so it is addressable as an instance.
-            if (roleState.Identities != null)
-            {
-                AssignChildNodeId(context, roleState.Identities);
-            }
 
             // Attach to RoleSet so browse references are established before
             // the manager indexes the subtree. AddChild only updates the
@@ -695,15 +685,6 @@ namespace Opc.Ua.Server
                 .ConfigureAwait(false);
         }
 
-        private static void AssignChildNodeId(ISystemContext context, BaseInstanceState? child)
-        {
-            if (child == null || context.NodeIdFactory == null)
-            {
-                return;
-            }
-            child.NodeId = context.NodeIdFactory.New(context, child);
-        }
-
         /// <summary>
         /// Attaches <paramref name="child"/> to <paramref name="parent"/> by
         /// registering the typed child link (<c>AddChild</c>) and adding
@@ -720,27 +701,6 @@ namespace Opc.Ua.Server
             parent.AddChild(child);
             parent.AddReference(refTypeId, isInverse: false, child.NodeId);
             child.AddReference(refTypeId, isInverse: true, parent.NodeId);
-        }
-
-        private static PropertyState<bool> BuildBoolProperty(
-            ISystemContext context,
-            NodeState parent,
-            string browseName)
-        {
-            // Property BrowseNames in the standard nodeset live in the OPC UA
-            // base namespace (always index 0). Look it up rather than relying
-            // on the internal Namespaces.OpcUa constant so this code stays
-            // compatible if the runtime resequences known namespaces.
-            int opcUaNsIndex = context.NamespaceUris.GetIndex("http://opcfoundation.org/UA/");
-            ushort ns = opcUaNsIndex >= 0 ? (ushort)opcUaNsIndex : (ushort)0;
-            var property = PropertyState<bool>.With<VariantBuilder>(parent);
-            property.BrowseName = new QualifiedName(browseName, ns);
-            property.DisplayName = new LocalizedText(browseName);
-            property.SymbolicName = browseName;
-            property.DataType = DataTypeIds.Boolean;
-            property.ValueRank = ValueRanks.Scalar;
-            AssignChildNodeId(context, property);
-            return property;
         }
 
         private async ValueTask<AddIdentityMethodStateResult> OnAddIdentityAsync(
@@ -937,6 +897,70 @@ namespace Opc.Ua.Server
                 ArrayOf.Wrapped(inputArguments),
                 success,
                 m_logger);
+        }
+
+        private sealed class DynamicRoleNodeIdFactory : INodeIdFactory
+        {
+            public DynamicRoleNodeIdFactory(
+                INodeIdFactory? inner,
+                RoleSetState roleSet,
+                NodeId roleNodeId)
+            {
+                m_inner = inner;
+                m_roleSet = roleSet;
+                m_roleNodeId = roleNodeId;
+                m_assigned.Add(roleNodeId);
+            }
+
+            public NodeId New(ISystemContext context, NodeState node)
+            {
+                if (node is BaseInstanceState role &&
+                    ReferenceEquals(role.Parent, m_roleSet))
+                {
+                    return m_roleNodeId;
+                }
+
+                if (m_inner != null)
+                {
+                    NodeId candidate = m_inner.New(context, node);
+                    if (!candidate.IsNull && candidate.Equals(node.NodeId))
+                    {
+                        return candidate;
+                    }
+                    if (CanUse(candidate) && m_assigned.Add(candidate))
+                    {
+                        return candidate;
+                    }
+                }
+
+                if (node is BaseInstanceState instance &&
+                    instance.Parent != null)
+                {
+                    string parentId = instance.Parent.NodeId.IdentifierAsString;
+                    string childName = string.IsNullOrEmpty(instance.SymbolicName)
+                        ? instance.BrowseName.Name ?? instance.GetType().Name
+                        : instance.SymbolicName;
+                    var candidate = new NodeId(
+                        $"{parentId}_{childName}",
+                        instance.Parent.NodeId.NamespaceIndex);
+                    m_assigned.Add(candidate);
+                    return candidate;
+                }
+
+                return node.NodeId;
+            }
+
+            private bool CanUse(NodeId candidate)
+            {
+                return !candidate.IsNull &&
+                    (candidate.NamespaceIndex != m_roleNodeId.NamespaceIndex ||
+                        candidate.IdType != IdType.Numeric);
+            }
+
+            private readonly HashSet<NodeId> m_assigned = [];
+            private readonly INodeIdFactory? m_inner;
+            private readonly RoleSetState m_roleSet;
+            private readonly NodeId m_roleNodeId;
         }
     }
 

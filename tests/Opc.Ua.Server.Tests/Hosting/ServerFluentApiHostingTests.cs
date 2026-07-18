@@ -94,6 +94,70 @@ namespace Opc.Ua.Server.Tests.Hosting
         }
 
         [Test]
+        public async Task ConfigureApplicationBuildsSharedClientAndServerConfigurationAsync()
+        {
+            string pkiRoot = Path.Combine(
+                TestContext.CurrentContext.WorkDirectory,
+                nameof(ConfigureApplicationBuildsSharedClientAndServerConfigurationAsync),
+                Guid.NewGuid().ToString("N"));
+            using var certificateManager = new CertificateManager(
+                NUnitTelemetryContext.Create(isServer: true));
+            ObservedHostedServer.StartedApplicationName = null;
+            ObservedHostedServer.StartedApplicationType = null;
+            ObservedHostedServer.StartedCertificateManager = null;
+
+            try
+            {
+                await using HostedServerFixture fixture = await HostedServerFixture.StartAsync(
+                    services =>
+                    {
+                        IOpcUaBuilder builder = services.AddOpcUa()
+                            .ConfigureApplication(options =>
+                            {
+                                options.ApplicationName = "CombinedHostedApplication";
+                                options.ApplicationUri =
+                                    "urn:localhost:CombinedHostedApplication";
+                                options.ProductUri =
+                                    "uri:opcfoundation.org:CombinedHostedApplication";
+                                options.PkiRoot = pkiRoot;
+                                options.AutoAcceptUntrustedCertificates = true;
+                            });
+                        builder.AddClient(_ => { });
+                        builder
+                            .AddServer<ObservedHostedServer>(options =>
+                            {
+                                options.EndpointUrls.Add(
+                                    "opc.tcp://localhost:0/CombinedHostedApplication");
+                                options.IncludeUnsecurePolicyNone = true;
+                            })
+                            .AddCertificateManager(certificateManager);
+                    }).ConfigureAwait(false);
+
+                Assert.That(
+                    await WaitForAsync(
+                        () => ObservedHostedServer.StartedApplicationType != null,
+                        TimeSpan.FromSeconds(30)).ConfigureAwait(false),
+                    Is.True);
+                Assert.That(
+                    ObservedHostedServer.StartedApplicationName,
+                    Is.EqualTo("CombinedHostedApplication"));
+                Assert.That(
+                    ObservedHostedServer.StartedApplicationType,
+                    Is.EqualTo(ApplicationType.ClientAndServer));
+                Assert.That(
+                    ObservedHostedServer.StartedCertificateManager,
+                    Is.SameAs(certificateManager));
+            }
+            finally
+            {
+                if (Directory.Exists(pkiRoot))
+                {
+                    Directory.Delete(pkiRoot, recursive: true);
+                }
+            }
+        }
+
+        [Test]
         public void AddServerUsesDependencyInjectionAwareDefaultFactory()
         {
             using ServiceProvider sp = CreateServerBuilder().Services.BuildServiceProvider();
@@ -853,6 +917,21 @@ namespace Opc.Ua.Server.Tests.Hosting
             }
 
             public static Type? StartedType { get; set; }
+
+            public static string? StartedApplicationName { get; set; }
+
+            public static ApplicationType? StartedApplicationType { get; set; }
+
+            public static ICertificateManager? StartedCertificateManager { get; set; }
+
+            protected override void OnServerStarting(
+                ApplicationConfiguration configuration)
+            {
+                StartedApplicationName = configuration.ApplicationName;
+                StartedApplicationType = configuration.ApplicationType;
+                StartedCertificateManager = configuration.CertificateManager;
+                base.OnServerStarting(configuration);
+            }
 
             protected override void OnServerStarted(IServerInternal server)
             {

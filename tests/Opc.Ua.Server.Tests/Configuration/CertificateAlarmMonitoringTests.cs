@@ -30,9 +30,9 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Time.Testing;
 using NUnit.Framework;
 using Opc.Ua.Server.TestFramework;
@@ -77,6 +77,70 @@ namespace Opc.Ua.Server.Tests
             {
                 await m_fixture.StopAsync().ConfigureAwait(false);
             }
+        }
+
+        [Test]
+        public void DynamicCertificateAlarmsDoNotReplaceTypeDeclarations()
+        {
+            CertificateGroupState defaultGroup =
+                m_configManager.FindPredefinedNode<CertificateGroupState>(
+                    ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup);
+            BaseInstanceState expirationDate = m_configManager.FindPredefinedNode<BaseInstanceState>(
+                VariableIds.CertificateExpirationAlarmType_ExpirationDate);
+            BaseInstanceState trustListId = m_configManager.FindPredefinedNode<BaseInstanceState>(
+                VariableIds.TrustListOutOfDateAlarmType_TrustListId);
+            var groupChildren = new List<BaseInstanceState>();
+            defaultGroup.GetChildren(m_configManager.SystemContext, groupChildren);
+            var alarmDescendants = new List<BaseInstanceState>();
+            CollectDescendants(
+                m_configManager.SystemContext,
+                defaultGroup.CertificateExpired!,
+                alarmDescendants);
+            CollectDescendants(
+                m_configManager.SystemContext,
+                defaultGroup.TrustListOutOfDate!,
+                alarmDescendants);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(m_configManager.SystemContext.NodeIdFactory, Is.Not.Null);
+                Assert.That(defaultGroup.CertificateExpired, Is.Not.Null);
+                Assert.That(defaultGroup.TrustListOutOfDate, Is.Not.Null);
+                Assert.That(
+                    groupChildren,
+                    Does.Contain(defaultGroup.CertificateExpired));
+                Assert.That(
+                    groupChildren,
+                    Does.Contain(defaultGroup.TrustListOutOfDate));
+                Assert.That(
+                    defaultGroup.CertificateExpired!.NodeId.NamespaceIndex,
+                    Is.GreaterThan(0));
+                Assert.That(
+                    defaultGroup.TrustListOutOfDate!.NodeId.NamespaceIndex,
+                    Is.GreaterThan(0));
+                foreach (BaseInstanceState descendant in alarmDescendants)
+                {
+                    Assert.That(
+                        descendant.NodeId.NamespaceIndex,
+                        Is.GreaterThan(0),
+                        $"Runtime alarm descendant {descendant.BrowseName} retained " +
+                        $"declaration NodeId {descendant.NodeId}.");
+                }
+                Assert.That(expirationDate, Is.Not.Null);
+                Assert.That(
+                    expirationDate.Parent?.NodeId,
+                    Is.EqualTo(ObjectTypeIds.CertificateExpirationAlarmType));
+                Assert.That(
+                    expirationDate.ModellingRuleId,
+                    Is.EqualTo(ObjectIds.ModellingRule_Mandatory));
+                Assert.That(trustListId, Is.Not.Null);
+                Assert.That(
+                    trustListId.Parent?.NodeId,
+                    Is.EqualTo(ObjectTypeIds.TrustListOutOfDateAlarmType));
+                Assert.That(
+                    trustListId.ModellingRuleId,
+                    Is.EqualTo(ObjectIds.ModellingRule_Mandatory));
+            });
         }
 
         [Test]
@@ -287,7 +351,7 @@ namespace Opc.Ua.Server.Tests
                 Assert.That((DateTime)alarm.ReceiveTime!.Value, Is.EqualTo(s_now));
                 Assert.That(alarm.SourceNode!.Value, Is.EqualTo(harness.Group.NodeId));
                 Assert.That(alarm.EventType!.Value,
-                    Is.EqualTo((NodeId)ObjectTypeIds.CertificateExpirationAlarmType));
+                    Is.EqualTo(ObjectTypeIds.CertificateExpirationAlarmType));
                 Assert.That(alarm.ConditionName!.Value, Is.EqualTo(BrowseNames.CertificateExpired));
             });
         }
@@ -414,7 +478,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(manager.AlarmMonitoringActive, Is.False);
 
             // Stopping again is safe.
-            Assert.DoesNotThrow(() => manager.StopAlarmMonitoring());
+            Assert.DoesNotThrow(manager.StopAlarmMonitoring);
         }
 
         [Test]
@@ -579,10 +643,14 @@ namespace Opc.Ua.Server.Tests
             return harness;
         }
 
-        // Mirrors ConfigurationNodeManager.WireConditionMethodHandlers: the
-        // generated Add<Alarm> factory builds the full structure but does not
-        // run OnAfterCreate, so re-run Create to wire the condition method
-        // handlers (Acknowledge/Confirm/Enable/Disable/AddComment).
+        /// <summary>
+        /// Mirrors ConfigurationNodeManager.WireConditionMethodHandlers: the
+        /// generated Add<Alarm> factory builds the full structure but does not
+        /// run OnAfterCreate, so re-run Create to wire the condition method
+        /// handlers (Acknowledge/Confirm/Enable/Disable/AddComment).
+        /// </summary>
+        /// <param name="context"></param>
+        /// <param name="alarm"></param>
         private static void WireConditionMethods(ISystemContext context, NodeState alarm)
         {
             alarm.Create(
@@ -596,6 +664,20 @@ namespace Opc.Ua.Server.Tests
         private static void SetExpiration(CertificateExpirationAlarmState alarm, DateTime expiration)
         {
             alarm.ExpirationDate!.Value = (DateTimeUtc)DateTime.SpecifyKind(expiration, DateTimeKind.Utc);
+        }
+
+        private static void CollectDescendants(
+            ISystemContext context,
+            NodeState node,
+            List<BaseInstanceState> descendants)
+        {
+            var children = new List<BaseInstanceState>();
+            node.GetChildren(context, children);
+            foreach (BaseInstanceState child in children)
+            {
+                descendants.Add(child);
+                CollectDescendants(context, child, descendants);
+            }
         }
 
         private sealed class AlarmHarness

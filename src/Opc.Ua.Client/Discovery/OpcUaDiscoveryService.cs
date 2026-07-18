@@ -79,18 +79,22 @@ namespace Opc.Ua.Client.Discovery
             return await client.GetEndpointsAsync(profileUris, ct).ConfigureAwait(false);
         }
 
-        private Task<DiscoveryClient> CreateClientAsync(
+        private async Task<DiscoveryClient> CreateClientAsync(
             string discoveryUrl,
             CancellationToken ct)
         {
+            if (m_options.ConfigurationProvider != null)
+            {
+                await m_options.ConfigurationProvider.GetAsync(ct).ConfigureAwait(false);
+            }
             ApplicationConfiguration configuration = m_options.Configuration ??
                 throw new InvalidOperationException("OpcUaClientOptions.Configuration is required.");
             var endpointConfiguration = EndpointConfiguration.Create(configuration);
-            return DiscoveryClient.CreateAsync(
+            return await DiscoveryClient.CreateAsync(
                 new Uri(discoveryUrl),
                 endpointConfiguration,
                 configuration,
-                ct: ct);
+                ct: ct).ConfigureAwait(false);
         }
 
         private readonly OpcUaClientOptions m_options;

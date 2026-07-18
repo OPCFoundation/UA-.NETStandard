@@ -506,14 +506,6 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                if (snapshot.Context is ISessionSystemContext sessionContext &&
-                    sessionContext.SessionId is { IsNull: false } contextSessionId &&
-                    monitoredItem?.Session?.Id is { IsNull: false } monitoredItemSessionId &&
-                    !monitoredItemSessionId.Equals(contextSessionId))
-                {
-                    continue;
-                }
-
                 monitoredItem?.QueueEvent(e);
             }
         }
@@ -706,7 +698,11 @@ namespace Opc.Ua.Server
 
             if (ServiceResult.IsBad(applyResult))
             {
-                return new DataValue(applyResult.StatusCode);
+                return new DataValue(
+                    Variant.Null,
+                    applyResult.StatusCode,
+                    snapshotValue.SourceTimestamp,
+                    snapshotValue.ServerTimestamp);
             }
 
             return new DataValue(value, snapshotValue.StatusCode, snapshotValue.SourceTimestamp, snapshotValue.ServerTimestamp);

@@ -3591,11 +3591,16 @@ namespace Opc.Ua
                     m_stack.Push(parent);
                 }
 
-                // Read dimension array
+                // Read dimension array. A multi-dimensional Variant must carry
+                // Dimensions with at least two entries, each greater than zero
+                // (Part 6 5.2.2.16); the product-versus-length consistency is
+                // enforced by MatrixOf<T> in the switch below. Reject an absent,
+                // too-short, zero or negative dimension here so an empty matrix
+                // (which would otherwise satisfy the product check) is rejected.
                 if (!TryGetInt32ArrayFromElement(
                     dimensionElement,
                     out ArrayOf<int> dims) ||
-                    dims.Count < 2) // Must have at least 2 dimensions
+                    !MatrixOf.IsValidMatrix(dims.Span))
                 {
                     value = default;
                     return false;
@@ -3760,6 +3765,19 @@ namespace Opc.Ua
                                 "Unexpected scalar built in type ({0}).",
                                 typeInfo);
                     }
+                }
+                catch (ArgumentException ex)
+                {
+                    // MatrixOf<T>(values, dimensions) deliberately throws
+                    // ArgumentException for wire dimensions that are inconsistent
+                    // with the value payload (a length mismatch or an
+                    // Int32-overflowing product). Convert to the standard decoder
+                    // rejection channel so callers treat it as malformed input.
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        ex,
+                        "Invalid variant matrix dimensions ({0}).",
+                        typeInfo);
                 }
                 finally
                 {

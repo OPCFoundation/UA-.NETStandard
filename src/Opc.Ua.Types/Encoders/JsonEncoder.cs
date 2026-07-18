@@ -595,7 +595,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void WriteLocalizedText(string? fieldName, LocalizedText value)
         {
-            if (value.IsNullOrEmpty)
+            if (value.IsNull)
             {
                 WriteNull(fieldName);
                 return;
@@ -1495,7 +1495,7 @@ namespace Opc.Ua
         /// </summary>
         private void WriteLocalizedText(LocalizedText value)
         {
-            if (value.IsNullOrEmpty)
+            if (value.IsNull)
             {
                 m_writer.WriteNullValue();
                 return;
@@ -2165,6 +2165,21 @@ namespace Opc.Ua
                     default:
                         throw ServiceResultException.Unexpected(
                             $"Unexpected BuiltInType {value.TypeInfo.BuiltInType}");
+                }
+
+                // A multi-dimensional Variant must carry Dimensions where every
+                // entry is greater than zero and the product equals the flattened
+                // element count (Part 6 5.2.2.16 / 5.4.5). Refuse to emit
+                // inconsistent dimensions (e.g. a zero dimension produced by an
+                // empty matrix) instead of writing wire data a conforming peer
+                // must reject with BadDecodingError.
+                if (!MatrixOf.IsValidMatrix(dim))
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadEncodingError,
+                        "Cannot encode a matrix Variant with inconsistent " +
+                        "Dimensions [{0}].",
+                        string.Join(",", dim));
                 }
 
                 WriteInt32Array(JsonProperties.Dimensions, dim);
