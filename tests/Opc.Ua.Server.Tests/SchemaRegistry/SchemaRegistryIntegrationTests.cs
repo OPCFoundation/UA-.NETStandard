@@ -321,6 +321,56 @@ namespace Opc.Ua.Server.Tests.SchemaRegistry
         }
 
         /// <summary>
+        /// Proves the Opaque SchemaId-NodeId fast path (spec §6.4): a schema document is
+        /// addressable by an Opaque NodeId in the Schema Registry namespace whose Identifier is
+        /// the raw on-wire SchemaId bytes. A consumer that received the SchemaId constructs the
+        /// NodeId deterministically and resolves the schema document in a single Read of the
+        /// Value Attribute — no Browse. An unknown SchemaId resolves to no node (cache miss).
+        /// </summary>
+        [Test]
+        [Order(700)]
+        public async Task OpaqueSchemaIdNodeIdResolvesSchemaDocumentInOneReadAsync()
+        {
+            IServerInternal server = m_server.CurrentInstance;
+            ushort ns = SchemaRegistryNamespaceIndex(server);
+
+            // Deterministic construction from the raw on-wire SchemaId bytes (§6.4):
+            // NamespaceIndex = Schema Registry namespace, IdentifierType = Opaque, Identifier = bytes.
+            var fastPathNodeId = new NodeId(SchemaRegistryFastPathNodeManager.KnownSchemaId, ns);
+            Assert.That(fastPathNodeId.IdType, Is.EqualTo(IdType.Opaque),
+                "The SchemaId fast-path NodeId is an Opaque NodeId.");
+
+            NodeState node = await server.NodeManager
+                .FindNodeInAddressSpaceAsync(fastPathNodeId)
+                .ConfigureAwait(false);
+
+            Assert.That(node, Is.Not.Null,
+                "The Opaque SchemaId NodeId should resolve to the schema node in one Read.");
+
+            var variable = node as BaseVariableState;
+            Assert.That(variable, Is.Not.Null, "The fast-path node is a ByteString Variable.");
+
+            variable!.Value.TryGetValue(out ByteString resolved);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(variable.DataType, Is.EqualTo(DataTypeIds.ByteString));
+                Assert.That(resolved, Is.EqualTo(SchemaRegistryFastPathNodeManager.KnownDocument),
+                    "One Read of the Value Attribute returns the schema document.");
+            });
+
+            // A cache miss: an unregistered SchemaId resolves to no fast-path node.
+            var unknownNodeId = new NodeId(
+                ByteString.From([0, 0, 0, 0, 0, 0, 0, 0]), ns);
+            NodeState missing = await server.NodeManager
+                .FindNodeInAddressSpaceAsync(unknownNodeId)
+                .ConfigureAwait(false);
+
+            Assert.That(missing, Is.Null,
+                "An unregistered SchemaId has no fast-path node (the consumer falls back to browse/GetSchema).");
+        }
+
+        /// <summary>
         /// Returns the server-side namespace index for the Schema Registry companion model.
         /// </summary>
         private static ushort SchemaRegistryNamespaceIndex(IServerInternal server)
