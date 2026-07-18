@@ -65,28 +65,40 @@ namespace Opc.Ua.Core.Tests
             {
                 (
                     ValueSchema(Int32Type.Default),
-                    "arrow-schema-v1\nM:opcua-arrow=1\nF:value:i32:1:",
-                    "2dec8523c372037b"),
+                    "arrow-schema-v1\nM:\"opcua-arrow\"=\"1\"\nF:\"value\":i32:1:",
+                    "40a367d545f8cc25"),
                 (
                     ValueSchema(StringType.Default),
-                    "arrow-schema-v1\nM:opcua-arrow=1\nF:value:str:1:",
-                    "c0691dd370aa3411"),
+                    "arrow-schema-v1\nM:\"opcua-arrow\"=\"1\"\nF:\"value\":str:1:",
+                    "cb792cebb093cfc5"),
                 (
                     ValueSchema(new StructType(new List<Field>
                     {
                         new Field("a", Int32Type.Default, nullable: true, null),
                         new Field("b", StringType.Default, nullable: false, null),
                     })),
-                    "arrow-schema-v1\nM:opcua-arrow=1\nF:value:struct<a:i32:1,b:str:0>:1:",
-                    "eaf2615af9da4ff7"),
+                    "arrow-schema-v1\nM:\"opcua-arrow\"=\"1\"\nF:\"value\":struct<\"a\":i32:1,\"b\":str:0>:1:",
+                    "ce01c410bb288d70"),
                 (
                     ValueSchema(new ListType(new Field("item", Int64Type.Default, nullable: true, null))),
-                    "arrow-schema-v1\nM:opcua-arrow=1\nF:value:list<i64:1>:1:",
-                    "280f51343e0517ed"),
+                    "arrow-schema-v1\nM:\"opcua-arrow\"=\"1\"\nF:\"value\":list<i64:1>:1:",
+                    "b9ade40ccb355c00"),
                 (
                     ValueSchema(new FixedSizeBinaryType(8)),
-                    "arrow-schema-v1\nM:opcua-arrow=1\nF:value:fsb8:1:",
-                    "8c36f17ed4700cac"),
+                    "arrow-schema-v1\nM:\"opcua-arrow\"=\"1\"\nF:\"value\":fsb8:1:",
+                    "c528c3d84cb95766"),
+                (
+                    ValueSchema(new UnionType(
+                        new List<Field>
+                        {
+                            new Field("null", NullType.Default, nullable: true, null),
+                            new Field("Int32", Int32Type.Default, nullable: true, null),
+                            new Field("bin", BinaryType.Default, nullable: true, null),
+                        },
+                        new[] { 0, 1, 2 },
+                        UnionMode.Dense)),
+                    "arrow-schema-v1\nM:\"opcua-arrow\"=\"1\"\nF:\"value\":union<dense;0=\"null\":null:1,1=\"Int32\":i32:1,2=\"bin\":bin:1>:1:",
+                    "0e27f7d8eed05f55"),
             };
 
             Assert.Multiple(() =>

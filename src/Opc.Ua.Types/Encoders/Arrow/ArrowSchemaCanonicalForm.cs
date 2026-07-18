@@ -80,7 +80,7 @@ namespace Opc.Ua
             foreach (Field field in schema.FieldsList)
             {
                 builder.Append("\nF:")
-                    .Append(field.Name)
+                    .Append(Quote(field.Name))
                     .Append(':')
                     .Append(TypeCode(field.DataType))
                     .Append(':')
@@ -115,6 +115,7 @@ namespace Opc.Ua
         {
             switch (type.TypeId)
             {
+                case ArrowTypeId.Null: return "null";
                 case ArrowTypeId.Boolean: return "bool";
                 case ArrowTypeId.Int8: return "i8";
                 case ArrowTypeId.Int16: return "i16";
@@ -133,11 +134,23 @@ namespace Opc.Ua
                         .ToString(CultureInfo.InvariantCulture);
                 case ArrowTypeId.Struct:
                     return "struct<" + string.Join(",", ((StructType)type).Fields.Select(
-                        f => f.Name + ":" + TypeCode(f.DataType) + ":" + (f.IsNullable ? "1" : "0"))) + ">";
+                        f => Quote(f.Name) + ":" + TypeCode(f.DataType) + ":" + (f.IsNullable ? "1" : "0"))) + ">";
                 case ArrowTypeId.List:
                     var list = (ListType)type;
                     return "list<" + TypeCode(list.ValueDataType) + ":"
                         + (list.ValueField.IsNullable ? "1" : "0") + ">";
+                case ArrowTypeId.Union:
+                    var union = (UnionType)type;
+                    string mode = union.Mode == UnionMode.Dense ? "dense" : "sparse";
+                    var branches = new List<string>(union.Fields.Count);
+                    for (int ii = 0; ii < union.Fields.Count; ii++)
+                    {
+                        Field child = union.Fields[ii];
+                        branches.Add(union.TypeIds[ii].ToString(CultureInfo.InvariantCulture)
+                            + "=" + Quote(child.Name) + ":" + TypeCode(child.DataType)
+                            + ":" + (child.IsNullable ? "1" : "0"));
+                    }
+                    return "union<" + mode + ";" + string.Join(",", branches) + ">";
                 default:
                     throw new NotSupportedException("Unmapped Arrow type: " + type.TypeId);
             }
@@ -153,7 +166,7 @@ namespace Opc.Ua
 
             foreach (string key in metadata.Keys.OrderBy(k => k, StringComparer.Ordinal))
             {
-                builder.Append(prefix).Append(key).Append('=').Append(metadata[key]);
+                builder.Append(prefix).Append(Quote(key)).Append('=').Append(Quote(metadata[key]));
             }
         }
 
@@ -166,7 +179,40 @@ namespace Opc.Ua
 
             return string.Join(";", metadata.Keys
                 .OrderBy(k => k, StringComparer.Ordinal)
-                .Select(k => k + "=" + metadata[k]));
+                .Select(k => Quote(k) + "=" + Quote(metadata[k])));
+        }
+
+        // JSON string escaping so field names and metadata containing separators
+        // (':', ',', ';', '<', '>', '=') cannot alias — the canonical form stays injective.
+        private static string Quote(string value)
+        {
+            var builder = new StringBuilder(value.Length + 2);
+            builder.Append('"');
+            foreach (char c in value)
+            {
+                switch (c)
+                {
+                    case '"': builder.Append("\\\""); break;
+                    case '\\': builder.Append("\\\\"); break;
+                    case '\b': builder.Append("\\b"); break;
+                    case '\f': builder.Append("\\f"); break;
+                    case '\n': builder.Append("\\n"); break;
+                    case '\r': builder.Append("\\r"); break;
+                    case '\t': builder.Append("\\t"); break;
+                    default:
+                        if (c < 0x20)
+                        {
+                            builder.Append("\\u").Append(((int)c).ToString("x4", CultureInfo.InvariantCulture));
+                        }
+                        else
+                        {
+                            builder.Append(c);
+                        }
+                        break;
+                }
+            }
+            builder.Append('"');
+            return builder.ToString();
         }
     }
 }
