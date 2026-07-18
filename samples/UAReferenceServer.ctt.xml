@@ -10283,7 +10283,7 @@
                </Column>
                <Column column="1">
                 <ItemData role="0" rolename="DisplayRole">
-                 <Value type="10" typename="QString" data=""/>
+                 <Value type="10" typename="QString" data="ns=2;s=Scalar_Static_NodeDoesNotSupportServerTimestamp"/>
                 </ItemData>
                 <ChildRows size="0"/>
                </Column>

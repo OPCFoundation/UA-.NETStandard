@@ -4490,7 +4490,7 @@ namespace Quickstarts.ReferenceServer
                 new PropertyState<CurrencyUnitType>.Implementation<StructureBuilder<CurrencyUnitType>>(variable)
                 {
                     NodeId = new NodeId(path + "_CurrencyUnit", NamespaceIndex),
-                    BrowseName = new QualifiedName("CurrencyUnit", NamespaceIndex)
+                    BrowseName = new QualifiedName("CurrencyUnit", 0)
                 };
             currencyUnit.DisplayName = LocalizedText.From(currencyUnit.BrowseName.Name!);
             currencyUnit.TypeDefinitionId = VariableTypeIds.PropertyType;
@@ -4503,7 +4503,8 @@ namespace Quickstarts.ReferenceServer
             {
                 NumericCode = 978,
                 Exponent = 2,
-                AlphabeticCode = "EUR"
+                AlphabeticCode = "EUR",
+                Currency = new LocalizedText("Euro")
             };
 
             variable.AddChild(currencyUnit);
