@@ -371,6 +371,52 @@ namespace Opc.Ua.Server.Tests.SchemaRegistry
         }
 
         /// <summary>
+        /// Proves auto-bootstrap SchemaId consistency (spec §10.1 + §6.6): the SchemaId a server
+        /// computes from a document on registration — via the pluggable per-format fingerprint
+        /// provider — is the exact identifier the Opaque fast-path NodeId (§6.4) is built from.
+        /// This composes the fingerprint pipeline (PR #4007) with the in-server fast path
+        /// (PR #4018): recomputing the SchemaId from the document with the same provider yields
+        /// the fast-path node's Opaque identifier bytes, and the document is reachable by it.
+        /// </summary>
+        [Test]
+        [Order(800)]
+        public async Task RegisteredSchemaIsAddressableByItsProviderComputedSchemaIdAsync()
+        {
+            IServerInternal server = m_server.CurrentInstance;
+            ushort ns = SchemaRegistryNamespaceIndex(server);
+
+            // Recompute the SchemaId + alg from the document exactly as a server does on
+            // registration, through the pluggable fingerprint provider.
+            byte[] computed;
+            string alg;
+#pragma warning disable UA_NETStandard_Encoders // pluggable per-format fingerprint provider (§6.6)
+            computed = SchemaIdProviders.ComputeSchemaId(
+                SchemaRegistryFastPathNodeManager.KnownFormat,
+                SchemaRegistryFastPathNodeManager.KnownDocument.Span);
+            alg = SchemaIdProviders.AlgorithmFor(SchemaRegistryFastPathNodeManager.KnownFormat);
+#pragma warning restore UA_NETStandard_Encoders
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(alg, Is.EqualTo("CRC-64-AVRO"),
+                    "Avro schemas fingerprint with the CRC-64-AVRO algorithm.");
+                Assert.That(alg, Is.EqualTo(SchemaRegistryFastPathNodeManager.KnownSchemaIdAlg));
+                Assert.That(ByteString.From(computed),
+                    Is.EqualTo(SchemaRegistryFastPathNodeManager.KnownSchemaId),
+                    "The provider-computed SchemaId equals the fast-path Opaque NodeId identifier bytes.");
+            });
+
+            // The document is reachable by the Opaque NodeId derived from the auto-bootstrapped SchemaId.
+            var nodeId = new NodeId(ByteString.From(computed), ns);
+            NodeState node = await server.NodeManager
+                .FindNodeInAddressSpaceAsync(nodeId)
+                .ConfigureAwait(false);
+
+            Assert.That(node, Is.Not.Null,
+                "The schema is reachable by the Opaque NodeId derived from its auto-bootstrapped SchemaId.");
+        }
+
+        /// <summary>
         /// Returns the server-side namespace index for the Schema Registry companion model.
         /// </summary>
         private static ushort SchemaRegistryNamespaceIndex(IServerInternal server)

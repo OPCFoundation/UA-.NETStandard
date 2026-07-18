@@ -44,18 +44,31 @@ namespace Opc.Ua.Server.Tests.SchemaRegistry
     internal sealed class SchemaRegistryFastPathNodeManager : CustomNodeManager2
     {
         /// <summary>
-        /// The raw on-wire SchemaId bytes of the one registered schema. A consumer builds the
-        /// Opaque fast-path NodeId directly from these bytes.
-        /// </summary>
-        public static readonly ByteString KnownSchemaId =
-            ByteString.From([0xA1, 0xB2, 0xC3, 0xD4, 0xE5, 0xF6, 0x07, 0x18]);
-
-        /// <summary>
         /// The schema document addressed by <see cref="KnownSchemaId"/>.
         /// </summary>
         public static readonly ByteString KnownDocument = ByteString.From(
             System.Text.Encoding.UTF8.GetBytes(
                 "{\"type\":\"record\",\"name\":\"FastPath\",\"fields\":[]}"));
+
+        /// <summary>
+        /// The schema format of <see cref="KnownDocument"/>.
+        /// </summary>
+        public const string KnownFormat = "avro";
+
+        /// <summary>
+        /// The raw on-wire SchemaId bytes of the one registered schema. Auto-bootstrapped
+        /// (§10.1) from <see cref="KnownDocument"/> by the pluggable per-format fingerprint
+        /// provider (§6.6), exactly as a server computes it on registration; the Opaque
+        /// fast-path NodeId (§6.4) is built from these very bytes, so the registration-side
+        /// computation and the resolution-side address are one and the same. A consumer builds
+        /// the Opaque fast-path NodeId directly from these bytes.
+        /// </summary>
+        public static readonly ByteString KnownSchemaId = ComputeSchemaId(KnownDocument);
+
+        /// <summary>
+        /// The SchemaIdAlg name of <see cref="KnownSchemaId"/>, from the fingerprint provider.
+        /// </summary>
+        public static readonly string KnownSchemaIdAlg = ProviderAlgorithm();
 
         /// <summary>
         /// Initializes the fast-path node manager for the Schema Registry namespace.
@@ -100,6 +113,20 @@ namespace Opc.Ua.Server.Tests.SchemaRegistry
             };
 
             AddPredefinedNode(SystemContext, schema);
+        }
+
+        private static ByteString ComputeSchemaId(ByteString document)
+        {
+#pragma warning disable UA_NETStandard_Encoders // pluggable per-format fingerprint provider (§6.6)
+            return ByteString.From(SchemaIdProviders.ComputeSchemaId(KnownFormat, document.Span));
+#pragma warning restore UA_NETStandard_Encoders
+        }
+
+        private static string ProviderAlgorithm()
+        {
+#pragma warning disable UA_NETStandard_Encoders // pluggable per-format fingerprint provider (§6.6)
+            return SchemaIdProviders.AlgorithmFor(KnownFormat);
+#pragma warning restore UA_NETStandard_Encoders
         }
     }
 }
