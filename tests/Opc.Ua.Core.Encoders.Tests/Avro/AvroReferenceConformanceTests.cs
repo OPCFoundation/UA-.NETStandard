@@ -117,6 +117,42 @@ namespace Opc.Ua.Core.Tests
             });
         }
 
+        // Executable spec for the canonical Variant encoding (Part B2, review finding 6). The
+        // reference codec (avro_codec) encodes a Variant as the record
+        //   { builtInType: int, dimensions: nullable(array<int>), body: union[...] }
+        // where the body union is [ null, then per built-in type in VARIANT_BODY_TYPES:
+        //   Variant<Type>Scalar{value}, Variant<Type>Array{values}, Variant<Type>MatrixBody{matrix} ].
+        // So the body branch index = 1 + 3*pos(builtInType in VARIANT_BODY_TYPES) + shapeOffset
+        // (scalar=0, array=1, matrix=2); null value => branch 0. Example: Int32 is body position 5,
+        // so Int32Scalar = branch 16 (0x20 zigzag), Int32Array = branch 17 (0x22).
+        // The current .NET WriteVariant instead emits builtInType + nullable(valueRank) + dims +
+        // (repeat builtInType) + value — a different structure. These cases are the target the
+        // Variant encoder+decoder rewrite must satisfy; enable them (remove [Ignore]) once B2 lands.
+        private static readonly (string Name, string ReferenceHex, Action<AvroEncoder> Write)[] s_variantTargets =
+        {
+            ("Variant_Int32_99", "0c0020c601",
+                e => e.WriteVariant(null, new Variant(99))),
+            ("Variant_String_v", "180044020276",
+                e => e.WriteVariant(null, new Variant("v"))),
+            ("Variant_Int32Array_1_2_3", "0c00220602040600",
+                e => e.WriteVariant(null, new Variant(new ArrayOf<int>([1, 2, 3])))),
+        };
+
+        [Test]
+        [Ignore("finding 6 / Part B2: canonical Variant encoding not yet implemented — executable target")]
+        public void VariantMatchesReferenceAvroBinary()
+        {
+            Assert.Multiple(() =>
+            {
+                foreach ((string name, string referenceHex, Action<AvroEncoder> write) in s_variantTargets)
+                {
+                    string actual = ToHex(Encode(write));
+                    Assert.That(actual, Is.EqualTo(referenceHex),
+                        $"canonical Variant mismatch vs reference for {name}");
+                }
+            });
+        }
+
         private static byte[] Encode(Action<AvroEncoder> write)
         {
             using var stream = new MemoryStream();
