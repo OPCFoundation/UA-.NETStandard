@@ -92,6 +92,8 @@ namespace Opc.Ua.Core.Tests
                 e => e.WriteInt32Array(null, new ArrayOf<int>([]))),
             ("Int32Array_single_7", "02020e00",
                 e => e.WriteInt32Array(null, new ArrayOf<int>([7]))),
+            ("ByteString_010203", "0206010203",
+                e => e.WriteByteString(null, ByteString.From([1, 2, 3]))),
             // Point record {X: 1.25 (double), Y: -3.5 (double)} — a canonical Avro record is its
             // fields concatenated, so writing the two doubles in order reproduces the reference.
             ("Record_Point_1_25_m3_5", "000000000000f43f0000000000000cc0", e =>
