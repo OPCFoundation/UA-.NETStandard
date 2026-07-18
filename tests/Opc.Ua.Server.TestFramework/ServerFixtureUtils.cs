@@ -35,6 +35,7 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Server.TestFramework
 {
@@ -69,16 +70,13 @@ namespace Opc.Ua.Server.TestFramework
         {
             // Find TCP endpoint
             ArrayOf<EndpointDescription> endpoints = server.GetEndpoints();
-            EndpointDescription endpoint =
-                endpoints.Find(e =>
-                    e.TransportProfileUri
-                        .Equals(Profiles.UaTcpTransport, StringComparison.Ordinal) ||
-                    e.TransportProfileUri
-                        .Equals(Profiles.HttpsBinaryTransport, StringComparison.Ordinal)
-                ) ??
+            EndpointDescription endpoint = endpoints.Find(e =>
+                e.TransportProfileUri
+                    .Equals(Profiles.UaTcpTransport, StringComparison.Ordinal) ||
+                e.TransportProfileUri
+                    .Equals(Profiles.HttpsBinaryTransport, StringComparison.Ordinal)) ??
                 throw new NotSupportedException("Unsupported transport profile.");
 
-            // fake profiles
             if (useSecurity)
             {
                 endpoint.SecurityMode = MessageSecurityMode.Sign;
@@ -90,45 +88,97 @@ namespace Opc.Ua.Server.TestFramework
                 endpoint.SecurityPolicyUri = SecurityPolicies.None;
             }
 
-            // set security context
-            var secureChannelContext
-                = new SecureChannelContext(
+            Certificate clientCertificate = null;
+            try
+            {
+                ByteString clientNonce = default;
+                ByteString clientCertificateData = default;
+                byte[] clientChannelCertificate = null;
+                byte[] serverChannelCertificate = null;
+                byte[] channelThumbprint = null;
+                if (useSecurity)
+                {
+                    clientCertificate = CertificateBuilder
+                        .Create("CN=ServerFixtureClient")
+                        .SetRSAKeySize(CertificateFactory.DefaultKeySize)
+                        .CreateForRSA();
+                    clientNonce = Nonce.CreateRandomNonceData(32).ToByteString();
+                    clientCertificateData = clientCertificate.RawData.ToByteString();
+                    clientChannelCertificate = clientCertificate.RawData;
+                    channelThumbprint = Nonce.CreateRandomNonceData(32);
+                    if (!endpoint.ServerCertificate.IsEmpty)
+                    {
+                        using CertificateCollection serverCertificateChain =
+                            Utils.ParseCertificateChainBlob(
+                                endpoint.ServerCertificate,
+                                server.MessageContext.Telemetry);
+                        serverChannelCertificate = serverCertificateChain[0].RawData;
+                    }
+                }
+
+                var secureChannelContext = new SecureChannelContext(
                     sessionName,
-                    endpoint, RequestEncoding.Binary,
+                    endpoint,
+                    RequestEncoding.Binary,
+                    clientChannelCertificate,
+                    serverChannelCertificate,
+                    channelThumbprint);
+                var requestHeader = new RequestHeader();
+
+                CreateSessionResponse createSessionResponse = await server.CreateSessionAsync(
+                    secureChannelContext,
+                    requestHeader,
                     null,
                     null,
-                    null);
-            var requestHeader = new RequestHeader();
+                    null,
+                    sessionName,
+                    clientNonce,
+                    clientCertificateData,
+                    sessionTimeout,
+                    maxResponseMessageSize,
+                    RequestLifetime.None).ConfigureAwait(false);
+                ValidateResponse(createSessionResponse.ResponseHeader);
 
-            // Create session
-            CreateSessionResponse createSessionResponse = await server.CreateSessionAsync(
-                secureChannelContext,
-                requestHeader,
-                null,
-                null,
-                null,
-                sessionName,
-                default,
-                default,
-                sessionTimeout,
-                maxResponseMessageSize,
-                RequestLifetime.None).ConfigureAwait(false);
-            ValidateResponse(createSessionResponse.ResponseHeader);
+                SignatureData clientSignature = null;
+                if (useSecurity)
+                {
+                    SecurityPolicyInfo securityPolicy =
+                        SecurityPolicies.GetInfo(endpoint.SecurityPolicyUri!)!;
+                    using CertificateCollection serverCertificateChain =
+                        Utils.ParseCertificateChainBlob(
+                            createSessionResponse.ServerCertificate,
+                            server.MessageContext.Telemetry);
+                    byte[] dataToSign = securityPolicy.GetClientSignatureData(
+                        secureChannelContext.ChannelThumbprint,
+                        createSessionResponse.ServerNonce.ToArray(),
+                        serverCertificateChain[0].RawData,
+                        secureChannelContext.ServerChannelCertificate,
+                        secureChannelContext.ClientChannelCertificate,
+                        clientNonce.ToArray());
+                    clientSignature = SecurityPolicies.CreateSignatureData(
+                        securityPolicy,
+                        clientCertificate!,
+                        dataToSign);
+                }
 
-            // Activate session
-            requestHeader.AuthenticationToken = createSessionResponse.AuthenticationToken;
-            ActivateSessionResponse activateSessionResponse = await server.ActivateSessionAsync(
-                secureChannelContext,
-                requestHeader,
-                createSessionResponse.ServerSignature,
-                [],
-                [],
-                identityToken != null ? new ExtensionObject(identityToken) : default,
-                null,
-                RequestLifetime.None).ConfigureAwait(false);
-            ValidateResponse(activateSessionResponse.ResponseHeader);
+                requestHeader.AuthenticationToken = createSessionResponse.AuthenticationToken;
+                ActivateSessionResponse activateSessionResponse = await server.ActivateSessionAsync(
+                    secureChannelContext,
+                    requestHeader,
+                    clientSignature,
+                    [],
+                    [],
+                    identityToken != null ? new ExtensionObject(identityToken) : default,
+                    null,
+                    RequestLifetime.None).ConfigureAwait(false);
+                ValidateResponse(activateSessionResponse.ResponseHeader);
 
-            return (requestHeader, secureChannelContext);
+                return (requestHeader, secureChannelContext);
+            }
+            finally
+            {
+                clientCertificate?.Dispose();
+            }
         }
 
         /// <summary>

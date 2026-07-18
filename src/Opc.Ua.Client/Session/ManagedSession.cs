@@ -1273,6 +1273,8 @@ namespace Opc.Ua.Client
         private static bool RequiresSessionRecreate(StatusCode statusCode)
         {
             return statusCode == StatusCodes.BadApplicationSignatureInvalid ||
+                statusCode == StatusCodes.BadSecurityChecksFailed ||
+                statusCode == StatusCodes.BadIdentityChangeNotSupported ||
                 statusCode == StatusCodes.BadSessionIdInvalid ||
                 statusCode == StatusCodes.BadSessionClosed ||
                 statusCode == StatusCodes.BadSessionNotActivated ||

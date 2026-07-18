@@ -113,7 +113,7 @@ namespace Opc.Ua.Client
                 return ParticipantReconnectResult.Reactivated;
             }
 
-            if (RequiresAnonymousSignSessionRecreation())
+            if (RequiresSessionRecreation(channel))
             {
                 return ParticipantReconnectResult.RequiresSessionRecreate;
             }
@@ -132,6 +132,10 @@ namespace Opc.Ua.Client
                 return ParticipantReconnectResult.Reactivated;
             }
             catch (ServiceResultException sre) when (
+                sre.StatusCode == StatusCodes.BadApplicationSignatureInvalid ||
+                sre.StatusCode == StatusCodes.BadSecurityChecksFailed ||
+                sre.StatusCode == StatusCodes.BadIdentityChangeNotSupported ||
+                sre.StatusCode == StatusCodes.BadSecureChannelIdInvalid ||
                 sre.StatusCode == StatusCodes.BadSessionIdInvalid ||
                 sre.StatusCode == StatusCodes.BadSessionClosed ||
                 sre.StatusCode == StatusCodes.BadSessionNotActivated)
@@ -147,8 +151,7 @@ namespace Opc.Ua.Client
                 sre.StatusCode == StatusCodes.BadUserAccessDenied ||
                 sre.StatusCode == StatusCodes.BadCertificateUntrusted ||
                 sre.StatusCode == StatusCodes.BadCertificateInvalid ||
-                sre.StatusCode == StatusCodes.BadCertificateUriInvalid ||
-                sre.StatusCode == StatusCodes.BadSecurityChecksFailed)
+                sre.StatusCode == StatusCodes.BadCertificateUriInvalid)
             {
                 m_logger.SessionSessionIdFatalParticipantErrorDuring(
                     sre,
@@ -172,6 +175,25 @@ namespace Opc.Ua.Client
         {
             return (m_identity?.TokenType ?? UserTokenType.Anonymous) == UserTokenType.Anonymous &&
                 m_endpoint.Description.SecurityMode == MessageSecurityMode.Sign;
+        }
+
+        private bool RequiresSessionRecreation(ITransportChannel channel)
+        {
+            if (RequiresAnonymousSignSessionRecreation())
+            {
+                return true;
+            }
+
+            ByteString sessionClientCertificate;
+            lock (m_lock)
+            {
+                sessionClientCertificate = m_sessionClientCertificate;
+            }
+
+            byte[] channelClientCertificate = channel.ClientChannelCertificate;
+            return !sessionClientCertificate.IsEmpty &&
+                channelClientCertificate is { Length: > 0 } &&
+                sessionClientCertificate != channelClientCertificate.ToByteString();
         }
 
         async ValueTask IRecreateAwareReconnectParticipant.RecreateAsync(CancellationToken ct)

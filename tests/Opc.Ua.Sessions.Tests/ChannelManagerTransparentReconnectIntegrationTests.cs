@@ -234,11 +234,9 @@ namespace Opc.Ua.Sessions.Tests
                     "Manager diagnostics should observe Ready after the swap completes.");
 
                 // The participant returned RequiresSessionRecreate from OnReconnectAsync
-                // (the server lost the session id while down). The manager dispatches
-                // Session.RecreateAsync fire-and-forget; poll the read until the
-                // recreate has installed a fresh server-side session id. On a slow
-                // CI runner (macOS) the fire-and-forget can lose the race against
-                // an immediate Read.
+                // (the server lost the session id while down). The manager awaits
+                // Session.RecreateAsync before reporting Ready; retain the retry loop
+                // here for transient service startup lag after the server restart.
                 Assert.That(
                     await WaitForAsync(
                         () => TryReadServerStatus(session),
