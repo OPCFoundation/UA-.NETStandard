@@ -505,6 +505,64 @@ namespace Opc.Ua.Server.Tests.SchemaRegistry
         }
 
         /// <summary>
+        /// Proves symmetric deletion (spec §5.2): a registered schema is removed by the
+        /// <c>Delete</c> method (the symmetric counterpart of registration, replacing a generic
+        /// DeleteNodes), after which its Opaque SchemaId NodeId no longer resolves. Delete reports
+        /// success/failure through the Call <see cref="ServiceResult"/> (void), not a bool:
+        /// <c>Good</c> when removed, <c>Bad_NotFound</c> on a second delete.
+        /// </summary>
+        [Test]
+        [Order(1000)]
+        public async Task DeleteRemovesRegisteredSchemaAndReportsNotFoundOnSecondDeleteAsync()
+        {
+            IServerInternal server = m_server.CurrentInstance;
+            ushort ns = SchemaRegistryNamespaceIndex(server);
+            ISystemContext ctx = server.DefaultSystemContext;
+            var groupId = new NodeId(SchemaRegistryRegistrationNodeManager.SchemaGroupObject, ns);
+
+            MethodState createResource = await FindMethodAsync(
+                server, SchemaRegistryRegistrationNodeManager.CreateResourceMethod, ns).ConfigureAwait(false);
+            MethodState write = await FindMethodAsync(
+                server, SchemaRegistryRegistrationNodeManager.WriteMethod, ns).ConfigureAwait(false);
+            MethodState close = await FindMethodAsync(
+                server, SchemaRegistryRegistrationNodeManager.CloseMethod, ns).ConfigureAwait(false);
+            MethodState delete = await FindMethodAsync(
+                server, SchemaRegistryRegistrationNodeManager.DeleteMethod, ns).ConfigureAwait(false);
+
+            // Register a fresh schema.
+            byte[] document = System.Text.Encoding.UTF8.GetBytes(
+                "{\"type\":\"record\",\"name\":\"Deletable\",\"fields\":[]}");
+
+            var createOutputs = new List<Variant>();
+            createResource.OnCallMethod2(ctx, createResource, groupId,
+                [new Variant("urn:schema:deletable"), new Variant(string.Empty)], createOutputs);
+            createOutputs[0].TryGetValue(out uint handle);
+            write.OnCallMethod2(ctx, write, groupId,
+                [new Variant(handle), new Variant(ByteString.From(document))], new List<Variant>());
+            var closeOutputs = new List<Variant>();
+            close.OnCallMethod2(ctx, close, groupId,
+                [new Variant(handle), new Variant("avro")], closeOutputs);
+            closeOutputs[0].TryGetValue(out ByteString schemaId);
+
+            var nodeId = new NodeId(schemaId, ns);
+            Assert.That(await server.NodeManager.FindNodeInAddressSpaceAsync(nodeId).ConfigureAwait(false),
+                Is.Not.Null, "The registered schema resolves before deletion.");
+
+            // Delete removes the fast-path node; success is reported via the ServiceResult.
+            ServiceResult deleteResult = delete.OnCallMethod2(
+                ctx, delete, groupId, [new Variant(schemaId)], new List<Variant>());
+            Assert.That(ServiceResult.IsGood(deleteResult), Is.True, "Delete succeeds for a registered schema.");
+
+            Assert.That(await server.NodeManager.FindNodeInAddressSpaceAsync(nodeId).ConfigureAwait(false),
+                Is.Null, "After Delete the Opaque SchemaId NodeId no longer resolves.");
+
+            // A second delete reports Bad_NotFound via the Call StatusCode (no bool return).
+            ServiceResult secondDelete = delete.OnCallMethod2(
+                ctx, delete, groupId, [new Variant(schemaId)], new List<Variant>());
+            Assert.That(secondDelete.StatusCode.Code, Is.EqualTo(StatusCodes.BadNotFound));
+        }
+
+        /// <summary>
         /// Returns the server-side namespace index for the Schema Registry companion model.
         /// </summary>
         private static ushort SchemaRegistryNamespaceIndex(IServerInternal server)

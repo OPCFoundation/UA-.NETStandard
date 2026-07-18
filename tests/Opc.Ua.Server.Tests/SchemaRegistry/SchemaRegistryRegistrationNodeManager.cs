@@ -60,6 +60,9 @@ namespace Opc.Ua.Server.Tests.SchemaRegistry
         /// <summary>Provisional NodeId of the <c>Close</c> method.</summary>
         public const uint CloseMethod = 63004;
 
+        /// <summary>Provisional NodeId of the <c>Delete</c> method.</summary>
+        public const uint DeleteMethod = 63005;
+
         private readonly object m_gate = new();
         private readonly Dictionary<uint, List<byte>> m_buffers = [];
         private readonly Dictionary<uint, string> m_versions = [];
@@ -101,6 +104,7 @@ namespace Opc.Ua.Server.Tests.SchemaRegistry
             AddMethod(group, CreateResourceMethod, ns, "CreateResource", OnCreateResource);
             AddMethod(group, WriteMethod, ns, "Write", OnWrite);
             AddMethod(group, CloseMethod, ns, "Close", OnClose);
+            AddMethod(group, DeleteMethod, ns, "Delete", OnDelete);
 
             AddPredefinedNode(SystemContext, group);
         }
@@ -250,6 +254,28 @@ namespace Opc.Ua.Server.Tests.SchemaRegistry
             outputs.Add(new Variant(schemaIdBytes));
             outputs.Add(new Variant(algorithm));
             return ServiceResult.Good;
+        }
+
+        // Delete(SchemaId: ByteString) -> ()  (epoch-match args optional per spec §5.2)
+        // Returns the Call StatusCode (void success), not a bool, to mirror the spec's
+        // symmetric Delete on ResourceType : FileType: Good when removed, Bad_NotFound otherwise.
+        private ServiceResult OnDelete(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            ArrayOf<Variant> inputs,
+            List<Variant> outputs)
+        {
+            if (!inputs[0].TryGetValue(out ByteString schemaId))
+            {
+                return StatusCodes.BadInvalidArgument;
+            }
+
+            ushort ns = (ushort)Server.NamespaceUris.GetIndex(
+                SchemaRegistryTestServer.SchemaRegistryNamespaceUri);
+
+            bool removed = DeleteNode(SystemContext, new NodeId(schemaId, ns));
+            return removed ? ServiceResult.Good : StatusCodes.BadNotFound;
         }
     }
 }
