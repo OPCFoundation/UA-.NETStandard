@@ -4432,7 +4432,7 @@ namespace Quickstarts.ReferenceServer
             var variable = new SelectionListState(parent)
             {
                 BrowseName = new QualifiedName(path, NamespaceIndex),
-                DisplayName = new LocalizedText("en", name),
+                DisplayName = new LocalizedText("en-US", name),
                 WriteMask = AttributeWriteMask.None,
                 UserWriteMask = AttributeWriteMask.None
             };
@@ -4461,9 +4461,9 @@ namespace Quickstarts.ReferenceServer
                 SystemContext,
                 p => p.Value = new LocalizedText[]
                 {
-                    new("en", "The color red"),
-                    new("en", "The color green"),
-                    new("en", "The color blue")
+                    new("en-US", "The color red"),
+                    new("en-US", "The color green"),
+                    new("en-US", "The color blue")
                 }.ToArrayOf());
 
             variable.AddRestrictToList(SystemContext, p => p.Value = true);
@@ -5880,8 +5880,8 @@ namespace Quickstarts.ReferenceServer
         /// Identifiers of the AccessRights nodes that are marked as supporting
         /// history archiving so History Access clients (and the CTT) can
         /// exercise access-right handling on historizing nodes. These nodes are
-        /// registered with the historian but are intentionally not seeded with
-        /// any historical data.
+        /// registered with the historian and seeded with the same deterministic
+        /// sample set as the other historized test nodes.
         /// </summary>
         private static readonly string[] AccessRightsHistoricalNodeNames =
         [
