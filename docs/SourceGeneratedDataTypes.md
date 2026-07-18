@@ -101,6 +101,8 @@ The generator resolves the OPC UA namespace URI in this order:
 2. `[DataContract(Namespace = "...")]` — from `System.Runtime.Serialization`
 3. `urn:<dotnet.namespace.lowered>` — automatic fallback (e.g. `urn:myapp.configuration`)
 
+An explicit `Namespace` expression must be resolvable from the source compilation before generators run. Use a string literal or a `const string` declared in ordinary source or a referenced assembly. Do not reference a `Namespaces` constant emitted from a model file by the same generator run; generated symbols are not available while `[DataType]` attributes are analyzed. An unresolved explicit expression produces `MODELGEN021` instead of silently falling back to a different namespace.
+
 ## The `[DataTypeField]` Attribute
 
 Applied to properties to control which fields participate in encoding and in

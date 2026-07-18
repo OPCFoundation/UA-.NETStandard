@@ -19,6 +19,7 @@ All configuration DTO classes (`ApplicationConfiguration`, `ServerConfiguration`
 **Change code as follows:**
 
 - Replace `[DataContract(Namespace = ...)]` with `[DataType(Namespace = ...)]` and `[DataMember(...)]` with `[DataTypeField(...)]` on custom configuration subtypes.
+- If the old namespace expression references a `Namespaces` constant generated from a model file in the same project, replace it with the URI literal or a `const string` from ordinary source. Same-run generated constants are unavailable while `[DataType]` attributes are analyzed and now produce `MODELGEN021`.
 - Add the `partial` keyword to any subclass of these configuration types.
 - Custom configuration extension types must implement `IEncodeable` (the `[DataType]` source generator handles this automatically for `partial` classes).
 - Code using reflection to inspect `[DataContract]`/`[DataMember]` attributes must switch to `[DataType]`/`[DataTypeField]`.
@@ -87,4 +88,3 @@ context.Factory.Builder.AddOpcUaClientDataTypes();
 - Related: [packages.md](packages.md), [certificates.md](certificates.md), [identity.md](identity.md).
 - [2.0 migration index](README.md) — analyzer quick-start + symptom → sub-doc table.
 - [Migration Guide](../../MigrationGuide.md) — landing page across versions.
-
