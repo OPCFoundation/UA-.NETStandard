@@ -370,7 +370,7 @@ namespace Opc.Ua.Sample
 
             if (ServiceResult.IsBad(error))
             {
-                value = new DataValue(error.StatusCode);
+                value = DataValue.FromStatusCode(error.StatusCode);
             }
 
             value = value.WithServerTimestamp(DateTimeUtc.Now);

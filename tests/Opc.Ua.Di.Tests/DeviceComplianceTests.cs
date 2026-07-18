@@ -97,6 +97,37 @@ namespace Opc.Ua.Di.Tests
         }
 
         [Test]
+        public async Task CreateDeviceRebasesMandatoryNameplateNodeIdsPerInstance()
+        {
+            ushort diNs = m_fixture.Manager.DiNamespaceIndex;
+            ISystemContext ctx = m_fixture.Manager.SystemContext;
+            IDeviceBuilder<DeviceState> first = await m_fixture.Manager
+                .CreateDeviceAsync(new QualifiedName("NameplateDeviceA", diNs))
+                .ConfigureAwait(false);
+            IDeviceBuilder<DeviceState> second = await m_fixture.Manager
+                .CreateDeviceAsync(new QualifiedName("NameplateDeviceB", diNs))
+                .ConfigureAwait(false);
+
+            Assert.That(first.Device.NodeId, Is.Not.EqualTo(second.Device.NodeId));
+            foreach (string name in s_mandatoryNameplate)
+            {
+                NodeState? firstChild = first.Device.FindChild(
+                    ctx, new QualifiedName(name, diNs));
+                NodeState? secondChild = second.Device.FindChild(
+                    ctx, new QualifiedName(name, diNs));
+
+                Assert.That(firstChild, Is.Not.Null);
+                Assert.That(secondChild, Is.Not.Null);
+                Assert.That(firstChild!.NodeId.IsNull, Is.False);
+                Assert.That(secondChild!.NodeId.IsNull, Is.False);
+                Assert.That(
+                    firstChild.NodeId,
+                    Is.Not.EqualTo(secondChild.NodeId),
+                    $"{name} must be rebased for each DeviceType instance.");
+            }
+        }
+
+        [Test]
         public async Task WithIdentificationCreatesOptionalNameplateInDiNamespace()
         {
             ushort diNs = m_fixture.Manager.DiNamespaceIndex;

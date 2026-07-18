@@ -266,7 +266,7 @@ To migrate, perform the following general replacements in your code:
 6. **Decoders use the sentinel.** `IDecoder.ReadDataValue` (Binary, Xml, Json) returns `DataValue.Null` when the field is absent (or, for the binary encoder, when the encoding byte is `0`), allowing callers to distinguish "missing" from "present but empty".
 7. **Prefer `in DataValue` for synchronous method parameters.** The struct is large (~64 bytes after the IsNull sentinel) and copying it on every call is wasteful. The server `IDataChangeMonitoredItem.QueueValue(in DataValue, ...)` API has been updated accordingly. Async methods cannot use `in`/`ref` parameters, so leave those by-value.
 8. **`object? GetValue(Type)` and `T? GetValueOrDefault<T>()` are now `[Obsolete]`.** Use `WrappedValue.TryGetValue<T>(out T value)` or `WrappedValue.TryGetStructure<T>(out T value)` for type-safe extraction without throwing. `GetValue<T>(T defaultValue)` remains supported.
-9. **`DataValue.FromStatusCode(StatusCode)` and `FromStatusCode(StatusCode, DateTimeUtc serverTimestamp)`** are the preferred way to construct a `DataValue` that conveys only a status. The `DataValue(StatusCode)` and `DataValue(StatusCode, DateTimeUtc)` constructors are `[Obsolete]` because they conflict with overload resolution against the numeric `Variant` types (`uint`/`int`/`StatusCode` all implicitly convert in different directions).
+9. **`DataValue.FromStatusCode(StatusCode)` and `FromStatusCode(StatusCode, DateTimeUtc serverTimestamp)`** are the preferred way to construct a `DataValue` that conveys only a status. The `DataValue(StatusCode)` and `DataValue(StatusCode, DateTimeUtc)` constructors are `[Obsolete]` because they conflict with overload resolution against the numeric `Variant` types (`uint`/`int`/`StatusCode` all implicitly convert in different directions). Recompile existing `new DataValue(statusCode)` calls and replace the resulting obsolete warnings with `DataValue.FromStatusCode(statusCode)`; this also avoids relying on historical compiler overload selection that could encode the StatusCode as a Good Variant value.
 
 **Change code as follows:**
 
@@ -404,4 +404,3 @@ No changes are required, however there can be subtle bugs exposed, e.g.:
 - Related: [encoders.md](encoders.md), [source-generation.md](source-generation.md), [node-states.md](node-states.md).
 - [2.0 migration index](README.md) — analyzer quick-start + symptom → sub-doc table.
 - [Migration Guide](../../MigrationGuide.md) — landing page across versions.
-

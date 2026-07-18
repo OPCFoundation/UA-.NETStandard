@@ -314,7 +314,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void NumberOfTransitionsCountsChanges()
+        public void NumberOfTransitionsCountsFirstValueAndChangesWhenNoPreviousValueExists()
         {
             var startTime = new DateTimeUtc(2024, 1, 1, 0, 0, 0);
             DateTimeUtc firstValueTime = startTime.AddMilliseconds(500);
@@ -329,11 +329,11 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
             int count = (int)(double)result.WrappedValue.ConvertToDouble();
-            Assert.That(count, Is.GreaterThan(0));
+            Assert.That(count, Is.EqualTo(5));
         }
 
         [Test]
-        public void NumberOfTransitionsNoChangesReturnsZero()
+        public void NumberOfTransitionsCountsFirstValueWhenNoPreviousValueExists()
         {
             var startTime = new DateTimeUtc(2024, 1, 1, 0, 0, 0);
             DateTimeUtc firstValueTime = startTime.AddMilliseconds(500);
@@ -348,11 +348,11 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
             int count = (int)(double)result.WrappedValue.ConvertToDouble();
-            Assert.That(count, Is.Zero);
+            Assert.That(count, Is.EqualTo(1));
         }
 
         [Test]
-        public void NumberOfTransitionsWithSingleTransition()
+        public void NumberOfTransitionsCountsFirstValueAndOneChange()
         {
             var startTime = new DateTimeUtc(2024, 1, 1, 0, 0, 0);
             DateTimeUtc firstValueTime = startTime.AddMilliseconds(500);
@@ -367,7 +367,51 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
             int count = (int)(double)result.WrappedValue.ConvertToDouble();
-            Assert.That(count, Is.GreaterThanOrEqualTo(1));
+            Assert.That(count, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void NumberOfTransitionsDoesNotCountMatchingPreviousValue()
+        {
+            var startTime = new DateTimeUtc(2024, 1, 1, 0, 0, 0);
+            List<DataValue> dataValues = CreateDataValues(
+                startTime.AddMilliseconds(-500),
+                [5, 5, 5, 5],
+                1000);
+            DateTimeUtc endTime = startTime.AddMilliseconds(2500);
+
+            DataValue result = ComputeAggregate(
+                ObjectIds.AggregateFunction_NumberOfTransitions,
+                dataValues,
+                startTime,
+                endTime,
+                2500);
+
+            Assert.That(result.WrappedValue.TryGetValue(out int count), Is.True);
+            Assert.That(count, Is.Zero);
+        }
+
+        [Test]
+        public void NumberOfTransitionsUsesPreviousUncertainValueWhenUncertainIsConfiguredAsBad()
+        {
+            var startTime = new DateTimeUtc(2024, 1, 1, 0, 0, 0);
+            List<DataValue> dataValues = CreateMixedStatusDataValues(
+                startTime.AddMilliseconds(-500),
+                [5, 5, 6, 7],
+                [StatusCodes.Uncertain, StatusCodes.Good, StatusCodes.Good, StatusCodes.Good],
+                1000);
+            DateTimeUtc endTime = startTime.AddMilliseconds(2500);
+            m_configuration.TreatUncertainAsBad = true;
+
+            DataValue result = ComputeAggregate(
+                ObjectIds.AggregateFunction_NumberOfTransitions,
+                dataValues,
+                startTime,
+                endTime,
+                2500);
+
+            Assert.That(result.WrappedValue.TryGetValue(out int count), Is.True);
+            Assert.That(count, Is.EqualTo(1));
         }
 
         [Test]

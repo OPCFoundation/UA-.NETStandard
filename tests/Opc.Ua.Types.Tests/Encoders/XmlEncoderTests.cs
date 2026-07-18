@@ -5960,6 +5960,15 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void WriteVariantValueWithLocaleOnlyLocalizedTextRoundTripsCorrectly()
+        {
+            var value = new LocalizedText("en", string.Empty);
+            Variant decoded = RoundTripVariantValueFromXml(Variant.From(value));
+
+            Assert.That(decoded.GetLocalizedText(), Is.EqualTo(value));
+        }
+
+        [Test]
         public void WriteVariantValueWithExtensionObjectScalarRoundTripsCorrectly()
         {
             var value = new ExtensionObject(

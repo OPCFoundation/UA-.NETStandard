@@ -394,10 +394,13 @@ namespace Opc.Ua.Di.Server.Builders
             child.SymbolicName = browseName.Name ?? string.Empty;
             child.BrowseName = browseName;
             child.DisplayName = new LocalizedText(browseName.Name);
-            child.NodeId = context.NodeIdFactory.New(context, child);
+            NodeId previousNodeId = context.AssignInstanceNodeId(child);
             child.ReferenceTypeId = Types.ReferenceTypeIds.HasComponent;
             child.ModellingRuleId = NodeId.Null;
-            context.AssignInstanceChildNodeIds(child);
+            context.AssignInstanceChildNodeIds(
+                child,
+                previousNodeId,
+                child.Parent ?? child);
         }
 
         private static async ValueTask<ServiceResult> InvokePrepareAsync(

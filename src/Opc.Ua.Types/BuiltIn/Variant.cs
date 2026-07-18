@@ -1109,7 +1109,7 @@ namespace Opc.Ua
                         case BuiltInType.Integer:
                         case BuiltInType.UInteger:
                         case BuiltInType.Variant:
-                            return new Variant(m_union, m_typeInfo, CoreUtils.Clone(GetVariantArray()));
+                            return new Variant(m_union, m_typeInfo, CoreUtils.Clone(GetVariantMatrix()));
                     }
                 }
             }

@@ -1347,19 +1347,24 @@ namespace Opc.Ua.InformationModel.Tests
         [Test]
         public async Task SecurityRoles002BrowseRoleTypeInstanceAsync()
         {
-            List<ReferenceDescription> refs = await BrowseForwardAsync(
-                ObjectIds.WellKnownRole_Anonymous)
-                .ConfigureAwait(false);
+            ISession admin = await ConnectAsSysAdminAsync().ConfigureAwait(false);
+            Assert.That(admin, Is.Not.Null);
 
-            bool hasIdentities = refs.Any(
-                r => r.BrowseName.Name == "Identities");
-            bool hasAppsExclude = refs.Any(
-                r => r.BrowseName.Name == "ApplicationsExclude");
-
-            if (!hasIdentities && !hasAppsExclude)
+            try
             {
-                Assert.Ignore(
-                    "Anonymous role does not expose optional Identities/ApplicationsExclude properties.");
+                List<ReferenceDescription> refs = await BrowseForwardAsync(
+                    ObjectIds.WellKnownRole_Anonymous,
+                    session: admin).ConfigureAwait(false);
+
+                Assert.That(
+                    refs.Any(r => r.BrowseName.Name == "Identities"),
+                    Is.True,
+                    "RoleType.Identities is Mandatory and must exist on the Anonymous role.");
+            }
+            finally
+            {
+                await admin.CloseAsync(5000, true).ConfigureAwait(false);
+                admin.Dispose();
             }
         }
 
@@ -1378,30 +1383,93 @@ namespace Opc.Ua.InformationModel.Tests
                 ObjectIds.WellKnownRole_ConfigureAdmin
             ];
 
-            int checkedCount = 0;
-            foreach (NodeId roleId in roleIds)
-            {
-                DataValue dv = await ReadBrowseNameAsync(roleId)
-                    .ConfigureAwait(false);
-                if (StatusCode.IsBad(dv.StatusCode))
-                {
-                    continue;
-                }
+            ISession admin = await ConnectAsSysAdminAsync().ConfigureAwait(false);
+            Assert.That(admin, Is.Not.Null);
 
-                List<ReferenceDescription> refs =
-                    await BrowseForwardAsync(roleId).ConfigureAwait(false);
-                bool hasIdentities = refs.Any(
-                    r => r.BrowseName.Name == "Identities");
-                if (hasIdentities)
+            try
+            {
+                foreach (NodeId roleId in roleIds)
                 {
-                    checkedCount++;
+                    DataValue dv = await ReadBrowseNameAsync(roleId, admin)
+                        .ConfigureAwait(false);
+                    Assert.That(dv.StatusCode, Is.EqualTo(StatusCodes.Good));
+
+                    List<ReferenceDescription> refs = await BrowseForwardAsync(
+                        roleId,
+                        session: admin).ConfigureAwait(false);
+                    Assert.That(
+                        refs.Any(r => r.BrowseName.Name == "Identities"),
+                        Is.True,
+                        $"Role {roleId} must expose its Mandatory Identities child to SecurityAdmin.");
                 }
             }
-
-            if (checkedCount == 0)
+            finally
             {
-                Assert.Ignore(
-                    "No roles expose Identities property (optional per Part 18).");
+                await admin.CloseAsync(5000, true).ConfigureAwait(false);
+                admin.Dispose();
+            }
+        }
+
+        [Test]
+        public async Task RestrictedMandatoryChildrenFollowStandardRolePermissionsAsync()
+        {
+            ISession admin = await ConnectAsSysAdminAsync().ConfigureAwait(false);
+            Assert.That(admin, Is.Not.Null, "The reference server must expose username authentication.");
+
+            try
+            {
+                (NodeId ParentId, string[] ChildNames)[] groups =
+                [
+                    (ObjectIds.WellKnownRole_Anonymous, ["Identities"]),
+                    (ObjectIds.Server_ServerCapabilities_RoleSet, ["AddRole", "RemoveRole"]),
+                    (ObjectIds.UserManagement, ["Users", "AddUser", "ModifyUser", "RemoveUser"]),
+                    (ObjectIds.ServerConfiguration,
+                        ["UpdateCertificate", "ApplyChanges", "CreateSigningRequest", "GetRejectedList"]),
+                    (ObjectIds.Server_ServerDiagnostics,
+                        ["ServerDiagnosticsSummary", "SubscriptionDiagnosticsArray"])
+                ];
+
+                foreach ((NodeId parentId, string[] childNames) in groups)
+                {
+                    BrowseResult lowPrivilege = await BrowseForwardResultAsync(parentId)
+                        .ConfigureAwait(false);
+                    BrowseResult securityAdmin = await BrowseForwardResultAsync(
+                        parentId,
+                        session: admin).ConfigureAwait(false);
+
+                    Assert.That(
+                        lowPrivilege.StatusCode.Code,
+                        Is.AnyOf(StatusCodes.Good, StatusCodes.BadUserAccessDenied));
+                    Assert.That(securityAdmin.StatusCode, Is.EqualTo(StatusCodes.Good));
+
+                    foreach (string childName in childNames)
+                    {
+                        if (StatusCode.IsGood(lowPrivilege.StatusCode))
+                        {
+                            Assert.That(
+                                HasReference(lowPrivilege, childName),
+                                Is.False,
+                                $"{childName} must be hidden from a low-privilege Browse.");
+                        }
+                        Assert.That(
+                            HasReference(securityAdmin, childName),
+                            Is.True,
+                            $"{childName} is Mandatory and must be visible to SecurityAdmin.");
+                    }
+                }
+
+                DataValue currentSessionCount = await ReadAttributeAsync(
+                    VariableIds.Server_ServerDiagnostics_ServerDiagnosticsSummary_CurrentSessionCount,
+                    Attributes.Value,
+                    admin).ConfigureAwait(false);
+
+                Assert.That(currentSessionCount.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(currentSessionCount.GetValue<uint>(0), Is.GreaterThanOrEqualTo((uint)2));
+            }
+            finally
+            {
+                await admin.CloseAsync(5000, true).ConfigureAwait(false);
+                admin.Dispose();
             }
         }
 
@@ -1613,6 +1681,29 @@ namespace Opc.Ua.InformationModel.Tests
             bool includeSubtypes = true,
             ISession session = null)
         {
+            BrowseResult result = await BrowseForwardResultAsync(
+                nodeId,
+                referenceTypeId,
+                includeSubtypes,
+                session).ConfigureAwait(false);
+
+            var refs = new List<ReferenceDescription>();
+            if (result.References != default)
+            {
+                foreach (ReferenceDescription r in result.References)
+                {
+                    refs.Add(r);
+                }
+            }
+            return refs;
+        }
+
+        private async Task<BrowseResult> BrowseForwardResultAsync(
+            NodeId nodeId,
+            NodeId referenceTypeId = default,
+            bool includeSubtypes = true,
+            ISession session = null)
+        {
             session ??= Session;
             NodeId refType = referenceTypeId.IsNull
                 ? ReferenceTypeIds.HierarchicalReferences
@@ -1634,15 +1725,25 @@ namespace Opc.Ua.InformationModel.Tests
                 CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(response.Results.Count, Is.EqualTo(1));
-            var refs = new List<ReferenceDescription>();
-            if (response.Results[0].References != default)
+            return response.Results[0];
+        }
+
+        private static bool HasReference(BrowseResult result, string browseName)
+        {
+            if (result.References == default)
             {
-                foreach (ReferenceDescription r in response.Results[0].References)
+                return false;
+            }
+
+            foreach (ReferenceDescription reference in result.References)
+            {
+                if (reference.BrowseName.Name == browseName)
                 {
-                    refs.Add(r);
+                    return true;
                 }
             }
-            return refs;
+
+            return false;
         }
 
         private async Task<List<ReferenceDescription>> BrowseInverseAsync(

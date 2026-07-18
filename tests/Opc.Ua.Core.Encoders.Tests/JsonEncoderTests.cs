@@ -882,6 +882,12 @@ namespace Opc.Ua.Core.Encoders.Tests
                 null
             },
             {
+                BuiltInType.LocalizedText,
+                new LocalizedText(kLocale, string.Empty),
+                $$"""{"Text":"","Locale":"{{kLocale}}"}""",
+                null
+            },
+            {
                 BuiltInType.ExtensionObject,
                 ExtensionObject.Null,
                 null,

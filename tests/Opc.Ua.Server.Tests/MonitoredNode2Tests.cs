@@ -526,6 +526,72 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Verifies that a monitored IndexRange reports BadIndexRangeNoData when an array shrinks
+        /// so the range no longer selects any elements.
+        /// </summary>
+        [Test]
+        public void IndexRangeBecomesOutOfBoundsQueuesBadIndexRangeNoData()
+        {
+            var nodeId = new NodeId("testNode", 1);
+            var node = new BaseDataVariableState(null)
+            {
+                NodeId = nodeId,
+                BrowseName = new QualifiedName("testNode", 1),
+                DataType = DataTypeIds.Int32,
+                ValueRank = ValueRanks.OneDimension,
+                AccessLevel = AccessLevels.CurrentRead,
+                UserAccessLevel = AccessLevels.CurrentRead,
+                Value = s_indexRangeInitialValue
+            };
+
+            var nodeManagerMock = new Mock<IAsyncNodeManager>();
+            nodeManagerMock
+                .Setup(m => m.ValidateRolePermissionsAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<NodeId>(),
+                    It.IsAny<PermissionType>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ServiceResult>(ServiceResult.Good));
+
+            var serverMock = new Mock<IServerInternal>();
+            serverMock.Setup(s => s.Auditing).Returns(false);
+
+            Mock<IDataChangeMonitoredItem2> monitoredItemMock =
+                CreateDataChangeMonitoredItemMock(1u, Attributes.Value);
+            monitoredItemMock
+                .Setup(m => m.IndexRange)
+                .Returns(new NumericRange(2, 4));
+
+            var monitoredNode = new MonitoredNode2(nodeManagerMock.Object, serverMock.Object, node);
+            monitoredNode.Add(monitoredItemMock.Object);
+
+            ISystemContext context = new Mock<ISystemContext>().Object;
+
+            monitoredNode.OnMonitoredNodeChanged(context, node, NodeStateChangeMasks.Value);
+
+            node.Value = s_indexRangeShrunkValue;
+            monitoredNode.OnMonitoredNodeChanged(context, node, NodeStateChangeMasks.Value);
+
+            monitoredNode.Dispose();
+
+            var deliveredValues = monitoredItemMock.Invocations
+                .Where(i => i.Method.Name == nameof(IDataChangeMonitoredItem2.QueueValue))
+                .Select(i => (DataValue)i.Arguments[0])
+                .ToList();
+
+            Assert.That(deliveredValues, Has.Count.EqualTo(2));
+            Assert.That(deliveredValues[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(
+                deliveredValues[0].WrappedValue.TryGetValue(out ArrayOf<int> initialSlice),
+                Is.True);
+            Assert.That(initialSlice, Is.EqualTo(s_indexRangeExpectedSlice));
+            Assert.That(deliveredValues[1].WrappedValue.IsNull, Is.True);
+            Assert.That(
+                deliveredValues[1].StatusCode,
+                Is.EqualTo(StatusCodes.BadIndexRangeNoData));
+        }
+
+        /// <summary>
         /// Verifies that when multiple monitored items are registered on the same node,
         /// all of them receive every value-change notification.
         /// </summary>
@@ -1082,13 +1148,12 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// Verifies that when the event context carries a session ID that does not match the
-        /// monitored item's session, the event is not delivered to that item.
+        /// Verifies that an event raised by one session is delivered to authorized event
+        /// monitored items owned by every session.
         /// </summary>
         [Test]
-        public void OnReportEvent_SessionContextMismatch_EventNotDeliveredToOtherSession()
+        public void OnReportEventSessionContextDoesNotRestrictDelivery()
         {
-            // Arrange
             var node = new BaseDataVariableState(null)
             {
                 NodeId = new NodeId("testNode", 1),
@@ -1107,26 +1172,33 @@ namespace Opc.Ua.Server.Tests
             var serverMock = new Mock<IServerInternal>();
             serverMock.Setup(s => s.Auditing).Returns(false);
 
-            // Monitored item belongs to session "A"
             var sessionAId = new NodeId("sessionA", 1);
-            Mock<IEventMonitoredItem> eventItemMock = CreateEventMonitoredItemMockWithSession(1u, sessionAId);
+            var sessionBId = new NodeId("sessionB", 1);
+            Mock<IEventMonitoredItem> sessionAItem =
+                CreateEventMonitoredItemMockWithSession(1u, sessionAId);
+            Mock<IEventMonitoredItem> sessionBItem =
+                CreateEventMonitoredItemMockWithSession(2u, sessionBId);
 
             var monitoredNode = new MonitoredNode2(nodeManagerMock.Object, serverMock.Object, node);
-            monitoredNode.Add(eventItemMock.Object);
+            monitoredNode.Add(sessionAItem.Object);
+            monitoredNode.Add(sessionBItem.Object);
 
-            // Context identifies session "B" – should not reach item for session "A"
-            var sessionBId = new NodeId("sessionB", 1);
             var sessionContextMock = new Mock<ISessionSystemContext>();
             sessionContextMock.Setup(c => c.SessionId).Returns(sessionBId);
 
-            // Act
             monitoredNode.OnReportEvent(sessionContextMock.Object, node, new BaseEventState(null));
             monitoredNode.Dispose();
 
-            // Assert – event must not have been queued for the item in a different session
-            int queueCount = eventItemMock.Invocations
+            int sessionACount = sessionAItem.Invocations
                 .Count(i => i.Method.Name == nameof(IEventMonitoredItem.QueueEvent));
-            Assert.That(queueCount, Is.Zero);
+            int sessionBCount = sessionBItem.Invocations
+                .Count(i => i.Method.Name == nameof(IEventMonitoredItem.QueueEvent));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(sessionACount, Is.EqualTo(1));
+                Assert.That(sessionBCount, Is.EqualTo(1));
+            });
         }
 
         /// <summary>
@@ -1842,5 +1914,14 @@ namespace Opc.Ua.Server.Tests
             Assert.That(item1Queued + item2Queued, Is.EqualTo(eventCount * 2),
                 "Every event must be delivered to every monitored item.");
         }
+
+        private static readonly ArrayOf<int> s_indexRangeInitialValue =
+            new(new[] { 0, 1, 2, 3, 4 });
+
+        private static readonly ArrayOf<int> s_indexRangeShrunkValue =
+            new(new[] { 0, 1 });
+
+        private static readonly ArrayOf<int> s_indexRangeExpectedSlice =
+            new(new[] { 2, 3, 4 });
     }
 }
