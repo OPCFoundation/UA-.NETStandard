@@ -12,3 +12,4 @@ MODELGEN011 | ModelSourceGenerator | Error | [NodeManager] class must be partial
 MODELGEN012 | ModelSourceGenerator | Info | Multiple referenced assemblies expose same model
 MODELGEN013 | ModelSourceGenerator | Info | Model already provided by referenced assembly
 MODELGEN020 | ModelSourceGenerator | Warning | BrowseName requires C# string-literal escaping (UASG_BROWSENAME_UNSAFE)
+MODELGEN021 | ModelSourceGenerator | Error | [DataType] namespace could not be resolved

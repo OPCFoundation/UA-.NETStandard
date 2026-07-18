@@ -34,7 +34,8 @@ namespace TestData
     /// <summary>
     /// Stores the configuration the test node manager
     /// </summary>
-    [DataType(Namespace = Namespaces.TestData)]
+    // Namespaces.TestData is generated in the same pass and is unavailable to the [DataType] generator.
+    [DataType(Namespace = "http://test.org/UA/Data/")]
     public partial class TestDataNodeManagerConfiguration
     {
         /// <summary>

@@ -328,6 +328,87 @@ namespace TestApp.CustomId
         }
 
         [Test]
+        public void ClassWithExplicitNamespaceUsesSpecifiedNamespace()
+        {
+            const string source = """
+
+using Opc.Ua;
+
+namespace TestApp.ExplicitNamespace
+{
+    [DataType(
+        Namespace = "urn:test:explicit",
+        DataTypeId = "s=ExplicitConfig",
+        XmlEncodingId = "s=ExplicitConfigXml")]
+    public partial class ExplicitConfig
+    {
+        public string Name { get; set; }
+    }
+}
+""";
+            GeneratorRunResult result = RunGenerator(source);
+
+            Assert.That(result.GeneratedSources, Has.Length.EqualTo(1));
+            string generated = result.GeneratedSources[0].SourceText.ToString();
+            Assert.That(
+                CountOccurrences(generated, "\"urn:test:explicit\""),
+                Is.GreaterThanOrEqualTo(5));
+            Assert.That(generated, Does.Not.Contain("urn:testapp.explicitnamespace"));
+        }
+
+        [Test]
+        public void UnresolvedExplicitNamespaceReportsDiagnostic()
+        {
+            const string source = """
+
+using Opc.Ua;
+
+namespace TestApp.UnresolvedNamespace
+{
+    [DataType(Namespace = Namespaces.GeneratedModel)]
+    public partial class UnresolvedConfig
+    {
+        public string Name { get; set; }
+    }
+}
+""";
+            GeneratorRunResult result = RunGenerator(source, expectErrors: true);
+
+            Assert.That(
+                result.Diagnostics.Any(diagnostic =>
+                    diagnostic.Id == "MODELGEN021" &&
+                    diagnostic.GetMessage(CultureInfo.InvariantCulture)
+                        .Contains("Namespaces.GeneratedModel", StringComparison.Ordinal)),
+                Is.True);
+            Assert.That(result.GeneratedSources, Is.Empty);
+        }
+
+        [Test]
+        public void ExplicitNullNamespaceUsesFallback()
+        {
+            const string source = """
+
+using Opc.Ua;
+
+namespace TestApp.NullNamespace
+{
+    [DataType(Namespace = null)]
+    public partial class NullNamespaceConfig
+    {
+        public string Name { get; set; }
+    }
+}
+""";
+            GeneratorRunResult result = RunGenerator(source);
+
+            Assert.That(result.Diagnostics, Is.Empty);
+            Assert.That(result.GeneratedSources, Has.Length.EqualTo(1));
+            Assert.That(
+                result.GeneratedSources[0].SourceText.ToString(),
+                Does.Contain("\"urn:testapp.nullnamespace\""));
+        }
+
+        [Test]
         public void TwoClassesSameNamespaceSingleExtensionMethod()
         {
             const string source = @"

@@ -80,6 +80,16 @@ namespace Opc.Ua.SourceGeneration
         public string ErrorMessage { get; }
 
         /// <summary>
+        /// The annotated type name used for diagnostics.
+        /// </summary>
+        public string TypeName { get; }
+
+        /// <summary>
+        /// An explicitly supplied namespace expression that Roslyn could not resolve.
+        /// </summary>
+        public string UnresolvedNamespaceExpression { get; }
+
+        /// <summary>
         /// Check whether the generator can handle the node.
         /// </summary>
         public static bool Handles(SyntaxNode node, CancellationToken ct)
@@ -97,9 +107,23 @@ namespace Opc.Ua.SourceGeneration
             CancellationToken cancellationToken)
         {
             var symbol = (INamedTypeSymbol)context.TargetSymbol;
+            TypeName = symbol.ToDisplayString();
             Location = symbol.Locations.FirstOrDefault();
 
             AttributeData dataTypeAttr = context.Attributes.FirstOrDefault();
+            AttributeArgumentSyntax unresolvedNamespaceArgument =
+                GetUnresolvedNamespaceArgument(dataTypeAttr, cancellationToken);
+            if (unresolvedNamespaceArgument != null)
+            {
+                Location = unresolvedNamespaceArgument.GetLocation();
+                UnresolvedNamespaceExpression =
+                    unresolvedNamespaceArgument.Expression.ToString();
+                HasErrors = true;
+                ValidFields = [];
+                Diagnostics = [];
+                return;
+            }
+
             string dataTypeNamespace =
                 dataTypeAttr.GetValue(nameof(DataTypeAttribute.Namespace));
             string dataTypeId =
@@ -186,6 +210,16 @@ namespace Opc.Ua.SourceGeneration
         {
             foreach (DataTypeCompilation comp in compilations)
             {
+                if (comp.UnresolvedNamespaceExpression != null)
+                {
+                    sourceContext.ReportDiagnostic(
+                        Diagnostic.Create(
+                            SourceGenerator.DataTypeNamespaceUnresolved,
+                            comp.Location,
+                            comp.TypeName,
+                            comp.UnresolvedNamespaceExpression));
+                }
+
                 if (comp.ErrorMessage != null)
                 {
                     sourceContext.ReportDiagnostic(
@@ -645,6 +679,39 @@ namespace Opc.Ua.SourceGeneration
             }
 
             return false;
+        }
+
+        private static AttributeArgumentSyntax GetUnresolvedNamespaceArgument(
+            AttributeData attribute,
+            CancellationToken cancellationToken)
+        {
+            if (attribute?.ApplicationSyntaxReference?.GetSyntax(cancellationToken) is not
+                AttributeSyntax attributeSyntax)
+            {
+                return null;
+            }
+
+            AttributeArgumentSyntax namespaceArgument = attributeSyntax.ArgumentList?.Arguments
+                .FirstOrDefault(argument =>
+                    argument.NameEquals?.Name.Identifier.ValueText ==
+                    nameof(DataTypeAttribute.Namespace));
+            if (namespaceArgument == null)
+            {
+                return null;
+            }
+
+            foreach (KeyValuePair<string, TypedConstant> namedArgument in
+                attribute.NamedArguments)
+            {
+                if (namedArgument.Key == nameof(DataTypeAttribute.Namespace))
+                {
+                    return namedArgument.Value.Kind == TypedConstantKind.Error
+                        ? namespaceArgument
+                        : null;
+                }
+            }
+
+            return namespaceArgument;
         }
 
         private static string ResolveNamespaceUri(
