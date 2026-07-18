@@ -350,9 +350,18 @@ namespace TestApp.ExplicitNamespace
 
             Assert.That(result.GeneratedSources, Has.Length.EqualTo(1));
             string generated = result.GeneratedSources[0].SourceText.ToString();
-            Assert.That(
-                CountOccurrences(generated, "\"urn:test:explicit\""),
-                Is.GreaterThanOrEqualTo(5));
+            Assert.That(generated, Does.Contain(
+                "new global::Opc.Ua.ExpandedNodeId(" +
+                "global::Opc.Ua.NodeId.Parse(\"s=ExplicitConfig\"), " +
+                "\"urn:test:explicit\")"));
+            Assert.That(generated, Does.Contain(
+                "new global::Opc.Ua.ExpandedNodeId(" +
+                "global::Opc.Ua.NodeId.Parse(\"s=ExplicitConfigXml\"), " +
+                "\"urn:test:explicit\")"));
+            Assert.That(generated, Does.Contain(
+                """encoder.PushNamespace("urn:test:explicit");"""));
+            Assert.That(generated, Does.Contain(
+                """decoder.PushNamespace("urn:test:explicit");"""));
             Assert.That(generated, Does.Not.Contain("urn:testapp.explicitnamespace"));
         }
 

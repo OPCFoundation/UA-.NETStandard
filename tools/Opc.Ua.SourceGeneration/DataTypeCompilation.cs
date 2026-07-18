@@ -87,7 +87,7 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// An explicitly supplied namespace expression that Roslyn could not resolve.
         /// </summary>
-        public string UnresolvedNamespaceExpression { get; }
+        public string UnresolvedNamespaceExpression { get; } = string.Empty;
 
         /// <summary>
         /// Check whether the generator can handle the node.
@@ -210,7 +210,7 @@ namespace Opc.Ua.SourceGeneration
         {
             foreach (DataTypeCompilation comp in compilations)
             {
-                if (comp.UnresolvedNamespaceExpression != null)
+                if (comp.UnresolvedNamespaceExpression.Length > 0)
                 {
                     sourceContext.ReportDiagnostic(
                         Diagnostic.Create(
@@ -218,6 +218,7 @@ namespace Opc.Ua.SourceGeneration
                             comp.Location,
                             comp.TypeName,
                             comp.UnresolvedNamespaceExpression));
+                    continue;
                 }
 
                 if (comp.ErrorMessage != null)
