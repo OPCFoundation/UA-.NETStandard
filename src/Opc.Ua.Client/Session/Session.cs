@@ -1543,6 +1543,7 @@ namespace Opc.Ua.Client
                     m_identity = identity;
                     m_previousServerNonce = activationRequestNonce;
                     m_serverNonce = serverNonce;
+                    m_sessionClientCertificate = ByteString.From(clientCertificateData.Span);
                     m_serverCertificate?.Dispose();
                     m_serverCertificate = serverCertificate;
 
@@ -2794,10 +2795,17 @@ namespace Opc.Ua.Client
             bool managedLeaseActivated = false;
             ConfiguredEndpoint targetEndpoint = endpoint ?? m_endpoint;
 
-            if (manager != null && channel == null)
+            if (manager != null)
             {
+                if (channel != null &&
+                    RequiresSessionRecreation(channel))
+                {
+                    m_instanceCertificateEntry?.Dispose();
+                    m_instanceCertificateEntry = null;
+                }
                 await LoadInstanceCertificateAsync(targetEndpoint, ct).ConfigureAwait(false);
-                if (targetEndpoint.Description.SecurityPolicyUri != SecurityPolicies.None &&
+                if (channel == null &&
+                    targetEndpoint.Description.SecurityPolicyUri != SecurityPolicies.None &&
                     m_instanceCertificateEntry != null)
                 {
 #pragma warning disable CA2000 // ownership of the chain transfers to the channel manager, which disposes it
@@ -5438,6 +5446,7 @@ namespace Opc.Ua.Client
         private ByteString m_serverNonce;
         private ByteString m_previousServerNonce;
         private readonly HashSet<ByteString> m_serverNonceHistory = [];
+        private ByteString m_sessionClientCertificate;
 #pragma warning disable CA2213 // Disposed in Dispose method (m_serverCertificate?.Dispose() in cleanup path)
         private Certificate? m_serverCertificate;
 #pragma warning restore CA2213

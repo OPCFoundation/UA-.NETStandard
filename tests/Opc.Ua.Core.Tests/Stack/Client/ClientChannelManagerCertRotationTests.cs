@@ -175,6 +175,61 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         }
 
         [Test]
+        public async Task ReconnectWaitsForRequiredParticipantRecreationAsync()
+        {
+            using Certificate clientCertificate = s_factory
+                .CreateCertificate("CN=recreate-client")
+                .CreateForRSA();
+            using Certificate serverCertificate = s_factory
+                .CreateCertificate("CN=recreate-server")
+                .CreateForRSA();
+
+            TestCertificateChangeSource changes = new();
+            ConcurrentQueue<TransportChannelSettings> openSettings = new();
+            ClientChannelManager sut = CreateSut(
+                clientCertificate,
+                changes,
+                openSettings);
+            var participant = new BlockingRecreateParticipant(
+                "recreate",
+                GetTestEndpoint(serverCertificate));
+            IManagedTransportChannel? channel = null;
+
+            try
+            {
+                sut.UpdateClientCertificate(clientCertificate, null);
+                channel = await sut.GetAsync(participant).ConfigureAwait(false);
+
+                Task reconnect = sut.ReconnectAsync(channel).AsTask();
+                await participant.RecreateStarted.Task
+                    .WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false);
+
+                Assert.That(reconnect.IsCompleted, Is.False);
+                Assert.That(channel.State, Is.Not.EqualTo(ChannelState.Ready));
+
+                participant.ReleaseRecreate();
+                await reconnect.ConfigureAwait(false);
+
+                Assert.That(participant.RecreateCount, Is.EqualTo(1));
+                Assert.That(channel.State, Is.EqualTo(ChannelState.Ready));
+            }
+            finally
+            {
+                participant.ReleaseRecreate();
+                if (channel != null)
+                {
+                    await channel.CloseAsync().ConfigureAwait(false);
+                }
+                await sut.DisposeAsync().ConfigureAwait(false);
+                while (openSettings.TryDequeue(out TransportChannelSettings? opened))
+                {
+                    opened.ServerCertificate?.Dispose();
+                }
+            }
+        }
+
+        [Test]
         public async Task DisposeUnsubscribesFromCertEvent()
         {
             using Certificate oldCertificate = s_factory.CreateCertificate("CN=old-client").CreateForRSA();
@@ -393,6 +448,54 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 Interlocked.Increment(ref m_notificationCount);
                 return new ValueTask<ParticipantReconnectResult>(ParticipantReconnectResult.Reactivated);
             }
+        }
+
+        private sealed class BlockingRecreateParticipant :
+            IRecreateAwareReconnectParticipant
+        {
+            public BlockingRecreateParticipant(
+                string id,
+                ConfiguredEndpoint endpoint)
+            {
+                Id = id;
+                Endpoint = endpoint;
+            }
+
+            public string Id { get; }
+
+            public ConfiguredEndpoint Endpoint { get; }
+
+            public TaskCompletionSource<bool> RecreateStarted { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            public int RecreateCount => Volatile.Read(ref m_recreateCount);
+
+            public ValueTask<ParticipantReconnectResult> OnReconnectAsync(
+                IManagedTransportChannel channel,
+                int reconnectAttempt,
+                CancellationToken ct)
+            {
+                return new ValueTask<ParticipantReconnectResult>(
+                    reconnectAttempt < 0
+                        ? ParticipantReconnectResult.Reactivated
+                        : ParticipantReconnectResult.RequiresSessionRecreate);
+            }
+
+            public async ValueTask RecreateAsync(CancellationToken ct = default)
+            {
+                Interlocked.Increment(ref m_recreateCount);
+                RecreateStarted.TrySetResult(true);
+                await m_release.Task.WaitAsync(ct).ConfigureAwait(false);
+            }
+
+            public void ReleaseRecreate()
+            {
+                m_release.TrySetResult(true);
+            }
+
+            private readonly TaskCompletionSource<bool> m_release =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+            private int m_recreateCount;
         }
     }
 }
