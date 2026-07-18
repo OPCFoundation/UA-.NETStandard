@@ -147,7 +147,20 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(schemaJson));
             }
 
-            ulong fingerprint = global::Opc.Ua.SchemaId.RabinCrc64Avro(Encoding.UTF8.GetBytes(schemaJson));
+            // The canonical Avro SchemaId is CRC-64-AVRO over the Avro Parsing Canonical Form
+            // (Part 6 §6.6). Inputs that are not a valid Avro schema fall back to the raw bytes so
+            // any deterministic document still yields a stable id.
+            byte[] canonical;
+            try
+            {
+                canonical = Encoding.UTF8.GetBytes(AvroParsingCanonicalForm.Compute(schemaJson));
+            }
+            catch (Exception ex) when (ex is FormatException || ex is System.Text.Json.JsonException)
+            {
+                canonical = Encoding.UTF8.GetBytes(schemaJson);
+            }
+
+            ulong fingerprint = global::Opc.Ua.SchemaId.RabinCrc64Avro(canonical);
             return ByteString.From(global::Opc.Ua.SchemaId.AvroSingleObjectPrefix(fingerprint).AsSpan(2, 8));
         }
     }

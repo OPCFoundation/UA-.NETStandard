@@ -174,7 +174,20 @@ namespace Opc.Ua
 
             public byte[] ComputeSchemaId(ReadOnlySpan<byte> schema)
             {
-                ulong fingerprint = SchemaId.RabinCrc64Avro(schema);
+                // Canonical Avro SchemaId: CRC-64-AVRO over the Avro Parsing Canonical Form
+                // (Part 6 §6.6). Non-schema inputs fall back to the raw bytes.
+                ulong fingerprint;
+                try
+                {
+                    string canonical = AvroParsingCanonicalForm.Compute(
+                        System.Text.Encoding.UTF8.GetString(schema.ToArray()));
+                    fingerprint = SchemaId.RabinCrc64Avro(System.Text.Encoding.UTF8.GetBytes(canonical));
+                }
+                catch (Exception ex) when (ex is FormatException || ex is System.Text.Json.JsonException)
+                {
+                    fingerprint = SchemaId.RabinCrc64Avro(schema);
+                }
+
                 byte[] id = new byte[8];
                 for (int ii = 0; ii < id.Length; ii++)
                 {
