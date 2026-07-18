@@ -70,6 +70,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // Act
             Assert.That(sut.TryGetPendingChange(out MonitoredItem.Change change), Is.True);
             Assert.That(change, Is.Not.Null);
+            Assert.That(((IMonitoredItemApplyState)sut).HasPendingChanges, Is.True);
             change.SetCreateResult(new MonitoredItemCreateRequest
             {
                 MonitoringMode = MonitoringMode.Sampling,
@@ -91,6 +92,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // Assert
             Assert.That(sut.ServerId, Is.EqualTo(serverId));
             Assert.That(sut.Created, Is.True);
+            Assert.That(((IMonitoredItemApplyState)sut).HasPendingChanges, Is.False);
         }
 
         [Test]

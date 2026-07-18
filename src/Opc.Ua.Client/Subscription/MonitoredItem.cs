@@ -44,7 +44,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
     /// A monitored item that can be extended to add extra
     /// information as context in the subscription.
     /// </summary>
-    internal abstract class MonitoredItem : IMonitoredItem, IAsyncDisposable
+    internal abstract class MonitoredItem :
+        IMonitoredItem,
+        IMonitoredItemApplyState,
+        IAsyncDisposable
     {
         /// <inheritdoc/>
         public string Name { get; }
@@ -57,6 +60,9 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
         /// <inheritdoc/>
         public bool Created => ServerId != 0;
+
+        /// <inheritdoc/>
+        public bool HasPendingChanges => !m_pendingChanges.IsEmpty;
 
         /// <inheritdoc/>
         public ServiceResult Error { get; private set; }
