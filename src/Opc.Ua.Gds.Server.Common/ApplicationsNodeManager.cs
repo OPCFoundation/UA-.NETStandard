@@ -709,8 +709,17 @@ namespace Opc.Ua.Gds.Server
                     }
 
                     keyCredNode.StartRequest!.OnCallAsync = OnKeyCredentialStartRequestAsync;
+                    keyCredNode.StartRequest.OnReadRolePermissions = OnAddSelfAdminRolePermissions;
+                    keyCredNode.StartRequest.OnReadUserRolePermissions = OnAddSelfAdminUserRolePermissions;
                     keyCredNode.FinishRequest!.OnCallAsync = OnKeyCredentialFinishRequestAsync;
+                    keyCredNode.FinishRequest.OnReadRolePermissions = OnAddSelfAdminRolePermissions;
+                    keyCredNode.FinishRequest.OnReadUserRolePermissions = OnAddSelfAdminUserRolePermissions;
                     keyCredNode.Revoke?.OnCallAsync = OnKeyCredentialRevokeAsync;
+                    if (keyCredNode.Revoke != null)
+                    {
+                        keyCredNode.Revoke.OnReadRolePermissions = OnAddSelfAdminRolePermissions;
+                        keyCredNode.Revoke.OnReadUserRolePermissions = OnAddSelfAdminUserRolePermissions;
+                    }
 
                     return keyCredNode;
                 case ObjectTypes.AuthorizationServiceType:
@@ -2602,12 +2611,18 @@ namespace Opc.Ua.Gds.Server
                 AuthorizationHelper.HasAuthenticatedSecureChannel(context, requireEncryption: true);
                 ByteString clientCertificateFingerprint =
                     AuthorizationHelper.GetClientCertificateFingerprint(context);
-                AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.KeyCredentialAdmin);
+                NodeId applicationId = ResolveKeyCredentialApplicationId(m_database, applicationUri);
+                AuthorizationHelper.HasAuthorization(
+                    context,
+                    AuthorizationHelper.KeyCredentialAdminOrSelfAdminOrAppAdmin,
+                    applicationId);
+                IApplicationOwnedKeyCredentialRequestStore store = GetApplicationOwnedKeyCredentialStore();
 
                 m_logger.OnKeyCredentialStartRequest(applicationUri);
 
-                requestId = await KeyCredentialRequestStore.StartBoundRequestCompatAsync(
+                requestId = await store.StartOwnedBoundRequestAsync(
                     applicationUri,
+                    applicationId,
                     publicKey,
                     securityPolicyUri,
                     requestedRoles,
@@ -2645,39 +2660,38 @@ namespace Opc.Ua.Gds.Server
                 AuthorizationHelper.HasAuthenticatedSecureChannel(context, requireEncryption: true);
                 ByteString clientCertificateFingerprint =
                     AuthorizationHelper.GetClientCertificateFingerprint(context);
-                AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.KeyCredentialAdmin);
+                IApplicationOwnedKeyCredentialRequestStore store = GetApplicationOwnedKeyCredentialStore();
+                NodeId applicationId = await store
+                    .GetRequestApplicationIdAsync(requestId, cancellationToken)
+                    .ConfigureAwait(false);
+                AuthorizationHelper.HasAuthorization(
+                    context,
+                    AuthorizationHelper.KeyCredentialAdminOrSelfAdminOrAppAdmin,
+                    applicationId);
 
                 m_logger.OnKeyCredentialFinishRequest(requestId);
 
                 FinishKeyCredentialRequestResult finished =
-                    await KeyCredentialRequestStore.FinishBoundRequestCompatAsync(
+                    await store.FinishOwnedBoundRequestAsync(
                         requestId,
                         cancelRequest,
+                        applicationId,
                         clientCertificateFingerprint,
                         cancellationToken).ConfigureAwait(false);
-
-                var result = new KeyCredentialFinishRequestMethodStateResult
-                {
-                    CredentialId = finished.CredentialId ?? string.Empty,
-                    CredentialSecret = finished.CredentialSecret,
-                    CertificateThumbprint = finished.CertificateThumbprint ?? string.Empty,
-                    SecurityPolicyUri = finished.SecurityPolicyUri ?? string.Empty,
-                    GrantedRoles = finished.GrantedRoles
-                };
+                KeyCredentialFinishRequestMethodStateResult result =
+                    CreateKeyCredentialFinishResult(finished);
 
                 if (finished.State == KeyCredentialRequestState.New)
                 {
-                    var exception = new ServiceResultException(StatusCodes.BadNothingToDo);
+                    var exception = new ServiceResultException(StatusCodes.BadRequestNotComplete);
                     Server.ReportKeyCredentialDeliveredAuditEvent(
                         context, objectId, method, auditInputs, m_logger, exception);
-                    result.ServiceResult = new ServiceResult(StatusCodes.BadNothingToDo);
                     return result;
                 }
 
                 Server.ReportKeyCredentialDeliveredAuditEvent(
                     context, objectId, method, auditInputs, m_logger);
 
-                result.ServiceResult = ServiceResult.Good;
                 return result;
             }
             catch (Exception ex)
@@ -2700,11 +2714,20 @@ namespace Opc.Ua.Gds.Server
             {
                 AuthorizationHelper.HasAuthenticatedSecureChannel(context, requireEncryption: true);
                 _ = AuthorizationHelper.GetClientCertificateFingerprint(context);
-                AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.KeyCredentialAdmin);
+                IApplicationOwnedKeyCredentialRequestStore store = GetApplicationOwnedKeyCredentialStore();
+                NodeId applicationId = await store
+                    .GetCredentialApplicationIdAsync(credentialId, cancellationToken)
+                    .ConfigureAwait(false);
+                AuthorizationHelper.HasAuthorization(
+                    context,
+                    AuthorizationHelper.KeyCredentialAdminOrSelfAdminOrAppAdmin,
+                    applicationId);
 
                 m_logger.OnKeyCredentialRevoke(credentialId);
 
-                await KeyCredentialRequestStore.RevokeAsync(credentialId, cancellationToken).ConfigureAwait(false);
+                await store
+                    .RevokeOwnedAsync(credentialId, applicationId, cancellationToken)
+                    .ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -2717,6 +2740,82 @@ namespace Opc.Ua.Gds.Server
                 context, objectId, method, auditInputs, m_logger);
 
             return new KeyCredentialRevokeMethodStateResult { ServiceResult = ServiceResult.Good };
+        }
+
+        internal static NodeId ResolveKeyCredentialApplicationId(
+            IApplicationsDatabase database,
+            string applicationUri)
+        {
+            if (database == null)
+            {
+                throw new ArgumentNullException(nameof(database));
+            }
+            if (string.IsNullOrWhiteSpace(applicationUri))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotFound,
+                    "The ApplicationUri is not known to the GDS.");
+            }
+
+            ApplicationRecordDataType[] matches = database
+                .FindApplications(applicationUri)?
+                .Where(application => string.Equals(
+                    application.ApplicationUri,
+                    applicationUri,
+                    StringComparison.Ordinal))
+                .ToArray() ?? [];
+            if (matches.Length == 0)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotFound,
+                    "The ApplicationUri is not known to the GDS.");
+            }
+            if (matches.Length != 1 || matches[0].ApplicationId.IsNull)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadConfigurationError,
+                    "The ApplicationUri does not uniquely identify a registered application.");
+            }
+
+            return matches[0].ApplicationId;
+        }
+
+        internal static ServiceResult GetKeyCredentialFinishServiceResult(
+            KeyCredentialRequestState state)
+        {
+            return state == KeyCredentialRequestState.New
+                ? new ServiceResult(StatusCodes.BadRequestNotComplete)
+                : ServiceResult.Good;
+        }
+
+        internal static KeyCredentialFinishRequestMethodStateResult CreateKeyCredentialFinishResult(
+            FinishKeyCredentialRequestResult finished)
+        {
+            if (finished.State == KeyCredentialRequestState.New)
+            {
+                return new KeyCredentialFinishRequestMethodStateResult
+                {
+                    ServiceResult = GetKeyCredentialFinishServiceResult(finished.State)
+                };
+            }
+
+            return new KeyCredentialFinishRequestMethodStateResult
+            {
+                ServiceResult = ServiceResult.Good,
+                CredentialId = finished.CredentialId ?? string.Empty,
+                CredentialSecret = finished.CredentialSecret,
+                CertificateThumbprint = finished.CertificateThumbprint ?? string.Empty,
+                SecurityPolicyUri = finished.SecurityPolicyUri ?? string.Empty,
+                GrantedRoles = finished.GrantedRoles
+            };
+        }
+
+        private IApplicationOwnedKeyCredentialRequestStore GetApplicationOwnedKeyCredentialStore()
+        {
+            return KeyCredentialRequestStore as IApplicationOwnedKeyCredentialRequestStore ??
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "The key-credential store does not support application ownership checks.");
         }
 
         /// <inheritdoc/>

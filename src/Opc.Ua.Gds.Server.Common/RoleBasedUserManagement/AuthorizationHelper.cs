@@ -43,6 +43,17 @@ namespace Opc.Ua.Gds.Server
         internal static List<Role> KeyCredentialAdmin { get; } = [GdsRole.KeyCredentialAdmin];
 
         /// <summary>
+        /// Roles and privileges accepted by KeyCredential StartRequest,
+        /// FinishRequest and Revoke per OPC 10000-12 §8.5.5 - §8.5.7.
+        /// </summary>
+        internal static List<Role> KeyCredentialAdminOrSelfAdminOrAppAdmin { get; } =
+        [
+            GdsRole.KeyCredentialAdmin,
+            GdsRole.ApplicationSelfAdmin,
+            GdsRole.ApplicationAdmin
+        ];
+
+        /// <summary>
         /// Roles/privileges accepted by <c>RegisterApplication</c>
         /// per OPC 10000-12 §6.5.6: <c>DiscoveryAdmin</c> Role or
         /// <c>ApplicationAdmin</c> Privilege.

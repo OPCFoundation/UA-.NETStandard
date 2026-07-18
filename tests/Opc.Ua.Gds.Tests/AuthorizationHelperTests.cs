@@ -230,6 +230,69 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
+        public void KeyCredentialAuthorizationAllowsSelfAdminOnlyForOwnApplication()
+        {
+            var ownAppId = new NodeId(99);
+            var otherAppId = new NodeId(100);
+            var identity = new GdsRoleBasedIdentity(
+                new UserIdentity("appuser", s_passwordBytes),
+                [GdsRole.ApplicationSelfAdmin],
+                ownAppId,
+                m_namespaceTable);
+            var context = new SessionSystemContext(m_telemetry)
+            {
+                UserIdentity = identity,
+                NamespaceUris = m_namespaceTable
+            };
+
+            Assert.DoesNotThrow(() =>
+                AuthorizationHelper.HasAuthorization(
+                    context,
+                    AuthorizationHelper.KeyCredentialAdminOrSelfAdminOrAppAdmin,
+                    ownAppId));
+            Assert.That(
+                () => AuthorizationHelper.HasAuthorization(
+                    context,
+                    AuthorizationHelper.KeyCredentialAdminOrSelfAdminOrAppAdmin,
+                    otherAppId),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadUserAccessDenied));
+        }
+
+        [Test]
+        public void KeyCredentialAuthorizationAllowsApplicationAdminOnlyForManagedApplication()
+        {
+            var managedAppId = new NodeId(11);
+            var unmanagedAppId = new NodeId(12);
+            var identity = new GdsRoleBasedIdentity(
+                new UserIdentity("agent", s_passwordBytes),
+                [GdsRole.ApplicationAdmin],
+                NodeId.Null,
+                [managedAppId],
+                m_namespaceTable);
+            var context = new SessionSystemContext(m_telemetry)
+            {
+                UserIdentity = identity,
+                NamespaceUris = m_namespaceTable
+            };
+
+            Assert.DoesNotThrow(() =>
+                AuthorizationHelper.HasAuthorization(
+                    context,
+                    AuthorizationHelper.KeyCredentialAdminOrSelfAdminOrAppAdmin,
+                    managedAppId));
+            Assert.That(
+                () => AuthorizationHelper.HasAuthorization(
+                    context,
+                    AuthorizationHelper.KeyCredentialAdminOrSelfAdminOrAppAdmin,
+                    unmanagedAppId),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadUserAccessDenied));
+        }
+
+        [Test]
         public void HasAuthenticatedSecureChannelThrowsForNonSystemContext()
         {
             var context = new SessionSystemContext(m_telemetry)
@@ -418,6 +481,15 @@ namespace Opc.Ua.Gds.Tests
             Assert.That(AuthorizationHelper.KeyCredentialAdmin, Has.Count.EqualTo(1));
             Assert.That(AuthorizationHelper.KeyCredentialAdmin[0],
                 Is.EqualTo(GdsRole.KeyCredentialAdmin));
+
+            Assert.That(
+                AuthorizationHelper.KeyCredentialAdminOrSelfAdminOrAppAdmin,
+                Is.EquivalentTo(
+                [
+                    GdsRole.KeyCredentialAdmin,
+                    GdsRole.ApplicationSelfAdmin,
+                    GdsRole.ApplicationAdmin
+                ]));
 
             Assert.That(AuthorizationHelper.DiscoveryAdminOrSelfAdmin, Has.Count.EqualTo(2));
             Assert.That(AuthorizationHelper.DiscoveryAdminOrSelfAdmin,

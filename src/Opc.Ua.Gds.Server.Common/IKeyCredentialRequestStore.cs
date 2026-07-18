@@ -71,9 +71,14 @@ namespace Opc.Ua.Gds.Server
         public NodeId RequestId { get; set; }
 
         /// <summary>
-        /// The ApplicationUri that requested the credential.
+        /// The ApplicationUri of the application receiving the credential.
         /// </summary>
         public string? ApplicationUri { get; set; }
+
+        /// <summary>
+        /// The registered application receiving and owning the credential.
+        /// </summary>
+        public NodeId ApplicationId { get; set; }
 
         /// <summary>
         /// The public key supplied by the requester.
@@ -283,6 +288,60 @@ namespace Opc.Ua.Gds.Server
             CancellationToken cancellationToken = default);
     }
 
+    /// <summary>
+    /// Store surface that preserves immutable registered-application ownership
+    /// for certificate-bound requests and credentials.
+    /// </summary>
+    public interface IApplicationOwnedKeyCredentialRequestStore :
+        IClientCertificateBoundKeyCredentialRequestStore
+    {
+        /// <summary>
+        /// Starts a certificate-bound request owned by a registered application.
+        /// </summary>
+        ValueTask<NodeId> StartOwnedBoundRequestAsync(
+            string applicationUri,
+            NodeId applicationId,
+            ByteString publicKey,
+            string? securityPolicyUri,
+            ArrayOf<NodeId> requestedRoles,
+            ByteString clientCertificateFingerprint,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Returns the immutable registered-application owner of a request.
+        /// </summary>
+        ValueTask<NodeId> GetRequestApplicationIdAsync(
+            NodeId requestId,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Finishes a certificate-bound request after atomically checking its
+        /// registered-application owner.
+        /// </summary>
+        ValueTask<FinishKeyCredentialRequestResult> FinishOwnedBoundRequestAsync(
+            NodeId requestId,
+            bool cancelRequest,
+            NodeId applicationId,
+            ByteString clientCertificateFingerprint,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Returns the immutable registered-application owner of a credential.
+        /// </summary>
+        ValueTask<NodeId> GetCredentialApplicationIdAsync(
+            string credentialId,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Revokes a credential after atomically checking its
+        /// registered-application owner.
+        /// </summary>
+        ValueTask RevokeOwnedAsync(
+            string credentialId,
+            NodeId applicationId,
+            CancellationToken cancellationToken = default);
+    }
+
     internal static class KeyCredentialRequestStoreBinding
     {
         public static ValueTask<NodeId> StartBoundRequestCompatAsync(
@@ -361,7 +420,7 @@ namespace Opc.Ua.Gds.Server
     /// Kubernetes secrets, or any other backend that implements
     /// <see cref="ISecretStore"/> without changing the GDS code.
     /// </remarks>
-    public sealed class InMemoryKeyCredentialRequestStore : IClientCertificateBoundKeyCredentialRequestStore
+    public sealed class InMemoryKeyCredentialRequestStore : IApplicationOwnedKeyCredentialRequestStore
     {
         private const int Sha256FingerprintLength = 32;
 
@@ -402,6 +461,7 @@ namespace Opc.Ua.Gds.Server
         {
             return StartRequestCoreAsync(
                 applicationUri,
+                default,
                 publicKey,
                 securityPolicyUri,
                 requestedRoles,
@@ -421,6 +481,29 @@ namespace Opc.Ua.Gds.Server
             ValidateClientCertificateFingerprint(clientCertificateFingerprint);
             return StartRequestCoreAsync(
                 applicationUri,
+                default,
+                publicKey,
+                securityPolicyUri,
+                requestedRoles,
+                ByteString.From(clientCertificateFingerprint.ToArray()),
+                cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<NodeId> StartOwnedBoundRequestAsync(
+            string applicationUri,
+            NodeId applicationId,
+            ByteString publicKey,
+            string? securityPolicyUri,
+            ArrayOf<NodeId> requestedRoles,
+            ByteString clientCertificateFingerprint,
+            CancellationToken cancellationToken = default)
+        {
+            ValidateApplicationId(applicationId);
+            ValidateClientCertificateFingerprint(clientCertificateFingerprint);
+            return StartRequestCoreAsync(
+                applicationUri,
+                applicationId,
                 publicKey,
                 securityPolicyUri,
                 requestedRoles,
@@ -430,6 +513,7 @@ namespace Opc.Ua.Gds.Server
 
         private async ValueTask<NodeId> StartRequestCoreAsync(
             string applicationUri,
+            NodeId applicationId,
             ByteString publicKey,
             string? securityPolicyUri,
             ArrayOf<NodeId> requestedRoles,
@@ -449,6 +533,7 @@ namespace Opc.Ua.Gds.Server
             {
                 RequestId = requestId,
                 ApplicationUri = applicationUri,
+                ApplicationId = applicationId,
                 PublicKey = publicKey,
                 SecurityPolicyUri = securityPolicyUri,
                 RequestedRoles = requestedRoles,
@@ -496,6 +581,32 @@ namespace Opc.Ua.Gds.Server
             return FinishRequestCoreAsync(record, cancelRequest, cancellationToken);
         }
 
+        /// <inheritdoc/>
+        public ValueTask<NodeId> GetRequestApplicationIdAsync(
+            NodeId requestId,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            KeyCredentialRequestRecord record = GetRequest(requestId, StatusCodes.BadInvalidArgument);
+            return new ValueTask<NodeId>(GetApplicationId(record));
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<FinishKeyCredentialRequestResult> FinishOwnedBoundRequestAsync(
+            NodeId requestId,
+            bool cancelRequest,
+            NodeId applicationId,
+            ByteString clientCertificateFingerprint,
+            CancellationToken cancellationToken = default)
+        {
+            ValidateApplicationId(applicationId);
+            ValidateClientCertificateFingerprint(clientCertificateFingerprint);
+            KeyCredentialRequestRecord record = GetRequest(requestId, StatusCodes.BadInvalidArgument);
+            ValidateApplicationOwnership(record, applicationId);
+            ValidateRequestBinding(record, clientCertificateFingerprint);
+            return FinishRequestCoreAsync(record, cancelRequest, cancellationToken);
+        }
+
         private async ValueTask<FinishKeyCredentialRequestResult> FinishRequestCoreAsync(
             KeyCredentialRequestRecord record,
             bool cancelRequest,
@@ -537,19 +648,46 @@ namespace Opc.Ua.Gds.Server
         }
 
         /// <inheritdoc/>
-        public async ValueTask RevokeAsync(string credentialId, CancellationToken cancellationToken = default)
+        public ValueTask RevokeAsync(string credentialId, CancellationToken cancellationToken = default)
         {
-            if (!m_credentials.TryGetValue(credentialId, out KeyCredentialRequestRecord? record))
-            {
-                throw new ServiceResultException(
-                    StatusCodes.BadNotFound,
-                    "The CredentialId is not known.");
-            }
+            KeyCredentialRequestRecord record = GetCredential(credentialId, StatusCodes.BadNotFound);
+            return RevokeCoreAsync(record, cancellationToken);
+        }
 
+        /// <inheritdoc/>
+        public ValueTask<NodeId> GetCredentialApplicationIdAsync(
+            string credentialId,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            KeyCredentialRequestRecord record = GetCredential(
+                credentialId,
+                StatusCodes.BadInvalidArgument);
+            return new ValueTask<NodeId>(GetApplicationId(record));
+        }
+
+        /// <inheritdoc/>
+        public ValueTask RevokeOwnedAsync(
+            string credentialId,
+            NodeId applicationId,
+            CancellationToken cancellationToken = default)
+        {
+            ValidateApplicationId(applicationId);
+            KeyCredentialRequestRecord record = GetCredential(
+                credentialId,
+                StatusCodes.BadInvalidArgument);
+            ValidateApplicationOwnership(record, applicationId);
+            return RevokeCoreAsync(record, cancellationToken);
+        }
+
+        private async ValueTask RevokeCoreAsync(
+            KeyCredentialRequestRecord record,
+            CancellationToken cancellationToken)
+        {
             record.State = KeyCredentialRequestState.Rejected;
 
             // purge the secret from the backing store
-            var secretId = new SecretIdentifier(credentialId, m_secretStore.StoreType);
+            var secretId = new SecretIdentifier(record.CredentialId!, m_secretStore.StoreType);
             await m_secretStore.RemoveAsync(secretId, cancellationToken).ConfigureAwait(false);
         }
 
@@ -563,14 +701,65 @@ namespace Opc.Ua.Gds.Server
 
         private KeyCredentialRequestRecord GetRequest(NodeId requestId)
         {
+            return GetRequest(requestId, StatusCodes.BadNotFound);
+        }
+
+        private KeyCredentialRequestRecord GetRequest(NodeId requestId, StatusCode statusCode)
+        {
             if (m_requests.TryGetValue(requestId, out KeyCredentialRequestRecord? record))
             {
                 return record;
             }
 
             throw new ServiceResultException(
-                StatusCodes.BadNotFound,
+                statusCode,
                 "The RequestId is not known.");
+        }
+
+        private KeyCredentialRequestRecord GetCredential(string credentialId, StatusCode statusCode)
+        {
+            if (m_credentials.TryGetValue(credentialId, out KeyCredentialRequestRecord? record))
+            {
+                return record;
+            }
+
+            throw new ServiceResultException(
+                statusCode,
+                "The CredentialId is not known.");
+        }
+
+        private static NodeId GetApplicationId(KeyCredentialRequestRecord record)
+        {
+            if (!record.ApplicationId.IsNull)
+            {
+                return record.ApplicationId;
+            }
+
+            throw new ServiceResultException(
+                StatusCodes.BadSecurityChecksFailed,
+                "The key-credential record has no registered-application owner.");
+        }
+
+        private static void ValidateApplicationId(NodeId applicationId)
+        {
+            if (applicationId.IsNull)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "A registered-application owner is required.");
+            }
+        }
+
+        private static void ValidateApplicationOwnership(
+            KeyCredentialRequestRecord record,
+            NodeId applicationId)
+        {
+            if (GetApplicationId(record) != applicationId)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "The key-credential record owner changed during authorization.");
+            }
         }
 
         private static void ValidateClientCertificateFingerprint(ByteString clientCertificateFingerprint)

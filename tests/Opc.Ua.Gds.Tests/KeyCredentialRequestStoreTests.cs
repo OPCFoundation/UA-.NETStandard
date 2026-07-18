@@ -106,6 +106,110 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
+        public async Task OwnedRequestPreservesApplicationOwnershipAsync()
+        {
+            var applicationId = new NodeId(42);
+            ByteString fingerprint = CreateFingerprint(1);
+            NodeId requestId = await m_store.StartOwnedBoundRequestAsync(
+                "urn:test:app",
+                applicationId,
+                default,
+                null,
+                default,
+                fingerprint).ConfigureAwait(false);
+
+            Assert.That(
+                await m_store.GetRequestApplicationIdAsync(requestId).ConfigureAwait(false),
+                Is.EqualTo(applicationId));
+
+            FinishKeyCredentialRequestResult result = await m_store.FinishOwnedBoundRequestAsync(
+                requestId,
+                cancelRequest: false,
+                applicationId,
+                fingerprint).ConfigureAwait(false);
+
+            Assert.That(
+                await m_store
+                    .GetCredentialApplicationIdAsync(result.CredentialId!)
+                    .ConfigureAwait(false),
+                Is.EqualTo(applicationId));
+            Assert.That(
+                async () => await m_store
+                    .RevokeOwnedAsync(result.CredentialId!, new NodeId(43))
+                    .ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadSecurityChecksFailed));
+            Assert.That(
+                async () => await m_store
+                    .RevokeOwnedAsync(result.CredentialId!, applicationId)
+                    .ConfigureAwait(false),
+                Throws.Nothing);
+        }
+
+        [Test]
+        public async Task OwnedFinishRejectsDifferentApplicationAsync()
+        {
+            var applicationId = new NodeId(42);
+            ByteString fingerprint = CreateFingerprint(1);
+            NodeId requestId = await m_store.StartOwnedBoundRequestAsync(
+                "urn:test:app",
+                applicationId,
+                default,
+                null,
+                default,
+                fingerprint).ConfigureAwait(false);
+
+            Assert.That(
+                async () => await m_store.FinishOwnedBoundRequestAsync(
+                    requestId,
+                    cancelRequest: false,
+                    new NodeId(43),
+                    fingerprint).ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadSecurityChecksFailed));
+        }
+
+        [Test]
+        public async Task OwnershipLookupRejectsLegacyUnownedRecordAsync()
+        {
+            NodeId requestId = await m_store.StartBoundRequestAsync(
+                "urn:test:app",
+                default,
+                null,
+                default,
+                CreateFingerprint(1)).ConfigureAwait(false);
+
+            Assert.That(
+                async () => await m_store
+                    .GetRequestApplicationIdAsync(requestId)
+                    .ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadSecurityChecksFailed));
+        }
+
+        [Test]
+        public void OwnershipLookupUsesConformantInvalidArgumentStatus()
+        {
+            Assert.That(
+                async () => await m_store
+                    .GetRequestApplicationIdAsync(new NodeId(999))
+                    .ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadInvalidArgument));
+            Assert.That(
+                async () => await m_store
+                    .GetCredentialApplicationIdAsync("unknown-credential")
+                    .ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadInvalidArgument));
+        }
+
+        [Test]
         public async Task BoundRequestRejectsDifferentCertificateAsync()
         {
             NodeId id = await m_store.StartBoundRequestAsync(
