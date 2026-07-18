@@ -147,10 +147,12 @@ namespace Opc.Ua.Server
         /// <returns>The list of subscriptions in the queue.</returns>
         public IList<ISubscription> Close()
         {
-            var subscriptions = new List<ISubscription>();
+            List<ISubscription> subscriptions;
 
             lock (m_lock)
             {
+                subscriptions = new List<ISubscription>(m_queuedSubscriptions.Count);
+
                 // TraceState("SESSION CLOSED");
 
                 // set any waiting publish requests to Status BadSessionClosed.
