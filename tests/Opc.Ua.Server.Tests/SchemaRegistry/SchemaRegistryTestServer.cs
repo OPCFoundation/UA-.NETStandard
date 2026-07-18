@@ -65,6 +65,12 @@ namespace Opc.Ua.Server.Tests.SchemaRegistry
         /// </summary>
         public const uint SchemaRegistryObject = 62100;
 
+        /// <summary>
+        /// Provisional NodeId of the <c>GetSchema</c> method materialized on the well-known
+        /// <c>SchemaRegistry</c> object.
+        /// </summary>
+        public const uint SchemaRegistryGetSchemaMethod = 62516;
+
         private const string kXRegistryResource =
             "Opc.Ua.Server.Tests.SchemaRegistry.Opc.Ua.XRegistry.NodeSet2.xml";
         private const string kSchemaRegistryResource =

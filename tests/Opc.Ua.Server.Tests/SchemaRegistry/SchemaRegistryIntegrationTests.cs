@@ -199,6 +199,48 @@ namespace Opc.Ua.Server.Tests.SchemaRegistry
         }
 
         /// <summary>
+        /// The well-known <c>SchemaRegistry</c> object must materialize its <c>GetSchema</c>
+        /// method as a concrete Method node (BrowseName <c>GetSchema</c>) attached to it,
+        /// proving the generated NodeSet yields a callable registry - the mandatory
+        /// download fast path (spec §5.1) is present on the well-known instance.
+        /// </summary>
+        [Test]
+        [Order(500)]
+        public async Task WellKnownSchemaRegistryObjectMaterializesGetSchemaMethodAsync()
+        {
+            IServerInternal server = m_server.CurrentInstance;
+            ushort ns = SchemaRegistryNamespaceIndex(server);
+
+            NodeState method = await server.NodeManager
+                .FindNodeInAddressSpaceAsync(new NodeId(SchemaRegistryTestServer.SchemaRegistryGetSchemaMethod, ns))
+                .ConfigureAwait(false);
+
+            Assert.That(method, Is.Not.Null, "The GetSchema method should be materialized in the address space.");
+            Assert.That(method.NodeClass, Is.EqualTo(NodeClass.Method));
+            Assert.That(method.BrowseName.Name, Is.EqualTo("GetSchema"));
+
+            // It must be a component of the well-known SchemaRegistry object.
+            var references = new List<IReference>();
+            method.GetReferences(server.DefaultSystemContext, references);
+
+            bool componentOfRegistry = false;
+            NodeId registryId = new NodeId(SchemaRegistryTestServer.SchemaRegistryObject, ns);
+            foreach (IReference reference in references)
+            {
+                if (reference.ReferenceTypeId == ReferenceTypeIds.HasComponent &&
+                    reference.IsInverse &&
+                    reference.TargetId == registryId)
+                {
+                    componentOfRegistry = true;
+                    break;
+                }
+            }
+
+            Assert.That(componentOfRegistry, Is.True,
+                "The GetSchema method should be an inverse HasComponent of the well-known SchemaRegistry object.");
+        }
+
+        /// <summary>
         /// Returns the server-side namespace index for the Schema Registry companion model.
         /// </summary>
         private static ushort SchemaRegistryNamespaceIndex(IServerInternal server)
