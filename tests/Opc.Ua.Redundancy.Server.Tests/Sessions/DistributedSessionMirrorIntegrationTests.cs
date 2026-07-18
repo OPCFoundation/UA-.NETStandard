@@ -109,7 +109,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(
                 entry.SecurityStateVersion,
                 Is.EqualTo(SharedSessionEntry.CurrentSecurityStateVersion));
-            Assert.That(entry.ClientUserId, Is.EqualTo("Anonymous"));
+            Assert.That(entry.ClientUserId, Is.Null);
+            Assert.That(entry.ClientUserTokenType, Is.EqualTo(UserTokenType.Anonymous));
+            Assert.That(entry.HasActivatedUserIdentity, Is.True);
             Assert.That(
                 entry.OriginalClientChannelCertificate,
                 Is.EqualTo(context.ClientChannelCertificate.ToByteString()));

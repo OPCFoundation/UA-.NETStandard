@@ -111,6 +111,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 loaded.OriginalClientChannelCertificate,
                 Is.EqualTo(entry.OriginalClientChannelCertificate));
             Assert.That(loaded.ClientUserId, Is.EqualTo(entry.ClientUserId));
+            Assert.That(loaded.ClientUserTokenType, Is.EqualTo(entry.ClientUserTokenType));
+            Assert.That(
+                loaded.HasActivatedUserIdentity,
+                Is.EqualTo(entry.HasActivatedUserIdentity));
             Assert.That(
                 loaded.ClientDescription.ApplicationUri,
                 Is.EqualTo(entry.ClientDescription.ApplicationUri));
@@ -215,7 +219,30 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(loaded, Is.Not.Null);
             Assert.That(loaded!.SecurityStateVersion, Is.Zero);
             Assert.That(loaded.OriginalClientChannelCertificate.IsNull, Is.True);
-            Assert.That(loaded.ClientUserId, Is.Empty);
+            Assert.That(loaded.ClientUserId, Is.Null);
+        }
+
+        [Test]
+        public async Task VersionOneEntryDecodesForVersionTolerantFailClosedRestoreAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            var store = new SharedKeyValueSessionStore(kv, m_context);
+            SharedSessionEntry entry = NewEntry("tok-version-one");
+            await kv.SetAsync(
+                SharedKeyValueSessionStore.KeyFor(entry.AuthenticationToken),
+                EncodeVersionOneEntry(entry)).ConfigureAwait(false);
+
+            SharedSessionEntry? loaded = await store
+                .TryGetAsync(entry.AuthenticationToken)
+                .ConfigureAwait(false);
+
+            Assert.That(loaded, Is.Not.Null);
+            Assert.That(loaded!.SecurityStateVersion, Is.EqualTo(1));
+            Assert.That(
+                loaded.OriginalClientChannelCertificate,
+                Is.EqualTo(entry.OriginalClientChannelCertificate));
+            Assert.That(loaded.ClientUserId, Is.EqualTo(entry.ClientUserId));
+            Assert.That(loaded.HasActivatedUserIdentity, Is.False);
         }
 
         [Test]
@@ -286,7 +313,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 ClientCertificateChain = ByteString.From(new byte[] { 5, 6, 7, 8, 9 }),
                 SecurityStateVersion = SharedSessionEntry.CurrentSecurityStateVersion,
                 OriginalClientChannelCertificate = ByteString.From(CreateBytes(64, 5)),
-                ClientUserId = "Anonymous",
+                ClientUserId = "ExactUser",
+                ClientUserTokenType = UserTokenType.UserName,
+                HasActivatedUserIdentity = true,
                 SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256",
                 SecurityMode = (int)MessageSecurityMode.SignAndEncrypt,
                 EndpointUrl = "opc.tcp://localhost:4840",
@@ -304,6 +333,24 @@ namespace Opc.Ua.Server.Tests.Redundancy
         private ByteString EncodeLegacyEntry(SharedSessionEntry entry)
         {
             using var encoder = new BinaryEncoder(m_context);
+            WriteLegacyFields(encoder, entry);
+            return ByteString.From(encoder.CloseAndReturnBuffer());
+        }
+
+        private ByteString EncodeVersionOneEntry(SharedSessionEntry entry)
+        {
+            using var encoder = new BinaryEncoder(m_context);
+            WriteLegacyFields(encoder, entry);
+            encoder.WriteUInt32(null, 1);
+            encoder.WriteByteString(null, entry.OriginalClientChannelCertificate);
+            encoder.WriteString(null, entry.ClientUserId);
+            return ByteString.From(encoder.CloseAndReturnBuffer());
+        }
+
+        private static void WriteLegacyFields(
+            BinaryEncoder encoder,
+            SharedSessionEntry entry)
+        {
             encoder.WriteNodeId(null, entry.SessionId);
             encoder.WriteNodeId(null, entry.AuthenticationToken);
             encoder.WriteString(null, entry.SessionName);
@@ -318,7 +365,6 @@ namespace Opc.Ua.Server.Tests.Redundancy
             encoder.WriteDouble(null, entry.SessionTimeout);
             encoder.WriteEncodeable(null, entry.ClientDescription);
             encoder.WriteByteString(null, entry.SecretMaterial);
-            return ByteString.From(encoder.CloseAndReturnBuffer());
         }
 
         private static byte[] CreateBytes(int length, byte seed)

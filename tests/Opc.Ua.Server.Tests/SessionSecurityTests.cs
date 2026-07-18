@@ -30,6 +30,7 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -71,6 +72,9 @@ namespace Opc.Ua.Server.Tests
             m_server.Setup(s => s.SubscriptionStore).Returns((ISubscriptionStore)null!);
             m_server.Setup(s => s.MessageContext).Returns(
                 ServiceMessageContext.CreateEmpty(m_telemetry));
+            var serverDiagnostics = new ServerDiagnosticsSummaryDataType();
+            m_server.Setup(s => s.DiagnosticsWriteLock).Returns(serverDiagnostics);
+            m_server.Setup(s => s.ServerDiagnostics).Returns(serverDiagnostics);
 
             var diagnostics = new Mock<IDiagnosticsNodeManager>();
             diagnostics
@@ -102,13 +106,16 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public async Task NewChannelWithSameCertificateAndCanonicalClientUserIdSucceedsAsync()
+        public async Task NewChannelWithSameUsernameIgnoresDisplayAliasChangesAsync()
         {
             EndpointDescription endpoint = CreateEndpoint(
                 MessageSecurityMode.SignAndEncrypt,
                 includeUserName: true);
+            int authenticationCount = 0;
             using SecuritySessionManager manager = CreateManager(
-                token => token.DisplayName is "alice" or "alice-alias" ? "Alice" : token.DisplayName);
+                _ => Interlocked.Increment(ref authenticationCount) == 1
+                    ? "First display alias"
+                    : "Second display alias");
             CreatedSession created = await CreateAndActivateAsync(
                 manager,
                 endpoint,
@@ -130,7 +137,7 @@ namespace Opc.Ua.Server.Tests
                 newContext,
                 created.Result.AuthenticationToken,
                 signature,
-                CreateUserNameToken("alice-alias"),
+                CreateUserNameToken("alice"),
                 null,
                 [],
                 default).ConfigureAwait(false);
@@ -176,15 +183,13 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public async Task NewChannelWithDifferentCanonicalClientUserIdIsRejectedAsync()
+        public async Task NewChannelWithDifferentUsernameIsRejectedWhenDisplayAliasMatchesAsync()
         {
             EndpointDescription endpoint = CreateEndpoint(
                 MessageSecurityMode.SignAndEncrypt,
                 includeUserName: true);
             using SecuritySessionManager manager = CreateManager(
-                token => token.DisplayName.Equals("alice", StringComparison.OrdinalIgnoreCase)
-                    ? "Alice"
-                    : token.DisplayName);
+                _ => "Shared display alias");
             CreatedSession created = await CreateAndActivateAsync(
                 manager,
                 endpoint,
@@ -206,7 +211,7 @@ namespace Opc.Ua.Server.Tests
                     newContext,
                     created.Result.AuthenticationToken,
                     signature,
-                    CreateUserNameToken("bob"),
+                    CreateUserNameToken("alice-alias"),
                     null,
                     [],
                     default).ConfigureAwait(false))!;
@@ -215,6 +220,62 @@ namespace Opc.Ua.Server.Tests
                 exception.StatusCode,
                 Is.EqualTo(StatusCodes.BadIdentityChangeNotSupported));
             AssertRequestAcceptedOnOriginalChannel(created);
+        }
+
+        [Test]
+        public void ClientUserIdUsesExactTokenSemantics()
+        {
+            var anonymousToken = new AnonymousIdentityTokenHandler();
+            Assert.That(
+                SessionClientUserId.Get(anonymousToken, new UserIdentity()),
+                Is.Null);
+
+            var userNameToken = new UserNameIdentityTokenHandler("ExactUser", [1, 2, 3]);
+            var aliasedUserName = new UserIdentity(userNameToken)
+            {
+                DisplayName = "Display Alias"
+            };
+            Assert.That(
+                SessionClientUserId.Get(userNameToken, aliasedUserName),
+                Is.EqualTo("ExactUser"));
+
+            var x509Token = new X509IdentityTokenHandler(new X509IdentityToken
+            {
+                CertificateData = m_clientCertificate.RawData.ToByteString()
+            });
+            var aliasedCertificate = new UserIdentity(x509Token)
+            {
+                DisplayName = "Certificate Alias"
+            };
+            Assert.That(
+                SessionClientUserId.Get(x509Token, aliasedCertificate),
+                Is.EqualTo(m_clientCertificate.Subject));
+
+            var issuedToken = new IssuedIdentityTokenHandler(new IssuedIdentityToken
+            {
+                PolicyId = Profiles.JwtUserToken
+            });
+            var jwtIdentity = new JwtUserIdentity(
+                issuedToken,
+                new Dictionary<string, object?>(),
+                [],
+                [],
+                "https://issuer.example/",
+                "subject-42");
+            Assert.That(
+                SessionClientUserId.Get(issuedToken, jwtIdentity),
+                Is.EqualTo("https://issuer.example/subject-42"));
+
+            var jwtWithoutIssuer = new JwtUserIdentity(
+                issuedToken,
+                new Dictionary<string, object?>(),
+                [],
+                [],
+                null,
+                "subject-only");
+            Assert.That(
+                SessionClientUserId.Get(issuedToken, jwtWithoutIssuer),
+                Is.EqualTo("subject-only"));
         }
 
         [Test]
@@ -362,6 +423,194 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task SecuredIdentityCanUsePublicAsyncSessionValidationAsync()
+        {
+            EndpointDescription endpoint = CreateEndpoint(
+                MessageSecurityMode.SignAndEncrypt,
+                includeUserName: true);
+            using SecuritySessionManager manager = CreateManager();
+            CreatedSession created = await CreateSessionAsync(
+                manager,
+                endpoint,
+                "channel-1",
+                m_clientCertificate).ConfigureAwait(false);
+            SignatureData signature = CreateClientSignature(
+                created.Context,
+                created.ClientNonce,
+                created.ServerNonce,
+                m_clientCertificate);
+            ISession session = created.Result.Session;
+
+            (IUserIdentityTokenHandler identityToken, UserTokenPolicy? policy) =
+                await session.ValidateBeforeActivateAsync(
+                    created.Context,
+                    signature,
+                    CreateUserNameToken("alice"),
+                    null!,
+                    default).ConfigureAwait(false);
+
+            Assert.That(identityToken, Is.TypeOf<UserNameIdentityTokenHandler>());
+            Assert.That(policy!.PolicyId, Is.EqualTo(UserNamePolicyId));
+        }
+
+        [Test]
+        public async Task FailedFirstActivationDoesNotPoisonCreateSessionSecurityStateAsync()
+        {
+            EndpointDescription endpoint = CreateEndpoint(MessageSecurityMode.SignAndEncrypt);
+            using SecuritySessionManager manager = CreateManager();
+            CreatedSession created = await CreateSessionAsync(
+                manager,
+                endpoint,
+                "channel-1",
+                m_clientCertificate).ConfigureAwait(false);
+            OperationContext wrongContext = CreateContext(
+                endpoint,
+                "channel-2",
+                m_otherClientCertificate);
+            SignatureData wrongSignature = CreateClientSignature(
+                wrongContext,
+                created.ClientNonce,
+                created.ServerNonce,
+                m_clientCertificate);
+
+            ServiceResultException rejected = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await manager.ActivateSessionAsync(
+                    wrongContext,
+                    created.Result.AuthenticationToken,
+                    wrongSignature,
+                    default,
+                    null,
+                    [],
+                    default).ConfigureAwait(false))!;
+            Assert.That(rejected.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelIdInvalid));
+
+            SignatureData originalSignature = CreateClientSignature(
+                created.Context,
+                created.ClientNonce,
+                created.ServerNonce,
+                m_clientCertificate);
+            (_, ByteString serverNonce, _) = await manager.ActivateSessionAsync(
+                created.Context,
+                created.Result.AuthenticationToken,
+                originalSignature,
+                default,
+                null,
+                [],
+                default).ConfigureAwait(false);
+
+            Assert.That(serverNonce.Length, Is.InRange(32, 128));
+        }
+
+        [Test]
+        public async Task AuthenticationCancellationIsPropagatedAndDoesNotLockOutClientAsync()
+        {
+            EndpointDescription endpoint = CreateEndpoint(MessageSecurityMode.SignAndEncrypt);
+            using SecuritySessionManager manager = CreateManager(
+                maxFailedAuthenticationAttempts: 1);
+            CreatedSession created = await CreateSessionAsync(
+                manager,
+                endpoint,
+                "channel-1",
+                m_clientCertificate).ConfigureAwait(false);
+            SignatureData signature = CreateClientSignature(
+                created.Context,
+                created.ClientNonce,
+                created.ServerNonce,
+                m_clientCertificate);
+            var cancellation = new OperationCanceledException("authentication cancelled");
+            manager.CancelNextAuthentication(cancellation);
+
+            OperationCanceledException propagated = Assert.ThrowsAsync<OperationCanceledException>(
+                async () => await manager.ActivateSessionAsync(
+                    created.Context,
+                    created.Result.AuthenticationToken,
+                    signature,
+                    default,
+                    null,
+                    [],
+                    default).ConfigureAwait(false))!;
+            Assert.That(propagated, Is.SameAs(cancellation));
+
+            (_, ByteString serverNonce, _) = await manager.ActivateSessionAsync(
+                created.Context,
+                created.Result.AuthenticationToken,
+                signature,
+                default,
+                null,
+                [],
+                default).ConfigureAwait(false);
+            Assert.That(serverNonce.Length, Is.InRange(32, 128));
+        }
+
+        [Test]
+        public async Task SessionActivatedCallbackRunsAfterActivationGateIsReleasedAsync()
+        {
+            EndpointDescription endpoint = CreateEndpoint(MessageSecurityMode.SignAndEncrypt);
+            using SecuritySessionManager manager = CreateManager();
+            CreatedSession created = await CreateSessionAsync(
+                manager,
+                endpoint,
+                "channel-1",
+                m_clientCertificate).ConfigureAwait(false);
+            SignatureData signature = CreateClientSignature(
+                created.Context,
+                created.ClientNonce,
+                created.ServerNonce,
+                m_clientCertificate);
+            ValueTask closeOperation = default;
+            bool completedInsideCallback = false;
+            manager.SessionActivated += (session, _) =>
+            {
+                closeOperation = manager.CloseSessionAsync(session.Id);
+                completedInsideCallback = closeOperation.IsCompleted;
+            };
+
+            await manager.ActivateSessionAsync(
+                created.Context,
+                created.Result.AuthenticationToken,
+                signature,
+                default,
+                null,
+                [],
+                default).ConfigureAwait(false);
+            await closeOperation.ConfigureAwait(false);
+
+            Assert.That(completedInsideCallback, Is.True);
+            Assert.That(manager.GetSession(created.Result.AuthenticationToken), Is.Null);
+        }
+
+        [Test]
+        public async Task ActivationCommittedHookRunsAfterActivationGateIsReleasedAsync()
+        {
+            EndpointDescription endpoint = CreateEndpoint(MessageSecurityMode.SignAndEncrypt);
+            using SecuritySessionManager manager = CreateManager();
+            CreatedSession created = await CreateSessionAsync(
+                manager,
+                endpoint,
+                "channel-1",
+                m_clientCertificate).ConfigureAwait(false);
+            SignatureData signature = CreateClientSignature(
+                created.Context,
+                created.ClientNonce,
+                created.ServerNonce,
+                m_clientCertificate);
+            manager.ProbeGateOnNextActivation();
+
+            await manager.ActivateSessionAsync(
+                created.Context,
+                created.Result.AuthenticationToken,
+                signature,
+                default,
+                null,
+                [],
+                default).ConfigureAwait(false);
+            await manager.PendingCallbackOperation.ConfigureAwait(false);
+
+            Assert.That(manager.CallbackObservedReleasedGate, Is.True);
+            Assert.That(manager.GetSession(created.Result.AuthenticationToken), Is.Null);
+        }
+
+        [Test]
         public async Task ConcurrentActivationConsumesServerNonceOnceAsync()
         {
             EndpointDescription endpoint = CreateEndpoint(MessageSecurityMode.SignAndEncrypt);
@@ -418,7 +667,8 @@ namespace Opc.Ua.Server.Tests
         }
 
         private SecuritySessionManager CreateManager(
-            Func<IUserIdentityTokenHandler, string>? canonicalize = null)
+            Func<IUserIdentityTokenHandler, string>? canonicalize = null,
+            int maxFailedAuthenticationAttempts = 0)
         {
             var configuration = new ApplicationConfiguration
             {
@@ -427,6 +677,7 @@ namespace Opc.Ua.Server.Tests
                     MinSessionTimeout = 1000,
                     MaxSessionTimeout = 60_000,
                     MaxSessionCount = 20,
+                    MaxFailedAuthenticationAttempts = maxFailedAuthenticationAttempts,
                     MaxRequestAge = 60_000,
                     MaxBrowseContinuationPoints = 10,
                     MaxHistoryContinuationPoints = 10
@@ -447,6 +698,36 @@ namespace Opc.Ua.Server.Tests
             Certificate clientCertificate,
             ExtensionObject userIdentityToken)
         {
+            CreatedSession created = await CreateSessionAsync(
+                manager,
+                endpoint,
+                channelId,
+                clientCertificate).ConfigureAwait(false);
+            SignatureData signature = CreateClientSignature(
+                created.Context,
+                created.ClientNonce,
+                created.ServerNonce,
+                clientCertificate);
+            (_, ByteString serverNonce, _) = await manager.ActivateSessionAsync(
+                created.Context,
+                created.Result.AuthenticationToken,
+                signature,
+                userIdentityToken,
+                null,
+                [],
+                default).ConfigureAwait(false);
+            return created with
+            {
+                ServerNonce = serverNonce
+            };
+        }
+
+        private async Task<CreatedSession> CreateSessionAsync(
+            SecuritySessionManager manager,
+            EndpointDescription endpoint,
+            string channelId,
+            Certificate clientCertificate)
+        {
             OperationContext context = CreateContext(endpoint, channelId, clientCertificate);
             ByteString clientNonce = ByteString.From(CreateBytes(32, 0x11));
             CreateSessionResult result = await manager.CreateSessionAsync(
@@ -466,20 +747,7 @@ namespace Opc.Ua.Server.Tests
                 60_000,
                 64 * 1024,
                 default).ConfigureAwait(false);
-            SignatureData signature = CreateClientSignature(
-                context,
-                clientNonce,
-                result.ServerNonce,
-                clientCertificate);
-            (_, ByteString serverNonce, _) = await manager.ActivateSessionAsync(
-                context,
-                result.AuthenticationToken,
-                signature,
-                userIdentityToken,
-                null,
-                [],
-                default).ConfigureAwait(false);
-            return new CreatedSession(result, context, clientNonce, serverNonce);
+            return new CreatedSession(result, context, clientNonce, result.ServerNonce);
         }
 
         private SignatureData CreateClientSignature(
@@ -653,6 +921,22 @@ namespace Opc.Ua.Server.Tests
                 Volatile.Write(ref m_pauseNextAuthentication, 1);
             }
 
+            public void CancelNextAuthentication(OperationCanceledException exception)
+            {
+                m_cancellationException = exception ??
+                    throw new ArgumentNullException(nameof(exception));
+            }
+
+            public bool CallbackObservedReleasedGate { get; private set; }
+
+            public Task PendingCallbackOperation { get; private set; } =
+                Task.CompletedTask;
+
+            public void ProbeGateOnNextActivation()
+            {
+                Volatile.Write(ref m_probeGateOnNextActivation, 1);
+            }
+
             protected override async ValueTask<(
                 IUserIdentity? Identity,
                 IUserIdentity? EffectiveIdentity,
@@ -663,6 +947,14 @@ namespace Opc.Ua.Server.Tests
                     EndpointDescription endpointDescription,
                     CancellationToken cancellationToken)
             {
+                OperationCanceledException? cancellation = Interlocked.Exchange(
+                    ref m_cancellationException,
+                    null);
+                if (cancellation != null)
+                {
+                    throw cancellation;
+                }
+
                 if (Interlocked.Exchange(ref m_pauseNextAuthentication, 0) == 1)
                 {
                     m_authenticationEntered!.SetResult(true);
@@ -678,10 +970,31 @@ namespace Opc.Ua.Server.Tests
                 return (identity, identity, null);
             }
 
+            protected override ValueTask OnSessionActivatedAsync(
+                NodeId authenticationToken,
+                ISession session,
+                ByteString serverNonce,
+                UserTokenType clientUserTokenType,
+                string? clientUserId,
+                CancellationToken cancellationToken)
+            {
+                if (Interlocked.Exchange(ref m_probeGateOnNextActivation, 0) == 1)
+                {
+                    ValueTask closeOperation = CloseSessionAsync(
+                        session.Id,
+                        CancellationToken.None);
+                    CallbackObservedReleasedGate = closeOperation.IsCompleted;
+                    PendingCallbackOperation = closeOperation.AsTask();
+                }
+                return default;
+            }
+
             private readonly Func<IUserIdentityTokenHandler, string> m_canonicalize;
             private TaskCompletionSource<bool>? m_authenticationEntered;
             private TaskCompletionSource<bool>? m_releaseAuthentication;
+            private OperationCanceledException? m_cancellationException;
             private int m_pauseNextAuthentication;
+            private int m_probeGateOnNextActivation;
         }
     }
 }

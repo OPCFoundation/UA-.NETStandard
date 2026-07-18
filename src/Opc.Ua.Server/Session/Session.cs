@@ -40,7 +40,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// A generic session manager object for a server.
     /// </summary>
-    public class Session : ISession
+    public class Session : ISession, IAsyncSessionActivationValidator
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="Session"/> class.
@@ -192,12 +192,12 @@ namespace Opc.Ua.Server
             m_securityDiagnostics = new SessionSecurityDiagnosticsDataType
             {
                 SessionId = Id,
-                ClientUserIdOfSession = Identity.DisplayName,
+                ClientUserIdOfSession = null,
                 AuthenticationMechanism = Identity.TokenType.ToString(),
                 Encoding = context.ChannelContext.MessageEncoding.ToString()
             };
             m_securityDiagnostics.ClientUserIdHistory =
-                m_securityDiagnostics.ClientUserIdHistory.AddItem(Identity.DisplayName);
+                m_securityDiagnostics.ClientUserIdHistory.AddItem(null!);
 
             EndpointDescription? description = context.ChannelContext.EndpointDescription;
 
@@ -581,7 +581,8 @@ namespace Opc.Ua.Server
             }
         }
 
-        internal async ValueTask<(
+        /// <inheritdoc/>
+        public async ValueTask<(
             IUserIdentityTokenHandler IdentityToken,
             UserTokenPolicy? UserTokenPolicy)> ValidateBeforeActivateAsync(
                 OperationContext context,
@@ -1187,7 +1188,8 @@ namespace Opc.Ua.Server
                         m_clientIssuerCertificates,
                         ct: cancellationToken).ConfigureAwait(false);
                 }
-                catch (Exception e) when (e is not ServiceResultException)
+                catch (Exception e)
+                    when (e is not ServiceResultException and not OperationCanceledException)
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadIdentityTokenInvalid,
@@ -1301,10 +1303,13 @@ namespace Opc.Ua.Server
                 // update diagnostics.
                 lock (DiagnosticsLock)
                 {
-                    m_securityDiagnostics.ClientUserIdOfSession = identity.DisplayName;
+                    string? clientUserId = SessionClientUserId.Get(
+                        identityToken,
+                        identity);
+                    m_securityDiagnostics.ClientUserIdOfSession = clientUserId;
                     m_securityDiagnostics.AuthenticationMechanism = identity.TokenType.ToString();
                     m_securityDiagnostics.ClientUserIdHistory =
-                        m_securityDiagnostics.ClientUserIdHistory.AddItem(identity.DisplayName);
+                        m_securityDiagnostics.ClientUserIdHistory.AddItem(clientUserId!);
                 }
 
                 return changed;

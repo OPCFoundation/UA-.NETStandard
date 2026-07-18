@@ -131,9 +131,20 @@ namespace Opc.Ua.Redundancy.Server
         public ByteString OriginalClientChannelCertificate { get; init; }
 
         /// <summary>
-        /// The canonical ClientUserId associated with the activated Session.
+        /// The OPC ClientUserId associated with the activated Session. This is
+        /// <c>null</c> for an anonymous identity.
         /// </summary>
-        public string ClientUserId { get; init; } = string.Empty;
+        public string? ClientUserId { get; init; }
+
+        /// <summary>
+        /// The UserIdentityToken type used to derive <see cref="ClientUserId"/>.
+        /// </summary>
+        public UserTokenType ClientUserTokenType { get; init; }
+
+        /// <summary>
+        /// Whether the Session has completed activation and the ClientUserId state is valid.
+        /// </summary>
+        public bool HasActivatedUserIdentity { get; init; }
 
         /// <summary>
         /// Optional opaque, caller-encrypted secret material. May be a null
@@ -144,6 +155,6 @@ namespace Opc.Ua.Redundancy.Server
         /// <summary>
         /// The current persisted Session security state version.
         /// </summary>
-        public const uint CurrentSecurityStateVersion = 1;
+        public const uint CurrentSecurityStateVersion = 2;
     }
 }
