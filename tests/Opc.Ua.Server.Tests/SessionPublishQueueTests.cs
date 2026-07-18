@@ -161,13 +161,17 @@ namespace Opc.Ua.Server.Tests
             subMock.Setup(s => s.Id).Returns(1);
             queue.Add(subMock.Object); // added but not ready, so the request must park
 
+            var sessionMock = new Mock<ISession>();
+            sessionMock.Setup(s => s.Id).Returns(new NodeId(1));
+
             const uint requestHandle = 77;
             using var requestLifetime = new RequestLifetime();
             var context = new OperationContext(
                 new RequestHeader { RequestHandle = requestHandle },
                 null,
                 RequestType.Publish,
-                requestLifetime);
+                requestLifetime,
+                sessionMock.Object);
             requestManager.RequestReceived(context);
 
             var sink = new TestParkSink();
@@ -181,7 +185,7 @@ namespace Opc.Ua.Server.Tests
                 "A parked request releases its processing worker at the park point.");
 
             // A Cancel service call carrying the Publish request handle.
-            requestManager.CancelRequests(requestHandle, out uint cancelCount);
+            requestManager.CancelRequests(context.SessionId, requestHandle, out uint cancelCount);
 
             Assert.That(cancelCount, Is.EqualTo(1), "The Cancel service should match the parked Publish request.");
             Assert.CatchAsync<OperationCanceledException>(() => task);
