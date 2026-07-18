@@ -1127,7 +1127,7 @@ namespace Opc.Ua.Server.Tests
                 .Returns<ByteString>(cpBytes =>
                 {
                     string key = ToContinuationPointKey(cpBytes);
-                    if (continuationPoints.TryGetValue(key, out ContinuationPoint cp))
+                    if (continuationPoints.TryGetValue(key, out ContinuationPoint? cp))
                     {
                         continuationPoints.Remove(key);
                         return cp;
@@ -1152,7 +1152,7 @@ namespace Opc.Ua.Server.Tests
 
         private static string ToContinuationPointKey(ByteString continuationPoint)
         {
-            return System.Convert.ToBase64String(continuationPoint ?? System.Array.Empty<byte>());
+            return System.Convert.ToBase64String(continuationPoint.ToArray());
         }
     }
 }
