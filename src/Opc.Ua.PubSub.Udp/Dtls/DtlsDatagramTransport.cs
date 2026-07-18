@@ -122,6 +122,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         public async ValueTask OpenAsync(CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            ClearAuthenticatedPeer();
             IDtlsContext context = await m_contextFactory.CreateAsync(
                 m_connection,
                 Endpoint,
@@ -167,6 +168,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         {
             IDtlsContext? context = m_context;
             m_context = null;
+            ClearAuthenticatedPeer();
             context?.Dispose();
             await m_innerTransport.CloseAsync(cancellationToken).ConfigureAwait(false);
         }
@@ -190,6 +192,15 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             await foreach (PubSubTransportFrame frame in m_innerTransport.ReceiveAsync(cancellationToken)
                 .ConfigureAwait(false))
             {
+                if (!IsAuthenticatedPeer(frame.SourceEndpoint))
+                {
+                    // RFC 9147 §5.1: without a negotiated connection ID, a
+                    // record from another address is not part of this association.
+                    // Filter before record protection so redirected ciphertext
+                    // cannot consume the authenticated peer's replay sequence.
+                    continue;
+                }
+
                 ReadOnlyMemory<byte> payload;
                 try
                 {
@@ -201,10 +212,6 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                     // RFC 9147 §4.5.2: malformed, forged or replayed application records are
                     // silently dropped so a forged datagram cannot tear down the transport.
                     continue;
-                }
-                if (frame.SourceEndpoint is IPEndPoint authenticatedPeer)
-                {
-                    m_innerTransport.SetAuthenticatedRemoteEndpoint(authenticatedPeer);
                 }
                 yield return new PubSubTransportFrame(
                     payload,
@@ -219,6 +226,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         {
             IDtlsContext? context = m_context;
             m_context = null;
+            ClearAuthenticatedPeer();
             context?.Dispose();
             await m_innerTransport.DisposeAsync().ConfigureAwait(false);
         }
@@ -253,7 +261,50 @@ namespace Opc.Ua.PubSub.Udp.Dtls
 
         void IDtlsAuthenticatedPeerChannel.SetAuthenticatedPeer(IPEndPoint peer)
         {
-            m_innerTransport.SetAuthenticatedRemoteEndpoint(peer);
+            SetAuthenticatedPeer(peer);
+        }
+
+        private bool IsAuthenticatedPeer(IPEndPoint? source)
+        {
+            if (source is null)
+            {
+                return false;
+            }
+
+            lock (m_peerLock)
+            {
+                return m_authenticatedPeer is not null &&
+                    m_authenticatedPeer.Equals(source);
+            }
+        }
+
+        private void SetAuthenticatedPeer(IPEndPoint peer)
+        {
+            if (peer is null)
+            {
+                throw new ArgumentNullException(nameof(peer));
+            }
+
+            lock (m_peerLock)
+            {
+                if (m_authenticatedPeer is not null &&
+                    !m_authenticatedPeer.Equals(peer))
+                {
+                    throw new InvalidOperationException(
+                        "A connection-ID-less DTLS association cannot change its authenticated peer endpoint.");
+                }
+
+                m_authenticatedPeer ??= new IPEndPoint(peer.Address, peer.Port);
+                m_innerTransport.SetAuthenticatedRemoteEndpoint(m_authenticatedPeer);
+            }
+        }
+
+        private void ClearAuthenticatedPeer()
+        {
+            lock (m_peerLock)
+            {
+                m_authenticatedPeer = null;
+            }
         }
 
         /// <summary>
@@ -264,6 +315,8 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         private readonly IDtlsContextFactory m_contextFactory;
         private readonly ITelemetryContext m_telemetry;
         private readonly TimeProvider m_timeProvider;
+        private readonly Lock m_peerLock = new();
         private IDtlsContext? m_context;
+        private IPEndPoint? m_authenticatedPeer;
     }
 }
