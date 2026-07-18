@@ -85,11 +85,51 @@ public ValueTask OpenAsync(CancellationToken ct = default);
 public ValueTask CloseAsync(CancellationToken ct = default);
 ```
 
-`ReverseConnectManager.StartService` / `StopService` / `Dispose` retain
-their public synchronous shape; internally they bridge to async
-`OpenHostsAsync` / `CloseHostsAsync` (snapshot-under-lock,
-await-outside-lock) so the listener-layer work is fully async without
-breaking existing call sites in samples, fluent builders, and tests.
+`ReverseConnectManager` now exposes a fully asynchronous lifecycle:
+
+```csharp
+await manager.StartServiceAsync(configuration, ct);
+await manager.StopServiceAsync(ct);
+await manager.DisposeAsync();
+```
+
+The synchronous `StartService` and `Dispose` APIs remain as `[Obsolete]` compatibility wrappers. They run the async lifecycle on an off-context bridge and may block the caller thread. Replace them with `StartServiceAsync` and `DisposeAsync` (`await using`) when migrating.
+
+The manager validates and prepares a candidate configuration before stopping a working listener. If activation fails after the old listeners stop, it recreates and reopens the previous configuration. Cancellation cleans partially initialized listeners and preserves or restores the previous service.
+
+### `ReverseConnectManager.RegisterWaitingConnection`
+
+```csharp
+// Before (still compiles, now [Obsolete])
+int id = manager.RegisterWaitingConnection(url, serverUri, handler, strategy);
+
+// After
+int id = await manager.RegisterWaitingConnectionAsync(
+    url, serverUri, handler, strategy, ct);
+```
+
+The synchronous `RegisterWaitingConnection` overload is now `[Obsolete]`.
+It is retained for backward compatibility, but in DI-lazy scenarios (where
+the manager was configured with an initial startup and started on first
+use) it must block on an off-context bridge to `EnsureStartedAsync` before
+registering so the configured listeners are bound. Prefer
+`RegisterWaitingConnectionAsync`, which starts the manager without blocking.
+Directly constructed, manually started, or unconfigured managers keep the
+previous registration-only behavior for the synchronous overload.
+
+### Reverse-connect configuration providers
+
+Custom subclasses that previously overrode `OnUpdateConfiguration` should migrate to `IReverseConnectConfigurationProvider`. Providers run asynchronously before any active listener is stopped and may validate, replace, or augment the effective `ReverseConnectClientConfiguration`.
+
+```csharp
+services.AddSingleton<IReverseConnectConfigurationProvider, MyProvider>();
+```
+
+The protected `OnUpdateConfiguration` hooks remain `[Obsolete]` for compatibility and are invoked outside the lifecycle gate. Existing overrides can continue to mutate or reject a candidate while they migrate to the provider model.
+
+### Dependency-injection startup
+
+`AddClient(...)` no longer blocks inside the singleton factory. It registers a hosted service that eagerly invokes `EnsureStartedAsync` when a .NET Generic Host starts. In a plain `ServiceCollection`, `WaitForConnectionAsync` and `RegisterWaitingConnectionAsync` start the manager lazily on first use.
 
 ## Migration steps
 
@@ -103,6 +143,12 @@ breaking existing call sites in samples, fluent builders, and tests.
    `await using var listener = ...`.
 5. **Replace `rotator.CloseChannelsForCertificate(cert)`** with
    `await rotator.CloseChannelsForCertificateAsync(cert)`.
+6. **Replace `manager.StartService(config)`** with
+   `await manager.StartServiceAsync(config, ct)`.
+7. **Replace `manager.RegisterWaitingConnection(...)`** with
+   `await manager.RegisterWaitingConnectionAsync(..., ct)`.
+8. **Replace `manager.Dispose()` / `using`** with
+   `await manager.DisposeAsync()` / `await using`.
 
 ### Custom transport binding implementations
 

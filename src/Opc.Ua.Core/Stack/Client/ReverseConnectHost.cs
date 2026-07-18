@@ -38,7 +38,7 @@ namespace Opc.Ua
     /// <summary>
     /// Reverse Connect Client Host.
     /// </summary>
-    public class ReverseConnectHost
+    public class ReverseConnectHost : IAsyncDisposable
     {
         /// <summary>
         /// Create reverse connect host using a process-local
@@ -224,6 +224,50 @@ namespace Opc.Ua
                     listener.ConnectionStatusChanged -= m_onConnectionStatusChanged;
                 }
             }
+        }
+
+        /// <summary>
+        /// Closes and disposes the underlying transport listener, releasing
+        /// final ownership of it.
+        /// </summary>
+        /// <remarks>
+        /// This is the terminal counterpart to <see cref="CloseAsync"/>: while
+        /// <see cref="CloseAsync"/> only tears the listener down so it can be
+        /// reopened again (a temporary close/reopen during a rollback), this
+        /// method additionally disposes the listener so the host can never be
+        /// reused. It is idempotent - a second call is a no-op - and never
+        /// throws for a close failure (the listener is disposed regardless).
+        /// </remarks>
+        public async ValueTask DisposeAsync()
+        {
+            // Atomically claim ownership of the listener so concurrent (or
+            // repeated) DisposeAsync calls race for it exactly once: the winner
+            // observes the non-null listener and tears it down, every other
+            // caller observes null and is a no-op. A plain read/clear would let
+            // two concurrent callers both observe the same non-null listener and
+            // close/dispose it twice.
+            ITransportListener? listener = Interlocked.Exchange(ref m_listener, null);
+            if (listener == null)
+            {
+                GC.SuppressFinalize(this);
+                return;
+            }
+            try
+            {
+                await listener.CloseAsync().ConfigureAwait(false);
+            }
+            catch (Exception e)
+            {
+                // A close failure must not prevent disposal of the listener.
+                m_logger.ReverseConnectHostLogMessage1(e, Url);
+            }
+            finally
+            {
+                listener.ConnectionWaiting -= m_onConnectionWaiting;
+                listener.ConnectionStatusChanged -= m_onConnectionStatusChanged;
+                await listener.DisposeAsync().ConfigureAwait(false);
+            }
+            GC.SuppressFinalize(this);
         }
 
         private ITransportListener? m_listener;

@@ -333,7 +333,10 @@ namespace Opc.Ua.Client.TestFramework
                 await Task.Delay(100).ConfigureAwait(false);
             }
 
-            ClientFixture?.Dispose();
+            if (ClientFixture != null)
+            {
+                await ClientFixture.DisposeAsync().ConfigureAwait(false);
+            }
 
             try
             {

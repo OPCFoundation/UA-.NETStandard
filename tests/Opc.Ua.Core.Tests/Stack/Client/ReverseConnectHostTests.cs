@@ -256,5 +256,126 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             await host.CloseAsync().ConfigureAwait(false);
             listener.Verify(l => l.CloseAsync(default), Times.Once);
         }
+
+        [Test]
+        public void DisposeAsyncWithoutCreateListenerIsNoOp()
+        {
+            var host = new ReverseConnectHost(m_telemetry);
+
+            Assert.That(
+                async () => await host.DisposeAsync().ConfigureAwait(false),
+                Throws.Nothing);
+        }
+
+        [Test]
+        public async Task DisposeAsyncClosesThenDisposesListenerAsync()
+        {
+            var listener = new Mock<ITransportListener>();
+            listener
+                .Setup(l => l.CloseAsync(It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask));
+            listener
+                .Setup(l => l.DisposeAsync())
+                .Returns(default(ValueTask));
+            var registry = new Mock<ITransportBindingRegistry>();
+            registry
+                .Setup(r => r.CreateListener("opc.test", m_telemetry))
+                .Returns(listener.Object);
+            var host = new ReverseConnectHost(m_telemetry, registry.Object);
+            host.CreateListener(new Uri("opc.test://localhost:4840"), null!, null!);
+
+            await host.DisposeAsync().ConfigureAwait(false);
+
+            listener.Verify(l => l.CloseAsync(It.IsAny<CancellationToken>()), Times.Once);
+            listener.Verify(l => l.DisposeAsync(), Times.Once);
+        }
+
+        [Test]
+        public async Task DisposeAsyncIsIdempotentAsync()
+        {
+            var listener = new Mock<ITransportListener>();
+            listener
+                .Setup(l => l.CloseAsync(It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask));
+            listener
+                .Setup(l => l.DisposeAsync())
+                .Returns(default(ValueTask));
+            var registry = new Mock<ITransportBindingRegistry>();
+            registry
+                .Setup(r => r.CreateListener("opc.test", m_telemetry))
+                .Returns(listener.Object);
+            var host = new ReverseConnectHost(m_telemetry, registry.Object);
+            host.CreateListener(new Uri("opc.test://localhost:4840"), null!, null!);
+
+            await host.DisposeAsync().ConfigureAwait(false);
+            await host.DisposeAsync().ConfigureAwait(false);
+
+            // A second DisposeAsync releases ownership only once, so the
+            // underlying listener is disposed exactly once.
+            listener.Verify(l => l.DisposeAsync(), Times.Once);
+        }
+
+        [Test]
+        public async Task DisposeAsyncDisposesListenerEvenWhenCloseFailsAsync()
+        {
+            var closeError = new InvalidOperationException("close failed");
+            var listener = new Mock<ITransportListener>();
+            listener
+                .Setup(l => l.CloseAsync(It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask(Task.FromException(closeError)));
+            listener
+                .Setup(l => l.DisposeAsync())
+                .Returns(default(ValueTask));
+            var registry = new Mock<ITransportBindingRegistry>();
+            registry
+                .Setup(r => r.CreateListener("opc.test", m_telemetry))
+                .Returns(listener.Object);
+            var host = new ReverseConnectHost(m_telemetry, registry.Object);
+            host.CreateListener(new Uri("opc.test://localhost:4840"), null!, null!);
+
+            // A close failure during disposal must be swallowed and the
+            // listener disposed regardless.
+            Assert.That(
+                async () => await host.DisposeAsync().ConfigureAwait(false),
+                Throws.Nothing);
+            listener.Verify(l => l.DisposeAsync(), Times.Once);
+        }
+
+        [Test]
+        public async Task ConcurrentDisposeAsyncClosesAndDisposesListenerExactlyOnce()
+        {
+            var listener = new Mock<ITransportListener>();
+            listener
+                .Setup(l => l.CloseAsync(It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask));
+            listener
+                .Setup(l => l.DisposeAsync())
+                .Returns(default(ValueTask));
+            var registry = new Mock<ITransportBindingRegistry>();
+            registry
+                .Setup(r => r.CreateListener("opc.test", m_telemetry))
+                .Returns(listener.Object);
+            var host = new ReverseConnectHost(m_telemetry, registry.Object);
+            host.CreateListener(new Uri("opc.test://localhost:4840"), null!, null!);
+
+            // Fan out many concurrent DisposeAsync calls that all start
+            // together. Ownership of the listener is claimed atomically
+            // (Interlocked.Exchange), so exactly one caller tears it down.
+            using var start = new ManualResetEventSlim(false);
+            var disposals = new Task[16];
+            for (int i = 0; i < disposals.Length; i++)
+            {
+                disposals[i] = Task.Run(async () =>
+                {
+                    start.Wait();
+                    await host.DisposeAsync().ConfigureAwait(false);
+                });
+            }
+            start.Set();
+            await Task.WhenAll(disposals).ConfigureAwait(false);
+
+            listener.Verify(l => l.CloseAsync(It.IsAny<CancellationToken>()), Times.Once);
+            listener.Verify(l => l.DisposeAsync(), Times.Once);
+        }
     }
 }
