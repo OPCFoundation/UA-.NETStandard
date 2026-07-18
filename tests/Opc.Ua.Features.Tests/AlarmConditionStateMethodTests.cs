@@ -870,6 +870,21 @@ namespace Opc.Ua.Features.Tests
             Assert.That(result.StatusCode.Code, Is.EqualTo(StatusCodes.BadNotSupported));
         }
 
+        [Test]
+        [TestCase("v1")]
+        [TestCase("v2")]
+        public void OnResetCalledReturnsBadInvalidStateWhenAlarmIsNotLatched(string variant)
+        {
+            TestableAlarm alarm = CreateTestableAlarm();
+            AddTwoStateChild(alarm, BrowseNames.LatchedState, s => alarm.LatchedState = s);
+
+            ServiceResult result = variant == "v1"
+                ? alarm.CallReset(m_context)
+                : alarm.CallReset2(m_context, new LocalizedText("en", "x"));
+
+            Assert.That(result.StatusCode.Code, Is.EqualTo(StatusCodes.BadInvalidState));
+        }
+
         private TestableAlarm CreateResettableAlarm()
         {
             TestableAlarm alarm = CreateTestableAlarm();
