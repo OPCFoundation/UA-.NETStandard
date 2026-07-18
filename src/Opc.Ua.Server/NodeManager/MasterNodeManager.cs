@@ -960,6 +960,13 @@ namespace Opc.Ua.Server
                 return (new ServiceResult(StatusCodes.BadParentNodeIdInvalid), NodeId.Null);
             }
 
+            (object? parentHandle, IAsyncNodeManager? parentOwner) =
+                await GetManagerHandleAsync(parentNodeId, cancellationToken).ConfigureAwait(false);
+            if (parentHandle == null || parentOwner == null)
+            {
+                return (new ServiceResult(StatusCodes.BadParentNodeIdInvalid), NodeId.Null);
+            }
+
             // Routing per spec:
             //   - When RequestedNewNodeId is provided, dispatch to that namespace's
             //     owner (the namespace dictates the responsible NodeManager).
@@ -988,13 +995,6 @@ namespace Opc.Ua.Server
             }
             else
             {
-                (object? parentHandle, IAsyncNodeManager? parentOwner) =
-                    await GetManagerHandleAsync(parentNodeId, cancellationToken).ConfigureAwait(false);
-                if (parentHandle == null || parentOwner == null)
-                {
-                    return (new ServiceResult(StatusCodes.BadParentNodeIdInvalid), NodeId.Null);
-                }
-
                 if (parentOwner.AllowNodeManagement)
                 {
                     nodeManagement = parentOwner;
@@ -1017,9 +1017,22 @@ namespace Opc.Ua.Server
                     : parentNodeId.NamespaceIndex;
             }
 
-            ServiceResult permissionResult = await ValidateAddNodePermissionAsync(
+            ServiceResult permissionResult = await ValidateAddNodeNamespacePermissionAsync(
                 context,
                 targetNamespaceIndex,
+                cancellationToken).ConfigureAwait(false);
+            if (ServiceResult.IsBad(permissionResult))
+            {
+                return (permissionResult, NodeId.Null);
+            }
+
+            permissionResult = await ValidatePermissionsAsync(
+                context,
+                parentOwner,
+                parentHandle,
+                PermissionType.AddReference,
+                null,
+                permissionsOnly: true,
                 cancellationToken).ConfigureAwait(false);
             if (ServiceResult.IsBad(permissionResult))
             {
@@ -1064,11 +1077,13 @@ namespace Opc.Ua.Server
                 return new ServiceResult(StatusCodes.BadUserAccessDenied);
             }
 
-            ServiceResult permissionResult = await ValidateNodeManagementPermissionAsync(
-                owner,
+            ServiceResult permissionResult = await ValidatePermissionsAsync(
                 context,
-                item.NodeId,
+                owner,
+                handle,
                 PermissionType.DeleteNode,
+                null,
+                permissionsOnly: true,
                 cancellationToken).ConfigureAwait(false);
             if (ServiceResult.IsBad(permissionResult))
             {
@@ -1124,45 +1139,72 @@ namespace Opc.Ua.Server
                 return new ServiceResult(StatusCodes.BadUserAccessDenied);
             }
 
-            ServiceResult permissionResult = await ValidateNodeManagementPermissionAsync(
-                sourceOwner,
-                context,
-                item.SourceNodeId,
-                PermissionType.AddReference,
-                cancellationToken).ConfigureAwait(false);
+            (ServiceResult permissionResult, NodeMetadata? sourceMetadata) =
+                await ValidatePermissionsAndGetMetadataAsync(
+                    context,
+                    sourceOwner,
+                    sourceHandle,
+                    PermissionType.AddReference,
+                    null,
+                    permissionsOnly: true,
+                    metadataRequired: true,
+                    cancellationToken).ConfigureAwait(false);
             if (ServiceResult.IsBad(permissionResult))
             {
                 return permissionResult;
             }
 
-            var targetNodeId = ExpandedNodeId.ToNodeId(item.TargetNodeId, Server.NamespaceUris);
+            NodeId targetNodeId = NodeId.Null;
             object? targetHandle = null;
             IAsyncNodeManager? targetOwner = null;
-            if (!targetNodeId.IsNull)
+            NodeMetadata? targetMetadata = null;
+            if (TryGetExplicitLocalTargetNodeId(
+                item.TargetServerUri,
+                item.TargetNodeId,
+                out targetNodeId))
             {
                 (targetHandle, targetOwner) = await GetManagerHandleAsync(
                     targetNodeId,
                     cancellationToken).ConfigureAwait(false);
-
-                if (targetHandle != null && targetOwner != null)
+                if (targetHandle == null || targetOwner == null)
                 {
-                    if (!ReferenceEquals(targetOwner, sourceOwner) &&
-                        !targetOwner.AllowNodeManagement)
-                    {
-                        return new ServiceResult(StatusCodes.BadUserAccessDenied);
-                    }
-
-                    permissionResult = await ValidateNodeManagementPermissionAsync(
-                        targetOwner,
-                        context,
-                        targetNodeId,
-                        PermissionType.AddReference,
-                        cancellationToken).ConfigureAwait(false);
-                    if (ServiceResult.IsBad(permissionResult))
-                    {
-                        return permissionResult;
-                    }
+                    return new ServiceResult(StatusCodes.BadTargetNodeIdInvalid);
                 }
+
+                if (!ReferenceEquals(targetOwner, sourceOwner) &&
+                    !targetOwner.AllowNodeManagement)
+                {
+                    return new ServiceResult(StatusCodes.BadUserAccessDenied);
+                }
+
+                (permissionResult, targetMetadata) =
+                    await ValidatePermissionsAndGetMetadataAsync(
+                        context,
+                        targetOwner,
+                        targetHandle,
+                        PermissionType.AddReference,
+                        null,
+                        permissionsOnly: true,
+                        metadataRequired: true,
+                        cancellationToken).ConfigureAwait(false);
+                if (ServiceResult.IsBad(permissionResult))
+                {
+                    return permissionResult;
+                }
+            }
+
+            bool crossManagerTarget =
+                targetOwner != null &&
+                !ReferenceEquals(targetOwner, sourceOwner);
+            if (crossManagerTarget &&
+                (sourceMetadata == null || sourceMetadata.NodeClass == NodeClass.Unspecified))
+            {
+                return new ServiceResult(StatusCodes.BadSourceNodeIdInvalid);
+            }
+            if (crossManagerTarget &&
+                (targetMetadata == null || targetMetadata.NodeClass == NodeClass.Unspecified))
+            {
+                return new ServiceResult(StatusCodes.BadTargetNodeIdInvalid);
             }
 
             ServiceResult sourceResult;
@@ -1182,24 +1224,22 @@ namespace Opc.Ua.Server
             }
 
             // Write the complementary edge into the target's owning manager when the
-            // target is local. Roll back the source edge if the target mutation fails.
-            if (targetHandle != null &&
-                targetOwner != null &&
-                !ReferenceEquals(targetOwner, sourceOwner))
+            // target is explicitly local. Roll back the source edge if the target mutation fails.
+            if (crossManagerTarget)
             {
                 var inverseItem = new AddReferencesItem
                 {
                     SourceNodeId = targetNodeId,
                     ReferenceTypeId = item.ReferenceTypeId,
                     IsForward = !item.IsForward,
-                    TargetServerUri = item.TargetServerUri,
+                    TargetServerUri = string.Empty,
                     TargetNodeId = item.SourceNodeId,
-                    TargetNodeClass = item.TargetNodeClass
+                    TargetNodeClass = sourceMetadata!.NodeClass
                 };
 
                 try
                 {
-                    ServiceResult inverseResult = await targetOwner.AddReferenceAsync(
+                    ServiceResult inverseResult = await targetOwner!.AddReferenceAsync(
                         context, inverseItem, cancellationToken).ConfigureAwait(false);
                     if (ServiceResult.IsBad(inverseResult))
                     {
@@ -1211,12 +1251,11 @@ namespace Opc.Ua.Server
                         await RollbackAddedReferenceAsync(
                             sourceOwner,
                             context,
-                            item,
-                            cancellationToken).ConfigureAwait(false);
+                            item).ConfigureAwait(false);
                         return inverseResult;
                     }
                 }
-                catch (ServiceResultException ex)
+                catch (Exception ex)
                 {
                     m_logger.AddReferencesFailedToMirrorInverseEdgeRefType2(
                         ex,
@@ -1226,9 +1265,13 @@ namespace Opc.Ua.Server
                     await RollbackAddedReferenceAsync(
                         sourceOwner,
                         context,
-                        item,
-                        cancellationToken).ConfigureAwait(false);
-                    return new ServiceResult(ex);
+                        item).ConfigureAwait(false);
+                    if (ex is ServiceResultException serviceResultException)
+                    {
+                        return new ServiceResult(serviceResultException);
+                    }
+
+                    throw;
                 }
             }
 
@@ -1268,12 +1311,16 @@ namespace Opc.Ua.Server
                 return new ServiceResult(StatusCodes.BadUserAccessDenied);
             }
 
-            ServiceResult permissionResult = await ValidateNodeManagementPermissionAsync(
-                sourceOwner,
-                context,
-                item.SourceNodeId,
-                PermissionType.RemoveReference,
-                cancellationToken).ConfigureAwait(false);
+            (ServiceResult permissionResult, _) =
+                await ValidatePermissionsAndGetMetadataAsync(
+                    context,
+                    sourceOwner,
+                    sourceHandle,
+                    PermissionType.RemoveReference,
+                    null,
+                    permissionsOnly: true,
+                    metadataRequired: true,
+                    cancellationToken).ConfigureAwait(false);
             if (ServiceResult.IsBad(permissionResult))
             {
                 return permissionResult;
@@ -1282,41 +1329,75 @@ namespace Opc.Ua.Server
             NodeId targetNodeId = NodeId.Null;
             object? targetHandle = null;
             IAsyncNodeManager? targetOwner = null;
-            if (item.DeleteBidirectional)
+            NodeMetadata? targetMetadata = null;
+            bool explicitlyLocalTarget =
+                item.DeleteBidirectional &&
+                TryGetExplicitLocalTargetNodeId(
+                    targetServerUri: null,
+                    item.TargetNodeId,
+                    out targetNodeId);
+            if (explicitlyLocalTarget)
             {
-                targetNodeId = ExpandedNodeId.ToNodeId(item.TargetNodeId, Server.NamespaceUris);
-                if (!targetNodeId.IsNull)
+                (targetHandle, targetOwner) = await GetManagerHandleAsync(
+                    targetNodeId,
+                    cancellationToken).ConfigureAwait(false);
+                if (targetHandle == null || targetOwner == null)
                 {
-                    (targetHandle, targetOwner) = await GetManagerHandleAsync(
-                        targetNodeId,
-                        cancellationToken).ConfigureAwait(false);
-
-                    if (targetHandle != null && targetOwner != null)
-                    {
-                        if (!ReferenceEquals(targetOwner, sourceOwner) &&
-                            !targetOwner.AllowNodeManagement)
-                        {
-                            return new ServiceResult(StatusCodes.BadUserAccessDenied);
-                        }
-
-                        permissionResult = await ValidateNodeManagementPermissionAsync(
-                            targetOwner,
-                            context,
-                            targetNodeId,
-                            PermissionType.RemoveReference,
-                            cancellationToken).ConfigureAwait(false);
-                        if (ServiceResult.IsBad(permissionResult))
-                        {
-                            return permissionResult;
-                        }
-                    }
+                    return new ServiceResult(StatusCodes.BadTargetNodeIdInvalid);
                 }
+
+                if (!ReferenceEquals(targetOwner, sourceOwner) &&
+                    !targetOwner.AllowNodeManagement)
+                {
+                    return new ServiceResult(StatusCodes.BadUserAccessDenied);
+                }
+
+                (permissionResult, targetMetadata) =
+                    await ValidatePermissionsAndGetMetadataAsync(
+                        context,
+                        targetOwner,
+                        targetHandle,
+                        PermissionType.RemoveReference,
+                        null,
+                        permissionsOnly: true,
+                        metadataRequired: true,
+                        cancellationToken).ConfigureAwait(false);
+                if (ServiceResult.IsBad(permissionResult))
+                {
+                    return permissionResult;
+                }
+            }
+
+            bool crossManagerTarget =
+                targetOwner != null &&
+                !ReferenceEquals(targetOwner, sourceOwner);
+            if (crossManagerTarget &&
+                (targetMetadata == null || targetMetadata.NodeClass == NodeClass.Unspecified))
+            {
+                return new ServiceResult(StatusCodes.BadTargetNodeIdInvalid);
+            }
+
+            DeleteReferencesItem sourceItem = item;
+            if (item.DeleteBidirectional &&
+                (!explicitlyLocalTarget || crossManagerTarget))
+            {
+                sourceItem = new DeleteReferencesItem
+                {
+                    SourceNodeId = item.SourceNodeId,
+                    ReferenceTypeId = item.ReferenceTypeId,
+                    IsForward = item.IsForward,
+                    TargetNodeId = item.TargetNodeId,
+                    DeleteBidirectional = false
+                };
             }
 
             ServiceResult sourceResult;
             try
             {
-                sourceResult = await sourceOwner.DeleteReferenceAsync(context, item, cancellationToken)
+                sourceResult = await sourceOwner.DeleteReferenceAsync(
+                    context,
+                    sourceItem,
+                    cancellationToken)
                     .ConfigureAwait(false);
             }
             catch (ServiceResultException ex)
@@ -1329,73 +1410,83 @@ namespace Opc.Ua.Server
                 return sourceResult;
             }
 
-            if (!item.DeleteBidirectional)
+            if (!crossManagerTarget)
             {
                 return sourceResult;
             }
 
-            // Cross-manager: remove the complementary edge on the target's owner.
-            if (targetNodeId.IsNull)
+            var inverseItem = new DeleteReferencesItem
             {
-                return sourceResult;
-            }
+                SourceNodeId = targetNodeId,
+                ReferenceTypeId = item.ReferenceTypeId,
+                IsForward = !item.IsForward,
+                TargetNodeId = item.SourceNodeId,
+                DeleteBidirectional = false
+            };
 
-            if (targetHandle != null &&
-                targetOwner != null &&
-                !ReferenceEquals(targetOwner, sourceOwner))
+            try
             {
-                var inverseItem = new DeleteReferencesItem
+                ServiceResult inverseResult = await targetOwner!.DeleteReferenceAsync(
+                    context, inverseItem, cancellationToken).ConfigureAwait(false);
+                if (ServiceResult.IsBad(inverseResult))
                 {
-                    SourceNodeId = targetNodeId,
-                    ReferenceTypeId = item.ReferenceTypeId,
-                    IsForward = !item.IsForward,
-                    TargetNodeId = item.SourceNodeId,
-                    DeleteBidirectional = false
-                };
-
-                try
-                {
-                    ServiceResult inverseResult = await targetOwner.DeleteReferenceAsync(
-                        context, inverseItem, cancellationToken).ConfigureAwait(false);
-                    if (ServiceResult.IsBad(inverseResult))
-                    {
-                        m_logger.DeleteReferencesFailedToMirrorInverseDeleteRefType(
-                            item.ReferenceTypeId,
-                            item.SourceNodeId,
-                            item.TargetNodeId,
-                            inverseResult.StatusCode);
-                        await RollbackDeletedReferenceAsync(
-                            sourceOwner,
-                            context,
-                            item,
-                            cancellationToken).ConfigureAwait(false);
-                        return inverseResult;
-                    }
-                }
-                catch (ServiceResultException ex)
-                {
-                    m_logger.DeleteReferencesFailedToMirrorInverseDeleteRefType2(
-                        ex,
+                    m_logger.DeleteReferencesFailedToMirrorInverseDeleteRefType(
                         item.ReferenceTypeId,
                         item.SourceNodeId,
-                        item.TargetNodeId);
+                        item.TargetNodeId,
+                        inverseResult.StatusCode);
                     await RollbackDeletedReferenceAsync(
                         sourceOwner,
                         context,
                         item,
-                        cancellationToken).ConfigureAwait(false);
-                    return new ServiceResult(ex);
+                        targetMetadata!.NodeClass).ConfigureAwait(false);
+                    return inverseResult;
                 }
+            }
+            catch (Exception ex)
+            {
+                m_logger.DeleteReferencesFailedToMirrorInverseDeleteRefType2(
+                    ex,
+                    item.ReferenceTypeId,
+                    item.SourceNodeId,
+                    item.TargetNodeId);
+                await RollbackDeletedReferenceAsync(
+                    sourceOwner,
+                    context,
+                    item,
+                    targetMetadata!.NodeClass).ConfigureAwait(false);
+                if (ex is ServiceResultException serviceResultException)
+                {
+                    return new ServiceResult(serviceResultException);
+                }
+
+                throw;
             }
 
             return sourceResult;
         }
 
+        private static bool TryGetExplicitLocalTargetNodeId(
+            string? targetServerUri,
+            ExpandedNodeId targetNodeId,
+            out NodeId localNodeId)
+        {
+            if (!string.IsNullOrEmpty(targetServerUri) ||
+                targetNodeId.ServerIndex != 0 ||
+                !string.IsNullOrEmpty(targetNodeId.NamespaceUri))
+            {
+                localNodeId = NodeId.Null;
+                return false;
+            }
+
+            localNodeId = targetNodeId.InnerNodeId;
+            return !localNodeId.IsNull;
+        }
+
         private async ValueTask RollbackAddedReferenceAsync(
             IAsyncNodeManager sourceOwner,
             OperationContext context,
-            AddReferencesItem item,
-            CancellationToken cancellationToken)
+            AddReferencesItem item)
         {
             var rollbackItem = new DeleteReferencesItem
             {
@@ -1406,12 +1497,14 @@ namespace Opc.Ua.Server
                 DeleteBidirectional = false
             };
 
+            using var cleanupCts = new CancellationTokenSource(
+                s_nodeManagementCompensationTimeout);
             try
             {
                 ServiceResult rollbackResult = await sourceOwner.DeleteReferenceAsync(
                     context,
                     rollbackItem,
-                    cancellationToken).ConfigureAwait(false);
+                    cleanupCts.Token).ConfigureAwait(false);
                 if (ServiceResult.IsBad(rollbackResult))
                 {
                     m_logger.AddReferencesRollbackFailed(
@@ -1421,7 +1514,7 @@ namespace Opc.Ua.Server
                         rollbackResult.StatusCode);
                 }
             }
-            catch (ServiceResultException ex)
+            catch (Exception ex)
             {
                 m_logger.AddReferencesRollbackFailed2(
                     ex,
@@ -1435,22 +1528,26 @@ namespace Opc.Ua.Server
             IAsyncNodeManager sourceOwner,
             OperationContext context,
             DeleteReferencesItem item,
-            CancellationToken cancellationToken)
+            NodeClass targetNodeClass)
         {
             var rollbackItem = new AddReferencesItem
             {
                 SourceNodeId = item.SourceNodeId,
                 ReferenceTypeId = item.ReferenceTypeId,
                 IsForward = item.IsForward,
-                TargetNodeId = item.TargetNodeId
+                TargetServerUri = string.Empty,
+                TargetNodeId = item.TargetNodeId,
+                TargetNodeClass = targetNodeClass
             };
 
+            using var cleanupCts = new CancellationTokenSource(
+                s_nodeManagementCompensationTimeout);
             try
             {
                 ServiceResult rollbackResult = await sourceOwner.AddReferenceAsync(
                     context,
                     rollbackItem,
-                    cancellationToken).ConfigureAwait(false);
+                    cleanupCts.Token).ConfigureAwait(false);
                 if (ServiceResult.IsBad(rollbackResult))
                 {
                     m_logger.DeleteReferencesRollbackFailed(
@@ -1460,7 +1557,7 @@ namespace Opc.Ua.Server
                         rollbackResult.StatusCode);
                 }
             }
-            catch (ServiceResultException ex)
+            catch (Exception ex)
             {
                 m_logger.DeleteReferencesRollbackFailed2(
                     ex,
@@ -1470,7 +1567,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        private async ValueTask<ServiceResult> ValidateAddNodePermissionAsync(
+        private async ValueTask<ServiceResult> ValidateAddNodeNamespacePermissionAsync(
             OperationContext context,
             ushort namespaceIndex,
             CancellationToken cancellationToken)
@@ -1493,45 +1590,27 @@ namespace Opc.Ua.Server
 
                 var metadata = new NodeMetadata(
                     namespaceMetadata,
-                    new NodeId(0u, namespaceIndex))
+                    new NodeId(0u, namespaceIndex));
+
+                if (namespaceMetadata.DefaultAccessRestrictions != null)
                 {
-                    DefaultRolePermissions =
-                        namespaceMetadata.DefaultRolePermissions?.Value ?? default,
-                    DefaultUserRolePermissions =
-                        namespaceMetadata.DefaultUserRolePermissions?.Value ?? default
-                };
+                    metadata.DefaultAccessRestrictions =
+                        (AccessRestrictionType)namespaceMetadata.DefaultAccessRestrictions.Value;
+                }
 
-                return ValidateRolePermissions(
-                    context,
-                    metadata,
-                    PermissionType.AddNode,
-                    m_logger);
-            }
-            catch (ServiceResultException ex)
-            {
-                return new ServiceResult(ex);
-            }
-        }
+                if (namespaceMetadata.DefaultRolePermissions != null)
+                {
+                    metadata.DefaultRolePermissions =
+                        namespaceMetadata.DefaultRolePermissions.Value;
+                }
 
-        private static async ValueTask<ServiceResult> ValidateNodeManagementPermissionAsync(
-            IAsyncNodeManager nodeManager,
-            OperationContext context,
-            NodeId nodeId,
-            PermissionType permission,
-            CancellationToken cancellationToken)
-        {
-            if (context.Session == null)
-            {
-                return StatusCodes.Good;
-            }
+                if (namespaceMetadata.DefaultUserRolePermissions != null)
+                {
+                    metadata.DefaultUserRolePermissions =
+                        namespaceMetadata.DefaultUserRolePermissions.Value;
+                }
 
-            try
-            {
-                return await nodeManager.ValidateRolePermissionsAsync(
-                    context,
-                    nodeId,
-                    permission,
-                    cancellationToken).ConfigureAwait(false);
+                return ValidatePermissionMetadata(context, metadata, PermissionType.AddNode);
             }
             catch (ServiceResultException ex)
             {
@@ -4672,48 +4751,85 @@ namespace Opc.Ua.Server
             bool permissionsOnly = false,
             CancellationToken cancellationToken = default)
         {
-            ServiceResult serviceResult = StatusCodes.Good;
+            (ServiceResult result, _) = await ValidatePermissionsAndGetMetadataAsync(
+                context,
+                nodeManager,
+                nodeHandle,
+                requestedPermision,
+                uniqueNodesServiceAttributes,
+                permissionsOnly,
+                metadataRequired: false,
+                cancellationToken).ConfigureAwait(false);
+            return result;
+        }
 
-            // check if validation is necessary
-            if (context.Session != null && nodeManager != null && nodeHandle != null)
+        private async ValueTask<(ServiceResult result, NodeMetadata? metadata)>
+            ValidatePermissionsAndGetMetadataAsync(
+                OperationContext context,
+                IAsyncNodeManager? nodeManager,
+                object? nodeHandle,
+                PermissionType requestedPermission,
+                Dictionary<NodeId, Variant[]>? uniqueNodesServiceAttributes,
+                bool permissionsOnly,
+                bool metadataRequired,
+                CancellationToken cancellationToken)
+        {
+            if (nodeManager == null ||
+                nodeHandle == null ||
+                (context.Session == null && !metadataRequired))
             {
-                // First attempt to retrieve just the Permission metadata with or without cache optimization
-                // If it happens that nodemanager does not fully implement GetPermissionMetadata,
-                // fallback to GetNodeMetadataAsync
-                NodeMetadata? nodeMetadata = await nodeManager!.GetPermissionMetadataAsync(context,
-                            nodeHandle,
-                            BrowseResultMask.NodeClass,
-                            uniqueNodesServiceAttributes!,
-                            permissionsOnly,
-                            cancellationToken)
-                    .ConfigureAwait(false);
+                return (StatusCodes.Good, null);
+            }
 
-                // If not INodeManager2 or GetPermissionMetadata() returns null.
-                nodeMetadata ??= await nodeManager.GetNodeMetadataAsync(
+            // First attempt to retrieve just the Permission metadata with or without cache optimization
+            // If it happens that nodemanager does not fully implement GetPermissionMetadata,
+            // fallback to GetNodeMetadataAsync
+            NodeMetadata? nodeMetadata = await nodeManager.GetPermissionMetadataAsync(
+                    context,
+                    nodeHandle,
+                    BrowseResultMask.NodeClass,
+                    uniqueNodesServiceAttributes!,
+                    permissionsOnly,
+                    cancellationToken)
+                .ConfigureAwait(false);
+
+            // If GetPermissionMetadataAsync returns null, or a caller needs a NodeClass
+            // that the optimized metadata path did not populate, read the full metadata.
+            if (nodeMetadata == null ||
+                (metadataRequired && nodeMetadata.NodeClass == NodeClass.Unspecified))
+            {
+                NodeMetadata? fullMetadata = await nodeManager.GetNodeMetadataAsync(
                         context,
                         nodeHandle,
                         BrowseResultMask.NodeClass,
                         cancellationToken)
                     .ConfigureAwait(false);
-
-                if (nodeMetadata != null)
-                {
-                    // check RolePermissions
-                    serviceResult = ValidateRolePermissions(
-                        context,
-                        nodeMetadata,
-                        requestedPermision,
-                        m_logger);
-
-                    if (ServiceResult.IsGood(serviceResult))
-                    {
-                        // check AccessRestrictions
-                        serviceResult = ValidateAccessRestrictions(context, nodeMetadata);
-                    }
-                }
+                nodeMetadata = fullMetadata ?? nodeMetadata;
             }
 
-            return serviceResult;
+            if (nodeMetadata == null || context.Session == null)
+            {
+                return (StatusCodes.Good, nodeMetadata);
+            }
+
+            return (
+                ValidatePermissionMetadata(context, nodeMetadata, requestedPermission),
+                nodeMetadata);
+        }
+
+        private ServiceResult ValidatePermissionMetadata(
+            OperationContext context,
+            NodeMetadata nodeMetadata,
+            PermissionType requestedPermission)
+        {
+            ServiceResult result = ValidateRolePermissions(
+                context,
+                nodeMetadata,
+                requestedPermission,
+                m_logger);
+            return ServiceResult.IsGood(result)
+                ? ValidateAccessRestrictions(context, nodeMetadata)
+                : result;
         }
 
         /// <summary>
@@ -4947,6 +5063,8 @@ namespace Opc.Ua.Server
                 nodeMetadata.NodeId);
         }
 
+        private static readonly TimeSpan s_nodeManagementCompensationTimeout =
+            TimeSpan.FromSeconds(5);
         private readonly ILogger m_logger;
         private readonly SemaphoreSlim m_startupShutdownSemaphoreSlim = new(1, 1);
         private readonly List<IAsyncNodeManager> m_nodeManagers;

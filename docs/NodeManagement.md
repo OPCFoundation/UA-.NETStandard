@@ -26,9 +26,10 @@ override the four `StandardServer` service methods themselves.
    and source for reference changes)
    and validates the matching `PermissionType` before asking it to
    perform the work via the optional `INodeManagementAsyncNodeManager`
-   interface. `AddNode` is evaluated against the target namespace's
-   default permissions; the other permissions are evaluated on the
-   affected Node.
+   interface. `AddNodes` requires `AddNode` in the target namespace's
+   default policy and `AddReference` on the parent. Every Node permission
+   is evaluated together with the Node's applicable
+   `AccessRestrictions`.
 4. The aggregated per-item results are wrapped in the matching response
    envelope and the audit event (`AuditAddNodesEvent`,
    `AuditDeleteNodesEvent`, `AuditAddReferencesEvent`,
@@ -101,12 +102,15 @@ use it as the working example.
   NodeManager that has opted in to NodeManagement.
 - **DeleteNodes**: routed to the owning NodeManager of the target node.
 - **AddReferences / DeleteReferences**: routed to the source node's
-  owning NodeManager. When the target node lives in a different
-  NodeManager that has also opted in, the dispatcher mirrors the
-  complementary (inverse) edge on the target's owning NodeManager.
-  Permissions for both local endpoints are checked before either side
-  is changed. If the inverse mutation fails, the source mutation is
-  rolled back and the target-side failure is returned.
+  owning NodeManager. Target-side validation and inverse mutation occur
+  only when the target is explicitly local: `targetServerUri` is empty,
+  and the `ExpandedNodeId` has neither a server index nor namespace URI.
+  When that target lives in a different opted-in NodeManager, the
+  dispatcher resolves the actual source and target `NodeClass`, checks
+  both local endpoints before mutation, and mirrors the complementary
+  edge. If the inverse mutation fails or is cancelled, the source
+  mutation is compensated with an independent bounded cleanup token
+  before the original failure is returned or rethrown.
 
 ## Request handling on `AsyncCustomNodeManager`
 
@@ -120,7 +124,7 @@ The default implementation honors the following request fields:
 | `ReferenceTypeId` | Must be a `HierarchicalReferences` subtype. |
 | `NodeAttributes` | Optional `VariableAttributes` / `ObjectAttributes` are applied to the new node (`DisplayName`, `Description`, `DataType`, `ValueRank`, `AccessLevel`, `UserAccessLevel`, `Historizing`, `MinimumSamplingInterval`, `Value`, `EventNotifier`). |
 | `DeleteTargetReferences` | When true, `DeleteNodes` also removes references on other NodeManagers that target the deleted node. |
-| `DeleteBidirectional` | When true on `DeleteReferences`, the inverse edge on the target's owning NodeManager is also deleted. |
+| `DeleteBidirectional` | When true on `DeleteReferences`, the inverse edge is also deleted only for an explicitly local target. Remote targets remain source-side operations. |
 
 ## Error codes returned
 
@@ -136,6 +140,7 @@ The default implementation honors the following request fields:
 | AddNodes | `BadNodeClassInvalid` | Only `Object` and `Variable` are supported by the default implementation. |
 | AddNodes | `BadNodeAttributesInvalid` | The supplied attributes extension object does not match the node class. |
 | AddNodes / DeleteNodes / AddReferences / DeleteReferences | `BadUserAccessDenied` | The owning NodeManager has not opted in to NodeManagement or the Session lacks `AddNode`, `DeleteNode`, `AddReference`, or `RemoveReference` permission. |
+| AddNodes / DeleteNodes / AddReferences / DeleteReferences | `BadSecurityModeInsufficient` | An applicable namespace, parent, source, or local target `AccessRestrictions` policy requires a stronger SecureChannel. |
 | DeleteNodes | `BadNodeIdInvalid` / `BadNodeIdUnknown` | The node to delete is null or unknown. |
 | AddReferences | `BadSourceNodeIdInvalid` | Source is null or unknown to this NodeManager. |
 | AddReferences | `BadTargetNodeIdInvalid` | Target is null. |
