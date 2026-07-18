@@ -139,6 +139,47 @@ function Invoke-DotNet
     }
 }
 
+function Get-MSBuildProperty
+{
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $ProjectPath,
+
+        [Parameter(Mandatory = $true)]
+        [string] $Configuration,
+
+        [Parameter(Mandatory = $true)]
+        [string] $PropertyName
+    )
+
+    $output = & dotnet msbuild $ProjectPath `
+        "-getProperty:$PropertyName" `
+        "-p:Configuration=$Configuration" `
+        -nologo
+    if ($LASTEXITCODE -ne 0)
+    {
+        throw "Could not read MSBuild property '$PropertyName' from '$ProjectPath'."
+    }
+
+    return [string]($output |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+        Select-Object -Last 1).Trim()
+}
+
+function Test-ConfigurationPackageIds
+{
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $ProjectPath
+    )
+
+    $releaseId = Get-MSBuildProperty $ProjectPath "Release" "PackageId"
+    $debugId = Get-MSBuildProperty $ProjectPath "Debug" "PackageId"
+    Assert-Condition (
+        $debugId -eq "$releaseId.Debug"
+    ) "Debug package '$debugId' must use the release ID '$releaseId' with a '.Debug' suffix."
+}
+
 function Test-CleanConsumer
 {
     param(
@@ -213,6 +254,10 @@ $resolvedPackageDirectory = (Resolve-Path $PackageDirectory).Path
 $PackageDirectory = $resolvedPackageDirectory
 $repoRoot = Split-Path $PSScriptRoot -Parent
 $validationRoot = Join-Path $repoRoot "artifacts\source-generator-consumer"
+Test-ConfigurationPackageIds (
+    Join-Path $repoRoot "tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj")
+Test-ConfigurationPackageIds (
+    Join-Path $repoRoot "tools\Opc.Ua.SourceGeneration.Stack\Opc.Ua.SourceGeneration.Stack.csproj")
 $modelPackage = Get-PackageInfo "OPCFoundation.NetStandard.Opc.Ua.SourceGeneration"
 $stackPackage = Get-PackageInfo "OPCFoundation.NetStandard.Opc.Ua.SourceGeneration.Stack"
 
