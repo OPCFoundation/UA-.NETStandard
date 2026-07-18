@@ -102,6 +102,7 @@ namespace Opc.Ua.Server.Tests.SchemaRegistry
             AddNodeManager(new RuntimeNodeSetNodeManagerFactory(options));
             AddNodeManager(new SchemaRegistryFastPathNodeManagerFactory());
             AddNodeManager(new SchemaRegistryRegistrationNodeManagerFactory());
+            AddNodeManager(new SchemaRegistryFederationNodeManagerFactory());
         }
 
         private static Stream OpenResource(string name)

@@ -563,6 +563,65 @@ namespace Opc.Ua.Server.Tests.SchemaRegistry
         }
 
         /// <summary>
+        /// Proves the federation model (spec Annex B / §4.3): a schema hosted by another registry
+        /// is represented by a local proxy carrying an <c>ExternalReference</c> (an
+        /// <see cref="ExpandedNodeId"/> naming the remote server via <c>ServerIndex</c>, plus the
+        /// remote <c>NamespaceUri</c> + content-addressed <c>Identifier</c>) and a
+        /// <c>ResourceUrl</c>. Because <c>SchemaId</c> is content-derived it is stable across
+        /// registries: the proxy's SchemaId equals the fingerprint a consumer computes for the
+        /// same document, so the federated schema de-duplicates to one identity.
+        /// </summary>
+        [Test]
+        [Order(1100)]
+        public async Task FederatedProxyCarriesExternalReferenceAndDedupsBySchemaIdAsync()
+        {
+            IServerInternal server = m_server.CurrentInstance;
+            ushort ns = SchemaRegistryNamespaceIndex(server);
+
+            Variant externalReferenceValue = await ReadVariantAsync(
+                server, SchemaRegistryFederationNodeManager.ExternalReferenceProperty, ns)
+                .ConfigureAwait(false);
+            Variant resourceUrlValue = await ReadVariantAsync(
+                server, SchemaRegistryFederationNodeManager.ResourceUrlProperty, ns)
+                .ConfigureAwait(false);
+            Variant schemaIdValue = await ReadVariantAsync(
+                server, SchemaRegistryFederationNodeManager.SchemaIdProperty, ns)
+                .ConfigureAwait(false);
+
+            externalReferenceValue.TryGetValue(out ExpandedNodeId externalReference);
+            resourceUrlValue.TryGetValue(out string resourceUrl);
+            schemaIdValue.TryGetValue(out ByteString proxySchemaId);
+
+            // De-dup by SchemaId: the proxy's identity is the content fingerprint a consumer
+            // would compute for the same document (§4.3, Annex B step 4).
+            byte[] expected;
+#pragma warning disable UA_NETStandard_Encoders // pluggable per-format fingerprint provider (§6.6)
+            expected = SchemaIdProviders.ComputeSchemaId(
+                "avro", SchemaRegistryFederationNodeManager.FederatedDocument);
+#pragma warning restore UA_NETStandard_Encoders
+
+            Assert.Multiple(() =>
+            {
+                // The federation link names the remote OPC UA registry and the remote schema node.
+                Assert.That(externalReference.ServerIndex,
+                    Is.EqualTo(SchemaRegistryFederationNodeManager.RemoteServerIndex),
+                    "ExternalReference.ServerIndex names the remote server via the ServerArray.");
+                Assert.That(externalReference.NamespaceUri,
+                    Is.EqualTo(SchemaRegistryFederationNodeManager.RemoteRegistryNamespaceUri),
+                    "ExternalReference.NamespaceUri is the remote registry namespace.");
+                Assert.That(resourceUrl,
+                    Is.EqualTo(SchemaRegistryFederationNodeManager.RemoteEndpointUrl),
+                    "ResourceUrl carries the remote endpoint in string form.");
+
+                Assert.That(proxySchemaId, Is.EqualTo(ByteString.From(expected)),
+                    "The proxy's SchemaId is the content fingerprint — stable across registries.");
+                // Cross-registry identity: the remote node is content-addressed by the same SchemaId.
+                Assert.That(externalReference.InnerNodeId, Is.EqualTo(new NodeId(proxySchemaId)),
+                    "The ExternalReference targets the remote node keyed by the same SchemaId.");
+            });
+        }
+
+        /// <summary>
         /// Returns the server-side namespace index for the Schema Registry companion model.
         /// </summary>
         private static ushort SchemaRegistryNamespaceIndex(IServerInternal server)
@@ -584,6 +643,21 @@ namespace Opc.Ua.Server.Tests.SchemaRegistry
             var method = node as MethodState;
             Assert.That(method, Is.Not.Null, $"Registration method {id} should be a MethodState.");
             return method!;
+        }
+
+        /// <summary>
+        /// Reads the Value of a Variable node identified by its provisional NodeId.
+        /// </summary>
+        private static async Task<Variant> ReadVariantAsync(
+            IServerInternal server, uint id, ushort ns)
+        {
+            NodeState node = await server.NodeManager
+                .FindNodeInAddressSpaceAsync(new NodeId(id, ns))
+                .ConfigureAwait(false);
+
+            var variable = node as BaseVariableState;
+            Assert.That(variable, Is.Not.Null, $"Node {id} should be a Variable.");
+            return variable!.Value;
         }
     }
 }
