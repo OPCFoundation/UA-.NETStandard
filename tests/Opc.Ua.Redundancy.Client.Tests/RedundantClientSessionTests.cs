@@ -162,6 +162,49 @@ namespace Opc.Ua.Client.Redundancy.Tests
         }
 
         [Test]
+        public async Task OlderConcurrentRefreshCannotReplaceNewerObservedSessionAsync()
+        {
+            using var store = new InMemorySharedKeyValueStore();
+            var coordinator = new ClientReplicaCoordinator(
+                new ClientReplicaOptions { CreateSessionAsync = _ => default },
+                new StaticLeaderElection(true),
+                store,
+                NullRecordProtector.Instance,
+                m_telemetry);
+            var first = new Mock<ISession>();
+            var second = new Mock<ISession>();
+            ISession? current = first.Object;
+            using var staleObserved = new ManualResetEventSlim();
+            using var releaseStale = new ManualResetEventSlim();
+            int blockNextRefresh = 0;
+            ISession? AccessCurrent()
+            {
+                ISession? observed = current;
+                if (Interlocked.Exchange(ref blockNextRefresh, 0) == 1)
+                {
+                    staleObserved.Set();
+                    if (!releaseStale.Wait(TimeSpan.FromSeconds(10)))
+                    {
+                        throw new TimeoutException("The stale refresh was not released.");
+                    }
+                }
+                return observed;
+            }
+
+            await using var facade = new RedundantClientSession(coordinator, AccessCurrent);
+            Volatile.Write(ref blockNextRefresh, 1);
+            Task staleRefresh = Task.Run(facade.RefreshActiveSessionForTesting);
+            Assert.That(staleObserved.Wait(TimeSpan.FromSeconds(10)), Is.True);
+
+            current = second.Object;
+            facade.RefreshActiveSessionForTesting();
+            releaseStale.Set();
+            await staleRefresh.ConfigureAwait(false);
+
+            Assert.That(facade.Current, Is.SameAs(second.Object));
+        }
+
+        [Test]
         public async Task SyncMemberThrowsBadInvalidStateBeforeLeadershipAsync()
         {
             using var store = new InMemorySharedKeyValueStore();

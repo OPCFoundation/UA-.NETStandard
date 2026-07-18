@@ -36,9 +36,11 @@
 #pragma warning disable CA2007
 
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Net;
 using System.Net.Http;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -175,6 +177,59 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
             Assert.That(await election.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.True);
             Assert.That(await election.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.False);
             Assert.That(election.IsLeader, Is.False);
+        }
+
+        [Test]
+        public async Task DisposeSuppressesQueuedStaleTrueNotificationAsync()
+        {
+            Mock<IKubernetesApiClient> api = NewApi();
+            api.SetupSequence(x => x.GetLeaseAsync("ns", "opcua", It.IsAny<CancellationToken>()))
+                .ReturnsAsync((KubernetesLease?)null)
+                .ReturnsAsync((KubernetesLease?)null);
+            api.Setup(x => x.CreateLeaseAsync("ns", It.IsAny<KubernetesLease>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync((string _, KubernetesLease lease, CancellationToken _) => lease);
+            var election = new KubernetesLeaseLeaderElection(
+                api.Object,
+                NewOptions(),
+                new FakeTimeProvider(ParseUtc("2026-01-01T00:00:00Z")));
+            var notifications = new List<bool>();
+            var notificationsLock = new Lock();
+            election.LeadershipChanged += value =>
+            {
+                lock (notificationsLock)
+                {
+                    notifications.Add(value);
+                }
+            };
+            FieldInfo? notificationLockField = typeof(KubernetesLeaseLeaderElection).GetField(
+                "m_notificationLock",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(notificationLockField, Is.Not.Null);
+            var notificationLock = (Lock)notificationLockField!.GetValue(election)!;
+
+            Task<bool> acquireTask;
+            Task disposeTask;
+            lock (notificationLock)
+            {
+                acquireTask = Task.Run(
+                    async () => await election.TryAcquireOrRenewAsync().ConfigureAwait(false));
+                Assert.That(
+                    SpinWait.SpinUntil(() => election.IsLeader, TimeSpan.FromSeconds(10)),
+                    Is.True);
+                disposeTask = Task.Run(
+                    async () => await election.DisposeAsync().ConfigureAwait(false));
+                Assert.That(
+                    SpinWait.SpinUntil(() => !election.IsLeader, TimeSpan.FromSeconds(10)),
+                    Is.True);
+            }
+
+            Assert.That(await acquireTask.ConfigureAwait(false), Is.True);
+            await disposeTask.ConfigureAwait(false);
+            lock (notificationsLock)
+            {
+                Assert.That(notifications, Has.Count.EqualTo(1));
+                Assert.That(notifications[0], Is.False);
+            }
         }
 
         [Test]

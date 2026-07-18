@@ -98,6 +98,35 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         [Test]
+        public async Task RestoreUsesOnlyCommittedGenerationDuringConcurrentSnapshotsAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            var blockedBackend = new BlockingManifestCommitStore(kv);
+            var firstWriter = new SharedKeyValueSubscriptionStore(blockedBackend, CreateContext());
+            Task firstCommit = firstWriter
+                .StoreSubscriptionsAsync([NewSubscription(225, 22)])
+                .AsTask();
+            await blockedBackend.WaitForBlockedManifestAsync().ConfigureAwait(false);
+
+            var secondBackend = new AsyncSharedKeyValueStore(kv);
+            var secondWriter = new SharedKeyValueSubscriptionStore(secondBackend, CreateContext());
+            await secondWriter
+                .StoreSubscriptionsAsync([NewSubscription(226, 23)])
+                .ConfigureAwait(false);
+            var readerBackend = new AsyncSharedKeyValueStore(kv);
+            var reader = new SharedKeyValueSubscriptionStore(readerBackend, CreateContext());
+
+            RestoreSubscriptionResult secondResult = await reader.RestoreSubscriptionsAsync().ConfigureAwait(false);
+            Assert.That(secondResult.Subscriptions!.Select(subscription => subscription.Id), Is.EqualTo(new uint[] { 226 }));
+
+            blockedBackend.ReleaseManifest();
+            await firstCommit.ConfigureAwait(false);
+            RestoreSubscriptionResult firstResult = await reader.RestoreSubscriptionsAsync().ConfigureAwait(false);
+
+            Assert.That(firstResult.Subscriptions!.Select(subscription => subscription.Id), Is.EqualTo(new uint[] { 225 }));
+        }
+
+        [Test]
         public async Task RestoreLoadsPersistedDefinitionsAfterProcessRestartAsync()
         {
             using var kv = new InMemorySharedKeyValueStore();
@@ -118,15 +147,50 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public async Task EmptyPersistedSnapshotClearsCachedDefinitionsAsync()
         {
             using var kv = new InMemorySharedKeyValueStore();
-            SharedKeyValueSubscriptionStore store = CreateStore(kv);
-            await store.StoreSubscriptionsAsync([NewSubscription(275, 27)]).ConfigureAwait(false);
-            await kv.DeleteAsync(SharedKeyValueSubscriptionStore.KeyFor(275)).ConfigureAwait(false);
+            SharedKeyValueSubscriptionStore legacyEncoder = CreateStore(kv);
+            StoredSubscription stale = NewSubscription(275, 27);
+            await kv
+                .SetAsync(
+                    SharedKeyValueSubscriptionStore.KeyFor(stale.Id),
+                    EncodeDefinition(legacyEncoder, stale))
+                .ConfigureAwait(false);
+            var restartedBackend = new AsyncSharedKeyValueStore(kv);
+            var restarted = new SharedKeyValueSubscriptionStore(restartedBackend, CreateContext());
+            await restarted.StoreSubscriptionsAsync([]).ConfigureAwait(false);
 
-            RestoreSubscriptionResult result = await store.RestoreSubscriptionsAsync().ConfigureAwait(false);
+            RestoreSubscriptionResult result = await restarted.RestoreSubscriptionsAsync().ConfigureAwait(false);
+            (bool foundLegacy, _) = await kv
+                .TryGetAsync(SharedKeyValueSubscriptionStore.KeyFor(stale.Id))
+                .ConfigureAwait(false);
+            (bool foundManifest, _) = await kv
+                .TryGetAsync(SharedKeyValueSubscriptionStore.SnapshotManifestKey())
+                .ConfigureAwait(false);
 
             Assert.That(result.Success, Is.True);
             Assert.That(result.Subscriptions, Is.Empty);
-            Assert.That(GetCachedSubscriptionIds(store), Is.Empty);
+            Assert.That(foundLegacy, Is.True);
+            Assert.That(foundManifest, Is.True);
+            Assert.That(GetCachedSubscriptionIds(restarted), Is.Empty);
+        }
+
+        [Test]
+        public async Task RestoreReadsLegacyDefinitionsWhenManifestIsAbsentAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            SharedKeyValueSubscriptionStore legacyEncoder = CreateStore(kv);
+            StoredSubscription expected = NewSubscription(276, 28);
+            await kv
+                .SetAsync(
+                    SharedKeyValueSubscriptionStore.KeyFor(expected.Id),
+                    EncodeDefinition(legacyEncoder, expected))
+                .ConfigureAwait(false);
+
+            var restartedBackend = new AsyncSharedKeyValueStore(kv);
+            var restarted = new SharedKeyValueSubscriptionStore(restartedBackend, CreateContext());
+            RestoreSubscriptionResult result = await restarted.RestoreSubscriptionsAsync().ConfigureAwait(false);
+
+            var actual = (StoredSubscription)result.Subscriptions!.Single();
+            AssertSubscription(actual, expected);
         }
 
         [Test]
@@ -138,9 +202,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
             StoredSubscription subscription = NewSubscription(300, 30);
             await store.StoreSubscriptionsAsync([subscription]).ConfigureAwait(false);
 
-            await kv.SetAsync(
-                SharedKeyValueSubscriptionStore.KeyFor(subscription.Id),
-                ByteString.From(new byte[] { 1, 2, 3, 4, 5 })).ConfigureAwait(false);
+            KeyValuePair<string, ByteString> record = await GetSingleGenerationRecordAsync(kv).ConfigureAwait(false);
+            await kv
+                .SetAsync(record.Key, ByteString.From(new byte[] { 1, 2, 3, 4, 5 }))
+                .ConfigureAwait(false);
 
             ServiceResultException? exception = Assert.ThrowsAsync<ServiceResultException>(
                 () => store.RestoreSubscriptionsAsync().AsTask());
@@ -157,10 +222,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             StoredSubscription subscription = NewSubscription(400, 40);
 
             await store.StoreSubscriptionsAsync([subscription]).ConfigureAwait(false);
-            (bool found, ByteString raw) = await kv.TryGetAsync(SharedKeyValueSubscriptionStore.KeyFor(subscription.Id)).ConfigureAwait(false);
+            KeyValuePair<string, ByteString> record = await GetSingleGenerationRecordAsync(kv).ConfigureAwait(false);
 
-            Assert.That(found, Is.True);
-            Assert.That(Contains(raw.ToArray(), BitConverter.GetBytes(subscription.Id)), Is.False);
+            Assert.That(Contains(record.Value.ToArray(), BitConverter.GetBytes(subscription.Id)), Is.False);
             Assert.That((await store.RestoreSubscriptionsAsync().ConfigureAwait(false)).Subscriptions!.Single().Id, Is.EqualTo(subscription.Id));
         }
 
@@ -176,14 +240,12 @@ namespace Opc.Ua.Server.Tests.Redundancy
             await writer
                 .StoreSubscriptionsAsync([NewSubscription(451, 46), NewSubscription(452, 47)])
                 .ConfigureAwait(false);
-            await kv.DeleteAsync(SharedKeyValueSubscriptionStore.KeyFor(450)).ConfigureAwait(false);
-            (bool found, ByteString validRecord) = await kv
-                .TryGetAsync(SharedKeyValueSubscriptionStore.KeyFor(452))
+            KeyValuePair<string, ByteString> currentRecord = await FindGenerationRecordAsync(kv, 452)
                 .ConfigureAwait(false);
-            Assert.That(found, Is.True);
+            ByteString validRecord = currentRecord.Value;
             await kv
                 .SetAsync(
-                    SharedKeyValueSubscriptionStore.KeyFor(452),
+                    currentRecord.Key,
                     ByteString.From(new byte[] { 1, 2, 3, 4, 5 }))
                 .ConfigureAwait(false);
 
@@ -193,7 +255,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(GetCachedSubscriptionIds(reader), Is.EqualTo(new uint[] { 450 }));
 
             await kv
-                .SetAsync(SharedKeyValueSubscriptionStore.KeyFor(452), validRecord)
+                .SetAsync(currentRecord.Key, validRecord)
                 .ConfigureAwait(false);
             RestoreSubscriptionResult result = await reader.RestoreSubscriptionsAsync().ConfigureAwait(false);
 
@@ -207,12 +269,12 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var kv = new InMemorySharedKeyValueStore();
             SharedKeyValueSubscriptionStore writer = CreateStore(kv);
             await writer.StoreSubscriptionsAsync([NewSubscription(475, 48)]).ConfigureAwait(false);
-            (bool found, ByteString record) = await kv
-                .TryGetAsync(SharedKeyValueSubscriptionStore.KeyFor(475))
+            KeyValuePair<string, ByteString> generationRecord = await GetSingleGenerationRecordAsync(kv)
                 .ConfigureAwait(false);
-            Assert.That(found, Is.True);
-            await kv.DeleteAsync(SharedKeyValueSubscriptionStore.KeyFor(475)).ConfigureAwait(false);
-            await kv.SetAsync(SharedKeyValueSubscriptionStore.KeyFor(476), record).ConfigureAwait(false);
+            await kv.DeleteAsync(SharedKeyValueSubscriptionStore.SnapshotManifestKey()).ConfigureAwait(false);
+            await kv
+                .SetAsync(SharedKeyValueSubscriptionStore.KeyFor(476), generationRecord.Value)
+                .ConfigureAwait(false);
 
             var restartedBackend = new AsyncSharedKeyValueStore(kv);
             var restarted = new SharedKeyValueSubscriptionStore(restartedBackend, CreateContext());
@@ -833,6 +895,47 @@ namespace Opc.Ua.Server.Tests.Redundancy
             return method!;
         }
 
+        private static ByteString EncodeDefinition(
+            SharedKeyValueSubscriptionStore store,
+            StoredSubscription subscription)
+        {
+            MethodInfo encode = GetPrivateMethod("Encode", typeof(StoredSubscription));
+            return (ByteString)encode.Invoke(store, [subscription])!;
+        }
+
+        private static async Task<KeyValuePair<string, ByteString>> GetSingleGenerationRecordAsync(
+            InMemorySharedKeyValueStore store)
+        {
+            var records = new List<KeyValuePair<string, ByteString>>();
+            await foreach (KeyValuePair<string, ByteString> pair in store
+                .ScanAsync(SharedKeyValueSubscriptionStore.SnapshotGenerationRootPrefix()))
+            {
+                records.Add(pair);
+            }
+
+            Assert.That(records, Has.Count.EqualTo(1));
+            return records[0];
+        }
+
+        private static async Task<KeyValuePair<string, ByteString>> FindGenerationRecordAsync(
+            InMemorySharedKeyValueStore store,
+            uint subscriptionId)
+        {
+            string suffix = "/" + subscriptionId.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            var records = new List<KeyValuePair<string, ByteString>>();
+            await foreach (KeyValuePair<string, ByteString> pair in store
+                .ScanAsync(SharedKeyValueSubscriptionStore.SnapshotGenerationRootPrefix()))
+            {
+                if (pair.Key.EndsWith(suffix, StringComparison.Ordinal))
+                {
+                    records.Add(pair);
+                }
+            }
+
+            Assert.That(records, Has.Count.EqualTo(1));
+            return records[0];
+        }
+
         private static uint[] GetCachedSubscriptionIds(SharedKeyValueSubscriptionStore store)
         {
             FieldInfo? cacheField = typeof(SharedKeyValueSubscriptionStore).GetField(
@@ -948,6 +1051,87 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 key[ii] = (byte)(seed + ii);
             }
             return key;
+        }
+
+        private sealed class BlockingManifestCommitStore : ISharedKeyValueStore
+        {
+            public BlockingManifestCommitStore(ISharedKeyValueStore inner)
+            {
+                m_inner = inner;
+            }
+
+            public ValueTask<(bool Found, ByteString Value)> TryGetAsync(
+                string key,
+                CancellationToken ct = default)
+            {
+                return m_inner.TryGetAsync(key, ct);
+            }
+
+            public async ValueTask SetAsync(
+                string key,
+                ByteString value,
+                CancellationToken ct = default)
+            {
+                if (string.Equals(
+                    key,
+                    SharedKeyValueSubscriptionStore.SnapshotManifestKey(),
+                    StringComparison.Ordinal) &&
+                    Interlocked.Exchange(ref m_manifestBlocked, 1) == 0)
+                {
+                    m_blocked.TrySetResult(true);
+                    await m_release.Task.WaitAsync(ct).ConfigureAwait(false);
+                }
+
+                await m_inner.SetAsync(key, value, ct).ConfigureAwait(false);
+            }
+
+            public ValueTask<bool> CompareAndSwapAsync(
+                string key,
+                ByteString expected,
+                ByteString value,
+                CancellationToken ct = default)
+            {
+                return m_inner.CompareAndSwapAsync(key, expected, value, ct);
+            }
+
+            public ValueTask<bool> DeleteAsync(string key, CancellationToken ct = default)
+            {
+                return m_inner.DeleteAsync(key, ct);
+            }
+
+            public IAsyncEnumerable<KeyValuePair<string, ByteString>> ScanAsync(
+                string keyPrefix,
+                CancellationToken ct = default)
+            {
+                return m_inner.ScanAsync(keyPrefix, ct);
+            }
+
+            public IAsyncEnumerable<KeyValueChange> WatchAsync(
+                string keyPrefix,
+                CancellationToken ct = default)
+            {
+                return m_inner.WatchAsync(keyPrefix, ct);
+            }
+
+            public async Task WaitForBlockedManifestAsync()
+            {
+                Task completed = await Task
+                    .WhenAny(m_blocked.Task, Task.Delay(TimeSpan.FromSeconds(10)))
+                    .ConfigureAwait(false);
+                Assert.That(completed, Is.SameAs(m_blocked.Task));
+            }
+
+            public void ReleaseManifest()
+            {
+                m_release.TrySetResult(true);
+            }
+
+            private readonly ISharedKeyValueStore m_inner;
+            private readonly TaskCompletionSource<bool> m_blocked =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+            private readonly TaskCompletionSource<bool> m_release =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+            private int m_manifestBlocked;
         }
 
         private sealed class AsyncSharedKeyValueStore : ISharedKeyValueStore

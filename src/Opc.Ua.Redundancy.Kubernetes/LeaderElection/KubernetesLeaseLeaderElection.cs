@@ -130,6 +130,7 @@ namespace Opc.Ua.Redundancy.Kubernetes
         public async ValueTask DisposeAsync()
         {
             bool leadershipChanged;
+            long notificationGeneration;
             lock (m_lock)
             {
                 if (m_disposed)
@@ -140,11 +141,9 @@ namespace Opc.Ua.Redundancy.Kubernetes
                 m_fence++;
                 leadershipChanged = m_isLeader;
                 m_isLeader = false;
+                notificationGeneration = m_fence;
             }
-            if (leadershipChanged)
-            {
-                LeadershipChanged?.Invoke(false);
-            }
+            NotifyLeadershipChanged(false, notificationGeneration, leadershipChanged);
 
             m_cts.Cancel();
             if (m_loop != null)
@@ -398,6 +397,7 @@ namespace Opc.Ua.Redundancy.Kubernetes
         private bool TryConfirmLeadership(long attemptFence)
         {
             bool changed;
+            long notificationGeneration;
             lock (m_lock)
             {
                 if (m_disposed || attemptFence != m_fence)
@@ -410,17 +410,16 @@ namespace Opc.Ua.Redundancy.Kubernetes
                 m_lastConfirmedLeadershipTimestamp = m_timeProvider.GetTimestamp();
                 ClearObservedForeignLeaseCore();
                 m_watchdog.Change(GetLeaseDuration(), Timeout.InfiniteTimeSpan);
+                notificationGeneration = m_fence;
             }
-            if (changed)
-            {
-                LeadershipChanged?.Invoke(true);
-            }
+            NotifyLeadershipChanged(true, notificationGeneration, changed);
             return true;
         }
 
         private void LoseLeadership()
         {
             bool changed;
+            long notificationGeneration;
             lock (m_lock)
             {
                 m_fence++;
@@ -430,16 +429,15 @@ namespace Opc.Ua.Redundancy.Kubernetes
                 {
                     m_watchdog.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
                 }
+                notificationGeneration = m_fence;
             }
-            if (changed)
-            {
-                LeadershipChanged?.Invoke(false);
-            }
+            NotifyLeadershipChanged(false, notificationGeneration, changed);
         }
 
         private void OnWatchdogElapsed()
         {
             bool changed = false;
+            long notificationGeneration = 0;
             lock (m_lock)
             {
                 if (m_disposed || !m_isLeader)
@@ -458,10 +456,47 @@ namespace Opc.Ua.Redundancy.Kubernetes
                 m_fence++;
                 m_isLeader = false;
                 changed = true;
+                notificationGeneration = m_fence;
             }
-            if (changed)
+            NotifyLeadershipChanged(false, notificationGeneration, changed);
+        }
+
+        private void NotifyLeadershipChanged(
+            bool value,
+            long notificationGeneration,
+            bool stateChanged)
+        {
+            Action<bool>? handler;
+            lock (m_notificationLock)
             {
-                LeadershipChanged?.Invoke(false);
+                lock (m_lock)
+                {
+                    if (notificationGeneration != m_fence ||
+                        m_isLeader != value ||
+                        (value && m_disposed))
+                    {
+                        return;
+                    }
+                }
+
+                if (notificationGeneration < m_lastNotificationGeneration)
+                {
+                    return;
+                }
+                m_lastNotificationGeneration = notificationGeneration;
+                if (m_hasLeadershipNotification && m_lastNotifiedLeadership == value)
+                {
+                    return;
+                }
+                if (!m_hasLeadershipNotification && !stateChanged)
+                {
+                    return;
+                }
+
+                m_hasLeadershipNotification = true;
+                m_lastNotifiedLeadership = value;
+                handler = LeadershipChanged;
+                handler?.Invoke(value);
             }
         }
 
@@ -560,6 +595,7 @@ namespace Opc.Ua.Redundancy.Kubernetes
         private readonly TimeProvider m_timeProvider;
         private readonly ILogger? m_logger;
         private readonly Lock m_lock = new();
+        private readonly Lock m_notificationLock = new();
         private readonly CancellationTokenSource m_cts = new();
         private readonly SemaphoreSlim m_attemptGate = new(1, 1);
         private readonly ITimer m_watchdog;
@@ -569,8 +605,11 @@ namespace Opc.Ua.Redundancy.Kubernetes
         private long m_observedResourceVersionTimestamp;
         private long m_lastConfirmedLeadershipTimestamp;
         private long m_fence;
+        private long m_lastNotificationGeneration = -1;
         private TimeSpan m_observedLeaseDuration;
         private bool m_isLeader;
+        private bool m_hasLeadershipNotification;
+        private bool m_lastNotifiedLeadership;
         private bool m_started;
         private bool m_disposed;
     }
