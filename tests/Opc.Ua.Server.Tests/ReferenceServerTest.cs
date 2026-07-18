@@ -1732,6 +1732,98 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Test that a HistoryRead on the <c>AccessRights_AccessAll_RO_NotUser</c>
+        /// node is denied for the current (anonymous) user. The node advertises
+        /// HistoryRead in its AccessLevel but its UserAccessLevel is None, so the
+        /// server must return BadUserAccessDenied instead of the historical data.
+        /// </summary>
+        [Test]
+        public async Task HistoryReadUserAccessDeniedNodeAsync()
+        {
+            ushort namespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(
+                Quickstarts.ReferenceServer.Namespaces.ReferenceServer);
+            var nodeId = new NodeId("AccessRights_AccessAll_RO_NotUser", namespaceIndex);
+
+            // Sanity check: the node advertises HistoryRead in AccessLevel but the
+            // current user is not granted HistoryRead via UserAccessLevel.
+            ArrayOf<ReadValueId> readIdCollection =
+            [
+                new ReadValueId
+                {
+                    AttributeId = Attributes.AccessLevel,
+                    NodeId = nodeId
+                },
+                new ReadValueId
+                {
+                    AttributeId = Attributes.UserAccessLevel,
+                    NodeId = nodeId
+                }
+            ];
+
+            m_requestHeader.Timestamp = DateTimeUtc.Now;
+            ReadResponse readResponse = await m_server.ReadAsync(
+                m_secureChannelContext,
+                m_requestHeader,
+                kMaxAge,
+                TimestampsToReturn.Neither,
+                readIdCollection,
+                RequestLifetime.None).ConfigureAwait(false);
+
+            ServerFixtureUtils.ValidateResponse(readResponse.ResponseHeader, readResponse.Results, readIdCollection);
+            Assert.That(readResponse.Results.Count, Is.EqualTo(2));
+
+            byte accessLevel = (byte)readResponse.Results[0].WrappedValue;
+            byte userAccessLevel = (byte)readResponse.Results[1].WrappedValue;
+
+            Assert.That(accessLevel & AccessLevels.HistoryRead,
+                Is.Not.Zero,
+                "Node should advertise HistoryRead in AccessLevel");
+            Assert.That(userAccessLevel & AccessLevels.HistoryRead,
+                Is.Zero,
+                "Node should not grant HistoryRead to the current user via UserAccessLevel");
+
+            // Perform a history read operation; it must be denied for the current user.
+            var historyReadDetails = new ReadRawModifiedDetails
+            {
+                StartTime = DateTimeUtc.Now.SubtractMilliseconds(60 * 60 * 1000),
+                EndTime = DateTimeUtc.Now,
+                NumValuesPerNode = 10,
+                IsReadModified = false,
+                ReturnBounds = false
+            };
+
+            ArrayOf<HistoryReadValueId> nodesToRead =
+            [
+                new HistoryReadValueId
+                {
+                    NodeId = nodeId
+                }
+            ];
+
+            m_requestHeader.Timestamp = DateTimeUtc.Now;
+            HistoryReadResponse historyReadResponse = await m_server.HistoryReadAsync(
+                m_secureChannelContext,
+                m_requestHeader,
+                new ExtensionObject(historyReadDetails),
+                TimestampsToReturn.Both,
+                false,
+                nodesToRead,
+                RequestLifetime.None).ConfigureAwait(false);
+
+            ServerFixtureUtils.ValidateResponse(historyReadResponse.ResponseHeader, historyReadResponse.Results, nodesToRead);
+            Assert.That(historyReadResponse.Results.Count, Is.EqualTo(1));
+
+            HistoryReadResult result = historyReadResponse.Results[0];
+
+            Assert.That(result.StatusCode.Code,
+                Is.EqualTo(StatusCodes.BadUserAccessDenied),
+                $"History read on a node without user HistoryRead access should be denied, but got: {result.StatusCode}");
+            Assert.That(result.HistoryData.IsNull,
+                Is.True,
+                "No historical data should be returned when access is denied");
+        }
+
+        /// <summary>
         /// Test provisioning mode - server should start with limited namespace.
         /// </summary>
         [Test]

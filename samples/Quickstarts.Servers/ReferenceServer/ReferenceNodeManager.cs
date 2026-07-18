@@ -2344,8 +2344,8 @@ namespace Quickstarts.ReferenceServer
                         "RO",
                         BuiltInType.Int16,
                         ValueRanks.Scalar);
-                    arAllRO.AccessLevel = AccessLevels.CurrentRead;
-                    arAllRO.UserAccessLevel = AccessLevels.CurrentRead;
+                    arAllRO.AccessLevel = AccessLevels.CurrentRead | AccessLevels.HistoryRead;
+                    arAllRO.UserAccessLevel = AccessLevels.CurrentRead | AccessLevels.HistoryRead;
                     variables.Add(arAllRO);
                     BaseDataVariableState arAllWO = CreateVariable(
                         folderAccessRightsAccessAll,
@@ -2353,8 +2353,8 @@ namespace Quickstarts.ReferenceServer
                         "WO",
                         BuiltInType.Int16,
                         ValueRanks.Scalar);
-                    arAllWO.AccessLevel = AccessLevels.CurrentWrite;
-                    arAllWO.UserAccessLevel = AccessLevels.CurrentWrite;
+                    arAllWO.AccessLevel = AccessLevels.CurrentWrite | AccessLevels.HistoryWrite;
+                    arAllWO.UserAccessLevel = AccessLevels.CurrentWrite | AccessLevels.HistoryWrite;
                     variables.Add(arAllWO);
                     BaseDataVariableState arAllRW = CreateVariable(
                         folderAccessRightsAccessAll,
@@ -2380,7 +2380,7 @@ namespace Quickstarts.ReferenceServer
                         "RO_NotUser",
                         BuiltInType.Int16,
                         ValueRanks.Scalar);
-                    arAllRONotUser.AccessLevel = AccessLevels.CurrentRead;
+                    arAllRONotUser.AccessLevel = AccessLevels.CurrentRead | AccessLevels.HistoryRead;
                     arAllRONotUser.UserAccessLevel = AccessLevels.None;
                     variables.Add(arAllRONotUser);
                     BaseDataVariableState arAllWONotUser = CreateVariable(
@@ -2398,7 +2398,7 @@ namespace Quickstarts.ReferenceServer
                         "RW_NotUser",
                         BuiltInType.Int16,
                         ValueRanks.Scalar);
-                    arAllRWNotUser.AccessLevel = AccessLevels.CurrentReadOrWrite;
+                    arAllRWNotUser.AccessLevel = AccessLevels.CurrentReadOrWrite | AccessLevels.HistoryReadOrWrite;
                     arAllRWNotUser.UserAccessLevel = AccessLevels.CurrentRead;
                     variables.Add(arAllRWNotUser);
                     BaseDataVariableState arAllROUserRW = CreateVariable(
@@ -2434,7 +2434,7 @@ namespace Quickstarts.ReferenceServer
                         BuiltInType.Int16,
                         ValueRanks.Scalar);
                     arUserRO.AccessLevel = AccessLevels.CurrentRead;
-                    arUserRO.UserAccessLevel = AccessLevels.CurrentRead;
+                    arUserRO.UserAccessLevel = AccessLevels.CurrentRead | AccessLevels.HistoryRead;
                     variables.Add(arUserRO);
                     BaseDataVariableState arUserWO = CreateVariable(
                         folderAccessRightsAccessUser1,
@@ -5763,7 +5763,8 @@ namespace Quickstarts.ReferenceServer
                 .Concat(HistoricalArrayNodeNames)
                 .Concat(HistoricalMatrixNodeNames)
                 .Concat(HistoricalStructureNodeNames)
-                .Concat(AccessRightsHistoricalNodeNames))
+                .Concat(AccessRightsHistoricalNodeNames)
+                )
             {
                 var nodeId = new NodeId(name, NamespaceIndex);
 
@@ -5778,18 +5779,15 @@ namespace Quickstarts.ReferenceServer
                 }
 
                 variable.Historizing = true;
-                variable.AccessLevel = (byte)(variable.AccessLevel | AccessLevels.HistoryRead | AccessLevels.HistoryWrite);
-                variable.UserAccessLevel = (byte)(variable.UserAccessLevel | AccessLevels.HistoryRead | AccessLevels.HistoryWrite);
+                if (!AccessRightsHistoricalNodeNames.Contains(name))
+                {
+                    variable.AccessLevel = (byte)(variable.AccessLevel | AccessLevels.HistoryRead | AccessLevels.HistoryWrite);
+                    variable.UserAccessLevel = (byte)(variable.UserAccessLevel | AccessLevels.HistoryRead | AccessLevels.HistoryWrite);
+                }
 
                 m_historian.Register(nodeId, capabilities);
 
-                // The AccessRights nodes are registered with the historian to
-                // exercise access-right handling on historizing nodes, but are
-                // intentionally not seeded with any historical data.
-                if (!AccessRightsHistoricalNodeNames.Contains(name))
-                {
-                    await SeedHistoricalNodeAsync(variable, cancellationToken).ConfigureAwait(false);
-                }
+                await SeedHistoricalNodeAsync(variable, cancellationToken).ConfigureAwait(false);
 
                 // Attach a HistoricalDataConfigurationType companion object
                 // (browse name "HA Configuration") and wire it via the
