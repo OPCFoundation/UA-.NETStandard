@@ -241,6 +241,86 @@ namespace Opc.Ua.Server.Tests.SchemaRegistry
         }
 
         /// <summary>
+        /// Proves the mandatory download path (spec §5.1): the materialized <c>GetSchema</c>
+        /// method resolves a registered on-wire SchemaId to its schema document and metadata,
+        /// and returns <c>Bad_NotFound</c> for an unregistered SchemaId. The handler is wired on
+        /// the concrete Method node exactly as a server node manager would bind it to its store.
+        /// </summary>
+        [Test]
+        [Order(600)]
+        public async Task GetSchemaMethodResolvesRegisteredSchemaAndReportsNotFoundAsync()
+        {
+            IServerInternal server = m_server.CurrentInstance;
+            ushort ns = SchemaRegistryNamespaceIndex(server);
+
+            NodeState node = await server.NodeManager
+                .FindNodeInAddressSpaceAsync(new NodeId(SchemaRegistryTestServer.SchemaRegistryGetSchemaMethod, ns))
+                .ConfigureAwait(false);
+
+            var method = node as MethodState;
+            Assert.That(method, Is.Not.Null, "GetSchema should be a concrete MethodState.");
+
+            // One registered schema keyed by its raw on-wire SchemaId, and the download handler
+            // a server binds to its schema store.
+            ByteString knownSchemaId = ByteString.From([1, 2, 3, 4, 5, 6, 7, 8]);
+            ByteString document = ByteString.From(
+                System.Text.Encoding.UTF8.GetBytes("{\"type\":\"record\",\"name\":\"X\",\"fields\":[]}"));
+            const string format = "Avro/1.11";
+            const string contentType = "application/vnd.apache.avro+json";
+
+            method!.OnCallMethod2 = (ctx, m, objectId, inputs, outputs) =>
+            {
+                if (!inputs[0].TryGetValue(out ByteString requested))
+                {
+                    return StatusCodes.BadInvalidArgument;
+                }
+                if (requested.Span.SequenceEqual(knownSchemaId.Span))
+                {
+                    outputs.Add(new Variant(document));
+                    outputs.Add(new Variant(format));
+                    outputs.Add(new Variant(contentType));
+                    return ServiceResult.Good;
+                }
+
+                return StatusCodes.BadNotFound;
+            };
+
+            NodeId objectId = new NodeId(SchemaRegistryTestServer.SchemaRegistryObject, ns);
+
+            // A registered SchemaId resolves to the schema document and metadata.
+            var okOutputs = new List<Variant>();
+            ServiceResult okResult = method.OnCallMethod2(
+                server.DefaultSystemContext, method, objectId, [new Variant(knownSchemaId)], okOutputs);
+
+            ByteString outDocument = default;
+            string outFormat = null;
+            string outContentType = null;
+            if (okOutputs.Count == 3)
+            {
+                okOutputs[0].TryGetValue(out outDocument);
+                okOutputs[1].TryGetValue(out outFormat);
+                okOutputs[2].TryGetValue(out outContentType);
+            }
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(okResult), Is.True);
+                Assert.That(okOutputs, Has.Count.EqualTo(3));
+                Assert.That(outDocument, Is.EqualTo(document));
+                Assert.That(outFormat, Is.EqualTo(format));
+                Assert.That(outContentType, Is.EqualTo(contentType));
+            });
+
+            // An unregistered SchemaId returns Bad_NotFound.
+            var missOutputs = new List<Variant>();
+            ServiceResult missResult = method.OnCallMethod2(
+                server.DefaultSystemContext, method, objectId,
+                [new Variant(ByteString.From([9, 9, 9, 9, 9, 9, 9, 9]))], missOutputs);
+
+            Assert.That(missResult.StatusCode.Code, Is.EqualTo(StatusCodes.BadNotFound));
+        }
+
+        /// <summary>
         /// Returns the server-side namespace index for the Schema Registry companion model.
         /// </summary>
         private static ushort SchemaRegistryNamespaceIndex(IServerInternal server)
