@@ -31,6 +31,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Security;
 
 namespace Opc.Ua.PubSub.Tests.Security
@@ -100,10 +101,54 @@ namespace Opc.Ua.PubSub.Tests.Security
             var window = new SecurityTokenWindow();
             window.RegisterToken(1U);
             window.RegisterToken(2U);
+            byte[] nonce = MakeNonce(1);
             Assert.Multiple(() =>
             {
-                Assert.That(window.TryAccept(1U, 5UL, MakeNonce(1)), Is.True);
-                Assert.That(window.TryAccept(2U, 5UL, MakeNonce(2)), Is.True);
+                Assert.That(window.TryAccept(1U, 5UL, nonce), Is.True);
+                Assert.That(window.TryAccept(2U, 5UL, nonce), Is.True);
+            });
+        }
+
+        [Test]
+        public void ScopedReplayRejectsNonceReuseGloballyAcrossPublishersAndWriterGroups()
+        {
+            const uint tokenId = 1U;
+            var window = new SecurityTokenWindow(historySize: 4);
+            window.RegisterToken(tokenId);
+            var scopedWindow = (IScopedSecurityTokenWindow)window;
+            PublisherId publisherA = PublisherId.FromUInt32(100U);
+            PublisherId publisherB = PublisherId.FromUInt32(200U);
+            byte[] reusedNonce = MakeNonce(1);
+
+            Assert.That(
+                scopedWindow.TryAccept(publisherA, 1, tokenId, 1, reusedNonce),
+                Is.True);
+            for (ulong sequenceNumber = 2; sequenceNumber <= 8; sequenceNumber++)
+            {
+                Assert.That(
+                    scopedWindow.TryAccept(
+                        publisherA,
+                        1,
+                        tokenId,
+                        sequenceNumber,
+                        MakeNonce((byte)(sequenceNumber + 20))),
+                    Is.True);
+            }
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    scopedWindow.TryAccept(publisherB, 1, tokenId, 1, reusedNonce),
+                    Is.False);
+                Assert.That(
+                    scopedWindow.TryAccept(publisherA, 2, tokenId, 1, reusedNonce),
+                    Is.False);
+                Assert.That(
+                    scopedWindow.TryAccept(publisherB, 1, tokenId, 1, MakeNonce(50)),
+                    Is.True);
+                Assert.That(
+                    scopedWindow.TryAccept(publisherA, 2, tokenId, 1, MakeNonce(51)),
+                    Is.True);
             });
         }
 

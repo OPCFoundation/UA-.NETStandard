@@ -50,7 +50,7 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
     public sealed class DtlsDatagramTransportPeerTests
     {
         [Test]
-        public async Task RemotePeerChangesOnlyAfterAuthenticatedRecordAsync()
+        public async Task AuthenticatedRecordFromDifferentSourceDoesNotRedirectPinnedPeerAsync()
         {
             int port;
             try
@@ -73,6 +73,10 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
                 IsDtls: true,
                 DtlsProfileName: profile.Name);
             var diagnostics = new PubSubDiagnostics(PubSubDiagnosticsLevel.High);
+            using var authenticatedSocket = NewLoopbackSocket();
+            using var spoofSocket = NewLoopbackSocket();
+            var authenticatedEndpoint = (IPEndPoint)authenticatedSocket.LocalEndPoint!;
+            var contextFactory = new MarkerContextFactory(authenticatedEndpoint);
             await using var transport = new DtlsDatagramTransport(
                 UdpIntegrationTestHelpers.NewConnection(url, "dtls-peer"),
                 endpoint,
@@ -82,7 +86,7 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
                 TimeProvider.System,
                 UdpIntegrationTestHelpers.LoopbackOptions(),
                 diagnostics,
-                new MarkerContextFactory(),
+                contextFactory,
                 profile);
 
             try
@@ -95,28 +99,29 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
                 return;
             }
 
-            using var spoofSocket = NewLoopbackSocket();
-            using var authenticatedSocket = NewLoopbackSocket();
             var destination = new IPEndPoint(IPAddress.Loopback, port);
             Task<PubSubTransportFrame?> receiveTask = UdpIntegrationTestHelpers.ReceiveOneAsync(
                 transport,
                 TimeSpan.FromSeconds(5));
 
+            Assert.That(transport.RemoteEndpoint, Is.EqualTo(authenticatedEndpoint));
             await spoofSocket.SendToAsync(
-                new byte[] { 0x00 },
+                new byte[] { MarkerContext.Marker, 0x55 },
                 SocketFlags.None,
                 destination).ConfigureAwait(false);
             await WaitForReceivedCountAsync(diagnostics, expectedCount: 1).ConfigureAwait(false);
 
-            var spoofEndpoint = (IPEndPoint)spoofSocket.LocalEndPoint!;
-            Assert.That(transport.RemoteEndpoint, Is.Not.EqualTo(spoofEndpoint));
+            Assert.Multiple(() =>
+            {
+                Assert.That(contextFactory.UnprotectCount, Is.Zero);
+                Assert.That(transport.RemoteEndpoint, Is.EqualTo(authenticatedEndpoint));
+            });
 
             await authenticatedSocket.SendToAsync(
                 new byte[] { MarkerContext.Marker, 0x55 },
                 SocketFlags.None,
                 destination).ConfigureAwait(false);
             PubSubTransportFrame? frame = await receiveTask.ConfigureAwait(false);
-            var authenticatedEndpoint = (IPEndPoint)authenticatedSocket.LocalEndPoint!;
 
             Assert.Multiple(() =>
             {
@@ -124,6 +129,7 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
                 Assert.That(frame!.Value.Payload.ToArray(), Is.EqualTo(new byte[] { 0x55 }));
                 Assert.That(frame.Value.SourceEndpoint, Is.EqualTo(authenticatedEndpoint));
                 Assert.That(transport.RemoteEndpoint, Is.EqualTo(authenticatedEndpoint));
+                Assert.That(contextFactory.UnprotectCount, Is.EqualTo(1));
             });
         }
 
@@ -160,6 +166,13 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
 
         private sealed class MarkerContextFactory : IDtlsContextFactory
         {
+            public MarkerContextFactory(IPEndPoint authenticatedPeer)
+            {
+                m_authenticatedPeer = authenticatedPeer;
+            }
+
+            public int UnprotectCount => Volatile.Read(ref m_unprotectCount);
+
             public ValueTask<IDtlsContext> CreateAsync(
                 PubSubConnectionDataType connection,
                 UdpEndpoint endpoint,
@@ -169,17 +182,31 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
                 CancellationToken cancellationToken = default)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                return new ValueTask<IDtlsContext>(new MarkerContext(profile));
+                return new ValueTask<IDtlsContext>(
+                    new MarkerContext(profile, m_authenticatedPeer, RecordUnprotect));
             }
+
+            private void RecordUnprotect()
+            {
+                Interlocked.Increment(ref m_unprotectCount);
+            }
+
+            private readonly IPEndPoint m_authenticatedPeer;
+            private int m_unprotectCount;
         }
 
         private sealed class MarkerContext : IDtlsContext
         {
             public const byte Marker = 0xA5;
 
-            public MarkerContext(DtlsProfile profile)
+            public MarkerContext(
+                DtlsProfile profile,
+                IPEndPoint authenticatedPeer,
+                Action recordUnprotect)
             {
                 Profile = profile;
+                m_authenticatedPeer = authenticatedPeer;
+                m_recordUnprotect = recordUnprotect;
             }
 
             public DtlsProfile Profile { get; }
@@ -189,6 +216,13 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
                 CancellationToken cancellationToken = default)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                if (channel is not IDtlsAuthenticatedPeerChannel peerChannel)
+                {
+                    throw new InvalidOperationException(
+                        "The test DTLS channel does not support authenticated peer pinning.");
+                }
+
+                peerChannel.SetAuthenticatedPeer(m_authenticatedPeer);
                 return ValueTask.CompletedTask;
             }
 
@@ -208,6 +242,7 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
                 CancellationToken cancellationToken = default)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                m_recordUnprotect();
                 if (record.IsEmpty || record.Span[0] != Marker)
                 {
                     throw new CryptographicException("Unauthenticated test record.");
@@ -219,6 +254,9 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
             public void Dispose()
             {
             }
+
+            private readonly IPEndPoint m_authenticatedPeer;
+            private readonly Action m_recordUnprotect;
         }
     }
 }
