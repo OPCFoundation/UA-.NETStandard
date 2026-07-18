@@ -125,6 +125,7 @@ namespace Opc.Ua.Sessions.Tests
                     .UseEndpoint(endpointA)
                     .WithSessionName(nameof(TokenReuseFailoverRestoresSessionOnStandbyAsync))
                     .WithSessionTimeout(TimeSpan.FromSeconds(60))
+                    .WithUserIdentity(new UserIdentity("user1", "password"u8))
                     .WithServerRedundancy(redundancyHandler)
                     .WithTokenReuseFailover()
                     .WithReconnectPolicy(p => p with
@@ -157,7 +158,11 @@ namespace Opc.Ua.Sessions.Tests
                 Assert.That(
                     mirrored!.SecurityStateVersion,
                     Is.EqualTo(SharedSessionEntry.CurrentSecurityStateVersion));
-                Assert.That(mirrored.ClientUserId, Is.EqualTo("Anonymous"));
+                Assert.That(mirrored.ClientUserId, Is.EqualTo("user1"));
+                Assert.That(
+                    mirrored.ClientUserTokenType,
+                    Is.EqualTo(UserTokenType.UserName));
+                Assert.That(mirrored.HasActivatedUserIdentity, Is.True);
                 Assert.That(mirrored.OriginalClientChannelCertificate.IsEmpty, Is.False);
 
                 // Force a failover: make the in-place reconnect fail so the state
@@ -229,6 +234,12 @@ namespace Opc.Ua.Sessions.Tests
                 OperationLimits = true
             };
 
+            await fixture.LoadConfigurationAsync().ConfigureAwait(false);
+            fixture.Config.ServerConfiguration!.UserTokenPolicies =
+            [
+                new UserTokenPolicy(UserTokenType.Anonymous),
+                new UserTokenPolicy(UserTokenType.UserName)
+            ];
             await fixture.StartAsync().ConfigureAwait(false);
             return (fixture, new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{fixture.Port}"));
         }

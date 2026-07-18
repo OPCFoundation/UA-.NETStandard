@@ -301,7 +301,10 @@ namespace Opc.Ua.Server
                 m_sessionActivationStates.Add(
                     session,
                     new SessionActivationState(
-                        channelContext.ClientChannelCertificate.ToByteString()));
+                        channelContext.ClientChannelCertificate.ToByteString(),
+                        channelContext.EndpointDescription!.SecurityPolicyUri ??
+                            SecurityPolicies.None,
+                        channelContext.EndpointDescription.SecurityMode));
 
                 // Reserve the session slot while holding the lock so the session
                 // count cap and client-nonce uniqueness stay enforced atomically.
@@ -380,6 +383,11 @@ namespace Opc.Ua.Server
             IUserIdentityTokenHandler? newIdentity = null;
             string? clientKey = null;
             SemaphoreSlim? activationLock = null;
+            ByteString serverNonce = default;
+            ServiceResult activationStatus = ServiceResult.Good;
+            string? clientUserId = null;
+            UserTokenType clientUserTokenType = UserTokenType.Anonymous;
+            bool contextChanged = false;
 
             // fast path no lock
             if (!m_sessions.TryGetValue(authenticationToken, out _) && !SupportsSessionRestore)
@@ -461,10 +469,14 @@ namespace Opc.Ua.Server
                     m_semaphoreSlim.Release();
                 }
 
-                SessionActivationState activationState = m_sessionActivationStates.GetValue(
-                    session,
-                    _ => new SessionActivationState(
-                        context.ChannelContext!.ClientChannelCertificate.ToByteString()));
+                if (!m_sessionActivationStates.TryGetValue(
+                        session,
+                        out SessionActivationState? activationState))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadSecurityChecksFailed,
+                        "The Session transfer security state is unavailable.");
+                }
                 await activationState.Lock.WaitAsync(cancellationToken).ConfigureAwait(false);
                 activationLock = activationState.Lock;
 
@@ -483,6 +495,17 @@ namespace Opc.Ua.Server
 
                     EndpointDescription currentEndpoint =
                         channelContext.EndpointDescription!;
+                    if (isNewChannel &&
+                        (!string.Equals(
+                            activationState.SecurityPolicyUri,
+                            currentEndpoint.SecurityPolicyUri,
+                            StringComparison.Ordinal) ||
+                        activationState.SecurityMode != currentEndpoint.SecurityMode))
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadSecurityPolicyRejected);
+                    }
+
                     bool requiresClientCertificate =
                         currentEndpoint.SecurityMode != MessageSecurityMode.None ||
                         !string.Equals(
@@ -500,7 +523,6 @@ namespace Opc.Ua.Server
                             "The SecureChannel client certificate does not match the original channel.");
                     }
 
-                    ByteString serverNonce;
                     UserTokenPolicy? userTokenPolicy;
                     // Note: session lookup, lockout and expiry failures above are not
                     // authentication failures and deliberately do NOT record a
@@ -514,27 +536,14 @@ namespace Opc.Ua.Server
                         // SecureChannel policy nonce or ephemeral-key sizes.
                         serverNonceObject = Nonce.CreateNonce(32);
 
-                        if (session is Session concreteSession)
-                        {
-                            (newIdentity, userTokenPolicy) = await concreteSession
-                                .ValidateBeforeActivateAsync(
-                                    context,
-                                    clientSignature!,
-                                    userIdentityToken,
-                                    userTokenSignature!,
-                                    cancellationToken)
-                                .ConfigureAwait(false);
-                        }
-                        else
-                        {
-                            session.ValidateBeforeActivate(
+                        (newIdentity, userTokenPolicy) = await session
+                            .ValidateBeforeActivateAsync(
                                 context,
                                 clientSignature!,
                                 userIdentityToken,
                                 userTokenSignature!,
-                                out newIdentity,
-                                out userTokenPolicy);
-                        }
+                                cancellationToken)
+                            .ConfigureAwait(false);
 
                         if (isNewChannel &&
                             currentEndpoint.SecurityMode ==
@@ -584,6 +593,10 @@ namespace Opc.Ua.Server
                         // use the identity as the effectiveIdentity if not provided.
                         effectiveIdentity ??= identity;
                     }
+                    catch (OperationCanceledException)
+                    {
+                        throw;
+                    }
                     catch (Exception e)
                     {
                         RecordFailedAuthentication(clientKey);
@@ -606,12 +619,16 @@ namespace Opc.Ua.Server
                         throw new ServiceResultException(error!);
                     }
 
-                    string clientUserId = identity.DisplayName ?? string.Empty;
+                    clientUserId = SessionClientUserId.Get(
+                        newIdentity!,
+                        identity);
+                    clientUserTokenType = newIdentity!.TokenType;
                     if (isNewChannel &&
+                        (!activationState.HasClientUserId ||
                         !string.Equals(
                             activationState.ClientUserId,
                             clientUserId,
-                            StringComparison.Ordinal))
+                            StringComparison.Ordinal)))
                     {
                         throw new ServiceResultException(
                             StatusCodes.BadIdentityChangeNotSupported,
@@ -636,9 +653,9 @@ namespace Opc.Ua.Server
                     // response shall carry Good_PasswordChangeRequired so the
                     // client knows to prompt for a new password. The role
                     // restriction is enforced separately by AddMandatoryRoles.
-                    ServiceResult activationStatus = ComputeActivationStatus(effectiveIdentity);
+                    activationStatus = ComputeActivationStatus(effectiveIdentity);
 
-                    bool contextChanged = session.Activate(
+                    contextChanged = session.Activate(
                         context,
                         newIdentity!,
                         identity,
@@ -648,29 +665,33 @@ namespace Opc.Ua.Server
                     serverNonceObject = null; // ownership transferred to session
                     tempIdentity = null; // ownership transferred to session
                     activationState.ClientUserId = clientUserId;
+                    activationState.ClientUserTokenType = clientUserTokenType;
+                    activationState.HasClientUserId = true;
                     activationState.RequiresNewChannelChecks = false;
 
-                    await OnSessionActivatedAsync(
-                        authenticationToken,
-                        session,
-                        serverNonce,
-                        clientUserId,
-                        cancellationToken).ConfigureAwait(false);
-
-                    // raise session related event.
-                    if (contextChanged)
-                    {
-                        RaiseSessionEvent(session, SessionEventReason.Activated);
-                    }
-
-                    // indicates that the identity context for the session has changed.
-                    return (contextChanged, serverNonce, activationStatus);
                 }
                 finally
                 {
                     activationLock.Release();
                     activationLock = null;
                 }
+
+                await OnSessionActivatedAsync(
+                    authenticationToken,
+                    session,
+                    serverNonce,
+                    clientUserTokenType,
+                    clientUserId,
+                    cancellationToken).ConfigureAwait(false);
+
+                // External callbacks run after the activation transaction has
+                // committed and released its per-Session gate.
+                if (contextChanged)
+                {
+                    RaiseSessionEvent(session, SessionEventReason.Activated);
+                }
+
+                return (contextChanged, serverNonce, activationStatus);
             }
             finally
             {
@@ -711,7 +732,10 @@ namespace Opc.Ua.Server
             {
                 SemaphoreSlim activationLock = m_sessionActivationStates.GetValue(
                     session,
-                    _ => new SessionActivationState(default)).Lock;
+                    _ => new SessionActivationState(
+                        default,
+                        SecurityPolicies.None,
+                        MessageSecurityMode.None)).Lock;
                 await activationLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
                 try
                 {
@@ -741,24 +765,66 @@ namespace Opc.Ua.Server
             }
         }
 
-        internal void SetRestoredSessionSecurityState(
+        /// <summary>
+        /// Supplies the original transfer security state for a Session restored
+        /// by <see cref="RestoreSessionAsync"/>.
+        /// </summary>
+        protected void SetRestoredSessionTransferSecurityState(
             ISession session,
             ByteString originalClientChannelCertificate,
-            string clientUserId)
+            string securityPolicyUri,
+            MessageSecurityMode securityMode,
+            UserTokenType clientUserTokenType,
+            string? clientUserId)
         {
+            if (session == null)
+            {
+                throw new ArgumentNullException(nameof(session));
+            }
+            if (string.IsNullOrEmpty(securityPolicyUri))
+            {
+                throw new ArgumentException(
+                    "A security policy URI is required.",
+                    nameof(securityPolicyUri));
+            }
+            if (clientUserTokenType is < UserTokenType.Anonymous or
+                > UserTokenType.IssuedToken)
+            {
+                throw new ArgumentOutOfRangeException(nameof(clientUserTokenType));
+            }
+            if ((clientUserTokenType == UserTokenType.Anonymous) !=
+                (clientUserId == null))
+            {
+                throw new ArgumentException(
+                    "Anonymous ClientUserIds must be null and non-anonymous ClientUserIds must be non-null.",
+                    nameof(clientUserId));
+            }
+
             SessionActivationState state = m_sessionActivationStates.GetValue(
                 session,
-                _ => new SessionActivationState(originalClientChannelCertificate));
+                _ => new SessionActivationState(
+                    originalClientChannelCertificate,
+                    securityPolicyUri,
+                    securityMode));
             state.OriginalClientChannelCertificate = originalClientChannelCertificate;
+            state.SecurityPolicyUri = securityPolicyUri;
+            state.SecurityMode = securityMode;
+            state.ClientUserTokenType = clientUserTokenType;
             state.ClientUserId = clientUserId;
+            state.HasClientUserId = true;
             state.RequiresNewChannelChecks = true;
         }
 
-        internal virtual ValueTask OnSessionActivatedAsync(
+        /// <summary>
+        /// Called after activation state has committed and the per-Session
+        /// activation gate has been released.
+        /// </summary>
+        protected virtual ValueTask OnSessionActivatedAsync(
             NodeId authenticationToken,
             ISession session,
             ByteString serverNonce,
-            string clientUserId,
+            UserTokenType clientUserTokenType,
+            string? clientUserId,
             CancellationToken cancellationToken)
         {
             return default;
@@ -1429,16 +1495,29 @@ namespace Opc.Ua.Server
 
         private sealed class SessionActivationState
         {
-            public SessionActivationState(ByteString originalClientChannelCertificate)
+            public SessionActivationState(
+                ByteString originalClientChannelCertificate,
+                string securityPolicyUri,
+                MessageSecurityMode securityMode)
             {
                 OriginalClientChannelCertificate = originalClientChannelCertificate;
+                SecurityPolicyUri = securityPolicyUri;
+                SecurityMode = securityMode;
             }
 
             public SemaphoreSlim Lock { get; } = new(1, 1);
 
             public ByteString OriginalClientChannelCertificate { get; set; }
 
+            public string SecurityPolicyUri { get; set; }
+
+            public MessageSecurityMode SecurityMode { get; set; }
+
+            public UserTokenType ClientUserTokenType { get; set; }
+
             public string? ClientUserId { get; set; }
+
+            public bool HasClientUserId { get; set; }
 
             public bool RequiresNewChannelChecks { get; set; }
         }

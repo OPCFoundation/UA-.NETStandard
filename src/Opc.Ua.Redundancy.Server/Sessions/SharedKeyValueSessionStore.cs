@@ -160,6 +160,8 @@ namespace Opc.Ua.Redundancy.Server
             encoder.WriteUInt32(null, entry.SecurityStateVersion);
             encoder.WriteByteString(null, entry.OriginalClientChannelCertificate);
             encoder.WriteString(null, entry.ClientUserId);
+            encoder.WriteInt32(null, (int)entry.ClientUserTokenType);
+            encoder.WriteBoolean(null, entry.HasActivatedUserIdentity);
             byte[]? buffer = encoder.CloseAndReturnBuffer();
             return buffer is null ? ByteString.Empty : new ByteString(buffer);
         }
@@ -191,6 +193,18 @@ namespace Opc.Ua.Redundancy.Server
             }
 
             uint securityStateVersion = decoder.ReadUInt32(null);
+            if (securityStateVersion == 1)
+            {
+                SharedSessionEntry versionOne = entry with
+                {
+                    SecurityStateVersion = securityStateVersion,
+                    OriginalClientChannelCertificate = decoder.ReadByteString(null),
+                    ClientUserId = decoder.ReadString(null)
+                };
+                EnsureFullyDecoded(decoder, payload);
+                return versionOne;
+            }
+
             if (securityStateVersion != SharedSessionEntry.CurrentSecurityStateVersion)
             {
                 return entry with
@@ -203,17 +217,23 @@ namespace Opc.Ua.Redundancy.Server
             {
                 SecurityStateVersion = securityStateVersion,
                 OriginalClientChannelCertificate = decoder.ReadByteString(null),
-                ClientUserId = decoder.ReadString(null) ?? string.Empty
+                ClientUserId = decoder.ReadString(null),
+                ClientUserTokenType = (UserTokenType)decoder.ReadInt32(null),
+                HasActivatedUserIdentity = decoder.ReadBoolean(null)
             };
 
+            EnsureFullyDecoded(decoder, payload);
+            return decoded;
+        }
+
+        private static void EnsureFullyDecoded(BinaryDecoder decoder, ByteString payload)
+        {
             if (decoder.Position != payload.Length)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
                     "Unexpected trailing data in a shared Session entry.");
             }
-
-            return decoded;
         }
 
         private const string Prefix = "session/";

@@ -117,7 +117,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 ServerNonce = ByteString.From(nonce),
                 SecurityStateVersion = SharedSessionEntry.CurrentSecurityStateVersion,
                 OriginalClientChannelCertificate = s_clientChannelCertificate,
-                ClientUserId = "Anonymous"
+                ClientUserId = null,
+                ClientUserTokenType = UserTokenType.Anonymous,
+                HasActivatedUserIdentity = true
             };
         }
 
@@ -244,7 +246,31 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using DistributedSessionManager manager = CreateManager(registry);
             SharedSessionEntry entry = EntryWithNonce(CreateBytes(32, 11)) with
             {
-                ClientUserId = string.Empty
+                ClientUserId = null,
+                ClientUserTokenType = UserTokenType.UserName
+            };
+
+            DistributedSessionManager.RestoreDecision decision =
+                await manager.AuthorizeAndConsumeAsync(
+                    entry,
+                    PolicyA,
+                    MessageSecurityMode.SignAndEncrypt,
+                    s_clientChannelCertificate).ConfigureAwait(false);
+
+            Assert.That(
+                decision,
+                Is.EqualTo(DistributedSessionManager.RestoreDecision.SecurityStateMissing));
+        }
+
+        [Test]
+        public async Task AuthorizeRejectsUnactivatedIdentityStateAsync()
+        {
+            using var registryKv = new InMemorySharedKeyValueStore();
+            var registry = new SharedSingleUseNonceRegistry(registryKv);
+            using DistributedSessionManager manager = CreateManager(registry);
+            SharedSessionEntry entry = EntryWithNonce(CreateBytes(32, 13)) with
+            {
+                HasActivatedUserIdentity = false
             };
 
             DistributedSessionManager.RestoreDecision decision =
@@ -505,7 +531,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 ClientCertificateChain = ByteString.From(Utils.CreateCertificateChainBlob(clientChain)),
                 SecurityStateVersion = SharedSessionEntry.CurrentSecurityStateVersion,
                 OriginalClientChannelCertificate = clientCertificate.RawData.ToByteString(),
-                ClientUserId = "Anonymous",
+                ClientUserId = null,
+                ClientUserTokenType = UserTokenType.Anonymous,
+                HasActivatedUserIdentity = true,
                 SecurityPolicyUri = PolicyA,
                 SecurityMode = (int)MessageSecurityMode.Sign,
                 EndpointUrl = "opc.tcp://localhost:4840",
