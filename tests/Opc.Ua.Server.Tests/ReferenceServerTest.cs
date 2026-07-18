@@ -481,6 +481,90 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Test that the ReferenceNodeManager SelectionList variable exposes its
+        /// value.
+        /// </summary>
+        [Test]
+        public async Task ReferenceNodeManagerSelectionListVariableAsync()
+        {
+            ushort namespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(
+                Quickstarts.ReferenceServer.Namespaces.ReferenceServer);
+
+            var valueNodeId = new NodeId("DataAccess_SelectionList_Colors", namespaceIndex);
+
+            ArrayOf<ReadValueId> nodesToRead =
+            [
+                new ReadValueId { NodeId = valueNodeId, AttributeId = Attributes.Value }
+            ];
+
+            RequestHeader requestHeader = m_requestHeader;
+            requestHeader.Timestamp = DateTimeUtc.Now;
+            ReadResponse readResponse = await m_server.ReadAsync(
+                m_secureChannelContext,
+                requestHeader,
+                kMaxAge,
+                TimestampsToReturn.Both,
+                nodesToRead,
+                RequestLifetime.None).ConfigureAwait(false);
+
+            Assert.That(readResponse, Is.Not.Null);
+            Assert.That(readResponse.Results.IsNull, Is.False);
+            Assert.That(readResponse.Results.Count, Is.EqualTo(1));
+
+            DataValue value = readResponse.Results[0];
+            Assert.That(value.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(value.WrappedValue.GetString(), Is.EqualTo("Red"));
+        }
+
+        /// <summary>
+        /// Test that the ReferenceNodeManager Currency variable exposes its value
+        /// and its CurrencyUnit property.
+        /// </summary>
+        [Test]
+        public async Task ReferenceNodeManagerCurrencyVariableAsync()
+        {
+            ushort namespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(
+                Quickstarts.ReferenceServer.Namespaces.ReferenceServer);
+
+            var amountNodeId = new NodeId("DataAccess_Currency_Amount", namespaceIndex);
+            var currencyUnitNodeId = new NodeId(
+                "DataAccess_Currency_Amount_CurrencyUnit",
+                namespaceIndex);
+
+            ArrayOf<ReadValueId> nodesToRead =
+            [
+                new ReadValueId { NodeId = amountNodeId, AttributeId = Attributes.Value },
+                new ReadValueId { NodeId = currencyUnitNodeId, AttributeId = Attributes.Value }
+            ];
+
+            RequestHeader requestHeader = m_requestHeader;
+            requestHeader.Timestamp = DateTimeUtc.Now;
+            ReadResponse readResponse = await m_server.ReadAsync(
+                m_secureChannelContext,
+                requestHeader,
+                kMaxAge,
+                TimestampsToReturn.Both,
+                nodesToRead,
+                RequestLifetime.None).ConfigureAwait(false);
+
+            Assert.That(readResponse, Is.Not.Null);
+            Assert.That(readResponse.Results.IsNull, Is.False);
+            Assert.That(readResponse.Results.Count, Is.EqualTo(2));
+
+            DataValue amount = readResponse.Results[0];
+            Assert.That(amount.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(amount.WrappedValue.GetDouble(), Is.EqualTo(42.0));
+
+            DataValue currencyUnit = readResponse.Results[1];
+            Assert.That(currencyUnit.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(currencyUnit.WrappedValue.TryGetValue(out ExtensionObject currencyUnitObject), Is.True);
+            Assert.That(currencyUnitObject.TryGetValue(out CurrencyUnitType unit), Is.True);
+            Assert.That(unit.NumericCode, Is.EqualTo(978));
+            Assert.That(unit.Exponent, Is.EqualTo(2));
+            Assert.That(unit.AlphabeticCode, Is.EqualTo("EUR"));
+        }
+
+        /// <summary>
         /// Test that ReferenceNodeManager array variables update their SourceTimestamp on read.
         /// </summary>
         [Test]
