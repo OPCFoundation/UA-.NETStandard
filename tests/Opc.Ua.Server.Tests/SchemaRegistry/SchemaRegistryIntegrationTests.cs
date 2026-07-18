@@ -417,12 +417,115 @@ namespace Opc.Ua.Server.Tests.SchemaRegistry
         }
 
         /// <summary>
+        /// Proves the registration lifecycle (spec §5.2) with auto-bootstrap (§10.1): a writer
+        /// calls <c>CreateResource</c> to obtain a write handle, streams the document with two
+        /// <c>Write</c> chunks, and <c>Close</c>s it. On close the server computes the SchemaId
+        /// via the fingerprint provider and creates the Opaque fast-path node <b>at runtime</b>,
+        /// after which the freshly registered document is downloadable by its Opaque SchemaId
+        /// NodeId (§6.4) in one Read — closing the register → resolve round-trip.
+        /// </summary>
+        [Test]
+        [Order(900)]
+        public async Task RegisterSchemaCreateWriteCloseBootstrapsDownloadableSchemaAsync()
+        {
+            IServerInternal server = m_server.CurrentInstance;
+            ushort ns = SchemaRegistryNamespaceIndex(server);
+
+            MethodState createResource = await FindMethodAsync(
+                server, SchemaRegistryRegistrationNodeManager.CreateResourceMethod, ns)
+                .ConfigureAwait(false);
+            MethodState write = await FindMethodAsync(
+                server, SchemaRegistryRegistrationNodeManager.WriteMethod, ns)
+                .ConfigureAwait(false);
+            MethodState close = await FindMethodAsync(
+                server, SchemaRegistryRegistrationNodeManager.CloseMethod, ns)
+                .ConfigureAwait(false);
+
+            var groupId = new NodeId(SchemaRegistryRegistrationNodeManager.SchemaGroupObject, ns);
+            ISystemContext ctx = server.DefaultSystemContext;
+
+            // A distinct document, registered fresh (not the startup-seeded fast-path schema).
+            byte[] document = System.Text.Encoding.UTF8.GetBytes(
+                "{\"type\":\"record\",\"name\":\"Registered\",\"fields\":[]}");
+            byte[] chunk1 = document[..20];
+            byte[] chunk2 = document[20..];
+
+            // 1) CreateResource -> (fileHandle, versionId).
+            var createOutputs = new List<Variant>();
+            ServiceResult createResult = createResource.OnCallMethod2(
+                ctx, createResource, groupId,
+                [new Variant("urn:schema:registered"), new Variant(string.Empty)], createOutputs);
+            Assert.That(ServiceResult.IsGood(createResult), Is.True);
+            Assert.That(createOutputs, Has.Count.EqualTo(2));
+            createOutputs[0].TryGetValue(out uint handle);
+            createOutputs[1].TryGetValue(out string versionId);
+            Assert.That(versionId, Is.Not.Empty, "CreateResource assigns a VersionId.");
+
+            // 2) Write the document in two chunks.
+            var writeOutputs = new List<Variant>();
+            Assert.That(ServiceResult.IsGood(write.OnCallMethod2(
+                ctx, write, groupId, [new Variant(handle), new Variant(ByteString.From(chunk1))], writeOutputs)),
+                Is.True);
+            Assert.That(ServiceResult.IsGood(write.OnCallMethod2(
+                ctx, write, groupId, [new Variant(handle), new Variant(ByteString.From(chunk2))], writeOutputs)),
+                Is.True);
+
+            // 3) Close -> auto-bootstrap (SchemaId + alg) and dynamic fast-path node creation.
+            var closeOutputs = new List<Variant>();
+            ServiceResult closeResult = close.OnCallMethod2(
+                ctx, close, groupId, [new Variant(handle), new Variant("avro")], closeOutputs);
+            Assert.That(ServiceResult.IsGood(closeResult), Is.True);
+            Assert.That(closeOutputs, Has.Count.EqualTo(2));
+            closeOutputs[0].TryGetValue(out ByteString registeredSchemaId);
+            closeOutputs[1].TryGetValue(out string registeredAlg);
+
+            // The returned SchemaId matches the provider's fingerprint of the full document.
+            byte[] expected;
+#pragma warning disable UA_NETStandard_Encoders // pluggable per-format fingerprint provider (§6.6)
+            expected = SchemaIdProviders.ComputeSchemaId("avro", document);
+#pragma warning restore UA_NETStandard_Encoders
+            Assert.Multiple(() =>
+            {
+                Assert.That(registeredAlg, Is.EqualTo("CRC-64-AVRO"));
+                Assert.That(registeredSchemaId, Is.EqualTo(ByteString.From(expected)));
+            });
+
+            // 4) The freshly registered document is downloadable by its Opaque SchemaId NodeId.
+            var fastPathNodeId = new NodeId(registeredSchemaId, ns);
+            NodeState resolved = await server.NodeManager
+                .FindNodeInAddressSpaceAsync(fastPathNodeId)
+                .ConfigureAwait(false);
+            Assert.That(resolved, Is.Not.Null,
+                "After Close the registered schema resolves by its Opaque SchemaId NodeId.");
+
+            var variable = resolved as BaseVariableState;
+            variable!.Value.TryGetValue(out ByteString downloaded);
+            Assert.That(downloaded, Is.EqualTo(ByteString.From(document)),
+                "One Read returns the exact bytes written across the two Write chunks.");
+        }
+
+        /// <summary>
         /// Returns the server-side namespace index for the Schema Registry companion model.
         /// </summary>
         private static ushort SchemaRegistryNamespaceIndex(IServerInternal server)
         {
             return (ushort)server.NamespaceUris.GetIndex(
                 SchemaRegistryTestServer.SchemaRegistryNamespaceUri);
+        }
+
+        /// <summary>
+        /// Resolves a registration <see cref="MethodState"/> by its provisional NodeId.
+        /// </summary>
+        private static async Task<MethodState> FindMethodAsync(
+            IServerInternal server, uint id, ushort ns)
+        {
+            NodeState node = await server.NodeManager
+                .FindNodeInAddressSpaceAsync(new NodeId(id, ns))
+                .ConfigureAwait(false);
+
+            var method = node as MethodState;
+            Assert.That(method, Is.Not.Null, $"Registration method {id} should be a MethodState.");
+            return method!;
         }
     }
 }
