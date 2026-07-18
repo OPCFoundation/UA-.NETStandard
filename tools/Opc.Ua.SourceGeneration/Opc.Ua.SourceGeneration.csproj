@@ -31,7 +31,9 @@
     <InternalsVisibleTo Include="Opc.Ua.SourceGeneration.Tests"/>
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" PrivateAssets="all" />
+    <!-- Keep Roslyn compile assets transitive for project-reference test consumers.
+         SourceGeneratorPackaging.targets suppresses package dependencies and host DLL payloads. -->
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
     <PackageReference Include="SourceGenerator.Foundations">
       <!-- Make private asset because assembly name comparer symbol conflict in test -->
       <PrivateAssets>all</PrivateAssets>
