@@ -65,6 +65,13 @@ namespace Opc.Ua.Gds.Server
             BrowseNames.WellKnownRole_RegistrationAuthorityAdmin);
 
         /// <summary>
+        /// This Role grants rights to request or revoke any KeyCredential.
+        /// </summary>
+        public static Role KeyCredentialAdmin { get; } = new(
+            ObjectIds.WellKnownRole_KeyCredentialAdmin,
+            BrowseNames.WellKnownRole_KeyCredentialAdmin);
+
+        /// <summary>
         /// A privilege to manage the own Certificates and pull trust list.
         /// </summary>
         /// <remarks>
