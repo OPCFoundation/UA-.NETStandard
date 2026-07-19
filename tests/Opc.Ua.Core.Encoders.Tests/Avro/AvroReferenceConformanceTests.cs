@@ -204,10 +204,14 @@ namespace Opc.Ua.Core.Tests
         // numeric/string/guid/opaque each nullable(<raw>) with exactly one present }; ExpandedNodeId
         // = { nodeId:NodeId(non-nullable), namespaceUri:nullable(string), serverIndex:long };
         // QualifiedName = { namespace:int, name:nullable(string) }. Reference bytes from avro_codec.
-        // (Guid identifiers are covered by round-trip tests; their opcua-guid fixed byte order is a
-        // separate concern from the record structure exercised here.)
+        // Guid identifiers/values use the Avro `uuid` fixed[16] in RFC-4122 (big-endian) byte order.
         private static readonly (string Name, string ReferenceHex, Action<AvroEncoder> Write)[] s_compositeTargets =
         {
+            ("Guid_scalar_01..10", "0102030405060708090a0b0c0d0e0f10",
+                e => e.WriteGuid(null, Uuid.Parse("01020304-0506-0708-090a-0b0c0d0e0f10"))),
+            ("NodeId_ns3_guid", "0206040000020102030405060708090a0b0c0d0e0f1000",
+                e => e.WriteNodeId(null, new NodeId(
+                    Guid.Parse("01020304-0506-0708-090a-0b0c0d0e0f10"), 3))),
             ("NodeId_ns0_num42", "0200000254000000",
                 e => e.WriteNodeId(null, new NodeId(42u, 0))),
             ("NodeId_ns2_num5", "020400020a000000",

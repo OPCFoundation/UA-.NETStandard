@@ -198,7 +198,21 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public Uuid ReadGuid(string? fieldName)
         {
-            return new Uuid(m_reader.ReadFixed(16));
+            return new Uuid(GuidFromRfc4122(m_reader.ReadFixed(16)));
+        }
+
+        // Mirrors AvroEncoder.GuidToRfc4122: the Avro `uuid` fixed is RFC-4122 (big-endian) order,
+        // so re-order to .NET's mixed-endian layout before constructing the Guid.
+        private static Guid GuidFromRfc4122(byte[] be)
+        {
+            byte[] n =
+            [
+                be[3], be[2], be[1], be[0],
+                be[5], be[4],
+                be[7], be[6],
+                be[8], be[9], be[10], be[11], be[12], be[13], be[14], be[15],
+            ];
+            return new Guid(n);
         }
 
         /// <inheritdoc/>
@@ -247,7 +261,7 @@ namespace Opc.Ua
             Guid guid = default;
             if (m_reader.ReadLong() != 0)
             {
-                guid = new Uuid(m_reader.ReadFixed(16)).Guid;
+                guid = GuidFromRfc4122(m_reader.ReadFixed(16));
             }
 
             ByteString opaque = default;

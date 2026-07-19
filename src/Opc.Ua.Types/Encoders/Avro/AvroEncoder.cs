@@ -231,7 +231,21 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void WriteGuid(string? fieldName, Uuid value)
         {
-            m_writer.WriteFixed(value.ToByteArray());
+            m_writer.WriteFixed(GuidToRfc4122(value.Guid));
+        }
+
+        // The Avro `uuid` logical type (and the reference codec) serialises a Guid as its 16 bytes in
+        // RFC-4122 (big-endian) order, which differs from .NET's mixed-endian Guid.ToByteArray().
+        private static byte[] GuidToRfc4122(Guid value)
+        {
+            byte[] b = value.ToByteArray();
+            return
+            [
+                b[3], b[2], b[1], b[0],
+                b[5], b[4],
+                b[7], b[6],
+                b[8], b[9], b[10], b[11], b[12], b[13], b[14], b[15],
+            ];
         }
 
         /// <inheritdoc/>
@@ -297,7 +311,7 @@ namespace Opc.Ua
             if (value.IdType == IdType.Guid && value.TryGetValue(out Guid guid))
             {
                 m_writer.WriteLong(1);
-                m_writer.WriteFixed(new Uuid(guid).ToByteArray());
+                m_writer.WriteFixed(GuidToRfc4122(guid));
             }
             else
             {
