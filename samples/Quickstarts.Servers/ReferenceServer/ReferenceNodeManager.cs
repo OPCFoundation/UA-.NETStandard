@@ -4490,7 +4490,8 @@ namespace Quickstarts.ReferenceServer
             }
 
             PropertyState<ArrayOf<LocalizedText>> selectionDescriptions =
-                variable.SelectionDescriptions!;
+                variable.SelectionDescriptions ??
+                throw new InvalidOperationException("SelectionDescriptions child was not created.");
             selectionDescriptions.NodeId = new NodeId(
                 path + "_SelectionDescriptions",
                 NamespaceIndex);
@@ -4518,7 +4519,8 @@ namespace Quickstarts.ReferenceServer
                     new NodeId(path + "_RestrictToList", NamespaceIndex));
             }
 
-            PropertyState<bool> restrictToList = variable.RestrictToList!;
+            PropertyState<bool> restrictToList = variable.RestrictToList ??
+                throw new InvalidOperationException("RestrictToList child was not created.");
             restrictToList.NodeId = new NodeId(path + "_RestrictToList", NamespaceIndex);
             restrictToList.BrowseName = new QualifiedName(BrowseNames.RestrictToList);
             restrictToList.DisplayName = LocalizedText.From(BrowseNames.RestrictToList);
