@@ -869,6 +869,60 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        [Test]
+        public void HistoryUpdateRejectsTooManyDataOperationsAsync()
+        {
+            NodeId nodeId = ToNodeId(Constants.ScalarStaticDouble);
+            var details = new ExtensionObject[1001];
+
+            for (int i = 0; i < details.Length; i++)
+            {
+                details[i] = new ExtensionObject(new UpdateDataDetails
+                {
+                    NodeId = nodeId,
+                    PerformInsertReplace = PerformUpdateType.Insert,
+                    UpdateValues =
+                    [
+                        new DataValue(
+                            new Variant((double)i),
+                            StatusCodes.Good,
+                            DateTime.UtcNow.AddSeconds(i))
+                    ]
+                });
+            }
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await Session.HistoryUpdateAsync(
+                    null,
+                    details.ToArrayOf(),
+                    CancellationToken.None).ConfigureAwait(false));
+
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTooManyOperations));
+        }
+
+        [Test]
+        public void HistoryUpdateRejectsTooManyEventOperationsAsync()
+        {
+            var details = new ExtensionObject[1001];
+
+            for (int i = 0; i < details.Length; i++)
+            {
+                details[i] = new ExtensionObject(new DeleteEventDetails
+                {
+                    NodeId = ObjectIds.Server,
+                    EventIds = [ByteString.From([(byte)(i & 0xff)])]
+                });
+            }
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await Session.HistoryUpdateAsync(
+                    null,
+                    details.ToArrayOf(),
+                    CancellationToken.None).ConfigureAwait(false));
+
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTooManyOperations));
+        }
+
         [Description("Verify that HistoryRead can read history for multiple nodes in a single request and returns one result per node.")]
         [Test]
         public async Task HistoryReadMultipleNodesAtOnceAsync()
