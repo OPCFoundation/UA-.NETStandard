@@ -44,6 +44,9 @@ namespace Opc.Ua
         private readonly AvroBinaryReader m_reader;
         private readonly bool m_leaveOpen;
         private uint m_nestingLevel;
+        // Mirrors AvroEncoder.m_nextArrayPlain: when set, the next ReadArray/ReadMatrix reads a
+        // *plain* Avro array body (no nullable-union present-marker). Consumed on entry.
+        private bool m_nextArrayPlain;
 
         /// <summary>
         /// Initializes a new AvroDecoder instance for the experimental OPC UA encoding support.
@@ -479,13 +482,19 @@ namespace Opc.Ua
 
         private ArrayOf<T> ReadArray<T>(Func<T> read)
         {
-            long branch = m_reader.ReadLong();
-            if (branch == 0)
+            bool plain = m_nextArrayPlain;
+            m_nextArrayPlain = false;
+            if (!plain)
             {
-                return default;
+                long branch = m_reader.ReadLong();
+                if (branch == 0)
+                {
+                    return default;
+                }
+
+                ExpectBranch(branch, 1);
             }
 
-            ExpectBranch(branch, 1);
             var values = new List<T>();
             while (true)
             {
@@ -512,14 +521,25 @@ namespace Opc.Ua
 
         private MatrixOf<T> ReadMatrix<T>(Func<ArrayOf<T>> readArray)
         {
-            long branch = m_reader.ReadLong();
-            if (branch == 0)
+            bool plain = m_nextArrayPlain;
+            m_nextArrayPlain = false;
+            if (!plain)
             {
-                return default;
+                long branch = m_reader.ReadLong();
+                if (branch == 0)
+                {
+                    return default;
+                }
+
+                ExpectBranch(branch, 1);
+                int[] outerDims = ReadInt32Array(null).ToArray() ?? Array.Empty<int>();
+                return readArray().ToMatrix(outerDims);
             }
 
-            ExpectBranch(branch, 1);
+            // A Variant matrix body: MatrixBody { dimensions: plain array<int>, values: plain array }.
+            m_nextArrayPlain = true;
             int[] dims = ReadInt32Array(null).ToArray() ?? Array.Empty<int>();
+            m_nextArrayPlain = true;
             return readArray().ToMatrix(dims);
         }
 
@@ -786,9 +806,11 @@ namespace Opc.Ua
 
                 if (shapeOffset == 1)
                 {
+                    m_nextArrayPlain = true;
                     return ReadArrayVariant(type);
                 }
 
+                m_nextArrayPlain = true;
                 return ReadMatrixVariant(type);
             }
             finally

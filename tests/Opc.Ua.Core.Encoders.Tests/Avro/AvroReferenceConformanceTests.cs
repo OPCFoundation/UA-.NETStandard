@@ -177,13 +177,15 @@ namespace Opc.Ua.Core.Tests
                 e => e.WriteVariant(null, new Variant(new ArrayOf<int>([1, 2, 3])))),
             ("Variant_Int32Array_empty", "0c002200",
                 e => e.WriteVariant(null, new Variant(new ArrayOf<int>([])))),
+            // Nullable-element built-in (String): the plain array elements stay nullable-union-wrapped.
+            ("Variant_StringArray_a_b", "1800460402026102026200",
+                e => e.WriteVariant(null, new Variant(new ArrayOf<string>(["a", "b"])))),
             ("Variant_Int32Matrix_2x2", "0c02040404002404040400080204060800",
                 e => e.WriteVariant(null, new Variant(
                     new ArrayOf<int>([1, 2, 3, 4]).ToMatrix(2, 2)))),
         };
 
         [Test]
-        [Ignore("finding 6 / Part B2-array: canonical Variant array/matrix body (plain array) not yet implemented — executable target")]
         public void VariantArrayMatrixMatchesReferenceAvroBinary()
         {
             Assert.Multiple(() =>

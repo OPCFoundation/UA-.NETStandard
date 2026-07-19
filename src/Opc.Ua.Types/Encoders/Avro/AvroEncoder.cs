@@ -44,6 +44,10 @@ namespace Opc.Ua
         private readonly AvroBinaryWriter m_writer;
         private readonly bool m_leaveOpen;
         private bool m_closed;
+        // When set, the next WriteArray/WriteMatrix emits a *plain* Avro array body (no
+        // nullable-union present-marker) for a Variant array/matrix body. Consumed on entry so
+        // nested values (e.g. Variant elements) revert to their normal nullable-union encoding.
+        private bool m_nextArrayPlain;
 
         /// <summary>
         /// Initializes a new AvroEncoder instance for the experimental OPC UA encoding support.
@@ -490,14 +494,20 @@ namespace Opc.Ua
 
         private void WriteArray<T>(ArrayOf<T> values, Action<T> write)
         {
-            if (values.IsNull)
+            bool plain = m_nextArrayPlain;
+            m_nextArrayPlain = false;
+            if (!plain)
             {
-                m_writer.WriteLong(0);
-                return;
+                if (values.IsNull)
+                {
+                    m_writer.WriteLong(0);
+                    return;
+                }
+
+                m_writer.WriteLong(1);
             }
 
-            m_writer.WriteLong(1);
-            if (values.Count > 0)
+            if (!values.IsNull && values.Count > 0)
             {
                 m_writer.WriteLong(values.Count);
                 foreach (T value in values.Span)
@@ -511,14 +521,28 @@ namespace Opc.Ua
 
         private void WriteMatrix<T>(MatrixOf<T> matrix, Action<ArrayOf<T>> writeArray)
         {
-            if (matrix.IsNull)
+            bool plain = m_nextArrayPlain;
+            m_nextArrayPlain = false;
+            if (!plain)
             {
-                m_writer.WriteLong(0);
+                if (matrix.IsNull)
+                {
+                    m_writer.WriteLong(0);
+                    return;
+                }
+
+                m_writer.WriteLong(1);
+                WriteInt32Array(null, matrix.Dimensions);
+                writeArray(matrix.ToArrayOf());
                 return;
             }
 
-            m_writer.WriteLong(1);
+            // A Variant matrix body is a MatrixBody record { dimensions: array<int>, values: array }
+            // where both are *plain* Avro arrays (no present-marker); the Variant-level dimensions
+            // written by WriteVariant carry the shape a second time (nullable there).
+            m_nextArrayPlain = true;
             WriteInt32Array(null, matrix.Dimensions);
+            m_nextArrayPlain = true;
             writeArray(matrix.ToArrayOf());
         }
 
@@ -801,10 +825,12 @@ namespace Opc.Ua
             }
             else if (typeInfo.IsArray)
             {
+                m_nextArrayPlain = true;
                 WriteArrayVariant(in value, type);
             }
             else
             {
+                m_nextArrayPlain = true;
                 WriteMatrixVariant(in value, type);
             }
         }
