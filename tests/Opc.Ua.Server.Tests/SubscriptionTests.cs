@@ -329,5 +329,85 @@ namespace Opc.Ua.Server.Tests
             Assert.That(moreNotifications2, Is.True);
             Assert.That(moreNotifications3, Is.False);
         }
+
+        [Test]
+        public void ConstructMessageWithZeroLimitDrainsNotificationQueues()
+        {
+            using Subscription subscription = CreateSubscription();
+            var events = new Queue<EventFieldList>(
+            [
+                new EventFieldList(),
+                new EventFieldList()
+            ]);
+            var dataChanges = new Queue<MonitoredItemNotification>(
+            [
+                new MonitoredItemNotification { Value = new DataValue(1) },
+                new MonitoredItemNotification { Value = new DataValue(2) }
+            ]);
+            var diagnostics = new Queue<DiagnosticInfo>(
+            [
+                new DiagnosticInfo(),
+                new DiagnosticInfo()
+            ]);
+
+            MethodInfo constructMessage = typeof(Subscription).GetMethod(
+                "ConstructMessage",
+                BindingFlags.NonPublic | BindingFlags.Instance)
+                ?? throw new InvalidOperationException("ConstructMessage method not found");
+            object[] arguments = [events, dataChanges, diagnostics, 0];
+
+            var message = (NotificationMessage)constructMessage.Invoke(subscription, arguments);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(events, Is.Empty);
+                Assert.That(dataChanges, Is.Empty);
+                Assert.That(diagnostics, Is.Empty);
+                Assert.That((int)arguments[3], Is.EqualTo(4));
+                Assert.That(message.NotificationData.Count, Is.EqualTo(2));
+            });
+        }
+
+        [TestCase(0, 0, 0)]
+        [TestCase(0, 25, 25)]
+        [TestCase(10, 0, 10)]
+        [TestCase(10, 25, 10)]
+        public void CalculateMaxNotificationsTreatsZeroAsUnlimited(
+            int serverLimit,
+            int requestedLimit,
+            int expectedLimit)
+        {
+            var configuration = new ApplicationConfiguration
+            {
+                ServerConfiguration = new ServerConfiguration
+                {
+                    MaxNotificationsPerPublish = serverLimit
+                }
+            };
+            using var manager = new TestSubscriptionManager(
+                m_serverMock.Object,
+                configuration);
+
+            uint revisedLimit = manager.CalculateMaxNotificationsPerPublish(
+                (uint)requestedLimit);
+
+            Assert.That(revisedLimit, Is.EqualTo((uint)expectedLimit));
+        }
+
+        private sealed class TestSubscriptionManager : SubscriptionManager
+        {
+            public TestSubscriptionManager(
+                IServerInternal server,
+                ApplicationConfiguration configuration)
+                : base(server, configuration)
+            {
+            }
+
+            public new uint CalculateMaxNotificationsPerPublish(
+                uint maxNotificationsPerPublish)
+            {
+                return base.CalculateMaxNotificationsPerPublish(maxNotificationsPerPublish);
+            }
+        }
     }
 }
