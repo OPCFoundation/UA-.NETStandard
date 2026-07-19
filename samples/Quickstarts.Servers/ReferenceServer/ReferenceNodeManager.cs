@@ -4491,7 +4491,9 @@ namespace Quickstarts.ReferenceServer
 
             PropertyState<ArrayOf<LocalizedText>> selectionDescriptions =
                 variable.SelectionDescriptions ??
-                throw new InvalidOperationException("SelectionDescriptions child was not created.");
+                throw new InvalidOperationException(
+                    "SelectionDescriptions property is null after calling AddSelectionDescriptions. " +
+                    "This indicates a framework initialization error.");
             selectionDescriptions.NodeId = new NodeId(
                 path + "_SelectionDescriptions",
                 NamespaceIndex);
@@ -4520,7 +4522,9 @@ namespace Quickstarts.ReferenceServer
             }
 
             PropertyState<bool> restrictToList = variable.RestrictToList ??
-                throw new InvalidOperationException("RestrictToList child was not created.");
+                throw new InvalidOperationException(
+                    "RestrictToList property is null after calling AddRestrictToList. " +
+                    "This indicates a framework initialization error.");
             restrictToList.NodeId = new NodeId(path + "_RestrictToList", NamespaceIndex);
             restrictToList.BrowseName = new QualifiedName(BrowseNames.RestrictToList);
             restrictToList.DisplayName = LocalizedText.From(BrowseNames.RestrictToList);
