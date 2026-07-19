@@ -18,6 +18,7 @@
       <_SourceGeneratorRuntimeAsset Include="@(ReferenceCopyLocalPaths)"
                                     Condition="'$(NoBuild)' != 'true' AND
                                       '%(ReferenceCopyLocalPaths.Extension)' == '.dll' AND
+                                      !$([System.String]::Copy('%(Filename)').StartsWith('Microsoft.CodeAnalysis')) AND
                                       '%(ReferenceCopyLocalPaths.NuGetPackageId)' != 'Microsoft.CodeAnalysis.Common' AND
                                       '%(ReferenceCopyLocalPaths.NuGetPackageId)' != 'Microsoft.CodeAnalysis.CSharp' AND
                                       '%(ReferenceCopyLocalPaths.NuGetPackageId)' != 'Microsoft.CodeAnalysis.Workspaces.Common' AND

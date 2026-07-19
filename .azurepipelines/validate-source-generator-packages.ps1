@@ -37,12 +37,14 @@ function Get-PackageInfo
     )
 
     $packagePattern = "^$([Regex]::Escape($PackageId))\.(?<version>[0-9].+)\.nupkg$"
-    $package = Get-ChildItem -Path $PackageDirectory -Filter "$PackageId*.nupkg" -File -Recurse |
-        Where-Object { $_.Name -notlike "*.snupkg" -and $_.Name -match $packagePattern } |
-        Sort-Object LastWriteTimeUtc -Descending |
-        Select-Object -First 1
+    $packages = @(Get-ChildItem -Path $PackageDirectory -Filter "$PackageId*.nupkg" -File -Recurse |
+        Where-Object { $_.Name -notlike "*.snupkg" -and $_.Name -match $packagePattern })
 
-    Assert-Condition ($null -ne $package) "Package '$PackageId' was not found in '$PackageDirectory'."
+    Assert-Condition ($packages.Count -gt 0) "Package '$PackageId' was not found in '$PackageDirectory'."
+    Assert-Condition (
+        $packages.Count -eq 1
+    ) "Expected exactly one package '$PackageId' in '$PackageDirectory'; found $($packages.Count)."
+    $package = $packages[0]
 
     $archive = [IO.Compression.ZipFile]::OpenRead($package.FullName)
     try
@@ -253,7 +255,7 @@ Add-Type -AssemblyName System.IO.Compression.FileSystem
 $resolvedPackageDirectory = (Resolve-Path $PackageDirectory).Path
 $PackageDirectory = $resolvedPackageDirectory
 $repoRoot = Split-Path $PSScriptRoot -Parent
-$validationRoot = Join-Path $repoRoot "artifacts\source-generator-consumer"
+$validationRoot = Join-Path (Join-Path $repoRoot "artifacts") "source-generator-consumer"
 Test-ConfigurationPackageIds (
     Join-Path $repoRoot "tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj")
 Test-ConfigurationPackageIds (
