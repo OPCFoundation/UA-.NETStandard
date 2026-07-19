@@ -77,6 +77,7 @@ namespace Quickstarts.Servers
                 }
 
                 var subs = subscriptions.Cast<StoredSubscription>().ToList();
+                // Validate identities before File.Create can truncate an existing store.
                 foreach (StoredSubscription sub in subs)
                 {
                     _ = SanitizeUserIdentityToken(sub.UserIdentityToken);
@@ -231,7 +232,8 @@ namespace Quickstarts.Servers
             if (magic != kStoreMagic)
             {
                 throw new InvalidDataException(
-                    "The durable subscription store uses the legacy unsafe format.");
+                    "The durable subscription store has an invalid header or uses the " +
+                    "legacy unsafe format.");
             }
 
             uint version = decoder.ReadUInt32(null);

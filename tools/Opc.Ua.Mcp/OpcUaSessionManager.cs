@@ -205,19 +205,12 @@ namespace Opc.Ua.Mcp
         {
             ObjectDisposedException.ThrowIf(m_disposed, this);
 
-            await m_lock.WaitAsync(ct).ConfigureAwait(false);
-            try
-            {
-                await EnsureConfigurationInternalAsync(ct).ConfigureAwait(false);
-                return await DiscoverEndpointsInternalAsync(
-                    m_configuration!,
-                    discoveryUrl,
-                    ct).ConfigureAwait(false);
-            }
-            finally
-            {
-                m_lock.Release();
-            }
+            ApplicationConfiguration configuration =
+                await EnsureConfigurationAsync(ct).ConfigureAwait(false);
+            return await DiscoverEndpointsInternalAsync(
+                configuration,
+                discoveryUrl,
+                ct).ConfigureAwait(false);
         }
 
         /// <summary>
