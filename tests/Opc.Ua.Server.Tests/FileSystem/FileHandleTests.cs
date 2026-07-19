@@ -50,6 +50,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         private const byte ModeEraseExisting = 0x4;
         private const byte ModeAppend = 0x8;
 
+        private static readonly NodeId s_sessionId = new("FileHandleSession", 0);
         private string m_root = null!;
 
         [SetUp]
@@ -90,7 +91,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         {
             using var handle = new FileHandle(CreateProvider(), "f.txt");
 
-            ServiceResult result = handle.Open(0x0, out uint fileHandle);
+            ServiceResult result = handle.Open(s_sessionId, 0x0, out uint fileHandle);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
             Assert.That(fileHandle, Is.Zero);
@@ -101,7 +102,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         {
             using var handle = new FileHandle(CreateProvider(), "f.txt");
 
-            ServiceResult result = handle.Open(ModeRead | ModeWrite, out _);
+            ServiceResult result = handle.Open(s_sessionId, ModeRead | ModeWrite, out _);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
@@ -112,7 +113,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             WriteFile("f.txt", "abc");
             using var handle = new FileHandle(CreateProvider(isWritable: false), "f.txt");
 
-            ServiceResult result = handle.Open(ModeWrite, out _);
+            ServiceResult result = handle.Open(s_sessionId, ModeWrite, out _);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
@@ -122,7 +123,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         {
             using var handle = new FileHandle(CreateProvider(), "missing.txt");
 
-            ServiceResult result = handle.Open(ModeRead, out _);
+            ServiceResult result = handle.Open(s_sessionId, ModeRead, out _);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotFound));
         }
@@ -133,12 +134,12 @@ namespace Opc.Ua.Server.Tests.FileSystem
             WriteFile("f.txt", "hello");
             using var handle = new FileHandle(CreateProvider(), "f.txt");
 
-            ServiceResult result = handle.Open(ModeRead, out uint fileHandle);
+            ServiceResult result = handle.Open(s_sessionId, ModeRead, out uint fileHandle);
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(fileHandle, Is.GreaterThan(0u));
             Assert.That(handle.OpenCount, Is.EqualTo(1));
-            Assert.That(handle.GetStream(fileHandle), Is.Not.Null);
+            Assert.That(handle.GetStream(s_sessionId, fileHandle), Is.Not.Null);
         }
 
         [Test]
@@ -147,8 +148,8 @@ namespace Opc.Ua.Server.Tests.FileSystem
             WriteFile("f.txt", "hello");
             using var handle = new FileHandle(CreateProvider(), "f.txt");
 
-            handle.Open(ModeRead, out uint first);
-            handle.Open(ModeRead, out uint second);
+            handle.Open(s_sessionId, ModeRead, out uint first);
+            handle.Open(s_sessionId, ModeRead, out uint second);
 
             Assert.That(first, Is.Not.EqualTo(second));
             Assert.That(handle.OpenCount, Is.EqualTo(2));
@@ -159,9 +160,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
         {
             WriteFile("f.txt", "hello");
             using var handle = new FileHandle(CreateProvider(), "f.txt");
-            handle.Open(ModeRead, out _);
+            handle.Open(s_sessionId, ModeRead, out _);
 
-            ServiceResult result = handle.Open(ModeWrite, out _);
+            ServiceResult result = handle.Open(s_sessionId, ModeWrite, out _);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
         }
@@ -171,24 +172,24 @@ namespace Opc.Ua.Server.Tests.FileSystem
         {
             WriteFile("f.txt", "hello");
             using var handle = new FileHandle(CreateProvider(), "f.txt");
-            handle.Open(ModeWrite, out _);
+            handle.Open(s_sessionId, ModeWrite, out _);
 
-            ServiceResult result = handle.Open(ModeRead, out _);
+            ServiceResult result = handle.Open(s_sessionId, ModeRead, out _);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
         }
 
         [Test]
-        public void OpenWriteReturnsHandleOne()
+        public void OpenWriteReturnsOpaqueHandle()
         {
             WriteFile("f.txt", "hello");
             using var handle = new FileHandle(CreateProvider(), "f.txt");
 
-            ServiceResult result = handle.Open(ModeWrite, out uint fileHandle);
+            ServiceResult result = handle.Open(s_sessionId, ModeWrite, out uint fileHandle);
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
-            Assert.That(fileHandle, Is.EqualTo(1u));
-            Assert.That(handle.GetStream(1u), Is.Not.Null);
+            Assert.That(fileHandle, Is.Not.Zero);
+            Assert.That(handle.GetStream(s_sessionId, fileHandle), Is.Not.Null);
         }
 
         [Test]
@@ -197,11 +198,11 @@ namespace Opc.Ua.Server.Tests.FileSystem
             WriteFile("f.txt", "existing-content");
             using var handle = new FileHandle(CreateProvider(), "f.txt");
 
-            handle.Open(ModeWrite | ModeEraseExisting, out uint fileHandle);
-            Stream stream = handle.GetStream(fileHandle)!;
+            handle.Open(s_sessionId, ModeWrite | ModeEraseExisting, out uint fileHandle);
+            Stream stream = handle.GetStream(s_sessionId, fileHandle)!;
             byte[] payload = Encoding.UTF8.GetBytes("new");
             stream.Write(payload, 0, payload.Length);
-            handle.Close(fileHandle);
+            handle.Close(s_sessionId, fileHandle);
 
             Assert.That(File.ReadAllText(Path.Combine(m_root, "f.txt")), Is.EqualTo("new"));
         }
@@ -212,11 +213,11 @@ namespace Opc.Ua.Server.Tests.FileSystem
             WriteFile("f.txt", "a");
             using var handle = new FileHandle(CreateProvider(), "f.txt");
 
-            handle.Open(ModeWrite | ModeAppend, out uint fileHandle);
-            Stream stream = handle.GetStream(fileHandle)!;
+            handle.Open(s_sessionId, ModeWrite | ModeAppend, out uint fileHandle);
+            Stream stream = handle.GetStream(s_sessionId, fileHandle)!;
             byte[] payload = Encoding.UTF8.GetBytes("b");
             stream.Write(payload, 0, payload.Length);
-            handle.Close(fileHandle);
+            handle.Close(s_sessionId, fileHandle);
 
             Assert.That(File.ReadAllText(Path.Combine(m_root, "f.txt")), Is.EqualTo("ab"));
         }
@@ -226,7 +227,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         {
             using var handle = new FileHandle(CreateProvider(), "f.txt");
 
-            Assert.That(handle.GetStream(999u), Is.Null);
+            Assert.That(handle.GetStream(s_sessionId, 999u), Is.Null);
         }
 
         [Test]
@@ -234,7 +235,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         {
             using var handle = new FileHandle(CreateProvider(), "f.txt");
 
-            Assert.That(handle.Close(42u), Is.False);
+            Assert.That(handle.Close(s_sessionId, 42u), Is.False);
         }
 
         [Test]
@@ -242,13 +243,13 @@ namespace Opc.Ua.Server.Tests.FileSystem
         {
             WriteFile("f.txt", "hello");
             using var handle = new FileHandle(CreateProvider(), "f.txt");
-            handle.Open(ModeRead, out uint fileHandle);
+            handle.Open(s_sessionId, ModeRead, out uint fileHandle);
 
-            bool closed = handle.Close(fileHandle);
+            bool closed = handle.Close(s_sessionId, fileHandle);
 
             Assert.That(closed, Is.True);
             Assert.That(handle.OpenCount, Is.Zero);
-            Assert.That(handle.GetStream(fileHandle), Is.Null);
+            Assert.That(handle.GetStream(s_sessionId, fileHandle), Is.Null);
         }
 
         [Test]
@@ -256,9 +257,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
         {
             WriteFile("f.txt", "hello");
             using var handle = new FileHandle(CreateProvider(), "f.txt");
-            handle.Open(ModeWrite, out uint fileHandle);
+            handle.Open(s_sessionId, ModeWrite, out uint fileHandle);
 
-            bool closed = handle.Close(fileHandle);
+            bool closed = handle.Close(s_sessionId, fileHandle);
 
             Assert.That(closed, Is.True);
             Assert.That(handle.OpenCount, Is.Zero);
@@ -292,7 +293,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         {
             WriteFile("f.txt", "hello");
             using var handle = new FileHandle(CreateProvider(), "f.txt");
-            handle.Open(ModeRead, out _);
+            handle.Open(s_sessionId, ModeRead, out _);
 
             Assert.That(handle.IsWriteable, Is.False);
         }
@@ -311,8 +312,8 @@ namespace Opc.Ua.Server.Tests.FileSystem
         {
             WriteFile("f.txt", "hello");
             var handle = new FileHandle(CreateProvider(), "f.txt");
-            handle.Open(ModeRead, out _);
-            handle.Open(ModeRead, out _);
+            handle.Open(s_sessionId, ModeRead, out _);
+            handle.Open(s_sessionId, ModeRead, out _);
 
             handle.Dispose();
 

@@ -32,6 +32,7 @@
 using System;
 using System.IO;
 using System.Text;
+using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.FileSystem;
@@ -54,6 +55,8 @@ namespace Opc.Ua.Server.Tests.FileSystem
         private ITelemetryContext m_telemetry = null!;
         private FileSystemNodeManager m_manager = null!;
         private ISystemContext m_context = null!;
+        private Mock<ISession> m_session = null!;
+        private NodeId m_sessionId;
 
         [SetUp]
         public void SetUp()
@@ -66,7 +69,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
             mockServer.Setup(s => s.Telemetry).Returns(m_telemetry);
             var provider = new PhysicalFileSystemProvider(m_root, "TestMount");
             m_manager = new FileSystemNodeManager(mockServer.Object, new ApplicationConfiguration(), provider);
-            m_context = m_manager.SystemContext;
+            m_sessionId = new NodeId("file-session", 0);
+            m_session = CreateSession(m_sessionId);
+            m_context = m_manager.SystemContext.Copy(m_session.Object);
         }
 
         [TearDown]
@@ -95,6 +100,15 @@ namespace Opc.Ua.Server.Tests.FileSystem
             return new FileObjectState(m_context, nodeId, providerPath, Path.GetFileName(providerPath));
         }
 
+        private static Mock<ISession> CreateSession(NodeId sessionId)
+        {
+            var session = new Mock<ISession>();
+            session.Setup(s => s.Id).Returns(sessionId);
+            session.Setup(s => s.Identity).Returns(new Mock<IUserIdentity>().Object);
+            session.Setup(s => s.PreferredLocales).Returns([]);
+            return session;
+        }
+
         [Test]
         public void OpenForReadThenReadReturnsFileContent()
         {
@@ -113,6 +127,110 @@ namespace Opc.Ua.Server.Tests.FileSystem
 
             Assert.That(ServiceResult.IsGood(readResult), Is.True);
             Assert.That(Encoding.UTF8.GetString(data.ToArray()), Is.EqualTo("hello"));
+        }
+
+        [Test]
+        public void OpenReturnsDistinctOpaqueHandles()
+        {
+            FileObjectState state = CreateFileState("data.txt", "hello");
+
+            uint firstHandle = 0;
+            uint secondHandle = 0;
+            ServiceResult firstResult = state.Open!.OnCall!(
+                m_context, state.Open, state.NodeId, 0x1, ref firstHandle);
+            ServiceResult secondResult = state.Open.OnCall!(
+                m_context, state.Open, state.NodeId, 0x1, ref secondHandle);
+
+            Assert.That(ServiceResult.IsGood(firstResult), Is.True);
+            Assert.That(ServiceResult.IsGood(secondResult), Is.True);
+            Assert.That(firstHandle, Is.Not.Zero);
+            Assert.That(secondHandle, Is.Not.Zero);
+            Assert.That(secondHandle, Is.Not.EqualTo(firstHandle));
+        }
+
+        [Test]
+        public void OpenWithoutSessionReturnsBadSessionIdInvalid()
+        {
+            FileObjectState state = CreateFileState("data.txt", "hello");
+            ISystemContext contextWithoutSession = m_manager.SystemContext.Copy();
+
+            uint fileHandle = 0;
+            ServiceResult result = state.Open!.OnCall!(
+                contextWithoutSession, state.Open, state.NodeId, 0x1, ref fileHandle);
+
+            Assert.That(result.StatusCode.Code, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
+            Assert.That(fileHandle, Is.Zero);
+        }
+
+        [Test]
+        public void FileHandleMethodsRejectDifferentSession()
+        {
+            FileObjectState state = CreateFileState("data.txt", "hello");
+            uint fileHandle = 0;
+            ServiceResult openResult = state.Open!.OnCall!(
+                m_context, state.Open, state.NodeId, 0x1, ref fileHandle);
+            Assert.That(ServiceResult.IsGood(openResult), Is.True);
+
+            Mock<ISession> otherSession = CreateSession(new NodeId("other-file-session", 0));
+            ISystemContext otherContext = m_manager.SystemContext.Copy(otherSession.Object);
+
+            ByteString data = default;
+            ServiceResult readResult = state.Read!.OnCall!(
+                otherContext, state.Read, state.NodeId, fileHandle, 1, ref data);
+            var payload = ByteString.From([1]);
+            ServiceResult writeResult = state.Write!.OnCall!(
+                otherContext, state.Write, state.NodeId, fileHandle, payload);
+            ulong position = 0;
+            ServiceResult getPositionResult = state.GetPosition!.OnCall!(
+                otherContext, state.GetPosition, state.NodeId, fileHandle, ref position);
+            ServiceResult setPositionResult = state.SetPosition!.OnCall!(
+                otherContext, state.SetPosition, state.NodeId, fileHandle, 1);
+            ServiceResult closeResult = state.Close!.OnCall!(
+                otherContext, state.Close, state.NodeId, fileHandle);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(readResult.StatusCode.Code, Is.EqualTo(StatusCodes.BadInvalidState));
+                Assert.That(writeResult.StatusCode.Code, Is.EqualTo(StatusCodes.BadInvalidState));
+                Assert.That(getPositionResult.StatusCode.Code, Is.EqualTo(StatusCodes.BadInvalidState));
+                Assert.That(setPositionResult.StatusCode.Code, Is.EqualTo(StatusCodes.BadInvalidState));
+                Assert.That(closeResult.StatusCode.Code, Is.EqualTo(StatusCodes.BadInvalidState));
+            });
+        }
+
+        [Test]
+        public async Task SessionClosingClosesOwnedFileHandlesAsync()
+        {
+            FileObjectState state = CreateFileState("data.txt", "hello");
+            uint fileHandle = 0;
+            ServiceResult openResult = state.Open!.OnCall!(
+                m_context, state.Open, state.NodeId, 0x1, ref fileHandle);
+            Assert.That(ServiceResult.IsGood(openResult), Is.True);
+
+            Mock<ISession> otherSession = CreateSession(new NodeId("other-file-session", 0));
+            ISystemContext otherContext = m_manager.SystemContext.Copy(otherSession.Object);
+            uint otherFileHandle = 0;
+            ServiceResult otherOpenResult = state.Open.OnCall!(
+                otherContext, state.Open, state.NodeId, 0x1, ref otherFileHandle);
+            Assert.That(ServiceResult.IsGood(otherOpenResult), Is.True);
+
+            var operationContext = new OperationContext(m_session.Object, DiagnosticsMasks.None);
+            await m_manager.SessionClosingAsync(
+                operationContext,
+                m_sessionId,
+                deleteSubscriptions: false).ConfigureAwait(false);
+
+            ByteString data = default;
+            ServiceResult readResult = state.Read!.OnCall!(
+                m_context, state.Read, state.NodeId, fileHandle, 1, ref data);
+            ServiceResult otherReadResult = state.Read.OnCall!(
+                otherContext, state.Read, state.NodeId, otherFileHandle, 1, ref data);
+            Variant openCount = ReadProperty(state.OpenCount!);
+
+            Assert.That(readResult.StatusCode.Code, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(ServiceResult.IsGood(otherReadResult), Is.True);
+            Assert.That(openCount.TryGetValue(out ushort count), Is.True);
+            Assert.That(count, Is.EqualTo(1));
         }
 
         [Test]

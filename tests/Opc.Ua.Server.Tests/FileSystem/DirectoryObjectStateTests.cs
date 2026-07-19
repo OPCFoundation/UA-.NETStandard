@@ -93,7 +93,11 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Mock<IServerInternal> mockServer = DeterministicServerMock.Create(out _);
             mockServer.Setup(s => s.Telemetry).Returns(m_telemetry);
             m_manager = new FileSystemNodeManager(mockServer.Object, new ApplicationConfiguration(), provider);
-            m_context = m_manager.SystemContext;
+            var session = new Mock<ISession>();
+            session.Setup(s => s.Id).Returns(new NodeId("directory-session", 0));
+            session.Setup(s => s.Identity).Returns(new Mock<IUserIdentity>().Object);
+            session.Setup(s => s.PreferredLocales).Returns([]);
+            m_context = m_manager.SystemContext.Copy(session.Object);
         }
 
         private DirectoryObjectState CreateRootDirectory()

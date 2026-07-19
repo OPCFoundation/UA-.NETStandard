@@ -114,17 +114,20 @@ namespace Opc.Ua.Server.FileSystem
             }
         }
 
-        public Stream? GetStream(uint fileHandle)
+        public Stream? GetStream(NodeId sessionId, uint fileHandle)
         {
             lock (m_lock)
             {
-                if (m_write != null && fileHandle == 1)
+                if (m_write != null &&
+                    fileHandle == m_write.Handle &&
+                    m_write.SessionId.Equals(sessionId))
                 {
-                    return m_write;
+                    return m_write.Stream;
                 }
-                if (m_reads.TryGetValue(fileHandle, out Stream? stream))
+                if (m_reads.TryGetValue(fileHandle, out OpenFile? openFile) &&
+                    openFile.SessionId.Equals(sessionId))
                 {
-                    return stream;
+                    return openFile.Stream;
                 }
                 return null;
             }
@@ -135,9 +138,16 @@ namespace Opc.Ua.Server.FileSystem
         /// Part 5 §C: 0x1 = Read, 0x2 = Write, 0x4 = EraseExisting,
         /// 0x8 = Append.
         /// </summary>
-        public ServiceResult Open(byte mode, out uint fileHandle)
+        public ServiceResult Open(NodeId sessionId, byte mode, out uint fileHandle)
         {
             fileHandle = 0u;
+            if (sessionId.IsNull)
+            {
+                return ServiceResult.Create(
+                    StatusCodes.BadSessionIdInvalid,
+                    "A valid Session is required to open a file.");
+            }
+
             bool wantsRead = (mode & 0x1) != 0;
             bool wantsWrite = (mode & 0x2) != 0;
 
@@ -176,8 +186,8 @@ namespace Opc.Ua.Server.FileSystem
                                 StatusCodes.BadInvalidState,
                                 "File already open for write.");
                         }
-                        fileHandle = ++m_nextHandle;
-                        m_reads.Add(fileHandle, stream);
+                        fileHandle = CreateFileHandle();
+                        m_reads.Add(fileHandle, new OpenFile(fileHandle, sessionId, stream));
                     }
                     return ServiceResult.Good;
                 }
@@ -208,8 +218,8 @@ namespace Opc.Ua.Server.FileSystem
                             StatusCodes.BadInvalidState,
                             "File already open for read or write.");
                     }
-                    m_write = writeStream;
-                    fileHandle = 1u;
+                    fileHandle = CreateFileHandle();
+                    m_write = new OpenFile(fileHandle, sessionId, writeStream);
                 }
                 return ServiceResult.Good;
             }
@@ -230,19 +240,22 @@ namespace Opc.Ua.Server.FileSystem
             }
         }
 
-        public bool Close(uint fileHandle)
+        public bool Close(NodeId sessionId, uint fileHandle)
         {
             lock (m_lock)
             {
-                if (m_write != null && fileHandle == 1)
+                if (m_write != null &&
+                    fileHandle == m_write.Handle &&
+                    m_write.SessionId.Equals(sessionId))
                 {
-                    m_write.Dispose();
+                    m_write.Stream.Dispose();
                     m_write = null;
                     return true;
                 }
-                if (m_reads.TryGetValue(fileHandle, out Stream? stream))
+                if (m_reads.TryGetValue(fileHandle, out OpenFile? openFile) &&
+                    openFile.SessionId.Equals(sessionId))
                 {
-                    stream.Dispose();
+                    openFile.Stream.Dispose();
                     m_reads.Remove(fileHandle);
                     return true;
                 }
@@ -250,24 +263,82 @@ namespace Opc.Ua.Server.FileSystem
             return false;
         }
 
+        public void CloseSession(NodeId sessionId)
+        {
+            lock (m_lock)
+            {
+                if (m_write != null && m_write.SessionId.Equals(sessionId))
+                {
+                    m_write.Stream.Dispose();
+                    m_write = null;
+                }
+
+                var handlesToClose = new List<uint>();
+                foreach (KeyValuePair<uint, OpenFile> entry in m_reads)
+                {
+                    if (entry.Value.SessionId.Equals(sessionId))
+                    {
+                        entry.Value.Stream.Dispose();
+                        handlesToClose.Add(entry.Key);
+                    }
+                }
+
+                foreach (uint fileHandle in handlesToClose)
+                {
+                    m_reads.Remove(fileHandle);
+                }
+            }
+        }
+
         public void Dispose()
         {
             lock (m_lock)
             {
-                m_write?.Dispose();
+                m_write?.Stream.Dispose();
                 m_write = null;
-                foreach (Stream stream in m_reads.Values)
+                foreach (OpenFile openFile in m_reads.Values)
                 {
-                    stream.Dispose();
+                    openFile.Stream.Dispose();
                 }
                 m_reads.Clear();
             }
         }
 
+        private uint CreateFileHandle()
+        {
+            uint fileHandle;
+            do
+            {
+                fileHandle = BitConverter.ToUInt32(
+                    Nonce.CreateRandomNonceData(sizeof(uint)),
+                    0);
+            }
+            while (fileHandle == 0 ||
+                m_write?.Handle == fileHandle ||
+                m_reads.ContainsKey(fileHandle));
+
+            return fileHandle;
+        }
+
         private readonly Lock m_lock = new();
-        private readonly Dictionary<uint, Stream> m_reads = [];
+        private readonly Dictionary<uint, OpenFile> m_reads = [];
         private readonly IFileSystemProvider m_provider;
-        private uint m_nextHandle = 1;
-        private Stream? m_write;
+        private OpenFile? m_write;
+
+        private sealed class OpenFile
+        {
+            public OpenFile(uint handle, NodeId sessionId, Stream stream)
+            {
+                Handle = handle;
+                SessionId = sessionId;
+                Stream = stream;
+            }
+
+            public uint Handle { get; }
+
+            public NodeId SessionId { get; }
+
+            public Stream Stream { get; }
+        }
     }
 }

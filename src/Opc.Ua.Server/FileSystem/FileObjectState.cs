@@ -250,7 +250,11 @@ namespace Opc.Ua.Server.FileSystem
             {
                 return result;
             }
-            return handle.Open(mode, out fileHandle);
+            if (!TryGetSessionId(context, out NodeId sessionId, out result))
+            {
+                return result;
+            }
+            return handle.Open(sessionId, mode, out fileHandle);
         }
 
         private ServiceResult OnClose(ISystemContext context, MethodState method,
@@ -260,7 +264,11 @@ namespace Opc.Ua.Server.FileSystem
             {
                 return result;
             }
-            return handle.Close(fileHandle)
+            if (!TryGetSessionId(context, out NodeId sessionId, out result))
+            {
+                return result;
+            }
+            return handle.Close(sessionId, fileHandle)
                 ? ServiceResult.Good
                 : ServiceResult.Create(StatusCodes.BadInvalidState,
                     "File handle could not be closed.");
@@ -273,7 +281,11 @@ namespace Opc.Ua.Server.FileSystem
             {
                 return result;
             }
-            Stream? stream = handle.GetStream(fileHandle);
+            if (!TryGetSessionId(context, out NodeId sessionId, out result))
+            {
+                return result;
+            }
+            Stream? stream = handle.GetStream(sessionId, fileHandle);
             if (stream == null)
             {
                 return ServiceResult.Create(StatusCodes.BadInvalidState,
@@ -290,7 +302,11 @@ namespace Opc.Ua.Server.FileSystem
             {
                 return result;
             }
-            Stream? stream = handle.GetStream(fileHandle);
+            if (!TryGetSessionId(context, out NodeId sessionId, out result))
+            {
+                return result;
+            }
+            Stream? stream = handle.GetStream(sessionId, fileHandle);
             if (stream == null)
             {
                 return ServiceResult.Create(StatusCodes.BadInvalidState,
@@ -307,7 +323,11 @@ namespace Opc.Ua.Server.FileSystem
             {
                 return result;
             }
-            Stream? stream = handle.GetStream(fileHandle);
+            if (!TryGetSessionId(context, out NodeId sessionId, out result))
+            {
+                return result;
+            }
+            Stream? stream = handle.GetStream(sessionId, fileHandle);
             if (stream == null)
             {
                 return ServiceResult.Create(StatusCodes.BadInvalidState,
@@ -341,7 +361,11 @@ namespace Opc.Ua.Server.FileSystem
             {
                 return result;
             }
-            Stream? stream = handle.GetStream(fileHandle);
+            if (!TryGetSessionId(context, out NodeId sessionId, out result))
+            {
+                return result;
+            }
+            Stream? stream = handle.GetStream(sessionId, fileHandle);
             if (stream == null)
             {
                 return ServiceResult.Create(StatusCodes.BadInvalidState,
@@ -399,6 +423,26 @@ namespace Opc.Ua.Server.FileSystem
             }
             result = ServiceResult.Good;
             return true;
+        }
+
+        private static bool TryGetSessionId(
+            ISystemContext context,
+            out NodeId sessionId,
+            out ServiceResult result)
+        {
+            if (context is ISessionSystemContext sessionContext &&
+                sessionContext.SessionId is { IsNull: false } validSessionId)
+            {
+                sessionId = validSessionId;
+                result = ServiceResult.Good;
+                return true;
+            }
+
+            sessionId = NodeId.Null;
+            result = ServiceResult.Create(
+                StatusCodes.BadSessionIdInvalid,
+                "A valid Session is required to access an open file.");
+            return false;
         }
 
         private static FileSystemNodeManager? ResolveManager(ISystemContext context)
