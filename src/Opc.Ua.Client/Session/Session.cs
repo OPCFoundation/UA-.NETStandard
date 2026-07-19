@@ -4761,43 +4761,13 @@ namespace Opc.Ua.Client
                         "Server did not return a number of ServerEndpoints that matches the one from GetEndpoints.");
                 }
 
-                for (int ii = 0; ii < expectedServerEndpoints.Count; ii++)
+                if (!HaveEquivalentServerEndpoints(
+                        expectedServerEndpoints,
+                        m_discoveryServerEndpoints))
                 {
-                    EndpointDescription serverEndpoint = expectedServerEndpoints[ii];
-                    EndpointDescription expectedServerEndpoint = m_discoveryServerEndpoints[ii];
-
-                    if (serverEndpoint.SecurityMode != expectedServerEndpoint.SecurityMode ||
-                        serverEndpoint.SecurityPolicyUri != expectedServerEndpoint
-                            .SecurityPolicyUri ||
-                        serverEndpoint.TransportProfileUri != expectedServerEndpoint
-                            .TransportProfileUri ||
-                        serverEndpoint.SecurityLevel != expectedServerEndpoint.SecurityLevel)
-                    {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadSecurityChecksFailed,
-                            "The list of ServerEndpoints returned at CreateSession does not match the list from GetEndpoints.");
-                    }
-
-                    if (serverEndpoint.UserIdentityTokens.Count != expectedServerEndpoint
-                        .UserIdentityTokens
-                        .Count)
-                    {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadSecurityChecksFailed,
-                            "The list of ServerEndpoints returned at CreateSession does not match the one from GetEndpoints.");
-                    }
-
-                    for (int jj = 0; jj < serverEndpoint.UserIdentityTokens.Count; jj++)
-                    {
-                        if (!serverEndpoint
-                                .UserIdentityTokens[jj]
-                                .IsEqual(expectedServerEndpoint.UserIdentityTokens[jj]))
-                        {
-                            throw ServiceResultException.Create(
-                                StatusCodes.BadSecurityChecksFailed,
-                                "The list of ServerEndpoints returned at CreateSession does not match the one from GetEndpoints.");
-                        }
-                    }
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadSecurityChecksFailed,
+                        "The list of ServerEndpoints returned at CreateSession does not match the list from GetEndpoints.");
                 }
             }
 
@@ -4835,6 +4805,81 @@ namespace Opc.Ua.Client
                     StatusCodes.BadSecurityChecksFailed,
                     "Server did not return an EndpointDescription that matched the one used to create the secure channel.");
             }
+        }
+
+        private static bool HaveEquivalentServerEndpoints(
+            ArrayOf<EndpointDescription> serverEndpoints,
+            ArrayOf<EndpointDescription> discoveryEndpoints)
+        {
+            if (serverEndpoints.Count != discoveryEndpoints.Count)
+            {
+                return false;
+            }
+
+            var unmatchedDiscoveryEndpoints = discoveryEndpoints.ToList();
+
+            foreach (EndpointDescription serverEndpoint in serverEndpoints)
+            {
+                int matchIndex = unmatchedDiscoveryEndpoints.FindIndex(
+                    discoveryEndpoint => AreEquivalentServerEndpoints(
+                        serverEndpoint,
+                        discoveryEndpoint));
+
+                if (matchIndex < 0)
+                {
+                    return false;
+                }
+
+                unmatchedDiscoveryEndpoints.RemoveAt(matchIndex);
+            }
+
+            return unmatchedDiscoveryEndpoints.Count == 0;
+        }
+
+        private static bool AreEquivalentServerEndpoints(
+            EndpointDescription serverEndpoint,
+            EndpointDescription discoveryEndpoint)
+        {
+            return serverEndpoint.SecurityMode == discoveryEndpoint.SecurityMode &&
+                string.Equals(
+                    serverEndpoint.SecurityPolicyUri,
+                    discoveryEndpoint.SecurityPolicyUri,
+                    StringComparison.Ordinal) &&
+                string.Equals(
+                    serverEndpoint.TransportProfileUri,
+                    discoveryEndpoint.TransportProfileUri,
+                    StringComparison.Ordinal) &&
+                serverEndpoint.SecurityLevel == discoveryEndpoint.SecurityLevel &&
+                HaveEquivalentUserIdentityTokens(
+                    serverEndpoint.UserIdentityTokens,
+                    discoveryEndpoint.UserIdentityTokens);
+        }
+
+        private static bool HaveEquivalentUserIdentityTokens(
+            ArrayOf<UserTokenPolicy> serverTokens,
+            ArrayOf<UserTokenPolicy> discoveryTokens)
+        {
+            if (serverTokens.Count != discoveryTokens.Count)
+            {
+                return false;
+            }
+
+            var unmatchedDiscoveryTokens = discoveryTokens.ToList();
+
+            foreach (UserTokenPolicy serverToken in serverTokens)
+            {
+                int matchIndex = unmatchedDiscoveryTokens.FindIndex(
+                    discoveryToken => serverToken.IsEqual(discoveryToken));
+
+                if (matchIndex < 0)
+                {
+                    return false;
+                }
+
+                unmatchedDiscoveryTokens.RemoveAt(matchIndex);
+            }
+
+            return unmatchedDiscoveryTokens.Count == 0;
         }
 
         /// <summary>
