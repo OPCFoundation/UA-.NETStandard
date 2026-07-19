@@ -92,6 +92,19 @@ namespace Opc.Ua.Lds.Tests
         }
 
         [Test]
+        public void RegistrationRejectsSubjectAltNameWithoutApplicationUri()
+        {
+            using Certificate certificate = CreateCertificate([], includeSubjectAltName: true);
+            using var server = new TestLdsServer();
+
+            ServiceResult result = server.Validate(
+                CreateChannel(certificate.RawData),
+                CreateRegisteredServer(ServerUri));
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadServerUriInvalid));
+        }
+
+        [Test]
         public void RegistrationRejectsCertificateWithMultipleApplicationUris()
         {
             using Certificate certificate = CreateCertificate([ServerUri, "urn:test:other"]);
@@ -117,13 +130,15 @@ namespace Opc.Ua.Lds.Tests
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadServerUriInvalid));
         }
 
-        private static Certificate CreateCertificate(string[] applicationUris)
+        private static Certificate CreateCertificate(
+            string[] applicationUris,
+            bool includeSubjectAltName = false)
         {
             ICertificateBuilder builder = CertificateBuilder
                 .Create("CN=RegistrationValidation")
                 .SetNotBefore(DateTime.UtcNow.AddDays(-1))
                 .SetNotAfter(DateTime.UtcNow.AddDays(30));
-            if (applicationUris.Length > 0)
+            if (applicationUris.Length > 0 || includeSubjectAltName)
             {
                 builder = builder.AddExtension(
                     new X509SubjectAltNameExtension(applicationUris, ["localhost"]));
@@ -132,7 +147,7 @@ namespace Opc.Ua.Lds.Tests
             return builder.SetRSAKeySize(2048).CreateForRSA();
         }
 
-        private static SecureChannelContext CreateChannel(byte[] clientCertificate)
+        private static SecureChannelContext CreateChannel(byte[]? clientCertificate)
         {
             return new SecureChannelContext(
                 "registration-validation",

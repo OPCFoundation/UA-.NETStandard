@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -503,8 +504,21 @@ namespace Opc.Ua.Lds.Server
             {
                 using var cert = Certificate.FromRawData(certBytes);
                 IReadOnlyList<string> applicationUris = X509Utils.GetApplicationUrisFromCertificate(cert);
-                if (applicationUris.Count != 1 ||
-                    !string.Equals(applicationUris[0], server.ServerUri, StringComparison.Ordinal))
+                if (applicationUris.Count == 0)
+                {
+                    return new ServiceResult(
+                        StatusCodes.BadServerUriInvalid,
+                        new LocalizedText(
+                            "The SecureChannel client certificate has no ApplicationUri."));
+                }
+                if (applicationUris.Count > 1)
+                {
+                    return new ServiceResult(
+                        StatusCodes.BadServerUriInvalid,
+                        new LocalizedText(
+                            "The SecureChannel client certificate has multiple ApplicationUris."));
+                }
+                if (!string.Equals(applicationUris[0], server.ServerUri, StringComparison.Ordinal))
                 {
                     return new ServiceResult(
                         StatusCodes.BadServerUriInvalid,
@@ -512,7 +526,7 @@ namespace Opc.Ua.Lds.Server
                             "ServerUri must exactly match the certificate ApplicationUri."));
                 }
             }
-            catch (Exception ex)
+            catch (CryptographicException ex)
             {
                 m_log?.FailedToInspectClientCertApplicationUri(ex);
                 return new ServiceResult(
