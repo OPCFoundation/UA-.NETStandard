@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Formats.Asn1;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -172,6 +173,24 @@ namespace Opc.Ua.Security.Certificates.Tests
             crlBuilder.CrlExtensions.Add(X509Extensions.BuildCRLNumber(123));
             byte[] crlEncoded = crlBuilder.Encode();
             ValidateCRL(serial, serstring, hash, crlBuilder, crlEncoded);
+        }
+
+        /// <summary>
+        /// Verify the inner and outer CRL signature algorithms are identical.
+        /// </summary>
+        [Test]
+        public void SignedCrlUsesIdenticalSignatureAlgorithmIdentifiers()
+        {
+            CrlBuilder crlBuilder = CrlBuilder
+                .Create(m_issuerCert.SubjectName, HashAlgorithmName.SHA256)
+                .SetThisUpdate(new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc))
+                .SetNextUpdate(new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc));
+
+            IX509CRL crl = X509PfxUtils.IsECDsaSignature(m_issuerCert)
+                ? crlBuilder.CreateForECDsa(m_issuerCert)
+                : crlBuilder.CreateForRSA(m_issuerCert);
+
+            AssertSignatureAlgorithmIdentifiersMatch(crl.RawData);
         }
 
         /// <summary>
@@ -401,6 +420,26 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.That(x509Crl.RevokedCertificates[1].SerialNumber, Is.EqualTo(serstring));
             Assert.That(x509Crl.CrlExtensions, Has.Count.EqualTo(1));
             Assert.That(x509Crl.HashAlgorithmName, Is.EqualTo(hash));
+        }
+
+        private static void AssertSignatureAlgorithmIdentifiersMatch(byte[] rawData)
+        {
+            var crlReader = new AsnReader(rawData, AsnEncodingRules.DER);
+            AsnReader crl = crlReader.ReadSequence();
+            crlReader.ThrowIfNotEmpty();
+            ReadOnlyMemory<byte> tbs = crl.ReadEncodedValue();
+            byte[] outerAlgorithm = crl.ReadEncodedValue().ToArray();
+            _ = crl.ReadBitString(out int unusedBitCount);
+            crl.ThrowIfNotEmpty();
+
+            var tbsReader = new AsnReader(tbs, AsnEncodingRules.DER);
+            AsnReader tbsCrl = tbsReader.ReadSequence();
+            tbsReader.ThrowIfNotEmpty();
+            _ = tbsCrl.ReadInteger();
+            byte[] innerAlgorithm = tbsCrl.ReadEncodedValue().ToArray();
+
+            Assert.That(unusedBitCount, Is.Zero);
+            Assert.That(innerAlgorithm, Is.EqualTo(outerAlgorithm));
         }
 
         private Certificate m_issuerCert;

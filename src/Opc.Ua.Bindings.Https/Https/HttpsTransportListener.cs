@@ -2380,6 +2380,83 @@ namespace Opc.Ua.Bindings
                 .ConfigureAwait(false);
         }
 
+        internal static bool ValidateClientCertificateWithUaValidator(
+            ICertificateValidatorEx? certificateValidator,
+            X509Certificate2? clientCertificate,
+            X509Chain? chain,
+            SslPolicyErrors sslPolicyErrors)
+        {
+            if (clientCertificate == null)
+            {
+                return sslPolicyErrors == SslPolicyErrors.None;
+            }
+
+            if (certificateValidator == null)
+            {
+                return false;
+            }
+
+            try
+            {
+                using CertificateCollection validationChain = CreateCertificateChain(
+                    clientCertificate,
+                    chain);
+                // CA2025: the TLS ClientCertificateValidation callback is
+                // synchronous by contract on every supported TFM, so the async UA
+                // validator is bridged with GetAwaiter().GetResult(); the validation
+                // chain remains alive across the wait. The call is a single bounded
+                // chain validation but blocks a handshake thread.
+                // TODO: replace with a non-blocking validation bridge to remove the
+                // thread-pool-starvation risk under connection floods.
+#pragma warning disable CA2025
+                CertificateValidationResult result = certificateValidator
+                    .ValidateAsync(
+                        validationChain,
+                        TrustListIdentifier.Https,
+                        ct: default)
+                    .GetAwaiter()
+                    .GetResult();
+#pragma warning restore CA2025
+                return result.IsValid;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
+        private static CertificateCollection CreateCertificateChain(
+            X509Certificate2 clientCertificate,
+            X509Chain? chain)
+        {
+            var validationChain = new CertificateCollection();
+            try
+            {
+                if (chain?.ChainElements != null && chain.ChainElements.Count > 0)
+                {
+                    foreach (X509ChainElement element in chain.ChainElements)
+                    {
+                        using Certificate certificate = Certificate.FromRawData(
+                            element.Certificate.RawData);
+                        validationChain.Add(certificate);
+                    }
+                }
+                else
+                {
+                    using Certificate certificate = Certificate.FromRawData(
+                        clientCertificate.RawData);
+                    validationChain.Add(certificate);
+                }
+
+                return validationChain;
+            }
+            catch
+            {
+                validationChain.Dispose();
+                throw;
+            }
+        }
+
         /// <summary>
         /// Validate TLS client certificate at TLS handshake.
         /// </summary>
@@ -2391,47 +2468,11 @@ namespace Opc.Ua.Bindings
             X509Chain? chain,
             SslPolicyErrors sslPolicyErrors)
         {
-            if (sslPolicyErrors == SslPolicyErrors.None)
-            {
-                // certificate is valid
-                return true;
-            }
-
-            if (clientCertificate == null)
-            {
-                // TLS reported policy errors but no client certificate was
-                // presented; there is nothing to validate against the UA trust
-                // list, so reject.
-                return false;
-            }
-
-            try
-            {
-                using var cert = Certificate.FromRawData(clientCertificate.RawData);
-                // CA2025: the TLS ClientCertificateValidation callback is
-                // synchronous by contract on every supported TFM, so the async UA
-                // validator is bridged with GetAwaiter().GetResult(); the 'using
-                // cert' scope deliberately extends past the await. The call is a
-                // single bounded chain validation but blocks a handshake thread.
-                // TODO: replace with a non-blocking validation bridge to remove the
-                // thread-pool-starvation risk under connection floods.
-#pragma warning disable CA2025
-                CertificateValidationResult result = m_quotas.CertificateValidator!
-                    .ValidateAsync(cert, ct: default)
-                    .GetAwaiter()
-                    .GetResult();
-#pragma warning restore CA2025
-                if (!result.IsValid)
-                {
-                    return false;
-                }
-            }
-            catch (Exception)
-            {
-                return false;
-            }
-
-            return true;
+            return ValidateClientCertificateWithUaValidator(
+                m_quotas.CertificateValidator,
+                clientCertificate,
+                chain,
+                sslPolicyErrors);
         }
 
         private List<EndpointDescription> m_descriptions = null!;
