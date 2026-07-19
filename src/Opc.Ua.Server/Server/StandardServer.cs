@@ -3093,20 +3093,29 @@ namespace Opc.Ua.Server
         /// <param name="requestType">The request type.</param>
         /// <param name="requestLifetime">The request lifetime.</param>
         /// <returns>The validated operation context.</returns>
+        /// <exception cref="ServiceResultException"></exception>
         protected async ValueTask<OperationContext> ValidateRequestInScopeAsync(
             SecureChannelContext secureChannelContext,
             [NotNull] RequestHeader? requestHeader,
             RequestType requestType,
             RequestLifetime requestLifetime)
         {
+            ServerInternalData? serverInternal = m_serverInternal;
+            if (serverInternal == null ||
+                !serverInternal.IsRunning)
+            {
+                throw new ServiceResultException(StatusCodes.BadServerHalted);
+            }
+
+            RequestManager requestManager = serverInternal.RequestManager;
             using IDisposable validationScope =
-                ServerInternal.RequestManager.EnterValidationScope();
+                requestManager.EnterValidationScope();
             OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
                 requestType,
                 requestLifetime).ConfigureAwait(false);
-            ServerInternal.RequestManager.PromoteValidatedRequest(context);
+            requestManager.PromoteValidatedRequest(context);
             return context;
         }
 

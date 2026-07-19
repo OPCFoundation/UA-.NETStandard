@@ -922,6 +922,864 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
+        public Task AddAsyncWhenPreparationAndCleanupFailReportsEveryFailureAsync()
+        {
+            const string NamespaceUri =
+                "urn:opcfoundation.org:Tests:NodeManagerLifecycle:PreparationCleanupFailure";
+            const string CreateFailure = "CreateAddressSpaceAsync failed.";
+            const string DeleteFailure = "DeleteAddressSpaceAsync failed.";
+            const string DisposeFailure = "Dispose failed.";
+
+            Mock<IAsyncNodeManager> nodeManager = CreateLifecycleNodeManager(NamespaceUri);
+            nodeManager
+                .Setup(manager => manager.CreateAddressSpaceAsync(
+                    It.IsAny<IDictionary<NodeId, IList<IReference>>>(),
+                    It.IsAny<CancellationToken>()))
+                .Throws(new SentinelException(CreateFailure));
+            nodeManager
+                .Setup(manager => manager.DeleteAddressSpaceAsync(
+                    It.IsAny<CancellationToken>()))
+                .Throws(new SentinelException(DeleteFailure));
+            Mock<IDisposable> disposable = nodeManager.As<IDisposable>();
+            disposable
+                .Setup(manager => manager.Dispose())
+                .Throws(new SentinelException(DisposeFailure));
+
+            var factory = new Mock<IAsyncNodeManagerFactory>();
+            factory
+                .Setup(value => value.CreateAsync(
+                    It.IsAny<IServerInternal>(),
+                    It.IsAny<ApplicationConfiguration>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(nodeManager.Object);
+
+            AggregateException exception = Assert.ThrowsAsync<AggregateException>(
+                async () => await m_server.NodeManagerLifecycle
+                    .AddAsync(factory.Object)
+                    .ConfigureAwait(false));
+
+            string[] failureMessages = [.. exception
+                .Flatten()
+                .InnerExceptions
+                .Select(failure => failure.Message)];
+            Assert.That(failureMessages, Does.Contain(CreateFailure));
+            Assert.That(failureMessages, Does.Contain(DeleteFailure));
+            Assert.That(failureMessages, Does.Contain(DisposeFailure));
+            Assert.That(m_server.NodeManagerLifecycle.Registrations, Is.Empty);
+
+            var master = (MasterNodeManager)m_server.CurrentInstance.NodeManager;
+            Assert.That(
+                master.AsyncNodeManagers.Any(manager =>
+                    ReferenceEquals(manager, nodeManager.Object)),
+                Is.False);
+            nodeManager.Verify(
+                manager => manager.CreateAddressSpaceAsync(
+                    It.IsAny<IDictionary<NodeId, IList<IReference>>>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+            nodeManager.Verify(
+                manager => manager.DeleteAddressSpaceAsync(
+                    CancellationToken.None),
+                Times.Once);
+            disposable.Verify(manager => manager.Dispose(), Times.Once);
+            return Task.CompletedTask;
+        }
+
+        [Test]
+        public async Task RemoveAsyncWhenSessionUnbindingFailsRepublishesManagerAndAllowsRetryAsync()
+        {
+            const string NamespaceUri =
+                "urn:opcfoundation.org:Tests:NodeManagerLifecycle:UnbindingFailure";
+            const string ExpectedMessage = "SessionClosingAsync failed.";
+            bool failSessionClosing = false;
+
+            Mock<IAsyncNodeManager> nodeManager = CreateLifecycleNodeManager(NamespaceUri);
+            nodeManager
+                .Setup(manager => manager.SessionClosingAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<NodeId>(),
+                    false,
+                    It.IsAny<CancellationToken>()))
+                .Returns<OperationContext, NodeId, bool, CancellationToken>(
+                    (_, _, _, _) => failSessionClosing
+                        ? new ValueTask(Task.FromException(
+                            new SentinelException(ExpectedMessage)))
+                        : default);
+            Mock<IDisposable> disposable = nodeManager.As<IDisposable>();
+
+            var factory = new Mock<IAsyncNodeManagerFactory>();
+            factory
+                .Setup(value => value.CreateAsync(
+                    It.IsAny<IServerInternal>(),
+                    It.IsAny<ApplicationConfiguration>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(nodeManager.Object);
+
+            NodeManagerRegistration registration = await m_server.NodeManagerLifecycle
+                .AddAsync(factory.Object)
+                .ConfigureAwait(false);
+
+            IServerInternal server = m_server.CurrentInstance;
+            var master = (MasterNodeManager)server.NodeManager;
+            int namespaceIndex = server.NamespaceUris.GetIndex(NamespaceUri);
+            failSessionClosing = true;
+
+            Assert.That(
+                async () => await m_server.NodeManagerLifecycle
+                    .RemoveAsync(registration)
+                    .ConfigureAwait(false),
+                Throws.TypeOf<SentinelException>()
+                    .With.Message.EqualTo(ExpectedMessage));
+
+            Assert.That(
+                m_server.NodeManagerLifecycle.Registrations,
+                Has.Count.EqualTo(1));
+            Assert.That(
+                m_server.NodeManagerLifecycle.Registrations[0],
+                Is.SameAs(registration));
+            Assert.That(
+                master.AsyncNodeManagers.Count(manager =>
+                    ReferenceEquals(manager, nodeManager.Object)),
+                Is.EqualTo(1));
+            Assert.That(master.NamespaceManagers.ContainsKey(namespaceIndex), Is.True);
+            Assert.That(
+                master.NamespaceManagers[namespaceIndex].Count(manager =>
+                    ReferenceEquals(manager, nodeManager.Object)),
+                Is.EqualTo(1));
+            nodeManager.Verify(
+                manager => manager.DeleteAddressSpaceAsync(
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+            disposable.Verify(manager => manager.Dispose(), Times.Never);
+
+            failSessionClosing = false;
+            await m_server.NodeManagerLifecycle
+                .RemoveAsync(registration)
+                .ConfigureAwait(false);
+
+            Assert.That(m_server.NodeManagerLifecycle.Registrations, Is.Empty);
+            Assert.That(
+                master.AsyncNodeManagers.Any(manager =>
+                    ReferenceEquals(manager, nodeManager.Object)),
+                Is.False);
+            Assert.That(master.NamespaceManagers.ContainsKey(namespaceIndex), Is.False);
+            nodeManager.Verify(
+                manager => manager.DeleteAddressSpaceAsync(
+                    CancellationToken.None),
+                Times.Once);
+            disposable.Verify(manager => manager.Dispose(), Times.Once);
+        }
+
+        [Test]
+        public async Task ReloadAsyncWhenRetiredManagerCleanupFailsKeepsReplacementAndRetriesCleanupAsync()
+        {
+            const string NamespaceUri =
+                "urn:opcfoundation.org:Tests:NodeManagerLifecycle:RetiredCleanupFailure";
+            const string ExpectedMessage = "Retired SessionClosingAsync failed.";
+            bool failRetiredSessionClosing = false;
+
+            Mock<IAsyncNodeManager> originalManager =
+                CreateLifecycleNodeManager(NamespaceUri);
+            originalManager
+                .As<INodeManagerReloadParticipant>()
+                .Setup(participant => participant.PrepareReloadAsync(
+                    It.IsAny<IAsyncNodeManager>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ArrayOf<LocalReference>>([]));
+            originalManager
+                .Setup(manager => manager.SessionClosingAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<NodeId>(),
+                    false,
+                    It.IsAny<CancellationToken>()))
+                .Returns<OperationContext, NodeId, bool, CancellationToken>(
+                    (_, _, _, _) => failRetiredSessionClosing
+                        ? new ValueTask(Task.FromException(
+                            new SentinelException(ExpectedMessage)))
+                        : default);
+            Mock<IDisposable> originalDisposable = originalManager.As<IDisposable>();
+
+            var originalFactory = new Mock<IAsyncNodeManagerFactory>();
+            originalFactory
+                .Setup(value => value.CreateAsync(
+                    It.IsAny<IServerInternal>(),
+                    It.IsAny<ApplicationConfiguration>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(originalManager.Object);
+
+            NodeManagerRegistration original = await m_server.NodeManagerLifecycle
+                .AddAsync(originalFactory.Object)
+                .ConfigureAwait(false);
+
+            Mock<IAsyncNodeManager> replacementManager =
+                CreateLifecycleNodeManager(NamespaceUri);
+            Mock<IDisposable> replacementDisposable =
+                replacementManager.As<IDisposable>();
+            var replacementFactory = new Mock<IAsyncNodeManagerFactory>();
+            replacementFactory
+                .Setup(value => value.CreateAsync(
+                    It.IsAny<IServerInternal>(),
+                    It.IsAny<ApplicationConfiguration>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(replacementManager.Object);
+
+            failRetiredSessionClosing = true;
+            InvalidOperationException exception =
+                Assert.ThrowsAsync<InvalidOperationException>(
+                    async () => await m_server.NodeManagerLifecycle
+                        .ReloadAsync(original, replacementFactory.Object)
+                        .ConfigureAwait(false));
+
+            Assert.That(
+                exception.Message,
+                Does.Contain("replacement NodeManager is live"));
+            Assert.That(exception.InnerException, Is.TypeOf<SentinelException>());
+            Assert.That(exception.InnerException!.Message, Is.EqualTo(ExpectedMessage));
+
+            ArrayOf<NodeManagerRegistration> registrations =
+                m_server.NodeManagerLifecycle.Registrations;
+            Assert.That(registrations, Has.Count.EqualTo(1));
+            NodeManagerRegistration replacement = registrations[0];
+            Assert.That(replacement.Id, Is.EqualTo(original.Id));
+            Assert.That(replacement.Generation, Is.EqualTo(original.Generation + 1));
+            Assert.That(replacement.NodeManager, Is.SameAs(replacementManager.Object));
+
+            IServerInternal server = m_server.CurrentInstance;
+            var master = (MasterNodeManager)server.NodeManager;
+            int namespaceIndex = server.NamespaceUris.GetIndex(NamespaceUri);
+            Assert.That(
+                master.AsyncNodeManagers.Any(manager =>
+                    ReferenceEquals(manager, originalManager.Object)),
+                Is.False);
+            Assert.That(
+                master.AsyncNodeManagers.Count(manager =>
+                    ReferenceEquals(manager, replacementManager.Object)),
+                Is.EqualTo(1));
+            Assert.That(
+                master.NamespaceManagers[namespaceIndex].Any(manager =>
+                    ReferenceEquals(manager, replacementManager.Object)),
+                Is.True);
+            originalManager.Verify(
+                manager => manager.DeleteAddressSpaceAsync(
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+            originalDisposable.Verify(manager => manager.Dispose(), Times.Never);
+            replacementDisposable.Verify(manager => manager.Dispose(), Times.Never);
+
+            failRetiredSessionClosing = false;
+            await m_server.NodeManagerLifecycle
+                .RemoveAsync(replacement)
+                .ConfigureAwait(false);
+
+            originalManager.Verify(
+                manager => manager.DeleteAddressSpaceAsync(
+                    CancellationToken.None),
+                Times.Once);
+            originalDisposable.Verify(manager => manager.Dispose(), Times.Once);
+            replacementManager.Verify(
+                manager => manager.DeleteAddressSpaceAsync(
+                    CancellationToken.None),
+                Times.Once);
+            replacementDisposable.Verify(manager => manager.Dispose(), Times.Once);
+            Assert.That(m_server.NodeManagerLifecycle.Registrations, Is.Empty);
+            Assert.That(master.NamespaceManagers.ContainsKey(namespaceIndex), Is.False);
+        }
+
+        [Test]
+        public async Task AddAsyncWhenPublicationRollbackFailsRetainsLiveRegistrationAsync()
+        {
+            const string OwnerNamespaceUri =
+                "urn:opcfoundation.org:Tests:NodeManagerLifecycle:AddRollbackOwner";
+            const string RetainedNamespaceUri =
+                "urn:opcfoundation.org:Tests:NodeManagerLifecycle:AddRollbackRetained";
+            const string AddReferencesFailure = "AddReferencesAsync failed.";
+            const string DeleteReferenceFailure = "DeleteReferenceAsync failed.";
+
+            Mock<IAsyncNodeManager> ownerManager =
+                CreateLifecycleNodeManager(OwnerNamespaceUri);
+            Mock<IDisposable> ownerDisposable = ownerManager.As<IDisposable>();
+            var ownerFactory = new Mock<IAsyncNodeManagerFactory>();
+            ownerFactory
+                .Setup(value => value.CreateAsync(
+                    It.IsAny<IServerInternal>(),
+                    It.IsAny<ApplicationConfiguration>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(ownerManager.Object);
+            NodeManagerRegistration ownerRegistration = await m_server.NodeManagerLifecycle
+                .AddAsync(ownerFactory.Object)
+                .ConfigureAwait(false);
+
+            IServerInternal server = m_server.CurrentInstance;
+            var master = (MasterNodeManager)server.NodeManager;
+            ushort ownerNamespaceIndex = (ushort)server.NamespaceUris.GetIndex(
+                OwnerNamespaceUri);
+            var ownerSourceId = new NodeId(1001, ownerNamespaceIndex);
+            object ownerHandle = new();
+            bool failDeleteReference = true;
+            ownerManager
+                .Setup(manager => manager.GetManagerHandleAsync(
+                    ownerSourceId,
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<object>(ownerHandle));
+            ownerManager
+                .Setup(manager => manager.DeleteReferenceAsync(
+                    ownerHandle,
+                    ReferenceTypeIds.HasComponent,
+                    false,
+                    ObjectIds.Server,
+                    false,
+                    It.IsAny<CancellationToken>()))
+                .Returns(() => failDeleteReference
+                    ? new ValueTask<ServiceResult>(
+                        Task.FromException<ServiceResult>(
+                            new SentinelException(DeleteReferenceFailure)))
+                    : new ValueTask<ServiceResult>(ServiceResult.Good));
+
+            Mock<IAsyncNodeManager> retainedManager =
+                CreateLifecycleNodeManager(RetainedNamespaceUri);
+            Mock<IDisposable> retainedDisposable =
+                retainedManager.As<IDisposable>();
+            retainedManager
+                .Setup(manager => manager.CreateAddressSpaceAsync(
+                    It.IsAny<IDictionary<NodeId, IList<IReference>>>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback<
+                    IDictionary<NodeId, IList<IReference>>,
+                    CancellationToken>((externalReferences, _) => externalReferences[ownerSourceId] =
+                    [
+                        new NodeStateReference(
+                            ReferenceTypeIds.HasComponent,
+                            false,
+                            ObjectIds.Server)
+                    ])
+                .Returns(default(ValueTask));
+            bool failAddReferences = true;
+            retainedManager
+                .Setup(manager => manager.AddReferencesAsync(
+                    It.IsAny<IDictionary<NodeId, IList<IReference>>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(() => failAddReferences
+                    ? new ValueTask(Task.FromException(
+                        new SentinelException(AddReferencesFailure)))
+                    : default);
+
+            var retainedFactory = new Mock<IAsyncNodeManagerFactory>();
+            retainedFactory
+                .Setup(value => value.CreateAsync(
+                    It.IsAny<IServerInternal>(),
+                    It.IsAny<ApplicationConfiguration>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(retainedManager.Object);
+
+            InvalidOperationException exception =
+                Assert.ThrowsAsync<InvalidOperationException>(
+                    async () => await m_server.NodeManagerLifecycle
+                        .AddAsync(retainedFactory.Object)
+                        .ConfigureAwait(false));
+
+            Assert.That(
+                exception.Message,
+                Does.Contain("published generation was retained"));
+            Assert.That(exception.InnerException, Is.TypeOf<AggregateException>());
+            string[] failureMessages = [.. ((AggregateException)exception.InnerException!)
+                .Flatten()
+                .InnerExceptions
+                .Select(failure => failure.Message)];
+            Assert.That(failureMessages, Does.Contain(AddReferencesFailure));
+            Assert.That(failureMessages, Does.Contain(DeleteReferenceFailure));
+
+            NodeManagerRegistration retainedRegistration =
+                m_server.NodeManagerLifecycle.Registrations.Find(registration =>
+                    ReferenceEquals(registration.NodeManager, retainedManager.Object));
+            Assert.That(retainedRegistration, Is.Not.Null);
+            Assert.That(retainedRegistration.Generation, Is.EqualTo(1));
+            Assert.That(
+                master.AsyncNodeManagers.Any(manager =>
+                    ReferenceEquals(manager, retainedManager.Object)),
+                Is.True);
+            int retainedNamespaceIndex =
+                server.NamespaceUris.GetIndex(RetainedNamespaceUri);
+            Assert.That(
+                master.NamespaceManagers[retainedNamespaceIndex].Any(manager =>
+                    ReferenceEquals(manager, retainedManager.Object)),
+                Is.True);
+            retainedDisposable.Verify(manager => manager.Dispose(), Times.Never);
+
+            failAddReferences = false;
+            failDeleteReference = false;
+            await m_server.NodeManagerLifecycle
+                .RemoveAsync(retainedRegistration)
+                .ConfigureAwait(false);
+            await m_server.NodeManagerLifecycle
+                .RemoveAsync(ownerRegistration)
+                .ConfigureAwait(false);
+
+            retainedManager.Verify(
+                manager => manager.DeleteAddressSpaceAsync(
+                    CancellationToken.None),
+                Times.Once);
+            retainedDisposable.Verify(manager => manager.Dispose(), Times.Once);
+            ownerDisposable.Verify(manager => manager.Dispose(), Times.Once);
+            Assert.That(m_server.NodeManagerLifecycle.Registrations, Is.Empty);
+        }
+
+        [Test]
+        public async Task ReloadAsyncWhenReplacementRollbackFailsRetainsReplacementGenerationAsync()
+        {
+            const string OwnerNamespaceUri =
+                "urn:opcfoundation.org:Tests:NodeManagerLifecycle:ReloadRollbackOwner";
+            const string ReloadedNamespaceUri =
+                "urn:opcfoundation.org:Tests:NodeManagerLifecycle:ReloadRollbackRetained";
+            const string AddReferencesFailure =
+                "Replacement AddReferencesAsync failed.";
+            const string DeleteReferenceFailure =
+                "Replacement rollback DeleteReferenceAsync failed.";
+
+            Mock<IAsyncNodeManager> ownerManager =
+                CreateLifecycleNodeManager(OwnerNamespaceUri);
+            Mock<IDisposable> ownerDisposable = ownerManager.As<IDisposable>();
+            var ownerFactory = new Mock<IAsyncNodeManagerFactory>();
+            ownerFactory
+                .Setup(value => value.CreateAsync(
+                    It.IsAny<IServerInternal>(),
+                    It.IsAny<ApplicationConfiguration>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(ownerManager.Object);
+            NodeManagerRegistration ownerRegistration = await m_server.NodeManagerLifecycle
+                .AddAsync(ownerFactory.Object)
+                .ConfigureAwait(false);
+
+            IServerInternal server = m_server.CurrentInstance;
+            var master = (MasterNodeManager)server.NodeManager;
+            ushort ownerNamespaceIndex = (ushort)server.NamespaceUris.GetIndex(
+                OwnerNamespaceUri);
+            var ownerSourceId = new NodeId(2001, ownerNamespaceIndex);
+            object ownerHandle = new();
+            int deleteReferenceCalls = 0;
+            bool failRollbackDelete = true;
+            ownerManager
+                .Setup(manager => manager.GetManagerHandleAsync(
+                    ownerSourceId,
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<object>(ownerHandle));
+            ownerManager
+                .Setup(manager => manager.DeleteReferenceAsync(
+                    ownerHandle,
+                    ReferenceTypeIds.HasComponent,
+                    false,
+                    ObjectIds.Server,
+                    false,
+                    It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    deleteReferenceCalls++;
+                    if (failRollbackDelete && deleteReferenceCalls >= 2)
+                    {
+                        return new ValueTask<ServiceResult>(
+                            Task.FromException<ServiceResult>(
+                                new SentinelException(DeleteReferenceFailure)));
+                    }
+                    return new ValueTask<ServiceResult>(ServiceResult.Good);
+                });
+
+            Mock<IAsyncNodeManager> originalManager =
+                CreateLifecycleNodeManager(ReloadedNamespaceUri);
+            Mock<IDisposable> originalDisposable =
+                originalManager.As<IDisposable>();
+            originalManager
+                .Setup(manager => manager.CreateAddressSpaceAsync(
+                    It.IsAny<IDictionary<NodeId, IList<IReference>>>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback<
+                    IDictionary<NodeId, IList<IReference>>,
+                    CancellationToken>((externalReferences, _) => externalReferences[ownerSourceId] =
+                    [
+                        new NodeStateReference(
+                            ReferenceTypeIds.HasComponent,
+                            false,
+                            ObjectIds.Server)
+                    ])
+                .Returns(default(ValueTask));
+            originalManager
+                .As<INodeManagerReloadParticipant>()
+                .Setup(participant => participant.PrepareReloadAsync(
+                    It.IsAny<IAsyncNodeManager>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ArrayOf<LocalReference>>([]));
+            var originalFactory = new Mock<IAsyncNodeManagerFactory>();
+            originalFactory
+                .Setup(value => value.CreateAsync(
+                    It.IsAny<IServerInternal>(),
+                    It.IsAny<ApplicationConfiguration>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(originalManager.Object);
+            NodeManagerRegistration originalRegistration =
+                await m_server.NodeManagerLifecycle
+                    .AddAsync(originalFactory.Object)
+                    .ConfigureAwait(false);
+
+            Mock<IAsyncNodeManager> replacementManager =
+                CreateLifecycleNodeManager(ReloadedNamespaceUri);
+            Mock<IDisposable> replacementDisposable =
+                replacementManager.As<IDisposable>();
+            replacementManager
+                .Setup(manager => manager.CreateAddressSpaceAsync(
+                    It.IsAny<IDictionary<NodeId, IList<IReference>>>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback<
+                    IDictionary<NodeId, IList<IReference>>,
+                    CancellationToken>((externalReferences, _) => externalReferences[ownerSourceId] =
+                    [
+                        new NodeStateReference(
+                            ReferenceTypeIds.HasComponent,
+                            false,
+                            ObjectIds.Server)
+                    ])
+                .Returns(default(ValueTask));
+            bool failReplacementAddReferences = true;
+            replacementManager
+                .Setup(manager => manager.AddReferencesAsync(
+                    It.IsAny<IDictionary<NodeId, IList<IReference>>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(() => failReplacementAddReferences
+                    ? new ValueTask(Task.FromException(
+                        new SentinelException(AddReferencesFailure)))
+                    : default);
+            var replacementFactory = new Mock<IAsyncNodeManagerFactory>();
+            replacementFactory
+                .Setup(value => value.CreateAsync(
+                    It.IsAny<IServerInternal>(),
+                    It.IsAny<ApplicationConfiguration>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(replacementManager.Object);
+
+            InvalidOperationException exception =
+                Assert.ThrowsAsync<InvalidOperationException>(
+                    async () => await m_server.NodeManagerLifecycle
+                        .ReloadAsync(
+                            originalRegistration,
+                            replacementFactory.Object)
+                        .ConfigureAwait(false));
+
+            Assert.That(
+                exception.Message,
+                Does.Contain("replacement generation was retained"));
+            Assert.That(exception.InnerException, Is.TypeOf<AggregateException>());
+            string[] failureMessages = [.. ((AggregateException)exception.InnerException!)
+                .Flatten()
+                .InnerExceptions
+                .Select(failure => failure.Message)];
+            Assert.That(failureMessages, Does.Contain(AddReferencesFailure));
+            Assert.That(failureMessages, Does.Contain(DeleteReferenceFailure));
+
+            NodeManagerRegistration retainedRegistration =
+                m_server.NodeManagerLifecycle.Registrations.Find(registration =>
+                    ReferenceEquals(registration.NodeManager, replacementManager.Object));
+            Assert.That(retainedRegistration, Is.Not.Null);
+            Assert.That(retainedRegistration.Id, Is.EqualTo(originalRegistration.Id));
+            Assert.That(
+                retainedRegistration.Generation,
+                Is.EqualTo(originalRegistration.Generation + 1));
+            Assert.That(
+                master.AsyncNodeManagers.Any(manager =>
+                    ReferenceEquals(manager, originalManager.Object)),
+                Is.False);
+            Assert.That(
+                master.AsyncNodeManagers.Any(manager =>
+                    ReferenceEquals(manager, replacementManager.Object)),
+                Is.True);
+            originalDisposable.Verify(manager => manager.Dispose(), Times.Never);
+            replacementDisposable.Verify(manager => manager.Dispose(), Times.Never);
+
+            failReplacementAddReferences = false;
+            failRollbackDelete = false;
+            await m_server.NodeManagerLifecycle
+                .RemoveAsync(retainedRegistration)
+                .ConfigureAwait(false);
+            await m_server.NodeManagerLifecycle
+                .RemoveAsync(ownerRegistration)
+                .ConfigureAwait(false);
+
+            originalManager.Verify(
+                manager => manager.DeleteAddressSpaceAsync(
+                    CancellationToken.None),
+                Times.Once);
+            originalDisposable.Verify(manager => manager.Dispose(), Times.Once);
+            replacementManager.Verify(
+                manager => manager.DeleteAddressSpaceAsync(
+                    CancellationToken.None),
+                Times.Once);
+            replacementDisposable.Verify(manager => manager.Dispose(), Times.Once);
+            ownerDisposable.Verify(manager => manager.Dispose(), Times.Once);
+            Assert.That(m_server.NodeManagerLifecycle.Registrations, Is.Empty);
+        }
+
+        [Test]
+        public Task LifecycleArgumentGuardsRejectNullInputsAsync()
+        {
+            var lifecycle = (NodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            IAsyncNodeManagerFactory asyncFactory =
+                Mock.Of<IAsyncNodeManagerFactory>();
+            INodeManagerFactory syncFactory = Mock.Of<INodeManagerFactory>();
+
+            ArgumentNullException exception =
+                Assert.ThrowsAsync<ArgumentNullException>(
+                    async () => await lifecycle
+                        .AddAsync((IAsyncNodeManagerFactory)null!)
+                        .ConfigureAwait(false));
+            Assert.That(exception.ParamName, Is.EqualTo("factory"));
+
+            exception = Assert.ThrowsAsync<ArgumentNullException>(
+                async () => await lifecycle
+                    .AddAsync((INodeManagerFactory)null!)
+                    .ConfigureAwait(false));
+            Assert.That(exception.ParamName, Is.EqualTo("factory"));
+
+            exception = Assert.ThrowsAsync<ArgumentNullException>(
+                async () => await lifecycle
+                    .ReloadAsync(
+                        null!,
+                        (IAsyncNodeManagerFactory)null!)
+                    .ConfigureAwait(false));
+            Assert.That(exception.ParamName, Is.EqualTo("replacement"));
+
+            exception = Assert.ThrowsAsync<ArgumentNullException>(
+                async () => await lifecycle
+                    .ReloadAsync(
+                        null!,
+                        (INodeManagerFactory)null!)
+                    .ConfigureAwait(false));
+            Assert.That(exception.ParamName, Is.EqualTo("replacement"));
+
+            exception = Assert.ThrowsAsync<ArgumentNullException>(
+                async () => await lifecycle
+                    .ReloadAsync(null!, asyncFactory)
+                    .ConfigureAwait(false));
+            Assert.That(exception.ParamName, Is.EqualTo("registration"));
+
+            exception = Assert.ThrowsAsync<ArgumentNullException>(
+                async () => await lifecycle
+                    .ReloadAsync(null!, syncFactory)
+                    .ConfigureAwait(false));
+            Assert.That(exception.ParamName, Is.EqualTo("registration"));
+
+            exception = Assert.ThrowsAsync<ArgumentNullException>(
+                async () => await lifecycle
+                    .RemoveAsync(null!)
+                    .ConfigureAwait(false));
+            Assert.That(exception.ParamName, Is.EqualTo("registration"));
+
+            exception = Assert.ThrowsAsync<ArgumentNullException>(
+                async () => await lifecycle
+                    .BeginShutdownAsync(null!)
+                    .ConfigureAwait(false));
+            Assert.That(exception.ParamName, Is.EqualTo("server"));
+
+            exception = Assert.ThrowsAsync<ArgumentNullException>(
+                async () => await lifecycle
+                    .CompleteShutdownAsync(null!)
+                    .ConfigureAwait(false));
+            Assert.That(exception.ParamName, Is.EqualTo("server"));
+            return Task.CompletedTask;
+        }
+
+        [Test]
+        public async Task DynamicHostGuardsRejectInvalidArgumentsAndStateAsync()
+        {
+            var host = (IDynamicNodeManagerHost)m_server.CurrentInstance.NodeManager;
+            var coordinator =
+                (INodeManagerMutationCoordinator)m_server.CurrentInstance.NodeManager;
+            Mock<IAsyncNodeManager> candidate = CreateLifecycleNodeManager(
+                "urn:opcfoundation.org:Tests:NodeManagerLifecycle:HostGuards");
+            var prepared = new PreparedNodeManager(
+                candidate.Object,
+                []);
+
+            ArgumentNullException exception =
+                Assert.ThrowsAsync<ArgumentNullException>(
+                    async () => await host
+                        .PrepareAsync(null!)
+                        .ConfigureAwait(false));
+            Assert.That(exception.ParamName, Is.EqualTo("nodeManager"));
+
+            exception = Assert.ThrowsAsync<ArgumentNullException>(
+                async () => await host
+                    .PublishAsync(null!)
+                    .ConfigureAwait(false));
+            Assert.That(exception.ParamName, Is.EqualTo("prepared"));
+
+            exception = Assert.ThrowsAsync<ArgumentNullException>(
+                async () => await host
+                    .ReplaceAsync(null!, prepared)
+                    .ConfigureAwait(false));
+            Assert.That(exception.ParamName, Is.EqualTo("current"));
+
+            exception = Assert.ThrowsAsync<ArgumentNullException>(
+                async () => await host
+                    .UnpublishAsync(null!)
+                    .ConfigureAwait(false));
+            Assert.That(exception.ParamName, Is.EqualTo("nodeManager"));
+
+            exception = Assert.ThrowsAsync<ArgumentNullException>(
+                async () => await host
+                    .DestroyAsync(
+                        null!,
+                        removeExternalReferences: false)
+                    .ConfigureAwait(false));
+            Assert.That(exception.ParamName, Is.EqualTo("nodeManager"));
+
+            exception = Assert.Throws<ArgumentNullException>(
+                () => host.Release(null!));
+            Assert.That(exception.ParamName, Is.EqualTo("nodeManager"));
+
+            exception = Assert.ThrowsAsync<ArgumentNullException>(
+                async () => await coordinator
+                    .ExecuteMonitoredItemMutationAsync<int>(null!)
+                    .ConfigureAwait(false));
+            Assert.That(exception.ParamName, Is.EqualTo("mutation"));
+
+            Assert.That(
+                async () => await host
+                    .CommitAsync(prepared)
+                    .ConfigureAwait(false),
+                Throws.InvalidOperationException.With.Message.Contains(
+                    "has not been staged"));
+
+            Mock<IAsyncNodeManager> unowned = CreateLifecycleNodeManager(
+                "urn:opcfoundation.org:Tests:NodeManagerLifecycle:Unowned");
+            Assert.That(
+                async () => await host
+                    .ReplaceAsync(unowned.Object, prepared)
+                    .ConfigureAwait(false),
+                Throws.InvalidOperationException.With.Message.Contains(
+                    "not owned"));
+            Assert.That(
+                async () => await host
+                    .UnpublishAsync(unowned.Object)
+                    .ConfigureAwait(false),
+                Throws.InvalidOperationException.With.Message.Contains(
+                    "not owned"));
+            Assert.DoesNotThrow(() => host.Release(unowned.Object));
+
+            Mock<IAsyncNodeManager> destroyCandidate =
+                CreateLifecycleNodeManager(
+                    "urn:opcfoundation.org:Tests:NodeManagerLifecycle:Destroy");
+            await host
+                .DestroyAsync(
+                    destroyCandidate.Object,
+                    removeExternalReferences: true)
+                .ConfigureAwait(false);
+            destroyCandidate.Verify(
+                manager => manager.DeleteAddressSpaceAsync(
+                    CancellationToken.None),
+                Times.Once);
+
+            await host.PublishAsync(prepared).ConfigureAwait(false);
+            Assert.That(
+                async () => await host
+                    .PublishAsync(prepared)
+                    .ConfigureAwait(false),
+                Throws.InvalidOperationException.With.Message.Contains(
+                    "already been staged"));
+
+            await host.RollbackAsync(prepared).ConfigureAwait(false);
+            candidate.Verify(
+                manager => manager.DeleteAddressSpaceAsync(
+                    CancellationToken.None),
+                Times.Once);
+
+            Mock<IAsyncNodeManager> owned = CreateLifecycleNodeManager(
+                "urn:opcfoundation.org:Tests:NodeManagerLifecycle:Owned");
+            var factory = new Mock<IAsyncNodeManagerFactory>();
+            factory
+                .Setup(value => value.CreateAsync(
+                    It.IsAny<IServerInternal>(),
+                    It.IsAny<ApplicationConfiguration>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(owned.Object);
+            NodeManagerRegistration registration = await m_server
+                .NodeManagerLifecycle
+                .AddAsync(factory.Object)
+                .ConfigureAwait(false);
+            var duplicate = new PreparedNodeManager(owned.Object, []);
+            Assert.That(
+                async () => await host
+                    .PublishAsync(duplicate)
+                    .ConfigureAwait(false),
+                Throws.InvalidOperationException.With.Message.Contains(
+                    "already registered"));
+
+            Mock<IAsyncNodeManager> replacement = CreateLifecycleNodeManager(
+                "urn:opcfoundation.org:Tests:NodeManagerLifecycle:StagedReplacement");
+            var stagedReplacement = new PreparedNodeManager(
+                replacement.Object,
+                [])
+            {
+                Staged = true
+            };
+            Assert.That(
+                async () => await host
+                    .ReplaceAsync(owned.Object, stagedReplacement)
+                    .ConfigureAwait(false),
+                Throws.InvalidOperationException.With.Message.Contains(
+                    "already been staged"));
+
+            await m_server.NodeManagerLifecycle
+                .RemoveAsync(registration)
+                .ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task IndependentLifecycleShutdownReleasesRegistrationsAndRejectsNewOperationsAsync()
+        {
+            const string NamespaceUri =
+                "urn:opcfoundation.org:Tests:NodeManagerLifecycle:IndependentShutdown";
+            Mock<IAsyncNodeManager> nodeManager =
+                CreateLifecycleNodeManager(NamespaceUri);
+            Mock<IDisposable> disposable = nodeManager.As<IDisposable>();
+            var factory = new Mock<IAsyncNodeManagerFactory>();
+            factory
+                .Setup(value => value.CreateAsync(
+                    It.IsAny<IServerInternal>(),
+                    It.IsAny<ApplicationConfiguration>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(nodeManager.Object);
+            using var lifecycle = new NodeManagerLifecycle(m_server);
+
+            NodeManagerRegistration registration = await lifecycle
+                .AddAsync(factory.Object)
+                .ConfigureAwait(false);
+            IServerInternal server = m_server.CurrentInstance;
+            var master = (MasterNodeManager)server.NodeManager;
+            Assert.That(
+                master.AsyncNodeManagers.Any(manager =>
+                    ReferenceEquals(manager, registration.NodeManager)),
+                Is.True);
+
+            await lifecycle
+                .BeginShutdownAsync(server)
+                .ConfigureAwait(false);
+
+            Assert.That(
+                async () => await lifecycle
+                    .AddAsync(factory.Object)
+                    .ConfigureAwait(false),
+                Throws.InvalidOperationException.With.Message.Contains(
+                    "shutting down"));
+
+            await lifecycle
+                .CompleteShutdownAsync(server)
+                .ConfigureAwait(false);
+
+            Assert.That(lifecycle.Registrations, Is.Empty);
+            Assert.That(
+                master.AsyncNodeManagers.Any(manager =>
+                    ReferenceEquals(manager, registration.NodeManager)),
+                Is.False);
+            disposable.Verify(value => value.Dispose(), Times.Once);
+        }
+
+        [Test]
         public async Task SessionClosingWaitsForMonitoredItemMutationAsync()
         {
             IServerInternal server = m_server.CurrentInstance;
@@ -970,7 +1828,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
-        public async Task AddAsyncCleansFailedSessionActivationAsync()
+        public Task AddAsyncCleansFailedSessionActivationAsync()
         {
             const string NamespaceUri =
                 "urn:opcfoundation.org:Tests:NodeManagerLifecycle:ActivationFailure";
@@ -1037,6 +1895,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(
                 m_server.NodeManagerLifecycle.Registrations,
                 Is.Empty);
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -1509,6 +2368,29 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 }
             });
             return count;
+        }
+
+        private static Mock<IAsyncNodeManager> CreateLifecycleNodeManager(
+            string namespaceUri)
+        {
+            var nodeManager = new Mock<IAsyncNodeManager>();
+            var syncNodeManager = new Mock<INodeManager>();
+            nodeManager
+                .Setup(manager => manager.NamespaceUris)
+                .Returns([namespaceUri]);
+            nodeManager
+                .Setup(manager => manager.SyncNodeManager)
+                .Returns(syncNodeManager.Object);
+            nodeManager
+                .Setup(manager => manager.CreateAddressSpaceAsync(
+                    It.IsAny<IDictionary<NodeId, IList<IReference>>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask));
+            nodeManager
+                .Setup(manager => manager.DeleteAddressSpaceAsync(
+                    It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask));
+            return nodeManager;
         }
 
         /// <summary>

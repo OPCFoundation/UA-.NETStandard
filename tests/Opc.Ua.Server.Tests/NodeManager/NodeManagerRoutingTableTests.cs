@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
@@ -291,6 +292,365 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(namespaceSnapshotFailures, Is.Empty);
         }
 
+        [Test]
+        public void AddInitialThrowsOnNullNodeManager()
+        {
+            var table = new NodeManagerRoutingTable();
+
+            ArgumentNullException ex = Assert.Throws<ArgumentNullException>(
+                () => table.AddInitial(null!))!;
+            Assert.That(ex.ParamName, Is.EqualTo("nodeManager"));
+        }
+
+        [Test]
+        public void InitializePublishesNamespaceRoutesFromDictionary()
+        {
+            var table = new NodeManagerRoutingTable();
+            IAsyncNodeManager manager = CreateManager();
+
+            ArgumentNullException nullEx = Assert.Throws<ArgumentNullException>(
+                () => table.Initialize(null!))!;
+            Assert.That(nullEx.ParamName, Is.EqualTo("namespaceManagers"));
+
+            table.Initialize(
+                new Dictionary<int, List<IAsyncNodeManager>> { [5] = [manager] });
+
+            AssertSingleManagerRoute(table.NamespaceManagers, 5, manager);
+        }
+
+        [Test]
+        public void AddThrowsOnNullNodeManager()
+        {
+            NodeManagerRoutingTable table = CreateTable(out _, out _);
+
+            ArgumentNullException ex = Assert.Throws<ArgumentNullException>(
+                () => table.Add(null!, AddNamespaceIndexes))!;
+            Assert.That(ex.ParamName, Is.EqualTo("nodeManager"));
+        }
+
+        [Test]
+        public void AddThrowsOnNullNamespaceIndexes()
+        {
+            NodeManagerRoutingTable table = CreateTable(out _, out _);
+
+            ArgumentNullException ex = Assert.Throws<ArgumentNullException>(
+                () => table.Add(CreateManager(), null!))!;
+            Assert.That(ex.ParamName, Is.EqualTo("namespaceIndexes"));
+        }
+
+        [Test]
+        public void AddThrowsWhenNodeManagerAlreadyRegistered()
+        {
+            NodeManagerRoutingTable table = CreateTable(out IAsyncNodeManager firstPermanent, out _);
+
+            Assert.Throws<InvalidOperationException>(
+                () => table.Add(firstPermanent, AddNamespaceIndexes));
+        }
+
+        [Test]
+        public void AddWithVisibleFalseHidesManagerFromEnumerationButNotFromIndexer()
+        {
+            NodeManagerRoutingTable table = CreateTable(
+                out IAsyncNodeManager firstPermanent,
+                out IAsyncNodeManager secondPermanent);
+            IAsyncNodeManager hiddenManager = CreateManager();
+
+            table.Add(hiddenManager, AddNamespaceIndexes, visible: false);
+
+            Assert.That(table, Has.Count.EqualTo(3));
+            Assert.That(table[2], Is.SameAs(hiddenManager));
+            Assert.That(table.IsVisible(hiddenManager), Is.False);
+            using IEnumerator<IAsyncNodeManager> visibleSnapshot = table.GetEnumerator();
+            AssertManagerSnapshot(visibleSnapshot, firstPermanent, secondPermanent);
+        }
+
+        [Test]
+        public void ReplaceThrowsOnNullArguments()
+        {
+            NodeManagerRoutingTable table = CreateTable(out _, out _);
+            IAsyncNodeManager original = CreateManager();
+            table.Add(original, InitialNamespaceIndexes);
+
+            Assert.That(
+                Assert.Throws<ArgumentNullException>(
+                    () => table.Replace(null!, CreateManager(), ReplaceNamespaceIndexes))!.ParamName,
+                Is.EqualTo("current"));
+            Assert.That(
+                Assert.Throws<ArgumentNullException>(
+                    () => table.Replace(original, null!, ReplaceNamespaceIndexes))!.ParamName,
+                Is.EqualTo("replacement"));
+            Assert.That(
+                Assert.Throws<ArgumentNullException>(
+                    () => table.Replace(original, CreateManager(), null!))!.ParamName,
+                Is.EqualTo("replacementNamespaceIndexes"));
+        }
+
+        [Test]
+        public void ReplaceThrowsWhenCurrentIsNotLifecycleManaged()
+        {
+            NodeManagerRoutingTable table = CreateTable(
+                out IAsyncNodeManager firstPermanent,
+                out _);
+
+            Assert.Throws<InvalidOperationException>(
+                () => table.Replace(firstPermanent, CreateManager(), ReplaceNamespaceIndexes));
+        }
+
+        [Test]
+        public void ReplaceThrowsWhenReplacementAlreadyRegistered()
+        {
+            NodeManagerRoutingTable table = CreateTable(out _, out _);
+            IAsyncNodeManager original = CreateManager();
+            IAsyncNodeManager other = CreateManager();
+            table.Add(original, InitialNamespaceIndexes);
+            table.Add(other, ReplaceNamespaceIndexes);
+
+            Assert.Throws<InvalidOperationException>(
+                () => table.Replace(original, other, ReplaceNamespaceIndexes));
+        }
+
+        [Test]
+        public void RemoveThrowsOnNullNodeManager()
+        {
+            NodeManagerRoutingTable table = CreateTable(out _, out _);
+
+            ArgumentNullException ex = Assert.Throws<ArgumentNullException>(
+                () => table.Remove(null!))!;
+            Assert.That(ex.ParamName, Is.EqualTo("nodeManager"));
+        }
+
+        [Test]
+        public void RemoveThrowsWhenNodeManagerIsNotLifecycleManaged()
+        {
+            NodeManagerRoutingTable table = CreateTable(out IAsyncNodeManager firstPermanent, out _);
+
+            Assert.Throws<InvalidOperationException>(() => table.Remove(firstPermanent));
+        }
+
+        [Test]
+        public void RegisterNamespaceIsIdempotentForTheSameManager()
+        {
+            var table = new NodeManagerRoutingTable();
+            IAsyncNodeManager manager = CreateManager();
+
+            table.RegisterNamespace(7, manager);
+            table.RegisterNamespace(7, manager);
+
+            AssertSingleManagerRoute(table.NamespaceManagers, 7, manager);
+        }
+
+        [Test]
+        public void RegisterNamespaceAppendsToExistingRouteForDifferentManager()
+        {
+            var table = new NodeManagerRoutingTable();
+            IAsyncNodeManager first = CreateManager();
+            IAsyncNodeManager second = CreateManager();
+
+            table.RegisterNamespace(7, first);
+            table.RegisterNamespace(7, second);
+
+            Assert.That(table.NamespaceManagers[7], Has.Count.EqualTo(2));
+            Assert.That(table.NamespaceManagers[7], Does.Contain(first));
+            Assert.That(table.NamespaceManagers[7], Does.Contain(second));
+        }
+
+        [Test]
+        public void RegisterNamespaceWithVisibleFalseHidesManager()
+        {
+            var table = new NodeManagerRoutingTable();
+            IAsyncNodeManager manager = CreateManager();
+            table.AddInitial(manager);
+
+            table.RegisterNamespace(7, manager, visible: false);
+
+            Assert.That(table.IsVisible(manager), Is.False);
+        }
+
+        [Test]
+        public void UnregisterNamespaceReturnsFalseWhenNamespaceNotFound()
+        {
+            var table = new NodeManagerRoutingTable();
+
+            Assert.That(table.UnregisterNamespace(1, CreateManager(), null), Is.False);
+        }
+
+        [Test]
+        public void UnregisterNamespaceReturnsFalseWhenManagerNotInRoute()
+        {
+            var table = new NodeManagerRoutingTable();
+            table.RegisterNamespace(7, CreateManager());
+
+            Assert.That(table.UnregisterNamespace(7, CreateManager(), null), Is.False);
+        }
+
+        [Test]
+        public void UnregisterNamespaceRemovesRouteEntryWhenLastManagerRemoved()
+        {
+            var table = new NodeManagerRoutingTable();
+            IAsyncNodeManager manager = CreateManager();
+            table.RegisterNamespace(7, manager);
+
+            bool removed = table.UnregisterNamespace(7, manager, null);
+
+            Assert.That(removed, Is.True);
+            Assert.That(table.NamespaceManagers.ContainsKey(7), Is.False);
+        }
+
+        [Test]
+        public void UnregisterNamespaceKeepsRouteWhenOtherManagersRemain()
+        {
+            var table = new NodeManagerRoutingTable();
+            IAsyncNodeManager first = CreateManager();
+            IAsyncNodeManager second = CreateManager();
+            table.RegisterNamespace(7, first);
+            table.RegisterNamespace(7, second);
+
+            bool removed = table.UnregisterNamespace(7, first, null);
+
+            Assert.That(removed, Is.True);
+            AssertSingleManagerRoute(table.NamespaceManagers, 7, second);
+        }
+
+        [Test]
+        public void UnregisterNamespaceMatchesBySyncNodeManagerWhenAsyncNodeManagerIsNull()
+        {
+            var table = new NodeManagerRoutingTable();
+            INodeManager syncManager = new Mock<INodeManager>().Object;
+            IAsyncNodeManager manager = CreateManagerWithSync(syncManager);
+            table.RegisterNamespace(7, manager);
+
+            bool removed = table.UnregisterNamespace(7, null, syncManager);
+
+            Assert.That(removed, Is.True);
+            Assert.That(table.NamespaceManagers.ContainsKey(7), Is.False);
+        }
+
+        [Test]
+        public void RemoveNamespaceManagerThrowsOnNullNodeManager()
+        {
+            var table = new NodeManagerRoutingTable();
+
+            ArgumentNullException ex = Assert.Throws<ArgumentNullException>(
+                () => table.RemoveNamespaceManager(null!))!;
+            Assert.That(ex.ParamName, Is.EqualTo("nodeManager"));
+        }
+
+        [Test]
+        public void RemoveNamespaceManagerRemovesAcrossAllNamespacesAndMatchesBySyncNodeManager()
+        {
+            var table = new NodeManagerRoutingTable();
+            INodeManager syncManager = new Mock<INodeManager>().Object;
+            IAsyncNodeManager registeredManager = CreateManagerWithSync(syncManager);
+            IAsyncNodeManager lookupManager = CreateManagerWithSync(syncManager);
+            IAsyncNodeManager unrelated = CreateManager();
+            table.RegisterNamespace(2, registeredManager);
+            table.RegisterNamespace(3, registeredManager);
+            table.RegisterNamespace(3, unrelated);
+
+            table.RemoveNamespaceManager(lookupManager);
+
+            Assert.That(table.NamespaceManagers.ContainsKey(2), Is.False);
+            AssertSingleManagerRoute(table.NamespaceManagers, 3, unrelated);
+        }
+
+        [Test]
+        public void IsVisibleReturnsFalseForUnregisteredManager()
+        {
+            NodeManagerRoutingTable table = CreateTable(out _, out _);
+
+            Assert.That(table.IsVisible(CreateManager()), Is.False);
+        }
+
+        [Test]
+        public void IsVisibleReturnsTrueForRegisteredVisibleManager()
+        {
+            NodeManagerRoutingTable table = CreateTable(out IAsyncNodeManager firstPermanent, out _);
+
+            Assert.That(table.IsVisible(firstPermanent), Is.True);
+        }
+
+        [Test]
+        public void SetVisibleThrowsOnNullNodeManager()
+        {
+            NodeManagerRoutingTable table = CreateTable(out _, out _);
+
+            ArgumentNullException ex = Assert.Throws<ArgumentNullException>(
+                () => table.SetVisible(null!, false))!;
+            Assert.That(ex.ParamName, Is.EqualTo("nodeManager"));
+        }
+
+        [Test]
+        public void SetVisibleThrowsWhenManagerNotRegistered()
+        {
+            NodeManagerRoutingTable table = CreateTable(out _, out _);
+
+            Assert.Throws<InvalidOperationException>(
+                () => table.SetVisible(CreateManager(), false));
+        }
+
+        [Test]
+        public void SetVisibleTogglesVisibilityAffectingEnumerationAndIsVisible()
+        {
+            NodeManagerRoutingTable table = CreateTable(
+                out IAsyncNodeManager firstPermanent,
+                out IAsyncNodeManager secondPermanent);
+
+            table.SetVisible(firstPermanent, false);
+
+            Assert.That(table.IsVisible(firstPermanent), Is.False);
+            using (IEnumerator<IAsyncNodeManager> hiddenSnapshot = table.GetEnumerator())
+            {
+                AssertManagerSnapshot(hiddenSnapshot, secondPermanent);
+            }
+
+            table.SetVisible(firstPermanent, true);
+
+            Assert.That(table.IsVisible(firstPermanent), Is.True);
+            using IEnumerator<IAsyncNodeManager> restoredSnapshot = table.GetEnumerator();
+            AssertManagerSnapshot(restoredSnapshot, firstPermanent, secondPermanent);
+        }
+
+        [Test]
+        public void ClearResetsAllState()
+        {
+            NodeManagerRoutingTable table = CreateTable(out _, out _);
+            table.Add(CreateManager(), InitialNamespaceIndexes);
+
+            table.Clear();
+
+            Assert.That(table, Has.Count.EqualTo(0));
+            Assert.That(table.NamespaceManagers, Is.Empty);
+        }
+
+        [Test]
+        public void IndexerReturnsManagerAtPosition()
+        {
+            NodeManagerRoutingTable table = CreateTable(
+                out IAsyncNodeManager firstPermanent,
+                out IAsyncNodeManager secondPermanent);
+
+            Assert.That(table[0], Is.SameAs(firstPermanent));
+            Assert.That(table[1], Is.SameAs(secondPermanent));
+        }
+
+        [Test]
+        public void ExplicitEnumerableGetEnumeratorReturnsSameManagersAsGenericEnumerator()
+        {
+            NodeManagerRoutingTable table = CreateTable(
+                out IAsyncNodeManager firstPermanent,
+                out IAsyncNodeManager secondPermanent);
+
+            var managers = new List<IAsyncNodeManager>();
+            System.Collections.IEnumerable untyped = table;
+            System.Collections.IEnumerator enumerator = untyped.GetEnumerator();
+            while (enumerator.MoveNext())
+            {
+                managers.Add((IAsyncNodeManager)enumerator.Current!);
+            }
+
+            Assert.That(managers, Is.EqualTo([firstPermanent, secondPermanent]));
+        }
+
         private static NodeManagerRoutingTable CreateTable(
             out IAsyncNodeManager firstPermanent,
             out IAsyncNodeManager secondPermanent)
@@ -306,6 +666,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
         private static IAsyncNodeManager CreateManager()
         {
             return new Mock<IAsyncNodeManager>().Object;
+        }
+
+        private static IAsyncNodeManager CreateManagerWithSync(INodeManager syncNodeManager)
+        {
+            var manager = new Mock<IAsyncNodeManager>();
+            manager.Setup(m => m.SyncNodeManager).Returns(syncNodeManager);
+            return manager.Object;
         }
 
         private static void AssertManagerSnapshot(

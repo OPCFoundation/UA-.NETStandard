@@ -34,6 +34,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.RuntimeNodeSet;
 using Opc.Ua.Server.TestFramework;
@@ -353,6 +354,177 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             Assert.That(dataValue.WrappedValue.GetInt32(), Is.EqualTo(kGeneration1Value));
         }
 
+        [Test]
+        public async Task AddedReferencesAreTrackedDeduplicatedAndRemovedAsync()
+        {
+            IServerInternal server = m_server.CurrentInstance;
+            NodeManagerRegistration registration = await m_server.NodeManagerLifecycle
+                .AddRuntimeNodeSetAsync(CreateOptions(generation: 1))
+                .ConfigureAwait(false);
+            var runtimeManager =
+                (RuntimeNodeSetNodeManager)registration.NodeManager;
+            ushort namespaceIndex = (ushort)server.NamespaceUris.GetIndex(
+                kModelNamespaceUri);
+            var rootNodeId = new NodeId(kRootNodeId, namespaceIndex);
+            var reference = new NodeStateReference(
+                ReferenceTypeIds.HasComponent,
+                false,
+                ObjectIds.Server);
+            var references = new Dictionary<NodeId, IList<IReference>>
+            {
+                [rootNodeId] = [reference]
+            };
+
+            await runtimeManager
+                .AddReferencesAsync(references)
+                .ConfigureAwait(false);
+            await runtimeManager
+                .AddReferencesAsync(references)
+                .ConfigureAwait(false);
+
+            Dictionary<NodeId, IList<IReference>> trackedReferences =
+                runtimeManager.GetAddedReferences();
+            Assert.That(trackedReferences.ContainsKey(rootNodeId), Is.True);
+            Assert.That(trackedReferences[rootNodeId], Has.Count.EqualTo(1));
+            Assert.That(
+                trackedReferences[rootNodeId][0].TargetId,
+                Is.EqualTo(new ExpandedNodeId(ObjectIds.Server)));
+
+            object sourceHandle = await runtimeManager
+                .GetManagerHandleAsync(rootNodeId)
+                .ConfigureAwait(false);
+            Assert.That(sourceHandle, Is.Not.Null);
+            ServiceResult deleteResult = await runtimeManager
+                .DeleteReferenceAsync(
+                    sourceHandle,
+                    ReferenceTypeIds.HasComponent,
+                    isInverse: false,
+                    targetId: ObjectIds.Server,
+                    deleteBidirectional: false)
+                .ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(deleteResult), Is.True);
+            Assert.That(runtimeManager.GetAddedReferences(), Is.Empty);
+        }
+
+        [Test]
+        public async Task PrepareReloadAsyncReturnsDroppedReferencesForRemovedNodesAsync()
+        {
+            IServerInternal server = m_server.CurrentInstance;
+            NodeManagerRegistration registration = await m_server.NodeManagerLifecycle
+                .AddRuntimeNodeSetAsync(CreateOptions(generation: 1))
+                .ConfigureAwait(false);
+            var originalManager =
+                (RuntimeNodeSetNodeManager)registration.NodeManager;
+            ushort namespaceIndex = (ushort)server.NamespaceUris.GetIndex(
+                kModelNamespaceUri);
+            var originalOnlyNodeId = new NodeId(
+                kOriginalOnlyNodeId,
+                namespaceIndex);
+            var reference = new NodeStateReference(
+                ReferenceTypeIds.HasComponent,
+                false,
+                ObjectIds.Server);
+            await originalManager
+                .AddReferencesAsync(
+                    new Dictionary<NodeId, IList<IReference>>
+                    {
+                        [originalOnlyNodeId] = [reference]
+                    })
+                .ConfigureAwait(false);
+
+            var factory = new RuntimeNodeSetNodeManagerFactory(
+                CreateOptions(generation: 2));
+            IAsyncNodeManager replacement = await factory
+                .CreateAsync(server, m_fixture.Config)
+                .ConfigureAwait(false);
+            var host = (IDynamicNodeManagerHost)server.NodeManager;
+            PreparedNodeManager prepared = await host
+                .PrepareAsync(replacement)
+                .ConfigureAwait(false);
+
+            try
+            {
+                ArrayOf<LocalReference> droppedReferences =
+                    await originalManager
+                        .PrepareReloadAsync(replacement)
+                        .ConfigureAwait(false);
+
+                Assert.That(droppedReferences, Has.Count.EqualTo(1));
+                Assert.That(
+                    droppedReferences[0].SourceId,
+                    Is.EqualTo(ObjectIds.Server));
+                Assert.That(
+                    droppedReferences[0].ReferenceTypeId,
+                    Is.EqualTo(ReferenceTypeIds.HasComponent));
+                Assert.That(droppedReferences[0].IsInverse, Is.True);
+                Assert.That(
+                    droppedReferences[0].TargetId,
+                    Is.EqualTo(originalOnlyNodeId));
+            }
+            finally
+            {
+                await host.RollbackAsync(prepared).ConfigureAwait(false);
+                (replacement as IDisposable)?.Dispose();
+            }
+        }
+
+        [Test]
+        public Task RuntimeNodeSetLifecycleExtensionsRejectNullArgumentsAsync()
+        {
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
+            var options = new RuntimeNodeSetOptions();
+            Mock<IAsyncNodeManager> nodeManager = new();
+            nodeManager
+                .Setup(manager => manager.NamespaceUris)
+                .Returns(["urn:opcfoundation.org:Tests:RuntimeNodeSet:NullGuards"]);
+            var registration = new NodeManagerRegistration(
+                Guid.NewGuid(),
+                1,
+                nodeManager.Object);
+
+            ArgumentNullException exception =
+                Assert.ThrowsAsync<ArgumentNullException>(
+                    async () => await RuntimeNodeSetLifecycleExtensions
+                        .AddRuntimeNodeSetAsync(
+                            null!,
+                            options)
+                        .ConfigureAwait(false));
+            Assert.That(exception.ParamName, Is.EqualTo("lifecycle"));
+
+            exception = Assert.ThrowsAsync<ArgumentNullException>(
+                async () => await lifecycle
+                    .AddRuntimeNodeSetAsync(null!)
+                    .ConfigureAwait(false));
+            Assert.That(exception.ParamName, Is.EqualTo("options"));
+
+            exception = Assert.ThrowsAsync<ArgumentNullException>(
+                async () => await RuntimeNodeSetLifecycleExtensions
+                    .ReloadRuntimeNodeSetAsync(
+                        null!,
+                        registration,
+                        options)
+                    .ConfigureAwait(false));
+            Assert.That(exception.ParamName, Is.EqualTo("lifecycle"));
+
+            exception = Assert.ThrowsAsync<ArgumentNullException>(
+                async () => await lifecycle
+                    .ReloadRuntimeNodeSetAsync(
+                        null!,
+                        options)
+                    .ConfigureAwait(false));
+            Assert.That(exception.ParamName, Is.EqualTo("registration"));
+
+            exception = Assert.ThrowsAsync<ArgumentNullException>(
+                async () => await lifecycle
+                    .ReloadRuntimeNodeSetAsync(
+                        registration,
+                        null!)
+                    .ConfigureAwait(false));
+            Assert.That(exception.ParamName, Is.EqualTo("replacement"));
+            return Task.CompletedTask;
+        }
+
         /// <summary>
         /// The existing embedded complex-types NodeSet test resource can also be added to a
         /// running server and its imported nodes can be found and read through the service.
@@ -395,6 +567,73 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             Assert.That(
                 browseName.WrappedValue.GetQualifiedName(),
                 Is.EqualTo(new QualifiedName("PointValue", ns)));
+        }
+
+        [Test]
+        public async Task AddRuntimeNodeSetAsyncWithDuplicateNodeIdsRollsBackWithoutPublishingAsync()
+        {
+            const uint DuplicateNodeId = 9100;
+            IServerInternal server = m_server.CurrentInstance;
+            var master = (MasterNodeManager)server.NodeManager;
+            int managerCountBefore = master.AsyncNodeManagers.Count;
+            string xml = BuildDuplicateNodeSetXml(DuplicateNodeId);
+
+            InvalidOperationException exception =
+                Assert.ThrowsAsync<InvalidOperationException>(
+                    async () => await m_server.NodeManagerLifecycle
+                        .AddRuntimeNodeSetAsync(CreateRawOptions(
+                            "DuplicateNodeIds",
+                            kModelNamespaceUri,
+                            xml))
+                        .ConfigureAwait(false));
+
+            Assert.That(exception.Message, Does.Contain("Duplicate NodeId"));
+            Assert.That(m_server.NodeManagerLifecycle.Registrations, Is.Empty);
+            Assert.That(master.AsyncNodeManagers, Has.Count.EqualTo(managerCountBefore));
+
+            int namespaceIndex = server.NamespaceUris.GetIndex(kModelNamespaceUri);
+            Assert.That(namespaceIndex, Is.GreaterThan(0));
+            NodeState duplicateNode = await server.NodeManager
+                .FindNodeInAddressSpaceAsync(
+                    new NodeId(DuplicateNodeId, (ushort)namespaceIndex))
+                .ConfigureAwait(false);
+            Assert.That(duplicateNode, Is.Null);
+        }
+
+        [Test]
+        public async Task AddRuntimeNodeSetAsyncWithNodeInUnownedNamespaceRollsBackWithoutPublishingAsync()
+        {
+            const string ExternalNamespaceUri =
+                "urn:opcfoundation.org:Tests:RuntimeNodeSetLifecycle:External";
+            const uint ExternalNodeId = 9200;
+            IServerInternal server = m_server.CurrentInstance;
+            var master = (MasterNodeManager)server.NodeManager;
+            int managerCountBefore = master.AsyncNodeManagers.Count;
+            string xml = BuildUnownedNamespaceNodeSetXml(
+                ExternalNamespaceUri,
+                ExternalNodeId);
+
+            InvalidOperationException exception =
+                Assert.ThrowsAsync<InvalidOperationException>(
+                    async () => await m_server.NodeManagerLifecycle
+                        .AddRuntimeNodeSetAsync(CreateRawOptions(
+                            "UnownedNamespace",
+                            kModelNamespaceUri,
+                            xml))
+                        .ConfigureAwait(false));
+
+            Assert.That(exception.Message, Does.Contain("not owned"));
+            Assert.That(m_server.NodeManagerLifecycle.Registrations, Is.Empty);
+            Assert.That(master.AsyncNodeManagers, Has.Count.EqualTo(managerCountBefore));
+
+            int externalNamespaceIndex =
+                server.NamespaceUris.GetIndex(ExternalNamespaceUri);
+            Assert.That(externalNamespaceIndex, Is.GreaterThan(0));
+            NodeState externalNode = await server.NodeManager
+                .FindNodeInAddressSpaceAsync(
+                    new NodeId(ExternalNodeId, (ushort)externalNamespaceIndex))
+                .ConfigureAwait(false);
+            Assert.That(externalNode, Is.Null);
         }
 
         /// <summary>
@@ -797,6 +1036,79 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             string[] namespaceArrayAfterRemove = await ReadNamespaceArrayAsync().ConfigureAwait(false);
             Assert.That(namespaceArrayAfterRemove, Is.EqualTo(namespaceArrayAfterAdd));
             Assert.That(namespaceArrayAfterRemove, Does.Contain(kModelNamespaceUri));
+        }
+
+        private static RuntimeNodeSetOptions CreateRawOptions(
+            string sourceName,
+            string modelNamespaceUri,
+            string xml)
+        {
+            return new RuntimeNodeSetOptions
+            {
+                Sources =
+                [
+                    RuntimeNodeSetSource.FromStream(
+                        sourceName,
+                        _ => new ValueTask<Stream>(
+                            new MemoryStream(Encoding.UTF8.GetBytes(xml))),
+                        [modelNamespaceUri])
+                ],
+                DefaultNamespaceUri = modelNamespaceUri
+            };
+        }
+
+        private static string BuildDuplicateNodeSetXml(uint duplicateNodeId)
+        {
+            return $"""
+                <?xml version="1.0" encoding="utf-8"?>
+                <UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+                  <NamespaceUris>
+                    <Uri>{kModelNamespaceUri}</Uri>
+                  </NamespaceUris>
+                  <Models>
+                    <Model ModelUri="{kModelNamespaceUri}" />
+                  </Models>
+                  <UAObject NodeId="ns=1;i={duplicateNodeId}" BrowseName="1:DuplicateOne">
+                    <DisplayName>DuplicateOne</DisplayName>
+                    <References>
+                      <Reference ReferenceType="i=40">i=58</Reference>
+                      <Reference ReferenceType="i=35" IsForward="false">i=85</Reference>
+                    </References>
+                  </UAObject>
+                  <UAObject NodeId="ns=1;i={duplicateNodeId}" BrowseName="1:DuplicateTwo">
+                    <DisplayName>DuplicateTwo</DisplayName>
+                    <References>
+                      <Reference ReferenceType="i=40">i=58</Reference>
+                      <Reference ReferenceType="i=35" IsForward="false">i=85</Reference>
+                    </References>
+                  </UAObject>
+                </UANodeSet>
+                """;
+        }
+
+        private static string BuildUnownedNamespaceNodeSetXml(
+            string externalNamespaceUri,
+            uint externalNodeId)
+        {
+            return $"""
+                <?xml version="1.0" encoding="utf-8"?>
+                <UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+                  <NamespaceUris>
+                    <Uri>{kModelNamespaceUri}</Uri>
+                    <Uri>{externalNamespaceUri}</Uri>
+                  </NamespaceUris>
+                  <Models>
+                    <Model ModelUri="{kModelNamespaceUri}" />
+                  </Models>
+                  <UAObject NodeId="ns=2;i={externalNodeId}" BrowseName="2:ExternalNode">
+                    <DisplayName>ExternalNode</DisplayName>
+                    <References>
+                      <Reference ReferenceType="i=40">i=58</Reference>
+                      <Reference ReferenceType="i=35" IsForward="false">i=85</Reference>
+                    </References>
+                  </UAObject>
+                </UANodeSet>
+                """;
         }
 
         /// <summary>

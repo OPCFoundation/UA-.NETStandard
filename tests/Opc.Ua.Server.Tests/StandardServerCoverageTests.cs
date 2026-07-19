@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 
@@ -59,6 +60,15 @@ namespace Opc.Ua.Server.Tests
             public void ValidateRequestPublic(RequestHeader requestHeader)
             {
                 ValidateRequest(requestHeader);
+            }
+
+            public ValueTask<OperationContext> ValidateRequestInScopePublicAsync()
+            {
+                return ValidateRequestInScopeAsync(
+                    null!,
+                    new RequestHeader(),
+                    RequestType.Read,
+                    RequestLifetime.None);
             }
 
             public void SetServerStatePublic(ServerState state)
@@ -157,6 +167,22 @@ namespace Opc.Ua.Server.Tests
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => server.ValidateRequestPublic(new RequestHeader()));
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadServerHalted));
+        }
+
+        [Test]
+        public Task ValidateRequestInScopeThrowsWhenNotStartedAsync()
+        {
+            using TestableStandardServer server = CreateServer();
+
+            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await server
+                    .ValidateRequestInScopePublicAsync()
+                    .ConfigureAwait(false));
+
+            Assert.That(
+                exception.StatusCode,
+                Is.EqualTo((uint)StatusCodes.BadServerHalted));
+            return Task.CompletedTask;
         }
 
         [Test]
