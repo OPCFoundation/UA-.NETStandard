@@ -713,7 +713,8 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// Adds a single node defined by <paramref name="item"/>. The implementation
-        /// owns the parent node identified by <see cref="AddNodesItem.ParentNodeId"/>.
+        /// owns the target namespace identified by the requested NodeId, or by the
+        /// BrowseName when the Server assigns the NodeId.
         /// </summary>
         /// <param name="context">The operation context.</param>
         /// <param name="item">The AddNodesItem to process.</param>

@@ -167,7 +167,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public async Task AddNodesAsyncRequestedIdInUnownedNamespaceReturnsBadUserAccessDeniedAsync()
+        public async Task AddNodesAsyncRequestedIdInUnownedNamespaceReturnsBadNodeIdRejectedAsync()
         {
             Mock<INodeManagerWithNodeManagement> manager = CreateNodeManagementManager(true);
             using MasterNodeManager sut = CreateMasterNodeManager(manager.Object);
@@ -187,7 +187,7 @@ namespace Opc.Ua.Server.Tests
                 new AddNodesItem[] { item }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdRejected));
         }
 
         [Test]
@@ -654,7 +654,7 @@ namespace Opc.Ua.Server.Tests
             AddNodesItem item = harness.CreateAddNodesItem();
 
             (ArrayOf<AddNodesResult> results, _) = await harness.Sut.AddNodesAsync(
-                harness.Context,
+                harness.AddNodesContext,
                 new AddNodesItem[] { item }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
 
@@ -675,14 +675,14 @@ namespace Opc.Ua.Server.Tests
             AddNodesItem item = harness.CreateAddNodesItem();
 
             (ArrayOf<AddNodesResult> results, _) = await harness.Sut.AddNodesAsync(
-                harness.Context,
+                harness.AddNodesContext,
                 new AddNodesItem[] { item }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
             harness.SourceManager.Verify(
                 manager => manager.AddNodeAsync(
-                    harness.Context,
+                    harness.AddNodesContext,
                     item,
                     It.IsAny<CancellationToken>()),
                 Times.Once);
@@ -697,7 +697,7 @@ namespace Opc.Ua.Server.Tests
             AddNodesItem item = harness.CreateAddNodesItem();
 
             (ArrayOf<AddNodesResult> results, _) = await harness.Sut.AddNodesAsync(
-                harness.Context,
+                harness.AddNodesContext,
                 new AddNodesItem[] { item }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
 
@@ -717,7 +717,9 @@ namespace Opc.Ua.Server.Tests
             harness.SetAddNodePermissions(PermissionType.AddNode);
             harness.SourceMetadata.AccessRestrictions = AccessRestrictionType.SigningRequired;
             AddNodesItem item = harness.CreateAddNodesItem();
-            OperationContext insecureContext = harness.CreateContext(MessageSecurityMode.None);
+            OperationContext insecureContext = harness.CreateContext(
+                RequestType.AddNodes,
+                MessageSecurityMode.None);
 
             (ArrayOf<AddNodesResult> results, _) = await harness.Sut.AddNodesAsync(
                 insecureContext,
@@ -746,14 +748,46 @@ namespace Opc.Ua.Server.Tests
             AddNodesItem item = harness.CreateAddNodesItem(harness.TargetNamespaceIndex);
 
             (ArrayOf<AddNodesResult> results, _) = await harness.Sut.AddNodesAsync(
-                harness.Context,
+                harness.AddNodesContext,
                 new AddNodesItem[] { item }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
             harness.TargetManager.Verify(
                 manager => manager.AddNodeAsync(
-                    harness.Context,
+                    harness.AddNodesContext,
+                    item,
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+
+        [Test]
+        public async Task AddNodesWithoutRequestedIdUsesBrowseNameNamespacePolicyAsync()
+        {
+            using var harness = new AuthorizationHarness();
+            harness.SetAddNodePermissions(
+                harness.SourceNamespaceIndex,
+                PermissionType.Browse);
+            harness.SetAddNodePermissions(
+                harness.TargetNamespaceIndex,
+                PermissionType.AddNode);
+            var item = new AddNodesItem
+            {
+                ParentNodeId = harness.SourceNodeId,
+                ReferenceTypeId = ReferenceTypeIds.Organizes,
+                BrowseName = new QualifiedName("Added", harness.TargetNamespaceIndex),
+                NodeClass = NodeClass.Object
+            };
+
+            (ArrayOf<AddNodesResult> results, _) = await harness.Sut.AddNodesAsync(
+                harness.AddNodesContext,
+                new AddNodesItem[] { item }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            harness.TargetManager.Verify(
+                manager => manager.AddNodeAsync(
+                    harness.AddNodesContext,
                     item,
                     It.IsAny<CancellationToken>()),
                 Times.Once);
@@ -770,7 +804,9 @@ namespace Opc.Ua.Server.Tests
                 harness.TargetNamespaceIndex,
                 AccessRestrictionType.SigningRequired);
             AddNodesItem item = harness.CreateAddNodesItem(harness.TargetNamespaceIndex);
-            OperationContext insecureContext = harness.CreateContext(MessageSecurityMode.None);
+            OperationContext insecureContext = harness.CreateContext(
+                RequestType.AddNodes,
+                MessageSecurityMode.None);
 
             (ArrayOf<AddNodesResult> results, _) = await harness.Sut.AddNodesAsync(
                 insecureContext,
@@ -797,14 +833,14 @@ namespace Opc.Ua.Server.Tests
             };
 
             (ArrayOf<StatusCode> results, _) = await harness.Sut.DeleteNodesAsync(
-                harness.Context,
+                harness.DeleteNodesContext,
                 new DeleteNodesItem[] { item }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(results[0], Is.EqualTo(StatusCodes.BadUserAccessDenied));
             harness.SourceManager.Verify(
                 manager => manager.GetPermissionMetadataAsync(
-                    harness.Context,
+                    harness.DeleteNodesContext,
                     It.IsAny<object>(),
                     It.IsAny<BrowseResultMask>(),
                     It.IsAny<Dictionary<NodeId, Variant[]>>(),
@@ -829,14 +865,14 @@ namespace Opc.Ua.Server.Tests
             };
 
             (ArrayOf<StatusCode> results, _) = await harness.Sut.DeleteNodesAsync(
-                harness.Context,
+                harness.DeleteNodesContext,
                 new DeleteNodesItem[] { item }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(results[0], Is.EqualTo(StatusCodes.Good));
             harness.SourceManager.Verify(
                 manager => manager.DeleteNodeAsync(
-                    harness.Context,
+                    harness.DeleteNodesContext,
                     item,
                     It.IsAny<CancellationToken>()),
                 Times.Once);
@@ -851,7 +887,9 @@ namespace Opc.Ua.Server.Tests
             {
                 NodeId = harness.SourceNodeId
             };
-            OperationContext signedContext = harness.CreateContext(MessageSecurityMode.Sign);
+            OperationContext signedContext = harness.CreateContext(
+                RequestType.DeleteNodes,
+                MessageSecurityMode.Sign);
 
             (ArrayOf<StatusCode> results, _) = await harness.Sut.DeleteNodesAsync(
                 signedContext,
@@ -875,7 +913,7 @@ namespace Opc.Ua.Server.Tests
             AddReferencesItem item = harness.CreateAddReferencesItem();
 
             (ArrayOf<StatusCode> results, _) = await harness.Sut.AddReferencesAsync(
-                harness.Context,
+                harness.AddReferencesContext,
                 new AddReferencesItem[] { item }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
 
@@ -900,7 +938,9 @@ namespace Opc.Ua.Server.Tests
             using var harness = new AuthorizationHarness();
             harness.TargetMetadata.AccessRestrictions = AccessRestrictionType.SigningRequired;
             AddReferencesItem item = harness.CreateAddReferencesItem();
-            OperationContext insecureContext = harness.CreateContext(MessageSecurityMode.None);
+            OperationContext insecureContext = harness.CreateContext(
+                RequestType.AddReferences,
+                MessageSecurityMode.None);
 
             (ArrayOf<StatusCode> results, _) = await harness.Sut.AddReferencesAsync(
                 insecureContext,
@@ -930,20 +970,20 @@ namespace Opc.Ua.Server.Tests
             AddReferencesItem item = harness.CreateAddReferencesItem();
 
             (ArrayOf<StatusCode> results, _) = await harness.Sut.AddReferencesAsync(
-                harness.Context,
+                harness.AddReferencesContext,
                 new AddReferencesItem[] { item }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(results[0], Is.EqualTo(StatusCodes.Good));
             harness.SourceManager.Verify(
                 manager => manager.AddReferenceAsync(
-                    harness.Context,
+                    harness.AddReferencesContext,
                     item,
                     It.IsAny<CancellationToken>()),
                 Times.Once);
             harness.TargetManager.Verify(
                 manager => manager.AddReferenceAsync(
-                    harness.Context,
+                    harness.AddReferencesContext,
                     It.Is<AddReferencesItem>(inverse =>
                         inverse.SourceNodeId == harness.TargetNodeId &&
                         inverse.TargetNodeId == harness.SourceNodeId &&
@@ -964,14 +1004,14 @@ namespace Opc.Ua.Server.Tests
             item.TargetServerUri = "urn:remote:server";
 
             (ArrayOf<StatusCode> results, _) = await harness.Sut.AddReferencesAsync(
-                harness.Context,
+                harness.AddReferencesContext,
                 new AddReferencesItem[] { item }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(results[0], Is.EqualTo(StatusCodes.Good));
             harness.SourceManager.Verify(
                 manager => manager.AddReferenceAsync(
-                    harness.Context,
+                    harness.AddReferencesContext,
                     item,
                     It.IsAny<CancellationToken>()),
                 Times.Once);
@@ -1003,7 +1043,7 @@ namespace Opc.Ua.Server.Tests
                 serverIndex: 1);
 
             (ArrayOf<StatusCode> results, _) = await harness.Sut.AddReferencesAsync(
-                harness.Context,
+                harness.AddReferencesContext,
                 new AddReferencesItem[] { item }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
 
@@ -1026,7 +1066,7 @@ namespace Opc.Ua.Server.Tests
                 "urn:remote:namespace");
 
             (ArrayOf<StatusCode> results, _) = await harness.Sut.AddReferencesAsync(
-                harness.Context,
+                harness.AddReferencesContext,
                 new AddReferencesItem[] { item }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
 
@@ -1053,7 +1093,7 @@ namespace Opc.Ua.Server.Tests
                     new ServiceResult(StatusCodes.BadDuplicateReferenceNotAllowed)));
 
             (ArrayOf<StatusCode> results, _) = await harness.Sut.AddReferencesAsync(
-                harness.Context,
+                harness.AddReferencesContext,
                 new AddReferencesItem[] { item }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
 
@@ -1062,7 +1102,7 @@ namespace Opc.Ua.Server.Tests
                 Is.EqualTo(StatusCodes.BadDuplicateReferenceNotAllowed));
             harness.SourceManager.Verify(
                 manager => manager.DeleteReferenceAsync(
-                    harness.Context,
+                    harness.AddReferencesContext,
                     It.Is<DeleteReferencesItem>(rollback =>
                         rollback.SourceNodeId == item.SourceNodeId &&
                         rollback.TargetNodeId == item.TargetNodeId &&
@@ -1106,7 +1146,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(
                 async () => await harness.Sut.AddReferencesAsync(
-                    harness.Context,
+                    harness.AddReferencesContext,
                     new AddReferencesItem[] { item }.ToArrayOf(),
                     requestCts.Token).ConfigureAwait(false),
                 Throws.TypeOf<OperationCanceledException>());
@@ -1127,7 +1167,7 @@ namespace Opc.Ua.Server.Tests
             DeleteReferencesItem item = harness.CreateDeleteReferencesItem();
 
             (ArrayOf<StatusCode> results, _) = await harness.Sut.DeleteReferencesAsync(
-                harness.Context,
+                harness.DeleteReferencesContext,
                 new DeleteReferencesItem[] { item }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
 
@@ -1152,7 +1192,9 @@ namespace Opc.Ua.Server.Tests
             using var harness = new AuthorizationHarness();
             harness.TargetMetadata.AccessRestrictions = AccessRestrictionType.SigningRequired;
             DeleteReferencesItem item = harness.CreateDeleteReferencesItem();
-            OperationContext insecureContext = harness.CreateContext(MessageSecurityMode.None);
+            OperationContext insecureContext = harness.CreateContext(
+                RequestType.DeleteReferences,
+                MessageSecurityMode.None);
 
             (ArrayOf<StatusCode> results, _) = await harness.Sut.DeleteReferencesAsync(
                 insecureContext,
@@ -1181,14 +1223,14 @@ namespace Opc.Ua.Server.Tests
             DeleteReferencesItem item = harness.CreateDeleteReferencesItem();
 
             (ArrayOf<StatusCode> results, _) = await harness.Sut.DeleteReferencesAsync(
-                harness.Context,
+                harness.DeleteReferencesContext,
                 new DeleteReferencesItem[] { item }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(results[0], Is.EqualTo(StatusCodes.Good));
             harness.SourceManager.Verify(
                 manager => manager.DeleteReferenceAsync(
-                    harness.Context,
+                    harness.DeleteReferencesContext,
                     It.Is<DeleteReferencesItem>(source =>
                         source.SourceNodeId == item.SourceNodeId &&
                         source.TargetNodeId == item.TargetNodeId &&
@@ -1199,7 +1241,7 @@ namespace Opc.Ua.Server.Tests
                 Times.Once);
             harness.TargetManager.Verify(
                 manager => manager.DeleteReferenceAsync(
-                    harness.Context,
+                    harness.DeleteReferencesContext,
                     It.Is<DeleteReferencesItem>(inverse =>
                         inverse.SourceNodeId == harness.TargetNodeId &&
                         inverse.TargetNodeId == harness.SourceNodeId &&
@@ -1221,14 +1263,14 @@ namespace Opc.Ua.Server.Tests
                 serverIndex: 1);
 
             (ArrayOf<StatusCode> results, _) = await harness.Sut.DeleteReferencesAsync(
-                harness.Context,
+                harness.DeleteReferencesContext,
                 new DeleteReferencesItem[] { item }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(results[0], Is.EqualTo(StatusCodes.Good));
             harness.SourceManager.Verify(
                 manager => manager.DeleteReferenceAsync(
-                    harness.Context,
+                    harness.DeleteReferencesContext,
                     It.Is<DeleteReferencesItem>(source =>
                         source.SourceNodeId == item.SourceNodeId &&
                         source.TargetNodeId == item.TargetNodeId &&
@@ -1258,14 +1300,14 @@ namespace Opc.Ua.Server.Tests
                     new ServiceResult(StatusCodes.BadNoMatch)));
 
             (ArrayOf<StatusCode> results, _) = await harness.Sut.DeleteReferencesAsync(
-                harness.Context,
+                harness.DeleteReferencesContext,
                 new DeleteReferencesItem[] { item }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(results[0], Is.EqualTo(StatusCodes.BadNoMatch));
             harness.SourceManager.Verify(
                 manager => manager.AddReferenceAsync(
-                    harness.Context,
+                    harness.DeleteReferencesContext,
                     It.Is<AddReferencesItem>(rollback =>
                         rollback.SourceNodeId == item.SourceNodeId &&
                         rollback.TargetNodeId == item.TargetNodeId &&
@@ -1302,7 +1344,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(
                 async () => await harness.Sut.DeleteReferencesAsync(
-                    harness.Context,
+                    harness.DeleteReferencesContext,
                     new DeleteReferencesItem[] { item }.ToArrayOf(),
                     CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<InvalidOperationException>());
@@ -1545,7 +1587,18 @@ namespace Opc.Ua.Server.Tests
                     .Returns(identity.Object);
                 m_session.Setup(activeSession => activeSession.PreferredLocales)
                     .Returns([]);
-                Context = CreateContext(MessageSecurityMode.SignAndEncrypt);
+                AddNodesContext = CreateContext(
+                    RequestType.AddNodes,
+                    MessageSecurityMode.SignAndEncrypt);
+                DeleteNodesContext = CreateContext(
+                    RequestType.DeleteNodes,
+                    MessageSecurityMode.SignAndEncrypt);
+                AddReferencesContext = CreateContext(
+                    RequestType.AddReferences,
+                    MessageSecurityMode.SignAndEncrypt);
+                DeleteReferencesContext = CreateContext(
+                    RequestType.DeleteReferences,
+                    MessageSecurityMode.SignAndEncrypt);
 
                 var configuration = new ApplicationConfiguration
                 {
@@ -1564,7 +1617,13 @@ namespace Opc.Ua.Server.Tests
 
             public MasterNodeManager Sut { get; }
 
-            public OperationContext Context { get; }
+            public OperationContext AddNodesContext { get; }
+
+            public OperationContext DeleteNodesContext { get; }
+
+            public OperationContext AddReferencesContext { get; }
+
+            public OperationContext DeleteReferencesContext { get; }
 
             public Mock<IAsyncNodeManager> SourceManager { get; }
 
@@ -1681,7 +1740,9 @@ namespace Opc.Ua.Server.Tests
                 ];
             }
 
-            public OperationContext CreateContext(MessageSecurityMode securityMode)
+            public OperationContext CreateContext(
+                RequestType requestType,
+                MessageSecurityMode securityMode)
             {
                 var endpoint = new EndpointDescription
                 {
@@ -1698,7 +1759,7 @@ namespace Opc.Ua.Server.Tests
                 return new OperationContext(
                     new RequestHeader(),
                     channelContext,
-                    RequestType.AddNodes,
+                    requestType,
                     RequestLifetime.None,
                     m_session.Object);
             }

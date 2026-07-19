@@ -994,14 +994,6 @@ namespace Opc.Ua.Server
                 return (new ServiceResult(StatusCodes.BadReferenceNotAllowed), NodeId.Null);
             }
 
-            // Routing per spec:
-            //   - When RequestedNewNodeId is provided, dispatch to that namespace's
-            //     owner (the namespace dictates the responsible NodeManager).
-            //   - Otherwise, prefer the parent's owner. If the parent's owner has
-            //     not opted in to NodeManagement, fall back to the first
-            //     opted-in NodeManager so cross-NodeManager AddNodes under a
-            //     read-only parent (e.g. ObjectsFolder) is still serviceable.
-            IAsyncNodeManager? nodeManagement;
             ushort targetNamespaceIndex;
             if (!item.RequestedNewNodeId.IsNull)
             {
@@ -1012,36 +1004,25 @@ namespace Opc.Ua.Server
                     return (new ServiceResult(StatusCodes.BadNodeIdRejected), NodeId.Null);
                 }
 
-                nodeManagement = FindNodeManagementOwner(requestedNodeId.NamespaceIndex);
-                if (nodeManagement == null || !nodeManagement.AllowNodeManagement)
-                {
-                    return (new ServiceResult(StatusCodes.BadUserAccessDenied), NodeId.Null);
-                }
-
                 targetNamespaceIndex = requestedNodeId.NamespaceIndex;
             }
             else
             {
-                if (parentOwner.AllowNodeManagement)
-                {
-                    nodeManagement = parentOwner;
-                }
-                else
-                {
-                    nodeManagement = FindFirstOptedInNodeManager();
-                    if (nodeManagement == null)
-                    {
-                        return (new ServiceResult(StatusCodes.BadUserAccessDenied), NodeId.Null);
-                    }
-                }
+                targetNamespaceIndex = item.BrowseName.NamespaceIndex;
+            }
 
-                string? namespaceUri = nodeManagement.NamespaceUris?.FirstOrDefault();
-                int namespaceIndex = namespaceUri == null
-                    ? -1
-                    : Server.NamespaceUris.GetIndex(namespaceUri);
-                targetNamespaceIndex = namespaceIndex >= 0
-                    ? (ushort)namespaceIndex
-                    : parentNodeId.NamespaceIndex;
+            if (!NamespaceManagers.TryGetValue(
+                    targetNamespaceIndex,
+                    out IReadOnlyList<IAsyncNodeManager>? namespaceOwners) ||
+                namespaceOwners.Count == 0)
+            {
+                return (new ServiceResult(StatusCodes.BadNodeIdRejected), NodeId.Null);
+            }
+
+            IAsyncNodeManager? nodeManagement = FindNodeManagementOwner(targetNamespaceIndex);
+            if (nodeManagement == null)
+            {
+                return (new ServiceResult(StatusCodes.BadUserAccessDenied), NodeId.Null);
             }
 
             ServiceResult permissionResult = await ValidateAddNodeNamespacePermissionAsync(
@@ -1709,24 +1690,6 @@ namespace Opc.Ua.Server
                 }
             }
 
-            return null;
-        }
-
-        /// <summary>
-        /// Returns the first registered NodeManager that has opted in to
-        /// NodeManagement, or <c>null</c> if no NodeManager has done so. Used
-        /// as the cross-NodeManager AddNodes fallback when the parent's
-        /// owning NodeManager does not allow NodeManagement.
-        /// </summary>
-        private IAsyncNodeManager? FindFirstOptedInNodeManager()
-        {
-            for (int ii = 0; ii < m_nodeManagers.Count; ii++)
-            {
-                if (m_nodeManagers[ii].AllowNodeManagement)
-                {
-                    return m_nodeManagers[ii];
-                }
-            }
             return null;
         }
 

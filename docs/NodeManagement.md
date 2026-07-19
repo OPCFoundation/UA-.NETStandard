@@ -22,8 +22,9 @@ override the four `StandardServer` service methods themselves.
    per-item collection to the matching
    `IMasterNodeManager.AddNodesAsync` etc. dispatcher.
 3. `MasterNodeManager` looks up the owning NodeManager for every item
-   (requested namespace or parent for `AddNodes`, node for `DeleteNodes`,
-   and source for reference changes)
+   (the requested NodeId namespace, or the BrowseName namespace when the
+   Server assigns the NodeId, for `AddNodes`; node for `DeleteNodes`; and
+   source for reference changes)
    and validates the matching `PermissionType` before asking it to
    perform the work via the optional `INodeManagementAsyncNodeManager`
    interface. `AddNodes` requires `AddNode` in the target namespace's
@@ -134,7 +135,7 @@ The default implementation honors the following request fields:
 | AddNodes | `BadParentNodeIdInvalid` | `ParentNodeId` is null or unknown. |
 | AddNodes | `BadReferenceTypeIdInvalid` | `ReferenceTypeId` is null or unknown. |
 | AddNodes | `BadReferenceNotAllowed` | `ReferenceTypeId` is not a hierarchical reference. |
-| AddNodes | `BadNodeIdRejected` | `RequestedNewNodeId` is outside this NodeManager's namespace. |
+| AddNodes | `BadNodeIdRejected` | The requested or BrowseName namespace has no owning NodeManager, or `RequestedNewNodeId` is outside the selected NodeManager's namespace. |
 | AddNodes | `BadNodeIdExists` | `RequestedNewNodeId` already exists. |
 | AddNodes | `BadBrowseNameDuplicated` | A sibling beneath the same local parent already uses the browse name. |
 | AddNodes | `BadNodeClassInvalid` | Only `Object` and `Variable` are supported by the default implementation. |
