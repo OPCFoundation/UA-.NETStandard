@@ -1,0 +1,37 @@
+<Project>
+  <PropertyGroup>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <!-- The analyzer payload is custom package content, so no build-output symbol package is produced. -->
+    <IncludeSymbols>false</IncludeSymbols>
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+    <DevelopmentDependency>true</DevelopmentDependency>
+    <TargetsForTfmSpecificContentInPackage>
+      $(TargetsForTfmSpecificContentInPackage);IncludeSourceGeneratorRuntimeAssets
+    </TargetsForTfmSpecificContentInPackage>
+    <IncludeSourceGeneratorRuntimeAssetsDependsOn Condition="'$(NoBuild)' != 'true'">
+      Compile;CopyFilesToOutputDirectory;ResolveReferences
+    </IncludeSourceGeneratorRuntimeAssetsDependsOn>
+  </PropertyGroup>
+  <Target Name="IncludeSourceGeneratorRuntimeAssets"
+          DependsOnTargets="$(IncludeSourceGeneratorRuntimeAssetsDependsOn)">
+    <ItemGroup>
+      <_SourceGeneratorRuntimeAsset Include="@(ReferenceCopyLocalPaths)"
+                                    Condition="'$(NoBuild)' != 'true' AND
+                                      '%(ReferenceCopyLocalPaths.Extension)' == '.dll' AND
+                                      '%(ReferenceCopyLocalPaths.NuGetPackageId)' != 'Microsoft.CodeAnalysis.Common' AND
+                                      '%(ReferenceCopyLocalPaths.NuGetPackageId)' != 'Microsoft.CodeAnalysis.CSharp' AND
+                                      '%(ReferenceCopyLocalPaths.NuGetPackageId)' != 'Microsoft.CodeAnalysis.Workspaces.Common' AND
+                                      '%(ReferenceCopyLocalPaths.NuGetPackageId)' != 'Microsoft.CodeAnalysis.CSharp.Workspaces'" />
+      <!-- Preview no-build packaging reuses the closure copied by the preceding solution build. -->
+      <_SourceGeneratorRuntimeAsset Include="$(TargetDir)*.dll"
+                                    Exclude="$(TargetPath);$(TargetDir)Microsoft.CodeAnalysis*.dll"
+                                    Condition="'$(NoBuild)' == 'true'" />
+      <TfmSpecificPackageFile Include="$(TargetPath)">
+        <PackagePath>analyzers/dotnet/cs/$(TargetFileName)</PackagePath>
+      </TfmSpecificPackageFile>
+      <TfmSpecificPackageFile Include="@(_SourceGeneratorRuntimeAsset)">
+        <PackagePath>analyzers/dotnet/cs/%(_SourceGeneratorRuntimeAsset.Filename)%(_SourceGeneratorRuntimeAsset.Extension)</PackagePath>
+      </TfmSpecificPackageFile>
+    </ItemGroup>
+  </Target>
+</Project>

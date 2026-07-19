@@ -1,7 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <IncludeBuildOutput>false</IncludeBuildOutput>
     <AssemblyName>$(AssemblyPrefix).SourceGeneration.Stack</AssemblyName>
     <RootNamespace>Opc.Ua.SourceGeneration</RootNamespace>
     <Description>OPC UA source generation Library</Description>
@@ -20,6 +19,9 @@
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <NoPackageAnalysis>true</NoPackageAnalysis>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
   <PropertyGroup>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <AssemblySearchPath_UseOutDir>true</AssemblySearchPath_UseOutDir>
@@ -32,12 +34,13 @@
     <InternalsVisibleTo Include="Opc.Ua.SourceGeneration.Stack.Tests"/>
   </ItemGroup>
   <ItemGroup>
+    <!-- Keep Roslyn compile assets transitive for project-reference test consumers.
+         SourceGeneratorPackaging.targets suppresses package dependencies and host DLL payloads. -->
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
     <PackageReference Include="SourceGenerator.Foundations" >
       <!-- Make private asset because assembly name comparer symbol conflict in test -->
       <PrivateAssets>all</PrivateAssets>
-      <OutputItemType>Analzyer</OutputItemType>
-      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <OutputItemType>Analyzer</OutputItemType>
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
@@ -56,4 +59,5 @@
   <ItemGroup>
     <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
   </ItemGroup>
+  <Import Project="..\Opc.Ua.SourceGeneration\SourceGeneratorPackaging.targets" />
 </Project>
