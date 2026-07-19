@@ -811,8 +811,30 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // Ensure all items on the server that are not in the subscription are deleted
             try
             {
-                await m_context.MonitoredItemServiceSet.DeleteMonitoredItemsAsync(null, m_context.Id, itemsToDelete,
-                    ct).ConfigureAwait(false);
+                DeleteMonitoredItemsResponse response =
+                    await m_context.MonitoredItemServiceSet.DeleteMonitoredItemsAsync(
+                        null,
+                        m_context.Id,
+                        itemsToDelete,
+                        ct).ConfigureAwait(false);
+                ClientBase.ValidateResponse(response.Results, itemsToDelete);
+                ClientBase.ValidateDiagnosticInfos(
+                    response.DiagnosticInfos,
+                    itemsToDelete);
+
+                if (StatusCode.IsBad(response.ResponseHeader.ServiceResult))
+                {
+                    return false;
+                }
+
+                for (int i = 0; i < response.Results.Count; i++)
+                {
+                    if (StatusCode.IsBad(response.Results[i]))
+                    {
+                        return false;
+                    }
+                }
+
                 return true;
             }
             catch (Exception ex)
