@@ -731,11 +731,11 @@ namespace Opc.Ua
         /// </summary>
         private void WriteLocalizedText(string? fieldName, LocalizedText value, bool isArrayElement)
         {
-            if (BeginField(fieldName, value.IsNullOrEmpty, true, isArrayElement))
+            if (BeginField(fieldName, value.IsNull, true, isArrayElement))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
 
-                if (!value.IsNullOrEmpty)
+                if (!value.IsNull)
                 {
                     if (!string.IsNullOrEmpty(value.Locale))
                     {
@@ -2020,8 +2020,26 @@ namespace Opc.Ua
                         if (BeginField("Matrix", value.IsNull, true, true))
                         {
                             const string elements = "Elements";
+
+                            // A multi-dimensional Variant must carry Dimensions
+                            // where every entry is greater than zero and the
+                            // product equals the flattened element count (Part 6
+                            // 5.2.2.16). Refuse to emit inconsistent dimensions
+                            // (e.g. a zero dimension produced by an empty matrix)
+                            // instead of writing wire data a conforming peer must
+                            // reject with BadDecodingError.
                             void WriteDimensions<T>(MatrixOf<T> matrix)
-                                => WriteInt32Array("Dimensions", matrix.Dimensions);
+                            {
+                                if (!MatrixOf.IsValidMatrix(matrix.Dimensions))
+                                {
+                                    throw ServiceResultException.Create(
+                                        StatusCodes.BadEncodingError,
+                                        "Cannot encode a matrix Variant with " +
+                                        "inconsistent Dimensions [{0}].",
+                                        string.Join(",", matrix.Dimensions));
+                                }
+                                WriteInt32Array("Dimensions", matrix.Dimensions);
+                            }
 
                             PushNamespace(Namespaces.OpcUaXsd);
                             if (!value.IsNull)

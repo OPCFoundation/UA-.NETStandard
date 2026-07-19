@@ -98,6 +98,135 @@ namespace Opc.Ua.History.Tests
                 "CertificateType property.");
         }
 
+        [Test]
+        public async Task CertificateGroupExposesDynamicAlarmInstancesAsync()
+        {
+            BrowseResponse response = await Session.BrowseAsync(
+                null,
+                null,
+                0,
+                new BrowseDescription[]
+                {
+                    new()
+                    {
+                        NodeId =
+                            ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup,
+                        BrowseDirection = BrowseDirection.Forward,
+                        ReferenceTypeId = ReferenceTypeIds.References,
+                        IncludeSubtypes = true,
+                        NodeClassMask = (uint)NodeClass.Object,
+                        ResultMask = (uint)BrowseResultMask.All
+                    }
+                }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(response.Results.Count, Is.EqualTo(1));
+            ReferenceDescription? certificateExpired = null;
+            ReferenceDescription? trustListOutOfDate = null;
+            int certificateExpiredCount = 0;
+            int trustListOutOfDateCount = 0;
+            foreach (ReferenceDescription reference in response.Results[0].References)
+            {
+                if (reference.BrowseName.Name == BrowseNames.CertificateExpired)
+                {
+                    certificateExpired = reference;
+                    certificateExpiredCount++;
+                }
+                else if (reference.BrowseName.Name == BrowseNames.TrustListOutOfDate)
+                {
+                    trustListOutOfDate = reference;
+                    trustListOutOfDateCount++;
+                }
+            }
+
+            Assert.That(certificateExpired, Is.Not.Null);
+            Assert.That(trustListOutOfDate, Is.Not.Null);
+            BrowseResult certificateChildren = await BrowseForwardAsync(
+                ToNodeId(certificateExpired!.NodeId)).ConfigureAwait(false);
+            BrowseResult trustListChildren = await BrowseForwardAsync(
+                ToNodeId(trustListOutOfDate!.NodeId)).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(certificateExpiredCount, Is.EqualTo(1));
+                Assert.That(trustListOutOfDateCount, Is.EqualTo(1));
+                Assert.That(
+                    ToNodeId(certificateExpired!.TypeDefinition),
+                    Is.EqualTo(ObjectTypeIds.CertificateExpirationAlarmType));
+                Assert.That(certificateExpired.NodeId.NamespaceIndex, Is.GreaterThan(0));
+                Assert.That(
+                    ToNodeId(trustListOutOfDate!.TypeDefinition),
+                    Is.EqualTo(ObjectTypeIds.TrustListOutOfDateAlarmType));
+                Assert.That(trustListOutOfDate.NodeId.NamespaceIndex, Is.GreaterThan(0));
+                foreach (ReferenceDescription reference in certificateChildren.References)
+                {
+                    Assert.That(
+                        reference.NodeId.NamespaceIndex,
+                        Is.GreaterThan(0),
+                        $"CertificateExpired child {reference.BrowseName} retained " +
+                        $"declaration NodeId {reference.NodeId}.");
+                }
+                foreach (ReferenceDescription reference in trustListChildren.References)
+                {
+                    Assert.That(
+                        reference.NodeId.NamespaceIndex,
+                        Is.GreaterThan(0),
+                        $"TrustListOutOfDate child {reference.BrowseName} retained " +
+                        $"declaration NodeId {reference.NodeId}.");
+                }
+            });
+        }
+
+        [Test]
+        public async Task StandardCertificateAlarmDeclarationsHaveMandatoryModellingRulesAsync()
+        {
+            NodeId[] declarationIds =
+            [
+                VariableIds.CertificateExpirationAlarmType_ExpirationDate,
+                VariableIds.CertificateExpirationAlarmType_CertificateType,
+                VariableIds.CertificateExpirationAlarmType_Certificate,
+                VariableIds.TrustListOutOfDateAlarmType_TrustListId,
+                VariableIds.TrustListOutOfDateAlarmType_LastUpdateTime,
+                VariableIds.TrustListOutOfDateAlarmType_UpdateFrequency
+            ];
+            var descriptions = new BrowseDescription[declarationIds.Length];
+            for (int ii = 0; ii < declarationIds.Length; ii++)
+            {
+                descriptions[ii] = new BrowseDescription
+                {
+                    NodeId = declarationIds[ii],
+                    BrowseDirection = BrowseDirection.Forward,
+                    ReferenceTypeId = ReferenceTypeIds.HasModellingRule,
+                    IncludeSubtypes = false,
+                    NodeClassMask = 0,
+                    ResultMask = (uint)BrowseResultMask.All
+                };
+            }
+
+            BrowseResponse response = await Session.BrowseAsync(
+                null,
+                null,
+                0,
+                descriptions.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(response.Results.Count, Is.EqualTo(declarationIds.Length));
+            for (int ii = 0; ii < response.Results.Count; ii++)
+            {
+                Assert.That(
+                    StatusCode.IsGood(response.Results[ii].StatusCode),
+                    Is.True,
+                    $"Browse failed for declaration {declarationIds[ii]}.");
+                Assert.That(
+                    response.Results[ii].References.Count,
+                    Is.EqualTo(1),
+                    $"Declaration {declarationIds[ii]} must expose one HasModellingRule reference.");
+                Assert.That(
+                    ToNodeId(response.Results[ii].References[0].NodeId),
+                    Is.EqualTo(ObjectIds.ModellingRule_Mandatory));
+            }
+        }
+
         private async Task<DataValue> ReadBrowseNameAsync(NodeId nodeId)
         {
             ReadResponse response = await Session.ReadAsync(

@@ -177,7 +177,7 @@ namespace Opc.Ua.History.Tests
         }
 
         [Test]
-        public async Task AcknowledgeThenConfirmWithEmptyCommentAsync()
+        public async Task AcknowledgeThenConfirmWithLocaleOnlyCommentUpdatesCommentAsync()
         {
             NodeId alarmId = RequireCttAlarm("AlarmConditionType");
             await NormalizeAlarmAsync(alarmId).ConfigureAwait(false);
@@ -265,8 +265,9 @@ namespace Opc.Ua.History.Tests
                         out LocalizedText comment),
                     Is.True,
                     "Confirm event should include Comment.");
-                Assert.That(comment.Text, Is.EqualTo("ack before empty confirm"),
-                    "An empty Confirm comment must preserve the existing comment (OPC UA Part 9).");
+                Assert.That(comment.Locale, Is.EqualTo("en"));
+                Assert.That(comment.Text ?? string.Empty, Is.EqualTo(string.Empty),
+                    "A locale-only Confirm comment is not null and must update the Condition.");
             }
             catch (TimeoutException ex)
             {
@@ -482,7 +483,7 @@ namespace Opc.Ua.History.Tests
                 Assert.That(StatusCode.IsGood(acknowledge.StatusCode), Is.True,
                     $"Acknowledge should succeed before Confirm: {acknowledge.StatusCode}");
 
-                await primaryCollector.WaitForEventAsync(
+                EventFieldList primaryAckEvent = await primaryCollector.WaitForEventAsync(
                     alarmId,
                     e => AlarmEventCollector.TryGetBoolean(
                         e,
@@ -490,6 +491,30 @@ namespace Opc.Ua.History.Tests
                         out bool acked) &&
                         acked,
                     DefaultEventWaitTimeout).ConfigureAwait(false);
+                Assert.That(
+                    AlarmEventCollector.TryGetByteString(
+                        primaryAckEvent,
+                        AlarmEventCollector.FieldIndex.EventId,
+                        out ByteString acknowledgedEventId),
+                    Is.True);
+                EventFieldList auxiliaryAckEvent = await auxCollector.WaitForEventAsync(
+                    alarmId,
+                    e => AlarmEventCollector.TryGetByteString(
+                        e,
+                        AlarmEventCollector.FieldIndex.EventId,
+                        out ByteString eventIdValue) &&
+                        eventIdValue == acknowledgedEventId,
+                    DefaultEventWaitTimeout).ConfigureAwait(false);
+                Assert.That(
+                    AlarmEventCollector.TryGetByteString(
+                        auxiliaryAckEvent,
+                        AlarmEventCollector.FieldIndex.EventId,
+                        out ByteString auxiliaryEventId),
+                    Is.True);
+                Assert.That(
+                    auxiliaryEventId,
+                    Is.EqualTo(acknowledgedEventId),
+                    "Both subscriptions must receive the same Acknowledge event.");
                 ByteString confirmEventId = await ReadEventIdAsync(alarmId).ConfigureAwait(false);
 
                 CallMethodResult first = await CallMethodOnAlarmAsync(

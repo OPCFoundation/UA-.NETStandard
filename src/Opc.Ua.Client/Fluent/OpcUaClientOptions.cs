@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Opc.Ua.Configuration;
+
 namespace Opc.Ua.Client
 {
     /// <summary>
@@ -36,9 +38,72 @@ namespace Opc.Ua.Client
     public sealed class OpcUaClientOptions
     {
         /// <summary>
-        /// The application configuration. Required.
+        /// The application configuration. When omitted,
+        /// <c>ConfigureApplication(...)</c> must be registered on the root
+        /// OPC UA builder, or the application identity properties below
+        /// must be set instead.
         /// </summary>
         public ApplicationConfiguration? Configuration { get; set; }
+
+        /// <summary>
+        /// The application name. When set (and <see cref="Configuration"/>
+        /// is omitted), the root <c>ConfigureApplication(...)</c>
+        /// infrastructure is used internally to build and validate the
+        /// application configuration for this client, mirroring
+        /// <c>OpcUaServerOptions.ApplicationName</c>. Composes with a root
+        /// <c>ConfigureApplication(...)</c> call made before or after
+        /// <c>AddClient(...)</c>: fields explicitly set via
+        /// <c>ConfigureApplication(...)</c> win, and this property only
+        /// fills the value when it would otherwise be unset (<c>??=</c>
+        /// semantics), mirroring
+        /// <c>OpcUaServerApplicationConfigurationFeature.ApplyDefaults</c>.
+        /// Must not be combined with an explicit <see cref="Configuration"/>.
+        /// </summary>
+        public string? ApplicationName { get; set; }
+
+        /// <summary>
+        /// The application URI (e.g. <c>urn:localhost:Org:Product</c>).
+        /// See <see cref="ApplicationName"/> for combination rules.
+        /// </summary>
+        public string? ApplicationUri { get; set; }
+
+        /// <summary>
+        /// The product URI (e.g. <c>uri:org:product</c>).
+        /// See <see cref="ApplicationName"/> for combination rules.
+        /// </summary>
+        public string? ProductUri { get; set; }
+
+        /// <summary>
+        /// The application certificate subject. When omitted, a subject is
+        /// generated from <see cref="ApplicationName"/>.
+        /// See <see cref="ApplicationName"/> for combination rules.
+        /// </summary>
+        public string? SubjectName { get; set; }
+
+        /// <summary>
+        /// The PKI root. When omitted, a per-application directory below
+        /// the temporary directory is used.
+        /// See <see cref="ApplicationName"/> for combination rules.
+        /// </summary>
+        public string? PkiRoot { get; set; }
+
+        /// <summary>
+        /// Whether unknown peer certificates are automatically accepted.
+        /// See <see cref="ApplicationName"/> for combination rules.
+        /// </summary>
+        public bool? AutoAcceptUntrustedCertificates { get; set; }
+
+        /// <summary>
+        /// Whether SHA-1-signed certificates are rejected.
+        /// See <see cref="ApplicationName"/> for combination rules.
+        /// </summary>
+        public bool? RejectSHA1SignedCertificates { get; set; }
+
+        /// <summary>
+        /// The minimum accepted RSA certificate key size.
+        /// See <see cref="ApplicationName"/> for combination rules.
+        /// </summary>
+        public ushort? MinimumCertificateKeySize { get; set; }
 
         /// <summary>
         /// Default <see cref="ManagedSessionOptions"/> used by the
@@ -65,5 +130,26 @@ namespace Opc.Ua.Client
         /// through the application-configuration surface.
         /// </summary>
         public ClientReverseConnectOptions? ReverseConnect { get; set; }
+
+        internal IOpcUaApplicationConfigurationProvider? ConfigurationProvider { get; set; }
+
+        /// <summary>
+        /// <c>true</c> when any application identity or security property
+        /// (<see cref="ApplicationName"/>, <see cref="ApplicationUri"/>,
+        /// <see cref="ProductUri"/>, <see cref="SubjectName"/>,
+        /// <see cref="PkiRoot"/>,
+        /// <see cref="AutoAcceptUntrustedCertificates"/>,
+        /// <see cref="RejectSHA1SignedCertificates"/>, or
+        /// <see cref="MinimumCertificateKeySize"/>) was set.
+        /// </summary>
+        internal bool HasApplicationOptions =>
+            ApplicationName != null
+            || ApplicationUri != null
+            || ProductUri != null
+            || SubjectName != null
+            || PkiRoot != null
+            || AutoAcceptUntrustedCertificates != null
+            || RejectSHA1SignedCertificates != null
+            || MinimumCertificateKeySize != null;
     }
 }

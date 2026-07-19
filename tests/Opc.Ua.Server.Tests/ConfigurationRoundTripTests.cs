@@ -28,8 +28,6 @@
  * ======================================================================*/
 
 using System.IO;
-using System.Text;
-using System.Xml;
 using MemoryBuffer;
 using NUnit.Framework;
 using Opc.Ua.Tests;
@@ -71,31 +69,21 @@ namespace Opc.Ua.Server.Tests
                 ]
             };
 
-            IServiceMessageContext ctx = CreateMessageContext();
+            MemoryBufferConfiguration decoded = RoundTripExtension(
+                original,
+                out string xml);
 
-            string xml = EncodeMemoryBufferConfiguration(original, ctx);
-            MemoryBufferConfiguration decoded =
-                DecodeMemoryBufferConfiguration(xml, ctx);
-
+            Assert.That(xml, Does.Contain("http://samples.org/UA/MemoryBuffer"));
+            Assert.That(xml, Does.Not.Contain("urn:memorybuffer"));
             VerifyMemoryBufferConfiguration(decoded, original);
         }
 
         [Test]
-        public void MemoryBufferConfigurationXmlRoundTripFromFixture()
+        public void MemoryBufferConfigurationParseExtensionFromFixture()
         {
-            IServiceMessageContext ctx = CreateMessageContext();
-
-            string filePath = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
-                "test-memorybuffer-config.xml");
-
-            MemoryBufferConfiguration first;
-            using (var stream = new FileStream(
-                filePath, FileMode.Open, FileAccess.Read))
-            {
-                first = DecodeMemoryBufferConfigurationFromStream(
-                    stream, ctx);
-            }
+            MemoryBufferConfiguration first =
+                ParseExtensionFromFixture<MemoryBufferConfiguration>(
+                    "test-memorybuffer-config.xml");
 
             Assert.That(first.Buffers, Has.Count.GreaterThan(0));
             Assert.That(first.Buffers.Count, Is.EqualTo(2));
@@ -106,10 +94,11 @@ namespace Opc.Ua.Server.Tests
             Assert.That(first.Buffers[1].TagCount, Is.EqualTo(200));
             Assert.That(first.Buffers[1].DataType, Is.EqualTo("Double"));
 
-            string xml = EncodeMemoryBufferConfiguration(first, ctx);
-            MemoryBufferConfiguration second =
-                DecodeMemoryBufferConfiguration(xml, ctx);
+            MemoryBufferConfiguration second = RoundTripExtension(
+                first,
+                out string xml);
 
+            Assert.That(xml, Does.Not.Contain("urn:memorybuffer"));
             VerifyMemoryBufferConfiguration(second, first);
         }
 
@@ -123,86 +112,66 @@ namespace Opc.Ua.Server.Tests
                 NextUnusedId = 42
             };
 
-            IServiceMessageContext ctx = CreateMessageContext();
+            TestDataNodeManagerConfiguration decoded = RoundTripExtension(
+                original,
+                out string xml);
 
-            string xml = EncodeTestDataConfig(original, ctx);
-            TestDataNodeManagerConfiguration decoded =
-                DecodeTestDataConfig(xml, ctx);
-
+            Assert.That(xml, Does.Contain("http://test.org/UA/Data/"));
+            Assert.That(xml, Does.Not.Contain("urn:testdata"));
             VerifyTestDataConfig(decoded, original);
         }
 
         [Test]
-        public void TestDataNodeManagerConfigurationXmlRoundTripFromFixture()
+        public void TestDataNodeManagerConfigurationParseExtensionFromFixture()
         {
-            IServiceMessageContext ctx = CreateMessageContext();
-
-            string filePath = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
-                "test-testdata-config.xml");
-
-            TestDataNodeManagerConfiguration first;
-            using (var stream = new FileStream(
-                filePath, FileMode.Open, FileAccess.Read))
-            {
-                first = DecodeTestDataConfigFromStream(stream, ctx);
-            }
+            TestDataNodeManagerConfiguration first =
+                ParseExtensionFromFixture<TestDataNodeManagerConfiguration>(
+                    "test-testdata-config.xml");
 
             Assert.That(first.SaveFilePath,
                 Is.EqualTo("C:\\TestData\\state.bin"));
             Assert.That(first.MaxQueueSize, Is.EqualTo(250u));
             Assert.That(first.NextUnusedId, Is.EqualTo(42u));
 
-            string xml = EncodeTestDataConfig(first, ctx);
-            TestDataNodeManagerConfiguration second =
-                DecodeTestDataConfig(xml, ctx);
+            TestDataNodeManagerConfiguration second = RoundTripExtension(
+                first,
+                out string xml);
 
+            Assert.That(xml, Does.Not.Contain("urn:testdata"));
             VerifyTestDataConfig(second, first);
         }
 
-        private static ServiceMessageContext CreateMessageContext()
+        private static T ParseExtensionFromFixture<T>(string fileName)
+            where T : class, IEncodeable, new()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            return ServiceMessageContext.CreateEmpty(telemetry);
-        }
-
-        private static string EncodeMemoryBufferConfiguration(
-            MemoryBufferConfiguration config,
-            IServiceMessageContext ctx)
-        {
-            using var stream = new MemoryStream();
-            XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
-            settings.Encoding = new UTF8Encoding(false);
-            using (var writer = XmlWriter.Create(stream, settings))
+            var configuration = new ApplicationConfiguration(telemetry)
             {
-                using var encoder = new XmlEncoder(
-                    typeof(MemoryBufferConfiguration), writer, ctx);
-                config.Encode(encoder);
-                encoder.Close();
-            }
+                Extensions =
+                [
+                    Opc.Ua.XmlElement.From(File.ReadAllText(Path.Combine(
+                        TestContext.CurrentContext.WorkDirectory,
+                        fileName)))
+                ]
+            };
 
-            return Encoding.UTF8.GetString(stream.ToArray());
+            T result = configuration.ParseExtension<T>();
+            Assert.That(result, Is.Not.Null);
+            return result;
         }
 
-        private static MemoryBufferConfiguration
-            DecodeMemoryBufferConfiguration(
-                string xml,
-                IServiceMessageContext ctx)
+        private static T RoundTripExtension<T>(T value, out string xml)
+            where T : class, IEncodeable, new()
         {
-            using var stream = new MemoryStream(
-                Encoding.UTF8.GetBytes(xml));
-            return DecodeMemoryBufferConfigurationFromStream(stream, ctx);
-        }
+            var configuration = new ApplicationConfiguration(
+                NUnitTelemetryContext.Create());
+            configuration.UpdateExtension<T>(null, value);
 
-        private static MemoryBufferConfiguration
-            DecodeMemoryBufferConfigurationFromStream(
-                Stream stream,
-                IServiceMessageContext ctx)
-        {
-            using var parser = new XmlParser(
-                typeof(MemoryBufferConfiguration), stream, ctx);
-            var result = new MemoryBufferConfiguration();
-            result.Decode(parser);
+            Assert.That(configuration.Extensions, Has.Count.EqualTo(1));
+            xml = configuration.Extensions[0].OuterXml;
+
+            T result = configuration.ParseExtension<T>();
+            Assert.That(result, Is.Not.Null);
             return result;
         }
 
@@ -223,46 +192,6 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(actual.Buffers[i].DataType,
                     Is.EqualTo(expected.Buffers[i].DataType));
             }
-        }
-
-        private static string EncodeTestDataConfig(
-            TestDataNodeManagerConfiguration config,
-            IServiceMessageContext ctx)
-        {
-            using var stream = new MemoryStream();
-            XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
-            settings.Encoding = new UTF8Encoding(false);
-            using (var writer = XmlWriter.Create(stream, settings))
-            {
-                using var encoder = new XmlEncoder(
-                    typeof(TestDataNodeManagerConfiguration), writer, ctx);
-                config.Encode(encoder);
-                encoder.Close();
-            }
-
-            return Encoding.UTF8.GetString(stream.ToArray());
-        }
-
-        private static TestDataNodeManagerConfiguration
-            DecodeTestDataConfig(
-                string xml,
-                IServiceMessageContext ctx)
-        {
-            using var stream = new MemoryStream(
-                Encoding.UTF8.GetBytes(xml));
-            return DecodeTestDataConfigFromStream(stream, ctx);
-        }
-
-        private static TestDataNodeManagerConfiguration
-            DecodeTestDataConfigFromStream(
-                Stream stream,
-                IServiceMessageContext ctx)
-        {
-            using var parser = new XmlParser(
-                typeof(TestDataNodeManagerConfiguration), stream, ctx);
-            var result = new TestDataNodeManagerConfiguration();
-            result.Decode(parser);
-            return result;
         }
 
         private static void VerifyTestDataConfig(

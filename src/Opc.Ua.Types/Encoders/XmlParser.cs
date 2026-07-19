@@ -2492,6 +2492,13 @@ namespace Opc.Ua
                     PushNamespace(Namespaces.OpcUaXsd);
 
                     int[] dimensions = ReadInt32Array("Dimensions").ToArray() ?? [];
+                    if (!MatrixOf.IsValidMatrix(dimensions))
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadDecodingError,
+                            "Variant matrix Dimensions [{0}] are inconsistent.",
+                            string.Join(",", dimensions));
+                    }
                     if (BeginField("Elements", true))
                     {
                         value = ReadMatrix(dimensions);
@@ -2502,6 +2509,13 @@ namespace Opc.Ua
 
                     EndField(fieldName);
                 }
+            }
+            catch (ArgumentException ex)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    ex,
+                    "Invalid variant matrix dimensions.");
             }
             finally
             {

@@ -250,6 +250,31 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
+        public async Task AddNodeAsyncRequestedIdWithSupportedNamespaceUriIsHonouredAsync()
+        {
+            using Harness h = CreateHarness(allowNodeManagement: true);
+            ushort namespaceIndex = h.Manager.NamespaceIndexes[0];
+            NodeId parentNodeId = await h.AddObjectAsync("Parent").ConfigureAwait(false);
+            var requestedNodeId = new ExpandedNodeId("ExplicitUriId", TestNamespaceUri);
+            var item = new AddNodesItem
+            {
+                ParentNodeId = parentNodeId,
+                ReferenceTypeId = ReferenceTypeIds.Organizes,
+                BrowseName = new QualifiedName("ExplicitUriId", namespaceIndex),
+                NodeClass = NodeClass.Object,
+                RequestedNewNodeId = requestedNodeId
+            };
+
+            (ServiceResult result, NodeId addedNodeId) = await h.Manager
+                .AddNodeAsync(h.OperationContext, item).ConfigureAwait(false);
+
+            var expectedNodeId = new NodeId("ExplicitUriId", namespaceIndex);
+            Assert.That(ServiceResult.IsGood(result), Is.True, $"expected Good result; got {result}");
+            Assert.That(addedNodeId, Is.EqualTo(expectedNodeId));
+            Assert.That(h.Manager.PredefinedNodes.ContainsKey(expectedNodeId), Is.True);
+        }
+
+        [Test]
         public async Task AddNodeAsync_VariableWithAttributes_AppliesAttributesAsync()
         {
             using Harness h = CreateHarness(allowNodeManagement: true);

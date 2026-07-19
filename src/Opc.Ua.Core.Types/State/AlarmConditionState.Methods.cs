@@ -502,8 +502,9 @@ namespace Opc.Ua
 
                     if (!LatchedState.Id!.Value)
                     {
-                        // Not latched — nothing to reset
-                        return StatusCodes.BadConditionNotShelved; // closest standard code for invalid state
+                        // Reset applies to the latched-alarm state machine;
+                        // an unlatched alarm is simply not in a valid reset state.
+                        return StatusCodes.BadInvalidState;
                     }
 
                     if (ActiveState!.Id!.Value)

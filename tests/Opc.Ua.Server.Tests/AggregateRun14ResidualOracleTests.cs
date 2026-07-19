@@ -40,11 +40,10 @@ using Opc.Ua.Tests;
 namespace Opc.Ua.Server.Tests
 {
     /// <summary>
-    /// Part 13 oracle tests that reproduce the exact data pattern used by the CTT aggregate
-    /// Conformance Units against the reference server (SeedHistoricalNodeAsync): a pure all-Good
-    /// linear ramp of 1000 samples spaced 10 s apart (value == sample index). These tests pin the
-    /// server's Part 13 behaviour for the residual value families reported by CTT run 14 and record
-    /// where the divergence is on the CTT oracle side rather than a server defect:
+    /// Part 13 oracle tests that reproduce the all-Good linear ramp used by the reference server
+    /// during CTT run 14: 1000 samples spaced 10 s apart with value equal to the sample index.
+    /// The current reference server uses a mixed-quality seed, but these tests preserve the exact
+    /// run-14 scenarios and record where the divergence was on the CTT oracle side:
     /// <list type="bullet">
     /// <item>Sloped interpolation of Float/Double bounds is byte-exact (server matches the CTT
     /// oracle); the CTT "not equal" comparisons only appear for integer-typed nodes.</item>
@@ -73,7 +72,7 @@ namespace Opc.Ua.Server.Tests
             return s_baseTime.AddMilliseconds(seconds * 1000.0);
         }
 
-        // Linear ramp: value v at t = v*10 s + 1.234 s, all Good (mirrors the reference server seed).
+        // Linear ramp: value v at t = v*10 s + 1.234 s, all Good (mirrors the run-14 seed).
         private static List<DataValue> CreateRamp(BuiltInType type, int count = 40)
         {
             var raw = new List<DataValue>(count + 1);
@@ -189,6 +188,73 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(quality, Is.EqualTo(StatusCodes.Good));
                 Assert.That(value.StatusCode.CodeBits, Is.EqualTo(StatusCodes.Good));
             }
+        }
+
+        [TestCase("DurationGood")]
+        [TestCase("PercentGood")]
+        [TestCase("WorstQuality2")]
+        [TestCase("StartBound")]
+        public async Task BadBoundNotFoundPlaceholderIsNotAggregateInputAsync(string aggregateName)
+        {
+            List<DataValue> raw = CreateRamp(BuiltInType.Int32, 10);
+            DateTimeUtc start = At(-10);
+            DateTimeUtc end = At(50);
+            AggregateConfiguration configuration = CreateConfiguration();
+            NodeId aggregateId = GetAggregateId(aggregateName);
+
+            List<DataValue> expected = RunDirect(
+                aggregateId,
+                raw,
+                start,
+                end,
+                c_interval,
+                configuration);
+
+            var withMissingBound = new List<DataValue>(raw.Count + 1)
+            {
+                new(
+                    Variant.Null,
+                    StatusCodes.BadBoundNotFound,
+                    sourceTimestamp: start,
+                    serverTimestamp: DateTimeUtc.MinValue)
+            };
+            withMissingBound.AddRange(raw);
+
+            List<DataValue> direct = RunDirect(
+                aggregateId,
+                withMissingBound,
+                start,
+                end,
+                c_interval,
+                configuration);
+
+            using var harness = new Harness();
+            List<DataValue> live = await harness
+                .ReadProcessedAsync(aggregateId, raw, start, end, c_interval, configuration)
+                .ConfigureAwait(false);
+
+            Assert.That(direct, Is.EqualTo(expected), "direct calculator");
+            Assert.That(live, Has.Count.EqualTo(expected.Count), "live historian count");
+            for (int index = 0; index < expected.Count; index++)
+            {
+                Assert.That(
+                    live[index].WrappedValue,
+                    Is.EqualTo(expected[index].WrappedValue),
+                    $"live historian value[{index}]");
+                Assert.That(
+                    live[index].StatusCode,
+                    Is.EqualTo(expected[index].StatusCode),
+                    $"live historian status[{index}]");
+                Assert.That(
+                    live[index].SourceTimestamp,
+                    Is.EqualTo(expected[index].SourceTimestamp),
+                    $"live historian timestamp[{index}]");
+            }
+            Assert.That(
+                live,
+                Has.None.Matches<DataValue>(value =>
+                    value.StatusCode == StatusCodes.BadBoundNotFound),
+                "A synthetic missing-bound marker must never appear in processed results.");
         }
 
         private static async Task AssertConstantAsync(

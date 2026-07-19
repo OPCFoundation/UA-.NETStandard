@@ -34,7 +34,8 @@ namespace MemoryBuffer
     /// <summary>
     /// Stores the configuration the test node manager
     /// </summary>
-    [DataType(Namespace = Namespaces.MemoryBuffer)]
+    // Namespaces.MemoryBuffer is generated in the same pass and is unavailable to the [DataType] generator.
+    [DataType(Namespace = "http://samples.org/UA/MemoryBuffer")]
     public partial class MemoryBufferConfiguration
     {
         /// <summary>
@@ -54,7 +55,8 @@ namespace MemoryBuffer
     /// <summary>
     /// Stores the configuration for a memory buffer instance.
     /// </summary>
-    [DataType(Namespace = Namespaces.MemoryBuffer)]
+    // Namespaces.MemoryBuffer is generated in the same pass and is unavailable to the [DataType] generator.
+    [DataType(Namespace = "http://samples.org/UA/MemoryBuffer")]
     public partial class MemoryBufferInstance
     {
         /// <summary>

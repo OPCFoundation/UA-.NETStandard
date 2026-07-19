@@ -870,6 +870,21 @@ namespace Opc.Ua.Features.Tests
             Assert.That(result.StatusCode.Code, Is.EqualTo(StatusCodes.BadNotSupported));
         }
 
+        [Test]
+        [TestCase("v1")]
+        [TestCase("v2")]
+        public void OnResetCalledReturnsBadInvalidStateWhenAlarmIsNotLatched(string variant)
+        {
+            TestableAlarm alarm = CreateTestableAlarm();
+            AddTwoStateChild(alarm, BrowseNames.LatchedState, s => alarm.LatchedState = s);
+
+            ServiceResult result = variant == "v1"
+                ? alarm.CallReset(m_context)
+                : alarm.CallReset2(m_context, new LocalizedText("en", "x"));
+
+            Assert.That(result.StatusCode.Code, Is.EqualTo(StatusCodes.BadInvalidState));
+        }
+
         private TestableAlarm CreateResettableAlarm()
         {
             TestableAlarm alarm = CreateTestableAlarm();
@@ -1013,6 +1028,24 @@ namespace Opc.Ua.Features.Tests
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(alarm.Comment!.Value.Text, Is.EqualTo("Operator comment"));
+        }
+
+        [Test]
+        public void OnAcknowledgeWithLocaleOnlyCommentUpdatesComment()
+        {
+            TestableAlarm alarm = CreateTestableAlarm();
+            EnsureComment(alarm);
+            alarm.Comment!.Value = new LocalizedText("en", "Original comment");
+
+            ByteString eventId = ByteString.FromHexString("090A0B0C");
+            ServiceResult result = alarm.CallAcknowledge(
+                m_context,
+                eventId,
+                new LocalizedText("en", string.Empty));
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(alarm.Comment!.Value.Locale, Is.EqualTo("en"));
+            Assert.That(alarm.Comment.Value.Text, Is.EqualTo(string.Empty));
         }
     }
 }

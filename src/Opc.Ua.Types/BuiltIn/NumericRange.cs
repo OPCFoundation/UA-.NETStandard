@@ -438,8 +438,14 @@ namespace Opc.Ua
                 if (index != -1)
                 {
                     range = new NumericRange(
-                        Convert.ToInt32(textToParse[..index], CultureInfo.InvariantCulture),
-                        Convert.ToInt32(textToParse[(index + 1)..], CultureInfo.InvariantCulture));
+                        int.Parse(
+                            textToParse[..index],
+                            NumberStyles.None,
+                            CultureInfo.InvariantCulture),
+                        int.Parse(
+                            textToParse[(index + 1)..],
+                            NumberStyles.None,
+                            CultureInfo.InvariantCulture));
 
                     if (range.End < 0)
                     {
@@ -460,7 +466,10 @@ namespace Opc.Ua
                 else
                 {
                     range = new NumericRange(
-                        Convert.ToInt32(textToParse, CultureInfo.InvariantCulture));
+                        int.Parse(
+                            textToParse,
+                            NumberStyles.None,
+                            CultureInfo.InvariantCulture));
                 }
 
                 if (range.Begin < 0)
