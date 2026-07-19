@@ -511,19 +511,13 @@ namespace Opc.Ua.Lds.Server
                         new LocalizedText(
                             "The SecureChannel client certificate has no ApplicationUri."));
                 }
-                if (applicationUris.Count > 1)
+                if (!applicationUris.Any(
+                        uri => string.Equals(uri, server.ServerUri, StringComparison.Ordinal)))
                 {
                     return new ServiceResult(
                         StatusCodes.BadServerUriInvalid,
                         new LocalizedText(
-                            "The SecureChannel client certificate has multiple ApplicationUris."));
-                }
-                if (!string.Equals(applicationUris[0], server.ServerUri, StringComparison.Ordinal))
-                {
-                    return new ServiceResult(
-                        StatusCodes.BadServerUriInvalid,
-                        new LocalizedText(
-                            "ServerUri must exactly match the certificate ApplicationUri."));
+                            "ServerUri must exactly match a certificate ApplicationUri."));
                 }
             }
             catch (CryptographicException ex)

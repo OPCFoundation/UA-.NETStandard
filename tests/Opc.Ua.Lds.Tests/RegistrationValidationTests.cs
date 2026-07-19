@@ -105,9 +105,23 @@ namespace Opc.Ua.Lds.Tests
         }
 
         [Test]
-        public void RegistrationRejectsCertificateWithMultipleApplicationUris()
+        public void RegistrationAcceptsExactApplicationUriAmongMultipleUris()
         {
-            using Certificate certificate = CreateCertificate([ServerUri, "urn:test:other"]);
+            using Certificate certificate = CreateCertificate(["urn:test:other", ServerUri]);
+            using var server = new TestLdsServer();
+
+            ServiceResult result = server.Validate(
+                CreateChannel(certificate.RawData),
+                CreateRegisteredServer(ServerUri));
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+        }
+
+        [Test]
+        public void RegistrationRejectsMultipleApplicationUrisWithoutExactMatch()
+        {
+            using Certificate certificate = CreateCertificate(
+                ["urn:test:other", "urn:test:another"]);
             using var server = new TestLdsServer();
 
             ServiceResult result = server.Validate(
