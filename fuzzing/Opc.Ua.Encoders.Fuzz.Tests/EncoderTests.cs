@@ -45,9 +45,12 @@ namespace Opc.Ua.Fuzzing
         [Test]
         public void MessageContextIsInitializedWithoutTestSetup()
         {
-            Assert.That(FuzzableCode.MessageContext, Is.Not.Null);
-            Assert.That(FuzzableCode.MessageContext, Is.SameAs(FuzzableCode.MessageContext));
-            Assert.That(FuzzableCode.MessageContext.Factory, Is.Not.Null);
+            ServiceMessageContext firstContext = FuzzableCode.MessageContext;
+            ServiceMessageContext secondContext = FuzzableCode.MessageContext;
+
+            Assert.That(firstContext, Is.Not.Null);
+            Assert.That(firstContext, Is.SameAs(secondContext));
+            Assert.That(firstContext.Factory, Is.Not.Null);
         }
     }
 }
