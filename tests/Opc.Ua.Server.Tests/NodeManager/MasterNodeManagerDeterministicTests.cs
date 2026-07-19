@@ -250,27 +250,35 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task BrowseAsync_WhenNoContinuationPointCanBeAssigned_ReturnsBadNoContinuationPointsWithoutContinuationPointAsync()
         {
-            using MasterNodeManager sut = CreateMasterNodeManager();
+            MasterNodeManager sut = (MasterNodeManager)m_server.CurrentInstance.NodeManager;
             OperationContext ctx = CreateContextWithContinuationStore();
+            uint originalLimit = GetMaxBrowseContinuationPointsPerBrowse(sut);
 
-            SetMaxBrowseContinuationPointsPerBrowse(sut, 0u);
-
-            var nodeToBrowse = new BrowseDescription
+            try
             {
-                NodeId = ObjectIds.RootFolder,
-                BrowseDirection = BrowseDirection.Forward
-            };
+                SetMaxBrowseContinuationPointsPerBrowse(sut, 0u);
 
-            (ArrayOf<BrowseResult> results, _) = await sut.BrowseAsync(
-                ctx,
-                new ViewDescription(),
-                1u,
-                new BrowseDescription[] { nodeToBrowse }.ToArrayOf(),
-                CancellationToken.None).ConfigureAwait(false);
+                var nodeToBrowse = new BrowseDescription
+                {
+                    NodeId = ObjectIds.RootFolder,
+                    BrowseDirection = BrowseDirection.Forward
+                };
 
-            Assert.That(results.Count, Is.EqualTo(1));
-            Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadNoContinuationPoints));
-            Assert.That(results[0].ContinuationPoint.IsEmpty, Is.True);
+                (ArrayOf<BrowseResult> results, _) = await sut.BrowseAsync(
+                    ctx,
+                    new ViewDescription(),
+                    1u,
+                    new BrowseDescription[] { nodeToBrowse }.ToArrayOf(),
+                    CancellationToken.None).ConfigureAwait(false);
+
+                Assert.That(results.Count, Is.EqualTo(1));
+                Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadNoContinuationPoints));
+                Assert.That(results[0].ContinuationPoint.IsEmpty, Is.True);
+            }
+            finally
+            {
+                SetMaxBrowseContinuationPointsPerBrowse(sut, originalLimit);
+            }
         }
 
         [Test]
@@ -348,37 +356,45 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task BrowseNextAsync_WhenNoContinuationPointCanBeAssigned_ReturnsBadNoContinuationPointsWithoutContinuationPointAsync()
         {
-            using MasterNodeManager sut = CreateMasterNodeManager();
+            MasterNodeManager sut = (MasterNodeManager)m_server.CurrentInstance.NodeManager;
             OperationContext ctx = CreateContextWithContinuationStore();
+            uint originalLimit = GetMaxBrowseContinuationPointsPerBrowse(sut);
 
-            var nodeToBrowse = new BrowseDescription
+            try
             {
-                NodeId = ObjectIds.RootFolder,
-                BrowseDirection = BrowseDirection.Forward
-            };
+                var nodeToBrowse = new BrowseDescription
+                {
+                    NodeId = ObjectIds.RootFolder,
+                    BrowseDirection = BrowseDirection.Forward
+                };
 
-            (ArrayOf<BrowseResult> firstResults, _) = await sut.BrowseAsync(
-                ctx,
-                new ViewDescription(),
-                1u,
-                new BrowseDescription[] { nodeToBrowse }.ToArrayOf(),
-                CancellationToken.None).ConfigureAwait(false);
+                (ArrayOf<BrowseResult> firstResults, _) = await sut.BrowseAsync(
+                    ctx,
+                    new ViewDescription(),
+                    1u,
+                    new BrowseDescription[] { nodeToBrowse }.ToArrayOf(),
+                    CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(firstResults.Count, Is.EqualTo(1));
-            Assert.That(firstResults[0].StatusCode, Is.EqualTo(StatusCodes.Good));
-            Assert.That(firstResults[0].ContinuationPoint.IsEmpty, Is.False);
+                Assert.That(firstResults.Count, Is.EqualTo(1));
+                Assert.That(firstResults[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(firstResults[0].ContinuationPoint.IsEmpty, Is.False);
 
-            SetMaxBrowseContinuationPointsPerBrowse(sut, 0u);
+                SetMaxBrowseContinuationPointsPerBrowse(sut, 0u);
 
-            (ArrayOf<BrowseResult> nextResults, _) = await sut.BrowseNextAsync(
-                ctx,
-                false,
-                new ByteString[] { firstResults[0].ContinuationPoint }.ToArrayOf(),
-                CancellationToken.None).ConfigureAwait(false);
+                (ArrayOf<BrowseResult> nextResults, _) = await sut.BrowseNextAsync(
+                    ctx,
+                    false,
+                    new ByteString[] { firstResults[0].ContinuationPoint }.ToArrayOf(),
+                    CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(nextResults.Count, Is.EqualTo(1));
-            Assert.That(nextResults[0].StatusCode, Is.EqualTo(StatusCodes.BadNoContinuationPoints));
-            Assert.That(nextResults[0].ContinuationPoint.IsEmpty, Is.True);
+                Assert.That(nextResults.Count, Is.EqualTo(1));
+                Assert.That(nextResults[0].StatusCode, Is.EqualTo(StatusCodes.BadNoContinuationPoints));
+                Assert.That(nextResults[0].ContinuationPoint.IsEmpty, Is.True);
+            }
+            finally
+            {
+                SetMaxBrowseContinuationPointsPerBrowse(sut, originalLimit);
+            }
         }
 
         [Test]
@@ -1148,6 +1164,16 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(field, Is.Not.Null);
             field!.SetValue(sut, value);
+        }
+
+        private static uint GetMaxBrowseContinuationPointsPerBrowse(MasterNodeManager sut)
+        {
+            var field = typeof(MasterNodeManager).GetField(
+                "m_maxContinuationPointsPerBrowse",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+
+            Assert.That(field, Is.Not.Null);
+            return (uint)field!.GetValue(sut)!;
         }
 
         private static string ToContinuationPointKey(ByteString continuationPoint)
