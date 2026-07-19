@@ -156,6 +156,75 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         [Test]
+        public async Task SendAllAsyncCompleteSendUsesCallerBuffersDirectly()
+        {
+            var buffers = new BufferCollection
+            {
+                new(new byte[4]),
+                new(new byte[8])
+            };
+            IList<ArraySegment<byte>>? observed = null;
+
+            await TcpByteTransport.SendAllAsync(
+                buffers,
+                pending =>
+                {
+                    observed = pending;
+                    return Task.FromResult(buffers.TotalSize);
+                }).ConfigureAwait(false);
+
+            Assert.That(observed, Is.SameAs(buffers));
+        }
+
+        [TestCase(0)]
+        [TestCase(13)]
+        public void SendAllAsyncRejectsInvalidSendCounts(int sent)
+        {
+            var buffers = new BufferCollection(new byte[12], 0, 12);
+            StatusCode expectedStatusCode = sent == 0
+                ? StatusCodes.BadConnectionClosed
+                : StatusCodes.BadInternalError;
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await TcpByteTransport.SendAllAsync(
+                    buffers,
+                    _ => Task.FromResult(sent)).ConfigureAwait(false))!;
+
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)expectedStatusCode));
+        }
+
+        [Test]
+        public async Task SendAllAsyncEmptyCollectionDoesNotSend()
+        {
+            int sendCount = 0;
+
+            await TcpByteTransport.SendAllAsync(
+                [],
+                _ =>
+                {
+                    sendCount++;
+                    return Task.FromResult(0);
+                }).ConfigureAwait(false);
+
+            Assert.That(sendCount, Is.Zero);
+        }
+
+        [Test]
+        public void SendAllAsyncRejectsNullArguments()
+        {
+            var buffers = new BufferCollection();
+
+            Assert.ThrowsAsync<ArgumentNullException>(
+                async () => await TcpByteTransport.SendAllAsync(
+                    null!,
+                    _ => Task.FromResult(0)).ConfigureAwait(false));
+            Assert.ThrowsAsync<ArgumentNullException>(
+                async () => await TcpByteTransport.SendAllAsync(
+                    buffers,
+                    null!).ConfigureAwait(false));
+        }
+
+        [Test]
         public async Task ReceiveChunkAsyncReturnsCompleteChunk()
         {
             (TcpByteTransport client, Socket serverSocket, TcpListener listener) =

@@ -416,18 +416,10 @@ namespace Opc.Ua.Bindings
                 throw new ArgumentNullException(nameof(sendAsync));
             }
 
-            var pending = new List<ArraySegment<byte>>(buffers.Count);
-            int totalSize = 0;
-            foreach (ArraySegment<byte> buffer in buffers)
-            {
-                if (buffer.Count > 0)
-                {
-                    pending.Add(buffer);
-                    totalSize += buffer.Count;
-                }
-            }
-
+            int totalSize = buffers.TotalSize;
             int remaining = totalSize;
+            IList<ArraySegment<byte>> pending = buffers;
+            List<ArraySegment<byte>>? slicedBuffers = null;
             while (remaining > 0)
             {
                 int sent = await sendAsync(pending).ConfigureAwait(false);
@@ -448,8 +440,13 @@ namespace Opc.Ua.Bindings
                         remaining);
                 }
 
-                AdvanceBuffers(pending, sent);
                 remaining -= sent;
+                if (remaining > 0)
+                {
+                    slicedBuffers ??= new List<ArraySegment<byte>>(buffers);
+                    AdvanceBuffers(slicedBuffers, sent);
+                    pending = slicedBuffers;
+                }
             }
         }
 
