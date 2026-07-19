@@ -162,7 +162,47 @@ namespace Opc.Ua.Client.Redundancy.Tests
         }
 
         [Test]
-        public async Task OlderConcurrentRefreshCannotReplaceNewerObservedSessionAsync()
+        public async Task FailedRememberedValueApplicationKeepsPreviousSessionAsync()
+        {
+            using var store = new InMemorySharedKeyValueStore();
+            var coordinator = new ClientReplicaCoordinator(
+                new ClientReplicaOptions { CreateSessionAsync = _ => default },
+                new StaticLeaderElection(true),
+                store,
+                NullRecordProtector.Instance,
+                m_telemetry);
+            var first = new Mock<ISession>();
+            var second = new Mock<ISession>();
+            var response = new ReadResponse();
+            first
+                .Setup(session => session.ReadAsync(
+                    null,
+                    0,
+                    TimestampsToReturn.Neither,
+                    It.IsAny<ArrayOf<ReadValueId>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ReadResponse>(response));
+            second
+                .SetupSet(session => session.DeleteSubscriptionsOnClose = true)
+                .Throws(new InvalidOperationException("remembered value failed"));
+            ISession? current = first.Object;
+            await using var facade = new RedundantClientSession(coordinator, () => current);
+            facade.DeleteSubscriptionsOnClose = true;
+
+            current = second.Object;
+            InvalidOperationException? exception = Assert.Throws<InvalidOperationException>(
+                facade.RefreshActiveSessionForTesting);
+            ReadResponse result = await facade
+                .ReadAsync(null, 0, TimestampsToReturn.Neither, [], CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(exception!.Message, Is.EqualTo("remembered value failed"));
+            Assert.That(facade.Current, Is.SameAs(first.Object));
+            Assert.That(result, Is.SameAs(response));
+        }
+
+        [Test]
+        public async Task EarlierConcurrentRefreshCannotReplaceLaterAppliedSessionAsync()
         {
             using var store = new InMemorySharedKeyValueStore();
             var coordinator = new ClientReplicaCoordinator(

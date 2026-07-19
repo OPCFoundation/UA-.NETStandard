@@ -1294,6 +1294,7 @@ namespace Opc.Ua.Redundancy.Client
 
         private void UpdateActiveSession()
         {
+            // Assign the generation before invoking the accessor so an earlier refresh cannot apply after a later one.
             long refreshGeneration = Interlocked.Increment(ref m_refreshGeneration);
             ISession? s = m_coordinator.IsLeader ? m_currentSessionAccessor() : null;
             TaskCompletionSource<ISession>? release;
@@ -1304,6 +1305,10 @@ namespace Opc.Ua.Redundancy.Client
                     return;
                 }
                 m_appliedRefreshGeneration = refreshGeneration;
+                if (s != null)
+                {
+                    ApplyRememberedValues(s);
+                }
                 if (!ReferenceEquals(s, m_attachedSession))
                 {
                     DetachEvents(m_attachedSession);
@@ -1324,7 +1329,6 @@ namespace Opc.Ua.Redundancy.Client
                 {
                     m_activeSession = CreateSessionCompletionSource();
                 }
-                ApplyRememberedValues(s);
                 release = m_activeSession;
             }
             release.TrySetResult(s);
