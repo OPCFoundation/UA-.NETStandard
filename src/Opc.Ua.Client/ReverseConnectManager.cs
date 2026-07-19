@@ -140,18 +140,31 @@ namespace Opc.Ua.Client
             public ReverseConnectInfo(
                 Uri endpointUrl,
                 ReverseConnectHost reverseConnectHost,
-                bool configEntry)
+                bool configEntry,
+                ApplicationConfiguration? manualConfiguration)
             {
                 EndpointUrl = endpointUrl;
                 ReverseConnectHost = reverseConnectHost;
                 State = ReverseConnectHostState.New;
                 ConfigEntry = configEntry;
+                ManualConfiguration = manualConfiguration;
             }
 
             public readonly Uri EndpointUrl;
             public ReverseConnectHost ReverseConnectHost;
             public ReverseConnectHostState State;
             public bool ConfigEntry;
+
+            /// <summary>
+            /// The application configuration (TLS context) originally supplied
+            /// to <see cref="AddEndpoint(Uri, ApplicationConfiguration?)"/> for
+            /// this manual endpoint, or <c>null</c> for configured endpoints.
+            /// It is reused verbatim when a destroyed manual host is recreated
+            /// so a WSS listener keeps its original certificate registry and
+            /// validator regardless of the later start configuration.
+            /// </summary>
+            public readonly ApplicationConfiguration? ManualConfiguration;
+
             public Exception? Error;
         }
 
@@ -298,6 +311,42 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Per-operation re-entrancy scope published on an
+        /// <see cref="AsyncLocal{T}"/> owner marker for the duration of a
+        /// re-entrancy-sensitive operation (an in-flight startup pipeline or a
+        /// user connection-waiting callback). A child task spawned inside the
+        /// guarded region captures the SAME scope reference through the flowing
+        /// execution context, but the originating async flow clears
+        /// <see cref="Active"/> in its finally. Guards therefore reject only
+        /// while <see cref="Active"/> is still <c>true</c> (a genuine synchronous
+        /// re-entry on the owning flow), while a deferred child task that runs
+        /// after the originating flow has returned observes
+        /// <see cref="Active"/> as <c>false</c> and is not falsely rejected.
+        /// Nested scopes restore the parent scope and independently deactivate.
+        /// </summary>
+        private sealed class OperationScope
+        {
+            public OperationScope(long generation)
+            {
+                Generation = generation;
+            }
+
+            /// <summary>
+            /// Monotonic identifier of this scope, unique per manager instance.
+            /// Distinguishes nested scopes for diagnostics and ensures a child
+            /// task can be reasoned about against the exact scope it captured.
+            /// </summary>
+            public long Generation { get; }
+
+            /// <summary>
+            /// <c>true</c> while the originating async flow is still inside the
+            /// guarded operation. Cleared by that flow's finally so a captured
+            /// child task deferred past the flow's completion is not rejected.
+            /// </summary>
+            public bool Active { get; set; } = true;
+        }
+
+        /// <summary>
         /// Record to store information on a client
         /// registration for a reverse connect event.
         /// </summary>
@@ -345,6 +394,63 @@ namespace Opc.Ua.Client
             public readonly Uri EndpointUrl;
             public readonly EventHandler<ConnectionWaitingEventArgs> OnConnectionWaiting;
             public ReverseConnectStrategy ReverseConnectStrategy;
+
+            /// <summary>
+            /// The tracked completion source for an internal
+            /// <see cref="WaitForConnectionAsync"/> registration, or <c>null</c>
+            /// for an external callback registration. When set, a matcher claims
+            /// the waiting connection by completing this source UNDER
+            /// <see cref="m_registrationsLock"/> (atomically with a committed
+            /// Stop/Dispose that may fault the same source), so the transport is
+            /// only accepted when the claim wins the race.
+            /// </summary>
+            public TaskCompletionSource<ITransportWaitingConnection>? Wait { get; init; }
+        }
+
+        /// <summary>
+        /// A queued configuration reload request. Overlapping reloads are
+        /// serialized through a single latest-wins loop so the newest queued
+        /// candidate is always applied last.
+        /// </summary>
+        private sealed class ReloadRequest
+        {
+            public ReloadRequest(
+                ApplicationConfiguration configuration,
+                int watcherGeneration,
+                long lifecycleVersion,
+                long teardownEpoch,
+                CancellationToken cancellationToken)
+            {
+                Configuration = configuration;
+                WatcherGeneration = watcherGeneration;
+                LifecycleVersion = lifecycleVersion;
+                TeardownEpoch = teardownEpoch;
+                CancellationToken = cancellationToken;
+            }
+
+            public ApplicationConfiguration Configuration { get; }
+
+            /// <summary>
+            /// The watcher generation observed when this request was queued.
+            /// </summary>
+            public int WatcherGeneration { get; }
+
+            /// <summary>
+            /// The lifecycle version observed when this request was queued.
+            /// </summary>
+            public long LifecycleVersion { get; }
+
+            /// <summary>
+            /// The teardown epoch observed when this request was queued. The
+            /// drain rejects the request without applying if a committed
+            /// Stop/Dispose advanced this epoch after the request was queued.
+            /// </summary>
+            public long TeardownEpoch { get; }
+
+            public CancellationToken CancellationToken { get; }
+
+            public TaskCompletionSource<bool> Completion { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
         }
 
         /// <summary>
@@ -421,13 +527,37 @@ namespace Opc.Ua.Client
             "hook before teardown and risk double-invocation.")]
         public void Dispose()
         {
+            // A dispose re-entered directly by this manager's own connection
+            // callback must fail fast: the teardown drains that very callback,
+            // so a synchronous wait on it here would deadlock. Fail fast and
+            // leave the manager coherent for an external dispose.
+            ThrowIfInvokedFromConnectionCallback(disposing: true);
+
+            // A synchronous dispose re-entered from within this manager's own
+            // in-flight startup flow (a configuration provider/factory or legacy
+            // update hook) must never block on the shared teardown: the teardown
+            // drains this very start task, and blocking the start on it would
+            // deadlock. Request/schedule the dispose without waiting for it here
+            // (it completes once the start unwinds) and fail fast instead. Only
+            // an active scope (a genuine synchronous re-entry on this startup
+            // flow) rejects; a deferred child task whose originating startup
+            // flow already completed observes an inactive scope and proceeds.
+            if (m_activeStartupOwner.Value?.Active == true)
+            {
+                _ = GetOrStartDisposeTask(out _);
+                throw new InvalidOperationException(
+                    "The reverse connect manager cannot be disposed from within " +
+                    "its own startup flow (configuration provider/factory or " +
+                    "update hook).");
+            }
+
             // Isolated sync-over-async bridge for the obsolete IDisposable
             // boundary. Task.Run moves the shared disposal off any captured
             // synchronization context so a provider/derived-cleanup await that
             // posts back to the caller's context cannot deadlock. The shared
             // teardown invokes the protected Dispose(bool) override exactly
             // once at the end, so this wrapper must never call it directly.
-            Task.Run(GetOrStartDisposeTask).GetAwaiter().GetResult();
+            Task.Run(() => GetOrStartDisposeTask(out _)).GetAwaiter().GetResult();
             GC.SuppressFinalize(this);
         }
 
@@ -455,7 +585,29 @@ namespace Opc.Ua.Client
         /// </summary>
         public async ValueTask DisposeAsync()
         {
-            await GetOrStartDisposeTask().ConfigureAwait(false);
+            // A dispose re-entered directly by this manager's own connection
+            // callback must fail fast before the teardown (which drains that
+            // very callback) is scheduled/awaited, otherwise the drain never
+            // reaches zero. The manager stays coherent for an external dispose.
+            ThrowIfInvokedFromConnectionCallback(disposing: true);
+
+            Task task = GetOrStartDisposeTask(out bool reentrantFromStartup);
+            if (reentrantFromStartup)
+            {
+                // A DisposeAsync re-entered from within this manager's own
+                // in-flight startup flow (a configuration provider/factory or
+                // legacy update hook) must not await the shared teardown: the
+                // teardown drains this very start task, so awaiting it here
+                // would deadlock. The dispose has already been requested and
+                // scheduled above (state is Disposing, the shutdown latch is
+                // set, the pending start is cancelled); it completes on its own
+                // once the current start unwinds. Fail fast rather than block.
+                throw new InvalidOperationException(
+                    "The reverse connect manager cannot be disposed from within " +
+                    "its own startup flow (configuration provider/factory or " +
+                    "update hook).");
+            }
+            await task.ConfigureAwait(false);
             GC.SuppressFinalize(this);
         }
 
@@ -477,7 +629,10 @@ namespace Opc.Ua.Client
         /// synchronous <see cref="ConfigurationWatcher.Changed"/> event into
         /// the serialized async reload path. Stale callbacks from a
         /// superseded watcher generation are rejected before and after the
-        /// configuration is loaded.
+        /// configuration is loaded. The configured overlay decorator (the DI
+        /// <see cref="ClientReverseConnectOptions"/> reverse-connect endpoints)
+        /// is reapplied to the freshly loaded configuration before the reload is
+        /// enqueued so option-only endpoints survive a file change.
         /// </remarks>
         /// <param name="sender">The sender.</param>
         /// <param name="args">The <see cref="ConfigurationWatcherEventArgs"/> instance containing the event data.</param>
@@ -488,6 +643,7 @@ namespace Opc.Ua.Client
             int generation;
             ApplicationType applicationType;
             Type? configType;
+            Func<ApplicationConfiguration, ApplicationConfiguration>? decorator;
             lock (m_lock)
             {
                 if (!ReferenceEquals(sender, m_configurationWatcher))
@@ -497,17 +653,35 @@ namespace Opc.Ua.Client
                 generation = m_watcherGeneration;
                 applicationType = m_applicationType;
                 configType = m_configType;
+                decorator = m_initialConfigurationDecorator;
             }
 
             try
             {
-                ApplicationConfiguration configuration = await ApplicationConfiguration
-                    .LoadAsync(
-                        new FileInfo(args.FilePath),
-                        applicationType,
-                        configType,
-                        m_telemetry)
-                    .ConfigureAwait(false);
+                Func<string, ApplicationType, Type?, CancellationToken,
+                    Task<ApplicationConfiguration>>? loader = ConfigurationFileLoaderForTest;
+                ApplicationConfiguration configuration = loader != null
+                    ? await loader(args.FilePath, applicationType, configType, CancellationToken.None)
+                        .ConfigureAwait(false)
+                    : await ApplicationConfiguration
+                        .LoadAsync(
+                            new FileInfo(args.FilePath),
+                            applicationType,
+                            configType,
+                            m_telemetry)
+                        .ConfigureAwait(false);
+
+                // Reapply the DI reverse-connect option overlay (the configured
+                // ClientReverseConnectOptions reverse-connect endpoints) onto the
+                // freshly loaded file base so a watcher-triggered reload keeps the
+                // option-only endpoints that live only in the in-memory overlay
+                // instead of losing them to the plain file load. Without this an
+                // endpoint contributed solely by the DI options would disappear on
+                // the next file change.
+                if (decorator != null)
+                {
+                    configuration = decorator(configuration);
+                }
 
                 await ReloadConfigurationAsync(configuration, generation, CancellationToken.None)
                     .ConfigureAwait(false);
@@ -723,9 +897,8 @@ namespace Opc.Ua.Client
                     // deterministically and never binds a listener. The token
                     // has no registrations yet, so cancelling under the lock is
                     // safe.
-                    if (m_startCancelRequested)
+                    if (ConsumeStartCancelLatchLocked())
                     {
-                        m_startCancelRequested = false;
                         startCts.Cancel();
                     }
                     m_activeStartCts = startCts;
@@ -798,9 +971,14 @@ namespace Opc.Ua.Client
             // EnsureStartedAsync/RegisterWaitingConnectionAsync during
             // preparation fails fast instead of awaiting this start's own shared
             // task. The marker is restored in the finally so nested/subsequent
-            // operations on the same flow are unaffected.
-            object? previousStartupOwner = m_activeStartupOwner.Value;
-            m_activeStartupOwner.Value = new object();
+            // operations on the same flow are unaffected. The scope's Active
+            // flag is cleared in that same finally so a child task deferred
+            // past this flow (e.g. a provider-spawned Task.Run) that captured
+            // the scope reference is not falsely rejected as a re-entry.
+            OperationScope? previousStartupOwner = m_activeStartupOwner.Value;
+            var startupScope = new OperationScope(
+                Interlocked.Increment(ref m_operationScopeGeneration));
+            m_activeStartupOwner.Value = startupScope;
             try
             {
                 // Honor an already-signalled abort (e.g. a hosted StartAsync
@@ -841,10 +1019,12 @@ namespace Opc.Ua.Client
                 // observed before commit (including one thrown by ActivateAsync's
                 // gate entry) is finalized to a retryable state.
                 FaultIfOwned(myVersion);
+                await InvokeStartFailureFinalizationHookForTestAsync().ConfigureAwait(false);
                 throw MapStartException(e);
             }
             finally
             {
+                startupScope.Active = false;
                 m_activeStartupOwner.Value = previousStartupOwner;
             }
         }
@@ -867,8 +1047,11 @@ namespace Opc.Ua.Client
             // manager's preparation/provider callbacks, so a nested unrelated
             // manager instance (whose own AsyncLocal marker is unset) still
             // starts normally. Failing fast here avoids awaiting this start's
-            // own shared m_startTask, which would deadlock.
-            if (m_activeStartupOwner.Value != null)
+            // own shared m_startTask, which would deadlock. Only an active scope
+            // (a genuine synchronous re-entry on the owning flow) rejects; a
+            // deferred child task whose originating startup flow already
+            // completed observes an inactive scope and starts normally.
+            if (m_activeStartupOwner.Value?.Active == true)
             {
                 throw new ServiceResultException(
                     StatusCodes.BadInvalidState,
@@ -919,20 +1102,6 @@ namespace Opc.Ua.Client
                     continue;
                 }
 
-                if (m_initialConfigurationMissing)
-                {
-                    throw new InvalidOperationException(
-                        "OpcUaClientOptions.Configuration must be set before starting " +
-                        "the reverse connect manager.");
-                }
-
-                ApplicationConfiguration? initial = m_initialConfiguration;
-                if (!m_initialStartRequested || initial == null)
-                {
-                    // Nothing to auto-start (direct construction or manual start).
-                    return;
-                }
-
                 // A single shared startup task deduplicates concurrent first-use
                 // callers (hosted eager start + lazy WaitForConnectionAsync) so the
                 // outcome is deterministic: everyone awaits the same operation and
@@ -974,6 +1143,24 @@ namespace Opc.Ua.Client
                     }
                     else
                     {
+                        if (m_initialConfigurationMissing &&
+                            m_initialConfigurationFactory == null)
+                        {
+                            throw new InvalidOperationException(
+                                "OpcUaClientOptions.Configuration must be set before starting " +
+                                "the reverse connect manager.");
+                        }
+
+                        ApplicationConfiguration? initial = m_initialConfiguration;
+                        Func<CancellationToken, Task<ApplicationConfiguration>>? initialFactory =
+                            m_initialConfigurationFactory;
+                        if (!m_initialStartRequested ||
+                            (initial == null && initialFactory == null))
+                        {
+                            // Nothing to auto-start (direct construction or manual start).
+                            return;
+                        }
+
                         if (m_startTask != null && m_startTask.IsCompleted)
                         {
                             // The previous shared attempt finished without reaching
@@ -1004,13 +1191,13 @@ namespace Opc.Ua.Client
                         // cancellation deterministically and the provider/listener
                         // never binds. The token has no registrations yet, so
                         // cancelling under the lock is safe.
-                        if (m_startCancelRequested)
+                        if (ConsumeStartCancelLatchLocked())
                         {
-                            m_startCancelRequested = false;
                             startCts.Cancel();
                         }
                         m_startTask = RunInitialStartAsync(
                             initial,
+                            initialFactory,
                             reservedVersion,
                             startCts.Token);
                         m_currentStartTask = m_startTask;
@@ -1055,15 +1242,76 @@ namespace Opc.Ua.Client
         private Task? ActiveReloadTaskLocked()
         {
             Task? task = m_activeReloadTask;
-            return task == null || task.IsCompleted ? null : task;
+            if (task == null || task.IsCompleted)
+            {
+                return null;
+            }
+            // A stale reload task from a superseded teardown epoch must never be
+            // awaited by a lazy EnsureStartedAsync: a committed Stop/Dispose
+            // detaches it, so a restart proceeds immediately rather than
+            // blocking on a reload that can no longer reach Started.
+            if (m_activeReloadEpoch != m_teardownEpoch)
+            {
+                return null;
+            }
+            return task;
         }
 
         /// <summary>
-        /// Returns the in-flight start task (explicit or shared lazy) while a
-        /// start is genuinely preparing/starting, or <c>null</c> otherwise.
-        /// Must be called while holding <see cref="m_lock"/>. A completed
-        /// tracked task is treated as absent so a stale (failed/superseded/
-        /// finished) start is never awaited.
+        /// Detaches the in-flight reload drain loop when a committed Stop/Dispose
+        /// advances the teardown epoch, so a fresh reload starts a new loop and a
+        /// lazy <see cref="EnsureStartedAsync"/> never awaits the superseded one.
+        /// Returns the manager-owned reload cancellation source (if any) so the
+        /// caller can cancel it OUTSIDE <see cref="m_lock"/>; a cooperative
+        /// reload provider/activation then observes cancellation and exits, while
+        /// a noncooperative reload's eventual completion is discarded by the
+        /// stale loop's epoch guard. Must be called while holding
+        /// <see cref="m_lock"/> AFTER the teardown epoch has been advanced.
+        /// </summary>
+        private CancellationTokenSource? DetachActiveReloadLocked()
+        {
+            CancellationTokenSource? cts = m_activeReloadCts;
+            m_activeReloadCts = null;
+            m_activeReloadTask = null;
+            m_inFlightReload = null;
+            m_reloadLoopActive = false;
+            return cts;
+        }
+
+        /// <summary>
+        /// Cancels a detached reload cancellation source outside
+        /// <see cref="m_lock"/> so a cooperative reload provider/activation
+        /// exits. The stale reload loop owns disposal, so this only cancels
+        /// (guarding against a concurrent dispose in that loop).
+        /// </summary>
+        private static void CancelDetachedReload(CancellationTokenSource? cts)
+        {
+            if (cts == null)
+            {
+                return;
+            }
+            try
+            {
+                cts.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+        }
+
+        /// <summary>
+        /// Returns the in-flight start task (explicit or shared lazy) while it
+        /// has not yet completed, or <c>null</c> otherwise. Must be called while
+        /// holding <see cref="m_lock"/>. A completed tracked task is treated as
+        /// absent so a stale (finished) start is never awaited. The task is
+        /// returned regardless of the current lifecycle state (including
+        /// <see cref="ReverseConnectManagerState.Faulted"/>): a failing start
+        /// may set Faulted (via <see cref="FaultIfOwned"/>) before its task
+        /// actually completes and publishes its exception, so a concurrent
+        /// waiter must still await THIS task rather than return prematurely or
+        /// start an overlapping retry. Only a shutdown that explicitly detaches
+        /// the tracked task (clearing <see cref="m_currentStartTask"/>) makes it
+        /// absent here.
         /// </summary>
         private Task? InFlightStartTaskLocked()
         {
@@ -1072,12 +1320,7 @@ namespace Opc.Ua.Client
             {
                 return null;
             }
-            if (m_state is ReverseConnectManagerState.Preparing
-                or ReverseConnectManagerState.Starting)
-            {
-                return task;
-            }
-            return null;
+            return task;
         }
 
         /// <summary>
@@ -1162,21 +1405,26 @@ namespace Opc.Ua.Client
                 lazyStart = m_startCts;
                 explicitStart = m_activeStartCts;
                 if (lazyStart == null && explicitStart == null &&
+                    m_activeHostedStartGeneration != 0 &&
                     m_state is not ReverseConnectManagerState.Started
                     and not ReverseConnectManagerState.Disposed
                     and not ReverseConnectManagerState.Disposing
                     and not ReverseConnectManagerState.Stopped)
                 {
                     // Neither a shared lazy start nor an explicit start has
-                    // published its token yet. Latch the cancellation so the
-                    // shared lazy start applies it atomically when it creates
-                    // the manager-owned start token (EnsureStartedAsync) or an
-                    // explicit start consumes it at reservation
-                    // (StartServiceExplicitAsync). An in-flight explicit start
-                    // whose token is already visible is cancelled directly
-                    // below, so the latch is NOT set - a later restart is never
-                    // spuriously cancelled.
-                    m_startCancelRequested = true;
+                    // published its token yet, but a hosted startup generation is
+                    // genuinely in flight. Latch the cancellation against THAT
+                    // generation so the shared lazy start applies it atomically
+                    // when it creates the manager-owned start token
+                    // (EnsureStartedAsync) or an explicit start consumes it at
+                    // reservation (StartServiceExplicitAsync). An in-flight
+                    // explicit start whose token is already visible is cancelled
+                    // directly below, so the latch is NOT set. A cancellation
+                    // observed with no active hosted startup
+                    // (m_activeHostedStartGeneration == 0) never latches, so a
+                    // late/stale cancellation after a completed start can never
+                    // poison a later start.
+                    m_startCancelLatchGeneration = m_activeHostedStartGeneration;
                 }
             }
             try
@@ -1196,6 +1444,63 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Opens a hosted startup scope and returns its generation. The hosted
+        /// service brackets its <c>IHostedService.StartAsync</c> in this scope
+        /// so a <see cref="CancelPendingStart"/> that fires before the start
+        /// token is published latches against a genuinely active hosted startup
+        /// generation rather than an unrelated later start.
+        /// </summary>
+        internal long BeginHostedStartup()
+        {
+            lock (m_lock)
+            {
+                m_activeHostedStartGeneration = ++m_hostedStartGeneration;
+                return m_activeHostedStartGeneration;
+            }
+        }
+
+        /// <summary>
+        /// Closes the hosted startup scope identified by
+        /// <paramref name="generation"/>. Clears the active generation and any
+        /// still-pending cancellation latch tied to it so a latch set during the
+        /// scope but never consumed (e.g. because the manager was already
+        /// started) does not linger and poison a later start.
+        /// </summary>
+        internal void EndHostedStartup(long generation)
+        {
+            lock (m_lock)
+            {
+                if (m_activeHostedStartGeneration == generation)
+                {
+                    m_activeHostedStartGeneration = 0;
+                }
+                if (m_startCancelLatchGeneration == generation)
+                {
+                    m_startCancelLatchGeneration = 0;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Consumes a hosted-start cancellation latch when it targets the
+        /// active hosted startup generation. Must be called while holding
+        /// <see cref="m_lock"/> at the point a start reserves and publishes its
+        /// token. Returns <c>true</c> (and clears the latch) only when a latch
+        /// tied to the currently active hosted startup generation is pending, so
+        /// a non-hosted lazy start or a stale latch never cancels the start.
+        /// </summary>
+        private bool ConsumeStartCancelLatchLocked()
+        {
+            if (m_startCancelLatchGeneration != 0 &&
+                m_startCancelLatchGeneration == m_activeHostedStartGeneration)
+            {
+                m_startCancelLatchGeneration = 0;
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
         /// Runs the shared initial startup. Yields first so the synchronous
         /// prefix of the prepare/activate pipeline never runs while the caller
         /// of <see cref="EnsureStartedAsync"/> still holds the state lock. The
@@ -1206,11 +1511,100 @@ namespace Opc.Ua.Client
         /// version and invalidates it.
         /// </summary>
         private async Task RunInitialStartAsync(
-            ApplicationConfiguration configuration,
+            ApplicationConfiguration? configuration,
+            Func<CancellationToken, Task<ApplicationConfiguration>>? configurationFactory,
             long reservedVersion,
             CancellationToken ct)
         {
             await Task.Yield();
+            if (configuration == null)
+            {
+                // Mark this async flow as owning an in-flight startup so a
+                // configuration factory (provider) that re-enters
+                // EnsureStartedAsync/RegisterWaitingConnectionAsync during the
+                // asynchronous initial ApplicationConfiguration factory
+                // invocation fails fast instead of self-awaiting this start's
+                // own shared task. The marker is set only around the factory
+                // call and restored in the finally, so a nested unrelated
+                // manager (whose own AsyncLocal marker is unset) still starts
+                // and StartServiceCoreAsync (which sets its own marker for the
+                // prepare/activate pipeline) is unaffected. The scope's Active
+                // flag is cleared in the finally so a child task deferred past
+                // this factory invocation (e.g. a provider-spawned Task.Run)
+                // that captured the scope reference is not falsely rejected.
+                OperationScope? previousStartupOwner = m_activeStartupOwner.Value;
+                var startupScope = new OperationScope(
+                    Interlocked.Increment(ref m_operationScopeGeneration));
+                m_activeStartupOwner.Value = startupScope;
+                try
+                {
+                    // Honor an already-signalled abort (e.g. a hosted StartAsync
+                    // or lazy first-use token cancelled before this shared start
+                    // ran) BEFORE invoking the factory, so an already-cancelled
+                    // startup never runs configuration validation or certificate
+                    // creation. The catch below finalizes the reserved Preparing
+                    // state so the lifecycle is not stranded.
+                    ct.ThrowIfCancellationRequested();
+
+                    configuration = configurationFactory == null
+                        ? throw new InvalidOperationException(
+                            "No application configuration is available for reverse connect startup.")
+                        : await configurationFactory(ct).ConfigureAwait(false);
+                }
+                catch (Exception e)
+                {
+                    // The factory ran after ReserveStartLocked reserved the
+                    // owned Preparing state. A factory throw or cancellation
+                    // here must finalize that reservation via the same
+                    // FaultIfOwned/MapStartException path used by
+                    // StartServiceCoreAsync, otherwise the lifecycle would be
+                    // stranded in Preparing and no later start could retry.
+                    FaultIfOwned(reservedVersion);
+                    await InvokeStartFailureFinalizationHookForTestAsync().ConfigureAwait(false);
+                    throw MapStartException(e);
+                }
+                finally
+                {
+                    startupScope.Active = false;
+                    m_activeStartupOwner.Value = previousStartupOwner;
+                }
+                // The factory result is intentionally NOT cached into
+                // m_initialConfiguration here. Caching it before activation
+                // commits would, on an activation failure, leave the (bad)
+                // factory-loaded configuration as the cached seed and clear the
+                // path back to the factory, so a retry would reuse the failed
+                // configuration instead of re-invoking the factory. Keeping the
+                // factory active until the commit block below promotes the
+                // successfully activated configuration lets a retry reload the
+                // current file/config and observe edits that fix the failure.
+            }
+            else if (string.IsNullOrEmpty(configuration.SourceFilePath))
+            {
+                // Memory-backed lazy start/restart/retry: the cached seed is
+                // handed to the injected provider during preparation, which may
+                // mutate its reverse-connect section (endpoints/hold and wait
+                // timeouts) in place. Reapply the configured overlay decorator
+                // before every start so such an in-place mutation from a
+                // previous start never persists across a Stop/restart or a
+                // failed-start retry: the decorator rebuilds a fresh
+                // ReverseConnectClientConfiguration (fresh endpoints plus the
+                // configured hold/wait timeouts) on each attempt, so every start
+                // observes clean option endpoints/timeouts rather than the
+                // provider-mutated cache. A file-backed seed is not reapplied
+                // here: its Stop converts the seed into a reloading factory
+                // (RestartFromInitialSourceFileAsync) that already reapplies the
+                // decorator to the freshly loaded file, so this path is scoped to
+                // the memory-only seed (no SourceFilePath).
+                Func<ApplicationConfiguration, ApplicationConfiguration>? decorator;
+                lock (m_lock)
+                {
+                    decorator = m_initialConfigurationDecorator;
+                }
+                if (decorator != null)
+                {
+                    configuration = decorator(configuration);
+                }
+            }
             // The shared start runs under the manager-owned token, not any one
             // caller's: individual callers cancel their wait via WaitAsync(ct)
             // instead, while hosted cancellation aborts this whole start.
@@ -1233,6 +1627,7 @@ namespace Opc.Ua.Client
         {
             ActiveTransaction? activeTransaction;
             CancellationTokenSource? pendingStart;
+            CancellationTokenSource? explicitStart;
             lock (m_lock)
             {
                 if (m_state is ReverseConnectManagerState.Disposed
@@ -1244,12 +1639,26 @@ namespace Opc.Ua.Client
                 }
                 activeTransaction = m_activeTransaction;
                 pendingStart = m_startCts;
+                explicitStart = m_activeStartCts;
             }
 
             activeTransaction?.AbortForShutdown();
             try
             {
                 pendingStart?.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+            // Also cancel an in-flight explicit StartServiceAsync token so a
+            // cooperative provider blocked in preparation (before it publishes
+            // an ActiveTransaction) observes the cancellation and exits, letting
+            // the non-cancellable stop proceed. The explicit start owns and
+            // disposes this source in its own finally, so it is only cancelled
+            // (never disposed) here.
+            try
+            {
+                explicitStart?.Cancel();
             }
             catch (ObjectDisposedException)
             {
@@ -1264,6 +1673,13 @@ namespace Opc.Ua.Client
         /// <param name="ct">A cancellation token.</param>
         public async Task StopServiceAsync(CancellationToken ct = default)
         {
+            // A stop re-entered directly by this manager's own connection
+            // callback must fail fast: the stop drains in-flight callbacks, so
+            // it would wait forever for the very callback that called it. A
+            // normal external stop from a different async flow never observes
+            // the per-flow marker and still drains callbacks.
+            ThrowIfInvokedFromConnectionCallback(disposing: false);
+
             if (Volatile.Read(ref m_disposed) != 0)
             {
                 return;
@@ -1309,8 +1725,11 @@ namespace Opc.Ua.Client
             }
             try
             {
+                ReloadRequest? supersededReload = null;
+                CancellationTokenSource? supersededReloadCts = null;
                 CancellationTokenSource? pendingStart;
                 Task? pendingStartTask;
+                CancellationTokenSource? explicitStart;
                 lock (m_lock)
                 {
                     if (m_state is ReverseConnectManagerState.Disposed
@@ -1340,6 +1759,13 @@ namespace Opc.Ua.Client
                     pendingStartTask = m_startTask;
                     m_startCts = null;
                     m_startTask = null;
+                    // Capture an in-flight explicit StartServiceAsync so its
+                    // token is cancelled below: a cooperative provider then
+                    // observes the cancellation and exits, and the start unwinds
+                    // rather than committing. The explicit start owns and
+                    // disposes its own token source in its finally, so it is only
+                    // cancelled - never disposed - here.
+                    explicitStart = m_activeStartCts;
                     m_currentStartTask = null;
                 }
 
@@ -1356,10 +1782,47 @@ namespace Opc.Ua.Client
                 }
                 DisposeStartCtsWhenComplete(pendingStart, pendingStartTask);
 
+                // Cancel an in-flight explicit start (a cooperative provider then
+                // observes cancellation and exits). Its token source is not
+                // disposed here; the explicit start disposes it once it unwinds.
+                try
+                {
+                    explicitStart?.Cancel();
+                }
+                catch (ObjectDisposedException)
+                {
+                }
+
                 List<ReverseConnectInfo> live;
                 lock (m_lock)
                 {
                     live = [.. m_endpointUrls.Values];
+                }
+
+                // Cancel any held OnConnectionWaitingAsync callbacks and wait for
+                // every in-flight callback to finish (releasing or handing off its
+                // transport) BEFORE the terminal listener close tears the channels
+                // down, so a callback can never resolve transport ownership against
+                // a listener that is already gone. The waiting-connection
+                // registrations are deliberately preserved here: a held callback
+                // unblocked by this drain still re-matches them, and only a
+                // committed close clears them below. The drain is ended (and the
+                // registration token renewed) in the finally so a rolled-back or
+                // restarted manager accepts callbacks again. The drain honors the
+                // caller token (e.g. a hosted StopAsync deadline): if a still-held
+                // external callback that ignores the cancelled hold token blocks
+                // the drain past the deadline, restore a coherent Started state
+                // (the listeners were never touched and the registrations stay
+                // intact) and surface the cancellation rather than tearing the
+                // listeners down half way.
+                try
+                {
+                    await DrainConnectionCallbacksAsync(ct).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    RestoreStartedAfterCanceledDrain();
+                    throw;
                 }
 
                 // Propagate the caller token into the listener close (e.g. a
@@ -1404,8 +1867,46 @@ namespace Opc.Ua.Client
                 {
                     m_endpointUrls = [];
                     m_configuration = null;
+                    // If a file-backed initial configuration seeds lazy restarts,
+                    // replace the cached instance with a loader that re-reads its
+                    // SourceFilePath at the next EnsureStartedAsync, so a
+                    // configuration change made while the manager is stopped is
+                    // applied on restart rather than the stale cached
+                    // configuration/timestamp. A memory-backed configuration (no
+                    // SourceFilePath) keeps its cached restart seed.
+                    string? sourceFilePath = m_initialConfiguration?.SourceFilePath;
+                    if (m_initialStartRequested && !m_initialConfigurationMissing &&
+                        !string.IsNullOrEmpty(sourceFilePath))
+                    {
+                        m_initialConfigurationSourceFilePath = sourceFilePath;
+                        m_initialConfiguration = null;
+                        m_initialConfigurationFactory = RestartFromInitialSourceFileAsync;
+                    }
                     m_state = ReverseConnectManagerState.Stopped;
                     m_lifecycleVersion++;
+                    // A committed stop supersedes every queued reload: advance
+                    // the teardown epoch so the drain rejects any reload queued
+                    // before this stop, and detach the newest pending request so
+                    // it is completed deterministically below (its awaiter never
+                    // hangs) instead of reopening a listener after the stop.
+                    m_teardownEpoch++;
+                    supersededReload = m_pendingReload;
+                    m_pendingReload = null;
+                    // Detach the in-flight reload drain loop from the prior
+                    // epoch: cancel its manager-owned source (below, outside the
+                    // lock) so a cooperative reload provider/activation exits,
+                    // and reset the reload fields so a fresh reload starts a new
+                    // loop and a lazy EnsureStartedAsync never awaits the stale
+                    // one. A noncooperative stale reload's eventual completion is
+                    // discarded by the loop's epoch guard.
+                    supersededReloadCts = DetachActiveReloadLocked();
+                }
+
+                CancelDetachedReload(supersededReloadCts);
+
+                if (supersededReload != null)
+                {
+                    RejectSupersededReload(supersededReload);
                 }
             }
             finally
@@ -1417,6 +1918,11 @@ namespace Opc.Ua.Client
                 {
                     m_stopInProgress = false;
                 }
+                // End the callback drain and renew the (drain-cancelled)
+                // registration token so a rolled-back or restarted manager
+                // accepts and holds callbacks again. Safe on the bail-out paths
+                // that never started a drain (no signal set, token uncancelled).
+                EndCallbackDrain();
                 // Clear the latch only if this stop still owns it (a concurrent
                 // Dispose may have taken it over permanently) and only after the
                 // stop's own state transition committed, so a fresh start queued
@@ -1605,7 +2111,11 @@ namespace Opc.Ua.Client
             var registration = new Registration(
                 serverUri, endpointUrl, (sender, e) => tcs.TrySetResult(e))
             {
-                ReverseConnectStrategy = ReverseConnectStrategy.Once
+                ReverseConnectStrategy = ReverseConnectStrategy.Once,
+                // Tracked wait: the matcher claims the transport by completing
+                // this source under m_registrationsLock, atomically with a
+                // committed Stop/Dispose that may fault it first.
+                Wait = tcs
             };
             lock (m_registrationsLock)
             {
@@ -1712,16 +2222,24 @@ namespace Opc.Ua.Client
             // configured manager before registering so its listeners bind. The
             // start runs off the caller's synchronization context to avoid a
             // deadlock if that context is captured (see StartService/Dispose).
-            if (RequiresLazyInitialStart())
+            bool verifyServing;
+            if (RequiresLazyInitialStart(out verifyServing))
             {
                 Task.Run(() => EnsureStartedAsync()).GetAwaiter().GetResult();
+            }
+
+            Func<Task>? beforeRegister = BeforeRegisterWaitForTest;
+            if (beforeRegister != null)
+            {
+                Task.Run(beforeRegister).GetAwaiter().GetResult();
             }
 
             return RegisterWaitingConnectionCore(
                 endpointUrl,
                 serverUri,
                 onConnectionWaiting,
-                reverseConnectStrategy);
+                reverseConnectStrategy,
+                verifyServing);
         }
 
         /// <summary>
@@ -1732,7 +2250,8 @@ namespace Opc.Ua.Client
             Uri endpointUrl,
             string? serverUri,
             EventHandler<ConnectionWaitingEventArgs> onConnectionWaiting,
-            ReverseConnectStrategy reverseConnectStrategy)
+            ReverseConnectStrategy reverseConnectStrategy,
+            bool verifyServing = false)
         {
             var registration = new Registration(serverUri, endpointUrl, onConnectionWaiting)
             {
@@ -1751,6 +2270,15 @@ namespace Opc.Ua.Client
                 {
                     throw new ObjectDisposedException(nameof(ReverseConnectManager));
                 }
+                if (verifyServing)
+                {
+                    // Reject a registration that raced a committed stop between
+                    // the caller's EnsureStartedAsync and this insertion. The
+                    // committed stop's registration clear runs under this same
+                    // lock, so the check is coherent and never leaves an inert
+                    // waiter behind.
+                    RejectIfNotServingLocked();
+                }
                 m_registrations.Add(registration);
                 CancelAndRenewTokenSource();
             }
@@ -1762,17 +2290,17 @@ namespace Opc.Ua.Client
         /// an initial startup is configured (present and not missing) and the
         /// manager is not already started.
         /// </summary>
-        private bool RequiresLazyInitialStart()
+        private bool RequiresLazyInitialStart(out bool verifyServing)
         {
-            if (!m_initialStartRequested ||
-                m_initialConfigurationMissing ||
-                m_initialConfiguration == null)
-            {
-                return false;
-            }
             lock (m_lock)
             {
-                return m_state != ReverseConnectManagerState.Started;
+                verifyServing = m_initialStartRequested &&
+                    !(m_initialConfigurationMissing &&
+                        m_initialConfigurationFactory == null) &&
+                    (m_initialConfiguration != null ||
+                        m_initialConfigurationFactory != null);
+                return verifyServing &&
+                    m_state != ReverseConnectManagerState.Started;
             }
         }
 
@@ -1799,11 +2327,30 @@ namespace Opc.Ua.Client
             }
 
             await EnsureStartedAsync(ct).ConfigureAwait(false);
+
+            // Deterministic test seam: lets a test commit a concurrent
+            // stop/dispose in the window between the start above and the
+            // insertion below to prove the serving verification rejects it.
+            Func<Task>? beforeRegister = BeforeRegisterWaitForTest;
+            if (beforeRegister != null)
+            {
+                await beforeRegister().ConfigureAwait(false);
+            }
+
+            // Verify the manager is still serving and insert the registration
+            // atomically under m_registrationsLock (with the same
+            // m_registrationsLock + m_lock ordering as RegisterWaitConnection).
+            // A StopServiceAsync/DisposeAsync that commits between the start
+            // above and this insertion runs its registration clear/abort under
+            // the same lock, so this registration is either inserted while
+            // still serving or rejected here - it can never be stranded as an
+            // inert waiter behind a committed stop.
             return RegisterWaitingConnectionCore(
                 endpointUrl,
                 serverUri,
                 onConnectionWaiting,
-                reverseConnectStrategy);
+                reverseConnectStrategy,
+                verifyServing: true);
         }
 
         /// <summary>
@@ -1839,7 +2386,47 @@ namespace Opc.Ua.Client
         /// <param name="configuration">The application configuration to start with.</param>
         internal void ConfigureInitialStartup(ApplicationConfiguration configuration)
         {
+            ConfigureInitialStartup(configuration, reloadDecorator: null);
+        }
+
+        /// <summary>
+        /// Configures the initial startup configuration applied by
+        /// <see cref="EnsureStartedAsync"/>, together with a decorator that
+        /// reapplies the configured overlay (the DI
+        /// <see cref="ClientReverseConnectOptions"/> reverse-connect endpoints)
+        /// onto a configuration reloaded from <c>SourceFilePath</c> after a
+        /// stop. The decorator is retained so a file-backed lazy restart
+        /// preserves the overlay instead of losing it to a plain file load.
+        /// </summary>
+        /// <param name="configuration">The application configuration to start with.</param>
+        /// <param name="reloadDecorator">
+        /// An optional overlay decorator applied to a configuration reloaded
+        /// from <c>SourceFilePath</c> before activation. May be <c>null</c>
+        /// when no overlay is configured.
+        /// </param>
+        internal void ConfigureInitialStartup(
+            ApplicationConfiguration configuration,
+            Func<ApplicationConfiguration, ApplicationConfiguration>? reloadDecorator)
+        {
             m_initialConfiguration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+            m_initialConfigurationFactory = null;
+            m_initialConfigurationDecorator = reloadDecorator;
+            m_initialStartRequested = true;
+            m_initialConfigurationMissing = false;
+        }
+
+        /// <summary>
+        /// Configures asynchronous initial startup from an application
+        /// configuration provider.
+        /// </summary>
+        internal void ConfigureInitialStartup(
+            Func<CancellationToken, Task<ApplicationConfiguration>> configurationFactory,
+            Func<ApplicationConfiguration, ApplicationConfiguration>? reloadDecorator = null)
+        {
+            m_initialConfigurationFactory =
+                configurationFactory ?? throw new ArgumentNullException(nameof(configurationFactory));
+            m_initialConfiguration = null;
+            m_initialConfigurationDecorator = reloadDecorator;
             m_initialStartRequested = true;
             m_initialConfigurationMissing = false;
         }
@@ -1853,6 +2440,57 @@ namespace Opc.Ua.Client
         {
             m_initialStartRequested = true;
             m_initialConfigurationMissing = true;
+        }
+
+        /// <summary>
+        /// Reloads a file-backed initial configuration from its captured
+        /// <c>SourceFilePath</c> for a lazy restart after a stop, so any change
+        /// made to the file while the manager was stopped is applied rather than
+        /// a stale cached configuration. Uses the injectable loader seam when set
+        /// (tests) and otherwise <see cref="ApplicationConfiguration.LoadAsync(FileInfo, ApplicationType, Type, ITelemetryContext, CancellationToken)"/>.
+        /// The configured overlay decorator (the DI
+        /// <see cref="ClientReverseConnectOptions"/> reverse-connect endpoints)
+        /// is reapplied to the freshly loaded configuration before it is
+        /// returned, so a file-backed restart keeps the DI reverse-connect
+        /// option overlay instead of losing it to a plain file load. The
+        /// injected provider preparation still runs during activation
+        /// (<see cref="PrepareAsync"/>).
+        /// </summary>
+        private async Task<ApplicationConfiguration> RestartFromInitialSourceFileAsync(
+            CancellationToken ct)
+        {
+            string? sourceFilePath;
+            ApplicationType applicationType;
+            Func<ApplicationConfiguration, ApplicationConfiguration>? decorator;
+            lock (m_lock)
+            {
+                sourceFilePath = m_initialConfigurationSourceFilePath;
+                applicationType = m_applicationType;
+                decorator = m_initialConfigurationDecorator;
+            }
+            if (string.IsNullOrEmpty(sourceFilePath))
+            {
+                throw new InvalidOperationException(
+                    "No configuration source file is available for reverse connect restart.");
+            }
+
+            Func<string, ApplicationType, Type?, CancellationToken,
+                Task<ApplicationConfiguration>>? loader = ConfigurationFileLoaderForTest;
+            ApplicationConfiguration loaded = loader != null
+                ? await loader(sourceFilePath!, applicationType, m_configType, ct)
+                    .ConfigureAwait(false)
+                : await ApplicationConfiguration.LoadAsync(
+                    new FileInfo(sourceFilePath!),
+                    applicationType,
+                    m_configType,
+                    m_telemetry,
+                    ct).ConfigureAwait(false);
+
+            // Reapply the DI reverse-connect option overlay onto the freshly
+            // loaded file base so the restart uses the updated file contents
+            // plus the configured overlay endpoints. Without this the overlay
+            // (which lives only in memory) would be lost across a stop/restart.
+            return decorator != null ? decorator(loaded) : loaded;
         }
 
         /// <summary>
@@ -1882,6 +2520,100 @@ namespace Opc.Ua.Client
                 lock (m_registrationsLock)
                 {
                     return m_registrations.Count;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Inserts a tracked <see cref="WaitForConnectionAsync"/> registration
+        /// and returns its completion source so a test can drive the
+        /// match-vs-stop claim race deterministically (completing/faulting the
+        /// source directly) without a real listener. Mirrors the registration
+        /// that <see cref="WaitForConnectionAsync"/> installs.
+        /// </summary>
+        internal TaskCompletionSource<ITransportWaitingConnection> RegisterWaitForTest(
+            Uri endpointUrl,
+            string? serverUri)
+        {
+            var tcs = new TaskCompletionSource<ITransportWaitingConnection>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            RegisterWaitConnection(endpointUrl, serverUri, tcs);
+            return tcs;
+        }
+
+        /// <summary>
+        /// Runs the internal waiting-connection matcher against a supplied event
+        /// and returns whether a registration claimed it. Exposed internally so
+        /// a test can prove the claim (<c>TrySetResult</c> under the
+        /// registrations lock) is atomic with a committed Stop/Dispose and never
+        /// leaves an accepted orphan.
+        /// </summary>
+        internal bool MatchWaitingConnectionForTest(ConnectionWaitingEventArgs e)
+        {
+            return MatchRegistration(this, e);
+        }
+
+        /// <summary>
+        /// Invokes the internal <see cref="OnConnectionWaitingAsync"/> callback
+        /// against a supplied waiting-connection event, exactly as a listener
+        /// would. Exposed internally so a test can drive a held callback (one
+        /// with no matching registration, parked on its hold delay) and prove a
+        /// concurrent Stop/Dispose cancels and drains it before the terminal
+        /// listener close/dispose.
+        /// </summary>
+        internal Task InvokeConnectionWaitingForTest(ConnectionWaitingEventArgs e)
+        {
+            return OnConnectionWaitingAsync(this, e);
+        }
+
+        /// <summary>
+        /// Enters the connection-callback tracking region exactly as
+        /// <see cref="OnConnectionWaitingAsync"/> does, then blocks on the
+        /// supplied gate while ignoring the cancelled hold token. Exposed
+        /// internally so a test can simulate an external callback that holds a
+        /// transport and does not observe the drain cancellation, proving a
+        /// cancellable Stop cancels at its deadline while such a callback is
+        /// still held - leaving the manager Started with its listeners open and
+        /// the callback coherently tracked - and that the callback resolves and a
+        /// subsequent non-cancellable Stop then completes. Returns immediately
+        /// (without entering) if a shutdown drain is already rejecting new
+        /// callbacks.
+        /// </summary>
+        internal async Task InvokeBlockingConnectionCallbackForTest(Task gate)
+        {
+            if (!TryEnterConnectionCallback())
+            {
+                return;
+            }
+            OperationScope? previousCallbackOwner = m_activeCallbackOwner.Value;
+            var callbackScope = new OperationScope(
+                Interlocked.Increment(ref m_operationScopeGeneration));
+            m_activeCallbackOwner.Value = callbackScope;
+            try
+            {
+                await gate.ConfigureAwait(false);
+            }
+            finally
+            {
+                callbackScope.Active = false;
+                m_activeCallbackOwner.Value = previousCallbackOwner;
+                ExitConnectionCallback();
+            }
+        }
+
+        /// <summary>
+        /// The number of in-flight <see cref="OnConnectionWaitingAsync"/>
+        /// callbacks. Exposed internally so a test can assert that a callback is
+        /// being tracked (holding a transport) and that a Stop/Dispose drains it
+        /// to zero before tearing the listeners down.
+        /// </summary>
+        internal int ActiveConnectionCallbackCountForTest
+        {
+            get
+            {
+                lock (m_callbackLock)
+                {
+                    return m_activeCallbacks;
                 }
             }
         }
@@ -1939,55 +2671,239 @@ namespace Opc.Ua.Client
                 return Task.CompletedTask;
             }
 
-            // Publish the reload task for its whole duration so a lazy
-            // EnsureStartedAsync that races the reload's transitional window
-            // (Reloading/Stopping/Starting) awaits its completion rather than
-            // returning premature success. The core yields first so its
-            // synchronous prefix never runs while the publishing lock is held.
-            Task reloadTask;
+            ReloadRequest request;
+            ReloadRequest? superseded;
             lock (m_lock)
             {
-                reloadTask = ReloadConfigurationCoreAsync(configuration, watcherGeneration, ct);
-                m_activeReloadTask = reloadTask;
+                // Reject a callback from a superseded (stale) watcher generation
+                // at intake. Overlapping reloads that arrive before a sibling
+                // reload commits still share the current generation here and are
+                // therefore accepted; the queue/loop below then applies the
+                // newest one even though a sibling's commit later advances the
+                // generation. Moving the check here (rather than re-checking the
+                // moving generation inside the loop) is what lets an older
+                // commit no longer invalidate/drop a newer queued reload.
+                if (watcherGeneration != m_watcherGeneration)
+                {
+                    return Task.CompletedTask;
+                }
+
+                // Capture the lifecycle version, teardown epoch and watcher
+                // generation at enqueue time. The serialized drain rejects this
+                // request without applying if a committed Stop/Dispose advanced
+                // the teardown epoch after the request was queued, so a reload
+                // queued before a shutdown never reopens a listener. A sibling
+                // reload commit only advances the lifecycle version (not the
+                // teardown epoch), so an overlapping newer reload queued in the
+                // same epoch is still applied (latest-wins) rather than dropped.
+                request = new ReloadRequest(
+                    configuration,
+                    watcherGeneration,
+                    m_lifecycleVersion,
+                    m_teardownEpoch,
+                    ct);
+
+                // Publish this request as the newest pending candidate. Any
+                // not-yet-started pending request is coalesced away (latest
+                // wins) and completed once this newest request completes. A
+                // single serialized loop drains the queue outside the lifecycle
+                // gate so overlapping reloads never run concurrently and the
+                // newest candidate is always applied last.
+                superseded = m_pendingReload;
+                m_pendingReload = request;
+                if (!m_reloadLoopActive)
+                {
+                    m_reloadLoopActive = true;
+                    // RunReloadLoopAsync yields before touching state so
+                    // publishing the loop task under the lock never runs the
+                    // loop body while the lock is held. The loop task is
+                    // exposed as the active-reload task so a lazy
+                    // EnsureStartedAsync that races a reload's transitional
+                    // window awaits it rather than returning premature success.
+                    // The loop runs under a manager-owned cancellation source
+                    // tagged with the current teardown epoch: a committed
+                    // Stop/Dispose cancels it (so a cooperative reload provider
+                    // exits) and advances the epoch (so a stale/noncooperative
+                    // reload completion is discarded and never restarts).
+                    var reloadCts = new CancellationTokenSource();
+                    m_activeReloadCts = reloadCts;
+                    m_activeReloadEpoch = m_teardownEpoch;
+                    m_activeReloadTask = RunReloadLoopAsync(reloadCts, m_teardownEpoch);
+                }
             }
-            return AwaitAndClearReloadAsync(reloadTask);
+
+            if (superseded != null)
+            {
+                LinkSupersededReload(superseded, request);
+            }
+
+            return request.Completion.Task;
         }
 
         /// <summary>
-        /// Awaits a published reload task and clears the shared active-reload
-        /// field when it completes.
+        /// Completes a coalesced (superseded, never-run) reload request once the
+        /// newest request that replaced it completes, so its awaiter observes
+        /// the latest-wins outcome.
         /// </summary>
-        private async Task AwaitAndClearReloadAsync(Task reloadTask)
+        private static void LinkSupersededReload(ReloadRequest superseded, ReloadRequest winner)
         {
+            _ = CompleteSupersededReloadAsync(superseded, winner);
+
+            static async Task CompleteSupersededReloadAsync(
+                ReloadRequest superseded,
+                ReloadRequest winner)
+            {
+                try
+                {
+                    await winner.Completion.Task.ConfigureAwait(false);
+                }
+                catch
+                {
+                    // The winner's failures are logged/swallowed by the core; the
+                    // superseded awaiter only needs to observe completion.
+                }
+                superseded.Completion.TrySetResult(true);
+            }
+        }
+
+        /// <summary>
+        /// Drains queued reload requests one at a time (latest-wins). Yields
+        /// first so the synchronous prefix never runs while the caller of
+        /// <see cref="ReloadConfigurationAsync"/> still holds the state lock.
+        /// Runs outside the lifecycle gate; each request enters the gate through
+        /// <see cref="ActivateAsync"/>, so overlapping reloads are serialized
+        /// and the newest queued candidate is applied last.
+        /// </summary>
+        /// <param name="reloadCts">
+        /// The manager-owned cancellation source for this loop, cancelled by a
+        /// committed Stop/Dispose so a cooperative reload provider/activation
+        /// exits. Owned here: disposed once the loop ends.
+        /// </param>
+        /// <param name="epoch">
+        /// The teardown epoch captured when this loop was created. A committed
+        /// Stop/Dispose advances the epoch and detaches the loop, so a stale
+        /// loop observing the mismatch exits without touching reload state a
+        /// newer loop now owns and without restarting.
+        /// </param>
+        private async Task RunReloadLoopAsync(CancellationTokenSource reloadCts, long epoch)
+        {
+            await Task.Yield();
             try
             {
-                await reloadTask.ConfigureAwait(false);
-            }
-            finally
-            {
-                lock (m_lock)
+                while (true)
                 {
-                    if (ReferenceEquals(m_activeReloadTask, reloadTask))
+                    ReloadRequest request;
+                    bool superseded;
+                    lock (m_lock)
                     {
-                        m_activeReloadTask = null;
+                        // A committed Stop/Dispose advanced the teardown epoch
+                        // and detached this loop (cancelling its source and
+                        // reassigning the reload fields to a fresh loop or
+                        // clearing them). Exit WITHOUT clearing those fields so a
+                        // newer loop is never clobbered; any stale reload result
+                        // this loop just produced is discarded and never
+                        // restarts the drain.
+                        if (epoch != m_teardownEpoch)
+                        {
+                            return;
+                        }
+                        if (m_pendingReload == null)
+                        {
+                            m_reloadLoopActive = false;
+                            m_activeReloadTask = null;
+                            m_activeReloadCts = null;
+                            m_inFlightReload = null;
+                            return;
+                        }
+                        request = m_pendingReload;
+                        m_pendingReload = null;
+                        // Publish the dequeued request as the in-flight reload so a
+                        // cancelled stop that rolls back to Started can re-queue this
+                        // candidate if its lifecycle version is superseded.
+                        m_inFlightReload = request;
+                        // Reject a request whose captured teardown epoch no longer
+                        // matches the current one: a committed Stop/Dispose
+                        // superseded it after it was queued, so it must never
+                        // (re)open a listener. A sibling reload commit does not
+                        // advance the teardown epoch, so an overlapping newer reload
+                        // queued in the same epoch is still applied here
+                        // (latest-wins).
+                        superseded = request.TeardownEpoch != m_teardownEpoch ||
+                            Volatile.Read(ref m_disposed) != 0;
+                    }
+
+                    if (superseded)
+                    {
+                        RejectSupersededReload(request);
+                        continue;
+                    }
+
+                    try
+                    {
+                        await ReloadConfigurationCoreAsync(
+                            request.Configuration,
+                            reloadCts.Token,
+                            request.CancellationToken).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        request.Completion.TrySetResult(true);
                     }
                 }
             }
+            finally
+            {
+                // Single owner of the manager-owned reload source: dispose it
+                // once the loop ends (normal drain or supersession). A committed
+                // Stop/Dispose only cancels it, guarding against the race here.
+                reloadCts.Dispose();
+            }
         }
 
         /// <summary>
-        /// Runs the reload prepare/activate pipeline. Yields first so the
-        /// synchronous prefix never runs while the caller of
-        /// <see cref="ReloadConfigurationAsync"/> still holds the state lock.
-        /// Failures are logged and swallowed.
+        /// Completes a queued reload request that a superseding Stop/Dispose (or
+        /// a disposed manager) rejected without applying, so its awaiter never
+        /// hangs. A request whose own cancellation token fired completes as
+        /// canceled; otherwise it faults with <see cref="StatusCodes.BadInvalidState"/>
+        /// to mirror the supersession surfaced by the activation path.
         /// </summary>
+        private void RejectSupersededReload(ReloadRequest request)
+        {
+            m_logger.ReverseConnectConfigurationReloadSuperseded(
+                request.WatcherGeneration,
+                request.LifecycleVersion);
+
+            if (request.CancellationToken.IsCancellationRequested)
+            {
+                request.Completion.TrySetCanceled(request.CancellationToken);
+            }
+            else
+            {
+                request.Completion.TrySetException(new ServiceResultException(
+                    StatusCodes.BadInvalidState,
+                    "Reverse connect configuration reload superseded by a shutdown."));
+            }
+        }
+
+        /// <summary>
+        /// Runs the reload prepare/activate pipeline for a single queued
+        /// request. Failures are logged and swallowed. Lifecycle supersession
+        /// (a concurrent stop/dispose) is enforced by the lifecycle version and
+        /// shutdown latch inside <see cref="ActivateAsync"/>, not by the watcher
+        /// generation, so a newer queued reload is never dropped merely because
+        /// an older sibling reload committed and advanced the generation.
+        /// </summary>
+        /// <param name="configuration">The reloaded configuration to apply.</param>
+        /// <param name="managerToken">
+        /// The manager-owned reload token, cancelled by a committed Stop/Dispose
+        /// so a cooperative provider/activation running under this reload exits.
+        /// </param>
+        /// <param name="requestToken">The token supplied by the reload request caller.</param>
         private async Task ReloadConfigurationCoreAsync(
             ApplicationConfiguration configuration,
-            int watcherGeneration,
-            CancellationToken ct)
+            CancellationToken managerToken,
+            CancellationToken requestToken)
         {
-            await Task.Yield();
-
             if (Volatile.Read(ref m_disposed) != 0)
             {
                 return;
@@ -1996,27 +2912,21 @@ namespace Opc.Ua.Client
             long myVersion;
             lock (m_lock)
             {
-                if (watcherGeneration != m_watcherGeneration)
-                {
-                    return;
-                }
                 myVersion = m_lifecycleVersion;
             }
+
+            // Link the caller-supplied token with the manager-owned reload token
+            // so a committed Stop/Dispose that cancels the reload source unblocks
+            // a cooperative provider/listener open just like the caller token.
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
+                managerToken,
+                requestToken);
+            CancellationToken ct = linkedCts.Token;
 
             PreparedConfiguration? prepared = null;
             try
             {
                 prepared = await PrepareAsync(configuration, null, ct).ConfigureAwait(false);
-
-                lock (m_lock)
-                {
-                    if (watcherGeneration != m_watcherGeneration)
-                    {
-                        throw new ServiceResultException(
-                            StatusCodes.BadInvalidState,
-                            "Reverse connect configuration reload superseded.");
-                    }
-                }
 
                 await ActivateAsync(prepared, myVersion, isReload: true, ct)
                     .ConfigureAwait(false);
@@ -2161,13 +3071,25 @@ namespace Opc.Ua.Client
                 }
             }
 
-            var candidate = new Dictionary<Uri, ReverseConnectInfo>();
+            var manualSnapshot = new List<KeyValuePair<Uri, ReverseConnectInfo>>();
             lock (m_lock)
             {
                 foreach (KeyValuePair<Uri, ReverseConnectInfo> manual in m_manualEndpoints)
                 {
-                    candidate[manual.Key] = manual.Value;
+                    manualSnapshot.Add(manual);
                 }
+            }
+
+            var candidate = new Dictionary<Uri, ReverseConnectInfo>();
+            foreach (KeyValuePair<Uri, ReverseConnectInfo> manual in manualSnapshot)
+            {
+                // A persistent manual host whose listener was destroyed by a
+                // failed destructive close is unusable (OpenAsync would reject
+                // it), so reuse it by identity only while it is usable and
+                // otherwise recreate it before this activation reopens it.
+                candidate[manual.Key] = await ReuseOrRecreateManualHostAsync(
+                    manual.Key,
+                    manual.Value).ConfigureAwait(false);
             }
 
             var owned = new List<ReverseConnectInfo>();
@@ -2223,6 +3145,7 @@ namespace Opc.Ua.Client
             ConfigurationWatcher? committedWatcher = null;
             bool watcherOwned = true;
             bool committed = false;
+            bool callbackDrainStarted = false;
             ActiveTransaction? transaction = null;
             try
             {
@@ -2236,15 +3159,27 @@ namespace Opc.Ua.Client
                     await gateAcquiredHook().ConfigureAwait(false);
                 }
 
-                // Check the shutdown/supersession latch immediately after
-                // acquiring the gate and BEFORE publishing or awaiting any
-                // ActiveTransaction. A non-cancellable Stop or a Dispose sets the
-                // latch before its own transaction lookup/gate wait, so an
-                // activation that acquired the gate first (leaving the shutdown
-                // queued behind it, its ActiveTransaction not yet visible) still
-                // observes the pending shutdown here and aborts WITHOUT opening
-                // any listener. The queued shutdown then acquires the gate and
-                // finalizes the lifecycle.
+                // Recheck the shutdown/supersession latch, the disposed state
+                // and the lifecycle version AND publish the manager-owned active
+                // transaction in a SINGLE critical section, immediately after
+                // acquiring the gate and BEFORE any awaited close/open. Combining
+                // the recheck with the publication closes the window in which a
+                // non-cancellable Stop or a Dispose could latch (and look up
+                // m_activeTransaction) after the recheck but before publication:
+                // such a shutdown now either latches BEFORE this section (its
+                // latch is observed here and the activation aborts WITHOUT
+                // opening any listener) or AFTER it (it finds the already
+                // published transaction to abort). The queued shutdown then
+                // acquires the gate and finalizes the lifecycle. Aborting the
+                // published transaction cancels the operation token (unblocking a
+                // cooperative listener open so the gate can be acquired) and
+                // records that a shutdown, not a caller/provider cancellation,
+                // superseded this activation.
+                ApplicationConfiguration? previousAppConfig;
+                bool previousWasStarted;
+                List<ReverseConnectInfo> previousLive;
+                List<(Uri Url, bool ConfigEntry)> previousDescriptors;
+                CancellationToken operationToken;
                 lock (m_lock)
                 {
                     if (m_shutdownLatchOwner != null)
@@ -2259,12 +3194,6 @@ namespace Opc.Ua.Client
                             StatusCodes.BadInvalidState,
                             "Reverse connect lifecycle superseded by a pending shutdown.");
                     }
-                }
-
-                ApplicationConfiguration? previousAppConfig;
-                bool previousWasStarted;
-                lock (m_lock)
-                {
                     ThrowIfDisposedLocked();
                     if (m_lifecycleVersion != myVersion)
                     {
@@ -2287,30 +3216,37 @@ namespace Opc.Ua.Client
                     m_state = isReload
                         ? ReverseConnectManagerState.Reloading
                         : ReverseConnectManagerState.Starting;
-                }
-
-                List<ReverseConnectInfo> previousLive;
-                List<(Uri Url, bool ConfigEntry)> previousDescriptors;
-                lock (m_lock)
-                {
                     previousLive = [.. m_endpointUrls.Values];
                     previousDescriptors =
                         [.. previousLive.Select(info => (info.EndpointUrl, info.ConfigEntry))];
-                }
 
-                // Publish the manager-owned active transaction BEFORE any
-                // awaited close/open so a Stop/Dispose can observe and abort it
-                // BEFORE waiting on the lifecycle gate: aborting cancels the
-                // operation token (unblocking a cooperative listener open so the
-                // gate can be acquired) and records that a shutdown, not a
-                // caller/provider cancellation, superseded this activation.
-                transaction = new ActiveTransaction(
-                    CancellationTokenSource.CreateLinkedTokenSource(ct));
-                CancellationToken operationToken = transaction.Token;
-                lock (m_lock)
-                {
+                    // Publish the transaction atomically with the recheck above
+                    // so there is no separate check/publication gap.
+                    transaction = new ActiveTransaction(
+                        CancellationTokenSource.CreateLinkedTokenSource(ct));
+                    operationToken = transaction.Token;
                     m_activeTransaction = transaction;
                 }
+
+                // Cancel any held OnConnectionWaitingAsync callbacks and wait for
+                // every in-flight callback to finish (releasing or handing off its
+                // transport) BEFORE the previous listeners are closed/discarded,
+                // exactly like a Stop/Dispose, so a held callback can never resolve
+                // transport ownership against a listener this activation is about
+                // to tear down. While the drain signal is set, callbacks raised by
+                // the freshly opened candidate listeners are rejected too (see
+                // TryEnterConnectionCallback), so no candidate callback can outlive
+                // an uncommitted activation and leak a transport when a rollback
+                // discards the candidates. The waiting-connection registrations are
+                // deliberately preserved across the drain: only a committed Stop
+                // clears them. The drain is ended (and the registration token
+                // renewed) in the finally so a committed or rolled-back manager
+                // accepts and holds callbacks again. This transactional drain is
+                // intentionally non-cancellable: the candidate listeners must not
+                // outlive an in-flight callback, so it never forwards the caller
+                // token.
+                await DrainConnectionCallbacksAsync(CancellationToken.None).ConfigureAwait(false);
+                callbackDrainStarted = true;
 
                 if (previousLive.Count > 0)
                 {
@@ -2452,11 +3388,18 @@ namespace Opc.Ua.Client
                             // overloads keeps no restart seed. If the promoted
                             // configuration carries a SourceFilePath the restart
                             // still re-validates that file (see PrepareAsync), so
-                            // file-backed reload semantics are preserved.
+                            // file-backed reload semantics are preserved. A
+                            // factory-seeded lazy startup (m_initialConfiguration
+                            // still null, factory set) is promoted here too: the
+                            // factory result is only cached once activation has
+                            // committed, so a factory-loaded start that fails keeps
+                            // the factory active and a retry re-invokes it.
                             if (m_initialStartRequested && !m_initialConfigurationMissing &&
-                                m_initialConfiguration != null)
+                                (m_initialConfiguration != null ||
+                                    m_initialConfigurationFactory != null))
                             {
                                 m_initialConfiguration = prepared.ApplicationConfiguration;
+                                m_initialConfigurationFactory = null;
                             }
                         }
                         m_state = ReverseConnectManagerState.Started;
@@ -2517,6 +3460,14 @@ namespace Opc.Ua.Client
                 if (watcherOwned)
                 {
                     committedWatcher?.Dispose();
+                }
+                // End the callback drain and renew the (drain-cancelled)
+                // registration token so a committed or rolled-back manager accepts
+                // and holds callbacks again on its (new or restored) listeners.
+                // Only ends a drain this activation actually started.
+                if (callbackDrainStarted)
+                {
+                    EndCallbackDrain();
                 }
                 m_gate.Release();
             }
@@ -2603,6 +3554,13 @@ namespace Opc.Ua.Client
             {
                 lock (m_lock)
                 {
+                    // A shutdown (Dispose) that latched while this activation was
+                    // unwinding owns the lifecycle; never write Started/Faulted
+                    // over it. Leave the disposal to finalize the state.
+                    if (ShutdownOwnsLifecycleLocked())
+                    {
+                        return;
+                    }
                     m_endpointUrls = [];
                     // A previously Started but empty configuration is restored
                     // to Started with zero listeners; only a failure with no
@@ -2619,28 +3577,90 @@ namespace Opc.Ua.Client
                 return;
             }
 
+            // Publish a shutdown-only transaction so a concurrent Stop/Dispose
+            // aborts the restore reopen (cancelling the open) and rechecks below
+            // observe it. The reopen runs under this token - never the caller
+            // token - so a caller/provider cancellation that routed here still
+            // restores the previous listeners, while a shutdown reliably aborts
+            // the rollback.
+            var transaction = new ActiveTransaction(
+                CancellationTokenSource.CreateLinkedTokenSource(CancellationToken.None));
             Dictionary<Uri, ReverseConnectInfo>? restored = null;
             try
             {
-                restored = RecreateHosts(previousDescriptors, previousAppConfig);
-                await OpenHostsAsync([.. restored.Values], CancellationToken.None)
+                lock (m_lock)
+                {
+                    // Atomically recheck the stop/dispose shutdown latch and
+                    // publish the rollback transaction: a non-cancellable Stop
+                    // (or a Dispose) that latched before this point owns the
+                    // lifecycle, so the rollback must NOT reopen the previous
+                    // listeners. Leaving the transaction unpublished lets the
+                    // queued shutdown acquire the gate and finalize the state
+                    // once this activation releases it.
+                    if (ShutdownOwnsLifecycleLocked() || transaction.AbortedByShutdown)
+                    {
+                        return;
+                    }
+                    m_activeTransaction = transaction;
+                }
+
+                // Deterministic test seam: let a test start a Stop/Dispose after
+                // the shutdown-only transaction is published and BEFORE the
+                // pre-open recheck, proving the recheck aborts the rollback
+                // without reopening any listener.
+                Func<Task>? reopenHook = RestoreReopenHookForTest;
+                if (reopenHook != null)
+                {
+                    await reopenHook().ConfigureAwait(false);
+                }
+
+                // Recheck the shutdown latch/version/dispose immediately before
+                // recreating and opening: a Stop/Dispose that latched after the
+                // caller-cancel/open-failure recheck (its teardown queued behind
+                // the gate this operation still holds) must abort the rollback
+                // without reopening any listener, leaving the shutdown to
+                // finalize the lifecycle.
+                lock (m_lock)
+                {
+                    if (ShutdownOwnsLifecycleLocked() || transaction.AbortedByShutdown)
+                    {
+                        return;
+                    }
+                }
+
+                restored = await RecreateHostsAsync(previousDescriptors, previousAppConfig)
+                    .ConfigureAwait(false);
+                await OpenHostsAsync([.. restored.Values], transaction.Token)
                     .ConfigureAwait(false);
             }
             catch (Exception restoreError)
             {
+                bool abortedByShutdown;
+                lock (m_lock)
+                {
+                    abortedByShutdown = ShutdownOwnsLifecycleLocked() ||
+                        transaction.AbortedByShutdown;
+                }
                 if (restored != null)
                 {
                     foreach (ReverseConnectInfo info in restored.Values)
                     {
                         info.State = ReverseConnectHostState.Errored;
                     }
-                    // Discard the failed restore set: dispose the configured
-                    // (ConfigEntry) hosts outright so no recreated listener
-                    // leaks, while reused manual endpoint hosts are only closed
-                    // so their persistent ownership survives for a later restart.
+                    // Discard the failed/aborted restore set: dispose the
+                    // configured (ConfigEntry) hosts outright so no recreated
+                    // listener leaks, while reused manual endpoint hosts are only
+                    // closed so their persistent ownership survives for a later
+                    // restart.
                     await CloseAndDisposeOwnedHostsAsync(
                         [.. restored.Values],
                         CancellationToken.None).ConfigureAwait(false);
+                }
+                if (abortedByShutdown)
+                {
+                    // A Dispose aborted the reopen: do not fault the manager.
+                    // Leave the disposal to finalize the lifecycle.
+                    return;
                 }
                 lock (m_lock)
                 {
@@ -2652,12 +3672,44 @@ namespace Opc.Ua.Client
                     new AggregateException(openError, restoreError));
                 throw new AggregateException(openError, restoreError);
             }
+            finally
+            {
+                lock (m_lock)
+                {
+                    if (ReferenceEquals(m_activeTransaction, transaction))
+                    {
+                        m_activeTransaction = null;
+                    }
+                }
+                transaction.Dispose();
+            }
 
+            bool committedShutdown;
             lock (m_lock)
             {
-                m_endpointUrls = restored;
-                m_state = ReverseConnectManagerState.Started;
-                m_lifecycleVersion++;
+                // Recheck the shutdown latch/version/dispose immediately before
+                // committing Started: a Dispose that latched while the reopen ran
+                // must win, so the freshly reopened listeners are discarded and
+                // the lifecycle is left to the disposal.
+                committedShutdown = ShutdownOwnsLifecycleLocked() ||
+                    transaction.AbortedByShutdown;
+                if (!committedShutdown)
+                {
+                    m_endpointUrls = restored;
+                    m_state = ReverseConnectManagerState.Started;
+                    m_lifecycleVersion++;
+                }
+            }
+            if (committedShutdown)
+            {
+                // The disposal owns the lifecycle: the reopened hosts were never
+                // published into m_endpointUrls, so dispose the configured ones
+                // here (reused manual endpoint hosts are only closed) so no
+                // recreated listener leaks, and leave the disposal to finalize.
+                await CloseAndDisposeOwnedHostsAsync(
+                    [.. restored.Values],
+                    CancellationToken.None).ConfigureAwait(false);
+                return;
             }
             m_logger.ReverseConnectServiceReloadFailedRestored(openError);
         }
@@ -2665,34 +3717,126 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Recreates hosts from previously running descriptors, reusing the
         /// persistent manual endpoint hosts by object identity where possible
-        /// and creating configured hosts from the snapshot application config.
+        /// (recreating any whose listener was destroyed by a failed close) and
+        /// creating configured hosts from the snapshot application config. The
+        /// reconstruction is transactional: freshly created configured/owned
+        /// hosts are collected incrementally and disposed on a later
+        /// construction failure before the exception is rethrown, so a partial
+        /// reconstruction never leaks an unopened listener.
         /// </summary>
-        private Dictionary<Uri, ReverseConnectInfo> RecreateHosts(
+        private async Task<Dictionary<Uri, ReverseConnectInfo>> RecreateHostsAsync(
             List<(Uri Url, bool ConfigEntry)> descriptors,
             ApplicationConfiguration? appConfig)
         {
             var dict = new Dictionary<Uri, ReverseConnectInfo>();
-            foreach ((Uri url, bool configEntry) in descriptors)
+            var created = new List<ReverseConnectInfo>();
+            try
             {
-                ReverseConnectInfo? manual = null;
-                if (!configEntry)
+                foreach ((Uri url, bool configEntry) in descriptors)
                 {
-                    lock (m_lock)
+                    ReverseConnectInfo? manual = null;
+                    if (!configEntry)
                     {
-                        m_manualEndpoints.TryGetValue(url, out manual);
+                        lock (m_lock)
+                        {
+                            m_manualEndpoints.TryGetValue(url, out manual);
+                        }
+                    }
+                    if (manual != null)
+                    {
+                        ReverseConnectInfo reused = await ReuseOrRecreateManualHostAsync(
+                            url,
+                            manual).ConfigureAwait(false);
+                        reused.State = ReverseConnectHostState.Closed;
+                        dict[url] = reused;
+                    }
+                    else
+                    {
+                        ReverseConnectInfo info = CreateEndpointInfo(url, configEntry, appConfig);
+                        created.Add(info);
+                        dict[url] = info;
                     }
                 }
-                if (manual != null)
+            }
+            catch
+            {
+                // A later host construction failed after earlier configured
+                // hosts were already created. Dispose the freshly created
+                // configured/owned hosts collected so far so a partial
+                // reconstruction never leaks an unopened listener; reused manual
+                // endpoint hosts are persistent and are never disposed here.
+                await CloseAndDisposeOwnedHostsAsync(created, CancellationToken.None)
+                    .ConfigureAwait(false);
+                throw;
+            }
+            return dict;
+        }
+
+        /// <summary>
+        /// Returns a usable persistent manual endpoint host for reuse. A manual
+        /// host whose listener was destroyed by a failed destructive close (see
+        /// <see cref="ReverseConnectHost.CloseAsync"/>) is unusable - a
+        /// subsequent <see cref="ReverseConnectHost.OpenAsync"/> would reject it
+        /// so the endpoint could never reopen - so it is recreated from its
+        /// endpoint and the application configuration originally supplied to
+        /// <see cref="AddEndpoint(Uri, ApplicationConfiguration?)"/> (its TLS
+        /// context), NOT the later start configuration. This keeps a manual WSS
+        /// listener bound to its original certificate registry and validator
+        /// even when the manager is (re)started with a bare
+        /// <see cref="ReverseConnectClientConfiguration"/> or a different
+        /// application configuration. The replacement is published back into
+        /// <see cref="m_manualEndpoints"/> as the persistent manual host, and
+        /// the unusable host is disposed.
+        /// </summary>
+        private async ValueTask<ReverseConnectInfo> ReuseOrRecreateManualHostAsync(
+            Uri url,
+            ReverseConnectInfo existing)
+        {
+            if (existing.ReverseConnectHost.HasListener)
+            {
+                return existing;
+            }
+
+            // Recreate the manual host from the ApplicationConfiguration that
+            // was originally supplied to AddEndpoint (persisted on the manual
+            // ReverseConnectInfo), so a WSS listener keeps its original TLS
+            // context regardless of the activation's application configuration.
+            ReverseConnectInfo replacement = CreateEndpointInfo(
+                url,
+                false,
+                existing.ManualConfiguration);
+            bool published;
+            lock (m_lock)
+            {
+                if (m_manualEndpoints.TryGetValue(url, out ReverseConnectInfo? current) &&
+                    ReferenceEquals(current, existing))
                 {
-                    manual.State = ReverseConnectHostState.Closed;
-                    dict[url] = manual;
+                    m_manualEndpoints[url] = replacement;
+                    published = true;
                 }
                 else
                 {
-                    dict[url] = CreateEndpointInfo(url, configEntry, appConfig);
+                    published = false;
                 }
             }
-            return dict;
+            if (!published)
+            {
+                // The manual endpoint was swapped or removed concurrently; the
+                // freshly created replacement is not needed, so dispose it and
+                // reuse whatever the map now holds (or the original as a
+                // fallback) rather than leaking the replacement.
+                await DisposeHostAsync(replacement).ConfigureAwait(false);
+                lock (m_lock)
+                {
+                    if (m_manualEndpoints.TryGetValue(url, out ReverseConnectInfo? current))
+                    {
+                        return current;
+                    }
+                }
+                return existing;
+            }
+            await DisposeHostAsync(existing).ConfigureAwait(false);
+            return replacement;
         }
 
         /// <summary>
@@ -2925,22 +4069,157 @@ namespace Opc.Ua.Client
 
         /// <summary>
         /// Restores a coherent, retryable <see cref="ReverseConnectManagerState.Started"/>
+        /// state after a cancellable stop whose callback drain was cancelled at
+        /// the caller's deadline BEFORE any listener was closed. Unlike
+        /// <see cref="RestoreStartedAfterCanceledStopAsync"/> the running
+        /// listeners were never touched, so this neither reopens nor closes any
+        /// host and leaves the preserved waiting-connection registrations intact;
+        /// it only re-publishes Started (unless a concurrent
+        /// <see cref="DisposeAsync"/> or another shutdown has taken ownership of
+        /// the lifecycle while this cancelled stop held the gate) and re-queues
+        /// any reload candidate the stop's lifecycle-version bump would otherwise
+        /// strand. The caller's finally ends the callback drain and renews the
+        /// registration token so held callbacks can hold again.
+        /// </summary>
+        private void RestoreStartedAfterCanceledDrain()
+        {
+            (ApplicationConfiguration Config, int Generation)? requeueReload;
+            lock (m_lock)
+            {
+                // A dispose or a concurrent non-cancellable stop that took
+                // ownership of the lifecycle while this cancelled stop held the
+                // gate must win: leave the pending shutdown to finalize the
+                // lifecycle rather than resurrecting a Started manager.
+                if (ShutdownOwnsLifecycleLocked())
+                {
+                    return;
+                }
+                m_state = ReverseConnectManagerState.Started;
+                m_lifecycleVersion++;
+                // The stop bumped the lifecycle version, so an in-flight or
+                // pending watcher reload racing this rolled-back stop would
+                // observe a superseded version and be dropped even though the
+                // manager is back to Started. Capture that candidate so it is
+                // re-queued below against the restored version.
+                requeueReload = CaptureReloadCandidateLocked();
+            }
+            if (requeueReload != null)
+            {
+                _ = ReloadConfigurationAsync(
+                    requeueReload.Value.Config,
+                    requeueReload.Value.Generation);
+            }
+        }
+
+        /// <summary>
+        /// Restores a coherent, retryable <see cref="ReverseConnectManagerState.Started"/>
         /// state after a stop whose listener close was cancelled. Reopens the
         /// still-running listener set non-cancellably so a subsequent stop can
         /// complete cleanly; if the reopen fails the manager is faulted with no
-        /// listeners.
+        /// listeners. If a concurrent <see cref="DisposeAsync"/> (or another
+        /// shutdown) has taken ownership of the lifecycle while this cancelled
+        /// stop held the gate, the reopen and every state write are skipped so
+        /// the disposal is left to finalize the lifecycle (Started is never
+        /// written after disposal begins).
         /// </summary>
         private async Task RestoreStartedAfterCanceledStopAsync(
             List<ReverseConnectInfo> live)
         {
-            try
+            // A dispose or a concurrent non-cancellable stop sets the shutdown
+            // latch and (for a dispose) marks the manager Disposing synchronously
+            // (without waiting on the lifecycle gate this stop still holds), then
+            // queues its teardown behind the gate. Detect that ownership transfer
+            // before reopening: reopening and writing Started here would resurrect
+            // a manager that is being shut down and strand it as running. Leave
+            // the pending shutdown to finish.
+            lock (m_lock)
             {
-                await OpenHostsAsync(live, CancellationToken.None).ConfigureAwait(false);
+                if (ShutdownOwnsLifecycleLocked())
+                {
+                    return;
+                }
             }
-            catch (Exception reopenError)
+
+            // Publish a shutdown-only transaction so a concurrent Stop/Dispose
+            // aborts the reopen (cancelling the open) and the rechecks below
+            // observe it. The reopen runs under this token so a shutdown that
+            // begins while the listeners are being reopened reliably unblocks and
+            // aborts the rollback rather than resurrecting a shutting-down manager.
+            var transaction = new ActiveTransaction(
+                CancellationTokenSource.CreateLinkedTokenSource(CancellationToken.None));
+            try
             {
                 lock (m_lock)
                 {
+                    // Atomically recheck the stop/dispose shutdown latch and
+                    // publish the rollback transaction so a shutdown that latched
+                    // after the initial check but before this publication is not
+                    // missed: leave the transaction unpublished and let the queued
+                    // shutdown finalize the lifecycle.
+                    if (ShutdownOwnsLifecycleLocked() || transaction.AbortedByShutdown)
+                    {
+                        return;
+                    }
+                    m_activeTransaction = transaction;
+                }
+
+                // Deterministic test seam: let a test start a Stop/Dispose after
+                // the initial shutdown check has passed and the transaction is
+                // published, but BEFORE the pre-open recheck, proving the recheck
+                // aborts the rollback without reopening any listener.
+                Func<Task>? reopenHook = RestoreReopenHookForTest;
+                if (reopenHook != null)
+                {
+                    await reopenHook().ConfigureAwait(false);
+                }
+
+                // Recheck the shutdown latch/version/dispose immediately before
+                // reopening: a Stop/Dispose that latched after the initial check
+                // (its teardown queued behind the gate this stop still holds) must
+                // abort the rollback without reopening any listener.
+                lock (m_lock)
+                {
+                    if (ShutdownOwnsLifecycleLocked() || transaction.AbortedByShutdown)
+                    {
+                        return;
+                    }
+                }
+
+                await OpenHostsAsync(live, transaction.Token).ConfigureAwait(false);
+            }
+            catch (Exception reopenError)
+            {
+                bool abortedByShutdown;
+                lock (m_lock)
+                {
+                    abortedByShutdown = ShutdownOwnsLifecycleLocked() ||
+                        transaction.AbortedByShutdown;
+                }
+                if (abortedByShutdown)
+                {
+                    // A Dispose aborted the reopen mid-open: the live hosts remain
+                    // referenced by m_endpointUrls and are closed by OpenHostsAsync
+                    // on cancellation, so the disposal teardown disposes them. Do
+                    // not fault; leave the disposal to finalize the lifecycle.
+                    return;
+                }
+                // The reopen failed, so the manager faults with no listeners.
+                // Dispose the discarded configured hosts for good BEFORE clearing
+                // the references so no recreated listener leaks; reused manual
+                // endpoint hosts are only closed here so their persistent
+                // ownership survives for a later restart (a manual host whose
+                // listener was destroyed by this failed reopen is recreated on
+                // the next start via ReuseOrRecreateManualHostAsync).
+                await CloseAndDisposeOwnedHostsAsync(live, CancellationToken.None)
+                    .ConfigureAwait(false);
+                lock (m_lock)
+                {
+                    // Re-check ownership: a dispose may have taken over while the
+                    // reopen was failing. Never overwrite the disposal state.
+                    if (ShutdownOwnsLifecycleLocked())
+                    {
+                        return;
+                    }
                     m_endpointUrls = [];
                     m_state = ReverseConnectManagerState.Faulted;
                     m_lifecycleVersion++;
@@ -2948,10 +4227,46 @@ namespace Opc.Ua.Client
                 m_logger.ReverseConnectServiceRestoreFailed(reopenError);
                 return;
             }
+            finally
+            {
+                lock (m_lock)
+                {
+                    if (ReferenceEquals(m_activeTransaction, transaction))
+                    {
+                        m_activeTransaction = null;
+                    }
+                }
+                transaction.Dispose();
+            }
+            (ApplicationConfiguration Config, int Generation)? requeueReload;
             lock (m_lock)
             {
+                // Final ownership re-check before committing Started: a dispose
+                // that latched while the reopen ran must win.
+                if (ShutdownOwnsLifecycleLocked() || transaction.AbortedByShutdown)
+                {
+                    return;
+                }
                 m_state = ReverseConnectManagerState.Started;
                 m_lifecycleVersion++;
+                // The stop bumped the lifecycle version (twice, counting this
+                // restore) so an in-flight or pending watcher reload racing this
+                // rolled-back stop would observe a superseded version in
+                // ActivateAsync and be dropped even though the manager is back
+                // to Started. Capture that reload candidate so it can be
+                // re-queued below against the restored version and the file
+                // change is eventually applied.
+                requeueReload = CaptureReloadCandidateLocked();
+            }
+            if (requeueReload != null)
+            {
+                // Re-queue outside the state lock. RunReloadLoopAsync coalesces
+                // this against the still-in-flight reload (latest-wins), so the
+                // dropped candidate is re-driven against the restored Started
+                // state rather than lost.
+                _ = ReloadConfigurationAsync(
+                    requeueReload.Value.Config,
+                    requeueReload.Value.Generation);
             }
         }
 
@@ -3004,12 +4319,30 @@ namespace Opc.Ua.Client
         /// once. Every caller (sync or async, first or subsequent) awaits the
         /// same task and therefore the complete teardown.
         /// </summary>
-        private Task GetOrStartDisposeTask()
+        /// <param name="reentrantFromStartup">
+        /// Set to <c>true</c> when the caller is running inside this manager's
+        /// own in-flight startup flow (a configuration provider/factory or
+        /// legacy update hook). The caller must NOT await the returned task in
+        /// that case: the teardown drains the current start task, so awaiting
+        /// it from the start's own flow would deadlock. The dispose is still
+        /// requested and scheduled here; it completes once the start unwinds.
+        /// </param>
+        private Task GetOrStartDisposeTask(out bool reentrantFromStartup)
         {
+            // Capture whether this call originates from within an in-flight
+            // startup flow BEFORE any state work so the caller can fail fast
+            // instead of awaiting the shared teardown (which would deadlock on
+            // the current start task this dispose is about to drain). Only an
+            // active scope counts as re-entry; a deferred child task whose
+            // originating startup flow already completed is not treated as one.
+            reentrantFromStartup = m_activeStartupOwner.Value?.Active == true;
             TaskCompletionSource<bool>? owner = null;
             CancellationTokenSource? pendingStart = null;
             Task? pendingStartTask = null;
+            CancellationTokenSource? explicitStart = null;
             ActiveTransaction? activeTransaction = null;
+            ReloadRequest? supersededReload = null;
+            CancellationTokenSource? supersededReloadCts = null;
             Task task;
             lock (m_lock)
             {
@@ -3020,6 +4353,20 @@ namespace Opc.Ua.Client
                     m_disposed = 1;
                     m_state = ReverseConnectManagerState.Disposing;
                     m_lifecycleVersion++;
+                    // A dispose supersedes every queued reload: advance the
+                    // teardown epoch so the drain rejects any reload queued
+                    // before this dispose, and detach the newest pending request
+                    // so it is completed deterministically below instead of
+                    // reopening a listener during/after teardown.
+                    m_teardownEpoch++;
+                    supersededReload = m_pendingReload;
+                    m_pendingReload = null;
+                    // Detach the in-flight reload drain loop from the prior
+                    // epoch and cancel its manager-owned source (below) so a
+                    // cooperative reload provider/activation exits; a
+                    // noncooperative stale reload's completion is discarded by
+                    // the loop's epoch guard and never restarts the drain.
+                    supersededReloadCts = DetachActiveReloadLocked();
                     // Latch the shutdown permanently BEFORE the transaction
                     // lookup below so an activation that already holds the gate
                     // (its ActiveTransaction not yet published) aborts without
@@ -3035,6 +4382,12 @@ namespace Opc.Ua.Client
                     pendingStartTask = m_startTask;
                     m_startCts = null;
                     m_startTask = null;
+                    // Capture an in-flight explicit StartServiceAsync so its
+                    // token is cancelled below (a cooperative provider then
+                    // observes cancellation and exits, and the start unwinds).
+                    // The explicit start owns and disposes its own token source,
+                    // so it is only cancelled - never disposed - here.
+                    explicitStart = m_activeStartCts;
                     m_currentStartTask = null;
                     // Abort an in-flight activation blocked inside a listener
                     // OpenAsync so DisposeTeardownAsync can acquire the gate and
@@ -3055,7 +4408,19 @@ namespace Opc.Ua.Client
                 catch (ObjectDisposedException)
                 {
                 }
+                try
+                {
+                    explicitStart?.Cancel();
+                }
+                catch (ObjectDisposedException)
+                {
+                }
                 activeTransaction?.AbortForShutdown();
+                CancelDetachedReload(supersededReloadCts);
+                if (supersededReload != null)
+                {
+                    RejectSupersededReload(supersededReload);
+                }
                 _ = RunDisposeAsync(owner, pendingStart, pendingStartTask);
             }
             return task;
@@ -3065,7 +4430,10 @@ namespace Opc.Ua.Client
         /// Runs the one-shot teardown and completes the shared signal. Drains
         /// a superseded lazy start (which may still be using the manager-owned
         /// token) and disposes its token source before the complete teardown,
-        /// so no provider/activation ever registers on a disposed token.
+        /// so no provider/activation ever registers on a disposed token. A
+        /// superseded explicit start is cancelled (in
+        /// <see cref="GetOrStartDisposeTask"/>) and owns/disposes its own token
+        /// source, so it is not drained here.
         /// </summary>
         private async Task RunDisposeAsync(
             TaskCompletionSource<bool> owner,
@@ -3127,6 +4495,14 @@ namespace Opc.Ua.Client
                     m_endpointUrls = [];
                     m_manualEndpoints = [];
                 }
+
+                // Cancel any held OnConnectionWaitingAsync callbacks and wait for
+                // every in-flight callback to finish before disposing the
+                // listeners, so no callback is still holding a transport when the
+                // terminal DisposeAllHostsAsync tears the channels down. The drain
+                // is one-way here (the manager is terminal), so the reject-new
+                // signal is left set: any late callback rejects, which is correct.
+                await DrainConnectionCallbacksAsync().ConfigureAwait(false);
 
                 // Final ownership teardown: dispose every listener, both the
                 // configured (live) hosts and the reused manual endpoint hosts
@@ -3193,7 +4569,11 @@ namespace Opc.Ua.Client
             ValidateEndpointUrl(endpointUrl);
 
             var reverseConnectHost = new ReverseConnectHost(m_telemetry, TransportBindings);
-            var info = new ReverseConnectInfo(endpointUrl, reverseConnectHost, configEntry);
+            var info = new ReverseConnectInfo(
+                endpointUrl,
+                reverseConnectHost,
+                configEntry,
+                configEntry ? null : appConfig);
             try
             {
                 // Listener bindings that terminate TLS (WSS) need a server
@@ -3264,53 +4644,81 @@ namespace Opc.Ua.Client
         /// </summary>
         private async Task OnConnectionWaitingAsync(object sender, ConnectionWaitingEventArgs e)
         {
-            long startTimestamp = m_timeProvider.GetTimestamp();
-            var holdTime = TimeSpan.FromMilliseconds(m_configuration?.HoldTime ?? 15000);
-
-            bool matched = MatchRegistration(sender, e);
-            while (!matched)
+            // Register this callback so a concurrent Stop/Dispose waits for it to
+            // finish (releasing or handing off the transport) before the terminal
+            // listener close/dispose tears the channels down. If a shutdown is
+            // already draining callbacks, do not hold the transport: return with
+            // the connection unaccepted so the listener reclaims/closes it.
+            if (!TryEnterConnectionCallback())
             {
-                m_logger.HoldingReverseConnectionServerUriEndpointUrl(
-                    e.ServerUri,
-                    e.EndpointUrl);
-                CancellationToken ct;
-                lock (m_registrationsLock)
-                {
-                    ct = m_cts.Token;
-                }
-                TimeSpan delay = holdTime - m_timeProvider.GetElapsedTime(startTimestamp);
-                if (delay > TimeSpan.Zero)
-                {
-                    await m_timeProvider.Delay(delay, ct)
-                        .ContinueWith(tsk =>
-                        {
-                            if (tsk.IsCanceled)
-                            {
-                                matched = MatchRegistration(sender, e);
-                                if (matched && m_logger.IsEnabled(LogLevel.Information))
-                                {
-                                    m_logger.MatchedReverseConnectionServerUriEndpointUrlAfter(
-                                        e.ServerUri,
-                                        e.EndpointUrl,
-                                        (long)m_timeProvider.GetElapsedTime(startTimestamp).TotalMilliseconds);
-                                }
-                            }
-                        },
-                        default,
-                        TaskContinuationOptions.None,
-                        TaskScheduler.Default)
-                        .ConfigureAwait(false);
-                }
-                break;
+                return;
             }
-
-            if (m_logger.IsEnabled(LogLevel.Information))
+            // Publish the per-flow callback marker so a Stop/Dispose re-entered
+            // directly by the user callback below fails fast rather than
+            // deadlocking on its own drain. Cleared in the finally, which also
+            // deactivates the scope so a child task deferred past this callback
+            // (e.g. a user-callback-spawned Task.Run) that captured the scope
+            // reference is not falsely rejected as a re-entry.
+            OperationScope? previousCallbackOwner = m_activeCallbackOwner.Value;
+            var callbackScope = new OperationScope(
+                Interlocked.Increment(ref m_operationScopeGeneration));
+            m_activeCallbackOwner.Value = callbackScope;
+            try
             {
-                m_logger.ActionReverseConnectionServerUriEndpointUrlAfter(
-                    e.Accepted ? "Accepted" : "Rejected",
-                    e.ServerUri,
-                    e.EndpointUrl,
-                    (long)m_timeProvider.GetElapsedTime(startTimestamp).TotalMilliseconds);
+                long startTimestamp = m_timeProvider.GetTimestamp();
+                var holdTime = TimeSpan.FromMilliseconds(m_configuration?.HoldTime ?? 15000);
+
+                bool matched = MatchRegistration(sender, e);
+                while (!matched)
+                {
+                    m_logger.HoldingReverseConnectionServerUriEndpointUrl(
+                        e.ServerUri,
+                        e.EndpointUrl);
+                    CancellationToken ct;
+                    lock (m_registrationsLock)
+                    {
+                        ct = m_cts.Token;
+                    }
+                    TimeSpan delay = holdTime - m_timeProvider.GetElapsedTime(startTimestamp);
+                    if (delay > TimeSpan.Zero)
+                    {
+                        await m_timeProvider.Delay(delay, ct)
+                            .ContinueWith(tsk =>
+                            {
+                                if (tsk.IsCanceled)
+                                {
+                                    matched = MatchRegistration(sender, e);
+                                    if (matched && m_logger.IsEnabled(LogLevel.Information))
+                                    {
+                                        m_logger.MatchedReverseConnectionServerUriEndpointUrlAfter(
+                                            e.ServerUri,
+                                            e.EndpointUrl,
+                                            (long)m_timeProvider.GetElapsedTime(startTimestamp).TotalMilliseconds);
+                                    }
+                                }
+                            },
+                            default,
+                            TaskContinuationOptions.None,
+                            TaskScheduler.Default)
+                            .ConfigureAwait(false);
+                    }
+                    break;
+                }
+
+                if (m_logger.IsEnabled(LogLevel.Information))
+                {
+                    m_logger.ActionReverseConnectionServerUriEndpointUrlAfter(
+                        e.Accepted ? "Accepted" : "Rejected",
+                        e.ServerUri,
+                        e.EndpointUrl,
+                        (long)m_timeProvider.GetElapsedTime(startTimestamp).TotalMilliseconds);
+                }
+            }
+            finally
+            {
+                callbackScope.Active = false;
+                m_activeCallbackOwner.Value = previousCallbackOwner;
+                ExitConnectionCallback();
             }
         }
 
@@ -3325,58 +4733,101 @@ namespace Opc.Ua.Client
             bool found = false;
             lock (m_registrationsLock)
             {
-                // first try to match single registrations
-                foreach (Registration registration in m_registrations
-                    .Where(r => (r.ReverseConnectStrategy & ReverseConnectStrategy.Any) == 0))
+                // Build the ordered candidate list: exact/server-uri single
+                // matches first, then Any-strategy matches. Materialized so a
+                // claimed or dead registration can be removed without mutating a
+                // live enumeration.
+                var candidates = new List<Registration>();
+                foreach (Registration registration in m_registrations)
                 {
-                    if (registration.EndpointUrl.Scheme
-                        .Equals(e.EndpointUrl.Scheme, StringComparison.Ordinal) &&
-                        (registration.ServerUri?
-                            .Equals(e.ServerUri, StringComparison.Ordinal) == true ||
-                            registration.EndpointUrl.Authority.Equals(e.EndpointUrl.Authority,
-                                StringComparison.OrdinalIgnoreCase)))
+                    if ((registration.ReverseConnectStrategy & ReverseConnectStrategy.Any) == 0 &&
+                        MatchesSingle(registration, e))
                     {
-                        callbackRegistration = registration;
+                        candidates.Add(registration);
+                    }
+                }
+                foreach (Registration registration in m_registrations)
+                {
+                    if ((registration.ReverseConnectStrategy & ReverseConnectStrategy.Any) != 0 &&
+                        registration.EndpointUrl.Scheme
+                            .Equals(e.EndpointUrl.Scheme, StringComparison.Ordinal))
+                    {
+                        candidates.Add(registration);
+                    }
+                }
+
+                foreach (Registration registration in candidates)
+                {
+                    bool isAny =
+                        (registration.ReverseConnectStrategy & ReverseConnectStrategy.Any) != 0;
+                    if (registration.Wait != null)
+                    {
+                        // Tracked WaitForConnectionAsync: claim the transport by
+                        // completing the waiter UNDER the lock. Only accept the
+                        // event and keep it if the claim wins the race against a
+                        // committed Stop/Dispose that may have faulted the same
+                        // source; otherwise leave e.Accepted false so the
+                        // listener reclaims/closes the transport. Either way the
+                        // now-terminal source and its registration are removed
+                        // from tracking.
+                        bool claimed = registration.Wait.TrySetResult(e);
+                        m_registrations.Remove(registration);
+                        m_activeWaits.Remove(registration.Wait);
+                        if (!claimed)
+                        {
+                            // The waiter was already claimed by a shutdown; keep
+                            // searching for another live registration.
+                            continue;
+                        }
                         e.Accepted = true;
                         found = true;
-                        m_logger.AcceptedReverseConnectionServerUriEndpointUrl(
-                            e.ServerUri,
-                            e.EndpointUrl);
+                        LogAccepted(isAny, e);
                         break;
                     }
-                }
 
-                // now try any registrations.
-                if (callbackRegistration == null)
-                {
-                    foreach (Registration registration in m_registrations.Where(r =>
-                            (r.ReverseConnectStrategy & ReverseConnectStrategy.Any) != 0))
+                    // External callback registration: accept under the lock and
+                    // invoke the user callback outside it (unchanged semantics).
+                    callbackRegistration = registration;
+                    e.Accepted = true;
+                    found = true;
+                    LogAccepted(isAny, e);
+                    if ((registration.ReverseConnectStrategy & ReverseConnectStrategy.Once) != 0)
                     {
-                        if (registration.EndpointUrl.Scheme
-                            .Equals(e.EndpointUrl.Scheme, StringComparison.Ordinal))
-                        {
-                            callbackRegistration = registration;
-                            e.Accepted = true;
-                            found = true;
-                            m_logger.AcceptAnyReverseConnectionApprovalServerUri(
-                                e.ServerUri,
-                                e.EndpointUrl);
-                            break;
-                        }
+                        m_registrations.Remove(registration);
                     }
-                }
-
-                if (callbackRegistration != null &&
-                    (callbackRegistration.ReverseConnectStrategy &
-                        ReverseConnectStrategy.Once) != 0)
-                {
-                    m_registrations.Remove(callbackRegistration);
+                    break;
                 }
             }
 
             callbackRegistration?.OnConnectionWaiting?.Invoke(sender, e);
 
             return found;
+
+            static bool MatchesSingle(Registration registration, ConnectionWaitingEventArgs args)
+            {
+                return registration.EndpointUrl.Scheme
+                        .Equals(args.EndpointUrl.Scheme, StringComparison.Ordinal) &&
+                    (registration.ServerUri?
+                        .Equals(args.ServerUri, StringComparison.Ordinal) == true ||
+                        registration.EndpointUrl.Authority.Equals(args.EndpointUrl.Authority,
+                            StringComparison.OrdinalIgnoreCase));
+            }
+
+            void LogAccepted(bool isAny, ConnectionWaitingEventArgs args)
+            {
+                if (isAny)
+                {
+                    m_logger.AcceptAnyReverseConnectionApprovalServerUri(
+                        args.ServerUri,
+                        args.EndpointUrl);
+                }
+                else
+                {
+                    m_logger.AcceptedReverseConnectionServerUriEndpointUrl(
+                        args.ServerUri,
+                        args.EndpointUrl);
+                }
+            }
         }
 
         /// <summary>
@@ -3388,6 +4839,130 @@ namespace Opc.Ua.Client
                 e.EndpointUrl,
                 e.ChannelStatus,
                 e.Closed);
+        }
+
+        /// <summary>
+        /// Registers entry into an <see cref="OnConnectionWaitingAsync"/>
+        /// callback so a concurrent Stop/Dispose can wait for every in-flight
+        /// callback that may still be holding a transport to complete before the
+        /// terminal listener close/dispose tears the channels down. Returns
+        /// <c>false</c> when a shutdown drain is already in progress: the caller
+        /// must then not hold the transport and should return immediately,
+        /// leaving the connection unaccepted so the listener reclaims/closes it.
+        /// </summary>
+        private bool TryEnterConnectionCallback()
+        {
+            lock (m_callbackLock)
+            {
+                if (m_callbacksDrainedSignal != null)
+                {
+                    return false;
+                }
+                m_activeCallbacks++;
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Registers exit from an <see cref="OnConnectionWaitingAsync"/> callback
+        /// and completes the shutdown drain signal once the last in-flight
+        /// callback has finished.
+        /// </summary>
+        private void ExitConnectionCallback()
+        {
+            TaskCompletionSource<bool>? drained = null;
+            lock (m_callbackLock)
+            {
+                if (--m_activeCallbacks == 0)
+                {
+                    drained = m_callbacksDrainedSignal;
+                }
+            }
+            drained?.TrySetResult(true);
+        }
+
+        /// <summary>
+        /// Cancels the registration token so held <see cref="OnConnectionWaitingAsync"/>
+        /// callbacks unblock promptly instead of waiting the full hold time, and
+        /// returns a task that completes once every in-flight callback has
+        /// finished. Called by a committed Stop/Dispose BEFORE the terminal
+        /// listener close so no callback is still holding a transport when the
+        /// channels are torn down. While the returned signal is pending, new
+        /// callbacks reject immediately (<see cref="TryEnterConnectionCallback"/>
+        /// returns <c>false</c>).
+        /// </summary>
+        /// <param name="ct">
+        /// A cancellation token honored while awaiting the drain. A cancellable
+        /// Stop that carries a caller/host deadline passes its token so a blocked
+        /// external callback that ignores the cancelled hold token cannot pin the
+        /// stop past its deadline: the await throws
+        /// <see cref="OperationCanceledException"/> and the caller restores a
+        /// coherent Started state. A dispose or a transactional activation drain
+        /// passes <see cref="CancellationToken.None"/> (the default) and always
+        /// waits the drain to completion so no callback outlives the terminal
+        /// listener close.
+        /// </param>
+        private Task<bool> DrainConnectionCallbacksAsync(CancellationToken ct = default)
+        {
+            TaskCompletionSource<bool> signal;
+            lock (m_callbackLock)
+            {
+                signal = m_callbacksDrainedSignal ??= new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                if (m_activeCallbacks == 0)
+                {
+                    signal.TrySetResult(true);
+                }
+            }
+            // Cancel the held-transport delays outside the callback lock so a
+            // callback that (re)takes the registrations lock never contends with
+            // this. Do not renew here: a committed stop renews via
+            // ClearWaitingConnections, a rolled-back stop and a restart renew via
+            // EndCallbackDrain, and disposal disposes the source in teardown.
+            lock (m_registrationsLock)
+            {
+                try
+                {
+                    m_cts.Cancel();
+                }
+                catch (ObjectDisposedException)
+                {
+                }
+            }
+            // A non-cancellable drain (dispose or a transactional activation)
+            // waits unconditionally so the terminal close never races an
+            // in-flight callback. A cancellable drain honors the caller token so
+            // a still-held external callback cannot block the stop past its
+            // deadline.
+            return ct.CanBeCanceled
+                ? signal.Task.WaitAsync(ct)
+                : signal.Task;
+        }
+
+        /// <summary>
+        /// Ends a shutdown drain started by <see cref="DrainConnectionCallbacksAsync"/>
+        /// so a rolled-back or restarted manager accepts new callbacks again, and
+        /// renews the drain-cancelled registration token so held callbacks can
+        /// hold once more. A committed stop already renews the token via
+        /// <see cref="ClearWaitingConnections"/>; renewing an uncancelled source
+        /// is skipped. Disposal disposes the source in teardown, so a disposed
+        /// manager never renews here.
+        /// </summary>
+        private void EndCallbackDrain()
+        {
+            lock (m_callbackLock)
+            {
+                m_callbacksDrainedSignal = null;
+            }
+            lock (m_registrationsLock)
+            {
+                if (Volatile.Read(ref m_disposed) == 0 && m_cts.IsCancellationRequested)
+                {
+                    CancellationTokenSource cts = m_cts;
+                    m_cts = new CancellationTokenSource();
+                    cts.Dispose();
+                }
+            }
         }
 
         /// <summary>
@@ -3476,6 +5051,45 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Whether a <see cref="DisposeAsync"/> or a non-cancellable
+        /// <see cref="StopServiceAsync"/> (or another shutdown that owns the
+        /// lifecycle) has begun while an activation rollback or a cancellable
+        /// stop still holds the lifecycle gate. Must be called while holding
+        /// <see cref="m_lock"/>. A rolled-back activation/stop consults this
+        /// before reopening listeners or writing
+        /// <see cref="ReverseConnectManagerState.Started"/> so it never
+        /// resurrects a manager that is being disposed, nor reopens listeners a
+        /// queued non-cancellable stop (which set the shutdown latch before its
+        /// gate wait) is about to tear down. Both the stop latch
+        /// (<see cref="s_stopLatch"/>) and the dispose latch
+        /// (<see cref="s_disposeLatch"/>) are recognized, so any owned shutdown
+        /// supersedes the rollback.
+        /// </summary>
+        private bool ShutdownOwnsLifecycleLocked()
+        {
+            return Volatile.Read(ref m_disposed) != 0 ||
+                m_state is ReverseConnectManagerState.Disposing
+                    or ReverseConnectManagerState.Disposed ||
+                m_shutdownLatchOwner != null;
+        }
+
+        /// <summary>
+        /// Captures the newest in-flight or pending watcher reload candidate so
+        /// a rolled-back stop can re-queue it against the restored lifecycle
+        /// version. Must be called while holding <see cref="m_lock"/>. Returns
+        /// <c>null</c> when no reload is in flight or pending.
+        /// </summary>
+        private (ApplicationConfiguration Config, int Generation)? CaptureReloadCandidateLocked()
+        {
+            ReloadRequest? candidate = m_pendingReload ?? m_inFlightReload;
+            if (candidate == null)
+            {
+                return null;
+            }
+            return (candidate.Configuration, candidate.WatcherGeneration);
+        }
+
+        /// <summary>
         /// Whether an in-flight activation has been superseded by a shutdown
         /// (<c>StopServiceAsync</c>/<c>DisposeAsync</c>) rather than by a
         /// caller/provider cancellation. Must be called while holding
@@ -3511,6 +5125,19 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Awaits the failed-start finalization test seam if one is installed.
+        /// A no-op in production (the hook is always <c>null</c>); tests use it
+        /// to hold a start between <see cref="FaultIfOwned"/> and the mapped
+        /// throw so the tracked task stays incomplete while the state is
+        /// already Faulted.
+        /// </summary>
+        private Task InvokeStartFailureFinalizationHookForTestAsync()
+        {
+            Func<Task>? hook = StartFailureFinalizationHookForTest;
+            return hook == null ? Task.CompletedTask : hook();
+        }
+
+        /// <summary>
         /// Maps a lifecycle failure to the historical
         /// <see cref="ServiceResultException"/> shape.
         /// </summary>
@@ -3537,6 +5164,42 @@ namespace Opc.Ua.Client
             {
                 throw new ObjectDisposedException(nameof(ReverseConnectManager));
             }
+        }
+
+        /// <summary>
+        /// Fails fast when a stop or dispose is re-entered directly by this
+        /// manager's own in-flight connection-waiting callback (or a
+        /// synchronous wait on such a call). The teardown drains in-flight
+        /// callbacks, so awaiting it from within the very callback it is waiting
+        /// for would deadlock. A normal external Stop/Dispose issued from a
+        /// different async flow never observes the per-flow marker and still
+        /// drains callbacks. A child task deferred past the callback whose
+        /// originating callback flow already completed observes an inactive
+        /// scope and is not rejected. The manager is left fully coherent so it
+        /// can be stopped or disposed externally afterwards.
+        /// </summary>
+        /// <param name="disposing">
+        /// <c>true</c> for a Dispose/DisposeAsync call (surfaces
+        /// <see cref="InvalidOperationException"/>); <c>false</c> for a
+        /// StopServiceAsync call (surfaces <see cref="ServiceResultException"/>
+        /// with <see cref="StatusCodes.BadInvalidState"/>).
+        /// </param>
+        private void ThrowIfInvokedFromConnectionCallback(bool disposing)
+        {
+            if (m_activeCallbackOwner.Value?.Active != true)
+            {
+                return;
+            }
+            if (disposing)
+            {
+                throw new InvalidOperationException(
+                    "The reverse connect manager cannot be disposed from within " +
+                    "its own connection-waiting callback.");
+            }
+            throw new ServiceResultException(
+                StatusCodes.BadInvalidState,
+                "The reverse connect manager cannot be stopped from within its " +
+                "own connection-waiting callback.");
         }
 
         /// <summary>
@@ -3574,6 +5237,14 @@ namespace Opc.Ua.Client
         private Dictionary<Uri, ReverseConnectInfo> m_manualEndpoints;
         private ReverseConnectManagerState m_state;
         private long m_lifecycleVersion;
+        // Monotonic counter advanced only by a committed Stop or a Dispose
+        // (never by a reload commit, which only advances m_lifecycleVersion).
+        // Each queued ReloadRequest captures it at enqueue time; the reload
+        // drain rejects a request whose captured epoch no longer matches so a
+        // reload queued before a shutdown never reopens a listener, while an
+        // overlapping reload queued in the same epoch is still applied
+        // (latest-wins). Guarded by m_lock.
+        private long m_teardownEpoch;
         private readonly AsyncLocal<LegacyCaptureContext?> m_legacyCapture = new();
         // Operation-owner marker for this manager's in-flight startup pipeline.
         // Set (per async flow) around preparation/provider callbacks so a
@@ -3581,7 +5252,7 @@ namespace Opc.Ua.Client
         // a provider or legacy hook fails fast instead of awaiting this start's
         // own shared task. Per-instance, so nested unrelated manager instances
         // (whose marker is unset) still start normally.
-        private readonly AsyncLocal<object?> m_activeStartupOwner = new();
+        private readonly AsyncLocal<OperationScope?> m_activeStartupOwner = new();
         private Task? m_startTask;
         private CancellationTokenSource? m_startCts;
         // Manager-owned cancellation for an in-flight explicit StartServiceAsync,
@@ -3605,6 +5276,35 @@ namespace Opc.Ua.Client
         // Starting) awaits its completion instead of returning premature
         // success. Cleared when the reload completes. Guarded by m_lock.
         private Task? m_activeReloadTask;
+        // Manager-owned cancellation for the in-flight reload drain loop.
+        // Created together with the loop and cancelled by a committed
+        // Stop/Dispose so a cooperative provider/activation running under a
+        // reload observes cancellation and exits. Owned (and disposed) by the
+        // reload loop that created it; a shutdown only ever cancels it (guarded
+        // against ObjectDisposedException). Guarded by m_lock.
+        [SuppressMessage("Reliability", "CA2213:Disposable fields should be disposed",
+            Justification = "Owned and disposed by the RunReloadLoopAsync instance that created it " +
+            "(single owner) in its finally; a committed Stop/Dispose only cancels it.")]
+        private CancellationTokenSource? m_activeReloadCts;
+        // The teardown epoch under which the current reload drain loop was
+        // created. A committed Stop/Dispose advances m_teardownEpoch and
+        // detaches the loop, so a stale loop from a prior epoch discards its
+        // result and never clobbers a newer loop's state, and a lazy
+        // EnsureStartedAsync never awaits a reload task from a superseded
+        // epoch. Guarded by m_lock.
+        private long m_activeReloadEpoch;
+        // Newest queued reload request (latest-wins). A single serialized loop
+        // (RunReloadLoopAsync) drains it outside the lifecycle gate so
+        // overlapping reloads never run concurrently and an older commit never
+        // invalidates/drops a newer queued reload. Guarded by m_lock.
+        private ReloadRequest? m_pendingReload;
+        // The reload request currently being drained by RunReloadLoopAsync (the
+        // most recently dequeued one). Kept so a rolled-back cancelled stop can
+        // re-queue the reload candidate it stranded by bumping the lifecycle
+        // version. Guarded by m_lock; null while the loop is idle.
+        private ReloadRequest? m_inFlightReload;
+        // True while the reload drain loop is running. Guarded by m_lock.
+        private bool m_reloadLoopActive;
         // True while a StopServiceAsync is actively transitioning the manager
         // down (from the Stopping transition until the stop completes or rolls
         // back). A lazy EnsureStartedAsync observing this rejects deterministically
@@ -3612,10 +5312,20 @@ namespace Opc.Ua.Client
         // by m_lock. A completed stop (state Stopped) clears this and is
         // restartable via a fresh lazy start.
         private bool m_stopInProgress;
-        // Latches a hosted-start cancellation that fires before the shared
-        // start task (and its m_startCts) has been published, so the pending
-        // cancellation is applied atomically when the start is created.
-        private bool m_startCancelRequested;
+        // Generation bookkeeping for a hosted-start cancellation latch. The
+        // hosted service brackets each IHostedService.StartAsync in a hosted
+        // startup scope (BeginHostedStartup/EndHostedStartup) that publishes a
+        // monotonically increasing generation as the active one. A
+        // CancelPendingStart that fires before the shared start task (and its
+        // m_startCts) is published latches the ACTIVE generation so the pending
+        // cancellation is applied atomically only when THAT generation's start
+        // is created. Tying the latch to an active hosted startup generation
+        // means a late/stale cancellation observed while no hosted startup is in
+        // flight (m_activeHostedStartGeneration == 0) can never latch and poison
+        // an unrelated later start. Guarded by m_lock.
+        private long m_hostedStartGeneration;
+        private long m_activeHostedStartGeneration;
+        private long m_startCancelLatchGeneration;
         // Shutdown/supersession latch owner. Set by a non-cancellable
         // StopServiceAsync (s_stopLatch) or a DisposeAsync (s_disposeLatch)
         // BEFORE its transaction lookup/gate wait, and checked by ActivateAsync
@@ -3636,6 +5346,20 @@ namespace Opc.Ua.Client
         private ActiveTransaction? m_activeTransaction;
         private TaskCompletionSource<bool>? m_disposeSignal;
         private ApplicationConfiguration? m_initialConfiguration;
+        private Func<CancellationToken, Task<ApplicationConfiguration>>?
+            m_initialConfigurationFactory;
+        // Captured SourceFilePath of a file-backed initial configuration so a
+        // lazy restart after a stop re-reads it (see
+        // RestartFromInitialSourceFileAsync). Guarded by m_lock.
+        private string? m_initialConfigurationSourceFilePath;
+        // Optional decorator supplied by the DI activator that reapplies the
+        // configured overlay (in particular the ClientReverseConnectOptions
+        // reverse-connect endpoints) onto a configuration reloaded from
+        // SourceFilePath. Reused so a file-backed lazy restart after a stop
+        // preserves the DI overlay instead of losing it to a plain file load.
+        // Guarded by m_lock.
+        private Func<ApplicationConfiguration, ApplicationConfiguration>?
+            m_initialConfigurationDecorator;
         private bool m_initialStartRequested;
         private bool m_initialConfigurationMissing;
         private int m_disposed;
@@ -3651,10 +5375,38 @@ namespace Opc.Ua.Client
             [];
         private CancellationTokenSource m_cts;
 
+        // Tracks in-flight OnConnectionWaitingAsync callbacks so a Stop/Dispose
+        // can cancel their held transport delay and wait for every callback that
+        // may still be holding a transport to finish, reject or reinsert before
+        // the terminal listener close/dispose tears the channels down. Guarded by
+        // m_callbackLock, a distinct lock from m_registrationsLock so a callback
+        // that takes the registrations lock (MatchRegistration) never runs it
+        // while holding this one, and a shutdown draining callbacks never blocks
+        // registration matching. m_callbacksDrainedSignal is non-null only while
+        // a shutdown drain is in progress; while set, new callbacks reject
+        // immediately instead of holding a transport that is about to be torn
+        // down.
+        private readonly Lock m_callbackLock = new();
+        private int m_activeCallbacks;
+        private TaskCompletionSource<bool>? m_callbacksDrainedSignal;
+        // Per-manager marker set (per async flow) around the invocation of a
+        // user connection-waiting callback so a Stop/Dispose/StopServiceAsync
+        // re-entered directly by that callback (or a synchronous wait on such a
+        // call) fails fast instead of letting the teardown wait for the very
+        // callback that triggered it (which would deadlock: the drain never
+        // reaches zero while the callback is blocked on the teardown). Being a
+        // per-instance AsyncLocal, an external Stop/Dispose from a different
+        // async flow never observes the marker and still drains callbacks
+        // normally.
+        private readonly AsyncLocal<OperationScope?> m_activeCallbackOwner = new();
+
         // Distinct sentinels identifying the shutdown-latch owner so a stop only
         // clears a latch it set and a disposal latch is never cleared.
         private static readonly object s_stopLatch = new();
         private static readonly object s_disposeLatch = new();
+        // Monotonic generation source for OperationScope instances, so nested
+        // startup/callback scopes carry a unique identifier for diagnostics.
+        private long m_operationScopeGeneration;
 
         /// <summary>
         /// Deterministic test seam invoked by <see cref="ActivateAsync"/>
@@ -3665,6 +5417,60 @@ namespace Opc.Ua.Client
         /// listener. Always <c>null</c> in production.
         /// </summary>
         internal Func<Task>? GateAcquiredForTest { get; set; }
+
+        /// <summary>
+        /// Deterministic test seam invoked by the failed-start finalization
+        /// path (both the shared initial factory catch in
+        /// <see cref="RunInitialStartAsync"/> and the prepare/activate catch in
+        /// <see cref="StartServiceCoreAsync"/>) AFTER
+        /// <see cref="FaultIfOwned"/> has run but BEFORE the mapped exception is
+        /// thrown (i.e. before the tracked start task actually completes). Lets
+        /// a test hold a start in a state where the lifecycle is already
+        /// Faulted yet the failing task has not yet published its exception, so
+        /// it can prove a concurrent <see cref="EnsureStartedAsync"/> awaits the
+        /// SAME failing task (no premature return, no overlapping retry) and
+        /// only reserves a fresh start once the task completes. Always
+        /// <c>null</c> in production.
+        /// </summary>
+        internal Func<Task>? StartFailureFinalizationHookForTest { get; set; }
+
+        /// <summary>
+        /// Deterministic test seam invoked by <see cref="RestoreAfterFailureAsync"/>
+        /// and <see cref="RestoreStartedAfterCanceledStopAsync"/> after the
+        /// shutdown-only restore transaction is published and BEFORE the pre-open
+        /// shutdown recheck. Lets a test start a concurrent Dispose in that exact
+        /// window and prove the rollback aborts without reopening a listener (the
+        /// disposal-starts-between-rollback-check-and-open scenario). Always
+        /// <c>null</c> in production.
+        /// </summary>
+        internal Func<Task>? RestoreReopenHookForTest { get; set; }
+
+        /// <summary>
+        /// Deterministic test seam invoked by
+        /// the synchronous or asynchronous registration path after any lazy
+        /// <see cref="EnsureStartedAsync"/> call has returned but before the
+        /// registration is inserted. Lets a test drive a concurrent Stop/Dispose
+        /// that commits inside that exact window and prove the registration is
+        /// rejected without leaving an inert waiter behind. Always <c>null</c>
+        /// in production.
+        /// </summary>
+        internal Func<Task>? BeforeRegisterWaitForTest { get; set; }
+
+        /// <summary>
+        /// Deterministic test seam replacing the file load performed by
+        /// <see cref="RestartFromInitialSourceFileAsync"/> for a file-backed
+        /// lazy restart and by <see cref="OnConfigurationChangedAsync"/> for a
+        /// watcher-triggered reload. Receives the captured source file path,
+        /// application type and configuration type and returns the reloaded
+        /// configuration, so a test can exercise the restart/watcher reload
+        /// behavior without a real configuration file. Always <c>null</c> in
+        /// production, where
+        /// <see cref="ApplicationConfiguration.LoadAsync(FileInfo, ApplicationType, Type, ITelemetryContext, CancellationToken)"/>
+        /// is used.
+        /// </summary>
+        internal Func<string, ApplicationType, Type?, CancellationToken,
+            Task<ApplicationConfiguration>>? ConfigurationFileLoaderForTest
+        { get; set; }
     }
 
     /// <summary>
@@ -3764,5 +5570,13 @@ namespace Opc.Ua.Client
             this ILogger logger,
             Exception? exception,
             string filePath);
+
+        [LoggerMessage(EventId = ClientEventIds.ReverseConnectManager + 14, Level = LogLevel.Information,
+            Message = "Reverse connect configuration reload (watcher generation {WatcherGeneration}, " +
+            "lifecycle version {LifecycleVersion}) superseded by a shutdown; not applied.")]
+        public static partial void ReverseConnectConfigurationReloadSuperseded(
+            this ILogger logger,
+            int watcherGeneration,
+            long lifecycleVersion);
     }
 }

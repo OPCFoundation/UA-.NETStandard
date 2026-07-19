@@ -1179,38 +1179,100 @@ namespace Microsoft.Extensions.DependencyInjection
                     return manager;
                 }
 
-                ApplicationConfiguration? configuration = options.Configuration;
-                if (configuration == null)
-                {
-                    // Surface the missing configuration during async start,
-                    // not at resolution.
-                    manager.MarkInitialConfigurationMissing();
-                    return manager;
-                }
-
-                configuration.ClientConfiguration ??= new ClientConfiguration();
-                var clientEndpoints = new ReverseConnectClientEndpoint[
+                // Capture the reverse-connect option values as immutable
+                // snapshots (endpoint URL strings and the hold/wait timeouts) so
+                // ApplyReverseConnectOverlay can rebuild a fresh, independent
+                // ReverseConnectClientConfiguration on every invocation. The
+                // overlay must never share a single mutable configuration
+                // instance across invocations: it is applied to the initial
+                // configuration, re-applied on every file-backed restart and
+                // watcher reload, and passed through an injected provider that
+                // may mutate the applied configuration in place. A shared
+                // instance would let such a provider mutation (or an
+                // accumulation/removal of endpoints) leak into a later
+                // reload/restart. The captured strings/ints are value snapshots
+                // that no later provider run can change.
+                string?[] optionEndpointUrls = new string?[
                     rcOptions.ClientEndpointUrls.Count];
-                for (int i = 0; i < rcOptions.ClientEndpointUrls.Count; i++)
+                for (int i = 0; i < optionEndpointUrls.Length; i++)
                 {
-                    clientEndpoints[i] = new ReverseConnectClientEndpoint
-                    {
-                        EndpointUrl = rcOptions.ClientEndpointUrls[i]
-                    };
+                    optionEndpointUrls[i] = rcOptions.ClientEndpointUrls[i];
                 }
-                configuration.ClientConfiguration.ReverseConnect = new ReverseConnectClientConfiguration
-                {
-                    ClientEndpoints = new ArrayOf<ReverseConnectClientEndpoint>(clientEndpoints),
-                    HoldTime = rcOptions.HoldTimeMs,
-                    WaitTimeout = rcOptions.WaitTimeoutMs
-                };
+                int optionHoldTimeMs = rcOptions.HoldTimeMs;
+                int optionWaitTimeoutMs = rcOptions.WaitTimeoutMs;
 
                 // The option endpoints are configured-candidate endpoints
                 // carried in the application configuration, not persistent
                 // manual entries, so an injected provider can replace or remove
                 // them. Startup is configured even when the option list is
                 // empty so a provider can supply the endpoints instead.
-                manager.ConfigureInitialStartup(configuration);
+                //
+                // A configuration originating from an
+                // IOpcUaApplicationConfigurationProvider must be obtained via
+                // the async GetAsync path: only that path runs validation and
+                // application-instance certificate creation. The
+                // OpcUaClientOptions.Configuration snapshot exposed for a
+                // provider-origin configuration is not validated, so the
+                // provider check wins over the direct snapshot. An explicit
+                // user-supplied Configuration (no provider) is used directly.
+                IOpcUaApplicationConfigurationProvider? configurationProvider =
+                    options.ConfigurationProvider;
+                ApplicationConfiguration? configuration = options.Configuration;
+                ApplicationConfiguration ApplyReverseConnectOverlay(
+                    ApplicationConfiguration cfg)
+                {
+                    // Build a fresh, independent ReverseConnectClientConfiguration
+                    // (new endpoint objects, new ArrayOf, hold/wait timeouts)
+                    // from the immutable captured option snapshots on every call.
+                    // Never reuse a shared instance: a provider that mutates the
+                    // applied configuration in place must not contaminate a later
+                    // reload/restart overlay.
+                    var clientEndpoints = new ReverseConnectClientEndpoint[
+                        optionEndpointUrls.Length];
+                    for (int i = 0; i < clientEndpoints.Length; i++)
+                    {
+                        clientEndpoints[i] = new ReverseConnectClientEndpoint
+                        {
+                            EndpointUrl = optionEndpointUrls[i]
+                        };
+                    }
+                    cfg.ClientConfiguration ??= new ClientConfiguration();
+                    cfg.ClientConfiguration.ReverseConnect =
+                        new ReverseConnectClientConfiguration
+                        {
+                            ClientEndpoints =
+                                new ArrayOf<ReverseConnectClientEndpoint>(clientEndpoints),
+                            HoldTime = optionHoldTimeMs,
+                            WaitTimeout = optionWaitTimeoutMs
+                        };
+                    return cfg;
+                }
+                if (configurationProvider != null)
+                {
+                    manager.ConfigureInitialStartup(async ct =>
+                    {
+                        ApplicationConfiguration provided = await configurationProvider
+                            .GetAsync(ct).ConfigureAwait(false);
+                        return ApplyReverseConnectOverlay(provided);
+                    }, ApplyReverseConnectOverlay);
+                }
+                else if (configuration != null)
+                {
+                    // Reapply the reverse-connect option overlay both to the
+                    // initial configuration AND on every file-backed restart, so
+                    // a stop/restart that re-reads SourceFilePath keeps the DI
+                    // in-memory reverse-connect endpoints instead of losing them
+                    // to a plain file load.
+                    manager.ConfigureInitialStartup(
+                        ApplyReverseConnectOverlay(configuration),
+                        ApplyReverseConnectOverlay);
+                }
+                else
+                {
+                    // Surface the missing configuration during async start,
+                    // not at resolution.
+                    manager.MarkInitialConfigurationMissing();
+                }
                 return manager;
             }
         }
@@ -1271,8 +1333,11 @@ namespace Microsoft.Extensions.DependencyInjection
         private sealed class OpcUaClientOptionsValidator : IValidateOptions<OpcUaClientOptions>
         {
             public OpcUaClientOptionsValidator(
-                IEnumerable<OpcUaApplicationOptions> applicationOptions)
+                IEnumerable<OpcUaApplicationOptions> applicationOptions,
+                IServiceProviderIsService serviceProviderIsService)
             {
+                m_hasConfigurationProvider = serviceProviderIsService.IsService(
+                    typeof(IOpcUaApplicationConfigurationProvider));
                 foreach (OpcUaApplicationOptions _ in applicationOptions)
                 {
                     m_hasApplicationOptions = true;
@@ -1282,7 +1347,9 @@ namespace Microsoft.Extensions.DependencyInjection
 
             public ValidateOptionsResult Validate(string? name, OpcUaClientOptions options)
             {
-                return Validate(options, m_hasApplicationOptions);
+                return Validate(
+                    options,
+                    m_hasApplicationOptions || m_hasConfigurationProvider);
             }
 
             public static ValidateOptionsResult Validate(
@@ -1301,6 +1368,7 @@ namespace Microsoft.Extensions.DependencyInjection
             }
 
             private readonly bool m_hasApplicationOptions;
+            private readonly bool m_hasConfigurationProvider;
         }
     }
 }

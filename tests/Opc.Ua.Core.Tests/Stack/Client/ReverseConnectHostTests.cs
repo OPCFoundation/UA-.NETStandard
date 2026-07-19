@@ -377,5 +377,258 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             listener.Verify(l => l.CloseAsync(It.IsAny<CancellationToken>()), Times.Once);
             listener.Verify(l => l.DisposeAsync(), Times.Once);
         }
+
+        [Test]
+        public async Task GatedOpenSerializesWithDisposeAndTearsDownExactlyOnceAsync()
+        {
+            var openEntered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var openRelease = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var listener = new Mock<ITransportListener>();
+            listener
+                .Setup(l => l.OpenAsync(
+                    It.IsAny<Uri>(),
+                    It.IsAny<TransportListenerSettings>(),
+                    It.IsAny<ITransportListenerCallback>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback(() => openEntered.TrySetResult(true))
+                .Returns(new ValueTask(openRelease.Task));
+            listener
+                .Setup(l => l.CloseAsync(It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask));
+            listener
+                .Setup(l => l.DisposeAsync())
+                .Returns(default(ValueTask));
+            var registry = new Mock<ITransportBindingRegistry>();
+            registry
+                .Setup(r => r.CreateListener("opc.test", m_telemetry))
+                .Returns(listener.Object);
+            var host = new ReverseConnectHost(m_telemetry, registry.Object);
+            host.CreateListener(new Uri("opc.test://localhost:4840"), null!, null!);
+
+            // An open blocks inside the listener while holding the gate.
+            Task open = host.OpenAsync().AsTask();
+            await openEntered.Task.ConfigureAwait(false);
+
+            // Dispose must queue behind the in-flight open: it may not null or
+            // dispose the listener while the open is still resuming.
+            Task dispose = host.DisposeAsync().AsTask();
+            await Task.Delay(50).ConfigureAwait(false);
+            Assert.That(
+                dispose.IsCompleted,
+                Is.False,
+                "DisposeAsync must wait for the in-flight open");
+            listener.Verify(l => l.DisposeAsync(), Times.Never);
+
+            // Releasing the open lets it complete; the dispose then tears the
+            // listener down exactly once.
+            openRelease.SetResult(true);
+            await open.ConfigureAwait(false);
+            await dispose.ConfigureAwait(false);
+
+            listener.Verify(l => l.CloseAsync(It.IsAny<CancellationToken>()), Times.Once);
+            listener.Verify(l => l.DisposeAsync(), Times.Once);
+
+            // A further open after disposal is rejected without resurrecting the
+            // listener.
+            Assert.ThrowsAsync<ObjectDisposedException>(
+                async () => await host.OpenAsync().ConfigureAwait(false));
+        }
+
+        [Test]
+        public async Task TwoConcurrentDisposeDuringGatedOpenShareOneTeardownAsync()
+        {
+            var openEntered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var openRelease = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var listener = new Mock<ITransportListener>();
+            listener
+                .Setup(l => l.OpenAsync(
+                    It.IsAny<Uri>(),
+                    It.IsAny<TransportListenerSettings>(),
+                    It.IsAny<ITransportListenerCallback>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback(() => openEntered.TrySetResult(true))
+                .Returns(new ValueTask(openRelease.Task));
+            listener
+                .Setup(l => l.CloseAsync(It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask));
+            listener
+                .Setup(l => l.DisposeAsync())
+                .Returns(default(ValueTask));
+            var registry = new Mock<ITransportBindingRegistry>();
+            registry
+                .Setup(r => r.CreateListener("opc.test", m_telemetry))
+                .Returns(listener.Object);
+            var host = new ReverseConnectHost(m_telemetry, registry.Object);
+            host.CreateListener(new Uri("opc.test://localhost:4840"), null!, null!);
+
+            // An open blocks inside the listener while holding the gate.
+            Task open = host.OpenAsync().AsTask();
+            await openEntered.Task.ConfigureAwait(false);
+
+            // Two concurrent disposals must both queue behind the in-flight
+            // open: they share one teardown task and neither may complete (nor
+            // touch the listener) while the open is still resuming.
+            Task dispose1 = host.DisposeAsync().AsTask();
+            Task dispose2 = host.DisposeAsync().AsTask();
+            await Task.Delay(50).ConfigureAwait(false);
+            Assert.That(
+                dispose1.IsCompleted,
+                Is.False,
+                "the first DisposeAsync must wait for the in-flight open");
+            Assert.That(
+                dispose2.IsCompleted,
+                Is.False,
+                "the second DisposeAsync must wait for the shared teardown");
+            listener.Verify(l => l.DisposeAsync(), Times.Never);
+
+            // Releasing the open lets it complete; both disposals then observe
+            // the same single teardown and complete together.
+            openRelease.SetResult(true);
+            await open.ConfigureAwait(false);
+            await Task.WhenAll(dispose1, dispose2).ConfigureAwait(false);
+
+            // Exactly one close and one dispose happen despite two callers.
+            listener.Verify(l => l.CloseAsync(It.IsAny<CancellationToken>()), Times.Once);
+            listener.Verify(l => l.DisposeAsync(), Times.Once);
+        }
+
+        [Test]
+        public async Task GatedOpenSerializesWithCloseWhichRunsAfterOpenCompletesAsync()
+        {
+            var openEntered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var openRelease = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var listener = new Mock<ITransportListener>();
+            listener
+                .Setup(l => l.OpenAsync(
+                    It.IsAny<Uri>(),
+                    It.IsAny<TransportListenerSettings>(),
+                    It.IsAny<ITransportListenerCallback>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback(() => openEntered.TrySetResult(true))
+                .Returns(new ValueTask(openRelease.Task));
+            listener
+                .Setup(l => l.CloseAsync(It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask));
+            listener
+                .Setup(l => l.DisposeAsync())
+                .Returns(default(ValueTask));
+            var registry = new Mock<ITransportBindingRegistry>();
+            registry
+                .Setup(r => r.CreateListener("opc.test", m_telemetry))
+                .Returns(listener.Object);
+            var host = new ReverseConnectHost(m_telemetry, registry.Object);
+            host.CreateListener(new Uri("opc.test://localhost:4840"), null!, null!);
+
+            Task open = host.OpenAsync().AsTask();
+            await openEntered.Task.ConfigureAwait(false);
+
+            // Close must queue behind the in-flight open rather than racing it,
+            // so no concurrent double close can occur.
+            Task close = host.CloseAsync().AsTask();
+            await Task.Delay(50).ConfigureAwait(false);
+            Assert.That(
+                close.IsCompleted,
+                Is.False,
+                "CloseAsync must wait for the in-flight open");
+            listener.Verify(l => l.CloseAsync(It.IsAny<CancellationToken>()), Times.Never);
+
+            openRelease.SetResult(true);
+            await open.ConfigureAwait(false);
+            await close.ConfigureAwait(false);
+
+            // A temporary close closes the listener exactly once and leaves it
+            // undisposed (reopenable).
+            listener.Verify(l => l.CloseAsync(It.IsAny<CancellationToken>()), Times.Once);
+            listener.Verify(l => l.DisposeAsync(), Times.Never);
+
+            await host.DisposeAsync().ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task CreateListenerAfterDisposeThrowsAndCreatesNoListenerAsync()
+        {
+            var listener = new Mock<ITransportListener>();
+            listener
+                .Setup(l => l.CloseAsync(It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask));
+            listener
+                .Setup(l => l.DisposeAsync())
+                .Returns(default(ValueTask));
+            var registry = new Mock<ITransportBindingRegistry>();
+            registry
+                .Setup(r => r.CreateListener("opc.test", m_telemetry))
+                .Returns(listener.Object);
+            var host = new ReverseConnectHost(m_telemetry, registry.Object);
+
+            await host.DisposeAsync().ConfigureAwait(false);
+
+            // CreateListener must reject after disposal and never create a
+            // listener that would then be leaked.
+            Assert.Throws<ObjectDisposedException>(
+                () => host.CreateListener(new Uri("opc.test://localhost:4840"), null!, null!));
+            registry.Verify(
+                r => r.CreateListener("opc.test", m_telemetry),
+                Times.Never);
+            Assert.That(host.HasListener, Is.False);
+        }
+
+        [Test]
+        public async Task CreateListenerLosingRaceWithDisposeDisposesCreatedListenerAsync()
+        {
+            var createEntered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            using var releaseCreate = new ManualResetEventSlim(false);
+            var listener = new Mock<ITransportListener>();
+            listener
+                .Setup(l => l.CloseAsync(It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask));
+            listener
+                .Setup(l => l.DisposeAsync())
+                .Returns(default(ValueTask));
+            var registry = new Mock<ITransportBindingRegistry>();
+            registry
+                .Setup(r => r.CreateListener("opc.test", m_telemetry))
+                .Returns(() =>
+                {
+                    // Signal that the creation is in progress (the lifecycle gate
+                    // is held) and block until the test has queued a DisposeAsync
+                    // behind the gate.
+                    createEntered.TrySetResult(true);
+                    releaseCreate.Wait();
+                    return listener.Object;
+                });
+            var host = new ReverseConnectHost(m_telemetry, registry.Object);
+
+            Task create = Task.Run(
+                () => host.CreateListener(new Uri("opc.test://localhost:4840"), null!, null!));
+            await createEntered.Task.ConfigureAwait(false);
+
+            // DisposeAsync claims disposal (sets the disposed flag) then queues
+            // behind the in-flight CreateListener on the shared lifecycle gate.
+            Task dispose = host.DisposeAsync().AsTask();
+            await Task.Delay(50).ConfigureAwait(false);
+            Assert.That(
+                dispose.IsCompleted,
+                Is.False,
+                "DisposeAsync must queue behind the in-flight CreateListener");
+
+            // Let the creation finish: it observes the lost race and rejects,
+            // and the queued DisposeAsync then disposes the created listener.
+            releaseCreate.Set();
+
+            Assert.That(
+                async () => await create.ConfigureAwait(false),
+                Throws.InstanceOf<ObjectDisposedException>());
+            await dispose.ConfigureAwait(false);
+
+            listener.Verify(l => l.DisposeAsync(), Times.Once);
+            Assert.That(host.HasListener, Is.False);
+        }
     }
 }

@@ -58,26 +58,39 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task StartAsync(CancellationToken cancellationToken)
         {
-            // Cancelling the host's startup token must abort the underlying
-            // reverse-connect startup, not merely this awaiter, so link the
-            // token to the manager's pending start.
-            using CancellationTokenRegistration registration =
-                cancellationToken.Register(
-                    static state => ((ReverseConnectManager)state!).CancelPendingStart(),
-                    m_manager);
+            // Open a hosted startup scope for the whole StartAsync so a
+            // CancelPendingStart triggered by this call's cancellation token
+            // latches against a genuinely active hosted startup generation. The
+            // scope is closed in the finally, after which a late/stale
+            // cancellation can no longer latch and poison a later start.
+            long generation = m_manager.BeginHostedStartup();
             try
             {
-                await m_manager.EnsureStartedAsync(cancellationToken).ConfigureAwait(false);
+                // Cancelling the host's startup token must abort the underlying
+                // reverse-connect startup, not merely this awaiter, so link the
+                // token to the manager's pending start.
+                using CancellationTokenRegistration registration =
+                    cancellationToken.Register(
+                        static state => ((ReverseConnectManager)state!).CancelPendingStart(),
+                        m_manager);
+                try
+                {
+                    await m_manager.EnsureStartedAsync(cancellationToken).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    // The awaiter's cancellation can resume inline and dispose the
+                    // registration above before it fires (a LIFO/inline-continuation
+                    // race), so the pending start would otherwise be left running.
+                    // Abort it here too; CancelPendingStart is idempotent, so a
+                    // double invocation with the registration is harmless.
+                    m_manager.CancelPendingStart();
+                    throw;
+                }
             }
-            catch (OperationCanceledException)
+            finally
             {
-                // The awaiter's cancellation can resume inline and dispose the
-                // registration above before it fires (a LIFO/inline-continuation
-                // race), so the pending start would otherwise be left running.
-                // Abort it here too; CancelPendingStart is idempotent, so a
-                // double invocation with the registration is harmless.
-                m_manager.CancelPendingStart();
-                throw;
+                m_manager.EndHostedStartup(generation);
             }
         }
 

@@ -549,9 +549,15 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             Assert.That(manager.CurrentStateForTest, Is.EqualTo("Stopped"));
 
             release.SetResult(true);
-            ServiceResultException superseded = Assert.ThrowsAsync<ServiceResultException>(
-                () => start)!;
-            Assert.That(superseded.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            // A stop now cancels the in-flight explicit start's token, so a
+            // non-cooperative provider's start surfaces the cancellation once it
+            // returns (the post-provider recheck); a start that instead reaches
+            // the gate is superseded with BadInvalidState. Either way it never
+            // binds a listener.
+            Assert.That(
+                async () => await start.ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>()
+                    .Or.InstanceOf<ServiceResultException>());
 
             // The pending start never bound a listener and the candidate was
             // cleaned up (no leaked open listener).
@@ -579,7 +585,14 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             await manager.DisposeAsync().ConfigureAwait(false);
 
             release.SetResult(true);
-            Assert.ThrowsAsync<ObjectDisposedException>(() => start);
+            // A dispose now cancels the in-flight explicit start's token, so a
+            // non-cooperative provider's start surfaces the cancellation once it
+            // returns (the post-provider recheck); a start that instead reaches
+            // the gate is rejected as disposed. Either way it never binds.
+            Assert.That(
+                async () => await start.ConfigureAwait(false),
+                Throws.InstanceOf<ObjectDisposedException>()
+                    .Or.InstanceOf<OperationCanceledException>());
             Assert.That(harness.Listeners.Any(l => l.IsOpen), Is.False);
         }
 
@@ -628,6 +641,234 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 () => secondWait)!;
             Assert.That(firstError.StatusCode, Is.EqualTo(StatusCodes.BadNoCommunication));
             Assert.That(secondError.StatusCode, Is.EqualTo(StatusCodes.BadNoCommunication));
+        }
+
+        [Test]
+        public async Task InitialConfigurationFactoryThrowFaultsAndAllowsRetry()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            var harness = new FakeListenerHarness(Scheme);
+            Uri url = Url(20168);
+            int calls = 0;
+            await using var manager = new ReverseConnectManager(telemetry)
+            {
+                TransportBindings = harness.Registry
+            };
+            manager.ConfigureInitialStartup(_ =>
+            {
+                if (Interlocked.Increment(ref calls) == 1)
+                {
+                    throw new InvalidOperationException("factory boom");
+                }
+                return Task.FromResult(BuildAppConfig(telemetry, url));
+            });
+
+            // The factory throws after ReserveStartLocked reserved the owned
+            // Preparing state, so the failure must be finalized to the
+            // retryable Faulted state (not stranded in Preparing) and mapped to
+            // a ServiceResultException.
+            Assert.ThrowsAsync<ServiceResultException>(
+                () => manager.EnsureStartedAsync());
+            Assert.That(manager.CurrentStateForTest, Is.EqualTo("Faulted"));
+            Assert.That(harness.Listeners.Any(l => l.IsOpen), Is.False);
+
+            // A retry from Faulted re-runs the factory and starts the listener.
+            await manager.EnsureStartedAsync().ConfigureAwait(false);
+
+            Assert.That(manager.CurrentStateForTest, Is.EqualTo("Started"));
+            Assert.That(calls, Is.EqualTo(2));
+            Assert.That(
+                harness.Listeners.Any(l => l.OpenedUrl == url && l.IsOpen),
+                Is.True);
+        }
+
+        [Test]
+        public async Task GatedStartFailureIsSharedByConcurrentEnsureStartedWithoutOverlappingRetry()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            var harness = new FakeListenerHarness(Scheme);
+            Uri url = Url(20172);
+            await using var manager = new ReverseConnectManager(telemetry)
+            {
+                TransportBindings = harness.Registry
+            };
+
+            // The failure-finalization hook holds the failing start AFTER
+            // FaultIfOwned has set Faulted but BEFORE the tracked task publishes
+            // its exception, opening the exact window issue 1 targets.
+            var faultGateEntered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseFault = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            manager.StartFailureFinalizationHookForTest = async () =>
+            {
+                faultGateEntered.TrySetResult(true);
+                await releaseFault.Task.ConfigureAwait(false);
+            };
+
+            int factoryCalls = 0;
+            bool succeedNext = false;
+            manager.ConfigureInitialStartup(async ct =>
+            {
+                int call = Interlocked.Increment(ref factoryCalls);
+                await Task.Yield();
+                if (!succeedNext)
+                {
+                    throw new InvalidOperationException(
+                        "factory boom " + call.ToString(CultureInfo.InvariantCulture));
+                }
+                return BuildAppConfig(telemetry, url);
+            });
+
+            // First start: the factory throws, the state faults, and the task
+            // parks inside the hook without completing.
+            Task first = manager.EnsureStartedAsync();
+            await faultGateEntered.Task.ConfigureAwait(false);
+            Assert.That(manager.CurrentStateForTest, Is.EqualTo("Faulted"));
+
+            // A concurrent EnsureStartedAsync must await the SAME failing task
+            // rather than return prematurely or reserve an overlapping retry.
+            Task concurrent = manager.EnsureStartedAsync();
+            await Task.Delay(100).ConfigureAwait(false);
+            Assert.That(concurrent.IsCompleted, Is.False,
+                "concurrent start must await the in-flight failing task");
+            Assert.That(factoryCalls, Is.EqualTo(1),
+                "no overlapping retry may run while the failing task is incomplete");
+
+            // Release the failure; both awaiters observe the same failure.
+            releaseFault.TrySetResult(true);
+
+            Exception? firstError = null;
+            Exception? concurrentError = null;
+            try
+            {
+                await first.ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                firstError = ex;
+            }
+            try
+            {
+                await concurrent.ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                concurrentError = ex;
+            }
+
+            Assert.That(firstError, Is.InstanceOf<ServiceResultException>());
+            Assert.That(concurrentError, Is.InstanceOf<ServiceResultException>());
+            Assert.That(factoryCalls, Is.EqualTo(1),
+                "the shared failure must not have triggered a second attempt");
+
+            // A fresh retry is only allowed AFTER the failing task completed.
+            manager.StartFailureFinalizationHookForTest = null;
+            succeedNext = true;
+            await manager.EnsureStartedAsync().ConfigureAwait(false);
+
+            Assert.That(manager.CurrentStateForTest, Is.EqualTo("Started"));
+            Assert.That(factoryCalls, Is.EqualTo(2));
+            Assert.That(
+                harness.Listeners.Any(l => l.OpenedUrl == url && l.IsOpen),
+                Is.True);
+        }
+
+        [Test]
+        public async Task DeferredStartupReentryAfterParentCompletesIsNotFalselyRejected()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            var harness = new FakeListenerHarness(Scheme);
+            Uri url = Url(20173);
+            await using var manager = new ReverseConnectManager(telemetry)
+            {
+                TransportBindings = harness.Registry
+            };
+
+            Exception? immediateError = null;
+            var parentStarted = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            Task? deferred = null;
+            manager.ConfigureInitialStartup(async ct =>
+            {
+                // An immediate synchronous re-entry on the owning startup flow
+                // must still fail fast (scope Active == true).
+                try
+                {
+                    await Task.Yield();
+                    await manager.EnsureStartedAsync(ct).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    immediateError = ex;
+                }
+
+                // A child task that captures the startup scope but only runs
+                // AFTER the originating startup flow has returned must observe
+                // the scope as inactive and NOT be falsely rejected.
+                deferred = Task.Run(async () =>
+                {
+                    await parentStarted.Task.ConfigureAwait(false);
+                    await manager.EnsureStartedAsync().ConfigureAwait(false);
+                }, CancellationToken.None);
+
+                return BuildAppConfig(telemetry, url);
+            });
+
+            await manager.EnsureStartedAsync().ConfigureAwait(false);
+            Assert.That(manager.CurrentStateForTest, Is.EqualTo("Started"));
+
+            // Immediate reentry failed fast during startup.
+            Assert.That(immediateError, Is.InstanceOf<ServiceResultException>());
+            Assert.That(
+                ((ServiceResultException)immediateError!).StatusCode,
+                Is.EqualTo(StatusCodes.BadInvalidState));
+
+            // Release the deferred reentry now that the parent flow finished; it
+            // must complete successfully rather than throw a false re-entry.
+            parentStarted.TrySetResult(true);
+            Assert.That(deferred, Is.Not.Null);
+            Assert.That(
+                async () => await deferred!.ConfigureAwait(false),
+                Throws.Nothing);
+            Assert.That(manager.CurrentStateForTest, Is.EqualTo("Started"));
+        }
+
+        [Test]
+        public async Task InitialConfigurationFactoryCancellationFaultsAndAllowsRetry()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            var harness = new FakeListenerHarness(Scheme);
+            Uri url = Url(20169);
+            int calls = 0;
+            await using var manager = new ReverseConnectManager(telemetry)
+            {
+                TransportBindings = harness.Registry
+            };
+            manager.ConfigureInitialStartup(_ =>
+            {
+                if (Interlocked.Increment(ref calls) == 1)
+                {
+                    throw new OperationCanceledException();
+                }
+                return Task.FromResult(BuildAppConfig(telemetry, url));
+            });
+
+            // A factory cancellation after ReserveStartLocked must finalize the
+            // owned Preparing state to Faulted so a later start can retry; the
+            // OperationCanceledException is surfaced unmapped.
+            Assert.ThrowsAsync<OperationCanceledException>(
+                () => manager.EnsureStartedAsync());
+            Assert.That(manager.CurrentStateForTest, Is.EqualTo("Faulted"));
+            Assert.That(harness.Listeners.Any(l => l.IsOpen), Is.False);
+
+            await manager.EnsureStartedAsync().ConfigureAwait(false);
+
+            Assert.That(manager.CurrentStateForTest, Is.EqualTo("Started"));
+            Assert.That(calls, Is.EqualTo(2));
+            Assert.That(
+                harness.Listeners.Any(l => l.OpenedUrl == url && l.IsOpen),
+                Is.True);
         }
 
         [Test]
@@ -1268,6 +1509,47 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 harness.Listeners.Any(l => l.OpenedUrl == url && l.IsOpen),
                 Is.True,
                 "the configured listener must be opened by the sync registration");
+        }
+
+        [Test]
+        public async Task SyncRegisterWaitingConnectionStopAfterStartRejectsWithoutInertRegistration()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            var harness = new FakeListenerHarness(Scheme);
+            Uri url = Url(20321);
+            await using var manager = new ReverseConnectManager(telemetry)
+            {
+                TransportBindings = harness.Registry
+            };
+            manager.ConfigureInitialStartup(BuildAppConfig(telemetry, url));
+
+            var reachedWindow = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            manager.BeforeRegisterWaitForTest = async () =>
+            {
+                reachedWindow.TrySetResult(true);
+                await release.Task.ConfigureAwait(false);
+            };
+
+            Task<int> register = Task.Run(() => manager.RegisterWaitingConnection(
+                url,
+                null,
+                (sender, e) => { },
+                ReverseConnectManager.ReverseConnectStrategy.Once));
+            await reachedWindow.Task.ConfigureAwait(false);
+
+            await manager.StopServiceAsync().ConfigureAwait(false);
+            release.SetResult(true);
+
+            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+                () => register)!;
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(
+                manager.WaitingConnectionCountForTest,
+                Is.Zero,
+                "no inert synchronous registration must survive a committed stop");
         }
 
         [Test]
@@ -2076,6 +2358,1032 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         }
 
         [Test]
+        public async Task InitialConfigurationFactoryReentrantEnsureStartedFailsFastWithoutDeadlock()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            var harness = new FakeListenerHarness(Scheme);
+            Uri url = Url(20560);
+            await using var manager = new ReverseConnectManager(telemetry)
+            {
+                TransportBindings = harness.Registry
+            };
+
+            Exception? reentrantError = null;
+            int factoryCalls = 0;
+            manager.ConfigureInitialStartup(async ct =>
+            {
+                Interlocked.Increment(ref factoryCalls);
+                try
+                {
+                    // The owner marker is set around the asynchronous initial
+                    // ApplicationConfiguration factory invocation. Cross an
+                    // await boundary so the AsyncLocal marker must flow through
+                    // the yield, then re-enter the startup: it must fail fast
+                    // (BadInvalidState) instead of self-awaiting this start's
+                    // own shared task (which would deadlock).
+                    await Task.Yield();
+                    await manager.EnsureStartedAsync(ct).ConfigureAwait(false);
+                }
+                catch (Exception e)
+                {
+                    // Record the fail-fast result and let the factory complete
+                    // so the manager still reaches Started.
+                    reentrantError = e;
+                }
+                return BuildAppConfig(telemetry, url);
+            });
+
+            await manager.EnsureStartedAsync().ConfigureAwait(false);
+
+            Assert.That(factoryCalls, Is.EqualTo(1));
+            Assert.That(reentrantError, Is.InstanceOf<ServiceResultException>());
+            Assert.That(
+                ((ServiceResultException)reentrantError!).StatusCode,
+                Is.EqualTo(StatusCodes.BadInvalidState));
+            // The real startup still completed and bound the listener.
+            Assert.That(manager.CurrentStateForTest, Is.EqualTo("Started"));
+            Assert.That(
+                harness.Listeners.Any(l => l.OpenedUrl == url && l.IsOpen),
+                Is.True);
+        }
+
+        [Test]
+        public async Task InitialConfigurationFactoryReentrantRegistrationFailsFastWithoutDeadlock()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            var harness = new FakeListenerHarness(Scheme);
+            Uri url = Url(20561);
+            await using var manager = new ReverseConnectManager(telemetry)
+            {
+                TransportBindings = harness.Registry
+            };
+
+            Exception? reentrantError = null;
+            manager.ConfigureInitialStartup(async ct =>
+            {
+                try
+                {
+                    // Re-enter indirectly via RegisterWaitingConnectionAsync
+                    // (which internally calls EnsureStartedAsync). The owner
+                    // marker set around the factory invocation must make the
+                    // re-entrant registration fail fast rather than deadlock.
+                    await Task.Yield();
+                    await manager.RegisterWaitingConnectionAsync(
+                        new Uri(Scheme + "://localhost:1/reentrant"),
+                        null,
+                        (sender, e) => { },
+                        ReverseConnectManager.ReverseConnectStrategy.Once,
+                        ct)
+                        .ConfigureAwait(false);
+                }
+                catch (Exception e)
+                {
+                    reentrantError = e;
+                }
+                return BuildAppConfig(telemetry, url);
+            });
+
+            await manager.EnsureStartedAsync().ConfigureAwait(false);
+
+            Assert.That(reentrantError, Is.InstanceOf<ServiceResultException>());
+            Assert.That(
+                ((ServiceResultException)reentrantError!).StatusCode,
+                Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(manager.CurrentStateForTest, Is.EqualTo("Started"));
+            Assert.That(
+                harness.Listeners.Any(l => l.OpenedUrl == url && l.IsOpen),
+                Is.True);
+        }
+
+        [Test]
+        public async Task ProviderReentrantDisposeAsyncFailsFastWithoutDeadlock()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            var harness = new FakeListenerHarness(Scheme);
+            Uri url = Url(20570);
+            var manager = new ReverseConnectManager(telemetry)
+            {
+                TransportBindings = harness.Registry
+            };
+            var provider = new ReentrantDisposeProvider(manager);
+            manager.ConfigurationProvider = provider;
+            manager.ConfigureInitialStartup(BuildAppConfig(telemetry, url));
+
+            // The shared startup runs the provider during preparation. The
+            // provider re-enters DisposeAsync on the same in-flight startup
+            // flow: it must fail fast (InvalidOperationException) instead of
+            // awaiting the shared teardown, which drains this very start task and
+            // would deadlock. The scheduled dispose still completes once the
+            // start unwinds.
+            Exception? startError = null;
+            try
+            {
+                await manager.EnsureStartedAsync().ConfigureAwait(false);
+            }
+            catch (Exception e)
+            {
+                startError = e;
+            }
+
+            // Await the shared disposal from a non-reentrant flow to prove the
+            // teardown completed without deadlocking.
+            await manager.DisposeAsync().ConfigureAwait(false);
+
+            Assert.That(
+                provider.ReentrantError,
+                Is.InstanceOf<InvalidOperationException>());
+            Assert.That(manager.CurrentStateForTest, Is.EqualTo("Disposed"));
+            // The start was superseded by the in-flight dispose and never bound.
+            Assert.That(startError, Is.Not.Null);
+            Assert.That(harness.Listeners.Any(l => l.IsOpen), Is.False);
+        }
+
+        [Test]
+        public async Task InitialConfigurationFactoryReentrantDisposeAsyncFailsFastWithoutDeadlock()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            var harness = new FakeListenerHarness(Scheme);
+            Uri url = Url(20571);
+            var manager = new ReverseConnectManager(telemetry)
+            {
+                TransportBindings = harness.Registry
+            };
+
+            Exception? reentrantError = null;
+            manager.ConfigureInitialStartup(async ct =>
+            {
+                try
+                {
+                    // The owner marker is set around the asynchronous initial
+                    // ApplicationConfiguration factory invocation. Cross an await
+                    // boundary so the AsyncLocal marker must flow through the
+                    // yield, then re-enter DisposeAsync on the same start flow: it
+                    // must fail fast rather than deadlock on the shared teardown.
+                    await Task.Yield();
+                    await manager.DisposeAsync().ConfigureAwait(false);
+                }
+                catch (Exception e)
+                {
+                    reentrantError = e;
+                }
+                return BuildAppConfig(telemetry, url);
+            });
+
+            Exception? startError = null;
+            try
+            {
+                await manager.EnsureStartedAsync().ConfigureAwait(false);
+            }
+            catch (Exception e)
+            {
+                startError = e;
+            }
+
+            await manager.DisposeAsync().ConfigureAwait(false);
+
+            Assert.That(
+                reentrantError,
+                Is.InstanceOf<InvalidOperationException>());
+            Assert.That(manager.CurrentStateForTest, Is.EqualTo("Disposed"));
+            Assert.That(startError, Is.Not.Null);
+            Assert.That(harness.Listeners.Any(l => l.IsOpen), Is.False);
+        }
+
+        [Test]
+        public async Task CanceledStopRollbackDuringDisposeSkipsReopenAndDisposes()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            var harness = new FakeListenerHarness(Scheme);
+            Uri url = Url(20575);
+            var closing = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            using var cts = new CancellationTokenSource();
+            int armed = 1;
+
+            // The first listener close blocks until the caller token is
+            // cancelled; subsequent closes complete immediately.
+            harness.SetCloseGate(url, ct =>
+            {
+                if (Interlocked.Exchange(ref armed, 0) == 1)
+                {
+                    closing.TrySetResult(true);
+                    return Task.Delay(Timeout.Infinite, ct);
+                }
+                return Task.CompletedTask;
+            });
+            var manager = new ReverseConnectManager(telemetry)
+            {
+                TransportBindings = harness.Registry
+            };
+
+            await manager.StartServiceAsync(ConfigFor(url)).ConfigureAwait(false);
+            FakeReverseListener listener = harness.Listeners.Single(l => l.OpenedUrl == url);
+            Assert.That(listener.IsOpen, Is.True);
+
+            // A cancellable stop acquires the gate and blocks inside the close.
+            Task stop = manager.StopServiceAsync(cts.Token);
+            await closing.Task.ConfigureAwait(false);
+
+            // A concurrent Dispose sets the shutdown latch and marks the manager
+            // Disposing synchronously (without the gate the stop holds), then
+            // queues its teardown behind the gate.
+            Task dispose = manager.DisposeAsync().AsTask();
+
+            // Cancel the stop's close: it rolls back, but must observe the
+            // pending disposal and skip the reopen/Started write, leaving the
+            // disposal to finalize the lifecycle.
+            cts.Cancel();
+
+            Assert.That(
+                async () => await stop.ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>());
+            await dispose.ConfigureAwait(false);
+
+            // The rolled-back stop never resurrected the manager as Started.
+            Assert.That(manager.CurrentStateForTest, Is.EqualTo("Disposed"));
+            Assert.That(listener.IsOpen, Is.False);
+        }
+
+        [Test]
+        public async Task DisposalBetweenCanceledStopRestoreCheckAndOpenSkipsReopen()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            var harness = new FakeListenerHarness(Scheme);
+            Uri url = Url(20585);
+            var closing = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            using var cts = new CancellationTokenSource();
+            int armed = 1;
+
+            // The first listener close blocks until the caller token is
+            // cancelled; subsequent closes complete immediately.
+            harness.SetCloseGate(url, ct =>
+            {
+                if (Interlocked.Exchange(ref armed, 0) == 1)
+                {
+                    closing.TrySetResult(true);
+                    return Task.Delay(Timeout.Infinite, ct);
+                }
+                return Task.CompletedTask;
+            });
+            var manager = new ReverseConnectManager(telemetry)
+            {
+                TransportBindings = harness.Registry
+            };
+
+            await manager.StartServiceAsync(ConfigFor(url)).ConfigureAwait(false);
+            FakeReverseListener listener = harness.Listeners.Single(l => l.OpenedUrl == url);
+            Assert.That(listener.IsOpen, Is.True);
+
+            // The rollback's initial shutdown check passes (no shutdown yet); the
+            // reopen hook then starts a Dispose in the window between that check
+            // and the pre-open recheck, so the recheck must abort the reopen.
+            Task? dispose = null;
+            manager.RestoreReopenHookForTest = () =>
+            {
+                dispose ??= manager.DisposeAsync().AsTask();
+                return Task.CompletedTask;
+            };
+
+            // A cancellable stop acquires the gate and blocks inside the close.
+            Task stop = manager.StopServiceAsync(cts.Token);
+            await closing.Task.ConfigureAwait(false);
+
+            // Cancel the stop's close: it rolls back and enters the restore path,
+            // whose hook starts the disposal between the initial check and open.
+            cts.Cancel();
+
+            Assert.That(
+                async () => await stop.ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>());
+
+            Assert.That(dispose, Is.Not.Null, "the restore reopen hook must have run");
+            await dispose!.ConfigureAwait(false);
+
+            // No listener was reopened and the disposal finalized the lifecycle.
+            Assert.That(manager.CurrentStateForTest, Is.EqualTo("Disposed"));
+            Assert.That(listener.IsOpen, Is.False);
+        }
+
+        [Test]
+        public async Task DisposalBetweenReloadRestoreCheckAndOpenSkipsReopenAndDisposes()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            var harness = new FakeListenerHarness(Scheme);
+            Uri original = Url(20590);
+            Uri replacement = Url(20591);
+            var manager = new ReverseConnectManager(telemetry)
+            {
+                TransportBindings = harness.Registry
+            };
+
+            await manager.StartServiceAsync(BuildAppConfig(telemetry, original))
+                .ConfigureAwait(false);
+            Assert.That(
+                harness.Listeners.Any(l => l.OpenedUrl == original && l.IsOpen),
+                Is.True);
+
+            // The replacement fails to open, so the reload rolls back through
+            // RestoreAfterFailureAsync (the previous service was Started).
+            harness.FailOpenFor(
+                replacement,
+                new ServiceResultException(StatusCodes.BadNoCommunication));
+
+            // Start a Dispose in the window between the restore's shutdown check
+            // and its listener reopen. The dispose latches synchronously, so the
+            // pre-open recheck must abort the rollback without reopening original.
+            Task? dispose = null;
+            manager.RestoreReopenHookForTest = () =>
+            {
+                dispose ??= manager.DisposeAsync().AsTask();
+                return Task.CompletedTask;
+            };
+
+            await manager.ReloadConfigurationAsync(
+                BuildAppConfig(telemetry, replacement),
+                manager.CurrentWatcherGeneration)
+                .ConfigureAwait(false);
+
+            Assert.That(dispose, Is.Not.Null, "the restore reopen hook must have run");
+            await dispose!.ConfigureAwait(false);
+
+            // The rolled-back reload never reopened the original listener, and the
+            // disposal finalized the lifecycle.
+            Assert.That(manager.CurrentStateForTest, Is.EqualTo("Disposed"));
+            Assert.That(harness.Listeners.Any(l => l.IsOpen), Is.False);
+        }
+
+        [Test]
+        public async Task StopLatchBetweenReloadRestoreCheckAndOpenSkipsReopenAndStops()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            var harness = new FakeListenerHarness(Scheme);
+            Uri original = Url(20915);
+            Uri replacement = Url(20916);
+            await using var manager = new ReverseConnectManager(telemetry)
+            {
+                TransportBindings = harness.Registry
+            };
+
+            await manager.StartServiceAsync(BuildAppConfig(telemetry, original))
+                .ConfigureAwait(false);
+            FakeReverseListener originalListener = harness.Listeners.Single(
+                l => l.OpenedUrl == original);
+            Assert.That(originalListener.IsOpen, Is.True);
+            int originalOpenCountBeforeRollback = originalListener.OpenCount;
+
+            // The replacement fails to open, so the reload rolls back through
+            // RestoreAfterFailureAsync (the previous service was Started).
+            harness.FailOpenFor(
+                replacement,
+                new ServiceResultException(StatusCodes.BadNoCommunication));
+
+            // A non-cancellable Stop is started in the window between the
+            // rollback's transaction publication and its listener reopen. The stop
+            // sets the shutdown latch and aborts the rollback transaction
+            // synchronously, so the rollback's pre-open recheck must abort WITHOUT
+            // reopening any listener (its OpenAsync is never re-entered) and let
+            // the queued stop finalize the manager as Stopped.
+            Task? stop = null;
+            manager.RestoreReopenHookForTest = () =>
+            {
+                stop ??= manager.StopServiceAsync();
+                return Task.CompletedTask;
+            };
+
+            await manager.ReloadConfigurationAsync(
+                BuildAppConfig(telemetry, replacement),
+                manager.CurrentWatcherGeneration)
+                .ConfigureAwait(false);
+
+            Assert.That(stop, Is.Not.Null, "the restore reopen hook must have run");
+            await stop!.ConfigureAwait(false);
+
+            Assert.That(manager.CurrentStateForTest, Is.EqualTo("Stopped"));
+            Assert.That(
+                harness.Listeners.Any(l => l.IsOpen),
+                Is.False,
+                "a queued non-cancellable stop must not leave any listener open");
+            Assert.That(
+                originalListener.OpenCount,
+                Is.EqualTo(originalOpenCountBeforeRollback),
+                "the rolled-back reload must not reopen the previous listener");
+            Assert.That(
+                harness.Listeners.Any(l => l.OpenedUrl == replacement && l.IsOpen),
+                Is.False,
+                "the failed replacement listener must never become active");
+        }
+
+        [Test]
+        public async Task DisposeDrainsHeldConnectionCallbackBeforeListenerDisposal()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            var harness = new FakeListenerHarness(Scheme);
+            Uri url = Url(20595);
+            var closeGateEntered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseClose = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+
+            // Gate the listener close (driven by the terminal host dispose) so the
+            // test can prove the held callback has already drained before the
+            // listener is torn down.
+            harness.SetCloseGate(url, async _ =>
+            {
+                closeGateEntered.TrySetResult(true);
+                await releaseClose.Task.ConfigureAwait(false);
+            });
+            var manager = new ReverseConnectManager(telemetry)
+            {
+                TransportBindings = harness.Registry
+            };
+
+            await manager.StartServiceAsync(ConfigFor(url)).ConfigureAwait(false);
+            FakeReverseListener listener = harness.Listeners.Single(l => l.OpenedUrl == url);
+            Assert.That(listener.IsOpen, Is.True);
+
+            // Drive a held callback: no registration matches the event, so the
+            // callback parks on its hold delay (bound to the manager registration
+            // token) with the transport unaccepted.
+            var e = new FakeConnectionWaitingEventArgs("urn:test:reverse:unmatched", url);
+            Task callback = manager.InvokeConnectionWaitingForTest(e);
+            Assert.That(callback.IsCompleted, Is.False, "the unmatched callback must hold");
+            Assert.That(manager.ActiveConnectionCallbackCountForTest, Is.EqualTo(1));
+
+            // Dispose must cancel the held callback and wait for it to finish
+            // before the terminal listener dispose drives the gated close.
+            Task dispose = manager.DisposeAsync().AsTask();
+
+            await closeGateEntered.Task.ConfigureAwait(false);
+            Assert.That(
+                callback.IsCompleted,
+                Is.True,
+                "the held callback must drain before the listener is torn down");
+            Assert.That(
+                e.Accepted,
+                Is.False,
+                "the drained callback must leave the transport unaccepted");
+
+            releaseClose.TrySetResult(true);
+            await dispose.ConfigureAwait(false);
+            await callback.ConfigureAwait(false);
+
+            Assert.That(manager.CurrentStateForTest, Is.EqualTo("Disposed"));
+            Assert.That(listener.IsOpen, Is.False);
+            Assert.That(listener.DisposeCount, Is.GreaterThan(0));
+            Assert.That(manager.ActiveConnectionCallbackCountForTest, Is.Zero);
+        }
+
+        [Test]
+        public async Task StopDrainsHeldConnectionCallbackBeforeListenerClose()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            var harness = new FakeListenerHarness(Scheme);
+            Uri url = Url(20600);
+            var closeGateEntered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseClose = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+
+            harness.SetCloseGate(url, async _ =>
+            {
+                closeGateEntered.TrySetResult(true);
+                await releaseClose.Task.ConfigureAwait(false);
+            });
+            await using var manager = new ReverseConnectManager(telemetry)
+            {
+                TransportBindings = harness.Registry
+            };
+
+            await manager.StartServiceAsync(ConfigFor(url)).ConfigureAwait(false);
+            FakeReverseListener listener = harness.Listeners.Single(l => l.OpenedUrl == url);
+            Assert.That(listener.IsOpen, Is.True);
+
+            // Park a held callback with an unaccepted transport.
+            var e = new FakeConnectionWaitingEventArgs("urn:test:reverse:unmatched", url);
+            Task callback = manager.InvokeConnectionWaitingForTest(e);
+            Assert.That(callback.IsCompleted, Is.False);
+            Assert.That(manager.ActiveConnectionCallbackCountForTest, Is.EqualTo(1));
+
+            // A committed (non-cancellable) stop must drain the held callback
+            // before the terminal listener close tears the channels down.
+            Task stop = manager.StopServiceAsync();
+
+            await closeGateEntered.Task.ConfigureAwait(false);
+            Assert.That(
+                callback.IsCompleted,
+                Is.True,
+                "the held callback must drain before the listener close");
+            Assert.That(e.Accepted, Is.False);
+
+            releaseClose.TrySetResult(true);
+            await stop.ConfigureAwait(false);
+            await callback.ConfigureAwait(false);
+
+            Assert.That(manager.CurrentStateForTest, Is.EqualTo("Stopped"));
+            Assert.That(listener.IsOpen, Is.False);
+        }
+
+        [Test]
+        public async Task ReloadDrainsHeldConnectionCallbackBeforeReplacingListeners()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            var harness = new FakeListenerHarness(Scheme);
+            Uri original = Url(20900);
+            Uri replacement = Url(20901);
+            var closeGateEntered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseClose = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            int armed = 1;
+
+            // Block the original listener's replacement close so the test can prove
+            // the held callback has already drained - and new candidate callbacks
+            // are rejected - before the previous listener is torn down. Later
+            // closes complete so teardown is not itself blocked.
+            harness.SetCloseGate(original, async _ =>
+            {
+                if (Interlocked.Exchange(ref armed, 0) == 1)
+                {
+                    closeGateEntered.TrySetResult(true);
+                    await releaseClose.Task.ConfigureAwait(false);
+                }
+            });
+
+            await using var manager = new ReverseConnectManager(telemetry)
+            {
+                TransportBindings = harness.Registry
+            };
+            await manager.StartServiceAsync(BuildAppConfig(telemetry, original))
+                .ConfigureAwait(false);
+            FakeReverseListener originalListener = harness.Listeners.Single(
+                l => l.OpenedUrl == original);
+            Assert.That(originalListener.IsOpen, Is.True);
+
+            // Park a held callback on the running manager: no registration matches,
+            // so it holds its (unaccepted) transport parked on the hold delay.
+            var held = new FakeConnectionWaitingEventArgs("urn:test:reverse:unmatched", original);
+            Task heldCallback = manager.InvokeConnectionWaitingForTest(held);
+            Assert.That(heldCallback.IsCompleted, Is.False, "the unmatched callback must hold");
+            Assert.That(manager.ActiveConnectionCallbackCountForTest, Is.EqualTo(1));
+
+            // Reload replaces the original listener with the replacement. The
+            // activation must drain the held callback before closing the original.
+            Task reload = manager.ReloadConfigurationAsync(
+                BuildAppConfig(telemetry, replacement),
+                manager.CurrentWatcherGeneration);
+
+            await closeGateEntered.Task.ConfigureAwait(false);
+            Assert.That(
+                heldCallback.IsCompleted,
+                Is.True,
+                "the held callback must drain before the previous listener close");
+            Assert.That(
+                held.Accepted,
+                Is.False,
+                "the drained callback must leave the transport unaccepted");
+            Assert.That(manager.ActiveConnectionCallbackCountForTest, Is.Zero);
+
+            // A candidate callback raised during the uncommitted activation window
+            // must be rejected (unaccepted, never tracked) so it can never outlive
+            // the reload and leak a transport if the activation rolls back.
+            var candidate = new FakeConnectionWaitingEventArgs(
+                "urn:test:reverse:candidate",
+                replacement);
+            await manager.InvokeConnectionWaitingForTest(candidate).ConfigureAwait(false);
+            Assert.That(
+                candidate.Accepted,
+                Is.False,
+                "a candidate callback must be rejected during the uncommitted activation");
+            Assert.That(manager.ActiveConnectionCallbackCountForTest, Is.Zero);
+
+            releaseClose.TrySetResult(true);
+            await reload.ConfigureAwait(false);
+            await heldCallback.ConfigureAwait(false);
+
+            Assert.That(manager.CurrentStateForTest, Is.EqualTo("Started"));
+            Assert.That(
+                harness.Listeners.Any(l => l.OpenedUrl == replacement && l.IsOpen),
+                Is.True,
+                "the reload's replacement listener must be active after commit");
+            Assert.That(
+                originalListener.IsOpen,
+                Is.False,
+                "the previous listener is closed and discarded on a successful reload");
+            Assert.That(
+                originalListener.DisposeCount,
+                Is.GreaterThan(0),
+                "the drained transport must be resolved before the old listener is disposed");
+            Assert.That(manager.ActiveConnectionCallbackCountForTest, Is.Zero);
+        }
+
+        [Test]
+        public async Task FailedReloadDrainsHeldConnectionCallbackBeforeRestoringPrevious()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            var harness = new FakeListenerHarness(Scheme);
+            Uri original = Url(20905);
+            Uri replacement = Url(20906);
+            var closeGateEntered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseClose = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            int armed = 1;
+
+            harness.SetCloseGate(original, async _ =>
+            {
+                if (Interlocked.Exchange(ref armed, 0) == 1)
+                {
+                    closeGateEntered.TrySetResult(true);
+                    await releaseClose.Task.ConfigureAwait(false);
+                }
+            });
+
+            // The replacement fails to open, so the reload rolls back through
+            // RestoreAfterFailureAsync (the previous service was Started).
+            harness.FailOpenFor(
+                replacement,
+                new ServiceResultException(StatusCodes.BadNoCommunication));
+
+            await using var manager = new ReverseConnectManager(telemetry)
+            {
+                TransportBindings = harness.Registry
+            };
+            await manager.StartServiceAsync(BuildAppConfig(telemetry, original))
+                .ConfigureAwait(false);
+            FakeReverseListener originalListener = harness.Listeners.Single(
+                l => l.OpenedUrl == original);
+            Assert.That(originalListener.IsOpen, Is.True);
+
+            var held = new FakeConnectionWaitingEventArgs("urn:test:reverse:unmatched", original);
+            Task heldCallback = manager.InvokeConnectionWaitingForTest(held);
+            Assert.That(heldCallback.IsCompleted, Is.False);
+            Assert.That(manager.ActiveConnectionCallbackCountForTest, Is.EqualTo(1));
+
+            Task reload = manager.ReloadConfigurationAsync(
+                BuildAppConfig(telemetry, replacement),
+                manager.CurrentWatcherGeneration);
+
+            await closeGateEntered.Task.ConfigureAwait(false);
+            Assert.That(
+                heldCallback.IsCompleted,
+                Is.True,
+                "the held callback must drain before the previous listener close");
+            Assert.That(held.Accepted, Is.False);
+            Assert.That(manager.ActiveConnectionCallbackCountForTest, Is.Zero);
+
+            releaseClose.TrySetResult(true);
+            // ReloadConfigurationAsync logs and swallows the failed reload.
+            await reload.ConfigureAwait(false);
+            await heldCallback.ConfigureAwait(false);
+
+            // The rollback restored the previous listener; the replacement never
+            // bound and no candidate callback leaked.
+            Assert.That(manager.CurrentStateForTest, Is.EqualTo("Started"));
+            Assert.That(
+                harness.Listeners.Any(l => l.OpenedUrl == original && l.IsOpen),
+                Is.True,
+                "the previous listener must be restored after a failed reload");
+            Assert.That(
+                harness.Listeners.Any(l => l.OpenedUrl == replacement && l.IsOpen),
+                Is.False,
+                "the failed replacement listener must not remain active");
+            Assert.That(
+                manager.ActiveConnectionCallbackCountForTest,
+                Is.Zero,
+                "no candidate callback may leak after a rolled-back reload");
+        }
+
+        [Test]
+        public async Task ConnectionCallbackReentrantDisposeFailsFastWithoutDeadlock()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            var harness = new FakeListenerHarness(Scheme);
+            Uri url = Url(20760);
+            const string serverUri = "urn:test:reverse:reentrant";
+            var manager = new ReverseConnectManager(telemetry)
+            {
+                TransportBindings = harness.Registry
+            };
+            await manager.StartServiceAsync(ConfigFor(url)).ConfigureAwait(false);
+
+            // Register a user callback that re-enters the synchronous Dispose()
+            // from within the connection-waiting callback. The teardown drains
+            // in-flight callbacks, so a synchronous dispose here that blocked on
+            // that drain would deadlock: it must fail fast instead.
+            Exception? reentrantError = null;
+            await manager.RegisterWaitingConnectionAsync(
+                url,
+                serverUri,
+                (s, ev) =>
+                {
+                    try
+                    {
+                        manager.Dispose();
+                    }
+                    catch (Exception ex)
+                    {
+                        reentrantError = ex;
+                    }
+                },
+                ReverseConnectManager.ReverseConnectStrategy.Always).ConfigureAwait(false);
+
+            var e = new FakeConnectionWaitingEventArgs(serverUri, url);
+            await manager.InvokeConnectionWaitingForTest(e).ConfigureAwait(false);
+
+            Assert.That(reentrantError, Is.InstanceOf<InvalidOperationException>());
+            // The matched callback still resolved transport ownership.
+            Assert.That(e.Accepted, Is.True);
+            // The reentrant call never tore the manager down, so it stays
+            // coherent (no leaked callback) and can be disposed externally.
+            Assert.That(manager.ActiveConnectionCallbackCountForTest, Is.Zero);
+            Assert.That(manager.CurrentStateForTest, Is.EqualTo("Started"));
+
+            await manager.DisposeAsync().ConfigureAwait(false);
+            Assert.That(manager.CurrentStateForTest, Is.EqualTo("Disposed"));
+            Assert.That(harness.Listeners.Any(l => l.IsOpen), Is.False);
+        }
+
+        [Test]
+        public async Task ConnectionCallbackReentrantDisposeAsyncFailsFastWithoutDeadlock()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            var harness = new FakeListenerHarness(Scheme);
+            Uri url = Url(20765);
+            const string serverUri = "urn:test:reverse:reentrant";
+            var manager = new ReverseConnectManager(telemetry)
+            {
+                TransportBindings = harness.Registry
+            };
+            await manager.StartServiceAsync(ConfigFor(url)).ConfigureAwait(false);
+
+            // Re-enter DisposeAsync from within the callback and await it. It
+            // must fail fast (a faulted task) before the teardown that drains
+            // this very callback is ever scheduled, so awaiting it can never
+            // deadlock.
+            Task? reentrantDispose = null;
+            await manager.RegisterWaitingConnectionAsync(
+                url,
+                serverUri,
+                (s, ev) => reentrantDispose = manager.DisposeAsync().AsTask(),
+                ReverseConnectManager.ReverseConnectStrategy.Always).ConfigureAwait(false);
+
+            var e = new FakeConnectionWaitingEventArgs(serverUri, url);
+            await manager.InvokeConnectionWaitingForTest(e).ConfigureAwait(false);
+
+            Assert.That(reentrantDispose, Is.Not.Null);
+            Assert.That(
+                async () => await reentrantDispose!.ConfigureAwait(false),
+                Throws.InstanceOf<InvalidOperationException>());
+            Assert.That(e.Accepted, Is.True);
+            Assert.That(manager.ActiveConnectionCallbackCountForTest, Is.Zero);
+            Assert.That(manager.CurrentStateForTest, Is.EqualTo("Started"));
+
+            await manager.DisposeAsync().ConfigureAwait(false);
+            Assert.That(manager.CurrentStateForTest, Is.EqualTo("Disposed"));
+            Assert.That(harness.Listeners.Any(l => l.IsOpen), Is.False);
+        }
+
+        [Test]
+        public async Task ConnectionCallbackReentrantStopServiceFailsFastWithoutDeadlock()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            var harness = new FakeListenerHarness(Scheme);
+            Uri url = Url(20770);
+            const string serverUri = "urn:test:reverse:reentrant";
+            await using var manager = new ReverseConnectManager(telemetry)
+            {
+                TransportBindings = harness.Registry
+            };
+            await manager.StartServiceAsync(ConfigFor(url)).ConfigureAwait(false);
+
+            // Re-enter StopServiceAsync from within the callback and synchronously
+            // wait on it. The stop drains in-flight callbacks, so it would wait
+            // forever for the very callback that called it: it must fail fast
+            // with BadInvalidState instead.
+            Exception? reentrantError = null;
+            await manager.RegisterWaitingConnectionAsync(
+                url,
+                serverUri,
+                (s, ev) =>
+                {
+                    try
+                    {
+                        manager.StopServiceAsync().GetAwaiter().GetResult();
+                    }
+                    catch (Exception ex)
+                    {
+                        reentrantError = ex;
+                    }
+                },
+                ReverseConnectManager.ReverseConnectStrategy.Always).ConfigureAwait(false);
+
+            var e = new FakeConnectionWaitingEventArgs(serverUri, url);
+            await manager.InvokeConnectionWaitingForTest(e).ConfigureAwait(false);
+
+            Assert.That(reentrantError, Is.InstanceOf<ServiceResultException>());
+            Assert.That(
+                ((ServiceResultException)reentrantError!).StatusCode,
+                Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(e.Accepted, Is.True);
+            Assert.That(manager.ActiveConnectionCallbackCountForTest, Is.Zero);
+            // The manager was never stopped by the reentrant call, so an
+            // external stop from a different flow still drains callbacks and
+            // completes cleanly.
+            Assert.That(manager.CurrentStateForTest, Is.EqualTo("Started"));
+
+            FakeReverseListener listener = harness.Listeners.Single(l => l.OpenedUrl == url);
+            await manager.StopServiceAsync().ConfigureAwait(false);
+            Assert.That(manager.CurrentStateForTest, Is.EqualTo("Stopped"));
+            Assert.That(listener.IsOpen, Is.False);
+        }
+
+        [Test]
+        public async Task DeferredCallbackReentryAfterCallbackCompletesIsNotFalselyRejected()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            var harness = new FakeListenerHarness(Scheme);
+            Uri url = Url(20775);
+            const string serverUri = "urn:test:reverse:deferred";
+            await using var manager = new ReverseConnectManager(telemetry)
+            {
+                TransportBindings = harness.Registry
+            };
+            await manager.StartServiceAsync(ConfigFor(url)).ConfigureAwait(false);
+
+            Exception? immediateError = null;
+            var releaseDeferred = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            Task? deferredStop = null;
+            await manager.RegisterWaitingConnectionAsync(
+                url,
+                serverUri,
+                (s, ev) =>
+                {
+                    // An immediate synchronous re-entry on the callback flow
+                    // must still fail fast (scope Active == true).
+                    try
+                    {
+                        manager.StopServiceAsync().GetAwaiter().GetResult();
+                    }
+                    catch (Exception ex)
+                    {
+                        immediateError = ex;
+                    }
+
+                    // A child task capturing the callback scope but running only
+                    // AFTER the callback flow returns must observe the scope as
+                    // inactive and NOT be falsely rejected as a callback re-entry.
+                    deferredStop = Task.Run(async () =>
+                    {
+                        await releaseDeferred.Task.ConfigureAwait(false);
+                        await manager.StopServiceAsync().ConfigureAwait(false);
+                    });
+                },
+                ReverseConnectManager.ReverseConnectStrategy.Always)
+                .ConfigureAwait(false);
+
+            var e = new FakeConnectionWaitingEventArgs(serverUri, url);
+            await manager.InvokeConnectionWaitingForTest(e).ConfigureAwait(false);
+
+            // Immediate reentry failed fast; the manager remained coherent.
+            Assert.That(immediateError, Is.InstanceOf<ServiceResultException>());
+            Assert.That(
+                ((ServiceResultException)immediateError!).StatusCode,
+                Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(e.Accepted, Is.True);
+            Assert.That(manager.ActiveConnectionCallbackCountForTest, Is.Zero);
+            Assert.That(manager.CurrentStateForTest, Is.EqualTo("Started"));
+
+            // The callback flow has completed, so its scope is now inactive: the
+            // deferred stop must run to completion instead of failing fast.
+            releaseDeferred.TrySetResult(true);
+            Assert.That(deferredStop, Is.Not.Null);
+            await deferredStop!.ConfigureAwait(false);
+            Assert.That(manager.CurrentStateForTest, Is.EqualTo("Stopped"));
+            Assert.That(harness.Listeners.Any(l => l.IsOpen), Is.False);
+        }
+
+        [Test]
+        public async Task CanceledStopRollbackRequeuesInFlightReloadAndAppliesChange()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            var harness = new FakeListenerHarness(Scheme);
+            Uri liveUrl = Url(20580);
+            Uri newUrl = Url(20581);
+            var releaseReload = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var reloadProvider = new GatedProvider(releaseReload.Task);
+            using var cts = new CancellationTokenSource();
+            int armed = 1;
+            var closing = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            harness.SetCloseGate(liveUrl, ct =>
+            {
+                if (Interlocked.Exchange(ref armed, 0) == 1)
+                {
+                    closing.TrySetResult(true);
+                    return Task.Delay(Timeout.Infinite, ct);
+                }
+                return Task.CompletedTask;
+            });
+            var manager = new ReverseConnectManager(telemetry)
+            {
+                TransportBindings = harness.Registry
+            };
+            try
+            {
+                // Start with liveUrl. No provider yet, so the initial start runs
+                // to completion immediately.
+                await manager.StartServiceAsync(ConfigFor(liveUrl)).ConfigureAwait(false);
+                Assert.That(
+                    harness.Listeners.Any(l => l.OpenedUrl == liveUrl && l.IsOpen),
+                    Is.True);
+                int watcherGeneration = manager.CurrentWatcherGeneration;
+
+                // Enqueue a reload to newUrl. Gate its preparation so it stays
+                // in-flight (dequeued, holding no lifecycle gate) while the stop
+                // runs and bumps the lifecycle version.
+                manager.ConfigurationProvider = reloadProvider;
+                Task reload = manager.ReloadConfigurationAsync(
+                    BuildAppConfig(telemetry, newUrl),
+                    watcherGeneration);
+                await reloadProvider.Entered.ConfigureAwait(false);
+
+                // A cancellable stop acquires the gate, bumps the lifecycle
+                // version and blocks inside the close; cancelling it rolls back to
+                // Started but would otherwise strand the in-flight reload's
+                // superseded version.
+                Task stop = manager.StopServiceAsync(cts.Token);
+                await closing.Task.ConfigureAwait(false);
+                cts.Cancel();
+                Assert.That(
+                    async () => await stop.ConfigureAwait(false),
+                    Throws.InstanceOf<OperationCanceledException>());
+                Assert.That(manager.CurrentStateForTest, Is.EqualTo("Started"));
+
+                // Release the in-flight reload: its original attempt is superseded
+                // and dropped, but the rolled-back stop re-queued the candidate,
+                // so the change is eventually applied.
+                releaseReload.SetResult(true);
+                await reload.ConfigureAwait(false);
+
+                await WaitForAsync(
+                    () => harness.Listeners.Any(l => l.OpenedUrl == newUrl && l.IsOpen),
+                    "the re-queued reload must eventually open the changed endpoint");
+                Assert.That(
+                    harness.Listeners.Any(l => l.OpenedUrl == liveUrl && l.IsOpen),
+                    Is.False,
+                    "the stale endpoint must be closed once the reload commits");
+                Assert.That(manager.CurrentStateForTest, Is.EqualTo("Started"));
+            }
+            finally
+            {
+                await manager.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task HostedStartWithAlreadyCancelledTokenNeverRunsConfigurationFactory()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            var harness = new FakeListenerHarness(Scheme);
+            Uri url = Url(20562);
+            await using var manager = new ReverseConnectManager(telemetry)
+            {
+                TransportBindings = harness.Registry
+            };
+
+            int factoryCalls = 0;
+            manager.ConfigureInitialStartup(ct =>
+            {
+                Interlocked.Increment(ref factoryCalls);
+                return Task.FromResult(BuildAppConfig(telemetry, url));
+            });
+            var hosted = new ReverseConnectManagerHostedService(manager);
+
+            using var cts = new CancellationTokenSource();
+            // The host startup token is cancelled BEFORE StartAsync creates the
+            // shared start; the latched cancellation must abort the start right
+            // after the yield and BEFORE the configuration factory runs, so an
+            // already-cancelled startup never runs configuration validation or
+            // certificate creation.
+            cts.Cancel();
+
+            Assert.That(
+                async () => await hosted.StartAsync(cts.Token).ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>());
+
+            Assert.That(
+                factoryCalls,
+                Is.Zero,
+                "the configuration factory must never run when the hosted start " +
+                "is pre-cancelled");
+            Assert.That(harness.Listeners.Any(l => l.IsOpen), Is.False);
+            Assert.That(manager.CurrentStateForTest, Is.Not.EqualTo("Started"));
+        }
+
+        [Test]
         public async Task StopInsideActivationGateWindowAbortsBeforeOpen()
         {
             ITelemetryContext telemetry = CreateTelemetry();
@@ -2253,6 +3561,58 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             closeRelease.SetResult(true);
             await stop.ConfigureAwait(false);
             Assert.That(manager.CurrentStateForTest, Is.EqualTo("Stopped"));
+        }
+
+        [Test]
+        public async Task RegisterWaitingConnectionAsyncStopAfterStartRejectsWithoutInertRegistration()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            var harness = new FakeListenerHarness(Scheme);
+            Uri url = Url(20607);
+            await using var manager = new ReverseConnectManager(telemetry)
+            {
+                TransportBindings = harness.Registry
+            };
+            await manager.StartServiceAsync(ConfigFor(url)).ConfigureAwait(false);
+
+            var reachedWindow = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+
+            // Pause the registration in the exact window between the internal
+            // EnsureStartedAsync (already Started here) and the registration
+            // insertion.
+            manager.BeforeRegisterWaitForTest = async () =>
+            {
+                reachedWindow.TrySetResult(true);
+                await release.Task.ConfigureAwait(false);
+            };
+
+            Task<int> register = manager.RegisterWaitingConnectionAsync(
+                url,
+                null,
+                (sender, e) => { },
+                ReverseConnectManager.ReverseConnectStrategy.Once);
+            await reachedWindow.Task.ConfigureAwait(false);
+
+            // A full stop commits while the registration is paused in the
+            // window: it transitions the manager to Stopped and clears the
+            // registrations under m_registrationsLock.
+            await manager.StopServiceAsync().ConfigureAwait(false);
+            Assert.That(manager.CurrentStateForTest, Is.EqualTo("Stopped"));
+
+            // Resuming the registration must observe the committed stop and
+            // reject deterministically rather than inserting an inert waiter.
+            release.SetResult(true);
+            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+                () => register)!;
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(
+                manager.WaitingConnectionCountForTest,
+                Is.Zero,
+                "no inert waiting-connection registration must survive a stop " +
+                "that commits between EnsureStartedAsync and insertion");
         }
 
         [Test]
@@ -2592,6 +3952,712 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         }
 
         [Test]
+        public async Task OverlappingReloadsApplyNewestCandidateWhenEarlierProviderDelayed()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            var harness = new FakeListenerHarness(Scheme);
+            Uri original = Url(20690);
+            Uri endpointA = Url(20691);
+            Uri endpointB = Url(20692);
+            var releaseA = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var provider = new GatedProvider(releaseA.Task);
+            await using var manager = new ReverseConnectManager(telemetry)
+            {
+                TransportBindings = harness.Registry
+            };
+
+            await manager.StartServiceAsync(BuildAppConfig(telemetry, original))
+                .ConfigureAwait(false);
+            int generation = manager.CurrentWatcherGeneration;
+
+            // The provider gates the FIRST reload (A) inside preparation so its
+            // provider is delayed while the second reload (B) is submitted.
+            manager.ConfigurationProvider = provider;
+            Task reloadA = manager.ReloadConfigurationAsync(
+                BuildAppConfig(telemetry, endpointA),
+                generation);
+            await provider.Entered.ConfigureAwait(false);
+
+            // Reload B is submitted while A is still blocked in its provider. It
+            // queues as the newest candidate; the latest-wins loop applies it
+            // after A rather than letting A's later commit drop it.
+            Task reloadB = manager.ReloadConfigurationAsync(
+                BuildAppConfig(telemetry, endpointB),
+                generation);
+
+            // Release A; A commits first (older), then B commits (newest).
+            releaseA.SetResult(true);
+            await Task.WhenAll(reloadA, reloadB).ConfigureAwait(false);
+
+            Assert.That(manager.CurrentStateForTest, Is.EqualTo("Started"));
+            Assert.That(
+                harness.Listeners.Any(l => l.OpenedUrl == endpointB && l.IsOpen),
+                Is.True,
+                "the newest reload candidate (B) must be the final active endpoint");
+            Assert.That(
+                harness.Listeners.Any(l => l.OpenedUrl == endpointA && l.IsOpen),
+                Is.False,
+                "the older reload candidate (A) must not remain active");
+            Assert.That(
+                harness.Listeners.Any(l => l.OpenedUrl == original && l.IsOpen),
+                Is.False);
+        }
+
+        [Test]
+        public async Task QueuedReloadBehindBlockedReloadIsRejectedByStopAndNeverReopens()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            var harness = new FakeListenerHarness(Scheme);
+            Uri original = Url(20710);
+            Uri endpointA = Url(20711);
+            Uri endpointB = Url(20712);
+            var releaseA = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var provider = new GatedProvider(releaseA.Task);
+            await using var manager = new ReverseConnectManager(telemetry)
+            {
+                TransportBindings = harness.Registry
+            };
+
+            await manager.StartServiceAsync(BuildAppConfig(telemetry, original))
+                .ConfigureAwait(false);
+            int generation = manager.CurrentWatcherGeneration;
+
+            // Reload A blocks inside its provider preparation (it does not yet
+            // hold the lifecycle gate). It captured the running lifecycle
+            // version and teardown epoch when it was queued.
+            manager.ConfigurationProvider = provider;
+            Task reloadA = manager.ReloadConfigurationAsync(
+                BuildAppConfig(telemetry, endpointA),
+                generation);
+            await provider.Entered.ConfigureAwait(false);
+
+            // Reload B queues behind the blocked A in the same teardown epoch.
+            Task reloadB = manager.ReloadConfigurationAsync(
+                BuildAppConfig(telemetry, endpointB),
+                generation);
+
+            // A non-cancellable Stop commits while A is still blocked in its
+            // provider: the gate is free, so the stop advances the teardown
+            // epoch, tears the manager down and rejects the queued B
+            // deterministically (BadInvalidState) without ever applying it.
+            await manager.StopServiceAsync().ConfigureAwait(false);
+
+            // The queued B was completed by the committed stop without applying,
+            // so its awaiter never hangs.
+            ServiceResultException rejected = Assert.ThrowsAsync<ServiceResultException>(
+                () => reloadB)!;
+            Assert.That(rejected.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+
+            // Release A: its activation observes the superseding stop and never
+            // opens a listener, then completes its awaiter without faulting.
+            releaseA.SetResult(true);
+            await reloadA.ConfigureAwait(false);
+
+            Assert.That(reloadB.IsCompleted, Is.True);
+            Assert.That(reloadA.IsCompleted, Is.True);
+            Assert.That(manager.CurrentStateForTest, Is.EqualTo("Stopped"));
+            Assert.That(
+                harness.Listeners.Any(l => l.IsOpen),
+                Is.False,
+                "no listener may remain open after the stop completes");
+            Assert.That(
+                harness.Listeners.Any(l => l.OpenedUrl == endpointB && l.OpenCount > 0),
+                Is.False,
+                "the queued reload (B) must never open its listener after the stop");
+            Assert.That(
+                harness.Listeners.Any(l => l.OpenedUrl == endpointA && l.OpenCount > 0),
+                Is.False,
+                "the blocked reload (A) must never open its listener after the stop");
+        }
+
+        [Test]
+        public async Task FileBackedLazyRestartReloadsConfigurationFromSourceFile()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            var harness = new FakeListenerHarness(Scheme);
+            Uri initialUrl = Url(20695);
+            Uri changedUrl = Url(20696);
+            string path = NewConfigFile();
+            var manager = new ReverseConnectManager(telemetry)
+            {
+                TransportBindings = harness.Registry
+            };
+            try
+            {
+                int loadCount = 0;
+                // The injectable loader seam stands in for
+                // ApplicationConfiguration.LoadAsync: it simulates the source
+                // file changing while stopped by returning the changed endpoint.
+                manager.ConfigurationFileLoaderForTest = (p, appType, cfgType, ct) =>
+                {
+                    Interlocked.Increment(ref loadCount);
+                    return Task.FromResult(BuildAppConfig(telemetry, changedUrl));
+                };
+
+                manager.ConfigureInitialStartup(
+                    BuildAppConfigWithFile(telemetry, path, initialUrl));
+
+                // First start must use the provided configuration, not reload.
+                await manager.EnsureStartedAsync().ConfigureAwait(false);
+                Assert.That(
+                    harness.Listeners.Any(l => l.OpenedUrl == initialUrl && l.IsOpen),
+                    Is.True);
+                Assert.That(
+                    loadCount,
+                    Is.Zero,
+                    "the first start must not reload from the source file");
+
+                // Stop converts the file-backed seed into a reloading factory.
+                await manager.StopServiceAsync().ConfigureAwait(false);
+                Assert.That(manager.CurrentStateForTest, Is.EqualTo("Stopped"));
+
+                // The lazy restart must reload from SourceFilePath (through the
+                // loader seam) and apply the change made while stopped instead of
+                // reusing the cached configuration.
+                await manager.EnsureStartedAsync().ConfigureAwait(false);
+
+                Assert.That(
+                    loadCount,
+                    Is.EqualTo(1),
+                    "the restart must reload the configuration from the source file");
+                Assert.That(
+                    harness.Listeners.Any(l => l.OpenedUrl == changedUrl && l.IsOpen),
+                    Is.True,
+                    "the restart must apply the changed configuration from the source file");
+                Assert.That(
+                    harness.Listeners.Any(l => l.OpenedUrl == initialUrl && l.IsOpen),
+                    Is.False,
+                    "the stale cached endpoint must not be reopened on restart");
+                Assert.That(manager.CurrentStateForTest, Is.EqualTo("Started"));
+            }
+            finally
+            {
+                await manager.DisposeAsync().ConfigureAwait(false);
+                System.IO.File.Delete(path);
+            }
+        }
+
+        [Test]
+        public async Task WatcherTriggeredReloadReappliesReverseConnectOptionOverlay()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            var harness = new FakeListenerHarness(Scheme);
+            Uri fileUrl = Url(20720);
+            Uri changedFileUrl = Url(20721);
+            Uri optionUrl = Url(20722);
+            string path = NewConfigFile();
+            System.IO.File.SetLastWriteTimeUtc(path, DateTime.UtcNow.AddMinutes(-5));
+
+            var release = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var provider = new GatedProvider(release.Task);
+
+            // The DI overlay decorator appends the option-only reverse-connect
+            // endpoint (which lives only in memory, not in the file) to whatever
+            // endpoints the freshly loaded file configuration carries.
+            ApplicationConfiguration Decorate(ApplicationConfiguration loaded)
+            {
+                ReverseConnectClientEndpoint[] endpoints =
+                    loaded.ClientConfiguration!.ReverseConnect!.ClientEndpoints.ToArray() ?? [];
+                Uri[] urls = endpoints
+                    .Select(e => new Uri(e.EndpointUrl!))
+                    .Append(optionUrl)
+                    .ToArray();
+                return string.IsNullOrEmpty(loaded.SourceFilePath)
+                    ? BuildAppConfig(telemetry, urls)
+                    : BuildAppConfigWithFile(telemetry, loaded.SourceFilePath!, urls);
+            }
+
+            var manager = new ReverseConnectManager(telemetry)
+            {
+                TransportBindings = harness.Registry,
+                ConfigurationProvider = provider
+            };
+            try
+            {
+                // The watcher-triggered reload reloads the file through the seam,
+                // which returns the changed file endpoint only (no overlay).
+                manager.ConfigurationFileLoaderForTest = (p, appType, cfgType, ct) =>
+                    Task.FromResult(BuildAppConfigWithFile(telemetry, p, changedFileUrl));
+
+                // Configure the lazy startup with the fully decorated initial
+                // configuration (file endpoint plus the option overlay) and
+                // retain the decorator so a reload reapplies the overlay.
+                manager.ConfigureInitialStartup(
+                    Decorate(BuildAppConfigWithFile(telemetry, path, fileUrl)),
+                    Decorate);
+
+                Task start = manager.EnsureStartedAsync();
+                await provider.Entered.ConfigureAwait(false);
+
+                // Bump the write time between preparation and commit so the
+                // commit detects the change and drives the watcher-changed seam.
+                System.IO.File.SetLastWriteTimeUtc(path, DateTime.UtcNow.AddMinutes(5));
+                release.SetResult(true);
+                await start.ConfigureAwait(false);
+
+                // The watcher-triggered reload must reload from the file (the
+                // changed endpoint) AND reapply the option overlay, so the
+                // option-only endpoint remains open after the file change.
+                await WaitForAsync(
+                    () => harness.Listeners.Any(
+                            l => l.OpenedUrl == changedFileUrl && l.IsOpen) &&
+                        harness.Listeners.Any(
+                            l => l.OpenedUrl == optionUrl && l.IsOpen) &&
+                        !harness.Listeners.Any(l => l.OpenedUrl == fileUrl && l.IsOpen),
+                    "the reload must open the changed file endpoint and keep the " +
+                    "option overlay endpoint while replacing the original endpoint")
+                    .ConfigureAwait(false);
+
+                Assert.That(
+                    harness.Listeners.Any(l => l.OpenedUrl == optionUrl && l.IsOpen),
+                    Is.True,
+                    "the DI reverse-connect option overlay endpoint must survive a " +
+                    "file-triggered reload");
+                Assert.That(
+                    harness.Listeners.Any(l => l.OpenedUrl == changedFileUrl && l.IsOpen),
+                    Is.True,
+                    "the reload must apply the changed file endpoint");
+                Assert.That(
+                    harness.Listeners.Any(l => l.OpenedUrl == fileUrl && l.IsOpen),
+                    Is.False,
+                    "the stale original file endpoint must be replaced by the reload");
+                Assert.That(manager.CurrentStateForTest, Is.EqualTo("Started"));
+            }
+            finally
+            {
+                await manager.DisposeAsync().ConfigureAwait(false);
+                System.IO.File.Delete(path);
+            }
+        }
+
+        [Test]
+        public async Task FactoryLoadedStartFailureKeepsFactoryActiveForRetry()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            var harness = new FakeListenerHarness(Scheme);
+            Uri badUrl = Url(20730);
+            Uri goodUrl = Url(20731);
+
+            // The first (bad) configuration fails to open so the factory-loaded
+            // start fails during activation.
+            harness.FailOpenFor(
+                badUrl,
+                new ServiceResultException(StatusCodes.BadNoCommunication));
+
+            var manager = new ReverseConnectManager(telemetry)
+            {
+                TransportBindings = harness.Registry
+            };
+            int factoryCalls = 0;
+            manager.ConfigureInitialStartup(ct =>
+            {
+                int n = Interlocked.Increment(ref factoryCalls);
+                // First invocation yields the bad configuration A; a retry (the
+                // factory being re-invoked) yields the good configuration B.
+                return Task.FromResult(n == 1
+                    ? BuildAppConfig(telemetry, badUrl)
+                    : BuildAppConfig(telemetry, goodUrl));
+            });
+            try
+            {
+                // The first start invokes the factory (A) and fails to activate.
+                Assert.That(
+                    async () => await manager.EnsureStartedAsync().ConfigureAwait(false),
+                    Throws.InstanceOf<ServiceResultException>());
+                Assert.That(factoryCalls, Is.EqualTo(1));
+                Assert.That(manager.CurrentStateForTest, Is.Not.EqualTo("Started"));
+
+                // Because the failed factory result was never cached, the factory
+                // stays active: a retry re-invokes it (B) and activates.
+                await manager.EnsureStartedAsync().ConfigureAwait(false);
+
+                Assert.That(
+                    factoryCalls,
+                    Is.EqualTo(2),
+                    "the retry must re-invoke the factory rather than reuse the " +
+                    "failed configuration");
+                Assert.That(
+                    harness.Listeners.Any(l => l.OpenedUrl == goodUrl && l.IsOpen),
+                    Is.True,
+                    "the retry must open the good configuration returned on the " +
+                    "second factory invocation");
+                Assert.That(
+                    harness.Listeners.Any(l => l.OpenedUrl == badUrl && l.IsOpen),
+                    Is.False,
+                    "the failed bad configuration must not remain open");
+                Assert.That(manager.CurrentStateForTest, Is.EqualTo("Started"));
+            }
+            finally
+            {
+                await manager.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task MemoryBackedRestartReappliesOverlaySoProviderMutationDoesNotPersist()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            var harness = new FakeListenerHarness(Scheme);
+            Uri url = Url(20740);
+            const int optionHold = 12345;
+            const int optionWait = 6789;
+
+            // A rebuilding overlay decorator, exactly like the production DI
+            // reverse-connect overlay: it replaces the reverse-connect section
+            // with a fresh ReverseConnectClientConfiguration (fresh endpoint
+            // objects and the configured hold/wait timeouts) on every call, so
+            // reapplying it is idempotent and never accumulates or inherits a
+            // prior mutation.
+            ApplicationConfiguration Decorate(ApplicationConfiguration cfg)
+            {
+                cfg.ClientConfiguration ??= new ClientConfiguration();
+                cfg.ClientConfiguration.ReverseConnect = new ReverseConnectClientConfiguration
+                {
+                    ClientEndpoints = new ArrayOf<ReverseConnectClientEndpoint>(
+                        new[]
+                        {
+                            new ReverseConnectClientEndpoint { EndpointUrl = url.ToString() }
+                        }),
+                    HoldTime = optionHold,
+                    WaitTimeout = optionWait
+                };
+                return cfg;
+            }
+
+            var provider = new MutatingRecordingProvider(url, optionHold);
+            var manager = new ReverseConnectManager(telemetry)
+            {
+                TransportBindings = harness.Registry,
+                ConfigurationProvider = provider
+            };
+            try
+            {
+                manager.ConfigureInitialStartup(
+                    Decorate(BuildAppConfig(telemetry, url)),
+                    Decorate);
+
+                await manager.EnsureStartedAsync().ConfigureAwait(false);
+                Assert.That(manager.CurrentStateForTest, Is.EqualTo("Started"));
+                Assert.That(
+                    harness.Listeners.Any(l => l.OpenedUrl == url && l.IsOpen),
+                    Is.True);
+
+                await manager.StopServiceAsync().ConfigureAwait(false);
+                Assert.That(manager.CurrentStateForTest, Is.EqualTo("Stopped"));
+
+                // The memory-backed lazy restart must reapply the overlay
+                // decorator before starting so the provider's in-place mutation
+                // of the reverse-connect section during the first start does not
+                // persist: the second invocation observes clean option endpoints
+                // and timeouts, not the damaged cache.
+                await manager.EnsureStartedAsync().ConfigureAwait(false);
+                Assert.That(manager.CurrentStateForTest, Is.EqualTo("Started"));
+                Assert.That(
+                    harness.Listeners.Any(l => l.OpenedUrl == url && l.IsOpen),
+                    Is.True,
+                    "the restart must reopen the option endpoint after reapplying " +
+                    "the overlay");
+
+                Assert.That(
+                    provider.ObservedEndpointCounts,
+                    Has.Count.EqualTo(2),
+                    "both starts must reach the provider");
+                Assert.That(
+                    provider.ObservedEndpointCounts,
+                    Is.All.EqualTo(1),
+                    "every start must hand the provider the clean option endpoint " +
+                    "rather than the endpoints a prior start mutated away");
+                Assert.That(
+                    provider.ObservedHoldTimes,
+                    Is.EqualTo(new[] { optionHold, optionHold }),
+                    "every start must hand the provider the clean option hold time");
+                Assert.That(
+                    provider.ObservedWaitTimeouts,
+                    Is.EqualTo(new[] { optionWait, optionWait }),
+                    "every start must hand the provider the clean option wait timeout");
+            }
+            finally
+            {
+                await manager.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task MemoryBackedFailedRetryReappliesOverlaySoProviderMutationDoesNotPersist()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            var harness = new FakeListenerHarness(Scheme);
+            Uri url = Url(20741);
+            const int optionHold = 4321;
+            const int optionWait = 9876;
+
+            ApplicationConfiguration Decorate(ApplicationConfiguration cfg)
+            {
+                cfg.ClientConfiguration ??= new ClientConfiguration();
+                cfg.ClientConfiguration.ReverseConnect = new ReverseConnectClientConfiguration
+                {
+                    ClientEndpoints = new ArrayOf<ReverseConnectClientEndpoint>(
+                        new[]
+                        {
+                            new ReverseConnectClientEndpoint { EndpointUrl = url.ToString() }
+                        }),
+                    HoldTime = optionHold,
+                    WaitTimeout = optionWait
+                };
+                return cfg;
+            }
+
+            // The provider damages the shared candidate in place and throws on
+            // the first invocation so the start fails during preparation, then
+            // succeeds on the retry.
+            var provider = new MutatingRecordingProvider(url, optionHold)
+            {
+                ThrowOnFirstCall = true
+            };
+            var manager = new ReverseConnectManager(telemetry)
+            {
+                TransportBindings = harness.Registry,
+                ConfigurationProvider = provider
+            };
+            try
+            {
+                manager.ConfigureInitialStartup(
+                    Decorate(BuildAppConfig(telemetry, url)),
+                    Decorate);
+
+                Assert.That(
+                    async () => await manager.EnsureStartedAsync().ConfigureAwait(false),
+                    Throws.InstanceOf<ServiceResultException>());
+                Assert.That(manager.CurrentStateForTest, Is.Not.EqualTo("Started"));
+
+                // The failed-start retry must reapply the overlay decorator so the
+                // provider's in-place mutation during the failed attempt does not
+                // persist into the retry's input.
+                await manager.EnsureStartedAsync().ConfigureAwait(false);
+                Assert.That(manager.CurrentStateForTest, Is.EqualTo("Started"));
+                Assert.That(
+                    harness.Listeners.Any(l => l.OpenedUrl == url && l.IsOpen),
+                    Is.True);
+
+                Assert.That(
+                    provider.ObservedEndpointCounts,
+                    Has.Count.EqualTo(2),
+                    "the failed attempt and retry must both reach the provider");
+                Assert.That(
+                    provider.ObservedEndpointCounts,
+                    Is.All.EqualTo(1),
+                    "the failed attempt and the retry must both observe the clean " +
+                    "option endpoint");
+                Assert.That(
+                    provider.ObservedHoldTimes,
+                    Is.EqualTo(new[] { optionHold, optionHold }));
+                Assert.That(
+                    provider.ObservedWaitTimeouts,
+                    Is.EqualTo(new[] { optionWait, optionWait }));
+            }
+            finally
+            {
+                await manager.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task StopCancelsAtDeadlineWhileCallbackBlockedLeavesStartedAndListenersOpen()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            var harness = new FakeListenerHarness(Scheme);
+            Uri url = Url(20742);
+            var manager = new ReverseConnectManager(telemetry)
+            {
+                TransportBindings = harness.Registry
+            };
+            try
+            {
+                await manager.StartServiceAsync(ConfigFor(url)).ConfigureAwait(false);
+                Assert.That(manager.CurrentStateForTest, Is.EqualTo("Started"));
+
+                // A blocked external callback holds a transport and ignores the
+                // cancelled hold token, so the stop's callback drain cannot
+                // complete until the callback is released.
+                var gate = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                Task callback = manager.InvokeBlockingConnectionCallbackForTest(gate.Task);
+                await WaitForAsync(
+                    () => manager.ActiveConnectionCallbackCountForTest == 1,
+                    "the blocking callback must be tracked before the stop");
+
+                // A cancellable Stop carrying a deadline must cancel at the
+                // deadline (parked on the drain) rather than hang forever on the
+                // blocked callback.
+                using var stopCts = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
+                Assert.That(
+                    async () => await manager.StopServiceAsync(stopCts.Token).ConfigureAwait(false),
+                    Throws.InstanceOf<OperationCanceledException>(),
+                    "the stop must cancel at its deadline while the callback is held");
+
+                // The drain was cancelled before any listener was closed, so the
+                // manager restores a coherent Started state with its listeners
+                // still open and the callback still coherently tracked.
+                Assert.That(manager.CurrentStateForTest, Is.EqualTo("Started"));
+                Assert.That(
+                    harness.Listeners.Any(l => l.OpenedUrl == url && l.IsOpen),
+                    Is.True,
+                    "the listeners must remain open after a drain-cancelled stop");
+                Assert.That(
+                    manager.ActiveConnectionCallbackCountForTest,
+                    Is.EqualTo(1),
+                    "the held callback must remain coherently tracked");
+
+                // Releasing the callback lets it resolve cleanly (the drain signal
+                // was ended, so its exit never faults or double-signals).
+                gate.SetResult(true);
+                await callback.ConfigureAwait(false);
+                await WaitForAsync(
+                    () => manager.ActiveConnectionCallbackCountForTest == 0,
+                    "the released callback must drain to zero");
+
+                // A subsequent non-cancellable stop now completes cleanly.
+                await manager.StopServiceAsync().ConfigureAwait(false);
+                Assert.That(manager.CurrentStateForTest, Is.EqualTo("Stopped"));
+                Assert.That(
+                    harness.Listeners.Any(l => l.IsOpen),
+                    Is.False,
+                    "the non-cancellable stop must close the listeners");
+            }
+            finally
+            {
+                await manager.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task HostedServiceStopHonorsDeadlineWhileCallbackBlocked()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            var harness = new FakeListenerHarness(Scheme);
+            Uri url = Url(20743);
+            var manager = new ReverseConnectManager(telemetry)
+            {
+                TransportBindings = harness.Registry
+            };
+            try
+            {
+                await manager.StartServiceAsync(ConfigFor(url)).ConfigureAwait(false);
+                var hosted = new ReverseConnectManagerHostedService(manager);
+
+                var gate = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                Task callback = manager.InvokeBlockingConnectionCallbackForTest(gate.Task);
+                await WaitForAsync(
+                    () => manager.ActiveConnectionCallbackCountForTest == 1,
+                    "the blocking callback must be tracked before the host stop");
+
+                // The Generic Host shutdown token must flow through StopAsync and
+                // cancel the drain at the host's deadline.
+                using var stopCts = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
+                Assert.That(
+                    async () => await hosted.StopAsync(stopCts.Token).ConfigureAwait(false),
+                    Throws.InstanceOf<OperationCanceledException>(),
+                    "the hosted stop must honor the Generic Host shutdown deadline");
+                Assert.That(manager.CurrentStateForTest, Is.EqualTo("Started"));
+                Assert.That(
+                    harness.Listeners.Any(l => l.OpenedUrl == url && l.IsOpen),
+                    Is.True);
+
+                gate.SetResult(true);
+                await callback.ConfigureAwait(false);
+
+                // A non-cancellable host stop (no deadline) then completes.
+                await hosted.StopAsync(CancellationToken.None).ConfigureAwait(false);
+                Assert.That(manager.CurrentStateForTest, Is.EqualTo("Stopped"));
+            }
+            finally
+            {
+                await manager.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task StopCancelsInFlightExplicitStartProvider()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            var harness = new FakeListenerHarness(Scheme);
+            var provider = new CancellationObservingProvider();
+            Uri url = Url(20697);
+            await using var manager = new ReverseConnectManager(telemetry)
+            {
+                TransportBindings = harness.Registry,
+                ConfigurationProvider = provider
+            };
+
+            // An explicit start blocks in the provider (awaiting the
+            // manager-owned start token).
+            Task start = manager.StartServiceAsync(ConfigFor(url));
+            await provider.Entered.ConfigureAwait(false);
+            Assert.That(start.IsCompleted, Is.False);
+
+            // Stop must cancel the explicit start's token so the provider
+            // observes cancellation and the start exits (rather than leaving a
+            // provider-blocked start that only supersedes at the gate).
+            await manager.StopServiceAsync().ConfigureAwait(false);
+
+            bool observedCancellation = await provider.Canceled
+                .WaitAsync(TimeSpan.FromSeconds(5))
+                .ConfigureAwait(false);
+            Assert.That(
+                observedCancellation,
+                Is.True,
+                "the stop must cancel the explicit start's provider");
+            // The start exits (waits for exit) rather than binding a listener.
+            Assert.That(
+                async () => await start.ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>()
+                    .Or.InstanceOf<ServiceResultException>());
+            Assert.That(manager.CurrentStateForTest, Is.EqualTo("Stopped"));
+            Assert.That(harness.Listeners.Any(l => l.IsOpen), Is.False);
+        }
+
+        [Test]
+        public async Task DisposeCancelsInFlightExplicitStartProvider()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            var harness = new FakeListenerHarness(Scheme);
+            var provider = new CancellationObservingProvider();
+            Uri url = Url(20699);
+            var manager = new ReverseConnectManager(telemetry)
+            {
+                TransportBindings = harness.Registry,
+                ConfigurationProvider = provider
+            };
+
+            Task start = manager.StartServiceAsync(ConfigFor(url));
+            await provider.Entered.ConfigureAwait(false);
+            Assert.That(start.IsCompleted, Is.False);
+
+            // Dispose must cancel the explicit start's token so the provider
+            // observes cancellation and the start exits.
+            await manager.DisposeAsync().ConfigureAwait(false);
+
+            bool observedCancellation = await provider.Canceled
+                .WaitAsync(TimeSpan.FromSeconds(5))
+                .ConfigureAwait(false);
+            Assert.That(
+                observedCancellation,
+                Is.True,
+                "the dispose must cancel the explicit start's provider");
+            Assert.That(
+                async () => await start.ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>()
+                    .Or.InstanceOf<ServiceResultException>()
+                    .Or.InstanceOf<ObjectDisposedException>());
+            Assert.That(manager.CurrentStateForTest, Is.EqualTo("Disposed"));
+            Assert.That(harness.Listeners.Any(l => l.IsOpen), Is.False);
+        }
+
+        [Test]
         public async Task IndefiniteWaitForConnectionCompletedPromptlyByStop()
         {
             ITelemetryContext telemetry = CreateTelemetry();
@@ -2719,6 +4785,162 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         }
 
         [Test]
+        public async Task BlockedReloadThenStopAllowsImmediateLazyRestartAndDiscardsStaleReload()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            var harness = new FakeListenerHarness(Scheme);
+            Uri initialUrl = Url(20720);
+            Uri reloadUrl = Url(20721);
+            var release = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            // A noncooperative provider ignores the manager-owned reload token and
+            // stays blocked until released, so the reload cannot exit even after
+            // the stop cancels it - proving a stale reload never blocks a restart.
+            var reloadProvider = new CancellationIgnoringProvider(release.Task);
+            var manager = new ReverseConnectManager(telemetry)
+            {
+                TransportBindings = harness.Registry
+            };
+            try
+            {
+                // Seed a lazy restart source and start on the initial endpoint.
+                manager.ConfigureInitialStartup(BuildAppConfig(telemetry, initialUrl));
+                await manager.EnsureStartedAsync().ConfigureAwait(false);
+                Assert.That(
+                    harness.Listeners.Any(l => l.OpenedUrl == initialUrl && l.IsOpen),
+                    Is.True);
+                int watcherGeneration = manager.CurrentWatcherGeneration;
+
+                // Enqueue a reload that blocks inside the provider (outside the
+                // lifecycle gate), so it stays in-flight while the stop commits.
+                manager.ConfigurationProvider = reloadProvider;
+                Task reload = manager.ReloadConfigurationAsync(
+                    BuildAppConfig(telemetry, reloadUrl),
+                    watcherGeneration);
+                await reloadProvider.Entered.ConfigureAwait(false);
+
+                // A committed stop advances the teardown epoch and detaches the
+                // in-flight reload; it must complete promptly even though the
+                // reload provider is still blocked.
+                await manager.StopServiceAsync().ConfigureAwait(false);
+                Assert.That(manager.CurrentStateForTest, Is.EqualTo("Stopped"));
+                Assert.That(reload.IsCompleted, Is.False,
+                    "the stale reload is still blocked in its noncooperative provider");
+
+                // An immediate lazy restart must NOT await the detached stale
+                // reload task: it reserves a fresh start and reopens the initial
+                // endpoint without waiting for the blocked provider. Clear the
+                // (still-blocked) provider so the restart uses the pass-through
+                // one; the stale reload already captured its own provider call.
+                manager.ConfigurationProvider = null;
+                await manager.EnsureStartedAsync()
+                    .WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false);
+                Assert.That(manager.CurrentStateForTest, Is.EqualTo("Started"));
+                Assert.That(
+                    harness.Listeners.Any(l => l.OpenedUrl == initialUrl && l.IsOpen),
+                    Is.True,
+                    "the lazy restart must reopen the initial endpoint");
+                Assert.That(
+                    harness.Listeners.Any(l => l.OpenedUrl == reloadUrl && l.IsOpen),
+                    Is.False,
+                    "the stale reload endpoint must never open");
+
+                // Release the stale provider: its completion is discarded (the
+                // captured lifecycle version/epoch is superseded), so it neither
+                // reopens the reload endpoint nor restarts the drain.
+                release.SetResult(true);
+                await reload.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+
+                Assert.That(manager.CurrentStateForTest, Is.EqualTo("Started"));
+                Assert.That(
+                    harness.Listeners.Any(l => l.OpenedUrl == reloadUrl && l.IsOpen),
+                    Is.False,
+                    "the released stale reload must have no effect");
+                Assert.That(
+                    harness.Listeners.Any(l => l.OpenedUrl == initialUrl && l.IsOpen),
+                    Is.True,
+                    "the restarted service must remain on the initial endpoint");
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                await manager.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task MatchingWaitClaimWinsRaceAndAcceptsTransport()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            var harness = new FakeListenerHarness(Scheme);
+            Uri url = Url(20730);
+            const string serverUri = "urn:test:reverse:server";
+            await using var manager = new ReverseConnectManager(telemetry)
+            {
+                TransportBindings = harness.Registry
+            };
+            await manager.StartServiceAsync(ConfigFor(url)).ConfigureAwait(false);
+
+            // Winner order A: the matcher claims the waiter first (no shutdown
+            // faulted it), so it accepts the transport and hands it to the waiter.
+            TaskCompletionSource<ITransportWaitingConnection> tcs =
+                manager.RegisterWaitForTest(url, serverUri);
+            var e = new FakeConnectionWaitingEventArgs(serverUri, url);
+
+            bool matched = manager.MatchWaitingConnectionForTest(e);
+
+            Assert.That(matched, Is.True);
+            Assert.That(e.Accepted, Is.True, "the winning claim must accept the transport");
+            Assert.That(tcs.Task.Status, Is.EqualTo(TaskStatus.RanToCompletion));
+            Assert.That(tcs.Task.Result, Is.SameAs(e), "the waiter must receive the claimed transport");
+            Assert.That(
+                manager.WaitingConnectionCountForTest,
+                Is.Zero,
+                "the claimed registration must be removed");
+        }
+
+        [Test]
+        public async Task MatchingWaitClaimLosesToStopAndLeavesNoAcceptedOrphan()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            var harness = new FakeListenerHarness(Scheme);
+            Uri url = Url(20735);
+            const string serverUri = "urn:test:reverse:server";
+            await using var manager = new ReverseConnectManager(telemetry)
+            {
+                TransportBindings = harness.Registry
+            };
+            await manager.StartServiceAsync(ConfigFor(url)).ConfigureAwait(false);
+
+            // Winner order B: a committed Stop/Dispose faulted the waiter first.
+            TaskCompletionSource<ITransportWaitingConnection> tcs =
+                manager.RegisterWaitForTest(url, serverUri);
+            var shutdownError = new ServiceResultException(
+                StatusCodes.BadInvalidState,
+                "The reverse connect manager stopped serving waiting connections.");
+            Assert.That(tcs.TrySetException(shutdownError), Is.True);
+
+            // The matcher's claim under the registrations lock loses the race, so
+            // it must NOT accept the transport: the listener reclaims/closes it.
+            var e = new FakeConnectionWaitingEventArgs(serverUri, url);
+            bool matched = manager.MatchWaitingConnectionForTest(e);
+
+            Assert.That(matched, Is.False, "a lost claim must not report a match");
+            Assert.That(
+                e.Accepted,
+                Is.False,
+                "a lost claim must leave the transport unaccepted so the listener closes it");
+            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await tcs.Task.ConfigureAwait(false))!;
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(
+                manager.WaitingConnectionCountForTest,
+                Is.Zero,
+                "the dead registration must be removed by the matcher");
+        }
+
+        [Test]
         public async Task HostedCancellationAbortsExplicitStartJoinedByEnsureStarted()
         {
             ITelemetryContext telemetry = CreateTelemetry();
@@ -2837,6 +5059,280 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 "every discarded configured host must be disposed exactly once");
         }
 
+        [Test]
+        public async Task DelayedCancelPendingStartAfterCanceledStartDoesNotPoisonFreshStart()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            var harness = new FakeListenerHarness(Scheme);
+            var provider = new CancellableGateProvider();
+            Uri url = Url(20730);
+            Uri restartUrl = Url(20731);
+            await using var manager = new ReverseConnectManager(telemetry)
+            {
+                TransportBindings = harness.Registry,
+                ConfigurationProvider = provider
+            };
+
+            // An explicit start blocks in the cancellable provider gate before
+            // any listener binds and is then cancelled through its own token.
+            using var cts = new CancellationTokenSource();
+            Task explicitStart = manager.StartServiceAsync(ConfigFor(url), cts.Token);
+            await provider.Entered.ConfigureAwait(false);
+            cts.Cancel();
+            Assert.That(
+                async () => await explicitStart.ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>());
+
+            // A late/stale hosted cancellation fires AFTER the canceled start
+            // completed and while no hosted startup scope is active. It must not
+            // latch (there is no pending hosted startup publication), so a later
+            // start is never spuriously cancelled.
+            manager.CancelPendingStart();
+
+            manager.ConfigurationProvider = null;
+            await manager.StartServiceAsync(ConfigFor(restartUrl)).ConfigureAwait(false);
+
+            Assert.That(manager.CurrentStateForTest, Is.EqualTo("Started"));
+            Assert.That(
+                harness.Listeners.Any(l => l.OpenedUrl == restartUrl && l.IsOpen),
+                Is.True,
+                "the fresh start must bind its listener, proving the delayed " +
+                "cancellation did not poison it");
+        }
+
+        [Test]
+        public async Task CanceledStopRestoreReopenFailureDisposesConfiguredHostsOnce()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            var harness = new FakeListenerHarness(Scheme);
+            Uri first = Url(20740);
+            Uri second = Url(20741);
+            using var cts = new CancellationTokenSource();
+            await using var manager = new ReverseConnectManager(telemetry)
+            {
+                TransportBindings = harness.Registry
+            };
+
+            await manager.StartServiceAsync(ConfigFor(first, second)).ConfigureAwait(false);
+            FakeReverseListener firstListener =
+                harness.Listeners.Single(l => l.OpenedUrl == first);
+            FakeReverseListener secondListener =
+                harness.Listeners.Single(l => l.OpenedUrl == second);
+
+            // The first host closes successfully but its restore reopen fails;
+            // cancelling the caller token while the first close completes makes
+            // the stop's remaining close throw OperationCanceledException so the
+            // stop rolls back through the restore path.
+            harness.FailOpenFor(first, new ServiceResultException(StatusCodes.BadNoCommunication));
+            harness.SetCloseGate(first, _ =>
+            {
+                cts.Cancel();
+                return Task.CompletedTask;
+            });
+
+            Assert.That(
+                async () => await manager.StopServiceAsync(cts.Token).ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>());
+
+            // The restore reopen failed, so the manager faults with no listeners.
+            // Both discarded configured hosts must be disposed exactly once
+            // rather than leaked when the references are cleared.
+            Assert.That(manager.CurrentStateForTest, Is.EqualTo("Faulted"));
+            Assert.That(harness.Listeners.Any(l => l.IsOpen), Is.False);
+            Assert.That(
+                firstListener.DisposeCount,
+                Is.EqualTo(1),
+                "a discarded configured host must be disposed once on restore failure");
+            Assert.That(
+                secondListener.DisposeCount,
+                Is.EqualTo(1),
+                "a discarded configured host must be disposed once on restore failure");
+        }
+
+        [Test]
+        public async Task FailedReloadRestoreRecreateFactoryThrowDisposesEarlierRecreatedHostOnce()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            var harness = new FakeListenerHarness(Scheme);
+            Uri first = Url(20750);
+            Uri second = Url(20751);
+            Uri replacement = Url(20752);
+            await using var manager = new ReverseConnectManager(telemetry)
+            {
+                TransportBindings = harness.Registry
+            };
+
+            // Start with two configured endpoints (creates listeners #1 and #2).
+            await manager.StartServiceAsync(BuildAppConfig(telemetry, first, second))
+                .ConfigureAwait(false);
+
+            // Reload to a single replacement (creates listener #3) that fails to
+            // open, forcing the restore of the previous two descriptors. During
+            // the restore the first previous host is recreated (listener #4) and
+            // the second recreation (create #5) throws. The transactional
+            // reconstruction must dispose the already-recreated host before
+            // rethrowing so no partial reconstruction leaks.
+            harness.FailOpenFor(replacement, new ServiceResultException(StatusCodes.BadNoCommunication));
+            harness.ThrowOnCreateNumber(5);
+            await manager.ReloadConfigurationAsync(
+                BuildAppConfig(telemetry, replacement),
+                manager.CurrentWatcherGeneration).ConfigureAwait(false);
+
+            Assert.That(manager.CurrentStateForTest, Is.EqualTo("Faulted"));
+            Assert.That(harness.Listeners.Any(l => l.IsOpen), Is.False);
+            Assert.That(
+                harness.Listeners.All(l => l.DisposeCount == 1),
+                Is.True,
+                "every created host - including the partially recreated restore " +
+                "host - must be disposed exactly once");
+        }
+
+        [Test]
+        public async Task CloseFailingManualEndpointStopThenRestartOpensFreshListener()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            var harness = new FakeListenerHarness(Scheme);
+            Uri manual = Url(20760);
+            int armed = 1;
+
+            // The manual host's first close fails destructively (a non-cancellation
+            // failure), which makes ReverseConnectHost.CloseAsync dispose and null
+            // its listener, leaving the persistent manual host unusable.
+            harness.SetCloseGate(manual, _ =>
+            {
+                if (Interlocked.Exchange(ref armed, 0) == 1)
+                {
+                    return Task.FromException(
+                        new InvalidOperationException("destructive manual close"));
+                }
+                return Task.CompletedTask;
+            });
+
+            await using var manager = new ReverseConnectManager(telemetry)
+            {
+                TransportBindings = harness.Registry
+            };
+            manager.AddEndpoint(manual);
+
+            await manager.StartServiceAsync(ConfigFor()).ConfigureAwait(false);
+            FakeReverseListener original = harness.Listeners.Single(l => l.OpenedUrl == manual);
+            Assert.That(original.IsOpen, Is.True);
+
+            // Stop: the destructive close destroys the manual host's listener.
+            await manager.StopServiceAsync().ConfigureAwait(false);
+            Assert.That(manager.CurrentStateForTest, Is.EqualTo("Stopped"));
+            Assert.That(
+                original.DisposeCount,
+                Is.GreaterThanOrEqualTo(1),
+                "the destructive close must dispose the manual listener");
+
+            // Restart: the manager must recreate the unusable manual host from
+            // the endpoint and open a FRESH listener rather than reusing the
+            // destroyed one (which OpenAsync would reject).
+            await manager.StartServiceAsync(ConfigFor()).ConfigureAwait(false);
+            Assert.That(manager.CurrentStateForTest, Is.EqualTo("Started"));
+            Assert.That(
+                harness.Listeners.Any(l =>
+                    l.OpenedUrl == manual && l.IsOpen && !ReferenceEquals(l, original)),
+                Is.True,
+                "a freshly created manual listener must open after the destructive close");
+        }
+
+        [Test]
+        public async Task RecreatedManualWssHostReusesOriginalAddEndpointConfigurationAsync()
+        {
+            const string wssScheme = Utils.UriSchemeOpcWss;
+            ITelemetryContext telemetry = CreateTelemetry();
+            var harness = new FakeListenerHarness(wssScheme);
+            var manual = new Uri(wssScheme + "://localhost:20800/reverse");
+
+            // Config A supplies the TLS context (server certificate registry +
+            // validator) to AddEndpoint. Config B is a DIFFERENT application
+            // configuration used to restart the manager after the manual host is
+            // destroyed - it must never be substituted for config A on the
+            // recreated manual WSS host.
+            ICertificateManager registryA = Mock.Of<ICertificateManager>();
+            ICertificateManager registryB = Mock.Of<ICertificateManager>();
+            ApplicationConfiguration configA = BuildAppConfigWithCertificateManager(
+                telemetry,
+                registryA);
+            ApplicationConfiguration configB = BuildAppConfigWithCertificateManager(
+                telemetry,
+                registryB);
+
+            // The manual host's first close fails destructively (a
+            // non-cancellation failure), which makes ReverseConnectHost.CloseAsync
+            // dispose and null its listener, leaving the persistent manual host
+            // unusable so a restart must recreate it.
+            int armed = 1;
+            harness.SetCloseGate(manual, _ =>
+            {
+                if (Interlocked.Exchange(ref armed, 0) == 1)
+                {
+                    return Task.FromException(
+                        new InvalidOperationException("destructive manual close"));
+                }
+                return Task.CompletedTask;
+            });
+
+            await using var manager = new ReverseConnectManager(telemetry)
+            {
+                TransportBindings = harness.Registry
+            };
+
+            // Add a manual opc.wss endpoint with config A: its CertificateManager
+            // is plumbed into the listener as the server certificate registry and
+            // validator because the endpoint terminates TLS.
+            manager.AddEndpoint(manual, configA);
+
+            await manager.StartServiceAsync(ConfigFor()).ConfigureAwait(false);
+            FakeReverseListener original = harness.Listeners.Single(l => l.OpenedUrl == manual);
+            Assert.That(original.IsOpen, Is.True);
+            Assert.That(original.OpenedServerCertificates, Is.SameAs(registryA));
+            Assert.That(original.OpenedCertificateValidator, Is.SameAs(registryA));
+
+            // Stop: the destructive close destroys the manual host's listener.
+            await manager.StopServiceAsync().ConfigureAwait(false);
+            Assert.That(manager.CurrentStateForTest, Is.EqualTo("Stopped"));
+            Assert.That(
+                original.DisposeCount,
+                Is.GreaterThanOrEqualTo(1),
+                "the destructive close must dispose the manual listener");
+
+            // Restart with a DIFFERENT application configuration (config B). The
+            // recreated manual WSS host must still use config A's TLS context -
+            // the one originally supplied to AddEndpoint - not config B's.
+            await manager.StartServiceAsync(configB).ConfigureAwait(false);
+            Assert.That(manager.CurrentStateForTest, Is.EqualTo("Started"));
+
+            FakeReverseListener recreated = harness.Listeners.Single(l =>
+                l.OpenedUrl == manual && l.IsOpen && !ReferenceEquals(l, original));
+            Assert.That(
+                recreated.OpenedServerCertificates,
+                Is.SameAs(registryA),
+                "the recreated manual host must reuse config A's certificate registry");
+            Assert.That(
+                recreated.OpenedCertificateValidator,
+                Is.SameAs(registryA),
+                "the recreated manual host must reuse config A's certificate validator");
+            Assert.That(
+                recreated.OpenedServerCertificates,
+                Is.Not.SameAs(registryB),
+                "the restart configuration must not override the original TLS context");
+        }
+
+        private static ApplicationConfiguration BuildAppConfigWithCertificateManager(
+            ITelemetryContext telemetry,
+            ICertificateManager certificateManager)
+        {
+            return new ApplicationConfiguration(telemetry)
+            {
+                ApplicationUri = "urn:test:client",
+                ApplicationName = "Test",
+                CertificateManager = certificateManager
+            };
+        }
+
         private static async Task WaitForAsync(Func<bool> condition, string message)
         {
             DateTime deadline = DateTime.UtcNow.AddSeconds(5);
@@ -2934,6 +5430,40 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 {
                     // Record the fail-fast result and let the real startup
                     // proceed so the manager still reaches Started.
+                    ReentrantError = e;
+                }
+                return configuration;
+            }
+        }
+
+        private sealed class ReentrantDisposeProvider : IReverseConnectConfigurationProvider
+        {
+            private readonly ReverseConnectManager m_manager;
+
+            public ReentrantDisposeProvider(ReverseConnectManager manager)
+            {
+                m_manager = manager;
+            }
+
+            public Exception? ReentrantError { get; private set; }
+
+            public async ValueTask<ReverseConnectClientConfiguration> ConfigureAsync(
+                ApplicationConfiguration? applicationConfiguration,
+                ReverseConnectClientConfiguration configuration,
+                CancellationToken cancellationToken = default)
+            {
+                try
+                {
+                    // Cross an await boundary so the AsyncLocal startup-owner
+                    // marker must flow through the yield, then re-enter
+                    // DisposeAsync on the same in-flight startup flow. It must
+                    // fail fast rather than deadlock on the shared teardown that
+                    // drains this very start.
+                    await Task.Yield();
+                    await m_manager.DisposeAsync().ConfigureAwait(false);
+                }
+                catch (Exception e)
+                {
                     ReentrantError = e;
                 }
                 return configuration;
@@ -3215,6 +5745,81 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             }
         }
 
+        /// <summary>
+        /// Records the reverse-connect candidate the manager hands it on every
+        /// invocation (endpoint count and hold/wait timeouts) and then damages
+        /// that candidate in place - clearing its endpoints and scrambling its
+        /// timeouts - so a naive reuse of the cached configuration would carry the
+        /// damage into the next start's input. It returns a fresh, valid
+        /// configuration (the intended option endpoint) as the effective result
+        /// so the start still opens its listener. Optionally throws on the first
+        /// call to exercise the failed-start retry path.
+        /// </summary>
+        private sealed class MutatingRecordingProvider : IReverseConnectConfigurationProvider
+        {
+            private readonly Uri m_url;
+            private readonly int m_holdTime;
+            private int m_calls;
+
+            public MutatingRecordingProvider(Uri url, int holdTime)
+            {
+                m_url = url;
+                m_holdTime = holdTime;
+            }
+
+            public bool ThrowOnFirstCall { get; set; }
+
+            public List<int> ObservedEndpointCounts { get; } = [];
+
+            public List<int> ObservedHoldTimes { get; } = [];
+
+            public List<int> ObservedWaitTimeouts { get; } = [];
+
+            public ValueTask<ReverseConnectClientConfiguration> ConfigureAsync(
+                ApplicationConfiguration? applicationConfiguration,
+                ReverseConnectClientConfiguration configuration,
+                CancellationToken cancellationToken = default)
+            {
+                ObservedEndpointCounts.Add(
+                    configuration.ClientEndpoints.IsNull
+                        ? 0
+                        : configuration.ClientEndpoints.Count);
+                ObservedHoldTimes.Add(configuration.HoldTime);
+                ObservedWaitTimeouts.Add(configuration.WaitTimeout);
+
+                // Damage the shared candidate in place: without a reapplied
+                // overlay decorator the next start would observe this damage.
+                configuration.ClientEndpoints =
+                    new ArrayOf<ReverseConnectClientEndpoint>(
+                        Array.Empty<ReverseConnectClientEndpoint>());
+                configuration.HoldTime = -1;
+                configuration.WaitTimeout = -1;
+
+                if (ThrowOnFirstCall && ++m_calls == 1)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadConfigurationError,
+                        "Preparation rejected on the first attempt.");
+                }
+
+                // Return a fresh, valid effective configuration so the start
+                // opens the intended option endpoint.
+                return new ValueTask<ReverseConnectClientConfiguration>(
+                    new ReverseConnectClientConfiguration
+                    {
+                        ClientEndpoints = new ArrayOf<ReverseConnectClientEndpoint>(
+                            new[]
+                            {
+                                new ReverseConnectClientEndpoint
+                                {
+                                    EndpointUrl = m_url.ToString()
+                                }
+                            }),
+                        HoldTime = m_holdTime
+                    });
+            }
+        }
+
         private sealed class EmptyingProvider : IReverseConnectConfigurationProvider
         {
             public ValueTask<ReverseConnectClientConfiguration> ConfigureAsync(
@@ -3225,6 +5830,41 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 // Explicit suppression: drop all endpoints.
                 return new ValueTask<ReverseConnectClientConfiguration>(
                     new ReverseConnectClientConfiguration());
+            }
+        }
+
+        private sealed class CancellationObservingProvider : IReverseConnectConfigurationProvider
+        {
+            private readonly TaskCompletionSource<bool> m_entered =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+            private readonly TaskCompletionSource<bool> m_canceled =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            public Task<bool> Entered => m_entered.Task;
+
+            /// <summary>
+            /// Completes once the provider observes cancellation of the
+            /// manager-owned start token, proving a stop/dispose cancelled the
+            /// in-flight explicit start.
+            /// </summary>
+            public Task<bool> Canceled => m_canceled.Task;
+
+            public async ValueTask<ReverseConnectClientConfiguration> ConfigureAsync(
+                ApplicationConfiguration? applicationConfiguration,
+                ReverseConnectClientConfiguration configuration,
+                CancellationToken cancellationToken = default)
+            {
+                m_entered.TrySetResult(true);
+                try
+                {
+                    await Task.Delay(Timeout.Infinite, cancellationToken).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    m_canceled.TrySetResult(true);
+                    throw;
+                }
+                return configuration;
             }
         }
 
@@ -3315,6 +5955,21 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             }
         }
 
+        /// <summary>
+        /// A minimal <see cref="ConnectionWaitingEventArgs"/> fake exposing a
+        /// public constructor and a transport handle, so a test can drive the
+        /// waiting-connection matcher directly without a real listener.
+        /// </summary>
+        private sealed class FakeConnectionWaitingEventArgs : ConnectionWaitingEventArgs
+        {
+            public FakeConnectionWaitingEventArgs(string serverUri, Uri endpointUrl)
+                : base(serverUri, endpointUrl)
+            {
+            }
+
+            public override object Handle { get; } = new object();
+        }
+
         private sealed class FakeListenerHarness
         {
             public FakeListenerHarness(string scheme)
@@ -3326,6 +5981,13 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                     .Setup(f => f.Create(It.IsAny<ITelemetryContext>()))
                     .Returns(() =>
                     {
+                        int n = Interlocked.Increment(ref m_createCount);
+                        if (n == Volatile.Read(ref m_throwOnCreateNumber))
+                        {
+                            throw new ServiceResultException(
+                                StatusCodes.BadInternalError,
+                                "factory create failed");
+                        }
                         var listener = new FakeReverseListener(this);
                         lock (m_listeners)
                         {
@@ -3354,6 +6016,20 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             }
 
             private readonly List<FakeReverseListener> m_listeners = [];
+
+            private int m_createCount;
+            private int m_throwOnCreateNumber = -1;
+
+            /// <summary>
+            /// Arms the listener factory to throw on the <paramref name="oneBasedOrdinal"/>-th
+            /// listener creation (counted across the whole harness lifetime), so
+            /// a transactional reconstruction path can be proven to dispose the
+            /// hosts it already created before rethrowing.
+            /// </summary>
+            public void ThrowOnCreateNumber(int oneBasedOrdinal)
+            {
+                Volatile.Write(ref m_throwOnCreateNumber, oneBasedOrdinal);
+            }
 
             private readonly ConcurrentDictionary<Uri, Exception> m_openFailures = new();
             private readonly ConcurrentDictionary<Uri, Func<CancellationToken, Task>> m_openGates =
@@ -3443,6 +6119,21 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             /// </summary>
             public bool IsOpen => Volatile.Read(ref m_isOpen) != 0;
 
+            /// <summary>
+            /// The server certificate registry supplied through
+            /// <see cref="TransportListenerSettings.ServerCertificates"/> on the
+            /// last open. Tests inspect it to prove which application
+            /// configuration (TLS context) the listener was created from.
+            /// </summary>
+            public ICertificateRegistry? OpenedServerCertificates { get; private set; }
+
+            /// <summary>
+            /// The certificate validator supplied through
+            /// <see cref="TransportListenerSettings.CertificateValidator"/> on
+            /// the last open.
+            /// </summary>
+            public ICertificateValidatorEx? OpenedCertificateValidator { get; private set; }
+
             public event ConnectionWaitingHandlerAsync? ConnectionWaiting;
 
             public event EventHandler<ConnectionStatusEventArgs>? ConnectionStatusChanged;
@@ -3454,6 +6145,8 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 CancellationToken ct = default)
             {
                 OpenedUrl = baseAddress;
+                OpenedServerCertificates = settings.ServerCertificates;
+                OpenedCertificateValidator = settings.CertificateValidator;
                 Interlocked.Increment(ref OpenCount);
                 await m_harness.OnOpenAsync(baseAddress, ct).ConfigureAwait(false);
                 Volatile.Write(ref m_isOpen, 1);
