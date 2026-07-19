@@ -379,8 +379,6 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(firstResults[0].StatusCode, Is.EqualTo(StatusCodes.Good));
                 Assert.That(firstResults[0].ContinuationPoint.IsEmpty, Is.False);
 
-                SetMaxBrowseContinuationPointsPerBrowse(sut, 0u);
-
                 (ArrayOf<BrowseResult> nextResults, _) = await sut.BrowseNextAsync(
                     ctx,
                     false,
@@ -388,8 +386,20 @@ namespace Opc.Ua.Server.Tests
                     CancellationToken.None).ConfigureAwait(false);
 
                 Assert.That(nextResults.Count, Is.EqualTo(1));
-                Assert.That(nextResults[0].StatusCode, Is.EqualTo(StatusCodes.BadNoContinuationPoints));
-                Assert.That(nextResults[0].ContinuationPoint.IsEmpty, Is.True);
+                Assert.That(nextResults[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(nextResults[0].ContinuationPoint.IsEmpty, Is.False);
+
+                SetMaxBrowseContinuationPointsPerBrowse(sut, 0u);
+
+                (ArrayOf<BrowseResult> finalResults, _) = await sut.BrowseNextAsync(
+                    ctx,
+                    false,
+                    new ByteString[] { nextResults[0].ContinuationPoint }.ToArrayOf(),
+                    CancellationToken.None).ConfigureAwait(false);
+
+                Assert.That(finalResults.Count, Is.EqualTo(1));
+                Assert.That(finalResults[0].StatusCode, Is.EqualTo(StatusCodes.BadNoContinuationPoints));
+                Assert.That(finalResults[0].ContinuationPoint.IsEmpty, Is.True);
             }
             finally
             {
