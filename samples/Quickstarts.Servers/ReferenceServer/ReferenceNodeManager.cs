@@ -4458,8 +4458,9 @@ namespace Quickstarts.ReferenceServer
             {
                 PropertyState<ArrayOf<Variant>> generatedSelections = variable.Selections;
                 variable.RemoveChild(generatedSelections);
-                // Clear the generated typed child so FindChild resolves the String[]
-                // Selections property added below for this instance.
+                // Nulling the generated Variant-typed property allows FindChild to
+                // resolve the String[] Selections property added below for this
+                // instance.
                 variable.Selections = null!;
             }
 
@@ -4493,7 +4494,8 @@ namespace Quickstarts.ReferenceServer
                 variable.SelectionDescriptions ??
                 throw new InvalidOperationException(
                     "SelectionDescriptions property is null after calling AddSelectionDescriptions. " +
-                    "This indicates a framework initialization error.");
+                    "Expected AddSelectionDescriptions to populate variable.SelectionDescriptions " +
+                    "with a non-null PropertyState<ArrayOf<LocalizedText>>.");
             selectionDescriptions.NodeId = new NodeId(
                 path + "_SelectionDescriptions",
                 NamespaceIndex);
@@ -4524,7 +4526,8 @@ namespace Quickstarts.ReferenceServer
             PropertyState<bool> restrictToList = variable.RestrictToList ??
                 throw new InvalidOperationException(
                     "RestrictToList property is null after calling AddRestrictToList. " +
-                    "This indicates a framework initialization error.");
+                    "Expected AddRestrictToList to populate variable.RestrictToList " +
+                    "with a non-null PropertyState<bool>.");
             restrictToList.NodeId = new NodeId(path + "_RestrictToList", NamespaceIndex);
             restrictToList.BrowseName = new QualifiedName(BrowseNames.RestrictToList);
             restrictToList.DisplayName = LocalizedText.From(BrowseNames.RestrictToList);
