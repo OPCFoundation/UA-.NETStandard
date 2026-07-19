@@ -111,6 +111,31 @@ namespace Opc.Ua
             return id;
         }
 
+        /// <summary>
+        /// Reads an Arrow schema from a serialized Arrow IPC stream and computes the portable
+        /// canonical <c>SchemaId</c> (SHA-256[:nbytes] over the canonical form). This is
+        /// the wire-bytes entry point: it deliberately re-derives the SchemaId from the schema's
+        /// logical content (see <see cref="Compute(Apache.Arrow.Schema)"/>) rather than hashing the
+        /// raw IPC bytes, so the same logical schema yields the same SchemaId regardless of which
+        /// Arrow implementation or version produced the IPC.
+        /// </summary>
+        /// <param name="ipcSchema">The serialized Arrow IPC bytes carrying the schema message.</param>
+        /// <param name="nbytes">The number of leading SHA-256 digest bytes to return.</param>
+        /// <returns>The portable raw SchemaId bytes.</returns>
+        /// <exception cref="FormatException">The bytes are not a readable Arrow IPC schema.</exception>
+        public static byte[] ComputeSchemaIdFromIpc(ReadOnlySpan<byte> ipcSchema, int nbytes = 8)
+        {
+            using var stream = new System.IO.MemoryStream(ipcSchema.ToArray(), writable: false);
+            using var reader = new Apache.Arrow.Ipc.ArrowStreamReader(stream, leaveOpen: true);
+
+            // Reading the first batch (or reaching end-of-stream on a schema-only stream) forces the
+            // reader to consume the leading schema message and populate reader.Schema.
+            using RecordBatch? batch = reader.ReadNextRecordBatch();
+            ArrowSchema schema = batch?.Schema ?? reader.Schema
+                ?? throw new FormatException("The Arrow IPC stream does not carry a schema.");
+            return ComputeSchemaId(schema, nbytes);
+        }
+
         private static string TypeCode(IArrowType type)
         {
             switch (type.TypeId)

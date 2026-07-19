@@ -95,7 +95,10 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Computes the SchemaId bytes for serialized Arrow schema bytes.
+        /// Computes the portable SchemaId for serialized Arrow schema bytes. The SchemaId is derived
+        /// from the schema's logical content (the implementation-independent canonical form), so it is
+        /// stable across Arrow implementations/versions for the same logical schema; bytes that are not
+        /// a readable Arrow IPC schema fall back to a raw SHA-256 (finding 10).
         /// </summary>
         /// <param name = "schema">The serialized Arrow schema bytes.</param>
         /// <returns>The raw 8-byte SHA-256-prefix SchemaId.</returns>
@@ -106,7 +109,21 @@ namespace Opc.Ua
                 throw new ArgumentException("Schema bytes are required.", nameof(schema));
             }
 
-            return ByteString.From(global::Opc.Ua.SchemaId.Sha256Id(schema.Span, 8));
+            try
+            {
+                return ByteString.From(ArrowSchemaCanonicalForm.ComputeSchemaIdFromIpc(schema.Span, 8));
+            }
+            catch (Exception ex) when (
+                ex is FormatException
+                || ex is InvalidDataException
+                || ex is EndOfStreamException
+                || ex is InvalidOperationException
+                || ex is ArgumentException
+                || ex is OverflowException
+                || ex is NotSupportedException)
+            {
+                return ByteString.From(global::Opc.Ua.SchemaId.Sha256Id(schema.Span, 8));
+            }
         }
 
         internal static byte[] WriteBatch(Apache.Arrow.Schema schema, RecordBatch batch)

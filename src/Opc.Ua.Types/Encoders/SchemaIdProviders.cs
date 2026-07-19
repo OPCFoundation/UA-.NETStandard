@@ -50,7 +50,7 @@ namespace Opc.Ua
 
         /// <summary>
         /// Gets the SchemaIdAlg name that identifies the (canonicalization, hash) this provider
-        /// uses, for example CRC-64-AVRO, SHA-256/ApacheArrow or SHA-256/JCS.
+        /// uses, for example CRC-64-AVRO, SHA-256/ArrowCanonical or SHA-256/JCS.
         /// </summary>
         string Algorithm { get; }
 
@@ -202,11 +202,33 @@ namespace Opc.Ua
         {
             public string Format => ArrowFormat;
 
-            public string Algorithm => "SHA-256/ApacheArrow";
+            public string Algorithm => "SHA-256/ArrowCanonical";
 
             public byte[] ComputeSchemaId(ReadOnlySpan<byte> schema)
             {
+#if NET8_0_OR_GREATER
+                // Portable Arrow SchemaId: re-derive from the schema's logical content via the
+                // implementation-independent canonical form, so a pyarrow-produced and a .NET-produced
+                // IPC of the same logical schema share one SchemaId (Part 6 Arrow; finding 10). Inputs
+                // that are not a readable Arrow IPC schema fall back to a raw SHA-256 of the bytes.
+                try
+                {
+                    return ArrowSchemaCanonicalForm.ComputeSchemaIdFromIpc(schema, 8);
+                }
+                catch (Exception ex) when (
+                    ex is FormatException
+                    || ex is System.IO.InvalidDataException
+                    || ex is System.IO.EndOfStreamException
+                    || ex is InvalidOperationException
+                    || ex is ArgumentException
+                    || ex is OverflowException
+                    || ex is NotSupportedException)
+                {
+                    return SchemaId.Sha256Id(schema, 8);
+                }
+#else
                 return SchemaId.Sha256Id(schema, 8);
+#endif
             }
         }
 

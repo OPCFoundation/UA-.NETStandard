@@ -251,6 +251,31 @@ namespace Opc.Ua.Core.Tests
             });
         }
 
+        // Executable-spec target for the registry-coupled ExtensionObject / struct optional / struct
+        // union canonical encodings (Part B3b, finding #15). The reference codec encodes:
+        //   * ExtensionObject.typeId as a NON-nullable NodeId record (the .NET encoder currently
+        //     writes an ExpandedNodeId record because ExtensionObject.TypeId is an ExpandedNodeId);
+        //   * ExtensionObject.body as an Avro union [ null, <one typed-record branch per KNOWN struct
+        //     in the shared-schema registry order>, bytes ] — so the branch index is 1 + registryIndex
+        //     for a known struct (the .NET encoder writes a fixed branch 1 for any IEncodeable body,
+        //     2 for binary, 3 for XML);
+        //   * struct optional fields as a per-field nullable({ value }) wrapper (the .NET encoder
+        //     writes a uint32 encoding mask via WriteEncodingMask);
+        //   * UNION structs as an Avro union branch keyed by the struct definition (the .NET encoder
+        //     writes a uint32 switch via WriteSwitchField).
+        // The reference codec has no standalone bytes-encode path — it REQUIRES registry.resolve() to
+        // encode a body — so a byte-identical fixture cannot be produced without the shared xRegistry
+        // schema. This canonicalisation therefore belongs to the schema-registry-coupled decode path,
+        // not the standalone stack encoder; it is captured here as the executable spec and remains
+        // [Ignore]'d until the registry-aware encoding path lands. The registry-INDEPENDENT composites
+        // (NodeId/ExpandedNodeId/QualifiedName/DataValue/Variant) are canonical today (see above).
+        [Test]
+        [Ignore("finding #15 / Part B3b: ExtensionObject body-union + struct optional/union are coupled to the shared xRegistry schema (executable target)")]
+        public void ExtensionObjectAndStructOptionalUnionAreRegistryCoupled()
+        {
+            Assert.Fail("Registry-coupled canonical encoding is specified by the xRegistry schema path; see finding #15.");
+        }
+
         private static byte[] Encode(Action<AvroEncoder> write)
         {
             using var stream = new MemoryStream();
