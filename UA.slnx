@@ -248,6 +248,7 @@
     <Project Path="tests/Opc.Ua.SourceGeneration.Tests/Opc.Ua.SourceGeneration.Tests.csproj" />
     <Project Path="tests/Opc.Ua.MigrationAnalyzer.Core.Tests/Opc.Ua.MigrationAnalyzer.Core.Tests.csproj" />
     <Project Path="tests/Opc.Ua.MigrationAnalyzer.Tests/Opc.Ua.MigrationAnalyzer.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.Tools.Tests/Opc.Ua.Tools.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Types.Tests/Opc.Ua.Types.Tests.csproj" />
     <Project Path="tests/Opc.Ua.WotCon.Tests/Opc.Ua.WotCon.Tests.csproj" />
   </Folder>
