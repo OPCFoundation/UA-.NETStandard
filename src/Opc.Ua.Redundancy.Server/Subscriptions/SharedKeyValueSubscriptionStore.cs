@@ -109,46 +109,106 @@ namespace Opc.Ua.Redundancy.Server
             var liveIds = new HashSet<uint>();
             foreach (StoredSubscription subscription in snapshot)
             {
-                liveIds.Add(subscription.Id);
-                string key = KeyFor(subscription.Id);
-                await m_store
-                    .SetAsync(key, m_protector.Protect(Encode(subscription)), cancellationToken)
-                    .ConfigureAwait(false);
+                if (!liveIds.Add(subscription.Id))
+                {
+                    throw new ArgumentException(
+                        "The subscription snapshot contains duplicate subscription ids.",
+                        nameof(subscriptions));
+                }
+                ValidateSubscription(subscription.Id, subscription);
             }
 
-            uint[] removedIds;
-            lock (m_definitionCache.Lock)
+            await m_definitionCache.SnapshotCommitLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
-                removedIds = [.. m_definitionCache.Subscriptions.Keys.Where(id => !liveIds.Contains(id))];
+                var generation = Guid.NewGuid();
                 foreach (StoredSubscription subscription in snapshot)
                 {
-                    m_definitionCache.Subscriptions[subscription.Id] = CloneSubscription(subscription);
+                    await m_store
+                        .SetAsync(
+                            SnapshotGenerationKeyFor(generation, subscription.Id),
+                            m_protector.Protect(Encode(subscription)),
+                            cancellationToken)
+                        .ConfigureAwait(false);
                 }
+
+                await m_store
+                    .SetAsync(
+                        SnapshotManifestKey(),
+                        m_protector.Protect(EncodeSnapshotManifest(generation, (uint)snapshot.Count)),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                uint[] removedIds;
+                lock (m_definitionCache.Lock)
+                {
+                    removedIds = [.. m_definitionCache.Subscriptions.Keys.Where(id => !liveIds.Contains(id))];
+                    m_definitionCache.Subscriptions.Clear();
+                    foreach (StoredSubscription subscription in snapshot)
+                    {
+                        m_definitionCache.Subscriptions.Add(
+                            subscription.Id,
+                            CloneSubscription(subscription));
+                    }
+                }
+
                 foreach (uint subscriptionId in removedIds)
                 {
-                    m_definitionCache.Subscriptions.Remove(subscriptionId);
+                    DeleteRetransmissionState(subscriptionId);
                 }
             }
-
-            foreach (uint subscriptionId in removedIds)
+            finally
             {
-                await m_store.DeleteAsync(KeyFor(subscriptionId), cancellationToken).ConfigureAwait(false);
-                DeleteRetransmissionState(subscriptionId);
+                m_definitionCache.SnapshotCommitLock.Release();
             }
 
             return true;
         }
 
         /// <inheritdoc/>
-        public ValueTask<RestoreSubscriptionResult> RestoreSubscriptionsAsync(
+        public async ValueTask<RestoreSubscriptionResult> RestoreSubscriptionsAsync(
             CancellationToken cancellationToken = default)
         {
+            (bool foundManifest, ByteString protectedManifest) = await m_store
+                .TryGetAsync(SnapshotManifestKey(), cancellationToken)
+                .ConfigureAwait(false);
+
+            Dictionary<uint, StoredSubscription> restored;
+            if (foundManifest)
+            {
+                if (!m_protector.TryUnprotect(protectedManifest, out ByteString manifestPayload) ||
+                    manifestPayload.IsNull)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadSecurityChecksFailed,
+                        "The persisted subscription snapshot manifest could not be authenticated.");
+                }
+                SnapshotManifest manifest = DecodeSnapshotManifest(manifestPayload);
+                restored = await ReadSnapshotAsync(
+                    SnapshotGenerationPrefixFor(manifest.Generation),
+                    manifest.RecordCount,
+                    cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                restored = await ReadSnapshotAsync(Prefix, null, cancellationToken).ConfigureAwait(false);
+            }
+
+            List<StoredSubscription> subscriptions = restored.Values
+                .OrderBy(static subscription => subscription.Id)
+                .ToList();
             lock (m_definitionCache.Lock)
             {
-                return new ValueTask<RestoreSubscriptionResult>(new RestoreSubscriptionResult(
-                    true,
-                    m_definitionCache.Subscriptions.Values.Select(CloneSubscription).ToList()));
+                m_definitionCache.Subscriptions.Clear();
+                foreach (StoredSubscription subscription in subscriptions)
+                {
+                    m_definitionCache.Subscriptions.Add(
+                        subscription.Id,
+                        CloneSubscription(subscription));
+                }
             }
+
+            return new RestoreSubscriptionResult(true, subscriptions);
         }
 
         /// <inheritdoc/>
@@ -199,22 +259,18 @@ namespace Opc.Ua.Redundancy.Server
                 throw new ArgumentNullException(nameof(createdSubscriptions));
             }
 
-            uint[] removedIds;
+            List<StoredSubscription> restoredSubscriptions;
             lock (m_definitionCache.Lock)
             {
                 var liveIds = new HashSet<uint>(createdSubscriptions.Keys);
-                removedIds = [.. m_definitionCache.Subscriptions.Keys.Where(id => !liveIds.Contains(id))];
-                foreach (uint subscriptionId in removedIds)
-                {
-                    m_definitionCache.Subscriptions.Remove(subscriptionId);
-                }
+                restoredSubscriptions =
+                [
+                    .. m_definitionCache.Subscriptions
+                        .Where(pair => liveIds.Contains(pair.Key))
+                        .Select(static pair => CloneSubscription(pair.Value))
+                ];
             }
-
-            foreach (uint subscriptionId in removedIds)
-            {
-                await m_store.DeleteAsync(KeyFor(subscriptionId), cancellationToken).ConfigureAwait(false);
-                DeleteRetransmissionState(subscriptionId);
-            }
+            await StoreSubscriptionsAsync(restoredSubscriptions, cancellationToken).ConfigureAwait(false);
 
             if (m_queueFactory != null)
             {
@@ -703,6 +759,48 @@ namespace Opc.Ua.Redundancy.Server
         }
 
         /// <summary>
+        /// Gets the key that atomically commits the current subscription snapshot generation.
+        /// </summary>
+        /// <returns>The manifest key.</returns>
+        internal static string SnapshotManifestKey()
+        {
+            return DefinitionSnapshotManifestKey;
+        }
+
+        /// <summary>
+        /// Gets the root prefix containing immutable subscription snapshot generations.
+        /// </summary>
+        /// <returns>The generation root prefix.</returns>
+        internal static string SnapshotGenerationRootPrefix()
+        {
+            return DefinitionSnapshotGenerationPrefix;
+        }
+
+        /// <summary>
+        /// Gets the prefix containing records for one subscription snapshot generation.
+        /// </summary>
+        /// <param name="generation">The snapshot generation.</param>
+        /// <returns>The generation prefix.</returns>
+        internal static string SnapshotGenerationPrefixFor(Guid generation)
+        {
+            return DefinitionSnapshotGenerationPrefix +
+                generation.ToString("N", System.Globalization.CultureInfo.InvariantCulture) +
+                "/";
+        }
+
+        /// <summary>
+        /// Gets the key for one subscription record in an immutable snapshot generation.
+        /// </summary>
+        /// <param name="generation">The snapshot generation.</param>
+        /// <param name="subscriptionId">The subscription id.</param>
+        /// <returns>The generation record key.</returns>
+        internal static string SnapshotGenerationKeyFor(Guid generation, uint subscriptionId)
+        {
+            return SnapshotGenerationPrefixFor(generation) +
+                subscriptionId.ToString("D", System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        /// <summary>
         /// Computes the shared-store key for a subscription retransmission state record.
         /// </summary>
         /// <param name="subscriptionId">The subscription id.</param>
@@ -742,6 +840,105 @@ namespace Opc.Ua.Redundancy.Server
                 ((int)kind).ToString(System.Globalization.CultureInfo.InvariantCulture) +
                 "/" +
                 id.ToString("N", System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        private async ValueTask<Dictionary<uint, StoredSubscription>> ReadSnapshotAsync(
+            string keyPrefix,
+            uint? expectedRecordCount,
+            CancellationToken cancellationToken)
+        {
+            var restored = new Dictionary<uint, StoredSubscription>();
+            await foreach (KeyValuePair<string, ByteString> pair in m_store
+                .ScanAsync(keyPrefix, cancellationToken)
+                .ConfigureAwait(false))
+            {
+                if (!TryParseSubscriptionKey(pair.Key, keyPrefix, out uint subscriptionId))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadDecodingError,
+                        "The persisted subscription key is malformed.");
+                }
+                if (!m_protector.TryUnprotect(pair.Value, out ByteString payload) || payload.IsNull)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadSecurityChecksFailed,
+                        "The persisted subscription record could not be authenticated.");
+                }
+
+                StoredSubscription subscription = Decode(payload);
+                ValidateSubscription(subscriptionId, subscription);
+                if (restored.ContainsKey(subscriptionId))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadDecodingError,
+                        "The persisted subscription snapshot contains duplicate records.");
+                }
+                restored.Add(subscriptionId, subscription);
+            }
+
+            if (expectedRecordCount.HasValue && (uint)restored.Count != expectedRecordCount.Value)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadDecodingError,
+                    "The persisted subscription snapshot is incomplete.");
+            }
+
+            return restored;
+        }
+
+        private static bool TryParseSubscriptionKey(
+            string key,
+            string keyPrefix,
+            out uint subscriptionId)
+        {
+            subscriptionId = 0;
+            if (!key.StartsWith(keyPrefix, StringComparison.Ordinal) || key.Length == keyPrefix.Length)
+            {
+                return false;
+            }
+
+            for (int ii = keyPrefix.Length; ii < key.Length; ii++)
+            {
+                char character = key[ii];
+                if (character is < '0' or > '9')
+                {
+                    return false;
+                }
+
+                uint digit = (uint)(character - '0');
+                if (subscriptionId > (uint.MaxValue - digit) / 10)
+                {
+                    return false;
+                }
+                subscriptionId = (subscriptionId * 10) + digit;
+            }
+
+            return string.Equals(
+                key,
+                keyPrefix + subscriptionId.ToString("D", System.Globalization.CultureInfo.InvariantCulture),
+                StringComparison.Ordinal);
+        }
+
+        private static void ValidateSubscription(uint subscriptionId, StoredSubscription subscription)
+        {
+            if (subscription.Id != subscriptionId)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadDecodingError,
+                    "The persisted subscription id does not match its key.");
+            }
+
+            var monitoredItemIds = new HashSet<uint>();
+            foreach (IStoredMonitoredItem monitoredItem in subscription.MonitoredItems)
+            {
+                if (monitoredItem.SubscriptionId != subscriptionId ||
+                    !monitoredItemIds.Add(monitoredItem.Id))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadDecodingError,
+                        "The persisted subscription contains invalid monitored-item identities.");
+                }
+            }
         }
 
         private static StoredSubscription CloneSubscription(IStoredSubscription subscription)
@@ -813,6 +1010,16 @@ namespace Opc.Ua.Redundancy.Server
             encoder.WriteStringArray(null, m_context.NamespaceUris.ToArrayOf());
             encoder.WriteStringArray(null, m_context.ServerUris.ToArrayOf());
             EncodeSubscription(encoder, subscription);
+            byte[]? buffer = encoder.CloseAndReturnBuffer();
+            return buffer is null ? ByteString.Empty : ByteString.From(buffer);
+        }
+
+        private ByteString EncodeSnapshotManifest(Guid generation, uint recordCount)
+        {
+            using var encoder = new BinaryEncoder(m_context);
+            encoder.WriteInt32(null, DefinitionSnapshotManifestFormatVersion);
+            encoder.WriteByteString(null, ByteString.From(generation.ToByteArray()));
+            encoder.WriteUInt32(null, recordCount);
             byte[]? buffer = encoder.CloseAndReturnBuffer();
             return buffer is null ? ByteString.Empty : ByteString.From(buffer);
         }
@@ -923,11 +1130,6 @@ namespace Opc.Ua.Redundancy.Server
             };
         }
 
-        // Decodes a stored subscription record. Retained as the symmetric counterpart to
-        // Encode and exercised directly by the store's unit tests via reflection, so it is
-        // not statically referenced from production code paths.
-#pragma warning disable IDE0051 // Remove unused private members
-#pragma warning disable RCS1213 // Remove unused member declaration
         private StoredSubscription Decode(ByteString payload)
         {
             using var decoder = new BinaryDecoder(payload.ToArray(), m_context);
@@ -940,10 +1142,33 @@ namespace Opc.Ua.Redundancy.Server
             ArrayOf<string?> namespaceUris = decoder.ReadStringArray(null);
             ArrayOf<string?> serverUris = decoder.ReadStringArray(null);
             decoder.SetMappingTables(CreateNamespaceTable(namespaceUris), CreateStringTable(serverUris));
-            return DecodeSubscription(decoder);
+            StoredSubscription subscription = DecodeSubscription(decoder);
+            if (decoder.Position != payload.Length)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadDecodingError,
+                    "The persisted subscription record contains trailing data.");
+            }
+            return subscription;
         }
-#pragma warning restore RCS1213 // Remove unused member declaration
-#pragma warning restore IDE0051 // Remove unused private members
+
+        private SnapshotManifest DecodeSnapshotManifest(ByteString payload)
+        {
+            using var decoder = new BinaryDecoder(payload.ToArray(), m_context);
+            int version = decoder.ReadInt32(null);
+            ByteString generationBytes = decoder.ReadByteString(null);
+            uint recordCount = decoder.ReadUInt32(null);
+            if (version != DefinitionSnapshotManifestFormatVersion ||
+                generationBytes.Length != 16 ||
+                decoder.Position != payload.Length)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadDecodingError,
+                    "The persisted subscription snapshot manifest is malformed.");
+            }
+
+            return new SnapshotManifest(new Guid(generationBytes.ToArray()), recordCount);
+        }
 
         private static void EncodeSubscription(BinaryEncoder encoder, StoredSubscription subscription)
         {
@@ -1153,6 +1378,7 @@ namespace Opc.Ua.Redundancy.Server
         }
 
         private const int DefinitionFormatVersion = 1;
+        private const int DefinitionSnapshotManifestFormatVersion = 1;
         private const int ContinuationPointFormatVersion = 1;
         private const int LegacyRetransmissionStateFormatVersion = 1;
         private const int RetransmissionStateFormatVersion = 2;
@@ -1164,6 +1390,8 @@ namespace Opc.Ua.Redundancy.Server
         private const int FilterKindExtensionObject = 4;
         private const int ChannelCapacity = 1024;
         private const string Prefix = "subscription/";
+        private const string DefinitionSnapshotManifestKey = "subscription-snapshot/manifest";
+        private const string DefinitionSnapshotGenerationPrefix = "subscription-snapshot/generation/";
         private const string RetransmissionPrefix = "subscription-retransmission/";
         private const string ContinuationPointPrefix = "continuation-point/";
         private readonly ISharedKeyValueStore m_store;
@@ -1193,6 +1421,8 @@ namespace Opc.Ua.Redundancy.Server
         private sealed class SharedDefinitionCache
         {
             public Lock Lock { get; } = new();
+
+            public SemaphoreSlim SnapshotCommitLock { get; } = new(1, 1);
 
             public Dictionary<uint, StoredSubscription> Subscriptions { get; } = [];
         }
@@ -1232,6 +1462,8 @@ namespace Opc.Ua.Redundancy.Server
         private readonly record struct ContinuationPointBatch(
             ContinuationPointEnvelope[] Stores,
             string[] Deletes);
+
+        private readonly record struct SnapshotManifest(Guid Generation, uint RecordCount);
 
         /// <summary>
         /// Command enqueued to the mirror worker; carries an optional completion source used to await the mirror
