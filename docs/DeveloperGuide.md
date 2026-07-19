@@ -127,6 +127,16 @@ Each project owns exactly one event-id class, named `<AssemblyToken>EventIds`, i
 
 The token prefix is required because the stack uses `InternalsVisibleTo`: two `internal` classes with the same name in the same namespace collide across an IVT boundary (`CS0436`). The class holds one `public const int` offset per log class. Offsets are assigned in class-alphabetical order starting at 0; each block reserves at least five spare slots for future messages and is then rounded up to the next multiple of ten, so ids stay documented and managed in one place. Every log method sets `EventId = <AssemblyToken>EventIds.<Class> + <zero-based message index within that class>`.
 
+##### Narrow exception: retained EventSource-compatibility ids
+
+The four legacy `System.Diagnostics.Tracing.EventSource` providers (`OPC-UA-Core`, `OPC-UA-Client`, `OPC-UA-Server`, `Opc.Ua.ChannelManager`) were removed and replaced with `[LoggerMessage]` equivalents. Their compatibility log methods are a deliberate, narrow exception to the convention above: each keeps the exact numeric id, event name, level, message template, and structured fields the corresponding ETW event had, so consumers can preserve event identity when they migrate from ETW to `ILogger`. Concretely:
+
+- The compatibility log class uses the **old provider name as its `ILogger` category** (e.g. `"OPC-UA-Core"`, `"Opc.Ua.ChannelManager"`) instead of the typed, per-class category used elsewhere in the project.
+- `EventId` resolves to the **literal legacy numeric id** (e.g. `10` for `OPC-UA-Core`'s former `ServiceCallStart`) rather than a normal per-class offset. Keep these values in the affected project's `EventIds.cs`; compatibility ids are scoped to their own logger category, so they may intentionally overlap ordinary per-assembly values.
+- Every compatibility method sets `EventName` explicitly (`[LoggerMessage(EventId = 10, EventName = "ServiceCallStart", Level = LogLevel.Trace, Message = "...")]`) so `EventId.Name` matches the original ETW event name exactly.
+- ETW-only metadata (provider GUID, `Task`, `Keywords`, manifest) is **not** retained because there is no `ILogger` equivalent.
+- Do **not** use this pattern for new log messages. It exists only to preserve the event identities that previously shipped through the four EventSource providers; see [Diagnostics.md](Diagnostics.md#high-speed-logging-and-source-generators) and [migrate/2.0.x/telemetry.md](migrate/2.0.x/telemetry.md) for the full removal/compatibility mapping.
+
 #### Log class convention
 
 - **One log class per file**, named `<PrimaryClass>Log`, `internal static partial`, appended at the end of the file inside the same namespace.
@@ -174,7 +184,7 @@ logger.ReadArrayZeroDimension(index, dimensions);
 - [ ] Placeholders are named and match parameter names; no interpolation.
 - [ ] Parameter types match the arguments; nullable only where needed; no `object`.
 - [ ] Expensive arguments are guarded with `IsEnabled`; cheap ones are not.
-- [ ] `EventId` uses the project's `<AssemblyToken>EventIds` offset (or a literal range for a shared/linked file).
+- [ ] `EventId` uses the project's `<AssemblyToken>EventIds` offset (or a literal range for a shared/linked file, or a literal legacy id with an explicit `EventName` for a retained EventSource-compatibility message — see [the narrow exception](#narrow-exception-retained-eventsource-compatibility-ids)).
 - [ ] When testing with a mocked `ILogger`, stub `IsEnabled(...) => true` and match on `EventId.Name`, not the (empty) source-generated state `ToString()`.
 
 ### Other common tasks

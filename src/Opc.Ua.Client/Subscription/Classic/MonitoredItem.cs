@@ -1124,6 +1124,7 @@ namespace Opc.Ua.Client
         {
             QueueSize = queueSize;
             m_logger = telemetry.CreateLogger<MonitoredItemDataCache>();
+            m_eventLogger = telemetry.CreateLogger(ClientEventIds.LegacyCategoryName);
             if (queueSize > 1)
             {
                 m_values = new ConcurrentQueue<DataValue>();
@@ -1176,17 +1177,12 @@ namespace Opc.Ua.Client
         {
             LastValue = notification.Value;
 
-            if (CoreClientUtils.EventLog.IsEnabled())
+            if (m_eventLogger.IsEnabled(LogLevel.Trace))
             {
-                CoreClientUtils.EventLog.Notification(
+                m_eventLogger.ClientEventNotification(
                     (int)notification.ClientHandle,
                     LastValue.WrappedValue.ToString());
             }
-
-            m_logger.NotificationClientHandleClientHandleValueValueSourceTime(
-                notification.ClientHandle,
-                notification.Value.WrappedValue,
-                notification.Value.SourceTimestamp);
 
             if (m_values != null)
             {
@@ -1245,6 +1241,7 @@ namespace Opc.Ua.Client
 
         private ConcurrentQueue<DataValue>? m_values;
         private readonly ILogger m_logger;
+        private readonly ILogger m_eventLogger;
     }
 
     /// <summary>
@@ -1355,14 +1352,6 @@ namespace Opc.Ua.Client
             DateTime serverTimestamp,
             Variant value,
             uint monitoredItemId);
-
-        [LoggerMessage(EventId = ClientEventIds.MonitoredItem + 3, Level = LogLevel.Debug,
-            Message = "Notification: ClientHandle={ClientHandle}, Value={Value}, SourceTime={SourceTime}")]
-        public static partial void NotificationClientHandleClientHandleValueValueSourceTime(
-            this ILogger logger,
-            uint clientHandle,
-            Variant value,
-            DateTimeUtc sourceTime);
 
         [LoggerMessage(EventId = ClientEventIds.MonitoredItem + 4, Level = LogLevel.Information,
             Message = "Dropped value: ClientHandle={ClientHandle}, Value={Value}, SourceTime={SourceTime}")]

@@ -27,16 +27,17 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.Tracing;
+using Microsoft.Extensions.Logging;
 using ChannelCloseReason = Opc.Ua.ClientChannelManager.ChannelCloseReason;
 
 namespace Opc.Ua
 {
     /// <summary>
-    /// Emits OPC UA channel-manager diagnostic signals (Activities and an
-    /// <see cref="EventSource"/>) for the client channel manager.
+    /// Emits OPC UA channel-manager diagnostic signals through Activities and
+    /// structured logs for the client channel manager.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -48,12 +49,17 @@ namespace Opc.Ua
     /// <see cref="ServiceResult.AdditionalInfo"/> and inner .NET exception
     /// data such as messages, file paths and stack traces — are emitted
     /// only via local <c>ILogger</c> debug logs, never through Activity
-    /// tags or EventSource events, to avoid leaking internal diagnostics
+    /// tags or structured compatibility logs, to avoid leaking internal diagnostics
     /// to external tracing backends.
     /// </para>
     /// </remarks>
     internal sealed class ClientChannelManagerDiagnostics
     {
+        public ClientChannelManagerDiagnostics(ILogger logger)
+        {
+            m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        }
+
         public IReadOnlyList<ManagedChannelDiagnostic> GetDiagnostics(ChannelEntry[] snapshot)
         {
             var diagnostics = new ManagedChannelDiagnostic[snapshot.Length];
@@ -66,7 +72,6 @@ namespace Opc.Ua
         }
 
         private const string kReconnectOutcomeSuccess = "success";
-        private const string kChannelManagerDiagnosticsName = "Opc.Ua.ChannelManager";
         private const string kReconnectActivityName = "OpcUaChannelReconnect";
 
         public Activity? StartReconnectActivity(ChannelEntry entry)
@@ -76,7 +81,7 @@ namespace Opc.Ua
                 ActivityKind.Internal);
             activity?.SetTag("endpoint", entry.EndpointUrl);
             activity?.SetTag("reverse", entry.IsReverse);
-            s_eventSource.ReconnectStarted(entry.EndpointUrl, 0);
+            m_logger.ChannelManagerReconnectStarted(entry.EndpointUrl, 0);
             return activity;
         }
 
@@ -90,24 +95,28 @@ namespace Opc.Ua
             activity?.SetTag("endpoint", entry.EndpointUrl);
             activity?.SetTag("attempt.count", attemptCount);
             activity?.SetTag("outcome", outcome);
-            if (error != null)
+            string statusCode = string.Empty;
+            string errorMessage = string.Empty;
+            if (error != null && (activity != null || m_logger.IsEnabled(LogLevel.Warning)))
             {
-                activity?.SetTag("error.status_code", GetStatusCode(error));
-                activity?.SetTag("error.message", GetSafeErrorMessage(error));
+                statusCode = GetStatusCode(error);
+                errorMessage = GetSafeErrorMessage(error);
+                activity?.SetTag("error.status_code", statusCode);
+                activity?.SetTag("error.message", errorMessage);
             }
 
             if (outcome == kReconnectOutcomeSuccess)
             {
-                s_eventSource.ReconnectCompleted(entry.EndpointUrl, attemptCount, outcome);
+                m_logger.ChannelManagerReconnectCompleted(entry.EndpointUrl, attemptCount, outcome);
                 return;
             }
 
-            s_eventSource.ReconnectFailed(
+            m_logger.ChannelManagerReconnectFailed(
                 entry.EndpointUrl,
                 attemptCount,
                 outcome,
-                GetStatusCode(error),
-                GetSafeErrorMessage(error));
+                statusCode,
+                errorMessage);
         }
 
         public void EmitReconnectFailed(
@@ -116,7 +125,12 @@ namespace Opc.Ua
             string outcome,
             ServiceResult? error)
         {
-            s_eventSource.ReconnectFailed(
+            if (!m_logger.IsEnabled(LogLevel.Warning))
+            {
+                return;
+            }
+
+            m_logger.ChannelManagerReconnectFailed(
                 entry.EndpointUrl,
                 attempt,
                 outcome,
@@ -126,7 +140,12 @@ namespace Opc.Ua
 
         public void EmitStateChanged(ChannelEntry entry, ChannelStateChange change)
         {
-            s_eventSource.StateChanged(
+            if (!m_logger.IsEnabled(LogLevel.Information))
+            {
+                return;
+            }
+
+            m_logger.ChannelManagerStateChanged(
                 entry.EndpointUrl,
                 change.PreviousState.ToString(),
                 change.NewState.ToString(),
@@ -137,7 +156,7 @@ namespace Opc.Ua
 
         public void EmitChannelOpened(ChannelEntry entry)
         {
-            s_eventSource.ChannelOpened(
+            m_logger.ChannelManagerChannelOpened(
                 entry.EndpointUrl,
                 entry.IsReverse,
                 entry.RefCount,
@@ -146,7 +165,12 @@ namespace Opc.Ua
 
         public void EmitChannelClosed(ChannelEntry entry, ChannelCloseReason reason)
         {
-            s_eventSource.ChannelClosed(
+            if (!m_logger.IsEnabled(LogLevel.Information))
+            {
+                return;
+            }
+
+            m_logger.ChannelManagerChannelClosed(
                 entry.EndpointUrl,
                 GetCloseReason(reason),
                 entry.RefCount,
@@ -159,7 +183,7 @@ namespace Opc.Ua
             int refCount,
             int participantCount)
         {
-            s_eventSource.ParticipantAttached(
+            m_logger.ChannelManagerParticipantAttached(
                 entry.EndpointUrl,
                 participantId,
                 refCount,
@@ -172,7 +196,7 @@ namespace Opc.Ua
             int refCount,
             int participantCount)
         {
-            s_eventSource.ParticipantDetached(
+            m_logger.ChannelManagerParticipantDetached(
                 entry.EndpointUrl,
                 participantId,
                 refCount,
@@ -186,7 +210,7 @@ namespace Opc.Ua
 
         /// <summary>
         /// Returns a SAFE error message suitable for distributed-tracing
-        /// tags and EventSource events. Only OPC UA-protocol-level fields
+        /// tags and structured compatibility logs. Only OPC UA-protocol-level fields
         /// are surfaced: <see cref="ServiceResult.LocalizedText"/> if
         /// present, otherwise <see cref="ServiceResult.SymbolicId"/>. The
         /// full <see cref="ServiceResult"/> (including
@@ -221,136 +245,117 @@ namespace Opc.Ua
             };
         }
 
-        private sealed class ChannelManagerEventSource : EventSource
-        {
-            public const int ChannelOpenedId = 1;
-            public const int ChannelClosedId = ChannelOpenedId + 1;
-            public const int StateChangedId = ChannelClosedId + 1;
-            public const int ReconnectStartedId = StateChangedId + 1;
-            public const int ReconnectCompletedId = ReconnectStartedId + 1;
-            public const int ReconnectFailedId = ReconnectCompletedId + 1;
-            public const int ParticipantAttachedId = ReconnectFailedId + 1;
-            public const int ParticipantDetachedId = ParticipantAttachedId + 1;
+        private static readonly ActivitySource s_activitySource = new(
+            CoreEventIds.ChannelManagerCompatibilityCategory);
 
-            public ChannelManagerEventSource()
-                : base(kChannelManagerDiagnosticsName)
-            {
-            }
+        private readonly ILogger m_logger;
+    }
 
-            [Event(
-                ChannelOpenedId,
-                Message = "Channel opened. Endpoint={0}, Reverse={1}, Refcount={2}, Participants={3}",
-                Level = EventLevel.Informational)]
-            public void ChannelOpened(
-                string endpoint,
-                bool reverse,
-                int refcount,
-                int participantCount)
-            {
-                WriteEvent(ChannelOpenedId, endpoint, reverse, refcount, participantCount);
-            }
+    /// <summary>
+    /// Source-generated compatibility log messages formerly emitted by Opc.Ua.ChannelManager EventSource.
+    /// </summary>
+    internal static partial class ClientChannelManagerDiagnosticsLog
+    {
+        [LoggerMessage(
+            EventId = CoreEventIds.ChannelManagerChannelOpened,
+            EventName = "ChannelOpened",
+            Level = LogLevel.Information,
+            Message = "Channel opened. Endpoint={Endpoint}, Reverse={Reverse}, " +
+                "Refcount={Refcount}, Participants={ParticipantCount}")]
+        public static partial void ChannelManagerChannelOpened(
+            this ILogger logger,
+            string endpoint,
+            bool reverse,
+            int refcount,
+            int participantCount);
 
-            [Event(
-                ChannelClosedId,
-                Message = "Channel closed. Endpoint={0}, Reason={1}, Refcount={2}, Participants={3}",
-                Level = EventLevel.Informational)]
-            public void ChannelClosed(
-                string endpoint,
-                string reason,
-                int refcount,
-                int participantCount)
-            {
-                WriteEvent(ChannelClosedId, endpoint, reason, refcount, participantCount);
-            }
+        [LoggerMessage(
+            EventId = CoreEventIds.ChannelManagerChannelClosed,
+            EventName = "ChannelClosed",
+            Level = LogLevel.Information,
+            Message = "Channel closed. Endpoint={Endpoint}, Reason={Reason}, " +
+                "Refcount={Refcount}, Participants={ParticipantCount}")]
+        public static partial void ChannelManagerChannelClosed(
+            this ILogger logger,
+            string endpoint,
+            string reason,
+            int refcount,
+            int participantCount);
 
-            [Event(
-                StateChangedId,
-                Message = "State changed. Endpoint={0}, Previous={1}, New={2}, Attempt={3}, Status={4}",
-                Level = EventLevel.Informational)]
-            public void StateChanged(
-                string endpoint,
-                string previousState,
-                string newState,
-                int reconnectAttempt,
-                string statusCode,
-                string errorMessage)
-            {
-                WriteEvent(
-                    StateChangedId,
-                    endpoint,
-                    previousState,
-                    newState,
-                    reconnectAttempt,
-                    statusCode,
-                    errorMessage);
-            }
+        [LoggerMessage(
+            EventId = CoreEventIds.ChannelManagerStateChanged,
+            EventName = "StateChanged",
+            Level = LogLevel.Information,
+            Message = "State changed. Endpoint={Endpoint}, Previous={PreviousState}, New={NewState}, " +
+                "Attempt={ReconnectAttempt}, Status={StatusCode}, ErrorMessage={ErrorMessage}")]
+        public static partial void ChannelManagerStateChanged(
+            this ILogger logger,
+            string endpoint,
+            string previousState,
+            string newState,
+            int reconnectAttempt,
+            string statusCode,
+            string errorMessage);
 
-            [Event(
-                ReconnectStartedId,
-                Message = "Reconnect started. Endpoint={0}, AttemptCount={1}",
-                Level = EventLevel.Informational)]
-            public void ReconnectStarted(string endpoint, int attemptCount)
-            {
-                WriteEvent(ReconnectStartedId, endpoint, attemptCount);
-            }
+        [LoggerMessage(
+            EventId = CoreEventIds.ChannelManagerReconnectStarted,
+            EventName = "ReconnectStarted",
+            Level = LogLevel.Information,
+            Message = "Reconnect started. Endpoint={Endpoint}, AttemptCount={AttemptCount}")]
+        public static partial void ChannelManagerReconnectStarted(
+            this ILogger logger,
+            string endpoint,
+            int attemptCount);
 
-            [Event(
-                ReconnectCompletedId,
-                Message = "Reconnect completed. Endpoint={0}, AttemptCount={1}, Outcome={2}",
-                Level = EventLevel.Informational)]
-            public void ReconnectCompleted(string endpoint, int attemptCount, string outcome)
-            {
-                WriteEvent(ReconnectCompletedId, endpoint, attemptCount, outcome);
-            }
+        [LoggerMessage(
+            EventId = CoreEventIds.ChannelManagerReconnectCompleted,
+            EventName = "ReconnectCompleted",
+            Level = LogLevel.Information,
+            Message = "Reconnect completed. Endpoint={Endpoint}, AttemptCount={AttemptCount}, Outcome={Outcome}")]
+        public static partial void ChannelManagerReconnectCompleted(
+            this ILogger logger,
+            string endpoint,
+            int attemptCount,
+            string outcome);
 
-            [Event(
-                ReconnectFailedId,
-                Message = "Reconnect failed. Endpoint={0}, Attempt={1}, Outcome={2}, Status={3}",
-                Level = EventLevel.Warning)]
-            public void ReconnectFailed(
-                string endpoint,
-                int attempt,
-                string outcome,
-                string statusCode,
-                string errorMessage)
-            {
-                WriteEvent(
-                    ReconnectFailedId,
-                    endpoint,
-                    attempt,
-                    outcome,
-                    statusCode,
-                    errorMessage);
-            }
+        [LoggerMessage(
+            EventId = CoreEventIds.ChannelManagerReconnectFailed,
+            EventName = "ReconnectFailed",
+            Level = LogLevel.Warning,
+            Message = "Reconnect failed. Endpoint={Endpoint}, Attempt={Attempt}, Outcome={Outcome}, " +
+                "Status={StatusCode}, ErrorMessage={ErrorMessage}")]
+        public static partial void ChannelManagerReconnectFailed(
+            this ILogger logger,
+            string endpoint,
+            int attempt,
+            string outcome,
+            string statusCode,
+            string errorMessage);
 
-            [Event(
-                ParticipantAttachedId,
-                Message = "Participant attached. Endpoint={0}, Participant={1}, Refcount={2}, Participants={3}",
-                Level = EventLevel.Informational)]
-            public void ParticipantAttached(
-                string endpoint,
-                string participantId,
-                int refcount,
-                int participantCount)
-            {
-                WriteEvent(ParticipantAttachedId, endpoint, participantId, refcount, participantCount);
-            }
+        [LoggerMessage(
+            EventId = CoreEventIds.ChannelManagerParticipantAttached,
+            EventName = "ParticipantAttached",
+            Level = LogLevel.Information,
+            Message = "Participant attached. Endpoint={Endpoint}, Participant={ParticipantId}, " +
+                "Refcount={Refcount}, Participants={ParticipantCount}")]
+        public static partial void ChannelManagerParticipantAttached(
+            this ILogger logger,
+            string endpoint,
+            string participantId,
+            int refcount,
+            int participantCount);
 
-            [Event(
-                ParticipantDetachedId,
-                Message = "Participant detached. Endpoint={0}, Participant={1}, Refcount={2}, Participants={3}",
-                Level = EventLevel.Informational)]
-            public void ParticipantDetached(
-                string endpoint,
-                string participantId,
-                int refcount,
-                int participantCount)
-            {
-                WriteEvent(ParticipantDetachedId, endpoint, participantId, refcount, participantCount);
-            }
-        }
-
-        private static readonly ActivitySource s_activitySource = new(kChannelManagerDiagnosticsName);
-        private static readonly ChannelManagerEventSource s_eventSource = new();
+        [LoggerMessage(
+            EventId = CoreEventIds.ChannelManagerParticipantDetached,
+            EventName = "ParticipantDetached",
+            Level = LogLevel.Information,
+            Message = "Participant detached. Endpoint={Endpoint}, Participant={ParticipantId}, " +
+                "Refcount={Refcount}, Participants={ParticipantCount}")]
+        public static partial void ChannelManagerParticipantDetached(
+            this ILogger logger,
+            string endpoint,
+            string participantId,
+            int refcount,
+            int participantCount);
     }
 }

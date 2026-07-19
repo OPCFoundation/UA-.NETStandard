@@ -59,8 +59,8 @@ namespace Opc.Ua.Stress.Tests.Channels.Integration
         [CancelAfter(180_000)]
         public async Task FailoverWithKeyChangeSwapsLeaseRefcountsAsync(CancellationToken ct)
         {
-            await using ClientChannelManager manager = CreateChannelManager();
             using var metrics = new MetricsCollector();
+            await using ClientChannelManager manager = CreateChannelManager(telemetry: metrics.Telemetry);
             ConfiguredEndpoint endpointA = await GetEndpointAsync(SecurityPolicies.None)
                 .ConfigureAwait(false);
             ConfiguredEndpoint endpointB = await GetEndpointAsync(SecurityPolicies.Basic256Sha256)

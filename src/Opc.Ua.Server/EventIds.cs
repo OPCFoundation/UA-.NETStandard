@@ -82,4 +82,22 @@ namespace Opc.Ua
         public const int TrustList = 540;
         public const int UserManagementBinding = 550;
     }
+
+    /// <summary>
+    /// Retained event ids for the removed "OPC-UA-Server" <c>EventSource</c> provider.
+    /// </summary>
+    /// <remarks>
+    /// See docs/DeveloperGuide.md, "Narrow exception: retained EventSource-compatibility
+    /// ids". These are the literal legacy numeric ids, scoped to the "OPC-UA-Server"
+    /// <see cref="Microsoft.Extensions.Logging.ILogger"/> category, so they intentionally
+    /// overlap the ordinary per-class offsets in <see cref="ServerEventIds"/> above. Id 1
+    /// (the legacy <c>SendResponse</c> event) was never implemented by the provider and is
+    /// intentionally left unused.
+    /// </remarks>
+    internal static class ServerCompatibilityEventIds
+    {
+        public const int ServerCall = 2;
+        public const int SessionState = 3;
+        public const int MonitoredItemReady = 4;
+    }
 }

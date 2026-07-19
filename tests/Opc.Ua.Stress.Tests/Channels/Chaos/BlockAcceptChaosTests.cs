@@ -69,13 +69,15 @@ namespace Opc.Ua.Stress.Tests.Channels.Chaos
                 .ConfigureAwait(false);
             try
             {
+                using var collector = new MetricsCollector();
                 ClientChannelManager manager = CreateChannelManager(
                     new ExponentialBackoffChannelReconnectPolicy
                     {
                         MinDelay = TimeSpan.FromMilliseconds(200),
                         MaxDelay = TimeSpan.FromSeconds(2),
                         MaxAttempts = 20
-                    });
+                    },
+                    collector.Telemetry);
                 try
                 {
                     ConfiguredEndpoint endpoint = await GetEndpointAsync(SecurityPolicies.None, proxy.LocalUrl)
@@ -125,7 +127,6 @@ namespace Opc.Ua.Stress.Tests.Channels.Chaos
                         await runner.StartAsync(ct).ConfigureAwait(false);
                         try
                         {
-                            using var collector = new MetricsCollector();
                             ChaosSchedule schedule = CreateMixedDropAndBlockAcceptSchedule(seed);
                             var dispatcher = new ChaosScheduleRunner(schedule, DispatchChaosEventAsync);
                             try

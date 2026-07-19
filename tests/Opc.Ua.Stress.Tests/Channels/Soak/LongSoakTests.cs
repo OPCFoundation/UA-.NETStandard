@@ -74,9 +74,9 @@ namespace Opc.Ua.Stress.Tests.Channels.Soak
                 .ConfigureAwait(false);
 
             await using ConfiguredAsyncDisposable proxyAsyncDisposable = proxy.ConfigureAwait(false);
-            ClientChannelManager manager = CreateChannelManager(CreateSoakReconnectPolicy());
-            await using ConfiguredAsyncDisposable managerAsyncDisposable = manager.ConfigureAwait(false);
             using MetricsCollector collector = new();
+            ClientChannelManager manager = CreateChannelManager(CreateSoakReconnectPolicy(), collector.Telemetry);
+            await using ConfiguredAsyncDisposable managerAsyncDisposable = manager.ConfigureAwait(false);
 
             ConfiguredEndpoint endpoint = await GetProxyEndpointAsync(proxy.LocalUrl).ConfigureAwait(false);
             var sessions = new List<ManagedSessionType>(SessionCount);

@@ -64,6 +64,7 @@ namespace Opc.Ua.Server
             : base(telemetry)
         {
             TimeProvider = timeProvider ?? TimeProvider.System;
+            m_compatibilityLogger = telemetry.CreateCompatibilityLogger();
         }
 
         /// <summary>
@@ -2998,16 +2999,15 @@ namespace Opc.Ua.Server
             OperationContext context = await ServerInternal.SessionManager
                 .ValidateRequestAsync(requestHeader, secureChannelContext, requestType, requestLifetime).ConfigureAwait(false);
 
-            if (ServerUtils.EventLog.IsEnabled())
+            if (m_compatibilityLogger.IsEnabled(LogLevel.Information))
             {
                 string? requestTypeString = Enum.GetName(
 #if !NET8_0_OR_GREATER
                    typeof(RequestType),
 #endif
                    context.RequestType);
-                ServerUtils.EventLog.ServerCall(requestTypeString!, context.RequestId);
+                m_compatibilityLogger.CompatibilityServerCall(requestTypeString!, context.RequestId);
             }
-            m_logger.ServerCallRequestTypeIdRequestId(context.RequestType, context.RequestId);
 
             // notify the request manager.
             ServerInternal.RequestManager.RequestReceived(context);
@@ -4488,6 +4488,7 @@ namespace Opc.Ua.Server
         private ServerRateLimitOptions? m_rateLimitOptions;
         private IServerRateLimiterProvider? m_rateLimiterProvider;
         private bool m_ownsRateLimiterProvider;
+        private readonly ILogger m_compatibilityLogger;
 
         /// <summary>
         /// The interval at which the <see cref="ConfigurationNodeManager"/>
@@ -4612,12 +4613,9 @@ namespace Opc.Ua.Server
             Message = "Server - Enter {State} state.")]
         public static partial void ServerEnterStateState(this ILogger logger, ServerState state);
 
-        [LoggerMessage(EventId = ServerEventIds.StandardServer + 12, Level = LogLevel.Trace,
-            Message = "Server Call={RequestType}, Id={RequestId}")]
-        public static partial void ServerCallRequestTypeIdRequestId(
-            this ILogger logger,
-            RequestType requestType,
-            uint requestId);
+        // ServerEventIds.StandardServer + 12 is intentionally left unused. It previously
+        // duplicated the retained "ServerCall" compatibility event (see
+        // ServerCompatibilityLog.CompatibilityServerCall in OpcUaServerCompatibilityLog.cs).
 
         [LoggerMessage(EventId = ServerEventIds.StandardServer + 13, Level = LogLevel.Error,
             Message = "Could not load updated configuration file from: {FilePath}")]
