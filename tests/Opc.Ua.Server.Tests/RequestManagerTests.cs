@@ -99,7 +99,7 @@ namespace Opc.Ua.Server.Tests
             };
 
             // Act
-            m_requestManager.CancelRequests(42, out uint cancelCount);
+            m_requestManager.CancelRequests(context.SessionId, 42, out uint cancelCount);
 
             // Assert
             Assert.That(cancelCount, Is.EqualTo(1));
@@ -123,12 +123,51 @@ namespace Opc.Ua.Server.Tests
 
             uint cancelCount = 0;
             Assert.DoesNotThrow(
-                () => m_requestManager.CancelRequests(requestHandle, out cancelCount));
+                () => m_requestManager.CancelRequests(context.SessionId, requestHandle, out cancelCount));
 
             Assert.That(cancelCount, Is.EqualTo(1));
             Assert.That(
                 context.OperationStatus.Code,
                 Is.EqualTo(StatusCodes.BadRequestCancelledByRequest));
+        }
+
+        [Test]
+        public void CancelRequestsDoesNotCancelMatchingHandleFromDifferentSession()
+        {
+            var cancellingSession = new Mock<ISession>();
+            cancellingSession.Setup(s => s.Id).Returns(new NodeId(1));
+
+            var otherSession = new Mock<ISession>();
+            otherSession.Setup(s => s.Id).Returns(new NodeId(2));
+
+            const uint requestHandle = 42;
+            using var ownRequestLifetime = new RequestLifetime();
+            using var otherRequestLifetime = new RequestLifetime();
+
+            var ownContext = new OperationContext(
+                new RequestHeader { RequestHandle = requestHandle },
+                null,
+                RequestType.Read,
+                ownRequestLifetime,
+                cancellingSession.Object);
+            var otherContext = new OperationContext(
+                new RequestHeader { RequestHandle = requestHandle },
+                null,
+                RequestType.Read,
+                otherRequestLifetime,
+                otherSession.Object);
+
+            m_requestManager.RequestReceived(ownContext);
+            m_requestManager.RequestReceived(otherContext);
+
+            m_requestManager.CancelRequests(cancellingSession.Object.Id, requestHandle, out uint cancelCount);
+
+            Assert.That(cancelCount, Is.EqualTo(1));
+            Assert.That(ownRequestLifetime.CancellationToken.IsCancellationRequested, Is.True);
+            Assert.That(otherRequestLifetime.CancellationToken.IsCancellationRequested, Is.False);
+            Assert.That(
+                otherContext.OperationStatus.Code,
+                Is.EqualTo(StatusCodes.Good));
         }
 
         [Test]
@@ -154,7 +193,7 @@ namespace Opc.Ua.Server.Tests
 
             // Assert
             // To ensure it is removed, cancelling it will yield 0 count
-            m_requestManager.CancelRequests(42, out uint cancelCount);
+            m_requestManager.CancelRequests(context.SessionId, 42, out uint cancelCount);
             Assert.That(cancelCount, Is.Zero);
             // Assert that lifetime is completed (disposed), which means TryCancel returns false
             Assert.That(requestLifetime.TryCancel(StatusCodes.BadTimeout), Is.False);

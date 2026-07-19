@@ -1101,7 +1101,10 @@ namespace Opc.Ua.Server
             CancelResponse response;
             try
             {
-                ServerInternal.RequestManager.CancelRequests(requestHandle, out uint cancelCount);
+                ServerInternal.RequestManager.CancelRequests(
+                    context.SessionId,
+                    requestHandle,
+                    out uint cancelCount);
 
                 response = new CancelResponse
                 {
