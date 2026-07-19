@@ -28,9 +28,11 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Net;
 using System.Net.Http;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -159,11 +161,17 @@ namespace Opc.Ua.Redundancy.Kubernetes
             }
 
             await m_attemptGate.WaitAsync().ConfigureAwait(false);
-            m_attemptGate.Release();
-            await ReleaseIfOwnedAsync().ConfigureAwait(false);
-            m_watchdog.Dispose();
-            m_attemptGate.Dispose();
-            m_cts.Dispose();
+            try
+            {
+                await ReleaseIfOwnedAsync().ConfigureAwait(false);
+                m_watchdog.Dispose();
+                m_cts.Dispose();
+            }
+            finally
+            {
+                m_attemptGate.Release();
+                m_attemptGate.Dispose();
+            }
         }
 
         /// <summary>
@@ -466,7 +474,6 @@ namespace Opc.Ua.Redundancy.Kubernetes
             long notificationGeneration,
             bool stateChanged)
         {
-            Action<bool>? handler;
             lock (m_notificationLock)
             {
                 lock (m_lock)
@@ -495,8 +502,45 @@ namespace Opc.Ua.Redundancy.Kubernetes
 
                 m_hasLeadershipNotification = true;
                 m_lastNotifiedLeadership = value;
-                handler = LeadershipChanged;
-                handler?.Invoke(value);
+                m_pendingLeadershipNotifications.Enqueue(
+                    new LeadershipNotification(LeadershipChanged, value));
+                if (m_dispatchingLeadershipNotifications)
+                {
+                    return;
+                }
+                m_dispatchingLeadershipNotifications = true;
+            }
+            DispatchLeadershipNotifications();
+        }
+
+        private void DispatchLeadershipNotifications()
+        {
+            Exception? dispatchException = null;
+            while (true)
+            {
+                LeadershipNotification notification;
+                lock (m_notificationLock)
+                {
+                    if (!m_pendingLeadershipNotifications.TryDequeue(out notification))
+                    {
+                        m_dispatchingLeadershipNotifications = false;
+                        break;
+                    }
+                }
+
+                try
+                {
+                    notification.Handler?.Invoke(notification.Value);
+                }
+                catch (Exception ex)
+                {
+                    dispatchException ??= ex;
+                }
+            }
+
+            if (dispatchException != null)
+            {
+                ExceptionDispatchInfo.Capture(dispatchException).Throw();
             }
         }
 
@@ -528,7 +572,8 @@ namespace Opc.Ua.Redundancy.Kubernetes
                 ? CancellationTokenSource.CreateLinkedTokenSource(ct, m_cts.Token)
                 : CancellationTokenSource.CreateLinkedTokenSource(ct);
             Task<T> operationTask = operation(operationCts.Token).AsTask();
-            Task delayTask = m_timeProvider.Delay(GetApiAttemptTimeout(), delayCts.Token);
+            TimeSpan timeout = GetApiAttemptTimeout();
+            Task delayTask = m_timeProvider.Delay(timeout, delayCts.Token);
             _ = await Task.WhenAny(operationTask, delayTask).ConfigureAwait(false);
             if (operationTask.IsCompleted)
             {
@@ -543,7 +588,8 @@ namespace Opc.Ua.Redundancy.Kubernetes
             {
                 m_cts.Token.ThrowIfCancellationRequested();
             }
-            throw new TimeoutException("The Kubernetes Lease API attempt timed out.");
+            throw new TimeoutException(
+                $"The Kubernetes Lease API attempt did not complete within {timeout}.");
         }
 
         private static void ObserveFault(Task task)
@@ -596,6 +642,7 @@ namespace Opc.Ua.Redundancy.Kubernetes
         private readonly ILogger? m_logger;
         private readonly Lock m_lock = new();
         private readonly Lock m_notificationLock = new();
+        private readonly Queue<LeadershipNotification> m_pendingLeadershipNotifications = [];
         private readonly CancellationTokenSource m_cts = new();
         private readonly SemaphoreSlim m_attemptGate = new(1, 1);
         private readonly ITimer m_watchdog;
@@ -610,8 +657,11 @@ namespace Opc.Ua.Redundancy.Kubernetes
         private bool m_isLeader;
         private bool m_hasLeadershipNotification;
         private bool m_lastNotifiedLeadership;
+        private bool m_dispatchingLeadershipNotifications;
         private bool m_started;
         private bool m_disposed;
+
+        private readonly record struct LeadershipNotification(Action<bool>? Handler, bool Value);
     }
 
     /// <summary>

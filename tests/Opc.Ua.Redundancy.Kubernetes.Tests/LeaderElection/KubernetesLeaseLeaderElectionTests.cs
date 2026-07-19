@@ -40,7 +40,6 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Net;
 using System.Net.Http;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -180,7 +179,7 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
         }
 
         [Test]
-        public async Task DisposeSuppressesQueuedStaleTrueNotificationAsync()
+        public async Task LeadershipChangedHandlerCanDisposeWithoutDeadlockAsync()
         {
             Mock<IKubernetesApiClient> api = NewApi();
             api.SetupSequence(x => x.GetLeaseAsync("ns", "opcua", It.IsAny<CancellationToken>()))
@@ -193,43 +192,28 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
                 NewOptions(),
                 new FakeTimeProvider(ParseUtc("2026-01-01T00:00:00Z")));
             var notifications = new List<bool>();
-            var notificationsLock = new Lock();
+            Task? disposeTask = null;
             election.LeadershipChanged += value =>
             {
-                lock (notificationsLock)
+                notifications.Add(value);
+                if (value)
                 {
-                    notifications.Add(value);
+                    disposeTask = election.DisposeAsync().AsTask();
                 }
             };
-            FieldInfo? notificationLockField = typeof(KubernetesLeaseLeaderElection).GetField(
-                "m_notificationLock",
-                BindingFlags.Instance | BindingFlags.NonPublic);
-            Assert.That(notificationLockField, Is.Not.Null);
-            var notificationLock = (Lock)notificationLockField!.GetValue(election)!;
 
-            Task<bool> acquireTask;
-            Task disposeTask;
-            lock (notificationLock)
-            {
-                acquireTask = Task.Run(
-                    async () => await election.TryAcquireOrRenewAsync().ConfigureAwait(false));
-                Assert.That(
-                    SpinWait.SpinUntil(() => election.IsLeader, TimeSpan.FromSeconds(10)),
-                    Is.True);
-                disposeTask = Task.Run(
-                    async () => await election.DisposeAsync().ConfigureAwait(false));
-                Assert.That(
-                    SpinWait.SpinUntil(() => !election.IsLeader, TimeSpan.FromSeconds(10)),
-                    Is.True);
-            }
+            Task<bool> acquireTask = election.TryAcquireOrRenewAsync().AsTask();
+            bool acquired = await acquireTask
+                .WaitAsync(TimeSpan.FromSeconds(30))
+                .ConfigureAwait(false);
 
-            Assert.That(await acquireTask.ConfigureAwait(false), Is.True);
-            await disposeTask.ConfigureAwait(false);
-            lock (notificationsLock)
-            {
-                Assert.That(notifications, Has.Count.EqualTo(1));
-                Assert.That(notifications[0], Is.False);
-            }
+            Assert.That(acquired, Is.True);
+            Assert.That(disposeTask, Is.Not.Null);
+            await disposeTask!.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+            Assert.That(notifications, Has.Count.EqualTo(2));
+            Assert.That(notifications[0], Is.True);
+            Assert.That(notifications[1], Is.False);
+            Assert.That(election.IsLeader, Is.False);
         }
 
         [Test]
@@ -453,7 +437,8 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
 
             Assert.That(
                 () => attempt,
-                Throws.TypeOf<TimeoutException>());
+                Throws.TypeOf<TimeoutException>()
+                    .With.Message.Contains(TimeSpan.FromSeconds(5).ToString()));
             Assert.That(election.IsLeader, Is.False);
             Assert.That(requestToken.IsCancellationRequested, Is.True);
             hungGet.TrySetResult(null);
