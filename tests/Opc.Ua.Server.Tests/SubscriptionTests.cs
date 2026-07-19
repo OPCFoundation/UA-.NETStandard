@@ -50,7 +50,9 @@ namespace Opc.Ua.Server.Tests
                 .ReturnsAsync(new NodeId(1));
         }
 
-        private Subscription CreateSubscription(double publishingInterval = 1000)
+        private Subscription CreateSubscription(
+            double publishingInterval = 1000,
+            uint maxNotificationsPerPublish = 0)
         {
             return new Subscription(
                 m_serverMock.Object,
@@ -59,7 +61,7 @@ namespace Opc.Ua.Server.Tests
                 publishingInterval: publishingInterval,
                 maxLifetimeCount: 10,
                 maxKeepAliveCount: 5,
-                maxNotificationsPerPublish: 0,
+                maxNotificationsPerPublish: maxNotificationsPerPublish,
                 priority: 0,
                 publishingEnabled: true,
                 maxMessageCount: 10);
@@ -333,7 +335,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void ConstructMessageWithZeroLimitDrainsNotificationQueues()
         {
-            using Subscription subscription = CreateSubscription();
+            using Subscription subscription = CreateSubscription(maxNotificationsPerPublish: 0);
             var events = new Queue<EventFieldList>(
             [
                 new EventFieldList(),
@@ -352,7 +354,15 @@ namespace Opc.Ua.Server.Tests
 
             MethodInfo constructMessage = typeof(Subscription).GetMethod(
                 "ConstructMessage",
-                BindingFlags.NonPublic | BindingFlags.Instance)
+                BindingFlags.NonPublic | BindingFlags.Instance,
+                binder: null,
+                [
+                    typeof(Queue<EventFieldList>),
+                    typeof(Queue<MonitoredItemNotification>),
+                    typeof(Queue<DiagnosticInfo>),
+                    typeof(int).MakeByRefType()
+                ],
+                modifiers: null)
                 ?? throw new InvalidOperationException("ConstructMessage method not found");
             object[] arguments = [events, dataChanges, diagnostics, 0];
 
@@ -372,6 +382,7 @@ namespace Opc.Ua.Server.Tests
         [TestCase(0, 25, 25)]
         [TestCase(10, 0, 10)]
         [TestCase(10, 25, 10)]
+        [TestCase(25, 10, 10)]
         public void CalculateMaxNotificationsTreatsZeroAsUnlimited(
             int serverLimit,
             int requestedLimit,
