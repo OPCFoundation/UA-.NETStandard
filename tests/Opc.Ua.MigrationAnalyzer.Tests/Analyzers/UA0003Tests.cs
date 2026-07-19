@@ -142,7 +142,7 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
         }
 
         [Test]
-        public async Task DoesNotReportOnNullNotEqualsNullableLocalizedTextAsync()
+        public async Task DoesNotReportOnNullableLocalizedTextNotEqualsNullAsync()
         {
             const string source = """
                 using Opc.Ua;

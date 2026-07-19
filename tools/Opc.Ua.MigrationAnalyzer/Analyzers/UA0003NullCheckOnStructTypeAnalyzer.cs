@@ -85,7 +85,8 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
             {
                 return;
             }
-            if (valueType.OriginalDefinition?.SpecialType == SpecialType.System_Nullable_T)
+            if (valueType is INamedTypeSymbol namedType &&
+                namedType.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T)
             {
                 return;
             }
