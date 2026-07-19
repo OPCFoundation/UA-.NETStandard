@@ -1092,7 +1092,7 @@ namespace Opc.Ua
                     case ParticipantReconnectResult.RequiresSessionRecreate:
                         recreateTasks ??= [];
                         recreateTasks.Add(
-                            RecreateParticipantAsync(snapshot[i].Participant, ct));
+                            RecreateParticipantAsync(snapshot[i].Participant));
                         break;
                 }
             }
@@ -1109,13 +1109,14 @@ namespace Opc.Ua
         }
 
         private async Task<bool> RecreateParticipantAsync(
-            IReconnectParticipant participant,
-            CancellationToken ct)
+            IReconnectParticipant participant)
         {
             try
             {
                 using IDisposable scope = ClientChannelManager.EnterReactivationScope();
-                ValueTask work = ResolveRecreateInvocation(participant, ct);
+                ValueTask work = ResolveRecreateInvocation(
+                    participant,
+                    OwnerManager.ShutdownToken);
                 await work.ConfigureAwait(false);
                 OwnerManager.RecordParticipantRecreate(this, participant.Id, success: true);
                 return true;

@@ -33,6 +33,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Redundancy.Server
 {
@@ -63,10 +64,20 @@ namespace Opc.Ua.Redundancy.Server
             ISharedKeyValueStore store,
             IServiceMessageContext context,
             IRecordProtector? protector = null)
+            : this(store, context, protector, null)
+        {
+        }
+
+        internal SharedKeyValueSessionStore(
+            ISharedKeyValueStore store,
+            IServiceMessageContext context,
+            IRecordProtector? protector,
+            ILogger<SharedKeyValueSessionStore>? logger)
         {
             m_store = store ?? throw new ArgumentNullException(nameof(store));
             m_context = context ?? throw new ArgumentNullException(nameof(context));
             m_protector = protector ?? NullRecordProtector.Instance;
+            m_logger = logger ?? m_context.Telemetry.CreateLogger<SharedKeyValueSessionStore>();
         }
 
         /// <inheritdoc/>
@@ -91,8 +102,9 @@ namespace Opc.Ua.Redundancy.Server
             NodeId authenticationToken,
             CancellationToken ct = default)
         {
+            string key = KeyFor(authenticationToken);
             (bool found, ByteString value) = await m_store
-                .TryGetAsync(KeyFor(authenticationToken), ct)
+                .TryGetAsync(key, ct)
                 .ConfigureAwait(false);
             if (found && m_protector.TryUnprotect(value, out ByteString payload))
             {
@@ -100,12 +112,9 @@ namespace Opc.Ua.Redundancy.Server
                 {
                     return Decode(payload);
                 }
-                catch (ServiceResultException)
+                catch (Exception ex) when (ex is ServiceResultException or EndOfStreamException)
                 {
-                    return null;
-                }
-                catch (EndOfStreamException)
-                {
+                    m_logger.FailedToDecodeSharedSessionEntry(key, ex);
                     return null;
                 }
             }
@@ -240,5 +249,20 @@ namespace Opc.Ua.Redundancy.Server
         private readonly ISharedKeyValueStore m_store;
         private readonly IServiceMessageContext m_context;
         private readonly IRecordProtector m_protector;
+        private readonly ILogger<SharedKeyValueSessionStore> m_logger;
+    }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="SharedKeyValueSessionStore"/>.
+    /// </summary>
+    internal static partial class SharedKeyValueSessionStoreLog
+    {
+        [LoggerMessage(EventId = RedundancyServerEventIds.SharedKeyValueSessionStore,
+            Level = LogLevel.Warning,
+            Message = "Failed to decode shared Session entry {Key}; treating it as absent.")]
+        public static partial void FailedToDecodeSharedSessionEntry(
+            this ILogger logger,
+            string key,
+            Exception exception);
     }
 }

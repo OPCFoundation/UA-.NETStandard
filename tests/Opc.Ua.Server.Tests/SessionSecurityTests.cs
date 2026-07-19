@@ -264,7 +264,7 @@ namespace Opc.Ua.Server.Tests
                 "subject-42");
             Assert.That(
                 SessionClientUserId.Get(issuedToken, jwtIdentity),
-                Is.EqualTo("https://issuer.example/subject-42"));
+                Is.EqualTo("23:https://issuer.example/subject-42"));
 
             var jwtWithoutIssuer = new JwtUserIdentity(
                 issuedToken,
@@ -276,6 +276,24 @@ namespace Opc.Ua.Server.Tests
             Assert.That(
                 SessionClientUserId.Get(issuedToken, jwtWithoutIssuer),
                 Is.EqualTo("subject-only"));
+
+            var firstAmbiguousIdentity = new JwtUserIdentity(
+                issuedToken,
+                new Dictionary<string, object?>(),
+                [],
+                [],
+                "https://issuer.example/ab",
+                "c");
+            var secondAmbiguousIdentity = new JwtUserIdentity(
+                issuedToken,
+                new Dictionary<string, object?>(),
+                [],
+                [],
+                "https://issuer.example/a",
+                "bc");
+            Assert.That(
+                SessionClientUserId.Get(issuedToken, firstAmbiguousIdentity),
+                Is.Not.EqualTo(SessionClientUserId.Get(issuedToken, secondAmbiguousIdentity)));
         }
 
         [Test]
@@ -540,6 +558,69 @@ namespace Opc.Ua.Server.Tests
                 [],
                 default).ConfigureAwait(false);
             Assert.That(serverNonce.Length, Is.InRange(32, 128));
+        }
+
+        [Test]
+        public async Task CloseSessionCancellationDuringActivationLeavesSessionAvailableAsync()
+        {
+            EndpointDescription endpoint = CreateEndpoint(MessageSecurityMode.SignAndEncrypt);
+            using SecuritySessionManager manager = CreateManager();
+            CreatedSession created = await CreateAndActivateAsync(
+                manager,
+                endpoint,
+                "channel-1",
+                m_clientCertificate,
+                default).ConfigureAwait(false);
+            OperationContext newContext = CreateContext(
+                endpoint,
+                "channel-2",
+                m_clientCertificate);
+            SignatureData signature = CreateClientSignature(
+                newContext,
+                created.ClientNonce,
+                created.ServerNonce,
+                m_clientCertificate);
+            var authenticationEntered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseAuthentication = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            manager.PauseNextAuthentication(authenticationEntered, releaseAuthentication);
+            Task activation = manager.ActivateSessionAsync(
+                newContext,
+                created.Result.AuthenticationToken,
+                signature,
+                default,
+                null,
+                [],
+                default).AsTask();
+            await authenticationEntered.Task.ConfigureAwait(false);
+
+            using var cancellation = new CancellationTokenSource();
+            Task closeOperation = manager.CloseSessionAsync(
+                created.Result.SessionId,
+                cancellation.Token).AsTask();
+            try
+            {
+                Assert.That(closeOperation.IsCompleted, Is.False);
+                cancellation.Cancel();
+                Task completed = await Task.WhenAny(
+                    closeOperation,
+                    Task.Delay(TimeSpan.FromSeconds(5))).ConfigureAwait(false);
+                Assert.That(completed, Is.SameAs(closeOperation));
+                Assert.CatchAsync<OperationCanceledException>(
+                    async () => await closeOperation.ConfigureAwait(false));
+                Assert.That(
+                    manager.GetSession(created.Result.AuthenticationToken),
+                    Is.SameAs(created.Result.Session));
+            }
+            finally
+            {
+                releaseAuthentication.TrySetResult(true);
+            }
+
+            await activation.ConfigureAwait(false);
+            await manager.CloseSessionAsync(created.Result.SessionId).ConfigureAwait(false);
+            Assert.That(manager.GetSession(created.Result.AuthenticationToken), Is.Null);
         }
 
         [Test]

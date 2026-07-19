@@ -710,24 +710,20 @@ namespace Opc.Ua.Server
         public virtual async ValueTask CloseSessionAsync(NodeId sessionId, CancellationToken cancellationToken = default)
         {
             ISession? session = null;
+            NodeId authenticationToken = NodeId.Null;
 
             // thread safe search for the session.
             foreach (KeyValuePair<NodeId, ISession> current in m_sessions)
             {
                 if (current.Value.Id == sessionId)
                 {
-#pragma warning disable CA2000 // Disposed correctly later
-                    if (!m_sessions.TryRemove(current.Key, out session))
-#pragma warning restore CA2000
-                    {
-                        // found but was already removed by another thread
-                        return;
-                    }
+                    authenticationToken = current.Key;
+                    session = current.Value;
                     break;
                 }
             }
 
-            // close the session if removed.
+            // close the session if found.
             if (session != null)
             {
                 SemaphoreSlim activationLock = m_sessionActivationStates.GetValue(
@@ -736,9 +732,28 @@ namespace Opc.Ua.Server
                         default,
                         SecurityPolicies.None,
                         MessageSecurityMode.None)).Lock;
-                await activationLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+                await activationLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+                bool removed = false;
                 try
                 {
+                    await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+                    try
+                    {
+                        if (!m_sessions.TryGetValue(
+                                authenticationToken,
+                                out ISession? currentSession) ||
+                            !ReferenceEquals(currentSession, session) ||
+                            !m_sessions.TryRemove(authenticationToken, out _))
+                        {
+                            return;
+                        }
+                        removed = true;
+                    }
+                    finally
+                    {
+                        m_semaphoreSlim.Release();
+                    }
+
                     // raise session related event.
                     RaiseSessionEvent(session, SessionEventReason.Closing);
 
@@ -749,12 +764,15 @@ namespace Opc.Ua.Server
                 {
                     try
                     {
-                        session.Dispose();
-
-                        // update diagnostics.
-                        lock (m_server.DiagnosticsWriteLock)
+                        if (removed)
                         {
-                            m_server.ServerDiagnostics.CurrentSessionCount--;
+                            session.Dispose();
+
+                            // update diagnostics.
+                            lock (m_server.DiagnosticsWriteLock)
+                            {
+                                m_server.ServerDiagnostics.CurrentSessionCount--;
+                            }
                         }
                     }
                     finally

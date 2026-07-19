@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Globalization;
 using Opc.Ua.Identity;
 using Opc.Ua.Security.Certificates;
 
@@ -71,9 +72,16 @@ namespace Opc.Ua.Server
                     "The authenticated IssuedIdentityToken does not expose its subject.");
             }
 
-            return claims.Issuer == null
-                ? claims.Subject
-                : claims.Issuer + claims.Subject;
+            if (claims.Issuer == null)
+            {
+                return claims.Subject;
+            }
+
+            return string.Concat(
+                claims.Issuer.Length.ToString(CultureInfo.InvariantCulture),
+                ":",
+                claims.Issuer,
+                claims.Subject);
         }
     }
 }

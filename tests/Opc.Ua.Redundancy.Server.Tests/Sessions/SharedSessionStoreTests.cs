@@ -40,6 +40,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.Redundancy;
 using Opc.Ua.Redundancy.Server;
@@ -200,6 +201,26 @@ namespace Opc.Ua.Server.Tests.Redundancy
             SharedSessionEntry? loaded = await store.TryGetAsync(entry.AuthenticationToken).ConfigureAwait(false);
 
             Assert.That(loaded, Is.Null);
+        }
+
+        [Test]
+        public async Task CorruptSessionEntryIsRejectedAndLoggedAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            var logger = new RecordingLogger<SharedKeyValueSessionStore>();
+            var store = new SharedKeyValueSessionStore(kv, m_context, null, logger);
+            var authenticationToken = new NodeId("tok-corrupt", NamespaceIndex);
+            string key = SharedKeyValueSessionStore.KeyFor(authenticationToken);
+            await kv.SetAsync(key, ByteString.From(new byte[] { 1, 2, 3, 4 })).ConfigureAwait(false);
+
+            SharedSessionEntry? loaded = await store
+                .TryGetAsync(authenticationToken)
+                .ConfigureAwait(false);
+
+            Assert.That(loaded, Is.Null);
+            Assert.That(logger.Level, Is.EqualTo(LogLevel.Warning));
+            Assert.That(logger.Message, Does.Contain(key));
+            Assert.That(logger.Exception, Is.Not.Null);
         }
 
         [Test]
@@ -375,6 +396,47 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 bytes[i] = (byte)(seed + i);
             }
             return bytes;
+        }
+
+        private sealed class RecordingLogger<T> : ILogger<T>
+        {
+            public LogLevel? Level { get; private set; }
+
+            public string? Message { get; private set; }
+
+            public Exception? Exception { get; private set; }
+
+            public IDisposable BeginScope<TState>(TState state)
+                where TState : notnull
+            {
+                return NullScope.Instance;
+            }
+
+            public bool IsEnabled(LogLevel logLevel)
+            {
+                return true;
+            }
+
+            public void Log<TState>(
+                LogLevel logLevel,
+                EventId eventId,
+                TState state,
+                Exception? exception,
+                Func<TState, Exception?, string> formatter)
+            {
+                Level = logLevel;
+                Message = formatter(state, exception);
+                Exception = exception;
+            }
+        }
+
+        private sealed class NullScope : IDisposable
+        {
+            public static NullScope Instance { get; } = new();
+
+            public void Dispose()
+            {
+            }
         }
     }
 }
