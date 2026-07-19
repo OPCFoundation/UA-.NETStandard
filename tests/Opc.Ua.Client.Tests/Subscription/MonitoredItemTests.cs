@@ -96,6 +96,81 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         }
 
         [Test]
+        public void FailedChangeCanBeRequeued()
+        {
+            m_options.Configure(o => o with
+            {
+                StartNodeId = new NodeId("test", 0)
+            });
+            var sut = new TestMonitoredItem(m_context,
+                m_options, m_telemetry.CreateLogger("MonitoredItem"));
+            Assert.That(sut.TryGetPendingChange(out MonitoredItem.Change change),
+                Is.True);
+            change.SetCreateResult(new MonitoredItemCreateRequest
+            {
+                MonitoringMode = MonitoringMode.Reporting,
+                RequestedParameters = new MonitoringParameters
+                {
+                    ClientHandle = sut.ClientHandle,
+                    SamplingInterval = 1000,
+                    QueueSize = 1,
+                    DiscardOldest = true
+                }
+            }, new MonitoredItemCreateResult
+            {
+                StatusCode = StatusCodes.BadNodeIdUnknown
+            }, 0, [], new ResponseHeader());
+
+            Assert.That(sut.HasPendingChanges, Is.False);
+            Assert.That(sut.Error.StatusCode,
+                Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+            Assert.That(sut.TryRequeue(), Is.True);
+            Assert.That(sut.HasPendingChanges, Is.True);
+            Assert.That(sut.TryGetPendingChange(
+                out MonitoredItem.Change requeued), Is.True);
+            Assert.That(requeued, Is.Not.SameAs(change));
+            Assert.That(requeued.ForceRecreate, Is.True);
+            Assert.That(sut.TryRequeue(), Is.False);
+        }
+
+        [Test]
+        public void GoodButUnappliedChangeCanBeRequeued()
+        {
+            m_options.Configure(o => o with
+            {
+                StartNodeId = new NodeId("test", 0)
+            });
+            var sut = new TestMonitoredItem(m_context,
+                m_options, m_telemetry.CreateLogger("MonitoredItem"));
+            Assert.That(sut.TryGetPendingChange(out MonitoredItem.Change change),
+                Is.True);
+            change.SetCreateResult(new MonitoredItemCreateRequest
+            {
+                MonitoringMode = MonitoringMode.Sampling,
+                RequestedParameters = new MonitoringParameters
+                {
+                    ClientHandle = sut.ClientHandle,
+                    SamplingInterval = 1000,
+                    QueueSize = 1,
+                    DiscardOldest = true
+                }
+            }, new MonitoredItemCreateResult
+            {
+                StatusCode = StatusCodes.Good,
+                MonitoredItemId = 1,
+                RevisedSamplingInterval = 1000,
+                RevisedQueueSize = 1
+            }, 0, [], new ResponseHeader());
+
+            Assert.That(sut.Error.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(sut.Created, Is.True);
+            Assert.That(sut.CurrentMonitoringMode,
+                Is.Not.EqualTo(m_options.CurrentValue.MonitoringMode));
+            Assert.That(sut.TryRequeue(), Is.True);
+            Assert.That(sut.HasPendingChanges, Is.True);
+        }
+
+        [Test]
         public void CreatedShouldReturnFalseWhenServerIdIsNotSet()
         {
             // Act

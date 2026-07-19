@@ -807,6 +807,34 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         }
 
         /// <summary>
+        /// Requeue the current desired state after a final apply failure or
+        /// when the item otherwise remains unapplied.
+        /// </summary>
+        /// <returns>
+        /// <c>true</c> if a fresh apply change was queued.
+        /// </returns>
+        internal bool TryRequeue()
+        {
+            if (m_disposedValue || HasPendingChanges)
+            {
+                return false;
+            }
+            MonitoredItemOptions options = m_options.CurrentValue;
+            if (options.StartNodeId.IsNull)
+            {
+                return false;
+            }
+            if (Created &&
+                ServiceResult.IsGood(Error) &&
+                CurrentMonitoringMode == options.MonitoringMode)
+            {
+                return false;
+            }
+            m_pendingChanges.Enqueue(new Change(this, options, null));
+            return true;
+        }
+
+        /// <summary>
         /// Change steps to apply to the monitored items in the
         /// subscription context. The change list is a queue of
         /// steps to perform inside the subscription.
