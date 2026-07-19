@@ -244,7 +244,7 @@ namespace Opc.Ua.Server.Tests
                 }
             ];
 
-            RequestHeader requestHeader = m_requestHeader;
+            var requestHeader = (RequestHeader)m_requestHeader.Clone();
             requestHeader.Timestamp = DateTimeUtc.Now;
             ReadResponse readResponse = await m_server.ReadAsync(
                 m_secureChannelContext,
@@ -585,6 +585,50 @@ namespace Opc.Ua.Server.Tests
             Assert.That(writeResponse.Results[0], Is.EqualTo(StatusCodes.Good));
             Assert.That(writeResponse.Results[1], Is.EqualTo(StatusCodes.BadOutOfRange));
             Assert.That(writeResponse.Results[2], Is.EqualTo(StatusCodes.Good));
+        }
+
+        /// <summary>
+        /// Tests that AccessLevelEx retains the same base access bits as AccessLevel.
+        /// </summary>
+        [Test]
+        public async Task ReferenceNodeManagerNonatomicAccessLevelsAreConsistentAsync()
+        {
+            ushort namespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(
+                Quickstarts.ReferenceServer.Namespaces.ReferenceServer);
+            var nodeId = new NodeId("Scalar_Static_NonatomicReadWrite", namespaceIndex);
+            ArrayOf<ReadValueId> nodesToRead =
+            [
+                new ReadValueId { NodeId = nodeId, AttributeId = Attributes.AccessLevel },
+                new ReadValueId { NodeId = nodeId, AttributeId = Attributes.UserAccessLevel },
+                new ReadValueId { NodeId = nodeId, AttributeId = Attributes.AccessLevelEx }
+            ];
+
+            var requestHeader = (RequestHeader)m_requestHeader.Clone();
+            requestHeader.Timestamp = DateTimeUtc.Now;
+            ReadResponse response = await m_server.ReadAsync(
+                m_secureChannelContext,
+                requestHeader,
+                kMaxAge,
+                TimestampsToReturn.Neither,
+                nodesToRead,
+                RequestLifetime.None).ConfigureAwait(false);
+
+            Assert.That(response.Results, Has.Count.EqualTo(nodesToRead.Count));
+            Assert.That(response.Results[0].WrappedValue.GetByte(),
+                Is.EqualTo(AccessLevels.CurrentReadOrWrite));
+            Assert.That(response.Results[1].WrappedValue.GetByte(),
+                Is.EqualTo(AccessLevels.CurrentReadOrWrite));
+
+            uint accessLevelEx = response.Results[2].WrappedValue.GetUInt32();
+            Assert.That(
+                accessLevelEx & 0xff,
+                Is.EqualTo((uint)AccessLevels.CurrentReadOrWrite));
+            Assert.That(
+                accessLevelEx & (uint)AccessLevelExType.NonatomicRead,
+                Is.EqualTo((uint)AccessLevelExType.NonatomicRead));
+            Assert.That(
+                accessLevelEx & (uint)AccessLevelExType.NonatomicWrite,
+                Is.EqualTo((uint)AccessLevelExType.NonatomicWrite));
         }
 
         /// <summary>

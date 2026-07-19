@@ -505,6 +505,8 @@ namespace Quickstarts.ReferenceServer
                         "NonatomicReadWrite",
                         DataTypeIds.Int32,
                         ValueRanks.Scalar);
+                    nonatomicVariable.AccessLevel = AccessLevels.CurrentReadOrWrite;
+                    nonatomicVariable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
                     nonatomicVariable.AccessLevelEx =
                         AccessLevels.CurrentReadOrWrite
                         | (uint)AccessLevelExType.NonatomicRead
