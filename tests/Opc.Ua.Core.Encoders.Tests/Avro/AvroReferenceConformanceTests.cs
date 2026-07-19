@@ -199,6 +199,58 @@ namespace Opc.Ua.Core.Tests
             });
         }
 
+        // Canonical built-in composite records (Part B3, finding 6). NodeId, ExpandedNodeId and
+        // QualifiedName are nullable(record) built-ins: NodeId = { namespace:int, idType:int, then
+        // numeric/string/guid/opaque each nullable(<raw>) with exactly one present }; ExpandedNodeId
+        // = { nodeId:NodeId(non-nullable), namespaceUri:nullable(string), serverIndex:long };
+        // QualifiedName = { namespace:int, name:nullable(string) }. Reference bytes from avro_codec.
+        // (Guid identifiers are covered by round-trip tests; their opcua-guid fixed byte order is a
+        // separate concern from the record structure exercised here.)
+        private static readonly (string Name, string ReferenceHex, Action<AvroEncoder> Write)[] s_compositeTargets =
+        {
+            ("NodeId_ns0_num42", "0200000254000000",
+                e => e.WriteNodeId(null, new NodeId(42u, 0))),
+            ("NodeId_ns2_num5", "020400020a000000",
+                e => e.WriteNodeId(null, new NodeId(5u, 2))),
+            ("NodeId_ns1_strTemp", "02020200020854656d700000",
+                e => e.WriteNodeId(null, new NodeId("Temp", 1))),
+            ("NodeId_ns0_opaque010203", "0200060000000206010203",
+                e => e.WriteNodeId(null, new NodeId(ByteString.From([1, 2, 3]), 0))),
+            ("ExpNodeId_ns0_num7", "020000020e0000000000",
+                e => e.WriteExpandedNodeId(null, new ExpandedNodeId(new NodeId(7u, 0), null, 0u))),
+            ("ExpNodeId_uri_srv3", "0200000212000000020a75726e3a7806",
+                e => e.WriteExpandedNodeId(null, new ExpandedNodeId(new NodeId(9u, 0), "urn:x", 3u))),
+            ("QName_ns2_Speed", "0204020a5370656564",
+                e => e.WriteQualifiedName(null, new QualifiedName("Speed", 2))),
+            ("QName_ns1_null", "020200",
+                e => e.WriteQualifiedName(null, new QualifiedName(null, 1))),
+            // DataValue is a 6-field record (no outer present-marker): value:nullable(Variant),
+            // status:nullable(int), sourceTimestamp:nullable(long), sourcePicoseconds:nullable(int),
+            // serverTimestamp:nullable(long), serverPicoseconds:nullable(int). The existing .NET
+            // WriteDataValue already matches this canonical shape; these cases pin it (tick-base
+            // -independent: value-only, status-only, all-null).
+            ("DataValue_Int32_42", "020c0020540000000000",
+                e => e.WriteDataValue(null, new DataValue(new Variant(42)))),
+            ("DataValue_statusBad", "0002ffffffff0f00000000",
+                e => e.WriteDataValue(null, DataValue.FromStatusCode(new StatusCode(0x80000000)))),
+            ("DataValue_null", "000000000000",
+                e => e.WriteDataValue(null, DataValue.Null)),
+        };
+
+        [Test]
+        public void CompositeBuiltinsMatchReferenceAvroBinary()
+        {
+            Assert.Multiple(() =>
+            {
+                foreach ((string name, string referenceHex, Action<AvroEncoder> write) in s_compositeTargets)
+                {
+                    string actual = ToHex(Encode(write));
+                    Assert.That(actual, Is.EqualTo(referenceHex),
+                        $"canonical composite mismatch vs reference for {name}");
+                }
+            });
+        }
+
         private static byte[] Encode(Action<AvroEncoder> write)
         {
             using var stream = new MemoryStream();

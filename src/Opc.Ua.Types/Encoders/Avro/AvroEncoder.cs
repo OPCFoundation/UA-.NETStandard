@@ -257,37 +257,78 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void WriteNodeId(string? fieldName, NodeId value)
         {
-            WriteUInt16(null, value.NamespaceIndex);
-            WriteInt32(null, (int)value.IdType);
-            switch (value.IdType)
+            if (value.IsNull)
             {
-                case IdType.Numeric:
-                    value.TryGetValue(out uint n);
-                    WriteUInt32(null, n);
-                    break;
-                case IdType.String:
-                    value.TryGetValue(out string s);
-                    WriteString(null, s);
-                    break;
-                case IdType.Guid:
-                    value.TryGetValue(out Guid g);
-                    WriteGuid(null, new Uuid(g));
-                    break;
-                case IdType.Opaque:
-                    value.TryGetValue(out ByteString b);
-                    WriteByteString(null, b);
-                    break;
-                default:
-                    throw new NotSupportedException($"Unsupported NodeId identifier type {value.IdType}.");
+                m_writer.WriteLong(0);
+                return;
+            }
+
+            m_writer.WriteLong(1);
+            WriteNodeIdRecord(value);
+        }
+
+        // The canonical NodeId record (Part 6 6.6): namespace:int, idType:int, and four id-slots
+        // numeric/string/guid/opaque each a nullable(<raw>) union with exactly one present.
+        private void WriteNodeIdRecord(NodeId value)
+        {
+            WriteInt32(null, value.NamespaceIndex);
+            WriteInt32(null, (int)value.IdType);
+
+            if (value.IdType == IdType.Numeric && value.TryGetValue(out uint numeric))
+            {
+                m_writer.WriteLong(1);
+                m_writer.WriteLong(numeric);
+            }
+            else
+            {
+                m_writer.WriteLong(0);
+            }
+
+            if (value.IdType == IdType.String && value.TryGetValue(out string text))
+            {
+                m_writer.WriteLong(1);
+                m_writer.WriteString(text ?? string.Empty);
+            }
+            else
+            {
+                m_writer.WriteLong(0);
+            }
+
+            if (value.IdType == IdType.Guid && value.TryGetValue(out Guid guid))
+            {
+                m_writer.WriteLong(1);
+                m_writer.WriteFixed(new Uuid(guid).ToByteArray());
+            }
+            else
+            {
+                m_writer.WriteLong(0);
+            }
+
+            if (value.IdType == IdType.Opaque && value.TryGetValue(out ByteString opaque))
+            {
+                m_writer.WriteLong(1);
+                m_writer.WriteBytes(opaque.Span);
+            }
+            else
+            {
+                m_writer.WriteLong(0);
             }
         }
 
         /// <inheritdoc/>
         public void WriteExpandedNodeId(string? fieldName, ExpandedNodeId value)
         {
-            WriteNodeId(null, value.InnerNodeId);
+            if (value.IsNull)
+            {
+                m_writer.WriteLong(0);
+                return;
+            }
+
+            m_writer.WriteLong(1);
+            // nodeId is a non-nullable NodeId record; namespaceUri a nullable(string); serverIndex a long.
+            WriteNodeIdRecord(value.InnerNodeId);
             WriteString(null, value.NamespaceUri);
-            WriteUInt32(null, value.ServerIndex);
+            m_writer.WriteLong(value.ServerIndex);
         }
 
         /// <inheritdoc/>
@@ -299,7 +340,14 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void WriteQualifiedName(string? fieldName, QualifiedName value)
         {
-            WriteUInt16(null, value.NamespaceIndex);
+            if (value.IsNull)
+            {
+                m_writer.WriteLong(0);
+                return;
+            }
+
+            m_writer.WriteLong(1);
+            WriteInt32(null, value.NamespaceIndex);
             WriteString(null, value.Name);
         }
 

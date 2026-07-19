@@ -217,14 +217,51 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public NodeId ReadNodeId(string? fieldName)
         {
-            ushort ns = ReadUInt16(null);
+            long branch = m_reader.ReadLong();
+            if (branch == 0)
+            {
+                return NodeId.Null;
+            }
+
+            ExpectBranch(branch, 1);
+            return ReadNodeIdRecord();
+        }
+
+        private NodeId ReadNodeIdRecord()
+        {
+            var ns = (ushort)ReadInt32(null);
             var type = (IdType)ReadInt32(null);
+
+            long numeric = 0;
+            if (m_reader.ReadLong() != 0)
+            {
+                numeric = m_reader.ReadLong();
+            }
+
+            string? text = null;
+            if (m_reader.ReadLong() != 0)
+            {
+                text = m_reader.ReadString(Context.MaxStringLength);
+            }
+
+            Guid guid = default;
+            if (m_reader.ReadLong() != 0)
+            {
+                guid = new Uuid(m_reader.ReadFixed(16)).Guid;
+            }
+
+            ByteString opaque = default;
+            if (m_reader.ReadLong() != 0)
+            {
+                opaque = ByteString.From(m_reader.ReadBytes(Context.MaxByteStringLength));
+            }
+
             return type switch
             {
-                IdType.Numeric => new NodeId(ReadUInt32(null), ns),
-                IdType.String => new NodeId(ReadString(null) ?? string.Empty, ns),
-                IdType.Guid => new NodeId(ReadGuid(null).Guid, ns),
-                IdType.Opaque => new NodeId(ReadByteString(null), ns),
+                IdType.Numeric => new NodeId((uint)numeric, ns),
+                IdType.String => new NodeId(text ?? string.Empty, ns),
+                IdType.Guid => new NodeId(guid, ns),
+                IdType.Opaque => new NodeId(opaque, ns),
                 _ => throw new NotSupportedException($"Unsupported NodeId identifier type {type}."),
             };
         }
@@ -232,7 +269,17 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public ExpandedNodeId ReadExpandedNodeId(string? fieldName)
         {
-            return new ExpandedNodeId(ReadNodeId(null), ReadString(null), ReadUInt32(null));
+            long branch = m_reader.ReadLong();
+            if (branch == 0)
+            {
+                return ExpandedNodeId.Null;
+            }
+
+            ExpectBranch(branch, 1);
+            NodeId nodeId = ReadNodeIdRecord();
+            string? namespaceUri = ReadString(null);
+            var serverIndex = (uint)m_reader.ReadLong();
+            return new ExpandedNodeId(nodeId, namespaceUri, serverIndex);
         }
 
         /// <inheritdoc/>
@@ -244,7 +291,14 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public QualifiedName ReadQualifiedName(string? fieldName)
         {
-            ushort namespaceIndex = ReadUInt16(null);
+            long branch = m_reader.ReadLong();
+            if (branch == 0)
+            {
+                return QualifiedName.Null;
+            }
+
+            ExpectBranch(branch, 1);
+            var namespaceIndex = (ushort)ReadInt32(null);
             string? name = ReadString(null);
             return new QualifiedName(name, namespaceIndex);
         }
