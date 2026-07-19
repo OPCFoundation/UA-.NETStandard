@@ -119,6 +119,30 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public void SaveBrowseEvictsWhenCountReachesConfiguredLimit()
+        {
+            var store = new Mock<IContinuationPointStore>(MockBehavior.Loose);
+            SessionContinuationPoints holder = NewHolder(maxBrowse: 2, store: store.Object);
+
+            var evicted = new TrackingDisposable();
+            ContinuationPoint cp1 = NewBrowsePoint(data: evicted);
+            ContinuationPoint cp2 = NewBrowsePoint();
+            ContinuationPoint cp3 = NewBrowsePoint();
+
+            holder.SaveBrowse(cp1);
+            holder.SaveBrowse(cp2);
+            holder.SaveBrowse(cp3);
+
+            Assert.That(evicted.Disposed, Is.True);
+            Assert.That(holder.RestoreBrowse(ToByteString(cp1.Id)), Is.Null);
+            Assert.That(holder.RestoreBrowse(ToByteString(cp2.Id)), Is.SameAs(cp2));
+            Assert.That(holder.RestoreBrowse(ToByteString(cp3.Id)), Is.SameAs(cp3));
+            store.Verify(
+                s => s.RemoveContinuationPoint(s_sessionId, ContinuationPointKind.Browse, cp1.Id),
+                Times.Once);
+        }
+
+        [Test]
         public void SaveBrowseStoresEnvelopeWithNormalizedNodeIds()
         {
             var store = new Mock<IContinuationPointStore>(MockBehavior.Loose);
