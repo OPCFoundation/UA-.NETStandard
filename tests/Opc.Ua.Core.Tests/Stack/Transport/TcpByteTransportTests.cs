@@ -184,6 +184,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             StatusCode expectedStatusCode = sent == 0
                 ? StatusCodes.BadConnectionClosed
                 : StatusCodes.BadInternalError;
+            string expectedMessage = sent == 0
+                ? "Remote side closed the connection while sending"
+                : "Socket reported sending 13 bytes with only 12 bytes pending";
 
             ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
                 async () => await TcpByteTransport.SendAllAsync(
@@ -191,6 +194,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     _ => Task.FromResult(sent)).ConfigureAwait(false))!;
 
             Assert.That(ex.StatusCode, Is.EqualTo((uint)expectedStatusCode));
+            Assert.That(ex.Message, Does.Contain(expectedMessage));
         }
 
         [Test]
@@ -207,6 +211,31 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 }).ConfigureAwait(false);
 
             Assert.That(sendCount, Is.Zero);
+        }
+
+        [Test]
+        public async Task SendAllAsyncSupportsTotalsLargerThanIntMaxValue()
+        {
+            const int segmentSize = 1024 * 1024;
+            var buffers = new BufferCollection(2049);
+            var segment = new ArraySegment<byte>(new byte[segmentSize]);
+            for (int i = 0; i < buffers.Capacity; i++)
+            {
+                buffers.Add(segment);
+            }
+            long totalSize = (long)segmentSize * buffers.Count;
+            int finalSendSize = checked((int)(totalSize - int.MaxValue));
+            int sendCount = 0;
+
+            await TcpByteTransport.SendAllAsync(
+                buffers,
+                _ =>
+                {
+                    sendCount++;
+                    return Task.FromResult(sendCount == 1 ? int.MaxValue : finalSendSize);
+                }).ConfigureAwait(false);
+
+            Assert.That(sendCount, Is.EqualTo(2));
         }
 
         [Test]

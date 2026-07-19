@@ -416,10 +416,16 @@ namespace Opc.Ua.Bindings
                 throw new ArgumentNullException(nameof(sendAsync));
             }
 
-            int totalSize = buffers.TotalSize;
-            int remaining = totalSize;
+            long totalSize = 0;
+            foreach (ArraySegment<byte> buffer in buffers)
+            {
+                totalSize += buffer.Count;
+            }
+
+            long remaining = totalSize;
             IList<ArraySegment<byte>> pending = buffers;
-            List<ArraySegment<byte>>? slicedBuffers = null;
+            ArraySegment<byte>[]? slicedBuffers = null;
+            int startIndex = 0;
             while (remaining > 0)
             {
                 int sent = await sendAsync(pending).ConfigureAwait(false);
@@ -443,9 +449,12 @@ namespace Opc.Ua.Bindings
                 remaining -= sent;
                 if (remaining > 0)
                 {
-                    slicedBuffers ??= new List<ArraySegment<byte>>(buffers);
-                    AdvanceBuffers(slicedBuffers, sent);
-                    pending = slicedBuffers;
+                    slicedBuffers ??= [.. buffers];
+                    startIndex = AdvanceBuffers(slicedBuffers, startIndex, sent);
+                    pending = new ArraySegment<ArraySegment<byte>>(
+                        slicedBuffers,
+                        startIndex,
+                        slicedBuffers.Length - startIndex);
                 }
             }
         }
@@ -462,28 +471,27 @@ namespace Opc.Ua.Bindings
             return socket;
         }
 
-        private static void AdvanceBuffers(List<ArraySegment<byte>> buffers, int count)
+        private static int AdvanceBuffers(
+            ArraySegment<byte>[] buffers,
+            int startIndex,
+            int count)
         {
-            int removeCount = 0;
-            while (removeCount < buffers.Count && count >= buffers[removeCount].Count)
+            while (startIndex < buffers.Length && count >= buffers[startIndex].Count)
             {
-                count -= buffers[removeCount].Count;
-                removeCount++;
-            }
-
-            if (removeCount > 0)
-            {
-                buffers.RemoveRange(0, removeCount);
+                count -= buffers[startIndex].Count;
+                startIndex++;
             }
 
             if (count > 0)
             {
-                ArraySegment<byte> buffer = buffers[0];
-                buffers[0] = new ArraySegment<byte>(
+                ArraySegment<byte> buffer = buffers[startIndex];
+                buffers[startIndex] = new ArraySegment<byte>(
                     buffer.Array!,
                     buffer.Offset + count,
                     buffer.Count - count);
             }
+
+            return startIndex;
         }
 
         private static async ValueTask ReadExactAsync(
