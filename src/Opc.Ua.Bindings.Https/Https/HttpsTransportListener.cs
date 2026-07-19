@@ -2432,6 +2432,7 @@ namespace Opc.Ua.Bindings
             var validationChain = new CertificateCollection();
             try
             {
+                // CertificateCollection.Add retains an independent AddRef-owned handle.
                 if (chain?.ChainElements != null && chain.ChainElements.Count > 0)
                 {
                     foreach (X509ChainElement element in chain.ChainElements)

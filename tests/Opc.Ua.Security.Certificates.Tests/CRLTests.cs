@@ -171,7 +171,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             var revokedstring = new RevokedCertificate(serstring);
             crlBuilder.RevokedCertificates.Add(revokedstring);
             crlBuilder.CrlExtensions.Add(X509Extensions.BuildCRLNumber(123));
-            byte[] crlEncoded = crlBuilder.Encode();
+            byte[] crlEncoded = EncodeTbs(crlBuilder);
             ValidateCRL(serial, serstring, hash, crlBuilder, crlEncoded);
         }
 
@@ -344,7 +344,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             };
             crlBuilder.RevokedCertificates.Add(revokedstring);
             crlBuilder.CrlExtensions.Add(X509Extensions.BuildCRLNumber(123));
-            byte[] crlEncoded = crlBuilder.Encode();
+            byte[] crlEncoded = EncodeTbs(crlBuilder);
             Assert.That(crlEncoded, Is.Not.Null);
             ValidateCRL(serial, serstring, hash, crlBuilder, crlEncoded);
 
@@ -360,7 +360,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             };
             crlBuilder.RevokedCertificates.Add(revokedstring);
             crlBuilder.CrlExtensions.Add(X509Extensions.BuildCRLNumber(123));
-            crlEncoded = crlBuilder.Encode();
+            crlEncoded = EncodeTbs(crlBuilder);
             Assert.That(crlEncoded, Is.Not.Null);
             ValidateCRL(serial, serstring, hash, crlBuilder, crlEncoded);
         }
@@ -440,6 +440,15 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             Assert.That(unusedBitCount, Is.Zero);
             Assert.That(innerAlgorithm, Is.EqualTo(outerAlgorithm));
+        }
+
+        private static byte[] EncodeTbs(CrlBuilder crlBuilder)
+        {
+            using RSA rsa = RSA.Create();
+            var generator = X509SignatureGenerator.CreateForRSA(rsa, RSASignaturePadding.Pkcs1);
+            byte[] signatureAlgorithm = generator.GetSignatureAlgorithmIdentifier(
+                crlBuilder.HashAlgorithmName);
+            return crlBuilder.Encode(signatureAlgorithm);
         }
 
         private Certificate m_issuerCert;

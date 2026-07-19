@@ -106,6 +106,20 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         [Test]
+        public void PresentedCertificateWithoutUaValidatorIsRejected()
+        {
+            using X509Certificate2 certificate = CreateClientCertificate();
+
+            bool accepted = HttpsTransportListener.ValidateClientCertificateWithUaValidator(
+                certificateValidator: null,
+                clientCertificate: certificate,
+                chain: null,
+                sslPolicyErrors: SslPolicyErrors.None);
+
+            Assert.That(accepted, Is.False);
+        }
+
+        [Test]
         public async Task PresentedCertificateUsesHttpsTrustStoreAsync()
         {
             using var pki = new TemporaryPkiDirectory();
@@ -200,6 +214,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(chainForwarded, Is.True);
             Assert.That(recordingValidator.LastTrustList, Is.EqualTo(TrustListIdentifier.Https));
             Assert.That(recordingValidator.LastChainCount, Is.EqualTo(tlsChain.ChainElements.Count));
+            Assert.That(
+                recordingValidator.LastChainThumbprints,
+                Does.Contain(intermediate.Thumbprint));
 
             bool accepted = HttpsTransportListener.ValidateClientCertificateWithUaValidator(
                 manager,
@@ -263,6 +280,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
             public int LastChainCount { get; private set; }
 
+            public string[] LastChainThumbprints { get; private set; } = [];
+
             public Task<CertificateValidationResult> ValidateAsync(
                 CertificateCollection chain,
                 TrustListIdentifier? trustList = null,
@@ -272,6 +291,11 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 ValidationCount++;
                 LastTrustList = trustList;
                 LastChainCount = chain.Count;
+                LastChainThumbprints = new string[chain.Count];
+                for (int i = 0; i < chain.Count; i++)
+                {
+                    LastChainThumbprints[i] = chain[i].Thumbprint;
+                }
                 return Task.FromResult(m_result);
             }
 

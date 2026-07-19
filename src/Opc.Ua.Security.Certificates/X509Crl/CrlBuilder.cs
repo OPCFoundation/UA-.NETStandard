@@ -298,6 +298,9 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Constructs Certificate Revocation List raw data in X509 ASN format.
         /// </summary>
+        /// <param name="signatureAlgorithmIdentifier">
+        /// The DER-encoded signature AlgorithmIdentifier.
+        /// </param>
         /// <remarks>
         /// <para>CRL fields -- https://tools.ietf.org/html/rfc5280#section-5.1</para>
         /// <para>
@@ -326,17 +329,7 @@ namespace Opc.Ua.Security.Certificates
         ///                            }
         /// </para>
         /// </remarks>
-        internal byte[] Encode()
-        {
-            var algorithmWriter = new AsnWriter(AsnEncodingRules.DER);
-            algorithmWriter.PushSequence();
-            algorithmWriter.WriteObjectIdentifier(Oids.GetRSAOid(HashAlgorithmName));
-            algorithmWriter.WriteNull();
-            algorithmWriter.PopSequence();
-            return Encode(algorithmWriter.Encode());
-        }
-
-        private byte[] Encode(ReadOnlySpan<byte> signatureAlgorithmIdentifier)
+        internal byte[] Encode(ReadOnlySpan<byte> signatureAlgorithmIdentifier)
         {
             var crlWriter = new AsnWriter(AsnEncodingRules.DER);
             {
