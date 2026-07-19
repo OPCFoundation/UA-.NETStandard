@@ -11,7 +11,7 @@
     <Nullable>enable</Nullable>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
     <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>
-    <!-- Dekaf is pure managed on every TFM; AOT analysis follows the repository-wide net10.0 convention. -->
+    <!-- Dekaf is pure managed on every TFM; this repository asserts AOT compatibility on net10.0. -->
     <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
   </PropertyGroup>
   <ItemGroup>

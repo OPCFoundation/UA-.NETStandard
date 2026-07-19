@@ -764,7 +764,7 @@ Subscribers set `GroupId` (consumer group) and `AutoOffsetReset` instead of the 
 
 **SASL and TLS.** Use `kafkas://` or `KafkaConnectionOptions.Tls.UseTls` for TLS; `KafkaTlsOptions` carries CA / client-certificate / client-key PEM paths. `SecurityProtocol = KafkaSecurityProtocol.SaslSsl` with `SaslMechanism`, `UserName`, and `PasswordSecretId` enables SASL over TLS, and `PasswordSecretId` is resolved through the OPC UA secret store so configuration never carries a plaintext password. Sending SASL credentials over plaintext `kafka://` is rejected unless `AllowCredentialsOverPlaintext` is explicitly set for local development.
 
-**NativeAOT.** The transport uses the pure-managed [Dekaf](https://github.com/thomhurst/Dekaf) client on every supported target framework, with no native librdkafka dependency. On modern .NET targets it is NativeAOT/trimming compatible. See [Native AOT](#native-aot).
+**NativeAOT.** The transport uses the pure-managed [Dekaf](https://github.com/thomhurst/Dekaf) client on every supported target framework, with no native librdkafka dependency. This repository asserts and validates NativeAOT/trimming compatibility on `net10.0`; the other target frameworks use the same managed client but are not part of the repository's AOT validation matrix. See [Native AOT](#native-aot).
 
 ## Encodings
 
@@ -1826,7 +1826,7 @@ detailed the counters become; configure via
 
 ## Native AOT
 
-The PubSub assemblies (`Opc.Ua.PubSub`, `.Udp`, `.Eth`, `.Mqtt`, and `.Kafka`) are AOT-clean on supported AOT targets. The Kafka transport uses the managed Dekaf client on every target framework and has no native librdkafka dependency (see [Apache Kafka](#apache-kafka)).
+The PubSub assemblies (`Opc.Ua.PubSub`, `.Udp`, `.Eth`, `.Mqtt`, and `.Kafka`) are AOT-clean on the repository's NativeAOT validation target (`net10.0`). The Kafka transport uses the managed Dekaf client on every target framework and has no native librdkafka dependency (see [Apache Kafka](#apache-kafka)).
 
 - **No reflection-based serialization.** Source-generated
   `IEncodeable` types (Part 14 datatypes) plus hand-written

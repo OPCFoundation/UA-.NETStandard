@@ -23,7 +23,7 @@ Connection addresses use `kafka://host:9092` (plain/SASL) or `kafkas://host:9093
 
 ## NativeAOT
 
-The transport uses the pure-managed [Dekaf](https://github.com/thomhurst/Dekaf) client on every supported target framework, with no native `librdkafka` dependency. On modern .NET targets it is **NativeAOT / trimming compatible**.
+The transport uses the pure-managed [Dekaf](https://github.com/thomhurst/Dekaf) client on every supported target framework, with no native `librdkafka` dependency. This repository asserts and validates **NativeAOT / trimming compatibility on `net10.0`**; the other target frameworks use the same managed client but are not part of the repository's AOT validation matrix.
 
 The other PubSub transports (UDP, Ethernet, MQTT) remain AOT-compatible on all frameworks.
 

@@ -30,6 +30,9 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+#if NETFRAMEWORK
+using System.Runtime.InteropServices;
+#endif
 using System.Threading;
 using System.Threading.Tasks;
 using Dekaf;
@@ -452,6 +455,16 @@ namespace Opc.Ua.PubSub.Kafka.Internal
                         headerValue = string.Empty;
                     }
 #if NETFRAMEWORK
+                    else if (MemoryMarshal.TryGetArray(
+                        header.Value,
+                        out ArraySegment<byte> segment) &&
+                        segment.Array is not null)
+                    {
+                        headerValue = System.Text.Encoding.UTF8.GetString(
+                            segment.Array,
+                            segment.Offset,
+                            segment.Count);
+                    }
                     else
                     {
                         headerValue = System.Text.Encoding.UTF8.GetString(header.Value.ToArray());
