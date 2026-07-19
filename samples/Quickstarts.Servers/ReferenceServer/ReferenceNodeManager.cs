@@ -4429,21 +4429,36 @@ namespace Quickstarts.ReferenceServer
         /// Creates a SelectionListType instance with a set of
         /// selectable values, their localized descriptions and RestrictToList set.
         /// </summary>
-        private BaseDataVariableState CreateSelectionListVariable(
+        private SelectionListState CreateSelectionListVariable(
             NodeState parent,
             string path,
             string name)
         {
-            BaseDataVariableState variable = CreateVariable(
+            SelectionListState variable = SystemContext.CreateInstanceOfSelectionListType(
                 parent,
-                path,
-                name,
-                DataTypeIds.String,
-                ValueRanks.Scalar);
-            variable.TypeDefinitionId = VariableTypeIds.SelectionListType;
+                new QualifiedName(path, NamespaceIndex));
+            variable.SymbolicName = name;
+            variable.ReferenceTypeId = ReferenceTypeIds.Organizes;
+            variable.NodeId = new NodeId(path, NamespaceIndex);
+            variable.BrowseName = new QualifiedName(path, NamespaceIndex);
             variable.DisplayName = new LocalizedText("en-US", name);
+            variable.WriteMask = AttributeWriteMask.DisplayName | AttributeWriteMask.Description;
+            variable.UserWriteMask = AttributeWriteMask.DisplayName | AttributeWriteMask.Description;
+            variable.DataType = DataTypeIds.String;
+            variable.ValueRank = ValueRanks.Scalar;
+            variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
+            variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+            variable.Historizing = false;
             variable.Value = Variant.From("Red");
+            variable.StatusCode = StatusCodes.Good;
+            variable.Description = LocalizedText.From("Default Description");
             variable.OnWriteValue = OnWriteSelectionList;
+
+            if (variable.Selections != null)
+            {
+                variable.RemoveChild(variable.Selections);
+                variable.Selections = null!;
+            }
 
             var selections = PropertyState<ArrayOf<string>>
                 .With<VariantBuilder>(variable);
@@ -4464,42 +4479,52 @@ namespace Quickstarts.ReferenceServer
             ];
             variable.AddChild(selections);
 
-            var selectionDescriptions = PropertyState<ArrayOf<LocalizedText>>
-                .With<VariantBuilder>(variable);
-            selectionDescriptions.NodeId = new NodeId(
+            if (variable.SelectionDescriptions == null)
+            {
+                variable.AddSelectionDescriptions(
+                    SystemContext,
+                    new NodeId(path + "_SelectionDescriptions", NamespaceIndex));
+            }
+
+            variable.SelectionDescriptions!.NodeId = new NodeId(
                 path + "_SelectionDescriptions",
                 NamespaceIndex);
-            selectionDescriptions.BrowseName = new QualifiedName(
+            variable.SelectionDescriptions.BrowseName = new QualifiedName(
                 BrowseNames.SelectionDescriptions);
-            selectionDescriptions.DisplayName = LocalizedText.From(
+            variable.SelectionDescriptions.DisplayName = LocalizedText.From(
                 BrowseNames.SelectionDescriptions);
-            selectionDescriptions.TypeDefinitionId = VariableTypeIds.PropertyType;
-            selectionDescriptions.ReferenceTypeId = ReferenceTypeIds.HasProperty;
-            selectionDescriptions.DataType = DataTypeIds.LocalizedText;
-            selectionDescriptions.ValueRank = ValueRanks.OneDimension;
-            selectionDescriptions.AccessLevel = AccessLevels.CurrentRead;
-            selectionDescriptions.UserAccessLevel = AccessLevels.CurrentRead;
-            selectionDescriptions.Value =
+            variable.SelectionDescriptions.TypeDefinitionId = VariableTypeIds.PropertyType;
+            variable.SelectionDescriptions.ReferenceTypeId = ReferenceTypeIds.HasProperty;
+            variable.SelectionDescriptions.DataType = DataTypeIds.LocalizedText;
+            variable.SelectionDescriptions.ValueRank = ValueRanks.OneDimension;
+            variable.SelectionDescriptions.AccessLevel = AccessLevels.CurrentRead;
+            variable.SelectionDescriptions.UserAccessLevel = AccessLevels.CurrentRead;
+            variable.SelectionDescriptions.Value =
             [
                 new LocalizedText("en-US", "The color red"),
                 new LocalizedText("en-US", "The color green"),
                 new LocalizedText("en-US", "The color blue")
             ];
-            variable.AddChild(selectionDescriptions);
 
-            var restrictToList = PropertyState<bool>
-                .With<VariantBuilder>(variable);
-            restrictToList.NodeId = new NodeId(path + "_RestrictToList", NamespaceIndex);
-            restrictToList.BrowseName = new QualifiedName(BrowseNames.RestrictToList);
-            restrictToList.DisplayName = LocalizedText.From(BrowseNames.RestrictToList);
-            restrictToList.TypeDefinitionId = VariableTypeIds.PropertyType;
-            restrictToList.ReferenceTypeId = ReferenceTypeIds.HasProperty;
-            restrictToList.DataType = DataTypeIds.Boolean;
-            restrictToList.ValueRank = ValueRanks.Scalar;
-            restrictToList.AccessLevel = AccessLevels.CurrentRead;
-            restrictToList.UserAccessLevel = AccessLevels.CurrentRead;
-            restrictToList.Value = true;
-            variable.AddChild(restrictToList);
+            if (variable.RestrictToList == null)
+            {
+                variable.AddRestrictToList(
+                    SystemContext,
+                    new NodeId(path + "_RestrictToList", NamespaceIndex));
+            }
+
+            variable.RestrictToList!.NodeId = new NodeId(path + "_RestrictToList", NamespaceIndex);
+            variable.RestrictToList.BrowseName = new QualifiedName(BrowseNames.RestrictToList);
+            variable.RestrictToList.DisplayName = LocalizedText.From(BrowseNames.RestrictToList);
+            variable.RestrictToList.TypeDefinitionId = VariableTypeIds.PropertyType;
+            variable.RestrictToList.ReferenceTypeId = ReferenceTypeIds.HasProperty;
+            variable.RestrictToList.DataType = DataTypeIds.Boolean;
+            variable.RestrictToList.ValueRank = ValueRanks.Scalar;
+            variable.RestrictToList.AccessLevel = AccessLevels.CurrentRead;
+            variable.RestrictToList.UserAccessLevel = AccessLevels.CurrentRead;
+            variable.RestrictToList.Value = true;
+
+            parent?.AddChild(variable);
 
             return variable;
         }
