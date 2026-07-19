@@ -4424,52 +4424,121 @@ namespace Quickstarts.ReferenceServer
         }
 
         /// <summary>
-        /// Creates a <see cref="SelectionListState"/> instance with a set of
+        /// Creates a SelectionListType instance with a set of
         /// selectable values, their localized descriptions and RestrictToList set.
         /// </summary>
-        private SelectionListState CreateSelectionListVariable(NodeState parent, string path, string name)
+        private BaseDataVariableState CreateSelectionListVariable(
+            NodeState parent,
+            string path,
+            string name)
         {
-            var variable = new SelectionListState(parent)
-            {
-                BrowseName = new QualifiedName(path, NamespaceIndex),
-                DisplayName = new LocalizedText("en-US", name),
-                WriteMask = AttributeWriteMask.None,
-                UserWriteMask = AttributeWriteMask.None
-            };
+            BaseDataVariableState variable = CreateVariable(
+                parent,
+                path,
+                name,
+                DataTypeIds.String,
+                ValueRanks.Scalar);
+            variable.TypeDefinitionId = VariableTypeIds.SelectionListType;
+            variable.DisplayName = new LocalizedText("en-US", name);
+            variable.Value = Variant.From("Red");
+            variable.OnWriteValue = OnWriteSelectionList;
 
-            variable.Create(SystemContext, default, variable.BrowseName, default, true);
+            var selections = PropertyState<ArrayOf<string>>
+                .With<VariantBuilder>(variable);
+            selections.NodeId = new NodeId(path + "_Selections", NamespaceIndex);
+            selections.BrowseName = new QualifiedName(BrowseNames.Selections);
+            selections.DisplayName = LocalizedText.From(BrowseNames.Selections);
+            selections.TypeDefinitionId = VariableTypeIds.PropertyType;
+            selections.ReferenceTypeId = ReferenceTypeIds.HasProperty;
+            selections.DataType = DataTypeIds.String;
+            selections.ValueRank = ValueRanks.OneDimension;
+            selections.AccessLevel = AccessLevels.CurrentRead;
+            selections.UserAccessLevel = AccessLevels.CurrentRead;
+            selections.Value =
+            [
+                "Red",
+                "Green",
+                "Blue"
+            ];
+            variable.AddChild(selections);
 
-            variable.SymbolicName = name;
-            variable.ReferenceTypeId = ReferenceTypeIds.Organizes;
-            variable.NodeId = new NodeId(path, NamespaceIndex);
-            variable.DataType = DataTypeIds.String;
-            variable.ValueRank = ValueRanks.Scalar;
-            variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.Historizing = false;
-            variable.Value = "Red";
-            variable.StatusCode = StatusCodes.Good;
+            var selectionDescriptions = PropertyState<ArrayOf<LocalizedText>>
+                .With<VariantBuilder>(variable);
+            selectionDescriptions.NodeId = new NodeId(
+                path + "_SelectionDescriptions",
+                NamespaceIndex);
+            selectionDescriptions.BrowseName = new QualifiedName(
+                BrowseNames.SelectionDescriptions);
+            selectionDescriptions.DisplayName = LocalizedText.From(
+                BrowseNames.SelectionDescriptions);
+            selectionDescriptions.TypeDefinitionId = VariableTypeIds.PropertyType;
+            selectionDescriptions.ReferenceTypeId = ReferenceTypeIds.HasProperty;
+            selectionDescriptions.DataType = DataTypeIds.LocalizedText;
+            selectionDescriptions.ValueRank = ValueRanks.OneDimension;
+            selectionDescriptions.AccessLevel = AccessLevels.CurrentRead;
+            selectionDescriptions.UserAccessLevel = AccessLevels.CurrentRead;
+            selectionDescriptions.Value =
+            [
+                new LocalizedText("en-US", "The color red"),
+                new LocalizedText("en-US", "The color green"),
+                new LocalizedText("en-US", "The color blue")
+            ];
+            variable.AddChild(selectionDescriptions);
 
-            variable.Selections!.Value = new Variant[]
-            {
-                new("Red"),
-                new("Green"),
-                new("Blue")
-            }.ToArrayOf();
+            var restrictToList = PropertyState<bool>
+                .With<VariantBuilder>(variable);
+            restrictToList.NodeId = new NodeId(path + "_RestrictToList", NamespaceIndex);
+            restrictToList.BrowseName = new QualifiedName(BrowseNames.RestrictToList);
+            restrictToList.DisplayName = LocalizedText.From(BrowseNames.RestrictToList);
+            restrictToList.TypeDefinitionId = VariableTypeIds.PropertyType;
+            restrictToList.ReferenceTypeId = ReferenceTypeIds.HasProperty;
+            restrictToList.DataType = DataTypeIds.Boolean;
+            restrictToList.ValueRank = ValueRanks.Scalar;
+            restrictToList.AccessLevel = AccessLevels.CurrentRead;
+            restrictToList.UserAccessLevel = AccessLevels.CurrentRead;
+            restrictToList.Value = true;
+            variable.AddChild(restrictToList);
 
-            variable.AddSelectionDescriptions(
-                SystemContext,
-                p => p.Value = new LocalizedText[]
-                {
-                    new("en-US", "The color red"),
-                    new("en-US", "The color green"),
-                    new("en-US", "The color blue")
-                }.ToArrayOf());
-
-            variable.AddRestrictToList(SystemContext, p => p.Value = true);
-
-            parent?.AddChild(variable);
             return variable;
+        }
+
+        private static ServiceResult OnWriteSelectionList(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref Variant value,
+            ref StatusCode statusCode,
+            ref DateTimeUtc timestamp)
+        {
+            if (!indexRange.IsNull)
+            {
+                return StatusCodes.BadIndexRangeInvalid;
+            }
+
+            if (!value.TryGetValue(out string? selection))
+            {
+                return StatusCodes.BadTypeMismatch;
+            }
+
+            if (node.FindChild(
+                context,
+                new QualifiedName(BrowseNames.Selections)) is not
+                PropertyState<ArrayOf<string>> selections ||
+                selections.Value.IsNull)
+            {
+                return StatusCodes.BadConfigurationError;
+            }
+
+            foreach (string allowedSelection in selections.Value)
+            {
+                if (string.Equals(selection, allowedSelection, StringComparison.Ordinal))
+                {
+                    return ServiceResult.Good;
+                }
+            }
+
+            return StatusCodes.BadOutOfRange;
         }
 
         /// <summary>

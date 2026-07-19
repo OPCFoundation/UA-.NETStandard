@@ -491,10 +491,24 @@ namespace Opc.Ua.Server.Tests
                 Quickstarts.ReferenceServer.Namespaces.ReferenceServer);
 
             var valueNodeId = new NodeId("DataAccess_SelectionList_Colors", namespaceIndex);
+            var selectionsNodeId = new NodeId(
+                "DataAccess_SelectionList_Colors_Selections",
+                namespaceIndex);
+            var descriptionsNodeId = new NodeId(
+                "DataAccess_SelectionList_Colors_SelectionDescriptions",
+                namespaceIndex);
+            var restrictToListNodeId = new NodeId(
+                "DataAccess_SelectionList_Colors_RestrictToList",
+                namespaceIndex);
 
             ArrayOf<ReadValueId> nodesToRead =
             [
-                new ReadValueId { NodeId = valueNodeId, AttributeId = Attributes.Value }
+                new ReadValueId { NodeId = valueNodeId, AttributeId = Attributes.Value },
+                new ReadValueId { NodeId = valueNodeId, AttributeId = Attributes.DataType },
+                new ReadValueId { NodeId = selectionsNodeId, AttributeId = Attributes.Value },
+                new ReadValueId { NodeId = selectionsNodeId, AttributeId = Attributes.DataType },
+                new ReadValueId { NodeId = descriptionsNodeId, AttributeId = Attributes.Value },
+                new ReadValueId { NodeId = restrictToListNodeId, AttributeId = Attributes.Value }
             ];
 
             RequestHeader requestHeader = m_requestHeader;
@@ -509,11 +523,68 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(readResponse, Is.Not.Null);
             Assert.That(readResponse.Results.IsNull, Is.False);
-            Assert.That(readResponse.Results.Count, Is.EqualTo(1));
+            Assert.That(readResponse.Results.Count, Is.EqualTo(nodesToRead.Count));
 
             DataValue value = readResponse.Results[0];
             Assert.That(value.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(value.WrappedValue.GetString(), Is.EqualTo("Red"));
+
+            Assert.That(
+                readResponse.Results[1].WrappedValue.TryGetValue(out NodeId valueDataType),
+                Is.True);
+            Assert.That(valueDataType, Is.EqualTo(DataTypeIds.String));
+
+            Assert.That(
+                readResponse.Results[2].WrappedValue.TryGetValue(
+                    out ArrayOf<string> selections),
+                Is.True);
+            Assert.That(selections, Has.Count.EqualTo(3));
+            Assert.That(selections[0], Is.EqualTo("Red"));
+            Assert.That(selections[1], Is.EqualTo("Green"));
+            Assert.That(selections[2], Is.EqualTo("Blue"));
+            Assert.That(
+                readResponse.Results[3].WrappedValue.TryGetValue(out NodeId selectionsDataType),
+                Is.True);
+            Assert.That(selectionsDataType, Is.EqualTo(DataTypeIds.String));
+
+            Assert.That(
+                readResponse.Results[4].WrappedValue.TryGetValue(
+                    out ArrayOf<LocalizedText> selectionDescriptions),
+                Is.True);
+            Assert.That(selectionDescriptions, Has.Count.EqualTo(3));
+            Assert.That(selectionDescriptions[0].Text, Is.EqualTo("The color red"));
+            Assert.That(readResponse.Results[5].WrappedValue.GetBoolean(), Is.True);
+
+            ArrayOf<WriteValue> nodesToWrite =
+            [
+                new WriteValue
+                {
+                    NodeId = valueNodeId,
+                    AttributeId = Attributes.Value,
+                    Value = new DataValue("Green")
+                },
+                new WriteValue
+                {
+                    NodeId = valueNodeId,
+                    AttributeId = Attributes.Value,
+                    Value = new DataValue("Purple")
+                },
+                new WriteValue
+                {
+                    NodeId = valueNodeId,
+                    AttributeId = Attributes.Value,
+                    Value = new DataValue("Red")
+                }
+            ];
+            WriteResponse writeResponse = await m_server.WriteAsync(
+                m_secureChannelContext,
+                requestHeader,
+                nodesToWrite,
+                RequestLifetime.None).ConfigureAwait(false);
+            Assert.That(writeResponse.Results, Has.Count.EqualTo(nodesToWrite.Count));
+            Assert.That(writeResponse.Results[0], Is.EqualTo(StatusCodes.Good));
+            Assert.That(writeResponse.Results[1], Is.EqualTo(StatusCodes.BadOutOfRange));
+            Assert.That(writeResponse.Results[2], Is.EqualTo(StatusCodes.Good));
         }
 
         /// <summary>
@@ -562,6 +633,20 @@ namespace Opc.Ua.Server.Tests
             Assert.That(unit.NumericCode, Is.EqualTo(978));
             Assert.That(unit.Exponent, Is.EqualTo(2));
             Assert.That(unit.AlphabeticCode, Is.EqualTo("EUR"));
+
+            using var stream = new MemoryStream();
+            using (var encoder = new BinaryEncoder(
+                stream,
+                m_server.CurrentInstance.MessageContext,
+                leaveOpen: true))
+            {
+                unit.Encode(encoder);
+            }
+            byte[] encoded = stream.ToArray();
+            Assert.That(encoded, Has.Length.GreaterThan(2));
+            Assert.That(encoded[0], Is.EqualTo(0xD2), "NumericCode low byte");
+            Assert.That(encoded[1], Is.EqualTo(0x03), "NumericCode high byte");
+            Assert.That(encoded[2], Is.EqualTo(0x02), "Exponent byte");
         }
 
         /// <summary>
