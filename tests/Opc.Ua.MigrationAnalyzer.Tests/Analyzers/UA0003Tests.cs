@@ -124,6 +124,42 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Analyzers
         }
 
         [Test]
+        public async Task DoesNotReportOnNullableNodeIdEqualsNullAsync()
+        {
+            const string source = """
+                using Opc.Ua;
+                class C
+                {
+                    static bool M(NodeId? n) => n == null;
+                }
+                """;
+
+            ImmutableArray<Diagnostic> diags = await AnalyzerHarness
+                .GetAnalyzerDiagnosticsAsync(new UA0003NullCheckOnStructTypeAnalyzer(), source)
+                .ConfigureAwait(false);
+
+            Assert.That(diags.Any(d => d.Id == "UA0003"), Is.False);
+        }
+
+        [Test]
+        public async Task DoesNotReportOnNullNotEqualsNullableLocalizedTextAsync()
+        {
+            const string source = """
+                using Opc.Ua;
+                class C
+                {
+                    static bool M(LocalizedText? value) => null != value;
+                }
+                """;
+
+            ImmutableArray<Diagnostic> diags = await AnalyzerHarness
+                .GetAnalyzerDiagnosticsAsync(new UA0003NullCheckOnStructTypeAnalyzer(), source)
+                .ConfigureAwait(false);
+
+            Assert.That(diags.Any(d => d.Id == "UA0003"), Is.False);
+        }
+
+        [Test]
         public async Task DoesNotReportOnEqualsMethodCallAsync()
         {
             const string source = """

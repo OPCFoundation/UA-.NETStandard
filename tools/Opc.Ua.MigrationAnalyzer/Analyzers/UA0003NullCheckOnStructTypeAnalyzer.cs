@@ -85,11 +85,9 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
             {
                 return;
             }
-            if (valueType.OriginalDefinition?.SpecialType == SpecialType.System_Nullable_T &&
-                valueType is INamedTypeSymbol named &&
-                named.TypeArguments.Length == 1)
+            if (valueType.OriginalDefinition?.SpecialType == SpecialType.System_Nullable_T)
             {
-                valueType = named.TypeArguments[0];
+                return;
             }
 
             if (!symbols.IsBuiltInStructType(valueType))
