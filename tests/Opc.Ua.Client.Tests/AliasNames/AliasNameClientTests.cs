@@ -233,7 +233,7 @@ namespace Opc.Ua.Client.Tests.AliasNames
         public async Task EnumerateSubCategoriesAsyncFollowsBrowseContinuationPointsAsync()
         {
             var harness = AliasNameSessionHarness.Create();
-            var continuationPoint = new ByteString([0x01]);
+            var continuationPoint = new ByteString(new byte[] { 0x01 });
 
             harness.BrowseHandler = description =>
             {
@@ -272,7 +272,8 @@ namespace Opc.Ua.Client.Tests.AliasNames
                 names.Add(info.BrowseName.Name);
             }
 
-            Assert.That(names, Is.EqualTo(new[] { "Page1", "Page2" }));
+            var expectedNames = new[] { "Page1", "Page2" };
+            Assert.That(names, Is.EqualTo(expectedNames));
             Assert.That(harness.BrowseRequests, Has.Count.EqualTo(1));
             Assert.That(harness.BrowseNextRequests, Has.Count.EqualTo(1));
 
