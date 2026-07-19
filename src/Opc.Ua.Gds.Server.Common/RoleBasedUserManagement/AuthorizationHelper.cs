@@ -252,8 +252,10 @@ namespace Opc.Ua.Gds.Server
         /// established the current SecureChannel.
         /// </summary>
         /// <exception cref="ServiceResultException">
-        /// Thrown with <see cref="StatusCodes.BadSecurityChecksFailed"/> when
-        /// the request is not associated with a client certificate.
+        /// Thrown with <see cref="StatusCodes.BadSecurityModeInsufficient"/>
+        /// when the operation context cannot be verified, or with
+        /// <see cref="StatusCodes.BadSecurityChecksFailed"/> when the request
+        /// is not associated with a client certificate.
         /// </exception>
         public static ByteString GetClientCertificateFingerprint(ISystemContext context)
         {

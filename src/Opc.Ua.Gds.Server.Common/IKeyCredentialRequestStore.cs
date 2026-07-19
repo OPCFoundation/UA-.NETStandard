@@ -650,7 +650,9 @@ namespace Opc.Ua.Gds.Server
         /// <inheritdoc/>
         public ValueTask RevokeAsync(string credentialId, CancellationToken cancellationToken = default)
         {
-            KeyCredentialRequestRecord record = GetCredential(credentialId, StatusCodes.BadNotFound);
+            KeyCredentialRequestRecord record = GetCredential(
+                credentialId,
+                StatusCodes.BadInvalidArgument);
             return RevokeCoreAsync(record, cancellationToken);
         }
 
@@ -758,7 +760,7 @@ namespace Opc.Ua.Gds.Server
             {
                 throw new ServiceResultException(
                     StatusCodes.BadSecurityChecksFailed,
-                    "The key-credential record owner changed during authorization.");
+                    "The key-credential record is owned by a different registered application.");
             }
         }
 

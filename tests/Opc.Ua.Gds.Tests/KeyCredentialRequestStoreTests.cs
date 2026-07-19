@@ -332,13 +332,13 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        public void RevokeUnknownCredentialThrows()
+        public void RevokeUnknownCredentialReturnsBadInvalidArgument()
         {
             Assert.That(
                 async () => await m_store.RevokeAsync("unknown-credential").ConfigureAwait(false),
                 Throws.TypeOf<ServiceResultException>()
                     .With.Property(nameof(ServiceResultException.StatusCode))
-                    .EqualTo(StatusCodes.BadNotFound));
+                    .EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
