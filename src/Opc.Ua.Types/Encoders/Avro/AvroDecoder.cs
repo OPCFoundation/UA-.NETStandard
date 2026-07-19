@@ -751,54 +751,45 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public Variant ReadVariant(string? fieldName)
         {
-            BuiltInType type = (BuiltInType)ReadInt32(null);
-            int? valueRank = ReadNullableValue<int?>(() => ReadInt32(null), null);
-            if (valueRank.HasValue && valueRank.Value >= 0)
-            {
-                // Consume the header dimensions written by WriteVariant; matrices additionally carry
-                // their own dimensions in the body and arrays write an empty dimensions array.
-                _ = ReadInt32Array(null);
-            }
-            return ReadVariantBody(type, valueRank);
+            BuiltInType headerType = (BuiltInType)ReadInt32(null);
+            // dimensions: nullable(array<int>) — present only for matrices, consumed here.
+            _ = ReadInt32Array(null);
+            return ReadVariantBody(headerType);
         }
 
         /// <inheritdoc/>
         public Variant ReadVariantValue(string? fieldName, TypeInfo typeInfo)
         {
-            return ReadVariantBody(typeInfo.BuiltInType, typeInfo.ValueRank);
+            return ReadVariantBody(typeInfo.BuiltInType);
         }
 
-        private Variant ReadVariantBody(BuiltInType expectedType, int? valueRank)
+        private Variant ReadVariantBody(BuiltInType headerType)
         {
             long branch = m_reader.ReadLong();
-            if (branch == 0 || expectedType == BuiltInType.Null)
+            if (branch == 0 || headerType == BuiltInType.Null)
             {
                 return Variant.Null;
             }
 
-            if (branch != (int)expectedType)
-            {
-                throw new FormatException($"Unexpected Variant branch {branch}; expected {(int)expectedType}.");
-            }
+            // Invert the body-union branch: branch = 1 + 3*(type-1) + shapeOffset.
+            long index = branch - 1;
+            var type = (BuiltInType)((index / 3) + 1);
+            long shapeOffset = index % 3;
 
             CheckAndIncrementNestingLevel();
             try
             {
-                if (!valueRank.HasValue || valueRank.Value < 0)
+                if (shapeOffset == 0)
                 {
-                    return ReadScalarVariant(expectedType);
+                    return ReadScalarVariant(type);
                 }
 
-                // ValueRank 0/1 => array, ValueRank > 1 => matrix (mirrors TypeInfo.IsArray/IsMatrix
-                // and the WriteVariantBody dispatch on the encoder side). The prior implementation
-                // routed on a dimensions array that ReadVariantValue always passed as null, so every
-                // matrix was mis-decoded as an array and ran past the end of the stream.
-                if (valueRank.Value <= 1)
+                if (shapeOffset == 1)
                 {
-                    return ReadArrayVariant(expectedType);
+                    return ReadArrayVariant(type);
                 }
 
-                return ReadMatrixVariant(expectedType);
+                return ReadMatrixVariant(type);
             }
             finally
             {

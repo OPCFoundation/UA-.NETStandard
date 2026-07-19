@@ -723,11 +723,15 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void WriteVariant(string? fieldName, in Variant value)
         {
-            WriteInt32(null, (int)value.TypeInfo.BuiltInType);
-            WriteNullable(value.TypeInfo.ValueRank >= 0, value.TypeInfo.ValueRank, v => WriteInt32(null, v));
-            if (value.TypeInfo.ValueRank >= 0)
+            WriteInt32(null, (int)NormalizeVariantType(value.TypeInfo.BuiltInType));
+            if (value.TypeInfo.IsMatrix)
             {
                 WriteInt32Array(null, GetVariantDimensions(in value));
+            }
+            else
+            {
+                // dimensions is a nullable(array<int>) that is null for scalars and arrays.
+                m_writer.WriteLong(0);
             }
 
             WriteVariantBody(in value);
@@ -787,7 +791,10 @@ namespace Opc.Ua
                 return;
             }
 
-            m_writer.WriteLong((int)type);
+            // The Variant body is an Avro union [ null, then per built-in type: <Type>Scalar,
+            // <Type>Array, <Type>MatrixBody ]; the branch index encodes both type and shape.
+            int shapeOffset = typeInfo.IsScalar ? 0 : typeInfo.IsArray ? 1 : 2;
+            m_writer.WriteLong(VariantBodyBranch(NormalizeVariantType(type), shapeOffset));
             if (typeInfo.IsScalar)
             {
                 WriteScalarVariant(in value, type);
@@ -800,6 +807,19 @@ namespace Opc.Ua
             {
                 WriteMatrixVariant(in value, type);
             }
+        }
+
+        // Body-union branch = 1 + 3*pos + shapeOffset, pos = builtInType enum value - 1
+        // (VARIANT_BODY_TYPES is Boolean(1)..ExtensionObject(22)); shapeOffset scalar=0/array=1/matrix=2.
+        private static long VariantBodyBranch(BuiltInType type, int shapeOffset)
+        {
+            return 1 + (3 * ((int)type - 1)) + shapeOffset;
+        }
+
+        // Enumeration variant bodies are carried as Int32 (their on-wire built-in type).
+        private static BuiltInType NormalizeVariantType(BuiltInType type)
+        {
+            return type == BuiltInType.Enumeration ? BuiltInType.Int32 : type;
         }
 
         private void WriteScalarVariant(in Variant value, BuiltInType type)

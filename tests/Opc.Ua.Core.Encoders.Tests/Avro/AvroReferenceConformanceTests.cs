@@ -117,38 +117,82 @@ namespace Opc.Ua.Core.Tests
             });
         }
 
-        // Executable spec for the canonical Variant encoding (Part B2, review finding 6). The
-        // reference codec (avro_codec) encodes a Variant as the record
+        // Canonical Variant encoding (Part B2, review finding 6). The reference codec (avro_codec)
+        // encodes a Variant as the record
         //   { builtInType: int, dimensions: nullable(array<int>), body: union[...] }
         // where the body union is [ null, then per built-in type in VARIANT_BODY_TYPES:
         //   Variant<Type>Scalar{value}, Variant<Type>Array{values}, Variant<Type>MatrixBody{matrix} ].
         // So the body branch index = 1 + 3*pos(builtInType in VARIANT_BODY_TYPES) + shapeOffset
         // (scalar=0, array=1, matrix=2); null value => branch 0. Example: Int32 is body position 5,
         // so Int32Scalar = branch 16 (0x20 zigzag), Int32Array = branch 17 (0x22).
-        // The current .NET WriteVariant instead emits builtInType + nullable(valueRank) + dims +
-        // (repeat builtInType) + value — a different structure. These cases are the target the
-        // Variant encoder+decoder rewrite must satisfy; enable them (remove [Ignore]) once B2 lands.
-        private static readonly (string Name, string ReferenceHex, Action<AvroEncoder> Write)[] s_variantTargets =
+        //
+        // B2-scalar (landed): the scalar branch of WriteVariant now emits this canonical form —
+        //   builtInType(int) + nullable(dimensions) + bodyBranch(long) + scalar value.
+        // Reference bytes below are avro_codec.encode(Builtin(Variant), Variant(Builtin(<T>), <v>)).
+        private static readonly (string Name, string ReferenceHex, Action<AvroEncoder> Write)[] s_variantScalarTargets =
         {
+            ("Variant_Boolean_true", "02000201",
+                e => e.WriteVariant(null, new Variant(true))),
+            ("Variant_SByte_m5", "04000809",
+                e => e.WriteVariant(null, new Variant((sbyte)-5))),
+            ("Variant_Int16_1000", "080014d00f",
+                e => e.WriteVariant(null, new Variant((short)1000))),
             ("Variant_Int32_99", "0c0020c601",
                 e => e.WriteVariant(null, new Variant(99))),
+            ("Variant_UInt32_3B", "0e0026ff87fdd209",
+                e => e.WriteVariant(null, new Variant(3000000000u))),
+            ("Variant_Int64_300", "10002cd804",
+                e => e.WriteVariant(null, new Variant(300L))),
+            ("Variant_Float_1_5", "1400380000c03f",
+                e => e.WriteVariant(null, new Variant(1.5f))),
+            ("Variant_Double_1_5", "16003e000000000000f83f",
+                e => e.WriteVariant(null, new Variant(1.5))),
             ("Variant_String_v", "180044020276",
                 e => e.WriteVariant(null, new Variant("v"))),
-            ("Variant_Int32Array_1_2_3", "0c00220602040600",
-                e => e.WriteVariant(null, new Variant(new ArrayOf<int>([1, 2, 3])))),
         };
 
         [Test]
-        [Ignore("finding 6 / Part B2: canonical Variant encoding not yet implemented — executable target")]
-        public void VariantMatchesReferenceAvroBinary()
+        public void VariantScalarMatchesReferenceAvroBinary()
         {
             Assert.Multiple(() =>
             {
-                foreach ((string name, string referenceHex, Action<AvroEncoder> write) in s_variantTargets)
+                foreach ((string name, string referenceHex, Action<AvroEncoder> write) in s_variantScalarTargets)
                 {
                     string actual = ToHex(Encode(write));
                     Assert.That(actual, Is.EqualTo(referenceHex),
-                        $"canonical Variant mismatch vs reference for {name}");
+                        $"canonical scalar Variant mismatch vs reference for {name}");
+                }
+            });
+        }
+
+        // B2-array/matrix (deferred): the Variant array/matrix BODY must be a PLAIN Avro array
+        // (count + items + 0 terminator, no leading 0x02 present-marker) — distinct from a standalone
+        // nullable-union array. The scalar branch (above) is canonical; the array/matrix branch still
+        // emits the nullable-union body, so these cases stay pinned as the executable target for the
+        // WritePlainArray follow-up. Reference bytes from avro_codec (plain array bodies visible as the
+        // count byte directly after the body branch, e.g. Int32Array = 0x22 then 0x06 count).
+        private static readonly (string Name, string ReferenceHex, Action<AvroEncoder> Write)[] s_variantArrayMatrixTargets =
+        {
+            ("Variant_Int32Array_1_2_3", "0c00220602040600",
+                e => e.WriteVariant(null, new Variant(new ArrayOf<int>([1, 2, 3])))),
+            ("Variant_Int32Array_empty", "0c002200",
+                e => e.WriteVariant(null, new Variant(new ArrayOf<int>([])))),
+            ("Variant_Int32Matrix_2x2", "0c02040404002404040400080204060800",
+                e => e.WriteVariant(null, new Variant(
+                    new ArrayOf<int>([1, 2, 3, 4]).ToMatrix(2, 2)))),
+        };
+
+        [Test]
+        [Ignore("finding 6 / Part B2-array: canonical Variant array/matrix body (plain array) not yet implemented — executable target")]
+        public void VariantArrayMatrixMatchesReferenceAvroBinary()
+        {
+            Assert.Multiple(() =>
+            {
+                foreach ((string name, string referenceHex, Action<AvroEncoder> write) in s_variantArrayMatrixTargets)
+                {
+                    string actual = ToHex(Encode(write));
+                    Assert.That(actual, Is.EqualTo(referenceHex),
+                        $"canonical Variant array/matrix mismatch vs reference for {name}");
                 }
             });
         }
