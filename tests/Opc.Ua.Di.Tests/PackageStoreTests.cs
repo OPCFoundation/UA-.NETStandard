@@ -331,10 +331,11 @@ namespace Opc.Ua.Di.Tests
                 var store = new FileSystemPackageStore(
                     provider,
                     rootPath: "\\Pkgs\\\\Nested\\");
+                using var payload = new MemoryStream([1, 2, 3]);
 
                 await store.AddAsync(
                     NewMetadata("firmware"),
-                    new MemoryStream([1, 2, 3])).ConfigureAwait(false);
+                    payload).ConfigureAwait(false);
 
                 string packageRoot = Path.Combine(tempRoot, "Pkgs", "Nested", "firmware");
                 Assert.That(File.Exists(Path.Combine(packageRoot, "payload.bin")), Is.True);

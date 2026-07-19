@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -313,7 +314,7 @@ namespace Opc.Ua.Di.Server.SoftwareUpdate
                 path += $"/{leaf}";
             }
 
-            string canonicalPath = CanonicalizeProviderPath(path, nameof(packageId));
+            string canonicalPath = CanonicalizeProviderPath(path, nameof(path));
             if (canonicalPath.Length <= m_rootPath.Length ||
                 !canonicalPath.StartsWith(m_rootPrefix, StringComparison.Ordinal))
             {
@@ -345,27 +346,45 @@ namespace Opc.Ua.Di.Server.SoftwareUpdate
 
         private static string CanonicalizeProviderPath(string path, string parameterName)
         {
-            string normalized = path.Replace('\\', '/');
-            string[] segments = normalized.Split('/');
-            var canonicalSegments = new List<string>(segments.Length);
-            foreach (string segment in segments)
+            var canonicalPath = new StringBuilder(path.Length + 1);
+            canonicalPath.Append('/');
+            int index = 0;
+            while (index < path.Length)
             {
-                if (segment.Length == 0)
+                while (index < path.Length && path[index] is '/' or '\\')
                 {
-                    continue;
+                    index++;
                 }
-                if (segment is "." or "..")
+
+                int segmentStart = index;
+                while (index < path.Length && path[index] is not ('/' or '\\'))
+                {
+                    index++;
+                }
+
+                int segmentLength = index - segmentStart;
+                if (segmentLength == 0)
+                {
+                    break;
+                }
+                if ((segmentLength == 1 && path[segmentStart] == '.') ||
+                    (segmentLength == 2 &&
+                        path[segmentStart] == '.' &&
+                        path[segmentStart + 1] == '.'))
                 {
                     throw new ArgumentException(
                         "Provider-relative paths must not contain dot segments.",
                         parameterName);
                 }
-                canonicalSegments.Add(segment);
+
+                if (canonicalPath.Length > 1)
+                {
+                    canonicalPath.Append('/');
+                }
+                canonicalPath.Append(path, segmentStart, segmentLength);
             }
 
-            return canonicalSegments.Count == 0
-                ? "/"
-                : "/" + string.Join("/", canonicalSegments);
+            return canonicalPath.ToString();
         }
     }
 
