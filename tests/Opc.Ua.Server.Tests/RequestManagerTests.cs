@@ -488,7 +488,10 @@ namespace Opc.Ua.Server.Tests
 
             // The promoted request was handed off to ordinary request-scope ownership,
             // so disposing the validation scope must not have completed it.
-            m_requestManager.CancelRequests(71, out uint cancelCount);
+            m_requestManager.CancelRequests(
+                context.SessionId,
+                71,
+                out uint cancelCount);
             Assert.That(cancelCount, Is.EqualTo(1));
 
             // Clean up explicitly since the validation scope no longer owns it.
