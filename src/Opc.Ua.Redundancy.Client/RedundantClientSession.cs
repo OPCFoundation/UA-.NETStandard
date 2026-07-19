@@ -1294,28 +1294,35 @@ namespace Opc.Ua.Redundancy.Client
 
         private void UpdateActiveSession()
         {
+            long refreshGeneration = Interlocked.Increment(ref m_refreshGeneration);
             ISession? s = m_coordinator.IsLeader ? m_currentSessionAccessor() : null;
             TaskCompletionSource<ISession>? release;
             lock (m_syncRoot)
             {
-                if (m_disposed)
+                if (m_disposed || refreshGeneration < m_appliedRefreshGeneration)
                 {
                     return;
                 }
+                m_appliedRefreshGeneration = refreshGeneration;
                 if (!ReferenceEquals(s, m_attachedSession))
                 {
                     DetachEvents(m_attachedSession);
                     m_attachedSession = s;
                     AttachEvents(m_attachedSession);
                 }
+                ISession? previousSession = m_currentSession;
                 m_currentSession = s;
                 if (s == null)
                 {
-                    if (m_activeSession.Task.IsCompleted)
+                    if (previousSession != null || m_activeSession.Task.IsCompleted)
                     {
                         m_activeSession = CreateSessionCompletionSource();
                     }
                     return;
+                }
+                if (previousSession != null && !ReferenceEquals(previousSession, s))
+                {
+                    m_activeSession = CreateSessionCompletionSource();
                 }
                 ApplyRememberedValues(s);
                 release = m_activeSession;
@@ -1497,6 +1504,8 @@ namespace Opc.Ua.Redundancy.Client
         private TaskCompletionSource<ISession> m_activeSession;
         private ISession? m_currentSession;
         private ISession? m_attachedSession;
+        private long m_refreshGeneration;
+        private long m_appliedRefreshGeneration;
         private bool m_disposed;
         private bool m_hasHandle;
         private object? m_handle;
