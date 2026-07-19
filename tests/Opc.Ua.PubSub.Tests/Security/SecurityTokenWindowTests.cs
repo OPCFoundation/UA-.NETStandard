@@ -284,14 +284,35 @@ namespace Opc.Ua.PubSub.Tests.Security
         }
 
         [Test]
+        public void ConstructorRejectsNonPositiveNonceFilterSize()
+        {
+            Assert.That(
+                () => new SecurityTokenWindow(
+                    historySize: 1024,
+                    timeProvider: null,
+                    nonceFilterSizeInBytes: 0),
+                Throws.TypeOf<ArgumentOutOfRangeException>());
+            Assert.That(
+                () => new SecurityTokenWindow(
+                    historySize: 1024,
+                    timeProvider: null,
+                    nonceFilterSizeInBytes: -1),
+                Throws.TypeOf<ArgumentOutOfRangeException>());
+        }
+
+        [Test]
         public void Properties_ReflectConfiguration()
         {
             TimeProvider clock = TimeProvider.System;
-            var window = new SecurityTokenWindow(historySize: 16, timeProvider: clock);
+            var window = new SecurityTokenWindow(
+                historySize: 16,
+                timeProvider: clock,
+                nonceFilterSizeInBytes: 2048);
             Assert.Multiple(() =>
             {
                 Assert.That(window.HistorySize, Is.EqualTo(16));
                 Assert.That(window.TimeProvider, Is.SameAs(clock));
+                Assert.That(window.NonceFilterSizeInBytes, Is.EqualTo(2048));
             });
         }
 

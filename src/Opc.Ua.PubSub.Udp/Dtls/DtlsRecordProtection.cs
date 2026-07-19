@@ -44,9 +44,26 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// Initializes a new <see cref="DtlsRecordProtection"/>.
         /// </summary>
         public DtlsRecordProtection(DtlsProfile profile, ReadOnlySpan<byte> trafficSecret, ushort epoch)
+            : this(profile, trafficSecret, epoch, initialWriteSequenceNumber: 0)
         {
+        }
+
+        internal DtlsRecordProtection(
+            DtlsProfile profile,
+            ReadOnlySpan<byte> trafficSecret,
+            ushort epoch,
+            ulong initialWriteSequenceNumber)
+        {
+            if (initialWriteSequenceNumber > MaximumRecordSequenceNumber)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(initialWriteSequenceNumber),
+                    "The initial DTLS record sequence number exceeds the epoch limit.");
+            }
+
             Profile = profile ?? throw new ArgumentNullException(nameof(profile));
             Epoch = epoch;
+            m_writeSequenceNumber = initialWriteSequenceNumber;
             m_hashAlgorithmName = GetHashAlgorithm(profile.CipherSuite);
             m_isAead = IsAead(profile.CipherSuite);
             m_tagLength = GetTagLength(profile.CipherSuite);

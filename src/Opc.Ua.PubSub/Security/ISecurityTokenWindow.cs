@@ -53,6 +53,10 @@ namespace Opc.Ua.PubSub.Security
         /// edge, or the nonce has already been used inside the
         /// current key's lifetime.
         /// </summary>
+        /// <remarks>
+        /// Implementations may conservatively reject a fresh nonce when using
+        /// bounded probabilistic nonce tracking.
+        /// </remarks>
         /// <param name="tokenId">SecurityHeader TokenId.</param>
         /// <param name="sequenceNumber">SecurityHeader SequenceNumber.</param>
         /// <param name="nonce">SecurityHeader Nonce bytes.</param>

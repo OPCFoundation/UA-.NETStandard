@@ -30,7 +30,6 @@
 #if NET8_0_OR_GREATER
 using System;
 using System.Linq;
-using System.Reflection;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -228,12 +227,10 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
         {
             byte[] secret = CreateSecret(DtlsCipherSuite.TlsAes128GcmSha256);
             using var writer = new DtlsRecordProtection(
-                CreateProfile(DtlsCipherSuite.TlsAes128GcmSha256), secret, epoch: 1);
-            FieldInfo? sequenceField = typeof(DtlsRecordProtection).GetField(
-                "m_writeSequenceNumber",
-                BindingFlags.Instance | BindingFlags.NonPublic);
-            Assert.That(sequenceField, Is.Not.Null);
-            sequenceField!.SetValue(writer, DtlsRecordProtection.MaximumRecordSequenceNumber);
+                CreateProfile(DtlsCipherSuite.TlsAes128GcmSha256),
+                secret,
+                epoch: 1,
+                initialWriteSequenceNumber: DtlsRecordProtection.MaximumRecordSequenceNumber);
 
             Assert.That(writer.Seal([0x01]), Is.Not.Empty);
             Assert.That(

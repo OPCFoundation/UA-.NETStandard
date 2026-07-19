@@ -29,6 +29,7 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
@@ -147,10 +148,24 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
             PubSubDiagnostics diagnostics,
             long expectedCount)
         {
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
-            while (diagnostics.Read(PubSubDiagnosticsCounterKind.ReceivedNetworkMessages) < expectedCount)
+            TimeSpan timeout = TimeSpan.FromSeconds(3);
+            var stopwatch = Stopwatch.StartNew();
+            while (true)
             {
-                await Task.Delay(TimeSpan.FromMilliseconds(10), cts.Token).ConfigureAwait(false);
+                long observedCount = diagnostics.Read(
+                    PubSubDiagnosticsCounterKind.ReceivedNetworkMessages);
+                if (observedCount >= expectedCount)
+                {
+                    return;
+                }
+                if (stopwatch.Elapsed >= timeout)
+                {
+                    Assert.Fail(
+                        $"Timed out after {timeout} waiting for at least {expectedCount} received " +
+                        $"network message(s); observed {observedCount}.");
+                }
+
+                await Task.Delay(TimeSpan.FromMilliseconds(10)).ConfigureAwait(false);
             }
         }
 

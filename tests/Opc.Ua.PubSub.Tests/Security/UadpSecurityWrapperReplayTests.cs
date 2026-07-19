@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Security.Cryptography;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Encoding;
@@ -60,7 +61,7 @@ namespace Opc.Ua.PubSub.Tests.Security
 
         private static (UadpSecurityWrapper Sender, UadpSecurityWrapper Receiver)
             CreatePair(
-                PubSubAes256CtrPolicy policy,
+                IPubSubSecurityPolicy policy,
                 int receiverHistorySize,
                 ulong senderCap = RandomNonceProvider.DefaultMaxMessagesPerKey)
         {
@@ -276,6 +277,31 @@ namespace Opc.Ua.PubSub.Tests.Security
             });
         }
 
+        [Test]
+        public async Task FailedDecryptionDoesNotCommitReplayStateAsync()
+        {
+            var policy = new FailFirstDecryptPolicy(PubSubAes256CtrPolicy.Instance);
+            (UadpSecurityWrapper sender, UadpSecurityWrapper receiver) =
+                CreatePair(policy, receiverHistorySize: 64);
+            ReadOnlyMemory<byte> wrapped = await sender
+                .WrapAsync(s_outerPrefix, s_innerPayload)
+                .ConfigureAwait(false);
+
+            UadpSecurityWrapper.UnwrapResult rejected = await receiver
+                .TryUnwrapAsync(s_outerPrefix.AsMemory(), wrapped[s_outerPrefix.Length..])
+                .ConfigureAwait(false);
+
+            UadpSecurityWrapper.UnwrapResult result = await receiver
+                .TryUnwrapAsync(s_outerPrefix.AsMemory(), wrapped[s_outerPrefix.Length..])
+                .ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(rejected.IsSuccess, Is.False);
+                Assert.That(rejected.Status, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+                Assert.That(result.IsSuccess, Is.True, result.Reason);
+            });
+        }
+
         private static UadpSecurityWrapper CreateWrapper(
             PubSubAes256CtrPolicy policy,
             PubSubSecurityKey key,
@@ -318,6 +344,67 @@ namespace Opc.Ua.PubSub.Tests.Security
             byte[] nonce = header.MessageNonce.ToArray();
             (_, ulong sequenceNumber) = AesCtrNonceLayout.Parse(nonce);
             return (sequenceNumber, nonce);
+        }
+
+        private sealed class FailFirstDecryptPolicy : IPubSubSecurityPolicy
+        {
+            public FailFirstDecryptPolicy(IPubSubSecurityPolicy inner)
+            {
+                m_inner = inner;
+            }
+
+            public string PolicyUri => m_inner.PolicyUri;
+
+            public int SigningKeyLength => m_inner.SigningKeyLength;
+
+            public int EncryptingKeyLength => m_inner.EncryptingKeyLength;
+
+            public int NonceLength => m_inner.NonceLength;
+
+            public int SignatureLength => m_inner.SignatureLength;
+
+            public void Sign(
+                ReadOnlySpan<byte> data,
+                ReadOnlySpan<byte> signingKey,
+                Span<byte> signature)
+            {
+                m_inner.Sign(data, signingKey, signature);
+            }
+
+            public bool Verify(
+                ReadOnlySpan<byte> data,
+                ReadOnlySpan<byte> signature,
+                ReadOnlySpan<byte> signingKey)
+            {
+                return m_inner.Verify(data, signature, signingKey);
+            }
+
+            public void Encrypt(
+                ReadOnlySpan<byte> plaintext,
+                ReadOnlySpan<byte> encryptingKey,
+                ReadOnlySpan<byte> nonce,
+                Span<byte> ciphertext)
+            {
+                m_inner.Encrypt(plaintext, encryptingKey, nonce, ciphertext);
+            }
+
+            public void Decrypt(
+                ReadOnlySpan<byte> ciphertext,
+                ReadOnlySpan<byte> encryptingKey,
+                ReadOnlySpan<byte> nonce,
+                Span<byte> plaintext)
+            {
+                if (m_failNextDecrypt)
+                {
+                    m_failNextDecrypt = false;
+                    throw new CryptographicException("Simulated authenticated-decryption failure.");
+                }
+
+                m_inner.Decrypt(ciphertext, encryptingKey, nonce, plaintext);
+            }
+
+            private readonly IPubSubSecurityPolicy m_inner;
+            private bool m_failNextDecrypt = true;
         }
     }
 }

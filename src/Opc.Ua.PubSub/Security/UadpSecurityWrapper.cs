@@ -29,6 +29,7 @@
 
 using System;
 using System.Buffers;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -348,14 +349,37 @@ namespace Opc.Ua.PubSub.Security
                         "Inbound frame security level is lower than the configured SecurityMode.");
                 }
 
-                // The MessageNonce embeds a monotonic per-key
-                // SequenceNumber (Part 14 Table 156: RandomBytes ||
-                // SequenceNumber). The nonce is part of the signed
-                // SecurityHeader, so the sequence number is
-                // authenticated and available before decryption.
-                // Extract it and drive the monotonic replay window with
-                // it, rejecting duplicates, too-old sequences and exact
-                // nonce reuse.
+                byte[] plaintext = new byte[payloadAndFooterLength];
+                if (encrypted && Policy.EncryptingKeyLength > 0)
+                {
+                    try
+                    {
+                        Policy.Decrypt(
+                            securityAndPayload.Span.Slice(headerLength, payloadAndFooterLength),
+                            key.EncryptingKey.Span,
+                            header.MessageNonce.Span,
+                            plaintext);
+                    }
+                    catch (CryptographicException)
+                    {
+                        Array.Clear(plaintext, 0, plaintext.Length);
+                        return UnwrapResult.Failure(
+                            StatusCodes.BadSecurityChecksFailed,
+                            "Payload decryption or authentication failed");
+                    }
+                }
+                else
+                {
+                    securityAndPayload
+                        .Span
+                        .Slice(headerLength, payloadAndFooterLength)
+                        .CopyTo(plaintext);
+                }
+
+                // Commit replay state only after every cryptographic operation
+                // has succeeded. This prevents a forged record that fails during
+                // decryption or authentication from poisoning the sequence window
+                // or nonce filter.
                 ulong sequenceNumber = 0;
                 ReadOnlySpan<byte> nonceSpan = header.MessageNonce.Span;
                 if (nonceSpan.Length == AesCtrNonceLayout.NonceLength)
@@ -392,16 +416,21 @@ namespace Opc.Ua.PubSub.Security
                         replayAccepted = true;
                     }
                 }
-                else
+                else if (signed && signatureLength > 0)
                 {
                     replayAccepted = m_tokenWindow.TryAccept(
                         header.SecurityTokenId,
                         sequenceNumber,
                         nonceSpan);
                 }
+                else
+                {
+                    replayAccepted = true;
+                }
 
                 if (!replayAccepted)
                 {
+                    Array.Clear(plaintext, 0, plaintext.Length);
                     m_logger.RejectedReplayOrNonceReuse(header.SecurityTokenId, sequenceNumber);
                     EmitSecurityEvent(new PubSubSecurityEvent(
                         PubSubSecurityEventKind.ReplayRejected,
@@ -411,23 +440,6 @@ namespace Opc.Ua.PubSub.Security
                     return UnwrapResult.Failure(
                         StatusCodes.BadSecurityChecksFailed,
                         "Replay or nonce reuse detected");
-                }
-
-                byte[] plaintext = new byte[payloadAndFooterLength];
-                if (encrypted && Policy.EncryptingKeyLength > 0)
-                {
-                    Policy.Decrypt(
-                        securityAndPayload.Span.Slice(headerLength, payloadAndFooterLength),
-                        key.EncryptingKey.Span,
-                        header.MessageNonce.Span,
-                        plaintext);
-                }
-                else
-                {
-                    securityAndPayload
-                        .Span
-                        .Slice(headerLength, payloadAndFooterLength)
-                        .CopyTo(plaintext);
                 }
 
                 return UnwrapResult.Success(plaintext, header);

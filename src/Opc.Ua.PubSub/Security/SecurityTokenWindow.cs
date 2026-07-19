@@ -61,11 +61,13 @@ namespace Opc.Ua.PubSub.Security
     /// be replayed once the window has advanced past it (no eviction-replay).
     /// </para>
     /// <para>
-    /// In addition the window retains the <b>full</b> bytes of every
-    /// accepted nonce for the lifetime of its SecurityTokenId and rejects
-    /// exact reuse globally across all publisher and writer-group scopes.
-    /// Nonce history is cleared only when the token is retired or the
-    /// window is reset.
+    /// In addition each token owns a fixed-size 1 MiB Bloom filter that rejects
+    /// nonce reuse globally across all publisher and writer-group scopes
+    /// without retaining an unbounded set of nonce values. Filter bits are
+    /// never cleared while the token is active, so an exact nonce reuse
+    /// cannot become acceptable. As with any Bloom filter, saturation can
+    /// cause a fresh nonce to be rejected as a false positive; retiring the
+    /// token or resetting the window clears the filter.
     /// </para>
     /// </remarks>
     public sealed class SecurityTokenWindow : ISecurityTokenWindow, IScopedSecurityTokenWindow
@@ -73,7 +75,7 @@ namespace Opc.Ua.PubSub.Security
         private readonly Lock m_lock = new();
         private readonly Dictionary<uint, TokenState> m_states = [];
         private readonly Dictionary<ScopedTokenKey, TokenState> m_scopedStates = [];
-        private readonly Dictionary<uint, HashSet<ByteString>> m_seenNonces = [];
+        private readonly Dictionary<uint, NonceReplayFilter> m_nonceFilters = [];
 
         /// <summary>
         /// Initializes a new <see cref="SecurityTokenWindow"/>.
@@ -84,11 +86,19 @@ namespace Opc.Ua.PubSub.Security
         /// </param>
         /// <param name="timeProvider">
         /// Time source. Currently unused — accepted for symmetry with
-        /// other PubSub services and to allow future TTL eviction.
+        /// other PubSub services and future policy enforcement.
         /// </param>
         public SecurityTokenWindow(
             int historySize = 1024,
             TimeProvider? timeProvider = null)
+            : this(historySize, timeProvider, DefaultNonceFilterSizeInBytes)
+        {
+        }
+
+        internal SecurityTokenWindow(
+            int historySize,
+            TimeProvider? timeProvider,
+            int nonceFilterSizeInBytes)
         {
             if (historySize <= 0)
             {
@@ -96,8 +106,15 @@ namespace Opc.Ua.PubSub.Security
                     nameof(historySize),
                     "History size must be positive.");
             }
+            if (nonceFilterSizeInBytes <= 0)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(nonceFilterSizeInBytes),
+                    "Nonce filter size must be positive.");
+            }
             HistorySize = historySize;
             TimeProvider = timeProvider ?? TimeProvider.System;
+            NonceFilterSizeInBytes = nonceFilterSizeInBytes;
         }
 
         /// <summary>
@@ -109,6 +126,8 @@ namespace Opc.Ua.PubSub.Security
         /// Time source supplied to the window. Reserved for future use.
         /// </summary>
         public TimeProvider TimeProvider { get; }
+
+        internal int NonceFilterSizeInBytes { get; }
 
         /// <summary>
         /// Snapshot of the currently registered tokens.
@@ -136,7 +155,7 @@ namespace Opc.Ua.PubSub.Security
                 if (!m_states.ContainsKey(tokenId))
                 {
                     m_states.Add(tokenId, new TokenState(HistorySize));
-                    m_seenNonces.Add(tokenId, []);
+                    m_nonceFilters.Add(tokenId, new NonceReplayFilter(NonceFilterSizeInBytes));
                 }
             }
         }
@@ -151,7 +170,7 @@ namespace Opc.Ua.PubSub.Security
             lock (m_lock)
             {
                 m_states.Remove(tokenId);
-                m_seenNonces.Remove(tokenId);
+                m_nonceFilters.Remove(tokenId);
                 List<ScopedTokenKey>? retiredScopes = null;
                 foreach (ScopedTokenKey key in m_scopedStates.Keys)
                 {
@@ -177,28 +196,19 @@ namespace Opc.Ua.PubSub.Security
             ulong sequenceNumber,
             ReadOnlySpan<byte> nonce)
         {
-            // Copy the nonce before taking the lock so the reuse set
-            // can retain the full bytes (no truncation) for an exact
-            // comparison on later frames.
-            bool hasNonce = !nonce.IsEmpty;
-            ByteString nonceKey = hasNonce
-                ? new ByteString(nonce.ToArray())
-                : default;
-
             lock (m_lock)
             {
                 if (!m_states.TryGetValue(tokenId, out TokenState? state) ||
-                    !m_seenNonces.TryGetValue(tokenId, out HashSet<ByteString>? seenNonces))
+                    !m_nonceFilters.TryGetValue(tokenId, out NonceReplayFilter? nonceFilter))
                 {
                     return false;
                 }
 
                 return TryAcceptState(
                     state,
-                    seenNonces,
+                    nonceFilter,
                     sequenceNumber,
-                    nonceKey,
-                    hasNonce);
+                    nonce);
             }
         }
 
@@ -209,14 +219,10 @@ namespace Opc.Ua.PubSub.Security
             ulong sequenceNumber,
             ReadOnlySpan<byte> nonce)
         {
-            bool hasNonce = !nonce.IsEmpty;
-            ByteString nonceKey = hasNonce
-                ? new ByteString(nonce.ToArray())
-                : default;
             lock (m_lock)
             {
                 if (!m_states.ContainsKey(tokenId) ||
-                    !m_seenNonces.TryGetValue(tokenId, out HashSet<ByteString>? seenNonces))
+                    !m_nonceFilters.TryGetValue(tokenId, out NonceReplayFilter? nonceFilter))
                 {
                     return false;
                 }
@@ -227,13 +233,11 @@ namespace Opc.Ua.PubSub.Security
                     state = new TokenState(HistorySize);
                     m_scopedStates.Add(key, state);
                 }
-
                 return TryAcceptState(
                     state,
-                    seenNonces,
+                    nonceFilter,
                     sequenceNumber,
-                    nonceKey,
-                    hasNonce);
+                    nonce);
             }
         }
 
@@ -244,18 +248,17 @@ namespace Opc.Ua.PubSub.Security
             {
                 m_states.Clear();
                 m_scopedStates.Clear();
-                m_seenNonces.Clear();
+                m_nonceFilters.Clear();
             }
         }
 
         private bool TryAcceptState(
             TokenState state,
-            HashSet<ByteString> seenNonces,
+            NonceReplayFilter nonceFilter,
             ulong sequenceNumber,
-            ByteString nonceKey,
-            bool hasNonce)
+            ReadOnlySpan<byte> nonce)
         {
-            if (hasNonce && seenNonces.Contains(nonceKey))
+            if (!nonce.IsEmpty && nonceFilter.MightContain(nonce))
             {
                 return false;
             }
@@ -267,9 +270,9 @@ namespace Opc.Ua.PubSub.Security
 
             state.CommitSequence(sequenceNumber, HistorySize);
 
-            if (hasNonce)
+            if (!nonce.IsEmpty)
             {
-                seenNonces.Add(nonceKey);
+                nonceFilter.Add(nonce);
             }
 
             return true;
@@ -279,6 +282,73 @@ namespace Opc.Ua.PubSub.Security
             PublisherId PublisherId,
             ushort WriterGroupId,
             uint TokenId);
+
+        private sealed class NonceReplayFilter
+        {
+            public NonceReplayFilter(int sizeInBytes)
+            {
+                m_bits = new byte[sizeInBytes];
+                m_bitCount = checked((ulong)sizeInBytes * 8);
+            }
+
+            public bool MightContain(ReadOnlySpan<byte> nonce)
+            {
+                (ulong firstHash, ulong secondHash) = ComputeHashes(nonce);
+                for (int ii = 0; ii < NonceHashCount; ii++)
+                {
+                    ulong bitIndex = unchecked(firstHash + ((ulong)ii * secondHash)) % m_bitCount;
+                    int bitMask = 1 << (int)(bitIndex & 7);
+                    if ((m_bits[(int)(bitIndex >> 3)] & bitMask) == 0)
+                    {
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+
+            public void Add(ReadOnlySpan<byte> nonce)
+            {
+                (ulong firstHash, ulong secondHash) = ComputeHashes(nonce);
+                for (int ii = 0; ii < NonceHashCount; ii++)
+                {
+                    ulong bitIndex = unchecked(firstHash + ((ulong)ii * secondHash)) % m_bitCount;
+                    m_bits[(int)(bitIndex >> 3)] |= (byte)(1 << (int)(bitIndex & 7));
+                }
+            }
+
+            private static (ulong FirstHash, ulong SecondHash) ComputeHashes(
+                ReadOnlySpan<byte> nonce)
+            {
+                ulong firstHash = ComputeHash(nonce, 14695981039346656037UL);
+                ulong secondHash = ComputeHash(nonce, 7809847782465536322UL) | 1UL;
+                return (firstHash, secondHash);
+            }
+
+            private static ulong ComputeHash(ReadOnlySpan<byte> nonce, ulong seed)
+            {
+                unchecked
+                {
+                    const ulong prime = 1099511628211UL;
+                    ulong hash = seed ^ (ulong)nonce.Length;
+                    for (int ii = 0; ii < nonce.Length; ii++)
+                    {
+                        hash = (hash ^ nonce[ii]) * prime;
+                    }
+
+                    hash ^= hash >> 33;
+                    hash *= 0xff51afd7ed558ccdUL;
+                    hash ^= hash >> 33;
+                    hash *= 0xc4ceb9fe1a85ec53UL;
+                    return hash ^ (hash >> 33);
+                }
+            }
+
+            private const int NonceHashCount = 7;
+
+            private readonly byte[] m_bits;
+            private readonly ulong m_bitCount;
+        }
 
         private sealed class TokenState
         {
@@ -374,6 +444,8 @@ namespace Opc.Ua.PubSub.Security
                 }
             }
         }
+
+        private const int DefaultNonceFilterSizeInBytes = 1024 * 1024;
 
     }
 }
