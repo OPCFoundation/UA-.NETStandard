@@ -160,13 +160,16 @@ namespace Opc.Ua.Server.FileSystem
         /// <inheritdoc/>
         public override ValueTask DeleteAddressSpaceAsync(CancellationToken cancellationToken = default)
         {
+            FileHandle[] handles;
             lock (m_lock)
             {
-                foreach (FileHandle handle in m_handles.Values)
-                {
-                    handle.Dispose();
-                }
+                handles = [.. m_handles.Values];
                 m_handles.Clear();
+            }
+
+            foreach (FileHandle handle in handles)
+            {
+                handle.Dispose();
             }
 
             return base.DeleteAddressSpaceAsync(cancellationToken);
@@ -179,12 +182,15 @@ namespace Opc.Ua.Server.FileSystem
             bool deleteSubscriptions,
             CancellationToken cancellationToken = default)
         {
+            FileHandle[] handles;
             lock (m_lock)
             {
-                foreach (FileHandle handle in m_handles.Values)
-                {
-                    handle.CloseSession(sessionId);
-                }
+                handles = [.. m_handles.Values];
+            }
+
+            foreach (FileHandle handle in handles)
+            {
+                handle.CloseSession(sessionId);
             }
 
             return base.SessionClosingAsync(
@@ -199,13 +205,16 @@ namespace Opc.Ua.Server.FileSystem
         {
             if (disposing)
             {
+                FileHandle[] handles;
                 lock (m_lock)
                 {
-                    foreach (FileHandle handle in m_handles.Values)
-                    {
-                        handle.Dispose();
-                    }
+                    handles = [.. m_handles.Values];
                     m_handles.Clear();
+                }
+
+                foreach (FileHandle handle in handles)
+                {
+                    handle.Dispose();
                 }
             }
             base.Dispose(disposing);
@@ -319,6 +328,26 @@ namespace Opc.Ua.Server.FileSystem
             return string.IsNullOrEmpty(parent)
                 ? FileSystemNodeId.BuildRoot(NamespaceIndex)
                 : FileSystemNodeId.BuildDirectory(parent, NamespaceIndex);
+        }
+
+        internal static bool TryGetSessionId(
+            ISystemContext context,
+            out NodeId sessionId,
+            out ServiceResult result)
+        {
+            if (context is ISessionSystemContext sessionContext &&
+                sessionContext.SessionId is { IsNull: false } validSessionId)
+            {
+                sessionId = validSessionId;
+                result = ServiceResult.Good;
+                return true;
+            }
+
+            sessionId = NodeId.Null;
+            result = ServiceResult.Create(
+                StatusCodes.BadSessionIdInvalid,
+                "A valid Session is required for file-handle operations.");
+            return false;
         }
 
         /// <summary>

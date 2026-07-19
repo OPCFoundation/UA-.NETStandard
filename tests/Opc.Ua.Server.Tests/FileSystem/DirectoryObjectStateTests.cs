@@ -173,6 +173,27 @@ namespace Opc.Ua.Server.Tests.FileSystem
         }
 
         [Test]
+        public async Task CreateFileWithOpenWithoutSessionReturnsBadSessionIdInvalidAsync()
+        {
+            DirectoryObjectState state = CreateRootDirectory();
+            ISystemContext contextWithoutSession = m_manager.SystemContext.Copy();
+
+            CreateFileMethodStateResult result = await state.CreateFile!.OnCallAsync!(
+                contextWithoutSession,
+                state.CreateFile,
+                state.NodeId,
+                "opened.txt",
+                true,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(
+                result.ServiceResult.StatusCode.Code,
+                Is.EqualTo(StatusCodes.BadSessionIdInvalid));
+            Assert.That(result.FileHandle, Is.Zero);
+            Assert.That(File.Exists(Path.Combine(m_root, "opened.txt")), Is.False);
+        }
+
+        [Test]
         public async Task CreateFileWithEmptyNameReturnsBadInvalidArgumentAsync()
         {
             DirectoryObjectState state = CreateRootDirectory();

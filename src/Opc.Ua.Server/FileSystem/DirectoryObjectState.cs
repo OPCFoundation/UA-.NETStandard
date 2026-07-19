@@ -226,14 +226,14 @@ namespace Opc.Ua.Server.FileSystem
             NodeId sessionId = NodeId.Null;
             if (requestFileOpen)
             {
-                if (context is not ISessionSystemContext sessionContext ||
-                    sessionContext.SessionId is not { IsNull: false } validSessionId)
+                if (!FileSystemNodeManager.TryGetSessionId(
+                        context,
+                        out NodeId validSessionId,
+                        out ServiceResult sessionResult))
                 {
                     return new CreateFileMethodStateResult
                     {
-                        ServiceResult = ServiceResult.Create(
-                            StatusCodes.BadSessionIdInvalid,
-                            "A valid Session is required to open a file.")
+                        ServiceResult = sessionResult
                     };
                 }
 

@@ -177,17 +177,22 @@ namespace Opc.Ua.Server.FileSystem
                     Stream stream = m_provider
                         .OpenReadAsync(ProviderPath, CancellationToken.None)
                         .AsTask().GetAwaiter().GetResult();
+                    bool fileAlreadyOpen;
                     lock (m_lock)
                     {
-                        if (m_write != null)
+                        fileAlreadyOpen = m_write != null;
+                        if (!fileAlreadyOpen)
                         {
-                            stream.Dispose();
-                            return ServiceResult.Create(
-                                StatusCodes.BadInvalidState,
-                                "File already open for write.");
+                            fileHandle = CreateFileHandle();
+                            m_reads.Add(fileHandle, new OpenFile(fileHandle, sessionId, stream));
                         }
-                        fileHandle = CreateFileHandle();
-                        m_reads.Add(fileHandle, new OpenFile(fileHandle, sessionId, stream));
+                    }
+                    if (fileAlreadyOpen)
+                    {
+                        stream.Dispose();
+                        return ServiceResult.Create(
+                            StatusCodes.BadInvalidState,
+                            "File already open for write.");
                     }
                     return ServiceResult.Good;
                 }
@@ -209,17 +214,22 @@ namespace Opc.Ua.Server.FileSystem
                 Stream writeStream = m_provider
                     .OpenWriteAsync(ProviderPath, writeMode, CancellationToken.None)
                     .AsTask().GetAwaiter().GetResult();
+                bool fileAlreadyOpenForReadOrWrite;
                 lock (m_lock)
                 {
-                    if (m_reads.Count != 0 || m_write != null)
+                    fileAlreadyOpenForReadOrWrite = m_reads.Count != 0 || m_write != null;
+                    if (!fileAlreadyOpenForReadOrWrite)
                     {
-                        writeStream.Dispose();
-                        return ServiceResult.Create(
-                            StatusCodes.BadInvalidState,
-                            "File already open for read or write.");
+                        fileHandle = CreateFileHandle();
+                        m_write = new OpenFile(fileHandle, sessionId, writeStream);
                     }
-                    fileHandle = CreateFileHandle();
-                    m_write = new OpenFile(fileHandle, sessionId, writeStream);
+                }
+                if (fileAlreadyOpenForReadOrWrite)
+                {
+                    writeStream.Dispose();
+                    return ServiceResult.Create(
+                        StatusCodes.BadInvalidState,
+                        "File already open for read or write.");
                 }
                 return ServiceResult.Good;
             }
@@ -242,34 +252,35 @@ namespace Opc.Ua.Server.FileSystem
 
         public bool Close(NodeId sessionId, uint fileHandle)
         {
+            Stream? stream = null;
             lock (m_lock)
             {
                 if (m_write != null &&
                     fileHandle == m_write.Handle &&
                     m_write.SessionId.Equals(sessionId))
                 {
-                    m_write.Stream.Dispose();
+                    stream = m_write.Stream;
                     m_write = null;
-                    return true;
                 }
-                if (m_reads.TryGetValue(fileHandle, out OpenFile? openFile) &&
+                else if (m_reads.TryGetValue(fileHandle, out OpenFile? openFile) &&
                     openFile.SessionId.Equals(sessionId))
                 {
-                    openFile.Stream.Dispose();
+                    stream = openFile.Stream;
                     m_reads.Remove(fileHandle);
-                    return true;
                 }
             }
-            return false;
+            stream?.Dispose();
+            return stream != null;
         }
 
         public void CloseSession(NodeId sessionId)
         {
+            List<Stream> streamsToClose = [];
             lock (m_lock)
             {
                 if (m_write != null && m_write.SessionId.Equals(sessionId))
                 {
-                    m_write.Stream.Dispose();
+                    streamsToClose.Add(m_write.Stream);
                     m_write = null;
                 }
 
@@ -278,7 +289,7 @@ namespace Opc.Ua.Server.FileSystem
                 {
                     if (entry.Value.SessionId.Equals(sessionId))
                     {
-                        entry.Value.Stream.Dispose();
+                        streamsToClose.Add(entry.Value.Stream);
                         handlesToClose.Add(entry.Key);
                     }
                 }
@@ -288,20 +299,29 @@ namespace Opc.Ua.Server.FileSystem
                     m_reads.Remove(fileHandle);
                 }
             }
+
+            DisposeStreams(streamsToClose);
         }
 
         public void Dispose()
         {
+            List<Stream> streamsToClose;
             lock (m_lock)
             {
-                m_write?.Stream.Dispose();
+                streamsToClose = new List<Stream>(m_reads.Count + (m_write != null ? 1 : 0));
+                if (m_write != null)
+                {
+                    streamsToClose.Add(m_write.Stream);
+                }
                 m_write = null;
                 foreach (OpenFile openFile in m_reads.Values)
                 {
-                    openFile.Stream.Dispose();
+                    streamsToClose.Add(openFile.Stream);
                 }
                 m_reads.Clear();
             }
+
+            DisposeStreams(streamsToClose);
         }
 
         private uint CreateFileHandle()
@@ -318,6 +338,14 @@ namespace Opc.Ua.Server.FileSystem
                 m_reads.ContainsKey(fileHandle));
 
             return fileHandle;
+        }
+
+        private static void DisposeStreams(List<Stream> streams)
+        {
+            foreach (Stream stream in streams)
+            {
+                stream.Dispose();
+            }
         }
 
         private readonly Lock m_lock = new();
