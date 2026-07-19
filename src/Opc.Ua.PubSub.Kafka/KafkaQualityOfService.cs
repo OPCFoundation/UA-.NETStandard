@@ -80,8 +80,7 @@ namespace Opc.Ua.PubSub.Kafka
 
     /// <summary>
     /// Broker acknowledgement level requested from the Kafka producer.
-    /// Numeric values match the librdkafka <c>acks</c> wire encoding so
-    /// the adapter can map without an extra lookup.
+    /// Numeric values match the Kafka <c>acks</c> setting.
     /// </summary>
     /// <remarks>
     /// Backs the <c>acks</c> selector described in

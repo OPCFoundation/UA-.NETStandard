@@ -11,12 +11,7 @@
     <Nullable>enable</Nullable>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
     <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>
-    <!--
-      Dual-source Kafka client by TFM: net10.0 uses the pure-managed Dekaf client
-      (no native dependency) so the transport is NativeAOT/trim-compatible; the older
-      TFMs use Confluent.Kafka (native librdkafka), which is not AOT-safe. IsAotCompatible
-      is therefore only asserted on net10.0.
-    -->
+    <!-- Dekaf is pure managed on every TFM; AOT analysis follows the repository-wide net10.0 convention. -->
     <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
   </PropertyGroup>
   <ItemGroup>
@@ -32,12 +27,8 @@
     <ProjectReference Include="..\Opc.Ua.Core\Opc.Ua.Core.csproj" />
     <ProjectReference Include="..\Opc.Ua.PubSub\Opc.Ua.PubSub.csproj" />
   </ItemGroup>
-  <!-- net10.0 -> Dekaf (pure-managed, AOT); all other TFMs -> Confluent.Kafka (native). -->
-  <ItemGroup Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">
+  <ItemGroup>
     <PackageReference Include="Dekaf" />
-  </ItemGroup>
-  <ItemGroup Condition="!$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">
-    <PackageReference Include="Confluent.Kafka" />
   </ItemGroup>
   <Target Name="GetPackagingOutputs" />
 </Project>

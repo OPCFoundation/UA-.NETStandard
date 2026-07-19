@@ -187,11 +187,7 @@ namespace Microsoft.Extensions.DependencyInjection
 
         private static void RegisterShared(IServiceCollection services)
         {
-#if NET10_0_OR_GREATER
             services.TryAddSingleton<IKafkaClientFactory, DekafKafkaClientFactory>();
-#else
-            services.TryAddSingleton<IKafkaClientFactory, ConfluentKafkaClientFactory>();
-#endif
             services.AddPubSubTransportFactory(sp =>
                 new KafkaPubSubTransportFactory(
                     KafkaProfiles.PubSubKafkaJsonTransport,

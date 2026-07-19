@@ -43,7 +43,6 @@ namespace Opc.Ua
     /// </remarks>
     internal static class PubSubKafkaEventIds
     {
-        public const int ConfluentKafkaClientAdapter = 0;
         public const int KafkaBrokerTransport = 10;
         public const int KafkaClientAdapter = 20;
     }
