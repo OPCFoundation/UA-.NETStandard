@@ -185,23 +185,14 @@ namespace Opc.Ua.Sessions.Tests
                 ReferenceServer.TokenValidator = TokenValidator;
                 serverStopped = false;
 
-                // ServerFixture.StartAsync returns when the listener's
-                // StartAsync resolves, but the accept-loop has a small
-                // post-bind warm-up window on slower / loaded CI runners
-                // (Windows TIME_WAIT recycling, Kestrel host-started vs
-                // accept-ready ordering, GH-hosted scheduling jitter).
-                // Without this short delay the next ReconnectAsync can
-                // race the warm-up and faults the fresh swap entry with
-                // a SocketException — and because the policy's
-                // MaxAttempts=1 ceiling is exhausted by the first
-                // ReconnectAsync's deliberate failure, the manager does
-                // not retry internally and the channel never transitions
-                // back to Ready. 250ms is well below the per-test
-                // [CancelAfter(120_000)] budget and disappears off the
-                // critical path on healthy runners.
-                await Task.Delay(250, ct).ConfigureAwait(false);
-
-                await manager.ReconnectAsync(channel, ct).ConfigureAwait(false);
+                Assert.That(
+                    await ReconnectUntilReadyAsync(
+                        manager,
+                        channel,
+                        DefaultWait,
+                        ct).ConfigureAwait(false),
+                    Is.True,
+                    "The manager should recover after the restarted server accepts session services.");
 
                 Assert.That(
                     await WaitForAsync(
@@ -276,6 +267,54 @@ namespace Opc.Ua.Sessions.Tests
             {
                 return false;
             }
+        }
+
+        private static async Task<bool> ReconnectUntilReadyAsync(
+            ClientChannelManager manager,
+            IManagedTransportChannel channel,
+            TimeSpan timeout,
+            CancellationToken ct)
+        {
+            using var timeoutCts = new CancellationTokenSource(timeout);
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
+                timeoutCts.Token,
+                ct);
+
+            while (!linkedCts.IsCancellationRequested)
+            {
+                try
+                {
+                    await manager.ReconnectAsync(channel, linkedCts.Token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (linkedCts.IsCancellationRequested)
+                {
+                    break;
+                }
+                catch (SocketException)
+                {
+                }
+                catch (ServiceResultException sre) when (
+                    sre.StatusCode == StatusCodes.BadServerHalted ||
+                    sre.InnerException is SocketException)
+                {
+                }
+
+                if (channel.State == ChannelState.Ready)
+                {
+                    return true;
+                }
+
+                try
+                {
+                    await Task.Delay(PollInterval, linkedCts.Token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (linkedCts.IsCancellationRequested)
+                {
+                    break;
+                }
+            }
+
+            return channel.State == ChannelState.Ready;
         }
     }
 }
