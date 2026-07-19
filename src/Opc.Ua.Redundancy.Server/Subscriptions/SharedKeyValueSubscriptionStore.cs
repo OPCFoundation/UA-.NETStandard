@@ -115,7 +115,7 @@ namespace Opc.Ua.Redundancy.Server
                         "The subscription snapshot contains duplicate subscription ids.",
                         nameof(subscriptions));
                 }
-                ValidateSubscription(subscription.Id, subscription);
+                ValidateSnapshotSubscription(subscription, nameof(subscriptions));
             }
 
             await m_definitionCache.SnapshotCommitLock.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -139,6 +139,8 @@ namespace Opc.Ua.Redundancy.Server
                         cancellationToken)
                     .ConfigureAwait(false);
 
+                // Keep prior generations so readers that captured an older manifest can complete safely.
+                // Reclamation requires reader pinning or an external retention policy.
                 uint[] removedIds;
                 lock (m_definitionCache.Lock)
                 {
@@ -866,7 +868,7 @@ namespace Opc.Ua.Redundancy.Server
                 }
 
                 StoredSubscription subscription = Decode(payload);
-                ValidateSubscription(subscriptionId, subscription);
+                ValidatePersistedSubscription(subscriptionId, subscription);
                 if (restored.ContainsKey(subscriptionId))
                 {
                     throw new ServiceResultException(
@@ -919,7 +921,17 @@ namespace Opc.Ua.Redundancy.Server
                 StringComparison.Ordinal);
         }
 
-        private static void ValidateSubscription(uint subscriptionId, StoredSubscription subscription)
+        private static void ValidateSnapshotSubscription(StoredSubscription subscription, string parameterName)
+        {
+            if (!HasValidMonitoredItemIdentities(subscription.Id, subscription.MonitoredItems))
+            {
+                throw new ArgumentException(
+                    "The subscription snapshot contains invalid monitored-item identities.",
+                    parameterName);
+            }
+        }
+
+        private static void ValidatePersistedSubscription(uint subscriptionId, StoredSubscription subscription)
         {
             if (subscription.Id != subscriptionId)
             {
@@ -928,17 +940,28 @@ namespace Opc.Ua.Redundancy.Server
                     "The persisted subscription id does not match its key.");
             }
 
+            if (!HasValidMonitoredItemIdentities(subscriptionId, subscription.MonitoredItems))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadDecodingError,
+                    "The persisted subscription contains invalid monitored-item identities.");
+            }
+        }
+
+        private static bool HasValidMonitoredItemIdentities(
+            uint subscriptionId,
+            IEnumerable<IStoredMonitoredItem> monitoredItems)
+        {
             var monitoredItemIds = new HashSet<uint>();
-            foreach (IStoredMonitoredItem monitoredItem in subscription.MonitoredItems)
+            foreach (IStoredMonitoredItem monitoredItem in monitoredItems)
             {
                 if (monitoredItem.SubscriptionId != subscriptionId ||
                     !monitoredItemIds.Add(monitoredItem.Id))
                 {
-                    throw new ServiceResultException(
-                        StatusCodes.BadDecodingError,
-                        "The persisted subscription contains invalid monitored-item identities.");
+                    return false;
                 }
             }
+            return true;
         }
 
         private static StoredSubscription CloneSubscription(IStoredSubscription subscription)

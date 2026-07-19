@@ -285,6 +285,24 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         [Test]
+        public async Task StoreRejectsInvalidMonitoredItemIdentityAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            await using SharedKeyValueSubscriptionStore store = CreateStore(kv);
+            StoredSubscription subscription = NewSubscription(490, 49);
+            ((StoredMonitoredItem)subscription.MonitoredItems.Single()).SubscriptionId = 491;
+
+            ArgumentException? exception = Assert.ThrowsAsync<ArgumentException>(
+                () => store.StoreSubscriptionsAsync([subscription]).AsTask());
+            (bool foundManifest, _) = await kv
+                .TryGetAsync(SharedKeyValueSubscriptionStore.SnapshotManifestKey())
+                .ConfigureAwait(false);
+
+            Assert.That(exception!.ParamName, Is.EqualTo("subscriptions"));
+            Assert.That(foundManifest, Is.False);
+        }
+
+        [Test]
         public async Task StoreReplacesRemovedSubscriptionsAsync()
         {
             using var kv = new InMemorySharedKeyValueStore();
@@ -1115,10 +1133,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             public async Task WaitForBlockedManifestAsync()
             {
-                Task completed = await Task
-                    .WhenAny(m_blocked.Task, Task.Delay(TimeSpan.FromSeconds(10)))
+                await m_blocked.Task
+                    .WaitAsync(TimeSpan.FromSeconds(30))
                     .ConfigureAwait(false);
-                Assert.That(completed, Is.SameAs(m_blocked.Task));
             }
 
             public void ReleaseManifest()
