@@ -228,5 +228,66 @@ namespace Opc.Ua.Client.Tests.AliasNames
                 ]).ConfigureAwait(false);
             }, Throws.TypeOf<System.UnauthorizedAccessException>());
         }
+
+        [Test]
+        public async Task EnumerateSubCategoriesAsyncFollowsBrowseContinuationPointsAsync()
+        {
+            var harness = AliasNameSessionHarness.Create();
+            var continuationPoint = new ByteString([0x01]);
+
+            harness.BrowseHandler = description =>
+            {
+                Assert.That(description.NodeId, Is.EqualTo(ObjectIds.Aliases));
+                return new BrowseResult
+                {
+                    StatusCode = StatusCodes.Good,
+                    ContinuationPoint = continuationPoint,
+                    References = new[]
+                    {
+                        CreateCategoryReference("Page1", "Page1")
+                    }.ToArrayOf()
+                };
+            };
+
+            harness.BrowseNextHandler = cp =>
+            {
+                Assert.That(cp, Is.EqualTo(continuationPoint));
+                return new BrowseResult
+                {
+                    StatusCode = StatusCodes.Good,
+                    ContinuationPoint = ByteString.Empty,
+                    References = new[]
+                    {
+                        CreateCategoryReference("Page2", "Page2")
+                    }.ToArrayOf()
+                };
+            };
+
+            var client = AliasNameClient.OpenStandardAliases(harness.Session);
+            var names = new List<string>();
+
+            await foreach (AliasNameSubCategoryInfo info in
+                client.EnumerateSubCategoriesAsync().ConfigureAwait(false))
+            {
+                names.Add(info.BrowseName.Name);
+            }
+
+            Assert.That(names, Is.EqualTo(new[] { "Page1", "Page2" }));
+            Assert.That(harness.BrowseRequests, Has.Count.EqualTo(1));
+            Assert.That(harness.BrowseNextRequests, Has.Count.EqualTo(1));
+
+            static ReferenceDescription CreateCategoryReference(
+                string browseName,
+                string nodeId)
+            {
+                return new ReferenceDescription
+                {
+                    NodeId = new ExpandedNodeId(new NodeId(nodeId, 2)),
+                    BrowseName = new QualifiedName(browseName, 2),
+                    DisplayName = new LocalizedText(browseName),
+                    TypeDefinition = ObjectTypeIds.AliasNameCategoryType
+                };
+            }
+        }
     }
 }
