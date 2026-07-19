@@ -1323,9 +1323,11 @@ namespace Opc.Ua.Client
 
             try
             {
+                ConfiguredEndpoint currentEndpoint = m_session?.ConfiguredEndpoint
+                    ?? ConfiguredEndpoint;
                 ConfiguredEndpoint? failoverEndpoint =
                     m_redundancyHandler.SelectFailoverTarget(
-                        m_redundancyInfo, ConfiguredEndpoint);
+                        m_redundancyInfo, currentEndpoint);
 
                 if (failoverEndpoint == null)
                 {
