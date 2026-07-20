@@ -1355,6 +1355,509 @@ namespace Opc.Ua.Server.Tests
             });
         }
 
+        [Test]
+        public async Task AddNodesRequestedIdWithUnknownNamespaceUriReturnsBadNodeIdRejectedAsync()
+        {
+            using var harness = new AuthorizationHarness();
+            harness.SetAddNodePermissions(PermissionType.AddNode);
+            var item = new AddNodesItem
+            {
+                ParentNodeId = harness.SourceNodeId,
+                ReferenceTypeId = ReferenceTypeIds.Organizes,
+                BrowseName = new QualifiedName("Added", harness.SourceNamespaceIndex),
+                NodeClass = NodeClass.Object,
+                RequestedNewNodeId = new ExpandedNodeId(
+                    new NodeId("Added", 0),
+                    "urn:opcfoundation:server:tests:unregistered")
+            };
+
+            (ArrayOf<AddNodesResult> results, _) = await harness.Sut.AddNodesAsync(
+                harness.AddNodesContext,
+                new AddNodesItem[] { item }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdRejected));
+            harness.SourceManager.Verify(
+                manager => manager.AddNodeAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<AddNodesItem>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
+        [Test]
+        public async Task AddNodesWithoutSessionSkipsAuthorizationAndDispatchesAsync()
+        {
+            using var harness = new AuthorizationHarness();
+            // A restrictive policy that would deny an authenticated session.
+            harness.SetAddNodePermissions(PermissionType.Browse);
+            harness.SetSourcePermissions(PermissionType.Browse);
+            AddNodesItem item = harness.CreateAddNodesItem();
+            var contextWithoutSession = new OperationContext(
+                new RequestHeader(),
+                null,
+                RequestType.AddNodes,
+                RequestLifetime.None);
+
+            (ArrayOf<AddNodesResult> results, _) = await harness.Sut.AddNodesAsync(
+                contextWithoutSession,
+                new AddNodesItem[] { item }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            harness.SourceManager.Verify(
+                manager => manager.AddNodeAsync(
+                    contextWithoutSession,
+                    item,
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+
+        [Test]
+        public async Task AddReferencesDeniedSourcePermissionDoesNotMutateAsync()
+        {
+            using var harness = new AuthorizationHarness();
+            harness.SetSourcePermissions(PermissionType.Browse);
+            AddReferencesItem item = harness.CreateAddReferencesItem();
+
+            (ArrayOf<StatusCode> results, _) = await harness.Sut.AddReferencesAsync(
+                harness.AddReferencesContext,
+                new AddReferencesItem[] { item }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(results[0], Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            harness.SourceManager.Verify(
+                manager => manager.AddReferenceAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<AddReferencesItem>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+            // The source denial precedes any target-side metadata lookup or mutation.
+            harness.TargetManager.Verify(
+                manager => manager.GetPermissionMetadataAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<object>(),
+                    It.IsAny<BrowseResultMask>(),
+                    It.IsAny<Dictionary<NodeId, Variant[]>>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
+        [Test]
+        public async Task AddReferencesExplicitLocalTargetUnknownReturnsBadTargetNodeIdInvalidAsync()
+        {
+            using var harness = new AuthorizationHarness();
+            AddReferencesItem item = harness.CreateAddReferencesItem();
+            item.TargetNodeId = new NodeId("UnknownTarget", harness.TargetNamespaceIndex);
+
+            (ArrayOf<StatusCode> results, _) = await harness.Sut.AddReferencesAsync(
+                harness.AddReferencesContext,
+                new AddReferencesItem[] { item }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(results[0], Is.EqualTo(StatusCodes.BadTargetNodeIdInvalid));
+            harness.SourceManager.Verify(
+                manager => manager.AddReferenceAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<AddReferencesItem>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
+        [Test]
+        public async Task AddReferencesTargetOwnerNotOptedInReturnsBadUserAccessDeniedAsync()
+        {
+            using var harness = new AuthorizationHarness();
+            harness.TargetManager
+                .Setup(manager => manager.AllowNodeManagement)
+                .Returns(false);
+            AddReferencesItem item = harness.CreateAddReferencesItem();
+
+            (ArrayOf<StatusCode> results, _) = await harness.Sut.AddReferencesAsync(
+                harness.AddReferencesContext,
+                new AddReferencesItem[] { item }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(results[0], Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            harness.SourceManager.Verify(
+                manager => manager.AddReferenceAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<AddReferencesItem>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
+        [Test]
+        public async Task AddReferencesCrossManagerSourceMetadataNullReturnsBadSourceNodeIdInvalidAsync()
+        {
+            using var harness = new AuthorizationHarness();
+            ReturnNullMetadata(harness.SourceManager);
+            AddReferencesItem item = harness.CreateAddReferencesItem();
+
+            (ArrayOf<StatusCode> results, _) = await harness.Sut.AddReferencesAsync(
+                harness.AddReferencesContext,
+                new AddReferencesItem[] { item }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(results[0], Is.EqualTo(StatusCodes.BadSourceNodeIdInvalid));
+            harness.SourceManager.Verify(
+                manager => manager.AddReferenceAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<AddReferencesItem>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+            harness.TargetManager.Verify(
+                manager => manager.AddReferenceAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<AddReferencesItem>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
+        [Test]
+        public async Task AddReferencesCrossManagerTargetMetadataNullReturnsBadTargetNodeIdInvalidAsync()
+        {
+            using var harness = new AuthorizationHarness();
+            ReturnNullMetadata(harness.TargetManager);
+            AddReferencesItem item = harness.CreateAddReferencesItem();
+
+            (ArrayOf<StatusCode> results, _) = await harness.Sut.AddReferencesAsync(
+                harness.AddReferencesContext,
+                new AddReferencesItem[] { item }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(results[0], Is.EqualTo(StatusCodes.BadTargetNodeIdInvalid));
+            harness.SourceManager.Verify(
+                manager => manager.AddReferenceAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<AddReferencesItem>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+            harness.TargetManager.Verify(
+                manager => manager.AddReferenceAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<AddReferencesItem>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
+        [Test]
+        public async Task AddReferencesInverseServiceResultExceptionRollsBackSourceAsync()
+        {
+            using var harness = new AuthorizationHarness();
+            AddReferencesItem item = harness.CreateAddReferencesItem();
+            harness.TargetManager
+                .Setup(manager => manager.AddReferenceAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<AddReferencesItem>(),
+                    It.IsAny<CancellationToken>()))
+                .Throws(new ServiceResultException(StatusCodes.BadInvalidState));
+
+            (ArrayOf<StatusCode> results, _) = await harness.Sut.AddReferencesAsync(
+                harness.AddReferencesContext,
+                new AddReferencesItem[] { item }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(results[0], Is.EqualTo(StatusCodes.BadInvalidState));
+            harness.SourceManager.Verify(
+                manager => manager.DeleteReferenceAsync(
+                    harness.AddReferencesContext,
+                    It.Is<DeleteReferencesItem>(rollback =>
+                        rollback.SourceNodeId == item.SourceNodeId &&
+                        rollback.TargetNodeId == item.TargetNodeId &&
+                        rollback.ReferenceTypeId == item.ReferenceTypeId &&
+                        rollback.IsForward == item.IsForward &&
+                        !rollback.DeleteBidirectional),
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+
+        [Test]
+        public async Task AddReferencesInverseFailureWithRollbackFailureReturnsInverseStatusAsync()
+        {
+            using var harness = new AuthorizationHarness();
+            AddReferencesItem item = harness.CreateAddReferencesItem();
+            harness.TargetManager
+                .Setup(manager => manager.AddReferenceAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<AddReferencesItem>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ServiceResult>(
+                    new ServiceResult(StatusCodes.BadDuplicateReferenceNotAllowed)));
+            harness.SourceManager
+                .Setup(manager => manager.DeleteReferenceAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<DeleteReferencesItem>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ServiceResult>(
+                    new ServiceResult(StatusCodes.BadNodeIdUnknown)));
+
+            (ArrayOf<StatusCode> results, _) = await harness.Sut.AddReferencesAsync(
+                harness.AddReferencesContext,
+                new AddReferencesItem[] { item }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            // The original inverse failure is surfaced, not the rollback failure.
+            Assert.That(results[0], Is.EqualTo(StatusCodes.BadDuplicateReferenceNotAllowed));
+            harness.SourceManager.Verify(
+                manager => manager.DeleteReferenceAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<DeleteReferencesItem>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+
+        [Test]
+        public async Task AddReferencesInverseFailureWithRollbackExceptionReturnsInverseStatusAsync()
+        {
+            using var harness = new AuthorizationHarness();
+            AddReferencesItem item = harness.CreateAddReferencesItem();
+            harness.TargetManager
+                .Setup(manager => manager.AddReferenceAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<AddReferencesItem>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ServiceResult>(
+                    new ServiceResult(StatusCodes.BadDuplicateReferenceNotAllowed)));
+            harness.SourceManager
+                .Setup(manager => manager.DeleteReferenceAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<DeleteReferencesItem>(),
+                    It.IsAny<CancellationToken>()))
+                .Throws(new InvalidOperationException("Rollback failed."));
+
+            (ArrayOf<StatusCode> results, _) = await harness.Sut.AddReferencesAsync(
+                harness.AddReferencesContext,
+                new AddReferencesItem[] { item }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            // The rollback exception is swallowed; the inverse failure is returned.
+            Assert.That(results[0], Is.EqualTo(StatusCodes.BadDuplicateReferenceNotAllowed));
+            harness.SourceManager.Verify(
+                manager => manager.DeleteReferenceAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<DeleteReferencesItem>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+
+        [Test]
+        public async Task DeleteReferencesDeniedSourcePermissionDoesNotMutateAsync()
+        {
+            using var harness = new AuthorizationHarness();
+            harness.SetSourcePermissions(PermissionType.Browse);
+            DeleteReferencesItem item = harness.CreateDeleteReferencesItem();
+
+            (ArrayOf<StatusCode> results, _) = await harness.Sut.DeleteReferencesAsync(
+                harness.DeleteReferencesContext,
+                new DeleteReferencesItem[] { item }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(results[0], Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            harness.SourceManager.Verify(
+                manager => manager.DeleteReferenceAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<DeleteReferencesItem>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+            harness.TargetManager.Verify(
+                manager => manager.GetPermissionMetadataAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<object>(),
+                    It.IsAny<BrowseResultMask>(),
+                    It.IsAny<Dictionary<NodeId, Variant[]>>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
+        [Test]
+        public async Task DeleteReferencesExplicitLocalTargetUnknownReturnsBadTargetNodeIdInvalidAsync()
+        {
+            using var harness = new AuthorizationHarness();
+            DeleteReferencesItem item = harness.CreateDeleteReferencesItem();
+            item.TargetNodeId = new NodeId("UnknownTarget", harness.TargetNamespaceIndex);
+
+            (ArrayOf<StatusCode> results, _) = await harness.Sut.DeleteReferencesAsync(
+                harness.DeleteReferencesContext,
+                new DeleteReferencesItem[] { item }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(results[0], Is.EqualTo(StatusCodes.BadTargetNodeIdInvalid));
+            harness.SourceManager.Verify(
+                manager => manager.DeleteReferenceAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<DeleteReferencesItem>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
+        [Test]
+        public async Task DeleteReferencesTargetOwnerNotOptedInReturnsBadUserAccessDeniedAsync()
+        {
+            using var harness = new AuthorizationHarness();
+            harness.TargetManager
+                .Setup(manager => manager.AllowNodeManagement)
+                .Returns(false);
+            DeleteReferencesItem item = harness.CreateDeleteReferencesItem();
+
+            (ArrayOf<StatusCode> results, _) = await harness.Sut.DeleteReferencesAsync(
+                harness.DeleteReferencesContext,
+                new DeleteReferencesItem[] { item }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(results[0], Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            harness.SourceManager.Verify(
+                manager => manager.DeleteReferenceAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<DeleteReferencesItem>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
+        [Test]
+        public async Task DeleteReferencesCrossManagerTargetMetadataNullReturnsBadTargetNodeIdInvalidAsync()
+        {
+            using var harness = new AuthorizationHarness();
+            ReturnNullMetadata(harness.TargetManager);
+            DeleteReferencesItem item = harness.CreateDeleteReferencesItem();
+
+            (ArrayOf<StatusCode> results, _) = await harness.Sut.DeleteReferencesAsync(
+                harness.DeleteReferencesContext,
+                new DeleteReferencesItem[] { item }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(results[0], Is.EqualTo(StatusCodes.BadTargetNodeIdInvalid));
+            harness.SourceManager.Verify(
+                manager => manager.DeleteReferenceAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<DeleteReferencesItem>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
+        [Test]
+        public async Task DeleteReferencesInverseServiceResultExceptionRestoresSourceAsync()
+        {
+            using var harness = new AuthorizationHarness();
+            DeleteReferencesItem item = harness.CreateDeleteReferencesItem();
+            harness.TargetManager
+                .Setup(manager => manager.DeleteReferenceAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<DeleteReferencesItem>(),
+                    It.IsAny<CancellationToken>()))
+                .Throws(new ServiceResultException(StatusCodes.BadInvalidState));
+
+            (ArrayOf<StatusCode> results, _) = await harness.Sut.DeleteReferencesAsync(
+                harness.DeleteReferencesContext,
+                new DeleteReferencesItem[] { item }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(results[0], Is.EqualTo(StatusCodes.BadInvalidState));
+            harness.SourceManager.Verify(
+                manager => manager.AddReferenceAsync(
+                    harness.DeleteReferencesContext,
+                    It.Is<AddReferencesItem>(restore =>
+                        restore.SourceNodeId == item.SourceNodeId &&
+                        restore.TargetNodeId == item.TargetNodeId &&
+                        restore.ReferenceTypeId == item.ReferenceTypeId &&
+                        restore.IsForward == item.IsForward &&
+                        restore.TargetServerUri == string.Empty &&
+                        restore.TargetNodeClass == harness.TargetMetadata.NodeClass),
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+
+        [Test]
+        public async Task DeleteReferencesInverseFailureWithRestoreFailureReturnsInverseStatusAsync()
+        {
+            using var harness = new AuthorizationHarness();
+            DeleteReferencesItem item = harness.CreateDeleteReferencesItem();
+            harness.TargetManager
+                .Setup(manager => manager.DeleteReferenceAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<DeleteReferencesItem>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ServiceResult>(
+                    new ServiceResult(StatusCodes.BadNoMatch)));
+            harness.SourceManager
+                .Setup(manager => manager.AddReferenceAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<AddReferencesItem>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ServiceResult>(
+                    new ServiceResult(StatusCodes.BadNodeIdUnknown)));
+
+            (ArrayOf<StatusCode> results, _) = await harness.Sut.DeleteReferencesAsync(
+                harness.DeleteReferencesContext,
+                new DeleteReferencesItem[] { item }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            // The original inverse failure is surfaced, not the restore failure.
+            Assert.That(results[0], Is.EqualTo(StatusCodes.BadNoMatch));
+            harness.SourceManager.Verify(
+                manager => manager.AddReferenceAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<AddReferencesItem>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+
+        [Test]
+        public async Task DeleteReferencesInverseFailureWithRestoreExceptionReturnsInverseStatusAsync()
+        {
+            using var harness = new AuthorizationHarness();
+            DeleteReferencesItem item = harness.CreateDeleteReferencesItem();
+            harness.TargetManager
+                .Setup(manager => manager.DeleteReferenceAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<DeleteReferencesItem>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ServiceResult>(
+                    new ServiceResult(StatusCodes.BadNoMatch)));
+            harness.SourceManager
+                .Setup(manager => manager.AddReferenceAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<AddReferencesItem>(),
+                    It.IsAny<CancellationToken>()))
+                .Throws(new InvalidOperationException("Restore failed."));
+
+            (ArrayOf<StatusCode> results, _) = await harness.Sut.DeleteReferencesAsync(
+                harness.DeleteReferencesContext,
+                new DeleteReferencesItem[] { item }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            // The restore exception is swallowed; the inverse failure is returned.
+            Assert.That(results[0], Is.EqualTo(StatusCodes.BadNoMatch));
+            harness.SourceManager.Verify(
+                manager => manager.AddReferenceAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<AddReferencesItem>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+
+        private static void ReturnNullMetadata(Mock<IAsyncNodeManager> manager)
+        {
+            manager
+                .Setup(nodeManager => nodeManager.GetPermissionMetadataAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<object>(),
+                    It.IsAny<BrowseResultMask>(),
+                    It.IsAny<Dictionary<NodeId, Variant[]>>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<NodeMetadata?>((NodeMetadata?)null));
+            manager
+                .Setup(nodeManager => nodeManager.GetNodeMetadataAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<object>(),
+                    It.IsAny<BrowseResultMask>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<NodeMetadata>((NodeMetadata)null!));
+        }
+
         private MasterNodeManager CreateMasterNodeManager(params INodeManager[] additional)
         {
             var nodeManagers = new List<INodeManager>(additional);
