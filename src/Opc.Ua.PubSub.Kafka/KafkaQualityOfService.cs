@@ -114,8 +114,8 @@ namespace Opc.Ua.PubSub.Kafka
     /// </summary>
     /// <remarks>
     /// Carries the two producer knobs that realise the Part 14 Annex B.2
-    /// delivery guarantee so the Confluent-backed adapter can apply them
-    /// without re-deriving the mapping.
+    /// delivery guarantee so Kafka client adapters can apply them without
+    /// re-deriving the mapping.
     /// </remarks>
     /// <param name="Acks">Broker acknowledgement level.</param>
     /// <param name="EnableIdempotence">

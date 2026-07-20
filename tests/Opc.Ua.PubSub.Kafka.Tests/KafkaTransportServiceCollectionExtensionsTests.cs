@@ -84,7 +84,23 @@ namespace Opc.Ua.PubSub.Kafka.Tests
                     KafkaProfiles.PubSubKafkaJsonTransport,
                     KafkaProfiles.PubSubKafkaUadpTransport
                 ]));
-            Assert.That(serviceProvider.GetRequiredService<IKafkaClientFactory>(), Is.Not.Null);
+            Assert.That(
+                serviceProvider.GetRequiredService<IKafkaClientFactory>(),
+                Is.InstanceOf<DekafKafkaClientFactory>());
+        }
+
+        [Test]
+        public async Task WithConfluentKafkaClientReplacesDefaultFactoryAsync()
+        {
+            var services = new ServiceCollection();
+            services.AddOpcUa().AddPubSub(pubsub =>
+                pubsub.AddKafkaTransport().WithConfluentKafkaClient());
+
+            await using ServiceProvider serviceProvider = services.BuildServiceProvider();
+
+            Assert.That(
+                serviceProvider.GetRequiredService<IKafkaClientFactory>(),
+                Is.InstanceOf<ConfluentKafkaClientFactory>());
         }
 
         [Test]

@@ -11,7 +11,7 @@
     <Nullable>enable</Nullable>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
     <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>
-    <!-- Dekaf is pure managed on every TFM; this repository asserts AOT compatibility on net10.0. -->
+    <!-- The default Dekaf backend is AOT-compatible; the opt-in Confluent backend is not. -->
     <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
   </PropertyGroup>
   <ItemGroup>
@@ -28,6 +28,7 @@
     <ProjectReference Include="..\Opc.Ua.PubSub\Opc.Ua.PubSub.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="Confluent.Kafka" />
     <PackageReference Include="Dekaf" />
   </ItemGroup>
   <Target Name="GetPackagingOutputs" />

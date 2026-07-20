@@ -8,7 +8,7 @@
     <Nullable>disable</Nullable>
     <!-- Suppress the assembly-level IL2104 (trim) and IL3053 (AOT) rollup
          warnings from third-party packages that are not trim/AOT-analysis-clean
-         (e.g. Dekaf, the pure-managed Kafka client). These are
+         (e.g. the default Dekaf and opt-in Confluent.Kafka clients). These are
          referenced-assembly rollups only; our own assemblies are still analyzed
          individually per-project via IsAotCompatible on net8.0+. -->
     <NoWarn>$(NoWarn);IL2104;IL3053</NoWarn>

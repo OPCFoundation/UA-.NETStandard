@@ -40,11 +40,11 @@ using Opc.Ua.Tests;
 namespace Opc.Ua.PubSub.Kafka.Tests
 {
     /// <summary>
-    /// Guard tests for the default Dekaf-backed Kafka adapter that do not require a broker.
+    /// Guard tests for Kafka client adapters that do not require a broker.
     /// </summary>
     [TestFixture]
     [Category("Unit")]
-    [TestSpec("B.2", Summary = "Kafka default adapter guard behavior")]
+    [TestSpec("B.2", Summary = "Kafka client adapter guard behavior")]
     [CancelAfter(10000)]
     public sealed class KafkaClientAdapterGuardTests
     {
@@ -57,16 +57,28 @@ namespace Opc.Ua.PubSub.Kafka.Tests
             Assert.That(
                 () => new DekafKafkaClientAdapter(NUnitTelemetryContext.Create(), null!),
                 Throws.TypeOf<ArgumentNullException>());
+            Assert.That(
+                () => new ConfluentKafkaClientAdapter(null!, TimeProvider.System),
+                Throws.TypeOf<ArgumentNullException>());
+            Assert.That(
+                () => new ConfluentKafkaClientAdapter(NUnitTelemetryContext.Create(), null!),
+                Throws.TypeOf<ArgumentNullException>());
         }
 
         [Test]
-        public void FactoryCreatesDekafAdapter()
+        public void FactoriesCreateRequestedAdapters()
         {
-            var factory = new DekafKafkaClientFactory();
+            var dekafFactory = new DekafKafkaClientFactory();
+            var confluentFactory = new ConfluentKafkaClientFactory();
 
-            object adapter = factory.Create(NUnitTelemetryContext.Create(), TimeProvider.System);
+            object dekafAdapter = dekafFactory.Create(NUnitTelemetryContext.Create(), TimeProvider.System);
+            object confluentAdapter = confluentFactory.Create(NUnitTelemetryContext.Create(), TimeProvider.System);
 
-            Assert.That(adapter, Is.InstanceOf<DekafKafkaClientAdapter>());
+            Assert.Multiple(() =>
+            {
+                Assert.That(dekafAdapter, Is.InstanceOf<DekafKafkaClientAdapter>());
+                Assert.That(confluentAdapter, Is.InstanceOf<ConfluentKafkaClientAdapter>());
+            });
         }
 
         [Test]

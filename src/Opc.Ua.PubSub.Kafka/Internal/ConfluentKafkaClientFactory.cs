@@ -14,6 +14,7 @@
  *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
  * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -32,27 +33,27 @@ using System;
 namespace Opc.Ua.PubSub.Kafka.Internal
 {
     /// <summary>
-    /// Provider-model factory for the Kafka client adapter used by
-    /// <see cref="KafkaBrokerTransport"/>. Test code can swap in a fake
-    /// to drive the transport without an actual broker; the default
-    /// implementation creates a managed Dekaf adapter and DI can select
-    /// the Confluent.Kafka alternative.
+    /// Optional <see cref="IKafkaClientFactory"/> implementation backed by
+    /// Confluent.Kafka (native librdkafka).
     /// </summary>
     /// <remarks>
-    /// Provides the adapter seam used by the Kafka broker transport per
-    /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/Annex-B.2">
-    /// Part 14 Annex B.2 Apache Kafka transport</see>.
+    /// Selected through <c>WithConfluentKafkaClient()</c>. The default
+    /// transport registration uses the managed Dekaf client.
     /// </remarks>
-    public interface IKafkaClientFactory
+    internal sealed class ConfluentKafkaClientFactory : IKafkaClientFactory
     {
-        /// <summary>
-        /// Creates a fresh adapter instance.
-        /// </summary>
-        /// <param name="telemetry">Telemetry context.</param>
-        /// <param name="timeProvider">Clock for the adapter.</param>
-        /// <returns>The new adapter.</returns>
-        internal IKafkaClientAdapter Create(
-            ITelemetryContext telemetry,
-            TimeProvider timeProvider);
+        /// <inheritdoc/>
+        public IKafkaClientAdapter Create(ITelemetryContext telemetry, TimeProvider timeProvider)
+        {
+            if (telemetry is null)
+            {
+                throw new ArgumentNullException(nameof(telemetry));
+            }
+            if (timeProvider is null)
+            {
+                throw new ArgumentNullException(nameof(timeProvider));
+            }
+            return new ConfluentKafkaClientAdapter(telemetry, timeProvider);
+        }
     }
 }
