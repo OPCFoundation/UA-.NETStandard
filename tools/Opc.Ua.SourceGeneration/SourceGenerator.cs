@@ -144,6 +144,23 @@ namespace Opc.Ua.SourceGeneration
             customTags: ["opcua"]);
 
         /// <summary>
+        /// A <c>[DataType]</c> namespace argument could not be resolved before
+        /// source generation.
+        /// </summary>
+        public static readonly DiagnosticDescriptor DataTypeNamespaceUnresolved = new(
+            id: "MODELGEN021",
+            title: "[DataType] namespace could not be resolved",
+            messageFormat: (LocalizableString)("The Namespace argument '{1}' on [DataType] " +
+                "type '{0}' could not be resolved during source generation. Use a string " +
+                "literal or a const declared in source or a referenced assembly; values " +
+                "generated in the same compilation are unavailable."),
+            category: Name,
+            DiagnosticSeverity.Error,
+            isEnabledByDefault: true,
+            helpLinkUri: "www.opcfoundation.org",
+            customTags: ["opcua"]);
+
+        /// <summary>
         /// Get diagnostic descriptor for event id
         /// </summary>
         public static bool TryGetDiagnostic(

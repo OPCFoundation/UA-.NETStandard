@@ -133,6 +133,9 @@ namespace Opc.Ua.Configuration.Tests
 
                 Assert.That(appInstance.ApplicationConfiguration.ClientConfiguration, Is.Not.Null);
                 Assert.That(appInstance.ApplicationType, Is.EqualTo(ApplicationType.Client));
+                Assert.That(
+                    appInstance.ApplicationConfiguration.ApplicationType,
+                    Is.EqualTo(ApplicationType.Client));
             }
         }
 
@@ -184,6 +187,9 @@ namespace Opc.Ua.Configuration.Tests
                     .AsClient();
 
                 Assert.That(appInstance.ApplicationType, Is.EqualTo(ApplicationType.ClientAndServer));
+                Assert.That(
+                    appInstance.ApplicationConfiguration.ApplicationType,
+                    Is.EqualTo(ApplicationType.ClientAndServer));
                 Assert.That(appInstance.ApplicationConfiguration.ClientConfiguration, Is.Not.Null);
                 Assert.That(appInstance.ApplicationConfiguration.ServerConfiguration, Is.Not.Null);
             }

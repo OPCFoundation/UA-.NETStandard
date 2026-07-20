@@ -153,7 +153,7 @@ namespace Opc.Ua.History.Tests
             {
                 eventId = await ReadEventIdAsync(alarmId).ConfigureAwait(false);
             }
-
+            collector.Reset();
             collector.Reset();
             CallMethodResult callResult = await CallMethodOnAlarmAsync(
                 alarmId,
@@ -183,6 +183,8 @@ namespace Opc.Ua.History.Tests
 
             Assert.That(StatusCode.IsGood(callResult.StatusCode), Is.True,
                 $"Acknowledge should succeed: {callResult.StatusCode}");
+            ByteString acknowledgeEventId = await ReadEventIdAsync(alarmId)
+                .ConfigureAwait(false);
 
             EventFieldList ackEvent = await collector.WaitForEventAsync(
                 alarmId,
@@ -190,7 +192,12 @@ namespace Opc.Ua.History.Tests
                     e,
                     AlarmEventCollector.FieldIndex.AckedStateId,
                     out bool acked) &&
-                    acked,
+                    acked &&
+                    AlarmEventCollector.TryGetByteString(
+                        e,
+                        AlarmEventCollector.FieldIndex.EventId,
+                        out ByteString receivedEventId) &&
+                    receivedEventId == acknowledgeEventId,
                 DefaultEventWaitTimeout).ConfigureAwait(false);
 
             Assert.That(

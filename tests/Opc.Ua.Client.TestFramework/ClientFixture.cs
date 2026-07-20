@@ -227,11 +227,7 @@ namespace Opc.Ua.Client.TestFramework
                 throw new InvalidOperationException("Application instance certificate invalid!");
             }
 
-            ReverseConnectManager = new ReverseConnectManager(m_telemetry)
-            {
-                TransportBindings = TransportBindingRegistry
-                    ?? TestTransportBindings.WithAllSchemes()
-            };
+            ReverseConnectManager = CreateReverseConnectManager();
         }
 
         /// <summary>
@@ -273,6 +269,8 @@ namespace Opc.Ua.Client.TestFramework
                         throw;
                     }
 
+                    ReverseConnectManager.Dispose();
+                    ReverseConnectManager = CreateReverseConnectManager();
                     testPort = UnsecureRandom.Shared.Next(
                         ServerFixtureUtils.MinTestPort,
                         ServerFixtureUtils.MaxTestPort);
@@ -401,6 +399,15 @@ namespace Opc.Ua.Client.TestFramework
             }
 
             throw new ServiceResultException(StatusCodes.BadNoCommunication);
+        }
+
+        private ReverseConnectManager CreateReverseConnectManager()
+        {
+            return new ReverseConnectManager(m_telemetry)
+            {
+                TransportBindings = TransportBindingRegistry
+                    ?? TestTransportBindings.WithAllSchemes()
+            };
         }
 
         /// <summary>

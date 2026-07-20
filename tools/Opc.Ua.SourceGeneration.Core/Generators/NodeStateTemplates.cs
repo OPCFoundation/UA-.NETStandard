@@ -954,16 +954,28 @@ namespace Opc.Ua.SourceGeneration
                 if ({{Tokens.ChildName}} == null)
                 {
                     {{Tokens.ClassName}} state = context.Create{{Tokens.SymbolicId}}(this, true);
+                    {{Tokens.ChildName}} = state;
+                    global::Opc.Ua.NodeId previousNodeId = state.NodeId;
                     if (!nodeId.IsNull)
                     {
                         ((global::Opc.Ua.NodeState)state).NodeId = nodeId;
+                        global::Opc.Ua.NodeInstanceExtensions.AssignInstanceChildNodeIds(
+                            context,
+                            state,
+                            previousNodeId,
+                            this);
                     }
                     else if (context.NodeIdFactory != null &&
                         state.NodeId.Equals({{Tokens.NodeIdConstant}}))
                     {
-                        ((global::Opc.Ua.NodeState)state).NodeId = context.NodeIdFactory.New(context, state);
+                        previousNodeId =
+                            global::Opc.Ua.NodeInstanceExtensions.AssignInstanceNodeId(context, state);
+                        global::Opc.Ua.NodeInstanceExtensions.AssignInstanceChildNodeIds(
+                            context,
+                            state,
+                            previousNodeId,
+                            this);
                     }
-                    {{Tokens.ChildName}} = state;
                 }
                 else if (!nodeId.IsNull)
                 {
@@ -1703,8 +1715,12 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ListOfChildNodeStates}}
                 if (parent != null && !browseName.IsNull && context.NodeIdFactory != null)
                 {
-                    ((global::Opc.Ua.NodeState)state).NodeId = context.NodeIdFactory.New(context, state);
-                    global::Opc.Ua.NodeInstanceExtensions.AssignInstanceChildNodeIds(context, state);
+                    global::Opc.Ua.NodeId previousNodeId =
+                        global::Opc.Ua.NodeInstanceExtensions.AssignInstanceNodeId(context, state);
+                    global::Opc.Ua.NodeInstanceExtensions.AssignInstanceChildNodeIds(
+                        context,
+                        state,
+                        previousNodeId);
                 }
                 return state;
             }
@@ -1756,8 +1772,12 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ListOfChildNodeStates}}
                 if (parent != null && !browseName.IsNull && context.NodeIdFactory != null)
                 {
-                    ((global::Opc.Ua.NodeState)state).NodeId = context.NodeIdFactory.New(context, state);
-                    global::Opc.Ua.NodeInstanceExtensions.AssignInstanceChildNodeIds(context, state);
+                    global::Opc.Ua.NodeId previousNodeId =
+                        global::Opc.Ua.NodeInstanceExtensions.AssignInstanceNodeId(context, state);
+                    global::Opc.Ua.NodeInstanceExtensions.AssignInstanceChildNodeIds(
+                        context,
+                        state,
+                        previousNodeId);
                 }
                 return state;
             }
@@ -1818,8 +1838,12 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ListOfChildNodeStates}}
                 if (parent != null && !browseName.IsNull && context.NodeIdFactory != null)
                 {
-                    ((global::Opc.Ua.NodeState)state).NodeId = context.NodeIdFactory.New(context, state);
-                    global::Opc.Ua.NodeInstanceExtensions.AssignInstanceChildNodeIds(context, state);
+                    global::Opc.Ua.NodeId previousNodeId =
+                        global::Opc.Ua.NodeInstanceExtensions.AssignInstanceNodeId(context, state);
+                    global::Opc.Ua.NodeInstanceExtensions.AssignInstanceChildNodeIds(
+                        context,
+                        state,
+                        previousNodeId);
                 }
                 return state;
             }

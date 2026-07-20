@@ -8,6 +8,7 @@
     <Project Path="samples/RedundantServer/RedundantServer.csproj" />
     <Project Path="samples/MinimalBoilerServer/MinimalBoilerServer.csproj" />
     <Project Path="samples/MinimalCalcServer/MinimalCalcServer.csproj" />
+    <Project Path="samples/MinimalClient/MinimalClient.csproj" />
     <Project Path="samples/PumpDeviceIntegrationServer/PumpDeviceIntegrationServer.csproj" />
     <Project Path="samples/Quickstarts.Servers/Quickstarts.Servers.csproj" />
     <Project Path="samples/RedundantClient/RedundantClient.csproj" />

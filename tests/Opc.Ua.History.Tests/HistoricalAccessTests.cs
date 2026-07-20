@@ -128,6 +128,227 @@ namespace Opc.Ua.History.Tests
                 $"Scalar_Static_{typeName} should return seeded historical values.");
         }
 
+        [TestCase("Boolean")]
+        [TestCase("SByte")]
+        [TestCase("Byte")]
+        [TestCase("Int16")]
+        [TestCase("UInt16")]
+        [TestCase("UInt32")]
+        [TestCase("Int32")]
+        [TestCase("Int64")]
+        [TestCase("UInt64")]
+        [TestCase("Float")]
+        [TestCase("Double")]
+        [TestCase("String")]
+        [TestCase("DateTime")]
+        [TestCase("ByteString")]
+        [Description("Raw history read of every historized array type returns Good and seeded array values.")]
+        [Test]
+        public async Task HistoryReadRawDataForArrayTypeReturnsSeededValuesAsync(string typeName)
+        {
+            NodeId nodeId = ToNodeId(
+                new ExpandedNodeId($"Scalar_Static_Arrays_{typeName}", Constants.ReferenceServerNamespaceUri));
+            DateTime endTime = DateTime.UtcNow;
+            DateTime startTime = endTime.AddHours(-4);
+
+            HistoryReadResponse response = await Session.HistoryReadAsync(
+                null,
+                new ExtensionObject(new ReadRawModifiedDetails
+                {
+                    StartTime = startTime,
+                    EndTime = endTime,
+                    NumValuesPerNode = 10,
+                    IsReadModified = false,
+                    ReturnBounds = false
+                }),
+                TimestampsToReturn.Both,
+                false,
+                new HistoryReadValueId[]
+                {
+                    new() { NodeId = nodeId }
+                }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(response.Results.Count, Is.EqualTo(1));
+            HistoryReadResult result = response.Results[0];
+            Assert.That(StatusCode.IsGood(result.StatusCode), Is.True,
+                $"Raw history read of Scalar_Static_Arrays_{typeName} should return Good.");
+            Assert.That(result.HistoryData.TryGetValue(out HistoryData? historyData), Is.True,
+                "Result should carry a HistoryData payload.");
+            Assert.That(historyData!.DataValues.Count, Is.GreaterThan(0),
+                $"Scalar_Static_Arrays_{typeName} should return seeded historical values.");
+            Assert.That(historyData.DataValues[0].WrappedValue.TypeInfo.ValueRank,
+                Is.GreaterThanOrEqualTo(ValueRanks.OneDimension),
+                $"Scalar_Static_Arrays_{typeName} history values should be arrays.");
+        }
+
+        [Test]
+        public async Task HistoryReadRawDataRejectsWhitespaceIndexRangeAsync()
+        {
+            NodeId nodeId = ToNodeId(
+                new ExpandedNodeId("Scalar_Static_Arrays_Int32", Constants.ReferenceServerNamespaceUri));
+            DateTime endTime = DateTime.UtcNow;
+
+            HistoryReadResponse response = await Session.HistoryReadAsync(
+                null,
+                new ExtensionObject(new ReadRawModifiedDetails
+                {
+                    StartTime = endTime.AddHours(-4),
+                    EndTime = endTime,
+                    NumValuesPerNode = 10,
+                    IsReadModified = false,
+                    ReturnBounds = false
+                }),
+                TimestampsToReturn.Both,
+                false,
+                new HistoryReadValueId[]
+                {
+                    new() {
+                        NodeId = nodeId,
+                        IndexRange = " 1:3"
+                    }
+                }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(response.Results, Has.Count.EqualTo(1));
+            Assert.That(response.Results[0].StatusCode, Is.EqualTo(StatusCodes.BadIndexRangeInvalid));
+        }
+
+        [Test]
+        public async Task HistoryReadRawDataReportsOutOfRangeAtValueLevelAsync()
+        {
+            NodeId nodeId = ToNodeId(
+                new ExpandedNodeId("Scalar_Static_Arrays_Int32", Constants.ReferenceServerNamespaceUri));
+            DateTime endTime = DateTime.UtcNow;
+
+            HistoryReadResponse response = await Session.HistoryReadAsync(
+                null,
+                new ExtensionObject(new ReadRawModifiedDetails
+                {
+                    StartTime = endTime.AddHours(-4),
+                    EndTime = endTime,
+                    NumValuesPerNode = 10,
+                    IsReadModified = false,
+                    ReturnBounds = false
+                }),
+                TimestampsToReturn.Both,
+                false,
+                new HistoryReadValueId[]
+                {
+                    new() {
+                        NodeId = nodeId,
+                        IndexRange = "15"
+                    }
+                }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(response.Results, Has.Count.EqualTo(1));
+            HistoryReadResult result = response.Results[0];
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(result.HistoryData.TryGetValue(out HistoryData? historyData), Is.True);
+            bool hasBadIndexRangeNoData = false;
+            for (int ii = 0; ii < historyData!.DataValues.Count; ii++)
+            {
+                if (historyData.DataValues[ii].StatusCode == StatusCodes.BadIndexRangeNoData)
+                {
+                    hasBadIndexRangeNoData = true;
+                    break;
+                }
+            }
+            Assert.That(hasBadIndexRangeNoData, Is.True);
+        }
+
+        [TestCase("Boolean")]
+        [TestCase("SByte")]
+        [TestCase("Byte")]
+        [TestCase("Int16")]
+        [TestCase("UInt16")]
+        [TestCase("UInt32")]
+        [TestCase("Int32")]
+        [TestCase("Int64")]
+        [TestCase("UInt64")]
+        [TestCase("Float")]
+        [TestCase("Double")]
+        [TestCase("String")]
+        [TestCase("DateTime")]
+        [TestCase("ByteString")]
+        [Description("Raw history read of every historized 2D array (matrix) type returns Good and seeded matrix values.")]
+        [Test]
+        public async Task HistoryReadRawDataForMatrixTypeReturnsSeededValuesAsync(string typeName)
+        {
+            NodeId nodeId = ToNodeId(
+                new ExpandedNodeId($"Scalar_Static_Arrays2D_{typeName}", Constants.ReferenceServerNamespaceUri));
+            DateTime endTime = DateTime.UtcNow;
+            DateTime startTime = endTime.AddHours(-4);
+
+            HistoryReadResponse response = await Session.HistoryReadAsync(
+                null,
+                new ExtensionObject(new ReadRawModifiedDetails
+                {
+                    StartTime = startTime,
+                    EndTime = endTime,
+                    NumValuesPerNode = 10,
+                    IsReadModified = false,
+                    ReturnBounds = false
+                }),
+                TimestampsToReturn.Both,
+                false,
+                new HistoryReadValueId[]
+                {
+                    new() { NodeId = nodeId }
+                }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(response.Results.Count, Is.EqualTo(1));
+            HistoryReadResult result = response.Results[0];
+            Assert.That(StatusCode.IsGood(result.StatusCode), Is.True,
+                $"Raw history read of Scalar_Static_Arrays2D_{typeName} should return Good.");
+            Assert.That(result.HistoryData.TryGetValue(out HistoryData? historyData), Is.True,
+                "Result should carry a HistoryData payload.");
+            Assert.That(historyData!.DataValues.Count, Is.GreaterThan(0),
+                $"Scalar_Static_Arrays2D_{typeName} should return seeded historical values.");
+            Assert.That(historyData.DataValues[0].WrappedValue.TypeInfo.ValueRank,
+                Is.GreaterThanOrEqualTo(ValueRanks.TwoDimensions),
+                $"Scalar_Static_Arrays2D_{typeName} history values should be matrices.");
+        }
+
+        [Description("Raw history read of the historized structure node returns Good and seeded structure values.")]
+        [Test]
+        public async Task HistoryReadRawDataForStructureNodeReturnsSeededValuesAsync()
+        {
+            NodeId nodeId = ToNodeId(
+                new ExpandedNodeId("Scalar_Static_Decimal", Constants.ReferenceServerNamespaceUri));
+            DateTime endTime = DateTime.UtcNow;
+            DateTime startTime = endTime.AddHours(-4);
+
+            HistoryReadResponse response = await Session.HistoryReadAsync(
+                null,
+                new ExtensionObject(new ReadRawModifiedDetails
+                {
+                    StartTime = startTime,
+                    EndTime = endTime,
+                    NumValuesPerNode = 10,
+                    IsReadModified = false,
+                    ReturnBounds = false
+                }),
+                TimestampsToReturn.Both,
+                false,
+                new HistoryReadValueId[]
+                {
+                    new() { NodeId = nodeId }
+                }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(response.Results.Count, Is.EqualTo(1));
+            HistoryReadResult result = response.Results[0];
+            Assert.That(StatusCode.IsGood(result.StatusCode), Is.True,
+                "Raw history read of Scalar_Static_Decimal should return Good.");
+            Assert.That(result.HistoryData.TryGetValue(out HistoryData? historyData), Is.True,
+                "Result should carry a HistoryData payload.");
+            Assert.That(historyData!.DataValues.Count, Is.GreaterThan(0),
+                "Scalar_Static_Decimal should return seeded historical values.");
+        }
+
         [Test]
         public async Task HistoryReadWithTimeRangeAsync()
         {
@@ -677,6 +898,68 @@ namespace Opc.Ua.History.Tests
                 CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(response.Results.Count, Is.EqualTo(2));
+        }
+
+        [Description("Raw history read returns seeded data that includes Good, Bad, and Uncertain quality status codes.")]
+        [Test]
+        public async Task HistoryReadRawDataContainsBadAndUncertainQualityAsync()
+        {
+            NodeId nodeId = ToNodeId(Constants.ScalarStaticDouble);
+            DateTime endTime = DateTime.UtcNow;
+            DateTime startTime = endTime.AddHours(-4);
+
+            HistoryReadResponse response = await Session.HistoryReadAsync(
+                null,
+                new ExtensionObject(new ReadRawModifiedDetails
+                {
+                    StartTime = startTime,
+                    EndTime = endTime,
+                    NumValuesPerNode = 500,
+                    IsReadModified = false,
+                    ReturnBounds = false
+                }),
+                TimestampsToReturn.Both,
+                false,
+                new HistoryReadValueId[]
+                {
+                    new() { NodeId = nodeId }
+                }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(response.Results.Count, Is.EqualTo(1));
+            HistoryReadResult result = response.Results[0];
+            if (!StatusCode.IsGood(result.StatusCode))
+            {
+                Assert.Ignore($"History not supported: {result.StatusCode}");
+            }
+
+            Assert.That(result.HistoryData.TryGetValue(out HistoryData? historyData), Is.True,
+                "Result should carry a HistoryData payload.");
+            Assert.That(historyData!.DataValues.Count, Is.GreaterThan(10),
+                "Need at least 10 data values to verify quality pattern.");
+
+            bool hasBad = false;
+            bool hasUncertain = false;
+            bool hasGood = false;
+            foreach (DataValue dv in historyData.DataValues)
+            {
+                if (StatusCode.IsBad(dv.StatusCode))
+                {
+                    hasBad = true;
+                }
+                else if (StatusCode.IsUncertain(dv.StatusCode))
+                {
+                    hasUncertain = true;
+                }
+                else if (StatusCode.IsGood(dv.StatusCode))
+                {
+                    hasGood = true;
+                }
+            }
+
+            Assert.That(hasGood, Is.True, "Seeded history should contain Good quality data.");
+            Assert.That(hasBad, Is.True, "Seeded history should contain Bad quality data.");
+            Assert.That(hasUncertain, Is.True, "Seeded history should contain Uncertain quality data.");
         }
 
         private static bool IsUnsupported(StatusCode statusCode)

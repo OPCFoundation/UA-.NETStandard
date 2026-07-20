@@ -433,7 +433,10 @@ namespace Opc.Ua.Server
             await base.CreateAddressSpaceAsync(externalReferences, cancellationToken)
                 .ConfigureAwait(false);
 
-            await CreateCertificateAlarmsAsync(SystemContext, cancellationToken)
+            await CreateCertificateAlarmsAsync(
+                SystemContext,
+                externalReferences,
+                cancellationToken)
                 .ConfigureAwait(false);
         }
 
@@ -4305,9 +4308,13 @@ namespace Opc.Ua.Server
         /// initializes their condition state without emitting any event.
         /// </summary>
         /// <param name="context">The system context.</param>
+        /// <param name="externalReferences">
+        /// References from standard certificate-group nodes owned by another node manager.
+        /// </param>
         /// <param name="cancellationToken">The cancellation token.</param>
         private async ValueTask CreateCertificateAlarmsAsync(
             ISystemContext context,
+            IDictionary<NodeId, IList<IReference>> externalReferences,
             CancellationToken cancellationToken)
         {
             foreach (ServerCertificateGroup certGroup in m_certificateGroups)
@@ -4348,7 +4355,11 @@ namespace Opc.Ua.Server
                     // and ConditionRefresh.
                     if (node.CertificateExpired != null)
                     {
-                        await AddPredefinedNodeAsync(context, node.CertificateExpired, cancellationToken)
+                        await AddPredefinedNodeAsync(
+                                context,
+                                node.CertificateExpired,
+                                externalReferences,
+                                cancellationToken)
                             .ConfigureAwait(false);
                         await AddRootNotifierAsync(node.CertificateExpired, cancellationToken)
                             .ConfigureAwait(false);
@@ -4356,7 +4367,11 @@ namespace Opc.Ua.Server
 
                     if (node.TrustListOutOfDate != null)
                     {
-                        await AddPredefinedNodeAsync(context, node.TrustListOutOfDate, cancellationToken)
+                        await AddPredefinedNodeAsync(
+                                context,
+                                node.TrustListOutOfDate,
+                                externalReferences,
+                                cancellationToken)
                             .ConfigureAwait(false);
                         await AddRootNotifierAsync(node.TrustListOutOfDate, cancellationToken)
                             .ConfigureAwait(false);

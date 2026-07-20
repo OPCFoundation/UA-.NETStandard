@@ -285,6 +285,57 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         }
 
         /// <summary>
+        /// Verifies Mandatory declarations on standard alarm ObjectTypes retain their
+        /// ModellingRule when the type definition is materialized.
+        /// </summary>
+        [Test]
+        public void StandardAlarmTypeDeclarationsRetainModellingRules()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
+            using var fileSystem = new VirtualFileSystem();
+
+            Generators.GenerateStack(
+                StackGenerationType.All,
+                fileSystem,
+                string.Empty,
+                telemetry,
+                new GeneratorOptions
+                {
+                    OmitFluentApi = true
+                });
+
+            string code = string.Join("\n", fileSystem.CreatedFiles
+                .Where(c => Path.GetExtension(c) == ".cs")
+                .Select(c => Encoding.UTF8.GetString(fileSystem.Get(c))));
+            string certificateAlarmFactory = ExtractMethodBody(
+                code,
+                "CreateCertificateExpirationAlarmType");
+            string expirationDateFactory = ExtractMethodBody(
+                code,
+                "CreateCertificateExpirationAlarmType_ExpirationDate");
+            string trustListIdFactory = ExtractMethodBody(
+                code,
+                "CreateTrustListOutOfDateAlarmType_TrustListId");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    certificateAlarmFactory,
+                    Does.Contain(
+                        "CreateCertificateExpirationAlarmType_ExpirationDate(context, state, forInstance: forInstance)"),
+                    "The ObjectType factory must pass its declaration/instance mode to child factories.");
+                Assert.That(
+                    expirationDateFactory,
+                    Does.Contain("state.ModellingRuleId ="),
+                    "CertificateExpirationAlarmType.ExpirationDate must retain its Mandatory rule.");
+                Assert.That(
+                    trustListIdFactory,
+                    Does.Contain("state.ModellingRuleId ="),
+                    "TrustListOutOfDateAlarmType.TrustListId must retain its Mandatory rule.");
+            });
+        }
+
+        /// <summary>
         /// Verifies the source generator emits the singleton-instance
         /// dispatch inside type-level child factories for synthesized
         /// method arguments. Both the top-level method NodeId and its

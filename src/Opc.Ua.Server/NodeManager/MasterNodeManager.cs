@@ -960,13 +960,6 @@ namespace Opc.Ua.Server
                 return (new ServiceResult(StatusCodes.BadParentNodeIdInvalid), NodeId.Null);
             }
 
-            // Routing per spec:
-            //   - When RequestedNewNodeId is provided, dispatch to that namespace's
-            //     owner (the namespace dictates the responsible NodeManager).
-            //   - Otherwise, prefer the parent's owner. If the parent's owner has
-            //     not opted in to NodeManagement, fall back to the first
-            //     opted-in NodeManager so cross-NodeManager AddNodes under a
-            //     read-only parent (e.g. ObjectsFolder) is still serviceable.
             INodeManagementAsyncNodeManager? nodeManagement;
             if (!item.RequestedNewNodeId.IsNull)
             {
@@ -978,20 +971,52 @@ namespace Opc.Ua.Server
                 }
 
                 nodeManagement = FindNodeManagementOwner(requestedNodeId.NamespaceIndex);
-                if (nodeManagement == null || !nodeManagement.AllowNodeManagement)
+                if (nodeManagement == null)
                 {
-                    return (new ServiceResult(StatusCodes.BadUserAccessDenied), NodeId.Null);
+                    return (new ServiceResult(StatusCodes.BadNodeIdRejected), NodeId.Null);
                 }
             }
             else
             {
-                (object? parentHandle, IAsyncNodeManager? parentOwner) =
-                    await GetManagerHandleAsync(parentNodeId, cancellationToken).ConfigureAwait(false);
-                if (parentHandle == null || parentOwner == null)
-                {
-                    return (new ServiceResult(StatusCodes.BadParentNodeIdInvalid), NodeId.Null);
-                }
+                nodeManagement = null;
+            }
 
+            (object? parentHandle, IAsyncNodeManager? parentOwner) =
+                await GetManagerHandleAsync(parentNodeId, cancellationToken).ConfigureAwait(false);
+            if (parentHandle == null || parentOwner == null)
+            {
+                return (new ServiceResult(StatusCodes.BadParentNodeIdInvalid), NodeId.Null);
+            }
+
+            NodeMetadata? parentMetadata;
+            try
+            {
+                parentMetadata = await parentOwner.GetNodeMetadataAsync(
+                    context,
+                    parentHandle,
+                    BrowseResultMask.NodeClass,
+                    cancellationToken).ConfigureAwait(false);
+            }
+            catch (ServiceResultException ex)
+            {
+                return (new ServiceResult(ex), NodeId.Null);
+            }
+
+            if (parentMetadata == null)
+            {
+                return (new ServiceResult(StatusCodes.BadParentNodeIdInvalid), NodeId.Null);
+            }
+
+            if (!IsReferenceAllowedForNodeClasses(
+                    item.ReferenceTypeId,
+                    parentMetadata.NodeClass,
+                    item.NodeClass))
+            {
+                return (new ServiceResult(StatusCodes.BadReferenceNotAllowed), NodeId.Null);
+            }
+
+            if (nodeManagement == null)
+            {
                 if (parentOwner.AllowNodeManagement)
                 {
                     nodeManagement = parentOwner;
@@ -1265,11 +1290,53 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Checks the NodeClass constraints defined in OPC UA Part 3 for concrete
+        /// standard hierarchical ReferenceTypes.
+        /// </summary>
+        private static bool IsReferenceAllowedForNodeClasses(
+            NodeId referenceTypeId,
+            NodeClass parentNodeClass,
+            NodeClass newNodeClass)
+        {
+            if (newNodeClass == NodeClass.Unspecified)
+            {
+                return true;
+            }
+
+            if (referenceTypeId == ReferenceTypeIds.HasSubtype)
+            {
+                return parentNodeClass == newNodeClass &&
+                    parentNodeClass is NodeClass.ObjectType or
+                        NodeClass.VariableType or
+                        NodeClass.DataType or
+                        NodeClass.ReferenceType;
+            }
+
+            if (referenceTypeId == ReferenceTypeIds.Organizes)
+            {
+                return parentNodeClass is NodeClass.Object or NodeClass.ObjectType or NodeClass.View;
+            }
+
+            if (referenceTypeId == ReferenceTypeIds.HasComponent)
+            {
+                return (parentNodeClass is NodeClass.Object or
+                            NodeClass.Variable or
+                            NodeClass.ObjectType or
+                            NodeClass.VariableType) &&
+                    newNodeClass is NodeClass.Object or NodeClass.Variable or NodeClass.Method;
+            }
+
+            if (referenceTypeId == ReferenceTypeIds.HasProperty)
+            {
+                return newNodeClass == NodeClass.Variable;
+            }
+
+            return true;
+        }
+
+        /// <summary>
         /// Returns the first NodeManager registered against the given namespace
-        /// index, or <c>null</c> when no NodeManager owns the namespace. Since
-        /// <see cref="INodeManagementAsyncNodeManager"/> is aggregated into
-        /// <see cref="IAsyncNodeManager"/> every owner exposes the surface;
-        /// callers should still check <see cref="INodeManagementAsyncNodeManager.AllowNodeManagement"/>.
+        /// index that has opted in to NodeManagement, or <c>null</c> when none has.
         /// </summary>
         private INodeManagementAsyncNodeManager? FindNodeManagementOwner(ushort namespaceIndex)
         {
@@ -1278,7 +1345,15 @@ namespace Opc.Ua.Server
                 return null;
             }
 
-            return nodeManagers.Count > 0 ? nodeManagers[0] : null;
+            for (int ii = 0; ii < nodeManagers.Count; ii++)
+            {
+                if (nodeManagers[ii].AllowNodeManagement)
+                {
+                    return nodeManagers[ii];
+                }
+            }
+
+            return null;
         }
 
         /// <summary>
@@ -2072,7 +2147,7 @@ namespace Opc.Ua.Server
                 }
 
                 // check for continuation point.
-                if (cp != null)
+                if (cp != null && ServiceResult.IsGood(error))
                 {
                     result.StatusCode = StatusCodes.Good;
                     result.ContinuationPoint = cp.Id.ToByteArray().ToByteString();
@@ -2181,7 +2256,7 @@ namespace Opc.Ua.Server
                 result.References = references;
 
                 // save continuation point.
-                if (cp != null)
+                if (cp != null && ServiceResult.IsGood(error))
                 {
                     result.StatusCode = StatusCodes.Good;
                     result.ContinuationPoint = cp.Id.ToByteArray().ToByteString();
@@ -2268,7 +2343,8 @@ namespace Opc.Ua.Server
                 {
                     if (!assignContinuationPoint)
                     {
-                        return (StatusCodes.BadNoContinuationPoints, currentCp, referenceList);
+                        currentCp.Dispose();
+                        return (StatusCodes.BadNoContinuationPoints, null, referenceList);
                     }
 
                     currentCp.Id = Guid.NewGuid();

@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -148,6 +149,17 @@ namespace Opc.Ua.History.Tests
                     ackedState,
                 DefaultEventWaitTimeout).ConfigureAwait(false);
             ByteString confirmEventId = GetEventIdOrInconclusive(ackEvent);
+            Assert.That(
+                AlarmEventCollector.TryGetBoolean(
+                    ackEvent,
+                    AlarmEventCollector.FieldIndex.Retain,
+                    out bool retainAfterAcknowledge),
+                Is.True,
+                "Acknowledge event should include Retain.");
+            Assert.That(
+                retainAfterAcknowledge,
+                Is.True,
+                "Retain stays set while confirmation is still outstanding.");
 
             collector.Reset();
             CallMethodResult confirm = await CallMethodOnAlarmAsync(
@@ -176,6 +188,68 @@ namespace Opc.Ua.History.Tests
                 "Confirm event should include ActiveState/Id.");
             Assert.That(finalActive, Is.False,
                 "Alarm should remain normal after Acknowledge and Confirm.");
+            Assert.That(
+                AlarmEventCollector.TryGetBoolean(
+                    confirmEvent,
+                    AlarmEventCollector.FieldIndex.Retain,
+                    out bool retainAfterConfirm),
+                Is.True,
+                "Confirm event should include Retain.");
+            Assert.That(
+                retainAfterConfirm,
+                Is.True,
+                "The main condition remains retained while its prior active branch is outstanding.");
+        }
+
+        [Test]
+        public async Task EveryAlarmInputNodeIsReadableAsync()
+        {
+            int alarmCount = 0;
+            foreach (KeyValuePair<string, NodeId> alarm in AlarmInstances)
+            {
+                BrowseResult alarmChildren = await BrowseForwardAsync(alarm.Value)
+                    .ConfigureAwait(false);
+                ReferenceDescription? inputNodeReference = null;
+                foreach (ReferenceDescription reference in alarmChildren.References)
+                {
+                    if (reference.BrowseName.Name == BrowseNames.InputNode)
+                    {
+                        inputNodeReference = reference;
+                        break;
+                    }
+                }
+                if (inputNodeReference == null)
+                {
+                    continue;
+                }
+                alarmCount++;
+
+                DataValue inputNodeValue = await ReadAttributeAsync(
+                    ToNodeId(inputNodeReference.NodeId),
+                    Attributes.Value).ConfigureAwait(false);
+                Assert.That(
+                    StatusCode.IsGood(inputNodeValue.StatusCode),
+                    Is.True,
+                    $"Reading InputNode failed for {alarm.Key}.");
+                Assert.That(
+                    inputNodeValue.WrappedValue.TryGetValue(out NodeId inputNode),
+                    Is.True,
+                    $"InputNode was not a NodeId for {alarm.Key}.");
+                Assert.That(
+                    inputNode.IsNull,
+                    Is.False,
+                    $"InputNode was null for {alarm.Key}.");
+
+                DataValue sourceValue = await ReadAttributeAsync(
+                    inputNode,
+                    Attributes.Value).ConfigureAwait(false);
+                Assert.That(
+                    StatusCode.IsGood(sourceValue.StatusCode),
+                    Is.True,
+                    $"Reading input node {inputNode} failed for {alarm.Key}: " +
+                    sourceValue.StatusCode);
+            }
+            Assert.That(alarmCount, Is.GreaterThan(0));
         }
 
         private async Task<DataValue> ReadBrowseNameAsync(NodeId nodeId)

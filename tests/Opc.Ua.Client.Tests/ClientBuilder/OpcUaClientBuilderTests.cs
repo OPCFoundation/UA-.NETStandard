@@ -6,13 +6,16 @@
 #nullable enable
 
 using System;
+using System.IO;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Moq;
 using NUnit.Framework;
+using Opc.Ua.Configuration;
 using Opc.Ua.Identity;
 using Opc.Ua.Tests;
 
@@ -75,6 +78,189 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
 
             Assert.That(builder, Is.Not.Null);
             Assert.That(builder.Services, Is.SameAs(services));
+        }
+
+        [Test]
+        public async Task AddClientWithApplicationOptionsBuildsSharedConfigurationAsync()
+        {
+            string pkiRoot = CreatePkiRoot();
+            var services = new ServiceCollection();
+            services.AddOpcUa().AddClient(opt =>
+            {
+                opt.ApplicationName = "DirectClient";
+                opt.ApplicationUri = "urn:localhost:DirectClient";
+                opt.ProductUri = "uri:opcfoundation.org:DirectClient";
+                opt.PkiRoot = pkiRoot;
+                opt.AutoAcceptUntrustedCertificates = true;
+                opt.RejectSHA1SignedCertificates = true;
+                opt.MinimumCertificateKeySize = 2048;
+            });
+
+            ServiceProvider sp = services.BuildServiceProvider();
+            try
+            {
+                OpcUaClientOptions resolved = sp.GetRequiredService<OpcUaClientOptions>();
+                Assert.That(resolved.Configuration, Is.Not.Null);
+                Assert.That(resolved.Configuration!.ApplicationName, Is.EqualTo("DirectClient"));
+                Assert.That(resolved.Configuration.ClientConfiguration, Is.Not.Null);
+                Assert.That(
+                    resolved.Configuration.SecurityConfiguration.AutoAcceptUntrustedCertificates,
+                    Is.True);
+
+                OpcUaClientOptions optionsValue =
+                    sp.GetRequiredService<IOptions<OpcUaClientOptions>>().Value;
+                Assert.That(optionsValue.ApplicationName, Is.EqualTo("DirectClient"));
+                Assert.That(optionsValue.ApplicationUri, Is.EqualTo("urn:localhost:DirectClient"));
+                Assert.That(optionsValue.ProductUri, Is.EqualTo("uri:opcfoundation.org:DirectClient"));
+                Assert.That(optionsValue.PkiRoot, Is.EqualTo(pkiRoot));
+                Assert.That(optionsValue.AutoAcceptUntrustedCertificates, Is.True);
+                Assert.That(optionsValue.RejectSHA1SignedCertificates, Is.True);
+                Assert.That(optionsValue.MinimumCertificateKeySize, Is.EqualTo((ushort)2048));
+            }
+            finally
+            {
+                await sp.DisposeAsync().ConfigureAwait(false);
+                DeletePkiRoot(pkiRoot);
+            }
+        }
+
+        [Test]
+        public void AddClientWithoutConfigurationOrApplicationOptionsStillFailsValidation()
+        {
+            var services = new ServiceCollection();
+            services.AddOpcUa().AddClient(_ => { });
+
+            using ServiceProvider sp = services.BuildServiceProvider();
+            IOptions<OpcUaClientOptions> options =
+                sp.GetRequiredService<IOptions<OpcUaClientOptions>>();
+
+            Assert.That(
+                () => _ = options.Value,
+                Throws.TypeOf<OptionsValidationException>()
+                    .With.Property(nameof(OptionsValidationException.Failures))
+                    .Some.Contains("OpcUaClientOptions.Configuration is required."));
+        }
+
+        [Test]
+        public void AddClientThrowsWhenApplicationOptionsCombinedWithExplicitConfiguration()
+        {
+            var services = new ServiceCollection();
+            IOpcUaBuilder builder = services.AddOpcUa();
+
+            Assert.That(
+                () => builder.AddClient(opt =>
+                {
+                    opt.Configuration = CreateConfig();
+                    opt.ApplicationName = "Conflicting";
+                }),
+                Throws.InvalidOperationException);
+        }
+
+        [Test]
+        public async Task AddClientApplicationOptionsComposeWithRootConfigureApplicationRegisteredFirstAsync()
+        {
+            string pkiRoot = CreatePkiRoot();
+            var services = new ServiceCollection();
+            IOpcUaBuilder builder = services.AddOpcUa();
+            builder.ConfigureApplication(options => options.ApplicationName = "RootConfigured");
+            builder.AddClient(opt =>
+            {
+                opt.ApplicationName = "ClientOverride";
+                opt.PkiRoot = pkiRoot;
+                opt.AutoAcceptUntrustedCertificates = true;
+            });
+
+            ServiceProvider sp = services.BuildServiceProvider();
+            try
+            {
+                OpcUaClientOptions resolved = sp.GetRequiredService<OpcUaClientOptions>();
+                Assert.That(resolved.Configuration, Is.Not.Null);
+                // The root ConfigureApplication value was explicitly set, so it wins
+                // over the client's application name.
+                Assert.That(resolved.Configuration!.ApplicationName, Is.EqualTo("RootConfigured"));
+                // A field only set through AddClient still fills the shared configuration.
+                Assert.That(
+                    resolved.Configuration.SecurityConfiguration.AutoAcceptUntrustedCertificates,
+                    Is.True);
+            }
+            finally
+            {
+                await sp.DisposeAsync().ConfigureAwait(false);
+                DeletePkiRoot(pkiRoot);
+            }
+        }
+
+        [Test]
+        public async Task AddClientApplicationOptionsComposeWithRootConfigureApplicationRegisteredAfterAsync()
+        {
+            string pkiRoot = CreatePkiRoot();
+            var services = new ServiceCollection();
+            IOpcUaBuilder builder = services.AddOpcUa();
+            builder.AddClient(opt =>
+            {
+                opt.ApplicationName = "ClientOverride";
+                opt.PkiRoot = pkiRoot;
+                opt.AutoAcceptUntrustedCertificates = true;
+            });
+            builder.ConfigureApplication(options => options.ApplicationName = "RootConfigured");
+
+            ServiceProvider sp = services.BuildServiceProvider();
+            try
+            {
+                OpcUaClientOptions resolved = sp.GetRequiredService<OpcUaClientOptions>();
+                Assert.That(resolved.Configuration, Is.Not.Null);
+                // Composition is order independent: the root value still wins even
+                // though ConfigureApplication was registered after AddClient.
+                Assert.That(resolved.Configuration!.ApplicationName, Is.EqualTo("RootConfigured"));
+                Assert.That(
+                    resolved.Configuration.SecurityConfiguration.AutoAcceptUntrustedCertificates,
+                    Is.True);
+            }
+            finally
+            {
+                await sp.DisposeAsync().ConfigureAwait(false);
+                DeletePkiRoot(pkiRoot);
+            }
+        }
+
+        [Test]
+        public async Task ConfigureApplicationSuppliesConfigurationBeforeConnectAsync()
+        {
+            ApplicationConfiguration configuration = CreateConfig();
+            var configurationProvider = new TrackingConfigurationProvider(configuration);
+            var services = new ServiceCollection();
+            services.AddSingleton(Mock.Of<IClientChannelManager>());
+            services.AddSingleton<IOpcUaApplicationConfigurationProvider>(
+                configurationProvider);
+            services.AddOpcUa()
+                .ConfigureApplication(options =>
+                {
+                    options.ApplicationName = "ConfiguredClient";
+                })
+                .AddClient(_ => { });
+
+            ServiceProvider sp = services.BuildServiceProvider();
+            try
+            {
+                OpcUaClientOptions options = sp.GetRequiredService<OpcUaClientOptions>();
+                Assert.That(options.Configuration, Is.SameAs(configuration));
+
+                IManagedSessionFactory factory =
+                    sp.GetRequiredService<IManagedSessionFactory>();
+                OperationCanceledException? exception =
+                    Assert.CatchAsync<OperationCanceledException>(async () =>
+                        await factory.ConnectAsync(
+                            CreateEndpoint(),
+                            _ => throw new OperationCanceledException(),
+                            CancellationToken.None).ConfigureAwait(false));
+
+                Assert.That(exception, Is.Not.Null);
+                Assert.That(configurationProvider.GetCount, Is.EqualTo(1));
+            }
+            finally
+            {
+                await sp.DisposeAsync().ConfigureAwait(false);
+            }
         }
 
         [Test]
@@ -199,6 +385,22 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             {
                 EndpointUrl = "opc.tcp://localhost:4840"
             }, configuration: null);
+        }
+
+        private static string CreatePkiRoot()
+        {
+            return Path.Combine(
+                Path.GetTempPath(),
+                nameof(OpcUaClientBuilderTests),
+                Guid.NewGuid().ToString("N"));
+        }
+
+        private static void DeletePkiRoot(string pkiRoot)
+        {
+            if (Directory.Exists(pkiRoot))
+            {
+                Directory.Delete(pkiRoot, recursive: true);
+            }
         }
 
         private static Client.ManagedSession CreateUnconnectedManagedSession()
@@ -356,6 +558,36 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             }
 
             private readonly Client.ManagedSession m_session;
+        }
+
+        private sealed class TrackingConfigurationProvider :
+            IOpcUaApplicationConfigurationProvider
+        {
+            public TrackingConfigurationProvider(ApplicationConfiguration configuration)
+            {
+                Configuration = configuration;
+                Application = new ApplicationInstance(
+                    configuration,
+                    NUnitTelemetryContext.Create());
+            }
+
+            public IApplicationInstance Application { get; }
+
+            public ApplicationConfiguration Configuration { get; }
+
+            public int GetCount { get; private set; }
+
+            public Task<ApplicationConfiguration> GetAsync(
+                CancellationToken ct = default)
+            {
+                GetCount++;
+                return Task.FromResult(Configuration);
+            }
+
+            public ValueTask DisposeAsync()
+            {
+                return Application.DisposeAsync();
+            }
         }
     }
 }

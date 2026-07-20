@@ -108,6 +108,7 @@ namespace Opc.Ua.Configuration
 
             m_typeSelected = true;
 
+            ApplicationConfiguration.ApplicationType = ApplicationInstance.ApplicationType;
             ApplicationConfiguration.ClientConfiguration = new ClientConfiguration();
 
             return this;
@@ -397,6 +398,8 @@ namespace Opc.Ua.Configuration
             }
 
             m_typeSelected = true;
+
+            ApplicationConfiguration.ApplicationType = ApplicationInstance.ApplicationType;
 
             // configure a server
             var serverConfiguration = new ServerConfiguration
