@@ -1173,6 +1173,61 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         [Test]
+        public async Task TryCompleteTransferAsyncShouldReturnFalseWhenDeletingExtraneousServerItemFailsAsync()
+        {
+            // Arrange
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 2);
+            await using (sut.ConfigureAwait(false))
+            {
+                m_mockMethodServices
+                    .Setup(s => s.CallAsync(
+                        It.IsAny<RequestHeader>(),
+                        It.Is<ArrayOf<CallMethodRequest>>(r =>
+                            r.Count == 1 &&
+                            r[0].InputArguments.Count == 1 &&
+                            r[0].InputArguments[0].AsBoxedObject().Equals(2u) &&
+                            r[0].ObjectId == ObjectIds.Server &&
+                            r[0].MethodId == MethodIds.Server_GetMonitoredItems), It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(new CallResponse
+                    {
+                        Results =
+                        [
+                            new ()
+                            {
+                                StatusCode = StatusCodes.Good,
+                                OutputArguments =
+                                [
+                                    new Variant([19900u]), // serverHandles
+                                    new Variant([300u])  // clientHandles
+                                ]
+                            }
+                        ]
+                    })
+                    .Verifiable(Times.Once);
+
+                m_mockMonitoredItemServices
+                    .Setup(s => s.DeleteMonitoredItemsAsync(It.IsAny<RequestHeader>(), 2,
+                        It.Is<ArrayOf<uint>>(a => a.Count == 1 && a[0] == 19900u), It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(new DeleteMonitoredItemsResponse
+                    {
+                        ResponseHeader = new ResponseHeader
+                        {
+                            ServiceResult = StatusCodes.Good
+                        },
+                        Results = [StatusCodes.BadUnexpectedError]
+                    })
+                    .Verifiable(Times.Once);
+
+                // Act
+                bool success = await sut.TryCompleteTransferAsync([], default).ConfigureAwait(false);
+
+                // Assert
+                Assert.That(success, Is.False);
+            }
+        }
+
+        [Test]
         public async Task TryCompleteTransferAsyncShouldCallGetMonitoredItemsAsyncAndReturnFalseIfFailingAsync()
         {
             // Arrange
