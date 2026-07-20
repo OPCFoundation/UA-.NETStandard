@@ -36,12 +36,6 @@
     <EmbeddedResource Include="ComplexTypes\ServerComplexTypesTestModel.NodeSet2.xml">
       <LogicalName>Opc.Ua.Server.Tests.ComplexTypes.ServerComplexTypesTestModel.NodeSet2.xml</LogicalName>
     </EmbeddedResource>
-    <EmbeddedResource Include="SchemaRegistry\Opc.Ua.XRegistry.NodeSet2.xml">
-      <LogicalName>Opc.Ua.Server.Tests.SchemaRegistry.Opc.Ua.XRegistry.NodeSet2.xml</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="SchemaRegistry\Opc.Ua.SchemaRegistry.NodeSet2.xml">
-      <LogicalName>Opc.Ua.Server.Tests.SchemaRegistry.Opc.Ua.SchemaRegistry.NodeSet2.xml</LogicalName>
-    </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
     <None Update="test-memorybuffer-config.xml">

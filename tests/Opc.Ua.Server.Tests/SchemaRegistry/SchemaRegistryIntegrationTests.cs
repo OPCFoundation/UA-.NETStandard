@@ -32,8 +32,11 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Server.SchemaRegistry;
 using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
+
+#pragma warning disable UA_NETStandard_Encoders // experimental in-server Schema Registry feature under test
 
 namespace Opc.Ua.Server.Tests.SchemaRegistry
 {
@@ -432,16 +435,16 @@ namespace Opc.Ua.Server.Tests.SchemaRegistry
             ushort ns = SchemaRegistryNamespaceIndex(server);
 
             MethodState createResource = await FindMethodAsync(
-                server, SchemaRegistryRegistrationNodeManager.CreateResourceMethod, ns)
+                server, SchemaRegistryWellKnown.CreateResourceMethod, ns)
                 .ConfigureAwait(false);
             MethodState write = await FindMethodAsync(
-                server, SchemaRegistryRegistrationNodeManager.WriteMethod, ns)
+                server, SchemaRegistryWellKnown.WriteMethod, ns)
                 .ConfigureAwait(false);
             MethodState close = await FindMethodAsync(
-                server, SchemaRegistryRegistrationNodeManager.CloseMethod, ns)
+                server, SchemaRegistryWellKnown.CloseMethod, ns)
                 .ConfigureAwait(false);
 
-            var groupId = new NodeId(SchemaRegistryRegistrationNodeManager.SchemaGroupObject, ns);
+            var groupId = new NodeId(SchemaRegistryWellKnown.SchemaGroupObject, ns);
             ISystemContext ctx = server.DefaultSystemContext;
 
             // A distinct document, registered fresh (not the startup-seeded fast-path schema).
@@ -518,16 +521,16 @@ namespace Opc.Ua.Server.Tests.SchemaRegistry
             IServerInternal server = m_server.CurrentInstance;
             ushort ns = SchemaRegistryNamespaceIndex(server);
             ISystemContext ctx = server.DefaultSystemContext;
-            var groupId = new NodeId(SchemaRegistryRegistrationNodeManager.SchemaGroupObject, ns);
+            var groupId = new NodeId(SchemaRegistryWellKnown.SchemaGroupObject, ns);
 
             MethodState createResource = await FindMethodAsync(
-                server, SchemaRegistryRegistrationNodeManager.CreateResourceMethod, ns).ConfigureAwait(false);
+                server, SchemaRegistryWellKnown.CreateResourceMethod, ns).ConfigureAwait(false);
             MethodState write = await FindMethodAsync(
-                server, SchemaRegistryRegistrationNodeManager.WriteMethod, ns).ConfigureAwait(false);
+                server, SchemaRegistryWellKnown.WriteMethod, ns).ConfigureAwait(false);
             MethodState close = await FindMethodAsync(
-                server, SchemaRegistryRegistrationNodeManager.CloseMethod, ns).ConfigureAwait(false);
+                server, SchemaRegistryWellKnown.CloseMethod, ns).ConfigureAwait(false);
             MethodState delete = await FindMethodAsync(
-                server, SchemaRegistryRegistrationNodeManager.DeleteMethod, ns).ConfigureAwait(false);
+                server, SchemaRegistryWellKnown.DeleteMethod, ns).ConfigureAwait(false);
 
             // Register a fresh schema.
             byte[] document = System.Text.Encoding.UTF8.GetBytes(
@@ -579,13 +582,13 @@ namespace Opc.Ua.Server.Tests.SchemaRegistry
             ushort ns = SchemaRegistryNamespaceIndex(server);
 
             Variant externalReferenceValue = await ReadVariantAsync(
-                server, SchemaRegistryFederationNodeManager.ExternalReferenceProperty, ns)
+                server, SchemaRegistryWellKnown.FederationExternalReferenceProperty, ns)
                 .ConfigureAwait(false);
             Variant resourceUrlValue = await ReadVariantAsync(
-                server, SchemaRegistryFederationNodeManager.ResourceUrlProperty, ns)
+                server, SchemaRegistryWellKnown.FederationResourceUrlProperty, ns)
                 .ConfigureAwait(false);
             Variant schemaIdValue = await ReadVariantAsync(
-                server, SchemaRegistryFederationNodeManager.SchemaIdProperty, ns)
+                server, SchemaRegistryWellKnown.FederationSchemaIdProperty, ns)
                 .ConfigureAwait(false);
 
             externalReferenceValue.TryGetValue(out ExpandedNodeId externalReference);

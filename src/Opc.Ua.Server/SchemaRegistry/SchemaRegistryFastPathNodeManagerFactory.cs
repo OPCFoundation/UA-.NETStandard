@@ -27,18 +27,32 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Opc.Ua.Server.Tests.SchemaRegistry
+using System.Diagnostics.CodeAnalysis;
+
+namespace Opc.Ua.Server.SchemaRegistry
 {
     /// <summary>
-    /// <see cref="INodeManagerFactory"/> for the <see cref="SchemaRegistryRegistrationNodeManager"/>.
-    /// It declares the Schema Registry namespace so registration nodes (and the fast-path nodes
-    /// it creates on <c>Close</c>) live alongside the runtime-loaded companion NodeSet.
+    /// <see cref="INodeManagerFactory"/> for the <see cref="SchemaRegistryFastPathNodeManager"/>.
+    /// It declares the Schema Registry namespace so the master node manager routes Opaque SchemaId
+    /// NodeIds in that namespace to the fast-path manager (the runtime-loaded companion NodeSet
+    /// manager, registered first, owns the numeric type and instance nodes).
     /// </summary>
-    internal sealed class SchemaRegistryRegistrationNodeManagerFactory : INodeManagerFactory
+    [Experimental("UA_NETStandard_Encoders")]
+    public sealed class SchemaRegistryFastPathNodeManagerFactory : INodeManagerFactory
     {
+        private readonly SchemaRegistryOptions m_options;
+
+        /// <summary>
+        /// Initializes the factory with the Schema Registry feature options.
+        /// </summary>
+        /// <param name="options">The Schema Registry feature options.</param>
+        public SchemaRegistryFastPathNodeManagerFactory(SchemaRegistryOptions? options = null)
+        {
+            m_options = options ?? new SchemaRegistryOptions();
+        }
+
         /// <inheritdoc/>
-        public ArrayOf<string> NamespacesUris =>
-            [SchemaRegistryTestServer.SchemaRegistryNamespaceUri];
+        public ArrayOf<string> NamespacesUris => [m_options.SchemaRegistryNamespaceUri];
 
         /// <inheritdoc/>
         public INodeManager Create(
@@ -47,7 +61,7 @@ namespace Opc.Ua.Server.Tests.SchemaRegistry
         {
             // Ownership of the node manager is transferred to the server.
 #pragma warning disable CA2000 // Ownership of the node manager is transferred to the server.
-            return new SchemaRegistryRegistrationNodeManager(server, configuration);
+            return new SchemaRegistryFastPathNodeManager(server, configuration, m_options);
 #pragma warning restore CA2000
         }
     }

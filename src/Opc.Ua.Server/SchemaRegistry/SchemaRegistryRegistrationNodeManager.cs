@@ -28,44 +28,32 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 
-namespace Opc.Ua.Server.Tests.SchemaRegistry
+namespace Opc.Ua.Server.SchemaRegistry
 {
     /// <summary>
-    /// Proves the Schema Registry spec's registration lifecycle (§5.2) and auto-bootstrap
-    /// (§10.1): a writer creates a schema resource, writes the document bytes, and closes it;
-    /// on <c>Close</c> the server computes the <c>SchemaId</c> + <c>SchemaIdAlg</c> from the
-    /// document via the pluggable per-format fingerprint provider (§6.6) and <b>dynamically, at
-    /// runtime</b>, makes the document reachable by its Opaque <c>SchemaId</c> NodeId (§6.4).
+    /// Serves the Schema Registry spec's registration lifecycle (§5.2) and auto-bootstrap (§10.1):
+    /// a writer creates a schema resource, writes the document bytes, and closes it; on <c>Close</c>
+    /// the server computes the <c>SchemaId</c> + <c>SchemaIdAlg</c> from the document via the
+    /// pluggable per-format fingerprint provider (§6.6) and <b>dynamically, at runtime</b>, makes the
+    /// document reachable by its Opaque <c>SchemaId</c> NodeId (§6.4).
     /// <para>
     /// The <c>CreateResource</c>/<c>Write</c>/<c>Close</c> methods model the base xRegistry
     /// <c>SchemaGroup.CreateResource</c> + <c>SchemaFileType</c> FileType write flow. The generic
     /// FileType Open/Write/Close machinery is already exercised elsewhere in the stack (TrustList,
-    /// SoftwareUpdate), so this manager focuses on the Schema-Registry-specific de-risking: the
-    /// auto-bootstrap on close and the dynamic runtime creation of the content-addressed fast-path
-    /// node — exactly what a production server binds to its schema store.
+    /// SoftwareUpdate); this manager focuses on the Schema-Registry-specific auto-bootstrap on close
+    /// and the dynamic runtime creation of the content-addressed fast-path node — exactly what a
+    /// production server binds to its schema store.
     /// </para>
     /// </summary>
-    internal sealed class SchemaRegistryRegistrationNodeManager : CustomNodeManager2
+    [Experimental("UA_NETStandard_Encoders")]
+    public sealed class SchemaRegistryRegistrationNodeManager : CustomNodeManager2
     {
-        /// <summary>Provisional NodeId of the registration <c>SchemaGroup</c> object.</summary>
-        public const uint SchemaGroupObject = 63001;
-
-        /// <summary>Provisional NodeId of the <c>CreateResource</c> method.</summary>
-        public const uint CreateResourceMethod = 63002;
-
-        /// <summary>Provisional NodeId of the <c>Write</c> method.</summary>
-        public const uint WriteMethod = 63003;
-
-        /// <summary>Provisional NodeId of the <c>Close</c> method.</summary>
-        public const uint CloseMethod = 63004;
-
-        /// <summary>Provisional NodeId of the <c>Delete</c> method.</summary>
-        public const uint DeleteMethod = 63005;
-
         private readonly object m_gate = new();
         private readonly Dictionary<uint, List<byte>> m_buffers = [];
         private readonly Dictionary<uint, string> m_versions = [];
+        private readonly string m_namespaceUri;
         private uint m_nextHandle;
 
         /// <summary>
@@ -73,16 +61,19 @@ namespace Opc.Ua.Server.Tests.SchemaRegistry
         /// </summary>
         /// <param name="server">The server that owns the node manager.</param>
         /// <param name="configuration">The application configuration.</param>
+        /// <param name="options">The Schema Registry feature options.</param>
         public SchemaRegistryRegistrationNodeManager(
             IServerInternal server,
-            ApplicationConfiguration configuration)
-            : base(server, configuration, SchemaRegistryTestServer.SchemaRegistryNamespaceUri)
+            ApplicationConfiguration configuration,
+            SchemaRegistryOptions? options)
+            : base(server, configuration, (options ?? new SchemaRegistryOptions()).SchemaRegistryNamespaceUri)
         {
+            m_namespaceUri = (options ?? new SchemaRegistryOptions()).SchemaRegistryNamespaceUri;
         }
 
         /// <summary>
         /// Materializes the registration <c>SchemaGroup</c> and its <c>CreateResource</c>,
-        /// <c>Write</c> and <c>Close</c> methods.
+        /// <c>Write</c>, <c>Close</c> and <c>Delete</c> methods.
         /// </summary>
         /// <param name="externalReferences">External reference sink (unused).</param>
         public override void CreateAddressSpace(
@@ -90,21 +81,20 @@ namespace Opc.Ua.Server.Tests.SchemaRegistry
         {
             base.CreateAddressSpace(externalReferences);
 
-            ushort ns = (ushort)Server.NamespaceUris.GetIndex(
-                SchemaRegistryTestServer.SchemaRegistryNamespaceUri);
+            ushort ns = (ushort)Server.NamespaceUris.GetIndex(m_namespaceUri);
 
             var group = new BaseObjectState(null)
             {
-                NodeId = new NodeId(SchemaGroupObject, ns),
+                NodeId = new NodeId(SchemaRegistryWellKnown.SchemaGroupObject, ns),
                 BrowseName = new QualifiedName("SchemaGroup", ns),
                 DisplayName = new LocalizedText("SchemaGroup"),
                 TypeDefinitionId = ObjectTypeIds.BaseObjectType
             };
 
-            AddMethod(group, CreateResourceMethod, ns, "CreateResource", OnCreateResource);
-            AddMethod(group, WriteMethod, ns, "Write", OnWrite);
-            AddMethod(group, CloseMethod, ns, "Close", OnClose);
-            AddMethod(group, DeleteMethod, ns, "Delete", OnDelete);
+            AddMethod(group, SchemaRegistryWellKnown.CreateResourceMethod, ns, "CreateResource", OnCreateResource);
+            AddMethod(group, SchemaRegistryWellKnown.WriteMethod, ns, "Write", OnWrite);
+            AddMethod(group, SchemaRegistryWellKnown.CloseMethod, ns, "Close", OnClose);
+            AddMethod(group, SchemaRegistryWellKnown.DeleteMethod, ns, "Delete", OnDelete);
 
             AddPredefinedNode(SystemContext, group);
         }
@@ -138,8 +128,8 @@ namespace Opc.Ua.Server.Tests.SchemaRegistry
             ArrayOf<Variant> inputs,
             List<Variant> outputs)
         {
-            _ = inputs[0].TryGetValue(out string _); // ResourceId (unused by the prove-out)
-            _ = inputs[1].TryGetValue(out string versionId);
+            _ = inputs[0].TryGetValue(out string? _); // ResourceId (unused by the prove-out)
+            _ = inputs[1].TryGetValue(out string? versionId);
             if (string.IsNullOrEmpty(versionId))
             {
                 versionId = "1";
@@ -174,7 +164,7 @@ namespace Opc.Ua.Server.Tests.SchemaRegistry
             _ = inputs[1].TryGetValue(out ByteString data);
             lock (m_gate)
             {
-                if (!m_buffers.TryGetValue(handle, out List<byte> buffer))
+                if (!m_buffers.TryGetValue(handle, out List<byte>? buffer))
                 {
                     return StatusCodes.BadNotFound;
                 }
@@ -200,7 +190,7 @@ namespace Opc.Ua.Server.Tests.SchemaRegistry
                 return StatusCodes.BadInvalidArgument;
             }
 
-            if (!inputs[1].TryGetValue(out string format) || string.IsNullOrEmpty(format))
+            if (!inputs[1].TryGetValue(out string? format) || string.IsNullOrEmpty(format))
             {
                 format = "avro";
             }
@@ -208,7 +198,7 @@ namespace Opc.Ua.Server.Tests.SchemaRegistry
             byte[] document;
             lock (m_gate)
             {
-                if (!m_buffers.TryGetValue(handle, out List<byte> buffer))
+                if (!m_buffers.TryGetValue(handle, out List<byte>? buffer))
                 {
                     return StatusCodes.BadNotFound;
                 }
@@ -222,12 +212,11 @@ namespace Opc.Ua.Server.Tests.SchemaRegistry
             string algorithm;
 #pragma warning disable UA_NETStandard_Encoders // pluggable per-format fingerprint provider (§6.6)
             schemaId = SchemaIdProviders.ComputeSchemaId(format, document);
-            algorithm = SchemaIdProviders.AlgorithmFor(format);
+            algorithm = SchemaIdProviders.AlgorithmFor(format)!;
 #pragma warning restore UA_NETStandard_Encoders
 
             // Make the document reachable by its Opaque SchemaId NodeId (§6.4), created at runtime.
-            ushort ns = (ushort)Server.NamespaceUris.GetIndex(
-                SchemaRegistryTestServer.SchemaRegistryNamespaceUri);
+            ushort ns = (ushort)Server.NamespaceUris.GetIndex(m_namespaceUri);
             var schemaIdBytes = ByteString.From(schemaId);
             var fastPathNodeId = new NodeId(schemaIdBytes, ns);
 
@@ -271,8 +260,7 @@ namespace Opc.Ua.Server.Tests.SchemaRegistry
                 return StatusCodes.BadInvalidArgument;
             }
 
-            ushort ns = (ushort)Server.NamespaceUris.GetIndex(
-                SchemaRegistryTestServer.SchemaRegistryNamespaceUri);
+            ushort ns = (ushort)Server.NamespaceUris.GetIndex(m_namespaceUri);
 
             bool removed = DeleteNode(SystemContext, new NodeId(schemaId, ns));
             return removed ? ServiceResult.Good : StatusCodes.BadNotFound;

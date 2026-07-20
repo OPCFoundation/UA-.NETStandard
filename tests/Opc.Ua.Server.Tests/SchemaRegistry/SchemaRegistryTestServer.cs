@@ -27,96 +27,66 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.IO;
-using System.Threading.Tasks;
 using Opc.Ua.Server.RuntimeNodeSet;
+using Opc.Ua.Server.SchemaRegistry;
 using Quickstarts.ReferenceServer;
+
+#pragma warning disable UA_NETStandard_Encoders // experimental in-server Schema Registry feature under test
 
 namespace Opc.Ua.Server.Tests.SchemaRegistry
 {
     /// <summary>
-    /// A <see cref="ReferenceServer"/> that loads the experimental abstract xRegistry base
-    /// companion NodeSet and the Schema Registry companion NodeSet through the
-    /// <see cref="RuntimeNodeSetNodeManagerFactory"/> import path. This proves the in-server
-    /// Schema Registry AddressSpace model (the <c>SchemaRegistryType</c> and its
-    /// well-known <c>SchemaRegistry</c> object attached to the Server object) materializes
-    /// in a real server exactly as the generated companion NodeSets describe.
+    /// A <see cref="ReferenceServer"/> that enables the optional in-server Schema Registry feature
+    /// shipped in <c>Opc.Ua.Server</c>. It loads the experimental abstract xRegistry base companion
+    /// NodeSet and the Schema Registry companion NodeSet through the
+    /// <see cref="RuntimeNodeSetNodeManagerFactory"/> import path and attaches the fast-path,
+    /// registration and federation node managers. This proves the in-server Schema Registry
+    /// AddressSpace model (the <c>SchemaRegistryType</c> and its well-known <c>SchemaRegistry</c>
+    /// object attached to the Server object) materializes in a real server exactly as the generated
+    /// companion NodeSets describe.
     /// </summary>
     internal sealed class SchemaRegistryTestServer : ReferenceServer
     {
-        /// <summary>
-        /// The abstract xRegistry base companion namespace URI.
-        /// </summary>
-        public const string XRegistryNamespaceUri = "http://opcfoundation.org/UA/xRegistry/";
+        /// <summary>The abstract xRegistry base companion namespace URI.</summary>
+        public const string XRegistryNamespaceUri = SchemaRegistryWellKnown.XRegistryNamespaceUri;
 
-        /// <summary>
-        /// The Schema Registry companion namespace URI.
-        /// </summary>
-        public const string SchemaRegistryNamespaceUri = "http://opcfoundation.org/UA/SchemaRegistry/";
+        /// <summary>The Schema Registry companion namespace URI.</summary>
+        public const string SchemaRegistryNamespaceUri =
+            SchemaRegistryWellKnown.SchemaRegistryNamespaceUri;
 
-        /// <summary>
-        /// Provisional NodeId of the <c>SchemaRegistryType</c> ObjectType.
-        /// </summary>
-        public const uint SchemaRegistryType = 62000;
+        /// <summary>Provisional NodeId of the <c>SchemaRegistryType</c> ObjectType.</summary>
+        public const uint SchemaRegistryType = SchemaRegistryWellKnown.SchemaRegistryType;
 
-        /// <summary>
-        /// Provisional NodeId of the well-known <c>SchemaRegistry</c> object.
-        /// </summary>
-        public const uint SchemaRegistryObject = 62100;
+        /// <summary>Provisional NodeId of the well-known <c>SchemaRegistry</c> object.</summary>
+        public const uint SchemaRegistryObject = SchemaRegistryWellKnown.SchemaRegistryObject;
 
         /// <summary>
         /// Provisional NodeId of the <c>GetSchema</c> method materialized on the well-known
         /// <c>SchemaRegistry</c> object.
         /// </summary>
-        public const uint SchemaRegistryGetSchemaMethod = 62516;
-
-        private const string kXRegistryResource =
-            "Opc.Ua.Server.Tests.SchemaRegistry.Opc.Ua.XRegistry.NodeSet2.xml";
-        private const string kSchemaRegistryResource =
-            "Opc.Ua.Server.Tests.SchemaRegistry.Opc.Ua.SchemaRegistry.NodeSet2.xml";
+        public const uint SchemaRegistryGetSchemaMethod =
+            SchemaRegistryWellKnown.SchemaRegistryGetSchemaMethod;
 
         /// <summary>
         /// Initializes the server and registers the runtime NodeSet factory that loads the
-        /// xRegistry base and Schema Registry companion NodeSets in dependency order.
+        /// xRegistry base and Schema Registry companion NodeSets in dependency order, plus the
+        /// Schema Registry node managers.
         /// </summary>
         /// <param name="telemetry">Telemetry context forwarded to the base server.</param>
         public SchemaRegistryTestServer(ITelemetryContext telemetry)
             : base(telemetry)
         {
-            var options = new RuntimeNodeSetOptions
+            var options = new SchemaRegistryOptions();
+
+            var nodeSetOptions = new RuntimeNodeSetOptions
             {
-                Sources =
-                [
-                    RuntimeNodeSetSource.FromStream(
-                        "xRegistry",
-                        _ => new ValueTask<Stream>(OpenResource(kXRegistryResource)),
-                        [XRegistryNamespaceUri]),
-                    RuntimeNodeSetSource.FromStream(
-                        "SchemaRegistry",
-                        _ => new ValueTask<Stream>(OpenResource(kSchemaRegistryResource)),
-                        [SchemaRegistryNamespaceUri]),
-                ]
+                Sources = SchemaRegistryNodeSets.CreateSources(options)
             };
 
-            AddNodeManager(new RuntimeNodeSetNodeManagerFactory(options));
-            AddNodeManager(new SchemaRegistryFastPathNodeManagerFactory());
-            AddNodeManager(new SchemaRegistryRegistrationNodeManagerFactory());
-            AddNodeManager(new SchemaRegistryFederationNodeManagerFactory());
-        }
-
-        private static Stream OpenResource(string name)
-        {
-            Stream stream = typeof(SchemaRegistryTestServer).Assembly
-                .GetManifestResourceStream(name);
-
-            if (stream is null)
-            {
-                throw new InvalidOperationException(
-                    $"Embedded resource '{name}' was not found.");
-            }
-
-            return stream;
+            AddNodeManager(new RuntimeNodeSetNodeManagerFactory(nodeSetOptions));
+            AddNodeManager(new SchemaRegistryFastPathNodeManagerFactory(options));
+            AddNodeManager(new SchemaRegistryRegistrationNodeManagerFactory(options));
+            AddNodeManager(new SchemaRegistryFederationNodeManagerFactory(options));
         }
     }
 }

@@ -28,23 +28,26 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 
-namespace Opc.Ua.Server.Tests.SchemaRegistry
+namespace Opc.Ua.Server.SchemaRegistry
 {
     /// <summary>
-    /// Proves the Schema Registry spec's Opaque <c>SchemaId</c>-NodeId fast path (§6.4): a
-    /// registered schema document is additionally addressable by an Opaque NodeId in the
-    /// Schema Registry namespace whose Identifier is the raw on-wire SchemaId bytes, and a
-    /// single <c>Read</c> of that node's Value Attribute returns the schema document — no
-    /// Browse and no fingerprint recomputation. This node manager shares the Schema Registry
-    /// namespace with the runtime-loaded companion NodeSet (the numeric type/instance nodes are
-    /// served there; the Opaque content-addressed fast-path nodes are served here), exactly as a
-    /// production server would bind the Opaque-SchemaId-NodeId resolution to its schema store.
+    /// Serves the Schema Registry spec's Opaque <c>SchemaId</c>-NodeId fast path (§6.4): a
+    /// registered schema document is addressable by an Opaque NodeId in the Schema Registry
+    /// namespace whose Identifier is the raw on-wire SchemaId bytes, and a single <c>Read</c> of
+    /// that node's Value Attribute returns the schema document — no Browse and no fingerprint
+    /// recomputation. This node manager shares the Schema Registry namespace with the runtime-loaded
+    /// companion NodeSet (the numeric type/instance nodes are served there; the Opaque
+    /// content-addressed fast-path nodes are served here), exactly as a production server binds the
+    /// Opaque-SchemaId-NodeId resolution to its schema store.
     /// </summary>
-    internal sealed class SchemaRegistryFastPathNodeManager : CustomNodeManager2
+    [Experimental("UA_NETStandard_Encoders")]
+    public sealed class SchemaRegistryFastPathNodeManager : CustomNodeManager2
     {
         /// <summary>
-        /// The schema document addressed by <see cref="KnownSchemaId"/>.
+        /// The schema document addressed by <see cref="KnownSchemaId"/> when
+        /// <see cref="SchemaRegistryOptions.PublishSeedSchema"/> is enabled.
         /// </summary>
         public static readonly ByteString KnownDocument = ByteString.From(
             System.Text.Encoding.UTF8.GetBytes(
@@ -56,12 +59,12 @@ namespace Opc.Ua.Server.Tests.SchemaRegistry
         public const string KnownFormat = "avro";
 
         /// <summary>
-        /// The raw on-wire SchemaId bytes of the one registered schema. Auto-bootstrapped
-        /// (§10.1) from <see cref="KnownDocument"/> by the pluggable per-format fingerprint
-        /// provider (§6.6), exactly as a server computes it on registration; the Opaque
-        /// fast-path NodeId (§6.4) is built from these very bytes, so the registration-side
-        /// computation and the resolution-side address are one and the same. A consumer builds
-        /// the Opaque fast-path NodeId directly from these bytes.
+        /// The raw on-wire SchemaId bytes of the seed schema. Auto-bootstrapped (§10.1) from
+        /// <see cref="KnownDocument"/> by the pluggable per-format fingerprint provider (§6.6),
+        /// exactly as a server computes it on registration; the Opaque fast-path NodeId (§6.4) is
+        /// built from these very bytes, so the registration-side computation and the
+        /// resolution-side address are one and the same. A consumer builds the Opaque fast-path
+        /// NodeId directly from these bytes.
         /// </summary>
         public static readonly ByteString KnownSchemaId = ComputeSchemaId(KnownDocument);
 
@@ -70,16 +73,24 @@ namespace Opc.Ua.Server.Tests.SchemaRegistry
         /// </summary>
         public static readonly string KnownSchemaIdAlg = ProviderAlgorithm();
 
+        private readonly bool m_publishSeed;
+        private readonly string m_namespaceUri;
+
         /// <summary>
         /// Initializes the fast-path node manager for the Schema Registry namespace.
         /// </summary>
         /// <param name="server">The server that owns the node manager.</param>
         /// <param name="configuration">The application configuration.</param>
+        /// <param name="options">The Schema Registry feature options.</param>
         public SchemaRegistryFastPathNodeManager(
             IServerInternal server,
-            ApplicationConfiguration configuration)
-            : base(server, configuration, SchemaRegistryTestServer.SchemaRegistryNamespaceUri)
+            ApplicationConfiguration configuration,
+            SchemaRegistryOptions? options)
+            : base(server, configuration, (options ?? new SchemaRegistryOptions()).SchemaRegistryNamespaceUri)
         {
+            SchemaRegistryOptions opts = options ?? new SchemaRegistryOptions();
+            m_publishSeed = opts.PublishSeedSchema;
+            m_namespaceUri = opts.SchemaRegistryNamespaceUri;
         }
 
         /// <summary>
@@ -93,8 +104,12 @@ namespace Opc.Ua.Server.Tests.SchemaRegistry
         {
             base.CreateAddressSpace(externalReferences);
 
-            ushort ns = (ushort)Server.NamespaceUris.GetIndex(
-                SchemaRegistryTestServer.SchemaRegistryNamespaceUri);
+            if (!m_publishSeed)
+            {
+                return;
+            }
+
+            ushort ns = (ushort)Server.NamespaceUris.GetIndex(m_namespaceUri);
 
             var schema = new BaseDataVariableState(null)
             {
@@ -125,7 +140,7 @@ namespace Opc.Ua.Server.Tests.SchemaRegistry
         private static string ProviderAlgorithm()
         {
 #pragma warning disable UA_NETStandard_Encoders // pluggable per-format fingerprint provider (§6.6)
-            return SchemaIdProviders.AlgorithmFor(KnownFormat);
+            return SchemaIdProviders.AlgorithmFor(KnownFormat)!;
 #pragma warning restore UA_NETStandard_Encoders
         }
     }
