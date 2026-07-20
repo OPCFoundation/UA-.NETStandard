@@ -74,6 +74,9 @@ namespace Opc.Ua.SourceGeneration
             IncrementalValueProvider<ImmutableArray<ModelDependencyReference>> referencedModels =
                 context.CompilationProvider
                     .Select((c, _) => ReferencedModelDependencyScanner.Scan(c));
+            IncrementalValueProvider<ImmutableHashSet<string>> stateTypeIndex =
+                context.CompilationProvider
+                    .Select((c, _) => OpcUaStateTypeIndex.Build(c));
 
             IncrementalValueProvider<ImmutableArray<NodeManagerAttributeDiscovery>> nodeManagerBindings =
                 context.SyntaxProvider.ForAttributeWithMetadataName(
@@ -89,10 +92,12 @@ namespace Opc.Ua.SourceGeneration
                     .Combine(options)
                     .Combine(settings)
                     .Combine(referencedModels)
-                    .Combine(nodeManagerBindings),
+                    .Combine(nodeManagerBindings)
+                    .Combine(stateTypeIndex),
                 (context, combination) => new ModelCompilation(
                     context,
-                    combination.Left.Left.Left.Left.Left,
+                    combination.Left.Left.Left.Left.Left.Left,
+                    combination.Left.Left.Left.Left.Left.Right,
                     combination.Left.Left.Left.Left.Right,
                     combination.Left.Left.Left.Right,
                     combination.Left.Left.Right,
