@@ -98,7 +98,10 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             var host = new ReverseConnectHost(m_telemetry);
 
             Assert.That(
-                () => host.CreateListener(null!, null!, null!),
+                () => host.CreateListener(
+                    null!,
+                    IgnoreConnectionWaitingAsync,
+                    IgnoreConnectionStatusChanged),
                 Throws.TypeOf<ArgumentNullException>()
                     .With.Property("ParamName").EqualTo("url"));
         }
@@ -113,8 +116,8 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => host.CreateListener(
                     new Uri("opc.nonexistent://localhost:4840"),
-                    null!,
-                    null!))!;
+                    IgnoreConnectionWaitingAsync,
+                    IgnoreConnectionStatusChanged))!;
 
             Assert.That(ex.StatusCode,
                 Is.EqualTo((uint)StatusCodes.BadProtocolVersionUnsupported));
@@ -127,7 +130,10 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             var host = new ReverseConnectHost(m_telemetry, registry);
             var url = new Uri("opc.tcp://localhost:4840");
 
-            host.CreateListener(url, null!, null!);
+            host.CreateListener(
+                url,
+                IgnoreConnectionWaitingAsync,
+                IgnoreConnectionStatusChanged);
 
             Assert.That(host.Url, Is.EqualTo(url));
 
@@ -161,7 +167,10 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             var registry = DefaultTransportBindingRegistry.WithDefaultTcp();
             var host = new ReverseConnectHost(m_telemetry, registry);
 
-            host.CreateListener(new Uri("opc.tcp://localhost:4840"), null!, null!);
+            host.CreateListener(
+                new Uri("opc.tcp://localhost:4840"),
+                IgnoreConnectionWaitingAsync,
+                IgnoreConnectionStatusChanged);
 
             // First close: wires down the listener.
             Assert.That(async () => await host.CloseAsync().ConfigureAwait(false), Throws.Nothing);
@@ -179,7 +188,12 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             var url = new Uri("opc.tcp://localhost:4840");
 
             // 5-argument overload with null TLS params (valid for plain TCP).
-            host.CreateListener(url, null!, null!, serverCertificates: null, certificateValidator: null);
+            host.CreateListener(
+                url,
+                IgnoreConnectionWaitingAsync,
+                IgnoreConnectionStatusChanged,
+                serverCertificates: null,
+                certificateValidator: null);
 
             Assert.That(host.Url, Is.EqualTo(url));
 
@@ -196,8 +210,8 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             Assert.That(
                 () => host.CreateListener(
                     new Uri("opc.tcp://localhost:4840"),
-                    null!,
-                    null!),
+                    IgnoreConnectionWaitingAsync,
+                    IgnoreConnectionStatusChanged),
                 Throws.Nothing);
 
             await host.CloseAsync().ConfigureAwait(false);
@@ -219,7 +233,10 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 .Setup(r => r.CreateListener("opc.test", m_telemetry))
                 .Returns(listener.Object);
             var host = new ReverseConnectHost(m_telemetry, registry.Object);
-            host.CreateListener(new Uri("opc.test://localhost:4840"), null!, null!);
+            host.CreateListener(
+                new Uri("opc.test://localhost:4840"),
+                IgnoreConnectionWaitingAsync,
+                IgnoreConnectionStatusChanged);
 
             InvalidOperationException exception = Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await host.CloseAsync().ConfigureAwait(false))!;
@@ -243,7 +260,10 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 .Setup(r => r.CreateListener("opc.test", m_telemetry))
                 .Returns(listener.Object);
             var host = new ReverseConnectHost(m_telemetry, registry.Object);
-            host.CreateListener(new Uri("opc.test://localhost:4840"), null!, null!);
+            host.CreateListener(
+                new Uri("opc.test://localhost:4840"),
+                IgnoreConnectionWaitingAsync,
+                IgnoreConnectionStatusChanged);
 
             Assert.That(
                 async () => await host.CloseAsync(cts.Token).ConfigureAwait(false),
@@ -282,7 +302,10 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 .Setup(r => r.CreateListener("opc.test", m_telemetry))
                 .Returns(listener.Object);
             var host = new ReverseConnectHost(m_telemetry, registry.Object);
-            host.CreateListener(new Uri("opc.test://localhost:4840"), null!, null!);
+            host.CreateListener(
+                new Uri("opc.test://localhost:4840"),
+                IgnoreConnectionWaitingAsync,
+                IgnoreConnectionStatusChanged);
 
             await host.DisposeAsync().ConfigureAwait(false);
 
@@ -305,7 +328,10 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 .Setup(r => r.CreateListener("opc.test", m_telemetry))
                 .Returns(listener.Object);
             var host = new ReverseConnectHost(m_telemetry, registry.Object);
-            host.CreateListener(new Uri("opc.test://localhost:4840"), null!, null!);
+            host.CreateListener(
+                new Uri("opc.test://localhost:4840"),
+                IgnoreConnectionWaitingAsync,
+                IgnoreConnectionStatusChanged);
 
             await host.DisposeAsync().ConfigureAwait(false);
             await host.DisposeAsync().ConfigureAwait(false);
@@ -331,7 +357,10 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 .Setup(r => r.CreateListener("opc.test", m_telemetry))
                 .Returns(listener.Object);
             var host = new ReverseConnectHost(m_telemetry, registry.Object);
-            host.CreateListener(new Uri("opc.test://localhost:4840"), null!, null!);
+            host.CreateListener(
+                new Uri("opc.test://localhost:4840"),
+                IgnoreConnectionWaitingAsync,
+                IgnoreConnectionStatusChanged);
 
             // A close failure during disposal must be swallowed and the
             // listener disposed regardless.
@@ -356,7 +385,10 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 .Setup(r => r.CreateListener("opc.test", m_telemetry))
                 .Returns(listener.Object);
             var host = new ReverseConnectHost(m_telemetry, registry.Object);
-            host.CreateListener(new Uri("opc.test://localhost:4840"), null!, null!);
+            host.CreateListener(
+                new Uri("opc.test://localhost:4840"),
+                IgnoreConnectionWaitingAsync,
+                IgnoreConnectionStatusChanged);
 
             // Fan out many concurrent DisposeAsync calls that all start
             // together. Ownership of the listener is claimed atomically
@@ -405,7 +437,10 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 .Setup(r => r.CreateListener("opc.test", m_telemetry))
                 .Returns(listener.Object);
             var host = new ReverseConnectHost(m_telemetry, registry.Object);
-            host.CreateListener(new Uri("opc.test://localhost:4840"), null!, null!);
+            host.CreateListener(
+                new Uri("opc.test://localhost:4840"),
+                IgnoreConnectionWaitingAsync,
+                IgnoreConnectionStatusChanged);
 
             // An open blocks inside the listener while holding the gate.
             Task open = host.OpenAsync().AsTask();
@@ -414,7 +449,6 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             // Dispose must queue behind the in-flight open: it may not null or
             // dispose the listener while the open is still resuming.
             Task dispose = host.DisposeAsync().AsTask();
-            await Task.Delay(50).ConfigureAwait(false);
             Assert.That(
                 dispose.IsCompleted,
                 Is.False,
@@ -463,7 +497,10 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 .Setup(r => r.CreateListener("opc.test", m_telemetry))
                 .Returns(listener.Object);
             var host = new ReverseConnectHost(m_telemetry, registry.Object);
-            host.CreateListener(new Uri("opc.test://localhost:4840"), null!, null!);
+            host.CreateListener(
+                new Uri("opc.test://localhost:4840"),
+                IgnoreConnectionWaitingAsync,
+                IgnoreConnectionStatusChanged);
 
             // An open blocks inside the listener while holding the gate.
             Task open = host.OpenAsync().AsTask();
@@ -474,7 +511,6 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             // touch the listener) while the open is still resuming.
             Task dispose1 = host.DisposeAsync().AsTask();
             Task dispose2 = host.DisposeAsync().AsTask();
-            await Task.Delay(50).ConfigureAwait(false);
             Assert.That(
                 dispose1.IsCompleted,
                 Is.False,
@@ -523,7 +559,10 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 .Setup(r => r.CreateListener("opc.test", m_telemetry))
                 .Returns(listener.Object);
             var host = new ReverseConnectHost(m_telemetry, registry.Object);
-            host.CreateListener(new Uri("opc.test://localhost:4840"), null!, null!);
+            host.CreateListener(
+                new Uri("opc.test://localhost:4840"),
+                IgnoreConnectionWaitingAsync,
+                IgnoreConnectionStatusChanged);
 
             Task open = host.OpenAsync().AsTask();
             await openEntered.Task.ConfigureAwait(false);
@@ -531,7 +570,6 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             // Close must queue behind the in-flight open rather than racing it,
             // so no concurrent double close can occur.
             Task close = host.CloseAsync().AsTask();
-            await Task.Delay(50).ConfigureAwait(false);
             Assert.That(
                 close.IsCompleted,
                 Is.False,
@@ -571,7 +609,10 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             // CreateListener must reject after disposal and never create a
             // listener that would then be leaked.
             Assert.Throws<ObjectDisposedException>(
-                () => host.CreateListener(new Uri("opc.test://localhost:4840"), null!, null!));
+                () => host.CreateListener(
+                    new Uri("opc.test://localhost:4840"),
+                    IgnoreConnectionWaitingAsync,
+                    IgnoreConnectionStatusChanged));
             registry.Verify(
                 r => r.CreateListener("opc.test", m_telemetry),
                 Times.Never);
@@ -606,13 +647,15 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             var host = new ReverseConnectHost(m_telemetry, registry.Object);
 
             Task create = Task.Run(
-                () => host.CreateListener(new Uri("opc.test://localhost:4840"), null!, null!));
+                () => host.CreateListener(
+                    new Uri("opc.test://localhost:4840"),
+                    IgnoreConnectionWaitingAsync,
+                    IgnoreConnectionStatusChanged));
             await createEntered.Task.ConfigureAwait(false);
 
             // DisposeAsync claims disposal (sets the disposed flag) then queues
             // behind the in-flight CreateListener on the shared lifecycle gate.
             Task dispose = host.DisposeAsync().AsTask();
-            await Task.Delay(50).ConfigureAwait(false);
             Assert.That(
                 dispose.IsCompleted,
                 Is.False,
@@ -629,6 +672,19 @@ namespace Opc.Ua.Core.Tests.Stack.Client
 
             listener.Verify(l => l.DisposeAsync(), Times.Once);
             Assert.That(host.HasListener, Is.False);
+        }
+
+        private static Task IgnoreConnectionWaitingAsync(
+            object sender,
+            ConnectionWaitingEventArgs args)
+        {
+            return Task.CompletedTask;
+        }
+
+        private static void IgnoreConnectionStatusChanged(
+            object? sender,
+            ConnectionStatusEventArgs args)
+        {
         }
     }
 }

@@ -125,7 +125,7 @@ Custom subclasses that previously overrode `OnUpdateConfiguration` should migrat
 services.AddSingleton<IReverseConnectConfigurationProvider, MyProvider>();
 ```
 
-The protected `OnUpdateConfiguration` hooks remain `[Obsolete]` for compatibility and are invoked outside the lifecycle gate. Existing overrides can continue to mutate or reject a candidate while they migrate to the provider model.
+The protected `OnUpdateConfiguration` hooks were removed. Move validation or transformation logic from those overrides into an `IReverseConnectConfigurationProvider`.
 
 ### Dependency-injection startup
 

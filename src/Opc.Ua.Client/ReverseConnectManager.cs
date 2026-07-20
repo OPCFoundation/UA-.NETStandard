@@ -224,37 +224,6 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Operation-local, AsyncLocal capture context used by the legacy
-        /// <see cref="OnUpdateConfiguration(ReverseConnectClientConfiguration)"/>
-        /// adapter. The context is stacked so nested app/rcc callbacks and
-        /// concurrent lifecycle operations never observe each other's
-        /// candidate. A subclass override that calls <c>base</c> captures the
-        /// candidate; an override that omits <c>base</c> falls back to the
-        /// seed candidate (which the override may have mutated in place) so
-        /// endpoint replacement/customization keeps working. Suppression is
-        /// only possible explicitly through the configuration provider.
-        /// </summary>
-        private sealed class LegacyCaptureContext
-        {
-            public LegacyCaptureContext(ReverseConnectClientConfiguration seed)
-            {
-                Seed = seed;
-            }
-
-            public ReverseConnectClientConfiguration Seed { get; }
-
-            public bool Captured { get; private set; }
-
-            public ReverseConnectClientConfiguration? Configuration { get; private set; }
-
-            public void Capture(ReverseConnectClientConfiguration configuration)
-            {
-                Captured = true;
-                Configuration = configuration;
-            }
-        }
-
-        /// <summary>
         /// Manager-owned marker for an in-flight activation transaction.
         /// Published before any awaited close/open in
         /// <see cref="ActivateAsync"/> so a concurrent
@@ -534,8 +503,8 @@ namespace Opc.Ua.Client
             ThrowIfInvokedFromConnectionCallback(disposing: true);
 
             // A synchronous dispose re-entered from within this manager's own
-            // in-flight startup flow (a configuration provider/factory or legacy
-            // update hook) must never block on the shared teardown: the teardown
+            // in-flight startup flow (a configuration provider or factory) must
+            // never block on the shared teardown: the teardown
             // drains this very start task, and blocking the start on it would
             // deadlock. Request/schedule the dispose without waiting for it here
             // (it completes once the start unwinds) and fail fast instead. Only
@@ -547,8 +516,7 @@ namespace Opc.Ua.Client
                 _ = GetOrStartDisposeTask(out _);
                 throw new InvalidOperationException(
                     "The reverse connect manager cannot be disposed from within " +
-                    "its own startup flow (configuration provider/factory or " +
-                    "update hook).");
+                    "its own startup flow (configuration provider or factory).");
             }
 
             // Isolated sync-over-async bridge for the obsolete IDisposable
@@ -595,8 +563,8 @@ namespace Opc.Ua.Client
             if (reentrantFromStartup)
             {
                 // A DisposeAsync re-entered from within this manager's own
-                // in-flight startup flow (a configuration provider/factory or
-                // legacy update hook) must not await the shared teardown: the
+                // in-flight startup flow (a configuration provider or factory)
+                // must not await the shared teardown: the
                 // teardown drains this very start task, so awaiting it here
                 // would deadlock. The dispose has already been requested and
                 // scheduled above (state is Disposing, the shutdown latch is
@@ -604,8 +572,7 @@ namespace Opc.Ua.Client
                 // once the current start unwinds. Fail fast rather than block.
                 throw new InvalidOperationException(
                     "The reverse connect manager cannot be disposed from within " +
-                    "its own startup flow (configuration provider/factory or " +
-                    "update hook).");
+                    "its own startup flow (configuration provider or factory).");
             }
             await task.ConfigureAwait(false);
             GC.SuppressFinalize(this);
@@ -692,59 +659,6 @@ namespace Opc.Ua.Client
                     e,
                     args.FilePath);
             }
-        }
-
-        /// <summary>
-        /// Legacy hook invoked outside the async lifecycle gate to adapt an
-        /// application-configuration candidate.
-        /// </summary>
-        /// <remarks>
-        /// Retained for backward compatibility. The base implementation
-        /// forwards the reverse-connect section to the
-        /// <see cref="ReverseConnectClientConfiguration"/> hook as the
-        /// candidate the async lifecycle activates. This hook is intentionally
-        /// side-effect free: candidate application-configuration, certificate
-        /// and type metadata stay operation-local until a successful
-        /// activation, so an override must never rely on instance state being
-        /// mutated here.
-        /// </remarks>
-        /// <param name="configuration">The configuration.</param>
-        [Obsolete("Reverse connect configuration is applied through the async lifecycle. " +
-            "Override to mutate/validate/reject the candidate; call base to accept it.")]
-        protected virtual void OnUpdateConfiguration(ApplicationConfiguration configuration)
-        {
-#pragma warning disable CS0618 // internal call into the obsolete legacy adapter
-            OnUpdateConfiguration(
-                configuration.ClientConfiguration?.ReverseConnect
-                ?? new ReverseConnectClientConfiguration());
-#pragma warning restore CS0618
-        }
-
-        /// <summary>
-        /// Legacy hook invoked outside the async lifecycle gate to adapt a
-        /// reverse-connect candidate configuration.
-        /// </summary>
-        /// <remarks>
-        /// Retained for backward compatibility. The base implementation
-        /// captures <paramref name="configuration"/> as the candidate. A
-        /// subclass override may mutate or replace the candidate (in place or
-        /// by passing a new instance to <c>base</c>), or validate it and throw
-        /// to reject the update. Omitting the <c>base</c> call no longer
-        /// suppresses the update: the (possibly mutated) candidate is still
-        /// activated so endpoint replacement/customization keeps working.
-        /// Explicit suppression is only available through the
-        /// <see cref="ConfigurationProvider"/>, which may return an empty
-        /// configuration.
-        /// </remarks>
-        /// <param name="configuration">The client endpoint configuration.</param>
-        [Obsolete("Reverse connect configuration is applied through the async lifecycle. " +
-            "Override to mutate/replace/validate the candidate; call base to accept it. " +
-            "Omitting base no longer suppresses startup; suppress via the ConfigurationProvider.")]
-        protected virtual void OnUpdateConfiguration(
-            ReverseConnectClientConfiguration configuration)
-        {
-            m_legacyCapture.Value?.Capture(
-                configuration ?? new ReverseConnectClientConfiguration());
         }
 
         /// <summary>
@@ -1040,11 +954,10 @@ namespace Opc.Ua.Client
             ThrowIfDisposed();
 
             // Reject a re-entrant start triggered from within this manager's own
-            // in-flight startup pipeline (a configuration provider or legacy
-            // OnUpdateConfiguration hook that calls back into
-            // EnsureStartedAsync/RegisterWaitingConnectionAsync during
-            // preparation). The operation-owner marker is set only around this
-            // manager's preparation/provider callbacks, so a nested unrelated
+            // in-flight startup pipeline (a configuration provider or factory
+            // that calls back into EnsureStartedAsync/RegisterWaitingConnectionAsync
+            // during preparation). The operation-owner marker is set only around
+            // this manager's preparation/provider callbacks, so a nested unrelated
             // manager instance (whose own AsyncLocal marker is unset) still
             // starts normally. Failing fast here avoids awaiting this start's
             // own shared m_startTask, which would deadlock. Only an active scope
@@ -1056,7 +969,7 @@ namespace Opc.Ua.Client
                 throw new ServiceResultException(
                     StatusCodes.BadInvalidState,
                     "The reverse connect manager startup cannot be re-entered " +
-                    "from a configuration provider or update hook.");
+                    "from a configuration provider or factory.");
             }
 
             // Retry the lazy first-use decision after awaiting an in-flight
@@ -2946,8 +2859,8 @@ namespace Opc.Ua.Client
 
         /// <summary>
         /// Prepares a candidate configuration outside the lifecycle gate.
-        /// Runs the legacy adaptation hooks, then the async provider, then
-        /// creates the (unbound) candidate hosts. All application-config,
+        /// Runs the async provider, then creates the (unbound) candidate hosts.
+        /// All application-config,
         /// certificate and type metadata is kept operation-local in the
         /// returned <see cref="PreparedConfiguration"/> and is never promoted
         /// to instance state here.
@@ -2962,7 +2875,7 @@ namespace Opc.Ua.Client
         {
             // Seed candidate: for an application configuration this is its
             // reverse-connect section; for a bare configuration it is the
-            // supplied instance. The legacy hook may mutate/replace it.
+            // supplied instance.
             ReverseConnectClientConfiguration seed = appConfig != null
                 ? (appConfig.ClientConfiguration?.ReverseConnect
                     ?? new ReverseConnectClientConfiguration())
@@ -2985,38 +2898,10 @@ namespace Opc.Ua.Client
                 sourceFileLastWriteUtc = fileInfo.LastWriteTimeUtc;
             }
 
-            var context = new LegacyCaptureContext(seed);
-            LegacyCaptureContext? previous = m_legacyCapture.Value;
-            m_legacyCapture.Value = context;
-            try
-            {
-#pragma warning disable CS0618 // legacy adaptation hooks are intentionally invoked
-                if (appConfig != null)
-                {
-                    OnUpdateConfiguration(appConfig);
-                }
-                else
-                {
-                    OnUpdateConfiguration(rccConfig ?? new ReverseConnectClientConfiguration());
-                }
-#pragma warning restore CS0618
-            }
-            finally
-            {
-                m_legacyCapture.Value = previous;
-            }
-
-            // Omitting the base call no longer suppresses the update: fall back
-            // to the seed (which an override may have mutated in place) so
-            // endpoint replacement/customization keeps working.
-            ReverseConnectClientConfiguration adapted = context.Captured
-                ? (context.Configuration ?? seed)
-                : seed;
-
             IReverseConnectConfigurationProvider provider =
                 ConfigurationProvider ?? DefaultReverseConnectConfigurationProvider.Instance;
             ReverseConnectClientConfiguration effective =
-                await provider.ConfigureAsync(appConfig, adapted, ct).ConfigureAwait(false)
+                await provider.ConfigureAsync(appConfig, seed, ct).ConfigureAwait(false)
                 ?? new ReverseConnectClientConfiguration();
 
             // Operation-local application/type metadata snapshot.
@@ -4321,8 +4206,8 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="reentrantFromStartup">
         /// Set to <c>true</c> when the caller is running inside this manager's
-        /// own in-flight startup flow (a configuration provider/factory or
-        /// legacy update hook). The caller must NOT await the returned task in
+        /// own in-flight startup flow (a configuration provider or factory).
+        /// The caller must NOT await the returned task in
         /// that case: the teardown drains the current start task, so awaiting
         /// it from the start's own flow would deadlock. The dispose is still
         /// requested and scheduled here; it completes once the start unwinds.
@@ -5245,13 +5130,12 @@ namespace Opc.Ua.Client
         // overlapping reload queued in the same epoch is still applied
         // (latest-wins). Guarded by m_lock.
         private long m_teardownEpoch;
-        private readonly AsyncLocal<LegacyCaptureContext?> m_legacyCapture = new();
         // Operation-owner marker for this manager's in-flight startup pipeline.
         // Set (per async flow) around preparation/provider callbacks so a
         // re-entrant EnsureStartedAsync/RegisterWaitingConnectionAsync issued by
-        // a provider or legacy hook fails fast instead of awaiting this start's
-        // own shared task. Per-instance, so nested unrelated manager instances
-        // (whose marker is unset) still start normally.
+        // a configuration provider or factory fails fast instead of awaiting
+        // this start's own shared task. Per-instance, so nested unrelated manager
+        // instances (whose marker is unset) still start normally.
         private readonly AsyncLocal<OperationScope?> m_activeStartupOwner = new();
         private Task? m_startTask;
         private CancellationTokenSource? m_startCts;

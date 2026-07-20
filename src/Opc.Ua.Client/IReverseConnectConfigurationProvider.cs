@@ -38,10 +38,9 @@ namespace Opc.Ua.Client
     /// <see cref="ReverseConnectManager"/> is about to activate.
     /// </summary>
     /// <remarks>
-    /// A provider participates in the async lifecycle after the legacy
-    /// <c>OnUpdateConfiguration</c> adaptation has captured a candidate
-    /// configuration and before any listener is opened. Providers are
-    /// invoked outside the manager's lifecycle gate so they may perform
+    /// A provider participates in the async lifecycle after the candidate
+    /// configuration is selected and before any listener is opened. Providers
+    /// are invoked outside the manager's lifecycle gate so they may perform
     /// asynchronous work (for example reading additional endpoints from a
     /// store) without blocking concurrent lifecycle operations.
     /// The default implementation is a pass-through
@@ -60,7 +59,7 @@ namespace Opc.Ua.Client
         /// from a bare <see cref="ReverseConnectClientConfiguration"/>.
         /// </param>
         /// <param name="configuration">
-        /// The candidate configuration produced by legacy adaptation.
+        /// The candidate configuration supplied to the lifecycle.
         /// </param>
         /// <param name="cancellationToken">A cancellation token.</param>
         /// <returns>The effective configuration to activate.</returns>

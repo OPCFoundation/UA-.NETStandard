@@ -41,8 +41,8 @@ using NUnit.Framework;
 using Opc.Ua.Bindings;
 using Opc.Ua.Tests;
 
-// This fixture defines subclasses that override the obsolete legacy
-// OnUpdateConfiguration hooks and calls the async lifecycle directly.
+// This fixture covers obsolete synchronous compatibility APIs and the
+// protected disposal compatibility hook alongside the async lifecycle.
 #pragma warning disable CS0618
 #pragma warning disable CS0672
 
@@ -343,45 +343,6 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         }
 
         [Test]
-        public async Task LegacyOverrideOmittingBaseStillActivatesCandidate()
-        {
-            ITelemetryContext telemetry = CreateTelemetry();
-            var harness = new FakeListenerHarness(Scheme);
-            Uri url = Url(20060);
-            await using var manager = new SuppressingManager(telemetry)
-            {
-                TransportBindings = harness.Registry
-            };
-
-            await manager.StartServiceAsync(ConfigFor(url)).ConfigureAwait(false);
-
-            // Omitting base no longer suppresses: the (unmodified) candidate is
-            // still activated so the configured listener opens.
-            Assert.That(
-                harness.Listeners.Any(l => l.OpenedUrl == url && l.IsOpen),
-                Is.True);
-        }
-
-        [Test]
-        public async Task LegacyOverrideReplacingWithoutBaseAppliesReplacement()
-        {
-            ITelemetryContext telemetry = CreateTelemetry();
-            var harness = new FakeListenerHarness(Scheme);
-            Uri injected = Url(20065);
-            await using var manager = new ReplacingWithoutBaseManager(telemetry, injected)
-            {
-                TransportBindings = harness.Registry
-            };
-
-            await manager.StartServiceAsync(ConfigFor(Url(20066))).ConfigureAwait(false);
-
-            // The override mutated the candidate in place and omitted base; the
-            // replacement endpoints must still be honoured.
-            Assert.That(harness.OpenedUrls(), Does.Contain(injected));
-            Assert.That(harness.OpenedUrls(), Does.Not.Contain(Url(20066)));
-        }
-
-        [Test]
         public async Task ProviderSuppressesByReturningEmptyConfiguration()
         {
             ITelemetryContext telemetry = CreateTelemetry();
@@ -398,68 +359,6 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             // no listener opens, yet the manager reaches the Started state.
             Assert.That(harness.Listeners.Any(l => l.IsOpen), Is.False);
             Assert.That(manager.CurrentStateForTest, Is.EqualTo("Started"));
-        }
-
-        [Test]
-        public async Task LegacyOverrideMutatingCandidateIsApplied()
-        {
-            ITelemetryContext telemetry = CreateTelemetry();
-            var harness = new FakeListenerHarness(Scheme);
-            Uri injected = Url(20070);
-            await using var manager = new MutatingManager(telemetry, injected)
-            {
-                TransportBindings = harness.Registry
-            };
-
-            await manager.StartServiceAsync(ConfigFor(Url(20071))).ConfigureAwait(false);
-
-            // The override replaced the endpoints with the injected URL.
-            Assert.That(harness.OpenedUrls(), Does.Contain(injected));
-            Assert.That(harness.OpenedUrls(), Does.Not.Contain(Url(20071)));
-        }
-
-        [Test]
-        public void LegacyOverrideRejectingCandidatePropagates()
-        {
-            ITelemetryContext telemetry = CreateTelemetry();
-            var harness = new FakeListenerHarness(Scheme);
-            using var manager = new RejectingManager(telemetry)
-            {
-                TransportBindings = harness.Registry
-            };
-
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
-                () => manager.StartServiceAsync(ConfigFor(Url(20080))))!;
-
-            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
-        }
-
-        [Test]
-        public async Task ProviderRunsAfterLegacyAdaptation()
-        {
-            ITelemetryContext telemetry = CreateTelemetry();
-            var harness = new FakeListenerHarness(Scheme);
-            Uri injected = Url(20090);
-            var provider = new RecordingProvider();
-            await using var manager = new MutatingManager(telemetry, injected)
-            {
-                TransportBindings = harness.Registry,
-                ConfigurationProvider = provider
-            };
-
-            await manager.StartServiceAsync(ConfigFor(Url(20091))).ConfigureAwait(false);
-
-            // The provider must observe the legacy-mutated candidate (injected URL).
-            Assert.That(provider.LastInput, Is.Not.Null);
-            bool providerSawInjected = false;
-            foreach (ReverseConnectClientEndpoint endpoint in provider.LastInput!.ClientEndpoints)
-            {
-                if (endpoint.EndpointUrl == injected.ToString())
-                {
-                    providerSawInjected = true;
-                }
-            }
-            Assert.That(providerSawInjected, Is.True);
         }
 
         [Test]
@@ -2282,33 +2181,6 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             Assert.That(provider.ReentrantError, Is.InstanceOf<ServiceResultException>());
             Assert.That(
                 ((ServiceResultException)provider.ReentrantError!).StatusCode,
-                Is.EqualTo(StatusCodes.BadInvalidState));
-            Assert.That(manager.CurrentStateForTest, Is.EqualTo("Started"));
-            Assert.That(
-                harness.Listeners.Any(l => l.OpenedUrl == url && l.IsOpen),
-                Is.True);
-        }
-
-        [Test]
-        public async Task LegacyHookReentrantEnsureStartedFailsFastWithoutDeadlock()
-        {
-            ITelemetryContext telemetry = CreateTelemetry();
-            var harness = new FakeListenerHarness(Scheme);
-            Uri url = Url(20510);
-            await using var manager = new ReentrantLegacyHookManager(telemetry)
-            {
-                TransportBindings = harness.Registry
-            };
-            manager.ConfigureInitialStartup(BuildAppConfig(telemetry, url));
-
-            // The legacy OnUpdateConfiguration hook runs during preparation and
-            // re-enters EnsureStartedAsync on the same in-flight shared startup;
-            // it must fail fast rather than block on this start's own task.
-            await manager.EnsureStartedAsync().ConfigureAwait(false);
-
-            Assert.That(manager.ReentrantError, Is.InstanceOf<ServiceResultException>());
-            Assert.That(
-                ((ServiceResultException)manager.ReentrantError!).StatusCode,
                 Is.EqualTo(StatusCodes.BadInvalidState));
             Assert.That(manager.CurrentStateForTest, Is.EqualTo("Started"));
             Assert.That(
@@ -5504,34 +5376,6 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             }
         }
 
-        private sealed class ReentrantLegacyHookManager : ReverseConnectManager
-        {
-            public ReentrantLegacyHookManager(ITelemetryContext telemetry)
-                : base(telemetry)
-            {
-            }
-
-            public Exception? ReentrantError { get; private set; }
-
-            protected override void OnUpdateConfiguration(
-                ReverseConnectClientConfiguration configuration)
-            {
-                try
-                {
-                    // Re-enter the startup from within the legacy adaptation
-                    // hook. The fail-fast guard makes EnsureStartedAsync throw
-                    // synchronously (a completed, faulted task), so observing it
-                    // here never blocks the in-flight preparation.
-                    EnsureStartedAsync().GetAwaiter().GetResult();
-                }
-                catch (Exception e)
-                {
-                    ReentrantError = e;
-                }
-                base.OnUpdateConfiguration(configuration);
-            }
-        }
-
         private sealed class CancellationIgnoringProvider : IReverseConnectConfigurationProvider
         {
             private readonly TaskCompletionSource<bool> m_entered =
@@ -5646,62 +5490,6 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             }
         }
 
-        private sealed class SuppressingManager : ReverseConnectManager
-        {
-            public SuppressingManager(ITelemetryContext telemetry)
-                : base(telemetry)
-            {
-            }
-
-            protected override void OnUpdateConfiguration(
-                ReverseConnectClientConfiguration configuration)
-            {
-                // Intentionally omit base. This no longer suppresses the
-                // update: the candidate is activated unchanged.
-            }
-        }
-
-        private sealed class MutatingManager : ReverseConnectManager
-        {
-            private readonly Uri m_injected;
-
-            public MutatingManager(ITelemetryContext telemetry, Uri injected)
-                : base(telemetry)
-            {
-                m_injected = injected;
-            }
-
-            protected override void OnUpdateConfiguration(
-                ReverseConnectClientConfiguration configuration)
-            {
-                configuration.ClientEndpoints = new ArrayOf<ReverseConnectClientEndpoint>(
-                    new[]
-                    {
-                        new ReverseConnectClientEndpoint
-                        {
-                            EndpointUrl = m_injected.ToString()
-                        }
-                    });
-                base.OnUpdateConfiguration(configuration);
-            }
-        }
-
-        private sealed class RejectingManager : ReverseConnectManager
-        {
-            public RejectingManager(ITelemetryContext telemetry)
-                : base(telemetry)
-            {
-            }
-
-            protected override void OnUpdateConfiguration(
-                ReverseConnectClientConfiguration configuration)
-            {
-                throw new ServiceResultException(
-                    StatusCodes.BadConfigurationError,
-                    "Rejected by override.");
-            }
-        }
-
         private sealed class RecordingProvider : IReverseConnectConfigurationProvider
         {
             public ReverseConnectClientConfiguration? LastInput { get; private set; }
@@ -5716,32 +5504,6 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 LastContext = applicationConfiguration;
                 LastInput = configuration;
                 return new ValueTask<ReverseConnectClientConfiguration>(configuration);
-            }
-        }
-
-        private sealed class ReplacingWithoutBaseManager : ReverseConnectManager
-        {
-            private readonly Uri m_injected;
-
-            public ReplacingWithoutBaseManager(ITelemetryContext telemetry, Uri injected)
-                : base(telemetry)
-            {
-                m_injected = injected;
-            }
-
-            protected override void OnUpdateConfiguration(
-                ReverseConnectClientConfiguration configuration)
-            {
-                // Replace the candidate's endpoints in place and omit base; the
-                // replacement must still be activated.
-                configuration.ClientEndpoints = new ArrayOf<ReverseConnectClientEndpoint>(
-                    new[]
-                    {
-                        new ReverseConnectClientEndpoint
-                        {
-                            EndpointUrl = m_injected.ToString()
-                        }
-                    });
             }
         }
 

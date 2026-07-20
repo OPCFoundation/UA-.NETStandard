@@ -97,7 +97,7 @@ Applications can replace the default pass-through provider to asynchronously val
 services.AddSingleton<IReverseConnectConfigurationProvider, MyProvider>();
 ```
 
-Providers and the obsolete legacy `OnUpdateConfiguration` hooks run outside the manager's lifecycle gate. Provider exceptions reject the candidate while the current service remains active. Existing subclasses can migrate their configuration logic to `IReverseConnectConfigurationProvider`; legacy hooks are retained only for compatibility.
+Providers run outside the manager's lifecycle gate. Provider exceptions reject the candidate while the current service remains active. The former protected `OnUpdateConfiguration` hooks were removed; custom configuration logic belongs in `IReverseConnectConfigurationProvider`.
 
 Do not create a separate manager for each Server when those managers use the same local listener URL. Only one listener can bind a given host and port. An invalid URL reports `BadTcpEndpointUrlInvalid`, an unsupported transport retains its transport-specific status, and a bind or listener-open failure reports `BadNoCommunication`. Startup diagnostics identify the affected endpoint URLs, and listeners opened by a failed attempt are closed instead of allowing a later connection wait to time out.
 
