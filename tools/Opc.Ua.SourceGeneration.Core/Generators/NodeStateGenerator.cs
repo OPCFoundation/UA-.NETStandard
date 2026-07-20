@@ -1428,7 +1428,7 @@ namespace Opc.Ua.SourceGeneration
                 Tokens.ReleaseStatusValue,
                 releaseStatus != Export.ReleaseStatus.Released
                     ? CoreUtils.Format(
-                        "state.ReleaseStatus = global::Opc.Ua.Export.ReleaseStatus.{0};",
+                        "((global::Opc.Ua.NodeState)state).ReleaseStatus = global::Opc.Ua.Export.ReleaseStatus.{0};",
                         releaseStatus)
                     : null);
             // Categories
@@ -1436,7 +1436,7 @@ namespace Opc.Ua.SourceGeneration
                 Tokens.CategoriesValue,
                 !string.IsNullOrEmpty(root.Category)
                     ? CoreUtils.Format(
-                        "state.Categories = new string[] {{ {0} }};",
+                        "((global::Opc.Ua.NodeState)state).Categories = new string[] {{ {0} }};",
                         string.Join(
                             ", ",
                             root.Category
@@ -1447,7 +1447,7 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddReplacement(
                 Tokens.SpecificationValue,
                 root.PartNo != 0
-                    ? CoreUtils.Format("state.Specification = \"Part{0}\";", root.PartNo)
+                    ? CoreUtils.Format("((global::Opc.Ua.NodeState)state).Specification = \"Part{0}\";", root.PartNo)
                     : null);
 
             // Access restrictions — emit on all nodes (type and instance).
@@ -1461,7 +1461,7 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddReplacement(
                 Tokens.AccessRestrictionsValue,
                 accessRestrictions != null
-                    ? CoreUtils.Format("state.AccessRestrictions = {0};", accessRestrictions)
+                    ? CoreUtils.Format("((global::Opc.Ua.NodeState)state).AccessRestrictions = {0};", accessRestrictions)
                     : null);
 
             // Role permissions
