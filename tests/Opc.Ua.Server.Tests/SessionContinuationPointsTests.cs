@@ -111,10 +111,13 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(evicted.Disposed, Is.True);
             Assert.That(holder.RestoreBrowse(ToByteString(cp1.Id)), Is.Null);
-            Assert.That(holder.RestoreBrowse(ToByteString(cp2.Id)), Is.SameAs(cp2));
+            Assert.That(holder.RestoreBrowse(ToByteString(cp2.Id)), Is.Null);
             Assert.That(holder.RestoreBrowse(ToByteString(cp3.Id)), Is.SameAs(cp3));
             store.Verify(
                 s => s.RemoveContinuationPoint(s_sessionId, ContinuationPointKind.Browse, cp1.Id),
+                Times.Once);
+            store.Verify(
+                s => s.RemoveContinuationPoint(s_sessionId, ContinuationPointKind.Browse, cp2.Id),
                 Times.Once);
         }
 
