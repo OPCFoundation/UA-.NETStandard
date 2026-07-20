@@ -194,6 +194,30 @@ namespace Opc.Ua.Security.Certificates.Tests
         }
 
         /// <summary>
+        /// Verify <see cref="CrlBuilder.CreateSignature"/> embeds the exact signature
+        /// AlgorithmIdentifier produced by the generator into the TBSCertList, independent
+        /// of the issuer certificate key type.
+        /// </summary>
+        [Test]
+        public void CreateSignatureEmbedsGeneratorSignatureAlgorithmIdentifier()
+        {
+            CrlBuilder crlBuilder = CrlBuilder
+                .Create(m_issuerCert.SubjectName, HashAlgorithmName.SHA256)
+                .SetThisUpdate(new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc))
+                .SetNextUpdate(new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc));
+
+            using RSA rsa = RSA.Create(2048);
+            var generator = X509SignatureGenerator.CreateForRSA(rsa, RSASignaturePadding.Pkcs1);
+            byte[] expectedAlgorithm = generator.GetSignatureAlgorithmIdentifier(
+                HashAlgorithmName.SHA256);
+
+            IX509CRL crl = crlBuilder.CreateSignature(generator);
+
+            AssertSignatureAlgorithmIdentifiersMatch(crl.RawData);
+            Assert.That(ReadTbsSignatureAlgorithm(crl.RawData), Is.EqualTo(expectedAlgorithm));
+        }
+
+        /// <summary>
         /// Validate the full CRL encoder and decoder pass.
         /// </summary>
         [Theory]
@@ -440,6 +464,18 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             Assert.That(unusedBitCount, Is.Zero);
             Assert.That(innerAlgorithm, Is.EqualTo(outerAlgorithm));
+        }
+
+        private static byte[] ReadTbsSignatureAlgorithm(byte[] rawData)
+        {
+            var crlReader = new AsnReader(rawData, AsnEncodingRules.DER);
+            AsnReader crl = crlReader.ReadSequence();
+            ReadOnlyMemory<byte> tbs = crl.ReadEncodedValue();
+
+            var tbsReader = new AsnReader(tbs, AsnEncodingRules.DER);
+            AsnReader tbsCrl = tbsReader.ReadSequence();
+            _ = tbsCrl.ReadInteger();
+            return tbsCrl.ReadEncodedValue().ToArray();
         }
 
         private static byte[] EncodeTbs(CrlBuilder crlBuilder)
