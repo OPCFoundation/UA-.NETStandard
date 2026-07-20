@@ -1,6 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
@@ -15,6 +18,7 @@ namespace Opc.Ua.Server.Tests
         private Mock<IServerInternal> m_serverMock;
         private Mock<ISession> m_sessionMock;
         private Mock<IDiagnosticsNodeManager> m_diagnosticsNodeManagerMock;
+        private Mock<IMasterNodeManager> m_nodeManagerMock;
         private Mock<IMonitoredItemQueueFactory> m_queueFactoryMock;
         private ITelemetryContext m_telemetry;
 
@@ -25,11 +29,15 @@ namespace Opc.Ua.Server.Tests
             m_serverMock = new Mock<IServerInternal>();
             m_sessionMock = new Mock<ISession>();
             m_diagnosticsNodeManagerMock = new Mock<IDiagnosticsNodeManager>();
+            m_nodeManagerMock = new Mock<IMasterNodeManager>();
             m_queueFactoryMock = new Mock<IMonitoredItemQueueFactory>();
 
             m_serverMock.Setup(s => s.Telemetry).Returns(m_telemetry);
             m_serverMock.Setup(s => s.DiagnosticsNodeManager).Returns(m_diagnosticsNodeManagerMock.Object);
+            m_serverMock.Setup(s => s.NodeManager).Returns(m_nodeManagerMock.Object);
             m_serverMock.Setup(s => s.MonitoredItemQueueFactory).Returns(m_queueFactoryMock.Object);
+            m_serverMock.Setup(s => s.DiagnosticsWriteLock).Returns(new object());
+            m_serverMock.Setup(s => s.ServerDiagnostics).Returns(new ServerDiagnosticsSummaryDataType());
 
             var namespaceUris = new NamespaceTable();
             m_serverMock.Setup(s => s.NamespaceUris).Returns(namespaceUris);
@@ -41,6 +49,8 @@ namespace Opc.Ua.Server.Tests
             m_serverMock.Setup(s => s.DefaultSystemContext).Returns(new ServerSystemContext(m_serverMock.Object));
 
             m_sessionMock.Setup(s => s.Id).Returns(new NodeId(Guid.NewGuid()));
+            m_sessionMock.Setup(s => s.DiagnosticsLock).Returns(new object());
+            m_sessionMock.Setup(s => s.SessionDiagnostics).Returns(new SessionDiagnosticsDataType());
 
             m_diagnosticsNodeManagerMock
                 .Setup(d => d.CreateSubscriptionDiagnosticsAsync(
@@ -52,7 +62,8 @@ namespace Opc.Ua.Server.Tests
 
         private Subscription CreateSubscription(
             double publishingInterval = 1000,
-            uint maxNotificationsPerPublish = 0)
+            uint maxNotificationsPerPublish = 0,
+            TimeProvider timeProvider = null)
         {
             return new Subscription(
                 m_serverMock.Object,
@@ -64,7 +75,8 @@ namespace Opc.Ua.Server.Tests
                 maxNotificationsPerPublish: maxNotificationsPerPublish,
                 priority: 0,
                 publishingEnabled: true,
-                maxMessageCount: 10);
+                maxMessageCount: 10,
+                timeProvider: timeProvider);
         }
 
         private static void SetExpiryTime(Subscription subscription, long expiryTime)
@@ -333,60 +345,138 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void ConstructMessageWithZeroLimitDrainsNotificationQueues()
+        public async Task PublishWithZeroLimitDrainsEventAndDataChangeQueuesAsync()
         {
-            using Subscription subscription = CreateSubscription(maxNotificationsPerPublish: 0);
-            var events = new Queue<EventFieldList>(
-            [
-                new EventFieldList(),
-                new EventFieldList()
-            ]);
-            var dataChanges = new Queue<MonitoredItemNotification>(
-            [
-                new MonitoredItemNotification { Value = new DataValue(1) },
-                new MonitoredItemNotification { Value = new DataValue(2) }
-            ]);
-            var diagnostics = new Queue<DiagnosticInfo>(
-            [
-                new DiagnosticInfo(),
-                new DiagnosticInfo()
-            ]);
+            var timeProvider = new FakeTimeProvider(
+                new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+            using Subscription subscription = CreateSubscription(
+                publishingInterval: 100,
+                maxNotificationsPerPublish: 0,
+                timeProvider);
+            var publishLimits = new List<uint>();
+            Mock<IEventMonitoredItem> eventItem = CreateEventMonitoredItem(
+                id: 1,
+                notificationCount: 2,
+                publishLimits);
+            Mock<IDataChangeMonitoredItem> dataChangeItem = CreateDataChangeMonitoredItem(
+                id: 2,
+                notificationCount: 2,
+                publishLimits);
+            await RegisterMonitoredItemsAsync(
+                subscription,
+                eventItem.Object,
+                dataChangeItem.Object).ConfigureAwait(false);
 
-            MethodInfo constructMessage = typeof(Subscription).GetMethod(
-                "ConstructMessage",
-                BindingFlags.NonPublic | BindingFlags.Instance,
-                binder: null,
-                [
-                    typeof(Queue<EventFieldList>),
-                    typeof(Queue<MonitoredItemNotification>),
-                    typeof(Queue<DiagnosticInfo>),
-                    typeof(int).MakeByRefType()
-                ],
-                modifiers: null)
-                ?? throw new InvalidOperationException("ConstructMessage method not found");
-            object[] arguments = [events, dataChanges, diagnostics, 0];
+            timeProvider.Advance(TimeSpan.FromMilliseconds(101));
+            Assert.That(
+                subscription.PublishTimerExpired(),
+                Is.EqualTo(PublishingState.NotificationsAvailable));
 
-            var message = (NotificationMessage)constructMessage.Invoke(subscription, arguments);
+            var context = new OperationContext(m_sessionMock.Object, new DiagnosticsMasks());
+            NotificationMessage message = subscription.Publish(
+                context,
+                out _,
+                out bool moreNotifications);
 
+            Assert.That(message.NotificationData, Has.Count.EqualTo(2));
+            var eventNotification = (EventNotificationList)ExtensionObject.ToEncodeable(
+                message.NotificationData[0]);
+            var dataChangeNotification = (DataChangeNotification)ExtensionObject.ToEncodeable(
+                message.NotificationData[1]);
             Assert.Multiple(() =>
             {
-                Assert.That(events, Is.Empty);
-                Assert.That(dataChanges, Is.Empty);
-                Assert.That(diagnostics, Is.Empty);
-                Assert.That((int)arguments[3], Is.EqualTo(4));
-                Assert.That(message.NotificationData.Count, Is.EqualTo(2));
+                Assert.That(moreNotifications, Is.False);
+                Assert.That(eventNotification.Events, Has.Count.EqualTo(2));
+                Assert.That(dataChangeNotification.MonitoredItems, Has.Count.EqualTo(2));
+                Assert.That(dataChangeNotification.DiagnosticInfos, Has.Count.EqualTo(2));
+                Assert.That(
+                    publishLimits,
+                    Is.EqualTo(new[] { uint.MaxValue, uint.MaxValue }));
             });
         }
 
-        [TestCase(0, 0, 0)]
-        [TestCase(0, 25, 25)]
-        [TestCase(10, 0, 10)]
-        [TestCase(10, 25, 10)]
-        [TestCase(25, 10, 10)]
-        public void CalculateMaxNotificationsTreatsZeroAsUnlimited(
+        [Test]
+        public async Task PublishWithFiniteLimitBuildsAndDrainsQueuedMessagesAsync()
+        {
+            var timeProvider = new FakeTimeProvider(
+                new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+            using Subscription subscription = CreateSubscription(
+                publishingInterval: 100,
+                maxNotificationsPerPublish: 2,
+                timeProvider);
+            var publishLimits = new List<uint>();
+            Mock<IEventMonitoredItem> firstEventItem = CreateEventMonitoredItem(
+                id: 1,
+                notificationCount: 3,
+                publishLimits);
+            Mock<IEventMonitoredItem> secondEventItem = CreateEventMonitoredItem(
+                id: 2,
+                notificationCount: 1,
+                publishLimits);
+            Mock<IDataChangeMonitoredItem> dataChangeItem = CreateDataChangeMonitoredItem(
+                id: 3,
+                notificationCount: 2,
+                publishLimits);
+            await RegisterMonitoredItemsAsync(
+                subscription,
+                firstEventItem.Object,
+                secondEventItem.Object,
+                dataChangeItem.Object).ConfigureAwait(false);
+
+            timeProvider.Advance(TimeSpan.FromMilliseconds(101));
+            Assert.That(
+                subscription.PublishTimerExpired(),
+                Is.EqualTo(PublishingState.NotificationsAvailable));
+
+            var context = new OperationContext(m_sessionMock.Object, new DiagnosticsMasks());
+            NotificationMessage firstMessage = subscription.Publish(
+                context,
+                out _,
+                out bool moreAfterFirst);
+            NotificationMessage secondMessage = subscription.Publish(
+                context,
+                out _,
+                out bool moreAfterSecond);
+            NotificationMessage thirdMessage = subscription.Publish(
+                context,
+                out _,
+                out bool moreAfterThird);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(firstMessage.NotificationData, Has.Count.EqualTo(1));
+                Assert.That(secondMessage.NotificationData, Has.Count.EqualTo(1));
+                Assert.That(thirdMessage.NotificationData, Has.Count.EqualTo(1));
+            });
+            var firstEvents = (EventNotificationList)ExtensionObject.ToEncodeable(
+                firstMessage.NotificationData[0]);
+            var secondEvents = (EventNotificationList)ExtensionObject.ToEncodeable(
+                secondMessage.NotificationData[0]);
+            var dataChanges = (DataChangeNotification)ExtensionObject.ToEncodeable(
+                thirdMessage.NotificationData[0]);
+            Assert.Multiple(() =>
+            {
+                Assert.That(moreAfterFirst, Is.True);
+                Assert.That(moreAfterSecond, Is.True);
+                Assert.That(moreAfterThird, Is.False);
+                Assert.That(firstEvents.Events, Has.Count.EqualTo(2));
+                Assert.That(secondEvents.Events, Has.Count.EqualTo(2));
+                Assert.That(dataChanges.MonitoredItems, Has.Count.EqualTo(2));
+                Assert.That(publishLimits, Is.EqualTo(new uint[] { 6, 6, 6 }));
+            });
+        }
+
+        [TestCase(0, 0L, 0L)]
+        [TestCase(0, 25L, 25L)]
+        [TestCase(10, 0L, 10L)]
+        [TestCase(10, 10L, 10L)]
+        [TestCase(10, 25L, 10L)]
+        [TestCase(0, uint.MaxValue, uint.MaxValue)]
+        [TestCase(int.MaxValue, uint.MaxValue, int.MaxValue)]
+        public async Task CreateSubscriptionWithNotificationLimitsUsesEffectiveLimitAsync(
             int serverLimit,
-            int requestedLimit,
-            int expectedLimit)
+            long requestedLimit,
+            long expectedLimit)
         {
             var configuration = new ApplicationConfiguration
             {
@@ -395,30 +485,156 @@ namespace Opc.Ua.Server.Tests
                     MaxNotificationsPerPublish = serverLimit
                 }
             };
-            using var manager = new TestSubscriptionManager(
+            using var manager = new SubscriptionManager(
                 m_serverMock.Object,
                 configuration);
 
-            uint revisedLimit = manager.CalculateMaxNotificationsPerPublish(
-                (uint)requestedLimit);
+            var context = new OperationContext(m_sessionMock.Object, new DiagnosticsMasks());
+            CreateSubscriptionResponse response = await manager.CreateSubscriptionAsync(
+                context,
+                requestedPublishingInterval: 1000,
+                requestedLifetimeCount: 30,
+                requestedMaxKeepAliveCount: 10,
+                maxNotificationsPerPublish: (uint)requestedLimit,
+                publishingEnabled: true,
+                priority: 0).ConfigureAwait(false);
 
-            Assert.That(revisedLimit, Is.EqualTo((uint)expectedLimit));
+            Assert.That(
+                manager.TryGetSubscription(response.SubscriptionId, out ISubscription subscription),
+                Is.True);
+            Assert.That(
+                subscription.Diagnostics.MaxNotificationsPerPublish,
+                Is.EqualTo((uint)expectedLimit));
         }
 
-        private sealed class TestSubscriptionManager : SubscriptionManager
+        private async Task RegisterMonitoredItemsAsync(
+            Subscription subscription,
+            params IMonitoredItem[] monitoredItems)
         {
-            public TestSubscriptionManager(
-                IServerInternal server,
-                ApplicationConfiguration configuration)
-                : base(server, configuration)
-            {
-            }
+            m_nodeManagerMock
+                .Setup(n => n.CreateMonitoredItemsAsync(
+                    It.IsAny<OperationContext>(),
+                    subscription.Id,
+                    It.IsAny<double>(),
+                    It.IsAny<TimestampsToReturn>(),
+                    It.IsAny<ArrayOf<MonitoredItemCreateRequest>>(),
+                    It.IsAny<IList<ServiceResult>>(),
+                    It.IsAny<IList<MonitoringFilterResult>>(),
+                    It.IsAny<IList<IMonitoredItem>>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback<
+                    OperationContext,
+                    uint,
+                    double,
+                    TimestampsToReturn,
+                    ArrayOf<MonitoredItemCreateRequest>,
+                    IList<ServiceResult>,
+                    IList<MonitoringFilterResult>,
+                    IList<IMonitoredItem>,
+                    bool,
+                    CancellationToken>(
+                    (_, _, _, _, _, _, _, createdItems, _, _) =>
+                    {
+                        for (int ii = 0; ii < monitoredItems.Length; ii++)
+                        {
+                            createdItems[ii] = monitoredItems[ii];
+                        }
+                    })
+                .Returns(default(ValueTask));
 
-            public new uint CalculateMaxNotificationsPerPublish(
-                uint maxNotificationsPerPublish)
+            var requests = new MonitoredItemCreateRequest[monitoredItems.Length];
+            for (int ii = 0; ii < monitoredItems.Length; ii++)
             {
-                return base.CalculateMaxNotificationsPerPublish(maxNotificationsPerPublish);
+                requests[ii] = new MonitoredItemCreateRequest
+                {
+                    MonitoringMode = MonitoringMode.Reporting
+                };
             }
+            ArrayOf<MonitoredItemCreateRequest> itemsToCreate = [.. requests];
+
+            var context = new OperationContext(m_sessionMock.Object, new DiagnosticsMasks());
+            CreateMonitoredItemsResponse response = await subscription.CreateMonitoredItemsAsync(
+                context,
+                TimestampsToReturn.Both,
+                itemsToCreate).ConfigureAwait(false);
+
+            Assert.That(response.Results, Has.Count.EqualTo(monitoredItems.Length));
+        }
+
+        private static Mock<IEventMonitoredItem> CreateEventMonitoredItem(
+            uint id,
+            int notificationCount,
+            List<uint> publishLimits)
+        {
+            var item = new Mock<IEventMonitoredItem>();
+            var createResult = new MonitoredItemCreateResult
+            {
+                StatusCode = StatusCodes.Good,
+                RevisedSamplingInterval = 0,
+                RevisedQueueSize = (uint)notificationCount
+            };
+            item.SetupGet(i => i.Id).Returns(id);
+            item.SetupGet(i => i.IsReadyToPublish).Returns(true);
+            item.SetupGet(i => i.MonitoredItemType).Returns(MonitoredItemTypeMask.Events);
+            item.Setup(i => i.GetCreateResult(out createResult)).Returns(ServiceResult.Good);
+            item.Setup(i => i.Publish(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<Queue<EventFieldList>>(),
+                    It.IsAny<uint>()))
+                .Returns<OperationContext, Queue<EventFieldList>, uint>(
+                    (_, notifications, maxNotificationsPerPublish) =>
+                    {
+                        publishLimits.Add(maxNotificationsPerPublish);
+                        for (int ii = 0; ii < notificationCount; ii++)
+                        {
+                            notifications.Enqueue(new EventFieldList());
+                        }
+                        return false;
+                    });
+            return item;
+        }
+
+        private static Mock<IDataChangeMonitoredItem> CreateDataChangeMonitoredItem(
+            uint id,
+            int notificationCount,
+            List<uint> publishLimits)
+        {
+            var item = new Mock<IDataChangeMonitoredItem>();
+            var createResult = new MonitoredItemCreateResult
+            {
+                StatusCode = StatusCodes.Good,
+                RevisedSamplingInterval = 0,
+                RevisedQueueSize = (uint)notificationCount
+            };
+            item.SetupGet(i => i.Id).Returns(id);
+            item.SetupGet(i => i.IsReadyToPublish).Returns(true);
+            item.SetupGet(i => i.MonitoredItemType).Returns(MonitoredItemTypeMask.DataChange);
+            item.Setup(i => i.GetCreateResult(out createResult)).Returns(ServiceResult.Good);
+            item.Setup(i => i.Publish(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<Queue<MonitoredItemNotification>>(),
+                    It.IsAny<Queue<DiagnosticInfo>>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<Microsoft.Extensions.Logging.ILogger>()))
+                .Returns<
+                    OperationContext,
+                    Queue<MonitoredItemNotification>,
+                    Queue<DiagnosticInfo>,
+                    uint,
+                    Microsoft.Extensions.Logging.ILogger>(
+                    (_, notifications, diagnostics, maxNotificationsPerPublish, _) =>
+                    {
+                        publishLimits.Add(maxNotificationsPerPublish);
+                        for (int ii = 0; ii < notificationCount; ii++)
+                        {
+                            notifications.Enqueue(
+                                new MonitoredItemNotification { Value = new DataValue(ii) });
+                            diagnostics.Enqueue(new DiagnosticInfo());
+                        }
+                        return false;
+                    });
+            return item;
         }
     }
 }
