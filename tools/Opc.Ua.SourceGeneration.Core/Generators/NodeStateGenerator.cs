@@ -2042,16 +2042,25 @@ namespace Opc.Ua.SourceGeneration
             IWriteContext context,
             MethodDesign method)
         {
+            string targetNamespace = m_context.ModelDesign.TargetNamespace.Value;
+            string declaredClassName = method.GetNodeStateClassName(
+                targetNamespace,
+                [],
+                applyStandardFallback: false);
+            // Declarations require an unqualified identifier, while fallback
+            // tracking requires the fully-qualified name. Neither may apply
+            // the reference-only fallback policy.
+            StandardMethodStateFallback.RecordDeclaredMethodState(
+                method.GetNodeStateClassName(
+                    targetNamespace,
+                    m_context.ModelDesign.Namespaces,
+                    applyStandardFallback: false));
             context.Template.AddReplacement(
                 Tokens.ClassName,
-                method.GetNodeStateClassName(
-                    m_context.ModelDesign.TargetNamespace.Value,
-                    []));
+                declaredClassName);
             context.Template.AddReplacement(
                 Tokens.OwnerClassName,
-                method.GetNodeStateClassName(
-                    m_context.ModelDesign.TargetNamespace.Value,
-                    []));
+                declaredClassName);
             context.Template.AddReplacement(
                 Tokens.ListOfInputArguments,
                 method.InputArguments,
