@@ -5,6 +5,7 @@
     <PackageId>$(PackagePrefix).Opc.Ua.XRegistry</PackageId>
     <RootNamespace>Opc.Ua.XRegistry</RootNamespace>
     <Description>OPC UA xRegistry abstract registry base model (Annex B): content-addressed resource identity, companion NodeSet and shared registry abstractions.</Description>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
     <IsPackable>true</IsPackable>
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
@@ -21,7 +22,23 @@
     <ProjectReference Include="..\Opc.Ua.Core\Opc.Ua.Core.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj">
+      <OutputItemType>Analyzer</OutputItemType>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="..\..\tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />
+  <PropertyGroup>
+    <ModelSourceGeneratorVersion>v105</ModelSourceGeneratorVersion>
+    <!-- Model-only assembly: opt out of typed-accessor emission since the
+         emitted code references Opc.Ua.Server.Fluent.* which this project
+         does not reference. -->
+    <ModelSourceGeneratorOmitFluentApi>true</ModelSourceGeneratorOmitFluentApi>
+    <ModelSourceGeneratorUseAllowSubtypes>true</ModelSourceGeneratorUseAllowSubtypes>
+  </PropertyGroup>
+  <ItemGroup>
     <EmbeddedResource Include="Opc.Ua.XRegistry.NodeSet2.xml" LogicalName="Opc.Ua.XRegistry.Opc.Ua.XRegistry.NodeSet2.xml" />
+    <AdditionalFiles Include="Opc.Ua.XRegistry.NodeSet2.xml" />
   </ItemGroup>
   <Target Name="GetPackagingOutputs" />
   <ItemGroup>

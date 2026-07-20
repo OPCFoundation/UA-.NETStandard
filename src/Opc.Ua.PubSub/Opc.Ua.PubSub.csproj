@@ -17,7 +17,7 @@
       UA0023 + CS0618 within the library while keeping the warnings active for
       downstream consumers.
     -->
-    <NoWarn>$(NoWarn);UA0023;CS0618;UA_NETStandard_Avro;UA_NETStandard_Arrow</NoWarn>
+    <NoWarn>$(NoWarn);UA0023;CS0618;CS1591;UA_NETStandard_Avro;UA_NETStandard_Arrow</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.PubSub.Tests" />
@@ -33,7 +33,24 @@
     <ProjectReference Include="..\Opc.Ua.XRegistry.Client\Opc.Ua.XRegistry.Client.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj">
+      <OutputItemType>Analyzer</OutputItemType>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="..\..\tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />
+  <PropertyGroup>
+    <ModelSourceGeneratorVersion>v105</ModelSourceGeneratorVersion>
+    <!-- Model-only assembly: opt out of typed-accessor emission since the
+         emitted code references Opc.Ua.Server.Fluent.* which this project
+         does not reference. The xRegistry base model is resolved from the
+         referenced Opc.Ua.XRegistry assembly's ModelDependency metadata. -->
+    <ModelSourceGeneratorOmitFluentApi>true</ModelSourceGeneratorOmitFluentApi>
+    <ModelSourceGeneratorUseAllowSubtypes>true</ModelSourceGeneratorUseAllowSubtypes>
+  </PropertyGroup>
+  <ItemGroup>
     <EmbeddedResource Include="SchemaRegistry\Opc.Ua.SchemaRegistry.NodeSet2.xml" LogicalName="Opc.Ua.PubSub.SchemaRegistry.Opc.Ua.SchemaRegistry.NodeSet2.xml" />
+    <AdditionalFiles Include="SchemaRegistry\Opc.Ua.SchemaRegistry.NodeSet2.xml" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
