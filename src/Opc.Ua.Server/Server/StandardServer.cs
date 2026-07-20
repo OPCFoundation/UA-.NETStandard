@@ -64,7 +64,8 @@ namespace Opc.Ua.Server
             : base(telemetry)
         {
             TimeProvider = timeProvider ?? TimeProvider.System;
-            m_compatibilityLogger = telemetry.CreateCompatibilityLogger();
+            m_compatibilityLogger = telemetry.CreateLogger(
+                ServerCompatibilityEventIds.CategoryName);
         }
 
         /// <summary>
@@ -4613,9 +4614,15 @@ namespace Opc.Ua.Server
             Message = "Server - Enter {State} state.")]
         public static partial void ServerEnterStateState(this ILogger logger, ServerState state);
 
-        // ServerEventIds.StandardServer + 12 is intentionally left unused. It previously
-        // duplicated the retained "ServerCall" compatibility event (see
-        // ServerCompatibilityLog.CompatibilityServerCall in OpcUaServerCompatibilityLog.cs).
+        [LoggerMessage(
+            EventId = ServerCompatibilityEventIds.ServerCall,
+            EventName = "ServerCall",
+            Level = LogLevel.Information,
+            Message = "Server Call={RequestType}, Id={RequestId}")]
+        public static partial void CompatibilityServerCall(
+            this ILogger logger,
+            string requestType,
+            uint requestId);
 
         [LoggerMessage(EventId = ServerEventIds.StandardServer + 13, Level = LogLevel.Error,
             Message = "Could not load updated configuration file from: {FilePath}")]

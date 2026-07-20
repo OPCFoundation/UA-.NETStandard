@@ -2095,6 +2095,15 @@ namespace Opc.Ua.Server
             Message = "MONITORED ITEM: Publish(QueueSize={QueueSize})")]
         public static partial void MONITOREDITEMPublishQueueSizeQueueSize(this ILogger logger, int queueSize);
 
+        [LoggerMessage(
+            EventId = ServerCompatibilityEventIds.MonitoredItemReady,
+            EventName = "MonitoredItemReady",
+            Level = LogLevel.Trace,
+            Message = "IsReadyToPublish[{Id}] {State}")]
+        public static partial void CompatibilityMonitoredItemReady(
+            this ILogger logger,
+            uint id,
+            string state);
 
         [LoggerMessage(EventId = ServerEventIds.MonitoredItem + 7, Level = LogLevel.Error,
             Message = "Failed to restore queue for monitored item with id {MonitoredItemId}")]

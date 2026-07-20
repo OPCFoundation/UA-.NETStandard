@@ -861,4 +861,46 @@ namespace Opc.Ua
         Log = 0x4
     }
 
+    /// <summary>
+    /// Source-generated log messages for ClientBase.
+    /// </summary>
+    internal static partial class ClientBaseLog
+    {
+        [LoggerMessage(
+            EventId = CoreEventIds.CoreServiceCallStart,
+            EventName = "ServiceCallStart",
+            Level = LogLevel.Trace,
+            Message = "{ServiceName} Called. RequestHandle={RequestHandle}, PendingRequestCount={PendingRequestCount}")]
+        public static partial void CoreServiceCallStart(
+            this ILogger logger,
+            string serviceName,
+            int requestHandle,
+            int pendingRequestCount);
+
+        [LoggerMessage(
+            EventId = CoreEventIds.CoreServiceCallStop,
+            EventName = "ServiceCallStop",
+            Level = LogLevel.Trace,
+            Message = "{ServiceName} Completed. RequestHandle={RequestHandle}, " +
+                "PendingRequestCount={PendingRequestCount}")]
+        public static partial void CoreServiceCallStop(
+            this ILogger logger,
+            string serviceName,
+            int requestHandle,
+            int pendingRequestCount);
+
+        [LoggerMessage(
+            EventId = CoreEventIds.CoreServiceCallBadStop,
+            EventName = "ServiceCallBadStop",
+            Level = LogLevel.Warning,
+            Message = "{ServiceName} Completed. RequestHandle={RequestHandle}, " +
+                "PendingRequestCount={PendingRequestCount}, StatusCode={StatusCode}")]
+        public static partial void CoreServiceCallBadStop(
+            this ILogger logger,
+            string serviceName,
+            int requestHandle,
+            int pendingRequestCount,
+            int statusCode);
+    }
+
 }

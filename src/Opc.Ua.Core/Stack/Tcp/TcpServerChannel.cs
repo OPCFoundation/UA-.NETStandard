@@ -1622,6 +1622,16 @@ namespace Opc.Ua.Bindings
             this ILogger logger,
             global::System.Exception? exception);
 
+        [LoggerMessage(
+            EventId = CoreEventIds.CoreSendResponse,
+            EventName = "SendResponse",
+            Level = LogLevel.Trace,
+            Message = "ChannelId {ChannelId}: SendResponse {RequestId}")]
+        public static partial void CoreSendResponse(
+            this ILogger logger,
+            int channelId,
+            int requestId);
+
     }
 
 }

@@ -484,10 +484,12 @@ namespace Opc.Ua
             ChannelBindings = channelFactory;
             m_options = options ?? new ChannelManagerOptions();
             m_diagnostics = new ClientChannelManagerDiagnostics(
-                telemetry.CreateLogger(CoreEventIds.ChannelManagerCompatibilityCategory));
+                TelemetryExtensions.CreateLogger(
+                    telemetry,
+                    CoreEventIds.ChannelManagerCompatibilityCategory));
             if (enableGeneralTelemetry)
             {
-                Logger = telemetry.CreateLogger<ClientChannelManager>();
+                Logger = TelemetryExtensions.CreateLogger<ClientChannelManager>(telemetry);
                 m_meter = telemetry?.CreateMeter();
                 m_metrics = m_meter != null
                     ? new ClientChannelManagerMetrics(this, m_meter)

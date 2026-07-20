@@ -31,6 +31,7 @@ using System;
 using System.Linq;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
+using Opc.Ua.Bindings;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.Core.Tests.Types.UtilsTests

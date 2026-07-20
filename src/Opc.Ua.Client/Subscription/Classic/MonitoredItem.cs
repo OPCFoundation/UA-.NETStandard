@@ -1353,6 +1353,16 @@ namespace Opc.Ua.Client
             Variant value,
             uint monitoredItemId);
 
+        [LoggerMessage(
+            EventId = ClientEventIds.LegacyNotificationId,
+            EventName = "Notification",
+            Level = LogLevel.Trace,
+            Message = "Notification: ClientHandle={ClientHandle}, Value={Value}")]
+        public static partial void ClientEventNotification(
+            this ILogger logger,
+            int clientHandle,
+            string value);
+
         [LoggerMessage(EventId = ClientEventIds.MonitoredItem + 4, Level = LogLevel.Information,
             Message = "Dropped value: ClientHandle={ClientHandle}, Value={Value}, SourceTime={SourceTime}")]
         public static partial void DroppedValueClientHandleClientHandleValueValue(

@@ -151,7 +151,8 @@ namespace Opc.Ua.Server
                 ?? (server as ITimeProviderProvider)?.TimeProvider
                 ?? TimeProvider.System;
             m_logger = server.Telemetry.CreateLogger<Session>();
-            m_compatibilityLogger = server.Telemetry.CreateCompatibilityLogger();
+            m_compatibilityLogger = server.Telemetry.CreateLogger(
+                ServerCompatibilityEventIds.CategoryName);
             ClientNonce = clientNonce;
             m_serverNonce = serverNonce;
             m_sessionName = sessionName;
@@ -1334,9 +1335,19 @@ namespace Opc.Ua.Server
     /// </summary>
     internal static partial class SessionLog
     {
-        // ServerEventIds.Session + 0 is intentionally left unused. It previously
-        // duplicated the retained "SessionState" compatibility event (see
-        // ServerCompatibilityLog.CompatibilitySessionState in OpcUaServerCompatibilityLog.cs).
+        [LoggerMessage(
+            EventId = ServerCompatibilityEventIds.SessionState,
+            EventName = "SessionState",
+            Level = LogLevel.Information,
+            Message = "Session {Context}, Id={SessionId}, Name={SessionName}, ChannelId={SecureChannelId}, " +
+                "User={Identity}")]
+        public static partial void CompatibilitySessionState(
+            this ILogger logger,
+            string context,
+            string sessionId,
+            string sessionName,
+            string secureChannelId,
+            string identity);
     }
 
 }

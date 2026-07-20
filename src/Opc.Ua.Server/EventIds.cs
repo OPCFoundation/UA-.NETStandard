@@ -96,6 +96,7 @@ namespace Opc.Ua
     /// </remarks>
     internal static class ServerCompatibilityEventIds
     {
+        public const string CategoryName = "OPC-UA-Server";
         public const int ServerCall = 2;
         public const int SessionState = 3;
         public const int MonitoredItemReady = 4;

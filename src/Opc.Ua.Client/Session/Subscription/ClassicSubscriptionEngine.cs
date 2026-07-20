@@ -1040,9 +1040,23 @@ namespace Opc.Ua.Client
             Message = "Publish skipped due to session lost connection. Last successful keepalive: {LastKeepAlive}")]
         public static partial void PublishSkippedSessionLostConnectionLast(this ILogger logger, DateTime lastKeepAlive);
 
+        [LoggerMessage(
+            EventId = ClientEventIds.LegacyPublishStartId,
+            EventName = "PublishStart",
+            Level = LogLevel.Trace,
+            Message = "PUBLISH #{RequestHandle} SENT")]
+        public static partial void ClientEventPublishStart(this ILogger logger, int requestHandle);
+
         [LoggerMessage(EventId = ClientEventIds.ClassicSubscriptionEngine + 5, Level = LogLevel.Error,
             Message = "Unexpected error sending publish request.")]
         public static partial void UnexpectedErrorSendingPublishRequest(this ILogger logger, Exception? exception);
+
+        [LoggerMessage(
+            EventId = ClientEventIds.LegacyPublishStopId,
+            EventName = "PublishStop",
+            Level = LogLevel.Trace,
+            Message = "PUBLISH #{RequestHandle} RECEIVED")]
+        public static partial void ClientEventPublishStop(this ILogger logger, int requestHandle);
 
         [LoggerMessage(EventId = ClientEventIds.ClassicSubscriptionEngine + 7, Level = LogLevel.Warning,
             Message = "Publish response discarded because session id changed: Old {PreviousSessionId} != New" +
@@ -1051,6 +1065,16 @@ namespace Opc.Ua.Client
             this ILogger logger,
             NodeId? previousSessionId,
             NodeId? sessionId);
+
+        [LoggerMessage(
+            EventId = ClientEventIds.LegacyNotificationReceivedId,
+            EventName = "NotificationReceived",
+            Level = LogLevel.Trace,
+            Message = "NOTIFICATION RECEIVED: SubId={SubscriptionId}, SeqNo={SequenceNumber}")]
+        public static partial void ClientEventNotificationReceived(
+            this ILogger logger,
+            int subscriptionId,
+            int sequenceNumber);
 
         [LoggerMessage(EventId = ClientEventIds.ClassicSubscriptionEngine + 9, Level = LogLevel.Warning,
             Message = "No new publish sent because of reconnect in progress.")]

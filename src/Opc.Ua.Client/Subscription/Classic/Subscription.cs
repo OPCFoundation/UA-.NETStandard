@@ -3710,6 +3710,25 @@ namespace Opc.Ua.Client
             uint subscriptionId,
             int? taskId);
 
+        [LoggerMessage(
+            EventId = ClientEventIds.LegacySubscriptionStateId,
+            EventName = "SubscriptionState",
+            Level = LogLevel.Trace,
+            Message = "Subscription {Context}, Id={Id}, LastNotificationTime={LastNotificationTime:HH:mm:ss}, " +
+                "GoodPublishRequestCount={GoodPublishRequestCount}, PublishingInterval={CurrentPublishingInterval}, " +
+                "KeepAliveCount={CurrentKeepAliveCount}, PublishingEnabled={CurrentPublishingEnabled}, " +
+                "MonitoredItemCount={MonitoredItemCount}")]
+        public static partial void ClientEventSubscriptionState(
+            this ILogger logger,
+            string context,
+            uint id,
+            DateTime lastNotificationTime,
+            int goodPublishRequestCount,
+            double currentPublishingInterval,
+            uint currentKeepAliveCount,
+            bool currentPublishingEnabled,
+            uint monitoredItemCount);
+
         [LoggerMessage(EventId = ClientEventIds.Subscription + 22, Level = LogLevel.Information,
             Message = "For subscription {SubscriptionId}, Keep alive count was revised from {Previous} to {New}")]
         public static partial void SubscriptionSubscriptionIdKeepAliveCountRevised(

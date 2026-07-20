@@ -47,7 +47,8 @@ namespace Opc.Ua.Server.Tests
                 builder => builder
                     .SetMinimumLevel(LogLevel.Trace)
                     .AddProvider(provider));
-            ILogger logger = telemetry.CreateCompatibilityLogger();
+            ILogger logger = telemetry.CreateLogger(
+                ServerCompatibilityEventIds.CategoryName);
 
             logger.CompatibilityServerCall("Browse", 99);
             logger.CompatibilitySessionState("Activated", "sid", "sname", "chan", "ident");
@@ -85,7 +86,7 @@ namespace Opc.Ua.Server.Tests
             LogLevel logLevel)
         {
             RecordedLogRecord record = provider.Records.Single(candidate =>
-                candidate.CategoryName == ServerCompatibilityLog.CategoryName &&
+                candidate.CategoryName == ServerCompatibilityEventIds.CategoryName &&
                 candidate.EventId.Id == eventId);
             Assert.That(record.EventId.Name, Is.EqualTo(eventName));
             Assert.That(record.LogLevel, Is.EqualTo(logLevel));
