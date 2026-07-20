@@ -955,10 +955,11 @@ namespace Opc.Ua.SourceGeneration
                 {
                     {{Tokens.ClassName}} state = context.Create{{Tokens.SymbolicId}}(this, true);
                     {{Tokens.ChildName}} = state;
-                    global::Opc.Ua.NodeId previousNodeId = state.NodeId;
+                    global::Opc.Ua.NodeState nodeState = state;
+                    global::Opc.Ua.NodeId previousNodeId = nodeState.NodeId;
                     if (!nodeId.IsNull)
                     {
-                        ((global::Opc.Ua.NodeState)state).NodeId = nodeId;
+                        nodeState.NodeId = nodeId;
                         global::Opc.Ua.NodeInstanceExtensions.AssignInstanceChildNodeIds(
                             context,
                             state,
@@ -966,7 +967,7 @@ namespace Opc.Ua.SourceGeneration
                             this);
                     }
                     else if (context.NodeIdFactory != null &&
-                        state.NodeId.Equals({{Tokens.NodeIdConstant}}))
+                        nodeState.NodeId.Equals({{Tokens.NodeIdConstant}}))
                     {
                         previousNodeId =
                             global::Opc.Ua.NodeInstanceExtensions.AssignInstanceNodeId(context, state);
@@ -979,7 +980,7 @@ namespace Opc.Ua.SourceGeneration
                 }
                 else if (!nodeId.IsNull)
                 {
-                    {{Tokens.ChildName}}.NodeId = nodeId;
+                    ((global::Opc.Ua.NodeState){{Tokens.ChildName}}).NodeId = nodeId;
                 }
                 return this;
             }
@@ -1359,15 +1360,16 @@ namespace Opc.Ua.SourceGeneration
                 bool forInstance = false)
             {
                 var state = new global::Opc.Ua.BaseObjectTypeState();
-                ((global::Opc.Ua.NodeState)state).SymbolicName = {{Tokens.SymbolicNameSymbol}};
-                ((global::Opc.Ua.NodeState)state).NodeId = {{Tokens.NodeIdConstant}};
-                ((global::Opc.Ua.NodeState)state).BrowseName = new global::Opc.Ua.QualifiedName(
+                global::Opc.Ua.NodeState nodeState = state;
+                nodeState.SymbolicName = {{Tokens.SymbolicNameSymbol}};
+                nodeState.NodeId = {{Tokens.NodeIdConstant}};
+                nodeState.BrowseName = new global::Opc.Ua.QualifiedName(
                     {{Tokens.BrowseNameSymbol}},
                     context.NamespaceUris.GetIndexOrAppend({{Tokens.BrowseNameNamespaceUri}}));
-                ((global::Opc.Ua.NodeState)state).DisplayName = new global::Opc.Ua.LocalizedText({{Tokens.DisplayName}});
+                nodeState.DisplayName = new global::Opc.Ua.LocalizedText({{Tokens.DisplayName}});
                 {{Tokens.DescriptionValue}}
-                ((global::Opc.Ua.NodeState)state).WriteMask = {{Tokens.WriteMaskValue}};
-                ((global::Opc.Ua.NodeState)state).UserWriteMask = {{Tokens.UserWriteMaskValue}};
+                nodeState.WriteMask = {{Tokens.WriteMaskValue}};
+                nodeState.UserWriteMask = {{Tokens.UserWriteMaskValue}};
                 state.SuperTypeId = {{Tokens.SuperTypeId}};
                 state.IsAbstract = {{Tokens.IsAbstract}};
                 {{Tokens.ReleaseStatusValue}}
@@ -1382,7 +1384,7 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ListOfChildNodeStates}}
                 if (!forInstance)
                 {
-                    ((global::Opc.Ua.NodeState)state).IsPartOfTypeHierarchy = true;
+                    nodeState.IsPartOfTypeHierarchy = true;
                     {{Tokens.ModellingRuleId}}
                     {{Tokens.ListOfOptionalChildNodeStates}}
                 }
@@ -1404,15 +1406,16 @@ namespace Opc.Ua.SourceGeneration
                 bool forInstance = false)
             {
                 var state = {{Tokens.StateClassFactory}}();
-                ((global::Opc.Ua.NodeState)state).SymbolicName = {{Tokens.SymbolicNameSymbol}};
-                ((global::Opc.Ua.NodeState)state).NodeId = {{Tokens.NodeIdConstant}};
-                ((global::Opc.Ua.NodeState)state).BrowseName = new global::Opc.Ua.QualifiedName(
+                global::Opc.Ua.NodeState nodeState = state;
+                nodeState.SymbolicName = {{Tokens.SymbolicNameSymbol}};
+                nodeState.NodeId = {{Tokens.NodeIdConstant}};
+                nodeState.BrowseName = new global::Opc.Ua.QualifiedName(
                     {{Tokens.BrowseNameSymbol}},
                     context.NamespaceUris.GetIndexOrAppend({{Tokens.BrowseNameNamespaceUri}}));
-                ((global::Opc.Ua.NodeState)state).DisplayName = new global::Opc.Ua.LocalizedText({{Tokens.DisplayName}});
+                nodeState.DisplayName = new global::Opc.Ua.LocalizedText({{Tokens.DisplayName}});
                 {{Tokens.DescriptionValue}}
-                ((global::Opc.Ua.NodeState)state).WriteMask = {{Tokens.WriteMaskValue}};
-                ((global::Opc.Ua.NodeState)state).UserWriteMask = {{Tokens.UserWriteMaskValue}};
+                nodeState.WriteMask = {{Tokens.WriteMaskValue}};
+                nodeState.UserWriteMask = {{Tokens.UserWriteMaskValue}};
                 state.SuperTypeId = {{Tokens.SuperTypeId}};
                 state.IsAbstract = {{Tokens.IsAbstract}};
                 state.DataType = {{Tokens.DataTypeIdConstant}};
@@ -1431,7 +1434,7 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ListOfChildNodeStates}}
                 if (!forInstance)
                 {
-                    ((global::Opc.Ua.NodeState)state).IsPartOfTypeHierarchy = true;
+                    nodeState.IsPartOfTypeHierarchy = true;
                     {{Tokens.ModellingRuleId}}
                     {{Tokens.ListOfOptionalChildNodeStates}}
                 }
@@ -1453,15 +1456,16 @@ namespace Opc.Ua.SourceGeneration
                 bool forInstance = false)
             {
                 var state = new global::Opc.Ua.ReferenceTypeState();
-                ((global::Opc.Ua.NodeState)state).SymbolicName = {{Tokens.SymbolicNameSymbol}};
-                ((global::Opc.Ua.NodeState)state).NodeId = {{Tokens.NodeIdConstant}};
-                ((global::Opc.Ua.NodeState)state).BrowseName = new global::Opc.Ua.QualifiedName(
+                global::Opc.Ua.NodeState nodeState = state;
+                nodeState.SymbolicName = {{Tokens.SymbolicNameSymbol}};
+                nodeState.NodeId = {{Tokens.NodeIdConstant}};
+                nodeState.BrowseName = new global::Opc.Ua.QualifiedName(
                     {{Tokens.BrowseNameSymbol}},
                     context.NamespaceUris.GetIndexOrAppend({{Tokens.BrowseNameNamespaceUri}}));
-                ((global::Opc.Ua.NodeState)state).DisplayName = new global::Opc.Ua.LocalizedText({{Tokens.DisplayName}});
+                nodeState.DisplayName = new global::Opc.Ua.LocalizedText({{Tokens.DisplayName}});
                 {{Tokens.DescriptionValue}}
-                ((global::Opc.Ua.NodeState)state).WriteMask = {{Tokens.WriteMaskValue}};
-                ((global::Opc.Ua.NodeState)state).UserWriteMask = {{Tokens.UserWriteMaskValue}};
+                nodeState.WriteMask = {{Tokens.WriteMaskValue}};
+                nodeState.UserWriteMask = {{Tokens.UserWriteMaskValue}};
                 state.SuperTypeId = {{Tokens.SuperTypeId}};
                 state.IsAbstract = {{Tokens.IsAbstract}};
                 state.Symmetric = {{Tokens.SymmetricValue}};
@@ -1499,15 +1503,16 @@ namespace Opc.Ua.SourceGeneration
                 bool forInstance = false)
             {
                 var state = new global::Opc.Ua.DataTypeState();
-                ((global::Opc.Ua.NodeState)state).SymbolicName = {{Tokens.SymbolicNameSymbol}};
-                ((global::Opc.Ua.NodeState)state).NodeId = {{Tokens.NodeIdConstant}};
-                ((global::Opc.Ua.NodeState)state).BrowseName = new global::Opc.Ua.QualifiedName(
+                global::Opc.Ua.NodeState nodeState = state;
+                nodeState.SymbolicName = {{Tokens.SymbolicNameSymbol}};
+                nodeState.NodeId = {{Tokens.NodeIdConstant}};
+                nodeState.BrowseName = new global::Opc.Ua.QualifiedName(
                     {{Tokens.BrowseNameSymbol}},
                     context.NamespaceUris.GetIndexOrAppend({{Tokens.BrowseNameNamespaceUri}}));
-                ((global::Opc.Ua.NodeState)state).DisplayName = new global::Opc.Ua.LocalizedText({{Tokens.DisplayName}});
+                nodeState.DisplayName = new global::Opc.Ua.LocalizedText({{Tokens.DisplayName}});
                 {{Tokens.DescriptionValue}}
-                ((global::Opc.Ua.NodeState)state).WriteMask = {{Tokens.WriteMaskValue}};
-                ((global::Opc.Ua.NodeState)state).UserWriteMask = {{Tokens.UserWriteMaskValue}};
+                nodeState.WriteMask = {{Tokens.WriteMaskValue}};
+                nodeState.UserWriteMask = {{Tokens.UserWriteMaskValue}};
                 state.SuperTypeId = {{Tokens.SuperTypeId}};
                 state.IsAbstract = {{Tokens.IsAbstract}};
                 state.DataTypeDefinition = {{Tokens.DataTypeDefinition}};
@@ -1544,16 +1549,17 @@ namespace Opc.Ua.SourceGeneration
                 bool forInstance = true)
             {
                 var state = {{Tokens.StateClassFactory}}(null);
-                ((global::Opc.Ua.NodeState)state).SymbolicName = {{Tokens.SymbolicNameSymbol}};
-                ((global::Opc.Ua.NodeState)state).NodeId = {{Tokens.NodeIdConstant}};
+                global::Opc.Ua.NodeState nodeState = state;
+                nodeState.SymbolicName = {{Tokens.SymbolicNameSymbol}};
+                nodeState.NodeId = {{Tokens.NodeIdConstant}};
                 state.NumericId = {{Tokens.NumericIdValue}};
-                ((global::Opc.Ua.NodeState)state).BrowseName = new global::Opc.Ua.QualifiedName(
+                nodeState.BrowseName = new global::Opc.Ua.QualifiedName(
                     {{Tokens.BrowseNameSymbol}},
                     context.NamespaceUris.GetIndexOrAppend({{Tokens.BrowseNameNamespaceUri}}));
-                ((global::Opc.Ua.NodeState)state).DisplayName = new global::Opc.Ua.LocalizedText({{Tokens.DisplayName}});
+                nodeState.DisplayName = new global::Opc.Ua.LocalizedText({{Tokens.DisplayName}});
                 {{Tokens.DescriptionValue}}
-                ((global::Opc.Ua.NodeState)state).WriteMask = {{Tokens.WriteMaskValue}};
-                ((global::Opc.Ua.NodeState)state).UserWriteMask = {{Tokens.UserWriteMaskValue}};
+                nodeState.WriteMask = {{Tokens.WriteMaskValue}};
+                nodeState.UserWriteMask = {{Tokens.UserWriteMaskValue}};
                 state.TypeDefinitionId = {{Tokens.TypeDefinitionId}};
                 state.ReferenceTypeId = {{Tokens.ReferenceTypeId}};
                 // {{Tokens.ModellingRuleId}}
@@ -1588,17 +1594,18 @@ namespace Opc.Ua.SourceGeneration
                 bool forInstance = true)
             {
                 var state = {{Tokens.StateClassFactory}}(null);
-                ((global::Opc.Ua.NodeState)state).SymbolicName = {{Tokens.SymbolicNameSymbol}};
-                ((global::Opc.Ua.NodeState)state).NodeId = {{Tokens.NodeIdConstant}};
+                global::Opc.Ua.NodeState nodeState = state;
+                nodeState.SymbolicName = {{Tokens.SymbolicNameSymbol}};
+                nodeState.NodeId = {{Tokens.NodeIdConstant}};
                 state.NumericId = {{Tokens.NumericIdValue}};
-                ((global::Opc.Ua.NodeState)state).BrowseName = new global::Opc.Ua.QualifiedName(
+                nodeState.BrowseName = new global::Opc.Ua.QualifiedName(
                     {{Tokens.BrowseNameSymbol}},
                     context.NamespaceUris.GetIndexOrAppend({{Tokens.BrowseNameNamespaceUri}}));
-                ((global::Opc.Ua.NodeState)state).DisplayName = new global::Opc.Ua.LocalizedText(
+                nodeState.DisplayName = new global::Opc.Ua.LocalizedText(
                     {{Tokens.DisplayName}});
                 {{Tokens.DescriptionValue}}
-                ((global::Opc.Ua.NodeState)state).WriteMask = {{Tokens.WriteMaskValue}};
-                ((global::Opc.Ua.NodeState)state).UserWriteMask = {{Tokens.UserWriteMaskValue}};
+                nodeState.WriteMask = {{Tokens.WriteMaskValue}};
+                nodeState.UserWriteMask = {{Tokens.UserWriteMaskValue}};
                 state.TypeDefinitionId = {{Tokens.TypeDefinitionId}};
                 state.ReferenceTypeId = {{Tokens.ReferenceTypeId}};
                 // {{Tokens.ModellingRuleId}}
@@ -1639,15 +1646,16 @@ namespace Opc.Ua.SourceGeneration
                 this global::Opc.Ua.ISystemContext context)
             {
                 var state = new global::Opc.Ua.ViewState();
-                ((global::Opc.Ua.NodeState)state).SymbolicName = {{Tokens.SymbolicNameSymbol}};
-                ((global::Opc.Ua.NodeState)state).NodeId = {{Tokens.NodeIdConstant}};
-                ((global::Opc.Ua.NodeState)state).BrowseName = new global::Opc.Ua.QualifiedName(
+                global::Opc.Ua.NodeState nodeState = state;
+                nodeState.SymbolicName = {{Tokens.SymbolicNameSymbol}};
+                nodeState.NodeId = {{Tokens.NodeIdConstant}};
+                nodeState.BrowseName = new global::Opc.Ua.QualifiedName(
                     {{Tokens.BrowseNameSymbol}},
                     context.NamespaceUris.GetIndexOrAppend({{Tokens.BrowseNameNamespaceUri}}));
-                ((global::Opc.Ua.NodeState)state).DisplayName = new global::Opc.Ua.LocalizedText({{Tokens.DisplayName}});
+                nodeState.DisplayName = new global::Opc.Ua.LocalizedText({{Tokens.DisplayName}});
                 {{Tokens.DescriptionValue}}
-                ((global::Opc.Ua.NodeState)state).WriteMask = {{Tokens.WriteMaskValue}};
-                ((global::Opc.Ua.NodeState)state).UserWriteMask = {{Tokens.UserWriteMaskValue}};
+                nodeState.WriteMask = {{Tokens.WriteMaskValue}};
+                nodeState.UserWriteMask = {{Tokens.UserWriteMaskValue}};
                 state.EventNotifier = {{Tokens.EventNotifier}};
                 state.ContainsNoLoops = {{Tokens.ContainsNoLoopsValue}};
                 {{Tokens.ReleaseStatusValue}}
@@ -1681,26 +1689,27 @@ namespace Opc.Ua.SourceGeneration
                 global::Opc.Ua.QualifiedName browseName = default)
             {
                 var state = {{Tokens.StateClassFactory}}(parent);
-                ((global::Opc.Ua.NodeState)state).NodeId = {{Tokens.NodeIdConstant}};
+                global::Opc.Ua.NodeState nodeState = state;
+                nodeState.NodeId = {{Tokens.NodeIdConstant}};
                 if (!browseName.IsNull)
                 {
-                    ((global::Opc.Ua.NodeState)state).SymbolicName = browseName.Name;
-                    ((global::Opc.Ua.NodeState)state).BrowseName = browseName;
-                    ((global::Opc.Ua.NodeState)state).DisplayName = new global::Opc.Ua.LocalizedText(browseName.Name);
+                    nodeState.SymbolicName = browseName.Name;
+                    nodeState.BrowseName = browseName;
+                    nodeState.DisplayName = new global::Opc.Ua.LocalizedText(browseName.Name);
                 }
                 else
                 {
-                    ((global::Opc.Ua.NodeState)state).SymbolicName = {{Tokens.SymbolicNameSymbol}};
-                    ((global::Opc.Ua.NodeState)state).BrowseName = new global::Opc.Ua.QualifiedName(
+                    nodeState.SymbolicName = {{Tokens.SymbolicNameSymbol}};
+                    nodeState.BrowseName = new global::Opc.Ua.QualifiedName(
                         {{Tokens.BrowseNameSymbol}},
                         context.NamespaceUris.GetIndexOrAppend({{Tokens.BrowseNameNamespaceUri}}));
-                    ((global::Opc.Ua.NodeState)state).DisplayName = new global::Opc.Ua.LocalizedText(
+                    nodeState.DisplayName = new global::Opc.Ua.LocalizedText(
                         {{Tokens.DisplayName}});
                 }
                 {{Tokens.MethodDeclarationId}}
                 {{Tokens.DescriptionValue}}
-                ((global::Opc.Ua.NodeState)state).WriteMask = {{Tokens.WriteMaskValue}};
-                ((global::Opc.Ua.NodeState)state).UserWriteMask = {{Tokens.UserWriteMaskValue}};
+                nodeState.WriteMask = {{Tokens.WriteMaskValue}};
+                nodeState.UserWriteMask = {{Tokens.UserWriteMaskValue}};
                 state.ReferenceTypeId = {{Tokens.ReferenceTypeId}};
                 state.Executable = {{Tokens.ExecutableValue}};
                 state.UserExecutable = {{Tokens.ExecutableValue}};
@@ -1741,26 +1750,27 @@ namespace Opc.Ua.SourceGeneration
                 global::Opc.Ua.QualifiedName browseName = default)
             {
                 var state = {{Tokens.StateClassFactory}}(parent);
-                ((global::Opc.Ua.NodeState)state).NodeId = {{Tokens.NodeIdConstant}};
+                global::Opc.Ua.NodeState nodeState = state;
+                nodeState.NodeId = {{Tokens.NodeIdConstant}};
                 if (!browseName.IsNull)
                 {
-                    ((global::Opc.Ua.NodeState)state).SymbolicName = browseName.Name;
-                    ((global::Opc.Ua.NodeState)state).BrowseName = browseName;
-                    ((global::Opc.Ua.NodeState)state).DisplayName = new global::Opc.Ua.LocalizedText(browseName.Name);
+                    nodeState.SymbolicName = browseName.Name;
+                    nodeState.BrowseName = browseName;
+                    nodeState.DisplayName = new global::Opc.Ua.LocalizedText(browseName.Name);
                 }
                 else
                 {
-                    ((global::Opc.Ua.NodeState)state).SymbolicName = {{Tokens.SymbolicNameSymbol}};
-                    ((global::Opc.Ua.NodeState)state).BrowseName = new global::Opc.Ua.QualifiedName(
+                    nodeState.SymbolicName = {{Tokens.SymbolicNameSymbol}};
+                    nodeState.BrowseName = new global::Opc.Ua.QualifiedName(
                         {{Tokens.BrowseNameSymbol}},
                         context.NamespaceUris.GetIndexOrAppend({{Tokens.BrowseNameNamespaceUri}}));
-                    ((global::Opc.Ua.NodeState)state).DisplayName = new global::Opc.Ua.LocalizedText(
+                    nodeState.DisplayName = new global::Opc.Ua.LocalizedText(
                         {{Tokens.DisplayName}});
                 }
                 state.TypeDefinitionId = {{Tokens.TypeDefinitionId}};
                 {{Tokens.DescriptionValue}}
-                ((global::Opc.Ua.NodeState)state).WriteMask = {{Tokens.WriteMaskValue}};
-                ((global::Opc.Ua.NodeState)state).UserWriteMask = {{Tokens.UserWriteMaskValue}};
+                nodeState.WriteMask = {{Tokens.WriteMaskValue}};
+                nodeState.UserWriteMask = {{Tokens.UserWriteMaskValue}};
                 state.ReferenceTypeId = {{Tokens.ReferenceTypeId}};
                 state.EventNotifier = {{Tokens.EventNotifier}};
                 {{Tokens.ReleaseStatusValue}}
@@ -1798,27 +1808,28 @@ namespace Opc.Ua.SourceGeneration
                 global::Opc.Ua.QualifiedName browseName = default)
             {
                 var state = {{Tokens.StateClassFactory}}(parent);
-                ((global::Opc.Ua.NodeState)state).NodeId = {{Tokens.NodeIdConstant}};
+                global::Opc.Ua.NodeState nodeState = state;
+                nodeState.NodeId = {{Tokens.NodeIdConstant}};
                 if (!browseName.IsNull)
                 {
-                    ((global::Opc.Ua.NodeState)state).SymbolicName = browseName.Name;
-                    ((global::Opc.Ua.NodeState)state).BrowseName = browseName;
-                    ((global::Opc.Ua.NodeState)state).DisplayName = new global::Opc.Ua.LocalizedText(browseName.Name);
+                    nodeState.SymbolicName = browseName.Name;
+                    nodeState.BrowseName = browseName;
+                    nodeState.DisplayName = new global::Opc.Ua.LocalizedText(browseName.Name);
                 }
                 else
                 {
-                    ((global::Opc.Ua.NodeState)state).SymbolicName = {{Tokens.SymbolicNameSymbol}};
-                    ((global::Opc.Ua.NodeState)state).BrowseName = new global::Opc.Ua.QualifiedName(
+                    nodeState.SymbolicName = {{Tokens.SymbolicNameSymbol}};
+                    nodeState.BrowseName = new global::Opc.Ua.QualifiedName(
                         {{Tokens.BrowseNameSymbol}},
                         context.NamespaceUris.GetIndexOrAppend({{Tokens.BrowseNameNamespaceUri}}));
-                    ((global::Opc.Ua.NodeState)state).DisplayName = new global::Opc.Ua.LocalizedText(
+                    nodeState.DisplayName = new global::Opc.Ua.LocalizedText(
                         {{Tokens.DisplayName}});
                 }
 
                 state.TypeDefinitionId = {{Tokens.TypeDefinitionId}};
                 {{Tokens.DescriptionValue}}
-                ((global::Opc.Ua.NodeState)state).WriteMask = {{Tokens.WriteMaskValue}};
-                ((global::Opc.Ua.NodeState)state).UserWriteMask = {{Tokens.UserWriteMaskValue}};
+                nodeState.WriteMask = {{Tokens.WriteMaskValue}};
+                nodeState.UserWriteMask = {{Tokens.UserWriteMaskValue}};
                 state.ReferenceTypeId = {{Tokens.ReferenceTypeId}};
                 {{Tokens.ModellingRuleId}}
                 state.DataType = {{Tokens.DataTypeIdConstant}};
@@ -1864,19 +1875,20 @@ namespace Opc.Ua.SourceGeneration
                 bool forInstance = false)
             {
                 var state = {{Tokens.StateClassFactory}}(parent);
-                ((global::Opc.Ua.NodeState)state).SymbolicName = {{Tokens.SymbolicNameSymbol}};
-                ((global::Opc.Ua.NodeState)state).NodeId = {{Tokens.NodeIdConstant}};
+                global::Opc.Ua.NodeState nodeState = state;
+                nodeState.SymbolicName = {{Tokens.SymbolicNameSymbol}};
+                nodeState.NodeId = {{Tokens.NodeIdConstant}};
                 {{Tokens.InstanceNodeIdOverride}}
                 state.TypeDefinitionId = {{Tokens.TypeDefinitionId}};
-                ((global::Opc.Ua.NodeState)state).BrowseName = new global::Opc.Ua.QualifiedName(
+                nodeState.BrowseName = new global::Opc.Ua.QualifiedName(
                     {{Tokens.BrowseNameSymbol}},
                     context.NamespaceUris.GetIndexOrAppend({{Tokens.BrowseNameNamespaceUri}}));
-                ((global::Opc.Ua.NodeState)state).DisplayName = new global::Opc.Ua.LocalizedText(
+                nodeState.DisplayName = new global::Opc.Ua.LocalizedText(
                     {{Tokens.DisplayName}});
                 state.NumericId = {{Tokens.NumericIdValue}};
                 {{Tokens.DescriptionValue}}
-                ((global::Opc.Ua.NodeState)state).WriteMask = {{Tokens.WriteMaskValue}};
-                ((global::Opc.Ua.NodeState)state).UserWriteMask = {{Tokens.UserWriteMaskValue}};
+                nodeState.WriteMask = {{Tokens.WriteMaskValue}};
+                nodeState.UserWriteMask = {{Tokens.UserWriteMaskValue}};
                 state.ReferenceTypeId = {{Tokens.ReferenceTypeId}};
                 state.EventNotifier = {{Tokens.EventNotifier}};
                 {{Tokens.ReleaseStatusValue}}
@@ -1910,19 +1922,20 @@ namespace Opc.Ua.SourceGeneration
                 bool forInstance = false)
             {
                 var state = {{Tokens.StateClassFactory}}(parent);
-                ((global::Opc.Ua.NodeState)state).SymbolicName = {{Tokens.SymbolicNameSymbol}};
-                ((global::Opc.Ua.NodeState)state).NodeId = {{Tokens.NodeIdConstant}};
+                global::Opc.Ua.NodeState nodeState = state;
+                nodeState.SymbolicName = {{Tokens.SymbolicNameSymbol}};
+                nodeState.NodeId = {{Tokens.NodeIdConstant}};
                 {{Tokens.InstanceNodeIdOverride}}
                 state.TypeDefinitionId = {{Tokens.TypeDefinitionId}};
                 state.NumericId = {{Tokens.NumericIdValue}};
-                ((global::Opc.Ua.NodeState)state).BrowseName = new global::Opc.Ua.QualifiedName(
+                nodeState.BrowseName = new global::Opc.Ua.QualifiedName(
                     {{Tokens.BrowseNameSymbol}},
                     context.NamespaceUris.GetIndexOrAppend({{Tokens.BrowseNameNamespaceUri}}));
-                ((global::Opc.Ua.NodeState)state).DisplayName = new global::Opc.Ua.LocalizedText(
+                nodeState.DisplayName = new global::Opc.Ua.LocalizedText(
                     {{Tokens.DisplayName}});
                 {{Tokens.DescriptionValue}}
-                ((global::Opc.Ua.NodeState)state).WriteMask = {{Tokens.WriteMaskValue}};
-                ((global::Opc.Ua.NodeState)state).UserWriteMask = {{Tokens.UserWriteMaskValue}};
+                nodeState.WriteMask = {{Tokens.WriteMaskValue}};
+                nodeState.UserWriteMask = {{Tokens.UserWriteMaskValue}};
                 state.ReferenceTypeId = {{Tokens.ReferenceTypeId}};
                 state.DataType = {{Tokens.DataTypeIdConstant}};
                 state.ValueRank = {{Tokens.ValueRank}};
@@ -1964,19 +1977,20 @@ namespace Opc.Ua.SourceGeneration
                 bool forInstance = false)
             {
                 var state = {{Tokens.StateClassFactory}}(parent);
-                ((global::Opc.Ua.NodeState)state).SymbolicName = {{Tokens.SymbolicNameSymbol}};
-                ((global::Opc.Ua.NodeState)state).NodeId = {{Tokens.NodeIdConstant}};
+                global::Opc.Ua.NodeState nodeState = state;
+                nodeState.SymbolicName = {{Tokens.SymbolicNameSymbol}};
+                nodeState.NodeId = {{Tokens.NodeIdConstant}};
                 {{Tokens.InstanceNodeIdOverride}}
                 {{Tokens.MethodDeclarationId}}
-                ((global::Opc.Ua.NodeState)state).BrowseName = new global::Opc.Ua.QualifiedName(
+                nodeState.BrowseName = new global::Opc.Ua.QualifiedName(
                     {{Tokens.BrowseNameSymbol}},
                     context.NamespaceUris.GetIndexOrAppend({{Tokens.BrowseNameNamespaceUri}}));
-                ((global::Opc.Ua.NodeState)state).DisplayName = new global::Opc.Ua.LocalizedText(
+                nodeState.DisplayName = new global::Opc.Ua.LocalizedText(
                     {{Tokens.DisplayName}});
                 state.NumericId = {{Tokens.NumericIdValue}};
                 {{Tokens.DescriptionValue}}
-                ((global::Opc.Ua.NodeState)state).WriteMask = {{Tokens.WriteMaskValue}};
-                ((global::Opc.Ua.NodeState)state).UserWriteMask = {{Tokens.UserWriteMaskValue}};
+                nodeState.WriteMask = {{Tokens.WriteMaskValue}};
+                nodeState.UserWriteMask = {{Tokens.UserWriteMaskValue}};
                 state.ReferenceTypeId = {{Tokens.ReferenceTypeId}};
                 state.Executable = {{Tokens.ExecutableValue}};
                 state.UserExecutable = {{Tokens.ExecutableValue}};
@@ -2015,28 +2029,29 @@ namespace Opc.Ua.SourceGeneration
                 bool forInstance = false)
             {
                 var state = {{Tokens.StateClassFactory}}(parent);
-                ((global::Opc.Ua.NodeState)state).NodeId = {{Tokens.NodeIdConstant}};
+                global::Opc.Ua.NodeState nodeState = state;
+                nodeState.NodeId = {{Tokens.NodeIdConstant}};
                 if (!browseName.IsNull)
                 {
-                    ((global::Opc.Ua.NodeState)state).SymbolicName = browseName.Name;
-                    ((global::Opc.Ua.NodeState)state).BrowseName = browseName;
-                    ((global::Opc.Ua.NodeState)state).DisplayName = new global::Opc.Ua.LocalizedText(browseName.Name);
+                    nodeState.SymbolicName = browseName.Name;
+                    nodeState.BrowseName = browseName;
+                    nodeState.DisplayName = new global::Opc.Ua.LocalizedText(browseName.Name);
                     forInstance = true;
                 }
                 else
                 {
                     // Create the state for the type parent
-                    ((global::Opc.Ua.NodeState)state).SymbolicName = {{Tokens.SymbolicNameSymbol}};
-                    ((global::Opc.Ua.NodeState)state).BrowseName = new global::Opc.Ua.QualifiedName(
+                    nodeState.SymbolicName = {{Tokens.SymbolicNameSymbol}};
+                    nodeState.BrowseName = new global::Opc.Ua.QualifiedName(
                         {{Tokens.BrowseNameSymbol}},
                         context.NamespaceUris.GetIndexOrAppend({{Tokens.BrowseNameNamespaceUri}}));
-                    ((global::Opc.Ua.NodeState)state).DisplayName = new global::Opc.Ua.LocalizedText(
+                    nodeState.DisplayName = new global::Opc.Ua.LocalizedText(
                         {{Tokens.DisplayName}});
                 }
                 state.NumericId = {{Tokens.NumericIdValue}};
                 {{Tokens.DescriptionValue}}
-                ((global::Opc.Ua.NodeState)state).WriteMask = {{Tokens.WriteMaskValue}};
-                ((global::Opc.Ua.NodeState)state).UserWriteMask = {{Tokens.UserWriteMaskValue}};
+                nodeState.WriteMask = {{Tokens.WriteMaskValue}};
+                nodeState.UserWriteMask = {{Tokens.UserWriteMaskValue}};
                 state.TypeDefinitionId = {{Tokens.TypeDefinitionId}};
                 state.ReferenceTypeId = {{Tokens.ReferenceTypeId}};
                 state.EventNotifier = {{Tokens.EventNotifier}};
@@ -2072,28 +2087,29 @@ namespace Opc.Ua.SourceGeneration
                 bool forInstance = false)
             {
                 var state = {{Tokens.StateClassFactory}}(parent);
-                ((global::Opc.Ua.NodeState)state).NodeId = {{Tokens.NodeIdConstant}};
+                global::Opc.Ua.NodeState nodeState = state;
+                nodeState.NodeId = {{Tokens.NodeIdConstant}};
                 if (!browseName.IsNull)
                 {
-                    ((global::Opc.Ua.NodeState)state).SymbolicName = browseName.Name;
-                    ((global::Opc.Ua.NodeState)state).BrowseName = browseName;
-                    ((global::Opc.Ua.NodeState)state).DisplayName = new global::Opc.Ua.LocalizedText(browseName.Name);
+                    nodeState.SymbolicName = browseName.Name;
+                    nodeState.BrowseName = browseName;
+                    nodeState.DisplayName = new global::Opc.Ua.LocalizedText(browseName.Name);
                     forInstance = true;
                 }
                 else
                 {
                     // Create the state for the type parent
-                    ((global::Opc.Ua.NodeState)state).SymbolicName = {{Tokens.SymbolicNameSymbol}};
-                    ((global::Opc.Ua.NodeState)state).BrowseName = new global::Opc.Ua.QualifiedName(
+                    nodeState.SymbolicName = {{Tokens.SymbolicNameSymbol}};
+                    nodeState.BrowseName = new global::Opc.Ua.QualifiedName(
                         {{Tokens.BrowseNameSymbol}},
                         context.NamespaceUris.GetIndexOrAppend({{Tokens.BrowseNameNamespaceUri}}));
-                    ((global::Opc.Ua.NodeState)state).DisplayName = new global::Opc.Ua.LocalizedText(
+                    nodeState.DisplayName = new global::Opc.Ua.LocalizedText(
                         {{Tokens.DisplayName}});
                 }
                 state.NumericId = {{Tokens.NumericIdValue}};
                 {{Tokens.DescriptionValue}}
-                ((global::Opc.Ua.NodeState)state).WriteMask = {{Tokens.WriteMaskValue}};
-                ((global::Opc.Ua.NodeState)state).UserWriteMask = {{Tokens.UserWriteMaskValue}};
+                nodeState.WriteMask = {{Tokens.WriteMaskValue}};
+                nodeState.UserWriteMask = {{Tokens.UserWriteMaskValue}};
                 state.TypeDefinitionId = {{Tokens.TypeDefinitionId}};
                 state.ReferenceTypeId = {{Tokens.ReferenceTypeId}};
                 {{Tokens.ModellingRuleId}}
@@ -2137,28 +2153,29 @@ namespace Opc.Ua.SourceGeneration
                 bool forInstance = false)
             {
                 var state = {{Tokens.StateClassFactory}}(parent);
-                ((global::Opc.Ua.NodeState)state).NodeId = {{Tokens.NodeIdConstant}};
+                global::Opc.Ua.NodeState nodeState = state;
+                nodeState.NodeId = {{Tokens.NodeIdConstant}};
                 if (!browseName.IsNull)
                 {
-                    ((global::Opc.Ua.NodeState)state).SymbolicName = browseName.Name;
-                    ((global::Opc.Ua.NodeState)state).BrowseName = browseName;
-                    ((global::Opc.Ua.NodeState)state).DisplayName = new global::Opc.Ua.LocalizedText(browseName.Name);
+                    nodeState.SymbolicName = browseName.Name;
+                    nodeState.BrowseName = browseName;
+                    nodeState.DisplayName = new global::Opc.Ua.LocalizedText(browseName.Name);
                     forInstance = true;
                 }
                 else
                 {
                     // Create the state for the type parent
-                    ((global::Opc.Ua.NodeState)state).SymbolicName = {{Tokens.SymbolicNameSymbol}};
-                    ((global::Opc.Ua.NodeState)state).BrowseName = new global::Opc.Ua.QualifiedName(
+                    nodeState.SymbolicName = {{Tokens.SymbolicNameSymbol}};
+                    nodeState.BrowseName = new global::Opc.Ua.QualifiedName(
                         {{Tokens.BrowseNameSymbol}},
                         context.NamespaceUris.GetIndexOrAppend({{Tokens.BrowseNameNamespaceUri}}));
-                    ((global::Opc.Ua.NodeState)state).DisplayName = new global::Opc.Ua.LocalizedText(
+                    nodeState.DisplayName = new global::Opc.Ua.LocalizedText(
                         {{Tokens.DisplayName}});
                 }
                 state.NumericId = {{Tokens.NumericIdValue}};
                 {{Tokens.DescriptionValue}}
-                ((global::Opc.Ua.NodeState)state).WriteMask = {{Tokens.WriteMaskValue}};
-                ((global::Opc.Ua.NodeState)state).UserWriteMask = {{Tokens.UserWriteMaskValue}};
+                nodeState.WriteMask = {{Tokens.WriteMaskValue}};
+                nodeState.UserWriteMask = {{Tokens.UserWriteMaskValue}};
                 state.ReferenceTypeId = {{Tokens.ReferenceTypeId}};
                 state.Executable = {{Tokens.ExecutableValue}};
                 state.UserExecutable = {{Tokens.ExecutableValue}};
@@ -2194,7 +2211,7 @@ namespace Opc.Ua.SourceGeneration
 
         /// <summary>
         /// Wrapper template for the singleton-instance NodeId override
-        /// emitted right after the type-level <c>state.NodeId</c>
+        /// emitted right after the type-level <c>nodeState.NodeId</c>
         /// assignment in <c>Create_ChildObject</c> / <c>Create_ChildVariable</c>
         /// / <c>Create_ChildMethod</c>. Renders only when at least one
         /// singleton-instance branch is collected; otherwise the token
@@ -2210,15 +2227,15 @@ namespace Opc.Ua.SourceGeneration
 
         /// <summary>
         /// One per-singleton branch of the singleton-instance
-        /// <c>state.NodeId</c> override dispatch. Rebinds
-        /// <c>state.NodeId</c> to <see cref="Tokens.NodeIdConstant"/>
+        /// <c>nodeState.NodeId</c> override dispatch. Rebinds
+        /// <c>nodeState.NodeId</c> to <see cref="Tokens.NodeIdConstant"/>
         /// when the parent owner matches <see cref="Tokens.ParentNodeIdConstant"/>.
         /// </summary>
         public static readonly TemplateString InstanceNodeIdBranch = TemplateString.Parse(
             $$"""
             {{Tokens.IfOrElseIf}} (parent.NodeId.Equals({{Tokens.ParentNodeIdConstant}}))
             {
-                ((global::Opc.Ua.NodeState)state).NodeId = {{Tokens.NodeIdConstant}};
+                nodeState.NodeId = {{Tokens.NodeIdConstant}};
             }
             """);
 
@@ -2240,7 +2257,7 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         public static readonly TemplateString Description = TemplateString.Parse(
             $$"""
-            ((global::Opc.Ua.NodeState)state).Description = new global::Opc.Ua.LocalizedText({{Tokens.DescriptionValue}});
+            nodeState.Description = new global::Opc.Ua.LocalizedText({{Tokens.DescriptionValue}});
 
             """);
 
@@ -2258,7 +2275,7 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         public static readonly TemplateString ReleaseStatus = TemplateString.Parse(
             $$"""
-            state.ReleaseStatus = {{Tokens.ReleaseStatusValue}};
+            nodeState.ReleaseStatus = {{Tokens.ReleaseStatusValue}};
 
             """);
 
@@ -2267,7 +2284,7 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         public static readonly TemplateString Categories = TemplateString.Parse(
             $$"""
-            state.Categories = {{Tokens.CategoriesValue}};
+            nodeState.Categories = {{Tokens.CategoriesValue}};
 
             """);
 
@@ -2276,7 +2293,7 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         public static readonly TemplateString Specification = TemplateString.Parse(
             $$"""
-            state.Specification = {{Tokens.SpecificationValue}};
+            nodeState.Specification = {{Tokens.SpecificationValue}};
 
             """);
 
@@ -2285,7 +2302,7 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         public static readonly TemplateString AccessRestrictions = TemplateString.Parse(
             $$"""
-            state.AccessRestrictions = {{Tokens.AccessRestrictionsValue}};
+            nodeState.AccessRestrictions = {{Tokens.AccessRestrictionsValue}};
 
             """);
 
