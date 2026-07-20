@@ -2042,15 +2042,17 @@ namespace Opc.Ua.SourceGeneration
             IWriteContext context,
             MethodDesign method)
         {
+            string targetNamespace = m_context.ModelDesign.TargetNamespace.Value;
             string declaredClassName = method.GetNodeStateClassName(
-                m_context.ModelDesign.TargetNamespace.Value,
-                []);
-            // Record this pass's declared method-state class (its guard-free,
-            // fully-qualified form) so a later reference to the same standard
-            // Opc.Ua.*MethodState (e.g. GDS emits its own) is not degraded.
+                targetNamespace,
+                [],
+                applyStandardFallback: false);
+            // Declarations require an unqualified identifier, while fallback
+            // tracking requires the fully-qualified name. Neither may apply
+            // the reference-only fallback policy.
             StandardMethodStateFallback.RecordDeclaredMethodState(
                 method.GetNodeStateClassName(
-                    m_context.ModelDesign.TargetNamespace.Value,
+                    targetNamespace,
                     m_context.ModelDesign.Namespaces,
                     applyStandardFallback: false));
             context.Template.AddReplacement(
