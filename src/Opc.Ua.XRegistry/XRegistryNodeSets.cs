@@ -39,7 +39,6 @@ namespace Opc.Ua.XRegistry
     /// OPC UA server SDK; the server-side runtime NodeSet wrapping is done in
     /// <c>Opc.Ua.XRegistry.Server</c>.
     /// </summary>
-    [Experimental("UA_NETStandard_Encoders")]
     public static class XRegistryNodeSets
     {
         /// <summary>

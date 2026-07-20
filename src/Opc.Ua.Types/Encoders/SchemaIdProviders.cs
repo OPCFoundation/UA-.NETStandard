@@ -40,7 +40,6 @@ namespace Opc.Ua
     /// <see cref="SchemaIdProviders"/>), including a JSON Schema provider that is only present
     /// when JSON Schema support is registered.
     /// </summary>
-    [Experimental("UA_NETStandard_Encoders")]
     public interface ISchemaIdProvider
     {
         /// <summary>
@@ -67,7 +66,6 @@ namespace Opc.Ua
     /// The built-in Apache Avro, Apache Arrow and JSON Schema providers are pre-registered; a
     /// host may register additional providers (for example a custom schema format) at startup.
     /// </summary>
-    [Experimental("UA_NETStandard_Encoders")]
     public static class SchemaIdProviders
     {
         /// <summary>

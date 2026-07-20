@@ -34,12 +34,11 @@ namespace Opc.Ua.PubSub.Server.SchemaRegistry
 {
     /// <summary>
     /// <see cref="INodeManagerFactory"/> for the
-    /// <see cref="SchemaRegistryRegistrationNodeManager"/>. It declares the Schema Registry namespace
+    /// <see cref="SchemaRegistrationNodeManager"/>. It declares the Schema Registry namespace
     /// so the registration resource group and the fast-path nodes it creates at runtime live
     /// alongside the runtime-loaded companion NodeSet.
     /// </summary>
-    [Experimental("UA_NETStandard_Encoders")]
-    public sealed class SchemaRegistryRegistrationNodeManagerFactory : INodeManagerFactory
+    public sealed class SchemaRegistrationNodeManagerFactory : INodeManagerFactory
     {
         private readonly SchemaRegistryOptions m_options;
 
@@ -47,7 +46,7 @@ namespace Opc.Ua.PubSub.Server.SchemaRegistry
         /// Initializes the factory with the Schema Registry feature options.
         /// </summary>
         /// <param name="options">The Schema Registry feature options.</param>
-        public SchemaRegistryRegistrationNodeManagerFactory(SchemaRegistryOptions? options = null)
+        public SchemaRegistrationNodeManagerFactory(SchemaRegistryOptions? options = null)
         {
             m_options = options ?? new SchemaRegistryOptions();
         }
@@ -62,7 +61,7 @@ namespace Opc.Ua.PubSub.Server.SchemaRegistry
         {
             // Ownership of the node manager is transferred to the server.
 #pragma warning disable CA2000 // Ownership of the node manager is transferred to the server.
-            return new SchemaRegistryRegistrationNodeManager(server, configuration, m_options);
+            return new SchemaRegistrationNodeManager(server, configuration, m_options);
 #pragma warning restore CA2000
         }
     }

@@ -37,7 +37,7 @@ namespace Opc.Ua
     /// <summary>
     /// Encodes OPC UA values using the experimental Avro binary mapping.
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_Encoders")]
+    [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_Avro")]
     public sealed class AvroEncoder : IEncoder
     {
         private readonly Stream m_stream;

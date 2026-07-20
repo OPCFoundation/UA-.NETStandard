@@ -29,31 +29,39 @@
 
 using System.Diagnostics.CodeAnalysis;
 using Opc.Ua.Server;
-using Opc.Ua.XRegistry.Server;
 
 namespace Opc.Ua.PubSub.Server.SchemaRegistry
 {
     /// <summary>
-    /// The PubSub Schema Registry federation node manager: the generic
-    /// <see cref="XRegistryFederationNodeManager"/> configured with the Schema Registry namespace and
-    /// the schema content-id provider so a federated schema proxy carries the content-derived
-    /// <c>SchemaId</c> that is stable across registries (Annex B, §4.3).
+    /// <see cref="INodeManagerFactory"/> for the <see cref="FastPathNodeManager"/>.
+    /// It declares the Schema Registry namespace so Opaque SchemaId NodeIds route to the fast-path
+    /// manager.
     /// </summary>
-    [Experimental("UA_NETStandard_Encoders")]
-    public sealed class SchemaRegistryFederationNodeManager : XRegistryFederationNodeManager
+    public sealed class FastPathNodeManagerFactory : INodeManagerFactory
     {
+        private readonly SchemaRegistryOptions m_options;
+
         /// <summary>
-        /// Initializes the schema federation node manager.
+        /// Initializes the factory with the Schema Registry feature options.
         /// </summary>
-        /// <param name="server">The server that owns the node manager.</param>
-        /// <param name="configuration">The application configuration.</param>
         /// <param name="options">The Schema Registry feature options.</param>
-        public SchemaRegistryFederationNodeManager(
-            IServerInternal server,
-            ApplicationConfiguration configuration,
-            SchemaRegistryOptions? options)
-            : base(server, configuration, (options ?? new SchemaRegistryOptions()).ToServerOptions())
+        public FastPathNodeManagerFactory(SchemaRegistryOptions? options = null)
         {
+            m_options = options ?? new SchemaRegistryOptions();
+        }
+
+        /// <inheritdoc/>
+        public ArrayOf<string> NamespacesUris => [m_options.SchemaRegistryNamespaceUri];
+
+        /// <inheritdoc/>
+        public INodeManager Create(
+            IServerInternal server,
+            ApplicationConfiguration configuration)
+        {
+            // Ownership of the node manager is transferred to the server.
+#pragma warning disable CA2000 // Ownership of the node manager is transferred to the server.
+            return new FastPathNodeManager(server, configuration, m_options);
+#pragma warning restore CA2000
         }
     }
 }

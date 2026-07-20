@@ -38,7 +38,7 @@ namespace Opc.Ua
     /// <param name = "SchemaId">The raw 8-byte CRC-64-AVRO schema identifier.</param>
     /// <param name = "SchemaJson">The self-contained Avro schema JSON document.</param>
     /// <param name = "SchemaEpoch">The optional operational schema epoch.</param>
-    [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_Encoders")]
+    [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_Avro")]
     public sealed record AvroSchemaAnnouncement(ByteString SchemaId, string SchemaJson, long? SchemaEpoch)
     {
         /// <summary>

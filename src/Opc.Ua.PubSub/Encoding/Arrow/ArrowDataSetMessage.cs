@@ -37,7 +37,7 @@ namespace Opc.Ua.PubSub.Encoding
     /// scalar and one-dimensional array types listed by the Part 14 Arrow
     /// draft; unsupported field built-in types fail with NotSupportedException.
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_Encoders")]
+    [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_Arrow")]
     public sealed record ArrowDataSetMessage : PubSubDataSetMessage
     {
         /// <summary>

@@ -37,7 +37,6 @@ namespace Opc.Ua.PubSub.SchemaRegistry
     /// resource/method NodeIds from the xRegistry base and adds the Schema Registry companion
     /// namespace and its type/instance NodeIds. Final NodeIds are assigned by the OPC Foundation.
     /// </summary>
-    [Experimental("UA_NETStandard_Encoders")]
     public static class SchemaRegistryWellKnown
     {
         /// <summary>The Schema Registry companion namespace URI.</summary>

@@ -32,7 +32,6 @@ namespace Opc.Ua.PubSub.Application
     /// <summary>
     /// Options for the experimental PubSub JSON schema-exchange feature.
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_Encoders")]
     public sealed class JsonSchemaExchangeOptions
     {
         /// <summary>

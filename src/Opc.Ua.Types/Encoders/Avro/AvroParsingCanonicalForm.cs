@@ -46,7 +46,7 @@ namespace Opc.Ua
     /// <c>type</c>/<c>name</c>/<c>fields</c>/<c>symbols</c>/<c>items</c>/<c>values</c>/<c>size</c>),
     /// ORDER (name, type, fields, symbols, items, values, size), STRINGS/INTEGERS/WHITESPACE.
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_Encoders")]
+    [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_Avro")]
     public static class AvroParsingCanonicalForm
     {
         private static readonly HashSet<string> s_primitives = new(StringComparer.Ordinal)

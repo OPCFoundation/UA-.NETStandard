@@ -1077,8 +1077,11 @@ dotnet_diagnostic.RCS1266.severity                                            = 
 #
 dotnet_diagnostic.UA_NETStandard_1.severity = none
 
-# UA_NETStandard_Encoders: Experimental data encoders are for evaluation purposes only and are subject to change or removal
-dotnet_diagnostic.UA_NETStandard_Encoders.severity = none
+# UA_NETStandard_Avro: Experimental Avro data encoding is for evaluation purposes only and is subject to change or removal
+dotnet_diagnostic.UA_NETStandard_Avro.severity = none
+
+# UA_NETStandard_Arrow: Experimental Arrow data encoding is for evaluation purposes only and is subject to change or removal
+dotnet_diagnostic.UA_NETStandard_Arrow.severity = none
 
 # Allow public members in fixtures
 dotnet_diagnostic.NUnit1028.severity = none

@@ -37,7 +37,6 @@ namespace Opc.Ua.XRegistry
     /// registry (for example the PubSub Schema Registry) reuses these NodeIds in its own companion
     /// namespace. Final NodeIds are assigned by the OPC Foundation.
     /// </summary>
-    [Experimental("UA_NETStandard_Encoders")]
     public static class XRegistryWellKnown
     {
         /// <summary>The abstract xRegistry base companion namespace URI.</summary>

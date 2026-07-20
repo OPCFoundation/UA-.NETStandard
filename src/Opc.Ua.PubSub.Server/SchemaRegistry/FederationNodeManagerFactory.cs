@@ -33,12 +33,11 @@ using Opc.Ua.Server;
 namespace Opc.Ua.PubSub.Server.SchemaRegistry
 {
     /// <summary>
-    /// <see cref="INodeManagerFactory"/> for the <see cref="SchemaRegistryFastPathNodeManager"/>.
-    /// It declares the Schema Registry namespace so Opaque SchemaId NodeIds route to the fast-path
-    /// manager.
+    /// <see cref="INodeManagerFactory"/> for the
+    /// <see cref="FederationNodeManager"/>. It declares the Schema Registry namespace
+    /// so the federated schema proxy lives alongside the runtime-loaded companion NodeSet.
     /// </summary>
-    [Experimental("UA_NETStandard_Encoders")]
-    public sealed class SchemaRegistryFastPathNodeManagerFactory : INodeManagerFactory
+    public sealed class FederationNodeManagerFactory : INodeManagerFactory
     {
         private readonly SchemaRegistryOptions m_options;
 
@@ -46,7 +45,7 @@ namespace Opc.Ua.PubSub.Server.SchemaRegistry
         /// Initializes the factory with the Schema Registry feature options.
         /// </summary>
         /// <param name="options">The Schema Registry feature options.</param>
-        public SchemaRegistryFastPathNodeManagerFactory(SchemaRegistryOptions? options = null)
+        public FederationNodeManagerFactory(SchemaRegistryOptions? options = null)
         {
             m_options = options ?? new SchemaRegistryOptions();
         }
@@ -61,7 +60,7 @@ namespace Opc.Ua.PubSub.Server.SchemaRegistry
         {
             // Ownership of the node manager is transferred to the server.
 #pragma warning disable CA2000 // Ownership of the node manager is transferred to the server.
-            return new SchemaRegistryFastPathNodeManager(server, configuration, m_options);
+            return new FederationNodeManager(server, configuration, m_options);
 #pragma warning restore CA2000
         }
     }

@@ -42,7 +42,6 @@ namespace Opc.Ua.XRegistry.Client
     /// <c>CreateResource</c>/<c>Write</c>/<c>Close</c> lifecycle. Concrete registries (for example the
     /// PubSub Schema Registry) derive from this type to add domain-specific naming and defaults.
     /// </summary>
-    [Experimental("UA_NETStandard_Encoders")]
     public class XRegistryClient
     {
         private readonly ushort m_namespaceIndex;

@@ -5,7 +5,7 @@
     <RootNamespace>Opc.Ua.PubSub.Server.Tests</RootNamespace>
     <Nullable>enable</Nullable>
     <GenerateProgramFile>false</GenerateProgramFile>
-    <NoWarn>$(NoWarn);CS1591;CA2007;CA2000;CA1014;UA_NETStandard_Encoders</NoWarn>
+    <NoWarn>$(NoWarn);CS1591;CA2007;CA2000;CA1014;UA_NETStandard_Avro;UA_NETStandard_Arrow</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" />

@@ -34,7 +34,6 @@ namespace Opc.Ua.PubSub.Encoding
     /// <summary>
     /// Resolves a missing SchemaId through a deployment-specific schema source.
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_Encoders")]
     public interface ISchemaResolver
     {
         /// <summary>

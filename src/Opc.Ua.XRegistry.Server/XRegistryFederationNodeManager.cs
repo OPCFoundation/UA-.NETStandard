@@ -43,7 +43,6 @@ namespace Opc.Ua.XRegistry.Server
     /// is content-derived and therefore stable across registries, the same resource federated from
     /// several endpoints keeps <b>one</b> identity and can be de-duplicated by content-id.
     /// </summary>
-    [Experimental("UA_NETStandard_Encoders")]
     public class XRegistryFederationNodeManager : CustomNodeManager2
     {
         private readonly string m_namespaceUri;

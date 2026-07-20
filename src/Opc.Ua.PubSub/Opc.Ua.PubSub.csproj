@@ -17,7 +17,7 @@
       UA0023 + CS0618 within the library while keeping the warnings active for
       downstream consumers.
     -->
-    <NoWarn>$(NoWarn);UA0023;CS0618;UA_NETStandard_Encoders</NoWarn>
+    <NoWarn>$(NoWarn);UA0023;CS0618;UA_NETStandard_Avro;UA_NETStandard_Arrow</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.PubSub.Tests" />

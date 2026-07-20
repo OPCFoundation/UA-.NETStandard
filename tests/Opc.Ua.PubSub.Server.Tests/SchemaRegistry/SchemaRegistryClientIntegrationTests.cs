@@ -44,7 +44,6 @@ using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
 using Opc.Ua.XRegistry;
 
-#pragma warning disable UA_NETStandard_Encoders // experimental in-server Schema Registry feature under test
 
 namespace Opc.Ua.PubSub.Server.Tests.SchemaRegistry
 {

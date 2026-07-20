@@ -39,8 +39,7 @@ namespace Opc.Ua.PubSub.Server.SchemaRegistry
     /// and the schema content-id provider so a <c>Close</c> auto-bootstraps the schema's Opaque
     /// SchemaId-NodeId (§5.2, §10.1).
     /// </summary>
-    [Experimental("UA_NETStandard_Encoders")]
-    public sealed class SchemaRegistryRegistrationNodeManager : XRegistryRegistrationNodeManager
+    public sealed class SchemaRegistrationNodeManager : XRegistryRegistrationNodeManager
     {
         /// <summary>
         /// Initializes the schema registration node manager.
@@ -48,7 +47,7 @@ namespace Opc.Ua.PubSub.Server.SchemaRegistry
         /// <param name="server">The server that owns the node manager.</param>
         /// <param name="configuration">The application configuration.</param>
         /// <param name="options">The Schema Registry feature options.</param>
-        public SchemaRegistryRegistrationNodeManager(
+        public SchemaRegistrationNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration,
             SchemaRegistryOptions? options)

@@ -34,21 +34,20 @@ using Opc.Ua.XRegistry.Server;
 namespace Opc.Ua.PubSub.Server.SchemaRegistry
 {
     /// <summary>
-    /// The PubSub Schema Registry fast-path node manager: the generic
-    /// <see cref="XRegistryFastPathNodeManager"/> configured with the Schema Registry namespace and
-    /// the schema content-id provider so registered schemas are addressable by their Opaque
-    /// SchemaId-NodeId (§6.4).
+    /// The PubSub Schema Registry federation node manager: the generic
+    /// <see cref="XRegistryFederationNodeManager"/> configured with the Schema Registry namespace and
+    /// the schema content-id provider so a federated schema proxy carries the content-derived
+    /// <c>SchemaId</c> that is stable across registries (Annex B, §4.3).
     /// </summary>
-    [Experimental("UA_NETStandard_Encoders")]
-    public sealed class SchemaRegistryFastPathNodeManager : XRegistryFastPathNodeManager
+    public sealed class FederationNodeManager : XRegistryFederationNodeManager
     {
         /// <summary>
-        /// Initializes the schema fast-path node manager.
+        /// Initializes the schema federation node manager.
         /// </summary>
         /// <param name="server">The server that owns the node manager.</param>
         /// <param name="configuration">The application configuration.</param>
         /// <param name="options">The Schema Registry feature options.</param>
-        public SchemaRegistryFastPathNodeManager(
+        public FederationNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration,
             SchemaRegistryOptions? options)

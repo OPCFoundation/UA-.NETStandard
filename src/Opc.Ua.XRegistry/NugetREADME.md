@@ -14,6 +14,3 @@ This package contains:
 
 It has no dependency on the OPC UA server or client SDKs; the generic client and server
 pieces live in `Opc.Ua.XRegistry.Client` and `Opc.Ua.XRegistry.Server`.
-
-> This is an experimental API surface gated behind the `UA_NETStandard_Encoders`
-> experimental diagnostic id.

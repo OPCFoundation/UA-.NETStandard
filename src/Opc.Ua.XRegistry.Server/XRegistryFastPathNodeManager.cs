@@ -42,7 +42,6 @@ namespace Opc.Ua.XRegistry.Server
     /// pre-publishes that resource so a fresh server can resolve at least one content-addressed
     /// resource before any registration.
     /// </summary>
-    [Experimental("UA_NETStandard_Encoders")]
     public class XRegistryFastPathNodeManager : CustomNodeManager2
     {
         private readonly string m_namespaceUri;

@@ -39,7 +39,6 @@ namespace Opc.Ua.PubSub.SchemaRegistry
     /// content-derived <c>SchemaId</c>. This is the concrete <see cref="IResourceContentIdProvider"/>
     /// the generic xRegistry node managers use to content-address registered schemas.
     /// </summary>
-    [Experimental("UA_NETStandard_Encoders")]
     public sealed class SchemaContentIdProvider : IResourceContentIdProvider
     {
         /// <summary>A shared instance.</summary>

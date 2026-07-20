@@ -12,5 +12,3 @@ OPC UA server address space and provides the two core registry operations:
 A concrete registry client (for example the PubSub `SchemaRegistryClient`) derives from
 `XRegistryClient` and adds domain-specific naming and defaults.
 
-> This is an experimental API surface gated behind the `UA_NETStandard_Encoders`
-> experimental diagnostic id.

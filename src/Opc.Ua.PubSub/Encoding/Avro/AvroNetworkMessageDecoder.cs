@@ -40,7 +40,7 @@ namespace Opc.Ua.PubSub.Encoding
     /// <summary>
     /// Decodes experimental Avro PubSub network frames and resolves referenced DataSet schemas.
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_Encoders")]
+    [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_Avro")]
     public sealed class AvroNetworkMessageDecoder : INetworkMessageDecoder
     {
         private const string Magic = "OPC-UA-PubSub-Avro";

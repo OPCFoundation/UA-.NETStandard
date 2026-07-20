@@ -56,7 +56,7 @@ namespace Opc.Ua
     /// stable across implementations for the same logical schema.
     /// </para>
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_Encoders")]
+    [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_Arrow")]
     public static class ArrowSchemaCanonicalForm
     {
         /// <summary>

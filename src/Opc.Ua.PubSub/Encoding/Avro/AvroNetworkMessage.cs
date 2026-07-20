@@ -34,7 +34,7 @@ namespace Opc.Ua.PubSub.Encoding
     /// <summary>
     /// Carries one PubSub NetworkMessage encoded with the experimental Avro transport profile.
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_Encoders")]
+    [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_Avro")]
     public sealed record AvroNetworkMessage : PubSubNetworkMessage
     {
         /// <summary>

@@ -32,7 +32,6 @@ namespace Opc.Ua.PubSub.Application
     /// <summary>
     /// Selects the experimental JSON schema-exchange mode for JSON NetworkMessage encoders.
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_Encoders")]
     public enum JsonSchemaExchangeMode
     {
         /// <summary>

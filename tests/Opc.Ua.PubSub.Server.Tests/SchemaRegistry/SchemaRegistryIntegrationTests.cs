@@ -41,7 +41,6 @@ using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
 using Opc.Ua.XRegistry;
 
-#pragma warning disable UA_NETStandard_Encoders // experimental in-server Schema Registry feature under test
 
 namespace Opc.Ua.PubSub.Server.Tests.SchemaRegistry
 {
@@ -405,12 +404,10 @@ namespace Opc.Ua.PubSub.Server.Tests.SchemaRegistry
             // registration, through the pluggable fingerprint provider.
             byte[] computed;
             string alg;
-#pragma warning disable UA_NETStandard_Encoders // pluggable per-format fingerprint provider (§6.6)
             computed = SchemaIdProviders.ComputeSchemaId(
                 "avro",
                 s_seedDocument.Span);
             alg = SchemaIdProviders.AlgorithmFor("avro");
-#pragma warning restore UA_NETStandard_Encoders
 
             Assert.Multiple(() =>
             {
@@ -497,9 +494,7 @@ namespace Opc.Ua.PubSub.Server.Tests.SchemaRegistry
 
             // The returned SchemaId matches the provider's fingerprint of the full document.
             byte[] expected;
-#pragma warning disable UA_NETStandard_Encoders // pluggable per-format fingerprint provider (§6.6)
             expected = SchemaIdProviders.ComputeSchemaId("avro", document);
-#pragma warning restore UA_NETStandard_Encoders
             Assert.Multiple(() =>
             {
                 Assert.That(registeredAlg, Is.EqualTo("CRC-64-AVRO"));
@@ -611,10 +606,8 @@ namespace Opc.Ua.PubSub.Server.Tests.SchemaRegistry
             // De-dup by SchemaId: the proxy's identity is the content fingerprint a consumer
             // would compute for the same document (§4.3, Annex B step 4).
             byte[] expected;
-#pragma warning disable UA_NETStandard_Encoders // pluggable per-format fingerprint provider (§6.6)
             expected = SchemaIdProviders.ComputeSchemaId(
                 "avro", SchemaRegistryOptions.FederatedSchemaDocument);
-#pragma warning restore UA_NETStandard_Encoders
 
             Assert.Multiple(() =>
             {

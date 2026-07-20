@@ -42,7 +42,6 @@ namespace Opc.Ua.PubSub.Server.SchemaRegistry
     /// Schema Registry companion NodeSet (from <c>Opc.Ua.PubSub</c>), whose <c>RequiredModel</c>
     /// depends on the base.
     /// </summary>
-    [Experimental("UA_NETStandard_Encoders")]
     public static class SchemaRegistryServerNodeSets
     {
         /// <summary>

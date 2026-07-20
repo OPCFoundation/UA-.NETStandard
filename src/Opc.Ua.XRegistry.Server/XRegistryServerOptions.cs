@@ -37,7 +37,6 @@ namespace Opc.Ua.XRegistry.Server
     /// resources. A concrete registry (for example the PubSub Schema Registry) populates these with
     /// its own namespace, provider and seed documents.
     /// </summary>
-    [Experimental("UA_NETStandard_Encoders")]
     public class XRegistryServerOptions
     {
         /// <summary>

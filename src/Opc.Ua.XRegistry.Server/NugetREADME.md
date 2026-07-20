@@ -14,5 +14,3 @@ content-addressed resource registry in a server address space:
 A concrete registry (for example the PubSub Schema Registry) supplies an
 `IResourceContentIdProvider` and its own companion namespace/NodeSet.
 
-> This is an experimental API surface gated behind the `UA_NETStandard_Encoders`
-> experimental diagnostic id.

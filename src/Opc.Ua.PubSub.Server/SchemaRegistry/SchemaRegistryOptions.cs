@@ -39,7 +39,6 @@ namespace Opc.Ua.PubSub.Server.SchemaRegistry
     /// defaults reproduce the well-known Schema Registry companion namespace and seed a demonstration
     /// schema and federation proxy; a host may override the namespace or disable the seeds.
     /// </summary>
-    [Experimental("UA_NETStandard_Encoders")]
     public sealed class SchemaRegistryOptions
     {
         /// <summary>The seed schema published by the fast-path manager when enabled.</summary>

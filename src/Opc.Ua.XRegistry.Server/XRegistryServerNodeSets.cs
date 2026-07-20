@@ -39,7 +39,6 @@ namespace Opc.Ua.XRegistry.Server
     /// server runtime NodeSet import path. A concrete registry composes this base source with its own
     /// companion NodeSet source in dependency order.
     /// </summary>
-    [Experimental("UA_NETStandard_Encoders")]
     public static class XRegistryServerNodeSets
     {
         /// <summary>

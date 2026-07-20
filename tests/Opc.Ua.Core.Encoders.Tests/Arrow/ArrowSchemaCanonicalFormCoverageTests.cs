@@ -33,7 +33,7 @@ using Apache.Arrow.Ipc;
 using NUnit.Framework;
 using Opc.Ua;
 
-#pragma warning disable UA_NETStandard_Encoders // experimental encoder surface under test
+#pragma warning disable UA_NETStandard_Arrow // experimental encoder surface under test
 
 namespace Opc.Ua.Core.Tests
 {

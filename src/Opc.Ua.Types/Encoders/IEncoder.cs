@@ -491,13 +491,13 @@ namespace Opc.Ua
         /// <summary>
         /// The experimental Apache Avro binary encoding (OPC UA Part 6 draft).
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_Encoders")]
+        [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_Avro")]
         Avro,
 
         /// <summary>
         /// The experimental Apache Arrow columnar encoding (OPC UA Part 6 draft).
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_Encoders")]
+        [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_Arrow")]
         Arrow
     }
 }

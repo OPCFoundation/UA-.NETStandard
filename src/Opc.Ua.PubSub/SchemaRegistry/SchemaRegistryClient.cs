@@ -44,7 +44,6 @@ namespace Opc.Ua.PubSub.SchemaRegistry
     /// lifecycle (§5.2). A consumer that received a SchemaId on the wire never has to Browse or
     /// recompute a fingerprint to obtain the schema.
     /// </summary>
-    [Experimental("UA_NETStandard_Encoders")]
     public sealed class SchemaRegistryClient : XRegistryClient
     {
         /// <summary>The well-known Schema Registry companion namespace URI.</summary>

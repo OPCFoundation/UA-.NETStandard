@@ -36,7 +36,7 @@ namespace Opc.Ua.PubSub.Encoding
     /// describes one DataSet; each RecordBatch row is one DataSetMessage
     /// sample and each DataSet field is a typed Arrow column.
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_Encoders")]
+    [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_Arrow")]
     public sealed record ArrowNetworkMessage : PubSubNetworkMessage
     {
         /// <summary>

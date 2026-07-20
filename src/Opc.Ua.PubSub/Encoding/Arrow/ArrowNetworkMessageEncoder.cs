@@ -51,7 +51,7 @@ namespace Opc.Ua.PubSub.Encoding
     /// Float, Double, String, DateTime, Guid, ByteString, StatusCode and
     /// one-dimensional arrays of those types; other BuiltInTypes throw.
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_Encoders")]
+    [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_Arrow")]
     public sealed class ArrowNetworkMessageEncoder : INetworkMessageEncoder
     {
         private const string Magic = "OPC-UA-PubSub-Arrow";

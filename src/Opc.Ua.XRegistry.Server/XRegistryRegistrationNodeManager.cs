@@ -43,7 +43,6 @@ namespace Opc.Ua.XRegistry.Server
     /// machinery is exercised elsewhere in the stack; this manager focuses on the registry-specific
     /// auto-bootstrap on close and the dynamic runtime creation of the content-addressed fast-path node.
     /// </summary>
-    [Experimental("UA_NETStandard_Encoders")]
     public class XRegistryRegistrationNodeManager : CustomNodeManager2
     {
         private readonly object m_gate = new();

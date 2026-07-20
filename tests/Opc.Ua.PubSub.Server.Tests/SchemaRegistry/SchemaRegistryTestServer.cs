@@ -33,7 +33,6 @@ using Opc.Ua.Server.RuntimeNodeSet;
 using Opc.Ua.XRegistry;
 using Quickstarts.ReferenceServer;
 
-#pragma warning disable UA_NETStandard_Encoders // experimental in-server Schema Registry feature under test
 
 namespace Opc.Ua.PubSub.Server.Tests.SchemaRegistry
 {
@@ -85,9 +84,9 @@ namespace Opc.Ua.PubSub.Server.Tests.SchemaRegistry
             };
 
             AddNodeManager(new RuntimeNodeSetNodeManagerFactory(nodeSetOptions));
-            AddNodeManager(new SchemaRegistryFastPathNodeManagerFactory(options));
-            AddNodeManager(new SchemaRegistryRegistrationNodeManagerFactory(options));
-            AddNodeManager(new SchemaRegistryFederationNodeManagerFactory(options));
+            AddNodeManager(new FastPathNodeManagerFactory(options));
+            AddNodeManager(new SchemaRegistrationNodeManagerFactory(options));
+            AddNodeManager(new FederationNodeManagerFactory(options));
         }
     }
 }

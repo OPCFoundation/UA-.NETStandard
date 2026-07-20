@@ -43,7 +43,6 @@ namespace Microsoft.Extensions.DependencyInjection
     /// registration and federation node managers that serve the content-addressed Opaque
     /// <c>SchemaId</c> nodes.
     /// </summary>
-    [Experimental("UA_NETStandard_Encoders")]
     public static class SchemaRegistryBuilderExtensions
     {
         /// <summary>
@@ -118,9 +117,9 @@ namespace Microsoft.Extensions.DependencyInjection
             // 2) The Schema-Registry-specific node managers serving the content-addressed nodes.
             INodeManagerFactory[] factories =
             [
-                new SchemaRegistryFastPathNodeManagerFactory(options),
-                new SchemaRegistryRegistrationNodeManagerFactory(options),
-                new SchemaRegistryFederationNodeManagerFactory(options),
+                new FastPathNodeManagerFactory(options),
+                new SchemaRegistrationNodeManagerFactory(options),
+                new FederationNodeManagerFactory(options),
             ];
             foreach (INodeManagerFactory factory in factories)
             {

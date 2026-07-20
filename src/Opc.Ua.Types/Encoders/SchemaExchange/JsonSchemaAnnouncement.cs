@@ -40,7 +40,6 @@ namespace Opc.Ua
     /// <param name = "SchemaId">The raw 8-byte SHA-256-prefix schema identifier.</param>
     /// <param name = "SchemaJson">The self-contained JSON Schema document.</param>
     /// <param name = "SchemaEpoch">The optional operational schema epoch.</param>
-    [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_Encoders")]
     public sealed record JsonSchemaAnnouncement(ByteString SchemaId, string SchemaJson, long? SchemaEpoch)
     {
         /// <summary>

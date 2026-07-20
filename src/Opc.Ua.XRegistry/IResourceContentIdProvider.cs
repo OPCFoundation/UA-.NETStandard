@@ -38,7 +38,6 @@ namespace Opc.Ua.XRegistry
     /// registries. A concrete registry provides an implementation (for example the PubSub Schema
     /// Registry fingerprints schema documents via the pluggable SchemaId providers).
     /// </summary>
-    [Experimental("UA_NETStandard_Encoders")]
     public interface IResourceContentIdProvider
     {
         /// <summary>

@@ -217,7 +217,6 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <param name="configure">Optional JSON schema-exchange options callback.</param>
         /// <returns>The original <paramref name="builder"/>.</returns>
         /// <exception cref="ArgumentNullException"></exception>
-        [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_Encoders")]
         public static IOpcUaBuilder AddJsonSchemaExchange(
             this IOpcUaBuilder builder,
             Action<JsonSchemaExchangeOptions>? configure = null)

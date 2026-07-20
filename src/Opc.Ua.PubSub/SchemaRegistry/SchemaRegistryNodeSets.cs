@@ -40,7 +40,6 @@ namespace Opc.Ua.PubSub.SchemaRegistry
     /// <c>Opc.Ua.PubSub.Server</c> NodeSets loader). This type has no dependency on the OPC UA server
     /// SDK; the server-side runtime NodeSet wrapping is done in <c>Opc.Ua.PubSub.Server</c>.
     /// </summary>
-    [Experimental("UA_NETStandard_Encoders")]
     public static class SchemaRegistryNodeSets
     {
         /// <summary>
