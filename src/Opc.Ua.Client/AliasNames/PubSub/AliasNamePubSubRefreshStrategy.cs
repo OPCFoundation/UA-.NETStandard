@@ -143,23 +143,10 @@ namespace Opc.Ua.Client.AliasNames.PubSub
 
         private static bool CompareIdentifiers(NodeId publisherId, NodeId localId)
         {
-            // Both NodeIds carry the same identifier-shape (numeric /
-            // string / guid / opaque). Comparing identifier text after
-            // dropping the namespace prefix is the simplest robust path.
-            string a = StripNamespacePrefix(publisherId.ToString());
-            string b = StripNamespacePrefix(localId.ToString());
-            return string.Equals(a, b, StringComparison.Ordinal);
-        }
-
-        private static string StripNamespacePrefix(string? text)
-        {
-            if (string.IsNullOrEmpty(text))
-            {
-                return string.Empty;
-            }
-            string value = text!;
-            int idx = value.IndexOf(';', StringComparison.Ordinal);
-            return idx < 0 ? value : value[(idx + 1)..];
+            // PortableNodeId strips the namespace index but preserves
+            // the underlying identifier type and value.
+            return publisherId.WithNamespaceIndex(0) ==
+                localId.WithNamespaceIndex(0);
         }
 
         private readonly AliasNamePubSubReader m_reader;
