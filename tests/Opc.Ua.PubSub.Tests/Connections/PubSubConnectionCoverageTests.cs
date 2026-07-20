@@ -741,6 +741,44 @@ namespace Opc.Ua.PubSub.Tests.Connections
         }
 
         [Test]
+        public async Task ReceiveLoopJsonActionResponderWithoutAllowUnsecuredRecordsSecurityFailureAsync()
+        {
+            var diagnostics = new PubSubDiagnostics(PubSubDiagnosticsLevel.High);
+            var transport = new DatagramHarnessTransport(JsonProfile);
+            var encoder = new CapturingEncoder(JsonProfile);
+            var decoder = new QueueDecoder(JsonProfile);
+            await using PubSubConnection connection = CreateConnection(
+                Config(JsonProfile), new SingleTransportFactory(transport, JsonProfile),
+                EncMap(JsonProfile, encoder), DecMap(JsonProfile, decoder), diagnostics);
+
+            int invocations = 0;
+            connection.RegisterActionHandler(
+                new PubSubActionTarget { DataSetWriterId = 5, ActionTargetId = 3 },
+                new DelegatePubSubActionHandler((_, _) =>
+                {
+                    Interlocked.Increment(ref invocations);
+                    return new ValueTask<PubSubActionHandlerResult>(
+                        new PubSubActionHandlerResult { StatusCode = StatusCodes.Good });
+                }));
+
+            await connection.EnableAsync().ConfigureAwait(false);
+            Deliver(transport, decoder, NewJsonActionRequest(5, 3, requestId: 1));
+
+            await AwaitBoundedAsync(
+                transport.WaitUntilProcessedAsync(1),
+                "json action request to a responder that forbids unsecured requests")
+                .ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(invocations, Is.Zero);
+                Assert.That(transport.SentPayloads, Is.Empty);
+                Assert.That(
+                    diagnostics.Read(PubSubDiagnosticsCounterKind.SecurityTokenErrors),
+                    Is.EqualTo(1));
+            });
+        }
+
+        [Test]
         public async Task ReceiveLoopJsonActionRequestWithoutResponderDropsAsync()
         {
             var transport = new DatagramHarnessTransport(JsonProfile);

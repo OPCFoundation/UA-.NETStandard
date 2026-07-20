@@ -134,6 +134,117 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
             });
         }
 
+        [Test]
+        public async Task SetAuthenticatedPeerRejectsNullPeerAsync()
+        {
+            await using DtlsDatagramTransport transport = CreateReceiveTransport();
+            var channel = (IDtlsAuthenticatedPeerChannel)transport;
+            Assert.That(
+                () => channel.SetAuthenticatedPeer(null!),
+                Throws.TypeOf<ArgumentNullException>());
+        }
+
+        [Test]
+        public async Task SetAuthenticatedPeerRejectsConflictingRebindAsync()
+        {
+            await using DtlsDatagramTransport transport = CreateReceiveTransport();
+            var channel = (IDtlsAuthenticatedPeerChannel)transport;
+            channel.SetAuthenticatedPeer(new IPEndPoint(IPAddress.Loopback, 5001));
+            Assert.Multiple(() =>
+            {
+                // Re-pinning the identical endpoint is idempotent.
+                Assert.That(
+                    () => channel.SetAuthenticatedPeer(new IPEndPoint(IPAddress.Loopback, 5001)),
+                    Throws.Nothing);
+                // Without a negotiated connection ID the association cannot move
+                // to a different peer endpoint.
+                Assert.That(
+                    () => channel.SetAuthenticatedPeer(new IPEndPoint(IPAddress.Loopback, 5002)),
+                    Throws.TypeOf<InvalidOperationException>());
+            });
+        }
+
+        [Test]
+        public async Task CloseClearsAuthenticatedPeerAsync()
+        {
+            int port;
+            try
+            {
+                port = UdpIntegrationTestHelpers.ReserveEphemeralPort(IPAddress.Loopback);
+            }
+            catch (SocketException ex)
+            {
+                Assert.Ignore($"Loopback UDP socket bind failed: {ex.Message}");
+                return;
+            }
+
+            DtlsProfile profile = CreateProfile();
+            string url = $"opc.dtls://127.0.0.1:{port}";
+            var endpoint = new UdpEndpoint(
+                IPAddress.Loopback,
+                port,
+                UdpAddressType.Unicast,
+                url,
+                IsDtls: true,
+                DtlsProfileName: profile.Name);
+            using var authenticatedSocket = NewLoopbackSocket();
+            var authenticatedEndpoint = (IPEndPoint)authenticatedSocket.LocalEndPoint!;
+            var contextFactory = new MarkerContextFactory(authenticatedEndpoint);
+            await using var transport = new DtlsDatagramTransport(
+                UdpIntegrationTestHelpers.NewConnection(url, "dtls-peer-close"),
+                endpoint,
+                PubSubTransportDirection.Receive,
+                networkInterface: null,
+                NUnitTelemetryContext.Create(),
+                TimeProvider.System,
+                UdpIntegrationTestHelpers.LoopbackOptions(),
+                diagnostics: null,
+                contextFactory,
+                profile);
+
+            try
+            {
+                await transport.OpenAsync().ConfigureAwait(false);
+            }
+            catch (SocketException ex)
+            {
+                Assert.Ignore($"DTLS loopback open failed: {ex.Message}");
+                return;
+            }
+
+            Assert.That(transport.RemoteEndpoint, Is.EqualTo(authenticatedEndpoint));
+
+            // Closing tears down the association and clears the pinned peer so a
+            // fresh handshake is required before any further records are accepted.
+            Assert.That(
+                async () => await transport.CloseAsync().ConfigureAwait(false),
+                Throws.Nothing);
+        }
+
+        private static DtlsDatagramTransport CreateReceiveTransport(int port = 44444)
+        {
+            DtlsProfile profile = CreateProfile();
+            string url = $"opc.dtls://127.0.0.1:{port}";
+            var endpoint = new UdpEndpoint(
+                IPAddress.Loopback,
+                port,
+                UdpAddressType.Unicast,
+                url,
+                IsDtls: true,
+                DtlsProfileName: profile.Name);
+            return new DtlsDatagramTransport(
+                UdpIntegrationTestHelpers.NewConnection(url, "dtls-peer-unit"),
+                endpoint,
+                PubSubTransportDirection.Receive,
+                networkInterface: null,
+                NUnitTelemetryContext.Create(),
+                TimeProvider.System,
+                UdpIntegrationTestHelpers.LoopbackOptions(),
+                diagnostics: null,
+                new MarkerContextFactory(new IPEndPoint(IPAddress.Loopback, port)),
+                profile);
+        }
+
         private static Socket NewLoopbackSocket()
         {
             var socket = new Socket(

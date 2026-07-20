@@ -302,6 +302,84 @@ namespace Opc.Ua.PubSub.Tests.Security
             });
         }
 
+        [Test]
+        public async Task LegacyTokenWindowUsedWhenScopedInterfaceUnavailableAsync()
+        {
+            PubSubAes256CtrPolicy policy = PubSubAes256CtrPolicy.Instance;
+            PubSubSecurityKey key = TestSecurityKeyFactory.Create(
+                TokenId,
+                signingKeyLength: policy.SigningKeyLength,
+                encryptingKeyLength: policy.EncryptingKeyLength,
+                keyNonceLength: policy.NonceLength);
+            PublisherId publisherId = PublisherId.FromUInt32(321U);
+            UadpSecurityWrapper sender = CreateWrapper(policy, key, publisherId);
+
+            // A token window that does not implement IScopedSecurityTokenWindow
+            // must fall back to the legacy token-only replay check.
+            var legacyWindow = new RecordingTokenWindow();
+            var receiverRing = new PubSubSecurityKeyRing("group");
+            receiverRing.SetCurrent(key);
+            var receiver = new UadpSecurityWrapper(
+                policy,
+                new StaticSecurityKeyProvider("group", receiverRing),
+                new RandomNonceProvider(PublisherId.FromUInt32(999U)),
+                legacyWindow,
+                NUnitTelemetryContext.Create());
+
+            ReadOnlyMemory<byte> wrapped = await sender
+                .WrapAsync(s_outerPrefix, s_innerPayload, UadpSecurityWrapOptions.SignAndEncrypt)
+                .ConfigureAwait(false);
+
+            UadpSecurityWrapper.UnwrapResult result = await UnwrapScopedAsync(
+                receiver, wrapped, publisherId, writerGroupId: 11).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.IsSuccess, Is.True, result.Reason);
+                Assert.That(legacyWindow.AcceptCount, Is.EqualTo(1));
+                Assert.That(legacyWindow.AcceptedTokenId, Is.EqualTo(TokenId));
+            });
+        }
+
+        [Test]
+        public async Task UnsignedScopedFrameIsAcceptedWithoutConsumingReplayStateAsync()
+        {
+            PubSubAes256CtrPolicy policy = PubSubAes256CtrPolicy.Instance;
+            PubSubSecurityKey key = TestSecurityKeyFactory.Create(
+                TokenId,
+                signingKeyLength: policy.SigningKeyLength,
+                encryptingKeyLength: policy.EncryptingKeyLength,
+                keyNonceLength: policy.NonceLength);
+            PublisherId publisherId = PublisherId.FromUInt32(654U);
+            UadpSecurityWrapper sender = CreateWrapper(policy, key, publisherId);
+            var receiverWindow = new SecurityTokenWindow();
+            receiverWindow.RegisterToken(TokenId);
+            UadpSecurityWrapper receiver = CreateWrapper(
+                policy, key, PublisherId.FromUInt32(999U), receiverWindow);
+
+            ReadOnlyMemory<byte> wrapped = await sender
+                .WrapAsync(s_outerPrefix, s_innerPayload, UadpSecurityWrapOptions.EncryptOnly)
+                .ConfigureAwait(false);
+
+            // An unsigned frame carries no authenticated PublisherId, WriterGroupId
+            // or nonce, so it must never mutate the authenticated replay window.
+            // Unwrapping the same encrypt-only frame twice therefore succeeds both
+            // times instead of being flagged as a replay.
+            UadpSecurityWrapper.UnwrapResult first = await UnwrapScopedAsync(
+                receiver, wrapped, publisherId, writerGroupId: 3, MessageSecurityMode.None)
+                .ConfigureAwait(false);
+            UadpSecurityWrapper.UnwrapResult second = await UnwrapScopedAsync(
+                receiver, wrapped, publisherId, writerGroupId: 3, MessageSecurityMode.None)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(first.IsSuccess, Is.True, first.Reason);
+                Assert.That(first.InnerPayload!.Value.ToArray(), Is.EqualTo(s_innerPayload));
+                Assert.That(second.IsSuccess, Is.True, second.Reason);
+            });
+        }
+
         private static UadpSecurityWrapper CreateWrapper(
             PubSubAes256CtrPolicy policy,
             PubSubSecurityKey key,
@@ -344,6 +422,28 @@ namespace Opc.Ua.PubSub.Tests.Security
             byte[] nonce = header.MessageNonce.ToArray();
             (_, ulong sequenceNumber) = AesCtrNonceLayout.Parse(nonce);
             return (sequenceNumber, nonce);
+        }
+
+        private sealed class RecordingTokenWindow : ISecurityTokenWindow
+        {
+            public int AcceptCount { get; private set; }
+
+            public uint AcceptedTokenId { get; private set; }
+
+            public ulong AcceptedSequenceNumber { get; private set; }
+
+            public bool TryAccept(uint tokenId, ulong sequenceNumber, ReadOnlySpan<byte> nonce)
+            {
+                AcceptCount++;
+                AcceptedTokenId = tokenId;
+                AcceptedSequenceNumber = sequenceNumber;
+                return true;
+            }
+
+            public void Reset()
+            {
+                AcceptCount = 0;
+            }
         }
 
         private sealed class FailFirstDecryptPolicy : IPubSubSecurityPolicy

@@ -239,6 +239,31 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
                     .With.Message.Contains("sequence number exhausted"));
         }
 
+        [Test]
+        public void ConstructorRejectsInitialSequenceNumberAboveEpochLimit()
+        {
+            byte[] secret = CreateSecret(DtlsCipherSuite.TlsAes128GcmSha256);
+            Assert.That(
+                () => new DtlsRecordProtection(
+                    CreateProfile(DtlsCipherSuite.TlsAes128GcmSha256),
+                    secret,
+                    epoch: 1,
+                    initialWriteSequenceNumber: DtlsRecordProtection.MaximumRecordSequenceNumber + 1),
+                Throws.TypeOf<ArgumentOutOfRangeException>());
+        }
+
+        [Test]
+        public void DisposeIsIdempotent()
+        {
+            byte[] secret = CreateSecret(DtlsCipherSuite.TlsAes128GcmSha256);
+            var reader = new DtlsRecordProtection(
+                CreateProfile(DtlsCipherSuite.TlsAes128GcmSha256),
+                secret,
+                epoch: 1);
+            reader.Dispose();
+            Assert.That(() => reader.Dispose(), Throws.Nothing);
+        }
+
         private static byte[] CreateSecret(DtlsCipherSuite cipherSuite)
         {
             int length = cipherSuite is DtlsCipherSuite.TlsAes256GcmSha384 or DtlsCipherSuite.TlsSha384Sha384 ? 48 : 32;

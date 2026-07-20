@@ -162,6 +162,50 @@ namespace Opc.Ua.PubSub.Tests.Security
         }
 
         [Test]
+        public void RetireTokenClearsScopedReplayStateAndKeepsOtherTokens()
+        {
+            const uint retiredToken = 1U;
+            const uint survivingToken = 7U;
+            var window = new SecurityTokenWindow(historySize: 4);
+            window.RegisterToken(retiredToken);
+            window.RegisterToken(survivingToken);
+            var scopedWindow = (IScopedSecurityTokenWindow)window;
+            PublisherId publisherA = PublisherId.FromUInt32(100U);
+            PublisherId publisherB = PublisherId.FromUInt32(200U);
+
+            // Populate two publisher/writer-group scopes on the token that is
+            // about to be retired, plus one scope on a token that survives.
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    scopedWindow.TryAccept(publisherA, 1, retiredToken, 5, MakeNonce(10)),
+                    Is.True);
+                Assert.That(
+                    scopedWindow.TryAccept(publisherB, 2, retiredToken, 5, MakeNonce(20)),
+                    Is.True);
+                Assert.That(
+                    scopedWindow.TryAccept(publisherA, 1, survivingToken, 5, MakeNonce(30)),
+                    Is.True);
+            });
+
+            window.RetireToken(retiredToken);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(window.RegisteredTokens, Is.EquivalentTo(new[] { survivingToken }));
+                // The retired token no longer accepts anything.
+                Assert.That(
+                    scopedWindow.TryAccept(publisherA, 1, retiredToken, 5, MakeNonce(10)),
+                    Is.False);
+                // The surviving token keeps its committed sequence, so replaying
+                // sequence 5 on the retained scope is still rejected.
+                Assert.That(
+                    scopedWindow.TryAccept(publisherA, 1, survivingToken, 5, MakeNonce(31)),
+                    Is.False);
+            });
+        }
+
+        [Test]
         public void Reset_ClearsAllState()
         {
             var window = new SecurityTokenWindow();
