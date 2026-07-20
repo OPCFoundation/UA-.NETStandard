@@ -456,7 +456,8 @@ namespace Opc.Ua.Client.Subscriptions
         {
             try
             {
-                if (message.NotificationData.Count == 0)
+                bool shouldAcknowledge = message.NotificationData.Count != 0;
+                if (!shouldAcknowledge)
                 {
                     publishStateMask |= PublishState.KeepAlive;
                     await OnKeepAliveNotificationAsync(
@@ -474,11 +475,14 @@ namespace Opc.Ua.Client.Subscriptions
                             message.NotificationData[i]).ConfigureAwait(false);
                     }
                 }
-                await AckQueue.QueueAsync(new SubscriptionAcknowledgement
+                if (shouldAcknowledge)
                 {
-                    SequenceNumber = message.SequenceNumber,
-                    SubscriptionId = Id
-                }, ct).ConfigureAwait(false);
+                    await AckQueue.QueueAsync(new SubscriptionAcknowledgement
+                    {
+                        SequenceNumber = message.SequenceNumber,
+                        SubscriptionId = Id
+                    }, ct).ConfigureAwait(false);
+                }
             }
             catch (Exception ex)
             {

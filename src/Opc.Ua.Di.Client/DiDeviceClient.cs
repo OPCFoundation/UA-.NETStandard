@@ -292,7 +292,10 @@ namespace Opc.Ua.Di.Client
             {
                 ct.ThrowIfCancellationRequested();
 
-                if (!IsSubtypeOf(reference.TypeDefinition, functionalGroupTypeId))
+                if (!await IsSubtypeOfAsync(
+                    reference.TypeDefinition,
+                    functionalGroupTypeId,
+                    ct).ConfigureAwait(false))
                 {
                     continue;
                 }
@@ -394,11 +397,15 @@ namespace Opc.Ua.Di.Client
             return default;
         }
 
-        private static bool IsSubtypeOf(
+        private ValueTask<bool> IsSubtypeOfAsync(
             ExpandedNodeId typeDefinition,
-            ExpandedNodeId expectedType)
+            ExpandedNodeId expectedType,
+            CancellationToken ct)
         {
-            return typeDefinition == expectedType;
+            return Session.NodeCache.IsTypeOfAsync(
+                typeDefinition,
+                expectedType,
+                ct);
         }
 
         private static string? ExtractStringFromWrappedValue(Variant wrapped)

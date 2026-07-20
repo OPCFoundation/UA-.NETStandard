@@ -276,6 +276,40 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task BrowseAsync_WhenNoContinuationPointCanBeAssigned_ReturnsBadNoContinuationPointsWithoutContinuationPointAsync()
+        {
+            MasterNodeManager sut = (MasterNodeManager)m_server.CurrentInstance.NodeManager;
+            OperationContext ctx = CreateContextWithContinuationStore();
+            uint originalLimit = GetMaxBrowseContinuationPointsPerBrowse(sut);
+
+            try
+            {
+                SetMaxBrowseContinuationPointsPerBrowse(sut, 0u);
+
+                var nodeToBrowse = new BrowseDescription
+                {
+                    NodeId = ObjectIds.RootFolder,
+                    BrowseDirection = BrowseDirection.Forward
+                };
+
+                (ArrayOf<BrowseResult> results, _) = await sut.BrowseAsync(
+                    ctx,
+                    new ViewDescription(),
+                    1u,
+                    new BrowseDescription[] { nodeToBrowse }.ToArrayOf(),
+                    CancellationToken.None).ConfigureAwait(false);
+
+                Assert.That(results.Count, Is.EqualTo(1));
+                Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadNoContinuationPoints));
+                Assert.That(results[0].ContinuationPoint.IsEmpty, Is.True);
+            }
+            finally
+            {
+                SetMaxBrowseContinuationPointsPerBrowse(sut, originalLimit);
+            }
+        }
+
+        [Test]
         public void BrowseNextAsync_NullContext_ThrowsArgumentNullException()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
@@ -347,6 +381,60 @@ namespace Opc.Ua.Server.Tests
             Assert.That(results.Count, Is.EqualTo(1));
             Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(results[0].ContinuationPoint.IsNull, Is.True);
+        }
+
+        [Test]
+        public async Task BrowseNextAsync_WhenNoContinuationPointCanBeAssigned_ReturnsBadNoContinuationPointsWithoutContinuationPointAsync()
+        {
+            MasterNodeManager sut = (MasterNodeManager)m_server.CurrentInstance.NodeManager;
+            OperationContext ctx = CreateContextWithContinuationStore();
+            uint originalLimit = GetMaxBrowseContinuationPointsPerBrowse(sut);
+
+            try
+            {
+                var nodeToBrowse = new BrowseDescription
+                {
+                    NodeId = ObjectIds.RootFolder,
+                    BrowseDirection = BrowseDirection.Forward
+                };
+
+                (ArrayOf<BrowseResult> firstResults, _) = await sut.BrowseAsync(
+                    ctx,
+                    new ViewDescription(),
+                    1u,
+                    new BrowseDescription[] { nodeToBrowse }.ToArrayOf(),
+                    CancellationToken.None).ConfigureAwait(false);
+
+                Assert.That(firstResults.Count, Is.EqualTo(1));
+                Assert.That(firstResults[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(firstResults[0].ContinuationPoint.IsEmpty, Is.False);
+
+                (ArrayOf<BrowseResult> nextResults, _) = await sut.BrowseNextAsync(
+                    ctx,
+                    false,
+                    new ByteString[] { firstResults[0].ContinuationPoint }.ToArrayOf(),
+                    CancellationToken.None).ConfigureAwait(false);
+
+                Assert.That(nextResults.Count, Is.EqualTo(1));
+                Assert.That(nextResults[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(nextResults[0].ContinuationPoint.IsEmpty, Is.False);
+
+                SetMaxBrowseContinuationPointsPerBrowse(sut, 0u);
+
+                (ArrayOf<BrowseResult> finalResults, _) = await sut.BrowseNextAsync(
+                    ctx,
+                    false,
+                    new ByteString[] { nextResults[0].ContinuationPoint }.ToArrayOf(),
+                    CancellationToken.None).ConfigureAwait(false);
+
+                Assert.That(finalResults.Count, Is.EqualTo(1));
+                Assert.That(finalResults[0].StatusCode, Is.EqualTo(StatusCodes.BadNoContinuationPoints));
+                Assert.That(finalResults[0].ContinuationPoint.IsEmpty, Is.True);
+            }
+            finally
+            {
+                SetMaxBrowseContinuationPointsPerBrowse(sut, originalLimit);
+            }
         }
 
         [Test]
@@ -1076,6 +1164,61 @@ namespace Opc.Ua.Server.Tests
             session.Setup(s => s.PreferredLocales).Returns([]);
             return new OperationContext(
                 new RequestHeader(), null!, RequestType.Read, RequestLifetime.None, session.Object);
+        }
+
+        private static OperationContext CreateContextWithContinuationStore()
+        {
+            var continuationPoints = new Dictionary<string, ContinuationPoint>();
+            var session = new Mock<ISession>();
+            session.Setup(s => s.EffectiveIdentity).Returns(new Mock<IUserIdentity>().Object);
+            session.Setup(s => s.PreferredLocales).Returns([]);
+            session
+                .Setup(s => s.SaveContinuationPoint(It.IsAny<ContinuationPoint>()))
+                .Callback<ContinuationPoint>(cp =>
+                {
+                    continuationPoints[ToContinuationPointKey(cp.Id.ToByteArray().ToByteString())] = cp;
+                });
+            session
+                .Setup(s => s.RestoreContinuationPoint(It.IsAny<ByteString>()))
+                .Returns<ByteString>(cpBytes =>
+                {
+                    string key = ToContinuationPointKey(cpBytes);
+                    if (continuationPoints.TryGetValue(key, out ContinuationPoint? cp))
+                    {
+                        continuationPoints.Remove(key);
+                        return cp;
+                    }
+
+                    return null;
+                });
+
+            return new OperationContext(
+                new RequestHeader(), null!, RequestType.Read, RequestLifetime.None, session.Object);
+        }
+
+        private static void SetMaxBrowseContinuationPointsPerBrowse(MasterNodeManager sut, uint value)
+        {
+            var field = typeof(MasterNodeManager).GetField(
+                "m_maxContinuationPointsPerBrowse",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+
+            Assert.That(field, Is.Not.Null);
+            field!.SetValue(sut, value);
+        }
+
+        private static uint GetMaxBrowseContinuationPointsPerBrowse(MasterNodeManager sut)
+        {
+            var field = typeof(MasterNodeManager).GetField(
+                "m_maxContinuationPointsPerBrowse",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+
+            Assert.That(field, Is.Not.Null);
+            return (uint)field!.GetValue(sut)!;
+        }
+
+        private static string ToContinuationPointKey(ByteString continuationPoint)
+        {
+            return System.Convert.ToBase64String(continuationPoint.ToArray());
         }
     }
 }
