@@ -17,6 +17,8 @@
     <ProjectReference Include="..\..\src\Opc.Ua.Server\Opc.Ua.Server.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Di\Opc.Ua.Di.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Di.Server\Opc.Ua.Di.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.OpenUsd\Opc.Ua.OpenUsd.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.OpenUsd.Server\Opc.Ua.OpenUsd.Server.csproj" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj">
@@ -27,6 +29,13 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Microsoft.Extensions.Logging.Console" />
+  </ItemGroup>
+  <!-- Artist-authored USD layers embedded so the server ships (and serves) its own
+       twin geometry: Plant.usda (RootLayer) + pump.usda + remote-pump.usda (References). -->
+  <ItemGroup>
+    <EmbeddedResource Include="Assets\Plant.usda"><LogicalName>Plant.usda</LogicalName></EmbeddedResource>
+    <EmbeddedResource Include="Assets\pump.usda"><LogicalName>pump.usda</LogicalName></EmbeddedResource>
+    <EmbeddedResource Include="Assets\remote-pump.usda"><LogicalName>remote-pump.usda</LogicalName></EmbeddedResource>
   </ItemGroup>
   <!-- Machinery + Pumps NodeSet2 XMLs are source-generated locally;
        no library refs needed. The generator emits typed classes,

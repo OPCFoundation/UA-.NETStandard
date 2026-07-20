@@ -9,6 +9,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="Moq" />
     <PackageReference Include="NUnit" />
@@ -40,6 +41,10 @@
          so the reference and the Pump-specific fixtures are skipped on net472. -->
     <ProjectReference Include="..\..\samples\PumpDeviceIntegrationServer\PumpDeviceIntegrationServer.csproj"
                       Condition="'$(TargetFramework)' != 'net472'" />
+    <ProjectReference Include="..\..\src\Opc.Ua.OpenUsd.Client\Opc.Ua.OpenUsd.Client.csproj"
+                      Condition="'$(TargetFramework)' != 'net472'" />
+    <ProjectReference Include="..\..\samples\MinimalRobotServer\MinimalRobotServer.csproj"
+                      Condition="'$(TargetFramework)' != 'net472'" />
     <ProjectReference Include="..\Opc.Ua.Server.TestFramework\Opc.Ua.Server.TestFramework.csproj" />
   </ItemGroup>
   <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
@@ -47,5 +52,7 @@
     <Compile Remove="PumpHostingIntegrationTests.cs" />
     <Compile Remove="PumpNodeManagerFactoryTests.cs" />
     <Compile Remove="PumpsNodeSetLoadingTests.cs" />
+    <Compile Remove="PumpOpenUsdE2eTests.cs" />
+    <Compile Remove="RobotOpenUsdE2eTests.cs" />
   </ItemGroup>
 </Project>

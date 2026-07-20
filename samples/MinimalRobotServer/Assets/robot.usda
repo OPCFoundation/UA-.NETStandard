@@ -1,0 +1,157 @@
+#usda 1.0
+(
+    doc = """Reusable 6-axis articulated robot asset for the OPC UA - OpenUSD Bindings Robotics example.
+
+    The nested Xforms are the kinematic contract declared in Robotics.OpenUsdBinding.json. Each J{i} prim carries the rotate op driven by that Axis' ActualPosition (degrees). The asset contains only static geometry and home-pose defaults; live joint values are authored by live.usda.
+    """
+    defaultPrim = "Robot"
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "Robot" (
+    kind = "component"
+)
+{
+    def Xform "Base" (
+        prepend apiSchemas = ["MaterialBindingAPI"]
+    )
+    {
+        color3f[] primvars:displayColor = [(0.0, 0.55, 0.18)]
+        rel material:binding = </Robot/Materials/BaseGreen>
+
+        def Cylinder "Pedestal"
+        {
+            uniform token axis = "Z"
+            double height = 0.18
+            double radius = 0.28
+            color3f[] primvars:displayColor = [(0.0, 0.55, 0.18)]
+            double3 xformOp:translate = (0, 0, 0.09)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Xform "J1"
+        {
+            double3 xformOp:translate = (0, 0, 0.18)
+            double xformOp:rotateZ = 0
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateZ"]
+
+            def Cylinder "Column"
+            {
+                uniform token axis = "Z"
+                double height = 0.45
+                double radius = 0.12
+                color3f[] primvars:displayColor = [(0.72, 0.72, 0.76)]
+                double3 xformOp:translate = (0, 0, 0.225)
+                uniform token[] xformOpOrder = ["xformOp:translate"]
+            }
+
+            def Xform "J2"
+            {
+                double3 xformOp:translate = (0, 0, 0.45)
+                double xformOp:rotateY = -30
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateY"]
+
+                def Cube "UpperArm"
+                {
+                    double size = 1
+                    color3f[] primvars:displayColor = [(0.88, 0.62, 0.18)]
+                    double3 xformOp:translate = (0.35, 0, 0)
+                    double3 xformOp:scale = (0.35, 0.07, 0.07)
+                    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+                }
+
+                def Xform "J3"
+                {
+                    double3 xformOp:translate = (0.70, 0, 0)
+                    double xformOp:rotateY = 45
+                    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateY"]
+
+                    def Cube "Forearm"
+                    {
+                        double size = 1
+                        color3f[] primvars:displayColor = [(0.86, 0.50, 0.14)]
+                        double3 xformOp:translate = (0.28, 0, 0)
+                        double3 xformOp:scale = (0.28, 0.055, 0.055)
+                        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+                    }
+
+                    def Xform "J4"
+                    {
+                        double3 xformOp:translate = (0.56, 0, 0)
+                        double xformOp:rotateX = 0
+                        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateX"]
+
+                        def Cylinder "WristRoll"
+                        {
+                            uniform token axis = "X"
+                            double height = 0.22
+                            double radius = 0.06
+                            color3f[] primvars:displayColor = [(0.78, 0.78, 0.82)]
+                        }
+
+                        def Xform "J5"
+                        {
+                            double3 xformOp:translate = (0.22, 0, 0)
+                            double xformOp:rotateY = 60
+                            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateY"]
+
+                            def Cube "WristBend"
+                            {
+                                double size = 1
+                                color3f[] primvars:displayColor = [(0.82, 0.82, 0.86)]
+                                double3 xformOp:scale = (0.10, 0.05, 0.05)
+                                uniform token[] xformOpOrder = ["xformOp:scale"]
+                            }
+
+                            def Xform "J6"
+                            {
+                                double3 xformOp:translate = (0.20, 0, 0)
+                                double xformOp:rotateX = 0
+                                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateX"]
+
+                                def Cylinder "FlangeDisc"
+                                {
+                                    uniform token axis = "X"
+                                    double height = 0.08
+                                    double radius = 0.09
+                                    color3f[] primvars:displayColor = [(0.25, 0.25, 0.28)]
+                                }
+
+                                def Xform "Flange"
+                                {
+                                    double3 xformOp:translate = (0.08, 0, 0)
+                                    uniform token[] xformOpOrder = ["xformOp:translate"]
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    def Sphere "Warning"
+    {
+        token visibility = "invisible"
+        double radius = 0.36
+        color3f[] primvars:displayColor = [(1, 0, 0)]
+        double3 xformOp:translate = (0, 0, 0.42)
+        double3 xformOp:scale = (1, 1, 0.08)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+    }
+
+    def Scope "Materials"
+    {
+        def Material "BaseGreen"
+        {
+            token outputs:surface.connect = </Robot/Materials/BaseGreen/Surface.outputs:surface>
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.0, 0.55, 0.18)
+                token outputs:surface
+            }
+        }
+    }
+}

@@ -290,6 +290,11 @@ namespace Pumps
             // ClearChangeMasks-ed so subscriptions see each transition.
             UpdateDeviceHealth();
 
+            // Drive the 0.2 OpenUSD alarm-active demo signal from the supervision
+            // flags so a connector's UaAlarmToUsd binding toggles StatusLight
+            // visibility live. Subscriptions see each transition.
+            UpdateAlarmActive(m_cavitation || m_motorOverheat);
+
             // Periodic restart simulation — every 3600 ticks (~15 min at 250ms).
             if (t % 3600 == 0)
             {
@@ -336,6 +341,24 @@ namespace Pumps
                 health.Value = desired;
                 health.Timestamp = DateTime.UtcNow;
                 health.ClearChangeMasks(SystemContext, includeChildren: false);
+            }
+        }
+
+        // Toggles the AlarmActive demo Variable bound to the OpenUSD status-light
+        // visibility (UaAlarmToUsd). ClearChangeMasks lets subscriptions observe it.
+        private void UpdateAlarmActive(bool active)
+        {
+            BaseDataVariableState? v = m_alarmActiveVar;
+            if (v == null)
+            {
+                return;
+            }
+            bool current = v.Value.AsBoxedObject() is bool b && b;
+            if (current != active)
+            {
+                v.Value = active;
+                v.Timestamp = DateTime.UtcNow;
+                v.ClearChangeMasks(SystemContext, includeChildren: false);
             }
         }
     }

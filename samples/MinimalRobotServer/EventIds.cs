@@ -27,7 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Pumps
+namespace Robotics
 {
     /// <summary>
     /// Centrally managed event id offsets for source-generated log messages in this assembly.
@@ -38,10 +38,10 @@ namespace Pumps
     /// reserves at least five spare slots for future messages and is rounded up to the next
     /// multiple of ten so that ids can be documented and managed from this single location.
     /// </remarks>
-    internal static class PumpDeviceIntegrationServerEventIds
+    internal static class MinimalRobotServerEventIds
     {
-        public const int PumpNodeManager = 0;
-        public const int OpenUsdComposition = 10;
-        public const int OpenUsdRepresentation = 20;
+        public const int RobotCell = 0;
+        public const int OpenUsdRepresentation = 10;
+        public const int RoboticsNodeManager = 20;
     }
 }

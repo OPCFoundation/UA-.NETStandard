@@ -1,0 +1,38 @@
+#usda 1.0
+(
+    doc = """OEM (cross-server) single-pump USD asset stand-in for the OPC UA - OpenUSD Bindings
+    composition demo. A ProductionLine aggregates 1..n pumps by *referencing*
+    (and instancing) this asset's default prim </Pump> once per aggregated pump
+    (spec §5.12, CompositionArc = Instance/Reference). The cross-server component
+    references an equivalent OEM asset (remote-pump.usda) on another server (§5.14).
+
+    This is the component asset the connector's authored reference/instance prims
+    point at; it carries only geometry so many instances compose cheaply.
+    """
+    defaultPrim = "Pump"
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "Pump" (
+    kind = "component"
+)
+{
+    def Cylinder "Body"
+    {
+        uniform token axis = "Z"
+        double height = 1.0
+        double radius = 0.5
+        color3f[] primvars:displayColor = [(0.6, 0.6, 0.65)]
+        double3 xformOp:translate = (0, 0, 0.5)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+    }
+
+    def Xform "Impeller"
+    {
+        double xformOp:rotateZ = 0
+        double3 xformOp:translate = (0, 0, 1.05)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateZ"]
+    }
+}
+

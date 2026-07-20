@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>$(AppTargetFrameworks)</TargetFrameworks>
+    <OutputType>Exe</OutputType>
+    <IsPackable>true</IsPackable>
+    <AssemblyName>Opc.Ua.OpenUsd.Connector</AssemblyName>
+    <PackageId>$(PackagePrefix).Opc.Ua.OpenUsd.Connector</PackageId>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
+    <Description>Generic OPC UA - OpenUSD connector tool. Connects to any server implementing the draft OPC UA - OpenUSD Bindings companion model, discovers Server/OpenUSD/Representations, subscribes to the bound Variables, optionally fetches the served USD asset closure (spec §5.15), and authors a live USD override layer (live.usda) plus an optional self-contained stage. Built on Opc.Ua.OpenUsd.Client.</Description>
+    <RootNamespace>Opc.Ua.OpenUsd.Connector</RootNamespace>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.OpenUsd.Client\Opc.Ua.OpenUsd.Client.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" />
+  </ItemGroup>
+</Project>

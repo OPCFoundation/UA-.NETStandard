@@ -1,0 +1,83 @@
+#usda 1.0
+(
+    doc = """Base robot-cell asset for the OPC UA - OpenUSD Bindings Robotics end-to-end.
+
+    Authored by the 3D / USD asset author actor. It carries only the static cell environment. The generic connector composes the aggregated robot references into live.usda; this base layer provides only positioned /Cell/Robots/R1 and /Cell/Robots/R2 mount-point Xforms.
+    """
+    defaultPrim = "Cell"
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "Cell"
+{
+    custom double inputs:speedOverride = 100
+
+    def Cube "Ground"
+    {
+        double size = 1
+        color3f[] primvars:displayColor = [(0.22, 0.24, 0.25)]
+        double3 xformOp:translate = (0, 0, -0.025)
+        double3 xformOp:scale = (3.8, 2.4, 0.025)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+    }
+
+    def Xform "Fence"
+    {
+        def Cube "Back"
+        {
+            double size = 1
+            color3f[] primvars:displayColor = [(0.95, 0.78, 0.05)]
+            double3 xformOp:translate = (0, 1.2, 0.45)
+            double3 xformOp:scale = (3.8, 0.035, 0.45)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+        def Cube "Left"
+        {
+            double size = 1
+            color3f[] primvars:displayColor = [(0.95, 0.78, 0.05)]
+            double3 xformOp:translate = (-1.9, 0, 0.45)
+            double3 xformOp:scale = (0.035, 1.2, 0.45)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+        def Cube "Right"
+        {
+            double size = 1
+            color3f[] primvars:displayColor = [(0.95, 0.78, 0.05)]
+            double3 xformOp:translate = (1.9, 0, 0.45)
+            double3 xformOp:scale = (0.035, 1.2, 0.45)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+    }
+
+    def Sphere "SafetyBeacon"
+    {
+        token visibility = "invisible"
+        double radius = 0.12
+        color3f[] primvars:displayColor = [(1, 0, 0)]
+        double3 xformOp:translate = (0, 1.05, 1.15)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+    }
+
+    def Xform "Robots"
+    {
+        def Xform "R1"
+        {
+            double3 xformOp:translate = (-1.2, 0, 0)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Xform "R2"
+        {
+            double3 xformOp:translate = (1.2, 0, 0)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+    }
+
+    def DistantLight "KeyLight"
+    {
+        float intensity = 650
+        double3 xformOp:rotateXYZ = (-45, 0, 35)
+        uniform token[] xformOpOrder = ["xformOp:rotateXYZ"]
+    }
+}

@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>$(AppTargetFrameworks)</TargetFrameworks>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <AssemblyName>MinimalRobotServer</AssemblyName>
+    <PackageId>MinimalRobotServer</PackageId>
+    <Description>Minimal self-contained .NET console OPC UA server demonstrating the OPC 40010 Robotics companion specification (a MotionDeviceSystem robot cell of two 6-axis articulated robots) bound to OpenUSD via the draft OPC UA - OpenUSD Bindings companion model, so a generic connector renders the cell live. Built on the Opc.Ua.Robotics and Opc.Ua.OpenUsd SDK libraries.</Description>
+    <RootNamespace>Robotics</RootNamespace>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <NoWarn>$(NoWarn);CA1822</NoWarn>
+    <PublishAot Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</PublishAot>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Server\Opc.Ua.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Di\Opc.Ua.Di.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Di.Server\Opc.Ua.Di.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.OpenUsd\Opc.Ua.OpenUsd.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.OpenUsd.Server\Opc.Ua.OpenUsd.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Robotics\Opc.Ua.Robotics.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Robotics.Server\Opc.Ua.Robotics.Server.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" />
+  </ItemGroup>
+  <!-- Artist-authored USD layers embedded so the server ships (and serves) its own
+       twin geometry: Cell.usda (RootLayer) + robot.usda + tool.usda (References).
+       Served through a read-only Part 5 FileType by Opc.Ua.OpenUsd.Server
+       (UsdAssetDelivery), spec §5.15. The Robotics + IA type system is loaded from
+       the Opc.Ua.Robotics library (runtime NodeSet import); the OpenUSD companion
+       types come from the Opc.Ua.OpenUsd library (source-generated there). -->
+  <ItemGroup>
+    <EmbeddedResource Include="Assets\Cell.usda"><LogicalName>Cell.usda</LogicalName></EmbeddedResource>
+    <EmbeddedResource Include="Assets\robot.usda"><LogicalName>robot.usda</LogicalName></EmbeddedResource>
+    <EmbeddedResource Include="Assets\tool.usda"><LogicalName>tool.usda</LogicalName></EmbeddedResource>
+  </ItemGroup>
+</Project>

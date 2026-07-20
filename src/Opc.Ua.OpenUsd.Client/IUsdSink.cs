@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -27,21 +27,24 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Pumps
+using System;
+
+namespace Opc.Ua.OpenUsd.Client
 {
-    /// <summary>
-    /// Centrally managed event id offsets for source-generated log messages in this assembly.
-    /// </summary>
-    /// <remarks>
-    /// Each per-file <c>&lt;ClassName&gt;Log</c> class allocates its event ids relative to the
-    /// offset constant below, using <c>offset + &lt;zero-based message index&gt;</c>. Every block
-    /// reserves at least five spare slots for future messages and is rounded up to the next
-    /// multiple of ten so that ids can be documented and managed from this single location.
-    /// </remarks>
-    internal static class PumpDeviceIntegrationServerEventIds
+    /// <summary>USD-side sink the <see cref="OpenUsdConnector"/> writes into.</summary>
+    public interface IUsdSink
     {
-        public const int PumpNodeManager = 0;
-        public const int OpenUsdComposition = 10;
-        public const int OpenUsdRepresentation = 20;
+        void SetAttribute(string primPath, string propertyName, object value);
+
+        // Authors a USD time sample (for UaHistoryToUsd playback/scrubbing). The
+        // DateTime is mapped to a USD frame (seconds since the Unix epoch).
+        void SetTimeSample(string primPath, string propertyName, DateTime time, object value);
+
+        // Composes a component prim (§5.12): a Child is an inline over/def prim; a
+        // Reference/Payload/Instance authors references/payload (+ instanceable for
+        // Instance) to the component asset. active=false deactivates a removed
+        // component prim (dynamic composition, §5.13).
+        void ComposePrim(string primPath, OpenUsdCompositionArc arc,
+            string? assetReference, bool active);
     }
 }
