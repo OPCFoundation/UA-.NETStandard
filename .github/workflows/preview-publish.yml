@@ -54,7 +54,7 @@ jobs:
           fetch-depth: 0   # nbgv needs full git history
 
       - name: Setup .NET 10.0
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '10.0.x'
 
