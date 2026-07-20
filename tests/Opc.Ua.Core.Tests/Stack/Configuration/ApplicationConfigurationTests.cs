@@ -774,11 +774,11 @@ namespace Opc.Ua.Core.Tests
             Assert.That(path, Does.Contain("TestSection"));
         }
 
-        [Test]
         /// <summary>
         /// ValidateAsync defaults TransportQuotas when it is null so the transport
         /// layer does not fail with a NullReferenceException on server start.
         /// </summary>
+        [Test]
         public async Task ValidateAsyncDefaultsTransportQuotasWhenNull()
         {
             string pkiPath = Path.Combine(
@@ -802,10 +802,10 @@ namespace Opc.Ua.Core.Tests
             }
         }
 
-        [Test]
         /// <summary>
         /// ValidateAsync preserves an explicitly configured TransportQuotas instance.
         /// </summary>
+        [Test]
         public async Task ValidateAsyncKeepsExplicitTransportQuotas()
         {
             string pkiPath = Path.Combine(
@@ -825,6 +825,71 @@ namespace Opc.Ua.Core.Tests
             {
                 TryDeleteDirectory(pkiPath);
             }
+        }
+
+        /// <summary>
+        /// ValidateAsync defaults TransportQuotas when it is null on the client path,
+        /// ensuring the behavior is consistent regardless of ApplicationType.
+        /// </summary>
+        [Test]
+        public async Task ValidateAsyncDefaultsTransportQuotasWhenNullForClient()
+        {
+            string pkiPath = Path.Combine(
+                Path.GetTempPath(),
+                "OpcUaTestTransportQuotasClient_" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                ApplicationConfiguration config = CreateValidatableClientConfig(pkiPath);
+                config.TransportQuotas = null;
+
+                await config.ValidateAsync(ApplicationType.Client).ConfigureAwait(false);
+
+                Assert.That(config.TransportQuotas, Is.Not.Null);
+                Assert.That(
+                    config.TransportQuotas!.MaxMessageSize,
+                    Is.EqualTo(DefaultEncodingLimits.MaxMessageSize));
+            }
+            finally
+            {
+                TryDeleteDirectory(pkiPath);
+            }
+        }
+
+        private ApplicationConfiguration CreateValidatableClientConfig(string pkiPath)
+        {
+            const string applicationName = "TransportQuotasTestClient";
+            return new ApplicationConfiguration(m_telemetry)
+            {
+                ApplicationName = applicationName,
+                ApplicationUri = "urn:test:" + applicationName,
+                ApplicationType = ApplicationType.Client,
+                ClientConfiguration = new ClientConfiguration(),
+                SecurityConfiguration = new SecurityConfiguration
+                {
+                    ApplicationCertificate = new CertificateIdentifier
+                    {
+                        StoreType = CertificateStoreType.Directory,
+                        StorePath = Path.Combine(pkiPath, "own"),
+                        SubjectName = "CN=" + applicationName
+                    },
+                    TrustedPeerCertificates = new CertificateTrustList
+                    {
+                        StoreType = CertificateStoreType.Directory,
+                        StorePath = Path.Combine(pkiPath, "trusted")
+                    },
+                    TrustedIssuerCertificates = new CertificateTrustList
+                    {
+                        StoreType = CertificateStoreType.Directory,
+                        StorePath = Path.Combine(pkiPath, "issuers")
+                    },
+                    RejectedCertificateStore = new CertificateTrustList
+                    {
+                        StoreType = CertificateStoreType.Directory,
+                        StorePath = Path.Combine(pkiPath, "rejected")
+                    },
+                    AutoAcceptUntrustedCertificates = true
+                }
+            };
         }
 
         private ApplicationConfiguration CreateValidatableServerConfig(string pkiPath)
