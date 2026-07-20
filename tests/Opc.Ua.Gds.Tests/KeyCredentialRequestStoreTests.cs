@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -286,6 +287,251 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
+        public void FinishBindingCompatibilityRejectsLegacyStore()
+        {
+            IKeyCredentialRequestStore store = new LegacyKeyCredentialRequestStore();
+
+            Assert.That(
+                async () => await store.FinishBoundRequestCompatAsync(
+                    new NodeId(1),
+                    cancelRequest: false,
+                    CreateFingerprint(1),
+                    CancellationToken.None).ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadSecurityChecksFailed));
+        }
+
+        [Test]
+        public async Task BindingCompatibilityDispatchesToBoundStoreAsync()
+        {
+            var boundStore = new RecordingBoundKeyCredentialRequestStore();
+            IKeyCredentialRequestStore store = boundStore;
+            ByteString fingerprint = CreateFingerprint(1);
+
+            NodeId requestId = await store.StartBoundRequestCompatAsync(
+                "urn:test:app",
+                default,
+                null,
+                default,
+                fingerprint,
+                CancellationToken.None).ConfigureAwait(false);
+            FinishKeyCredentialRequestResult result =
+                await store.FinishBoundRequestCompatAsync(
+                    requestId,
+                    cancelRequest: false,
+                    fingerprint,
+                    CancellationToken.None).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(requestId, Is.EqualTo(new NodeId(2)));
+                Assert.That(result.State, Is.EqualTo(KeyCredentialRequestState.Completed));
+                Assert.That(boundStore.StartBoundCalled, Is.True);
+                Assert.That(boundStore.FinishBoundCalled, Is.True);
+            });
+        }
+
+        [Test]
+        public void ConstructorWithNullSecretStoreThrows()
+        {
+            Assert.That(
+                () => new InMemoryKeyCredentialRequestStore(null!),
+                Throws.ArgumentNullException);
+        }
+
+        [Test]
+        public void StartOwnedBoundRequestWithNullApplicationIdThrows()
+        {
+            Assert.That(
+                async () => await m_store.StartOwnedBoundRequestAsync(
+                    "urn:test:app",
+                    NodeId.Null,
+                    default,
+                    null,
+                    default,
+                    CreateFingerprint(1)).ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadSecurityChecksFailed));
+        }
+
+        [TestCase(0)]
+        [TestCase(31)]
+        [TestCase(33)]
+        public void StartBoundRequestWithInvalidFingerprintLengthThrows(int length)
+        {
+            Assert.That(
+                async () => await m_store.StartBoundRequestAsync(
+                    "urn:test:app",
+                    default,
+                    null,
+                    default,
+                    ByteString.From(new byte[length])).ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadSecurityChecksFailed));
+        }
+
+        [Test]
+        public async Task FinishBoundRequestWithInvalidFingerprintLengthThrowsAsync()
+        {
+            NodeId requestId = await m_store.StartBoundRequestAsync(
+                "urn:test:app",
+                default,
+                null,
+                default,
+                CreateFingerprint(1)).ConfigureAwait(false);
+
+            Assert.That(
+                async () => await m_store.FinishBoundRequestAsync(
+                    requestId,
+                    cancelRequest: false,
+                    ByteString.From(new byte[31])).ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadSecurityChecksFailed));
+        }
+
+        [Test]
+        public async Task OwnedOperationsWithNullApplicationIdThrowAsync()
+        {
+            NodeId requestId = await m_store.StartOwnedBoundRequestAsync(
+                "urn:test:app",
+                new NodeId(42),
+                default,
+                null,
+                default,
+                CreateFingerprint(1)).ConfigureAwait(false);
+            FinishKeyCredentialRequestResult finished =
+                await m_store.FinishOwnedBoundRequestAsync(
+                    requestId,
+                    cancelRequest: false,
+                    new NodeId(42),
+                    CreateFingerprint(1)).ConfigureAwait(false);
+
+            Assert.That(
+                async () => await m_store.FinishOwnedBoundRequestAsync(
+                    requestId,
+                    cancelRequest: false,
+                    NodeId.Null,
+                    CreateFingerprint(1)).ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadSecurityChecksFailed));
+            Assert.That(
+                async () => await m_store.RevokeOwnedAsync(
+                    finished.CredentialId!,
+                    NodeId.Null).ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadSecurityChecksFailed));
+        }
+
+        [Test]
+        public async Task OwnershipLookupsHonorCancellationAsync()
+        {
+            var applicationId = new NodeId(42);
+            NodeId requestId = await m_store.StartOwnedBoundRequestAsync(
+                "urn:test:app",
+                applicationId,
+                default,
+                null,
+                default,
+                CreateFingerprint(1)).ConfigureAwait(false);
+            FinishKeyCredentialRequestResult finished =
+                await m_store.FinishOwnedBoundRequestAsync(
+                    requestId,
+                    cancelRequest: false,
+                    applicationId,
+                    CreateFingerprint(1)).ConfigureAwait(false);
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+
+            Assert.That(
+                async () => await m_store.GetRequestApplicationIdAsync(
+                    requestId,
+                    cts.Token).ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>());
+            Assert.That(
+                async () => await m_store.GetCredentialApplicationIdAsync(
+                    finished.CredentialId!,
+                    cts.Token).ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>());
+        }
+
+        [Test]
+        public async Task RepeatedFinishPreservesCompletedStateAndSecretAsync()
+        {
+            NodeId requestId = await m_store.StartRequestAsync(
+                "urn:test:app",
+                default,
+                null,
+                default).ConfigureAwait(false);
+            FinishKeyCredentialRequestResult first =
+                await m_store.FinishRequestAsync(
+                    requestId,
+                    cancelRequest: false).ConfigureAwait(false);
+
+            FinishKeyCredentialRequestResult second =
+                await m_store.FinishRequestAsync(
+                    requestId,
+                    cancelRequest: false).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(second.State, Is.EqualTo(KeyCredentialRequestState.Completed));
+                Assert.That(second.CredentialId, Is.EqualTo(first.CredentialId));
+                Assert.That(second.CredentialSecret.ToArray(),
+                    Is.EqualTo(first.CredentialSecret.ToArray()));
+            });
+        }
+
+        [Test]
+        public async Task FinishAfterCancelDoesNotReturnPurgedSecretAsync()
+        {
+            NodeId requestId = await m_store.StartRequestAsync(
+                "urn:test:app",
+                default,
+                null,
+                default).ConfigureAwait(false);
+            await m_store.FinishRequestAsync(
+                requestId,
+                cancelRequest: true).ConfigureAwait(false);
+
+            FinishKeyCredentialRequestResult result =
+                await m_store.FinishRequestAsync(
+                    requestId,
+                    cancelRequest: false).ConfigureAwait(false);
+
+            Assert.That(result.State, Is.EqualTo(KeyCredentialRequestState.Rejected));
+            Assert.That(result.CredentialSecret.IsEmpty, Is.True);
+        }
+
+        [Test]
+        public async Task FinishAfterRevokeDoesNotReturnPurgedSecretAsync()
+        {
+            NodeId requestId = await m_store.StartRequestAsync(
+                "urn:test:app",
+                default,
+                null,
+                default).ConfigureAwait(false);
+            FinishKeyCredentialRequestResult issued =
+                await m_store.FinishRequestAsync(
+                    requestId,
+                    cancelRequest: false).ConfigureAwait(false);
+            await m_store.RevokeAsync(issued.CredentialId!).ConfigureAwait(false);
+
+            FinishKeyCredentialRequestResult result =
+                await m_store.FinishRequestAsync(
+                    requestId,
+                    cancelRequest: false).ConfigureAwait(false);
+
+            Assert.That(result.State, Is.EqualTo(KeyCredentialRequestState.Rejected));
+            Assert.That(result.CredentialSecret.IsEmpty, Is.True);
+        }
+
+        [Test]
         public async Task FinishRequestWithCancelRejectsRequestAsync()
         {
             NodeId id = await m_store.StartRequestAsync(
@@ -379,6 +625,64 @@ namespace Opc.Ua.Gds.Tests
                     {
                         State = KeyCredentialRequestState.Completed
                     });
+            }
+
+            public ValueTask RevokeAsync(
+                string credentialId,
+                CancellationToken cancellationToken = default)
+            {
+                return default;
+            }
+        }
+
+        private sealed class RecordingBoundKeyCredentialRequestStore :
+            IClientCertificateBoundKeyCredentialRequestStore
+        {
+            public bool StartBoundCalled { get; private set; }
+            public bool FinishBoundCalled { get; private set; }
+
+            public ValueTask<NodeId> StartRequestAsync(
+                string applicationUri,
+                ByteString publicKey,
+                string? securityPolicyUri,
+                ArrayOf<NodeId> requestedRoles,
+                CancellationToken cancellationToken = default)
+            {
+                return new ValueTask<NodeId>(new NodeId(1));
+            }
+
+            public ValueTask<NodeId> StartBoundRequestAsync(
+                string applicationUri,
+                ByteString publicKey,
+                string? securityPolicyUri,
+                ArrayOf<NodeId> requestedRoles,
+                ByteString clientCertificateFingerprint,
+                CancellationToken cancellationToken = default)
+            {
+                StartBoundCalled = true;
+                return new ValueTask<NodeId>(new NodeId(2));
+            }
+
+            public ValueTask<FinishKeyCredentialRequestResult> FinishRequestAsync(
+                NodeId requestId,
+                bool cancelRequest,
+                CancellationToken cancellationToken = default)
+            {
+                return new ValueTask<FinishKeyCredentialRequestResult>(
+                    new FinishKeyCredentialRequestResult
+                    {
+                        State = KeyCredentialRequestState.Completed
+                    });
+            }
+
+            public ValueTask<FinishKeyCredentialRequestResult> FinishBoundRequestAsync(
+                NodeId requestId,
+                bool cancelRequest,
+                ByteString clientCertificateFingerprint,
+                CancellationToken cancellationToken = default)
+            {
+                FinishBoundCalled = true;
+                return FinishRequestAsync(requestId, cancelRequest, cancellationToken);
             }
 
             public ValueTask RevokeAsync(

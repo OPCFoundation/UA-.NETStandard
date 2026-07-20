@@ -621,6 +621,7 @@ namespace Opc.Ua.Gds.Server
                     var secretId = new SecretIdentifier(record.CredentialId, m_secretStore.StoreType);
                     await m_secretStore.RemoveAsync(secretId, cancellationToken).ConfigureAwait(false);
                 }
+                record.CredentialSecret = default;
                 return new FinishKeyCredentialRequestResult { State = record.State };
             }
 
@@ -691,6 +692,7 @@ namespace Opc.Ua.Gds.Server
             // purge the secret from the backing store
             var secretId = new SecretIdentifier(record.CredentialId!, m_secretStore.StoreType);
             await m_secretStore.RemoveAsync(secretId, cancellationToken).ConfigureAwait(false);
+            record.CredentialSecret = default;
         }
 
         private static byte[] GenerateRandomBytes(int length)

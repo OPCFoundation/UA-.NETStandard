@@ -430,7 +430,7 @@ namespace Opc.Ua.Gds.Tests
             byte[] expected = SHA256.HashData(clientCertificate);
 #else
             byte[] expected;
-            using (SHA256 sha256 = SHA256.Create())
+            using (var sha256 = SHA256.Create())
             {
                 expected = sha256.ComputeHash(clientCertificate);
             }
@@ -452,6 +452,35 @@ namespace Opc.Ua.Gds.Tests
                 "test-channel",
                 endpoint,
                 RequestEncoding.Binary);
+            var operationContext = new OperationContext(
+                new RequestHeader(),
+                channelContext,
+                RequestType.Call,
+                RequestLifetime.None);
+            var context = new SystemContext(operationContext, m_telemetry)
+            {
+                NamespaceUris = m_namespaceTable
+            };
+
+            Assert.That(
+                () => AuthorizationHelper.GetClientCertificateFingerprint(context),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadSecurityChecksFailed));
+        }
+
+        [Test]
+        public void GetClientCertificateFingerprintThrowsWhenCertificateIsEmpty()
+        {
+            var endpoint = new EndpointDescription
+            {
+                SecurityMode = MessageSecurityMode.SignAndEncrypt
+            };
+            var channelContext = new SecureChannelContext(
+                "test-channel",
+                endpoint,
+                RequestEncoding.Binary,
+                []);
             var operationContext = new OperationContext(
                 new RequestHeader(),
                 channelContext,

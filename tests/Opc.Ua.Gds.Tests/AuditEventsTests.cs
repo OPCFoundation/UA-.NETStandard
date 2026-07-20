@@ -90,6 +90,102 @@ namespace Opc.Ua.Gds.Tests
             Assert.That(auditEvent.Message.Value.Text, Is.EqualTo("KeyCredentialDeliveredAuditEvent failed."));
         }
 
+        [Test]
+        public void KeyCredentialRequestedFailureAuditRedactsExceptionDetails()
+        {
+            const string secret = "request-secret-must-not-appear";
+            var auditServer = new CapturingAuditEventServer();
+            ILogger logger = NUnitTelemetryContext.Create().CreateLogger<AuditEventsTests>();
+
+            auditServer.ReportKeyCredentialRequestedAuditEvent(
+                auditServer.DefaultAuditContext,
+                Ua.ObjectIds.Server,
+                new MethodState(null),
+                ["urn:test:app", ByteString.From([1, 2, 3])],
+                logger,
+                new InvalidOperationException($"Store failed with {secret}."));
+
+            AssertFailureAudit(
+                auditServer,
+                "KeyCredentialRequestedAuditEvent failed.",
+                secret);
+        }
+
+        [Test]
+        public void KeyCredentialRevokedFailureAuditRedactsExceptionDetails()
+        {
+            const string secret = "revoke-secret-must-not-appear";
+            var auditServer = new CapturingAuditEventServer();
+            ILogger logger = NUnitTelemetryContext.Create().CreateLogger<AuditEventsTests>();
+
+            auditServer.ReportKeyCredentialRevokedAuditEvent(
+                auditServer.DefaultAuditContext,
+                Ua.ObjectIds.Server,
+                new MethodState(null),
+                ["KC-1"],
+                logger,
+                new InvalidOperationException($"Store failed with {secret}."));
+
+            AssertFailureAudit(
+                auditServer,
+                "KeyCredentialRevokedAuditEvent failed.",
+                secret);
+        }
+
+        [Test]
+        public void AccessTokenFailureAuditIncludesExceptionDetails()
+        {
+            const string detail = "token-provider-diagnostic";
+            var auditServer = new CapturingAuditEventServer();
+            ILogger logger = NUnitTelemetryContext.Create().CreateLogger<AuditEventsTests>();
+
+            auditServer.ReportAccessTokenIssuedAuditEvent(
+                auditServer.DefaultAuditContext,
+                Ua.ObjectIds.Server,
+                new MethodState(null),
+                ["resource"],
+                logger,
+                new InvalidOperationException(detail));
+
+            Assert.That(auditServer.Events, Has.Count.EqualTo(1));
+            AuditUpdateMethodEventState auditEvent = auditServer.Events[0];
+            Assert.That(auditEvent.Status!.Value, Is.False);
+            Assert.That(auditEvent.Message!.Value.Text, Does.Contain(detail));
+        }
+
+        [Test]
+        public void KeyCredentialSuccessAuditReportsGoodStatus()
+        {
+            var auditServer = new CapturingAuditEventServer();
+            ILogger logger = NUnitTelemetryContext.Create().CreateLogger<AuditEventsTests>();
+
+            auditServer.ReportKeyCredentialDeliveredAuditEvent(
+                auditServer.DefaultAuditContext,
+                Ua.ObjectIds.Server,
+                new MethodState(null),
+                [new NodeId(1), false],
+                logger);
+
+            Assert.That(auditServer.Events, Has.Count.EqualTo(1));
+            AuditUpdateMethodEventState auditEvent = auditServer.Events[0];
+            Assert.That(auditEvent.Status!.Value, Is.True);
+            Assert.That(
+                auditEvent.Message!.Value.Text,
+                Is.EqualTo("KeyCredentialDeliveredAuditEvent."));
+        }
+
+        private static void AssertFailureAudit(
+            CapturingAuditEventServer auditServer,
+            string expectedMessage,
+            string secret)
+        {
+            Assert.That(auditServer.Events, Has.Count.EqualTo(1));
+            AuditUpdateMethodEventState auditEvent = auditServer.Events[0];
+            Assert.That(auditEvent.Status!.Value, Is.False);
+            Assert.That(auditEvent.Message!.Value.Text, Is.EqualTo(expectedMessage));
+            Assert.That(auditEvent.Message.Value.Text, Does.Not.Contain(secret));
+        }
+
         private sealed class CapturingAuditEventServer : IAuditEventServer
         {
             public CapturingAuditEventServer()

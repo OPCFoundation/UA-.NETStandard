@@ -2679,11 +2679,11 @@ namespace Opc.Ua.Gds.Server
                         clientCertificateFingerprint,
                         cancellationToken).ConfigureAwait(false);
                 KeyCredentialFinishRequestMethodStateResult result =
-                    CreateKeyCredentialFinishResult(finished);
+                    CreateKeyCredentialFinishResult(finished, cancelRequest);
 
-                if (finished.State == KeyCredentialRequestState.New)
+                if (StatusCode.IsBad(result.ServiceResult.StatusCode))
                 {
-                    var exception = new ServiceResultException(StatusCodes.BadRequestNotComplete);
+                    var exception = new ServiceResultException(result.ServiceResult);
                     Server.ReportKeyCredentialDeliveredAuditEvent(
                         context, objectId, method, auditInputs, m_logger, exception);
                     return result;
@@ -2781,21 +2781,31 @@ namespace Opc.Ua.Gds.Server
         }
 
         internal static ServiceResult GetKeyCredentialFinishServiceResult(
-            KeyCredentialRequestState state)
+            KeyCredentialRequestState state,
+            bool cancelRequest)
         {
-            return state == KeyCredentialRequestState.New
-                ? new ServiceResult(StatusCodes.BadRequestNotComplete)
-                : ServiceResult.Good;
+            if (state == KeyCredentialRequestState.New)
+            {
+                return new ServiceResult(StatusCodes.BadRequestNotComplete);
+            }
+            if (state == KeyCredentialRequestState.Rejected && !cancelRequest)
+            {
+                return new ServiceResult(StatusCodes.BadRequestNotAllowed);
+            }
+            return ServiceResult.Good;
         }
 
         internal static KeyCredentialFinishRequestMethodStateResult CreateKeyCredentialFinishResult(
-            FinishKeyCredentialRequestResult finished)
+            FinishKeyCredentialRequestResult finished,
+            bool cancelRequest)
         {
-            if (finished.State == KeyCredentialRequestState.New)
+            ServiceResult serviceResult =
+                GetKeyCredentialFinishServiceResult(finished.State, cancelRequest);
+            if (StatusCode.IsBad(serviceResult.StatusCode) || cancelRequest)
             {
                 return new KeyCredentialFinishRequestMethodStateResult
                 {
-                    ServiceResult = GetKeyCredentialFinishServiceResult(finished.State)
+                    ServiceResult = serviceResult
                 };
             }
 

@@ -82,6 +82,97 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
+        public void NullDatabaseThrowsArgumentNullException()
+        {
+            Assert.That(
+                () => ApplicationsNodeManager.ResolveKeyCredentialApplicationId(
+                    null!,
+                    ApplicationUri),
+                Throws.ArgumentNullException);
+        }
+
+        [TestCase(null)]
+        [TestCase("")]
+        [TestCase(" ")]
+        public void EmptyApplicationUriReturnsBadNotFound(string? applicationUri)
+        {
+            var database = new Mock<IApplicationsDatabase>(MockBehavior.Strict);
+
+            Assert.That(
+                () => ApplicationsNodeManager.ResolveKeyCredentialApplicationId(
+                    database.Object,
+                    applicationUri!),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadNotFound));
+        }
+
+        [Test]
+        public void NullApplicationSearchResultReturnsBadNotFound()
+        {
+            var database = new Mock<IApplicationsDatabase>(MockBehavior.Strict);
+            database
+                .Setup(db => db.FindApplications(ApplicationUri))
+                .Returns((ApplicationRecordDataType[]?)null);
+
+            Assert.That(
+                () => ApplicationsNodeManager.ResolveKeyCredentialApplicationId(
+                    database.Object,
+                    ApplicationUri),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadNotFound));
+        }
+
+        [Test]
+        public void NonExactApplicationUriMatchReturnsBadNotFound()
+        {
+            var database = new Mock<IApplicationsDatabase>(MockBehavior.Strict);
+            database
+                .Setup(db => db.FindApplications(ApplicationUri))
+                .Returns(
+                [
+                    new ApplicationRecordDataType
+                    {
+                        ApplicationId = new NodeId(42),
+                        ApplicationUri = ApplicationUri.ToUpperInvariant()
+                    }
+                ]);
+
+            Assert.That(
+                () => ApplicationsNodeManager.ResolveKeyCredentialApplicationId(
+                    database.Object,
+                    ApplicationUri),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadNotFound));
+        }
+
+        [Test]
+        public void NullApplicationIdReturnsBadConfigurationError()
+        {
+            var database = new Mock<IApplicationsDatabase>(MockBehavior.Strict);
+            database
+                .Setup(db => db.FindApplications(ApplicationUri))
+                .Returns(
+                [
+                    new ApplicationRecordDataType
+                    {
+                        ApplicationId = NodeId.Null,
+                        ApplicationUri = ApplicationUri
+                    }
+                ]);
+
+            Assert.That(
+                () => ApplicationsNodeManager.ResolveKeyCredentialApplicationId(
+                    database.Object,
+                    ApplicationUri),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadConfigurationError));
+        }
+
+        [Test]
         public void DuplicateApplicationUriReturnsBadConfigurationError()
         {
             var database = new Mock<IApplicationsDatabase>(MockBehavior.Strict);
@@ -121,7 +212,9 @@ namespace Opc.Ua.Gds.Tests
             };
 
             KeyCredentialFinishRequestMethodStateResult result =
-                ApplicationsNodeManager.CreateKeyCredentialFinishResult(finished);
+                ApplicationsNodeManager.CreateKeyCredentialFinishResult(
+                    finished,
+                    cancelRequest: false);
 
             Assert.That(result.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadRequestNotComplete));
             Assert.That(result.CredentialId, Is.Null.Or.Empty);
@@ -129,12 +222,79 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        public void CompletedFinishReturnsGood()
+        public void CompletedFinishReturnsAllCredentialOutputs()
         {
-            ServiceResult result = ApplicationsNodeManager.GetKeyCredentialFinishServiceResult(
-                KeyCredentialRequestState.Completed);
+            ArrayOf<NodeId> grantedRoles =
+                new NodeId[] { new(1), new(2) }.ToArrayOf();
+            var finished = new FinishKeyCredentialRequestResult
+            {
+                State = KeyCredentialRequestState.Completed,
+                CredentialId = "KC-42",
+                CredentialSecret = ByteString.From([1, 2, 3]),
+                CertificateThumbprint = "thumbprint",
+                SecurityPolicyUri = SecurityPolicies.Basic256Sha256,
+                GrantedRoles = grantedRoles
+            };
+
+            KeyCredentialFinishRequestMethodStateResult result =
+                ApplicationsNodeManager.CreateKeyCredentialFinishResult(
+                    finished,
+                    cancelRequest: false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(result.ServiceResult), Is.True);
+                Assert.That(result.CredentialId, Is.EqualTo("KC-42"));
+                Assert.That(result.CredentialSecret.ToArray(), Is.EqualTo(new byte[] { 1, 2, 3 }));
+                Assert.That(result.CertificateThumbprint, Is.EqualTo("thumbprint"));
+                Assert.That(result.SecurityPolicyUri, Is.EqualTo(SecurityPolicies.Basic256Sha256));
+                Assert.That(result.GrantedRoles, Is.EqualTo(grantedRoles));
+            });
+        }
+
+        [TestCase(KeyCredentialRequestState.Approved)]
+        [TestCase(KeyCredentialRequestState.Completed)]
+        public void NonPendingFinishStateReturnsGood(KeyCredentialRequestState state)
+        {
+            ServiceResult result =
+                ApplicationsNodeManager.GetKeyCredentialFinishServiceResult(
+                    state,
+                    cancelRequest: false);
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
+        }
+
+        [Test]
+        public void RejectedFinishReturnsBadRequestNotAllowed()
+        {
+            ServiceResult result =
+                ApplicationsNodeManager.GetKeyCredentialFinishServiceResult(
+                    KeyCredentialRequestState.Rejected,
+                    cancelRequest: false);
+
+            Assert.That(
+                result.StatusCode,
+                Is.EqualTo(StatusCodes.BadRequestNotAllowed));
+        }
+
+        [Test]
+        public void CancelledRejectedFinishReturnsGoodWithoutCredentialOutputs()
+        {
+            var finished = new FinishKeyCredentialRequestResult
+            {
+                State = KeyCredentialRequestState.Rejected,
+                CredentialId = "must-not-be-returned",
+                CredentialSecret = ByteString.From([1, 2, 3])
+            };
+
+            KeyCredentialFinishRequestMethodStateResult result =
+                ApplicationsNodeManager.CreateKeyCredentialFinishResult(
+                    finished,
+                    cancelRequest: true);
+
+            Assert.That(ServiceResult.IsGood(result.ServiceResult), Is.True);
+            Assert.That(result.CredentialId, Is.Null.Or.Empty);
+            Assert.That(result.CredentialSecret.IsEmpty, Is.True);
         }
     }
 }
