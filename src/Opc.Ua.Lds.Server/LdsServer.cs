@@ -492,7 +492,7 @@ namespace Opc.Ua.Lds.Server
                     new LocalizedText("ServerType is out of range."));
             }
 
-            byte[] certBytes = secureChannelContext?.ClientChannelCertificate;
+            byte[] certBytes = secureChannelContext.ClientChannelCertificate;
             if (certBytes == null || certBytes.Length == 0)
             {
                 return new ServiceResult(

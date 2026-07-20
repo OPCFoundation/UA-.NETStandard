@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Security.Cryptography.X509Certificates;
 using NUnit.Framework;
 using Opc.Ua.Lds.Server;
 using Opc.Ua.Security.Certificates;
@@ -37,7 +38,7 @@ namespace Opc.Ua.Lds.Tests
     [TestFixture]
     [Category("DiscoveryServices")]
     [Parallelizable]
-    public sealed class RegistrationValidationTests
+    public sealed class RegistrationValidationTests : LdsTestFixture
     {
         private const string ServerUri = "urn:localhost:opcfoundation.org:RegistrationValidation";
 
@@ -76,6 +77,37 @@ namespace Opc.Ua.Lds.Tests
                 CreateRegisteredServer(ServerUri));
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadCertificateInvalid));
+        }
+
+        [Test]
+        public void RegisterServerRejectsMalformedSubjectAltNameWithoutMutatingStore()
+        {
+            using Certificate certificate = CreateCertificateWithMalformedSubjectAltName();
+
+            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await Lds.RegisterServerAsync(
+                    CreateChannel(certificate.RawData),
+                    new RequestHeader(),
+                    CreateRegisteredServer(ServerUri),
+                    RequestLifetime.None).ConfigureAwait(false));
+
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadCertificateInvalid));
+            Assert.That(Lds.RegistrationStore.Snapshot(), Is.Empty);
+        }
+
+        [Test]
+        public void RegisterServer2RejectsMissingCertificateWithoutMutatingStore()
+        {
+            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await Lds.RegisterServer2Async(
+                    CreateChannel(null),
+                    new RequestHeader(),
+                    CreateRegisteredServer(ServerUri),
+                    default,
+                    RequestLifetime.None).ConfigureAwait(false));
+
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+            Assert.That(Lds.RegistrationStore.Snapshot(), Is.Empty);
         }
 
         [Test]
@@ -148,10 +180,7 @@ namespace Opc.Ua.Lds.Tests
             string[] applicationUris,
             bool includeSubjectAltName = false)
         {
-            ICertificateBuilder builder = CertificateBuilder
-                .Create("CN=RegistrationValidation")
-                .SetNotBefore(DateTime.UtcNow.AddDays(-1))
-                .SetNotAfter(DateTime.UtcNow.AddDays(30));
+            ICertificateBuilder builder = CreateCertificateBuilder();
             if (applicationUris.Length > 0 || includeSubjectAltName)
             {
                 builder = builder.AddExtension(
@@ -159,6 +188,26 @@ namespace Opc.Ua.Lds.Tests
             }
 
             return builder.SetRSAKeySize(2048).CreateForRSA();
+        }
+
+        private static Certificate CreateCertificateWithMalformedSubjectAltName()
+        {
+            return CreateCertificateBuilder()
+                .AddExtension(
+                    new X509Extension(
+                        X509SubjectAltNameExtension.SubjectAltName2Oid,
+                        [0x30, 0x01, 0x86],
+                        critical: false))
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+        }
+
+        private static ICertificateBuilder CreateCertificateBuilder()
+        {
+            return CertificateBuilder
+                .Create("CN=RegistrationValidation")
+                .SetNotBefore(DateTime.UtcNow.AddDays(-1))
+                .SetNotAfter(DateTime.UtcNow.AddDays(30));
         }
 
         private static SecureChannelContext CreateChannel(byte[]? clientCertificate)
