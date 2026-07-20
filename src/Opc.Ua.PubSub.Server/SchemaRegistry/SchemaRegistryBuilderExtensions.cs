@@ -29,18 +29,19 @@
 
 using System;
 using System.Diagnostics.CodeAnalysis;
+using Opc.Ua.PubSub.Server.SchemaRegistry;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Hosting;
 using Opc.Ua.Server.RuntimeNodeSet;
-using Opc.Ua.Server.SchemaRegistry;
 
 namespace Microsoft.Extensions.DependencyInjection
 {
     /// <summary>
     /// <see cref="IOpcUaServerBuilder"/> extensions that add the optional, dependency-injectable
-    /// in-server Schema Registry feature: the abstract xRegistry base and Schema Registry companion
-    /// NodeSets (loaded through the runtime NodeSet import path) plus the fast-path, registration and
-    /// federation node managers that serve the content-addressed Opaque <c>SchemaId</c> nodes.
+    /// in-server PubSub Schema Registry feature: the abstract xRegistry base and Schema Registry
+    /// companion NodeSets (loaded through the runtime NodeSet import path) plus the fast-path,
+    /// registration and federation node managers that serve the content-addressed Opaque
+    /// <c>SchemaId</c> nodes.
     /// </summary>
     [Experimental("UA_NETStandard_Encoders")]
     public static class SchemaRegistryBuilderExtensions
@@ -108,7 +109,7 @@ namespace Microsoft.Extensions.DependencyInjection
             // 1) The companion NodeSets (xRegistry base + Schema Registry) loaded at startup.
             var nodeSetOptions = new RuntimeNodeSetOptions
             {
-                Sources = SchemaRegistryNodeSets.CreateSources(options)
+                Sources = SchemaRegistryServerNodeSets.CreateSources(options)
             };
             var nodeSetFactory = new RuntimeNodeSetNodeManagerFactory(nodeSetOptions);
             builder.Services.AddSingleton<IAsyncNodeManagerFactory>(nodeSetFactory);

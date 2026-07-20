@@ -27,18 +27,23 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable disable
+
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Server.SchemaRegistry;
+using Opc.Ua.PubSub.Server.SchemaRegistry;
+using Opc.Ua.PubSub.SchemaRegistry;
+using Opc.Ua.Server;
 using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
+using Opc.Ua.XRegistry;
 
 #pragma warning disable UA_NETStandard_Encoders // experimental in-server Schema Registry feature under test
 
-namespace Opc.Ua.Server.Tests.SchemaRegistry
+namespace Opc.Ua.PubSub.Server.Tests.SchemaRegistry
 {
     /// <summary>
     /// Address-space integration tests that prove the experimental in-server Schema Registry
@@ -56,6 +61,14 @@ namespace Opc.Ua.Server.Tests.SchemaRegistry
     [NonParallelizable]
     public sealed class SchemaRegistryIntegrationTests
     {
+        // The seed schema published by the fast-path manager, and its content-derived SchemaId.
+        private static readonly ByteString s_seedDocument =
+            ByteString.From(SchemaRegistryOptions.SeedSchemaDocument);
+        private static readonly ByteString s_seedSchemaId =
+            SchemaContentIdProvider.Instance.ComputeContentId("avro", SchemaRegistryOptions.SeedSchemaDocument);
+        private static readonly string s_seedSchemaIdAlg =
+            SchemaContentIdProvider.Instance.GetAlgorithm("avro")!;
+
         private ServerFixture<SchemaRegistryTestServer> m_serverFixture;
         private SchemaRegistryTestServer m_server;
         private string m_pkiRoot;
@@ -339,7 +352,7 @@ namespace Opc.Ua.Server.Tests.SchemaRegistry
 
             // Deterministic construction from the raw on-wire SchemaId bytes (§6.4):
             // NamespaceIndex = Schema Registry namespace, IdentifierType = Opaque, Identifier = bytes.
-            var fastPathNodeId = new NodeId(SchemaRegistryFastPathNodeManager.KnownSchemaId, ns);
+            var fastPathNodeId = new NodeId(s_seedSchemaId, ns);
             Assert.That(fastPathNodeId.IdType, Is.EqualTo(IdType.Opaque),
                 "The SchemaId fast-path NodeId is an Opaque NodeId.");
 
@@ -358,7 +371,7 @@ namespace Opc.Ua.Server.Tests.SchemaRegistry
             Assert.Multiple(() =>
             {
                 Assert.That(variable.DataType, Is.EqualTo(DataTypeIds.ByteString));
-                Assert.That(resolved, Is.EqualTo(SchemaRegistryFastPathNodeManager.KnownDocument),
+                Assert.That(resolved, Is.EqualTo(s_seedDocument),
                     "One Read of the Value Attribute returns the schema document.");
             });
 
@@ -394,18 +407,18 @@ namespace Opc.Ua.Server.Tests.SchemaRegistry
             string alg;
 #pragma warning disable UA_NETStandard_Encoders // pluggable per-format fingerprint provider (§6.6)
             computed = SchemaIdProviders.ComputeSchemaId(
-                SchemaRegistryFastPathNodeManager.KnownFormat,
-                SchemaRegistryFastPathNodeManager.KnownDocument.Span);
-            alg = SchemaIdProviders.AlgorithmFor(SchemaRegistryFastPathNodeManager.KnownFormat);
+                "avro",
+                s_seedDocument.Span);
+            alg = SchemaIdProviders.AlgorithmFor("avro");
 #pragma warning restore UA_NETStandard_Encoders
 
             Assert.Multiple(() =>
             {
                 Assert.That(alg, Is.EqualTo("CRC-64-AVRO"),
                     "Avro schemas fingerprint with the CRC-64-AVRO algorithm.");
-                Assert.That(alg, Is.EqualTo(SchemaRegistryFastPathNodeManager.KnownSchemaIdAlg));
+                Assert.That(alg, Is.EqualTo(s_seedSchemaIdAlg));
                 Assert.That(ByteString.From(computed),
-                    Is.EqualTo(SchemaRegistryFastPathNodeManager.KnownSchemaId),
+                    Is.EqualTo(s_seedSchemaId),
                     "The provider-computed SchemaId equals the fast-path Opaque NodeId identifier bytes.");
             });
 
@@ -435,16 +448,16 @@ namespace Opc.Ua.Server.Tests.SchemaRegistry
             ushort ns = SchemaRegistryNamespaceIndex(server);
 
             MethodState createResource = await FindMethodAsync(
-                server, SchemaRegistryWellKnown.CreateResourceMethod, ns)
+                server, XRegistryWellKnown.CreateResourceMethod, ns)
                 .ConfigureAwait(false);
             MethodState write = await FindMethodAsync(
-                server, SchemaRegistryWellKnown.WriteMethod, ns)
+                server, XRegistryWellKnown.WriteMethod, ns)
                 .ConfigureAwait(false);
             MethodState close = await FindMethodAsync(
-                server, SchemaRegistryWellKnown.CloseMethod, ns)
+                server, XRegistryWellKnown.CloseMethod, ns)
                 .ConfigureAwait(false);
 
-            var groupId = new NodeId(SchemaRegistryWellKnown.SchemaGroupObject, ns);
+            var groupId = new NodeId(XRegistryWellKnown.ResourceGroupObject, ns);
             ISystemContext ctx = server.DefaultSystemContext;
 
             // A distinct document, registered fresh (not the startup-seeded fast-path schema).
@@ -521,16 +534,16 @@ namespace Opc.Ua.Server.Tests.SchemaRegistry
             IServerInternal server = m_server.CurrentInstance;
             ushort ns = SchemaRegistryNamespaceIndex(server);
             ISystemContext ctx = server.DefaultSystemContext;
-            var groupId = new NodeId(SchemaRegistryWellKnown.SchemaGroupObject, ns);
+            var groupId = new NodeId(XRegistryWellKnown.ResourceGroupObject, ns);
 
             MethodState createResource = await FindMethodAsync(
-                server, SchemaRegistryWellKnown.CreateResourceMethod, ns).ConfigureAwait(false);
+                server, XRegistryWellKnown.CreateResourceMethod, ns).ConfigureAwait(false);
             MethodState write = await FindMethodAsync(
-                server, SchemaRegistryWellKnown.WriteMethod, ns).ConfigureAwait(false);
+                server, XRegistryWellKnown.WriteMethod, ns).ConfigureAwait(false);
             MethodState close = await FindMethodAsync(
-                server, SchemaRegistryWellKnown.CloseMethod, ns).ConfigureAwait(false);
+                server, XRegistryWellKnown.CloseMethod, ns).ConfigureAwait(false);
             MethodState delete = await FindMethodAsync(
-                server, SchemaRegistryWellKnown.DeleteMethod, ns).ConfigureAwait(false);
+                server, XRegistryWellKnown.DeleteMethod, ns).ConfigureAwait(false);
 
             // Register a fresh schema.
             byte[] document = System.Text.Encoding.UTF8.GetBytes(
@@ -582,13 +595,13 @@ namespace Opc.Ua.Server.Tests.SchemaRegistry
             ushort ns = SchemaRegistryNamespaceIndex(server);
 
             Variant externalReferenceValue = await ReadVariantAsync(
-                server, SchemaRegistryWellKnown.FederationExternalReferenceProperty, ns)
+                server, XRegistryWellKnown.FederationExternalReferenceProperty, ns)
                 .ConfigureAwait(false);
             Variant resourceUrlValue = await ReadVariantAsync(
-                server, SchemaRegistryWellKnown.FederationResourceUrlProperty, ns)
+                server, XRegistryWellKnown.FederationResourceUrlProperty, ns)
                 .ConfigureAwait(false);
             Variant schemaIdValue = await ReadVariantAsync(
-                server, SchemaRegistryWellKnown.FederationSchemaIdProperty, ns)
+                server, XRegistryWellKnown.FederationContentIdProperty, ns)
                 .ConfigureAwait(false);
 
             externalReferenceValue.TryGetValue(out ExpandedNodeId externalReference);
@@ -600,20 +613,20 @@ namespace Opc.Ua.Server.Tests.SchemaRegistry
             byte[] expected;
 #pragma warning disable UA_NETStandard_Encoders // pluggable per-format fingerprint provider (§6.6)
             expected = SchemaIdProviders.ComputeSchemaId(
-                "avro", SchemaRegistryFederationNodeManager.FederatedDocument);
+                "avro", SchemaRegistryOptions.FederatedSchemaDocument);
 #pragma warning restore UA_NETStandard_Encoders
 
             Assert.Multiple(() =>
             {
                 // The federation link names the remote OPC UA registry and the remote schema node.
                 Assert.That(externalReference.ServerIndex,
-                    Is.EqualTo(SchemaRegistryFederationNodeManager.RemoteServerIndex),
+                    Is.EqualTo(SchemaRegistryOptions.RemoteServerIndex),
                     "ExternalReference.ServerIndex names the remote server via the ServerArray.");
                 Assert.That(externalReference.NamespaceUri,
-                    Is.EqualTo(SchemaRegistryFederationNodeManager.RemoteRegistryNamespaceUri),
+                    Is.EqualTo(SchemaRegistryTestServer.SchemaRegistryNamespaceUri),
                     "ExternalReference.NamespaceUri is the remote registry namespace.");
                 Assert.That(resourceUrl,
-                    Is.EqualTo(SchemaRegistryFederationNodeManager.RemoteEndpointUrl),
+                    Is.EqualTo(SchemaRegistryOptions.RemoteEndpointUrl),
                     "ResourceUrl carries the remote endpoint in string form.");
 
                 Assert.That(proxySchemaId, Is.EqualTo(ByteString.From(expected)),

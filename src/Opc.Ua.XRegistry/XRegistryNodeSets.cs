@@ -27,44 +27,44 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
 
-namespace Opc.Ua.Server.SchemaRegistry
+namespace Opc.Ua.XRegistry
 {
     /// <summary>
-    /// Options for the optional, dependency-injectable in-server Schema Registry feature. The
-    /// defaults reproduce the well-known xRegistry base and Schema Registry companion namespaces
-    /// (<see cref="SchemaRegistryWellKnown"/>); a host may override the namespace URIs to run the
-    /// registry under a private namespace.
+    /// Provides the abstract xRegistry base companion NodeSet2 document, embedded in the
+    /// <c>Opc.Ua.XRegistry</c> assembly. This type is intentionally free of any dependency on the
+    /// OPC UA server SDK; the server-side runtime NodeSet wrapping is done in
+    /// <c>Opc.Ua.XRegistry.Server</c>.
     /// </summary>
     [Experimental("UA_NETStandard_Encoders")]
-    public sealed class SchemaRegistryOptions
+    public static class XRegistryNodeSets
     {
         /// <summary>
-        /// The abstract xRegistry base companion namespace URI. Defaults to
-        /// <see cref="SchemaRegistryWellKnown.XRegistryNamespaceUri"/>.
+        /// The embedded-resource name of the xRegistry base companion NodeSet2 document.
         /// </summary>
-        public string XRegistryNamespaceUri { get; set; } =
-            SchemaRegistryWellKnown.XRegistryNamespaceUri;
+        public const string BaseNodeSetResourceName =
+            "Opc.Ua.XRegistry.Opc.Ua.XRegistry.NodeSet2.xml";
 
         /// <summary>
-        /// The Schema Registry companion namespace URI. Defaults to
-        /// <see cref="SchemaRegistryWellKnown.SchemaRegistryNamespaceUri"/>.
+        /// Opens a fresh read stream over the embedded xRegistry base companion NodeSet2 document.
         /// </summary>
-        public string SchemaRegistryNamespaceUri { get; set; } =
-            SchemaRegistryWellKnown.SchemaRegistryNamespaceUri;
+        /// <returns>A readable stream positioned at the start of the NodeSet2 XML.</returns>
+        /// <exception cref="InvalidOperationException">The embedded NodeSet was not found.</exception>
+        public static Stream OpenBaseNodeSet()
+        {
+            Stream? stream = typeof(XRegistryNodeSets).Assembly
+                .GetManifestResourceStream(BaseNodeSetResourceName);
 
-        /// <summary>
-        /// When <c>true</c> (default) the fast-path node manager pre-publishes its well-known seed
-        /// schema so a fresh server can resolve at least one content-addressed schema before any
-        /// registration; set <c>false</c> to start with an empty registry.
-        /// </summary>
-        public bool PublishSeedSchema { get; set; } = true;
+            if (stream is null)
+            {
+                throw new InvalidOperationException(
+                    $"Embedded xRegistry base NodeSet '{BaseNodeSetResourceName}' was not found.");
+            }
 
-        /// <summary>
-        /// When <c>true</c> (default) the federation node manager publishes a proxy for a schema
-        /// hosted by a remote registry, proving the federation model; set <c>false</c> to omit it.
-        /// </summary>
-        public bool PublishFederationProxy { get; set; } = true;
+            return stream;
+        }
     }
 }

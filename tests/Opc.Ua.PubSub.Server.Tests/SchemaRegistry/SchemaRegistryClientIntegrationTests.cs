@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable disable
+
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -34,21 +36,23 @@ using System.IO;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
-using Opc.Ua.Client.SchemaRegistry;
 using Opc.Ua.Client.TestFramework;
-using Opc.Ua.Server.SchemaRegistry;
+using Opc.Ua.PubSub.SchemaRegistry;
+using Opc.Ua.PubSub.Server.SchemaRegistry;
+using Opc.Ua.Server;
 using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
+using Opc.Ua.XRegistry;
 
 #pragma warning disable UA_NETStandard_Encoders // experimental in-server Schema Registry feature under test
 
-namespace Opc.Ua.Server.Tests.SchemaRegistry
+namespace Opc.Ua.PubSub.Server.Tests.SchemaRegistry
 {
     /// <summary>
     /// Client↔server round-trip tests for the in-server Schema Registry feature. A real client
     /// connects to a <see cref="SchemaRegistryTestServer"/> (which enables the optional
-    /// <c>Opc.Ua.Server</c> Schema Registry feature) and uses the <see cref="SchemaRegistryClient"/>
-    /// from <c>Opc.Ua.Client</c> to resolve a schema document from its content-derived on-wire
+    /// Schema Registry feature) and uses the <see cref="SchemaRegistryClient"/> from
+    /// <c>Opc.Ua.PubSub</c> to resolve a schema document from its content-derived on-wire
     /// <c>SchemaId</c> through the Opaque SchemaId-NodeId fast path (§6.4) in a single Read — the
     /// core capability a decoder needs when it receives a SchemaId on the wire.
     /// </summary>
@@ -60,6 +64,12 @@ namespace Opc.Ua.Server.Tests.SchemaRegistry
     [NonParallelizable]
     public sealed class SchemaRegistryClientIntegrationTests
     {
+        // The seed schema published by the fast-path manager, and its content-derived SchemaId.
+        private static readonly ByteString s_seedDocument =
+            ByteString.From(SchemaRegistryOptions.SeedSchemaDocument);
+        private static readonly ByteString s_seedSchemaId =
+            SchemaContentIdProvider.Instance.ComputeContentId("avro", SchemaRegistryOptions.SeedSchemaDocument);
+
         private ITelemetryContext m_telemetry;
         private ServerFixture<SchemaRegistryTestServer> m_serverFixture;
         private ClientFixture m_clientFixture;
@@ -160,10 +170,10 @@ namespace Opc.Ua.Server.Tests.SchemaRegistry
             var client = new SchemaRegistryClient(m_session);
 
             ByteString resolved = await client
-                .ResolveSchemaAsync(SchemaRegistryFastPathNodeManager.KnownSchemaId)
+                .ResolveSchemaAsync(s_seedSchemaId)
                 .ConfigureAwait(false);
 
-            Assert.That(resolved, Is.EqualTo(SchemaRegistryFastPathNodeManager.KnownDocument),
+            Assert.That(resolved, Is.EqualTo(s_seedDocument),
                 "ResolveSchema returns the seed document for its content-derived SchemaId.");
         }
 
@@ -198,13 +208,13 @@ namespace Opc.Ua.Server.Tests.SchemaRegistry
                 SchemaRegistryTestServer.SchemaRegistryNamespaceUri);
 
             MethodState createResource = await FindMethodAsync(
-                server, SchemaRegistryWellKnown.CreateResourceMethod, ns).ConfigureAwait(false);
+                server, XRegistryWellKnown.CreateResourceMethod, ns).ConfigureAwait(false);
             MethodState write = await FindMethodAsync(
-                server, SchemaRegistryWellKnown.WriteMethod, ns).ConfigureAwait(false);
+                server, XRegistryWellKnown.WriteMethod, ns).ConfigureAwait(false);
             MethodState close = await FindMethodAsync(
-                server, SchemaRegistryWellKnown.CloseMethod, ns).ConfigureAwait(false);
+                server, XRegistryWellKnown.CloseMethod, ns).ConfigureAwait(false);
 
-            var groupId = new NodeId(SchemaRegistryWellKnown.SchemaGroupObject, ns);
+            var groupId = new NodeId(XRegistryWellKnown.ResourceGroupObject, ns);
             ISystemContext ctx = server.DefaultSystemContext;
 
             byte[] document = System.Text.Encoding.UTF8.GetBytes(

@@ -27,28 +27,29 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Opc.Ua.PubSub.Server.SchemaRegistry;
+using Opc.Ua.PubSub.SchemaRegistry;
 using Opc.Ua.Server.RuntimeNodeSet;
-using Opc.Ua.Server.SchemaRegistry;
+using Opc.Ua.XRegistry;
 using Quickstarts.ReferenceServer;
 
 #pragma warning disable UA_NETStandard_Encoders // experimental in-server Schema Registry feature under test
 
-namespace Opc.Ua.Server.Tests.SchemaRegistry
+namespace Opc.Ua.PubSub.Server.Tests.SchemaRegistry
 {
     /// <summary>
-    /// A <see cref="ReferenceServer"/> that enables the optional in-server Schema Registry feature
-    /// shipped in <c>Opc.Ua.Server</c>. It loads the experimental abstract xRegistry base companion
-    /// NodeSet and the Schema Registry companion NodeSet through the
+    /// A <see cref="ReferenceServer"/> that enables the optional in-server PubSub Schema Registry
+    /// feature: it loads the abstract xRegistry base companion NodeSet (from <c>Opc.Ua.XRegistry</c>)
+    /// and the Schema Registry companion NodeSet (from <c>Opc.Ua.PubSub</c>) through the
     /// <see cref="RuntimeNodeSetNodeManagerFactory"/> import path and attaches the fast-path,
-    /// registration and federation node managers. This proves the in-server Schema Registry
-    /// AddressSpace model (the <c>SchemaRegistryType</c> and its well-known <c>SchemaRegistry</c>
-    /// object attached to the Server object) materializes in a real server exactly as the generated
-    /// companion NodeSets describe.
+    /// registration and federation node managers from <c>Opc.Ua.PubSub.Server</c>. This proves the
+    /// in-server Schema Registry AddressSpace model materializes in a real server exactly as the
+    /// generated companion NodeSets describe.
     /// </summary>
     internal sealed class SchemaRegistryTestServer : ReferenceServer
     {
         /// <summary>The abstract xRegistry base companion namespace URI.</summary>
-        public const string XRegistryNamespaceUri = SchemaRegistryWellKnown.XRegistryNamespaceUri;
+        public const string XRegistryNamespaceUri = XRegistryWellKnown.XRegistryNamespaceUri;
 
         /// <summary>The Schema Registry companion namespace URI.</summary>
         public const string SchemaRegistryNamespaceUri =
@@ -80,7 +81,7 @@ namespace Opc.Ua.Server.Tests.SchemaRegistry
 
             var nodeSetOptions = new RuntimeNodeSetOptions
             {
-                Sources = SchemaRegistryNodeSets.CreateSources(options)
+                Sources = SchemaRegistryServerNodeSets.CreateSources(options)
             };
 
             AddNodeManager(new RuntimeNodeSetNodeManagerFactory(nodeSetOptions));

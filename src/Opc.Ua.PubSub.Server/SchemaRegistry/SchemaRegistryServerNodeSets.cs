@@ -28,41 +28,39 @@
  * ======================================================================*/
 
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
+using System.Threading.Tasks;
+using Opc.Ua.PubSub.SchemaRegistry;
+using Opc.Ua.Server.RuntimeNodeSet;
+using Opc.Ua.XRegistry.Server;
 
-namespace Opc.Ua.Server.SchemaRegistry
+namespace Opc.Ua.PubSub.Server.SchemaRegistry
 {
     /// <summary>
-    /// <see cref="INodeManagerFactory"/> for the <see cref="SchemaRegistryFastPathNodeManager"/>.
-    /// It declares the Schema Registry namespace so the master node manager routes Opaque SchemaId
-    /// NodeIds in that namespace to the fast-path manager (the runtime-loaded companion NodeSet
-    /// manager, registered first, owns the numeric type and instance nodes).
+    /// Composes the ordered runtime NodeSet sources that back the in-server Schema Registry: the
+    /// abstract xRegistry base companion NodeSet (from <c>Opc.Ua.XRegistry</c>) followed by the
+    /// Schema Registry companion NodeSet (from <c>Opc.Ua.PubSub</c>), whose <c>RequiredModel</c>
+    /// depends on the base.
     /// </summary>
     [Experimental("UA_NETStandard_Encoders")]
-    public sealed class SchemaRegistryFastPathNodeManagerFactory : INodeManagerFactory
+    public static class SchemaRegistryServerNodeSets
     {
-        private readonly SchemaRegistryOptions m_options;
-
         /// <summary>
-        /// Initializes the factory with the Schema Registry feature options.
+        /// Creates the ordered runtime NodeSet sources (xRegistry base first, then Schema Registry).
         /// </summary>
-        /// <param name="options">The Schema Registry feature options.</param>
-        public SchemaRegistryFastPathNodeManagerFactory(SchemaRegistryOptions? options = null)
+        /// <param name="options">The Schema Registry feature options (namespace URIs).</param>
+        /// <returns>The ordered NodeSet sources.</returns>
+        public static ArrayOf<RuntimeNodeSetSource> CreateSources(SchemaRegistryOptions? options = null)
         {
-            m_options = options ?? new SchemaRegistryOptions();
-        }
-
-        /// <inheritdoc/>
-        public ArrayOf<string> NamespacesUris => [m_options.SchemaRegistryNamespaceUri];
-
-        /// <inheritdoc/>
-        public INodeManager Create(
-            IServerInternal server,
-            ApplicationConfiguration configuration)
-        {
-            // Ownership of the node manager is transferred to the server.
-#pragma warning disable CA2000 // Ownership of the node manager is transferred to the server.
-            return new SchemaRegistryFastPathNodeManager(server, configuration, m_options);
-#pragma warning restore CA2000
+            options ??= new SchemaRegistryOptions();
+            return
+            [
+                XRegistryServerNodeSets.CreateBaseSource(),
+                RuntimeNodeSetSource.FromStream(
+                    "SchemaRegistry",
+                    _ => new ValueTask<Stream>(SchemaRegistryNodeSets.OpenNodeSet()),
+                    [options.SchemaRegistryNamespaceUri]),
+            ];
         }
     }
 }

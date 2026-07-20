@@ -28,40 +28,32 @@
  * ======================================================================*/
 
 using System.Diagnostics.CodeAnalysis;
+using Opc.Ua.Server;
+using Opc.Ua.XRegistry.Server;
 
-namespace Opc.Ua.Server.SchemaRegistry
+namespace Opc.Ua.PubSub.Server.SchemaRegistry
 {
     /// <summary>
-    /// <see cref="INodeManagerFactory"/> for the
-    /// <see cref="SchemaRegistryFederationNodeManager"/>. It declares the Schema Registry namespace
-    /// so the federated schema proxy lives alongside the runtime-loaded companion NodeSet.
+    /// The PubSub Schema Registry registration node manager: the generic
+    /// <see cref="XRegistryRegistrationNodeManager"/> configured with the Schema Registry namespace
+    /// and the schema content-id provider so a <c>Close</c> auto-bootstraps the schema's Opaque
+    /// SchemaId-NodeId (§5.2, §10.1).
     /// </summary>
     [Experimental("UA_NETStandard_Encoders")]
-    public sealed class SchemaRegistryFederationNodeManagerFactory : INodeManagerFactory
+    public sealed class SchemaRegistryRegistrationNodeManager : XRegistryRegistrationNodeManager
     {
-        private readonly SchemaRegistryOptions m_options;
-
         /// <summary>
-        /// Initializes the factory with the Schema Registry feature options.
+        /// Initializes the schema registration node manager.
         /// </summary>
+        /// <param name="server">The server that owns the node manager.</param>
+        /// <param name="configuration">The application configuration.</param>
         /// <param name="options">The Schema Registry feature options.</param>
-        public SchemaRegistryFederationNodeManagerFactory(SchemaRegistryOptions? options = null)
-        {
-            m_options = options ?? new SchemaRegistryOptions();
-        }
-
-        /// <inheritdoc/>
-        public ArrayOf<string> NamespacesUris => [m_options.SchemaRegistryNamespaceUri];
-
-        /// <inheritdoc/>
-        public INodeManager Create(
+        public SchemaRegistryRegistrationNodeManager(
             IServerInternal server,
-            ApplicationConfiguration configuration)
+            ApplicationConfiguration configuration,
+            SchemaRegistryOptions? options)
+            : base(server, configuration, (options ?? new SchemaRegistryOptions()).ToServerOptions())
         {
-            // Ownership of the node manager is transferred to the server.
-#pragma warning disable CA2000 // Ownership of the node manager is transferred to the server.
-            return new SchemaRegistryFederationNodeManager(server, configuration, m_options);
-#pragma warning restore CA2000
         }
     }
 }

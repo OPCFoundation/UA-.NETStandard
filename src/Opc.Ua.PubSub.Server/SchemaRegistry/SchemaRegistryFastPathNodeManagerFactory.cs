@@ -28,17 +28,17 @@
  * ======================================================================*/
 
 using System.Diagnostics.CodeAnalysis;
+using Opc.Ua.Server;
 
-namespace Opc.Ua.Server.SchemaRegistry
+namespace Opc.Ua.PubSub.Server.SchemaRegistry
 {
     /// <summary>
-    /// <see cref="INodeManagerFactory"/> for the
-    /// <see cref="SchemaRegistryRegistrationNodeManager"/>. It declares the Schema Registry
-    /// namespace so the registration <c>SchemaGroup</c> and the fast-path nodes it creates at
-    /// runtime live alongside the runtime-loaded companion NodeSet.
+    /// <see cref="INodeManagerFactory"/> for the <see cref="SchemaRegistryFastPathNodeManager"/>.
+    /// It declares the Schema Registry namespace so Opaque SchemaId NodeIds route to the fast-path
+    /// manager.
     /// </summary>
     [Experimental("UA_NETStandard_Encoders")]
-    public sealed class SchemaRegistryRegistrationNodeManagerFactory : INodeManagerFactory
+    public sealed class SchemaRegistryFastPathNodeManagerFactory : INodeManagerFactory
     {
         private readonly SchemaRegistryOptions m_options;
 
@@ -46,7 +46,7 @@ namespace Opc.Ua.Server.SchemaRegistry
         /// Initializes the factory with the Schema Registry feature options.
         /// </summary>
         /// <param name="options">The Schema Registry feature options.</param>
-        public SchemaRegistryRegistrationNodeManagerFactory(SchemaRegistryOptions? options = null)
+        public SchemaRegistryFastPathNodeManagerFactory(SchemaRegistryOptions? options = null)
         {
             m_options = options ?? new SchemaRegistryOptions();
         }
@@ -61,7 +61,7 @@ namespace Opc.Ua.Server.SchemaRegistry
         {
             // Ownership of the node manager is transferred to the server.
 #pragma warning disable CA2000 // Ownership of the node manager is transferred to the server.
-            return new SchemaRegistryRegistrationNodeManager(server, configuration, m_options);
+            return new SchemaRegistryFastPathNodeManager(server, configuration, m_options);
 #pragma warning restore CA2000
         }
     }

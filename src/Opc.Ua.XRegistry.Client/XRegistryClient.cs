@@ -31,53 +31,46 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Client;
 
-namespace Opc.Ua.Client.SchemaRegistry
+namespace Opc.Ua.XRegistry.Client
 {
     /// <summary>
-    /// Client for the OPC UA in-server Schema Registry (the counterpart of the
-    /// <c>Opc.Ua.Server</c> Schema Registry feature). It resolves a schema document from its
-    /// content-derived on-wire <c>SchemaId</c> through the Opaque <c>SchemaId</c>-NodeId fast path
-    /// (§6.4) in a single <c>Read</c>, and registers a schema document through the
-    /// <c>CreateResource</c>/<c>Write</c>/<c>Close</c> lifecycle (§5.2, auto-bootstrap §10.1). A
-    /// consumer that received a SchemaId on the wire never has to Browse or recompute a fingerprint
-    /// to obtain the schema: it builds the Opaque NodeId directly from the SchemaId bytes.
+    /// Generic client for an in-server xRegistry registry. It resolves a resource from its
+    /// content-derived id through the Opaque-NodeId fast path (a single <c>Read</c> of the node whose
+    /// Identifier is the raw content-id bytes) and registers a resource through the
+    /// <c>CreateResource</c>/<c>Write</c>/<c>Close</c> lifecycle. Concrete registries (for example the
+    /// PubSub Schema Registry) derive from this type to add domain-specific naming and defaults.
     /// </summary>
     [Experimental("UA_NETStandard_Encoders")]
-    public sealed class SchemaRegistryClient
+    public class XRegistryClient
     {
-        /// <summary>The well-known Schema Registry companion namespace URI.</summary>
-        public const string SchemaRegistryNamespaceUri = "http://opcfoundation.org/UA/SchemaRegistry/";
-
         private readonly ushort m_namespaceIndex;
 
         /// <summary>
-        /// Initializes a Schema Registry client bound to a connected <paramref name="session"/>.
+        /// Initializes a registry client bound to a connected <paramref name="session"/> and the
+        /// registry's companion namespace.
         /// </summary>
-        /// <param name="session">The connected session whose server hosts the Schema Registry.</param>
-        /// <param name="schemaRegistryNamespaceUri">
-        /// The Schema Registry companion namespace URI. Defaults to
-        /// <see cref="SchemaRegistryNamespaceUri"/>.
-        /// </param>
+        /// <param name="session">The connected session whose server hosts the registry.</param>
+        /// <param name="registryNamespaceUri">The registry companion namespace URI.</param>
         /// <exception cref="ArgumentNullException"><paramref name="session"/> is <c>null</c>.</exception>
-        /// <exception cref="ServiceResultException">
-        /// The server does not expose the Schema Registry namespace.
-        /// </exception>
-        public SchemaRegistryClient(ISession session, string? schemaRegistryNamespaceUri = null)
+        /// <exception cref="ArgumentException"><paramref name="registryNamespaceUri"/> is null/empty.</exception>
+        /// <exception cref="ServiceResultException">The server does not expose the registry namespace.</exception>
+        public XRegistryClient(ISession session, string registryNamespaceUri)
         {
             Session = session ?? throw new ArgumentNullException(nameof(session));
+            if (string.IsNullOrEmpty(registryNamespaceUri))
+            {
+                throw new ArgumentException("A registry namespace URI is required.", nameof(registryNamespaceUri));
+            }
 
-            string uri = string.IsNullOrEmpty(schemaRegistryNamespaceUri)
-                ? SchemaRegistryNamespaceUri
-                : schemaRegistryNamespaceUri!;
-
-            int index = session.NamespaceUris.GetIndex(uri);
+            int index = session.NamespaceUris.GetIndex(registryNamespaceUri);
             if (index <= 0)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadNodeIdUnknown,
-                    "The server does not expose the Schema Registry namespace '{0}'.",
-                    uri);
+                    "The server does not expose the registry namespace '{0}'.",
+                    registryNamespaceUri);
             }
 
             m_namespaceIndex = (ushort)index;
@@ -86,30 +79,29 @@ namespace Opc.Ua.Client.SchemaRegistry
         /// <summary>Gets the session the client operates on.</summary>
         public ISession Session { get; }
 
-        /// <summary>Gets the resolved Schema Registry namespace index on the connected server.</summary>
+        /// <summary>Gets the resolved registry companion namespace index on the connected server.</summary>
         public ushort NamespaceIndex => m_namespaceIndex;
 
         /// <summary>
-        /// Resolves a schema document from its on-wire <c>SchemaId</c> through the Opaque
-        /// SchemaId-NodeId fast path (§6.4): the Opaque NodeId is constructed deterministically from
-        /// the raw SchemaId bytes and read in a single operation. Returns a null <see cref="ByteString"/>
-        /// when no fast-path node is registered for the SchemaId (the caller then falls back to a
-        /// Browse or a <c>GetSchema</c> call).
+        /// Resolves a resource document from its content-derived id through the Opaque-NodeId fast
+        /// path: the Opaque NodeId is built deterministically from the raw content-id bytes and read
+        /// in a single operation. Returns a null <see cref="ByteString"/> when no fast-path node is
+        /// registered (the caller then falls back to a Browse or a registry-specific download method).
         /// </summary>
-        /// <param name="schemaId">The raw on-wire SchemaId bytes.</param>
+        /// <param name="resourceId">The raw content-derived id bytes.</param>
         /// <param name="ct">The cancellation token.</param>
-        /// <returns>The schema document bytes, or a null ByteString when not registered.</returns>
-        /// <exception cref="ArgumentException"><paramref name="schemaId"/> is null/empty.</exception>
-        public async Task<ByteString> ResolveSchemaAsync(
-            ByteString schemaId,
+        /// <returns>The resource document bytes, or a null ByteString when not registered.</returns>
+        /// <exception cref="ArgumentException"><paramref name="resourceId"/> is null/empty.</exception>
+        public async Task<ByteString> ResolveResourceAsync(
+            ByteString resourceId,
             CancellationToken ct = default)
         {
-            if (schemaId.IsNull || schemaId.Length == 0)
+            if (resourceId.IsNull || resourceId.Length == 0)
             {
-                throw new ArgumentException("A SchemaId is required.", nameof(schemaId));
+                throw new ArgumentException("A resource id is required.", nameof(resourceId));
             }
 
-            var fastPathNodeId = new NodeId(schemaId, m_namespaceIndex);
+            var fastPathNodeId = new NodeId(resourceId, m_namespaceIndex);
             try
             {
                 DataValue value = await Session.ReadValueAsync(fastPathNodeId, ct).ConfigureAwait(false);
@@ -125,31 +117,31 @@ namespace Opc.Ua.Client.SchemaRegistry
                 sre.StatusCode == StatusCodes.BadNodeIdUnknown
                 || sre.StatusCode == StatusCodes.BadNodeIdInvalid)
             {
-                // No fast-path node for this SchemaId — the consumer falls back to Browse/GetSchema.
                 return default;
             }
         }
 
         /// <summary>
-        /// Registers a schema document through the Schema Registry write lifecycle (§5.2): the
+        /// Registers a resource document through the registry write lifecycle: the
         /// <paramref name="createResourceMethodId"/> obtains a write handle on the
-        /// <paramref name="schemaGroupObjectId"/>, the document is streamed with one or more
+        /// <paramref name="resourceGroupObjectId"/>, the document is streamed with one or more
         /// <paramref name="writeMethodId"/> calls, and <paramref name="closeMethodId"/> finalizes it.
-        /// On close the server computes and returns the content-derived <c>SchemaId</c> and its
-        /// <c>SchemaIdAlg</c> (§6.6) and publishes the Opaque fast-path node (§10.1). A client obtains
-        /// the group and method NodeIds by Browsing the well-known <c>SchemaRegistry</c> object.
+        /// On close the server computes and returns the content-derived id and its algorithm and
+        /// publishes the Opaque fast-path node. A client obtains the group and method NodeIds by
+        /// Browsing the registry's well-known object.
         /// </summary>
-        /// <param name="schemaGroupObjectId">The SchemaGroup object NodeId.</param>
+        /// <param name="resourceGroupObjectId">The resource-group object NodeId.</param>
         /// <param name="createResourceMethodId">The CreateResource method NodeId.</param>
         /// <param name="writeMethodId">The Write method NodeId.</param>
         /// <param name="closeMethodId">The Close method NodeId.</param>
-        /// <param name="document">The schema document bytes.</param>
-        /// <param name="format">The schema format (for example <c>avro</c>).</param>
+        /// <param name="document">The resource document bytes.</param>
+        /// <param name="format">The resource format (for example <c>avro</c>).</param>
         /// <param name="chunkSize">The maximum Write chunk size in bytes.</param>
         /// <param name="ct">The cancellation token.</param>
-        /// <returns>The computed SchemaId and its SchemaIdAlg name.</returns>
-        public async Task<(ByteString SchemaId, string? SchemaIdAlg)> RegisterSchemaAsync(
-            NodeId schemaGroupObjectId,
+        /// <returns>The computed content-id and its algorithm name.</returns>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="chunkSize"/> is not positive.</exception>
+        public async Task<(ByteString ContentId, string? Algorithm)> RegisterResourceAsync(
+            NodeId resourceGroupObjectId,
             NodeId createResourceMethodId,
             NodeId writeMethodId,
             NodeId closeMethodId,
@@ -163,9 +155,8 @@ namespace Opc.Ua.Client.SchemaRegistry
                 throw new ArgumentOutOfRangeException(nameof(chunkSize));
             }
 
-            // 1) CreateResource(ResourceId, VersionId) -> (FileHandle, VersionId).
             ArrayOf<Variant> createOutputs = await Session.CallAsync(
-                schemaGroupObjectId,
+                resourceGroupObjectId,
                 createResourceMethodId,
                 ct,
                 new Variant(string.Empty),
@@ -173,30 +164,28 @@ namespace Opc.Ua.Client.SchemaRegistry
 
             _ = createOutputs[0].TryGetValue(out uint handle);
 
-            // 2) Write(FileHandle, Data) — streamed in chunks.
             for (int offset = 0; offset < document.Length; offset += chunkSize)
             {
                 int length = Math.Min(chunkSize, document.Length - offset);
                 var chunk = ByteString.From(document.Slice(offset, length).ToArray());
                 _ = await Session.CallAsync(
-                    schemaGroupObjectId,
+                    resourceGroupObjectId,
                     writeMethodId,
                     ct,
                     new Variant(handle),
                     new Variant(chunk)).ConfigureAwait(false);
             }
 
-            // 3) Close(FileHandle, Format) -> (SchemaId, SchemaIdAlg).
             ArrayOf<Variant> closeOutputs = await Session.CallAsync(
-                schemaGroupObjectId,
+                resourceGroupObjectId,
                 closeMethodId,
                 ct,
                 new Variant(handle),
                 new Variant(format)).ConfigureAwait(false);
 
-            _ = closeOutputs[0].TryGetValue(out ByteString schemaId);
+            _ = closeOutputs[0].TryGetValue(out ByteString contentId);
             _ = closeOutputs[1].TryGetValue(out string? algorithm);
-            return (schemaId, algorithm);
+            return (contentId, algorithm);
         }
     }
 }

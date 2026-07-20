@@ -29,34 +29,22 @@
 
 using System.Diagnostics.CodeAnalysis;
 
-namespace Opc.Ua.Server.SchemaRegistry
+namespace Opc.Ua.XRegistry
 {
     /// <summary>
-    /// Well-known identifiers of the experimental in-server Schema Registry feature: the abstract
-    /// xRegistry base companion namespace, the Schema Registry companion namespace, and the
-    /// provisional NodeIds the runtime node managers materialize. These mirror the generated
-    /// companion NodeSets and the OPC UA — Schema Registry specification (Annex B).
+    /// Well-known identifiers of the abstract xRegistry base model: the base companion namespace
+    /// and the provisional resource/method NodeIds a generic registry materializes. A concrete
+    /// registry (for example the PubSub Schema Registry) reuses these NodeIds in its own companion
+    /// namespace. Final NodeIds are assigned by the OPC Foundation.
     /// </summary>
     [Experimental("UA_NETStandard_Encoders")]
-    public static class SchemaRegistryWellKnown
+    public static class XRegistryWellKnown
     {
         /// <summary>The abstract xRegistry base companion namespace URI.</summary>
         public const string XRegistryNamespaceUri = "http://opcfoundation.org/UA/xRegistry/";
 
-        /// <summary>The Schema Registry companion namespace URI.</summary>
-        public const string SchemaRegistryNamespaceUri = "http://opcfoundation.org/UA/SchemaRegistry/";
-
-        /// <summary>Provisional NodeId of the <c>SchemaRegistryType</c> ObjectType.</summary>
-        public const uint SchemaRegistryType = 62000;
-
-        /// <summary>Provisional NodeId of the well-known <c>SchemaRegistry</c> object.</summary>
-        public const uint SchemaRegistryObject = 62100;
-
-        /// <summary>Provisional NodeId of the <c>GetSchema</c> method on the well-known object.</summary>
-        public const uint SchemaRegistryGetSchemaMethod = 62516;
-
-        /// <summary>Provisional NodeId of the registration <c>SchemaGroup</c> object.</summary>
-        public const uint SchemaGroupObject = 63001;
+        /// <summary>Provisional NodeId of the registration <c>SchemaGroup</c>/resource-group object.</summary>
+        public const uint ResourceGroupObject = 63001;
 
         /// <summary>Provisional NodeId of the <c>CreateResource</c> method.</summary>
         public const uint CreateResourceMethod = 63002;
@@ -70,7 +58,7 @@ namespace Opc.Ua.Server.SchemaRegistry
         /// <summary>Provisional NodeId of the <c>Delete</c> method.</summary>
         public const uint DeleteMethod = 63005;
 
-        /// <summary>Provisional NodeId of the federated schema proxy object.</summary>
+        /// <summary>Provisional NodeId of the federated resource proxy object.</summary>
         public const uint FederationProxyObject = 64001;
 
         /// <summary>Provisional NodeId of the proxy's <c>ExternalReference</c> Property.</summary>
@@ -79,7 +67,7 @@ namespace Opc.Ua.Server.SchemaRegistry
         /// <summary>Provisional NodeId of the proxy's <c>ResourceUrl</c> Property.</summary>
         public const uint FederationResourceUrlProperty = 64003;
 
-        /// <summary>Provisional NodeId of the proxy's <c>SchemaId</c> Property.</summary>
-        public const uint FederationSchemaIdProperty = 64004;
+        /// <summary>Provisional NodeId of the proxy's content-id (<c>SchemaId</c>) Property.</summary>
+        public const uint FederationContentIdProperty = 64004;
     }
 }

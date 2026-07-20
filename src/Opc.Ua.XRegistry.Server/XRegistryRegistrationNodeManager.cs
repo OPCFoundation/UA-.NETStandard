@@ -27,53 +27,52 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using Opc.Ua.Server;
 
-namespace Opc.Ua.Server.SchemaRegistry
+namespace Opc.Ua.XRegistry.Server
 {
     /// <summary>
-    /// Serves the Schema Registry spec's registration lifecycle (§5.2) and auto-bootstrap (§10.1):
-    /// a writer creates a schema resource, writes the document bytes, and closes it; on <c>Close</c>
-    /// the server computes the <c>SchemaId</c> + <c>SchemaIdAlg</c> from the document via the
-    /// pluggable per-format fingerprint provider (§6.6) and <b>dynamically, at runtime</b>, makes the
-    /// document reachable by its Opaque <c>SchemaId</c> NodeId (§6.4).
-    /// <para>
-    /// The <c>CreateResource</c>/<c>Write</c>/<c>Close</c> methods model the base xRegistry
-    /// <c>SchemaGroup.CreateResource</c> + <c>SchemaFileType</c> FileType write flow. The generic
-    /// FileType Open/Write/Close machinery is already exercised elsewhere in the stack (TrustList,
-    /// SoftwareUpdate); this manager focuses on the Schema-Registry-specific auto-bootstrap on close
-    /// and the dynamic runtime creation of the content-addressed fast-path node — exactly what a
-    /// production server binds to its schema store.
-    /// </para>
+    /// Serves the xRegistry registration lifecycle (§5.2) and auto-bootstrap (§10.1): a writer
+    /// creates a resource, writes the document bytes, and closes it; on <c>Close</c> the server
+    /// computes the content-derived id + algorithm from the document via the configured
+    /// <see cref="IResourceContentIdProvider"/> (§6.6) and <b>dynamically, at runtime</b>, makes the
+    /// document reachable by its Opaque content-id NodeId (§6.4). The generic FileType Open/Write/Close
+    /// machinery is exercised elsewhere in the stack; this manager focuses on the registry-specific
+    /// auto-bootstrap on close and the dynamic runtime creation of the content-addressed fast-path node.
     /// </summary>
     [Experimental("UA_NETStandard_Encoders")]
-    public sealed class SchemaRegistryRegistrationNodeManager : CustomNodeManager2
+    public class XRegistryRegistrationNodeManager : CustomNodeManager2
     {
         private readonly object m_gate = new();
         private readonly Dictionary<uint, List<byte>> m_buffers = [];
         private readonly Dictionary<uint, string> m_versions = [];
         private readonly string m_namespaceUri;
+        private readonly IResourceContentIdProvider? m_contentIdProvider;
         private uint m_nextHandle;
 
         /// <summary>
-        /// Initializes the registration node manager for the Schema Registry namespace.
+        /// Initializes the registration node manager for the registry namespace.
         /// </summary>
         /// <param name="server">The server that owns the node manager.</param>
         /// <param name="configuration">The application configuration.</param>
-        /// <param name="options">The Schema Registry feature options.</param>
-        public SchemaRegistryRegistrationNodeManager(
+        /// <param name="options">The registry server options.</param>
+        public XRegistryRegistrationNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration,
-            SchemaRegistryOptions? options)
-            : base(server, configuration, (options ?? new SchemaRegistryOptions()).SchemaRegistryNamespaceUri)
+            XRegistryServerOptions options)
+            : base(server, configuration, (options ?? new XRegistryServerOptions()).RegistryNamespaceUri)
         {
-            m_namespaceUri = (options ?? new SchemaRegistryOptions()).SchemaRegistryNamespaceUri;
+            XRegistryServerOptions opts = options ?? new XRegistryServerOptions();
+            m_namespaceUri = opts.RegistryNamespaceUri;
+            m_contentIdProvider = opts.ContentIdProvider;
         }
 
         /// <summary>
-        /// Materializes the registration <c>SchemaGroup</c> and its <c>CreateResource</c>,
-        /// <c>Write</c>, <c>Close</c> and <c>Delete</c> methods.
+        /// Materializes the registration resource group and its <c>CreateResource</c>, <c>Write</c>,
+        /// <c>Close</c> and <c>Delete</c> methods.
         /// </summary>
         /// <param name="externalReferences">External reference sink (unused).</param>
         public override void CreateAddressSpace(
@@ -85,16 +84,16 @@ namespace Opc.Ua.Server.SchemaRegistry
 
             var group = new BaseObjectState(null)
             {
-                NodeId = new NodeId(SchemaRegistryWellKnown.SchemaGroupObject, ns),
-                BrowseName = new QualifiedName("SchemaGroup", ns),
-                DisplayName = new LocalizedText("SchemaGroup"),
+                NodeId = new NodeId(XRegistryWellKnown.ResourceGroupObject, ns),
+                BrowseName = new QualifiedName("ResourceGroup", ns),
+                DisplayName = new LocalizedText("ResourceGroup"),
                 TypeDefinitionId = ObjectTypeIds.BaseObjectType
             };
 
-            AddMethod(group, SchemaRegistryWellKnown.CreateResourceMethod, ns, "CreateResource", OnCreateResource);
-            AddMethod(group, SchemaRegistryWellKnown.WriteMethod, ns, "Write", OnWrite);
-            AddMethod(group, SchemaRegistryWellKnown.CloseMethod, ns, "Close", OnClose);
-            AddMethod(group, SchemaRegistryWellKnown.DeleteMethod, ns, "Delete", OnDelete);
+            AddMethod(group, XRegistryWellKnown.CreateResourceMethod, ns, "CreateResource", OnCreateResource);
+            AddMethod(group, XRegistryWellKnown.WriteMethod, ns, "Write", OnWrite);
+            AddMethod(group, XRegistryWellKnown.CloseMethod, ns, "Close", OnClose);
+            AddMethod(group, XRegistryWellKnown.DeleteMethod, ns, "Delete", OnDelete);
 
             AddPredefinedNode(SystemContext, group);
         }
@@ -128,7 +127,7 @@ namespace Opc.Ua.Server.SchemaRegistry
             ArrayOf<Variant> inputs,
             List<Variant> outputs)
         {
-            _ = inputs[0].TryGetValue(out string? _); // ResourceId (unused by the prove-out)
+            _ = inputs[0].TryGetValue(out string? _); // ResourceId (unused by the base lifecycle)
             _ = inputs[1].TryGetValue(out string? versionId);
             if (string.IsNullOrEmpty(versionId))
             {
@@ -177,7 +176,7 @@ namespace Opc.Ua.Server.SchemaRegistry
             return ServiceResult.Good;
         }
 
-        // Close(FileHandle: UInt32, Format: String) -> (SchemaId: ByteString, SchemaIdAlg: String)
+        // Close(FileHandle: UInt32, Format: String) -> (ContentId: ByteString, Algorithm: String)
         private ServiceResult OnClose(
             ISystemContext context,
             MethodState method,
@@ -195,6 +194,11 @@ namespace Opc.Ua.Server.SchemaRegistry
                 format = "avro";
             }
 
+            if (m_contentIdProvider is null)
+            {
+                return StatusCodes.BadNotSupported;
+            }
+
             byte[] document;
             lock (m_gate)
             {
@@ -207,26 +211,21 @@ namespace Opc.Ua.Server.SchemaRegistry
                 m_versions.Remove(handle);
             }
 
-            // Auto-bootstrap (§10.1 + §6.6): compute the SchemaId + alg from the document.
-            byte[] schemaId;
-            string algorithm;
-#pragma warning disable UA_NETStandard_Encoders // pluggable per-format fingerprint provider (§6.6)
-            schemaId = SchemaIdProviders.ComputeSchemaId(format, document);
-            algorithm = SchemaIdProviders.AlgorithmFor(format)!;
-#pragma warning restore UA_NETStandard_Encoders
+            // Auto-bootstrap (§10.1 + §6.6): compute the content-id + algorithm from the document.
+            ByteString contentId = m_contentIdProvider.ComputeContentId(format, document);
+            string algorithm = m_contentIdProvider.GetAlgorithm(format) ?? string.Empty;
 
-            // Make the document reachable by its Opaque SchemaId NodeId (§6.4), created at runtime.
+            // Make the document reachable by its Opaque content-id NodeId (§6.4), created at runtime.
             ushort ns = (ushort)Server.NamespaceUris.GetIndex(m_namespaceUri);
-            var schemaIdBytes = ByteString.From(schemaId);
-            var fastPathNodeId = new NodeId(schemaIdBytes, ns);
+            var fastPathNodeId = new NodeId(contentId, ns);
 
             if (Find(fastPathNodeId) is null)
             {
                 var node = new BaseDataVariableState(null)
                 {
                     NodeId = fastPathNodeId,
-                    BrowseName = new QualifiedName("RegisteredSchema", ns),
-                    DisplayName = new LocalizedText("RegisteredSchema"),
+                    BrowseName = new QualifiedName("RegisteredResource", ns),
+                    DisplayName = new LocalizedText("RegisteredResource"),
                     TypeDefinitionId = VariableTypeIds.BaseDataVariableType,
                     ReferenceTypeId = ReferenceTypeIds.HasComponent,
                     DataType = DataTypeIds.ByteString,
@@ -240,14 +239,12 @@ namespace Opc.Ua.Server.SchemaRegistry
                 AddPredefinedNode(SystemContext, node);
             }
 
-            outputs.Add(new Variant(schemaIdBytes));
+            outputs.Add(new Variant(contentId));
             outputs.Add(new Variant(algorithm));
             return ServiceResult.Good;
         }
 
-        // Delete(SchemaId: ByteString) -> ()  (epoch-match args optional per spec §5.2)
-        // Returns the Call StatusCode (void success), not a bool, to mirror the spec's
-        // symmetric Delete on ResourceType : FileType: Good when removed, Bad_NotFound otherwise.
+        // Delete(ContentId: ByteString) -> ()  (epoch-match args optional per spec §5.2)
         private ServiceResult OnDelete(
             ISystemContext context,
             MethodState method,
@@ -255,14 +252,14 @@ namespace Opc.Ua.Server.SchemaRegistry
             ArrayOf<Variant> inputs,
             List<Variant> outputs)
         {
-            if (!inputs[0].TryGetValue(out ByteString schemaId))
+            if (!inputs[0].TryGetValue(out ByteString contentId))
             {
                 return StatusCodes.BadInvalidArgument;
             }
 
             ushort ns = (ushort)Server.NamespaceUris.GetIndex(m_namespaceUri);
 
-            bool removed = DeleteNode(SystemContext, new NodeId(schemaId, ns));
+            bool removed = DeleteNode(SystemContext, new NodeId(contentId, ns));
             return removed ? ServiceResult.Good : StatusCodes.BadNotFound;
         }
     }

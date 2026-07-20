@@ -27,61 +27,62 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using Opc.Ua.Server;
 
-namespace Opc.Ua.Server.SchemaRegistry
+namespace Opc.Ua.XRegistry.Server
 {
     /// <summary>
-    /// Serves the Schema Registry spec's federation model (Annex B, §4.3): a schema hosted by
-    /// another registry is represented locally by a proxy carrying an <c>ExternalReference</c> (an
+    /// Serves the xRegistry federation model (Annex B, §4.3): a resource hosted by another registry
+    /// is represented locally by a proxy carrying an <c>ExternalReference</c> (an
     /// <see cref="ExpandedNodeId"/> whose <c>ServerIndex</c> names the remote OPC UA server via the
-    /// <c>ServerArray</c>, and whose <c>NamespaceUri</c> + <c>Identifier</c> are the remote schema
-    /// node's identity) and/or a <c>ResourceUrl</c> (the endpoint in string form). Because a
-    /// schema's identity (its <c>SchemaId</c>) is content-derived and therefore stable across
-    /// registries, the same schema federated from several endpoints keeps <b>one</b> identity and
-    /// can be de-duplicated by <c>SchemaId</c>.
+    /// <c>ServerArray</c>, and whose <c>NamespaceUri</c> + <c>Identifier</c> are the remote resource
+    /// node's identity) and/or a <c>ResourceUrl</c>. Because a resource's identity (its content-id)
+    /// is content-derived and therefore stable across registries, the same resource federated from
+    /// several endpoints keeps <b>one</b> identity and can be de-duplicated by content-id.
     /// </summary>
     [Experimental("UA_NETStandard_Encoders")]
-    public sealed class SchemaRegistryFederationNodeManager : CustomNodeManager2
+    public class XRegistryFederationNodeManager : CustomNodeManager2
     {
-        /// <summary>The remote registry's Schema Registry namespace URI (a peer OPC UA server).</summary>
-        public const string RemoteRegistryNamespaceUri =
-            "http://opcfoundation.org/UA/SchemaRegistry/";
-
-        /// <summary>The remote registry endpoint carried by the proxy's <c>ResourceUrl</c>.</summary>
-        public const string RemoteEndpointUrl = "opc.tcp://remote-registry.example:4840";
-
-        /// <summary>The remote server's index into the local <c>ServerArray</c>.</summary>
-        public const uint RemoteServerIndex = 1;
-
-        /// <summary>The document hosted by the remote registry (federated here as a proxy).</summary>
-        public static readonly byte[] FederatedDocument = System.Text.Encoding.UTF8.GetBytes(
-            "{\"type\":\"record\",\"name\":\"Federated\",\"fields\":[]}");
-
-        private readonly bool m_publishProxy;
         private readonly string m_namespaceUri;
+        private readonly IResourceContentIdProvider? m_contentIdProvider;
+        private readonly bool m_publishProxy;
+        private readonly byte[]? m_federatedDocument;
+        private readonly string m_federatedFormat;
+        private readonly string m_remoteRegistryNamespaceUri;
+        private readonly string m_remoteEndpointUrl;
+        private readonly uint m_remoteServerIndex;
+        private readonly string m_proxyBrowseName;
 
         /// <summary>
-        /// Initializes the federation node manager for the Schema Registry namespace.
+        /// Initializes the federation node manager for the registry namespace.
         /// </summary>
         /// <param name="server">The server that owns the node manager.</param>
         /// <param name="configuration">The application configuration.</param>
-        /// <param name="options">The Schema Registry feature options.</param>
-        public SchemaRegistryFederationNodeManager(
+        /// <param name="options">The registry server options.</param>
+        public XRegistryFederationNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration,
-            SchemaRegistryOptions? options)
-            : base(server, configuration, (options ?? new SchemaRegistryOptions()).SchemaRegistryNamespaceUri)
+            XRegistryServerOptions options)
+            : base(server, configuration, (options ?? new XRegistryServerOptions()).RegistryNamespaceUri)
         {
-            SchemaRegistryOptions opts = options ?? new SchemaRegistryOptions();
+            XRegistryServerOptions opts = options ?? new XRegistryServerOptions();
+            m_namespaceUri = opts.RegistryNamespaceUri;
+            m_contentIdProvider = opts.ContentIdProvider;
             m_publishProxy = opts.PublishFederationProxy;
-            m_namespaceUri = opts.SchemaRegistryNamespaceUri;
+            m_federatedDocument = opts.FederatedDocument;
+            m_federatedFormat = opts.FederatedFormat;
+            m_remoteRegistryNamespaceUri = opts.RemoteRegistryNamespaceUri;
+            m_remoteEndpointUrl = opts.RemoteEndpointUrl;
+            m_remoteServerIndex = opts.RemoteServerIndex;
+            m_proxyBrowseName = opts.FederationProxyBrowseName;
         }
 
         /// <summary>
-        /// Materializes the federated schema proxy with its <c>ExternalReference</c>,
-        /// <c>ResourceUrl</c> and <c>SchemaId</c> metadata.
+        /// Materializes the federated resource proxy with its <c>ExternalReference</c>,
+        /// <c>ResourceUrl</c> and content-id metadata.
         /// </summary>
         /// <param name="externalReferences">External reference sink (unused).</param>
         public override void CreateAddressSpace(
@@ -89,38 +90,39 @@ namespace Opc.Ua.Server.SchemaRegistry
         {
             base.CreateAddressSpace(externalReferences);
 
-            if (!m_publishProxy)
+            if (!m_publishProxy || m_federatedDocument is null)
             {
                 return;
             }
 
-            ushort ns = (ushort)Server.NamespaceUris.GetIndex(m_namespaceUri);
+            if (m_contentIdProvider is null)
+            {
+                throw new InvalidOperationException(
+                    "A ContentIdProvider is required to publish a federation proxy.");
+            }
 
-            byte[] schemaIdBytes;
-#pragma warning disable UA_NETStandard_Encoders // pluggable per-format fingerprint provider (§6.6)
-            schemaIdBytes = SchemaIdProviders.ComputeSchemaId("avro", FederatedDocument);
-#pragma warning restore UA_NETStandard_Encoders
-            var schemaId = ByteString.From(schemaIdBytes);
+            ushort ns = (ushort)Server.NamespaceUris.GetIndex(m_namespaceUri);
+            ByteString contentId = m_contentIdProvider.ComputeContentId(m_federatedFormat, m_federatedDocument);
 
             var proxy = new BaseObjectState(null)
             {
-                NodeId = new NodeId(SchemaRegistryWellKnown.FederationProxyObject, ns),
-                BrowseName = new QualifiedName("FederatedSchemaProxy", ns),
-                DisplayName = new LocalizedText("FederatedSchemaProxy"),
+                NodeId = new NodeId(XRegistryWellKnown.FederationProxyObject, ns),
+                BrowseName = new QualifiedName(m_proxyBrowseName, ns),
+                DisplayName = new LocalizedText(m_proxyBrowseName),
                 TypeDefinitionId = ObjectTypeIds.BaseObjectType
             };
 
             // The federation link: ServerIndex -> remote ServerUri (via ServerArray),
-            // NamespaceUri + Identifier -> the remote schema node (content-addressed by SchemaId).
+            // NamespaceUri + Identifier -> the remote resource node (content-addressed by content-id).
             var externalReference = new ExpandedNodeId(
-                schemaId, RemoteRegistryNamespaceUri, RemoteServerIndex);
+                contentId, m_remoteRegistryNamespaceUri, m_remoteServerIndex);
 
-            AddProperty(proxy, SchemaRegistryWellKnown.FederationExternalReferenceProperty, ns,
+            AddProperty(proxy, XRegistryWellKnown.FederationExternalReferenceProperty, ns,
                 "ExternalReference", DataTypeIds.ExpandedNodeId, new Variant(externalReference));
-            AddProperty(proxy, SchemaRegistryWellKnown.FederationResourceUrlProperty, ns,
-                "ResourceUrl", DataTypeIds.String, new Variant(RemoteEndpointUrl));
-            AddProperty(proxy, SchemaRegistryWellKnown.FederationSchemaIdProperty, ns,
-                "SchemaId", DataTypeIds.ByteString, new Variant(schemaId));
+            AddProperty(proxy, XRegistryWellKnown.FederationResourceUrlProperty, ns,
+                "ResourceUrl", DataTypeIds.String, new Variant(m_remoteEndpointUrl));
+            AddProperty(proxy, XRegistryWellKnown.FederationContentIdProperty, ns,
+                "SchemaId", DataTypeIds.ByteString, new Variant(contentId));
 
             AddPredefinedNode(SystemContext, proxy);
         }

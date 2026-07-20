@@ -30,58 +30,39 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
-using Opc.Ua.Server.RuntimeNodeSet;
 
-namespace Opc.Ua.Server.SchemaRegistry
+namespace Opc.Ua.PubSub.SchemaRegistry
 {
     /// <summary>
-    /// Provides the abstract xRegistry base and Schema Registry companion NodeSet2 documents that
-    /// back the in-server Schema Registry feature. The documents ship as embedded resources of the
-    /// <c>Opc.Ua.Server</c> assembly and are imported, in dependency order, through the
-    /// <see cref="RuntimeNodeSetNodeManagerFactory"/> path.
+    /// Provides the Schema Registry companion NodeSet2 document, embedded in the
+    /// <c>Opc.Ua.PubSub</c> assembly. The document declares a <c>RequiredModel</c> on the abstract
+    /// xRegistry base model, so it must be imported after the base NodeSet (see the
+    /// <c>Opc.Ua.PubSub.Server</c> NodeSets loader). This type has no dependency on the OPC UA server
+    /// SDK; the server-side runtime NodeSet wrapping is done in <c>Opc.Ua.PubSub.Server</c>.
     /// </summary>
     [Experimental("UA_NETStandard_Encoders")]
     public static class SchemaRegistryNodeSets
     {
-        private const string XRegistryResource =
-            "Opc.Ua.Server.SchemaRegistry.Opc.Ua.XRegistry.NodeSet2.xml";
-
-        private const string SchemaRegistryResource =
-            "Opc.Ua.Server.SchemaRegistry.Opc.Ua.SchemaRegistry.NodeSet2.xml";
+        /// <summary>
+        /// The embedded-resource name of the Schema Registry companion NodeSet2 document.
+        /// </summary>
+        public const string NodeSetResourceName =
+            "Opc.Ua.PubSub.SchemaRegistry.Opc.Ua.SchemaRegistry.NodeSet2.xml";
 
         /// <summary>
-        /// Creates the ordered runtime NodeSet sources (xRegistry base first, then Schema Registry)
-        /// for the supplied <paramref name="options"/>.
+        /// Opens a fresh read stream over the embedded Schema Registry companion NodeSet2 document.
         /// </summary>
-        /// <param name="options">The Schema Registry feature options (namespace URIs).</param>
-        /// <returns>The ordered NodeSet sources.</returns>
-        public static ArrayOf<RuntimeNodeSetSource> CreateSources(SchemaRegistryOptions? options = null)
-        {
-            options ??= new SchemaRegistryOptions();
-            return
-            [
-                RuntimeNodeSetSource.FromStream(
-                    "xRegistry",
-                    _ => new ValueTask<Stream>(OpenResource(XRegistryResource)),
-                    [options.XRegistryNamespaceUri]),
-                RuntimeNodeSetSource.FromStream(
-                    "SchemaRegistry",
-                    _ => new ValueTask<Stream>(OpenResource(SchemaRegistryResource)),
-                    [options.SchemaRegistryNamespaceUri]),
-            ];
-        }
-
-        private static Stream OpenResource(string name)
+        /// <returns>A readable stream positioned at the start of the NodeSet2 XML.</returns>
+        /// <exception cref="InvalidOperationException">The embedded NodeSet was not found.</exception>
+        public static Stream OpenNodeSet()
         {
             Stream? stream = typeof(SchemaRegistryNodeSets).Assembly
-                .GetManifestResourceStream(name);
+                .GetManifestResourceStream(NodeSetResourceName);
 
             if (stream is null)
             {
                 throw new InvalidOperationException(
-                    $"Embedded Schema Registry NodeSet '{name}' was not found.");
+                    $"Embedded Schema Registry NodeSet '{NodeSetResourceName}' was not found.");
             }
 
             return stream;
