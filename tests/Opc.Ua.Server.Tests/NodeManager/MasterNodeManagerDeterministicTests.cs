@@ -204,7 +204,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public async Task BrowseAsyncCompletedResultUsesNullContinuationPointAsync()
+        public async Task BrowseAsyncCompletedBrowseReturnsNullContinuationPointAsync()
         {
             IMasterNodeManager sut = m_server.CurrentInstance.NodeManager;
             OperationContext ctx = CreateContext();
@@ -221,7 +221,7 @@ namespace Opc.Ua.Server.Tests
             (ArrayOf<BrowseResult> results, _) = await sut.BrowseAsync(
                 ctx,
                 new ViewDescription(),
-                100u,
+                0u,
                 new BrowseDescription[] { nodeToBrowse }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
 
