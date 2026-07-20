@@ -163,6 +163,79 @@ namespace Opc.Ua.Server.Tests.FileSystem
         }
 
         [Test]
+        public void CloseWithoutSessionReturnsBadSessionIdInvalid()
+        {
+            FileObjectState state = CreateFileState("data.txt", "hello");
+            uint fileHandle = 0;
+            state.Open!.OnCall!(m_context, state.Open, state.NodeId, 0x1, ref fileHandle);
+            ISystemContext contextWithoutSession = m_manager.SystemContext.Copy();
+
+            ServiceResult result = state.Close!.OnCall!(
+                contextWithoutSession, state.Close, state.NodeId, fileHandle);
+
+            Assert.That(result.StatusCode.Code, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
+        }
+
+        [Test]
+        public void SetPositionWithoutSessionReturnsBadSessionIdInvalid()
+        {
+            FileObjectState state = CreateFileState("data.txt", "hello");
+            uint fileHandle = 0;
+            state.Open!.OnCall!(m_context, state.Open, state.NodeId, 0x1, ref fileHandle);
+            ISystemContext contextWithoutSession = m_manager.SystemContext.Copy();
+
+            ServiceResult result = state.SetPosition!.OnCall!(
+                contextWithoutSession, state.SetPosition, state.NodeId, fileHandle, 1u);
+
+            Assert.That(result.StatusCode.Code, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
+        }
+
+        [Test]
+        public void GetPositionWithoutSessionReturnsBadSessionIdInvalid()
+        {
+            FileObjectState state = CreateFileState("data.txt", "hello");
+            uint fileHandle = 0;
+            state.Open!.OnCall!(m_context, state.Open, state.NodeId, 0x1, ref fileHandle);
+            ISystemContext contextWithoutSession = m_manager.SystemContext.Copy();
+
+            ulong position = 0;
+            ServiceResult result = state.GetPosition!.OnCall!(
+                contextWithoutSession, state.GetPosition, state.NodeId, fileHandle, ref position);
+
+            Assert.That(result.StatusCode.Code, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
+        }
+
+        [Test]
+        public void ReadWithoutSessionReturnsBadSessionIdInvalid()
+        {
+            FileObjectState state = CreateFileState("data.txt", "hello");
+            uint fileHandle = 0;
+            state.Open!.OnCall!(m_context, state.Open, state.NodeId, 0x1, ref fileHandle);
+            ISystemContext contextWithoutSession = m_manager.SystemContext.Copy();
+
+            ByteString data = default;
+            ServiceResult result = state.Read!.OnCall!(
+                contextWithoutSession, state.Read, state.NodeId, fileHandle, 1, ref data);
+
+            Assert.That(result.StatusCode.Code, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
+        }
+
+        [Test]
+        public void WriteWithoutSessionReturnsBadSessionIdInvalid()
+        {
+            FileObjectState state = CreateFileState("out.txt");
+            uint fileHandle = 0;
+            state.Open!.OnCall!(m_context, state.Open, state.NodeId, 0x2, ref fileHandle);
+            ISystemContext contextWithoutSession = m_manager.SystemContext.Copy();
+
+            var payload = ByteString.From([1, 2, 3]);
+            ServiceResult result = state.Write!.OnCall!(
+                contextWithoutSession, state.Write, state.NodeId, fileHandle, payload);
+
+            Assert.That(result.StatusCode.Code, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
+        }
+
+        [Test]
         public void FileHandleMethodsRejectDifferentSession()
         {
             FileObjectState state = CreateFileState("data.txt", "hello");
