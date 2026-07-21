@@ -90,6 +90,14 @@ namespace Opc.Ua.SourceGeneration
             throw new FileNotFoundException("Resource not found");
         }
 
+        /// <summary>
+        /// Creates an in-memory additional file with the supplied path and content.
+        /// </summary>
+        public static AdditionalText FromContent(string path, string content)
+        {
+            return new EmbeddedText(path, content);
+        }
+
         private readonly SourceText m_text;
     }
 
@@ -243,6 +251,27 @@ namespace Opc.Ua.SourceGeneration
                 .WithOptions(compileOptions)
                 .AddReferences(TrustedReferences)
                 .AddReferences(DefaultReferences);
+        }
+
+        /// <summary>
+        /// Runs the generator driver against the compilation and returns the
+        /// generator diagnostics together with the run result, without
+        /// asserting success. Use for tests that need to inspect diagnostics
+        /// produced by malformed, unsupported or otherwise rejected inputs
+        /// (for example a WoT model that fails to parse or convert) instead
+        /// of asserting a clean, fully compiling run. Named distinctly from
+        /// the built-in <c>GeneratorDriver.RunGenerators</c> API (which
+        /// returns a <see cref="GeneratorDriver"/>, not diagnostics) to avoid
+        /// ambiguity.
+        /// </summary>
+        public static (ImmutableArray<Diagnostic> Diagnostics, GeneratorDriverRunResult RunResult)
+            RunGeneratorsForDiagnostics(this GeneratorDriver driver, Compilation compilation)
+        {
+            driver = driver.RunGeneratorsAndUpdateCompilation(
+                compilation,
+                out Compilation _,
+                out ImmutableArray<Diagnostic> diagnostics);
+            return (diagnostics, driver.GetRunResult());
         }
 
         /// <summary>

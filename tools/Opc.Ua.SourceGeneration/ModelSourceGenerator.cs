@@ -29,6 +29,7 @@
 
 using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.Diagnostics;
 using IIncrementalGenerator = SGF.IncrementalGenerator;
 using IncrementalGeneratorAttribute = SGF.IncrementalGeneratorAttribute;
 using IncrementalGeneratorInitializationContext = SGF.SgfInitializationContext;
@@ -53,14 +54,58 @@ namespace Opc.Ua.SourceGeneration
 #if DEBUGX
             AttachDebugger();
 #endif
-            IncrementalValueProvider<ImmutableArray<(AdditionalText Left, NodesetFileOptions)>> inputFiles =
+            // Pair every AdditionalFile with its own per-file analyzer config
+            // options once, up front, so both the design/NodeSet2 filter and
+            // the WoT filter (which needs the per-file
+            // ModelSourceGeneratorWot opt-in metadata to recognize a plain
+            // .jsonld input) can be evaluated without recomputing options.
+            IncrementalValuesProvider<(AdditionalText Text, AnalyzerConfigOptions Options)> textsWithOptions =
                 context.AdditionalTextsProvider
-                    .Where(f => f.IsDesignOrNodeset2File())
                     .Combine(context.AnalyzerConfigOptionsProvider)
-                    .Select((pair, _) => (
-                        pair.Left,
-                        pair.Right.GetOptions(pair.Left).ToNodeSetOptions()))
+                    .Select(static (pair, _) => (pair.Left, pair.Right.GetOptions(pair.Left)));
+
+            IncrementalValueProvider<ImmutableArray<(AdditionalText Left, NodesetFileOptions)>> xmlInputFiles =
+                textsWithOptions
+                    .Where(static pair => pair.Text.IsDesignOrNodeset2File())
+                    .Select(static (pair, _) => (pair.Text, pair.Options.ToNodeSetOptions()))
                     .Collect();
+
+            // Every WoT input is converted independently (and cheaply cached
+            // per file): parse, bounds, missing preservation/native mapping,
+            // dependency/resolver and conversion problems are captured as
+            // diagnostics on the outcome rather than thrown, so one malformed
+            // input can never abort the whole generator run.
+            IncrementalValueProvider<ImmutableArray<WotConversionOutcome>> wotOutcomes =
+                textsWithOptions
+                    .Where(static pair => pair.Text.IsWotFile(pair.Options))
+                    .Select(static (pair, ct) => WotNodeSetAdditionalText.Convert(
+                        pair.Text, pair.Options.ToNodeSetOptions(), ct))
+                    .Collect();
+
+            // Resolve WoT outcomes against the explicit NodeSet2/ModelDesign
+            // inputs and each other: forwards every conversion diagnostic and
+            // drops (with a diagnostic) any WoT input whose synthesized
+            // virtual NodeSet2 path collides with another input, so a
+            // collision can never silently overwrite another model.
+            IncrementalValueProvider<(
+                ImmutableArray<(AdditionalText Text, NodesetFileOptions Options)> Accepted,
+                ImmutableArray<Diagnostic> Diagnostics)> resolvedWotInputs =
+                xmlInputFiles
+                    .Combine(wotOutcomes)
+                    .Select(static (pair, _) => pair.Left.ResolveWotInputs(pair.Right));
+
+            context.RegisterSourceOutput(resolvedWotInputs, static (spc, resolved) =>
+            {
+                foreach (Diagnostic diagnostic in resolved.Diagnostics)
+                {
+                    spc.ReportDiagnostic(diagnostic);
+                }
+            });
+
+            IncrementalValueProvider<ImmutableArray<(AdditionalText Left, NodesetFileOptions)>> inputFiles =
+                xmlInputFiles
+                    .Combine(resolvedWotInputs)
+                    .Select(static (pair, _) => pair.Left.AddRange(pair.Right.Accepted));
             IncrementalValueProvider<ImmutableArray<AdditionalText>> identiferFile =
                 context.AdditionalTextsProvider
                     .Where(f => f.IsIdentifierFile())

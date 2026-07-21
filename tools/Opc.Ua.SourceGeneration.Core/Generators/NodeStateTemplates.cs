@@ -2240,7 +2240,7 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         public static readonly TemplateString Description = TemplateString.Parse(
             $$"""
-            state.Description = new global::Opc.Ua.LocalizedText({{Tokens.DescriptionValue}});
+            ((global::Opc.Ua.NodeState)state).Description = new global::Opc.Ua.LocalizedText({{Tokens.DescriptionValue}});
 
             """);
 
