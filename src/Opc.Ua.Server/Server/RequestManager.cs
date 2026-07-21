@@ -171,7 +171,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Called when the client wishes to cancel one or more requests.
         /// </summary>
-        public void CancelRequests(uint requestHandle, out uint cancelCount)
+        public void CancelRequests(NodeId sessionId, uint requestHandle, out uint cancelCount)
         {
             var cancelledRequests = new List<uint>();
 
@@ -180,7 +180,8 @@ namespace Opc.Ua.Server
             {
                 foreach (OperationContext request in m_requests.Values)
                 {
-                    if (request.ClientHandle == requestHandle)
+                    if (request.SessionId == sessionId &&
+                        request.ClientHandle == requestHandle)
                     {
                         request.RequestLifetime.TryCancel(StatusCodes.BadRequestCancelledByRequest);
                         cancelledRequests.Add(request.RequestId);

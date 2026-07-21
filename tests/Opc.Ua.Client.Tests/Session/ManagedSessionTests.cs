@@ -322,6 +322,61 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         }
 
         [Test]
+        public async Task HandleFailoverAsyncUsesInnerSessionCurrentEndpointForTargetSelectionAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ApplicationConfiguration configuration = CreateClientConfiguration(telemetry);
+            ConfiguredEndpoint initialEndpoint = CreateEndpoint();
+            initialEndpoint.Description.EndpointUrl = "opc.tcp://initial:4840";
+            ConfiguredEndpoint activeEndpoint = CreateEndpoint();
+            activeEndpoint.Description.EndpointUrl = "opc.tcp://active:4840";
+            IServiceMessageContext messageContext = configuration.CreateMessageContext();
+
+            var managedChannel = new Mock<IManagedTransportChannel>();
+            managedChannel.SetupGet(c => c.MessageContext).Returns(messageContext);
+
+            ConfiguredEndpoint? capturedCurrentEndpoint = null;
+            var redundancyHandler = new Mock<IServerRedundancyHandler>(MockBehavior.Strict);
+            redundancyHandler.Setup(h => h.SelectFailoverTarget(
+                    It.IsAny<ServerRedundancyInfo>(),
+                    It.IsAny<ConfiguredEndpoint>()))
+                .Callback<ServerRedundancyInfo, ConfiguredEndpoint>(
+                    (_, currentEndpoint) => capturedCurrentEndpoint = currentEndpoint)
+                .Returns((ConfiguredEndpoint?)null);
+
+            using var innerSession = new Session(
+                managedChannel.Object,
+                configuration,
+                activeEndpoint,
+                engineFactory: DefaultSubscriptionEngineFactory.Instance);
+
+            using Client.ManagedSession managedSession = CreateManagedSessionWithInner(
+                configuration,
+                initialEndpoint,
+                innerSession,
+                telemetry,
+                redundancyHandler: redundancyHandler.Object);
+
+            typeof(Client.ManagedSession)
+                .GetField(
+                    "m_redundancyInfo",
+                    BindingFlags.NonPublic | BindingFlags.Instance)!
+                .SetValue(managedSession, new ServerRedundancyInfo());
+
+            ServiceResult result = await InvokeHandleFailoverAsync(
+                    managedSession,
+                    new RetryBudget(TimeSpan.FromSeconds(30)))
+                .ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNothingToDo));
+            Assert.That(capturedCurrentEndpoint, Is.SameAs(activeEndpoint));
+            redundancyHandler.Verify(h => h.SelectFailoverTarget(
+                    It.IsAny<ServerRedundancyInfo>(),
+                    It.IsAny<ConfiguredEndpoint>()),
+                Times.Once);
+        }
+
+        [Test]
         public void ConnectionStateChangedEventArgsHasCorrectProperties()
         {
             var error = new ServiceResult(StatusCodes.BadCommunicationError);
@@ -625,13 +680,37 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         }
 #pragma warning restore IDE0051, RCS1213
 
+#pragma warning disable IDE0051, RCS1213 // Test scaffold kept for failover-path tests that need the private handler.
+        private static Task<ServiceResult> InvokeHandleFailoverAsync(
+            Client.ManagedSession managedSession,
+            IRetryBudget budget)
+        {
+            MethodInfo? method = typeof(Client.ManagedSession).GetMethod(
+                "HandleFailoverAsync",
+                BindingFlags.NonPublic | BindingFlags.Instance,
+                null,
+                [typeof(IRetryBudget), typeof(CancellationToken)],
+                null);
+
+            Assert.That(method, Is.Not.Null);
+
+            var task = (Task<ServiceResult>?)method!.Invoke(
+                managedSession,
+                [budget, CancellationToken.None]);
+
+            Assert.That(task, Is.Not.Null);
+            return task!;
+        }
+#pragma warning restore IDE0051, RCS1213
+
 #pragma warning disable IDE0051, RCS1213 // Test scaffold kept for tests that inject an already-created inner Session.
         private static Client.ManagedSession CreateManagedSessionWithInner(
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
             Session innerSession,
             ITelemetryContext telemetry,
-            NetworkRedundancyOptions? networkRedundancy = null)
+            NetworkRedundancyOptions? networkRedundancy = null,
+            IServerRedundancyHandler? redundancyHandler = null)
         {
             ILogger<Client.ManagedSession> logger = telemetry.CreateLogger<Client.ManagedSession>();
             var sessionFactory = new Mock<ISessionFactory>();
@@ -675,7 +754,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 endpoint,
                 sessionFactory.Object,
                 reconnectPolicy,
-                null,
+                redundancyHandler,
                 logger,
                 null,
                 null,

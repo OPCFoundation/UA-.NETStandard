@@ -98,6 +98,7 @@ namespace Opc.Ua.Client.Subscriptions
                 Assert.That(sut.AvailableInRetransmissionQueue, Is.EqualTo(availableSequenceNumbers));
                 Assert.That(sut.LastSequenceNumberProcessed, Is.EqualTo(3));
                 Assert.That(sut.DataChangeNotificationReceived.IsSet, Is.False);
+                Assert.That(m_completion.QueuedAcks, Is.Empty);
 
                 // Arrange
                 sut.KeepAliveNotificationReceived.Reset();
@@ -126,6 +127,9 @@ namespace Opc.Ua.Client.Subscriptions
                 Assert.That(sut.DataChangeNotificationReceived.IsSet, Is.True);
                 Assert.That(sut.KeepAliveNotificationReceived.IsSet, Is.False);
                 Assert.That(sut.LastSequenceNumberProcessed, Is.EqualTo(4));
+                Assert.That(m_completion.QueuedAcks, Has.Count.EqualTo(1));
+                Assert.That(m_completion.QueuedAcks[0].SubscriptionId, Is.EqualTo(3u));
+                Assert.That(m_completion.QueuedAcks[0].SequenceNumber, Is.EqualTo(4u));
             }
         }
 
