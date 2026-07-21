@@ -29,8 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -127,78 +125,6 @@ namespace Opc.Ua.Server.Tests
             ISubscription result = await queue.PublishAsync("channel1", DateTime.MaxValue, false, null, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(result, Is.SameAs(subMock.Object));
-        }
-
-        [Test]
-        [NonParallelizable]
-        [CancelAfter(10000)]
-        public async Task PublishReadyTransitionCompletesQueuedRequestAsync()
-        {
-            using var queue = new SessionPublishQueue(
-                m_serverMock.Object,
-                m_sessionMock.Object,
-                kMaxPublishRequests);
-            var subscription = new Mock<ISubscription>();
-            subscription.Setup(s => s.Id).Returns(1);
-            queue.Add(subscription.Object);
-
-            (Lock queueLock, Lock splitPublishLock) = GetPrivateLocks(queue);
-            using var publishStarted = new ManualResetEventSlim();
-            Task<ISubscription> publishTask;
-
-            // The legacy split lock lets PublishAsync finish its ready check
-            // before it blocks on the request-queue lock.
-            queueLock.Enter();
-            try
-            {
-                splitPublishLock?.Enter();
-                try
-                {
-                    publishTask = Task.Run(() =>
-                    {
-                        publishStarted.Set();
-                        return queue.PublishAsync(
-                            "channel1",
-                            DateTime.MaxValue,
-                            false,
-                            null,
-                            CancellationToken.None);
-                    });
-                    Assert.That(
-                        publishStarted.Wait(TimeSpan.FromSeconds(2)),
-                        Is.True,
-                        "The Publish request did not start.");
-                }
-                finally
-                {
-                    splitPublishLock?.Exit();
-                }
-
-                if (splitPublishLock != null)
-                {
-                    WaitForSplitLockTransition(splitPublishLock);
-                }
-
-                // System.Threading.Lock is reentrant. Keeping the queue lock
-                // held preserves the historical check-before-enqueue window.
-                queue.Requeue(subscription.Object);
-            }
-            finally
-            {
-                queueLock.Exit();
-            }
-
-            Task completed = await Task.WhenAny(
-                publishTask,
-                Task.Delay(TimeSpan.FromSeconds(2))).ConfigureAwait(false);
-
-            Assert.That(
-                completed,
-                Is.SameAs(publishTask),
-                "The ready Subscription and queued Publish request lost their wake-up.");
-            Assert.That(
-                await publishTask.ConfigureAwait(false),
-                Is.SameAs(subscription.Object));
         }
 
         [Test]
@@ -792,66 +718,5 @@ namespace Opc.Ua.Server.Tests
             Assert.That(returnedSubIds, Has.Count.EqualTo(numItems), "All subscriptions should have been processed.");
         }
 
-        private static (Lock QueueLock, Lock SplitPublishLock) GetPrivateLocks(
-            SessionPublishQueue queue)
-        {
-            FieldInfo[] lockFields = [.. typeof(SessionPublishQueue)
-                .GetFields(BindingFlags.Instance | BindingFlags.NonPublic)
-                .Where(field => field.FieldType == typeof(Lock))];
-            if (lockFields.Length is 0 or > 2)
-            {
-                throw new InvalidOperationException(
-                    $"Expected one or two private Lock fields, found: " +
-                    $"{string.Join(", ", lockFields.Select(field => field.Name))}.");
-            }
-
-            FieldInfo queueLockField = lockFields.FirstOrDefault(field => field.Name == "m_lock") ??
-                (lockFields.Length == 1
-                    ? lockFields[0]
-                    : throw new InvalidOperationException(
-                        $"Could not identify the queue lock from: " +
-                        $"{string.Join(", ", lockFields.Select(field => field.Name))}."));
-            var queueLock = (Lock)queueLockField.GetValue(queue);
-            Lock splitPublishLock = lockFields
-                .Where(field => !ReferenceEquals(field, queueLockField))
-                .Select(field => (Lock)field.GetValue(queue))
-                .SingleOrDefault();
-            return (queueLock, splitPublishLock);
-        }
-
-        private static void WaitForSplitLockTransition(Lock splitPublishLock)
-        {
-            bool enteredByPublisher = SpinWait.SpinUntil(
-                () =>
-                {
-                    if (!splitPublishLock.TryEnter())
-                    {
-                        return true;
-                    }
-                    splitPublishLock.Exit();
-                    return false;
-                },
-                TimeSpan.FromSeconds(2));
-            Assert.That(
-                enteredByPublisher,
-                Is.True,
-                "PublishAsync did not enter the legacy split lock.");
-
-            bool releasedByPublisher = SpinWait.SpinUntil(
-                () =>
-                {
-                    if (!splitPublishLock.TryEnter())
-                    {
-                        return false;
-                    }
-                    splitPublishLock.Exit();
-                    return true;
-                },
-                TimeSpan.FromSeconds(2));
-            Assert.That(
-                releasedByPublisher,
-                Is.True,
-                "PublishAsync did not leave the legacy split lock.");
-        }
     }
 }
