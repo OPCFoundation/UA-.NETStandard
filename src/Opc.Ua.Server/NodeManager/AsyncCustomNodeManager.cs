@@ -3580,6 +3580,18 @@ namespace Opc.Ua.Server
                 if (handle.Node is BaseVariableState variable &&
                     (variable.AccessLevel & AccessLevels.HistoryRead) != 0)
                 {
+                    // enforce the effective user access level for the current
+                    // session: a node may advertise HistoryRead in AccessLevel
+                    // but deny it to the current user via UserAccessLevel.
+                    byte userAccessLevel = variable.UserAccessLevel;
+                    variable.OnReadUserAccessLevel?.Invoke(systemContext, variable, ref userAccessLevel);
+
+                    if ((userAccessLevel & AccessLevels.HistoryRead) == 0)
+                    {
+                        errors[ii] = StatusCodes.BadUserAccessDenied;
+                        continue;
+                    }
+
                     handle.Index = ii;
                     nodesToProcess.Add(handle);
                     continue;
