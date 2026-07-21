@@ -131,7 +131,8 @@ namespace Opc.Ua.Client.Subscriptions
             }
             LastNotificationTimestamp = TimeProvider.GetTimestamp();
             await m_messages.Writer.WriteAsync(new IncomingMessage(message, stringTable,
-                TimeProvider.GetUtcNow(), Volatile.Read(ref m_generation)))
+                TimeProvider.GetUtcNow(),
+                Volatile.Read(ref m_generation)))
                 .ConfigureAwait(false);
         }
 
