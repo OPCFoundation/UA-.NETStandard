@@ -47,7 +47,7 @@
     </References>
     <Definition Name="2:WoTDocumentKindEnum"><Field Name="ThingDescription" Value="0"><Description>A W3C WoT Thing Description (WoT-TD/1.1); projects to OPC UA instances.</Description></Field><Field Name="ThingModel" Value="1"><Description>A W3C WoT Thing Model (WoT-TM/1.1); projects to OPC UA types.</Description></Field></Definition>
   </UADataType>
-  <UAVariable NodeId="ns=2;i=64500" BrowseName="2:EnumStrings" ParentNodeId="ns=2;i=64020" DataType="LocalizedText" ValueRank="1" ArrayDimensions="2">
+  <UAVariable NodeId="ns=2;i=64500" BrowseName="EnumStrings" ParentNodeId="ns=2;i=64020" DataType="LocalizedText" ValueRank="1" ArrayDimensions="2">
     <DisplayName>EnumStrings</DisplayName>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -66,7 +66,7 @@
     </References>
     <Definition Name="2:WoTLoadStateEnum"><Field Name="Unloaded" Value="0"><Description>Stored but not projected into the AddressSpace.</Description></Field><Field Name="Validating" Value="1"><Description>Format and compatibility validation is in progress.</Description></Field><Field Name="Loading" Value="2"><Description>The projection is being materialized under a shadow generation.</Description></Field><Field Name="Active" Value="3"><Description>The projection is committed and serving as the active generation.</Description></Field><Field Name="Failed" Value="4"><Description>Validation or projection failed; the last valid projection (if any) stays active.</Description></Field><Field Name="Superseded" Value="5"><Description>A newer generation has replaced this one; retained until monitored items drain.</Description></Field><Field Name="Retiring" Value="6"><Description>Being retired; awaiting monitored-item drain before node removal.</Description></Field><Field Name="Retired" Value="7"><Description>The projection has been removed from the AddressSpace.</Description></Field></Definition>
   </UADataType>
-  <UAVariable NodeId="ns=2;i=64501" BrowseName="2:EnumStrings" ParentNodeId="ns=2;i=64021" DataType="LocalizedText" ValueRank="1" ArrayDimensions="8">
+  <UAVariable NodeId="ns=2;i=64501" BrowseName="EnumStrings" ParentNodeId="ns=2;i=64021" DataType="LocalizedText" ValueRank="1" ArrayDimensions="8">
     <DisplayName>EnumStrings</DisplayName>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -85,7 +85,7 @@
     </References>
     <Definition Name="2:WoTRefreshModeEnum"><Field Name="Manual" Value="0"><Description>Only an explicit Refresh Method call re-projects.</Description></Field><Field Name="Periodic" Value="1"><Description>The registry re-projects on a fixed interval (RefreshInterval).</Description></Field><Field Name="EventDriven" Value="2"><Description>The registry re-projects when a stored document changes (write/CloseAndUpdate).</Description></Field><Field Name="Scheduled" Value="3"><Description>The registry re-projects on an implementation-defined schedule.</Description></Field></Definition>
   </UADataType>
-  <UAVariable NodeId="ns=2;i=64502" BrowseName="2:EnumStrings" ParentNodeId="ns=2;i=64022" DataType="LocalizedText" ValueRank="1" ArrayDimensions="4">
+  <UAVariable NodeId="ns=2;i=64502" BrowseName="EnumStrings" ParentNodeId="ns=2;i=64022" DataType="LocalizedText" ValueRank="1" ArrayDimensions="4">
     <DisplayName>EnumStrings</DisplayName>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -104,7 +104,7 @@
     </References>
     <Definition Name="2:WoTAtomicityEnum"><Field Name="PerResource" Value="0"><Description>Each resource commits independently; a failure isolates to that resource.</Description></Field><Field Name="PerGroup" Value="1"><Description>All resources of a group commit together or not at all.</Description></Field><Field Name="PerClosure" Value="2"><Description>A document and its full dependency closure (DAG) commit atomically.</Description></Field><Field Name="PerRegistry" Value="3"><Description>All selected documents commit as a single all-or-nothing transaction.</Description></Field></Definition>
   </UADataType>
-  <UAVariable NodeId="ns=2;i=64503" BrowseName="2:EnumStrings" ParentNodeId="ns=2;i=64023" DataType="LocalizedText" ValueRank="1" ArrayDimensions="4">
+  <UAVariable NodeId="ns=2;i=64503" BrowseName="EnumStrings" ParentNodeId="ns=2;i=64023" DataType="LocalizedText" ValueRank="1" ArrayDimensions="4">
     <DisplayName>EnumStrings</DisplayName>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -123,7 +123,7 @@
     </References>
     <Definition Name="2:WoTDeletePolicyEnum"><Field Name="Reject" Value="0"><Description>Reject the operation while any other loaded document still depends on it.</Description></Field><Field Name="Retire" Value="1"><Description>Retire the projection but keep the stored document for dependents to resolve.</Description></Field><Field Name="Cascade" Value="2"><Description>Unload dependents that resolve only through this document.</Description></Field><Field Name="Force" Value="3"><Description>Force-unload the projection even while dependents remain, marking them Failed.</Description></Field></Definition>
   </UADataType>
-  <UAVariable NodeId="ns=2;i=64504" BrowseName="2:EnumStrings" ParentNodeId="ns=2;i=64024" DataType="LocalizedText" ValueRank="1" ArrayDimensions="4">
+  <UAVariable NodeId="ns=2;i=64504" BrowseName="EnumStrings" ParentNodeId="ns=2;i=64024" DataType="LocalizedText" ValueRank="1" ArrayDimensions="4">
     <DisplayName>EnumStrings</DisplayName>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -142,7 +142,7 @@
     </References>
     <Definition Name="2:WoTOutcomeEnum"><Field Name="Success" Value="0"><Description>The operation completed and changed the projection.</Description></Field><Field Name="Unchanged" Value="1"><Description>The operation was idempotent; the content digest matched and nothing changed.</Description></Field><Field Name="Warning" Value="2"><Description>The operation completed with non-fatal warnings.</Description></Field><Field Name="Skipped" Value="3"><Description>The operation was not applicable and was skipped.</Description></Field><Field Name="Rejected" Value="4"><Description>The operation was rejected by policy (for example concurrency or delete policy).</Description></Field><Field Name="Failed" Value="5"><Description>The operation failed; the previous valid projection (if any) remains active.</Description></Field></Definition>
   </UADataType>
-  <UAVariable NodeId="ns=2;i=64505" BrowseName="2:EnumStrings" ParentNodeId="ns=2;i=64025" DataType="LocalizedText" ValueRank="1" ArrayDimensions="6">
+  <UAVariable NodeId="ns=2;i=64505" BrowseName="EnumStrings" ParentNodeId="ns=2;i=64025" DataType="LocalizedText" ValueRank="1" ArrayDimensions="6">
     <DisplayName>EnumStrings</DisplayName>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -161,7 +161,7 @@
     </References>
     <Definition Name="2:WoTPhaseEnum"><Field Name="Fetch" Value="0"><Description>Fetching the document bytes and its @context/schema references.</Description></Field><Field Name="Parse" Value="1"><Description>Parsing the JSON-LD document.</Description></Field><Field Name="FormatValidation" Value="2"><Description>Validating the document against its WoT-TD/WoT-TM format.</Description></Field><Field Name="CompatibilityValidation" Value="3"><Description>Validating the version against the resource compatibility policy.</Description></Field><Field Name="DependencyResolution" Value="4"><Description>Resolving the dependency closure (tm:extends, tm:ref, links rel=type).</Description></Field><Field Name="Projection" Value="5"><Description>Materializing types/instances into a shadow generation.</Description></Field><Field Name="Activation" Value="6"><Description>Committing the shadow generation as active.</Description></Field><Field Name="Retirement" Value="7"><Description>Retiring a superseded generation after monitored items drain.</Description></Field></Definition>
   </UADataType>
-  <UAVariable NodeId="ns=2;i=64506" BrowseName="2:EnumStrings" ParentNodeId="ns=2;i=64026" DataType="LocalizedText" ValueRank="1" ArrayDimensions="8">
+  <UAVariable NodeId="ns=2;i=64506" BrowseName="EnumStrings" ParentNodeId="ns=2;i=64026" DataType="LocalizedText" ValueRank="1" ArrayDimensions="8">
     <DisplayName>EnumStrings</DisplayName>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -180,7 +180,7 @@
     </References>
     <Definition Name="2:WoTBindingCapabilityEnum"><Field Name="ReadProperty" Value="0"><Description>Read a property affordance.</Description></Field><Field Name="WriteProperty" Value="1"><Description>Write a property affordance.</Description></Field><Field Name="ObserveProperty" Value="2"><Description>Observe (subscribe to) a property affordance.</Description></Field><Field Name="InvokeAction" Value="3"><Description>Invoke an action affordance.</Description></Field><Field Name="SubscribeEvent" Value="4"><Description>Subscribe to an event affordance.</Description></Field><Field Name="UnsubscribeEvent" Value="5"><Description>Unsubscribe from an event affordance.</Description></Field></Definition>
   </UADataType>
-  <UAVariable NodeId="ns=2;i=64507" BrowseName="2:EnumStrings" ParentNodeId="ns=2;i=64027" DataType="LocalizedText" ValueRank="1" ArrayDimensions="6">
+  <UAVariable NodeId="ns=2;i=64507" BrowseName="EnumStrings" ParentNodeId="ns=2;i=64027" DataType="LocalizedText" ValueRank="1" ArrayDimensions="6">
     <DisplayName>EnumStrings</DisplayName>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -701,7 +701,7 @@
       <Reference ReferenceType="HasProperty">ns=2;i=64540</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="ns=2;i=64539" BrowseName="2:InputArguments" ParentNodeId="ns=2;i=64538" DataType="Argument" ValueRank="1" ArrayDimensions="4">
+  <UAVariable NodeId="ns=2;i=64539" BrowseName="InputArguments" ParentNodeId="ns=2;i=64538" DataType="Argument" ValueRank="1" ArrayDimensions="4">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -710,7 +710,7 @@
     </References>
     <Value><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>Selection</Name><DataType><Identifier>ns=2;i=64043</Identifier></DataType><ValueRank>1</ValueRank><ArrayDimensions><UInt32>0</UInt32></ArrayDimensions><Description><Text>The documents to refresh; empty selects the whole registry.</Text></Description></Argument></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>Options</Name><DataType><Identifier>ns=2;i=64042</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>Options controlling atomicity, force, dry-run and dependents.</Text></Description></Argument></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>ExpectedGeneration</Name><DataType><Identifier>i=7</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>Expected current RefreshGeneration for optimistic concurrency; 0 disables the check.</Text></Description></Argument></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>RequestId</Name><DataType><Identifier>i=12</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>Caller-supplied identifier echoed into the summary and the completion event.</Text></Description></Argument></Body></ExtensionObject></ListOfExtensionObject></Value>
   </UAVariable>
-  <UAVariable NodeId="ns=2;i=64540" BrowseName="2:OutputArguments" ParentNodeId="ns=2;i=64538" DataType="Argument" ValueRank="1" ArrayDimensions="3">
+  <UAVariable NodeId="ns=2;i=64540" BrowseName="OutputArguments" ParentNodeId="ns=2;i=64538" DataType="Argument" ValueRank="1" ArrayDimensions="3">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -944,7 +944,7 @@
       <Reference ReferenceType="HasProperty">ns=2;i=64566</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="ns=2;i=64566" BrowseName="2:OutputArguments" ParentNodeId="ns=2;i=64565" DataType="Argument" ValueRank="1" ArrayDimensions="1">
+  <UAVariable NodeId="ns=2;i=64566" BrowseName="OutputArguments" ParentNodeId="ns=2;i=64565" DataType="Argument" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -962,7 +962,7 @@
       <Reference ReferenceType="HasProperty">ns=2;i=64568</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="ns=2;i=64568" BrowseName="2:InputArguments" ParentNodeId="ns=2;i=64567" DataType="Argument" ValueRank="1" ArrayDimensions="2">
+  <UAVariable NodeId="ns=2;i=64568" BrowseName="InputArguments" ParentNodeId="ns=2;i=64567" DataType="Argument" ValueRank="1" ArrayDimensions="2">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -980,7 +980,7 @@
       <Reference ReferenceType="HasProperty">ns=2;i=64570</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="ns=2;i=64570" BrowseName="2:InputArguments" ParentNodeId="ns=2;i=64569" DataType="Argument" ValueRank="1" ArrayDimensions="2">
+  <UAVariable NodeId="ns=2;i=64570" BrowseName="InputArguments" ParentNodeId="ns=2;i=64569" DataType="Argument" ValueRank="1" ArrayDimensions="2">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -1282,7 +1282,7 @@
       <Reference ReferenceType="HasProperty">ns=2;i=64603</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="ns=2;i=64602" BrowseName="2:InputArguments" ParentNodeId="ns=2;i=64601" DataType="Argument" ValueRank="1" ArrayDimensions="4">
+  <UAVariable NodeId="ns=2;i=64602" BrowseName="InputArguments" ParentNodeId="ns=2;i=64601" DataType="Argument" ValueRank="1" ArrayDimensions="4">
     <DisplayName>InputArguments</DisplayName>
     <Category>WoT Connectivity V2 Instances</Category>
     <References>
@@ -1291,7 +1291,7 @@
     </References>
     <Value><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>Selection</Name><DataType><Identifier>ns=2;i=64043</Identifier></DataType><ValueRank>1</ValueRank><ArrayDimensions><UInt32>0</UInt32></ArrayDimensions><Description><Text>The documents to refresh; empty selects the whole registry.</Text></Description></Argument></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>Options</Name><DataType><Identifier>ns=2;i=64042</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>Options controlling atomicity, force, dry-run and dependents.</Text></Description></Argument></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>ExpectedGeneration</Name><DataType><Identifier>i=7</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>Expected current RefreshGeneration for optimistic concurrency; 0 disables the check.</Text></Description></Argument></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>RequestId</Name><DataType><Identifier>i=12</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>Caller-supplied identifier echoed into the summary and the completion event.</Text></Description></Argument></Body></ExtensionObject></ListOfExtensionObject></Value>
   </UAVariable>
-  <UAVariable NodeId="ns=2;i=64603" BrowseName="2:OutputArguments" ParentNodeId="ns=2;i=64601" DataType="Argument" ValueRank="1" ArrayDimensions="3">
+  <UAVariable NodeId="ns=2;i=64603" BrowseName="OutputArguments" ParentNodeId="ns=2;i=64601" DataType="Argument" ValueRank="1" ArrayDimensions="3">
     <DisplayName>OutputArguments</DisplayName>
     <Category>WoT Connectivity V2 Instances</Category>
     <References>
