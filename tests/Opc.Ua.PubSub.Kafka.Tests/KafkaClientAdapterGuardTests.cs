@@ -32,6 +32,8 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using Dekaf.Consumer;
+using Dekaf.Serialization;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Kafka.Internal;
 using Opc.Ua.PubSub.Tests;
@@ -168,6 +170,42 @@ namespace Opc.Ua.PubSub.Kafka.Tests
         }
 
         [Test]
+        public async Task DispatchRecordWithNullHeaderMapsEmptyValueAsync()
+        {
+            await using var adapter = new DekafKafkaClientAdapter(
+                NUnitTelemetryContext.Create(),
+                TimeProvider.System);
+            KafkaIncomingMessageEventArgs? received = null;
+            adapter.IncomingMessage += (_, args) => received = args;
+
+            InvokeDispatchRecord(adapter, CreateConsumeResult(new Header("x-null", (byte[]?)null)));
+
+            Assert.That(received, Is.Not.Null);
+            Assert.That(received!.Message.Headers, Is.Not.Null);
+            Assert.That(received.Message.Headers!["x-null"], Is.Empty);
+        }
+
+        [Test]
+        public async Task DispatchRecordWithUtf8HeaderDecodesValueAsync()
+        {
+            await using var adapter = new DekafKafkaClientAdapter(
+                NUnitTelemetryContext.Create(),
+                TimeProvider.System);
+            KafkaIncomingMessageEventArgs? received = null;
+            adapter.IncomingMessage += (_, args) => received = args;
+            const string headerValue = "Gr\u00FC\u00DFe";
+
+            InvokeDispatchRecord(
+                adapter,
+                CreateConsumeResult(
+                    new Header("x-text", System.Text.Encoding.UTF8.GetBytes(headerValue))));
+
+            Assert.That(received, Is.Not.Null);
+            Assert.That(received!.Message.Headers, Is.Not.Null);
+            Assert.That(received.Message.Headers!["x-text"], Is.EqualTo(headerValue));
+        }
+
+        [Test]
         public void PrivateMappingHelpersCoverKafkaConfigurationBranches()
         {
             var endpointOptions = new KafkaConnectionOptions { Endpoint = "kafka://broker1,broker2:19092" };
@@ -294,6 +332,41 @@ namespace Opc.Ua.PubSub.Kafka.Tests
                         AllowCredentialsOverPlaintext = true
                     }),
                 Throws.TypeOf<InvalidOperationException>());
+        }
+
+        private static ConsumeResult<byte[], byte[]> CreateConsumeResult(params Header[] headers)
+        {
+            return new ConsumeResult<byte[], byte[]>(
+                topic: KafkaTestHelper.JsonTopic,
+                partition: 0,
+                offset: 1,
+                keyData: ReadOnlyMemory<byte>.Empty,
+                isKeyNull: true,
+                valueData: ReadOnlyMemory<byte>.Empty,
+                isValueNull: true,
+                headers: headers,
+                timestampMs: 0,
+                timestampType: TimestampType.NotAvailable,
+                leaderEpoch: null,
+                keyDeserializer: null,
+                valueDeserializer: null);
+        }
+
+        private static void InvokeDispatchRecord(
+            DekafKafkaClientAdapter adapter,
+            ConsumeResult<byte[], byte[]> result)
+        {
+            MethodInfo method = typeof(DekafKafkaClientAdapter).GetMethod(
+                "DispatchRecord",
+                BindingFlags.NonPublic | BindingFlags.Instance)!;
+            try
+            {
+                method.Invoke(adapter, [result]);
+            }
+            catch (TargetInvocationException ex) when (ex.InnerException is not null)
+            {
+                throw ex.InnerException;
+            }
         }
 
         private static T InvokePrivate<T>(string methodName, params object?[] args)
