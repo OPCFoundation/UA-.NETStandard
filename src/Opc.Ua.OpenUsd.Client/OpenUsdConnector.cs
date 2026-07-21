@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Client;
 
@@ -58,31 +59,55 @@ namespace Opc.Ua.OpenUsd.Client
         private Subscription? m_subscription;
         private readonly List<OpenUsdConnector> m_remoteConnectors = new();
         private readonly bool m_ownsSession;
+        private readonly OpenUsdConnectorOptions m_options;
+        private readonly ITelemetryContext? m_telemetry;
+        private readonly ILogger m_logger;
 
+        /// <summary>
+        /// Creates a connector with default options and no telemetry.
+        /// </summary>
         public OpenUsdConnector(ISession session, IUsdSink sink)
-            : this(session, sink, enableCommands: false, remoteSessionFactory: null)
+            : this(session, sink, new OpenUsdConnectorOptions(), telemetry: null, ownsSession: false)
         {
         }
 
+        /// <summary>
+        /// Creates a connector, opting into command actuation (fail-closed by default).
+        /// </summary>
         public OpenUsdConnector(ISession session, IUsdSink sink, bool enableCommands)
-            : this(session, sink, enableCommands, remoteSessionFactory: null)
+            : this(session, sink, new OpenUsdConnectorOptions { EnableCommands = enableCommands },
+                telemetry: null, ownsSession: false)
         {
         }
 
-        // enableCommands is the opt-in gate for UsdToUaCommand bindings. Command
-        // bindings are always DISCOVERED, but the connector refuses to actuate one
-        // unless explicitly enabled (fail-closed); read-only telemetry/alarm/history
-        // bindings are unaffected. remoteSessionFactory, when supplied, lets the
-        // connector open sessions to OTHER servers for cross-server components (§5.14);
-        // when null, a cross-server component is composed structurally (its reference
-        // prim is authored) but its remote bindings are not driven.
-        public OpenUsdConnector(ISession session, IUsdSink sink, bool enableCommands,
-            Func<string, CancellationToken, Task<ISession>>? remoteSessionFactory)
+        /// <summary>
+        /// Creates a connector from an <see cref="OpenUsdConnectorOptions"/>, optionally
+        /// threading an <see cref="ITelemetryContext"/> for logging. This is the
+        /// recommended entry point for advanced scenarios (cross-server federation,
+        /// asset size limits); the DI <c>AddOpenUsdConnector(...)</c> extensions build on
+        /// it.
+        /// </summary>
+        public OpenUsdConnector(ISession session, IUsdSink sink, OpenUsdConnectorOptions options,
+            ITelemetryContext? telemetry = null)
+            : this(session, sink, options, telemetry, ownsSession: false)
         {
-            m_session = session;
-            m_sink = sink;
-            m_enableCommands = enableCommands;
-            m_remoteSessionFactory = remoteSessionFactory;
+        }
+
+        // ownsSession is set for connector-owned remote sessions (§5.14 cross-server
+        // federation): the connector opened this session via the remote-session factory
+        // and therefore closes it on DisposeAsync (unlike the caller-owned primary session).
+        private OpenUsdConnector(ISession session, IUsdSink sink, OpenUsdConnectorOptions options,
+            ITelemetryContext? telemetry, bool ownsSession)
+        {
+            m_session = session ?? throw new ArgumentNullException(nameof(session));
+            m_sink = sink ?? throw new ArgumentNullException(nameof(sink));
+            m_options = options ?? throw new ArgumentNullException(nameof(options));
+            m_enableCommands = options.EnableCommands;
+            m_remoteSessionFactory = options.RemoteSessionFactory;
+            m_ownsSession = ownsSession;
+            m_telemetry = telemetry;
+            m_logger = telemetry?.CreateLogger<OpenUsdConnector>()
+                ?? (ILogger)Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance;
             m_ns = (ushort)m_session.NamespaceUris.GetIndex(OpenUsdModel.NamespaceUri);
             m_representationTypeId = new NodeId(1003u, m_ns);
             m_bindingTypeIntents = new Dictionary<NodeId, OpenUsdIntentProfile>
@@ -94,16 +119,6 @@ namespace Opc.Ua.OpenUsd.Client
             };
             m_componentTypeId = new NodeId(1005u, m_ns);
             m_assetTypeId = new NodeId(1006u, m_ns);
-        }
-
-        // Used for connector-owned remote sessions (§5.14 cross-server federation): the
-        // connector opened this session via the remote-session factory and therefore
-        // closes it on DisposeAsync (unlike the caller-owned primary session).
-        private OpenUsdConnector(ISession session, IUsdSink sink, bool enableCommands,
-            Func<string, CancellationToken, Task<ISession>>? remoteSessionFactory, bool ownsSession)
-            : this(session, sink, enableCommands, remoteSessionFactory)
-        {
-            m_ownsSession = ownsSession;
         }
 
         public sealed class BindingInfo
@@ -457,9 +472,10 @@ namespace Opc.Ua.OpenUsd.Client
                     await m_session.CloseAsync(10000, closeChannel: true, CancellationToken.None)
                         .ConfigureAwait(false);
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
                     // Best-effort close of the connector-owned (remote) session.
+                    m_logger.RemoteSessionCloseFailed(ex);
                 }
             }
             Dispose();

@@ -59,12 +59,6 @@ namespace Opc.Ua.OpenUsd.Client
             public bool DigestVerified { get; set; }
         }
 
-        // Upper bound on a single served USD layer and on a whole fetch. A server that
-        // streams unbounded data must not be able to exhaust connector memory or fill the
-        // cache disk. These comfortably cover text/binary USD layer closures.
-        private const int MaxAssetBytes = 64 * 1024 * 1024;
-        private const long MaxTotalAssetBytes = 256L * 1024 * 1024;
-
         /// <summary>
         /// Fetches every served stage-asset closure into <paramref name="cacheDir"/>,
         /// verifying each layer's digest (fail-closed) and preserving relative
@@ -113,10 +107,10 @@ namespace Opc.Ua.OpenUsd.Client
                     byte[] bytes = await ReadServedFileAsync(assetId.Value, ct).ConfigureAwait(false);
 
                     totalBytes += bytes.Length;
-                    if (totalBytes > MaxTotalAssetBytes)
+                    if (totalBytes > m_options.MaxTotalAssetBytes)
                     {
                         throw new InvalidOperationException(
-                            $"Served asset closure exceeds the maximum total size of {MaxTotalAssetBytes} bytes.");
+                            $"Served asset closure exceeds the maximum total size of {m_options.MaxTotalAssetBytes} bytes.");
                     }
 
                     bool verified = true;
@@ -176,12 +170,12 @@ namespace Opc.Ua.OpenUsd.Client
                         byte[] chunk = ToBytes(readOut.Count > 0 ? readOut[0].AsBoxedObject() : null);
                         if (chunk.Length > 0)
                     {
-                            if (buffer.Count + (long)chunk.Length > MaxAssetBytes)
+                            if (buffer.Count + (long)chunk.Length > m_options.MaxAssetBytes)
                             {
                                 // Fail-closed against a server that streams unbounded data
                                 // (never returning a short read) — bound memory and disk use.
                                 throw new InvalidOperationException(
-                                    $"Served asset exceeds the maximum size of {MaxAssetBytes} bytes.");
+                                    $"Served asset exceeds the maximum size of {m_options.MaxAssetBytes} bytes.");
                             }
                             buffer.AddRange(chunk);
                         }

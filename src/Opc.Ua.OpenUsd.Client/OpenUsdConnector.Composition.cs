@@ -88,6 +88,10 @@ namespace Opc.Ua.OpenUsd.Client
 
             var live = new HashSet<string>(StringComparer.Ordinal);
             int index = 0;
+            if (c.Cardinality == OpenUsdCardinality.Many)
+            {
+                m_logger.ComponentsResolved(comps.Count, c.TargetPrimPath ?? string.Empty);
+            }
             foreach ((NodeId _, NodeId _, string name) in comps)
             {
                 if (c.Cardinality == OpenUsdCardinality.One && index >= 1)
@@ -142,10 +146,10 @@ namespace Opc.Ua.OpenUsd.Client
             {
                 ISession remote = await m_remoteSessionFactory(c.ComponentEndpointUrl!, ct)
                     .ConfigureAwait(false);
-                var remoteConn = new OpenUsdConnector(remote, m_sink, m_enableCommands,
-                    m_remoteSessionFactory, ownsSession: true);
+                var remoteConn = new OpenUsdConnector(remote, m_sink, m_options, m_telemetry, ownsSession: true);
                 m_remoteConnectors.Add(remoteConn);
                 await remoteConn.StartAsync(ct).ConfigureAwait(false);
+                m_logger.CrossServerFederated(c.ComponentEndpointUrl!);
             }
         }
 
@@ -267,6 +271,7 @@ namespace Opc.Ua.OpenUsd.Client
             item.Notification += OnModelChangeEvent;
             subscription.AddItem(item);
             await subscription.ApplyChangesAsync(ct).ConfigureAwait(false);
+            m_logger.ModelChangeSubscribed(eventSource);
         }
 
         private void OnModelChangeEvent(MonitoredItem item, MonitoredItemNotificationEventArgs e)
@@ -298,10 +303,11 @@ namespace Opc.Ua.OpenUsd.Client
                         {
                             await RecomposeAsync(CancellationToken.None).ConfigureAwait(false);
                         }
-                        catch (Exception)
+                        catch (Exception ex)
                         {
                             // A transient recompose failure must not crash the connector;
                             // the next model-change event re-runs the fail-safe resolve.
+                            m_logger.RecomposeFailed(ex);
                         }
                     }
                 }
