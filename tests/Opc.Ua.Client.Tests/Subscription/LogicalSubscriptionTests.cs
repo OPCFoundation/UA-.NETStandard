@@ -356,7 +356,7 @@ namespace Opc.Ua.Client.Subscriptions
                     Assert.That(subscription, Is.SameAs(sut));
                     masks.Add(mask);
                 })
-                .Returns(ValueTask.CompletedTask);
+                .Returns(new ValueTask());
             using var forwarding = new PartitionForwardingHandler(userHandler.Object);
             forwarding.BindLogical(sut);
             try
