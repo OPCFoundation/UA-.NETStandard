@@ -94,10 +94,10 @@ namespace Opc.Ua.WotCon.Binding.Modbus
                 throw new ArgumentOutOfRangeException(
                     nameof(form), address, $"The Modbus address must be between 0 and {MaxAddress}.");
             }
-            if (quantity is < 1 or > MaxAddress + 1)
+            if (quantity is < 1 or > ushort.MaxValue)
             {
                 throw new ArgumentOutOfRangeException(
-                    nameof(form), quantity, "The Modbus quantity must be between 1 and 65536.");
+                    nameof(form), quantity, $"The Modbus quantity must be between 1 and {ushort.MaxValue}.");
             }
             if (address + quantity - 1 > MaxAddress)
             {
