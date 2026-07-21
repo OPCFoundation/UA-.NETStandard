@@ -162,59 +162,65 @@ namespace Opc.Ua.OpenUsd.Connector
 
             var sink = new UsdFileSink(outPath);
             var connector = new OpenUsdConnector(session, sink, enableCommands);
-
-            if (!string.IsNullOrEmpty(cacheDir))
-            {
-                List<OpenUsdConnector.FetchedAsset> fetched =
-                    await connector.FetchServedAssetsAsync(cacheDir!, CancellationToken.None).ConfigureAwait(false);
-                if (fetched.Count > 0)
-                {
-                    WriteStageUsda(cacheDir!, fetched);
-                    Console.WriteLine(
-                        $"Fetched {fetched.Count} server-delivered USD layer(s) into {cacheDir}; " +
-                        "wrote a self-contained stage.usda (open it in usdview).");
-                }
-                else
-                {
-                    Console.WriteLine(
-                        "Server does not advertise served assets (OU-AssetDelivery); using the external base asset.");
-                }
-            }
-
-            await connector.StartAsync(CancellationToken.None).ConfigureAwait(false);
-            Console.WriteLine($"Streaming live OPC UA values into {outPath}. Press Ctrl+C to stop.");
-
-            if (enableCommands && commandValueOpt != null
-                && double.TryParse(commandValueOpt, System.Globalization.NumberStyles.Float,
-                    System.Globalization.CultureInfo.InvariantCulture, out double commandValue))
-            {
-                bool ok = await connector.IssueCommandAsync(commandValue, CancellationToken.None)
-                    .ConfigureAwait(false);
-                Console.WriteLine(ok
-                    ? $"Command issued: setpoint <- {commandValue}."
-                    : "Command binding not found or write rejected.");
-            }
-
-            using var stop = new SemaphoreSlim(0, 1);
-            ConsoleCancelEventHandler handler = (_, e) => { e.Cancel = true; stop.Release(); };
-            Console.CancelKeyPress += handler;
             try
             {
-                if (seconds > 0)
+                if (!string.IsNullOrEmpty(cacheDir))
                 {
-                    await Task.Delay(TimeSpan.FromSeconds(seconds)).ConfigureAwait(false);
+                    List<OpenUsdConnector.FetchedAsset> fetched =
+                        await connector.FetchServedAssetsAsync(cacheDir!, CancellationToken.None).ConfigureAwait(false);
+                    if (fetched.Count > 0)
+                    {
+                        WriteStageUsda(cacheDir!, fetched);
+                        Console.WriteLine(
+                            $"Fetched {fetched.Count} server-delivered USD layer(s) into {cacheDir}; " +
+                            "wrote a self-contained stage.usda (open it in usdview).");
+                    }
+                    else
+                    {
+                        Console.WriteLine(
+                            "Server does not advertise served assets (OU-AssetDelivery); using the external base asset.");
+                    }
                 }
-                else
+
+                await connector.StartAsync(CancellationToken.None).ConfigureAwait(false);
+                Console.WriteLine($"Streaming live OPC UA values into {outPath}. Press Ctrl+C to stop.");
+
+                if (enableCommands && commandValueOpt != null
+                    && double.TryParse(commandValueOpt, System.Globalization.NumberStyles.Float,
+                        System.Globalization.CultureInfo.InvariantCulture, out double commandValue))
                 {
-                    await stop.WaitAsync().ConfigureAwait(false);
+                    bool ok = await connector.IssueCommandAsync(commandValue, CancellationToken.None)
+                        .ConfigureAwait(false);
+                    Console.WriteLine(ok
+                        ? $"Command issued: setpoint <- {commandValue}."
+                        : "Command binding not found or write rejected.");
                 }
+
+                using var stop = new SemaphoreSlim(0, 1);
+                ConsoleCancelEventHandler handler = (_, e) => { e.Cancel = true; stop.Release(); };
+                Console.CancelKeyPress += handler;
+                try
+                {
+                    if (seconds > 0)
+                    {
+                        await Task.Delay(TimeSpan.FromSeconds(seconds)).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        await stop.WaitAsync().ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    Console.CancelKeyPress -= handler;
+                }
+
+                await connector.StopAsync().ConfigureAwait(false);
             }
             finally
             {
-                Console.CancelKeyPress -= handler;
+                await connector.DisposeAsync().ConfigureAwait(false);
             }
-
-            await connector.StopAsync().ConfigureAwait(false);
             await session.CloseAsync(CancellationToken.None).ConfigureAwait(false);
             await session.DisposeAsync().ConfigureAwait(false);
             (config.CertificateManager as IDisposable)?.Dispose();
