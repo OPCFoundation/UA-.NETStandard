@@ -44,7 +44,7 @@ namespace Opc.Ua.OpenUsd.Client
     /// USD attributes into an <see cref="IUsdSink"/>. It is domain-agnostic — it
     /// knows only the OpenUSD binding model, never "pump".
     /// </summary>
-    public sealed partial class OpenUsdConnector
+    public sealed partial class OpenUsdConnector : IAsyncDisposable, IDisposable
     {
         private readonly ISession m_session;
         private readonly IUsdSink m_sink;
@@ -57,6 +57,7 @@ namespace Opc.Ua.OpenUsd.Client
         private readonly NodeId m_assetTypeId;
         private Subscription? m_subscription;
         private readonly List<OpenUsdConnector> m_remoteConnectors = new();
+        private readonly bool m_ownsSession;
 
         public OpenUsdConnector(ISession session, IUsdSink sink)
             : this(session, sink, enableCommands: false, remoteSessionFactory: null)
@@ -93,6 +94,16 @@ namespace Opc.Ua.OpenUsd.Client
             };
             m_componentTypeId = new NodeId(1005u, m_ns);
             m_assetTypeId = new NodeId(1006u, m_ns);
+        }
+
+        // Used for connector-owned remote sessions (§5.14 cross-server federation): the
+        // connector opened this session via the remote-session factory and therefore
+        // closes it on DisposeAsync (unlike the caller-owned primary session).
+        private OpenUsdConnector(ISession session, IUsdSink sink, bool enableCommands,
+            Func<string, CancellationToken, Task<ISession>>? remoteSessionFactory, bool ownsSession)
+            : this(session, sink, enableCommands, remoteSessionFactory)
+        {
+            m_ownsSession = ownsSession;
         }
 
         public sealed class BindingInfo
@@ -397,23 +408,75 @@ namespace Opc.Ua.OpenUsd.Client
             }
         }
 
-        public async Task StopAsync()
+        /// <summary>
+        /// Stops streaming: deletes this connector's subscriptions and stops every
+        /// connector-owned remote connector. Does not close sessions; use
+        /// <see cref="DisposeAsync"/> to also release connector-owned remote sessions.
+        /// </summary>
+        public Task StopAsync() => StopAsync(CancellationToken.None);
+
+        /// <summary>
+        /// Stops streaming with a cancellation token. See <see cref="StopAsync()"/>.
+        /// </summary>
+        public async Task StopAsync(CancellationToken ct)
         {
             foreach (OpenUsdConnector remote in m_remoteConnectors)
             {
-                await remote.StopAsync().ConfigureAwait(false);
+                await remote.StopAsync(ct).ConfigureAwait(false);
             }
-            m_remoteConnectors.Clear();
             if (m_eventSubscription != null)
             {
-                await m_eventSubscription.DeleteAsync(true, CancellationToken.None).ConfigureAwait(false);
+                await m_eventSubscription.DeleteAsync(true, ct).ConfigureAwait(false);
                 m_eventSubscription = null;
             }
             if (m_subscription != null)
             {
-                await m_subscription.DeleteAsync(true, CancellationToken.None).ConfigureAwait(false);
+                await m_subscription.DeleteAsync(true, ct).ConfigureAwait(false);
                 m_subscription = null;
             }
+        }
+
+        /// <summary>
+        /// Stops streaming and releases owned resources: disposes every connector-owned
+        /// remote connector (closing the remote sessions the connector opened), closes
+        /// this connector's session when it owns it, and disposes internal primitives.
+        /// The caller-provided primary session is never closed.
+        /// </summary>
+        public async ValueTask DisposeAsync()
+        {
+            await StopAsync(CancellationToken.None).ConfigureAwait(false);
+            foreach (OpenUsdConnector remote in m_remoteConnectors)
+            {
+                await remote.DisposeAsync().ConfigureAwait(false);
+            }
+            m_remoteConnectors.Clear();
+            if (m_ownsSession)
+            {
+                try
+                {
+                    await m_session.CloseAsync(10000, closeChannel: true, CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
+                catch (Exception)
+                {
+                    // Best-effort close of the connector-owned (remote) session.
+                }
+            }
+            Dispose();
+        }
+
+        /// <summary>
+        /// Synchronous fallback that disposes sync-only primitives. Prefer
+        /// <see cref="DisposeAsync"/>, which also stops subscriptions and closes any
+        /// connector-owned remote session.
+        /// </summary>
+        public void Dispose()
+        {
+            m_subscription?.Dispose();
+            m_subscription = null;
+            m_eventSubscription?.Dispose();
+            m_eventSubscription = null;
+            m_recomposeGate.Dispose();
         }
 
         private void OnNotification(MonitoredItem item, MonitoredItemNotificationEventArgs e)
@@ -424,13 +487,12 @@ namespace Opc.Ua.OpenUsd.Client
             }
             foreach (DataValue dv in item.DequeueValues())
             {
-                object? raw = dv.WrappedValue.AsBoxedObject();
-                if (StatusCode.IsNotGood(dv.StatusCode) || raw == null)
+                if (StatusCode.IsNotGood(dv.StatusCode))
                 {
                     continue;
                 }
-                object? usdValue = Convert(b, raw);
-                if (usdValue != null)
+                Variant usdValue = Convert(b, dv.WrappedValue);
+                if (!usdValue.IsNull)
                 {
                     m_sink.SetAttribute(b.PrimPath!, b.PropertyName!, usdValue);
                 }
@@ -439,11 +501,17 @@ namespace Opc.Ua.OpenUsd.Client
 
         /// <summary>
         /// Applies the binding's declared <see cref="OpenUsdRenderTargetKind"/> to a
-        /// raw source value, returning the USD-side value (double for scalars, a
-        /// three-float array for colours, a token for visibility).
+        /// raw source value, returning the USD-side value as a <see cref="Variant"/>
+        /// (a <c>double</c> for scalars, a three-element <c>float</c> array for colours,
+        /// a token <c>string</c> for visibility). Returns a null <see cref="Variant"/>
+        /// (see <see cref="Variant.IsNull"/>) when the source value is null.
         /// </summary>
-        public static object? Convert(BindingInfo b, object raw)
+        public static Variant Convert(BindingInfo b, Variant raw)
         {
+            if (raw.IsNull)
+            {
+                return default;
+            }
             double d = ToDouble(raw);
             switch (b.Kind)
             {
@@ -451,27 +519,36 @@ namespace Opc.Ua.OpenUsd.Client
                 case OpenUsdRenderTargetKind.Translation:
                 case OpenUsdRenderTargetKind.Scale:
                 case OpenUsdRenderTargetKind.Opacity:
-                    return d * b.Scale + b.Offset;
+                    return new Variant(d * b.Scale + b.Offset);
                 case OpenUsdRenderTargetKind.DisplayColor:
                     // Temperature: blue (cool) -> red (hot).
                     double t = System.Math.Max(0.0, System.Math.Min(1.0, (d - 20.0) / 80.0));
-                    return new[] { (float)t, 0f, (float)(1.0 - t) };
+                    return new Variant((ArrayOf<float>)new[] { (float)t, 0f, (float)(1.0 - t) });
                 case OpenUsdRenderTargetKind.EmissiveColor:
                     // Pressure: dark -> bright green-white glow.
                     double e = System.Math.Max(0.0, System.Math.Min(1.0, d / 6.0));
-                    return new[] { (float)(0.1 * e), (float)e, (float)(0.2 * e) };
+                    return new Variant((ArrayOf<float>)new[] { (float)(0.1 * e), (float)e, (float)(0.2 * e) });
                 case OpenUsdRenderTargetKind.Visibility:
-                    return d != 0.0 ? "inherited" : "invisible";
+                    return new Variant(d != 0.0 ? "inherited" : "invisible");
                 default:
-                    return d * b.Scale + b.Offset;
+                    return new Variant(d * b.Scale + b.Offset);
             }
         }
 
-        private static double ToDouble(object v)
+        private static double ToDouble(Variant v)
         {
+            if (v.TryGetValue(out double d))
+            {
+                return d;
+            }
+            // Coerce any other numeric source (int/float/short/…) to double. AsBoxedObject
+            // is the sanctioned way to obtain the boxed value for coercion.
             try
             {
-                return System.Convert.ToDouble(v, System.Globalization.CultureInfo.InvariantCulture);
+                object? boxed = v.AsBoxedObject();
+                return boxed == null
+                    ? 0.0
+                    : System.Convert.ToDouble(boxed, System.Globalization.CultureInfo.InvariantCulture);
             }
             catch (Exception)
             {
@@ -545,63 +622,133 @@ namespace Opc.Ua.OpenUsd.Client
         public async Task<int> ReplayHistoryAsync(DateTime startTime, DateTime endTime, CancellationToken ct)
         {
             int authored = 0;
+            // Author every sample under a single batch so a file-backed sink rewrites the
+            // layer once instead of once per sample (avoids O(N^2) replay cost).
+            using IDisposable batch = m_sink.BeginBatch();
             foreach (RepresentationInfo rep in await DiscoverAllRepresentationsAsync(ct).ConfigureAwait(false))
             {
-            foreach (BindingInfo b in rep.Bindings)
-            {
-                if (b.Intent != OpenUsdIntentProfile.UaHistoryToUsd || b.SourceNodeId == null)
+                foreach (BindingInfo b in rep.Bindings)
                 {
-                    continue;
-                }
-                var details = new ReadRawModifiedDetails
-                {
-                    IsReadModified = false,
-                    StartTime = startTime,
-                    EndTime = endTime,
-                    NumValuesPerNode = 0,
-                    ReturnBounds = false
-                };
-                var toRead = new HistoryReadValueId[]
-                {
-                    new HistoryReadValueId { NodeId = b.SourceNodeId.Value }
-                };
-                HistoryReadResponse resp;
-                try
-                {
-                    resp = await m_session.HistoryReadAsync(
-                        null!, new ExtensionObject(details), TimestampsToReturn.Source,
-                        false, toRead, ct).ConfigureAwait(false);
-                }
-                catch (ServiceResultException)
-                {
-                    continue; // Source does not support history — graceful degrade.
-                }
-                HistoryReadResult r = resp.Results[0];
-                if (StatusCode.IsNotGood(r.StatusCode))
-                {
-                    continue;
-                }
-                if (ExtensionObject.ToEncodeable(r.HistoryData) is HistoryData hd)
-                {
-                    foreach (DataValue dv in hd.DataValues)
+                    if (b.Intent != OpenUsdIntentProfile.UaHistoryToUsd
+                        || b.SourceNodeId == null
+                        || !b.TimeSampled)
                     {
-                        object? raw = dv.WrappedValue.AsBoxedObject();
-                        if (raw == null || StatusCode.IsNotGood(dv.StatusCode))
+                        continue;
+                    }
+                    authored += await ReplayBindingHistoryAsync(b, startTime, endTime, ct)
+                        .ConfigureAwait(false);
+                }
+            }
+            return authored;
+        }
+
+        private async Task<int> ReplayBindingHistoryAsync(
+            BindingInfo b, DateTime startTime, DateTime endTime, CancellationToken ct)
+        {
+            int authored = 0;
+            ByteString continuationPoint = default;
+            try
+            {
+                while (true)
+                {
+                    var details = new ReadRawModifiedDetails
+                    {
+                        IsReadModified = false,
+                        StartTime = startTime,
+                        EndTime = endTime,
+                        NumValuesPerNode = 0,
+                        ReturnBounds = false
+                    };
+                    var toRead = new HistoryReadValueId[]
+                    {
+                        new HistoryReadValueId
                         {
-                            continue;
+                            NodeId = b.SourceNodeId!.Value,
+                            ContinuationPoint = continuationPoint
                         }
-                        object? usd = Convert(b, raw);
-                        if (usd != null && b.TimeSampled)
+                    };
+                    HistoryReadResponse resp;
+                    try
+                    {
+                        resp = await m_session.HistoryReadAsync(
+                            null!, new ExtensionObject(details), TimestampsToReturn.Source,
+                            false, toRead, ct).ConfigureAwait(false);
+                    }
+                    catch (ServiceResultException)
+                    {
+                        // Source does not support history — documented graceful degrade.
+                        return authored;
+                    }
+                    if (resp.Results.Count == 0)
+                    {
+                        break;
+                    }
+                    HistoryReadResult r = resp.Results[0];
+                    if (StatusCode.IsNotGood(r.StatusCode))
+                    {
+                        break;
+                    }
+                    if (ExtensionObject.ToEncodeable(r.HistoryData) is HistoryData hd)
+                    {
+                        foreach (DataValue dv in hd.DataValues)
                         {
-                            m_sink.SetTimeSample(b.PrimPath!, b.PropertyName!,
-                                dv.SourceTimestamp.ToDateTime(), usd);
-                            authored++;
+                            if (StatusCode.IsNotGood(dv.StatusCode))
+                            {
+                                continue;
+                            }
+                            Variant usd = Convert(b, dv.WrappedValue);
+                            if (!usd.IsNull)
+                            {
+                                m_sink.SetTimeSample(b.PrimPath!, b.PropertyName!,
+                                    dv.SourceTimestamp.ToDateTime(), usd);
+                                authored++;
+                            }
                         }
+                    }
+                    continuationPoint = r.ContinuationPoint;
+                    if (continuationPoint.IsNull || continuationPoint.Length == 0)
+                    {
+                        continuationPoint = default;
+                        break;
                     }
                 }
             }
+            finally
+            {
+                if (!continuationPoint.IsNull && continuationPoint.Length > 0)
+                {
+                    // Release the outstanding continuation point on early exit so the
+                    // server does not retain it until timeout.
+                    await ReleaseHistoryContinuationAsync(b.SourceNodeId!.Value, continuationPoint, ct)
+                        .ConfigureAwait(false);
+                }
             }
             return authored;
+        }
+
+        private async Task ReleaseHistoryContinuationAsync(
+            NodeId nodeId, ByteString continuationPoint, CancellationToken ct)
+        {
+            var details = new ReadRawModifiedDetails
+            {
+                IsReadModified = false,
+                NumValuesPerNode = 0,
+                ReturnBounds = false
+            };
+            var toRead = new HistoryReadValueId[]
+            {
+                new HistoryReadValueId { NodeId = nodeId, ContinuationPoint = continuationPoint }
+            };
+            try
+            {
+                await m_session.HistoryReadAsync(
+                    null!, new ExtensionObject(details), TimestampsToReturn.Source,
+                    true, toRead, ct).ConfigureAwait(false);
+            }
+            catch (ServiceResultException)
+            {
+                // Best-effort release; ignore failures.
+            }
         }
 
         private static byte[] ComputeDigest(OpenUsdDigestAlgorithm algorithm, string identifier)

@@ -59,6 +59,12 @@ namespace Opc.Ua.OpenUsd.Client
             public bool DigestVerified { get; set; }
         }
 
+        // Upper bound on a single served USD layer and on a whole fetch. A server that
+        // streams unbounded data must not be able to exhaust connector memory or fill the
+        // cache disk. These comfortably cover text/binary USD layer closures.
+        private const int MaxAssetBytes = 64 * 1024 * 1024;
+        private const long MaxTotalAssetBytes = 256L * 1024 * 1024;
+
         /// <summary>
         /// Fetches every served stage-asset closure into <paramref name="cacheDir"/>,
         /// verifying each layer's digest (fail-closed) and preserving relative
@@ -70,6 +76,7 @@ namespace Opc.Ua.OpenUsd.Client
         {
             var result = new List<FetchedAsset>();
             var seen = new HashSet<string>(StringComparer.Ordinal);
+            long totalBytes = 0;
             Directory.CreateDirectory(cacheDir);
 
             foreach (RepresentationInfo rep in await DiscoverAllRepresentationsAsync(ct).ConfigureAwait(false))
@@ -104,6 +111,13 @@ namespace Opc.Ua.OpenUsd.Client
                     // The asset node itself is the Part 5 file (OpenUsdAssetType : FileType):
                     // stream its bytes through its own Open/Read/Close children.
                     byte[] bytes = await ReadServedFileAsync(assetId.Value, ct).ConfigureAwait(false);
+
+                    totalBytes += bytes.Length;
+                    if (totalBytes > MaxTotalAssetBytes)
+                    {
+                        throw new InvalidOperationException(
+                            $"Served asset closure exceeds the maximum total size of {MaxTotalAssetBytes} bytes.");
+                    }
 
                     bool verified = true;
                     if (digest is { Length: > 0 })
@@ -145,27 +159,38 @@ namespace Opc.Ua.OpenUsd.Client
             // Open mode 1 = Read (OPC 10000-5 §11.3.3).
             ArrayOf<Variant> openOut = await m_session.CallAsync(
                 fileNodeId, openId, ct, new Variant((byte)1)).ConfigureAwait(false);
-            uint handle = System.Convert.ToUInt32(openOut[0].AsBoxedObject(), CultureInfo.InvariantCulture);
-
-            var buffer = new List<byte>();
-            try
-            {
-                const int chunkSize = 8192;
-                while (true)
+                if (openOut.Count == 0)
                 {
-                    ArrayOf<Variant> readOut = await m_session.CallAsync(
-                        fileNodeId, readId, ct, new Variant(handle), new Variant(chunkSize)).ConfigureAwait(false);
-                    byte[] chunk = ToBytes(readOut.Count > 0 ? readOut[0].AsBoxedObject() : null);
-                    if (chunk.Length > 0)
+                    throw new InvalidOperationException("Served asset Open returned no file handle.");
+                }
+                uint handle = System.Convert.ToUInt32(openOut[0].AsBoxedObject(), CultureInfo.InvariantCulture);
+
+                var buffer = new List<byte>();
+                try
+                {
+                    const int chunkSize = 8192;
+                    while (true)
                     {
-                        buffer.AddRange(chunk);
-                    }
-                    if (chunk.Length < chunkSize)
+                        ArrayOf<Variant> readOut = await m_session.CallAsync(
+                            fileNodeId, readId, ct, new Variant(handle), new Variant(chunkSize)).ConfigureAwait(false);
+                        byte[] chunk = ToBytes(readOut.Count > 0 ? readOut[0].AsBoxedObject() : null);
+                        if (chunk.Length > 0)
                     {
-                        break;
+                            if (buffer.Count + (long)chunk.Length > MaxAssetBytes)
+                            {
+                                // Fail-closed against a server that streams unbounded data
+                                // (never returning a short read) — bound memory and disk use.
+                                throw new InvalidOperationException(
+                                    $"Served asset exceeds the maximum size of {MaxAssetBytes} bytes.");
+                            }
+                            buffer.AddRange(chunk);
+                        }
+                        if (chunk.Length < chunkSize)
+                        {
+                            break;
+                        }
                     }
                 }
-            }
             finally
             {
                 await m_session.CallAsync(fileNodeId, closeId, ct, new Variant(handle)).ConfigureAwait(false);

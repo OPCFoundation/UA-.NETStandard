@@ -33,6 +33,7 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Threading;
+using Opc.Ua;
 
 namespace Opc.Ua.OpenUsd.Client
 {
@@ -50,20 +51,23 @@ namespace Opc.Ua.OpenUsd.Client
             new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         private readonly string m_path;
         private readonly Lock m_gate = new();
-        private readonly Dictionary<string, object> m_values = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, Variant> m_values = new(StringComparer.Ordinal);
         private readonly List<(string Prim, string Prop)> m_order = new();
-        private readonly Dictionary<string, SortedList<double, object>> m_timeSamples =
+        private readonly Dictionary<string, SortedList<double, Variant>> m_timeSamples =
             new(StringComparer.Ordinal);
         private readonly List<(string Prim, string Prop)> m_tsOrder = new();
         private readonly Dictionary<string, (OpenUsdCompositionArc Arc, string? Asset, bool Active)> m_prims =
             new(StringComparer.Ordinal);
         private readonly List<string> m_primOrder = new();
+        private int m_batchDepth;
+        private bool m_pendingWrite;
 
         public UsdFileSink(string path)
         {
             m_path = path;
         }
 
+        /// <inheritdoc/>
         public void ComposePrim(string primPath, OpenUsdCompositionArc arc,
             string? assetReference, bool active)
         {
@@ -78,11 +82,12 @@ namespace Opc.Ua.OpenUsd.Client
                     m_primOrder.Add(primPath);
                 }
                 m_prims[primPath] = (arc, assetReference, active);
-                Write();
+                WriteOrDefer();
             }
         }
 
-        public void SetAttribute(string primPath, string propertyName, object value)
+        /// <inheritdoc/>
+        public void SetAttribute(string primPath, string propertyName, Variant value)
         {
             // Validate names before authoring: prim-path segments and the
             // (namespaced) property name come from the server's binding model,
@@ -101,11 +106,12 @@ namespace Opc.Ua.OpenUsd.Client
                     m_order.Add((primPath, propertyName));
                 }
                 m_values[key] = value;
-                Write();
+                WriteOrDefer();
             }
         }
 
-        public void SetTimeSample(string primPath, string propertyName, DateTime time, object value)
+        /// <inheritdoc/>
+        public void SetTimeSample(string primPath, string propertyName, DateTime time, Variant value)
         {
             if (!IsValidPrimPath(primPath) || !IsValidPropertyName(propertyName))
             {
@@ -115,14 +121,67 @@ namespace Opc.Ua.OpenUsd.Client
             lock (m_gate)
             {
                 string key = primPath + "|" + propertyName;
-                if (!m_timeSamples.TryGetValue(key, out SortedList<double, object>? samples))
+                if (!m_timeSamples.TryGetValue(key, out SortedList<double, Variant>? samples))
                 {
-                    samples = new SortedList<double, object>();
+                    samples = new SortedList<double, Variant>();
                     m_timeSamples[key] = samples;
                     m_tsOrder.Add((primPath, propertyName));
                 }
                 samples[frame] = value;
+                WriteOrDefer();
+            }
+        }
+
+        /// <inheritdoc/>
+        public IDisposable BeginBatch()
+        {
+            lock (m_gate)
+            {
+                m_batchDepth++;
+            }
+            return new BatchScope(this);
+        }
+
+        // Writes immediately unless a batch is open, in which case the write is
+        // deferred until the outermost batch scope is disposed (a single file write
+        // for an entire history replay instead of one per sample).
+        private void WriteOrDefer()
+        {
+            if (m_batchDepth == 0)
+            {
                 Write();
+            }
+            else
+            {
+                m_pendingWrite = true;
+            }
+        }
+
+        private void EndBatch()
+        {
+            lock (m_gate)
+            {
+                if (m_batchDepth > 0 && --m_batchDepth == 0 && m_pendingWrite)
+                {
+                    m_pendingWrite = false;
+                    Write();
+                }
+            }
+        }
+
+        private sealed class BatchScope : IDisposable
+        {
+            private UsdFileSink? m_owner;
+
+            public BatchScope(UsdFileSink owner)
+            {
+                m_owner = owner;
+            }
+
+            public void Dispose()
+            {
+                UsdFileSink? owner = Interlocked.Exchange(ref m_owner, null);
+                owner?.EndBatch();
             }
         }
 
@@ -232,19 +291,19 @@ namespace Opc.Ua.OpenUsd.Client
             var rootOrder = new List<string>();
             foreach ((string prim, string prop) in m_order)
             {
-                object value = m_values[prim + "|" + prop];
+                Variant value = m_values[prim + "|" + prop];
                 Node node = NavigateTo(root, rootOrder, prim);
                 (string usdType, string formatted) = FormatValue(prop, value);
                 node.Props.Add((prop, usdType, formatted));
             }
             foreach ((string prim, string prop) in m_tsOrder)
             {
-                SortedList<double, object> samples = m_timeSamples[prim + "|" + prop];
+                SortedList<double, Variant> samples = m_timeSamples[prim + "|" + prop];
                 Node node = NavigateTo(root, rootOrder, prim);
                 string usdType = "double";
                 var block = new StringBuilder();
                 block.Append("{\n");
-                foreach (KeyValuePair<double, object> kv in samples)
+                foreach (KeyValuePair<double, Variant> kv in samples)
                 {
                     (string t, string formatted) = FormatValue(prop, kv.Value);
                     usdType = t;
@@ -369,21 +428,24 @@ namespace Opc.Ua.OpenUsd.Client
             return sb.ToString();
         }
 
-        private static (string UsdType, string Value) FormatValue(string prop, object value)
+        private static (string UsdType, string Value) FormatValue(string prop, Variant value)
         {
-            switch (value)
+            if (value.TryGetValue(out ArrayOf<float> colour) && colour.Count >= 3)
             {
-                case float[] c when prop.EndsWith("displayColor", StringComparison.OrdinalIgnoreCase):
-                    return ("color3f[]", "[(" + F(c[0]) + ", " + F(c[1]) + ", " + F(c[2]) + ")]");
-                case float[] c:
-                    return ("color3f", "(" + F(c[0]) + ", " + F(c[1]) + ", " + F(c[2]) + ")");
-                case string s:
-                    return ("token", "\"" + EscapeToken(s) + "\"");
-                case double d:
-                    return ("double", F(d));
-                default:
-                    return ("double", F(System.Convert.ToDouble(value, CultureInfo.InvariantCulture)));
+                string body = "(" + F(colour[0]) + ", " + F(colour[1]) + ", " + F(colour[2]) + ")";
+                return prop.EndsWith("displayColor", StringComparison.OrdinalIgnoreCase)
+                    ? ("color3f[]", "[" + body + "]")
+                    : ("color3f", body);
             }
+            if (value.TryGetValue(out string token))
+            {
+                return ("token", "\"" + EscapeToken(token) + "\"");
+            }
+            if (value.TryGetValue(out double d))
+            {
+                return ("double", F(d));
+            }
+            return ("double", F(0.0));
         }
     }
 }

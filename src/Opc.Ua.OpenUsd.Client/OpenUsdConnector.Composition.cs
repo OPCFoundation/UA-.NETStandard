@@ -48,6 +48,8 @@ namespace Opc.Ua.OpenUsd.Client
         private List<RepresentationInfo> m_allReps = new();
         private readonly HashSet<string> m_composedInstancePrims = new(StringComparer.Ordinal);
         private readonly Lock m_composeGate = new();
+        private readonly SemaphoreSlim m_recomposeGate = new(1, 1);
+        private int m_recomposePending;
 
         private async Task ComposeComponentAsync(RepresentationInfo rep, ComponentInfo c, CancellationToken ct)
         {
@@ -86,10 +88,6 @@ namespace Opc.Ua.OpenUsd.Client
 
             var live = new HashSet<string>(StringComparer.Ordinal);
             int index = 0;
-            if (c.Cardinality == OpenUsdCardinality.Many)
-            {
-                Console.Error.WriteLine($"[composition] Many '{c.TargetPrimPath}' resolved {comps.Count} component(s)");
-            }
             foreach ((NodeId _, NodeId _, string name) in comps)
             {
                 if (c.Cardinality == OpenUsdCardinality.One && index >= 1)
@@ -144,7 +142,8 @@ namespace Opc.Ua.OpenUsd.Client
             {
                 ISession remote = await m_remoteSessionFactory(c.ComponentEndpointUrl!, ct)
                     .ConfigureAwait(false);
-                var remoteConn = new OpenUsdConnector(remote, m_sink, m_enableCommands, m_remoteSessionFactory);
+                var remoteConn = new OpenUsdConnector(remote, m_sink, m_enableCommands,
+                    m_remoteSessionFactory, ownsSession: true);
                 m_remoteConnectors.Add(remoteConn);
                 await remoteConn.StartAsync(ct).ConfigureAwait(false);
             }
@@ -268,15 +267,55 @@ namespace Opc.Ua.OpenUsd.Client
             item.Notification += OnModelChangeEvent;
             subscription.AddItem(item);
             await subscription.ApplyChangesAsync(ct).ConfigureAwait(false);
-            Console.Error.WriteLine($"[composition] subscribed to model-change events on {eventSource}");
         }
 
         private void OnModelChangeEvent(MonitoredItem item, MonitoredItemNotificationEventArgs e)
         {
             // Fail-safe (§5.13): any model-change event triggers a full re-resolve rather
-            // than a partial delta. Fire-and-forget; reconciliation is idempotent.
-            Console.Error.WriteLine("[composition] model-change event received -> recompose");
-            _ = RecomposeAsync(CancellationToken.None);
+            // than a partial delta. Serialized + coalesced (see RunRecomposeAsync) so
+            // overlapping events cannot race the reconciliation; the resolve is idempotent.
+            _ = RunRecomposeAsync();
+        }
+
+        // Serializes model-change reconciliation and coalesces overlapping requests into a
+        // single trailing run, so two events can never run RecomposeAsync concurrently and
+        // no event is lost.
+        private async Task RunRecomposeAsync()
+        {
+            Interlocked.Exchange(ref m_recomposePending, 1);
+            while (true)
+            {
+                if (!await m_recomposeGate.WaitAsync(0).ConfigureAwait(false))
+                {
+                    // Another pass holds the gate; it will observe our pending request.
+                    return;
+                }
+                try
+                {
+                    while (Interlocked.Exchange(ref m_recomposePending, 0) == 1)
+                    {
+                        try
+                        {
+                            await RecomposeAsync(CancellationToken.None).ConfigureAwait(false);
+                        }
+                        catch (Exception)
+                        {
+                            // A transient recompose failure must not crash the connector;
+                            // the next model-change event re-runs the fail-safe resolve.
+                        }
+                    }
+                }
+                finally
+                {
+                    m_recomposeGate.Release();
+                }
+                // If a request landed between clearing the flag and releasing the gate,
+                // loop to acquire again and service it.
+                if (Volatile.Read(ref m_recomposePending) == 0)
+                {
+                    return;
+                }
+            }
         }
 
         private async Task RecomposeAsync(CancellationToken ct)
