@@ -32,7 +32,6 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Globalization;
 using System.IO;
-using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -44,13 +43,31 @@ using Opc.Ua.WotCon.V2;
 namespace Opc.Ua.WotCon.Server.Registry
 {
     /// <summary>
-    /// A durable, file-backed registry store. Each group and resource is stored
-    /// under a content-addressed directory; metadata is written with a bounded
-    /// atomic replace (write-to-temp then <see cref="File.Replace(string, string, string?)"/>)
-    /// so a crash never leaves a half-written record. Invalid documents are
-    /// persisted with their failure state so a restart restores exactly the last
-    /// observed registry contents.
+    /// A durable, file-backed registry store that persists each committed
+    /// generation transactionally. Version document bytes are written once into a
+    /// content-addressed <c>blobs</c> directory (deduplicated by SHA-256 digest);
+    /// all registry metadata (groups, resources, versions, load/validation state,
+    /// labels) is captured in a single <c>manifest.json</c>.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A <see cref="CommitAsync"/> first stages every referenced blob durably
+    /// (write-through to disk, then atomic move into place) and only then switches
+    /// the committed generation by atomically replacing <c>manifest.json</c>
+    /// (write-to-temp, write-through, then <see cref="File.Replace(string, string, string?)"/>).
+    /// Because the manifest is the single pointer to a generation and it is the
+    /// last thing written, a crash (or an injected failure) never exposes a
+    /// half-written generation: the reader either sees the previous manifest in
+    /// full or the new one in full. <see cref="LoadAsync"/> reads only the
+    /// committed manifest and its referenced blobs; staged temp files are ignored.
+    /// </para>
+    /// <para>
+    /// Invalid documents are committed with their failure state so a restart
+    /// restores exactly the last committed registry contents. Blobs that the newly
+    /// committed manifest no longer references are pruned on a best-effort basis
+    /// after the manifest switch.
+    /// </para>
+    /// </remarks>
     public sealed class FileWotRegistryStore : IWotRegistryStore
     {
         /// <summary>
@@ -59,210 +76,142 @@ namespace Opc.Ua.WotCon.Server.Registry
         public FileWotRegistryStore(string rootFolder)
         {
             m_root = rootFolder ?? throw new ArgumentNullException(nameof(rootFolder));
-            m_groupsFolder = Path.Combine(m_root, "groups");
+            m_blobsFolder = Path.Combine(m_root, "blobs");
         }
 
         /// <inheritdoc/>
         public async ValueTask<WotRegistrySnapshot> LoadAsync(
             CancellationToken cancellationToken = default)
         {
-            RegistryDto? registryDto = null;
-            string registryMetaPath = Path.Combine(m_root, RegistryMetaFile);
-            if (File.Exists(registryMetaPath))
+            string manifestPath = Path.Combine(m_root, ManifestFile);
+            if (!File.Exists(manifestPath))
             {
-                registryDto = await ReadJsonAsync(
-                        registryMetaPath, WotRegistryStoreJson.Default.RegistryDto, cancellationToken)
-                    .ConfigureAwait(false);
+                return WotRegistrySnapshot.Empty;
             }
-            ImmutableSortedDictionary<string, string> registryLabels = ToLabels(registryDto?.Labels);
-            long generation = registryDto?.Epoch ?? 0;
 
-            if (!Directory.Exists(m_groupsFolder))
+            ManifestDto? manifest = await ReadJsonAsync(
+                    manifestPath, WotRegistryStoreJson.Default.ManifestDto, cancellationToken)
+                .ConfigureAwait(false);
+            if (manifest is null)
             {
-                return new WotRegistrySnapshot(
-                    generation, ImmutableDictionary<string, WotResourceGroup>.Empty, registryLabels);
+                return WotRegistrySnapshot.Empty;
             }
+
+            ImmutableSortedDictionary<string, string> registryLabels = ToLabels(manifest.RegistryLabels);
+            long generation = manifest.Generation;
 
             var groups = ImmutableDictionary.CreateBuilder<string, WotResourceGroup>();
-
-            foreach (string groupDir in Directory.EnumerateDirectories(m_groupsFolder))
+            if (manifest.Groups is not null)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                string groupMetaPath = Path.Combine(groupDir, GroupMetaFile);
-                if (!File.Exists(groupMetaPath))
+                foreach (GroupDto groupDto in manifest.Groups)
                 {
-                    continue;
-                }
-                GroupDto? groupDto = await ReadJsonAsync(
-                        groupMetaPath, WotRegistryStoreJson.Default.GroupDto, cancellationToken)
-                    .ConfigureAwait(false);
-                if (groupDto is null)
-                {
-                    continue;
-                }
-
-                var resources = ImmutableDictionary.CreateBuilder<string, WotResource>();
-                string resourcesDir = Path.Combine(groupDir, "resources");
-                if (Directory.Exists(resourcesDir))
-                {
-                    foreach (string resourceDir in Directory.EnumerateDirectories(resourcesDir))
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var resources = ImmutableDictionary.CreateBuilder<string, WotResource>();
+                    if (groupDto.Resources is not null)
                     {
-                        cancellationToken.ThrowIfCancellationRequested();
-                        WotResource? resource = await LoadResourceAsync(
-                            resourceDir, cancellationToken).ConfigureAwait(false);
-                        if (resource is not null)
+                        foreach (ResourceDto resourceDto in groupDto.Resources)
                         {
-                            resources[resource.ResourceId] = resource;
-                            generation = Math.Max(generation, resource.Epoch);
+                            cancellationToken.ThrowIfCancellationRequested();
+                            WotResource? resource = await LoadResourceAsync(
+                                resourceDto, cancellationToken).ConfigureAwait(false);
+                            if (resource is not null)
+                            {
+                                resources[resource.ResourceId] = resource;
+                                generation = Math.Max(generation, resource.Epoch);
+                            }
                         }
                     }
-                }
 
-                var group = new WotResourceGroup(
-                    groupDto.GroupId,
-                    (WoTDocumentKindEnum)groupDto.Kind,
-                    resources.ToImmutable(),
-                    groupDto.Name,
-                    groupDto.Description,
-                    groupDto.Epoch,
-                    ToLabels(groupDto.Labels));
-                groups[group.GroupId] = group;
-                generation = Math.Max(generation, groupDto.Epoch);
+                    var group = new WotResourceGroup(
+                        groupDto.GroupId,
+                        (WoTDocumentKindEnum)groupDto.Kind,
+                        resources.ToImmutable(),
+                        groupDto.Name,
+                        groupDto.Description,
+                        groupDto.Epoch,
+                        ToLabels(groupDto.Labels));
+                    groups[group.GroupId] = group;
+                    generation = Math.Max(generation, groupDto.Epoch);
+                }
             }
 
             return new WotRegistrySnapshot(generation, groups.ToImmutable(), registryLabels);
         }
 
         /// <inheritdoc/>
-        public async ValueTask UpsertGroupAsync(
-            WotResourceGroup group,
+        public async ValueTask CommitAsync(
+            WotRegistrySnapshot snapshot,
             CancellationToken cancellationToken = default)
         {
-            string groupDir = GroupDirectory(group.GroupId);
-            Directory.CreateDirectory(groupDir);
-            var dto = new GroupDto
-            {
-                GroupId = group.GroupId,
-                Kind = (int)group.Kind,
-                Name = group.Name,
-                Description = group.Description,
-                Epoch = group.Epoch,
-                Labels = FromLabels(group.Labels)
-            };
-            await WriteJsonAsync(
-                    Path.Combine(groupDir, GroupMetaFile),
-                    dto,
-                    WotRegistryStoreJson.Default.GroupDto,
-                    cancellationToken)
-                .ConfigureAwait(false);
-        }
+            snapshot ??= WotRegistrySnapshot.Empty;
 
-        /// <inheritdoc/>
-        public async ValueTask UpsertRegistryLabelsAsync(
-            ImmutableSortedDictionary<string, string> labels,
-            long epoch,
-            CancellationToken cancellationToken = default)
-        {
-            var dto = new RegistryDto
-            {
-                Epoch = epoch,
-                Labels = FromLabels(labels)
-            };
-            await WriteJsonAsync(
-                    Path.Combine(m_root, RegistryMetaFile),
-                    dto,
-                    WotRegistryStoreJson.Default.RegistryDto,
-                    cancellationToken)
-                .ConfigureAwait(false);
-        }
+            Directory.CreateDirectory(m_root);
+            Directory.CreateDirectory(m_blobsFolder);
 
-        /// <inheritdoc/>
-        public async ValueTask UpsertResourceAsync(
-            WotResource resource,
-            CancellationToken cancellationToken = default)
-        {
-            string resourceDir = ResourceDirectory(resource.GroupId, resource.ResourceId);
-            string versionsDir = Path.Combine(resourceDir, "versions");
-            Directory.CreateDirectory(versionsDir);
-
-            var keep = new HashSet<string>(StringComparer.Ordinal);
-            foreach (WotResourceVersion version in resource.Versions)
+            // 1. Stage every referenced version blob durably before the manifest
+            // that points at it is switched in. Blobs are content-addressed, so an
+            // unchanged document is written at most once and shared across
+            // versions/resources.
+            var referenced = new HashSet<string>(StringComparer.Ordinal);
+            foreach (WotResourceGroup group in snapshot.Groups.Values)
             {
-                string binPath = Path.Combine(versionsDir, Hash(version.VersionId) + ".bin");
-                keep.Add(Path.GetFileName(binPath));
-                if (!File.Exists(binPath))
+                foreach (WotResource resource in group.Resources.Values)
                 {
-                    await AtomicWriteAsync(
-                        binPath, version.Content.ToArray(), cancellationToken).ConfigureAwait(false);
-                }
-            }
-            // Remove version blobs no longer retained (retention trimming).
-            foreach (string existing in Directory.EnumerateFiles(versionsDir, "*.bin"))
-            {
-                if (!keep.Contains(Path.GetFileName(existing)))
-                {
-                    TryDelete(existing);
+                    foreach (WotResourceVersion version in resource.Versions)
+                    {
+                        string digestHex = WotContentDigest.ToHex(version.Digest);
+                        if (digestHex.Length == 0)
+                        {
+                            continue;
+                        }
+                        if (referenced.Add(digestHex))
+                        {
+                            string blobPath = BlobPath(digestHex);
+                            if (!File.Exists(blobPath))
+                            {
+                                await DurableWriteAsync(
+                                    blobPath, version.Content.ToArray(), cancellationToken)
+                                    .ConfigureAwait(false);
+                            }
+                        }
+                    }
                 }
             }
 
-            var dto = ToDto(resource);
-            await WriteJsonAsync(
-                    Path.Combine(resourceDir, ResourceMetaFile),
-                    dto,
-                    WotRegistryStoreJson.Default.ResourceDto,
-                    cancellationToken)
+            // 2. Build and durably write the manifest, then switch it in with a
+            // single atomic replace. This is the commit point: until it completes,
+            // the previously committed generation stays fully intact.
+            ManifestDto manifest = ToManifest(snapshot);
+            byte[] manifestBytes = JsonSerializer.SerializeToUtf8Bytes(
+                manifest, WotRegistryStoreJson.Default.ManifestDto);
+            await AtomicReplaceAsync(
+                Path.Combine(m_root, ManifestFile), manifestBytes, cancellationToken)
                 .ConfigureAwait(false);
-        }
 
-        /// <inheritdoc/>
-        public ValueTask RemoveResourceAsync(
-            string groupId,
-            string resourceId,
-            CancellationToken cancellationToken = default)
-        {
-            string resourceDir = ResourceDirectory(groupId, resourceId);
-            TryDeleteDirectory(resourceDir);
-            return default;
-        }
-
-        /// <inheritdoc/>
-        public ValueTask RemoveGroupAsync(
-            string groupId,
-            CancellationToken cancellationToken = default)
-        {
-            TryDeleteDirectory(GroupDirectory(groupId));
-            return default;
+            // 3. Best-effort prune of blobs the new committed generation no longer
+            // references. A failure here never affects correctness of the commit.
+            PruneOrphanBlobs(referenced);
         }
 
         private async ValueTask<WotResource?> LoadResourceAsync(
-            string resourceDir,
+            ResourceDto dto,
             CancellationToken cancellationToken)
         {
-            string metaPath = Path.Combine(resourceDir, ResourceMetaFile);
-            if (!File.Exists(metaPath))
-            {
-                return null;
-            }
-            ResourceDto? dto = await ReadJsonAsync(
-                    metaPath, WotRegistryStoreJson.Default.ResourceDto, cancellationToken)
-                .ConfigureAwait(false);
-            if (dto is null)
-            {
-                return null;
-            }
-
-            string versionsDir = Path.Combine(resourceDir, "versions");
             var versions = ImmutableArray.CreateBuilder<WotResourceVersion>();
             if (dto.Versions is not null)
             {
                 foreach (VersionDto v in dto.Versions)
                 {
-                    string binPath = Path.Combine(versionsDir, Hash(v.VersionId) + ".bin");
-                    if (!File.Exists(binPath))
+                    if (string.IsNullOrEmpty(v.DigestHex))
                     {
                         continue;
                     }
-                    byte[] content = await ReadAllBytesAsync(binPath, cancellationToken)
+                    string blobPath = BlobPath(v.DigestHex!);
+                    if (!File.Exists(blobPath))
+                    {
+                        continue;
+                    }
+                    byte[] content = await ReadAllBytesAsync(blobPath, cancellationToken)
                         .ConfigureAwait(false);
                     versions.Add(new WotResourceVersion(
                         v.VersionId,
@@ -298,6 +247,36 @@ namespace Opc.Ua.WotCon.Server.Registry
                 thingId: dto.ThingId,
                 title: dto.Title,
                 labels: ToLabels(dto.Labels));
+        }
+
+        private static ManifestDto ToManifest(WotRegistrySnapshot snapshot)
+        {
+            var groups = new List<GroupDto>(snapshot.Groups.Count);
+            foreach (WotResourceGroup group in snapshot.Groups.Values)
+            {
+                var resources = new List<ResourceDto>(group.Resources.Count);
+                foreach (WotResource resource in group.Resources.Values)
+                {
+                    resources.Add(ToDto(resource));
+                }
+                groups.Add(new GroupDto
+                {
+                    GroupId = group.GroupId,
+                    Kind = (int)group.Kind,
+                    Name = group.Name,
+                    Description = group.Description,
+                    Epoch = group.Epoch,
+                    Labels = FromLabels(group.Labels),
+                    Resources = resources.Count == 0 ? null : resources.ToArray()
+                });
+            }
+            return new ManifestDto
+            {
+                SchemaVersion = CurrentSchemaVersion,
+                Generation = snapshot.Generation,
+                RegistryLabels = FromLabels(snapshot.Labels),
+                Groups = groups.Count == 0 ? null : groups.ToArray()
+            };
         }
 
         private static ResourceDto ToDto(WotResource resource)
@@ -339,7 +318,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                     ? null
                     : System.Linq.Enumerable.ToArray(resource.Diagnostics),
                 Validation = ToDto(resource.Validation),
-                Versions = versions,
+                Versions = versions.Length == 0 ? null : versions,
                 Labels = FromLabels(resource.Labels)
             };
         }
@@ -409,11 +388,33 @@ namespace Opc.Ua.WotCon.Server.Registry
             };
         }
 
-        private string GroupDirectory(string groupId)
-            => Path.Combine(m_groupsFolder, Hash(groupId));
+        private string BlobPath(string digestHex)
+            => Path.Combine(m_blobsFolder, digestHex + ".bin");
 
-        private string ResourceDirectory(string groupId, string resourceId)
-            => Path.Combine(GroupDirectory(groupId), "resources", Hash(resourceId));
+        private void PruneOrphanBlobs(HashSet<string> referenced)
+        {
+            try
+            {
+                if (!Directory.Exists(m_blobsFolder))
+                {
+                    return;
+                }
+                foreach (string existing in Directory.EnumerateFiles(m_blobsFolder, "*.bin"))
+                {
+                    string name = Path.GetFileNameWithoutExtension(existing);
+                    if (!referenced.Contains(name))
+                    {
+                        TryDelete(existing);
+                    }
+                }
+            }
+            catch (IOException)
+            {
+            }
+            catch (UnauthorizedAccessException)
+            {
+            }
+        }
 
         private static async ValueTask<T?> ReadJsonAsync<T>(
             string path,
@@ -433,17 +434,13 @@ namespace Opc.Ua.WotCon.Server.Registry
             }
         }
 
-        private static async ValueTask WriteJsonAsync<T>(
-            string path,
-            T value,
-            JsonTypeInfo<T> typeInfo,
-            CancellationToken cancellationToken)
-        {
-            byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(value, typeInfo);
-            await AtomicWriteAsync(path, bytes, cancellationToken).ConfigureAwait(false);
-        }
-
-        private static async ValueTask AtomicWriteAsync(
+        /// <summary>
+        /// Writes <paramref name="bytes"/> to a fresh content-addressed blob:
+        /// write-through to a temp file, then move it into place. The temp file is
+        /// flushed to disk so the blob is durable before the manifest that
+        /// references it is committed.
+        /// </summary>
+        private static async ValueTask DurableWriteAsync(
             string path,
             byte[] bytes,
             CancellationToken cancellationToken)
@@ -453,12 +450,42 @@ namespace Opc.Ua.WotCon.Server.Registry
             string tmp = path + ".tmp-" + Guid.NewGuid().ToString("N");
             try
             {
-#if NETSTANDARD2_1_OR_GREATER || NET
-                await File.WriteAllBytesAsync(tmp, bytes, cancellationToken).ConfigureAwait(false);
-#else
-                File.WriteAllBytes(tmp, bytes);
-                await Task.CompletedTask.ConfigureAwait(false);
-#endif
+                await WriteThroughAsync(tmp, bytes, cancellationToken).ConfigureAwait(false);
+                if (File.Exists(path))
+                {
+                    // A blob with this digest already exists; the content is
+                    // identical, so keep the existing durable copy.
+                    TryDelete(tmp);
+                    return;
+                }
+                File.Move(tmp, path);
+                tmp = null!;
+            }
+            finally
+            {
+                if (tmp is not null)
+                {
+                    TryDelete(tmp);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Atomically replaces <paramref name="path"/> with <paramref name="bytes"/>:
+        /// write-through to a temp file, then <see cref="File.Replace(string, string, string?)"/>
+        /// (or an initial move). This is the commit point for the manifest pointer.
+        /// </summary>
+        private static async ValueTask AtomicReplaceAsync(
+            string path,
+            byte[] bytes,
+            CancellationToken cancellationToken)
+        {
+            string directory = Path.GetDirectoryName(path)!;
+            Directory.CreateDirectory(directory);
+            string tmp = path + ".tmp-" + Guid.NewGuid().ToString("N");
+            try
+            {
+                await WriteThroughAsync(tmp, bytes, cancellationToken).ConfigureAwait(false);
                 if (File.Exists(path))
                 {
                     // Atomic replace-in-place on the same volume.
@@ -473,6 +500,29 @@ namespace Opc.Ua.WotCon.Server.Registry
             {
                 TryDelete(tmp);
             }
+        }
+
+        private static async ValueTask WriteThroughAsync(
+            string path,
+            byte[] bytes,
+            CancellationToken cancellationToken)
+        {
+            // FileOptions.WriteThrough bypasses the OS write cache so the bytes
+            // reach stable storage before the handle closes; this preserves the
+            // "blobs durable before manifest switch" ordering the commit relies on.
+            using var stream = new FileStream(
+                path,
+                FileMode.CreateNew,
+                FileAccess.Write,
+                FileShare.None,
+                bufferSize: 4096,
+                FileOptions.WriteThrough | FileOptions.Asynchronous);
+#if NETSTANDARD2_1_OR_GREATER || NET
+            await stream.WriteAsync(bytes.AsMemory(), cancellationToken).ConfigureAwait(false);
+#else
+            await stream.WriteAsync(bytes, 0, bytes.Length, cancellationToken).ConfigureAwait(false);
+#endif
+            await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
         }
 
         private static async ValueTask<byte[]> ReadAllBytesAsync(
@@ -502,35 +552,6 @@ namespace Opc.Ua.WotCon.Server.Registry
             catch (UnauthorizedAccessException)
             {
             }
-        }
-
-        private static void TryDeleteDirectory(string path)
-        {
-            try
-            {
-                if (Directory.Exists(path))
-                {
-                    Directory.Delete(path, recursive: true);
-                }
-            }
-            catch (IOException)
-            {
-            }
-            catch (UnauthorizedAccessException)
-            {
-            }
-        }
-
-        private static string Hash(string value)
-        {
-            using var sha = SHA256.Create();
-            byte[] hash = sha.ComputeHash(Encoding.UTF8.GetBytes(value));
-            var builder = new StringBuilder(40);
-            for (int i = 0; i < 20 && i < hash.Length; i++)
-            {
-                builder.Append(hash[i].ToString("x2", CultureInfo.InvariantCulture));
-            }
-            return builder.ToString();
         }
 
         private static string FormatDate(DateTime value)
@@ -567,12 +588,19 @@ namespace Opc.Ua.WotCon.Server.Registry
             }
         }
 
-        private const string GroupMetaFile = "group.json";
-        private const string ResourceMetaFile = "resource.json";
-        private const string RegistryMetaFile = "registry.json";
+        private const string ManifestFile = "manifest.json";
+        private const int CurrentSchemaVersion = 2;
 
         private readonly string m_root;
-        private readonly string m_groupsFolder;
+        private readonly string m_blobsFolder;
+
+        internal sealed class ManifestDto
+        {
+            public int SchemaVersion { get; set; }
+            public long Generation { get; set; }
+            public Dictionary<string, string>? RegistryLabels { get; set; }
+            public GroupDto[]? Groups { get; set; }
+        }
 
         internal sealed class GroupDto
         {
@@ -582,12 +610,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             public string Description { get; set; } = string.Empty;
             public long Epoch { get; set; }
             public Dictionary<string, string>? Labels { get; set; }
-        }
-
-        internal sealed class RegistryDto
-        {
-            public long Epoch { get; set; }
-            public Dictionary<string, string>? Labels { get; set; }
+            public ResourceDto[]? Resources { get; set; }
         }
 
         internal sealed class VersionDto
@@ -646,11 +669,11 @@ namespace Opc.Ua.WotCon.Server.Registry
     [JsonSourceGenerationOptions(
         WriteIndented = true,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonSerializable(typeof(FileWotRegistryStore.ManifestDto))]
     [JsonSerializable(typeof(FileWotRegistryStore.GroupDto))]
     [JsonSerializable(typeof(FileWotRegistryStore.ResourceDto))]
     [JsonSerializable(typeof(FileWotRegistryStore.VersionDto))]
     [JsonSerializable(typeof(FileWotRegistryStore.ValidationDto))]
-    [JsonSerializable(typeof(FileWotRegistryStore.RegistryDto))]
     internal sealed partial class WotRegistryStoreJson : JsonSerializerContext
     {
     }

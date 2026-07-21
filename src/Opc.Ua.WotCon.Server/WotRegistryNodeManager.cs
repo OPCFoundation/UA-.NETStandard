@@ -330,30 +330,52 @@ namespace Opc.Ua.WotCon.Server
                 {
                     var evt = new WoTRefreshCompletedEventState(m_registryNode);
                     InitializeEvent(evt, source, "RefreshCompleted");
+                    // Summary/RequestId/NewGeneration come from the coordinator's
+                    // refresh summary, which is produced from the registry snapshot.
+                    if (e.Summary is not null)
+                    {
+                        SetEventStruct(evt, V2.BrowseNames.Summary, e.Summary);
+                    }
+                    SetEventValue(evt, V2.BrowseNames.RequestId, new Variant(e.RequestId));
+                    SetEventValue(evt, V2.BrowseNames.Generation, new Variant(e.Generation));
                     return evt;
                 }
                 case WotMaterializationEventKind.ValidationFailure:
                 {
                     var evt = new WoTValidationFailureEventState(source);
                     InitializeEvent(evt, source, "ValidationFailure: " + e.Reason);
+                    PopulateResourceEventFields(evt, e);
+                    if (e.Validation is not null)
+                    {
+                        SetEventStruct(evt, V2.BrowseNames.ValidationOutcome, e.Validation);
+                    }
                     return evt;
                 }
                 case WotMaterializationEventKind.LoadFailure:
                 {
                     var evt = new WoTLoadFailureEventState(source);
                     InitializeEvent(evt, source, "LoadFailure: " + e.Reason);
+                    PopulateResourceEventFields(evt, e);
+                    SetEventEnum(evt, V2.BrowseNames.LoadState, e.LoadState);
+                    SetEventValue(
+                        evt, V2.BrowseNames.FailedNodeId, new Variant(e.FailedNodeId ?? NodeId.Null));
+                    SetEventValue(evt, V2.BrowseNames.Reason, new Variant(e.Reason));
                     return evt;
                 }
                 case WotMaterializationEventKind.BindingFailure:
                 {
                     var evt = new WoTBindingFailureEventState(source);
                     InitializeEvent(evt, source, "BindingFailure: " + e.Reason);
+                    PopulateResourceEventFields(evt, e);
+                    SetEventValue(evt, V2.BrowseNames.BindingUri, new Variant(e.BindingUri));
+                    SetEventValue(evt, V2.BrowseNames.Reason, new Variant(e.Reason));
                     return evt;
                 }
                 default:
                 {
                     var evt = new WoTResourceEventState(source);
                     InitializeEvent(evt, source, "Resource: " + e.ResourceId);
+                    PopulateResourceEventFields(evt, e);
                     return evt;
                 }
             }
@@ -370,6 +392,37 @@ namespace Opc.Ua.WotCon.Server
                 SystemContext, Ua.BrowseNames.SourceName,
                 source.DisplayName.Text ?? "WoTRegistry", false);
         }
+
+        /// <summary>
+        /// Populates the identity/lifecycle fields shared by every
+        /// <c>WoTResourceEventType</c> (and its concrete subtypes) from the
+        /// coordinator's event arguments.
+        /// </summary>
+        private void PopulateResourceEventFields(
+            BaseEventState evt, WotMaterializationEventArgs e)
+        {
+            SetEventValue(evt, V2.BrowseNames.Xid, new Variant(e.Xid));
+            SetEventValue(evt, V2.BrowseNames.ResourceId, new Variant(e.ResourceId));
+            SetEventValue(evt, V2.BrowseNames.VersionId, new Variant(e.VersionId));
+            SetEventEnum(evt, V2.BrowseNames.DocumentKind, e.DocumentKind);
+            SetEventValue(evt, V2.BrowseNames.Generation, new Variant(e.Generation));
+            SetEventEnum(evt, V2.BrowseNames.Phase, e.Phase);
+            SetEventEnum(evt, V2.BrowseNames.Outcome, e.Outcome);
+        }
+
+        private void SetEventValue(BaseEventState evt, string browseName, Variant value)
+            => evt.SetChildValue(SystemContext, WoTQualifiedName(browseName), value, false);
+
+        private void SetEventEnum<TEnum>(BaseEventState evt, string browseName, TEnum value)
+            where TEnum : struct, Enum
+            => evt.SetChildValue(SystemContext, WoTQualifiedName(browseName), value);
+
+        private void SetEventStruct<TStruct>(BaseEventState evt, string browseName, TStruct value)
+            where TStruct : IEncodeable
+            => evt.SetChildValue(SystemContext, WoTQualifiedName(browseName), value, false);
+
+        private QualifiedName WoTQualifiedName(string browseName)
+            => new(browseName, (ushort)Server.NamespaceUris.GetIndex(V2.Namespaces.WotConV2));
 
         private async Task SafeReconcileAsync()
         {

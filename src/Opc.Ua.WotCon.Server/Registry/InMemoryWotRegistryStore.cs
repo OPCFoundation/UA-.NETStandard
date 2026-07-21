@@ -33,9 +33,14 @@ using System.Threading.Tasks;
 namespace Opc.Ua.WotCon.Server.Registry
 {
     /// <summary>
-    /// A volatile registry store that keeps no durable state. Every restart
-    /// starts from an empty registry. Useful for tests and for servers whose
-    /// documents are re-populated programmatically at start-up.
+    /// A process-local registry store that keeps its committed generation in
+    /// memory only. It implements the same transactional commit semantics as the
+    /// durable <see cref="FileWotRegistryStore"/> — a commit atomically switches
+    /// the single committed snapshot reference, so a failed commit leaves the
+    /// previously committed generation intact — but it persists nothing to disk,
+    /// so a fresh store instance (a process restart) starts from an empty
+    /// registry. Useful for tests and for servers whose documents are
+    /// re-populated programmatically at start-up.
     /// </summary>
     public sealed class InMemoryWotRegistryStore : IWotRegistryStore
     {
@@ -43,49 +48,20 @@ namespace Opc.Ua.WotCon.Server.Registry
         public ValueTask<WotRegistrySnapshot> LoadAsync(
             CancellationToken cancellationToken = default)
         {
-            return new ValueTask<WotRegistrySnapshot>(WotRegistrySnapshot.Empty);
+            return new ValueTask<WotRegistrySnapshot>(Volatile.Read(ref m_committed));
         }
 
         /// <inheritdoc/>
-        public ValueTask UpsertGroupAsync(
-            WotResourceGroup group,
+        public ValueTask CommitAsync(
+            WotRegistrySnapshot snapshot,
             CancellationToken cancellationToken = default)
         {
+            // The immutable snapshot is committed by a single atomic reference
+            // switch, so a reader (LoadAsync) never observes a partial generation.
+            Volatile.Write(ref m_committed, snapshot ?? WotRegistrySnapshot.Empty);
             return default;
         }
 
-        /// <inheritdoc/>
-        public ValueTask UpsertResourceAsync(
-            WotResource resource,
-            CancellationToken cancellationToken = default)
-        {
-            return default;
-        }
-
-        /// <inheritdoc/>
-        public ValueTask UpsertRegistryLabelsAsync(
-            System.Collections.Immutable.ImmutableSortedDictionary<string, string> labels,
-            long epoch,
-            CancellationToken cancellationToken = default)
-        {
-            return default;
-        }
-
-        /// <inheritdoc/>
-        public ValueTask RemoveResourceAsync(
-            string groupId,
-            string resourceId,
-            CancellationToken cancellationToken = default)
-        {
-            return default;
-        }
-
-        /// <inheritdoc/>
-        public ValueTask RemoveGroupAsync(
-            string groupId,
-            CancellationToken cancellationToken = default)
-        {
-            return default;
-        }
+        private WotRegistrySnapshot m_committed = WotRegistrySnapshot.Empty;
     }
 }
