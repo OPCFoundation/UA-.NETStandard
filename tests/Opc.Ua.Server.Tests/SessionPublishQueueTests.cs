@@ -202,6 +202,55 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        [CancelAfter(10000)]
+        public async Task PublishTimerAssignsRequeuedSubscriptionToWaitingRequestAsync()
+        {
+            using var queue = new SessionPublishQueue(
+                m_serverMock.Object,
+                m_sessionMock.Object,
+                kMaxPublishRequests);
+            var subscription = new Mock<ISubscription>();
+            subscription.Setup(s => s.Id).Returns(1);
+            subscription
+                .Setup(s => s.PublishTimerExpired())
+                .Returns(PublishingState.NotificationsAvailable);
+            queue.Add(subscription.Object);
+
+            queue.Requeue(subscription.Object);
+            Assert.That(
+                await queue.PublishAsync(
+                    "channel1",
+                    DateTime.MaxValue,
+                    false,
+                    null,
+                    CancellationToken.None).ConfigureAwait(false),
+                Is.SameAs(subscription.Object));
+
+            Task<ISubscription> publishTask = queue.PublishAsync(
+                "channel1",
+                DateTime.MaxValue,
+                false,
+                null,
+                CancellationToken.None);
+            Assert.That(publishTask.IsCompleted, Is.False);
+
+            queue.Requeue(subscription.Object);
+            queue.PublishTimerExpired();
+
+            Task completed = await Task.WhenAny(
+                publishTask,
+                Task.Delay(TimeSpan.FromSeconds(2))).ConfigureAwait(false);
+
+            Assert.That(
+                completed,
+                Is.SameAs(publishTask),
+                "The timer did not assign the requeued Subscription to the waiting Publish request.");
+            Assert.That(
+                await publishTask.ConfigureAwait(false),
+                Is.SameAs(subscription.Object));
+        }
+
+        [Test]
         public void PublishAsync_WhenParked_NotifiesParkSinkOnce()
         {
             using var queue = new SessionPublishQueue(m_serverMock.Object, m_sessionMock.Object, kMaxPublishRequests);
