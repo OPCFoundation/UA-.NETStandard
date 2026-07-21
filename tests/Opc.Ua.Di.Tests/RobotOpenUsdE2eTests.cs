@@ -432,7 +432,8 @@ namespace Opc.Ua.Di.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(cell!.DigestAlgorithm, Is.EqualTo(OpenUsdDigestAlgorithm.Sha256));
-                Assert.That(cell.RootLayerDigest, Is.Not.Null.And.Length.EqualTo(32));
+                Assert.That(cell!.RootLayerDigest.IsNull, Is.False);
+                Assert.That(cell!.RootLayerDigest.Length, Is.EqualTo(32));
                 Assert.That(connector.VerifyStageDigest(cell!), Is.True,
                     "RootLayerDigest failed verification.");
             });

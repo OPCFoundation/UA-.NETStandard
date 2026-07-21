@@ -71,8 +71,8 @@ namespace Opc.Ua.OpenUsd.Server
         /// NodeId assignment + registration; returns the created assets so a caller can link a
         /// component binding's <c>ComponentAssetNode</c> to one after NodeIds are assigned.
         /// </summary>
-        public static List<OpenUsdAssetState> AttachStageAssets(
-            ISystemContext context, OpenUsdStageState stage, ushort openUsdNs, IReadOnlyList<ServedAsset> assets)
+        public static ArrayOf<OpenUsdAssetState> AttachStageAssets(
+            ISystemContext context, OpenUsdStageState stage, ushort openUsdNs, ArrayOf<ServedAsset> assets)
         {
             var created = new List<OpenUsdAssetState>();
             // Assets is an optional member, so it is not auto-created by the factory;

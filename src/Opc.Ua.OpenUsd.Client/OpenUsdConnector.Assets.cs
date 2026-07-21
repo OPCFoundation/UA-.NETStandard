@@ -99,7 +99,7 @@ namespace Opc.Ua.OpenUsd.Client
                         continue;
                     }
                     int kind = await ReadInt32Async(ap, "AssetKind", ct).ConfigureAwait(false);
-                    byte[]? digest = await ReadByteStringAsync(ap, "Digest", ct).ConfigureAwait(false);
+                    ByteString digest = await ReadByteStringAsync(ap, "Digest", ct).ConfigureAwait(false);
                     int alg = await ReadInt32Async(ap, "DigestAlgorithm", ct).ConfigureAwait(false);
 
                     // The asset node itself is the Part 5 file (OpenUsdAssetType : FileType):
@@ -114,7 +114,7 @@ namespace Opc.Ua.OpenUsd.Client
                     }
 
                     bool verified = true;
-                    if (digest is { Length: > 0 })
+                    if (digest is { IsNull: false, Length: > 0 })
                     {
                         verified = VerifyBytesDigest(bytes, digest, (OpenUsdDigestAlgorithm)alg);
                         if (!verified)
@@ -199,7 +199,7 @@ namespace Opc.Ua.OpenUsd.Client
             _ => Array.Empty<byte>()
         };
 
-        private static bool VerifyBytesDigest(byte[] bytes, byte[] digest, OpenUsdDigestAlgorithm alg)
+        private static bool VerifyBytesDigest(byte[] bytes, ByteString digest, OpenUsdDigestAlgorithm alg)
         {
             byte[] computed;
 #pragma warning disable CA1850 // Prefer static HashData (net48/netstandard2.0 compatibility)
@@ -213,14 +213,15 @@ namespace Opc.Ua.OpenUsd.Client
                 computed = h.ComputeHash(bytes);
             }
 #pragma warning restore CA1850
-            if (computed.Length != digest.Length)
+            ReadOnlySpan<byte> expected = digest.Span;
+            if (computed.Length != expected.Length)
             {
                 return false;
             }
             int diff = 0;
             for (int i = 0; i < computed.Length; i++)
             {
-                diff |= computed[i] ^ digest[i];
+                diff |= computed[i] ^ expected[i];
             }
             return diff == 0;
         }

@@ -323,7 +323,8 @@ namespace Opc.Ua.Di.Tests
             {
                 // Twin-BOM integrity: the stage advertises a content digest ...
                 Assert.That(rep!.DigestAlgorithm, Is.EqualTo(OpenUsdDigestAlgorithm.Sha256));
-                Assert.That(rep.RootLayerDigest, Is.Not.Null.And.Length.EqualTo(32));
+                Assert.That(rep!.RootLayerDigest.IsNull, Is.False);
+                Assert.That(rep!.RootLayerDigest.Length, Is.EqualTo(32));
                 // ... and it verifies against the resolved root-layer identity.
                 Assert.That(connector.VerifyStageDigest(rep!), Is.True,
                     "RootLayerDigest failed verification.");

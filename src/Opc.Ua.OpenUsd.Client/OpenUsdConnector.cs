@@ -161,7 +161,7 @@ namespace Opc.Ua.OpenUsd.Client
             public NodeId? StageNodeId { get; set; }
             public string? PrimPath { get; set; }
             public string? RootLayerIdentifier { get; set; }
-            public byte[]? RootLayerDigest { get; set; }
+            public ByteString RootLayerDigest { get; set; }
             public OpenUsdDigestAlgorithm DigestAlgorithm { get; set; } = OpenUsdDigestAlgorithm.None;
             public List<BindingInfo> Bindings { get; } = new();
             public List<ComponentInfo> Components { get; } = new();
@@ -348,7 +348,7 @@ namespace Opc.Ua.OpenUsd.Client
             // before authoring any opinions into it. A mismatch is fail-closed.
             foreach (RepresentationInfo rep in reps)
             {
-                if (rep.RootLayerDigest is { Length: > 0 }
+                if (rep.RootLayerDigest is { IsNull: false, Length: > 0 }
                     && rep.DigestAlgorithm != OpenUsdDigestAlgorithm.None
                     && !VerifyStageDigest(rep))
                 {
@@ -579,14 +579,14 @@ namespace Opc.Ua.OpenUsd.Client
         /// </summary>
         public bool VerifyStageDigest(RepresentationInfo rep)
         {
-            if (rep.RootLayerDigest == null || rep.RootLayerDigest.Length == 0
+            if (rep.RootLayerDigest.IsNull || rep.RootLayerDigest.Length == 0
                 || rep.DigestAlgorithm == OpenUsdDigestAlgorithm.None
                 || string.IsNullOrEmpty(rep.RootLayerIdentifier))
             {
                 return false;
             }
             byte[] computed = ComputeDigest(rep.DigestAlgorithm, rep.RootLayerIdentifier!);
-            return FixedTimeEquals(computed, rep.RootLayerDigest);
+            return FixedTimeEquals(computed, rep.RootLayerDigest.Span);
         }
 
         /// <summary>
@@ -796,7 +796,7 @@ namespace Opc.Ua.OpenUsd.Client
 #pragma warning restore CA1850
         }
 
-        private static bool FixedTimeEquals(byte[] a, byte[] b)
+        private static bool FixedTimeEquals(ReadOnlySpan<byte> a, ReadOnlySpan<byte> b)
         {
             if (a.Length != b.Length)
             {
@@ -962,21 +962,15 @@ namespace Opc.Ua.OpenUsd.Client
                 && System.Convert.ToBoolean(v, System.Globalization.CultureInfo.InvariantCulture);
         }
 
-        private async Task<byte[]?> ReadByteStringAsync(
+        private async Task<ByteString> ReadByteStringAsync(
             Dictionary<string, NodeId> props, string name, CancellationToken ct)
         {
             if (!props.TryGetValue(name, out NodeId id))
             {
-                return null;
+                return default;
             }
             DataValue dv = await ReadAsync(id, ct).ConfigureAwait(false);
-            object? v = dv.WrappedValue.AsBoxedObject();
-            return v switch
-            {
-                byte[] ba => ba,
-                ByteString bs => bs.ToArray(),
-                _ => null
-            };
+            return dv.WrappedValue.TryGetValue(out ByteString bs) ? bs : default;
         }
     }
 }
