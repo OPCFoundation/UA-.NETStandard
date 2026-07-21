@@ -73,6 +73,9 @@ namespace Opc.Ua.Di.Tests
             Assert.That(builder.Device.Parent, Is.Not.Null);
             Assert.That(builder.Device.Parent!.BrowseName.Name,
                 Is.EqualTo("DeviceSet"));
+            Assert.That(
+                builder,
+                Is.InstanceOf<ITopologyElementBuilder<DeviceState>>());
         }
 
         [Test]

@@ -559,6 +559,112 @@ namespace Opc.Ua.Di.Server
         }
 
         /// <summary>
+        /// Wraps an existing topology element with the common fluent
+        /// topology-element surface.
+        /// </summary>
+        /// <typeparam name="TElement">Concrete topology-element state type.</typeparam>
+        /// <param name="element">The topology element to wrap.</param>
+        /// <returns>A fluent topology-element builder.</returns>
+        /// <exception cref="System.ArgumentNullException">
+        /// <paramref name="element"/> is <see langword="null"/>.
+        /// </exception>
+        public ITopologyElementBuilder<TElement> TopologyElement<TElement>(
+            TElement element)
+            where TElement : TopologyElementState
+        {
+            if (element == null)
+            {
+                throw new System.ArgumentNullException(nameof(element));
+            }
+            return new TopologyElementBuilder<TElement>(
+                this,
+                element,
+                GetOrCreateBuilder());
+        }
+
+        /// <summary>
+        /// Resolves a predefined topology element by NodeId.
+        /// </summary>
+        /// <typeparam name="TElement">Concrete topology-element state type.</typeparam>
+        /// <param name="nodeId">NodeId of the registered topology element.</param>
+        /// <returns>A fluent topology-element builder.</returns>
+        /// <exception cref="System.ArgumentNullException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public ITopologyElementBuilder<TElement> TopologyElement<TElement>(
+            NodeId nodeId)
+            where TElement : TopologyElementState
+        {
+            if (nodeId.IsNull)
+            {
+                throw new System.ArgumentNullException(nameof(nodeId));
+            }
+            if (!PredefinedNodes.TryGetValue(nodeId, out NodeState? state))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadNodeIdUnknown,
+                    "No predefined node with NodeId '{0}'.",
+                    nodeId);
+            }
+            if (state is not TElement typed)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadTypeMismatch,
+                    "Node '{0}' is of type {1}, which is not assignable to {2}.",
+                    nodeId,
+                    state.GetType().Name,
+                    typeof(TElement).Name);
+            }
+
+            return new TopologyElementBuilder<TElement>(
+                this,
+                typed,
+                GetOrCreateBuilder());
+        }
+
+        /// <summary>
+        /// Resolves an existing topology element by browse name.
+        /// </summary>
+        /// <typeparam name="TElement">Concrete topology-element state type.</typeparam>
+        /// <param name="browseName">Browse name below the resolved parent.</param>
+        /// <param name="parent">
+        /// Optional parent; the default device parent is used when omitted.
+        /// </param>
+        /// <returns>A fluent topology-element builder.</returns>
+        /// <exception cref="System.ArgumentNullException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public ITopologyElementBuilder<TElement> TopologyElementByBrowseName<TElement>(
+            QualifiedName browseName,
+            NodeState? parent = null)
+            where TElement : TopologyElementState
+        {
+            if (browseName.IsNull)
+            {
+                throw new System.ArgumentNullException(nameof(browseName));
+            }
+            NodeState effectiveParent = parent ??
+                ResolveDefaultDeviceParent()
+                    ?? throw ServiceResultException.Create(
+                        StatusCodes.BadConfigurationError,
+                        "No default device parent could be resolved.");
+
+            NodeState? child = effectiveParent.FindChild(SystemContext, browseName);
+            if (child is not TElement typed)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadNodeIdUnknown,
+                    "No child '{0}' of type {1} on '{2}'.",
+                    browseName,
+                    typeof(TElement).Name,
+                    effectiveParent.BrowseName);
+            }
+
+            return new TopologyElementBuilder<TElement>(
+                this,
+                typed,
+                GetOrCreateBuilder());
+        }
+
+        /// <summary>
         /// Public lookup over the manager's predefined-node dictionary.
         /// Returns <see langword="null"/> when no node with
         /// <paramref name="nodeId"/> is registered. Subclasses already
