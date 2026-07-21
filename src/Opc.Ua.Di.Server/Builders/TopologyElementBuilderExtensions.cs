@@ -336,10 +336,7 @@ namespace Opc.Ua.Di.Server.Builders
             group.ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.HasComponent;
             group.ModellingRuleId = NodeId.Null;
 
-            builder.Manager.AddPredefinedNodeAsync(
-                group,
-                System.Threading.CancellationToken.None)
-                .AsTask().GetAwaiter().GetResult();
+            builder.Manager.AddPlainPredefinedNodeSynchronously(group);
 
             return group;
         }

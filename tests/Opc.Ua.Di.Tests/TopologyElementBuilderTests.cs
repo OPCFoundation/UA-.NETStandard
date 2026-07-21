@@ -119,6 +119,10 @@ namespace Opc.Ua.Di.Tests
 
             Assert.That(second, Is.SameAs(first));
             Assert.That(observed, Is.SameAs(source));
+            Assert.That(first, Is.Not.Null);
+            Assert.That(
+                m_manager.FindPredefinedNode(first!.NodeId),
+                Is.SameAs(first));
 
             NodeId connectsTo = NodeId.Create(
                 global::Opc.Ua.Di.ReferenceTypes.ConnectsTo,
@@ -140,6 +144,72 @@ namespace Opc.Ua.Di.Tests
             ServiceResultException exception =
                 Assert.Throws<ServiceResultException>(
                     () => m_manager.TopologyElement<PumpState>(deviceSetId))!;
+
+            Assert.That(
+                exception.StatusCode,
+                Is.EqualTo((uint)StatusCodes.BadTypeMismatch));
+        }
+
+        [Test]
+        public void TopologyElementByBrowseNameRejectsMissingChild()
+        {
+            ServiceResultException exception =
+                Assert.Throws<ServiceResultException>(
+                    () => m_manager.TopologyElementByBrowseName<PumpState>(
+                        new QualifiedName(
+                            "Missing Topology Pump",
+                            m_pumpsNamespaceIndex)))!;
+
+            Assert.That(
+                exception.StatusCode,
+                Is.EqualTo((uint)StatusCodes.BadNodeIdUnknown));
+        }
+
+        [Test]
+        public async Task TopologyElementByBrowseNameRejectsWrongTypeAsync()
+        {
+            var browseName = new QualifiedName(
+                "Topology Wrong Type Device",
+                m_manager.DiNamespaceIndex);
+            await m_manager.CreateDeviceAsync(browseName).ConfigureAwait(false);
+
+            ServiceResultException exception =
+                Assert.Throws<ServiceResultException>(
+                    () => m_manager.TopologyElementByBrowseName<PumpState>(
+                        browseName))!;
+
+            Assert.That(
+                exception.StatusCode,
+                Is.EqualTo((uint)StatusCodes.BadTypeMismatch));
+        }
+
+        [Test]
+        public void DeviceByBrowseNameRejectsMissingChild()
+        {
+            ServiceResultException exception =
+                Assert.Throws<ServiceResultException>(
+                    () => m_manager.DeviceByBrowseName<DeviceState>(
+                        new QualifiedName(
+                            "Missing Device",
+                            m_manager.DiNamespaceIndex)))!;
+
+            Assert.That(
+                exception.StatusCode,
+                Is.EqualTo((uint)StatusCodes.BadNodeIdUnknown));
+        }
+
+        [Test]
+        public async Task DeviceByBrowseNameRejectsWrongTypeAsync()
+        {
+            var browseName = new QualifiedName(
+                "Device Wrong Type Pump",
+                m_pumpsNamespaceIndex);
+            await m_manager.CreatePumpAsync(browseName).ConfigureAwait(false);
+
+            ServiceResultException exception =
+                Assert.Throws<ServiceResultException>(
+                    () => m_manager.DeviceByBrowseName<DeviceState>(
+                        browseName))!;
 
             Assert.That(
                 exception.StatusCode,

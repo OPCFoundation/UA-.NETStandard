@@ -41,7 +41,8 @@ namespace Opc.Ua.Di.Server.Builders
     /// A functional group aggregates related parameters, methods, or
     /// observations by topic. The DI spec defines eight well-known
     /// groups (see <see cref="WellKnownFunctionalGroups"/>); custom
-    /// groups are added via <see cref="TopologyElementBuilderExtensions"/>.
+    /// groups are added via
+    /// <see cref="TopologyElementBuilderExtensions.WithFunctionalGroup{TElement}(ITopologyElementBuilder{TElement}, QualifiedName, Action{IFunctionalGroupBuilder})"/>.
     /// </para>
     /// <para>
     /// The builder exposes a typed <see cref="Group"/> handle for direct

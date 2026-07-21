@@ -545,14 +545,23 @@ namespace Opc.Ua.Di.Server
                         "No default device parent could be resolved.");
 
             NodeState? child = effectiveParent.FindChild(SystemContext, browseName);
-            if (child is not TDevice typed)
+            if (child == null)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadNodeIdUnknown,
-                    "No child '{0}' of type {1} on '{2}'.",
+                    "No child '{0}' exists on '{1}'.",
                     browseName,
-                    typeof(TDevice).Name,
                     effectiveParent.BrowseName);
+            }
+            if (child is not TDevice typed)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadTypeMismatch,
+                    "Child '{0}' on '{1}' is of type {2}, which is not assignable to {3}.",
+                    browseName,
+                    effectiveParent.BrowseName,
+                    child.GetType().Name,
+                    typeof(TDevice).Name);
             }
 
             return new DeviceBuilder<TDevice>(this, typed, GetOrCreateBuilder());
@@ -648,14 +657,23 @@ namespace Opc.Ua.Di.Server
                         "No default device parent could be resolved.");
 
             NodeState? child = effectiveParent.FindChild(SystemContext, browseName);
-            if (child is not TElement typed)
+            if (child == null)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadNodeIdUnknown,
-                    "No child '{0}' of type {1} on '{2}'.",
+                    "No child '{0}' exists on '{1}'.",
                     browseName,
-                    typeof(TElement).Name,
                     effectiveParent.BrowseName);
+            }
+            if (child is not TElement typed)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadTypeMismatch,
+                    "Child '{0}' on '{1}' is of type {2}, which is not assignable to {3}.",
+                    browseName,
+                    effectiveParent.BrowseName,
+                    child.GetType().Name,
+                    typeof(TElement).Name);
             }
 
             return new TopologyElementBuilder<TElement>(
@@ -680,6 +698,19 @@ namespace Opc.Ua.Di.Server
                 return null;
             }
             return PredefinedNodes.TryGetValue(nodeId, out NodeState? node) ? node : null;
+        }
+
+        /// <summary>
+        /// Synchronously indexes a plain builder-created node subtree.
+        /// </summary>
+        /// <remarks>
+        /// This path intentionally skips asynchronous behavior attachment and
+        /// is reserved for plain states configured directly by fluent builders.
+        /// </remarks>
+        /// <param name="node">The node subtree to index.</param>
+        internal void AddPlainPredefinedNodeSynchronously(NodeState node)
+        {
+            AddPredefinedNodeSynchronously(node);
         }
 
         /// <summary>
