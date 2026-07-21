@@ -123,6 +123,116 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         [Test]
+        public void OneResolutionContextIsCreatedPerTopLevelConversionNotPerLink()
+        {
+            // Regression test: TryResolveTargetNodeId used to fall back to
+            // `new WotResolutionContext()` whenever it was handed a null
+            // context, and that fallback ran once per resolved link. With
+            // three sibling links sharing the same conversion, a document
+            // budget of two must therefore be exhausted by the third link,
+            // proving all links share one context seeded up front rather than
+            // each silently getting a fresh, unbounded context of its own.
+            var resolver = new MapResolver(new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["urn:a"] = "{\"uav:id\":\"ns=2;i=101\"}",
+                ["urn:b"] = "{\"uav:id\":\"ns=2;i=102\"}",
+                ["urn:c"] = "{\"uav:id\":\"ns=2;i=103\"}"
+            });
+            var options = new WotNodeSetConverterOptions { MaxResolverDocuments = 2 };
+
+            using WotDocument document = WotDocument.Parse(
+                Encoding.UTF8.GetBytes(MultiLinkModel("urn:a", "urn:b", "urn:c")));
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document, options, resolver);
+
+            UAObjectType root = result.Value!.Items!.OfType<UAObjectType>().Single();
+            Assert.That(
+                root.References!.Count(r => r.Value is "ns=2;i=101" or "ns=2;i=102"),
+                Is.EqualTo(2));
+            Assert.That(root.References!.Any(r => r.Value == "ns=2;i=103"), Is.False);
+            Assert.That(
+                result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.ResolverLimitExceeded),
+                Is.True);
+        }
+
+        [Test]
+        public void MultipleLinksAccumulateAggregateByteLimitAcrossTheSameConversion()
+        {
+            // Both resolved documents are 23 bytes; a 30 byte total budget
+            // allows the first but must reject the second. If a fresh
+            // context were created per link (the bug this guards against),
+            // both would fit under the budget individually and no diagnostic
+            // would ever be produced.
+            var resolver = new MapResolver(new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["urn:a"] = "{\"uav:id\":\"ns=2;i=101\"}",
+                ["urn:b"] = "{\"uav:id\":\"ns=2;i=102\"}"
+            });
+            var options = new WotNodeSetConverterOptions { MaxResolverTotalBytes = 30 };
+
+            using WotDocument document = WotDocument.Parse(
+                Encoding.UTF8.GetBytes(MultiLinkModel("urn:a", "urn:b")));
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document, options, resolver);
+
+            Assert.That(
+                result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.ResolverLimitExceeded),
+                Is.True);
+        }
+
+        [Test]
+        public void SiblingLinkCycleDoesNotBlockAnUnrelatedSiblingLinkButIsStillReported()
+        {
+            var resolver = new MapResolver(new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["urn:ok"] = "{\"uav:id\":\"ns=2;i=201\"}",
+                ["urn:cyclic-a"] = "{\"uav:congruentType\":\"urn:cyclic-b\"}",
+                ["urn:cyclic-b"] = "{\"uav:congruentType\":\"urn:cyclic-a\"}"
+            });
+
+            using WotDocument document = WotDocument.Parse(
+                Encoding.UTF8.GetBytes(MultiLinkModel("urn:ok", "urn:cyclic-a")));
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document, null, resolver);
+
+            UAObjectType root = result.Value!.Items!.OfType<UAObjectType>().Single();
+            Assert.That(root.References!.Any(r => r.Value == "ns=2;i=201"), Is.True);
+            Assert.That(
+                result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.ResolverCycle),
+                Is.True);
+        }
+
+        [Test]
+        public void ConverterOptionsProjectToMatchingResolverOptions()
+        {
+            var options = new WotNodeSetConverterOptions
+            {
+                MaxResolverDepth = 3,
+                MaxResolverDocuments = 4,
+                MaxResolverDocumentBytes = 5,
+                MaxResolverTotalBytes = 6
+            };
+
+            WotResolverOptions resolverOptions = options.ToResolverOptions();
+
+            Assert.That(resolverOptions.MaxDepth, Is.EqualTo(3));
+            Assert.That(resolverOptions.MaxDocuments, Is.EqualTo(4));
+            Assert.That(resolverOptions.MaxDocumentBytes, Is.EqualTo(5));
+            Assert.That(resolverOptions.MaxTotalBytes, Is.EqualTo(6));
+        }
+
+        [Test]
+        public void OptionsValidateRejectsNonPositiveResolverLimits()
+        {
+            Assert.That(
+                () => new WotNodeSetConverterOptions { MaxResolverDocuments = 0 }.Validate(),
+                Throws.TypeOf<ArgumentOutOfRangeException>());
+            Assert.That(
+                () => new WotNodeSetConverterOptions { MaxResolverDocumentBytes = 0 }.Validate(),
+                Throws.TypeOf<ArgumentOutOfRangeException>());
+            Assert.That(
+                () => new WotNodeSetConverterOptions { MaxResolverTotalBytes = 0 }.Validate(),
+                Throws.TypeOf<ArgumentOutOfRangeException>());
+        }
+
+        [Test]
         public void OptionsValidateRejectsNonPositiveLimits()
         {
             var options = new WotNodeSetConverterOptions { MaxJsonDepth = 0 };
@@ -192,13 +302,21 @@ namespace Opc.Ua.Types.Tests.Wot
 
         private static string LinkModel(string href)
         {
+            return MultiLinkModel(href);
+        }
+
+        private static string MultiLinkModel(params string[] hrefs)
+        {
+            string links = string.Join(
+                ",",
+                hrefs.Select(href =>
+                    "{\"rel\":\"uav:typedReference\",\"href\":\"" + href + "\",\"uav:refType\":\"i=47\"}"));
             return
                 "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
                 "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"}]," +
                 "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"]," +
                 "\"title\":\"T\",\"uav:browseName\":\"1:T\"," +
-                "\"links\":[{\"rel\":\"uav:typedReference\",\"href\":\"" + href +
-                "\",\"uav:refType\":\"i=47\"}]}";
+                "\"links\":[" + links + "]}";
         }
 
         private sealed class MapResolver : IWotThingResolver

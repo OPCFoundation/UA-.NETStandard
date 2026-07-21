@@ -296,7 +296,7 @@ namespace Opc.Ua.Wot
             WotDocument document,
             WotNodeSetConverterOptions options,
             IWotThingResolver? thingResolver,
-            WotResolutionContext? resolutionContext,
+            WotResolutionContext resolutionContext,
             List<WotDiagnostic> diagnostics)
         {
             WotDocumentKind kind = document.Kind;
@@ -553,7 +553,7 @@ namespace Opc.Ua.Wot
             WotDocument document,
             List<Reference> rootReferences,
             IWotThingResolver? thingResolver,
-            WotResolutionContext? resolutionContext,
+            WotResolutionContext resolutionContext,
             WotNodeSetConverterOptions options,
             List<WotDiagnostic> diagnostics)
         {
@@ -637,7 +637,7 @@ namespace Opc.Ua.Wot
         private static bool TryResolveTargetNodeId(
             string reference,
             IWotThingResolver? resolver,
-            WotResolutionContext? context,
+            WotResolutionContext context,
             WotNodeSetConverterOptions options,
             List<WotDiagnostic> diagnostics,
             out string nodeId)
@@ -658,7 +658,6 @@ namespace Opc.Ua.Wot
                 return false;
             }
 
-            context ??= new WotResolutionContext();
             var entered = new List<string>();
             try
             {

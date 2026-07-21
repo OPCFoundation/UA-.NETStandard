@@ -83,6 +83,25 @@ namespace Opc.Ua.Wot
         public int MaxResolverDepth { get; set; } = 16;
 
         /// <summary>
+        /// Gets or sets the maximum number of external documents (contexts,
+        /// schemas and referenced TD/TM documents combined) resolved for a
+        /// single top-level conversion.
+        /// </summary>
+        public int MaxResolverDocuments { get; set; } = 256;
+
+        /// <summary>
+        /// Gets or sets the maximum accepted size of a single externally
+        /// resolved document.
+        /// </summary>
+        public int MaxResolverDocumentBytes { get; set; } = 16 * 1024 * 1024;
+
+        /// <summary>
+        /// Gets or sets the maximum cumulative size of all documents
+        /// externally resolved for a single top-level conversion.
+        /// </summary>
+        public long MaxResolverTotalBytes { get; set; } = 128L * 1024 * 1024;
+
+        /// <summary>
         /// Validates the option values and throws when a limit is not positive.
         /// </summary>
         /// <exception cref="ArgumentOutOfRangeException">
@@ -97,6 +116,32 @@ namespace Opc.Ua.Wot
             EnsurePositive(MaxNodeCount, nameof(MaxNodeCount));
             EnsurePositive(MaxAffordanceCount, nameof(MaxAffordanceCount));
             EnsurePositive(MaxResolverDepth, nameof(MaxResolverDepth));
+            EnsurePositive(MaxResolverDocuments, nameof(MaxResolverDocuments));
+            EnsurePositive(MaxResolverDocumentBytes, nameof(MaxResolverDocumentBytes));
+            if (MaxResolverTotalBytes <= 0)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(MaxResolverTotalBytes),
+                    MaxResolverTotalBytes,
+                    "The configured limit must be a positive value.");
+            }
+        }
+
+        /// <summary>
+        /// Projects the aggregate resolver limits configured on this instance
+        /// onto a <see cref="WotResolverOptions"/> suitable for seeding a
+        /// single <see cref="WotResolutionContext"/> per top-level conversion.
+        /// </summary>
+        /// <returns>The equivalent bounded resolution options.</returns>
+        public WotResolverOptions ToResolverOptions()
+        {
+            return new WotResolverOptions
+            {
+                MaxDepth = MaxResolverDepth,
+                MaxDocuments = MaxResolverDocuments,
+                MaxDocumentBytes = MaxResolverDocumentBytes,
+                MaxTotalBytes = MaxResolverTotalBytes
+            };
         }
 
         private static void EnsurePositive(int value, string name)

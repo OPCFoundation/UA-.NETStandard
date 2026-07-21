@@ -118,7 +118,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 using WotDocument document = WotDocument.Parse(content, m_options);
                 var resolver = new SnapshotThingResolver(snapshot);
-                var resolution = new WotResolutionContext();
+                // One resolution context per top-level conversion, seeded from
+                // the configured converter options, so depth/document/byte
+                // bounds and cycle detection apply across every link resolved
+                // while converting this resource.
+                var resolution = new WotResolutionContext(m_options.ToResolverOptions());
                 WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(
                     document, m_options, resolver, resolution);
                 var errors = ImmutableArray.CreateBuilder<string>();

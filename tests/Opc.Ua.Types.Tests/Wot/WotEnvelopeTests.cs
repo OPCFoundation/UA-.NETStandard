@@ -29,9 +29,12 @@
  * ======================================================================*/
 
 using System;
+using System.Globalization;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using NUnit.Framework;
 using Opc.Ua.Export;
 using Opc.Ua.Wot;
@@ -156,6 +159,134 @@ namespace Opc.Ua.Types.Tests.Wot
             UANodeSet restored = WotNodeSetConverter.ToNodeSet(document.Utf8Json);
 
             Assert.That(WotTestData.Serialize(restored), Is.EqualTo(WotTestData.Serialize(source)));
+        }
+
+        [Test]
+        public void MissingDigestIsRejectedAsMandatory()
+        {
+            using WotDocument original = WotNodeSetConverter.FromNodeSet(WotTestData.CreateReconstructableNodeSet());
+            string json = Encoding.UTF8.GetString(original.Utf8Json.ToArray());
+            string withoutDigest = RemoveJsonStringProperty(json, "sha256");
+
+            using WotDocument document = WotDocument.Parse(Encoding.UTF8.GetBytes(withoutDigest));
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
+
+            Assert.That(result.Value, Is.Null);
+            Assert.That(
+                result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.InvalidDigest),
+                Is.True);
+        }
+
+        [Test]
+        public void MalformedDigestIsRejected()
+        {
+            using WotDocument original = WotNodeSetConverter.FromNodeSet(WotTestData.CreateReconstructableNodeSet());
+            string json = Encoding.UTF8.GetString(original.Utf8Json.ToArray());
+            string malformed = ReplaceJsonStringProperty(json, "sha256", "not-a-valid-digest");
+
+            using WotDocument document = WotDocument.Parse(Encoding.UTF8.GetBytes(malformed));
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
+
+            Assert.That(result.Value, Is.Null);
+            Assert.That(
+                result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.InvalidDigest),
+                Is.True);
+        }
+
+        [Test]
+        public void MalformedNodeSetXmlProducesDiagnosticInsteadOfThrowing()
+        {
+            byte[] payload = Encoding.UTF8.GetBytes("this is not a valid NodeSet2 XML document at all");
+            string json = BuildEnvelopeJson(payload);
+
+            using WotDocument document = WotDocument.Parse(Encoding.UTF8.GetBytes(json));
+
+            WotConversionResult<UANodeSet> result = null;
+            Assert.That(
+                () => result = WotNodeSetConverter.ToNodeSetResult(document),
+                Throws.Nothing);
+            Assert.That(result!.Value, Is.Null);
+            Assert.That(
+                result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.MalformedNodeSet),
+                Is.True);
+        }
+
+        [Test]
+        public void UnsupportedEncodingIsRejected()
+        {
+            using WotDocument original = WotNodeSetConverter.FromNodeSet(WotTestData.CreateReconstructableNodeSet());
+            string json = Encoding.UTF8.GetString(original.Utf8Json.ToArray());
+            string tampered = ReplaceJsonStringProperty(json, "encoding", "base64url");
+
+            using WotDocument document = WotDocument.Parse(Encoding.UTF8.GetBytes(tampered));
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
+
+            Assert.That(result.Value, Is.Null);
+            Assert.That(
+                result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.UnsupportedEncoding),
+                Is.True);
+        }
+
+        [Test]
+        public void Base64IsTheOnlyAcceptedEncodingPerSpecAndRoundTrips()
+        {
+            UANodeSet source = WotTestData.CreateReconstructableNodeSet();
+            using WotDocument document = WotNodeSetConverter.FromNodeSet(source);
+
+            string encoding = document.RootElement
+                .GetProperty("uav:nodeSet")
+                .GetProperty("encoding")
+                .GetString()!;
+            Assert.That(encoding, Is.EqualTo("base64"));
+
+            UANodeSet restored = WotNodeSetConverter.ToNodeSet(document);
+            Assert.That(WotTestData.Serialize(restored), Is.EqualTo(WotTestData.Serialize(source)));
+        }
+
+        private static string RemoveJsonStringProperty(string json, string propertyName)
+        {
+            return Regex.Replace(
+                json,
+                "\"" + Regex.Escape(propertyName) + "\":\\s*\"[^\"]*\",?\\s*",
+                string.Empty);
+        }
+
+        private static string ReplaceJsonStringProperty(string json, string propertyName, string newValue)
+        {
+            return Regex.Replace(
+                json,
+                "\"" + Regex.Escape(propertyName) + "\":\\s*\"[^\"]*\"",
+                "\"" + propertyName + "\": \"" + newValue + "\"");
+        }
+
+        private static string BuildEnvelopeJson(byte[] nodeSetBytes)
+        {
+            byte[] digest = ComputeSha256(nodeSetBytes);
+            return "{\"@type\":\"tm:ThingModel\",\"uav:nodeSet\":{" +
+                "\"@type\":\"uav:nodeSet\",\"contentType\":\"application/opcua-nodeset+xml\"," +
+                "\"encoding\":\"base64\"," +
+                "\"sha256\":\"" + ToLowerHexString(digest) + "\"," +
+                "\"data\":\"" + Convert.ToBase64String(nodeSetBytes) + "\"}}";
+        }
+
+        private static byte[] ComputeSha256(byte[] data)
+        {
+#if NET6_0_OR_GREATER
+            return SHA256.HashData(data);
+#else
+            using SHA256 sha256 = SHA256.Create();
+            return sha256.ComputeHash(data);
+#endif
+        }
+
+        private static string ToLowerHexString(byte[] data)
+        {
+            var builder = new StringBuilder(data.Length * 2);
+            foreach (byte value in data)
+            {
+                builder.Append(value.ToString("x2", CultureInfo.InvariantCulture));
+            }
+            return builder.ToString();
         }
     }
 }

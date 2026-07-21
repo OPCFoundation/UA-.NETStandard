@@ -293,6 +293,14 @@ namespace Opc.Ua.Wot
             options ??= new WotNodeSetConverterOptions();
             options.Validate();
 
+            // Exactly one resolution context is created per top-level
+            // conversion, seeded from the converter options, and threaded
+            // through every context/schema/thing/link resolution below. It
+            // must never be re-created per link so that depth, document
+            // count, cycle and cumulative byte bounds apply across the whole
+            // conversion rather than resetting for each resolved reference.
+            resolutionContext ??= new WotResolutionContext(options.ToResolverOptions());
+
             if (document.TryGetEnvelope(out JsonElement envelope))
             {
                 UANodeSet? restored = RestoreFromEnvelope(envelope, options, diagnostics);
@@ -380,34 +388,63 @@ namespace Opc.Ua.Wot
                 return null;
             }
 
-            if (envelope.TryGetProperty("sha256", out JsonElement digestElement))
+            // uav:nodeSet.sha256 is mandatory: a preservation envelope without
+            // an integrity digest cannot be trusted and must not yield a
+            // NodeSet, regardless of whether the payload otherwise parses.
+            if (!envelope.TryGetProperty("sha256", out JsonElement digestElement) ||
+                digestElement.ValueKind != JsonValueKind.String)
             {
-                if (digestElement.ValueKind != JsonValueKind.String ||
-                    !TryParseDigest(digestElement.GetString()!, out byte[] expected))
-                {
-                    diagnostics.Add(new WotDiagnostic(
-                        WotDiagnosticSeverity.Error,
-                        WotDiagnosticCode.InvalidDigest,
-                        "The uav:nodeSet sha256 value is not a valid SHA-256 digest.",
-                        location));
-                    return null;
-                }
-                byte[] actual = ComputeSha256(nodeSetBytes);
-                if (!FixedEquals(expected, actual))
-                {
-                    diagnostics.Add(new WotDiagnostic(
-                        WotDiagnosticSeverity.Error,
-                        WotDiagnosticCode.DigestMismatch,
-                        "The uav:nodeSet digest does not match the payload.",
-                        location));
-                    return null;
-                }
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.InvalidDigest,
+                    "The uav:nodeSet sha256 value is required and must be a string.",
+                    location));
+                return null;
+            }
+
+            if (!TryParseDigest(digestElement.GetString()!, out byte[] expected))
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.InvalidDigest,
+                    "The uav:nodeSet sha256 value is not a valid SHA-256 digest.",
+                    location));
+                return null;
+            }
+
+            byte[] actual = ComputeSha256(nodeSetBytes);
+            if (!FixedEquals(expected, actual))
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.DigestMismatch,
+                    "The uav:nodeSet digest does not match the payload.",
+                    location));
+                return null;
             }
 
             UANodeSet? nodeSet;
-            using (var stream = new MemoryStream(nodeSetBytes, writable: false))
+            try
             {
-                nodeSet = UANodeSet.Read(stream);
+                using (var stream = new MemoryStream(nodeSetBytes, writable: false))
+                {
+                    nodeSet = UANodeSet.Read(stream);
+                }
+            }
+            catch (Exception ex) when (
+                ex is InvalidOperationException or
+                    System.Xml.XmlException or
+                    FormatException)
+            {
+                // XmlSerializer wraps parse failures in InvalidOperationException;
+                // treat any deserialization failure as a structured diagnostic
+                // rather than letting the exception escape the converter.
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.MalformedNodeSet,
+                    $"The uav:nodeSet payload is not a valid NodeSet2 document: {ex.Message}",
+                    location));
+                return null;
             }
             if (nodeSet is null)
             {
