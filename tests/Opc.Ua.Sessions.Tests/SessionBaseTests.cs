@@ -1099,10 +1099,22 @@ namespace Opc.Ua.Sessions.Tests
                 // configuration must seed the lifetime nonce-reuse history with it.
                 Assert.That(configuration.ServerNonce.IsNull, Is.False);
 
+                using IDisposable expectation = MockController
+                    .ExpectNextResponse<ActivateSessionResponse>(
+                        response => response.ServerNonce = configuration.ServerNonce);
+
                 bool applied = session.ApplySessionConfiguration(configuration);
 
                 Assert.That(applied, Is.True);
                 Assert.That(session.Connected, Is.True);
+
+                ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await session.UpdateSessionAsync(
+                        session.Identity,
+                        default,
+                        CancellationToken.None).ConfigureAwait(false))!;
+
+                Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadNonceInvalid));
             }
             finally
             {
