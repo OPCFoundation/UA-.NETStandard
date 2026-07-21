@@ -47,21 +47,6 @@ namespace Opc.Ua.OpenUsd.Client
         public const uint CommandBindingTypeId = 1011;
         public const uint ComponentBindingTypeId = 1005;
         public const uint AssetTypeId = 1006;
-
-        /// <summary>
-        /// Maps a concrete live-binding subtype NodeId (ns=1) to its intent, or
-        /// <c>null</c> when the type is not one of the four binding subtypes. The
-        /// binding intent is now carried by the concrete subtype (§5.4) rather than
-        /// a former <c>IntentProfile</c> enum property.
-        /// </summary>
-        public static OpenUsdIntentProfile? IntentFromTypeId(uint id) => id switch
-        {
-            ValueChangeBindingTypeId => OpenUsdIntentProfile.UaToUsdTelemetry,
-            AlarmBindingTypeId => OpenUsdIntentProfile.UaAlarmToUsd,
-            HistoryBindingTypeId => OpenUsdIntentProfile.UaHistoryToUsd,
-            CommandBindingTypeId => OpenUsdIntentProfile.UsdToUaCommand,
-            _ => null
-        };
     }
 
     /// <summary>Role of a served USD asset within a stage's closure (NodeSet i=3010).</summary>

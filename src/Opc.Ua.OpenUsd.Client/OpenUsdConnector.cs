@@ -109,7 +109,7 @@ namespace Opc.Ua.OpenUsd.Client
             m_logger = telemetry?.CreateLogger<OpenUsdConnector>()
                 ?? (ILogger)Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance;
             m_ns = (ushort)m_session.NamespaceUris.GetIndex(OpenUsdModel.NamespaceUri);
-            m_representationTypeId = new NodeId(1003u, m_ns);
+            m_representationTypeId = new NodeId(OpenUsdModel.RepresentationTypeId, m_ns);
             m_bindingTypeIntents = new Dictionary<NodeId, OpenUsdIntentProfile>
             {
                 { new NodeId(OpenUsdModel.ValueChangeBindingTypeId, m_ns), OpenUsdIntentProfile.UaToUsdTelemetry },
@@ -117,8 +117,8 @@ namespace Opc.Ua.OpenUsd.Client
                 { new NodeId(OpenUsdModel.HistoryBindingTypeId, m_ns), OpenUsdIntentProfile.UaHistoryToUsd },
                 { new NodeId(OpenUsdModel.CommandBindingTypeId, m_ns), OpenUsdIntentProfile.UsdToUaCommand },
             };
-            m_componentTypeId = new NodeId(1005u, m_ns);
-            m_assetTypeId = new NodeId(1006u, m_ns);
+            m_componentTypeId = new NodeId(OpenUsdModel.ComponentBindingTypeId, m_ns);
+            m_assetTypeId = new NodeId(OpenUsdModel.AssetTypeId, m_ns);
         }
 
         public sealed class BindingInfo
