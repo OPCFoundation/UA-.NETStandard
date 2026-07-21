@@ -1086,6 +1086,32 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Test]
+        public async Task ApplySessionConfigurationSeedsServerNonceHistoryAsync()
+        {
+            ConfiguredEndpoint endpoint = await CreateConfiguredEndpointAsync(
+                MessageSecurityMode.SignAndEncrypt).ConfigureAwait(false);
+            ISession session = await ClientFixture.ConnectAsync(endpoint).ConfigureAwait(false);
+            try
+            {
+                SessionConfiguration configuration = session.SaveSessionConfiguration();
+
+                // A secured session exposes a server nonce; re-applying the saved
+                // configuration must seed the lifetime nonce-reuse history with it.
+                Assert.That(configuration.ServerNonce.IsNull, Is.False);
+
+                bool applied = session.ApplySessionConfiguration(configuration);
+
+                Assert.That(applied, Is.True);
+                Assert.That(session.Connected, Is.True);
+            }
+            finally
+            {
+                await session.CloseAsync(5000, true).ConfigureAwait(false);
+                session.Dispose();
+            }
+        }
+
+        [Test]
         public async Task SuppressNonceValidationErrorsDoesNotAllowInvalidNonceAsync()
         {
             bool original = ClientFixture.Config.SecurityConfiguration
