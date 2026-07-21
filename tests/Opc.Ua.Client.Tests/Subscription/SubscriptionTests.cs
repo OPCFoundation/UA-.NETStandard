@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -1034,7 +1035,7 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         [Test]
-        public async Task RecreateAsyncShouldDiscardQueuedMessageFromRetiredGenerationAsync()
+        public async Task RecreateAsyncShouldDiscardQueuedBurstFromRetiredGenerationAsync()
         {
             var deleteEntered = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
@@ -1075,19 +1076,29 @@ namespace Opc.Ua.Client.Subscriptions
                 await deleteEntered.Task.WaitAsync(TimeSpan.FromSeconds(5))
                     .ConfigureAwait(false);
 
-                await sut.OnPublishReceivedAsync(BuildKeepAliveMessage(9), null, [])
-                    .ConfigureAwait(false);
+                for (uint sequenceNumber = 1; sequenceNumber <= 1024; sequenceNumber++)
+                {
+                    await sut.OnPublishReceivedAsync(
+                        BuildKeepAliveMessage(sequenceNumber), null, [])
+                        .ConfigureAwait(false);
+                }
                 continueDelete.TrySetResult(true);
                 await recreate.WaitAsync(TimeSpan.FromSeconds(5))
                     .ConfigureAwait(false);
 
-                await sut.OnPublishReceivedAsync(BuildKeepAliveMessage(1), null, [])
-                    .ConfigureAwait(false);
-                await WaitForAsync(() => sut.KeepAliveNotificationCount == 1,
+                for (uint sequenceNumber = 1; sequenceNumber <= 3; sequenceNumber++)
+                {
+                    await sut.OnPublishReceivedAsync(
+                        BuildKeepAliveMessage(sequenceNumber), null, [])
+                        .ConfigureAwait(false);
+                }
+                await WaitForAsync(() => sut.KeepAliveNotificationCount == 3,
                     TimeSpan.FromSeconds(5)).ConfigureAwait(false);
                 await Task.Delay(100).ConfigureAwait(false);
 
-                Assert.That(sut.KeepAliveNotificationCount, Is.EqualTo(1));
+                Assert.That(sut.KeepAliveNotificationCount, Is.EqualTo(3));
+                Assert.That(sut.KeepAliveSequenceNumbers,
+                    Is.EqualTo(new uint[] { 1, 2, 3 }));
             }
         }
 
@@ -2100,6 +2111,8 @@ namespace Opc.Ua.Client.Subscriptions
                 => AvailableInRetransmissionQueue;
             public int KeepAliveNotificationCount
                 => Volatile.Read(ref m_keepAliveNotificationCount);
+            public IReadOnlyList<uint> KeepAliveSequenceNumbers
+                => [.. m_keepAliveSequenceNumbers];
             public Func<ValueTask>? OnKeepAliveAsync { get; set; }
 
             public void SetMessageStateForTest(uint lastSequenceNumber,
@@ -2145,10 +2158,12 @@ namespace Opc.Ua.Client.Subscriptions
             protected override ValueTask OnKeepAliveNotificationAsync(uint sequenceNumber,
                 DateTime publishTime, PublishState publishStateMask)
             {
+                m_keepAliveSequenceNumbers.Enqueue(sequenceNumber);
                 Interlocked.Increment(ref m_keepAliveNotificationCount);
                 return OnKeepAliveAsync?.Invoke() ?? default;
             }
 
+            private readonly ConcurrentQueue<uint> m_keepAliveSequenceNumbers = new();
             private int m_keepAliveNotificationCount;
         }
 

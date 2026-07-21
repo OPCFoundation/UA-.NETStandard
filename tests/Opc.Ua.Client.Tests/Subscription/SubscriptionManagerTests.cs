@@ -476,6 +476,41 @@ namespace Opc.Ua.Client.Subscriptions
 
         [Test]
         [CancelAfter(30_000)]
+        public async Task DisposeAsyncCancelsActivePublishingQuiescenceAsync(
+            CancellationToken testCt)
+        {
+            var entered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var cancelled = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            Task quiesced = m_subscriptionManager
+                .RunWithPublishingQuiescedAsync(async ct =>
+                {
+                    entered.TrySetResult(true);
+                    try
+                    {
+                        await Task.Delay(Timeout.Infinite, ct)
+                            .ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                    {
+                        cancelled.TrySetResult(true);
+                        throw;
+                    }
+                }, testCt)
+                .AsTask();
+
+            await entered.Task.WaitAsync(testCt).ConfigureAwait(false);
+            Task dispose = m_subscriptionManager.DisposeAsync().AsTask();
+
+            await cancelled.Task.WaitAsync(testCt).ConfigureAwait(false);
+            await dispose.WaitAsync(testCt).ConfigureAwait(false);
+            Assert.That(async () => await quiesced.ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>());
+        }
+
+        [Test]
+        [CancelAfter(30_000)]
         public async Task PublishingQuiescenceWaitsForAckRollbackAsync(
             CancellationToken testCt)
         {
