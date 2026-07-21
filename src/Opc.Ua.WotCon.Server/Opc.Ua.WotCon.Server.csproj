@@ -23,8 +23,11 @@
       the binder generator emits 'new Variant((object)value)' whose ctor has
       RequiresUnreferencedCode/RequiresDynamicCode. The InitialValue path is
       runtime-only and not bound from appsettings; suppress at project level.
+      CA1850: the one-shot SHA256.HashData static helper is only available on
+      .NET 5+, but this library also targets net48/netstandard2.x where the
+      instance ComputeHash API is the portable equivalent.
     -->
-    <NoWarn>$(NoWarn);SYSLIB1100;SYSLIB1101;IL2026;IL3050</NoWarn>
+    <NoWarn>$(NoWarn);SYSLIB1100;SYSLIB1101;IL2026;IL3050;CA1850</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.WotCon.Tests" />
@@ -36,6 +39,7 @@
     <ProjectReference Include="..\Opc.Ua.Server\Opc.Ua.Server.csproj" />
     <ProjectReference Include="..\Opc.Ua.Bindings.Https\Opc.Ua.Bindings.Https.csproj" />
     <ProjectReference Include="..\Opc.Ua.WotCon\Opc.Ua.WotCon.csproj" />
+    <ProjectReference Include="..\Opc.Ua.WotCon.Binding\Opc.Ua.WotCon.Binding.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
