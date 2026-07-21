@@ -264,9 +264,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// A registration handle that is stale (superseded generation), foreign (unknown
         /// <c>Id</c>), or spoofed (wrong <c>NodeManager</c> reference for a known <c>Id</c>)
-        /// must be rejected by both Reload and Remove with the provider's ownership-mismatch
-        /// message, without invoking a replacement factory and without changing the current
-        /// generation's registration, routing, value, or namespace state.
+        /// must be rejected by Reload, ShadowReload, and Remove with the provider's
+        /// ownership-mismatch message, without invoking a replacement factory and without
+        /// changing the current generation's registration, routing, value, or namespace
+        /// state.
         /// </summary>
         /// <exception cref="ArgumentOutOfRangeException">
         /// Thrown when <paramref name="mismatchKind"/> is not a supported value.
@@ -277,6 +278,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [TestCase(LifecycleOperation.Remove, MismatchKind.StaleGeneration)]
         [TestCase(LifecycleOperation.Remove, MismatchKind.ForeignId)]
         [TestCase(LifecycleOperation.Remove, MismatchKind.ForeignNodeManager)]
+        [TestCase(LifecycleOperation.ShadowReload, MismatchKind.StaleGeneration)]
+        [TestCase(LifecycleOperation.ShadowReload, MismatchKind.ForeignId)]
+        [TestCase(LifecycleOperation.ShadowReload, MismatchKind.ForeignNodeManager)]
         public async Task RegistrationIdentityMismatchIsRejectedWithoutChangingCurrentGenerationAsync(
             LifecycleOperation operation,
             MismatchKind mismatchKind)
@@ -315,30 +319,51 @@ namespace Opc.Ua.Server.Tests.NodeManager
             const string expectedMessage =
                 "The registration is stale or is not owned by this lifecycle provider.";
 
-            if (operation == LifecycleOperation.Reload)
+            switch (operation)
             {
-                var replacementFactory = new Mock<IAsyncNodeManagerFactory>(MockBehavior.Strict);
+                case LifecycleOperation.Reload:
+                {
+                    var replacementFactory = new Mock<IAsyncNodeManagerFactory>(MockBehavior.Strict);
 
-                Assert.That(
-                    async () => await m_server.NodeManagerLifecycle
-                        .ReloadAsync(mismatched, replacementFactory.Object)
-                        .ConfigureAwait(false),
-                    Throws.InvalidOperationException.With.Message.Contains(expectedMessage));
+                    Assert.That(
+                        async () => await m_server.NodeManagerLifecycle
+                            .ReloadAsync(mismatched, replacementFactory.Object)
+                            .ConfigureAwait(false),
+                        Throws.InvalidOperationException.With.Message.Contains(expectedMessage));
 
-                replacementFactory.Verify(
-                    f => f.CreateAsync(
-                        It.IsAny<IServerInternal>(),
-                        It.IsAny<ApplicationConfiguration>(),
-                        It.IsAny<CancellationToken>()),
-                    Times.Never);
-            }
-            else
-            {
-                Assert.That(
-                    async () => await m_server.NodeManagerLifecycle
-                        .RemoveAsync(mismatched)
-                        .ConfigureAwait(false),
-                    Throws.InvalidOperationException.With.Message.Contains(expectedMessage));
+                    replacementFactory.Verify(
+                        f => f.CreateAsync(
+                            It.IsAny<IServerInternal>(),
+                            It.IsAny<ApplicationConfiguration>(),
+                            It.IsAny<CancellationToken>()),
+                        Times.Never);
+                    break;
+                }
+                case LifecycleOperation.ShadowReload:
+                {
+                    var replacementFactory = new Mock<IAsyncNodeManagerFactory>(MockBehavior.Strict);
+
+                    Assert.That(
+                        async () => await m_server.NodeManagerLifecycle
+                            .ShadowReloadAsync(mismatched, replacementFactory.Object)
+                            .ConfigureAwait(false),
+                        Throws.InvalidOperationException.With.Message.Contains(expectedMessage));
+
+                    replacementFactory.Verify(
+                        f => f.CreateAsync(
+                            It.IsAny<IServerInternal>(),
+                            It.IsAny<ApplicationConfiguration>(),
+                            It.IsAny<CancellationToken>()),
+                        Times.Never);
+                    break;
+                }
+                default:
+                    Assert.That(
+                        async () => await m_server.NodeManagerLifecycle
+                            .RemoveAsync(mismatched)
+                            .ConfigureAwait(false),
+                        Throws.InvalidOperationException.With.Message.Contains(expectedMessage));
+                    break;
             }
 
             // The current registration/generation/routing/value/namespace state must be
@@ -767,6 +792,381 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(
                 CountMatches(registrationsAfterRemove, r => r.Id == original.Id),
                 Is.Zero);
+        }
+
+        /// <summary>
+        /// Unlike Reload and Remove, ShadowReload must succeed while the current
+        /// generation owns an active reporting monitored item: the switch is committed
+        /// and every new service request (here, Read) is atomically routed to the
+        /// replacement generation, while the existing monitored item keeps being serviced
+        /// by the retired (but not yet destroyed) current generation, including for a
+        /// fresh value pushed directly on that retired generation's own node after the
+        /// switch. Once the owning subscription is deleted, a later lifecycle operation
+        /// opportunistically completes retired-generation cleanup and disposes the old
+        /// generation's address space, without the lifecycle provider ever deleting the
+        /// client's subscription itself.
+        /// </summary>
+        [Test]
+        public async Task ShadowReloadAsyncKeepsActiveMonitoredItemAliveThenDisposesRetiredGenerationAfterDrainAsync()
+        {
+            NodeManagerRegistration original = await m_server.NodeManagerLifecycle
+                .AddRuntimeNodeSetAsync(CreateGenerationOptions(generation: 1))
+                .ConfigureAwait(false);
+
+            IServerInternal server = m_server.CurrentInstance;
+            var master = (MasterNodeManager)server.NodeManager;
+            ushort ns = (ushort)server.NamespaceUris.GetIndex(kModelNamespaceUri);
+            var valueNodeId = new NodeId(kValueNodeId, ns);
+            var originalManager = (AsyncCustomNodeManager)original.NodeManager;
+            const uint clientHandle = 1;
+
+            var services = new ServerTestServices(m_server, m_secureChannelContext);
+            uint subscriptionId = await CreateSubscriptionWithMonitoredItemAsync(services, valueNodeId)
+                .ConfigureAwait(false);
+
+            // Drain the initial data-change sample delivered on monitored-item creation so
+            // the later publish loop only observes the value pushed after the switch.
+            ArrayOf<SubscriptionAcknowledgement> acknowledgements = default;
+            (_, acknowledgements) = await PublishForDataChangeAsync(
+                services,
+                subscriptionId,
+                acknowledgements,
+                clientHandle).ConfigureAwait(false);
+
+            try
+            {
+                NodeManagerRegistration reloaded = await m_server.NodeManagerLifecycle
+                    .ShadowReloadRuntimeNodeSetAsync(original, CreateGenerationOptions(generation: 2))
+                    .ConfigureAwait(false);
+
+                Assert.That(reloaded.Id, Is.EqualTo(original.Id));
+                Assert.That(reloaded.Generation, Is.EqualTo(original.Generation + 1));
+                Assert.That(ReferenceEquals(reloaded.NodeManager, original.NodeManager), Is.False);
+
+                // New service requests must be atomically routed to the replacement; the
+                // retired generation must no longer be reachable through routing.
+                Assert.That(
+                    master.NamespaceManagers[ns].Count(m => ReferenceEquals(m, reloaded.NodeManager)),
+                    Is.EqualTo(1));
+                Assert.That(
+                    master.NamespaceManagers[ns].Any(m => ReferenceEquals(m, original.NodeManager)),
+                    Is.False);
+
+                DataValue valueAfterSwitch = await ReadValueAsync(valueNodeId).ConfigureAwait(false);
+                Assert.That(valueAfterSwitch.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(valueAfterSwitch.WrappedValue.GetInt32(), Is.EqualTo(kGeneration2Value));
+
+                // The retired generation's own node must still be present, still owned by
+                // the original manager instance, and unaffected by the switch.
+                var originalValueState = (BaseVariableState)originalManager.Find(valueNodeId)!;
+                Assert.That(originalValueState, Is.Not.Null);
+                Assert.That(originalValueState.Value, Is.EqualTo(kGeneration1Value));
+
+                ISubscription subscription = server.SubscriptionManager
+                    .GetSubscriptions()
+                    .Single(s => s.Id == subscriptionId);
+                var tracker = (INodeManagerMonitoredItemTracker)subscription;
+                Assert.That(tracker.HasMonitoredItems(original.NodeManager), Is.True);
+                Assert.That(tracker.HasMonitoredItems(reloaded.NodeManager), Is.False);
+
+                // Simulate an internal (device-driven) value push directly on the retired
+                // generation's own node: it must still reach the existing monitored item.
+                const int pushedValue = 777;
+                originalValueState.Value = pushedValue;
+                originalValueState.Timestamp = DateTimeUtc.Now;
+                originalValueState.StatusCode = StatusCodes.Good;
+                originalValueState.UpdateChangeMasks(NodeStateChangeMasks.Value);
+                await originalValueState
+                    .ClearChangeMasksAsync(server.DefaultSystemContext, includeChildren: false)
+                    .ConfigureAwait(false);
+
+                DataValue? pushedNotification;
+                (pushedNotification, acknowledgements) = await PublishForDataChangeAsync(
+                    services,
+                    subscriptionId,
+                    acknowledgements,
+                    clientHandle).ConfigureAwait(false);
+                Assert.That(pushedNotification, Is.Not.Null);
+                Assert.That(pushedNotification!.Value.WrappedValue.GetInt32(), Is.EqualTo(pushedValue));
+
+                // The replacement generation's own value must remain unaffected by the
+                // push made directly on the retired generation.
+                DataValue valueAfterPush = await ReadValueAsync(valueNodeId).ConfigureAwait(false);
+                Assert.That(valueAfterPush.WrappedValue.GetInt32(), Is.EqualTo(kGeneration2Value));
+            }
+            finally
+            {
+                await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
+            }
+
+            // With the owning subscription gone, a later lifecycle operation
+            // opportunistically finishes retired-generation cleanup: the old generation's
+            // own address space is torn down (DeleteAddressSpaceAsync empties its
+            // PredefinedNodes) without the lifecycle provider ever deleting the client's
+            // (already independently deleted) subscription itself.
+            NodeManagerRegistration current = m_server.NodeManagerLifecycle.Registrations
+                .Find(r => r.Id == original.Id);
+            Assert.That(current, Is.Not.Null);
+            await m_server.NodeManagerLifecycle.RemoveAsync(current).ConfigureAwait(false);
+
+            Assert.That(originalManager.Find(valueNodeId), Is.Null);
+            Assert.That(
+                CountMatches(m_server.NodeManagerLifecycle.Registrations, r => r.Id == original.Id),
+                Is.Zero);
+        }
+
+        /// <summary>
+        /// When the replacement factory throws during ShadowReload's preparation phase
+        /// (before the routing switch is ever committed), the sentinel exception must
+        /// propagate unchanged and the current generation must remain fully active:
+        /// registration, routing, and value state are entirely unaffected, exactly as for
+        /// a fail-closed Reload failure.
+        /// </summary>
+        [Test]
+        public async Task ShadowReloadAsyncWhenReplacementFactoryThrowsKeepsCurrentManagerAsync()
+        {
+            NodeManagerRegistration original = await m_server.NodeManagerLifecycle
+                .AddRuntimeNodeSetAsync(CreateGenerationOptions(generation: 1))
+                .ConfigureAwait(false);
+
+            IServerInternal server = m_server.CurrentInstance;
+            var master = (MasterNodeManager)server.NodeManager;
+            ushort ns = (ushort)server.NamespaceUris.GetIndex(kModelNamespaceUri);
+            var valueNodeId = new NodeId(kValueNodeId, ns);
+            int namespaceCountBefore = server.NamespaceUris.Count;
+            uint urisVersionBefore = await ReadUrisVersionAsync().ConfigureAwait(false);
+
+            var replacementFactory = new Mock<IAsyncNodeManagerFactory>(MockBehavior.Strict);
+            replacementFactory
+                .Setup(f => f.CreateAsync(
+                    It.IsAny<IServerInternal>(),
+                    It.IsAny<ApplicationConfiguration>(),
+                    It.IsAny<CancellationToken>()))
+                .Throws(new SentinelException());
+
+            Assert.That(
+                async () => await m_server.NodeManagerLifecycle
+                    .ShadowReloadAsync(original, replacementFactory.Object)
+                    .ConfigureAwait(false),
+                Throws.TypeOf<SentinelException>());
+
+            ArrayOf<NodeManagerRegistration> registrations = m_server.NodeManagerLifecycle.Registrations;
+            NodeManagerRegistration survivor = registrations.Find(r => r.Id == original.Id);
+            Assert.That(survivor, Is.Not.Null);
+            Assert.That(survivor.Generation, Is.EqualTo(original.Generation));
+            Assert.That(ReferenceEquals(survivor.NodeManager, original.NodeManager), Is.True);
+
+            Assert.That(
+                master.NamespaceManagers[ns].Count(m => ReferenceEquals(m, original.NodeManager)),
+                Is.EqualTo(1));
+
+            DataValue value = await ReadValueAsync(valueNodeId).ConfigureAwait(false);
+            Assert.That(value.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(value.WrappedValue.GetInt32(), Is.EqualTo(kGeneration1Value));
+
+            Assert.That(server.NamespaceUris.Count, Is.EqualTo(namespaceCountBefore));
+            uint urisVersionAfter = await ReadUrisVersionAsync().ConfigureAwait(false);
+            Assert.That(urisVersionAfter, Is.EqualTo(urisVersionBefore));
+        }
+
+        /// <summary>
+        /// When the replacement's structural commit succeeds but a subsequent rollback
+        /// attempt during a later, unrelated failure also fails, ShadowReload must behave
+        /// exactly like Reload: the replacement generation is retained live and reported
+        /// from <see cref="INodeManagerLifecycle.Registrations"/> for retry or removal,
+        /// both underlying failures are reported, and once the transient failures are
+        /// cleared a subsequent Remove of the retained registration (and its owner)
+        /// completes cleanly.
+        /// </summary>
+        [Test]
+        public async Task ShadowReloadAsyncWhenReplacementRollbackFailsRetainsReplacementGenerationAsync()
+        {
+            const string OwnerNamespaceUri =
+                "urn:opcfoundation.org:Tests:NodeManagerLifecycle:ShadowReloadRollbackOwner";
+            const string ReloadedNamespaceUri =
+                "urn:opcfoundation.org:Tests:NodeManagerLifecycle:ShadowReloadRollbackRetained";
+            const string AddReferencesFailure =
+                "Replacement AddReferencesAsync failed.";
+            const string DeleteReferenceFailure =
+                "Replacement rollback DeleteReferenceAsync failed.";
+
+            Mock<IAsyncNodeManager> ownerManager =
+                CreateLifecycleNodeManager(OwnerNamespaceUri);
+            Mock<IDisposable> ownerDisposable = ownerManager.As<IDisposable>();
+            var ownerFactory = new Mock<IAsyncNodeManagerFactory>();
+            ownerFactory
+                .Setup(value => value.CreateAsync(
+                    It.IsAny<IServerInternal>(),
+                    It.IsAny<ApplicationConfiguration>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(ownerManager.Object);
+            NodeManagerRegistration ownerRegistration = await m_server.NodeManagerLifecycle
+                .AddAsync(ownerFactory.Object)
+                .ConfigureAwait(false);
+
+            IServerInternal server = m_server.CurrentInstance;
+            var master = (MasterNodeManager)server.NodeManager;
+            ushort ownerNamespaceIndex = (ushort)server.NamespaceUris.GetIndex(
+                OwnerNamespaceUri);
+            var ownerSourceId = new NodeId(2101, ownerNamespaceIndex);
+            object ownerHandle = new();
+            int deleteReferenceCalls = 0;
+            bool failRollbackDelete = true;
+            ownerManager
+                .Setup(manager => manager.GetManagerHandleAsync(
+                    ownerSourceId,
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<object>(ownerHandle));
+            ownerManager
+                .Setup(manager => manager.DeleteReferenceAsync(
+                    ownerHandle,
+                    ReferenceTypeIds.HasComponent,
+                    false,
+                    ObjectIds.Server,
+                    false,
+                    It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    deleteReferenceCalls++;
+                    if (failRollbackDelete && deleteReferenceCalls >= 2)
+                    {
+                        return new ValueTask<ServiceResult>(
+                            Task.FromException<ServiceResult>(
+                                new SentinelException(DeleteReferenceFailure)));
+                    }
+                    return new ValueTask<ServiceResult>(ServiceResult.Good);
+                });
+
+            Mock<IAsyncNodeManager> originalManager =
+                CreateLifecycleNodeManager(ReloadedNamespaceUri);
+            Mock<IDisposable> originalDisposable =
+                originalManager.As<IDisposable>();
+            originalManager
+                .Setup(manager => manager.CreateAddressSpaceAsync(
+                    It.IsAny<IDictionary<NodeId, IList<IReference>>>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback<
+                    IDictionary<NodeId, IList<IReference>>,
+                    CancellationToken>((externalReferences, _) => externalReferences[ownerSourceId] =
+                    [
+                        new NodeStateReference(
+                            ReferenceTypeIds.HasComponent,
+                            false,
+                            ObjectIds.Server)
+                    ])
+                .Returns(default(ValueTask));
+            originalManager
+                .As<INodeManagerReloadParticipant>()
+                .Setup(participant => participant.PrepareReloadAsync(
+                    It.IsAny<IAsyncNodeManager>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ArrayOf<LocalReference>>([]));
+            var originalFactory = new Mock<IAsyncNodeManagerFactory>();
+            originalFactory
+                .Setup(value => value.CreateAsync(
+                    It.IsAny<IServerInternal>(),
+                    It.IsAny<ApplicationConfiguration>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(originalManager.Object);
+            NodeManagerRegistration originalRegistration =
+                await m_server.NodeManagerLifecycle
+                    .AddAsync(originalFactory.Object)
+                    .ConfigureAwait(false);
+
+            Mock<IAsyncNodeManager> replacementManager =
+                CreateLifecycleNodeManager(ReloadedNamespaceUri);
+            Mock<IDisposable> replacementDisposable =
+                replacementManager.As<IDisposable>();
+            replacementManager
+                .Setup(manager => manager.CreateAddressSpaceAsync(
+                    It.IsAny<IDictionary<NodeId, IList<IReference>>>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback<
+                    IDictionary<NodeId, IList<IReference>>,
+                    CancellationToken>((externalReferences, _) => externalReferences[ownerSourceId] =
+                    [
+                        new NodeStateReference(
+                            ReferenceTypeIds.HasComponent,
+                            false,
+                            ObjectIds.Server)
+                    ])
+                .Returns(default(ValueTask));
+            bool failReplacementAddReferences = true;
+            replacementManager
+                .Setup(manager => manager.AddReferencesAsync(
+                    It.IsAny<IDictionary<NodeId, IList<IReference>>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(() => failReplacementAddReferences
+                    ? new ValueTask(Task.FromException(
+                        new SentinelException(AddReferencesFailure)))
+                    : default);
+            var replacementFactory = new Mock<IAsyncNodeManagerFactory>();
+            replacementFactory
+                .Setup(value => value.CreateAsync(
+                    It.IsAny<IServerInternal>(),
+                    It.IsAny<ApplicationConfiguration>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(replacementManager.Object);
+
+            InvalidOperationException exception =
+                Assert.ThrowsAsync<InvalidOperationException>(
+                    async () => await m_server.NodeManagerLifecycle
+                        .ShadowReloadAsync(
+                            originalRegistration,
+                            replacementFactory.Object)
+                        .ConfigureAwait(false));
+
+            Assert.That(
+                exception.Message,
+                Does.Contain("replacement generation was retained"));
+            Assert.That(exception.InnerException, Is.TypeOf<AggregateException>());
+            string[] failureMessages = [.. ((AggregateException)exception.InnerException!)
+                .Flatten()
+                .InnerExceptions
+                .Select(failure => failure.Message)];
+            Assert.That(failureMessages, Does.Contain(AddReferencesFailure));
+            Assert.That(failureMessages, Does.Contain(DeleteReferenceFailure));
+
+            NodeManagerRegistration retainedRegistration =
+                m_server.NodeManagerLifecycle.Registrations.Find(registration =>
+                    ReferenceEquals(registration.NodeManager, replacementManager.Object));
+            Assert.That(retainedRegistration, Is.Not.Null);
+            Assert.That(retainedRegistration.Id, Is.EqualTo(originalRegistration.Id));
+            Assert.That(
+                retainedRegistration.Generation,
+                Is.EqualTo(originalRegistration.Generation + 1));
+            Assert.That(
+                master.AsyncNodeManagers.Any(manager =>
+                    ReferenceEquals(manager, originalManager.Object)),
+                Is.False);
+            Assert.That(
+                master.AsyncNodeManagers.Any(manager =>
+                    ReferenceEquals(manager, replacementManager.Object)),
+                Is.True);
+            originalDisposable.Verify(manager => manager.Dispose(), Times.Never);
+            replacementDisposable.Verify(manager => manager.Dispose(), Times.Never);
+
+            failReplacementAddReferences = false;
+            failRollbackDelete = false;
+            await m_server.NodeManagerLifecycle
+                .RemoveAsync(retainedRegistration)
+                .ConfigureAwait(false);
+            await m_server.NodeManagerLifecycle
+                .RemoveAsync(ownerRegistration)
+                .ConfigureAwait(false);
+
+            originalManager.Verify(
+                manager => manager.DeleteAddressSpaceAsync(
+                    CancellationToken.None),
+                Times.Once);
+            originalDisposable.Verify(manager => manager.Dispose(), Times.Once);
+            replacementManager.Verify(
+                manager => manager.DeleteAddressSpaceAsync(
+                    CancellationToken.None),
+                Times.Once);
+            replacementDisposable.Verify(manager => manager.Dispose(), Times.Once);
+            ownerDisposable.Verify(manager => manager.Dispose(), Times.Once);
+            Assert.That(m_server.NodeManagerLifecycle.Registrations, Is.Empty);
         }
 
         /// <summary>
@@ -1565,6 +1965,34 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             exception = Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await lifecycle
+                    .ShadowReloadAsync(
+                        null!,
+                        (IAsyncNodeManagerFactory)null!)
+                    .ConfigureAwait(false));
+            Assert.That(exception.ParamName, Is.EqualTo("replacement"));
+
+            exception = Assert.ThrowsAsync<ArgumentNullException>(
+                async () => await lifecycle
+                    .ShadowReloadAsync(
+                        null!,
+                        (INodeManagerFactory)null!)
+                    .ConfigureAwait(false));
+            Assert.That(exception.ParamName, Is.EqualTo("replacement"));
+
+            exception = Assert.ThrowsAsync<ArgumentNullException>(
+                async () => await lifecycle
+                    .ShadowReloadAsync(null!, asyncFactory)
+                    .ConfigureAwait(false));
+            Assert.That(exception.ParamName, Is.EqualTo("registration"));
+
+            exception = Assert.ThrowsAsync<ArgumentNullException>(
+                async () => await lifecycle
+                    .ShadowReloadAsync(null!, syncFactory)
+                    .ConfigureAwait(false));
+            Assert.That(exception.ParamName, Is.EqualTo("registration"));
+
+            exception = Assert.ThrowsAsync<ArgumentNullException>(
+                async () => await lifecycle
                     .RemoveAsync(null!)
                     .ConfigureAwait(false));
             Assert.That(exception.ParamName, Is.EqualTo("registration"));
@@ -2068,6 +2496,68 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// Publishes on <paramref name="subscriptionId"/> in a bounded loop, acknowledging
+        /// previously delivered sequence numbers on each call, until a
+        /// <see cref="DataChangeNotification"/> carrying <paramref name="clientHandle"/>
+        /// arrives. Used to prove that a monitored item keeps being serviced (by whichever
+        /// NodeManager generation owns it) after a live lifecycle switch.
+        /// </summary>
+        private async Task<(DataValue? Value, ArrayOf<SubscriptionAcknowledgement> Acknowledgements)>
+            PublishForDataChangeAsync(
+                ServerTestServices services,
+                uint subscriptionId,
+                ArrayOf<SubscriptionAcknowledgement> acknowledgements,
+                uint clientHandle)
+        {
+            const int MaxPublishAttempts = 20;
+            DataValue? value = null;
+
+            for (int attempt = 0; attempt < MaxPublishAttempts && value is null; attempt++)
+            {
+                RequestHeader requestHeader = m_requestHeader;
+                requestHeader.Timestamp = DateTimeUtc.Now;
+
+                using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                PublishResponse response = await services
+                    .PublishAsync(requestHeader, acknowledgements, timeoutCts.Token)
+                    .ConfigureAwait(false);
+
+                Assert.That(response.SubscriptionId, Is.EqualTo(subscriptionId));
+
+                acknowledgements = response.AvailableSequenceNumbers.ToArrayOf(
+                    sequenceNumber => new SubscriptionAcknowledgement
+                    {
+                        SubscriptionId = subscriptionId,
+                        SequenceNumber = sequenceNumber
+                    });
+
+                if (response.NotificationMessage is { } message)
+                {
+                    foreach (ExtensionObject notificationData in message.NotificationData)
+                    {
+                        if (notificationData.TryGetValue(out DataChangeNotification dcn))
+                        {
+                            foreach (MonitoredItemNotification item in dcn.MonitoredItems)
+                            {
+                                if (item.ClientHandle == clientHandle)
+                                {
+                                    value = item.Value;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Assert.That(
+                value,
+                Is.Not.Null,
+                $"No data-change notification for client handle {clientHandle} on subscription " +
+                $"{subscriptionId} arrived within {MaxPublishAttempts} bounded publish attempts.");
+            return (value, acknowledgements);
+        }
+
+        /// <summary>
         /// Builds a reporting event monitored item on <see cref="ObjectIds.Server"/> that
         /// selects <c>EventType</c>, <c>SourceNode</c>, <c>SourceName</c>, and
         /// <c>Message</c>, restricted by a <c>WHERE</c> clause to events whose
@@ -2400,7 +2890,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public enum LifecycleOperation
         {
             Reload,
-            Remove
+            Remove,
+            ShadowReload
         }
 
         /// <summary>

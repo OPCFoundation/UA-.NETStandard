@@ -94,5 +94,42 @@ namespace Opc.Ua.Server.RuntimeNodeSet
                 new RuntimeNodeSetNodeManagerFactory(replacement),
                 ct);
         }
+
+        /// <summary>
+        /// Replaces a live runtime NodeSet registration from replacement options while
+        /// allowing the current generation to keep serving monitored items that were
+        /// already created on it. New service requests are atomically routed to the
+        /// replacement generation as soon as it is committed; the current generation is
+        /// retained only for its existing monitored items and any request or continuation
+        /// point that already captured it, and is disposed automatically once they drain.
+        /// </summary>
+        /// <exception cref="ArgumentNullException">
+        /// Thrown when <paramref name="lifecycle"/>, <paramref name="registration"/>, or
+        /// <paramref name="replacement"/> is <c>null</c>.
+        /// </exception>
+        public static ValueTask<NodeManagerRegistration> ShadowReloadRuntimeNodeSetAsync(
+            this INodeManagerLifecycle lifecycle,
+            NodeManagerRegistration registration,
+            RuntimeNodeSetOptions replacement,
+            CancellationToken ct = default)
+        {
+            if (lifecycle is null)
+            {
+                throw new ArgumentNullException(nameof(lifecycle));
+            }
+            if (registration is null)
+            {
+                throw new ArgumentNullException(nameof(registration));
+            }
+            if (replacement is null)
+            {
+                throw new ArgumentNullException(nameof(replacement));
+            }
+
+            return lifecycle.ShadowReloadAsync(
+                registration,
+                new RuntimeNodeSetNodeManagerFactory(replacement),
+                ct);
+        }
     }
 }

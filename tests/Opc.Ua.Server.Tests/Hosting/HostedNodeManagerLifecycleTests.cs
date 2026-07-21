@@ -110,6 +110,30 @@ namespace Opc.Ua.Server.Tests.Hosting
         }
 
         [Test]
+        public void ShadowReloadAsyncWithAsyncFactoryThrowsWhenNotAttached()
+        {
+            var hosted = new HostedNodeManagerLifecycle();
+            NodeManagerRegistration registration = NewRegistration();
+            IAsyncNodeManagerFactory replacement = Mock.Of<IAsyncNodeManagerFactory>();
+
+            Assert.That(
+                async () => await hosted.ShadowReloadAsync(registration, replacement).ConfigureAwait(false),
+                Throws.InvalidOperationException);
+        }
+
+        [Test]
+        public void ShadowReloadAsyncWithSyncFactoryThrowsWhenNotAttached()
+        {
+            var hosted = new HostedNodeManagerLifecycle();
+            NodeManagerRegistration registration = NewRegistration();
+            INodeManagerFactory replacement = Mock.Of<INodeManagerFactory>();
+
+            Assert.That(
+                async () => await hosted.ShadowReloadAsync(registration, replacement).ConfigureAwait(false),
+                Throws.InvalidOperationException);
+        }
+
+        [Test]
         public void RemoveAsyncThrowsWhenNotAttached()
         {
             var hosted = new HostedNodeManagerLifecycle();
@@ -249,6 +273,46 @@ namespace Opc.Ua.Server.Tests.Hosting
 
             NodeManagerRegistration actual = await hosted
                 .ReloadAsync(current, replacement)
+                .ConfigureAwait(false);
+
+            Assert.That(actual, Is.SameAs(expected));
+        }
+
+        [Test]
+        public async Task ShadowReloadAsyncWithAsyncFactoryDelegatesToAttachedLifecycleAsync()
+        {
+            var hosted = new HostedNodeManagerLifecycle();
+            var inner = new Mock<INodeManagerLifecycle>();
+            NodeManagerRegistration current = NewRegistration();
+            NodeManagerRegistration expected = NewRegistration();
+            IAsyncNodeManagerFactory replacement = Mock.Of<IAsyncNodeManagerFactory>();
+            inner
+                .Setup(l => l.ShadowReloadAsync(current, replacement, CancellationToken.None))
+                .Returns(new ValueTask<NodeManagerRegistration>(expected));
+            hosted.Attach(inner.Object);
+
+            NodeManagerRegistration actual = await hosted
+                .ShadowReloadAsync(current, replacement)
+                .ConfigureAwait(false);
+
+            Assert.That(actual, Is.SameAs(expected));
+        }
+
+        [Test]
+        public async Task ShadowReloadAsyncWithSyncFactoryDelegatesToAttachedLifecycleAsync()
+        {
+            var hosted = new HostedNodeManagerLifecycle();
+            var inner = new Mock<INodeManagerLifecycle>();
+            NodeManagerRegistration current = NewRegistration();
+            NodeManagerRegistration expected = NewRegistration();
+            INodeManagerFactory replacement = Mock.Of<INodeManagerFactory>();
+            inner
+                .Setup(l => l.ShadowReloadAsync(current, replacement, CancellationToken.None))
+                .Returns(new ValueTask<NodeManagerRegistration>(expected));
+            hosted.Attach(inner.Object);
+
+            NodeManagerRegistration actual = await hosted
+                .ShadowReloadAsync(current, replacement)
                 .ConfigureAwait(false);
 
             Assert.That(actual, Is.SameAs(expected));

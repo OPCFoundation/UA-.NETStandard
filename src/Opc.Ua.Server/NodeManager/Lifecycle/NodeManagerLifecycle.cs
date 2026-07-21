@@ -113,10 +113,13 @@ namespace Opc.Ua.Server
             try
             {
                 RegistrationState[] registrations;
+                RetiredNodeManager[] retired;
                 lock (m_registrationLock)
                 {
                     registrations = [.. m_registrations.Values];
                     m_registrations.Clear();
+                    retired = [.. m_retiredNodeManagers];
+                    m_retiredNodeManagers.Clear();
                 }
 
                 var host =
@@ -125,6 +128,17 @@ namespace Opc.Ua.Server
                 {
                     host?.Release(registration.Prepared.NodeManager);
                     await DisposeNodeManagerAsync(registration.Prepared.NodeManager)
+                        .ConfigureAwait(false);
+                }
+
+                // The server itself tears down every session, subscription, and
+                // monitored item during shutdown, so a shadow-reloaded generation that
+                // is still draining outside of shutdown is safe to dispose here rather
+                // than left to leak.
+                foreach (RetiredNodeManager retiredNodeManager in retired)
+                {
+                    host?.Release(retiredNodeManager.NodeManager);
+                    await DisposeNodeManagerAsync(retiredNodeManager.NodeManager)
                         .ConfigureAwait(false);
                 }
             }
@@ -179,6 +193,7 @@ namespace Opc.Ua.Server
             return ReloadCoreAsync(
                 registration,
                 replacement.CreateAsync,
+                allowActiveMonitoredItems: false,
                 ct);
         }
 
@@ -197,6 +212,44 @@ namespace Opc.Ua.Server
                 registration,
                 (server, configuration, _) => new ValueTask<IAsyncNodeManager>(
                     replacement.Create(server, configuration).ToAsyncNodeManager()),
+                allowActiveMonitoredItems: false,
+                ct);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<NodeManagerRegistration> ShadowReloadAsync(
+            NodeManagerRegistration registration,
+            IAsyncNodeManagerFactory replacement,
+            CancellationToken ct = default)
+        {
+            if (replacement is null)
+            {
+                throw new ArgumentNullException(nameof(replacement));
+            }
+
+            return ReloadCoreAsync(
+                registration,
+                replacement.CreateAsync,
+                allowActiveMonitoredItems: true,
+                ct);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<NodeManagerRegistration> ShadowReloadAsync(
+            NodeManagerRegistration registration,
+            INodeManagerFactory replacement,
+            CancellationToken ct = default)
+        {
+            if (replacement is null)
+            {
+                throw new ArgumentNullException(nameof(replacement));
+            }
+
+            return ReloadCoreAsync(
+                registration,
+                (server, configuration, _) => new ValueTask<IAsyncNodeManager>(
+                    replacement.Create(server, configuration).ToAsyncNodeManager()),
+                allowActiveMonitoredItems: true,
                 ct);
         }
 
@@ -552,6 +605,7 @@ namespace Opc.Ua.Server
         private async ValueTask<NodeManagerRegistration> ReloadCoreAsync(
             NodeManagerRegistration registration,
             CreateNodeManagerAsync createNodeManager,
+            bool allowActiveMonitoredItems,
             CancellationToken ct)
         {
             if (registration is null)
@@ -574,7 +628,10 @@ namespace Opc.Ua.Server
                 await CleanupRetiredNodeManagersAsync(server, host).ConfigureAwait(false);
                 namespaceCountBefore = server.NamespaceUris.Count;
                 current = GetCurrentState(registration);
-                EnsureNoActiveMonitoredItems(server, current.Prepared.NodeManager);
+                if (!allowActiveMonitoredItems)
+                {
+                    EnsureNoActiveMonitoredItems(server, current.Prepared.NodeManager);
+                }
 
                 replacementManager = await createNodeManager(
                     server,
@@ -613,7 +670,11 @@ namespace Opc.Ua.Server
                     ct).ConfigureAwait(false);
 
                 await host
-                    .ReplaceAsync(current.Prepared.NodeManager, replacement, ct)
+                    .ReplaceAsync(
+                        current.Prepared.NodeManager,
+                        replacement,
+                        allowActiveMonitoredItems,
+                        ct)
                     .ConfigureAwait(false);
                 await CommitWithReconciliationAsync(
                     server,
@@ -637,7 +698,8 @@ namespace Opc.Ua.Server
                 var retired = new RetiredNodeManager(
                     current.Prepared.NodeManager,
                     droppedInboundReferences,
-                    needsDetachment: true);
+                    needsDetachment: true,
+                    allowActiveMonitoredItems: allowActiveMonitoredItems);
                 lock (m_registrationLock)
                 {
                     m_retiredNodeManagers.Add(retired);
@@ -652,11 +714,14 @@ namespace Opc.Ua.Server
                         replacementManager,
                         bindings,
                         CancellationToken.None).ConfigureAwait(false);
-                    await CleanupRetiredNodeManagerAsync(server, host, retired)
+                    bool cleaned = await CleanupRetiredNodeManagerAsync(server, host, retired)
                         .ConfigureAwait(false);
-                    lock (m_registrationLock)
+                    if (cleaned)
                     {
-                        m_retiredNodeManagers.Remove(retired);
+                        lock (m_registrationLock)
+                        {
+                            m_retiredNodeManagers.Remove(retired);
+                        }
                     }
                 }
                 catch (Exception ex) when (ex is not OutOfMemoryException)
@@ -669,7 +734,7 @@ namespace Opc.Ua.Server
 
                 await NotifyCommittedChangeAsync(
                     server,
-                    "reloaded",
+                    allowActiveMonitoredItems ? "shadow-reloaded" : "reloaded",
                     namespaceCountBefore,
                     CancellationToken.None,
                     semanticChanges).ConfigureAwait(false);
@@ -724,7 +789,8 @@ namespace Opc.Ua.Server
                                 new RetiredNodeManager(
                                     current.Prepared.NodeManager,
                                     droppedInboundReferences,
-                                    needsDetachment: true));
+                                    needsDetachment: true,
+                                    allowActiveMonitoredItems: allowActiveMonitoredItems));
                         }
 
                         try
@@ -879,6 +945,17 @@ namespace Opc.Ua.Server
             IServerInternal server,
             IAsyncNodeManager nodeManager)
         {
+            if (HasActiveMonitoredItems(server, nodeManager))
+            {
+                throw new InvalidOperationException(
+                    "The NodeManager cannot be reloaded or removed while it owns monitored items.");
+            }
+        }
+
+        private static bool HasActiveMonitoredItems(
+            IServerInternal server,
+            IAsyncNodeManager nodeManager)
+        {
             foreach (ISubscription subscription in server.SubscriptionManager.GetSubscriptions())
             {
                 if (subscription.MonitoredItemCount == 0)
@@ -892,10 +969,10 @@ namespace Opc.Ua.Server
                 }
                 if (tracker.HasMonitoredItems(nodeManager))
                 {
-                    throw new InvalidOperationException(
-                        "The NodeManager cannot be reloaded or removed while it owns monitored items.");
+                    return true;
                 }
             }
+            return false;
         }
 
         private static void InvalidateContinuationPoints(
@@ -1680,24 +1757,41 @@ namespace Opc.Ua.Server
 
             foreach (RetiredNodeManager retiredNodeManager in retired)
             {
-                await CleanupRetiredNodeManagerAsync(
+                bool cleaned = await CleanupRetiredNodeManagerAsync(
                     server,
                     host,
                     retiredNodeManager).ConfigureAwait(false);
-                lock (m_registrationLock)
+                if (cleaned)
                 {
-                    m_retiredNodeManagers.Remove(retiredNodeManager);
+                    lock (m_registrationLock)
+                    {
+                        m_retiredNodeManagers.Remove(retiredNodeManager);
+                    }
                 }
             }
         }
 
-        private static async ValueTask CleanupRetiredNodeManagerAsync(
+        /// <summary>
+        /// Detaches and destroys a retired NodeManager generation, returning <c>true</c>
+        /// once fully cleaned up. A shadow-reloaded generation that still owns active
+        /// monitored items is left untouched (requests, continuation points, and
+        /// monitored items that already captured it keep working) and <c>false</c> is
+        /// returned so the caller retries cleanup on a later opportunity, without ever
+        /// force-deleting a client's monitored items or subscription.
+        /// </summary>
+        private static async ValueTask<bool> CleanupRetiredNodeManagerAsync(
             IServerInternal server,
             IDynamicNodeManagerHost host,
             RetiredNodeManager retired)
         {
             if (retired.NeedsDetachment)
             {
+                if (retired.AllowActiveMonitoredItems &&
+                    HasActiveMonitoredItems(server, retired.NodeManager))
+                {
+                    return false;
+                }
+
                 InvalidateContinuationPoints(server, retired.NodeManager);
                 await server.RequestManager
                     .WaitForCurrentRequestsAsync(CancellationToken.None)
@@ -1729,6 +1823,7 @@ namespace Opc.Ua.Server
                 .ConfigureAwait(false);
             RebuildActiveTypeTree(server);
             await DisposeNodeManagerAsync(retired.NodeManager).ConfigureAwait(false);
+            return true;
         }
 
         private delegate ValueTask<IAsyncNodeManager> CreateNodeManagerAsync(
@@ -1778,11 +1873,13 @@ namespace Opc.Ua.Server
             public RetiredNodeManager(
                 IAsyncNodeManager nodeManager,
                 List<LocalReference> pendingReferences,
-                bool needsDetachment)
+                bool needsDetachment,
+                bool allowActiveMonitoredItems = false)
             {
                 NodeManager = nodeManager;
                 PendingReferences = pendingReferences;
                 NeedsDetachment = needsDetachment;
+                AllowActiveMonitoredItems = allowActiveMonitoredItems;
             }
 
             public IAsyncNodeManager NodeManager { get; }
@@ -1790,6 +1887,13 @@ namespace Opc.Ua.Server
             public List<LocalReference> PendingReferences { get; }
 
             public bool NeedsDetachment { get; set; }
+
+            /// <summary>
+            /// Gets whether this generation was retired by a shadow reload and may still
+            /// own active monitored items. Cleanup is deferred rather than rejected while
+            /// this holds true and monitored items remain.
+            /// </summary>
+            public bool AllowActiveMonitoredItems { get; }
         }
 
         private readonly StandardServer m_server;

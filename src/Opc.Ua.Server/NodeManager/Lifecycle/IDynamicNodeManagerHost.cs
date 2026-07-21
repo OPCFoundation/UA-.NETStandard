@@ -47,6 +47,7 @@ namespace Opc.Ua.Server
         ValueTask ReplaceAsync(
             IAsyncNodeManager current,
             PreparedNodeManager replacement,
+            bool allowActiveMonitoredItems = false,
             CancellationToken ct = default);
 
         ValueTask CommitAsync(
@@ -91,5 +92,14 @@ namespace Opc.Ua.Server
         public IAsyncNodeManager? ReplacedNodeManager { get; set; }
 
         public Dictionary<NodeId, IList<IReference>>? ReplacedExternalReferences { get; set; }
+
+        /// <summary>
+        /// Gets or sets whether <see cref="ReplacedNodeManager"/> may still own active
+        /// monitored items when this replacement is committed. Set by
+        /// <see cref="IDynamicNodeManagerHost.ReplaceAsync"/> for a shadow reload; the
+        /// replaced generation is preserved for its existing monitored items and is torn
+        /// down only after they drain.
+        /// </summary>
+        public bool AllowActiveMonitoredItems { get; set; }
     }
 }
