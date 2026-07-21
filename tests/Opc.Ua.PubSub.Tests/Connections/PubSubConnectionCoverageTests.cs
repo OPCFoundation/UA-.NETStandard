@@ -576,6 +576,66 @@ namespace Opc.Ua.PubSub.Tests.Connections
         }
 
         [Test]
+        public async Task UnsecuredActionOptInIsIsolatedPerResponderAsync()
+        {
+            var diagnostics = new PubSubDiagnostics(PubSubDiagnosticsLevel.High);
+            var transport = new DatagramHarnessTransport(UadpProfile);
+            var encoder = new CapturingEncoder(UadpProfile);
+            var decoder = new QueueDecoder(UadpProfile);
+            await using PubSubConnection connection = CreateConnection(
+                Config(UadpProfile), new SingleTransportFactory(transport, UadpProfile),
+                EncMap(UadpProfile, encoder), DecMap(UadpProfile, decoder), diagnostics);
+
+            int permissiveInvocations = 0;
+            int protectedInvocations = 0;
+            connection.RegisterActionHandler(
+                new PubSubActionTarget { DataSetWriterId = 5, ActionTargetId = 3 },
+                new DelegatePubSubActionHandler((_, _) =>
+                {
+                    Interlocked.Increment(ref permissiveInvocations);
+                    return new ValueTask<PubSubActionHandlerResult>(
+                        new PubSubActionHandlerResult { StatusCode = StatusCodes.Good });
+                }),
+                allowUnsecured: true);
+            connection.RegisterActionHandler(
+                new PubSubActionTarget { DataSetWriterId = 7, ActionTargetId = 4 },
+                new DelegatePubSubActionHandler((_, _) =>
+                {
+                    Interlocked.Increment(ref protectedInvocations);
+                    return new ValueTask<PubSubActionHandlerResult>(
+                        new PubSubActionHandlerResult { StatusCode = StatusCodes.Good });
+                }));
+
+            await connection.EnableAsync().ConfigureAwait(false);
+            Deliver(transport, decoder, new UadpActionRequestMessage
+            {
+                DataSetWriterId = 7,
+                ActionTargetId = 4,
+                RequestId = 1,
+                ResponseAddress = string.Empty
+            });
+            Deliver(transport, decoder, new UadpActionRequestMessage
+            {
+                DataSetWriterId = 5,
+                ActionTargetId = 3,
+                RequestId = 2,
+                ResponseAddress = string.Empty
+            });
+
+            await AwaitBoundedAsync(transport.WaitUntilProcessedAsync(2), "two Action requests")
+                .ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(permissiveInvocations, Is.EqualTo(1));
+                Assert.That(protectedInvocations, Is.Zero);
+                Assert.That(transport.SentPayloads, Has.Count.EqualTo(1));
+                Assert.That(
+                    diagnostics.Read(PubSubDiagnosticsCounterKind.SecurityTokenErrors),
+                    Is.EqualTo(1));
+            });
+        }
+
+        [Test]
         public async Task InvokeActionAsyncRoundTripsUadpResponseAsync()
         {
             var transport = new DatagramHarnessTransport(UadpProfile);
@@ -677,6 +737,44 @@ namespace Opc.Ua.PubSub.Tests.Connections
             {
                 Assert.That(transport.SentPayloads, Is.Empty);
                 Assert.That(diagnostics.Read(PubSubDiagnosticsCounterKind.SecurityTokenErrors), Is.EqualTo(1));
+            });
+        }
+
+        [Test]
+        public async Task ReceiveLoopJsonActionResponderWithoutAllowUnsecuredRecordsSecurityFailureAsync()
+        {
+            var diagnostics = new PubSubDiagnostics(PubSubDiagnosticsLevel.High);
+            var transport = new DatagramHarnessTransport(JsonProfile);
+            var encoder = new CapturingEncoder(JsonProfile);
+            var decoder = new QueueDecoder(JsonProfile);
+            await using PubSubConnection connection = CreateConnection(
+                Config(JsonProfile), new SingleTransportFactory(transport, JsonProfile),
+                EncMap(JsonProfile, encoder), DecMap(JsonProfile, decoder), diagnostics);
+
+            int invocations = 0;
+            connection.RegisterActionHandler(
+                new PubSubActionTarget { DataSetWriterId = 5, ActionTargetId = 3 },
+                new DelegatePubSubActionHandler((_, _) =>
+                {
+                    Interlocked.Increment(ref invocations);
+                    return new ValueTask<PubSubActionHandlerResult>(
+                        new PubSubActionHandlerResult { StatusCode = StatusCodes.Good });
+                }));
+
+            await connection.EnableAsync().ConfigureAwait(false);
+            Deliver(transport, decoder, NewJsonActionRequest(5, 3, requestId: 1));
+
+            await AwaitBoundedAsync(
+                transport.WaitUntilProcessedAsync(1),
+                "json action request to a responder that forbids unsecured requests")
+                .ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(invocations, Is.Zero);
+                Assert.That(transport.SentPayloads, Is.Empty);
+                Assert.That(
+                    diagnostics.Read(PubSubDiagnosticsCounterKind.SecurityTokenErrors),
+                    Is.EqualTo(1));
             });
         }
 
