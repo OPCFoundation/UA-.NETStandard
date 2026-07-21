@@ -67,6 +67,13 @@ public class MyNodeManager : AsyncCustomNodeManager
 }
 ```
 
+> **Browse consistency.** `CreateNodeAsync` / `AddNodeAsync` /
+> `DeleteNodeAsync` also keep the node manager's internal component
+> cache in sync with the change — the affected node (and its parent)
+> are refreshed or evicted — so a Browse, Read or Call issued after
+> the change reflects the committed address space instead of a stale,
+> cached view.
+
 If your node manager mutates the address space without going through
 `CreateNodeAsync` / `DeleteNodeAsync` (for example by editing an
 in-memory `NodeStateCollection`), you can either:
