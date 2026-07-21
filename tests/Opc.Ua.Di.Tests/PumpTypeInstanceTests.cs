@@ -75,6 +75,9 @@ namespace Opc.Ua.Di.Tests
                         global::Opc.Ua.Pumps.ObjectTypes.PumpType,
                         global::Opc.Ua.Pumps.Namespaces.Pumps,
                         server.CurrentInstance.NamespaceUris)));
+                Assert.That(
+                    pump.ReferenceTypeId,
+                    Is.EqualTo(Opc.Ua.Types.ReferenceTypeIds.HasComponent));
                 Assert.That(pump.Identification, Is.Not.Null);
                 Assert.That(
                     pump.Identification!.TypeDefinitionId,

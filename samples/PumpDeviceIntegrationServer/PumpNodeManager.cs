@@ -235,13 +235,11 @@ namespace Pumps
             PumpState pump = SystemContext
                 .CreateInstanceOfPumpType(deviceSet, pumpBrowseName);
 
+            pump.ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.HasComponent;
             pump.NodeId = SystemContext.NodeIdFactory.New(SystemContext, pump);
 
             MaterialisePumpOptionalChildren(pump);
 
-            // AddChild defaults ReferenceTypeId to HasComponent when null
-            // (NodeState.AddChild line 4511-4514); ModellingRuleId defaults
-            // to NodeId.Null on every fresh NodeState — no explicit set needed.
             deviceSet.AddChild(pump);
 
             // Walk the whole pump subtree assigning per-instance NodeIds
