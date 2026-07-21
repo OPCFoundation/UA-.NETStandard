@@ -108,6 +108,13 @@ namespace Opc.Ua.Client.Subscriptions
         /// current session.
         /// </summary>
         /// <param name="ct">Cancellation token.</param>
+        /// <exception cref="InvalidOperationException">
+        /// The method is called from one of this subscription's notification
+        /// callbacks. Schedule the recreate after the callback returns.
+        /// </exception>
+        /// <exception cref="ObjectDisposedException">
+        /// Disposal of the subscription has started.
+        /// </exception>
         ValueTask RecreateAsync(CancellationToken ct = default);
 
         /// <summary>
