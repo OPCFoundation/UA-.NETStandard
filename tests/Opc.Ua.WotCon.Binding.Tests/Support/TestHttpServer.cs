@@ -41,11 +41,14 @@ namespace Opc.Ua.WotCon.Binding.Tests.Support
     /// <summary>A single response returned by the in-process test HTTP server.</summary>
     public sealed class TestHttpResponse
     {
-        public TestHttpResponse(int status, string contentType, byte[] body)
+        public TestHttpResponse(
+            int status, string contentType, byte[] body,
+            IReadOnlyDictionary<string, string>? headers = null)
         {
             Status = status;
             ContentType = contentType;
             Body = body;
+            Headers = headers;
         }
 
         public int Status { get; }
@@ -54,8 +57,36 @@ namespace Opc.Ua.WotCon.Binding.Tests.Support
 
         public byte[] Body { get; }
 
+        /// <summary>Gets optional extra response headers (for example <c>Location</c>).</summary>
+        public IReadOnlyDictionary<string, string>? Headers { get; }
+
         public static TestHttpResponse Json(int status, string json)
             => new TestHttpResponse(status, "application/json", Encoding.UTF8.GetBytes(json));
+
+        /// <summary>Creates a redirect response (default 302) carrying a <c>Location</c> header.</summary>
+        public static TestHttpResponse Redirect(string location, int status = 302)
+            => new TestHttpResponse(status, "text/plain", Array.Empty<byte>(),
+                new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { ["Location"] = location });
+    }
+
+    /// <summary>A parsed request handed to the richer test-server handler.</summary>
+    public sealed class TestHttpRequest
+    {
+        public TestHttpRequest(string method, string path, byte[] body, IReadOnlyDictionary<string, string> headers)
+        {
+            Method = method;
+            Path = path;
+            Body = body;
+            Headers = headers;
+        }
+
+        public string Method { get; }
+
+        public string Path { get; }
+
+        public byte[] Body { get; }
+
+        public IReadOnlyDictionary<string, string> Headers { get; }
     }
 
     /// <summary>
@@ -66,16 +97,23 @@ namespace Opc.Ua.WotCon.Binding.Tests.Support
     public sealed class TestHttpServer : IDisposable
     {
         public TestHttpServer(Func<string, string, byte[], TestHttpResponse> handler)
+            : this(request => handler(request.Method, request.Path, request.Body))
+        {
+        }
+
+        public TestHttpServer(Func<TestHttpRequest, TestHttpResponse> handler)
         {
             m_handler = handler;
             m_listener = new TcpListener(IPAddress.Loopback, 0);
             m_listener.Start();
-            int port = ((IPEndPoint)m_listener.LocalEndpoint).Port;
-            BaseUrl = $"http://127.0.0.1:{port}";
+            Port = ((IPEndPoint)m_listener.LocalEndpoint).Port;
+            BaseUrl = $"http://127.0.0.1:{Port}";
             m_loop = Task.Run(AcceptLoopAsync);
         }
 
         public string BaseUrl { get; }
+
+        public int Port { get; }
 
         public void Dispose()
         {
@@ -121,12 +159,12 @@ namespace Opc.Ua.WotCon.Binding.Tests.Support
             {
                 try
                 {
-                    (string method, string path, byte[] body) = await ReadRequestAsync(stream).ConfigureAwait(false);
-                    if (method is null)
+                    TestHttpRequest? request = await ReadRequestAsync(stream).ConfigureAwait(false);
+                    if (request is null)
                     {
                         return;
                     }
-                    TestHttpResponse response = m_handler(method, path, body);
+                    TestHttpResponse response = m_handler(request);
                     await WriteResponseAsync(stream, response).ConfigureAwait(false);
                 }
                 catch (IOException)
@@ -136,7 +174,7 @@ namespace Opc.Ua.WotCon.Binding.Tests.Support
             }
         }
 
-        private static async Task<(string Method, string Path, byte[] Body)> ReadRequestAsync(NetworkStream stream)
+        private static async Task<TestHttpRequest?> ReadRequestAsync(NetworkStream stream)
         {
             var header = new MemoryStream();
             byte[] one = new byte[1];
@@ -147,7 +185,7 @@ namespace Opc.Ua.WotCon.Binding.Tests.Support
                 int read = await stream.ReadAsync(one.AsMemory(0, 1)).ConfigureAwait(false);
                 if (read == 0)
                 {
-                    return (null!, null!, Array.Empty<byte>());
+                    return null;
                 }
                 header.WriteByte(one[0]);
                 matched = one[0] == terminator[matched] ? matched + 1 : (one[0] == terminator[0] ? 1 : 0);
@@ -158,10 +196,20 @@ namespace Opc.Ua.WotCon.Binding.Tests.Support
             string method = requestLine.Length > 0 ? requestLine[0] : "GET";
             string path = requestLine.Length > 1 ? requestLine[1] : "/";
             int contentLength = 0;
-            foreach (string line in lines)
+            var headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            for (int i = 1; i < lines.Length; i++)
             {
-                if (line.StartsWith("Content-Length:", StringComparison.OrdinalIgnoreCase) &&
-                    !int.TryParse(line.Substring("Content-Length:".Length).Trim(), out contentLength))
+                string line = lines[i];
+                int colon = line.IndexOf(":", StringComparison.Ordinal);
+                if (colon <= 0)
+                {
+                    continue;
+                }
+                string name = line.Substring(0, colon).Trim();
+                string value = line.Substring(colon + 1).Trim();
+                headers[name] = value;
+                if (string.Equals(name, "Content-Length", StringComparison.OrdinalIgnoreCase) &&
+                    !int.TryParse(value, out contentLength))
                 {
                     contentLength = 0;
                 }
@@ -182,7 +230,7 @@ namespace Opc.Ua.WotCon.Binding.Tests.Support
                     offset += read;
                 }
             }
-            return (method, path, body);
+            return new TestHttpRequest(method, path, body, headers);
         }
 
         private static async Task WriteResponseAsync(NetworkStream stream, TestHttpResponse response)
@@ -192,6 +240,13 @@ namespace Opc.Ua.WotCon.Binding.Tests.Support
             builder.Append("HTTP/1.1 ").Append(response.Status).Append(' ').Append(Reason(response.Status)).Append("\r\n");
             builder.Append("Content-Type: ").Append(response.ContentType).Append("\r\n");
             builder.Append("Content-Length: ").Append(body.Length).Append("\r\n");
+            if (response.Headers is { Count: > 0 })
+            {
+                foreach (KeyValuePair<string, string> extra in response.Headers)
+                {
+                    builder.Append(extra.Key).Append(": ").Append(extra.Value).Append("\r\n");
+                }
+            }
             builder.Append("Connection: close\r\n\r\n");
             byte[] head = Encoding.ASCII.GetBytes(builder.ToString());
             await stream.WriteAsync(head).ConfigureAwait(false);
@@ -208,6 +263,11 @@ namespace Opc.Ua.WotCon.Binding.Tests.Support
             {
                 200 => "OK",
                 204 => "No Content",
+                301 => "Moved Permanently",
+                302 => "Found",
+                303 => "See Other",
+                307 => "Temporary Redirect",
+                308 => "Permanent Redirect",
                 400 => "Bad Request",
                 404 => "Not Found",
                 500 => "Internal Server Error",
@@ -215,7 +275,7 @@ namespace Opc.Ua.WotCon.Binding.Tests.Support
             };
         }
 
-        private readonly Func<string, string, byte[], TestHttpResponse> m_handler;
+        private readonly Func<TestHttpRequest, TestHttpResponse> m_handler;
         private readonly TcpListener m_listener;
         private readonly Task m_loop;
         private readonly CancellationTokenSource m_cts = new CancellationTokenSource();

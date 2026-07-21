@@ -70,6 +70,10 @@ namespace Opc.Ua.WotCon.Binding.Modbus
             {
                 throw new ArgumentNullException(nameof(context));
             }
+            // Re-validate the addressing (and perform the ushort / byte casts) before
+            // opening the socket so a hand-built or tampered compiled form fails fast
+            // and never leaks a half-open connection.
+            ModbusAddressing addressing = ModbusAddressing.FromForm(form);
             string host = string.IsNullOrEmpty(form.Endpoint.Host) ? "127.0.0.1" : form.Endpoint.Host!;
             int port = form.Endpoint.Port > 0 ? form.Endpoint.Port : 502;
             var client = new ModbusTcpClient(host, port, context.Bounds.DefaultTimeout);
@@ -82,7 +86,7 @@ namespace Opc.Ua.WotCon.Binding.Modbus
                 client.Dispose();
                 throw;
             }
-            return new ModbusWotBindingChannel(client, form, context, m_options);
+            return new ModbusWotBindingChannel(client, form, context, m_options, addressing);
         }
 
         private readonly ModbusWotBindingOptions m_options;

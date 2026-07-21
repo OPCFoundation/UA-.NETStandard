@@ -174,6 +174,33 @@ server or coordinator.
 * The MQTT executor implements publish/subscribe; request/response RPC with a
   dedicated response topic is not modelled (actions publish only).
 
+## Transport security
+
+The executable bindings fail closed and never downgrade a secure form to an
+insecure transport:
+
+* **MQTT** — an `mqtts://` href always enables TLS and defaults to port 8883; an
+  `mqtt://` href stays explicit plaintext (port 1883). Username / password,
+  the TLS client certificate and TLS trust anchors are resolved through the
+  `IWotCredentialProvider`; a form that declares a security scheme is refused
+  when the provider resolves no credential. Username / password over plaintext
+  `mqtt://` is refused unless `MqttWotBindingOptions.AllowCredentialsOverPlaintext`
+  is set.
+* **HTTP** — the executor-owned `HttpClient` disables automatic redirects and
+  applies a bounded, origin-aware redirect policy: custom header and query
+  credentials are stripped across origins, redirect loops and non-`http(s)`
+  schemes are refused, an `https`→`http` downgrade is refused unless
+  `AllowInsecureRedirectDowngrade` is set, and the hop count is capped by
+  `MaxAutomaticRedirects` (default 5). A caller-supplied client used with a
+  credential-bearing form fails closed unless
+  `HttpWotBindingOptions.CallerClientHandlesRedirectSafety` confirms the client
+  handles redirects without leaking credentials.
+* **Modbus** — `modv:address` must be 0–65535 and the addressed range
+  (`address + quantity - 1`) must stay in the 16-bit space; function-only forms
+  map exactly onto function codes 1, 2, 3, 4, 5, 6, 15 and 16, and
+  op/function (or entity/function) mismatches are rejected. The executor
+  re-validates the range before narrowing to `ushort` / `byte`.
+
 ## Operation coverage (OPC UA executor)
 
 | Operation | Mechanism |

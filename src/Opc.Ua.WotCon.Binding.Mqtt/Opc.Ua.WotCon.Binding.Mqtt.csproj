@@ -15,6 +15,7 @@
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.WotCon.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.WotCon.Binding.Tests" />
   </ItemGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>
