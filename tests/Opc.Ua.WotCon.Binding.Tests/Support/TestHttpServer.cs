@@ -200,7 +200,7 @@ namespace Opc.Ua.WotCon.Binding.Tests.Support
             for (int i = 1; i < lines.Length; i++)
             {
                 string line = lines[i];
-                int colon = line.IndexOf(":", StringComparison.Ordinal);
+                int colon = line.IndexOf(':');
                 if (colon <= 0)
                 {
                     continue;
