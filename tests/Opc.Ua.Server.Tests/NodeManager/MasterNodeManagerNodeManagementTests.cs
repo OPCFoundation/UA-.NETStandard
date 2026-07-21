@@ -55,6 +55,7 @@ namespace Opc.Ua.Server.Tests
     public class MasterNodeManagerNodeManagementTests
     {
         private const string TestNamespaceUri = "http://test.org/UA/MasterNodeManagement/";
+        private const string E2eNamespaceUri = "http://test.org/UA/MasterNodeManagement/E2E/";
 
         private ServerFixture<StandardServer> m_fixture = null!;
         private StandardServer m_server = null!;
@@ -639,6 +640,103 @@ namespace Opc.Ua.Server.Tests
                     System.Array.Empty<DeleteReferencesItem>().ToArrayOf(),
                     CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<System.ArgumentNullException>());
+        }
+
+        /// <summary>
+        /// End-to-end regression for issue #4061: a child added to an
+        /// already-subscribed (cached) parent at runtime via CreateNodeAsync
+        /// must be visible when the parent is browsed through the full
+        /// MasterNodeManager dispatch pipeline, and must disappear again once
+        /// the child is deleted.
+        /// </summary>
+        [Test]
+        public async Task BrowseThroughMaster_ReflectsRuntimeAddAndDeleteOnCachedParentAsync()
+        {
+            // Ownership of the manager transfers to the MasterNodeManager,
+            // which disposes its registered node managers; do not dispose it
+            // a second time here.
+#pragma warning disable CA2000
+            var manager = new TestableAsyncCustomNodeManager(
+                m_server.CurrentInstance,
+                m_fixture.Config,
+                Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance,
+                E2eNamespaceUri);
+#pragma warning restore CA2000
+            using MasterNodeManager sut = new MasterNodeManager(
+                m_server.CurrentInstance, m_fixture.Config, null, manager);
+
+            ServerSystemContext ctx = manager.SystemContext;
+            ushort ns = manager.NamespaceIndexes[0];
+
+            var parent = new BaseObjectState(null);
+            parent.CreateAsPredefinedNode(ctx);
+            parent.NodeId = new NodeId("E2eParent", ns);
+            parent.BrowseName = new QualifiedName("E2eParent", ns);
+            await manager.AddNodeAsync(ctx, default, parent).ConfigureAwait(false);
+
+            // parent is subscribed/browsed -> cached in the component cache.
+            manager.AddNodeToComponentCachePublic(ctx, new NodeHandle(parent.NodeId, parent), parent);
+
+            // runtime-add a child.
+            var child = new BaseObjectState(null);
+            NodeId childId = await manager.CreateNodeAsync(
+                ctx,
+                parent.NodeId,
+                ReferenceTypeIds.Organizes,
+                new QualifiedName("E2eRuntimeChild", ns),
+                child).ConfigureAwait(false);
+
+            (ArrayOf<BrowseResult> afterAdd, _) =
+                await BrowseChildrenAsync(sut, parent.NodeId).ConfigureAwait(false);
+
+            Assert.That(afterAdd[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(
+                ChildNodeIds(afterAdd[0]),
+                Has.Member(new ExpandedNodeId(childId)),
+                "runtime-added child must be visible when browsing the cached parent through the master");
+
+            // delete the child and re-browse -> gone.
+            await manager.DeleteNodeAsync(ctx, childId).ConfigureAwait(false);
+
+            (ArrayOf<BrowseResult> afterDelete, _) =
+                await BrowseChildrenAsync(sut, parent.NodeId).ConfigureAwait(false);
+
+            Assert.That(afterDelete[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(
+                ChildNodeIds(afterDelete[0]),
+                Has.No.Member(new ExpandedNodeId(childId)),
+                "deleted child must no longer be visible when browsing the parent through the master");
+        }
+
+        private static List<ExpandedNodeId> ChildNodeIds(BrowseResult result)
+        {
+            var ids = new List<ExpandedNodeId>();
+            foreach (ReferenceDescription reference in result.References)
+            {
+                ids.Add(reference.NodeId);
+            }
+            return ids;
+        }
+
+        private async Task<(ArrayOf<BrowseResult> results, ArrayOf<DiagnosticInfo> diagnostics)> BrowseChildrenAsync(
+            MasterNodeManager sut,
+            NodeId parentId)
+        {
+            var browseDescription = new BrowseDescription
+            {
+                NodeId = parentId,
+                BrowseDirection = BrowseDirection.Forward,
+                ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
+                IncludeSubtypes = true,
+                ResultMask = (uint)BrowseResultMask.All
+            };
+
+            return await sut.BrowseAsync(
+                CreateContext(),
+                new ViewDescription(),
+                0u,
+                new[] { browseDescription }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
         }
 
         private MasterNodeManager CreateMasterNodeManager(params INodeManager[] additional)
