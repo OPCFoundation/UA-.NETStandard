@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/samples/">
+    <File Path="samples/UAReferenceServer.ctt.xml" />
     <Project Path="samples/ConsoleLdsServer/ConsoleLdsServer.csproj" />
     <Project Path="samples/ConsoleReferenceClient/ConsoleReferenceClient.csproj" />
     <Project Path="samples/ConsoleReferencePubSubClient/ConsoleReferencePubSubClient.csproj" />
@@ -183,6 +184,7 @@
     <File Path="docs/WhatsNewIn2.0.md" />
     <File Path="docs/WoTConnectivity.md" />
   </Folder>
+  <Folder Name="/Solution Items/docs/migrate/" />
   <Folder Name="/Solution Items/docs/migrate/2.0.x/">
     <File Path="docs/migrate/2.0.x/alarms-model-change.md" />
     <File Path="docs/migrate/2.0.x/certificates.md" />
@@ -248,6 +250,7 @@
     <Project Path="tests/Opc.Ua.SourceGeneration.Tests/Opc.Ua.SourceGeneration.Tests.csproj" />
     <Project Path="tests/Opc.Ua.MigrationAnalyzer.Core.Tests/Opc.Ua.MigrationAnalyzer.Core.Tests.csproj" />
     <Project Path="tests/Opc.Ua.MigrationAnalyzer.Tests/Opc.Ua.MigrationAnalyzer.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.Tools.Tests/Opc.Ua.Tools.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Types.Tests/Opc.Ua.Types.Tests.csproj" />
     <Project Path="tests/Opc.Ua.WotCon.Tests/Opc.Ua.WotCon.Tests.csproj" />
   </Folder>
