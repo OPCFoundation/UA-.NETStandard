@@ -441,6 +441,24 @@ namespace Opc.Ua.Server
                     ReferenceEquals(manager, nodeManager));
         }
 
+        /// <summary>
+        /// Returns whether the given NodeManager is still registered (visible or hidden).
+        /// A shadow-retired generation removed from the routing table returns <c>false</c>,
+        /// which callers use to detect that a monitored item is owned by a retired
+        /// generation rather than a live routing-table manager.
+        /// </summary>
+        public bool Contains(IAsyncNodeManager nodeManager)
+        {
+            if (nodeManager is null)
+            {
+                return false;
+            }
+
+            RoutingSnapshot snapshot = Volatile.Read(ref m_snapshot);
+            return snapshot.NodeManagers.Any(manager =>
+                ReferenceEquals(manager, nodeManager));
+        }
+
         public void SetVisible(
             IAsyncNodeManager nodeManager,
             bool visible)

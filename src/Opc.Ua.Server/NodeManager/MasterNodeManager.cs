@@ -772,6 +772,11 @@ namespace Opc.Ua.Server
             }
         }
 
+        void IDynamicNodeManagerHost.SetRetiredGenerationDrainObserver(Action? observer)
+        {
+            m_retiredGenerationDrainObserver = observer;
+        }
+
         async ValueTask<T> INodeManagerMutationCoordinator
             .ExecuteMonitoredItemMutationAsync<T>(
                 Func<ValueTask<T>> mutation,
@@ -3996,19 +4001,19 @@ namespace Opc.Ua.Server
                         cancellationToken)
                     .ConfigureAwait(false);
 
-                // let each node manager figure out which items it owns.
-                foreach (IAsyncNodeManager nodeManager in m_nodeManagers)
-                {
-                    await nodeManager.ModifyMonitoredItemsAsync(
-                            context,
-                            timestampsToReturn,
-                            monitoredItems,
-                            itemsToModify,
-                            errors,
-                            filterResults,
-                            cancellationToken)
-                        .ConfigureAwait(false);
-                }
+                // let each owning node manager modify the items it created. Data monitored
+                // items are dispatched to their recorded owning NodeManager (grouped by
+                // owner) rather than to visible routing-table managers only, so items still
+                // owned by a shadow-retired generation are handled by that generation.
+                await DispatchModifyToOwningNodeManagersAsync(
+                        context,
+                        timestampsToReturn,
+                        monitoredItems,
+                        itemsToModify,
+                        errors,
+                        filterResults,
+                        cancellationToken)
+                    .ConfigureAwait(false);
 
                 // update results.
                 for (int ii = 0; ii < errors.Count; ii++)
@@ -4162,18 +4167,22 @@ namespace Opc.Ua.Server
                 errors[ii] = StatusCodes.BadMonitoredItemIdInvalid;
             }
 
-            // call each node manager.
-            foreach (IAsyncNodeManager nodeManager in m_nodeManagers)
-            {
-                await nodeManager.TransferMonitoredItemsAsync(
+            // call each owning node manager. Data monitored items are dispatched to their
+            // recorded owning NodeManager (grouped by owner) so items owned by a
+            // shadow-retired generation are transferred by that generation.
+            await DispatchDataMonitoredItemsToOwningNodeManagersAsync(
+                    monitoredItems,
+                    processedItems,
+                    (owner, ownedItems) => owner.TransferMonitoredItemsAsync(
                         context,
                         sendInitialValues,
                         monitoredItems,
-                        processedItems,
+                        ownedItems,
                         errors,
-                        cancellationToken)
-                    .ConfigureAwait(false);
-            }
+                        cancellationToken),
+                    notifyRetiredGenerationDrain: false,
+                    cancellationToken)
+                .ConfigureAwait(false);
         }
 
         /// <summary>
@@ -4234,17 +4243,21 @@ namespace Opc.Ua.Server
                     cancellationToken)
                 .ConfigureAwait(false);
 
-            // call each node manager.
-            foreach (IAsyncNodeManager nodeManager in m_nodeManagers)
-            {
-                await nodeManager.DeleteMonitoredItemsAsync(
+            // call each owning node manager. Data monitored items are dispatched to their
+            // recorded owning NodeManager (grouped by owner) so items owned by a
+            // shadow-retired generation are deleted by that generation, draining it.
+            await DispatchDataMonitoredItemsToOwningNodeManagersAsync(
+                    itemsToDelete,
+                    processedItems,
+                    (owner, ownedItems) => owner.DeleteMonitoredItemsAsync(
                         context,
                         itemsToDelete,
-                        processedItems,
+                        ownedItems,
                         errors,
-                        cancellationToken)
-                    .ConfigureAwait(false);
-            }
+                        cancellationToken),
+                    notifyRetiredGenerationDrain: true,
+                    cancellationToken)
+                .ConfigureAwait(false);
 
             // fill results for unknown nodes.
             for (int ii = 0; ii < errors.Count; ii++)
@@ -4351,17 +4364,22 @@ namespace Opc.Ua.Server
                 processedItems,
                 errors);
 
-            foreach (IAsyncNodeManager nodeManager in m_nodeManagers)
-            {
-                await nodeManager.SetMonitoringModeAsync(
+            // set the monitoring mode on each owning node manager. Data monitored items are
+            // dispatched to their recorded owning NodeManager (grouped by owner) so items
+            // owned by a shadow-retired generation are handled by that generation.
+            await DispatchDataMonitoredItemsToOwningNodeManagersAsync(
+                    itemsToModify,
+                    processedItems,
+                    (owner, ownedItems) => owner.SetMonitoringModeAsync(
                         context,
                         monitoringMode,
                         itemsToModify,
-                        processedItems,
+                        ownedItems,
                         errors,
-                        cancellationToken)
-                    .ConfigureAwait(false);
-            }
+                        cancellationToken),
+                    notifyRetiredGenerationDrain: false,
+                    cancellationToken)
+                .ConfigureAwait(false);
 
             // fill results for unknown nodes.
             for (int ii = 0; ii < errors.Count; ii++)
@@ -4399,6 +4417,183 @@ namespace Opc.Ua.Server
 
                 // success.
                 errors[ii] = StatusCodes.Good;
+            }
+        }
+
+        /// <summary>
+        /// Groups the unprocessed data monitored items by their recorded owning
+        /// NodeManager (by reference), preserving the original index of each item. Event
+        /// items and items already handled (processed) or unknown (null) are skipped.
+        /// </summary>
+        private static List<(IAsyncNodeManager Owner, List<int> Indices)>?
+            GroupDataMonitoredItemsByOwner(
+                IList<IMonitoredItem> monitoredItems,
+                Func<int, bool> isProcessed)
+        {
+            List<(IAsyncNodeManager Owner, List<int> Indices)>? owners = null;
+            for (int ii = 0; ii < monitoredItems.Count; ii++)
+            {
+                if (isProcessed(ii) || monitoredItems[ii] == null)
+                {
+                    continue;
+                }
+
+                IAsyncNodeManager owner = monitoredItems[ii].NodeManager;
+                if (owner is null)
+                {
+                    continue;
+                }
+
+                owners ??= [];
+                int group = -1;
+                for (int kk = 0; kk < owners.Count; kk++)
+                {
+                    if (ReferenceEquals(owners[kk].Owner, owner))
+                    {
+                        group = kk;
+                        break;
+                    }
+                }
+
+                if (group < 0)
+                {
+                    owners.Add((owner, []));
+                    group = owners.Count - 1;
+                }
+
+                owners[group].Indices.Add(ii);
+            }
+
+            return owners;
+        }
+
+        /// <summary>
+        /// Dispatches an ownership-sensitive data monitored item operation to each item's
+        /// recorded owning NodeManager rather than to the visible routing-table managers.
+        /// Each owner is offered only the items it owns (all other indices are pre-marked
+        /// processed) so a same-namespace replacement generation can never claim monitored
+        /// items still owned by a shadow-retired generation. Owners that are no longer
+        /// registered in the routing table are shadow-retired generations; when
+        /// <paramref name="notifyRetiredGenerationDrain"/> is set the registered drain
+        /// observer is notified afterwards so retired generations can be torn down once
+        /// their monitored items drain.
+        /// </summary>
+        private async ValueTask DispatchDataMonitoredItemsToOwningNodeManagersAsync(
+            IList<IMonitoredItem> monitoredItems,
+            List<bool> processedItems,
+            Func<IAsyncNodeManager, IList<bool>, ValueTask> dispatch,
+            bool notifyRetiredGenerationDrain,
+            CancellationToken cancellationToken)
+        {
+            List<(IAsyncNodeManager Owner, List<int> Indices)>? owners =
+                GroupDataMonitoredItemsByOwner(
+                    monitoredItems,
+                    index => processedItems[index]);
+            if (owners is null)
+            {
+                return;
+            }
+
+            bool retiredGenerationDrained = false;
+            foreach ((IAsyncNodeManager owner, List<int> indices) in owners)
+            {
+                // Present only this owner's items as unprocessed.
+                var ownedItems = new bool[monitoredItems.Count];
+                for (int ii = 0; ii < ownedItems.Length; ii++)
+                {
+                    ownedItems[ii] = true;
+                }
+                foreach (int ii in indices)
+                {
+                    ownedItems[ii] = false;
+                }
+
+                await dispatch(owner, ownedItems).ConfigureAwait(false);
+
+                // Merge the owner's processed marks back into the shared list.
+                foreach (int ii in indices)
+                {
+                    if (ownedItems[ii])
+                    {
+                        processedItems[ii] = true;
+                    }
+                }
+
+                if (notifyRetiredGenerationDrain && !m_nodeManagers.Contains(owner))
+                {
+                    retiredGenerationDrained = true;
+                }
+            }
+
+            if (retiredGenerationDrained)
+            {
+                m_retiredGenerationDrainObserver?.Invoke();
+            }
+        }
+
+        /// <summary>
+        /// Dispatches Modify to each data monitored item's recorded owning NodeManager.
+        /// Modify tracks per-item completion through <see cref="MonitoredItemModifyRequest.Processed"/>
+        /// rather than a processed-flag list, so each owner is isolated by temporarily
+        /// marking every item it does not own as processed for the duration of its call.
+        /// </summary>
+        private async ValueTask DispatchModifyToOwningNodeManagersAsync(
+            OperationContext context,
+            TimestampsToReturn timestampsToReturn,
+            IList<IMonitoredItem> monitoredItems,
+            ArrayOf<MonitoredItemModifyRequest> itemsToModify,
+            IList<ServiceResult> errors,
+            IList<MonitoringFilterResult> filterResults,
+            CancellationToken cancellationToken)
+        {
+            List<(IAsyncNodeManager Owner, List<int> Indices)>? owners =
+                GroupDataMonitoredItemsByOwner(
+                    monitoredItems,
+                    index => itemsToModify[index].Processed);
+            if (owners is null)
+            {
+                return;
+            }
+
+            foreach ((IAsyncNodeManager owner, List<int> indices) in owners)
+            {
+                var ownedItems = new bool[monitoredItems.Count];
+                foreach (int ii in indices)
+                {
+                    ownedItems[ii] = true;
+                }
+
+                // Temporarily mark every item this owner does not own as processed so it
+                // only touches its own items, then restore them for the next owner.
+                var masked = new List<int>();
+                for (int ii = 0; ii < monitoredItems.Count; ii++)
+                {
+                    if (!ownedItems[ii] && !itemsToModify[ii].Processed)
+                    {
+                        itemsToModify[ii].Processed = true;
+                        masked.Add(ii);
+                    }
+                }
+
+                try
+                {
+                    await owner.ModifyMonitoredItemsAsync(
+                            context,
+                            timestampsToReturn,
+                            monitoredItems,
+                            itemsToModify,
+                            errors,
+                            filterResults,
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                finally
+                {
+                    foreach (int ii in masked)
+                    {
+                        itemsToModify[ii].Processed = false;
+                    }
+                }
             }
         }
 
@@ -5473,6 +5668,8 @@ namespace Opc.Ua.Server
 
         private readonly Dictionary<IAsyncNodeManager, Dictionary<NodeId, IList<IReference>>>
             m_dynamicExternalReferences = [];
+
+        private volatile Action? m_retiredGenerationDrainObserver;
 
         private bool m_disposed;
     }

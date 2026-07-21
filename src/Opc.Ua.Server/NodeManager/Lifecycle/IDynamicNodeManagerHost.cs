@@ -69,6 +69,14 @@ namespace Opc.Ua.Server
             CancellationToken ct = default);
 
         void Release(IAsyncNodeManager nodeManager);
+
+        /// <summary>
+        /// Registers a callback the host invokes (from an ownership-sensitive monitored
+        /// item request such as Delete) once monitored items owned by a shadow-retired
+        /// generation may have drained. The callback must not tear down anything inline;
+        /// it schedules cleanup off the request path.
+        /// </summary>
+        void SetRetiredGenerationDrainObserver(Action? observer);
     }
 
     internal sealed class PreparedNodeManager

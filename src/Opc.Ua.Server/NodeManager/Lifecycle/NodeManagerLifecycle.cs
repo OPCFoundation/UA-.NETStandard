@@ -704,6 +704,15 @@ namespace Opc.Ua.Server
                 {
                     m_retiredNodeManagers.Add(retired);
                 }
+
+                // Register the drain observer so the host can trigger prompt cleanup once a
+                // shadow-retired generation's monitored items drain, rather than waiting for
+                // the next lifecycle operation or server shutdown.
+                if (allowActiveMonitoredItems)
+                {
+                    host.SetRetiredGenerationDrainObserver(
+                        ScheduleRetiredGenerationDrainCleanup);
+                }
                 try
                 {
                     await server.RequestManager
@@ -1743,6 +1752,117 @@ namespace Opc.Ua.Server
                     rollbackException);
             }
             return unbindException ?? rollbackException;
+        }
+
+        /// <summary>
+        /// Schedules a background pass that disposes any shadow-retired generation whose
+        /// monitored items have drained. Invoked by the host from an ownership-sensitive
+        /// monitored item request (for example, the Delete that drains the last item), so
+        /// the teardown must never run inline on the request path: it is dispatched to the
+        /// thread pool with the request's execution context suppressed and coordinated
+        /// through the lifecycle semaphore, exactly like an explicit lifecycle operation.
+        /// If cleanup cannot complete now (for example, a lifecycle operation is already
+        /// running), a later lifecycle operation or shutdown retries it.
+        /// </summary>
+        private void ScheduleRetiredGenerationDrainCleanup()
+        {
+            if (m_disposed || m_shuttingDown)
+            {
+                return;
+            }
+            lock (m_registrationLock)
+            {
+                if (m_retiredNodeManagers.Count == 0)
+                {
+                    return;
+                }
+            }
+
+            // Suppress the triggering request's execution context so the background pass is
+            // not observed as running inside an OPC UA request callback.
+            bool restoreFlow = false;
+            try
+            {
+                if (!ExecutionContext.IsFlowSuppressed())
+                {
+                    ExecutionContext.SuppressFlow();
+                    restoreFlow = true;
+                }
+                _ = Task.Run(DrainRetiredGenerationsAsync);
+            }
+            finally
+            {
+                if (restoreFlow)
+                {
+                    ExecutionContext.RestoreFlow();
+                }
+            }
+        }
+
+        private async Task DrainRetiredGenerationsAsync()
+        {
+            try
+            {
+                if (m_disposed || m_shuttingDown)
+                {
+                    return;
+                }
+
+                await m_lifecycleSemaphore
+                    .WaitAsync(CancellationToken.None)
+                    .ConfigureAwait(false);
+                try
+                {
+                    if (m_disposed || m_shuttingDown)
+                    {
+                        return;
+                    }
+                    if (!TryGetRunningServer(
+                        out IServerInternal server,
+                        out IDynamicNodeManagerHost host))
+                    {
+                        return;
+                    }
+
+                    await CleanupRetiredNodeManagersAsync(server, host)
+                        .ConfigureAwait(false);
+                }
+                finally
+                {
+                    m_lifecycleSemaphore.Release();
+                }
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                // Prompt cleanup is best-effort. Any generation that could not be torn down
+                // here is retried by the next lifecycle operation or server shutdown.
+            }
+        }
+
+        private bool TryGetRunningServer(
+            out IServerInternal server,
+            out IDynamicNodeManagerHost host)
+        {
+            server = null!;
+            host = null!;
+            if (m_disposed || m_shuttingDown)
+            {
+                return false;
+            }
+            if (m_server.CurrentState != ServerState.Running)
+            {
+                return false;
+            }
+
+            IServerInternal runningServer = m_server.CurrentInstance;
+            if (runningServer.NodeManager is not IDynamicNodeManagerHost dynamicHost)
+            {
+                return false;
+            }
+
+            server = runningServer;
+            host = dynamicHost;
+            return true;
         }
 
         private async ValueTask CleanupRetiredNodeManagersAsync(

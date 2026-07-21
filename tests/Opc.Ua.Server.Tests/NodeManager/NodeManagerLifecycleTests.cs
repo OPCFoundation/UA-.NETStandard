@@ -916,6 +916,243 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// After a ShadowReload, an ownership-sensitive data monitored item still owned by
+        /// the retired generation must be dispatched to that generation for Modify,
+        /// SetMonitoringMode (disable/re-enable), and Delete - not to the visible
+        /// replacement generation that now serves the same namespace. Each operation must
+        /// succeed (a <c>BadMonitoredItemIdInvalid</c> would prove the ownership defect,
+        /// where the same-namespace replacement claims but cannot service the retired item),
+        /// new Reads must be routed to the replacement, notifications pushed on the retired
+        /// generation's own node must keep flowing, and once the final item drains via Delete
+        /// the retired generation must be disposed promptly - without any further lifecycle
+        /// operation.
+        /// </summary>
+        [Test]
+        public async Task ShadowReloadedDataMonitoredItemIsModifiableToggleableAndDeletableOnRetiredGenerationThenDrainDisposesItAsync()
+        {
+            NodeManagerRegistration original = await m_server.NodeManagerLifecycle
+                .AddRuntimeNodeSetAsync(CreateGenerationOptions(generation: 1))
+                .ConfigureAwait(false);
+
+            IServerInternal server = m_server.CurrentInstance;
+            ushort ns = (ushort)server.NamespaceUris.GetIndex(kModelNamespaceUri);
+            var valueNodeId = new NodeId(kValueNodeId, ns);
+            var originalManager = (AsyncCustomNodeManager)original.NodeManager;
+            const uint clientHandle = 1;
+
+            var services = new ServerTestServices(m_server, m_secureChannelContext);
+            (uint subscriptionId, uint monitoredItemId) =
+                await CreateSubscriptionAndMonitoredItemAsync(services, valueNodeId, clientHandle)
+                    .ConfigureAwait(false);
+
+            // Drain the initial data-change sample delivered on monitored-item creation.
+            ArrayOf<SubscriptionAcknowledgement> acknowledgements = default;
+            (_, acknowledgements) = await PublishForDataChangeAsync(
+                services,
+                subscriptionId,
+                acknowledgements,
+                clientHandle).ConfigureAwait(false);
+
+            NodeManagerRegistration reloaded = await m_server.NodeManagerLifecycle
+                .ShadowReloadRuntimeNodeSetAsync(original, CreateGenerationOptions(generation: 2))
+                .ConfigureAwait(false);
+
+            // The existing item stays owned by the retired generation; the replacement owns none.
+            ISubscription subscription = server.SubscriptionManager
+                .GetSubscriptions()
+                .Single(s => s.Id == subscriptionId);
+            var tracker = (INodeManagerMonitoredItemTracker)subscription;
+            Assert.That(tracker.HasMonitoredItems(original.NodeManager), Is.True);
+            Assert.That(tracker.HasMonitoredItems(reloaded.NodeManager), Is.False);
+
+            // New Reads are routed to the replacement generation.
+            DataValue afterSwitch = await ReadValueAsync(valueNodeId).ConfigureAwait(false);
+            Assert.That(afterSwitch.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(afterSwitch.WrappedValue.GetInt32(), Is.EqualTo(kGeneration2Value));
+
+            // Old notifications continue: a value pushed on the retired node still arrives.
+            await PushRetiredValueAsync(server, originalManager, valueNodeId, 4242).ConfigureAwait(false);
+            DataValue? pushed;
+            (pushed, acknowledgements) = await PublishForDataChangeAsync(
+                services,
+                subscriptionId,
+                acknowledgements,
+                clientHandle).ConfigureAwait(false);
+            Assert.That(pushed!.Value.WrappedValue.GetInt32(), Is.EqualTo(4242));
+
+            // (1) Modify the retired-owned item - must be routed to the retired generation.
+            RequestHeader header = m_requestHeader;
+            header.Timestamp = DateTimeUtc.Now;
+            ArrayOf<MonitoredItemModifyRequest> itemsToModify =
+            [
+                new MonitoredItemModifyRequest
+                {
+                    MonitoredItemId = monitoredItemId,
+                    RequestedParameters = new MonitoringParameters
+                    {
+                        ClientHandle = clientHandle,
+                        SamplingInterval = 0,
+                        QueueSize = 5,
+                        DiscardOldest = true
+                    }
+                }
+            ];
+            ModifyMonitoredItemsResponse modifyResponse = await services
+                .ModifyMonitoredItemsAsync(header, subscriptionId, TimestampsToReturn.Both, itemsToModify)
+                .ConfigureAwait(false);
+            Assert.That(modifyResponse.Results.Count, Is.EqualTo(1));
+            Assert.That(modifyResponse.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good),
+                "Modify of a shadow-retired data monitored item must be routed to its owning " +
+                "(retired) generation and succeed.");
+
+            // (2) Disable then re-enable the retired-owned item.
+            header = m_requestHeader;
+            header.Timestamp = DateTimeUtc.Now;
+            SetMonitoringModeResponse disableResponse = await services
+                .SetMonitoringModeAsync(header, subscriptionId, MonitoringMode.Disabled, [monitoredItemId])
+                .ConfigureAwait(false);
+            Assert.That(disableResponse.Results.Count, Is.EqualTo(1));
+            Assert.That(disableResponse.Results[0], Is.EqualTo(StatusCodes.Good),
+                "Disabling a shadow-retired data monitored item must be routed to its owning generation.");
+
+            header = m_requestHeader;
+            header.Timestamp = DateTimeUtc.Now;
+            SetMonitoringModeResponse enableResponse = await services
+                .SetMonitoringModeAsync(header, subscriptionId, MonitoringMode.Reporting, [monitoredItemId])
+                .ConfigureAwait(false);
+            Assert.That(enableResponse.Results[0], Is.EqualTo(StatusCodes.Good),
+                "Re-enabling a shadow-retired data monitored item must be routed to its owning generation.");
+
+            // The re-enabled item still delivers a fresh value pushed on the retired node.
+            await PushRetiredValueAsync(server, originalManager, valueNodeId, 5353).ConfigureAwait(false);
+            (pushed, acknowledgements) = await PublishForDataChangeAsync(
+                services,
+                subscriptionId,
+                acknowledgements,
+                clientHandle).ConfigureAwait(false);
+            Assert.That(pushed!.Value.WrappedValue.GetInt32(), Is.EqualTo(5353));
+
+            // (3) Delete the retired-owned item - must be routed to the retired generation,
+            // draining it. Without owner-based routing the same-namespace replacement claims
+            // the item and returns BadMonitoredItemIdInvalid, so the retired item never drains.
+            header = m_requestHeader;
+            header.Timestamp = DateTimeUtc.Now;
+            DeleteMonitoredItemsResponse deleteResponse = await services
+                .DeleteMonitoredItemsAsync(header, subscriptionId, [monitoredItemId])
+                .ConfigureAwait(false);
+            Assert.That(deleteResponse.Results.Count, Is.EqualTo(1));
+            Assert.That(deleteResponse.Results[0], Is.EqualTo(StatusCodes.Good),
+                "Delete of a shadow-retired data monitored item must be routed to its owning generation.");
+            Assert.That(tracker.HasMonitoredItems(original.NodeManager), Is.False);
+
+            // The replacement generation is unaffected and still serves Reads.
+            DataValue afterDrain = await ReadValueAsync(valueNodeId).ConfigureAwait(false);
+            Assert.That(afterDrain.WrappedValue.GetInt32(), Is.EqualTo(kGeneration2Value));
+
+            // Prompt cleanup: with the final item drained, the retired generation is disposed
+            // WITHOUT any further lifecycle operation - its own address space is torn down.
+            await AssertRetiredGenerationDisposedAsync(originalManager, valueNodeId).ConfigureAwait(false);
+
+            await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// After a ShadowReload, a subscription that still owns a data monitored item created
+        /// on the retired generation must transfer to another session with that item routed to
+        /// the retired generation. The item remains owned by the retired generation after the
+        /// transfer and keeps delivering values pushed on the retired generation's own node.
+        /// </summary>
+        [Test]
+        public async Task ShadowReloadedDataMonitoredItemSurvivesSubscriptionTransferOnRetiredGenerationAsync()
+        {
+            NodeManagerRegistration original = await m_server.NodeManagerLifecycle
+                .AddRuntimeNodeSetAsync(CreateGenerationOptions(generation: 1))
+                .ConfigureAwait(false);
+
+            IServerInternal server = m_server.CurrentInstance;
+            ushort ns = (ushort)server.NamespaceUris.GetIndex(kModelNamespaceUri);
+            var valueNodeId = new NodeId(kValueNodeId, ns);
+            var originalManager = (AsyncCustomNodeManager)original.NodeManager;
+            const uint clientHandle = 1;
+
+            var servicesA = new ServerTestServices(m_server, m_secureChannelContext);
+            (uint subscriptionId, _) =
+                await CreateSubscriptionAndMonitoredItemAsync(servicesA, valueNodeId, clientHandle)
+                    .ConfigureAwait(false);
+
+            ArrayOf<SubscriptionAcknowledgement> acknowledgements = default;
+            (_, acknowledgements) = await PublishForDataChangeAsync(
+                servicesA,
+                subscriptionId,
+                acknowledgements,
+                clientHandle).ConfigureAwait(false);
+
+            NodeManagerRegistration reloaded = await m_server.NodeManagerLifecycle
+                .ShadowReloadRuntimeNodeSetAsync(original, CreateGenerationOptions(generation: 2))
+                .ConfigureAwait(false);
+
+            ISubscription subscription = server.SubscriptionManager
+                .GetSubscriptions()
+                .Single(s => s.Id == subscriptionId);
+            var tracker = (INodeManagerMonitoredItemTracker)subscription;
+            Assert.That(tracker.HasMonitoredItems(original.NodeManager), Is.True);
+
+            // Session B activates on a secured channel so the subscription (owned by an
+            // anonymous identity) can be transferred to it: the server only permits an
+            // anonymous-identity transfer over a Sign/SignAndEncrypt channel.
+            (RequestHeader headerB, SecureChannelContext channelB) = await m_server
+                .CreateAndActivateSessionAsync(
+                    $"{TestContext.CurrentContext.Test.Name}_SessionB",
+                    useSecurity: true)
+                .ConfigureAwait(false);
+            try
+            {
+                var servicesB = new ServerTestServices(m_server, channelB);
+
+                headerB.Timestamp = DateTimeUtc.Now;
+                TransferSubscriptionsResponse transferResponse = await servicesB
+                    .TransferSubscriptionsAsync(headerB, [subscriptionId], sendInitialValues: false)
+                    .ConfigureAwait(false);
+                Assert.That(transferResponse.Results.Count, Is.EqualTo(1));
+                Assert.That(StatusCode.IsGood(transferResponse.Results[0].StatusCode), Is.True,
+                    "Transfer of a subscription owning a shadow-retired data monitored item must succeed.");
+
+                // The item remains owned by the retired generation after the transfer.
+                Assert.That(tracker.HasMonitoredItems(original.NodeManager), Is.True);
+                Assert.That(tracker.HasMonitoredItems(reloaded.NodeManager), Is.False);
+
+                // The transferred item keeps delivering values pushed on the retired node,
+                // proving the transfer was routed to the retired generation that owns it.
+                await PushRetiredValueAsync(server, originalManager, valueNodeId, 6464).ConfigureAwait(false);
+                (DataValue? pushed, _) = await PublishForDataChangeOnSessionAsync(
+                    servicesB,
+                    headerB,
+                    subscriptionId,
+                    default,
+                    clientHandle).ConfigureAwait(false);
+                Assert.That(pushed!.Value.WrappedValue.GetInt32(), Is.EqualTo(6464));
+
+                headerB.Timestamp = DateTimeUtc.Now;
+                ArrayOf<uint> subscriptionIds = [subscriptionId];
+                DeleteSubscriptionsResponse deleteResponse = await servicesB
+                    .DeleteSubscriptionsAsync(headerB, subscriptionIds)
+                    .ConfigureAwait(false);
+                Assert.That(deleteResponse.Results[0], Is.EqualTo(StatusCodes.Good));
+            }
+            finally
+            {
+                headerB.Timestamp = DateTimeUtc.Now;
+                await m_server
+                    .CloseSessionAsync(channelB, headerB, true, RequestLifetime.None)
+                    .ConfigureAwait(false);
+            }
+
+            // The retired generation drains once its subscription is gone; prompt cleanup tears
+            // down its address space without any further lifecycle operation.
+            await AssertRetiredGenerationDisposedAsync(originalManager, valueNodeId).ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// When the replacement factory throws during ShadowReload's preparation phase
         /// (before the routing switch is ever committed), the sentinel exception must
         /// propagate unchanged and the current generation must remain fully active:
@@ -2493,6 +2730,166 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .ConfigureAwait(false);
             Assert.That(response.Results.Count, Is.EqualTo(1));
             Assert.That(response.Results[0], Is.EqualTo(StatusCodes.Good));
+        }
+
+        /// <summary>
+        /// Creates a subscription with a single reporting data monitored item on
+        /// <paramref name="nodeId"/> and returns both the subscription id and the
+        /// server-assigned monitored item id (needed to target Modify, SetMonitoringMode,
+        /// and Delete at that specific item).
+        /// </summary>
+        private async Task<(uint SubscriptionId, uint MonitoredItemId)>
+            CreateSubscriptionAndMonitoredItemAsync(
+                ServerTestServices services,
+                NodeId nodeId,
+                uint clientHandle)
+        {
+            RequestHeader requestHeader = m_requestHeader;
+            requestHeader.Timestamp = DateTimeUtc.Now;
+            CreateSubscriptionResponse subscriptionResponse = await services
+                .CreateSubscriptionAsync(requestHeader, 100, 100, 10, 0, true, 0)
+                .ConfigureAwait(false);
+            uint subscriptionId = subscriptionResponse.SubscriptionId;
+
+            ArrayOf<MonitoredItemCreateRequest> monitoredItems =
+            [
+                new MonitoredItemCreateRequest
+                {
+                    ItemToMonitor = new ReadValueId
+                    {
+                        NodeId = nodeId,
+                        AttributeId = Attributes.Value
+                    },
+                    MonitoringMode = MonitoringMode.Reporting,
+                    RequestedParameters = new MonitoringParameters
+                    {
+                        ClientHandle = clientHandle,
+                        SamplingInterval = 0,
+                        QueueSize = 1,
+                        DiscardOldest = true
+                    }
+                }
+            ];
+
+            requestHeader = m_requestHeader;
+            requestHeader.Timestamp = DateTimeUtc.Now;
+            CreateMonitoredItemsResponse createItemsResponse = await services
+                .CreateMonitoredItemsAsync(requestHeader, subscriptionId, TimestampsToReturn.Both, monitoredItems)
+                .ConfigureAwait(false);
+
+            Assert.That(createItemsResponse.Results.Count, Is.EqualTo(1));
+            Assert.That(createItemsResponse.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+
+            return (subscriptionId, createItemsResponse.Results[0].MonitoredItemId);
+        }
+
+        /// <summary>
+        /// Pushes a fresh value directly onto a retired generation's own node, simulating an
+        /// internal (device-driven) update so tests can prove the retired generation still
+        /// services its existing monitored items after a ShadowReload switch.
+        /// </summary>
+        private static async Task PushRetiredValueAsync(
+            IServerInternal server,
+            AsyncCustomNodeManager retiredManager,
+            NodeId nodeId,
+            int value)
+        {
+            var state = (BaseVariableState)retiredManager.Find(nodeId)!;
+            state.Value = value;
+            state.Timestamp = DateTimeUtc.Now;
+            state.StatusCode = StatusCodes.Good;
+            state.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            await state
+                .ClearChangeMasksAsync(server.DefaultSystemContext, includeChildren: false)
+                .ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Polls (bounded) until the retired generation's own address space has been torn
+        /// down (its <c>PredefinedNodes</c> emptied), proving the retired generation is
+        /// disposed promptly once its last monitored item drains - without any further
+        /// lifecycle operation being invoked by the test.
+        /// </summary>
+        private static async Task AssertRetiredGenerationDisposedAsync(
+            AsyncCustomNodeManager retiredManager,
+            NodeId valueNodeId)
+        {
+            const int MaxAttempts = 50;
+            for (int attempt = 0; attempt < MaxAttempts; attempt++)
+            {
+                if (retiredManager.Find(valueNodeId) is null)
+                {
+                    return;
+                }
+                await Task.Delay(100).ConfigureAwait(false);
+            }
+
+            Assert.That(
+                retiredManager.Find(valueNodeId),
+                Is.Null,
+                "The shadow-retired generation must be disposed promptly once its last monitored " +
+                "item drains, without any further lifecycle operation.");
+        }
+
+        /// <summary>
+        /// Publishes on <paramref name="subscriptionId"/> using the given session's request
+        /// header in a bounded loop until a <see cref="DataChangeNotification"/> carrying
+        /// <paramref name="clientHandle"/> arrives. Used to prove a transferred monitored item
+        /// keeps being serviced by the (retired) generation that owns it, from a second session.
+        /// </summary>
+        private async Task<(DataValue? Value, ArrayOf<SubscriptionAcknowledgement> Acknowledgements)>
+            PublishForDataChangeOnSessionAsync(
+                ServerTestServices services,
+                RequestHeader sessionRequestHeader,
+                uint subscriptionId,
+                ArrayOf<SubscriptionAcknowledgement> acknowledgements,
+                uint clientHandle)
+        {
+            const int MaxPublishAttempts = 20;
+            DataValue? value = null;
+
+            for (int attempt = 0; attempt < MaxPublishAttempts && value is null; attempt++)
+            {
+                sessionRequestHeader.Timestamp = DateTimeUtc.Now;
+
+                using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                PublishResponse response = await services
+                    .PublishAsync(sessionRequestHeader, acknowledgements, timeoutCts.Token)
+                    .ConfigureAwait(false);
+
+                Assert.That(response.SubscriptionId, Is.EqualTo(subscriptionId));
+
+                acknowledgements = response.AvailableSequenceNumbers.ToArrayOf(
+                    sequenceNumber => new SubscriptionAcknowledgement
+                    {
+                        SubscriptionId = subscriptionId,
+                        SequenceNumber = sequenceNumber
+                    });
+
+                if (response.NotificationMessage is { } message)
+                {
+                    foreach (ExtensionObject notificationData in message.NotificationData)
+                    {
+                        if (notificationData.TryGetValue(out DataChangeNotification dcn))
+                        {
+                            foreach (MonitoredItemNotification item in dcn.MonitoredItems)
+                            {
+                                if (item.ClientHandle == clientHandle)
+                                {
+                                    value = item.Value;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Assert.That(
+                value,
+                Is.Not.Null,
+                $"No data-change notification for client handle {clientHandle} on subscription " +
+                $"{subscriptionId} arrived within {MaxPublishAttempts} bounded publish attempts.");
+            return (value, acknowledgements);
         }
 
         /// <summary>
