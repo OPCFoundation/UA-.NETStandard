@@ -205,6 +205,146 @@ namespace Opc.Ua.WotCon.Tests.Binding
             Assert.That(result.Diagnostics.Any(d => d.Code == WotBindingDiagnosticCode.ConflictingFields), Is.True);
         }
 
+        [Test]
+        public void Modbus_AddressBeyond16Bit_IsRejected()
+        {
+            var planner = new ModbusBindingPlanner();
+            WotAffordanceForm form = WotBindingTestSupport.Form(
+                WotBindingTestSupport.Property("far",
+                    "{\"href\":\"modbus+tcp://plc:502/1\",\"modv:entity\":\"holdingRegister\"," +
+                    "\"modv:address\":70000,\"modv:quantity\":1}"),
+                "far");
+
+            WotBindingCompilation result = planner.Compile(form, WotBindingTestSupport.Context());
+
+            Assert.That(result.IsSupported, Is.False);
+            Assert.That(result.Diagnostics.Any(d => d.Term == "modv:address"), Is.True);
+        }
+
+        [Test]
+        public void Modbus_AddressPlusQuantityOverflow_IsRejected()
+        {
+            var planner = new ModbusBindingPlanner();
+            WotAffordanceForm form = WotBindingTestSupport.Form(
+                WotBindingTestSupport.Property("edge",
+                    "{\"href\":\"modbus+tcp://plc:502/1\",\"modv:entity\":\"holdingRegister\"," +
+                    "\"modv:address\":65530,\"modv:quantity\":10}"),
+                "edge");
+
+            WotBindingCompilation result = planner.Compile(form, WotBindingTestSupport.Context());
+
+            Assert.That(result.IsSupported, Is.False);
+            Assert.That(result.Diagnostics.Any(d => d.Code == WotBindingDiagnosticCode.BoundsExceeded), Is.True);
+        }
+
+        [Test]
+        public void Modbus_FunctionOnlyNumericCode_MapsEntityAndMethod()
+        {
+            var planner = new ModbusBindingPlanner();
+            WotAffordanceForm form = WotBindingTestSupport.Form(
+                WotBindingTestSupport.Property("reg",
+                    "{\"href\":\"modbus+tcp://plc:502/1\",\"modv:function\":3," +
+                    "\"modv:address\":10,\"modv:quantity\":2,\"modv:type\":\"int32\"}"),
+                "reg");
+
+            WotBindingCompilation result = planner.Compile(form, WotBindingTestSupport.Context());
+
+            Assert.That(result.IsSupported, Is.True);
+            WotCompiledForm read = result.Entries.First(e => e.Operation == WoTBindingCapabilityEnum.ReadProperty);
+            Assert.That(read.Addressing.Metadata["entity"], Is.EqualTo("holdingRegister"));
+            Assert.That(read.Addressing.Metadata["functionCode"], Is.EqualTo("3"));
+            Assert.That(read.OperationInfo.Method, Is.EqualTo("readHoldingRegisters"));
+            // A read function drops the default write op with a diagnostic.
+            Assert.That(result.Entries.Any(e => e.Operation == WoTBindingCapabilityEnum.WriteProperty), Is.False);
+        }
+
+        [Test]
+        public void Modbus_FunctionOnlyMnemonic_MapsCoilWrite()
+        {
+            var planner = new ModbusBindingPlanner();
+            WotAffordanceForm form = WotBindingTestSupport.Form(
+                WotBindingTestSupport.Property("relay",
+                    "{\"href\":\"modbus+tcp://plc:502/1\",\"modv:function\":\"writeSingleCoil\"," +
+                    "\"modv:address\":5}"),
+                "relay");
+
+            WotBindingCompilation result = planner.Compile(form, WotBindingTestSupport.Context());
+
+            Assert.That(result.IsSupported, Is.True);
+            WotCompiledForm write = result.Entries.First(e => e.Operation == WoTBindingCapabilityEnum.WriteProperty);
+            Assert.That(write.Addressing.Metadata["entity"], Is.EqualTo("coil"));
+            Assert.That(write.OperationInfo.Method, Is.EqualTo("writeSingleCoil"));
+            // A write function drops the default read op with a diagnostic.
+            Assert.That(result.Entries.Any(e => e.Operation == WoTBindingCapabilityEnum.ReadProperty), Is.False);
+        }
+
+        [Test]
+        public void Modbus_EntityFunctionMismatch_IsRejected()
+        {
+            var planner = new ModbusBindingPlanner();
+            WotAffordanceForm form = WotBindingTestSupport.Form(
+                WotBindingTestSupport.Property("bad",
+                    "{\"href\":\"modbus+tcp://plc:502/1\",\"modv:entity\":\"coil\"," +
+                    "\"modv:function\":\"readHoldingRegisters\",\"modv:address\":0}"),
+                "bad");
+
+            WotBindingCompilation result = planner.Compile(form, WotBindingTestSupport.Context());
+
+            Assert.That(result.IsSupported, Is.False);
+            Assert.That(result.Diagnostics.Any(d => d.IsError &&
+                d.Code == WotBindingDiagnosticCode.ConflictingFields), Is.True);
+        }
+
+        [Test]
+        public void Modbus_InvalidFunction_IsRejected()
+        {
+            var planner = new ModbusBindingPlanner();
+            WotAffordanceForm form = WotBindingTestSupport.Form(
+                WotBindingTestSupport.Property("weird",
+                    "{\"href\":\"modbus+tcp://plc:502/1\",\"modv:function\":99,\"modv:address\":0}"),
+                "weird");
+
+            WotBindingCompilation result = planner.Compile(form, WotBindingTestSupport.Context());
+
+            Assert.That(result.IsSupported, Is.False);
+            Assert.That(result.Diagnostics.Any(d => d.Code == WotBindingDiagnosticCode.InvalidFieldValue &&
+                d.Term == "modv:function"), Is.True);
+        }
+
+        [Test]
+        public void Modbus_ExplicitWriteOpWithReadFunction_IsRejected()
+        {
+            var planner = new ModbusBindingPlanner();
+            WotAffordanceForm form = WotBindingTestSupport.Form(
+                WotBindingTestSupport.Property("ro",
+                    "{\"href\":\"modbus+tcp://plc:502/1\",\"modv:function\":\"readCoil\"," +
+                    "\"modv:address\":0,\"op\":[\"writeproperty\"]}"),
+                "ro");
+
+            WotBindingCompilation result = planner.Compile(form, WotBindingTestSupport.Context());
+
+            // The only op is a write against a read function; every entry is dropped.
+            Assert.That(result.IsSupported, Is.False);
+            Assert.That(result.Diagnostics.Any(d => d.Code == WotBindingDiagnosticCode.ConflictingFields), Is.True);
+        }
+
+        [Test]
+        public void Mqtts_Scheme_CompilesWithSecureEndpoint()
+        {
+            var planner = new MqttBindingPlanner();
+            WotAffordanceForm form = WotBindingTestSupport.Form(
+                WotBindingTestSupport.Property("temp",
+                    "{\"href\":\"mqtts://broker:8883/things/temp\",\"mqv:qos\":1}"),
+                "temp");
+
+            WotBindingCompilation result = planner.Compile(form, WotBindingTestSupport.Context());
+
+            Assert.That(result.IsSupported, Is.True);
+            WotCompiledForm write = result.Entries.First(e => e.Operation == WoTBindingCapabilityEnum.WriteProperty);
+            Assert.That(write.Endpoint.Scheme, Is.EqualTo("mqtts"));
+            Assert.That(write.Endpoint.Port, Is.EqualTo(8883));
+        }
+
         // ---- CoAP (planner only, non-executable) ------------------------------
 
         [Test]

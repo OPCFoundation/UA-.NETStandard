@@ -48,17 +48,19 @@ namespace Opc.Ua.WotCon.Binding.Http
         public HttpWotBindingChannel(
             HttpClient client,
             bool ownsClient,
+            bool manualRedirects,
             WotCompiledForm form,
             WotExecutorContext context,
             HttpWotBindingOptions options)
         {
             m_client = client;
             m_ownsClient = ownsClient;
+            m_manualRedirects = manualRedirects;
             m_form = form;
             m_context = context;
             m_options = options;
             context.Codecs.TrySelect(form.Payload.ContentType, out m_codec);
-            m_effectiveTarget = form.Addressing.Target;
+            m_baseTarget = form.Addressing.Target;
         }
 
         public WotCompiledForm Form => m_form;
@@ -184,28 +186,58 @@ namespace Opc.Ua.WotCon.Binding.Http
             timeout.CancelAfter(m_context.Bounds.DefaultTimeout);
             try
             {
-                using var request = new HttpRequestMessage(method, m_effectiveTarget);
-                ApplyHeaders(request);
-                if (content is { } body)
+                if (!Uri.TryCreate(m_baseTarget, UriKind.Absolute, out Uri? current) || current is null)
                 {
-                    var byteContent = new ByteArrayContent(body.ToArray());
-                    if (!string.IsNullOrEmpty(m_form.Payload.ContentType))
+                    return (StatusCodes.BadInvalidArgument, Array.Empty<byte>(),
+                        "The HTTP target is not a valid absolute URI.");
+                }
+                Uri origin = current;
+                HttpMethod currentMethod = method;
+                ReadOnlyMemory<byte>? currentContent = content;
+                int redirectsRemaining = m_manualRedirects ? Math.Max(0, m_options.MaxAutomaticRedirects) : 0;
+                var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                while (true)
+                {
+                    visited.Add(current.AbsoluteUri);
+                    // Custom header / query credentials are only applied while the
+                    // request stays on the original origin; a cross-origin redirect
+                    // drops them so they never leak to a different host.
+                    bool sameOrigin = IsSameOrigin(origin, current);
+                    Uri requestUri = sameOrigin ? AppendCredentialQuery(current) : current;
+                    HopResult hop = await SendOnceAsync(
+                        currentMethod, requestUri, sameOrigin, currentContent, timeout.Token).ConfigureAwait(false);
+
+                    if (hop.Redirect is null)
                     {
-                        byteContent.Headers.TryAddWithoutValidation("Content-Type", m_form.Payload.ContentType);
+                        return (hop.Status, hop.Body, hop.Error);
                     }
-                    request.Content = byteContent;
+
+                    if (redirectsRemaining <= 0)
+                    {
+                        return (StatusCodes.BadCommunicationError, Array.Empty<byte>(),
+                            "The HTTP redirect limit was exceeded.");
+                    }
+                    Uri? next = ResolveRedirectTarget(current, hop.Location, out string? redirectError);
+                    if (next is null)
+                    {
+                        return (StatusCodes.BadSecurityChecksFailed, Array.Empty<byte>(), redirectError);
+                    }
+                    if (visited.Contains(next.AbsoluteUri))
+                    {
+                        return (StatusCodes.BadCommunicationError, Array.Empty<byte>(),
+                            "The HTTP redirect chain contains a loop.");
+                    }
+                    redirectsRemaining--;
+                    // 303 (and, per browser convention, 301/302) turn the follow-up
+                    // request into a bodyless GET; 307/308 preserve method and body.
+                    if (hop.Redirect is System.Net.HttpStatusCode.MovedPermanently or
+                        System.Net.HttpStatusCode.Found or System.Net.HttpStatusCode.SeeOther)
+                    {
+                        currentMethod = HttpMethod.Get;
+                        currentContent = null;
+                    }
+                    current = next;
                 }
-                using HttpResponseMessage response = await m_client
-                    .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeout.Token)
-                    .ConfigureAwait(false);
-                StatusCode status = HttpStatusMapper.Map(response.StatusCode);
-                if (!response.IsSuccessStatusCode)
-                {
-                    return (status, Array.Empty<byte>(),
-                        $"HTTP {(int)response.StatusCode} {response.ReasonPhrase}");
-                }
-                byte[] payload = await ReadBoundedAsync(response, timeout.Token).ConfigureAwait(false);
-                return (StatusCodes.Good, payload, null);
             }
             catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
             {
@@ -220,6 +252,112 @@ namespace Opc.Ua.WotCon.Binding.Http
                 return (StatusCodes.BadEncodingLimitsExceeded, Array.Empty<byte>(), ex.Message);
             }
         }
+
+        /// <summary>The outcome of a single request hop: either a terminal result or a redirect.</summary>
+        private readonly struct HopResult
+        {
+            private HopResult(
+                System.Net.HttpStatusCode? redirect, Uri? location,
+                StatusCode status, byte[] body, string? error)
+            {
+                Redirect = redirect;
+                Location = location;
+                Status = status;
+                Body = body;
+                Error = error;
+            }
+
+            public System.Net.HttpStatusCode? Redirect { get; }
+
+            public Uri? Location { get; }
+
+            public StatusCode Status { get; }
+
+            public byte[] Body { get; }
+
+            public string? Error { get; }
+
+            public static HopResult Terminal(StatusCode status, byte[] body, string? error)
+                => new HopResult(null, null, status, body, error);
+
+            public static HopResult RedirectTo(System.Net.HttpStatusCode redirect, Uri? location)
+                => new HopResult(redirect, location, StatusCodes.Good, Array.Empty<byte>(), null);
+        }
+
+        private async Task<HopResult> SendOnceAsync(
+            HttpMethod method, Uri requestUri, bool sameOrigin,
+            ReadOnlyMemory<byte>? content, CancellationToken cancellationToken)
+        {
+            using var request = new HttpRequestMessage(method, requestUri);
+            ApplyHeaders(request, sameOrigin);
+            if (content is { } body && method != HttpMethod.Get && method != HttpMethod.Head)
+            {
+                var byteContent = new ByteArrayContent(body.ToArray());
+                if (!string.IsNullOrEmpty(m_form.Payload.ContentType))
+                {
+                    byteContent.Headers.TryAddWithoutValidation("Content-Type", m_form.Payload.ContentType);
+                }
+                request.Content = byteContent;
+            }
+
+            using HttpResponseMessage response = await m_client
+                .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
+                .ConfigureAwait(false);
+
+            if (m_manualRedirects && IsRedirect(response.StatusCode))
+            {
+                return HopResult.RedirectTo(response.StatusCode, response.Headers.Location);
+            }
+
+            StatusCode status = HttpStatusMapper.Map(response.StatusCode);
+            if (!response.IsSuccessStatusCode)
+            {
+                return HopResult.Terminal(status, Array.Empty<byte>(),
+                    $"HTTP {(int)response.StatusCode} {response.ReasonPhrase}");
+            }
+            byte[] payload = await ReadBoundedAsync(response, cancellationToken).ConfigureAwait(false);
+            return HopResult.Terminal(StatusCodes.Good, payload, null);
+        }
+
+        private static bool IsRedirect(System.Net.HttpStatusCode status)
+            => status is System.Net.HttpStatusCode.MovedPermanently or
+                         System.Net.HttpStatusCode.Found or
+                         System.Net.HttpStatusCode.SeeOther or
+                         System.Net.HttpStatusCode.TemporaryRedirect or
+                         System.Net.HttpStatusCode.PermanentRedirect;
+
+        private Uri? ResolveRedirectTarget(Uri current, Uri? location, out string? error)
+        {
+            error = null;
+            if (location is null)
+            {
+                error = "The HTTP redirect response carried no Location header.";
+                return null;
+            }
+            if (!location.IsAbsoluteUri)
+            {
+                location = new Uri(current, location);
+            }
+            if (!string.Equals(location.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(location.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+            {
+                error = $"The HTTP redirect targets a disallowed scheme '{location.Scheme}'.";
+                return null;
+            }
+            if (string.Equals(current.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(location.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) &&
+                !m_options.AllowInsecureRedirectDowngrade)
+            {
+                error = "The HTTP redirect downgrades https to http, which is refused.";
+                return null;
+            }
+            return location;
+        }
+
+        private static bool IsSameOrigin(Uri a, Uri b)
+            => string.Equals(a.Scheme, b.Scheme, StringComparison.OrdinalIgnoreCase) &&
+               string.Equals(a.Host, b.Host, StringComparison.OrdinalIgnoreCase) &&
+               a.Port == b.Port;
 
         private async Task<byte[]> ReadBoundedAsync(HttpResponseMessage response, CancellationToken cancellationToken)
         {
@@ -281,16 +419,23 @@ namespace Opc.Ua.WotCon.Binding.Http
                 credential = await m_context.Credentials
                     .ResolveAsync(m_form.Security[0], cancellationToken).ConfigureAwait(false);
             }
-            // Publish the resolved state only after resolution has completed. A
-            // caller reads m_effectiveTarget / m_credential in SendAsync only after
-            // awaiting the shared task, so it can never observe a half-initialized
-            // state or send a request without the resolved credential applied.
-            m_effectiveTarget = AppendQuery(m_form.Addressing.Target, credential);
+            // Publish the resolved credential only after resolution has completed. A
+            // caller reads m_credential in SendAsync only after awaiting the shared
+            // task, so it can never observe a half-initialized state or send a
+            // request without the resolved credential applied.
             m_credential = credential;
         }
 
-        private void ApplyHeaders(HttpRequestMessage request)
+        private void ApplyHeaders(HttpRequestMessage request, bool includeCredentials)
         {
+            // A cross-origin redirect must not carry any custom (potentially
+            // credential-bearing) header, so both the caller's default headers and
+            // the resolved credential headers are only applied on the original
+            // origin.
+            if (!includeCredentials)
+            {
+                return;
+            }
             if (m_options.DefaultHeaders is { Count: > 0 })
             {
                 foreach (KeyValuePair<string, string> header in m_options.DefaultHeaders)
@@ -307,8 +452,9 @@ namespace Opc.Ua.WotCon.Binding.Http
             }
         }
 
-        private static string AppendQuery(string target, WotCredential? credential)
+        private Uri AppendCredentialQuery(Uri target)
         {
+            WotCredential? credential = m_credential;
             if (credential is null || credential.QueryParameters.Count == 0)
             {
                 return target;
@@ -323,24 +469,21 @@ namespace Opc.Ua.WotCon.Binding.Http
                 query.Append(Uri.EscapeDataString(parameter.Key)).Append('=')
                     .Append(Uri.EscapeDataString(parameter.Value));
             }
-            if (!Uri.TryCreate(target, UriKind.Absolute, out Uri? uri) || uri is null)
-            {
-                return target;
-            }
-            var builder = new UriBuilder(uri);
+            var builder = new UriBuilder(target);
             builder.Query = string.IsNullOrEmpty(builder.Query)
                 ? query.ToString()
                 : builder.Query.TrimStart('?') + "&" + query;
-            return builder.Uri.AbsoluteUri;
+            return builder.Uri;
         }
 
         private readonly HttpClient m_client;
         private readonly bool m_ownsClient;
+        private readonly bool m_manualRedirects;
         private readonly WotCompiledForm m_form;
         private readonly WotExecutorContext m_context;
         private readonly HttpWotBindingOptions m_options;
         private readonly IWotPayloadCodec m_codec;
-        private string m_effectiveTarget;
+        private readonly string m_baseTarget;
         private WotCredential? m_credential;
         private readonly object m_credentialLock = new object();
         private Task? m_credentialTask;

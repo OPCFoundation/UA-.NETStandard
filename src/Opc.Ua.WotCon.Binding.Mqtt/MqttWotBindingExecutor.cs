@@ -72,19 +72,17 @@ namespace Opc.Ua.WotCon.Binding.Mqtt
             {
                 throw new ArgumentNullException(nameof(context));
             }
-            IMqttClient client = m_options.ClientFactory?.Invoke() as IMqttClient
-                ?? new MqttClientFactory().CreateMqttClient();
-            string host = string.IsNullOrEmpty(form.Endpoint.Host) ? "127.0.0.1" : form.Endpoint.Host!;
-            int port = form.Endpoint.Port > 0 ? form.Endpoint.Port : 1883;
             string suffix = Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
             string clientId = string.Concat(m_options.ClientIdPrefix, "-", suffix.AsSpan(0, 12));
-            MqttClientOptions options = new MqttClientOptionsBuilder()
-                .WithTcpServer(host, port)
-                .WithClientId(clientId)
-                .Build();
+            // Resolve credentials / trust and build the options first, so a
+            // fail-closed rejection throws before any client is created.
+            MqttWotConnection.MqttWotConnectPlan plan = await MqttWotConnection
+                .PrepareAsync(form, context, m_options, clientId, cancellationToken).ConfigureAwait(false);
+            IMqttClient client = m_options.ClientFactory?.Invoke() as IMqttClient
+                ?? new MqttClientFactory().CreateMqttClient();
             try
             {
-                await client.ConnectAsync(options, cancellationToken).ConfigureAwait(false);
+                await client.ConnectAsync(plan.Options, cancellationToken).ConfigureAwait(false);
             }
             catch
             {

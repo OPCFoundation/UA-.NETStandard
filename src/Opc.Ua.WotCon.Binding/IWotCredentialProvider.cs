@@ -28,7 +28,9 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -212,12 +214,18 @@ namespace Opc.Ua.WotCon.Binding
             WotSecurityScheme scheme,
             ImmutableDictionary<string, string>? headers = null,
             ImmutableDictionary<string, string>? queryParameters = null,
-            ImmutableDictionary<string, string>? properties = null)
+            ImmutableDictionary<string, string>? properties = null,
+            X509Certificate2? clientCertificate = null,
+            IReadOnlyList<X509Certificate2>? trustedCertificates = null)
         {
             Scheme = scheme;
             Headers = headers ?? ImmutableDictionary<string, string>.Empty;
             QueryParameters = queryParameters ?? ImmutableDictionary<string, string>.Empty;
             Properties = properties ?? ImmutableDictionary<string, string>.Empty;
+            ClientCertificate = clientCertificate;
+            TrustedCertificates = trustedCertificates is null
+                ? ImmutableArray<X509Certificate2>.Empty
+                : trustedCertificates.ToImmutableArray();
         }
 
         /// <summary>Gets the scheme this credential satisfies.</summary>
@@ -234,6 +242,23 @@ namespace Opc.Ua.WotCon.Binding
         /// <c>password</c> for MQTT, or a token reference id).
         /// </summary>
         public ImmutableDictionary<string, string> Properties { get; }
+
+        /// <summary>
+        /// Gets the resolved client certificate used for mutual TLS (for example
+        /// an <c>mqtts</c> connection), or <c>null</c> when none is configured.
+        /// Runtime-only material that is never serialized to the Thing Description
+        /// or registry nodes.
+        /// </summary>
+        public X509Certificate2? ClientCertificate { get; }
+
+        /// <summary>
+        /// Gets the resolved trust anchors used to validate the peer's TLS
+        /// certificate (for example an <c>mqtts</c> broker). Empty when the
+        /// transport should rely on the platform default trust store. Runtime-only
+        /// material that is never serialized to the Thing Description or registry
+        /// nodes.
+        /// </summary>
+        public ImmutableArray<X509Certificate2> TrustedCertificates { get; }
     }
 
     /// <summary>

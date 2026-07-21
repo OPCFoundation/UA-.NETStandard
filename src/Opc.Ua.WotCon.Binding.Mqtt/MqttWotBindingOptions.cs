@@ -48,5 +48,23 @@ namespace Opc.Ua.WotCon.Binding.Mqtt
 
         /// <summary>Gets or sets the timeout awaiting a message during a read.</summary>
         public TimeSpan ReadTimeout { get; set; } = TimeSpan.FromSeconds(10);
+
+        /// <summary>
+        /// Gets or sets whether username / password credentials may be sent over a
+        /// plaintext <c>mqtt://</c> connection. When <c>false</c> (the default) the
+        /// executor fails closed rather than leaking credentials in clear text; use
+        /// an <c>mqtts://</c> href instead. Set to <c>true</c> only for explicitly
+        /// accepted plaintext deployments.
+        /// </summary>
+        public bool AllowCredentialsOverPlaintext { get; set; }
+
+        /// <summary>
+        /// Gets or sets whether the broker's TLS certificate is validated for an
+        /// <c>mqtts://</c> connection. When <c>true</c> (the default) the platform
+        /// trust store, or the trust anchors resolved through the credential
+        /// provider, must validate the broker certificate. Set to <c>false</c> only
+        /// for explicitly accepted test deployments.
+        /// </summary>
+        public bool ValidateServerCertificate { get; set; } = true;
     }
 }

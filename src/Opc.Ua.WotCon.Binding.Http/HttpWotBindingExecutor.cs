@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -81,10 +82,36 @@ namespace Opc.Ua.WotCon.Binding.Http
                 throw new ArgumentNullException(nameof(context));
             }
             bool ownsClient = m_options.ClientFactory is null;
-            HttpClient client = m_options.ClientFactory?.Invoke() ?? new HttpClient();
-            IWotBindingChannel channel = new HttpWotBindingChannel(client, ownsClient, form, context, m_options);
+            if (!ownsClient &&
+                FormCarriesCredentials(form) &&
+                !m_options.CallerClientHandlesRedirectSafety)
+            {
+                // Fail closed: the executor cannot control a caller-supplied client's
+                // redirect behavior, so a credential-bearing form could leak its
+                // custom header / query credentials if that client auto-redirects
+                // across origins. Require the caller to explicitly confirm the client
+                // handles redirects safely.
+                throw new InvalidOperationException(
+                    "A caller-supplied HttpClient cannot execute a credential-bearing HTTP form unless " +
+                    "HttpWotBindingOptions.CallerClientHandlesRedirectSafety is set. The supplied client must " +
+                    "disable automatic redirects, or follow them without forwarding credentials across origins, " +
+                    "to avoid leaking custom header / query credentials on a redirect.");
+            }
+            HttpClient client = ownsClient
+                ? new HttpClient(new HttpClientHandler
+                {
+                    AllowAutoRedirect = false,
+                    CheckCertificateRevocationList = true
+                })
+                : m_options.ClientFactory!.Invoke();
+            IWotBindingChannel channel = new HttpWotBindingChannel(
+                client, ownsClient, manualRedirects: ownsClient, form, context, m_options);
             return new ValueTask<IWotBindingChannel>(channel);
         }
+
+        private static bool FormCarriesCredentials(WotCompiledForm form)
+            => !form.Security.IsDefaultOrEmpty &&
+               form.Security.Any(reference => reference.Scheme != WotSecurityScheme.NoSecurity);
 
         private readonly HttpWotBindingOptions m_options;
     }

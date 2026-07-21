@@ -44,7 +44,9 @@ namespace Opc.Ua.WotCon.Binding.Http
     {
         /// <summary>
         /// Gets or sets the factory that supplies the <see cref="HttpClient"/>. When
-        /// <c>null</c> the executor creates and owns a private client per channel.
+        /// <c>null</c> the executor creates and owns a private client whose handler
+        /// disables automatic redirects, so the executor can apply a bounded,
+        /// origin-aware redirect policy that never leaks credentials across origins.
         /// A supplied client is treated as caller-owned and is never disposed by
         /// the executor.
         /// </summary>
@@ -55,5 +57,32 @@ namespace Opc.Ua.WotCon.Binding.Http
 
         /// <summary>Gets or sets the poll interval used for observe / event operations.</summary>
         public TimeSpan ObserveInterval { get; set; } = TimeSpan.FromSeconds(1);
+
+        /// <summary>
+        /// Gets or sets the maximum number of redirects the executor-owned client
+        /// follows for a single request. The default is <c>5</c>; <c>0</c> disables
+        /// redirect following entirely. Custom header and query credentials are
+        /// stripped whenever a redirect crosses to a different origin.
+        /// </summary>
+        public int MaxAutomaticRedirects { get; set; } = 5;
+
+        /// <summary>
+        /// Gets or sets whether the executor-owned client may follow a redirect that
+        /// downgrades the scheme from <c>https</c> to <c>http</c>. The default is
+        /// <c>false</c>: an insecure downgrade is refused.
+        /// </summary>
+        public bool AllowInsecureRedirectDowngrade { get; set; }
+
+        /// <summary>
+        /// Gets or sets whether a caller-supplied <see cref="HttpClient"/> is trusted
+        /// to handle redirects safely for credential-bearing forms. The default is
+        /// <c>false</c>: activating a credential-bearing form on a caller-supplied
+        /// client fails closed, because the executor cannot guarantee that client
+        /// disables automatic redirects (which could leak custom header or query
+        /// credentials across origins). Set to <c>true</c> only when the supplied
+        /// client is known to disable automatic redirects, or to follow them without
+        /// forwarding credentials to a different origin.
+        /// </summary>
+        public bool CallerClientHandlesRedirectSafety { get; set; }
     }
 }

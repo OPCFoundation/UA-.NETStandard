@@ -84,7 +84,11 @@ namespace Opc.Ua.WotCon.Binding.Tests
                 new IWotProtocolBinder[] { new HttpBindingPlanner() },
                 new IWotBindingExecutor[]
                 {
-                    new HttpWotBindingExecutor(new HttpWotBindingOptions { ClientFactory = () => new HttpClient() })
+                    new HttpWotBindingExecutor(new HttpWotBindingOptions
+                    {
+                        ClientFactory = () => new HttpClient(),
+                        CallerClientHandlesRedirectSafety = true
+                    })
                 },
                 credentials: credentials);
 
@@ -116,7 +120,11 @@ namespace Opc.Ua.WotCon.Binding.Tests
                 new IWotProtocolBinder[] { new HttpBindingPlanner() },
                 new IWotBindingExecutor[]
                 {
-                    new HttpWotBindingExecutor(new HttpWotBindingOptions { ClientFactory = () => new HttpClient() })
+                    new HttpWotBindingExecutor(new HttpWotBindingOptions
+                    {
+                        ClientFactory = () => new HttpClient(),
+                        CallerClientHandlesRedirectSafety = true
+                    })
                 },
                 credentials: credentials);
 

@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
@@ -48,21 +47,21 @@ namespace Opc.Ua.WotCon.Binding.Modbus
             ModbusTcpClient client,
             WotCompiledForm form,
             WotExecutorContext context,
-            ModbusWotBindingOptions options)
+            ModbusWotBindingOptions options,
+            ModbusAddressing addressing)
         {
             m_client = client;
             m_form = form;
             m_context = context;
             m_options = options;
 
-            ImmutableDictionary<string, string> address = form.Addressing.Metadata;
-            m_entity = Get(address, "entity", "holdingRegister");
-            m_address = (ushort)ParseInt(address, "address", 0);
-            m_quantity = (ushort)Math.Max(1, ParseInt(address, "quantity", 1));
-            m_unitId = (byte)ParseInt(address, "unitId", 1);
-            m_type = Get(form.Payload.Metadata, "type", "uint16");
-            m_msbFirst = ParseBool(form.Payload.Metadata, "mostSignificantByte", true);
-            m_mswFirst = ParseBool(form.Payload.Metadata, "mostSignificantWord", true);
+            m_entity = addressing.Entity;
+            m_address = addressing.Address;
+            m_quantity = addressing.Quantity;
+            m_unitId = addressing.UnitId;
+            m_type = addressing.Type;
+            m_msbFirst = addressing.MsbFirst;
+            m_mswFirst = addressing.MswFirst;
         }
 
         public WotCompiledForm Form => m_form;
@@ -213,17 +212,6 @@ namespace Opc.Ua.WotCon.Binding.Modbus
 
         private bool IsInputRegister()
             => string.Equals(m_entity, "inputRegister", StringComparison.OrdinalIgnoreCase);
-
-        private static string Get(ImmutableDictionary<string, string> map, string key, string fallback)
-            => map.TryGetValue(key, out string? value) && !string.IsNullOrEmpty(value) ? value : fallback;
-
-        private static int ParseInt(ImmutableDictionary<string, string> map, string key, int fallback)
-            => map.TryGetValue(key, out string? value) &&
-               int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int result)
-                ? result : fallback;
-
-        private static bool ParseBool(ImmutableDictionary<string, string> map, string key, bool fallback)
-            => map.TryGetValue(key, out string? value) && bool.TryParse(value, out bool result) ? result : fallback;
 
         private readonly ModbusTcpClient m_client;
         private readonly WotCompiledForm m_form;
