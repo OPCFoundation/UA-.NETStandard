@@ -988,7 +988,9 @@ namespace Opc.Ua.Server.Tests.Hosting
                 }
                 configureServices(services);
                 ServiceProvider provider = services.BuildServiceProvider();
-                IHostedService hostedService = provider.GetServices<IHostedService>().Single();
+                IHostedService hostedService = provider
+                    .GetServices<IHostedService>()
+                    .Single(static service => service is OpcUaServerHostedService);
                 try
                 {
                     await hostedService.StartAsync(CancellationToken.None).ConfigureAwait(false);
