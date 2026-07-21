@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using Opc.Ua;
 using Opc.Ua.OpenUsd;
 
@@ -182,7 +183,7 @@ namespace Opc.Ua.OpenUsd.Server
         {
             private const int MaxConcurrentHandles = 8;
             private readonly byte[] m_bytes;
-            private readonly object m_gate = new();
+            private readonly Lock m_gate = new();
             private readonly Dictionary<uint, long> m_positions = new();
             private uint m_nextHandle;
 

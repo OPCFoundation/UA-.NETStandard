@@ -47,7 +47,7 @@ namespace Opc.Ua.OpenUsd.Client
         private Subscription? m_eventSubscription;
         private List<RepresentationInfo> m_allReps = new();
         private readonly HashSet<string> m_composedInstancePrims = new(StringComparer.Ordinal);
-        private readonly object m_composeGate = new();
+        private readonly Lock m_composeGate = new();
 
         private async Task ComposeComponentAsync(RepresentationInfo rep, ComponentInfo c, CancellationToken ct)
         {
@@ -310,43 +310,38 @@ namespace Opc.Ua.OpenUsd.Client
             // Browse the AGGREGATING parent (HasComponent/HasAddIn), not any hierarchical
             // reference — otherwise the Organizes link from the discovery registry would
             // be returned instead of the represented Object.
-            var desc = new BrowseDescription
+            (ArrayOf<ArrayOf<ReferenceDescription>> results, _) = await m_session.ManagedBrowseAsync(
+                null, null, [node], 0, BrowseDirection.Inverse,
+                ReferenceTypeIds.Aggregates, includeSubtypes: true, 0, ct).ConfigureAwait(false);
+            if (results.Count == 0 || results[0].Count == 0)
             {
-                NodeId = node,
-                BrowseDirection = BrowseDirection.Inverse,
-                ReferenceTypeId = ReferenceTypeIds.Aggregates,
-                IncludeSubtypes = true,
-                NodeClassMask = 0,
-                ResultMask = (uint)BrowseResultMask.All
-            };
-            BrowseResponse response = await m_session.BrowseAsync(
-                null!, null!, 0, new BrowseDescription[] { desc }, ct).ConfigureAwait(false);
-            ArrayOf<ReferenceDescription> refs = response.Results[0].References;
-            return refs.Count > 0
-                ? ExpandedNodeId.ToNodeId(refs[0].NodeId, m_session.NamespaceUris)
-                : null;
+                return null;
+            }
+            NodeId parent = ExpandedNodeId.ToNodeId(results[0][0].NodeId, m_session.NamespaceUris);
+            return parent.IsNull ? null : parent;
         }
 
         private async Task<List<(string, NodeId?, NodeId?)>> ChildrenFullAsync(NodeId parent, CancellationToken ct)
         {
             var list = new List<(string, NodeId?, NodeId?)>();
-            var desc = new BrowseDescription
+            (ArrayOf<ArrayOf<ReferenceDescription>> results, _) = await m_session.ManagedBrowseAsync(
+                null, null, [parent], 0, BrowseDirection.Forward,
+                ReferenceTypeIds.HierarchicalReferences, includeSubtypes: true, 0, ct).ConfigureAwait(false);
+            if (results.Count == 0)
             {
-                NodeId = parent,
-                BrowseDirection = BrowseDirection.Forward,
-                ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
-                IncludeSubtypes = true,
-                NodeClassMask = 0,
-                ResultMask = (uint)BrowseResultMask.All
-            };
-            BrowseResponse response = await m_session.BrowseAsync(
-                null!, null!, 0, new BrowseDescription[] { desc }, ct).ConfigureAwait(false);
-            ArrayOf<ReferenceDescription> refs = response.Results[0].References;
+                return list;
+            }
+            ArrayOf<ReferenceDescription> refs = results[0];
             for (int i = 0; i < refs.Count; i++)
             {
-                list.Add((refs[i].BrowseName.Name ?? string.Empty,
-                    ExpandedNodeId.ToNodeId(refs[i].NodeId, m_session.NamespaceUris),
-                    ExpandedNodeId.ToNodeId(refs[i].TypeDefinition, m_session.NamespaceUris)));
+                NodeId id = ExpandedNodeId.ToNodeId(refs[i].NodeId, m_session.NamespaceUris);
+                if (id.IsNull)
+                {
+                    continue;
+                }
+                NodeId typeDef = ExpandedNodeId.ToNodeId(refs[i].TypeDefinition, m_session.NamespaceUris);
+                list.Add((refs[i].BrowseName.Name ?? string.Empty, id,
+                    typeDef.IsNull ? (NodeId?)null : typeDef));
             }
             return list;
         }

@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Text;
+using System.Threading;
 
 namespace Opc.Ua.OpenUsd.Client
 {
@@ -48,7 +49,7 @@ namespace Opc.Ua.OpenUsd.Client
         private static readonly DateTime s_epoch =
             new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         private readonly string m_path;
-        private readonly object m_gate = new();
+        private readonly Lock m_gate = new();
         private readonly Dictionary<string, object> m_values = new(StringComparer.Ordinal);
         private readonly List<(string Prim, string Prop)> m_order = new();
         private readonly Dictionary<string, SortedList<double, object>> m_timeSamples =

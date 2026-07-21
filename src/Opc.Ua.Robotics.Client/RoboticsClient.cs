@@ -49,7 +49,7 @@ namespace Opc.Ua.Robotics.Client
         /// <c>MotionDeviceSystemType</c>. <paramref name="root"/> is typically the
         /// DI <c>DeviceSet</c> or the server Objects folder.
         /// </summary>
-        public static async Task<IReadOnlyList<NodeId>> DiscoverMotionDeviceSystemsAsync(
+        public static async Task<ArrayOf<NodeId>> DiscoverMotionDeviceSystemsAsync(
             ISession session, NodeId root, CancellationToken cancellationToken = default)
         {
             if (session is null)
@@ -57,39 +57,40 @@ namespace Opc.Ua.Robotics.Client
                 throw new ArgumentNullException(nameof(session));
             }
 
-            NodeId systemType = RoboticsModel.TypeNodeId(
-                RoboticsModel.MotionDeviceSystemType, session.NamespaceUris);
-
-            var desc = new BrowseDescription
+            int ns = session.NamespaceUris.GetIndex(RoboticsNamespaces.Robotics);
+            if (ns < 0)
             {
-                NodeId = root,
-                BrowseDirection = BrowseDirection.Forward,
-                ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HierarchicalReferences,
-                IncludeSubtypes = true,
-                NodeClassMask = (uint)NodeClass.Object,
-                ResultMask = (uint)BrowseResultMask.All
-            };
-            BrowseResponse response = await session.BrowseAsync(
-                null!, null!, 0, new BrowseDescription[] { desc }, cancellationToken)
-                .ConfigureAwait(false);
-
-            var results = new List<NodeId>();
-            if (response?.Results == null || response.Results.Count == 0)
-            {
-                return results;
+                // The server does not expose the Robotics companion namespace.
+                return ArrayOf<NodeId>.Empty;
             }
-            ArrayOf<ReferenceDescription> refs = response.Results[0].References;
-            for (int i = 0; i < refs.Count; i++)
+            var systemType = new NodeId(RoboticsModel.MotionDeviceSystemType, (ushort)ns);
+
+            // ManagedBrowseAsync follows continuation points, so a server that caps the
+            // number of references it returns per node cannot silently truncate discovery.
+            (ArrayOf<ArrayOf<ReferenceDescription>> results, _) = await session.ManagedBrowseAsync(
+                null, null, [root], 0, BrowseDirection.Forward,
+                Opc.Ua.ReferenceTypeIds.HierarchicalReferences, includeSubtypes: true,
+                (uint)NodeClass.Object, cancellationToken).ConfigureAwait(false);
+
+            var systems = new List<NodeId>();
+            if (results.Count > 0)
             {
-                ReferenceDescription r = refs[i];
-                NodeId typeDef = ExpandedNodeId.ToNodeId(r.TypeDefinition, session.NamespaceUris);
-                NodeId child = ExpandedNodeId.ToNodeId(r.NodeId, session.NamespaceUris);
-                if (typeDef == systemType)
+                ArrayOf<ReferenceDescription> refs = results[0];
+                for (int i = 0; i < refs.Count; i++)
                 {
-                    results.Add(child);
+                    ReferenceDescription r = refs[i];
+                    NodeId typeDef = ExpandedNodeId.ToNodeId(r.TypeDefinition, session.NamespaceUris);
+                    if (typeDef == systemType)
+                    {
+                        NodeId child = ExpandedNodeId.ToNodeId(r.NodeId, session.NamespaceUris);
+                        if (!child.IsNull)
+                        {
+                            systems.Add(child);
+                        }
+                    }
                 }
             }
-            return results;
+            return systems;
         }
 
         /// <summary>
@@ -106,19 +107,27 @@ namespace Opc.Ua.Robotics.Client
                 throw new ArgumentNullException(nameof(namespaceUris));
             }
             name = null;
-            if (typeDefinition == RoboticsModel.TypeNodeId(RoboticsModel.MotionDeviceSystemType, namespaceUris))
+            int ns = namespaceUris.GetIndex(RoboticsNamespaces.Robotics);
+            if (ns < 0 || typeDefinition.IsNull)
+            {
+                // The Robotics namespace is not present in the table, so no node can be
+                // a known Robotics type. Return false instead of throwing.
+                return false;
+            }
+            var robotics = (ushort)ns;
+            if (typeDefinition == new NodeId(RoboticsModel.MotionDeviceSystemType, robotics))
             {
                 name = "MotionDeviceSystem";
             }
-            else if (typeDefinition == RoboticsModel.TypeNodeId(RoboticsModel.MotionDeviceType, namespaceUris))
+            else if (typeDefinition == new NodeId(RoboticsModel.MotionDeviceType, robotics))
             {
                 name = "MotionDevice";
             }
-            else if (typeDefinition == RoboticsModel.TypeNodeId(RoboticsModel.AxisType, namespaceUris))
+            else if (typeDefinition == new NodeId(RoboticsModel.AxisType, robotics))
             {
                 name = "Axis";
             }
-            else if (typeDefinition == RoboticsModel.TypeNodeId(RoboticsModel.ControllerType, namespaceUris))
+            else if (typeDefinition == new NodeId(RoboticsModel.ControllerType, robotics))
             {
                 name = "Controller";
             }

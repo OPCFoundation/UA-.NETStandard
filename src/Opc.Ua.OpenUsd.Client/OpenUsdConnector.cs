@@ -677,22 +677,21 @@ namespace Opc.Ua.OpenUsd.Client
 
         private async Task<List<ReferenceDescription>> BrowseAsync(NodeId node, CancellationToken ct)
         {
-            var desc = new BrowseDescription
-            {
-                NodeId = node,
-                BrowseDirection = BrowseDirection.Forward,
-                ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HierarchicalReferences,
-                IncludeSubtypes = true,
-                NodeClassMask = 0,
-                ResultMask = (uint)BrowseResultMask.All
-            };
-            BrowseResponse response = await m_session.BrowseAsync(
-                null!, null!, 0, new BrowseDescription[] { desc }, ct).ConfigureAwait(false);
+            // ManagedBrowseAsync follows continuation points internally, so a server that
+            // caps references per node cannot silently truncate discovery (and no
+            // continuation point is leaked on the server).
+            (ArrayOf<ArrayOf<ReferenceDescription>> results, _) = await m_session.ManagedBrowseAsync(
+                null, null, [node], 0, BrowseDirection.Forward,
+                ReferenceTypeIds.HierarchicalReferences, includeSubtypes: true, 0, ct)
+                .ConfigureAwait(false);
             var list = new List<ReferenceDescription>();
-            ArrayOf<ReferenceDescription> refs = response.Results[0].References;
-            for (int i = 0; i < refs.Count; i++)
+            if (results.Count > 0)
             {
-                list.Add(refs[i]);
+                ArrayOf<ReferenceDescription> refs = results[0];
+                for (int i = 0; i < refs.Count; i++)
+                {
+                    list.Add(refs[i]);
+                }
             }
             return list;
         }
@@ -715,8 +714,15 @@ namespace Opc.Ua.OpenUsd.Client
             var list = new List<(NodeId?, NodeId?)>();
             foreach (ReferenceDescription r in await BrowseAsync(parent, ct).ConfigureAwait(false))
             {
-                list.Add((ExpandedNodeId.ToNodeId(r.NodeId, m_session.NamespaceUris),
-                          ExpandedNodeId.ToNodeId(r.TypeDefinition, m_session.NamespaceUris)));
+                NodeId id = ExpandedNodeId.ToNodeId(r.NodeId, m_session.NamespaceUris);
+                if (id.IsNull)
+                {
+                    // Skip references whose target NodeId cannot be resolved in the
+                    // session namespace table (unresolved external server references).
+                    continue;
+                }
+                NodeId typeDef = ExpandedNodeId.ToNodeId(r.TypeDefinition, m_session.NamespaceUris);
+                list.Add((id, typeDef.IsNull ? (NodeId?)null : typeDef));
             }
             return list;
         }
