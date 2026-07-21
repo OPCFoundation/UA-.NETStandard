@@ -143,5 +143,40 @@ namespace Opc.Ua.WotCon.Binding.Tests
             Assert.ThrowsAsync<ArgumentOutOfRangeException>(
                 async () => await executor.ActivateAsync(form, new WotExecutorContext()).ConfigureAwait(false));
         }
+
+        [Test]
+        public void Modbus_Executor_RejectsQuantityThatWouldTruncateToZero()
+        {
+            var addressing = new WotAddressingDescriptor(
+                "holdingRegister:0:65536@1",
+                ImmutableDictionary<string, string>.Empty
+                    .Add("entity", "holdingRegister")
+                    .Add("address", "0")
+                    .Add("quantity", "65536")
+                    .Add("unitId", "1"));
+            var payload = new WotPayloadDescriptor(
+                "application/octet-stream", "octet-stream",
+                ImmutableDictionary<string, string>.Empty.Add("type", "uint16"));
+            var form = new WotCompiledForm(
+                new WotBindingIdentity("w3c.modbus", "1.0-ed", ModbusBindingPlanner.BindingUri),
+                WotAffordanceKind.Property, "p", "/properties/p/forms/0",
+                WoTBindingCapabilityEnum.ReadProperty, "readproperty",
+                new WotEndpointDescriptor(
+                    "modbus+tcp", "127.0.0.1", 502, "modbus+tcp://127.0.0.1:502"),
+                addressing,
+                new WotOperationDescriptor(
+                    WoTBindingCapabilityEnum.ReadProperty,
+                    "readproperty",
+                    "readHoldingRegisters"),
+                payload,
+                ImmutableArray<WotCredentialReference>.Empty,
+                isExecutable: true);
+
+            var executor = new ModbusWotBindingExecutor();
+            Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+                async () => await executor
+                    .ActivateAsync(form, new WotExecutorContext())
+                    .ConfigureAwait(false));
+        }
     }
 }
