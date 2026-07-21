@@ -73,6 +73,32 @@ namespace Opc.Ua.Server
             CancellationToken ct = default);
 
         /// <summary>
+        /// Replaces a live registration with a new asynchronous factory generation while
+        /// allowing the current generation to keep serving monitored items that were
+        /// already created on it. New service requests are atomically routed to the
+        /// replacement generation as soon as it is committed; the current generation is
+        /// retained only for its existing monitored items and any request or continuation
+        /// point that already captured it, and is disposed automatically once they drain.
+        /// </summary>
+        ValueTask<NodeManagerRegistration> ShadowReloadAsync(
+            NodeManagerRegistration registration,
+            IAsyncNodeManagerFactory replacement,
+            CancellationToken ct = default);
+
+        /// <summary>
+        /// Replaces a live registration with a new synchronous factory generation while
+        /// allowing the current generation to keep serving monitored items that were
+        /// already created on it. New service requests are atomically routed to the
+        /// replacement generation as soon as it is committed; the current generation is
+        /// retained only for its existing monitored items and any request or continuation
+        /// point that already captured it, and is disposed automatically once they drain.
+        /// </summary>
+        ValueTask<NodeManagerRegistration> ShadowReloadAsync(
+            NodeManagerRegistration registration,
+            INodeManagerFactory replacement,
+            CancellationToken ct = default);
+
+        /// <summary>
         /// Removes a live registration from the server.
         /// </summary>
         ValueTask RemoveAsync(

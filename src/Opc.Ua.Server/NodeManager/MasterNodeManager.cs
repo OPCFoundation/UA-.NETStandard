@@ -518,6 +518,7 @@ namespace Opc.Ua.Server
         async ValueTask IDynamicNodeManagerHost.ReplaceAsync(
             IAsyncNodeManager current,
             PreparedNodeManager replacement,
+            bool allowActiveMonitoredItems,
             CancellationToken ct)
         {
             if (current is null)
@@ -543,6 +544,7 @@ namespace Opc.Ua.Server
                 }
                 replacement.ReplacedNodeManager = current;
                 replacement.ReplacedExternalReferences = currentExternalReferences;
+                replacement.AllowActiveMonitoredItems = allowActiveMonitoredItems;
                 replacement.Staged = true;
             }
             finally
@@ -647,8 +649,11 @@ namespace Opc.Ua.Server
                 }
                 else
                 {
-                    EnsureNoActiveMonitoredItems(
-                        prepared.ReplacedNodeManager);
+                    if (!prepared.AllowActiveMonitoredItems)
+                    {
+                        EnsureNoActiveMonitoredItems(
+                            prepared.ReplacedNodeManager);
+                    }
                     await CommitReplacementAsync(prepared).ConfigureAwait(false);
                 }
                 prepared.Staged = false;
