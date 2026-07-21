@@ -237,6 +237,7 @@ namespace Opc.Ua.WotCon.Server.Assets
 
                 await m_manager.DeleteAssetNodeAsync(entry.Asset, ct).ConfigureAwait(false);
                 DeleteTdFromDisk(entry.Name);
+                await RemoveFromRegistryAsync(entry.Name, ct).ConfigureAwait(false);
                 return ServiceResult.Good;
             }
             finally
@@ -578,6 +579,8 @@ namespace Opc.Ua.WotCon.Server.Assets
                 {
                     PersistTdToDisk(entry.Name, td);
                 }
+
+                await MirrorToRegistryAsync(entry.Name, td, ct).ConfigureAwait(false);
             }
             finally
             {
@@ -895,6 +898,54 @@ namespace Opc.Ua.WotCon.Server.Assets
                 {
                     File.Delete(path);
                 }
+            }
+            catch (Exception ex)
+            {
+                m_logger.FailedToDeleteTd(ex, name);
+            }
+        }
+
+        private async ValueTask MirrorToRegistryAsync(
+            string name, ThingDescription td, CancellationToken ct)
+        {
+            Registry.IWotRegistryService? registry = m_options.RegistryBridge;
+            if (registry is null)
+            {
+                return;
+            }
+            try
+            {
+                byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(
+                    td, ThingDescriptionJsonContext.Default.ThingDescription);
+                await registry.UpsertResourceAsync(new Registry.WotUpsertResourceRequest
+                {
+                    GroupId = m_options.RegistryBridgeGroupId,
+                    ResourceId = name,
+                    Kind = V2.WoTDocumentKindEnum.ThingDescription,
+                    Content = bytes,
+                    ContentType = "application/td+json",
+                    Format = "WoT-TD/1.1",
+                    Name = name
+                }, ct).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                m_logger.FailedToPersistTd(ex, name);
+            }
+        }
+
+        private async ValueTask RemoveFromRegistryAsync(string name, CancellationToken ct)
+        {
+            Registry.IWotRegistryService? registry = m_options.RegistryBridge;
+            if (registry is null)
+            {
+                return;
+            }
+            try
+            {
+                await registry.DeleteResourceAsync(
+                    m_options.RegistryBridgeGroupId, name, cancellationToken: ct)
+                    .ConfigureAwait(false);
             }
             catch (Exception ex)
             {

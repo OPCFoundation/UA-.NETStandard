@@ -388,6 +388,49 @@ namespace Opc.Ua.WotCon.Tests
         }
 
         [Test]
+        public async Task LegacyAssetIsMirroredIntoV2RegistryWithoutDivergence()
+        {
+            using var harness = new ManagerHarness(
+                _tempFolder, new SimulatedWotAssetProviderFactory());
+            using var registry = new Opc.Ua.WotCon.Server.Registry.WotRegistryService();
+            harness.Options.RegistryBridge = registry;
+            await harness.StartAsync().ConfigureAwait(false);
+
+            (_, NodeId assetId) = await harness.Registry
+                .CreateAssetAsync("asset-001", CancellationToken.None).ConfigureAwait(false);
+            AssetEntry entry = harness.Registry.FindByNodeId(assetId)!;
+            var td = new ThingDescription
+            {
+                Name = "asset-001",
+                Base = "sim://opcua.test/wot/asset-001",
+                Properties = new Dictionary<string, WotProperty>
+                {
+                    ["Voltage"] = new WotProperty { Type = "number" }
+                }
+            };
+            await harness.Registry.RebuildAsync(
+                entry, td, persistOnSuccess: false, CancellationToken.None).ConfigureAwait(false);
+
+            Opc.Ua.WotCon.Server.Registry.WotResource? resource = registry.Current.FindResource(
+                Opc.Ua.WotCon.Server.Registry.WotRegistryGroups.ThingDescriptions, "asset-001");
+            Assert.That(resource, Is.Not.Null,
+                "A legacy asset must have a matching V2 registry resource.");
+
+            byte[] expected = JsonSerializer.SerializeToUtf8Bytes(
+                td, ThingDescriptionJsonContext.Default.ThingDescription);
+            Assert.That(resource!.DefaultVersion!.Content.ToArray(), Is.EqualTo(expected),
+                "The mirrored registry document must not diverge from the legacy document.");
+
+            ServiceResult delete = await harness.Registry
+                .DeleteAssetAsync(assetId, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(delete), Is.True);
+            Assert.That(
+                registry.Current.FindResource(
+                    Opc.Ua.WotCon.Server.Registry.WotRegistryGroups.ThingDescriptions, "asset-001"),
+                Is.Null, "Deleting a legacy asset must remove its registry resource.");
+        }
+
+        [Test]
         public async Task RebuildSimpleWriteValueDelegatesToProviderForWritableProperties()
         {
             using var harness = new ManagerHarness(
