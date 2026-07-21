@@ -80,25 +80,32 @@ namespace Opc.Ua.PubSub.Udp.Tests
         }
 
         [Test]
+        [CancelAfter(10000)]
         public async Task ThreeRepeats_SendsFourTimes_FakeTimerAdvanced()
         {
-            var fake = new FakeTimeProvider();
+            var fake = new TrackingFakeTimeProvider(3);
             var repeater = new UdpMessageRepeater(3, TimeSpan.FromMilliseconds(100), fake);
             int count = 0;
 
-            ValueTask sendTask = repeater.SendWithRepeatsAsync(_ =>
+            Task sendTask = repeater.SendWithRepeatsAsync(_ =>
             {
-                count++;
+                Interlocked.Increment(ref count);
                 return default;
-            });
+            }).AsTask();
 
-            for (int i = 0; i < 3 && !sendTask.IsCompleted; i++)
+            for (int i = 0; i < 3; i++)
             {
+                await WaitForCompletionAsync(
+                    fake.GetTimerCreatedTask(i),
+                    $"Timed out waiting for repeat timer {i + 1}.")
+                    .ConfigureAwait(false);
                 fake.Advance(TimeSpan.FromMilliseconds(100));
-                await Task.Yield();
             }
 
-            await sendTask.ConfigureAwait(false);
+            await WaitForCompletionAsync(
+                sendTask,
+                "Timed out waiting for the repeated sends to complete.")
+                .ConfigureAwait(false);
 
             Assert.That(count, Is.EqualTo(4));
         }
@@ -181,39 +188,42 @@ namespace Opc.Ua.PubSub.Udp.Tests
         }
 
         [Test]
+        [CancelAfter(10000)]
         public async Task CancellationBetweenRepeats_StopsLoop()
         {
-            var fake = new FakeTimeProvider();
+            var fake = new TrackingFakeTimeProvider(1);
             var repeater = new UdpMessageRepeater(5, TimeSpan.FromMilliseconds(50), fake);
             int count = 0;
             using var cts = new CancellationTokenSource();
 
-            ValueTask sendTask = repeater.SendWithRepeatsAsync(_ =>
+            Task sendTask = repeater.SendWithRepeatsAsync(_ =>
             {
-                count++;
-                if (count == 2)
+                int sendNumber = Interlocked.Increment(ref count);
+                if (sendNumber == 2)
                 {
                     cts.Cancel();
                 }
                 return default;
-            }, cts.Token);
+            }, cts.Token).AsTask();
 
-            for (int i = 0; i < 6 && !sendTask.IsCompleted; i++)
-            {
-                fake.Advance(TimeSpan.FromMilliseconds(50));
-                await Task.Yield();
-            }
+            await WaitForCompletionAsync(
+                fake.GetTimerCreatedTask(0),
+                "Timed out waiting for the first repeat timer.")
+                .ConfigureAwait(false);
+            fake.Advance(TimeSpan.FromMilliseconds(50));
 
             try
             {
-                await sendTask.ConfigureAwait(false);
+                await WaitForCompletionAsync(
+                    sendTask,
+                    "Timed out waiting for cancellation to stop the repeater.")
+                    .ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
             }
 
-            Assert.That(count, Is.LessThan(6));
-            Assert.That(count, Is.GreaterThanOrEqualTo(2));
+            Assert.That(count, Is.EqualTo(2));
         }
 
         [Test]
@@ -240,6 +250,51 @@ namespace Opc.Ua.PubSub.Udp.Tests
             }
 
             Assert.That(count, Is.EqualTo(3));
+        }
+
+        private static async Task WaitForCompletionAsync(Task completion, string timeoutMessage)
+        {
+            Task completed = await Task.WhenAny(
+                completion,
+                Task.Delay(TimeSpan.FromSeconds(5))).ConfigureAwait(false);
+            Assert.That(completed, Is.SameAs(completion), timeoutMessage);
+            await completion.ConfigureAwait(false);
+        }
+
+        private sealed class TrackingFakeTimeProvider : FakeTimeProvider
+        {
+            public TrackingFakeTimeProvider(int expectedTimerCount)
+            {
+                m_timerCreated = new TaskCompletionSource<bool>[expectedTimerCount];
+                for (int i = 0; i < m_timerCreated.Length; i++)
+                {
+                    m_timerCreated[i] = new TaskCompletionSource<bool>(
+                        TaskCreationOptions.RunContinuationsAsynchronously);
+                }
+            }
+
+            public Task<bool> GetTimerCreatedTask(int index)
+            {
+                return m_timerCreated[index].Task;
+            }
+
+            public override ITimer CreateTimer(
+                TimerCallback callback,
+                object? state,
+                TimeSpan dueTime,
+                TimeSpan period)
+            {
+                ITimer timer = base.CreateTimer(callback, state, dueTime, period);
+                int timerIndex = Interlocked.Increment(ref m_timerCount) - 1;
+                if ((uint)timerIndex < (uint)m_timerCreated.Length)
+                {
+                    m_timerCreated[timerIndex].TrySetResult(true);
+                }
+                return timer;
+            }
+
+            private readonly TaskCompletionSource<bool>[] m_timerCreated;
+            private int m_timerCount;
         }
     }
 }
