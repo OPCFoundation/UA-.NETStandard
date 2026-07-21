@@ -87,6 +87,8 @@ namespace Opc.Ua.Sessions.Tests
                     manager,
                     nameof(ApplicationCertificateRotationRehandshakesOpenManagedChannelsAsync) + "2",
                     ct).ConfigureAwait(false);
+                NodeId firstSessionId = first.SessionId;
+                NodeId secondSessionId = second.SessionId;
 
                 var firstStates = new ConcurrentQueue<ChannelState>();
                 var secondStates = new ConcurrentQueue<ChannelState>();
@@ -120,6 +122,8 @@ namespace Opc.Ua.Sessions.Tests
                     Is.True,
                     "The rehandshaken secure channel should present the replacement client certificate.");
 
+                Assert.That(first.SessionId, Is.Not.EqualTo(firstSessionId));
+                Assert.That(second.SessionId, Is.Not.EqualTo(secondSessionId));
                 await AssertReadServerStatusAsync(first, ct).ConfigureAwait(false);
                 await AssertReadServerStatusAsync(second, ct).ConfigureAwait(false);
             }

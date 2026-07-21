@@ -69,6 +69,12 @@ namespace Opc.Ua.Sessions.Tests
     public class ManagedSessionReconnectIntegrationTests
         : ClientTestFramework
     {
+        private static readonly StatusCode[] s_permanentReactivationFailures =
+        [
+            StatusCodes.BadSecurityChecksFailed,
+            StatusCodes.BadIdentityChangeNotSupported
+        ];
+
         [OneTimeSetUp]
         public override Task OneTimeSetUpAsync()
         {
@@ -267,6 +273,77 @@ namespace Opc.Ua.Sessions.Tests
             }
             finally
             {
+                await session.CloseAsync().ConfigureAwait(false);
+                await session.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        [TestCaseSource(nameof(s_permanentReactivationFailures))]
+        [Order(250)]
+        [CancelAfter(120_000)]
+        public async Task ManagedSessionRecreatesAfterPermanentReactivationFailureAsync(
+            StatusCode statusCode,
+            CancellationToken ct)
+        {
+            ConfiguredEndpoint endpoint = await ClientFixture
+                .GetEndpointAsync(ServerUrl, SecurityPolicies.None)
+                .ConfigureAwait(false);
+            ManagedSessionType session = await new ManagedSessionBuilder(
+                    ClientFixture.Config, Telemetry)
+                .UseEndpoint(endpoint)
+                .WithSessionName(
+                    nameof(ManagedSessionRecreatesAfterPermanentReactivationFailureAsync))
+                .WithReconnectPolicy(p => p with
+                {
+                    Strategy = BackoffStrategy.Constant,
+                    InitialDelay = TimeSpan.Zero,
+                    MaxRetries = 3,
+                    JitterFactor = 0.0
+                })
+                .ConnectAsync(ct)
+                .ConfigureAwait(false);
+            IServiceResponseMutator? originalResponseMutator = ReferenceServer.ResponseMutator;
+            var mockController = new MockResponseController();
+            NodeId originalSessionId = session.SessionId;
+            var reconnected = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+
+            session.ConnectionStateChanged += (_, e) =>
+            {
+                if (e.PreviousState == ConnectionState.Reconnecting &&
+                    e.NewState == ConnectionState.Connected)
+                {
+                    reconnected.TrySetResult(true);
+                }
+            };
+
+            try
+            {
+                ReferenceServer.ResponseMutator = mockController;
+                using IDisposable expectation = mockController
+                    .ExpectNextResponse<ActivateSessionResponse>(
+                        response => response.ResponseHeader.ServiceResult = statusCode);
+
+                session.StateMachine.TriggerReconnect();
+
+                Assert.That(
+                    await WaitOrCanceledAsync(
+                        reconnected.Task,
+                        TimeSpan.FromSeconds(60),
+                        ct).ConfigureAwait(false),
+                    Is.True,
+                    "The managed session should recreate after permanent reactivation failure.");
+                Assert.That(session.SessionId, Is.Not.EqualTo(originalSessionId));
+                Assert.That(session.Connected, Is.True);
+
+                DataValue value = await session
+                    .ReadValueAsync(VariableIds.Server_ServerStatus_State, ct)
+                    .ConfigureAwait(false);
+                Assert.That(StatusCode.IsGood(value.StatusCode), Is.True);
+            }
+            finally
+            {
+                ReferenceServer.ResponseMutator = originalResponseMutator;
                 await session.CloseAsync().ConfigureAwait(false);
                 await session.DisposeAsync().ConfigureAwait(false);
             }

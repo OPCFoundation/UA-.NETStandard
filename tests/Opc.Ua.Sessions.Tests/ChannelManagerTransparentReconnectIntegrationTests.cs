@@ -37,6 +37,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
+using Opc.Ua.Client.TestFramework;
 using ManagedSessionType = Opc.Ua.Client.ManagedSession;
 
 // CA2000: integration-test disposables are released by helper cleanup paths.
@@ -58,6 +59,14 @@ namespace Opc.Ua.Sessions.Tests
     public sealed class ChannelManagerTransparentReconnectIntegrationTests
         : ChannelManagerIntegrationTestBase
     {
+        private static readonly StatusCode[] s_reactivationSecurityFailureStatusCodes =
+        [
+            StatusCodes.BadApplicationSignatureInvalid,
+            StatusCodes.BadSecurityChecksFailed,
+            StatusCodes.BadIdentityChangeNotSupported,
+            StatusCodes.BadSecureChannelIdInvalid
+        ];
+
         [Test]
         [Order(100)]
         [CancelAfter(120_000)]
@@ -83,6 +92,7 @@ namespace Opc.Ua.Sessions.Tests
                     nameof(ChannelManagerReconnectDoesNotChurnOuterManagedSessionStateAsync),
                     ct).ConfigureAwait(false);
 
+                NodeId originalSessionId = session.SessionId;
                 IManagedTransportChannel channel = GetManagedChannel(session);
                 var outerStates = new ConcurrentQueue<ConnectionState>();
                 var channelStates = new ConcurrentQueue<ChannelState>();
@@ -105,11 +115,99 @@ namespace Opc.Ua.Sessions.Tests
                 Assert.That(outerStates, Has.No.Member(ConnectionState.Reconnecting));
                 Assert.That(outerStates, Has.No.Member(ConnectionState.Connected));
                 Assert.That(session.StateMachine.State, Is.EqualTo(ConnectionState.Connected));
+                Assert.That(session.SessionId, Is.EqualTo(originalSessionId));
 
                 await AssertReadServerStatusAsync(session, ct).ConfigureAwait(false);
             }
             finally
             {
+                await CloseAndDisposeAsync(session).ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        [Order(150)]
+        [CancelAfter(120_000)]
+        public async Task AnonymousSignChannelManagerReconnectRecreatesSessionAsync(
+            CancellationToken ct)
+        {
+            await using ClientChannelManager manager = CreateChannelManager(
+                new ExponentialBackoffChannelReconnectPolicy
+                {
+                    MinDelay = TimeSpan.Zero,
+                    MaxDelay = TimeSpan.Zero,
+                    MaxAttempts = 3
+                });
+            ConfiguredEndpoint endpoint = await GetEndpointAsync(SecurityPolicies.Basic256Sha256)
+                .ConfigureAwait(false);
+            endpoint.Description.SecurityMode = MessageSecurityMode.Sign;
+            ManagedSessionType? session = null;
+
+            try
+            {
+                session = await ConnectManagedSessionAsync(
+                    endpoint,
+                    manager,
+                    nameof(AnonymousSignChannelManagerReconnectRecreatesSessionAsync),
+                    ct).ConfigureAwait(false);
+                NodeId originalSessionId = session.SessionId;
+                IManagedTransportChannel channel = GetManagedChannel(session);
+
+                await manager.ReconnectAsync(channel, ct).ConfigureAwait(false);
+
+                Assert.That(session.SessionId, Is.Not.EqualTo(originalSessionId));
+                Assert.That(channel.State, Is.EqualTo(ChannelState.Ready));
+                await AssertReadServerStatusAsync(session, ct).ConfigureAwait(false);
+            }
+            finally
+            {
+                await CloseAndDisposeAsync(session).ConfigureAwait(false);
+            }
+        }
+
+        [TestCaseSource(nameof(s_reactivationSecurityFailureStatusCodes))]
+        [Order(175)]
+        [CancelAfter(120_000)]
+        public async Task ReactivationSecurityFailureRecreatesSessionAsync(
+            StatusCode statusCode,
+            CancellationToken ct)
+        {
+            await using ClientChannelManager manager = CreateChannelManager(
+                new ExponentialBackoffChannelReconnectPolicy
+                {
+                    MinDelay = TimeSpan.Zero,
+                    MaxDelay = TimeSpan.Zero,
+                    MaxAttempts = 3
+                });
+            ConfiguredEndpoint endpoint = await GetEndpointAsync(SecurityPolicies.None)
+                .ConfigureAwait(false);
+            ManagedSessionType? session = null;
+            IServiceResponseMutator? originalResponseMutator = ReferenceServer.ResponseMutator;
+            var mockController = new MockResponseController();
+
+            try
+            {
+                session = await ConnectManagedSessionAsync(
+                    endpoint,
+                    manager,
+                    nameof(ReactivationSecurityFailureRecreatesSessionAsync),
+                    ct).ConfigureAwait(false);
+                NodeId originalSessionId = session.SessionId;
+                IManagedTransportChannel channel = GetManagedChannel(session);
+                ReferenceServer.ResponseMutator = mockController;
+                using IDisposable expectation = mockController
+                    .ExpectNextResponse<ActivateSessionResponse>(
+                        response => response.ResponseHeader.ServiceResult = statusCode);
+
+                await manager.ReconnectAsync(channel, ct).ConfigureAwait(false);
+
+                Assert.That(session.SessionId, Is.Not.EqualTo(originalSessionId));
+                Assert.That(channel.State, Is.EqualTo(ChannelState.Ready));
+                await AssertReadServerStatusAsync(session, ct).ConfigureAwait(false);
+            }
+            finally
+            {
+                ReferenceServer.ResponseMutator = originalResponseMutator;
                 await CloseAndDisposeAsync(session).ConfigureAwait(false);
             }
         }
