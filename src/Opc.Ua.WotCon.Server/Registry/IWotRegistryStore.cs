@@ -33,59 +33,51 @@ using System.Threading.Tasks;
 namespace Opc.Ua.WotCon.Server.Registry
 {
     /// <summary>
-    /// Persists the immutable registry snapshot. Implementations are
-    /// responsible for durability and, for file-backed stores, bounded atomic
-    /// replacement. Invalid documents are stored together with their failure
-    /// state so a restart restores exactly the last observed registry contents.
+    /// Persists the immutable registry snapshot behind a <em>transactional
+    /// commit</em> contract. A store owns exactly one committed generation and
+    /// exposes it through <see cref="LoadAsync"/>; a mutation is made durable by
+    /// committing a complete replacement generation through
+    /// <see cref="CommitAsync"/>.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="CommitAsync"/> is all-or-nothing. It must make the entire
+    /// <see cref="WotRegistrySnapshot"/> durable and then switch the committed
+    /// generation in a single atomic step, so a crash (or an injected failure)
+    /// either leaves the previous generation fully intact or exposes the new
+    /// generation in full — never a partially written mix. Invalid documents are
+    /// committed together with their failure state, so a restart restores exactly
+    /// the last committed registry contents.
+    /// </para>
+    /// <para>
+    /// The <see cref="WotRegistryService"/> relies on this guarantee: it commits
+    /// <em>before</em> it publishes the new snapshot or raises its change
+    /// notification. When a commit throws, the caller-visible current snapshot is
+    /// left unchanged, no notification is raised, and a retry re-attempts the same
+    /// commit.
+    /// </para>
+    /// </remarks>
     public interface IWotRegistryStore
     {
         /// <summary>
-        /// Loads the persisted registry into an immutable snapshot. Returns
-        /// <see cref="WotRegistrySnapshot.Empty"/> when no state is persisted.
+        /// Loads the last committed registry generation into an immutable
+        /// snapshot. Returns <see cref="WotRegistrySnapshot.Empty"/> when no
+        /// generation has ever been committed. Never observes a partially
+        /// written (staged, not-yet-committed) generation.
         /// </summary>
         ValueTask<WotRegistrySnapshot> LoadAsync(CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Durably upserts a group (its metadata; resources are persisted
-        /// separately through <see cref="UpsertResourceAsync"/>).
+        /// Durably and atomically commits <paramref name="snapshot"/> as the new
+        /// committed generation, replacing the previous one in full. Stages all
+        /// backing state first and only switches the committed generation once it
+        /// is durable, so the operation is all-or-nothing: on failure the store
+        /// retains its previous committed generation unchanged.
         /// </summary>
-        ValueTask UpsertGroupAsync(
-            WotResourceGroup group,
-            CancellationToken cancellationToken = default);
-
-        /// <summary>
-        /// Durably upserts a resource, including all of its version source
-        /// bytes and its load/validation state, using an atomic replace.
-        /// </summary>
-        ValueTask UpsertResourceAsync(
-            WotResource resource,
-            CancellationToken cancellationToken = default);
-
-        /// <summary>
-        /// Durably persists the registry-level label set and its epoch (the
-        /// snapshot generation at the time of the mutation). Group and
-        /// resource labels are persisted as part of their owning entity
-        /// through <see cref="UpsertGroupAsync"/> / <see cref="UpsertResourceAsync"/>.
-        /// </summary>
-        ValueTask UpsertRegistryLabelsAsync(
-            System.Collections.Immutable.ImmutableSortedDictionary<string, string> labels,
-            long epoch,
-            CancellationToken cancellationToken = default);
-
-        /// <summary>
-        /// Durably removes a resource and all of its versions.
-        /// </summary>
-        ValueTask RemoveResourceAsync(
-            string groupId,
-            string resourceId,
-            CancellationToken cancellationToken = default);
-
-        /// <summary>
-        /// Durably removes a group and all of its resources.
-        /// </summary>
-        ValueTask RemoveGroupAsync(
-            string groupId,
+        /// <param name="snapshot">The complete registry generation to commit.</param>
+        /// <param name="cancellationToken">A cancellation token.</param>
+        ValueTask CommitAsync(
+            WotRegistrySnapshot snapshot,
             CancellationToken cancellationToken = default);
     }
 }
