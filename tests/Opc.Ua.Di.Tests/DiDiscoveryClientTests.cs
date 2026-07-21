@@ -105,6 +105,8 @@ namespace Opc.Ua.Di.Tests
         public async Task EnumerateDevicesAsyncReturnsDeviceEntryForMatchingTypeDefinition()
         {
             Mock<ISession> sessionMock = CreateSessionMock();
+            var nodeCacheMock = new Mock<INodeCache>(MockBehavior.Strict);
+            sessionMock.SetupGet(s => s.NodeCache).Returns(nodeCacheMock.Object);
             ExpandedNodeId deviceTypeId = global::Opc.Ua.Di.ObjectTypeIds.DeviceType;
             var deviceNodeId = new NodeId("device-1", 2);
 
@@ -120,6 +122,18 @@ namespace Opc.Ua.Di.Tests
             SetupBrowseSequential(sessionMock,
                 first: [deviceRef, nonDeviceRef],
                 rest: []);
+            nodeCacheMock
+                .Setup(c => c.IsTypeOfAsync(
+                    deviceTypeId,
+                    deviceTypeId,
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<bool>(true));
+            nodeCacheMock
+                .Setup(c => c.IsTypeOfAsync(
+                    new ExpandedNodeId("OtherType", 2),
+                    deviceTypeId,
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<bool>(false));
 
             // Stub the DeviceClass property lookup so it returns
             // empty (no targets → empty deviceClass).
@@ -133,12 +147,60 @@ namespace Opc.Ua.Di.Tests
             Assert.That(result[0].DeviceId, Is.EqualTo(deviceNodeId));
             Assert.That(result[0].DisplayName, Is.EqualTo("Device 1"));
             Assert.That(result[0].DeviceClass, Is.EqualTo(string.Empty));
+            nodeCacheMock.VerifyAll();
+        }
+
+        [Test]
+        public async Task EnumerateDevicesAsyncReturnsDeviceEntryForSubtypeTypeDefinition()
+        {
+            Mock<ISession> sessionMock = CreateSessionMock();
+            var nodeCacheMock = new Mock<INodeCache>(MockBehavior.Strict);
+            sessionMock.SetupGet(s => s.NodeCache).Returns(nodeCacheMock.Object);
+            ExpandedNodeId deviceTypeId = global::Opc.Ua.Di.ObjectTypeIds.DeviceType;
+            ExpandedNodeId vendorDeviceType = new("VendorDeviceType", 2);
+            var deviceNodeId = new NodeId("device-subtype-1", 2);
+
+            ReferenceDescription deviceRef = MakeReference(
+                deviceNodeId, "Vendor Device", vendorDeviceType);
+            ReferenceDescription nonDeviceRef = MakeReference(
+                new NodeId("other-1", 2), "Other 1",
+                new ExpandedNodeId("OtherType", 2));
+
+            SetupBrowseSequential(sessionMock,
+                first: [deviceRef, nonDeviceRef],
+                rest: []);
+            nodeCacheMock
+                .Setup(c => c.IsTypeOfAsync(
+                    vendorDeviceType,
+                    deviceTypeId,
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<bool>(true));
+            nodeCacheMock
+                .Setup(c => c.IsTypeOfAsync(
+                    new ExpandedNodeId("OtherType", 2),
+                    deviceTypeId,
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<bool>(false));
+
+            SetupTranslateBrowsePathsEmpty(sessionMock);
+
+            List<DeviceEntry> result = await ToListAsync(
+                DiDiscoveryClient.EnumerateDevicesAsync(
+                    sessionMock.Object, NullTelemetry())).ConfigureAwait(false);
+
+            Assert.That(result, Has.Count.EqualTo(1));
+            Assert.That(result[0].DeviceId, Is.EqualTo(deviceNodeId));
+            Assert.That(result[0].DisplayName, Is.EqualTo("Vendor Device"));
+            Assert.That(result[0].DeviceClass, Is.EqualTo(string.Empty));
+            nodeCacheMock.VerifyAll();
         }
 
         [Test]
         public async Task EnumerateDevicesAsyncFiltersOutNonDeviceTypes()
         {
             Mock<ISession> sessionMock = CreateSessionMock();
+            var nodeCacheMock = new Mock<INodeCache>(MockBehavior.Strict);
+            sessionMock.SetupGet(s => s.NodeCache).Returns(nodeCacheMock.Object);
             ReferenceDescription nonDeviceRef = MakeReference(
                 new NodeId("folder-1", 2), "Folder 1",
                 new ExpandedNodeId("FolderType", 2));
@@ -146,12 +208,19 @@ namespace Opc.Ua.Di.Tests
             SetupBrowseSequential(sessionMock,
                 first: [nonDeviceRef],
                 rest: []);
+            nodeCacheMock
+                .Setup(c => c.IsTypeOfAsync(
+                    new ExpandedNodeId("FolderType", 2),
+                    global::Opc.Ua.Di.ObjectTypeIds.DeviceType,
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<bool>(false));
 
             List<DeviceEntry> result = await ToListAsync(
                 DiDiscoveryClient.EnumerateDevicesAsync(
                     sessionMock.Object, NullTelemetry())).ConfigureAwait(false);
 
             Assert.That(result, Is.Empty);
+            nodeCacheMock.VerifyAll();
         }
 
         [Test]
@@ -163,6 +232,8 @@ namespace Opc.Ua.Di.Tests
             // bounded number of browse calls (depth 0..3 inclusive
             // → 4 calls before depth > maxDepth aborts).
             Mock<ISession> sessionMock = CreateSessionMock();
+            var nodeCacheMock = new Mock<INodeCache>(MockBehavior.Strict);
+            sessionMock.SetupGet(s => s.NodeCache).Returns(nodeCacheMock.Object);
             ReferenceDescription nonDeviceRef = MakeReference(
                 new NodeId("nested", 2), "Nested",
                 new ExpandedNodeId("FolderType", 2));
@@ -186,6 +257,12 @@ namespace Opc.Ua.Di.Tests
                         }
                     }.ToArrayOf()
                 });
+            nodeCacheMock
+                .Setup(c => c.IsTypeOfAsync(
+                    new ExpandedNodeId("FolderType", 2),
+                    global::Opc.Ua.Di.ObjectTypeIds.DeviceType,
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<bool>(false));
 
             List<DeviceEntry> result = await ToListAsync(
                 DiDiscoveryClient.EnumerateDevicesAsync(
@@ -196,6 +273,12 @@ namespace Opc.Ua.Di.Tests
             // depth > 3 guard stops further recursion.
             Assert.That(browseCalls, Is.EqualTo(4),
                 "Recursion must stop at maxDepth=3 (4 invocations).");
+            nodeCacheMock.Verify(
+                c => c.IsTypeOfAsync(
+                    new ExpandedNodeId("FolderType", 2),
+                    global::Opc.Ua.Di.ObjectTypeIds.DeviceType,
+                    It.IsAny<CancellationToken>()),
+                Times.Exactly(4));
         }
 
         private static async Task<List<DeviceEntry>> ToListAsync(
@@ -228,6 +311,8 @@ namespace Opc.Ua.Di.Tests
             var nsTable = new NamespaceTable();
             nsTable.GetIndexOrAppend(global::Opc.Ua.Di.Namespaces.OpcUaDi);
             mock.SetupGet(s => s.NamespaceUris).Returns(nsTable);
+            mock.SetupGet(s => s.NodeCache)
+                .Returns(new Mock<INodeCache>(MockBehavior.Loose).Object);
             return mock;
         }
 

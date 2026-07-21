@@ -30,6 +30,7 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -110,6 +111,146 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 }
                 Assert.That(received, Is.EqualTo(payload));
             }
+        }
+
+        [Test]
+        public async Task SendAllAsyncHandlesPartialSendsWithoutMutatingCallerBuffers()
+        {
+            byte[] first = [0, 1, 2, 3, 4, 5];
+            byte[] second = [10, 11, 12, 13, 14, 15];
+            byte[] third = [20, 21, 22, 23, 24];
+            var buffers = new BufferCollection
+            {
+                new(first, 1, 4),
+                new(second, 2, 3),
+                new(third, 0, 5)
+            };
+            ArraySegment<byte>[] original = [.. buffers];
+            int[] partialSends = [3, 4, 5];
+            int sendIndex = 0;
+            var snapshots = new List<ArraySegment<byte>[]>();
+
+            await TcpByteTransport.SendAllAsync(
+                buffers,
+                pending =>
+                {
+                    snapshots.Add(CopySegments(pending));
+                    return Task.FromResult(partialSends[sendIndex++]);
+                }).ConfigureAwait(false);
+
+            Assert.That(sendIndex, Is.EqualTo(partialSends.Length));
+            Assert.That(snapshots, Has.Count.EqualTo(3));
+            Assert.That(snapshots[0], Is.EqualTo(original));
+            Assert.That(
+                snapshots[1],
+                Is.EqualTo(
+                [
+                    new ArraySegment<byte>(first, 4, 1),
+                    new ArraySegment<byte>(second, 2, 3),
+                    new ArraySegment<byte>(third, 0, 5)
+                ]));
+            Assert.That(
+                snapshots[2],
+                Is.EqualTo([new ArraySegment<byte>(third, 0, 5)]));
+            Assert.That(buffers, Is.EqualTo(original));
+        }
+
+        [Test]
+        public async Task SendAllAsyncCompleteSendUsesCallerBuffersDirectly()
+        {
+            var buffers = new BufferCollection
+            {
+                new(new byte[4]),
+                new(new byte[8])
+            };
+            IList<ArraySegment<byte>>? observed = null;
+
+            await TcpByteTransport.SendAllAsync(
+                buffers,
+                pending =>
+                {
+                    observed = pending;
+                    return Task.FromResult(buffers.TotalSize);
+                }).ConfigureAwait(false);
+
+            Assert.That(observed, Is.SameAs(buffers));
+        }
+
+        [TestCase(0)]
+        [TestCase(13)]
+        public void SendAllAsyncRejectsInvalidSendCounts(int sent)
+        {
+            var buffers = new BufferCollection(new byte[12], 0, 12);
+            StatusCode expectedStatusCode = sent == 0
+                ? StatusCodes.BadConnectionClosed
+                : StatusCodes.BadInternalError;
+            string expectedMessage = sent == 0
+                ? "Remote side closed the connection while sending"
+                : "Socket reported sending 13 bytes with only 12 bytes pending";
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await TcpByteTransport.SendAllAsync(
+                    buffers,
+                    _ => Task.FromResult(sent)).ConfigureAwait(false))!;
+
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)expectedStatusCode));
+            Assert.That(ex.Message, Does.Contain(expectedMessage));
+        }
+
+        [Test]
+        public async Task SendAllAsyncEmptyCollectionDoesNotSend()
+        {
+            int sendCount = 0;
+
+            await TcpByteTransport.SendAllAsync(
+                [],
+                _ =>
+                {
+                    sendCount++;
+                    return Task.FromResult(0);
+                }).ConfigureAwait(false);
+
+            Assert.That(sendCount, Is.Zero);
+        }
+
+        [Test]
+        public async Task SendAllAsyncSupportsTotalsLargerThanIntMaxValue()
+        {
+            const int segmentSize = 1024 * 1024;
+            var buffers = new BufferCollection(2049);
+            var segment = new ArraySegment<byte>(new byte[segmentSize]);
+            for (int i = 0; i < buffers.Capacity; i++)
+            {
+                buffers.Add(segment);
+            }
+            long totalSize = (long)segmentSize * buffers.Count;
+            int finalSendSize = checked((int)(totalSize - int.MaxValue));
+            int sendCount = 0;
+
+            await TcpByteTransport.SendAllAsync(
+                buffers,
+                _ =>
+                {
+                    sendCount++;
+                    return Task.FromResult(sendCount == 1 ? int.MaxValue : finalSendSize);
+                }).ConfigureAwait(false);
+
+            Assert.That(sendCount, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void SendAllAsyncRejectsNullArguments()
+        {
+            var buffers = new BufferCollection();
+
+            Assert.ThrowsAsync<ArgumentNullException>(
+                async () => await TcpByteTransport.SendAllAsync(
+                    null!,
+                    _ => Task.FromResult(0)).ConfigureAwait(false));
+            Assert.ThrowsAsync<ArgumentNullException>(
+                async () => await TcpByteTransport.SendAllAsync(
+                    buffers,
+                    null!).ConfigureAwait(false));
         }
 
         [Test]
@@ -269,6 +410,16 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 .ConfigureAwait(false);
             Socket serverSocket = await acceptTask.ConfigureAwait(false);
             return (transport, serverSocket, listener);
+        }
+
+        private static ArraySegment<byte>[] CopySegments(IList<ArraySegment<byte>> buffers)
+        {
+            var copy = new ArraySegment<byte>[buffers.Count];
+            for (int i = 0; i < buffers.Count; i++)
+            {
+                copy[i] = buffers[i];
+            }
+            return copy;
         }
 
         private static byte[] BuildValidChunk(uint messageType, int size)
