@@ -65,6 +65,54 @@ Per-file behaviour is controlled with `AdditionalFiles` metadata:
 See [Source-Generated NodeManagers](../../docs/SourceGeneratedNodeManagers.md#mixing-modeldesign-and-nodeset2-in-one-project)
 for the end-to-end pattern.
 
+## Generate code from WoT Thing Models / Thing Descriptions
+
+An `AdditionalFiles` input can also be a W3C Web of Things (WoT) Thing Model
+or Thing Description. It is converted in memory to a NodeSet2 document (using
+the `Opc.Ua.Wot` converter) before the normal NodeSet2/ModelDesign pipeline
+above runs — the rest of the generator cannot tell the difference. No file or
+network I/O beyond the supplied `AdditionalFiles` content is performed, and
+externally referenced TD/TM documents are not resolved.
+
+The following extensions are always recognized as WoT model input:
+
+| Extension | Content |
+| --------- | ------- |
+| `.tm.json` | Thing Model, plain JSON |
+| `.td.json` | Thing Description, plain JSON |
+| `.tm.jsonld` | Thing Model, JSON-LD |
+| `.td.jsonld` | Thing Description, JSON-LD |
+
+A plain `.jsonld` file is **not** treated as a WoT input by default — arbitrary
+JSON-LD is not consumed as a model. Opt a specific file in with the
+`ModelSourceGeneratorWot` metadata:
+
+```xml
+<ItemGroup>
+  <AdditionalFiles Include="Model\Sensor.jsonld">
+    <ModelSourceGeneratorWot>true</ModelSourceGeneratorWot>
+  </AdditionalFiles>
+</ItemGroup>
+```
+
+The same per-file metadata described above (`ModelSourceGeneratorModelUri`,
+`ModelSourceGeneratorName`, `ModelSourceGeneratorPrefix`, as well as
+`ModelSourceGeneratorVersion` and `ModelSourceGeneratorIgnore`) is honored on a
+WoT input exactly as it is on a `NodeSet2`/`ModelDesign` input, and is
+preserved after the WoT document is wrapped as an in-memory NodeSet2 file.
+
+A malformed or unsupported WoT document never crashes the generator. Instead
+it is reported through one of these diagnostics, and the affected input is
+excluded from generation while every other input continues to be processed:
+
+| Diagnostic | Meaning |
+| ---------- | ------- |
+| `MODELGEN030` | The document could not even be parsed as JSON, or exceeded a configured resource bound. |
+| `MODELGEN031` | The converter reported an error (a resource bound, a missing preservation envelope/native mapping, a dependency/resolver failure, or another conversion error). The `Opc.Ua.Wot.WotDiagnosticCode` is embedded in the message. |
+| `MODELGEN032` | The converter reported a warning (for example an unresolved dependency reference); generation continues with the best-effort result. |
+| `MODELGEN033` | The converter reported an informational note (for example a deterministically generated NodeId). |
+| `MODELGEN034` | The in-memory NodeSet2 path synthesized for a WoT input (for example `Foo.tm.json` → `Foo.NodeSet2.xml`) collides with an explicitly supplied `.NodeSet2.xml` or with another WoT input's synthesized path. Rename one of the inputs, or set distinct `ModelSourceGeneratorName`/`ModelSourceGeneratorPrefix` metadata. |
+
 ## Using DataType Generators
 
 The OPC UA source generator includes several data type generators that can be used to create classes

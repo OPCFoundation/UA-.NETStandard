@@ -28,6 +28,13 @@ Reference the generator as an **analyzer** (no runtime dependency):
 </ItemGroup>
 ```
 
+`AdditionalFiles` inputs may also be `NodeSet2`/`ModelDesign` XML, or a WoT
+Thing Model/Thing Description (`.tm.json`, `.td.json`, `.tm.jsonld`,
+`.td.jsonld`, or an opted-in plain `.jsonld`) which is converted to a NodeSet2
+document entirely in memory before generation. See
+[`readme.md`](readme.md#generate-code-from-wot-thing-models--thing-descriptions)
+for details, per-file options and diagnostics.
+
 ## Target frameworks
 
 `netstandard2.0` (Roslyn analyzer host TFM).

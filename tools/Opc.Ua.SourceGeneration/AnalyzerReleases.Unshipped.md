@@ -13,3 +13,8 @@ MODELGEN012 | ModelSourceGenerator | Info | Multiple referenced assemblies expos
 MODELGEN013 | ModelSourceGenerator | Info | Model already provided by referenced assembly
 MODELGEN020 | ModelSourceGenerator | Warning | BrowseName requires C# string-literal escaping (UASG_BROWSENAME_UNSAFE)
 MODELGEN021 | ModelSourceGenerator | Error | [DataType] namespace could not be resolved
+MODELGEN030 | ModelSourceGenerator | Error | WoT model could not be parsed
+MODELGEN031 | ModelSourceGenerator | Error | WoT model could not be converted to a NodeSet2 model
+MODELGEN032 | ModelSourceGenerator | Warning | WoT model conversion produced a warning
+MODELGEN033 | ModelSourceGenerator | Info | WoT model conversion note
+MODELGEN034 | ModelSourceGenerator | Error | WoT model virtual NodeSet2 path collides with another input
