@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>$(TestsTargetFrameworks)</TargetFrameworks>
+    <RootNamespace>Opc.Ua.OpenUsd.Client.Tests</RootNamespace>
+    <AssemblyName>Opc.Ua.OpenUsd.Client.Tests</AssemblyName>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <NoWarn>$(NoWarn);CS1591;CA2007;CA2000;CA1014;CA1861</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="Moq" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    <PackageReference Include="NUnit" />
+    <PackageReference Include="NUnit.Analyzers">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="NUnit3TestAdapter">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="coverlet.collector">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Opc.Ua.OpenUsd.Client\Opc.Ua.OpenUsd.Client.csproj" />
+  </ItemGroup>
+</Project>
