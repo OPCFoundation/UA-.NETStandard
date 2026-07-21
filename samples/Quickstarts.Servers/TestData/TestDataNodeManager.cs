@@ -231,6 +231,8 @@ namespace TestData
             int32Value.Historizing = true;
             int32Value.AccessLevel = (byte)(
                 int32Value.AccessLevel | AccessLevels.HistoryRead);
+            int32Value.UserAccessLevel = (byte)(
+                int32Value.UserAccessLevel | AccessLevels.HistoryRead);
 
             m_system.EnableHistoryArchiving(SystemContext, int32Value);
 
