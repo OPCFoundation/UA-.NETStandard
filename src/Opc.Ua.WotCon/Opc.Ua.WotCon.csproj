@@ -43,10 +43,34 @@
   <ItemGroup>
     <None Remove="Design\WotConnection.csv" />
     <None Remove="Design\WotConnection.xml" />
+    <None Remove="Design\Opc.Ua.XRegistry.NodeSet2.csv" />
+    <None Remove="Design\Opc.Ua.XRegistry.NodeSet2.xml" />
+    <None Remove="Design\Opc.Ua.WoTConV2.NodeSet2.csv" />
+    <None Remove="Design\Opc.Ua.WoTConV2.NodeSet2.xml" />
   </ItemGroup>
   <ItemGroup>
     <AdditionalFiles Include="Design\WotConnection.csv" />
     <AdditionalFiles Include="Design\WotConnection.xml" />
+    <!-- xRegistry abstract registry base model (http://opcfoundation.org/UA/xRegistry/).
+         Emitted into the Opc.Ua.XRegistry C# namespace so its RegistryType /
+         GroupType / ResourceType constants coexist with the V1 and V2 models. -->
+    <AdditionalFiles Include="Design\Opc.Ua.XRegistry.NodeSet2.xml">
+      <ModelSourceGeneratorPrefix>Opc.Ua.XRegistry</ModelSourceGeneratorPrefix>
+      <ModelSourceGeneratorName>XRegistry</ModelSourceGeneratorName>
+      <ModelSourceGeneratorModelUri>http://opcfoundation.org/UA/xRegistry/</ModelSourceGeneratorModelUri>
+    </AdditionalFiles>
+    <AdditionalFiles Include="Design\Opc.Ua.XRegistry.NodeSet2.csv" />
+    <!-- WoT Connectivity V2 companion model (http://opcfoundation.org/UA/WoT-Con/V2/).
+         Emitted into the Opc.Ua.WotCon.V2 C# namespace (a child of the V1
+         Opc.Ua.WotCon namespace) so the V2 registry/materialization runtime can
+         reference its generated ObjectTypeIds / DataTypes without colliding with
+         the legacy 1.02 constants. -->
+    <AdditionalFiles Include="Design\Opc.Ua.WoTConV2.NodeSet2.xml">
+      <ModelSourceGeneratorPrefix>Opc.Ua.WotCon.V2</ModelSourceGeneratorPrefix>
+      <ModelSourceGeneratorName>WotConV2</ModelSourceGeneratorName>
+      <ModelSourceGeneratorModelUri>http://opcfoundation.org/UA/WoT-Con/V2/</ModelSourceGeneratorModelUri>
+    </AdditionalFiles>
+    <AdditionalFiles Include="Design\Opc.Ua.WoTConV2.NodeSet2.csv" />
   </ItemGroup>
   <ItemGroup>
     <None Include="NugetREADME.md" Pack="true" PackagePath="\" />

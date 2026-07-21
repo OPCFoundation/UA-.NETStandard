@@ -6,7 +6,7 @@ class libraries plus an integration test project:
 
 | Project                          | Purpose                                                       |
 |----------------------------------|---------------------------------------------------------------|
-| `Opc.Ua.WotCon`                  | Source-generated information model (NodeStates, NodeIds, generated ObjectType client proxies) compiled from the official `WotConnection.xml` design + `WotConnection.csv` |
+| `Opc.Ua.WotCon`                  | Source-generated information model (NodeStates, NodeIds, generated ObjectType client proxies) compiled from the official `WotConnection.xml` design + `WotConnection.csv`, plus the draft **xRegistry** and **WoT Connectivity V2** NodeSet2 models (see §11) |
 | `Opc.Ua.WotCon.Server`           | Server-side node manager (`WotConnectivityNodeManager` → `AsyncCustomNodeManager`) and the extensible provider model |
 | `Opc.Ua.WotCon.Client`           | Client wrappers + extension methods that compose the generated proxies without inheritance |
 | `Opc.Ua.WotCon.Tests`            | NUnit tests covering the TD parser, mappers, simulated provider, discovery facade |
@@ -413,3 +413,197 @@ in production.
 * OPC 10100-1, *WoT Connectivity for OPC UA*: https://reference.opcfoundation.org/specs/OPC-10100-1/full
 * W3C Web of Things Thing Description 1.1: https://www.w3.org/TR/wot-thing-description11/
 * W3C WoT Binding Templates: https://w3c.github.io/wot-binding-templates/
+
+---
+
+## 11. WoT Connectivity V2 registry and materialization (preview)
+
+The `Opc.Ua.WotCon` assembly additionally source-generates two draft
+companion models that back a **registry-first** V2 runtime:
+
+| Model | Namespace | Emitted C# namespace |
+|-------|-----------|----------------------|
+| xRegistry (abstract registry base) | `http://opcfoundation.org/UA/xRegistry/` | `Opc.Ua.XRegistry` |
+| WoT Connectivity V2 | `http://opcfoundation.org/UA/WoT-Con/V2/` | `Opc.Ua.WotCon.V2` |
+
+Both NodeSet2 models are *pinned* from the OPC UA drafts authoring
+repository into `src/Opc.Ua.WotCon/Design` (as `*.NodeSet2.xml` +
+`*.NodeSet2.csv`) and added as `AdditionalFiles` alongside the legacy
+1.02 `WotConnection.xml` design, so V1 + xRegistry + V2 constants coexist
+in one assembly under distinct C# namespaces. Run
+`pwsh src/Opc.Ua.WotCon/Design/Sync-WotConModels.ps1 -Check` to verify
+the pinned copies still match the draft repository (use `-Update` to
+refresh them).
+
+### 11.1 Architecture
+
+The V2 runtime separates a **stable registry** from **ephemeral
+projections**:
+
+* `WotRegistryNodeManager` (stable) exposes the well-known `WoTRegistry`
+  object, its Thing Description / Thing Model groups, the `Refresh`
+  Method, registry settings and the V2 event types. It never re-creates
+  itself. Every service group and document resource is additionally
+  materialized as a browseable `ThingDescriptionGroupType` /
+  `ThingModelGroupType` and `ThingDescriptionFileType` /
+  `ThingModelFileType` node beneath `WoTRegistry`, kept in sync with the
+  registry snapshot (see §11.7). It never re-creates itself.
+* Registry documents are projected into the AddressSpace as **separate
+  runtime NodeManagers** through the public `INodeManagerLifecycle`
+  (`AddRuntimeNodeSetAsync` for first activation,
+  `ShadowReloadRuntimeNodeSetAsync` for updates). The previous generation
+  keeps serving its existing monitored items until they drain — clients
+  are never disconnected.
+
+Register it on an OPC UA server host:
+
+```csharp
+builder
+    .AddServer(server => { /* ... */ })
+    .AddWotRegistryServer(options =>
+    {
+        options.StorageFolder = Path.Combine(AppContext.BaseDirectory, "wot-registry");
+        options.AutoRefresh = true;      // re-project after every content mutation
+        options.StrictBindings = false;  // materialize degraded nodes for unsupported forms
+    });
+```
+
+### 11.2 Registry service and persistence
+
+`IWotRegistryService` owns an immutable `WotRegistrySnapshot`. Every
+mutation produces a new snapshot with a strictly greater `Generation`
+(epoch); readers hold a snapshot and never observe a partial change. A
+resource carries its versions (raw source bytes + SHA-256 content
+digest), desired/active version pointers, `WoTLoadStateEnum`,
+`WoTValidationOutcomeDataType` and diagnostics.
+
+Two persistence back-ends are provided:
+
+* `InMemoryWotRegistryStore` — volatile; the registry starts empty.
+* `FileWotRegistryStore` — durable; metadata is written with a **bounded
+  atomic replace** (write-to-temp then `File.Replace`), one blob per
+  version, content-addressed directories. Invalid documents are stored
+  with their failure state so a restart restores exactly the last
+  observed contents.
+
+Resource bounds (`WotRegistryPersistenceBounds`) cap document size,
+versions per resource, resources per group, and group count.
+
+### 11.3 Materialization coordinator
+
+`WotMaterializationCoordinator.RefreshAsync` drives projection:
+
+1. Parses/validates each registry document with `Opc.Ua.Wot`.
+2. Builds the TD/TM dependency graph from `links` (`rel = tm:extends /
+   type / tm:submodel`), a top-level `tm:extends`, and `tm:ref` pointers,
+   resolving references against the registry by Thing id / xid / resource
+   id.
+3. Partitions the graph into **dependency closures** (weakly-connected
+   components) with Thing Models topologically ordered before the Thing
+   Descriptions that extend them; a shared model lands in a single
+   closure. Cycles and missing dependencies produce deterministic
+   diagnostics.
+4. Converts each closure to one or more NodeSet2 documents and projects
+   the closure as one runtime NodeManager (Add, or ShadowReload on
+   update).
+
+Behaviours:
+
+* Independent closures commit independently; a failed or invalid closure
+  **retains its previous active generation**.
+* An **unchanged** closure (same content digest, options and binder
+  version) returns `WoTOutcomeEnum.Unchanged` and emits no model change.
+* `Refresh` returns a detailed `WoTRefreshSummaryDataType` plus a
+  per-resource `WoTResourceLoadResultDataType[]` and the new generation,
+  matching the generated Method signature.
+* The coordinator's events are re-emitted by the NodeManager as the
+  generated `WoTResourceEventType` / `WoTValidationFailureEventType` /
+  `WoTLoadFailureEventType` / `WoTBindingFailureEventType` /
+  `WoTRefreshCompletedEventType`.
+
+### 11.4 Binder integration seam
+
+`IWotBinderRegistry` is the runtime-neutral seam the coordinator uses
+during Prepare/Activate/Deactivate. Binding plans and capabilities are
+immutable. The default `NullWotBinderRegistry` registers no binders, so
+affordance forms either **fail a strict closure**
+(`StrictBindings = true`) or **materialize as degraded nodes**
+(`BadConfigurationError`) when non-strict. Concrete protocol planners and
+executors are added by registering an `IWotBinderRegistry`
+implementation; no network protocol is implemented in this phase.
+
+### 11.5 Legacy 1.02 compatibility
+
+The legacy `WotConnectivityNodeManager`, its generated 1.02
+namespace/NodeIds/method signatures and the client APIs are unchanged.
+When both features are hosted, legacy-created assets are additionally
+registered as Thing Description resources in a configured legacy group
+(`WotRegistryServerOptions.LegacyGroupId`) so they participate in V2
+materialization, without making the flat V1 asset list canonical for V2.
+
+### 11.6 Known limitations (preview)
+
+* No concrete protocol binder ships in this phase (see §11.4). Affordance
+  forms therefore either fail a strict closure or materialize as degraded
+  nodes; no live protocol read/write/subscribe is performed yet.
+
+### 11.7 Browseable registry projection and management Methods
+
+The stable `WoTRegistryNodeManager` materializes the registry snapshot as a
+browseable object tree and wires the inherited xRegistry / V2 Methods:
+
+* For every service group a `ThingDescriptionGroupType` or
+  `ThingModelGroupType` object is created beneath `WoTRegistry`, and for
+  every resource its `ThingDescriptionFileType` / `ThingModelFileType`
+  document node is created beneath the group. NodeIds are stable and
+  deterministic, derived from the registry Xid (for example
+  `WoTRegistry/groups/{groupId}/resources/{resourceId}`). The projection is
+  reconciled on every registry `Changed` event — including projection-only
+  callbacks, which never re-trigger materialization — and removes group and
+  resource nodes as they disappear from the snapshot.
+* Each node carries its xRegistry and V2 metadata (ids/Xid/epoch/name/
+  description/timestamps/format/content type, desired/default/active
+  version, enabled/load state, validation outcome, content digest,
+  materialized-node count, the materialized `RootNodeId`, and selected
+  bindings). `HasNotifier` references chain `WoTRegistry` → group → resource
+  → `Server`, and resource lifecycle failure events are sourced at the
+  specific resource node (the registry object remains the source for the
+  refresh-completed summary event).
+* The xRegistry `CreateGroup` / `GetOrCreateGroup` (on `WoTRegistry`),
+  `CreateResource` / `GetOrCreateResource` / `Delete` (on a group) and the
+  document `Delete`, `Validate`, `SetEnabled` and `SetDefaultVersion` (on a
+  resource) Methods are wired to the registry service, enforcing
+  `ExpectedEpoch` optimistic concurrency and the management access policy.
+* The inherited FileType (`Open` / `Read` / `Write` / `Close` /
+  `GetPosition` / `SetPosition`) transfers the document body with
+  per-session handles, a single exclusive writer and bounds. Closing a
+  write handle commits the buffer as a new version; a document that fails
+  validation is still stored as an invalid version so the bytes are never
+  lost and the previous active projection is retained.
+* Every browseable registry/group/resource node also carries the inherited
+  optional `Labels` (`AttributesType`) container. Each label is persisted as
+  an ordinally-ordered key/value pair on the owning `WotRegistrySnapshot` /
+  `WotResourceGroup` / `WotResource` model and materializes as its own
+  `PropertyType` child with a deterministic NodeId (for example
+  `WoTRegistry/groups/{groupId}/labels/{key}`) and a safe, collision-checked
+  BrowseName. The container's `AddAttribute(Key, Value, ExpectedEpoch)` and
+  `RemoveAttribute(Key, ExpectedEpoch)` Methods enforce the management access
+  policy, optimistic-concurrency `ExpectedEpoch` (the group/resource's own
+  epoch; the registry singleton has no separate epoch so its Labels compare
+  against the snapshot `Generation`), the configured
+  `WotRegistryPersistenceBounds` (`MaxLabelsPerEntity`,
+  `MaxLabelKeyLength`, `MaxLabelValueLength`) and reject invalid/control/BIDI/
+  path characters or a key colliding with the container's own fixed
+  `AddAttribute`/`RemoveAttribute` member names, using the shared
+  `WotChildNameValidator`. `IWotRegistryService` exposes matching
+  `Add`/`RemoveRegistryLabelAsync`, `Add`/`RemoveGroupLabelAsync` and
+  `Add`/`RemoveResourceLabelAsync` service APIs; label mutations raise a
+  projection-only registry change so they update the browseable Labels
+  container without re-triggering materialization. Labels survive a registry
+  restart and file-store reload (persisted alongside their owning
+  group/resource, and — for the registry-level set — in a small
+  `registry.json`) and remain visible after every projection reconciliation.
+  Version-level labels are stored on the immutable `WotResourceVersion`
+  model for API completeness but are not materialized as a separate
+  AddressSpace node, since the xRegistry model does not define a
+  `VersionType.Labels` container (only Registry/Group/Resource expose one).

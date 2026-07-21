@@ -152,6 +152,24 @@ namespace Opc.Ua.WotCon.Server
         /// </summary>
         public WotManagementAccessPolicy ManagementAccess { get; set; }
             = new WotManagementAccessPolicy();
+
+        /// <summary>
+        /// Optional bridge into the WoT Connectivity V2 registry. When set, a
+        /// legacy 1.02 asset's Thing Description is mirrored as a Thing
+        /// Description resource in <see cref="RegistryBridgeGroupId"/> whenever
+        /// the asset is (re)built, and removed when the asset is deleted, so
+        /// legacy assets participate in V2 materialization without making the
+        /// flat V1 asset list canonical. Defaults to <c>null</c> (no bridge).
+        /// </summary>
+        public Registry.IWotRegistryService? RegistryBridge { get; set; }
+
+        /// <summary>
+        /// The registry group id legacy assets are mirrored into when
+        /// <see cref="RegistryBridge"/> is set. Defaults to the reserved
+        /// Thing Description group.
+        /// </summary>
+        public string RegistryBridgeGroupId { get; set; }
+            = Registry.WotRegistryGroups.ThingDescriptions;
     }
 
     /// <summary>
