@@ -5,7 +5,7 @@
     <RootNamespace>Opc.Ua.WotCon.Tests</RootNamespace>
     <Nullable>enable</Nullable>
     <GenerateProgramFile>false</GenerateProgramFile>
-    <NoWarn>$(NoWarn);CS1591;CA2007;CA2000;CA1014</NoWarn>
+    <NoWarn>$(NoWarn);CS1591;CA2007;CA2000;CA1014;CA1859;NUnit2046;NUnit4002</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" />
@@ -34,6 +34,7 @@
     <ProjectReference Include="..\..\src\Opc.Ua.Client\Opc.Ua.Client.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Server\Opc.Ua.Server.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.WotCon\Opc.Ua.WotCon.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.WotCon.Binding\Opc.Ua.WotCon.Binding.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.WotCon.Server\Opc.Ua.WotCon.Server.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.WotCon.Client\Opc.Ua.WotCon.Client.csproj" />
   </ItemGroup>
