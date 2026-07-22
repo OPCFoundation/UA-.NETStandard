@@ -1498,7 +1498,7 @@ namespace Opc.Ua.Server
         /// <exception cref="ArgumentNullException">
         /// <paramref name="node"/> is null.
         /// </exception>
-        internal void AddPredefinedNodeSynchronously(NodeState node)
+        protected internal void AddPredefinedNodeSynchronously(NodeState node)
         {
             if (node == null)
             {
