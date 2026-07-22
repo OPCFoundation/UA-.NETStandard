@@ -5,7 +5,7 @@
     <IsPackable>false</IsPackable>
     <AssemblyName>PumpDeviceIntegrationServer</AssemblyName>
     <PackageId>PumpDeviceIntegrationServer</PackageId>
-    <Description>Self-contained .NET console OPC UA server demonstrating the OPC 40223 Pumps companion specification end-to-end (full simulation via the fluent INodeManagerBuilder API) plus the OPC 10000-100 (Device Integration) software-update facet wired into a second declarative pump device.</Description>
+    <Description>Self-contained .NET console OPC UA server demonstrating the OPC 40223 Pumps companion specification end-to-end, including full simulation and additive OPC 10000-100 topology-element builder integration.</Description>
     <RootNamespace>Pumps</RootNamespace>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>

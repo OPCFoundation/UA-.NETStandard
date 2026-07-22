@@ -150,6 +150,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             parent.DataType = DataTypeIds.Int32;
             parent.ValueRank = ValueRanks.Scalar;
             parent.AccessLevel = AccessLevels.HistoryRead;
+            parent.UserAccessLevel = AccessLevels.HistoryRead;
             parent.Historizing = true;
 
             var annotProp = new PropertyState(parent);
@@ -159,6 +160,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             annotProp.DataType = DataTypeIds.BaseDataType;
             annotProp.ValueRank = ValueRanks.Scalar;
             annotProp.AccessLevel = AccessLevels.HistoryRead;
+            annotProp.UserAccessLevel = AccessLevels.HistoryRead;
 
             await h.Manager.AddNodeAsync(h.Context, default, parent).ConfigureAwait(false);
             await h.Manager.AddNodeAsync(h.Context, default, annotProp).ConfigureAwait(false);
@@ -648,6 +650,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             variable.DataType = DataTypeIds.Double;
             variable.ValueRank = ValueRanks.Scalar;
             variable.AccessLevel = AccessLevels.HistoryRead;
+            variable.UserAccessLevel = AccessLevels.HistoryRead;
             variable.Historizing = true;
             return variable;
         }
@@ -662,6 +665,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             variable.DataType = DataTypeIds.Double;
             variable.ValueRank = ValueRanks.Scalar;
             variable.AccessLevel = AccessLevels.HistoryRead | AccessLevels.HistoryWrite;
+            variable.UserAccessLevel = AccessLevels.HistoryRead | AccessLevels.HistoryWrite;
             variable.Historizing = true;
             return variable;
         }

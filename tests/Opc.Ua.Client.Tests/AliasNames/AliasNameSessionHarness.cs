@@ -49,8 +49,12 @@ namespace Opc.Ua.Client.Tests.AliasNames
         public IServiceMessageContext MessageContext { get; }
         public List<CallMethodRequest> CallRequests { get; } = [];
         public List<ReadValueId> ReadRequests { get; } = [];
+        public List<BrowseDescription> BrowseRequests { get; } = [];
+        public List<ByteString> BrowseNextRequests { get; } = [];
         public Func<CallMethodRequest, CallMethodResult> CallHandler { get; set; }
         public Func<ReadValueId, DataValue> ReadHandler { get; set; }
+        public Func<BrowseDescription, BrowseResult> BrowseHandler { get; set; }
+        public Func<ByteString, BrowseResult> BrowseNextHandler { get; set; }
 
         public Func<BrowsePath, BrowsePathResult> BrowsePathHandler { get; set; }
 
@@ -164,15 +168,39 @@ namespace Opc.Ua.Client.Tests.AliasNames
                         var results = new BrowseResult[descriptions.Count];
                         for (int i = 0; i < descriptions.Count; i++)
                         {
-                            results[i] = new BrowseResult
-                            {
-                                StatusCode = StatusCodes.Good,
-                                References = Array
-                                    .Empty<ReferenceDescription>()
-                                    .ToArrayOf()
-                            };
+                            BrowseDescription description = descriptions[i];
+                            harness.BrowseRequests.Add(description);
+                            results[i] = harness.BrowseHandler != null
+                                ? harness.BrowseHandler(description)
+                                : DefaultBrowseResult();
                         }
                         return new ValueTask<BrowseResponse>(new BrowseResponse
+                        {
+                            ResponseHeader = new ResponseHeader(),
+                            Results = results.ToArrayOf(),
+                            DiagnosticInfos = default
+                        });
+                    });
+
+            sessionMock
+                .Setup(s => s.BrowseNextAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<ArrayOf<ByteString>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns<RequestHeader, bool, ArrayOf<ByteString>, CancellationToken>(
+                    (_, _, continuationPoints, _) =>
+                    {
+                        var results = new BrowseResult[continuationPoints.Count];
+                        for (int i = 0; i < continuationPoints.Count; i++)
+                        {
+                            ByteString continuationPoint = continuationPoints[i];
+                            harness.BrowseNextRequests.Add(continuationPoint);
+                            results[i] = harness.BrowseNextHandler != null
+                                ? harness.BrowseNextHandler(continuationPoint)
+                                : DefaultBrowseResult();
+                        }
+                        return new ValueTask<BrowseNextResponse>(new BrowseNextResponse
                         {
                             ResponseHeader = new ResponseHeader(),
                             Results = results.ToArrayOf(),
@@ -189,6 +217,15 @@ namespace Opc.Ua.Client.Tests.AliasNames
             {
                 StatusCode = StatusCodes.Good,
                 OutputArguments = Array.Empty<Variant>().ToArrayOf()
+            };
+        }
+
+        private static BrowseResult DefaultBrowseResult()
+        {
+            return new BrowseResult
+            {
+                StatusCode = StatusCodes.Good,
+                References = Array.Empty<ReferenceDescription>().ToArrayOf()
             };
         }
 

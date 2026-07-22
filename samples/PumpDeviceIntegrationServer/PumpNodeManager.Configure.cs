@@ -56,25 +56,6 @@ namespace Pumps
         private long m_numberOfStarts;
 
         /// <summary>
-        /// Reference to the hand-rolled Pump #1 instance so the
-        /// simulation tick can mutate its DI properties in response to
-        /// supervision flags. Set by CreatePumpInstanceAsync.
-        /// </summary>
-#pragma warning disable IDE0052 // Kept to retain the materialized Pump #1 instance for pending DI-health wiring.
-        private PumpState? m_pump1;
-#pragma warning restore IDE0052
-
-        /// <summary>
-        /// Optional DI DeviceHealth variable supplied by a declarative
-        /// DeviceState device (e.g. Pump #2). Set via
-        /// RegisterSupervisedDeviceHealth and toggled by AdvanceSimulation
-        /// to reflect cavitation / motor-overheat states using the NAMUR
-        /// NE 107 enumeration.
-        /// </summary>
-        private BaseDataVariableState<Opc.Ua.Di.DeviceHealthEnumeration>?
-            m_supervisedDeviceHealth;
-
-        /// <summary>
         /// ── Latest simulated values, updated by the simulation tick. ──
         /// </summary>
         private double m_currentPressure;
@@ -107,7 +88,7 @@ namespace Pumps
         /// ── Identification properties via WithProperty ──────────────
         /// PumpType.Identification is a mandatory child of PumpType so
         /// it is materialised by the source-generated factory used in
-        /// CreatePumpInstanceAsync. BrowsePathResolver's cross-namespace
+        /// CreatePumpAsync. BrowsePathResolver's cross-namespace
         /// name-only fallback (FB-3 phase 1) resolves the unqualified
         /// 'Identification' segment to the DI-namespace child without
         /// requiring an explicit ns= prefix in the path.
@@ -126,7 +107,7 @@ namespace Pumps
         /// ── Measurements with engineering units ─────────────────────
         /// All seven analog measurements live under
         /// PumpType.Operational.Measurements and are materialised by
-        /// CreatePumpInstanceAsync via the generator-emitted AddXxx
+        /// CreatePumpAsync via the generator-emitted AddXxx
         /// helpers. The cross-namespace name-only resolver fallback
         /// means the unqualified browse path resolves through the
         /// Pumps -> Machinery (Operational) -> Pumps (Measurements +
@@ -242,7 +223,7 @@ namespace Pumps
         /// surface at configuration time rather than getting silently
         /// logged. The legacy TryAdd* helpers and their per-method
         /// try/catch blocks were necessary while the optional pump
-        /// subtree was unmaterialised; CreatePumpInstanceAsync now
+        /// subtree was unmaterialised; CreatePumpAsync now
         /// materialises every wired leaf so the wiring is unconditional.
         /// </summary>
         /// <param name="builder"></param>
@@ -284,12 +265,6 @@ namespace Pumps
             m_cavitation = (t % 120) > 100;
             m_motorOverheat = (t % 200) > 190;
 
-            // Map the simulated supervision flags onto the DI DeviceHealth
-            // NAMUR NE 107 enumeration. Motor overheat is the more severe
-            // condition so it wins when both are active. The variable is
-            // ClearChangeMasks-ed so subscriptions see each transition.
-            UpdateDeviceHealth();
-
             // Drive the 0.2 OpenUSD alarm-active demo signal from the supervision
             // flags so a connector's UaAlarmToUsd binding toggles StatusLight
             // visibility live. Subscriptions see each transition.
@@ -299,48 +274,6 @@ namespace Pumps
             if (t % 3600 == 0)
             {
                 Interlocked.Increment(ref m_numberOfStarts);
-            }
-        }
-
-        /// <summary>
-        /// Maps the simulated supervision flags onto the DI
-        /// <see cref="Opc.Ua.Di.DeviceHealthEnumeration"/>
-        /// using the NAMUR NE 107 severity order: a motor overheat
-        /// always wins over a cavitation event (FAILURE &gt;
-        /// MAINTENANCE_REQUIRED); when neither flag is set the device
-        /// reports NORMAL. Exposed as a pure function so tests can
-        /// exercise the mapping without instantiating the manager.
-        /// </summary>
-        public static Opc.Ua.Di.DeviceHealthEnumeration
-            MapSupervisionToDeviceHealth(bool cavitation, bool motorOverheat)
-        {
-            if (motorOverheat)
-            {
-                return Opc.Ua.Di.DeviceHealthEnumeration.FAILURE;
-            }
-            if (cavitation)
-            {
-                return Opc.Ua.Di.DeviceHealthEnumeration.MAINTENANCE_REQUIRED;
-            }
-            return Opc.Ua.Di.DeviceHealthEnumeration.NORMAL;
-        }
-
-        private void UpdateDeviceHealth()
-        {
-            BaseDataVariableState<Opc.Ua.Di.DeviceHealthEnumeration>?
-                health = m_supervisedDeviceHealth;
-            if (health == null)
-            {
-                return;
-            }
-            Opc.Ua.Di.DeviceHealthEnumeration desired =
-                MapSupervisionToDeviceHealth(m_cavitation, m_motorOverheat);
-
-            if (health.Value != desired)
-            {
-                health.Value = desired;
-                health.Timestamp = DateTime.UtcNow;
-                health.ClearChangeMasks(SystemContext, includeChildren: false);
             }
         }
 

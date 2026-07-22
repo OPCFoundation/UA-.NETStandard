@@ -87,7 +87,6 @@ namespace Opc.Ua.PubSub.Connections
         private int m_chunkSequenceNumber;
         private int m_discoverySequenceNumber;
         private int m_actionRequestId;
-        private bool m_allowUnsecuredActions;
         private readonly ILogger<PubSubConnection> m_logger;
         private readonly Lock m_gate = new();
         private readonly Lock m_receivedSinksGate = new();
@@ -793,12 +792,12 @@ namespace Opc.Ua.PubSub.Connections
             }
             var responder = new ActionResponder(
                 handler,
+                allowUnsecured,
                 responseAddressPolicy ?? PubSubResponseAddressPolicy.Default);
             ushort actionTargetId = ResolveActionTargetId(target);
             var key = new ActionHandlerKey(target.DataSetWriterId, actionTargetId, target.ActionName);
             lock (m_gate)
             {
-                m_allowUnsecuredActions |= allowUnsecured;
                 m_actionHandlers[key] = responder;
                 m_actionHandlers[new ActionHandlerKey(
                     target.DataSetWriterId,
@@ -959,8 +958,8 @@ namespace Opc.Ua.PubSub.Connections
                                 out prefixLength,
                                 out securityEnabled,
                                 out bool reassembledChunk,
-                                out _,
-                                out _) ||
+                                out framePublisherId,
+                                out frameWriterGroupId) ||
                                 reassembledChunk)
                             {
                                 // Fail-soft: a reassembled payload that is not a
@@ -991,6 +990,7 @@ namespace Opc.Ua.PubSub.Connections
                             }
                             ReadOnlyMemory<byte>? unwrapped = await TryUnwrapInboundAsync(
                                 framePayload, prefixLength,
+                                framePublisherId, frameWriterGroupId,
                                 m_requiredSecurityMode, cancellationToken)
                                 .ConfigureAwait(false);
                             if (unwrapped is null)
@@ -1003,6 +1003,7 @@ namespace Opc.Ua.PubSub.Connections
                         {
                             ReadOnlyMemory<byte>? unwrapped = await TryUnwrapInboundAsync(
                                 framePayload, prefixLength,
+                                framePublisherId, frameWriterGroupId,
                                 MessageSecurityMode.None, cancellationToken)
                                 .ConfigureAwait(false);
                             if (unwrapped is null)
@@ -1474,25 +1475,30 @@ namespace Opc.Ua.PubSub.Connections
             UadpActionRequestMessage request,
             CancellationToken cancellationToken)
         {
-            // Fail-closed (SA-ACT-01): a UADP Action request reaches this point
-            // only after the inbound security gate. Serve it only when the
-            // connection requires (and therefore verified) message security, or
-            // when unsecured Action serving was explicitly opted in.
-            if (!RequiresInboundSecurity && !m_allowUnsecuredActions)
-            {
-                RecordSecurityFailure(
-                    StatusCodes.BadSecurityModeRejected,
-                    "Refusing to serve a PubSub Action request on a connection that " +
-                    "does not require message security. Configure Sign/SignAndEncrypt " +
-                    "or explicitly allow unsecured Action responders.");
-                return;
-            }
             ActionResponder? responder = ResolveActionHandler(
                 request.DataSetWriterId,
                 request.ActionTargetId,
                 actionName: string.Empty);
             if (responder is null)
             {
+                if (!RequiresInboundSecurity)
+                {
+                    RecordSecurityFailure(
+                        StatusCodes.BadSecurityModeRejected,
+                        "No matching PubSub Action responder permits this unsecured request.");
+                }
+                return;
+            }
+            // Fail-closed (SA-ACT-01): an unsecured connection may dispatch only
+            // to the specific responder that explicitly opted into unsecured
+            // requests. One permissive responder must never weaken its peers.
+            if (!RequiresInboundSecurity && !responder.AllowUnsecured)
+            {
+                RecordSecurityFailure(
+                    StatusCodes.BadSecurityModeRejected,
+                    "Refusing to serve a PubSub Action request on a connection that " +
+                    "does not require message security. Configure Sign/SignAndEncrypt " +
+                    "or explicitly allow this Action responder to serve unsecured requests.");
                 return;
             }
             // Validate the requestor-supplied response topic before the handler
@@ -1544,25 +1550,26 @@ namespace Opc.Ua.PubSub.Connections
             JsonActionRequestMessage request,
             CancellationToken cancellationToken)
         {
-            // Fail-closed (SA-ACT-01): JSON Action frames are not protected by the
-            // UADP message-security gate, so there is no message-level proof of the
-            // requestor's identity. Serve them only when unsecured Action serving
-            // was explicitly opted in (transport TLS is then the trust boundary).
-            if (!m_allowUnsecuredActions)
-            {
-                RecordSecurityFailure(
-                    StatusCodes.BadSecurityModeRejected,
-                    "Refusing to serve a JSON PubSub Action request: JSON Action frames " +
-                    "carry no UADP message security. Explicitly allow unsecured Action " +
-                    "responders (and secure the transport) to enable this.");
-                return;
-            }
             ActionResponder? responder = ResolveActionHandler(
                 request.DataSetWriterId,
                 request.ActionTargetId,
                 actionName: string.Empty);
             if (responder is null)
             {
+                RecordSecurityFailure(
+                    StatusCodes.BadSecurityModeRejected,
+                    "No matching JSON PubSub Action responder permits this unsecured request.");
+                return;
+            }
+            // JSON Action frames carry no UADP message security. Apply the
+            // unsecured opt-in of the resolved responder, not a connection-wide
+            // flag that could be enabled by an unrelated responder.
+            if (!responder.AllowUnsecured)
+            {
+                RecordSecurityFailure(
+                    StatusCodes.BadSecurityModeRejected,
+                    "Refusing to serve a JSON PubSub Action request: this responder " +
+                    "does not allow unsecured requests.");
                 return;
             }
             // Validate the requestor-supplied response topic before the handler
@@ -2539,6 +2546,8 @@ namespace Opc.Ua.PubSub.Connections
         private async ValueTask<ReadOnlyMemory<byte>?> TryUnwrapInboundAsync(
             ReadOnlyMemory<byte> frame,
             int prefixLength,
+            PublisherId publisherId,
+            ushort writerGroupId,
             MessageSecurityMode requiredMode,
             CancellationToken cancellationToken)
         {
@@ -2548,21 +2557,17 @@ namespace Opc.Ua.PubSub.Connections
                 ReadOnlyMemory<byte> securityAndPayload = frame[prefixLength..];
 
                 UadpSecurityWrapper.UnwrapResult result = await m_securityWrapper!
-                    .TryUnwrapAsync(prefix, securityAndPayload, cancellationToken)
+                    .TryUnwrapAsync(
+                        prefix,
+                        securityAndPayload,
+                        publisherId,
+                        writerGroupId,
+                        requiredMode,
+                        cancellationToken)
                     .ConfigureAwait(false);
                 if (!result.IsSuccess || result.InnerPayload is null)
                 {
                     RecordSecurityFailure(result.Status, result.Reason ?? "Unwrap failed");
-                    return null;
-                }
-
-                if (!SatisfiesRequiredSecurity(requiredMode, result.Header))
-                {
-                    RecordSecurityFailure(
-                        StatusCodes.BadSecurityModeRejected,
-                        "Inbound frame security level is lower than the reader's " +
-                        "configured SecurityMode.");
-                    m_logger.DroppingInboundFrameSecurityBelowRequired(Name, requiredMode);
                     return null;
                 }
 
@@ -2583,30 +2588,6 @@ namespace Opc.Ua.PubSub.Connections
                 m_logger.UadpUnwrapThrewOnInboundFrame(ex);
                 return null;
             }
-        }
-
-        private static bool SatisfiesRequiredSecurity(
-            MessageSecurityMode requiredMode,
-            UadpSecurityHeader? header)
-        {
-            if (requiredMode is not (MessageSecurityMode.Sign
-                or MessageSecurityMode.SignAndEncrypt))
-            {
-                return true;
-            }
-            if (header is null)
-            {
-                return false;
-            }
-            var flags = (UadpSecurityFlagsEncodingMask)header.Value.SecurityFlags;
-            bool signed = (flags & UadpSecurityFlagsEncodingMask.NetworkMessageSigned) != 0;
-            bool encrypted =
-                (flags & UadpSecurityFlagsEncodingMask.NetworkMessageEncrypted) != 0;
-            if (requiredMode == MessageSecurityMode.SignAndEncrypt)
-            {
-                return signed && encrypted;
-            }
-            return signed;
         }
 
         private void RecordSecurityFailure(StatusCode status, string message)
@@ -2835,6 +2816,7 @@ namespace Opc.Ua.PubSub.Connections
 
         private sealed record ActionResponder(
             IPubSubActionHandler Handler,
+            bool AllowUnsecured,
             PubSubResponseAddressPolicy ResponseAddressPolicy);
 
         private readonly struct ActionHandlerKey : IEquatable<ActionHandlerKey>
@@ -3061,13 +3043,6 @@ namespace Opc.Ua.PubSub.Connections
         [LoggerMessage(EventId = PubSubEventIds.PubSubConnection + 18, Level = LogLevel.Error,
             Message = "UADP security wrap failed; dropping message.")]
         public static partial void UadpSecurityWrapFailed(this ILogger logger, Exception exception);
-
-        [LoggerMessage(EventId = PubSubEventIds.PubSubConnection + 19, Level = LogLevel.Warning,
-            Message = "Dropping inbound frame on connection '{Connection}': security level below required {Mode}.")]
-        public static partial void DroppingInboundFrameSecurityBelowRequired(
-            this ILogger logger,
-            string connection,
-            MessageSecurityMode mode);
 
         [LoggerMessage(EventId = PubSubEventIds.PubSubConnection + 20, Level = LogLevel.Error,
             Message = "UADP unwrap threw on inbound frame.")]

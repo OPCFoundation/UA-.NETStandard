@@ -28,18 +28,20 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
+using System.Collections.Concurrent;
+using System.Collections.Immutable;
+using System.Threading;
 
 namespace Opc.Ua.SourceGeneration
 {
     /// <summary>
-    /// Ambient, thread-scoped policy that lets the companion-model generator
-    /// degrade a reference to a standard (<c>global::Opc.Ua.*</c>) typed
-    /// <c>MethodState</c> class to the base <c>global::Opc.Ua.MethodState</c>
-    /// when that typed class is neither present in the compilation (a curated
-    /// <c>Opc.Ua.Core</c> may omit standard classes such as the
-    /// <c>FileDirectoryType</c> method states) nor declared by the current
-    /// generation pass.
+    /// Ambient, execution-context-scoped policy that lets the companion-model
+    /// generator degrade a reference to a standard
+    /// (<c>global::Opc.Ua.*</c>) typed <c>MethodState</c> class to the base
+    /// <c>global::Opc.Ua.MethodState</c> when that typed class is neither
+    /// present in the compilation (a curated <c>Opc.Ua.Core</c> may omit
+    /// standard classes such as the <c>FileDirectoryType</c> method states)
+    /// nor declared by the current generation pass.
     /// </summary>
     /// <remarks>
     /// The scope is only entered around <b>model</b> generation
@@ -47,39 +49,27 @@ namespace Opc.Ua.SourceGeneration
     /// <c>Opc.Ua.Core</c> itself never enters it, so it keeps the
     /// assume-present behaviour. A method-state class is recorded as it is
     /// <i>declared</i> (the <c>NodeStates.g.cs</c> pass, which runs before the
-    /// <c>NodeStates.ex.g.cs</c> reference pass on the same thread), so a
-    /// model that generates its own standard-namespace method-state classes
-    /// (e.g. GDS) is never wrongly degraded.
+    /// <c>NodeStates.ex.g.cs</c> reference pass in the same logical execution
+    /// context), so a model that generates its own standard-namespace
+    /// method-state classes (e.g. GDS) is never wrongly degraded.
     /// </remarks>
     internal static class StandardMethodStateFallback
     {
-        [ThreadStatic]
-        private static bool s_active;
-
-        [ThreadStatic]
-        private static HashSet<string> s_available;
-
-        [ThreadStatic]
-        private static HashSet<string> s_declared;
-
         /// <summary>
         /// Enter a fallback scope for the duration of one model compilation.
         /// The previous scope (if any) is restored on dispose so nested or
-        /// sequential passes on the same thread do not leak state.
+        /// sequential passes do not leak state.
         /// </summary>
         /// <param name="availableStateTypeNames">
         /// Simple names of the standard <c>Opc.Ua.*State</c> classes present
         /// in the compilation (including referenced assemblies).
         /// </param>
-        public static IDisposable Enter(IEnumerable<string> availableStateTypeNames)
+        public static IDisposable Enter(ImmutableHashSet<string> availableStateTypeNames)
         {
-            var restore = new Scope(s_active, s_available, s_declared);
-            s_active = true;
-            s_available = availableStateTypeNames == null
-                ? new HashSet<string>(StringComparer.Ordinal)
-                : new HashSet<string>(availableStateTypeNames, StringComparer.Ordinal);
-            s_declared = new HashSet<string>(StringComparer.Ordinal);
-            return restore;
+            FallbackContext previousContext = s_context.Value;
+            s_context.Value = new FallbackContext(
+                availableStateTypeNames ?? ImmutableHashSet<string>.Empty);
+            return new Scope(previousContext);
         }
 
         /// <summary>
@@ -95,9 +85,11 @@ namespace Opc.Ua.SourceGeneration
         /// </param>
         public static void RecordDeclaredMethodState(string typedClassName)
         {
-            if (s_active && TryGetStandardSimpleName(typedClassName, out string simpleName))
+            FallbackContext context = s_context.Value;
+            if (context != null &&
+                TryGetStandardSimpleName(typedClassName, out string simpleName))
             {
-                s_declared?.Add(simpleName);
+                context.DeclaredMethodStateNames.TryAdd(simpleName, 0);
             }
         }
 
@@ -111,7 +103,8 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         public static bool ShouldFallBackToBase(string typedClassName)
         {
-            if (!s_active)
+            FallbackContext context = s_context.Value;
+            if (context == null)
             {
                 return false;
             }
@@ -119,11 +112,11 @@ namespace Opc.Ua.SourceGeneration
             {
                 return false;
             }
-            if (s_declared != null && s_declared.Contains(simpleName))
+            if (context.DeclaredMethodStateNames.ContainsKey(simpleName))
             {
                 return false;
             }
-            if (s_available != null && s_available.Contains(simpleName))
+            if (context.AvailableStateTypeNames.Contains(simpleName))
             {
                 return false;
             }
@@ -162,25 +155,35 @@ namespace Opc.Ua.SourceGeneration
             return true;
         }
 
+        private sealed class FallbackContext
+        {
+            public FallbackContext(ImmutableHashSet<string> availableStateTypeNames)
+            {
+                AvailableStateTypeNames = availableStateTypeNames;
+                DeclaredMethodStateNames =
+                    new ConcurrentDictionary<string, byte>(StringComparer.Ordinal);
+            }
+
+            public ImmutableHashSet<string> AvailableStateTypeNames { get; }
+
+            public ConcurrentDictionary<string, byte> DeclaredMethodStateNames { get; }
+        }
+
         private sealed class Scope : IDisposable
         {
-            public Scope(bool active, HashSet<string> available, HashSet<string> declared)
+            public Scope(FallbackContext previousContext)
             {
-                m_active = active;
-                m_available = available;
-                m_declared = declared;
+                m_previousContext = previousContext;
             }
 
             public void Dispose()
             {
-                s_active = m_active;
-                s_available = m_available;
-                s_declared = m_declared;
+                s_context.Value = m_previousContext;
             }
 
-            private readonly bool m_active;
-            private readonly HashSet<string> m_available;
-            private readonly HashSet<string> m_declared;
+            private readonly FallbackContext m_previousContext;
         }
+
+        private static readonly AsyncLocal<FallbackContext> s_context = new();
     }
 }

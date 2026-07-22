@@ -28,16 +28,15 @@
  * ======================================================================*/
 
 using System;
+using Opc.Ua.PubSub.Encoding;
 
 namespace Opc.Ua.PubSub.Security
 {
     /// <summary>
-    /// Per-writer-group reception window enforcing replay protection
+    /// Legacy token-scoped reception window enforcing replay protection
     /// over the (<c>TokenId</c>, <c>SequenceNumber</c>, <c>Nonce</c>)
-    /// triple. Implementations track the last accepted sequence
-    /// number per token plus a sliding bitmap of recently seen
-    /// sequence numbers, and reject duplicate / out-of-window /
-    /// nonce-reuse frames.
+    /// triple. The built-in receive path adds authenticated PublisherId
+    /// and WriterGroupId scoping without changing this public contract.
     /// </summary>
     /// <remarks>
     /// Implements the receiver-side replay protection requirement
@@ -54,6 +53,10 @@ namespace Opc.Ua.PubSub.Security
         /// edge, or the nonce has already been used inside the
         /// current key's lifetime.
         /// </summary>
+        /// <remarks>
+        /// Implementations may conservatively reject a fresh nonce when using
+        /// bounded probabilistic nonce tracking.
+        /// </remarks>
         /// <param name="tokenId">SecurityHeader TokenId.</param>
         /// <param name="sequenceNumber">SecurityHeader SequenceNumber.</param>
         /// <param name="nonce">SecurityHeader Nonce bytes.</param>
@@ -69,5 +72,15 @@ namespace Opc.Ua.PubSub.Security
         /// in a way that resets sequence numbering.
         /// </summary>
         void Reset();
+    }
+
+    internal interface IScopedSecurityTokenWindow
+    {
+        bool TryAccept(
+            PublisherId publisherId,
+            ushort writerGroupId,
+            uint tokenId,
+            ulong sequenceNumber,
+            ReadOnlySpan<byte> nonce);
     }
 }
