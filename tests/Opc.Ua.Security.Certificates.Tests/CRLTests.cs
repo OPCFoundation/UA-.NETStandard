@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Formats.Asn1;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -170,8 +171,50 @@ namespace Opc.Ua.Security.Certificates.Tests
             var revokedstring = new RevokedCertificate(serstring);
             crlBuilder.RevokedCertificates.Add(revokedstring);
             crlBuilder.CrlExtensions.Add(X509Extensions.BuildCRLNumber(123));
-            byte[] crlEncoded = crlBuilder.Encode();
+            byte[] crlEncoded = EncodeTbs(crlBuilder);
             ValidateCRL(serial, serstring, hash, crlBuilder, crlEncoded);
+        }
+
+        /// <summary>
+        /// Verify the inner and outer CRL signature algorithms are identical.
+        /// </summary>
+        [Test]
+        public void SignedCrlUsesIdenticalSignatureAlgorithmIdentifiers()
+        {
+            CrlBuilder crlBuilder = CrlBuilder
+                .Create(m_issuerCert.SubjectName, HashAlgorithmName.SHA256)
+                .SetThisUpdate(new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc))
+                .SetNextUpdate(new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc));
+
+            IX509CRL crl = X509PfxUtils.IsECDsaSignature(m_issuerCert)
+                ? crlBuilder.CreateForECDsa(m_issuerCert)
+                : crlBuilder.CreateForRSA(m_issuerCert);
+
+            AssertSignatureAlgorithmIdentifiersMatch(crl.RawData);
+        }
+
+        /// <summary>
+        /// Verify <see cref="CrlBuilder.CreateSignature"/> embeds the exact signature
+        /// AlgorithmIdentifier produced by the generator into the TBSCertList, independent
+        /// of the issuer certificate key type.
+        /// </summary>
+        [Test]
+        public void CreateSignatureEmbedsGeneratorSignatureAlgorithmIdentifier()
+        {
+            CrlBuilder crlBuilder = CrlBuilder
+                .Create(m_issuerCert.SubjectName, HashAlgorithmName.SHA256)
+                .SetThisUpdate(new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc))
+                .SetNextUpdate(new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc));
+
+            using RSA rsa = RSA.Create(2048);
+            var generator = X509SignatureGenerator.CreateForRSA(rsa, RSASignaturePadding.Pkcs1);
+            byte[] expectedAlgorithm = generator.GetSignatureAlgorithmIdentifier(
+                HashAlgorithmName.SHA256);
+
+            IX509CRL crl = crlBuilder.CreateSignature(generator);
+
+            AssertSignatureAlgorithmIdentifiersMatch(crl.RawData);
+            Assert.That(ReadTbsSignatureAlgorithm(crl.RawData), Is.EqualTo(expectedAlgorithm));
         }
 
         /// <summary>
@@ -325,7 +368,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             };
             crlBuilder.RevokedCertificates.Add(revokedstring);
             crlBuilder.CrlExtensions.Add(X509Extensions.BuildCRLNumber(123));
-            byte[] crlEncoded = crlBuilder.Encode();
+            byte[] crlEncoded = EncodeTbs(crlBuilder);
             Assert.That(crlEncoded, Is.Not.Null);
             ValidateCRL(serial, serstring, hash, crlBuilder, crlEncoded);
 
@@ -341,7 +384,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             };
             crlBuilder.RevokedCertificates.Add(revokedstring);
             crlBuilder.CrlExtensions.Add(X509Extensions.BuildCRLNumber(123));
-            crlEncoded = crlBuilder.Encode();
+            crlEncoded = EncodeTbs(crlBuilder);
             Assert.That(crlEncoded, Is.Not.Null);
             ValidateCRL(serial, serstring, hash, crlBuilder, crlEncoded);
         }
@@ -401,6 +444,47 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.That(x509Crl.RevokedCertificates[1].SerialNumber, Is.EqualTo(serstring));
             Assert.That(x509Crl.CrlExtensions, Has.Count.EqualTo(1));
             Assert.That(x509Crl.HashAlgorithmName, Is.EqualTo(hash));
+        }
+
+        private static void AssertSignatureAlgorithmIdentifiersMatch(byte[] rawData)
+        {
+            var crlReader = new AsnReader(rawData, AsnEncodingRules.DER);
+            AsnReader crl = crlReader.ReadSequence();
+            crlReader.ThrowIfNotEmpty();
+            ReadOnlyMemory<byte> tbs = crl.ReadEncodedValue();
+            byte[] outerAlgorithm = crl.ReadEncodedValue().ToArray();
+            _ = crl.ReadBitString(out int unusedBitCount);
+            crl.ThrowIfNotEmpty();
+
+            var tbsReader = new AsnReader(tbs, AsnEncodingRules.DER);
+            AsnReader tbsCrl = tbsReader.ReadSequence();
+            tbsReader.ThrowIfNotEmpty();
+            _ = tbsCrl.ReadInteger();
+            byte[] innerAlgorithm = tbsCrl.ReadEncodedValue().ToArray();
+
+            Assert.That(unusedBitCount, Is.Zero);
+            Assert.That(innerAlgorithm, Is.EqualTo(outerAlgorithm));
+        }
+
+        private static byte[] ReadTbsSignatureAlgorithm(byte[] rawData)
+        {
+            var crlReader = new AsnReader(rawData, AsnEncodingRules.DER);
+            AsnReader crl = crlReader.ReadSequence();
+            ReadOnlyMemory<byte> tbs = crl.ReadEncodedValue();
+
+            var tbsReader = new AsnReader(tbs, AsnEncodingRules.DER);
+            AsnReader tbsCrl = tbsReader.ReadSequence();
+            _ = tbsCrl.ReadInteger();
+            return tbsCrl.ReadEncodedValue().ToArray();
+        }
+
+        private static byte[] EncodeTbs(CrlBuilder crlBuilder)
+        {
+            using RSA rsa = RSA.Create();
+            var generator = X509SignatureGenerator.CreateForRSA(rsa, RSASignaturePadding.Pkcs1);
+            byte[] signatureAlgorithm = generator.GetSignatureAlgorithmIdentifier(
+                crlBuilder.HashAlgorithmName);
+            return crlBuilder.Encode(signatureAlgorithm);
         }
 
         private Certificate m_issuerCert;

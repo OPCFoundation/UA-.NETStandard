@@ -238,6 +238,22 @@ namespace Opc.Ua.Di.Tests
             {
                 throw new NotSupportedException();
             }
+
+            public Server.Builders.ITopologyElementBuilder<TElement>
+                TopologyElement<TElement>(NodeId nodeId)
+                where TElement : TopologyElementState
+            {
+                throw new NotSupportedException();
+            }
+
+            public Server.Builders.ITopologyElementBuilder<TElement>
+                TopologyElementByBrowseName<TElement>(
+                    QualifiedName browseName,
+                    NodeState? parent = null)
+                where TElement : TopologyElementState
+            {
+                throw new NotSupportedException();
+            }
         }
     }
 }

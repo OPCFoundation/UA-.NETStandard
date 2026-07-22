@@ -1926,10 +1926,10 @@ namespace Opc.Ua.Server
 
             try
             {
-                // check only for BadNothingToDo here
-                // MaxNodesPerHistoryUpdateEvents & MaxNodesPerHistoryUpdateData
-                // must be checked in NodeManager (TODO)
                 ValidateOperationLimits(historyUpdateDetails);
+                ValidateOperationLimits(
+                    historyUpdateDetails.Count,
+                    GetHistoryUpdateOperationLimit(historyUpdateDetails));
 
                 (ArrayOf<HistoryUpdateResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
                     await ServerInternal.NodeManager.HistoryUpdateAsync(
@@ -1962,6 +1962,37 @@ namespace Opc.Ua.Server
             {
                 OnRequestComplete(context);
             }
+        }
+
+        private PropertyState<uint>? GetHistoryUpdateOperationLimit(
+            ArrayOf<ExtensionObject> historyUpdateDetails)
+        {
+            foreach (ExtensionObject details in historyUpdateDetails)
+            {
+                if (details.IsNull || !details.TryGetValue(out HistoryUpdateDetails? historyUpdateDetail))
+                {
+                    continue;
+                }
+
+                Type detailsType = historyUpdateDetail!.GetType();
+                if (detailsType == typeof(UpdateEventDetails) ||
+                    detailsType == typeof(DeleteEventDetails))
+                {
+                    return OperationLimits.MaxNodesPerHistoryUpdateEvents;
+                }
+
+                if (detailsType == typeof(UpdateDataDetails) ||
+                    detailsType == typeof(UpdateStructureDataDetails) ||
+                    detailsType == typeof(DeleteRawModifiedDetails) ||
+                    detailsType == typeof(DeleteAtTimeDetails))
+                {
+                    return OperationLimits.MaxNodesPerHistoryUpdateData;
+                }
+
+                break;
+            }
+
+            return null;
         }
 
         /// <inheritdoc/>

@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>$(TestsTargetFrameworks)</TargetFrameworks>
+    <RootNamespace>Opc.Ua.Tools.Tests</RootNamespace>
+    <Nullable>enable</Nullable>
+    <IsTestProject>true</IsTestProject>
+    <NoWarn>$(NoWarn);CS1591;CA1014</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="NUnit" />
+    <PackageReference Include="NUnit.Console" />
+    <PackageReference Include="NUnit.Analyzers">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="NUnit3TestAdapter">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="coverlet.collector">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\samples\Quickstarts.Servers\Quickstarts.Servers.csproj" />
+    <ProjectReference Include="..\..\tools\Opc.Ua.Mcp\Opc.Ua.Mcp.csproj"
+                      Condition="'$(TargetFramework)' == 'net10.0'" />
+  </ItemGroup>
+</Project>

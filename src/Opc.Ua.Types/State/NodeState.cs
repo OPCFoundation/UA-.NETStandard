@@ -4729,9 +4729,8 @@ namespace Opc.Ua
             lock (m_childrenLock)
             {
                 (m_children ??= []).Add(child);
+                m_changeMasks |= NodeStateChangeMasks.Children;
             }
-
-            m_changeMasks |= NodeStateChangeMasks.Children;
         }
 
         /// <summary>
