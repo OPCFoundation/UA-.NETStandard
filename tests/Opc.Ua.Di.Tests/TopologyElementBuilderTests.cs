@@ -157,7 +157,7 @@ namespace Opc.Ua.Di.Tests
                 Manager = m_manager,
                 View = new ViewDescription(),
                 BrowseDirection = BrowseDirection.Forward,
-                ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.HasProperty,
+                ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.HasProperty,
                 IncludeSubtypes = true,
                 ResultMask = BrowseResultMask.All
             };
