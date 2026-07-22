@@ -34,7 +34,6 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
-using Opc.Ua.WotCon.V2;
 
 namespace Opc.Ua.WotCon.Tests.Materialization
 {

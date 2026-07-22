@@ -45,9 +45,12 @@ namespace Opc.Ua.WotCon.Server
     /// <remarks>
     /// The static model nodes — <c>WoTAssetConnectionManagement</c>, all
     /// type definitions, and the <c>HasWoTComponent</c> reference type —
-    /// are loaded from the generated <c>AddOpcUaWotCon</c> table. Dynamic
-    /// nodes (assets, property variables, action methods) are created
-    /// per asset by <see cref="AssetRegistry"/> in a dedicated namespace
+    /// are loaded from the generated <c>AddOpcUaWotCon</c> table, restricted to
+    /// the incorporated OPC 10100-1 v1.02 surface (NodeIds below the additive
+    /// registry block). The additive registry nodes in the same combined model
+    /// are owned by <see cref="WotRegistryNodeManager"/>. Dynamic nodes (assets,
+    /// property variables, action methods) are created per asset by
+    /// <see cref="AssetRegistry"/> in a dedicated namespace
     /// (<see cref="WotConnectivityServerOptions.AssetNamespaceUri"/>).
     /// </remarks>
     public sealed class WotConnectivityNodeManager : AsyncCustomNodeManager, INodeIdFactory
@@ -170,7 +173,15 @@ namespace Opc.Ua.WotCon.Server
             ISystemContext context,
             CancellationToken cancellationToken = default)
         {
-            return new ValueTask<NodeStateCollection>(new NodeStateCollection().AddOpcUaWotCon(context));
+            // The combined WoT-Con model incorporates both the deprecated 1.02
+            // surface and the additive registry nodes (which reference xRegistry
+            // base types). Register the xRegistry namespace so the combined table
+            // can be created, then keep only the 1.02 slice: the registry nodes
+            // are owned by WotRegistryNodeManager.
+            WotConModelPartition.EnsureXRegistryNamespace(context);
+            NodeStateCollection nodes = new NodeStateCollection().AddOpcUaWotCon(context);
+            WotConModelPartition.RetainLegacyNodes(nodes, context);
+            return new ValueTask<NodeStateCollection>(nodes);
         }
 
         /// <inheritdoc/>

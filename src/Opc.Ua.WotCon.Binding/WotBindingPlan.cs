@@ -31,7 +31,6 @@ using System;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Text.Json;
-using Opc.Ua.WotCon.V2;
 
 namespace Opc.Ua.WotCon.Binding
 {

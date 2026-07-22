@@ -422,6 +422,23 @@ namespace Opc.Ua.Schema.Model
                 return new XmlQualifiedName(input.SymbolicName, browseName.Namespace);
             }
 
+            // A placeholder browse name "<Name>" (no explicit SymbolicName in the
+            // NodeSet) follows the ModelCompiler convention of mapping to
+            // "Name_Placeholder" so generated identifiers match those produced
+            // from the equivalent ModelDesign source (e.g. a combined NodeSet
+            // that incorporates a model authored as ModelDesign). The raw browse
+            // name is used because ImportQualifiedName rewrites '<' and '>' to '_'.
+            string rawName = QualifiedName.Parse(input.BrowseName).Name;
+            if (rawName != null &&
+                rawName.Length > 2 &&
+                rawName[0] == '<' &&
+                rawName[rawName.Length - 1] == '>')
+            {
+                return new XmlQualifiedName(
+                    ToSymbolicName(rawName.Substring(1, rawName.Length - 2)) + "_Placeholder",
+                    browseName.Namespace);
+            }
+
             return new XmlQualifiedName(ToSymbolicName(browseName.Name), browseName.Namespace);
         }
 
@@ -1067,6 +1084,48 @@ namespace Opc.Ua.Schema.Model
                             }
                         }
                     }
+                }
+            }
+
+            DisambiguateArgumentFieldNames(output);
+        }
+
+        /// <summary>
+        /// A method may declare an output argument whose name matches one of its
+        /// input arguments (for example an xRegistry method that accepts a
+        /// desired <c>VersionId</c> and returns the effective <c>VersionId</c>).
+        /// The generated typed handler emits the input arguments and the
+        /// by-reference output arguments as parameters/locals in the same scope,
+        /// so a shared name produces a duplicate C# identifier. Suffix the
+        /// generated field name of the colliding output arguments; the runtime
+        /// argument names (read positionally from the NodeSet value) are
+        /// unaffected.
+        /// </summary>
+        private static void DisambiguateArgumentFieldNames(MethodDesign output)
+        {
+            if (output.InputArguments == null ||
+                output.InputArguments.Length == 0 ||
+                output.OutputArguments == null ||
+                output.OutputArguments.Length == 0)
+            {
+                return;
+            }
+
+            var inputFieldNames = new HashSet<string>(StringComparer.Ordinal);
+            foreach (Parameter input in output.InputArguments)
+            {
+                if (!string.IsNullOrEmpty(input?.Name))
+                {
+                    inputFieldNames.Add(input.GetChildFieldName());
+                }
+            }
+
+            foreach (Parameter arg in output.OutputArguments)
+            {
+                if (!string.IsNullOrEmpty(arg?.Name) &&
+                    inputFieldNames.Contains(arg.GetChildFieldName()))
+                {
+                    arg.Name += "Out";
                 }
             }
         }
@@ -1916,6 +1975,24 @@ namespace Opc.Ua.Schema.Model
             string targetNamespace,
             Dictionary<XmlQualifiedName, MethodDesign> methods)
         {
+            // Index the explicit method nodes already present in the model by
+            // their symbolic name. A concrete method with arguments normally
+            // gets a synthesized "<Name>MethodType" declaration, but a combined
+            // NodeSet may already ship that method-type node explicitly (e.g.
+            // the incorporated WoT Connectivity 1.02 CreateAssetMethodType).
+            // Reuse the existing declaration in that case so code generation
+            // does not emit two identifiers with the same name.
+            Dictionary<XmlQualifiedName, MethodDesign> existingByName = [];
+            foreach (NodeDesign node in m_settings.NodesById.Values)
+            {
+                if (node is MethodDesign existing &&
+                    existing.SymbolicName != null &&
+                    !existingByName.ContainsKey(existing.SymbolicName))
+                {
+                    existingByName.Add(existing.SymbolicName, existing);
+                }
+            }
+
             foreach (NodeDesign node in m_settings.NodesById.Values)
             {
                 if (node is MethodDesign method)
@@ -1924,6 +2001,26 @@ namespace Opc.Ua.Schema.Model
                     {
                         continue;
                     }
+
+                    // Skip methods whose BrowseName belongs to a base namespace
+                    // (e.g. the Core FileType Open/Close/Read/Write methods that a
+                    // FileType instance re-declares): they are instances of a
+                    // base-type method and must reuse that base method type rather
+                    // than get a synthesized method type in this model.
+                    if (method.SymbolicName != null &&
+                        method.SymbolicName.Namespace != targetNamespace)
+                    {
+                        continue;
+                    }
+
+                    // Skip standalone method-type declarations (no owning parent):
+                    // they already act as the method type, so synthesizing a
+                    // "<Name>MethodType" for them would create a spurious node.
+                    if (method.Parent == null)
+                    {
+                        continue;
+                    }
+
                     if (method.HasArguments && method.MethodDeclarationNode == null)
                     {
                         var name = new XmlQualifiedName(
@@ -1932,6 +2029,24 @@ namespace Opc.Ua.Schema.Model
 
                         if (methods.ContainsKey(name))
                         {
+                            continue;
+                        }
+
+                        // Prefer an explicit method-type declaration already in
+                        // the model over synthesizing a colliding duplicate. The
+                        // concrete method carries the authoritative argument
+                        // definitions, so copy them onto the reused declaration
+                        // to guarantee code generation emits the correct method
+                        // signature and result even when the incorporated
+                        // NodeSet declares the method-type argument nodes apart
+                        // from the concrete method.
+                        if (existingByName.TryGetValue(name, out MethodDesign declared) &&
+                            !ReferenceEquals(declared, method))
+                        {
+                            declared.InputArguments = method.InputArguments;
+                            declared.OutputArguments = method.OutputArguments;
+                            declared.HasArguments = method.HasArguments;
+                            method.MethodDeclarationNode = declared;
                             continue;
                         }
 
@@ -1962,11 +2077,20 @@ namespace Opc.Ua.Schema.Model
         /// </summary>
         private XmlDecoder CreateDecoder(System.Xml.XmlElement source, string sourceNodeSetUri = null)
         {
-            var messageContext = ServiceMessageContext.CreateEmpty(m_telemetry);
-            messageContext.NamespaceUris = m_settings.NamespaceUris;
-            messageContext.ServerUris = m_serverUris;
+            // Reuse a single message context whose factory knows the standard
+            // OPC UA encodeable types. Without them, structured NodeSet2 values
+            // such as method Argument lists (InputArguments/OutputArguments)
+            // cannot be decoded and the generated typed method state would lose
+            // its arguments and result fields.
+            if (m_decoderContext == null)
+            {
+                m_decoderContext = ServiceMessageContext.CreateEmpty(m_telemetry);
+                m_decoderContext.NamespaceUris = m_settings.NamespaceUris;
+                m_decoderContext.ServerUris = m_serverUris;
+                m_decoderContext.Factory.Builder.AddEncodeableTypes(typeof(Argument).Assembly).Commit();
+            }
 
-            var decoder = new XmlDecoder((XmlElement)source, messageContext);
+            var decoder = new XmlDecoder((XmlElement)source, m_decoderContext);
 
             var namespaceUris = new NamespaceTable();
 
@@ -2437,5 +2561,6 @@ namespace Opc.Ua.Schema.Model
         private readonly Dictionary<string, NodeId> m_aliases = [];
         private readonly Dictionary<NodeId, UANode> m_index;
         private readonly Dictionary<string, XmlQualifiedName> m_symbolicIds;
+        private ServiceMessageContext m_decoderContext;
     }
 }

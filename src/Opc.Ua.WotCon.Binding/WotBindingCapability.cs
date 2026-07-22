@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
-using Opc.Ua.WotCon.V2;
 
 namespace Opc.Ua.WotCon.Binding
 {
@@ -40,7 +39,7 @@ namespace Opc.Ua.WotCon.Binding
     /// binder. It captures the version-pinned document the binder implements, the
     /// interaction operations it supports, the content types it can encode and
     /// whether it is executable (a planner-only binder validates and compiles but
-    /// performs no transport I/O). The snapshot is projected onto the V2 registry
+    /// performs no transport I/O). The snapshot is projected onto the 1.1 registry
     /// <c>SupportedBindings</c> nodes and into refresh results.
     /// </summary>
     public sealed class WotBindingCapability

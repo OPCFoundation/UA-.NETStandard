@@ -71,7 +71,7 @@ namespace Opc.Ua.WotCon.Server.ThingDescriptions
                 valueRank = ValueRanks.OneDimension;
                 if (property.Items?.Type == null)
                 {
-                    dataType = DataTypeIds.BaseDataType;
+                    dataType = Ua.DataTypeIds.BaseDataType;
                     return true;
                 }
                 return TryMapPrimitive(property.Items.Type, out dataType);
@@ -90,16 +90,16 @@ namespace Opc.Ua.WotCon.Server.ThingDescriptions
             switch (jsonType?.ToLowerInvariant())
             {
                 case "boolean":
-                    dataType = DataTypeIds.Boolean;
+                    dataType = Ua.DataTypeIds.Boolean;
                     return true;
                 case "number":
-                    dataType = DataTypeIds.Double;
+                    dataType = Ua.DataTypeIds.Double;
                     return true;
                 case "integer":
-                    dataType = DataTypeIds.Int64;
+                    dataType = Ua.DataTypeIds.Int64;
                     return true;
                 case "string":
-                    dataType = DataTypeIds.String;
+                    dataType = Ua.DataTypeIds.String;
                     return true;
                 case null:
                 case "":
@@ -108,7 +108,7 @@ namespace Opc.Ua.WotCon.Server.ThingDescriptions
                     dataType = NodeId.Null;
                     return false;
                 default:
-                    dataType = DataTypeIds.BaseDataType;
+                    dataType = Ua.DataTypeIds.BaseDataType;
                     return true;
             }
         }

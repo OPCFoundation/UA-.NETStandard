@@ -33,7 +33,6 @@ using System.Collections.Immutable;
 using System.Globalization;
 using System.Linq;
 using System.Security.Cryptography;
-using Opc.Ua.WotCon.V2;
 
 namespace Opc.Ua.WotCon.Server.Registry
 {

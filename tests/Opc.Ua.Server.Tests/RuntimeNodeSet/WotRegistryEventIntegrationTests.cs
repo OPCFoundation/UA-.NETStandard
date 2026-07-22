@@ -39,9 +39,9 @@ using Opc.Ua.Tests;
 using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
-using Opc.Ua.WotCon.V2;
+using Opc.Ua.WotCon;
 using Quickstarts.ReferenceServer;
-using V2 = Opc.Ua.WotCon.V2;
+using WotConModel = Opc.Ua.WotCon;
 
 #nullable enable
 
@@ -143,7 +143,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         public async Task RefreshCompletedEvent_DeliversPopulatedSummaryFieldsThroughNotifierChain()
         {
             NodeId registryNodeId = ExpandedNodeId.ToNodeId(
-                V2.ObjectIds.WoTRegistry, m_server.CurrentInstance.NamespaceUris);
+                WotConModel.ObjectIds.WoTRegistry, m_server.CurrentInstance.NamespaceUris);
 
             var services = new ServerTestServices(m_server, m_secureChannelContext);
             uint subscriptionId = await CreateEventSubscriptionAsync(services, registryNodeId)
@@ -157,7 +157,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 .ConfigureAwait(false);
 
             NodeId refreshCompletedType = ExpandedNodeId.ToNodeId(
-                V2.ObjectTypeIds.WoTRefreshCompletedEventType, m_server.CurrentInstance.NamespaceUris);
+                WotConModel.ObjectTypeIds.WoTRefreshCompletedEventType, m_server.CurrentInstance.NamespaceUris);
 
             EventFieldList? evt = await CollectEventAsync(
                 services, subscriptionId,
@@ -184,7 +184,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         public async Task ResourceEvent_DeliversPopulatedIdentityFieldsThroughNotifierChain()
         {
             NodeId registryNodeId = ExpandedNodeId.ToNodeId(
-                V2.ObjectIds.WoTRegistry, m_server.CurrentInstance.NamespaceUris);
+                WotConModel.ObjectIds.WoTRegistry, m_server.CurrentInstance.NamespaceUris);
 
             await m_registry.UpsertResourceAsync(new WotUpsertResourceRequest
             {
@@ -201,7 +201,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
 
             NodeId resourceType = ExpandedNodeId.ToNodeId(
-                V2.ObjectTypeIds.WoTResourceEventType, m_server.CurrentInstance.NamespaceUris);
+                WotConModel.ObjectTypeIds.WoTResourceEventType, m_server.CurrentInstance.NamespaceUris);
 
             EventFieldList? evt = await CollectEventAsync(
                 services, subscriptionId,
@@ -227,7 +227,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         public async Task ValidationFailureEvent_DeliversValidationOutcomeThroughNotifierChain()
         {
             NodeId registryNodeId = ExpandedNodeId.ToNodeId(
-                V2.ObjectIds.WoTRegistry, m_server.CurrentInstance.NamespaceUris);
+                WotConModel.ObjectIds.WoTRegistry, m_server.CurrentInstance.NamespaceUris);
 
             // The selective converter fails conversion for ids containing 'bad',
             // which the coordinator surfaces as a validation failure event.
@@ -246,7 +246,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
 
             NodeId validationFailureType = ExpandedNodeId.ToNodeId(
-                V2.ObjectTypeIds.WoTValidationFailureEventType, m_server.CurrentInstance.NamespaceUris);
+                WotConModel.ObjectTypeIds.WoTValidationFailureEventType, m_server.CurrentInstance.NamespaceUris);
 
             EventFieldList? evt = await CollectEventAsync(
                 services, subscriptionId,
@@ -289,7 +289,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         private EventFilter BuildWotEventFilter()
         {
             ushort v2 = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(
-                V2.Namespaces.WotConV2);
+                WotConModel.Namespaces.WotCon);
 
             SimpleAttributeOperand Wot(string name)
                 => new()
@@ -312,20 +312,20 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 SelectClauses =
                 [
                     Base(BrowseNames.EventType),           // 0
-                    Wot(V2.BrowseNames.Xid),               // 1
-                    Wot(V2.BrowseNames.ResourceId),        // 2
-                    Wot(V2.BrowseNames.VersionId),         // 3
-                    Wot(V2.BrowseNames.DocumentKind),      // 4
-                    Wot(V2.BrowseNames.Generation),        // 5
-                    Wot(V2.BrowseNames.Phase),             // 6
-                    Wot(V2.BrowseNames.Outcome),           // 7
-                    Wot(V2.BrowseNames.ValidationOutcome), // 8
-                    Wot(V2.BrowseNames.LoadState),         // 9
-                    Wot(V2.BrowseNames.FailedNodeId),      // 10
-                    Wot(V2.BrowseNames.Reason),            // 11
-                    Wot(V2.BrowseNames.BindingUri),        // 12
-                    Wot(V2.BrowseNames.Summary),           // 13
-                    Wot(V2.BrowseNames.RequestId)          // 14
+                    Wot(WotConModel.BrowseNames.Xid),               // 1
+                    Wot(WotConModel.BrowseNames.ResourceId),        // 2
+                    Wot(WotConModel.BrowseNames.VersionId),         // 3
+                    Wot(WotConModel.BrowseNames.DocumentKind),      // 4
+                    Wot(WotConModel.BrowseNames.Generation),        // 5
+                    Wot(WotConModel.BrowseNames.Phase),             // 6
+                    Wot(WotConModel.BrowseNames.Outcome),           // 7
+                    Wot(WotConModel.BrowseNames.ValidationOutcome), // 8
+                    Wot(WotConModel.BrowseNames.LoadState),         // 9
+                    Wot(WotConModel.BrowseNames.FailedNodeId),      // 10
+                    Wot(WotConModel.BrowseNames.Reason),            // 11
+                    Wot(WotConModel.BrowseNames.BindingUri),        // 12
+                    Wot(WotConModel.BrowseNames.Summary),           // 13
+                    Wot(WotConModel.BrowseNames.RequestId)          // 14
                 ],
                 WhereClause = new ContentFilter()
             };

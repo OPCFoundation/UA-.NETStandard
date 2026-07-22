@@ -1,19 +1,26 @@
 #Requires -Version 7.0
 <#
 .SYNOPSIS
-    Synchronizes / verifies the pinned xRegistry and WoT Connectivity V2
+    Synchronizes / verifies the pinned xRegistry and WoT Connectivity 1.1
     NodeSet2 model artifacts against the authoring draft repository.
 
 .DESCRIPTION
-    The Opc.Ua.WotCon model assembly source-generates three companion models:
-    the legacy WoT Connectivity 1.02 ModelDesign (WotConnection.xml, hand
-    authored here) and two NodeSet2 models copied ("pinned") from the OPC UA
-    drafts authoring repository:
+    The Opc.Ua.WotCon model assembly source-generates two NodeSet2 models
+    copied ("pinned") from the OPC UA drafts authoring repository:
 
         core-specs/xregistry/Opc.Ua.XRegistry.NodeSet2.xml   -> Design/Opc.Ua.XRegistry.NodeSet2.xml
         core-specs/xregistry/Opc.Ua.XRegistry.NodeIds.csv    -> Design/Opc.Ua.XRegistry.NodeSet2.csv
-        wot-specs/WoT-Connectivity/Opc.Ua.WoTConV2.NodeSet2.xml -> Design/Opc.Ua.WoTConV2.NodeSet2.xml
-        wot-specs/WoT-Connectivity/Opc.Ua.WoTConV2.NodeIds.csv  -> Design/Opc.Ua.WoTConV2.NodeSet2.csv
+        wot-specs/WoT-Connectivity/Opc.Ua.WoTCon.NodeSet2.xml -> Design/Opc.Ua.WoTCon.NodeSet2.xml
+        wot-specs/WoT-Connectivity/Opc.Ua.WoTCon.NodeIds.csv  -> Design/Opc.Ua.WoTCon.NodeSet2.csv
+
+    The combined Opc.Ua.WoTCon NodeSet2 is WoT Connectivity revision 1.1: it
+    incorporates the complete published OPC 10100-1 v1.02 model (NodeIds
+    1..172, marked deprecated) plus the additive registry nodes (64000+) in
+    one namespace, http://opcfoundation.org/UA/WoT-Con/. The legacy 1.02
+    ModelDesign sources (WotConnection.xml / WotConnection.csv) are retained
+    here only as human-readable documentation of the incorporated surface;
+    they are no longer source-generated (the combined NodeSet is the single
+    generation input, so the 1.02 model is never generated a second time).
 
     The generator matches each *.NodeSet2.xml to a side-by-side *.NodeSet2.csv
     stable NodeId table, so the draft *.NodeIds.csv files are pinned under the
@@ -61,10 +68,10 @@ if (-not $DraftRepo) {
 
 # Mapping of draft-repo source -> pinned Design destination file name.
 $map = @(
-    @{ Source = 'core-specs/xregistry/Opc.Ua.XRegistry.NodeSet2.xml';            Dest = 'Opc.Ua.XRegistry.NodeSet2.xml' }
-    @{ Source = 'core-specs/xregistry/Opc.Ua.XRegistry.NodeIds.csv';             Dest = 'Opc.Ua.XRegistry.NodeSet2.csv' }
-    @{ Source = 'wot-specs/WoT-Connectivity/Opc.Ua.WoTConV2.NodeSet2.xml'; Dest = 'Opc.Ua.WoTConV2.NodeSet2.xml' }
-    @{ Source = 'wot-specs/WoT-Connectivity/Opc.Ua.WoTConV2.NodeIds.csv';  Dest = 'Opc.Ua.WoTConV2.NodeSet2.csv' }
+    @{ Source = 'core-specs/xregistry/Opc.Ua.XRegistry.NodeSet2.xml';        Dest = 'Opc.Ua.XRegistry.NodeSet2.xml' }
+    @{ Source = 'core-specs/xregistry/Opc.Ua.XRegistry.NodeIds.csv';         Dest = 'Opc.Ua.XRegistry.NodeSet2.csv' }
+    @{ Source = 'wot-specs/WoT-Connectivity/Opc.Ua.WoTCon.NodeSet2.xml';     Dest = 'Opc.Ua.WoTCon.NodeSet2.xml' }
+    @{ Source = 'wot-specs/WoT-Connectivity/Opc.Ua.WoTCon.NodeIds.csv';      Dest = 'Opc.Ua.WoTCon.NodeSet2.csv' }
 )
 
 function Get-NormalizedHash([string]$path) {

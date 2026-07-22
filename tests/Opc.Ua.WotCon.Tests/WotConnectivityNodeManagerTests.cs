@@ -313,7 +313,7 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(entry.Properties, Has.Count.EqualTo(1));
             (BaseDataVariableState variable, WotPropertyTag tag) = entry.Properties.Values.First();
             Assert.That(tag.Name, Is.EqualTo("Voltage"));
-            Assert.That(variable.DataType, Is.EqualTo(DataTypeIds.Double));
+            Assert.That(variable.DataType, Is.EqualTo(Ua.DataTypeIds.Double));
             Assert.That(variable.ValueRank, Is.EqualTo(ValueRanks.Scalar));
             Assert.That(variable.BrowseName.Name, Is.EqualTo("Voltage"));
             Assert.That(variable.DisplayName.Text, Is.EqualTo("Voltage"));
@@ -578,7 +578,7 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(method.BrowseName.Name, Is.EqualTo("Echo"));
             Assert.That(method.Executable, Is.True);
             Assert.That(tag.InputArguments, Has.Count.EqualTo(1));
-            Assert.That(tag.InputArguments[0].DataType, Is.EqualTo(DataTypeIds.Int64));
+            Assert.That(tag.InputArguments[0].DataType, Is.EqualTo(Ua.DataTypeIds.Int64));
             Assert.That(tag.OutputArguments, Has.Count.EqualTo(1));
             Assert.That(method.InputArguments, Is.Not.Null);
             Assert.That(method.OutputArguments, Is.Not.Null);

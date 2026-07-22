@@ -32,7 +32,6 @@ using NUnit.Framework;
 using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Binding;
 using Opc.Ua.WotCon.Binding.Planners;
-using Opc.Ua.WotCon.V2;
 
 namespace Opc.Ua.WotCon.Tests.Binding
 {

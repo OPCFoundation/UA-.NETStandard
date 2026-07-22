@@ -40,7 +40,6 @@ using Opc.Ua.Export;
 using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Binding;
 using Opc.Ua.WotCon.Server.Registry;
-using Opc.Ua.WotCon.V2;
 
 namespace Opc.Ua.WotCon.Server.Materialization
 {
@@ -248,7 +247,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
         /// <summary>
         /// Gets the binding capability snapshots advertised by the registered
-        /// binders. These populate the V2 registry <c>SelectedBindings</c> node and
+        /// binders. These populate the registry <c>SelectedBindings</c> node and
         /// contribute to refresh unchanged-detection.
         /// </summary>
         public IReadOnlyList<WoTBindingCapabilityDataType> BindingCapabilities => m_binders.Capabilities;

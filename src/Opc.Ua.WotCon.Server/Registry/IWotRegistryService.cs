@@ -32,7 +32,6 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua.WotCon.V2;
 
 namespace Opc.Ua.WotCon.Server.Registry
 {

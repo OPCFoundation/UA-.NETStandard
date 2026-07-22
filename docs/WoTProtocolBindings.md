@@ -1,6 +1,6 @@
 # WoT Connectivity Protocol Bindings
 
-The WoT Connectivity V2 runtime materializes Thing Descriptions and Thing Models
+The WoT Connectivity 1.1 runtime materializes Thing Descriptions and Thing Models
 into the OPC UA AddressSpace. Each interaction-affordance **form** in a document
 describes how to reach a value over a concrete protocol (HTTP, MQTT, Modbus,
 OPC UA, …). The **protocol binder** subsystem turns those forms into validated,
@@ -107,7 +107,7 @@ the projection is retired or unloaded.
 * **Degraded mode** materializes nodes with `BadConfigurationError` and emits a
   `WoTBindingFailureEvent`. Validated-but-non-executable forms also degrade the
   closure so their nodes are visible but flagged.
-* Binding capability snapshots populate the V2 registry `SelectedBindings` node
+* Binding capability snapshots populate the registry `SelectedBindings` node
   and contribute to refresh unchanged-detection.
 * The legacy 1.02 `IWotAssetProviderFactory` provider model is preserved
   untouched.

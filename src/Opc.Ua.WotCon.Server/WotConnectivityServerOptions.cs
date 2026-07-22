@@ -154,11 +154,11 @@ namespace Opc.Ua.WotCon.Server
             = new WotManagementAccessPolicy();
 
         /// <summary>
-        /// Optional bridge into the WoT Connectivity V2 registry. When set, a
+        /// Optional bridge into the WoT Connectivity 1.1 registry. When set, a
         /// legacy 1.02 asset's Thing Description is mirrored as a Thing
         /// Description resource in <see cref="RegistryBridgeGroupId"/> whenever
         /// the asset is (re)built, and removed when the asset is deleted, so
-        /// legacy assets participate in V2 materialization without making the
+        /// legacy assets participate in registry materialization without making the
         /// flat V1 asset list canonical. Defaults to <c>null</c> (no bridge).
         /// </summary>
         public Registry.IWotRegistryService? RegistryBridge { get; set; }
@@ -179,7 +179,7 @@ namespace Opc.Ua.WotCon.Server
     public sealed class WotConfigurationParameter
     {
         /// <summary>The OPC UA <c>DataType</c> for the parameter.</summary>
-        public NodeId DataType { get; init; } = DataTypeIds.String;
+        public NodeId DataType { get; init; } = Ua.DataTypeIds.String;
 
         /// <summary>The initial value (must be assignable to a <c>Variant</c>).</summary>
         public Variant? InitialValue { get; init; }

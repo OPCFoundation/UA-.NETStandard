@@ -32,7 +32,6 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Server.Registry;
-using Opc.Ua.WotCon.V2;
 
 namespace Opc.Ua.WotCon.Server.Materialization
 {

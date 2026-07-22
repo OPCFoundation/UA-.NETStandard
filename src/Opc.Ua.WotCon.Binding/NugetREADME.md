@@ -1,7 +1,7 @@
 # OPC UA WoT Connectivity — Protocol Binding Abstractions
 
 `OPCFoundation.NetStandard.Opc.Ua.WotCon.Binding` is the dependency-light
-abstraction and planner layer for the OPC UA WoT Connectivity V2 runtime.
+abstraction and planner layer for the OPC UA WoT Connectivity 1.1 runtime.
 
 It defines the stable, replaceable protocol-binder contracts used by the
 materialization coordinator:

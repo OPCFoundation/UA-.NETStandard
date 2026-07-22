@@ -42,7 +42,7 @@ using Opc.Ua.WotCon.Server.Registry;
 namespace Microsoft.Extensions.DependencyInjection
 {
     /// <summary>
-    /// <see cref="IOpcUaBuilder"/> extensions that host the WoT Connectivity V2
+    /// <see cref="IOpcUaBuilder"/> extensions that host the WoT Connectivity 1.1
     /// registry (<c>WoTRegistry</c>) on the OPC UA server registered via
     /// <c>.AddServer(...)</c>. The registry service, materialization coordinator,
     /// binder registry and projection host are registered as singletons; the
@@ -50,11 +50,11 @@ namespace Microsoft.Extensions.DependencyInjection
     /// </summary>
     public static class OpcUaWotRegistryServerBuilderExtensions
     {
-        /// <summary>Default configuration section for the V2 registry options.</summary>
-        public const string DefaultConfigurationSection = "OpcUa:WotConV2:Server";
+        /// <summary>Default configuration section for the registry options.</summary>
+        public const string DefaultConfigurationSection = "OpcUa:WotConRegistry:Server";
 
         /// <summary>
-        /// Registers the WoT Connectivity V2 registry NodeManager configured by
+        /// Registers the WoT Connectivity 1.1 registry NodeManager configured by
         /// <paramref name="configure"/>.
         /// </summary>
         public static IOpcUaBuilder AddWotRegistryServer(
@@ -78,7 +78,7 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         /// <summary>
-        /// Registers the WoT Connectivity V2 registry NodeManager with options
+        /// Registers the WoT Connectivity 1.1 registry NodeManager with options
         /// bound from the supplied configuration section.
         /// </summary>
         public static IOpcUaBuilder AddWotRegistryServer(
@@ -94,7 +94,7 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         /// <summary>
-        /// Registers the WoT Connectivity V2 registry NodeManager with options
+        /// Registers the WoT Connectivity 1.1 registry NodeManager with options
         /// bound from the supplied configuration section.
         /// </summary>
         public static IOpcUaBuilder AddWotRegistryServer(

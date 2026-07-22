@@ -39,7 +39,6 @@ using Opc.Ua.WotCon.Binding.Planners;
 using Opc.Ua.WotCon.Binding.Samples;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
-using Opc.Ua.WotCon.V2;
 
 namespace Opc.Ua.WotCon.Tests.Materialization
 {

@@ -41,7 +41,6 @@ using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
 using Opc.Ua.WotCon.Binding.OpcUa;
 using Opc.Ua.WotCon.Binding.Planners;
-using Opc.Ua.WotCon.V2;
 using Quickstarts.ReferenceServer;
 
 namespace Opc.Ua.WotCon.Binding.Tests

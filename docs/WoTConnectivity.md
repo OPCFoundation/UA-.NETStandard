@@ -6,7 +6,7 @@ class libraries plus an integration test project:
 
 | Project                          | Purpose                                                       |
 |----------------------------------|---------------------------------------------------------------|
-| `Opc.Ua.WotCon`                  | Source-generated information model (NodeStates, NodeIds, generated ObjectType client proxies) compiled from the official `WotConnection.xml` design + `WotConnection.csv`, plus the draft **xRegistry** and **WoT Connectivity V2** NodeSet2 models (see §11) |
+| `Opc.Ua.WotCon`                  | Source-generated information model (NodeStates, NodeIds, generated ObjectType client proxies) generated once from the combined **WoT Connectivity 1.1** NodeSet2 (incorporating the OPC 10100-1 v1.02 model plus additive registry nodes in one namespace) and the draft **xRegistry** base NodeSet2 (see §11) |
 | `Opc.Ua.WotCon.Server`           | Server-side node manager (`WotConnectivityNodeManager` → `AsyncCustomNodeManager`) and the extensible provider model |
 | `Opc.Ua.WotCon.Client`           | Client wrappers + extension methods that compose the generated proxies without inheritance |
 | `Opc.Ua.WotCon.Tests`            | NUnit tests covering the TD parser, mappers, simulated provider, discovery facade |
@@ -416,33 +416,39 @@ in production.
 
 ---
 
-## 11. WoT Connectivity V2 registry and materialization (preview)
+## 11. WoT Connectivity 1.1 registry and materialization (preview)
 
-The `Opc.Ua.WotCon` assembly additionally source-generates two draft
-companion models that back a **registry-first** V2 runtime:
+The `Opc.Ua.WotCon` assembly is source-generated once from the combined
+**WoT Connectivity 1.1** NodeSet2, which incorporates the published OPC
+10100-1 v1.02 model (NodeIds `1..172`, marked deprecated) plus the additive
+registry nodes (`64000+`) in one namespace, and from the abstract
+**xRegistry** base model the registry types build on:
 
 | Model | Namespace | Emitted C# namespace |
 |-------|-----------|----------------------|
 | xRegistry (abstract registry base) | `http://opcfoundation.org/UA/xRegistry/` | `Opc.Ua.XRegistry` |
-| WoT Connectivity V2 | `http://opcfoundation.org/UA/WoT-Con/V2/` | `Opc.Ua.WotCon.V2` |
+| WoT Connectivity 1.1 (combined) | `http://opcfoundation.org/UA/WoT-Con/` | `Opc.Ua.WotCon` |
 
 Both NodeSet2 models are *pinned* from the OPC UA drafts authoring
 repository into `src/Opc.Ua.WotCon/Design` (as `*.NodeSet2.xml` +
-`*.NodeSet2.csv`) and added as `AdditionalFiles` alongside the legacy
-1.02 `WotConnection.xml` design, so V1 + xRegistry + V2 constants coexist
-in one assembly under distinct C# namespaces. Run
+`*.NodeSet2.csv`) and added as `AdditionalFiles`. The legacy 1.02
+`WotConnection.xml` / `WotConnection.csv` sources are retained under
+`Design/` for reference only — they are incorporated into the combined
+NodeSet and are **not** source-generated a second time, so the preserved
+1.02 constants and the additive registry constants coexist in one
+`Opc.Ua.WotCon` namespace under their exact NodeIds. Run
 `pwsh src/Opc.Ua.WotCon/Design/Sync-WotConModels.ps1 -Check` to verify
 the pinned copies still match the draft repository (use `-Update` to
 refresh them).
 
 ### 11.1 Architecture
 
-The V2 runtime separates a **stable registry** from **ephemeral
+The 1.1 runtime separates a **stable registry** from **ephemeral
 projections**:
 
 * `WotRegistryNodeManager` (stable) exposes the well-known `WoTRegistry`
   object, its Thing Description / Thing Model groups, the `Refresh`
-  Method, registry settings and the V2 event types. It never re-creates
+  Method, registry settings and the registry event types. It never re-creates
   itself. Every service group and document resource is additionally
   materialized as a browseable `ThingDescriptionGroupType` /
   `ThingModelGroupType` and `ThingDescriptionFileType` /
@@ -538,8 +544,8 @@ The legacy `WotConnectivityNodeManager`, its generated 1.02
 namespace/NodeIds/method signatures and the client APIs are unchanged.
 When both features are hosted, legacy-created assets are additionally
 registered as Thing Description resources in a configured legacy group
-(`WotRegistryServerOptions.LegacyGroupId`) so they participate in V2
-materialization, without making the flat V1 asset list canonical for V2.
+(`WotRegistryServerOptions.LegacyGroupId`) so they participate in registry
+materialization, without making the flat legacy asset list canonical for the registry.
 
 ### 11.6 Known limitations (preview)
 
@@ -550,7 +556,7 @@ materialization, without making the flat V1 asset list canonical for V2.
 ### 11.7 Browseable registry projection and management Methods
 
 The stable `WoTRegistryNodeManager` materializes the registry snapshot as a
-browseable object tree and wires the inherited xRegistry / V2 Methods:
+browseable object tree and wires the inherited xRegistry / registry Methods:
 
 * For every service group a `ThingDescriptionGroupType` or
   `ThingModelGroupType` object is created beneath `WoTRegistry`, and for
@@ -561,7 +567,7 @@ browseable object tree and wires the inherited xRegistry / V2 Methods:
   reconciled on every registry `Changed` event — including projection-only
   callbacks, which never re-trigger materialization — and removes group and
   resource nodes as they disappear from the snapshot.
-* Each node carries its xRegistry and V2 metadata (ids/Xid/epoch/name/
+* Each node carries its xRegistry and registry metadata (ids/Xid/epoch/name/
   description/timestamps/format/content type, desired/default/active
   version, enabled/load state, validation outcome, content digest,
   materialized-node count, the materialized `RootNodeId`, and selected

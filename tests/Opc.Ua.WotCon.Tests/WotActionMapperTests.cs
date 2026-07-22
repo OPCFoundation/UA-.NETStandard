@@ -61,7 +61,7 @@ namespace Opc.Ua.WotCon.Tests
 
             Assert.That(arguments, Has.Count.EqualTo(2));
             Assert.That(arguments[0].Name, Is.EqualTo("target"));
-            Assert.That(arguments[0].DataType, Is.EqualTo(DataTypeIds.Double));
+            Assert.That(arguments[0].DataType, Is.EqualTo(Ua.DataTypeIds.Double));
             Assert.That(arguments[0].ValueRank, Is.EqualTo(ValueRanks.Scalar));
             // Rec 4: assert the full description text so format / framing mutations
             // (square brackets, separator spaces, "min=, max=" comma) are caught.
@@ -69,7 +69,7 @@ namespace Opc.Ua.WotCon.Tests
                 arguments[0].Description.Text,
                 Is.EqualTo("Target temperature [degree Celsius] (min=10, max=30)"));
             Assert.That(arguments[1].Name, Is.EqualTo("confirm"));
-            Assert.That(arguments[1].DataType, Is.EqualTo(DataTypeIds.Boolean));
+            Assert.That(arguments[1].DataType, Is.EqualTo(Ua.DataTypeIds.Boolean));
             Assert.That(arguments[1].ValueRank, Is.EqualTo(ValueRanks.Scalar));
             Assert.That(arguments[1].Description.IsNull, Is.True,
                 "Members without description/unit/bounds should have a null LocalizedText.");
@@ -181,7 +181,7 @@ namespace Opc.Ua.WotCon.Tests
             IReadOnlyList<Argument> arguments = WotActionMapper.BuildArguments(schema);
 
             Assert.That(arguments, Has.Count.EqualTo(1));
-            Assert.That(arguments[0].DataType, Is.EqualTo(DataTypeIds.BaseDataType));
+            Assert.That(arguments[0].DataType, Is.EqualTo(Ua.DataTypeIds.BaseDataType));
             Assert.That(arguments[0].Name, Is.EqualTo("rawString"));
             Assert.That(arguments[0].Description.Text, Is.EqualTo("raw payload"));
         }
@@ -223,7 +223,7 @@ namespace Opc.Ua.WotCon.Tests
             IReadOnlyList<Argument> arguments = WotActionMapper.BuildArguments(schema);
 
             Assert.That(arguments, Has.Count.EqualTo(1));
-            Assert.That(arguments[0].DataType, Is.EqualTo(DataTypeIds.BaseDataType));
+            Assert.That(arguments[0].DataType, Is.EqualTo(Ua.DataTypeIds.BaseDataType));
             Assert.That(arguments[0].ValueRank, Is.EqualTo(ValueRanks.Scalar));
             Assert.That(arguments[0].Name, Is.EqualTo("empty"));
         }
@@ -261,7 +261,7 @@ namespace Opc.Ua.WotCon.Tests
             IReadOnlyList<Argument> arguments = WotActionMapper.BuildArguments(schema);
 
             Assert.That(arguments, Has.Count.EqualTo(1));
-            Assert.That(arguments[0].DataType, Is.EqualTo(DataTypeIds.Double));
+            Assert.That(arguments[0].DataType, Is.EqualTo(Ua.DataTypeIds.Double));
             Assert.That(arguments[0].ValueRank, Is.EqualTo(ValueRanks.OneDimension));
         }
 
@@ -288,7 +288,7 @@ namespace Opc.Ua.WotCon.Tests
             IReadOnlyList<Argument> arguments = WotActionMapper.BuildArguments(schema);
 
             Assert.That(arguments, Has.Count.EqualTo(1));
-            Assert.That(arguments[0].DataType, Is.EqualTo(DataTypeIds.BaseDataType));
+            Assert.That(arguments[0].DataType, Is.EqualTo(Ua.DataTypeIds.BaseDataType));
             Assert.That(arguments[0].ValueRank, Is.EqualTo(ValueRanks.OneDimension));
         }
 
@@ -310,7 +310,7 @@ namespace Opc.Ua.WotCon.Tests
             IReadOnlyList<Argument> arguments = WotActionMapper.BuildArguments(schema);
 
             Assert.That(arguments, Has.Count.EqualTo(1));
-            Assert.That(arguments[0].DataType, Is.EqualTo(DataTypeIds.BaseDataType));
+            Assert.That(arguments[0].DataType, Is.EqualTo(Ua.DataTypeIds.BaseDataType));
             Assert.That(arguments[0].ValueRank, Is.EqualTo(ValueRanks.OneDimension));
         }
     }

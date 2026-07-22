@@ -60,7 +60,7 @@ namespace Opc.Ua.WotCon.Tests
             m_voltageTag = new WotPropertyTag(
                 "Voltage",
                 new NodeId(1u, 2),
-                DataTypeIds.Double,
+                Ua.DataTypeIds.Double,
                 ValueRanks.Scalar,
                 readOnly: false,
                 observable: true,
@@ -137,8 +137,8 @@ namespace Opc.Ua.WotCon.Tests
             var actionTag = new WotActionTag(
                 "Echo",
                 new NodeId(2u, 2),
-                [new Argument { Name = "in1", DataType = DataTypeIds.Int64 }],
-                [new Argument { Name = "out1", DataType = DataTypeIds.Int64 }],
+                [new Argument { Name = "in1", DataType = Ua.DataTypeIds.Int64 }],
+                [new Argument { Name = "out1", DataType = Ua.DataTypeIds.Int64 }],
                 form: null);
             var outputs = new Variant[1];
 
