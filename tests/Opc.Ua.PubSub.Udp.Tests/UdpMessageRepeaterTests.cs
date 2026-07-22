@@ -82,8 +82,10 @@ namespace Opc.Ua.PubSub.Udp.Tests
         [Test]
         public async Task ThreeRepeats_SendsFourTimes_FakeTimerAdvanced()
         {
-            var fake = new FakeTimeProvider();
-            var repeater = new UdpMessageRepeater(3, TimeSpan.FromMilliseconds(100), fake);
+            const int repeatCount = 3;
+            var repeatDelay = TimeSpan.FromMilliseconds(100);
+            var fake = new ObservableFakeTimeProvider();
+            var repeater = new UdpMessageRepeater(repeatCount, repeatDelay, fake);
             int count = 0;
 
             ValueTask sendTask = repeater.SendWithRepeatsAsync(_ =>
@@ -92,15 +94,19 @@ namespace Opc.Ua.PubSub.Udp.Tests
                 return default;
             });
 
-            for (int i = 0; i < 3 && !sendTask.IsCompleted; i++)
+            for (int timerNumber = 1; timerNumber <= repeatCount; timerNumber++)
             {
-                fake.Advance(TimeSpan.FromMilliseconds(100));
-                await Task.Yield();
+                await fake.WaitForTimerCreatedAsync(timerNumber)
+                    .WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false);
+                fake.Advance(repeatDelay);
             }
 
-            await sendTask.ConfigureAwait(false);
+            await sendTask.AsTask()
+                .WaitAsync(TimeSpan.FromSeconds(5))
+                .ConfigureAwait(false);
 
-            Assert.That(count, Is.EqualTo(4));
+            Assert.That(count, Is.EqualTo(repeatCount + 1));
         }
 
         [Test]
@@ -240,6 +246,54 @@ namespace Opc.Ua.PubSub.Udp.Tests
             }
 
             Assert.That(count, Is.EqualTo(3));
+        }
+
+        private sealed class ObservableFakeTimeProvider : FakeTimeProvider
+        {
+            public override ITimer CreateTimer(
+                TimerCallback callback,
+                object? state,
+                TimeSpan dueTime,
+                TimeSpan period)
+            {
+                ITimer timer = base.CreateTimer(callback, state, dueTime, period);
+                int timerNumber = Interlocked.Increment(ref m_timerCount);
+                if (timerNumber == 1)
+                {
+                    m_firstTimerCreated.TrySetResult(true);
+                }
+                else if (timerNumber == 2)
+                {
+                    m_secondTimerCreated.TrySetResult(true);
+                }
+                else if (timerNumber == 3)
+                {
+                    m_thirdTimerCreated.TrySetResult(true);
+                }
+                return timer;
+            }
+
+            public Task<bool> WaitForTimerCreatedAsync(int timerNumber)
+            {
+                return timerNumber switch
+                {
+                    1 => m_firstTimerCreated.Task,
+                    2 => m_secondTimerCreated.Task,
+                    3 => m_thirdTimerCreated.Task,
+                    _ => throw new ArgumentOutOfRangeException(nameof(timerNumber))
+                };
+            }
+
+            private readonly TaskCompletionSource<bool> m_firstTimerCreated = new(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+
+            private readonly TaskCompletionSource<bool> m_secondTimerCreated = new(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+
+            private readonly TaskCompletionSource<bool> m_thirdTimerCreated = new(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+
+            private int m_timerCount;
         }
     }
 }
