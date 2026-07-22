@@ -45,6 +45,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     [TestFixture]
     public sealed class WotMaterializationCoordinatorTests
     {
+        private static readonly string[] s_tmTdSourceNames = ["tm-a", "td-a"];
+
         private WotRegistryService m_registry = null!;
         private FakeWotProjectionHost m_host = null!;
         private FakeWotDocumentConverter m_converter = null!;
@@ -96,7 +98,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(m_host.AddCount, Is.EqualTo(1),
                 "A shared closure must project as one runtime NodeManager.");
             HostOperation op = m_host.Operations.Single(o => o.Op == "add");
-            Assert.That(op.SourceNames, Is.EqualTo(new[] { "tm-a", "td-a" }),
+            Assert.That(op.SourceNames, Is.EqualTo(s_tmTdSourceNames),
                 "Thing Models must be ordered before the Thing Descriptions that extend them.");
             // With the default (no-op) binder, affordance forms have no binder and
             // materialize as degraded nodes, so the projected outcome is Warning;

@@ -45,6 +45,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     [TestFixture]
     public sealed class WotDependencyGraphTests
     {
+        private static readonly string[] s_tmTdResourceIds = ["tm", "td"];
+
         private async Task<WotRegistrySnapshot> Snapshot(
             params (WoTDocumentKindEnum Kind, string Id, byte[] Content)[] docs)
         {
@@ -91,7 +93,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(closures[0].IsProjectable, Is.True);
             Assert.That(
                 closures[0].OrderedResources.Select(r => r.ResourceId),
-                Is.EqualTo(new[] { "tm", "td" }));
+                Is.EqualTo(s_tmTdResourceIds));
         }
 
         [Test]

@@ -45,6 +45,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
     [Category("WotCon")]
     public sealed class WotRegistryLabelsServiceTests
     {
+        private static readonly string[] s_alphaZebraLabels = ["alpha", "zebra"];
+        private static readonly string[] s_zebraLabel = ["zebra"];
+
         [Test]
         public async Task AddResourceLabel_AddsThenUpdatesValue()
         {
@@ -198,7 +201,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
             await service.AddGroupLabelAsync("sensors", "zebra", "1");
             await service.AddGroupLabelAsync("sensors", "alpha", "2");
             WotResourceGroup? updatedGroup = service.Current.FindGroup("sensors");
-            Assert.That(updatedGroup!.Labels.Keys, Is.EqualTo(new[] { "alpha", "zebra" }),
+            Assert.That(updatedGroup!.Labels.Keys, Is.EqualTo(s_alphaZebraLabels),
                 "Labels must enumerate in deterministic ordinal key order.");
 
             WotRegistryMutationResult mismatched = await service.RemoveGroupLabelAsync(
@@ -208,7 +211,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             WotRegistryMutationResult removed = await service.RemoveGroupLabelAsync(
                 "sensors", "alpha");
             Assert.That(removed.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
-            Assert.That(service.Current.FindGroup("sensors")!.Labels.Keys, Is.EqualTo(new[] { "zebra" }));
+            Assert.That(
+                service.Current.FindGroup("sensors")!.Labels.Keys,
+                Is.EqualTo(s_zebraLabel));
         }
 
         [Test]
