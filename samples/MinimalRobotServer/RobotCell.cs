@@ -34,8 +34,10 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.OpenUsd;
+using Opc.Ua.Robotics;
 using Opc.Ua.Server;
 using Opc.Ua.Server.NodeManager;
+using ReferenceTypeIds = Opc.Ua.ReferenceTypeIds;
 
 namespace Robotics
 {
@@ -55,10 +57,10 @@ namespace Robotics
         private const string RobotsScopePrimPath = "/Cell/Robots";
         private const string ToolSuffix = "/Base/J1/J2/J3/J4/J5/J6/Flange/Tool";
 
-        // OPC 40010 Robotics type NodeIds (numeric ids from the companion NodeSet, so
-        // the code does not depend on the generated NodeId class names).
-        private const uint MotionDeviceSystemTypeId = 1002;
-        private const uint ControllerTypeId = 1003;
+        // OPC 40010 Robotics type NodeIds used only for OpenUSD component-binding type
+        // definitions (the robotics instances themselves are created via the generated
+        // CreateInstanceOf<Type> factories, so they are properly typed — not bare
+        // BaseObjectStates carrying only a type-definition reference).
         private const uint MotionDeviceTypeId = 1004;
         private const uint AxisTypeId = 16601;
 
@@ -122,26 +124,43 @@ namespace Robotics
                     return;
                 }
 
-                // MotionDeviceSystem "RobotCell" + its representation (/Cell).
-                BaseObjectState cell = CreateTypedObject(
-                    deviceSet, "RobotCell", ns, RoboticsType(MotionDeviceSystemTypeId), ReferenceTypeIds.HasComponent);
+                // MotionDeviceSystem "RobotCell" — created as a generated
+                // MotionDeviceSystemType instance (MotionDeviceSystemState), NOT a bare
+                // BaseObjectState carrying only a type-definition reference, so the instance
+                // has the real companion-type structure (MotionDevices / Controllers /
+                // SafetyStates). The generator's CreateInstanceOf factory stamps TYPE NodeIds
+                // on the materialised children; the single AssignChildNodeIds(cell) walk below
+                // re-stamps per-instance NodeIds before registration.
+                MotionDeviceSystemState cell = SystemContext.CreateInstanceOfMotionDeviceSystemType(
+                    deviceSet, new QualifiedName("RobotCell", ns));
+                cell.ReferenceTypeId = ReferenceTypeIds.HasComponent;
+                cell.NodeId = SystemContext.NodeIdFactory.New(SystemContext, cell);
+                deviceSet.AddChild(cell);
                 OpenUsdRepresentationState cellRep = AttachRepresentation(cell, CellPrimPath, usdNs);
 
-                // SafetyStates / EmergencyStop (Boolean, animated).
-                FolderState safety = CreateFolder(cell, "SafetyStates", ns);
-                m_estopVar = CreateVariable(safety, "EmergencyStop", Opc.Ua.DataTypeIds.Boolean, new Variant(false), writable: false, ns);
+                // SafetyStates / EmergencyStop (Boolean, animated demo signal).
+                NodeState safety = (NodeState?)cell.SafetyStates
+                    ?? cell.CreateOrReplaceSafetyStates(SystemContext, null!);
+                m_estopVar = EnsureVariable(safety, "EmergencyStop", Opc.Ua.DataTypeIds.Boolean,
+                    new Variant(false), writable: false, ns);
 
-                // Controllers / Controller_C1 / ParameterSet / SpeedOverride (writable
-                // command target, 0..100 %).
-                FolderState controllers = CreateFolder(cell, "Controllers", ns);
-                BaseObjectState controller = CreateTypedObject(
-                    controllers, "Controller_C1", ns, RoboticsType(ControllerTypeId), ReferenceTypeIds.HasComponent);
-                FolderState ctrlParams = CreateFolder(controller, "ParameterSet", ns);
-                m_speedOverrideVar = CreateVariable(ctrlParams, "SpeedOverride", Opc.Ua.DataTypeIds.Double, new Variant(100.0), writable: true, ns);
+                // Controller_C1 as a generated ControllerType instance in the system's
+                // mandatory Controllers folder; SpeedOverride is a writable demo command target.
+                FolderState controllers = cell.Controllers
+                    ?? cell.CreateOrReplaceControllers(SystemContext, null!);
+                ControllerState controller = SystemContext.CreateInstanceOfControllerType(
+                    controllers, new QualifiedName("Controller_C1", ns));
+                controller.ReferenceTypeId = ReferenceTypeIds.HasComponent;
+                controller.NodeId = SystemContext.NodeIdFactory.New(SystemContext, controller);
+                controllers.AddChild(controller);
+                FolderState ctrlParams = EnsureFolder(controller, "ParameterSet", ns);
+                m_speedOverrideVar = EnsureVariable(ctrlParams, "SpeedOverride", Opc.Ua.DataTypeIds.Double,
+                    new Variant(100.0), writable: true, ns);
 
-                // MotionDevices folder + robots (each with its own representation, axes,
-                // and per-robot bindings).
-                FolderState motionDevices = CreateFolder(cell, "MotionDevices", ns);
+                // Robots are generated MotionDeviceType instances in the mandatory
+                // MotionDevices folder (each with its own representation, axes, bindings).
+                FolderState motionDevices = cell.MotionDevices
+                    ?? cell.CreateOrReplaceMotionDevices(SystemContext, null!);
                 var robotReps = new List<OpenUsdRepresentationState>();
                 foreach ((string BrowseName, string PrimPath, bool HasTool, double PhaseSeconds) r in s_robots)
                 {
@@ -216,8 +235,11 @@ namespace Robotics
             (string BrowseName, string PrimPath, bool HasTool, double PhaseSeconds) r,
             ushort ns, ushort usdNs)
         {
-            BaseObjectState robot = CreateTypedObject(
-                motionDevices, r.BrowseName, ns, RoboticsType(MotionDeviceTypeId), ReferenceTypeIds.HasComponent);
+            MotionDeviceState robot = SystemContext.CreateInstanceOfMotionDeviceType(
+                motionDevices, new QualifiedName(r.BrowseName, ns));
+            robot.ReferenceTypeId = ReferenceTypeIds.HasComponent;
+            robot.NodeId = SystemContext.NodeIdFactory.New(SystemContext, robot);
+            motionDevices.AddChild(robot);
             if (r.HasTool)
             {
                 m_r1NodeId = robot.NodeId;
@@ -225,8 +247,9 @@ namespace Robotics
 
             OpenUsdRepresentationState robotRep = AttachRepresentation(robot, r.PrimPath, usdNs);
 
-            // Axes folder + 6 axes (each with its own representation + articulation).
-            FolderState axes = CreateFolder(robot, "Axes", ns);
+            // 6 axes as generated AxisType instances in the motion device's mandatory Axes
+            // folder (each with its own representation + articulation).
+            FolderState axes = robot.Axes ?? robot.CreateOrReplaceAxes(SystemContext, null!);
             for (int i = 0; i < s_axisTemplate.Length; i++)
             {
                 BuildAxis(axes, r, s_axisTemplate[i], i, ns, usdNs);
@@ -269,10 +292,13 @@ namespace Robotics
             (string Name, string LinkPrimPath, string RotateOp, double Home, double Min, double Max) a,
             int index, ushort ns, ushort usdNs)
         {
-            BaseObjectState axis = CreateTypedObject(
-                axesFolder, a.Name, ns, RoboticsType(AxisTypeId), ReferenceTypeIds.HasComponent);
-            FolderState paramSet = CreateFolder(axis, "ParameterSet", ns);
-            BaseDataVariableState pos = CreateVariable(
+            AxisState axis = SystemContext.CreateInstanceOfAxisType(
+                axesFolder, new QualifiedName(a.Name, ns));
+            axis.ReferenceTypeId = ReferenceTypeIds.HasComponent;
+            axis.NodeId = SystemContext.NodeIdFactory.New(SystemContext, axis);
+            axesFolder.AddChild(axis);
+            FolderState paramSet = EnsureFolder(axis, "ParameterSet", ns);
+            BaseDataVariableState pos = EnsureVariable(
                 paramSet, "ActualPosition", Opc.Ua.DataTypeIds.Double, new Variant(a.Home), writable: false, ns);
 
             string linkPrim = r.PrimPath + "/" + a.LinkPrimPath;
@@ -299,20 +325,24 @@ namespace Robotics
             });
         }
 
-        private BaseObjectState CreateTypedObject(
-            NodeState parent, string name, ushort ns, NodeId typeDefinition, NodeId referenceType)
+        private FolderState EnsureFolder(NodeState parent, string name, ushort ns)
         {
-            var obj = new BaseObjectState(parent)
+            if (parent.FindChild(SystemContext, new QualifiedName(name, ns)) is FolderState existing)
             {
-                SymbolicName = name,
-                BrowseName = new QualifiedName(name, ns),
-                DisplayName = new LocalizedText(name),
-                ReferenceTypeId = referenceType,
-                TypeDefinitionId = typeDefinition
-            };
-            parent.AddChild(obj);
-            obj.NodeId = SystemContext.NodeIdFactory.New(SystemContext, obj);
-            return obj;
+                return existing;
+            }
+            return CreateFolder(parent, name, ns);
+        }
+
+        private BaseDataVariableState EnsureVariable(
+            NodeState parent, string name, NodeId dataType, Variant initial, bool writable, ushort ns)
+        {
+            if (parent.FindChild(SystemContext, new QualifiedName(name, ns)) is BaseDataVariableState existing)
+            {
+                existing.Value = initial;
+                return existing;
+            }
+            return CreateVariable(parent, name, dataType, initial, writable, ns);
         }
 
         // Dynamic composition (§5.13): mount the gripper tool on R1's flange shortly

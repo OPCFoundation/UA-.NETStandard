@@ -34,10 +34,11 @@ using Opc.Ua.IA;
 namespace Opc.Ua.Robotics.Server
 {
     /// <summary>
-    /// Reusable server-side helpers for the OPC 40010 Robotics companion model:
-    /// loading the Robotics type system into a node manager and instantiating
-    /// Robotics-typed objects from the numeric type NodeIds in
-    /// <see cref="RoboticsModel"/>.
+    /// Reusable server-side helper for the OPC 40010 Robotics companion model: loads the
+    /// Robotics type system into a node manager. Instantiate Robotics-typed objects with
+    /// the generated <c>ISystemContext.CreateInstanceOf&lt;Type&gt;</c> factories (e.g.
+    /// <c>CreateInstanceOfMotionDeviceSystemType</c>) so instances carry the full
+    /// companion-type structure rather than only a type-definition reference.
     /// </summary>
     public static class RoboticsServer
     {
@@ -64,42 +65,6 @@ namespace Opc.Ua.Robotics.Server
             nodes.AddOpcUaIA(context);
             nodes.AddOpcUaRobotics(context);
             return nodes.Count - before;
-        }
-
-        /// <summary>
-        /// Instantiates a Robotics-typed Object (e.g. MotionDeviceSystem,
-        /// MotionDevice, Axis, Controller) under <paramref name="parent"/>, using
-        /// a numeric type NodeId resolved via
-        /// <see cref="RoboticsModel.TypeNodeId"/>. Assigns a per-instance NodeId
-        /// from the context's NodeIdFactory.
-        /// </summary>
-        public static BaseObjectState CreateTypedObject(
-            this ISystemContext context,
-            NodeState parent,
-            string name,
-            ushort ns,
-            NodeId typeDefinition,
-            NodeId referenceType)
-        {
-            if (context is null)
-            {
-                throw new ArgumentNullException(nameof(context));
-            }
-            if (parent is null)
-            {
-                throw new ArgumentNullException(nameof(parent));
-            }
-            var obj = new BaseObjectState(parent)
-            {
-                SymbolicName = name,
-                BrowseName = new QualifiedName(name, ns),
-                DisplayName = new LocalizedText(name),
-                ReferenceTypeId = referenceType,
-                TypeDefinitionId = typeDefinition
-            };
-            parent.AddChild(obj);
-            obj.NodeId = context.NodeIdFactory.New(context, obj);
-            return obj;
         }
     }
 }
