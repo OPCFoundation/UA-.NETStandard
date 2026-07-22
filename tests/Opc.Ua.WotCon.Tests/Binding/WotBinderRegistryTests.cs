@@ -44,6 +44,11 @@ namespace Opc.Ua.WotCon.Tests.Binding
     [TestFixture]
     public sealed class WotBinderRegistryTests
     {
+        private static readonly string[] s_stubVersions = ["1.0", "2.0"];
+        private static readonly WoTBindingCapabilityEnum[] s_readCapabilities =
+            [WoTBindingCapabilityEnum.ReadProperty];
+        private static readonly string[] s_jsonContentTypes = ["application/json"];
+
         private static WotBindingPlanRequest Request(string affordance, string href, string extraTerms = "")
         {
             string terms = string.IsNullOrEmpty(extraTerms) ? string.Empty : "," + extraTerms;
@@ -162,7 +167,9 @@ namespace Opc.Ua.WotCon.Tests.Binding
             });
 
             Assert.That(registry.Binders.Count, Is.EqualTo(2));
-            Assert.That(registry.Binders.Select(b => b.Identity.Version), Is.EquivalentTo(new[] { "1.0", "2.0" }));
+            Assert.That(
+                registry.Binders.Select(b => b.Identity.Version),
+                Is.EquivalentTo(s_stubVersions));
             Assert.That(registry.Capabilities.Count, Is.EqualTo(2));
         }
 
@@ -200,8 +207,9 @@ namespace Opc.Ua.WotCon.Tests.Binding
                 Identity = new WotBindingIdentity("stub.binder", version, "urn:stub", "Stub");
                 Capability = new WotBindingCapability("urn:stub", "Stub",
                     new WotBindingSource("urn:stub", version, WotBindingMaturity.UnofficialDraft),
-                    new[] { WoTBindingCapabilityEnum.ReadProperty },
-                    new[] { "application/json" }, isExecutable: false);
+                    s_readCapabilities,
+                    s_jsonContentTypes,
+                    isExecutable: false);
             }
 
             public override WotBindingIdentity Identity { get; }
