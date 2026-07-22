@@ -34,7 +34,7 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Di;
 using Opc.Ua.Di.Server.Builders;
-using Opc.Ua.Di.Server.SoftwareUpdate;
+using Opc.Ua.Pumps;
 using Opc.Ua.Server.Fluent;
 using Pumps;
 
@@ -49,11 +49,6 @@ int port = int.TryParse(builder.Configuration["port"], out int p) ? p : 62542;
 // reachable from outside a container; override with --host / host env var
 // (e.g. "localhost" for local-only development).
 string host = builder.Configuration["host"] is { Length: > 0 } h ? h : "0.0.0.0";
-
-// In-memory store backing the OPC 10000-100 software-update facet
-// attached to Pump #2 below. Production deployments swap this for
-// FileSystemPackageStore over an IFileSystemProvider.
-builder.Services.AddSingleton<ISoftwarePackageStore, MemoryPackageStore>();
 
 builder.Services
     .AddOpcUa()
@@ -71,47 +66,36 @@ builder.Services
     // fluent wiring are complete.
     .ConfigureDevicesFor<PumpNodeManager>(async ctx =>
     {
-        IDeviceBuilder<DeviceState> pump = await ctx.CreateDeviceAsync(
-            new QualifiedName("Pump #2", ctx.Manager.DiNamespaceIndex))
+        var manager = (PumpNodeManager)ctx.Manager;
+        ushort pumpsNamespaceIndex = (ushort)manager.Server.NamespaceUris.GetIndex(
+            Opc.Ua.Pumps.Namespaces.Pumps);
+        PumpState pumpState = await manager.CreatePumpAsync(
+            new QualifiedName("Pump #2", pumpsNamespaceIndex),
+            ctx.CancellationToken)
             .ConfigureAwait(false);
+        ITopologyElementBuilder<PumpState> pump =
+            ctx.TopologyElement<PumpState>(pumpState.NodeId);
 
-        pump.WithIdentification(id =>
-        {
-            id.Manufacturer = new LocalizedText("Acme Pumps Inc.");
-            id.Model = new LocalizedText("PumpX-2000 (declarative)");
-            id.SerialNumber = "SN-DI-2";
-            id.DeviceClass = "Pump";
-            id.HardwareRevision = "1.0";
-            id.SoftwareRevision = "2.5.3";
-        });
-
-        // Materialise the optional DI DeviceHealth child on Pump #2
-        // (PumpType itself does not carry DeviceHealth — it inherits
-        // from TopologyElementType, not DeviceType — so we attach the
-        // health variable to the declarative DeviceState device
-        // instead, then register it with the manager so the
-        // simulation tick can toggle NAMUR NE 107 states based on
-        // the simulated supervision flags shared across both pumps).
-        pump.Device.AddDeviceHealth(ctx.Manager.SystemContext);
-        pump.WithDeviceHealth(DeviceHealthEnumeration.NORMAL);
-
-        // The DeviceHealth child was added to the in-memory DeviceState
-        // subtree after the device itself was registered, so it must be
-        // registered with the manager explicitly. Without this the node
-        // is browsable but its attributes never resolve, so the DI
-        // companion-spec checker cannot map it to the declared DeviceHealth node.
-        await ctx.Manager
-            .AddPredefinedNodeAsync(pump.Device.DeviceHealth!, ctx.CancellationToken)
-            .ConfigureAwait(false);
-
-        ((PumpNodeManager)ctx.Manager)
-            .RegisterSupervisedDeviceHealth(pump.Device.DeviceHealth);
-
-        // Seed the shared package store with sample firmware payloads
-        // exposed through the DI software-update facet.
-        ISoftwarePackageStore packageStore =
-            ctx.GetRequiredService<ISoftwarePackageStore>();
-        await SoftwarePackageSeeder.SeedAsync(packageStore).ConfigureAwait(false);
+        ushort diNamespaceIndex = ctx.Manager.DiNamespaceIndex;
+        pump.WithIdentificationGroup(id => id.Configure(node =>
+            node.WithProperty(
+                    new QualifiedName("Manufacturer", diNamespaceIndex),
+                    Variant.From(new LocalizedText("Acme Pumps Inc.")))
+                .WithProperty(
+                    new QualifiedName("Model", diNamespaceIndex),
+                    Variant.From(new LocalizedText("PumpX-2000 (declarative)")))
+                .WithProperty(
+                    new QualifiedName("SerialNumber", diNamespaceIndex),
+                    Variant.From("SN-DI-2"))
+                .WithProperty(
+                    new QualifiedName("DeviceClass", diNamespaceIndex),
+                    Variant.From("Pump"))
+                .WithProperty(
+                    new QualifiedName("HardwareRevision", diNamespaceIndex),
+                    Variant.From("1.0"))
+                .WithProperty(
+                    new QualifiedName("SoftwareRevision", diNamespaceIndex),
+                    Variant.From("2.5.3"))));
 
         // Demonstrate the non-typed WithFunctionalGroup(QualifiedName)
         // builder for ad-hoc groups not covered by the 8 well-known
@@ -130,13 +114,6 @@ builder.Services
                 node.WithProperty("LastError", Variant.From(string.Empty), p => p.Writable())
                     .WithProperty("ErrorCount", 0)
                     .WithProperty("LastSelfTest", (DateTimeUtc)DateTime.UtcNow)));
-
-        // Materialise the OPC 10000-100 §10.3 SoftwareUpdateType facet
-        // under Pump #2. The default PackageLoading + library-supplied
-        // "succeed immediately" callbacks give clients a fully browsable
-        // SU subtree (Loading / PrepareForUpdate / Installation /
-        // PowerCycle / Confirmation) with no per-application code.
-        pump.WithSoftwareUpdate(packageStore, su => su.UsePackageLoading());
     });
 
 await builder.Build().RunAsync().ConfigureAwait(false);

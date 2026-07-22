@@ -127,7 +127,11 @@ namespace Opc.Ua.Di.Client
                 var targetId = ExpandedNodeId.ToNodeId(
                     reference.NodeId, session.NamespaceUris);
 
-                if (reference.TypeDefinition == deviceTypeId)
+                if (await IsSubtypeOfAsync(
+                    session,
+                    reference.TypeDefinition,
+                    deviceTypeId,
+                    ct).ConfigureAwait(false))
                 {
                     string displayName =
                         reference.DisplayName.Text ?? string.Empty;
@@ -152,6 +156,18 @@ namespace Opc.Ua.Di.Client
                     }
                 }
             }
+        }
+
+        private static ValueTask<bool> IsSubtypeOfAsync(
+            ISession session,
+            ExpandedNodeId typeDefinition,
+            ExpandedNodeId expectedType,
+            CancellationToken ct)
+        {
+            return session.NodeCache.IsTypeOfAsync(
+                typeDefinition,
+                expectedType,
+                ct);
         }
 
         private static async ValueTask<string> ReadDeviceClassAsync(

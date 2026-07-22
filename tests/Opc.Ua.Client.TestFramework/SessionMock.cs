@@ -68,11 +68,33 @@ namespace Opc.Ua.Client.TestFramework
             Channel = channel;
         }
 
+        public SessionMock(
+            Mock<ITransportChannel> channel,
+            ApplicationConfiguration configuration,
+            ConfiguredEndpoint endpoint,
+            ArrayOf<EndpointDescription> availableEndpoints,
+            ArrayOf<string> discoveryProfileUris = default)
+            : base(
+                  channel.Object,
+                  configuration,
+                  endpoint,
+                  clientCertificate: null,
+                  clientCertificateChain: null,
+                  availableEndpoints: availableEndpoints,
+                  discoveryProfileUris: discoveryProfileUris,
+                  engineFactory: null)
+        {
+            Channel = channel;
+        }
+
         /// <summary>
         /// Create default mock
         /// </summary>
         /// <returns></returns>
-        public static SessionMock Create(EndpointDescription endpoint = null)
+        public static SessionMock Create(
+            EndpointDescription endpoint = null,
+            ArrayOf<EndpointDescription> availableEndpoints = default,
+            ArrayOf<string> discoveryProfileUris = default)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var channel = new Mock<ITransportChannel>();
@@ -105,18 +127,30 @@ namespace Opc.Ua.Client.TestFramework
                 application.CheckApplicationInstanceCertificatesAsync(true).AsTask().GetAwaiter().GetResult();
             }
 
-            return new SessionMock(channel, configuration,
-                new ConfiguredEndpoint(null, endpoint ??
-                    new EndpointDescription
-                    {
-                        SecurityMode = MessageSecurityMode.None,
-                        SecurityPolicyUri = SecurityPolicies.None,
-                        EndpointUrl = "opc.tcp://localhost:4840",
-                        UserIdentityTokens =
-                        [
-                            new UserTokenPolicy()
-                        ]
-                    }));
+            var configuredEndpoint = new ConfiguredEndpoint(
+                null,
+                endpoint ?? new EndpointDescription
+                {
+                    SecurityMode = MessageSecurityMode.None,
+                    SecurityPolicyUri = SecurityPolicies.None,
+                    EndpointUrl = "opc.tcp://localhost:4840",
+                    UserIdentityTokens =
+                    [
+                        new UserTokenPolicy()
+                    ]
+                });
+
+            if (availableEndpoints.IsEmpty && discoveryProfileUris.IsEmpty)
+            {
+                return new SessionMock(channel, configuration, configuredEndpoint);
+            }
+
+            return new SessionMock(
+                channel,
+                configuration,
+                configuredEndpoint,
+                availableEndpoints,
+                discoveryProfileUris);
         }
 
         public void SetConnected()

@@ -960,6 +960,39 @@ namespace Opc.Ua.Server
                 return (new ServiceResult(StatusCodes.BadParentNodeIdInvalid), NodeId.Null);
             }
 
+            bool hasRequestedNodeId = !item.RequestedNewNodeId.IsNull;
+            ushort targetNamespaceIndex;
+            IAsyncNodeManager? nodeManagement = null;
+            if (hasRequestedNodeId)
+            {
+                var requestedNodeId = ExpandedNodeId.ToNodeId(
+                    item.RequestedNewNodeId, Server.NamespaceUris);
+                if (requestedNodeId.IsNull)
+                {
+                    return (new ServiceResult(StatusCodes.BadNodeIdRejected), NodeId.Null);
+                }
+
+                targetNamespaceIndex = requestedNodeId.NamespaceIndex;
+
+                if (!NamespaceManagers.TryGetValue(
+                        targetNamespaceIndex,
+                        out IReadOnlyList<IAsyncNodeManager>? namespaceOwners) ||
+                    namespaceOwners.Count == 0)
+                {
+                    return (new ServiceResult(StatusCodes.BadNodeIdRejected), NodeId.Null);
+                }
+
+                nodeManagement = FindNodeManagementOwner(targetNamespaceIndex);
+                if (nodeManagement == null)
+                {
+                    return (new ServiceResult(StatusCodes.BadNodeIdRejected), NodeId.Null);
+                }
+            }
+            else
+            {
+                targetNamespaceIndex = item.BrowseName.NamespaceIndex;
+            }
+
             (object? parentHandle, IAsyncNodeManager? parentOwner) =
                 await GetManagerHandleAsync(parentNodeId, cancellationToken).ConfigureAwait(false);
             if (parentHandle == null || parentOwner == null)
@@ -994,35 +1027,21 @@ namespace Opc.Ua.Server
                 return (new ServiceResult(StatusCodes.BadReferenceNotAllowed), NodeId.Null);
             }
 
-            ushort targetNamespaceIndex;
-            if (!item.RequestedNewNodeId.IsNull)
+            if (nodeManagement == null)
             {
-                var requestedNodeId = ExpandedNodeId.ToNodeId(
-                    item.RequestedNewNodeId, Server.NamespaceUris);
-                if (requestedNodeId.IsNull)
+                if (!NamespaceManagers.TryGetValue(
+                        targetNamespaceIndex,
+                        out IReadOnlyList<IAsyncNodeManager>? namespaceOwners) ||
+                    namespaceOwners.Count == 0)
                 {
                     return (new ServiceResult(StatusCodes.BadNodeIdRejected), NodeId.Null);
                 }
 
-                targetNamespaceIndex = requestedNodeId.NamespaceIndex;
-            }
-            else
-            {
-                targetNamespaceIndex = item.BrowseName.NamespaceIndex;
-            }
-
-            if (!NamespaceManagers.TryGetValue(
-                    targetNamespaceIndex,
-                    out IReadOnlyList<IAsyncNodeManager>? namespaceOwners) ||
-                namespaceOwners.Count == 0)
-            {
-                return (new ServiceResult(StatusCodes.BadNodeIdRejected), NodeId.Null);
-            }
-
-            IAsyncNodeManager? nodeManagement = FindNodeManagementOwner(targetNamespaceIndex);
-            if (nodeManagement == null)
-            {
-                return (new ServiceResult(StatusCodes.BadUserAccessDenied), NodeId.Null);
+                nodeManagement = FindNodeManagementOwner(targetNamespaceIndex);
+                if (nodeManagement == null)
+                {
+                    return (new ServiceResult(StatusCodes.BadUserAccessDenied), NodeId.Null);
+                }
             }
 
             ServiceResult permissionResult = await ValidateAddNodeNamespacePermissionAsync(
@@ -2215,7 +2234,11 @@ namespace Opc.Ua.Server
                 BrowseDescription nodeToBrowse = nodesToBrowse[ii];
 
                 // initialize result.
-                var result = new BrowseResult { StatusCode = StatusCodes.Good };
+                var result = new BrowseResult
+                {
+                    StatusCode = StatusCodes.Good,
+                    ContinuationPoint = default
+                };
                 results.Add(result);
 
                 ServiceResult error;
@@ -2383,7 +2406,11 @@ namespace Opc.Ua.Server
                         .ConfigureAwait(false);
                     if (ServiceResult.IsBad(validationResult))
                     {
-                        var badResult = new BrowseResult { StatusCode = validationResult.Code };
+                        var badResult = new BrowseResult
+                        {
+                            StatusCode = validationResult.Code,
+                            ContinuationPoint = default
+                        };
                         results.Add(badResult);
 
                         // put placeholder for diagnostics
@@ -2393,7 +2420,11 @@ namespace Opc.Ua.Server
                 }
 
                 // initialize result.
-                var result = new BrowseResult { StatusCode = StatusCodes.Good };
+                var result = new BrowseResult
+                {
+                    StatusCode = StatusCodes.Good,
+                    ContinuationPoint = default
+                };
                 results.Add(result);
 
                 // check if simply releasing the continuation point.
@@ -2465,7 +2496,7 @@ namespace Opc.Ua.Server
                 }
 
                 // check for continuation point.
-                if (cp != null)
+                if (cp != null && ServiceResult.IsGood(error))
                 {
                     result.StatusCode = StatusCodes.Good;
                     result.ContinuationPoint = cp.Id.ToByteArray().ToByteString();
@@ -2574,7 +2605,7 @@ namespace Opc.Ua.Server
                 result.References = references;
 
                 // save continuation point.
-                if (cp != null)
+                if (cp != null && ServiceResult.IsGood(error))
                 {
                     result.StatusCode = StatusCodes.Good;
                     result.ContinuationPoint = cp.Id.ToByteArray().ToByteString();
@@ -2661,7 +2692,8 @@ namespace Opc.Ua.Server
                 {
                     if (!assignContinuationPoint)
                     {
-                        return (StatusCodes.BadNoContinuationPoints, currentCp, referenceList);
+                        currentCp.Dispose();
+                        return (StatusCodes.BadNoContinuationPoints, null, referenceList);
                     }
 
                     currentCp.Id = Guid.NewGuid();
