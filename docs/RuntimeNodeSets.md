@@ -53,7 +53,7 @@ public sealed class ModelLoader(INodeManagerLifecycle lifecycle)
 
 Each add returns an immutable `NodeManagerRegistration`. Reload returns the next generation and invalidates the previous handle. Only registrations created by the lifecycle provider can be reloaded or removed; startup, diagnostics, and core NodeManagers are protected.
 
-Reload and removal fail when the current NodeManager owns active monitored items. Delete those monitored items first, then retry. This fail-closed rule prevents a live subscription from retaining a stale manager handle.
+Active monitored items survive reload and removal. A compatible NodeId in a replacement generation keeps the same monitored item and subscription without a transient bad status. A removed or incompatible NodeId is detached and publishes one `BadNodeIdUnknown` data-change notification, as required by OPC UA Part 4 §5.8.4.1; adding a compatible Node with the same NodeId later revalidates and reattaches the item automatically. Event monitored items detach and recover their source binding without synthesizing a data-change status. The built-in NodeManager and Subscription implementations support these transitions; custom implementations fail closed with `NotSupportedException` before routing changes when the server cannot migrate their active items safely.
 
 Treat `INodeManagerLifecycle` as a host control-plane API. Do not invoke reload or removal from inside an OPC UA service or Method callback: teardown waits for requests that already captured the retired routing generation to complete before disposing it.
 

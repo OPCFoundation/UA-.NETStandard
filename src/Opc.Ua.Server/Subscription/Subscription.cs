@@ -40,7 +40,10 @@ namespace Opc.Ua.Server
     /// <summary>
     /// Manages a subscription created by a client.
     /// </summary>
-    public class Subscription : ISubscription, INodeManagerMonitoredItemTracker
+    public class Subscription :
+        ISubscription,
+        INodeManagerMonitoredItemTracker,
+        ISubscriptionMonitoredItemLifecycle
     {
         /// <summary>
         /// Initializes the object.
@@ -468,11 +471,93 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 return m_monitoredItems.Values.Any(monitoredItem =>
-                    ReferenceEquals(monitoredItem.Value.NodeManager, nodeManager) ||
-                    ReferenceEquals(
-                        monitoredItem.Value.NodeManager.SyncNodeManager,
-                        nodeManager.SyncNodeManager));
+                    monitoredItem.Value is not IMonitoredItemLifecycle
+                    {
+                        IsDetached: true
+                    } &&
+                    AreSameNodeManager(monitoredItem.Value.NodeManager, nodeManager));
             }
+        }
+
+        /// <inheritdoc/>
+        IReadOnlyList<IMonitoredItem>
+            ISubscriptionMonitoredItemLifecycle.GetMonitoredItemsSnapshot(
+                IAsyncNodeManager nodeManager)
+        {
+            lock (m_lock)
+            {
+                return
+                [
+                    .. m_monitoredItems.Values
+                        .Select(entry => entry.Value)
+                        .Where(monitoredItem =>
+                            monitoredItem is not IMonitoredItemLifecycle
+                            {
+                                IsDetached: true
+                            } &&
+                            AreSameNodeManager(monitoredItem.NodeManager, nodeManager))
+                ];
+            }
+        }
+
+        /// <inheritdoc/>
+        IReadOnlyList<IMonitoredItem>
+            ISubscriptionMonitoredItemLifecycle.GetRecoverableMonitoredItemsSnapshot(
+                IReadOnlyCollection<NodeId>? nodeIds)
+        {
+            lock (m_lock)
+            {
+                if (nodeIds == null)
+                {
+                    return
+                    [
+                        .. m_monitoredItems.Values
+                            .Select(entry => entry.Value)
+                            .Where(monitoredItem =>
+                                monitoredItem is IMonitoredItemLifecycle lifecycle &&
+                                (lifecycle.IsDetached || lifecycle.IsDeleted))
+                    ];
+                }
+
+                if (nodeIds.Count == 0)
+                {
+                    return [];
+                }
+
+                var requestedNodeIds = new HashSet<NodeId>(
+                    nodeIds,
+                    NodeIdComparer.Default);
+                return
+                [
+                    .. m_monitoredItems.Values
+                        .Select(entry => entry.Value)
+                        .Where(monitoredItem =>
+                        monitoredItem is IMonitoredItemLifecycle lifecycle &&
+                        (lifecycle.IsDetached || lifecycle.IsDeleted) &&
+                        requestedNodeIds.Contains(monitoredItem.NodeId))
+                ];
+            }
+        }
+
+        /// <inheritdoc/>
+        bool ISubscriptionMonitoredItemLifecycle.ContainsMonitoredItem(
+            IMonitoredItem monitoredItem)
+        {
+            lock (m_lock)
+            {
+                return m_monitoredItems.TryGetValue(
+                        monitoredItem.Id,
+                        out LinkedListNode<IMonitoredItem>? node) &&
+                    ReferenceEquals(node.Value, monitoredItem);
+            }
+        }
+
+        private static bool AreSameNodeManager(
+            IAsyncNodeManager first,
+            IAsyncNodeManager second)
+        {
+            return ReferenceEquals(first, second) ||
+                ReferenceEquals(first.SyncNodeManager, second.SyncNodeManager);
         }
 
         /// <summary>

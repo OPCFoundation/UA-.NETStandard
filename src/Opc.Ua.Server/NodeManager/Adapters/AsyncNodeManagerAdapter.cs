@@ -61,7 +61,10 @@ namespace Opc.Ua.Server
     /// This allows synchronous, or only partially asynchronous node managers to be treated as asynchronous, which can help
     /// unify the calling logic within the MasterNodeManager.
     /// </remarks>
-    public class AsyncNodeManagerAdapter : IAsyncNodeManager, IDisposable
+    public class AsyncNodeManagerAdapter :
+        IAsyncNodeManager,
+        IDisposable,
+        INodeManagerMonitoredItemLifecycle
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="AsyncNodeManagerAdapter"/> class.
@@ -78,6 +81,61 @@ namespace Opc.Ua.Server
 
         /// <inheritdoc/>
         public INodeManager SyncNodeManager { get; }
+
+        /// <inheritdoc/>
+        ValueTask<IReadOnlyList<IMonitoredItem>>
+            INodeManagerMonitoredItemLifecycle.GetMonitoredItemsSnapshotAsync(
+                IReadOnlyCollection<NodeId>? nodeIds,
+                CancellationToken cancellationToken)
+        {
+            return SyncNodeManager is INodeManagerMonitoredItemLifecycle lifecycle
+                ? lifecycle.GetMonitoredItemsSnapshotAsync(nodeIds, cancellationToken)
+                : new ValueTask<IReadOnlyList<IMonitoredItem>>([]);
+        }
+
+        /// <inheritdoc/>
+        ValueTask<ServiceResult> INodeManagerMonitoredItemLifecycle.ValidateMonitoredItemAsync(
+            IMonitoredItem monitoredItem,
+            CancellationToken cancellationToken)
+        {
+            return SyncNodeManager is INodeManagerMonitoredItemLifecycle lifecycle
+                ? lifecycle.ValidateMonitoredItemAsync(monitoredItem, cancellationToken)
+                : new ValueTask<ServiceResult>(
+                    new ServiceResult(StatusCodes.BadNotSupported));
+        }
+
+        /// <inheritdoc/>
+        ValueTask<ServiceResult> INodeManagerMonitoredItemLifecycle.DetachMonitoredItemAsync(
+            IMonitoredItem monitoredItem,
+            CancellationToken cancellationToken)
+        {
+            return SyncNodeManager is INodeManagerMonitoredItemLifecycle lifecycle
+                ? lifecycle.DetachMonitoredItemAsync(monitoredItem, cancellationToken)
+                : new ValueTask<ServiceResult>(
+                    new ServiceResult(StatusCodes.BadNotSupported));
+        }
+
+        /// <inheritdoc/>
+        ValueTask<ServiceResult> INodeManagerMonitoredItemLifecycle.AttachMonitoredItemAsync(
+            IMonitoredItem monitoredItem,
+            CancellationToken cancellationToken)
+        {
+            return SyncNodeManager is INodeManagerMonitoredItemLifecycle lifecycle
+                ? lifecycle.AttachMonitoredItemAsync(monitoredItem, cancellationToken)
+                : new ValueTask<ServiceResult>(
+                    new ServiceResult(StatusCodes.BadNotSupported));
+        }
+
+        /// <inheritdoc/>
+        ValueTask<ServiceResult> INodeManagerMonitoredItemLifecycle.RestoreMonitoredItemAsync(
+            IMonitoredItem monitoredItem,
+            CancellationToken cancellationToken)
+        {
+            return SyncNodeManager is INodeManagerMonitoredItemLifecycle lifecycle
+                ? lifecycle.RestoreMonitoredItemAsync(monitoredItem, cancellationToken)
+                : new ValueTask<ServiceResult>(
+                    new ServiceResult(StatusCodes.BadNotSupported));
+        }
 
         /// <inheritdoc/>
         public ValueTask AddReferencesAsync(

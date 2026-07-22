@@ -52,7 +52,7 @@ services.AddOpcUa()
 
 The runtime loader supports grouped file and stream sources, orders included models by `RequiredModel`, and uses the server's default runtime complex-type support. See the [Runtime NodeSets guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/RuntimeNodeSets.md).
 
-To add or reload a NodeSet after the server is running, inject `INodeManagerLifecycle` (or use `StandardServer.NodeManagerLifecycle`) and call `AddRuntimeNodeSetAsync` / `ReloadRuntimeNodeSetAsync`. The returned generation-aware registration can later be removed with `RemoveAsync`. Namespace indexes and compatible runtime DataType registrations remain stable for the server lifetime.
+To add or reload a NodeSet after the server is running, inject `INodeManagerLifecycle` (or use `StandardServer.NodeManagerLifecycle`) and call `AddRuntimeNodeSetAsync` / `ReloadRuntimeNodeSetAsync`. The returned generation-aware registration can later be removed with `RemoveAsync`. Active monitored items retain their identity when compatible nodes remain, publish one `BadNodeIdUnknown` when their node disappears, and automatically recover when a compatible Node with the same NodeId returns. Namespace indexes and compatible runtime DataType registrations remain stable for the server lifetime.
 
 ## Target frameworks
 

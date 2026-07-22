@@ -54,7 +54,8 @@ namespace Opc.Ua.Server
         INodeIdFactory,
         IDisposable,
         ILocalAddressSpaceSource,
-        IPredefinedNodeSubtypeReplacer
+        IPredefinedNodeSubtypeReplacer,
+        INodeManagerMonitoredItemLifecycle
     {
         /// <summary>
         /// Initializes the node manager.
@@ -315,6 +316,448 @@ namespace Opc.Ua.Server
         /// </summary>
         protected ConcurrentDictionary<uint, IMonitoredItem> MonitoredItems
             => m_monitoredItemManager.MonitoredItems;
+
+        /// <inheritdoc/>
+        async ValueTask<IReadOnlyList<IMonitoredItem>>
+            INodeManagerMonitoredItemLifecycle.GetMonitoredItemsSnapshotAsync(
+                IReadOnlyCollection<NodeId>? nodeIds,
+                CancellationToken cancellationToken)
+        {
+            await m_monitoredItemSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                if (m_monitoredItemManager is not IMonitoredItemManagerLifecycle lifecycle)
+                {
+                    if (!MonitoredItems.IsEmpty)
+                    {
+                        throw new NotSupportedException(
+                            "The configured monitored-item manager does not support lifecycle transitions.");
+                    }
+                    return [];
+                }
+                return lifecycle.GetMonitoredItemsSnapshot(nodeIds);
+            }
+            finally
+            {
+                m_monitoredItemSemaphore.Release();
+            }
+        }
+
+        /// <inheritdoc/>
+        ValueTask<ServiceResult> INodeManagerMonitoredItemLifecycle.ValidateMonitoredItemAsync(
+            IMonitoredItem monitoredItem,
+            CancellationToken cancellationToken)
+        {
+            return ValidateMonitoredItemForLifecycleAsync(monitoredItem, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        async ValueTask<ServiceResult> INodeManagerMonitoredItemLifecycle.DetachMonitoredItemAsync(
+            IMonitoredItem monitoredItem,
+            CancellationToken cancellationToken)
+        {
+            if (monitoredItem is not ISampledDataChangeMonitoredItem sampledMonitoredItem ||
+                m_monitoredItemManager is not IMonitoredItemManagerLifecycle lifecycle)
+            {
+                return StatusCodes.BadNotSupported;
+            }
+
+            ServerSystemContext context = SystemContext.Copy(new OperationContext(monitoredItem));
+            await m_monitoredItemSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                return await DetachMonitoredItemForLifecycleLockedAsync(
+                    context,
+                    sampledMonitoredItem,
+                    lifecycle,
+                    cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                m_monitoredItemSemaphore.Release();
+            }
+        }
+
+        /// <inheritdoc/>
+        ValueTask<ServiceResult> INodeManagerMonitoredItemLifecycle.AttachMonitoredItemAsync(
+            IMonitoredItem monitoredItem,
+            CancellationToken cancellationToken)
+        {
+            return AttachMonitoredItemForLifecycleAsync(monitoredItem, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        ValueTask<ServiceResult> INodeManagerMonitoredItemLifecycle.RestoreMonitoredItemAsync(
+            IMonitoredItem monitoredItem,
+            CancellationToken cancellationToken)
+        {
+            return AttachMonitoredItemForLifecycleAsync(monitoredItem, cancellationToken);
+        }
+
+        private async ValueTask<ServiceResult> ValidateMonitoredItemForLifecycleAsync(
+            IMonitoredItem monitoredItem,
+            CancellationToken cancellationToken)
+        {
+            if (monitoredItem is not ISampledDataChangeMonitoredItem sampledMonitoredItem ||
+                m_monitoredItemManager is not IMonitoredItemManagerLifecycle)
+            {
+                return StatusCodes.BadNotSupported;
+            }
+
+            ServerSystemContext context = SystemContext.Copy(new OperationContext(monitoredItem));
+            NodeHandle handle = await GetManagerHandleAsync(
+                context,
+                monitoredItem.NodeId,
+                null!,
+                cancellationToken).ConfigureAwait(false);
+            if (handle == null)
+            {
+                return StatusCodes.BadNodeIdUnknown;
+            }
+
+            await m_monitoredItemSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                NodeState source = await ValidateNodeAsync(
+                    context,
+                    handle,
+                    null!,
+                    cancellationToken).ConfigureAwait(false);
+                if (source == null)
+                {
+                    return StatusCodes.BadNodeIdUnknown;
+                }
+
+                bool isEvent =
+                    (monitoredItem.MonitoredItemType & MonitoredItemTypeMask.Events) != 0;
+                if (isEvent)
+                {
+                    return CanSubscribeToEvents(source)
+                        ? ServiceResult.Good
+                        : new ServiceResult(StatusCodes.BadNotSupported);
+                }
+
+                ServiceResult validationResult = await ValidateMonitoredItemForAttachAsync(
+                    context,
+                    handle,
+                    sampledMonitoredItem,
+                    cancellationToken).ConfigureAwait(false);
+                if (ServiceResult.IsBad(validationResult))
+                {
+                    return validationResult;
+                }
+
+                DateTime utcNow = ((Server as ITimeProviderProvider)?.TimeProvider ??
+                    TimeProvider.System).GetUtcNow().UtcDateTime;
+                var initialValue = new DataValue(
+                    Variant.Null,
+                    StatusCodes.BadWaitingForInitialData,
+                    DateTimeUtc.MinValue,
+                    utcNow);
+                ServiceResult readResult = handle.Node.ReadAttribute(
+                    context,
+                    sampledMonitoredItem.AttributeId,
+                    sampledMonitoredItem.IndexRange,
+                    sampledMonitoredItem.DataEncoding,
+                    ref initialValue);
+                return IsFatalInitialReadError(readResult)
+                    ? readResult
+                    : ServiceResult.Good;
+            }
+            finally
+            {
+                m_monitoredItemSemaphore.Release();
+            }
+        }
+
+        private async ValueTask<ServiceResult> DetachMonitoredItemForLifecycleLockedAsync(
+            ServerSystemContext context,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            IMonitoredItemManagerLifecycle lifecycle,
+            CancellationToken cancellationToken)
+        {
+            MonitoredNode2? monitoredNode = null;
+            NodeState? eventSource = null;
+            bool isEvent =
+                (monitoredItem.MonitoredItemType & MonitoredItemTypeMask.Events) != 0;
+            if (isEvent &&
+                monitoredItem.ManagerHandle is NodeHandle eventHandle)
+            {
+                monitoredNode = eventHandle.MonitoredNode;
+                eventSource = eventHandle.Node;
+            }
+
+            (ServiceResult result, bool changed) = lifecycle.DetachMonitoredItem(
+                context,
+                monitoredItem,
+                RemoveNodeFromComponentCache);
+            if (ServiceResult.IsGood(result) &&
+                changed &&
+                isEvent &&
+                monitoredNode is not null &&
+                eventSource is not null)
+            {
+                try
+                {
+                    eventSource.SetAreEventsMonitored(context, false, true);
+                    await OnSubscribeToEventsAsync(
+                        context,
+                        monitoredNode,
+                        true,
+                        cancellationToken).ConfigureAwait(false);
+                }
+                catch (Exception ex) when (ex is not OutOfMemoryException)
+                {
+                    var compensationFailures = new List<Exception>();
+                    NodeHandle compensationHandle =
+                        (NodeHandle)monitoredItem.ManagerHandle;
+                    (ServiceResult restoreResult, bool restored) =
+                        lifecycle.AttachMonitoredItem(
+                            context,
+                            compensationHandle,
+                            monitoredItem,
+                            AddNodeToComponentCache,
+                            RemoveNodeFromComponentCache);
+                    if (ServiceResult.IsBad(restoreResult))
+                    {
+                        compensationFailures.Add(new ServiceResultException(restoreResult));
+                    }
+                    else if (restored && compensationHandle.MonitoredNode is not null)
+                    {
+                        try
+                        {
+                            eventSource.SetAreEventsMonitored(context, true, true);
+                            await OnSubscribeToEventsAsync(
+                                context,
+                                compensationHandle.MonitoredNode,
+                                false,
+                                CancellationToken.None).ConfigureAwait(false);
+                        }
+                        catch (Exception compensationException) when (
+                            compensationException is not OutOfMemoryException)
+                        {
+                            compensationFailures.Add(compensationException);
+                        }
+                    }
+
+                    if (compensationFailures.Count > 0)
+                    {
+                        compensationFailures.Insert(0, ex);
+                        throw new AggregateException(
+                            "Event monitored-item detachment and compensation both failed.",
+                            compensationFailures);
+                    }
+                    throw;
+                }
+            }
+            if (ServiceResult.IsGood(result) && changed)
+            {
+                DetachedMonitoredItemOwnership.Detach(Server, (IMonitoredItemLifecycle)monitoredItem);
+            }
+            return result;
+        }
+
+        private async ValueTask<ServiceResult> AttachMonitoredItemForLifecycleAsync(
+            IMonitoredItem monitoredItem,
+            CancellationToken cancellationToken)
+        {
+            if (monitoredItem is not ISampledDataChangeMonitoredItem sampledMonitoredItem ||
+                m_monitoredItemManager is not IMonitoredItemManagerLifecycle lifecycle)
+            {
+                return StatusCodes.BadNotSupported;
+            }
+
+            ServerSystemContext context = SystemContext.Copy(new OperationContext(monitoredItem));
+            NodeHandle handle = await GetManagerHandleAsync(
+                context,
+                monitoredItem.NodeId,
+                null!,
+                cancellationToken).ConfigureAwait(false);
+            if (handle == null)
+            {
+                return StatusCodes.BadNodeIdUnknown;
+            }
+
+            await m_monitoredItemSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                NodeState source = await ValidateNodeAsync(
+                    context,
+                    handle,
+                    null!,
+                    cancellationToken).ConfigureAwait(false);
+                if (source == null)
+                {
+                    return StatusCodes.BadNodeIdUnknown;
+                }
+
+                bool isEvent = (monitoredItem.MonitoredItemType & MonitoredItemTypeMask.Events) != 0;
+                DataValue initialValue = default;
+                ServiceResult readResult = ServiceResult.Good;
+                if (isEvent)
+                {
+                    if (!CanSubscribeToEvents(source))
+                    {
+                        return StatusCodes.BadNotSupported;
+                    }
+                }
+                else
+                {
+                    ServiceResult validationResult = await ValidateMonitoredItemForAttachAsync(
+                        context,
+                        handle,
+                        sampledMonitoredItem,
+                        cancellationToken).ConfigureAwait(false);
+                    if (ServiceResult.IsBad(validationResult))
+                    {
+                        return validationResult;
+                    }
+
+                    initialValue = new DataValue(
+                        Variant.Null,
+                        StatusCodes.BadWaitingForInitialData,
+                        DateTimeUtc.MinValue,
+                        ((Server as ITimeProviderProvider)?.TimeProvider ??
+                            TimeProvider.System).GetUtcNow().UtcDateTime);
+                    readResult = handle.Node.ReadAttribute(
+                        context,
+                        sampledMonitoredItem.AttributeId,
+                        sampledMonitoredItem.IndexRange,
+                        sampledMonitoredItem.DataEncoding,
+                        ref initialValue);
+                    if (IsFatalInitialReadError(readResult))
+                    {
+                        return readResult;
+                    }
+                }
+
+                (ServiceResult result, bool changed) = lifecycle.AttachMonitoredItem(
+                    context,
+                    handle,
+                    sampledMonitoredItem,
+                    AddNodeToComponentCache,
+                    RemoveNodeFromComponentCache);
+                if (ServiceResult.IsGood(result) && changed && !isEvent)
+                {
+                    sampledMonitoredItem.QueueValue(initialValue, readResult, true);
+                }
+                else if (ServiceResult.IsGood(result) &&
+                    changed &&
+                    handle.MonitoredNode is not null)
+                {
+                    try
+                    {
+                        source.SetAreEventsMonitored(context, true, true);
+                        await OnSubscribeToEventsAsync(
+                            context,
+                            handle.MonitoredNode,
+                            false,
+                            cancellationToken).ConfigureAwait(false);
+                    }
+                    catch (Exception ex) when (ex is not OutOfMemoryException)
+                    {
+                        var compensationFailures = new List<Exception>();
+                        try
+                        {
+                            source.SetAreEventsMonitored(context, false, true);
+                            await OnSubscribeToEventsAsync(
+                                context,
+                                handle.MonitoredNode,
+                                true,
+                                CancellationToken.None).ConfigureAwait(false);
+                        }
+                        catch (Exception compensationException) when (
+                            compensationException is not OutOfMemoryException)
+                        {
+                            compensationFailures.Add(compensationException);
+                        }
+
+                        (ServiceResult detachResult, _) = lifecycle.DetachMonitoredItem(
+                            context,
+                            sampledMonitoredItem,
+                            RemoveNodeFromComponentCache);
+                        if (ServiceResult.IsBad(detachResult))
+                        {
+                            compensationFailures.Add(new ServiceResultException(detachResult));
+                        }
+                        else
+                        {
+                            try
+                            {
+                                DetachedMonitoredItemOwnership.Detach(
+                                    Server,
+                                    (IMonitoredItemLifecycle)monitoredItem);
+                            }
+                            catch (Exception compensationException) when (
+                                compensationException is not OutOfMemoryException)
+                            {
+                                compensationFailures.Add(compensationException);
+                            }
+                        }
+
+                        if (compensationFailures.Count > 0)
+                        {
+                            compensationFailures.Insert(0, ex);
+                            throw new AggregateException(
+                                "Event monitored-item attachment and compensation both failed.",
+                                compensationFailures);
+                        }
+                        throw;
+                    }
+                }
+
+                return result;
+            }
+            finally
+            {
+                m_monitoredItemSemaphore.Release();
+            }
+        }
+
+        private async ValueTask<ServiceResult> ValidateMonitoredItemForAttachAsync(
+            ServerSystemContext context,
+            NodeHandle handle,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            CancellationToken cancellationToken)
+        {
+            if (!Attributes.IsValid(handle.Node.NodeClass, monitoredItem.AttributeId))
+            {
+                return StatusCodes.BadAttributeIdInvalid;
+            }
+
+            IStoredMonitoredItem storedItem = monitoredItem.ToStorableMonitoredItem();
+            ExtensionObject filter = storedItem.OriginalFilter == null
+                ? default
+                : new ExtensionObject(storedItem.OriginalFilter);
+            ValidateMonitoringFilterResult result = await ValidateMonitoringFilterAsync(
+                context,
+                handle,
+                monitoredItem.AttributeId,
+                monitoredItem.SamplingInterval,
+                monitoredItem.QueueSize,
+                filter,
+                cancellationToken).ConfigureAwait(false);
+            return result.StatusCode;
+        }
+
+        private static bool CanSubscribeToEvents(NodeState source)
+        {
+            return source switch
+            {
+                BaseObjectState instance =>
+                    (instance.EventNotifier & EventNotifiers.SubscribeToEvents) != 0,
+                ViewState view =>
+                    (view.EventNotifier & EventNotifiers.SubscribeToEvents) != 0,
+                _ => false
+            };
+        }
+
+        private static bool IsFatalInitialReadError(ServiceResult error)
+        {
+            return error.StatusCode == StatusCodes.BadAttributeIdInvalid ||
+                error.StatusCode == StatusCodes.BadDataEncodingInvalid ||
+                error.StatusCode == StatusCodes.BadDataEncodingUnsupported;
+        }
 
         internal bool SuppressExistingEventSubscriptions { get; set; }
 
@@ -588,14 +1031,39 @@ namespace Opc.Ua.Server
         /// <exception cref="ArgumentNullException">
         /// <paramref name="node"/> is null.
         /// </exception>
-        public async ValueTask AddPredefinedNodeAsync(NodeState node, CancellationToken cancellationToken = default)
+        public ValueTask AddPredefinedNodeAsync(
+            NodeState node,
+            CancellationToken cancellationToken = default)
         {
             if (node == null)
             {
                 throw new ArgumentNullException(nameof(node));
             }
 
-            await AddPredefinedNodeAsync(SystemContext, node, cancellationToken).ConfigureAwait(false);
+            if (Server.NodeManager is INodeManagerMutationCoordinator coordinator)
+            {
+                return AddPredefinedNodeCoordinatedAsync(
+                    coordinator,
+                    node,
+                    cancellationToken);
+            }
+
+            return AddPredefinedNodeAsync(SystemContext, node, cancellationToken);
+        }
+
+        private async ValueTask AddPredefinedNodeCoordinatedAsync(
+            INodeManagerMutationCoordinator coordinator,
+            NodeState node,
+            CancellationToken cancellationToken)
+        {
+            await coordinator.ExecuteMonitoredItemMutationAsync(
+                async () =>
+                {
+                    await AddPredefinedNodeAsync(SystemContext, node, cancellationToken)
+                        .ConfigureAwait(false);
+                    return true;
+                },
+                cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -813,7 +1281,25 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Deletes a node and all of its children.
         /// </summary>
-        public async ValueTask<bool> DeleteNodeAsync(ServerSystemContext context, NodeId nodeId, CancellationToken cancellationToken = default)
+        public ValueTask<bool> DeleteNodeAsync(
+            ServerSystemContext context,
+            NodeId nodeId,
+            CancellationToken cancellationToken = default)
+        {
+            if (Server.NodeManager is INodeManagerMutationCoordinator coordinator)
+            {
+                return coordinator.ExecuteMonitoredItemMutationAsync(
+                    () => DeleteNodeCoreAsync(context, nodeId, cancellationToken),
+                    cancellationToken);
+            }
+
+            return DeleteNodeCoreAsync(context, nodeId, cancellationToken);
+        }
+
+        private async ValueTask<bool> DeleteNodeCoreAsync(
+            ServerSystemContext context,
+            NodeId nodeId,
+            CancellationToken cancellationToken)
         {
             ServerSystemContext contextToUse = SystemContext.Copy(context);
 
@@ -825,13 +1311,55 @@ namespace Opc.Ua.Server
             }
 
             NodeId? deletedTypeDefinition = (node as BaseInstanceState)?.TypeDefinitionId;
+            IReadOnlyList<IMonitoredItem> detachedItems =
+                await DetachMonitoredItemsForNodeDeletionAsync(
+                    contextToUse,
+                    node,
+                    cancellationToken).ConfigureAwait(false);
+            bool addressSpaceRemovalStarted = false;
+            bool addressSpaceRemovalCompleted = false;
 
-            await RemovePredefinedNodeAsync(contextToUse, node!, referencesToRemove, cancellationToken).ConfigureAwait(false);
-            await RemoveRootNotifierAsync(node!, cancellationToken).ConfigureAwait(false);
-
-            if (referencesToRemove.Count > 0)
+            try
             {
-                await Server.NodeManager.RemoveReferencesAsync(referencesToRemove, cancellationToken).ConfigureAwait(false);
+                addressSpaceRemovalStarted = true;
+                await RemovePredefinedNodeAsync(
+                    contextToUse,
+                    node!,
+                    referencesToRemove,
+                    cancellationToken).ConfigureAwait(false);
+                addressSpaceRemovalCompleted = true;
+                await RemoveRootNotifierAsync(node!, cancellationToken).ConfigureAwait(false);
+
+                if (referencesToRemove.Count > 0)
+                {
+                    await Server.NodeManager
+                        .RemoveReferencesAsync(referencesToRemove, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+            }
+            catch
+            {
+                bool nodeStillExists = PredefinedNodes.ContainsKey(node.NodeId);
+                if (!addressSpaceRemovalStarted ||
+                    (!addressSpaceRemovalCompleted && nodeStillExists))
+                {
+                    await RestoreDetachedMonitoredItemsAsync(
+                        detachedItems,
+                        CancellationToken.None).ConfigureAwait(false);
+                }
+                else
+                {
+                    foreach (IMonitoredItem monitoredItem in detachedItems)
+                    {
+                        ((IMonitoredItemLifecycle)monitoredItem).MarkNodeDeleted();
+                    }
+                }
+                throw;
+            }
+
+            foreach (IMonitoredItem monitoredItem in detachedItems)
+            {
+                ((IMonitoredItemLifecycle)monitoredItem).MarkNodeDeleted();
             }
 
             if (ModelChangeEmissionEnabled)
@@ -852,10 +1380,18 @@ namespace Opc.Ua.Server
         public virtual bool AllowNodeManagement => false;
 
         /// <inheritdoc/>
-        public virtual async ValueTask<(ServiceResult result, NodeId addedNodeId)> AddNodeAsync(
+        public virtual ValueTask<(ServiceResult result, NodeId addedNodeId)> AddNodeAsync(
             OperationContext context,
             AddNodesItem item,
             CancellationToken cancellationToken = default)
+        {
+            return AddNodeCoreAsync(context, item, cancellationToken);
+        }
+
+        private async ValueTask<(ServiceResult result, NodeId addedNodeId)> AddNodeCoreAsync(
+            OperationContext context,
+            AddNodesItem item,
+            CancellationToken cancellationToken)
         {
             if (item == null)
             {
@@ -999,10 +1535,18 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public virtual async ValueTask<ServiceResult> DeleteNodeAsync(
+        public virtual ValueTask<ServiceResult> DeleteNodeAsync(
             OperationContext context,
             DeleteNodesItem item,
             CancellationToken cancellationToken = default)
+        {
+            return DeleteNodeCoreAsync(context, item, cancellationToken);
+        }
+
+        private async ValueTask<ServiceResult> DeleteNodeCoreAsync(
+            OperationContext context,
+            DeleteNodesItem item,
+            CancellationToken cancellationToken)
         {
             if (item == null)
             {
@@ -1022,16 +1566,57 @@ namespace Opc.Ua.Server
             }
 
             NodeId? deletedTypeDefinition = (node as BaseInstanceState)?.TypeDefinitionId;
+            IReadOnlyList<IMonitoredItem> detachedItems =
+                await DetachMonitoredItemsForNodeDeletionAsync(
+                    systemContext,
+                    node,
+                    cancellationToken).ConfigureAwait(false);
 
             var referencesToRemove = new List<LocalReference>();
-            await RemovePredefinedNodeAsync(systemContext, node!, referencesToRemove, cancellationToken)
-                .ConfigureAwait(false);
-            await RemoveRootNotifierAsync(node!, cancellationToken).ConfigureAwait(false);
-
-            if (item.DeleteTargetReferences && referencesToRemove.Count > 0)
+            bool addressSpaceRemovalStarted = false;
+            bool addressSpaceRemovalCompleted = false;
+            try
             {
-                await Server.NodeManager.RemoveReferencesAsync(referencesToRemove, cancellationToken)
+                addressSpaceRemovalStarted = true;
+                await RemovePredefinedNodeAsync(
+                    systemContext,
+                    node!,
+                    referencesToRemove,
+                    cancellationToken)
                     .ConfigureAwait(false);
+                addressSpaceRemovalCompleted = true;
+                await RemoveRootNotifierAsync(node!, cancellationToken).ConfigureAwait(false);
+
+                if (item.DeleteTargetReferences && referencesToRemove.Count > 0)
+                {
+                    await Server.NodeManager
+                        .RemoveReferencesAsync(referencesToRemove, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+            }
+            catch
+            {
+                bool nodeStillExists = PredefinedNodes.ContainsKey(node.NodeId);
+                if (!addressSpaceRemovalStarted ||
+                    (!addressSpaceRemovalCompleted && nodeStillExists))
+                {
+                    await RestoreDetachedMonitoredItemsAsync(
+                        detachedItems,
+                        CancellationToken.None).ConfigureAwait(false);
+                }
+                else
+                {
+                    foreach (IMonitoredItem monitoredItem in detachedItems)
+                    {
+                        ((IMonitoredItemLifecycle)monitoredItem).MarkNodeDeleted();
+                    }
+                }
+                throw;
+            }
+
+            foreach (IMonitoredItem monitoredItem in detachedItems)
+            {
+                ((IMonitoredItemLifecycle)monitoredItem).MarkNodeDeleted();
             }
 
             if (ModelChangeEmissionEnabled)
@@ -1041,6 +1626,105 @@ namespace Opc.Ua.Server
             }
 
             return ServiceResult.Good;
+        }
+
+        private async ValueTask<IReadOnlyList<IMonitoredItem>>
+            DetachMonitoredItemsForNodeDeletionAsync(
+                ISystemContext context,
+                NodeState node,
+                CancellationToken cancellationToken)
+        {
+            var detachedItems = new List<IMonitoredItem>();
+            Exception? failure = null;
+            await m_monitoredItemSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                if (m_monitoredItemManager is not IMonitoredItemManagerLifecycle lifecycle)
+                {
+                    if (!MonitoredItems.IsEmpty)
+                    {
+                        throw new NotSupportedException(
+                            "The configured monitored-item manager does not support node deletion.");
+                    }
+                    return [];
+                }
+
+                var nodeIds = new List<NodeId>();
+                var nodes = new List<NodeState> { node };
+                for (int ii = 0; ii < nodes.Count; ii++)
+                {
+                    NodeState current = nodes[ii];
+                    nodeIds.Add(current.NodeId);
+                    var children = new List<BaseInstanceState>();
+                    current.GetChildren(context, children);
+                    nodes.AddRange(children);
+                }
+
+                IReadOnlyList<IMonitoredItem> monitoredItems =
+                    lifecycle.GetMonitoredItemsSnapshot(nodeIds);
+                detachedItems.Capacity = monitoredItems.Count;
+                foreach (IMonitoredItem monitoredItem in monitoredItems)
+                {
+                    if (monitoredItem is not ISampledDataChangeMonitoredItem sampledItem)
+                    {
+                        failure = new NotSupportedException(
+                            "The monitored item does not support lifecycle transitions.");
+                        break;
+                    }
+
+                    try
+                    {
+                        ServerSystemContext itemContext =
+                            SystemContext.Copy(new OperationContext(monitoredItem));
+                        ServiceResult result =
+                            await DetachMonitoredItemForLifecycleLockedAsync(
+                                itemContext,
+                                sampledItem,
+                                lifecycle,
+                                cancellationToken).ConfigureAwait(false);
+                        if (ServiceResult.IsBad(result))
+                        {
+                            failure = new ServiceResultException(result);
+                            break;
+                        }
+                        detachedItems.Add(monitoredItem);
+                    }
+                    catch (Exception ex) when (ex is not OutOfMemoryException)
+                    {
+                        failure = ex;
+                        break;
+                    }
+                }
+            }
+            finally
+            {
+                m_monitoredItemSemaphore.Release();
+            }
+
+            if (failure is not null)
+            {
+                await RestoreDetachedMonitoredItemsAsync(
+                    detachedItems,
+                    CancellationToken.None).ConfigureAwait(false);
+                throw failure;
+            }
+            return detachedItems;
+        }
+
+        private async ValueTask RestoreDetachedMonitoredItemsAsync(
+            IReadOnlyList<IMonitoredItem> monitoredItems,
+            CancellationToken cancellationToken)
+        {
+            for (int ii = monitoredItems.Count - 1; ii >= 0; ii--)
+            {
+                ServiceResult result = await AttachMonitoredItemForLifecycleAsync(
+                    monitoredItems[ii],
+                    cancellationToken).ConfigureAwait(false);
+                if (ServiceResult.IsBad(result))
+                {
+                    throw new ServiceResultException(result);
+                }
+            }
         }
 
         /// <inheritdoc/>
@@ -1366,6 +2050,14 @@ namespace Opc.Ua.Server
                 }
 
                 await AddPredefinedNodeAsync(context, children[ii], cancellationToken).ConfigureAwait(false);
+            }
+
+            if (Server.NodeManager is INodeManagerMonitoredItemRecovery recovery)
+            {
+                await recovery.RecoverDetachedMonitoredItemsAsync(
+                    this,
+                    [activeNode.NodeId],
+                    cancellationToken).ConfigureAwait(false);
             }
         }
 

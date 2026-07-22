@@ -4562,9 +4562,29 @@ namespace Opc.Ua.Server.Tests
 
         public new ConcurrentDictionary<uint, IMonitoredItem> MonitoredItems => base.MonitoredItems;
 
+        public Func<bool, CancellationToken, ValueTask> EventSubscriptionCallback { get; set; } = null!;
+
+        public Func<NodeState, CancellationToken, ValueTask> NodeRemovedCallback { get; set; } = null!;
+
         public ValueTask AddRootNotifierPublicAsync(NodeState notifier, CancellationToken cancellationToken = default)
         {
             return AddRootNotifierAsync(notifier, cancellationToken);
+        }
+
+        protected override ValueTask OnSubscribeToEventsAsync(
+            ServerSystemContext context,
+            MonitoredNode2 monitoredNode,
+            bool unsubscribe,
+            CancellationToken cancellationToken = default)
+        {
+            return EventSubscriptionCallback?.Invoke(unsubscribe, cancellationToken) ?? default;
+        }
+
+        protected override ValueTask OnNodeRemovedAsync(
+            NodeState node,
+            CancellationToken cancellationToken = default)
+        {
+            return NodeRemovedCallback?.Invoke(node, cancellationToken) ?? default;
         }
 
         public ValueTask AddPredefinedNodeWithExternalReferencesAsync(
@@ -5011,9 +5031,26 @@ namespace Opc.Ua.Server.Tests
         public new NodeIdDictionary<MonitoredNode2> MonitoredNodes => base.MonitoredNodes;
         public new ConcurrentDictionary<uint, IMonitoredItem> MonitoredItems => base.MonitoredItems;
 
+        public Action<bool> EventSubscriptionCallback { get; set; } = null!;
+
+        public Action<NodeState> NodeRemovedCallback { get; set; } = null!;
+
         public void AddPredefinedNodePublic(ISystemContext context, NodeState node)
         {
             AddPredefinedNode(context, node);
+        }
+
+        protected override void OnSubscribeToEvents(
+            ServerSystemContext context,
+            MonitoredNode2 monitoredNode,
+            bool unsubscribe)
+        {
+            EventSubscriptionCallback?.Invoke(unsubscribe);
+        }
+
+        protected override void OnNodeRemoved(NodeState node)
+        {
+            NodeRemovedCallback?.Invoke(node);
         }
 
         public bool IsNodeIdInNamespacePublic(NodeId nodeId)

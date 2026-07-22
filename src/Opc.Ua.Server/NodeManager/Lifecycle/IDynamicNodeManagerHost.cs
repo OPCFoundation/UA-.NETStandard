@@ -52,10 +52,14 @@ namespace Opc.Ua.Server
         ValueTask CommitAsync(
             PreparedNodeManager prepared,
             Func<ValueTask>? beforeCommit = null,
+            Func<ValueTask>? afterCommit = null,
+            Func<ValueTask>? rollbackCommit = null,
             CancellationToken ct = default);
 
         ValueTask UnpublishAsync(
             IAsyncNodeManager nodeManager,
+            Func<ValueTask>? beforeUnpublish = null,
+            Func<ValueTask>? rollbackUnpublish = null,
             CancellationToken ct = default);
 
         ValueTask DestroyAsync(

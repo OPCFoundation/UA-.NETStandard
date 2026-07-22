@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
@@ -39,7 +40,9 @@ namespace Opc.Ua.Server
     /// <summary>
     /// Manages the montioredItems for a NodeManager
     /// </summary>
-    public class MonitoredNodeMonitoredItemManager : IMonitoredItemManager
+    public class MonitoredNodeMonitoredItemManager :
+        IMonitoredItemManager,
+        IMonitoredItemManagerLifecycle
     {
         /// <inheritdoc/>
         public MonitoredNodeMonitoredItemManager(IAsyncNodeManager nodeManager, IServerInternal server)
@@ -96,7 +99,7 @@ namespace Opc.Ua.Server
             } while (!MonitoredItems.TryAdd(monitoredItemId, null!));
 
             // create the item.
-            ISampledDataChangeMonitoredItem datachangeItem = new MonitoredItem(
+            var datachangeItem = new MonitoredItem(
                 server,
                 nodeManager,
                 handle,
@@ -117,7 +120,7 @@ namespace Opc.Ua.Server
                 createDurable);
 
             // now save the monitored item.
-            monitoredNode.Add(datachangeItem);
+            monitoredNode.Add((IDataChangeMonitoredItem2)datachangeItem);
             Debug.Assert(MonitoredItems[monitoredItemId] == null);
             MonitoredItems[monitoredItemId] = datachangeItem;
 
@@ -220,6 +223,12 @@ namespace Opc.Ua.Server
             Func<ISystemContext, NodeHandle, NodeState, NodeState> addNodeToComponentCache,
             out ISampledDataChangeMonitoredItem monitoredItem)
         {
+            if (MonitoredItems.ContainsKey(storedMonitoredItem.Id))
+            {
+                monitoredItem = null!;
+                return false;
+            }
+
             // check if the node is already being monitored.
             if (!MonitoredNodes.TryGetValue(handle.Node.NodeId, out MonitoredNode2? monitoredNode))
             {
@@ -233,19 +242,33 @@ namespace Opc.Ua.Server
             handle.MonitoredNode = monitoredNode;
 
             // create the item.
-            ISampledDataChangeMonitoredItem datachangeItem = new MonitoredItem(
+            var datachangeItem = new MonitoredItem(
                 server,
                 nodeManager,
                 handle,
                 storedMonitoredItem);
 
+            ((IMonitoredItemLifecycle)datachangeItem).Rebind(m_nodeManager, handle);
+
             // update monitored item list.
             monitoredItem = datachangeItem;
 
             // save the monitored item.
-            monitoredNode.Add(datachangeItem);
+            monitoredNode.Add((IDataChangeMonitoredItem2)datachangeItem);
 
-            return true;
+            if (MonitoredItems.TryAdd(datachangeItem.Id, datachangeItem))
+            {
+                return true;
+            }
+
+            monitoredNode.Remove((IDataChangeMonitoredItem2)datachangeItem);
+            if (!monitoredNode.HasMonitoredItems)
+            {
+                MonitoredNodes.Remove(handle.NodeId);
+                monitoredNode.Dispose();
+            }
+
+            return false;
         }
 
         /// <inheritdoc/>
@@ -334,6 +357,238 @@ namespace Opc.Ua.Server
             }
 
             return (monitoredNode, ServiceResult.Good);
+        }
+
+        /// <inheritdoc/>
+        IReadOnlyList<IMonitoredItem> IMonitoredItemManagerLifecycle.GetMonitoredItemsSnapshot(
+            IReadOnlyCollection<NodeId>? nodeIds)
+        {
+            if (nodeIds == null)
+            {
+                return [.. MonitoredItems.Values];
+            }
+
+            if (nodeIds.Count == 0)
+            {
+                return [];
+            }
+
+            var requestedNodeIds = new HashSet<NodeId>(nodeIds, NodeIdComparer.Default);
+            return [.. MonitoredItems.Values.Where(item => requestedNodeIds.Contains(item.NodeId))];
+        }
+
+        /// <inheritdoc/>
+        (ServiceResult Result, bool Changed) IMonitoredItemManagerLifecycle.DetachMonitoredItem(
+            ServerSystemContext context,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            Action<ISystemContext, NodeHandle> removeNodeFromComponentCache)
+        {
+            if (monitoredItem is not IMonitoredItemLifecycle lifecycle)
+            {
+                return (StatusCodes.BadNotSupported, false);
+            }
+
+            if (!MonitoredItems.TryGetValue(monitoredItem.Id, out IMonitoredItem? existing))
+            {
+                return lifecycle.IsDetached
+                    ? (ServiceResult.Good, false)
+                    : (StatusCodes.BadMonitoredItemIdInvalid, false);
+            }
+
+            if (!ReferenceEquals(existing, monitoredItem))
+            {
+                return (StatusCodes.BadMonitoredItemIdInvalid, false);
+            }
+
+            if (monitoredItem.ManagerHandle is not NodeHandle handle ||
+                !MonitoredNodes.TryGetValue(monitoredItem.NodeId, out MonitoredNode2? monitoredNode))
+            {
+                return (StatusCodes.BadInvalidState, false);
+            }
+
+            bool isEvent = (monitoredItem.MonitoredItemType & MonitoredItemTypeMask.Events) != 0;
+            if (isEvent)
+            {
+                if (!monitoredNode.EventMonitoredItems.TryGetValue(
+                    monitoredItem.Id,
+                    out IEventMonitoredItem? eventItem) ||
+                    !ReferenceEquals(eventItem, monitoredItem))
+                {
+                    return (StatusCodes.BadInvalidState, false);
+                }
+
+                monitoredNode.Remove(eventItem);
+            }
+            else
+            {
+                if (!monitoredNode.DataChangeMonitoredItems.TryGetValue(
+                    monitoredItem.Id,
+                    out IDataChangeMonitoredItem2? dataChangeItem) ||
+                    !ReferenceEquals(dataChangeItem, monitoredItem))
+                {
+                    return (StatusCodes.BadInvalidState, false);
+                }
+
+                monitoredNode.Remove(dataChangeItem);
+                removeNodeFromComponentCache(context, handle);
+            }
+
+            if (!((ICollection<KeyValuePair<uint, IMonitoredItem>>)MonitoredItems).Remove(
+                new KeyValuePair<uint, IMonitoredItem>(monitoredItem.Id, monitoredItem)))
+            {
+                return (StatusCodes.BadInvalidState, false);
+            }
+
+            if (!monitoredNode.HasMonitoredItems)
+            {
+                MonitoredNodes.Remove(monitoredItem.NodeId);
+                monitoredNode.Dispose();
+            }
+
+            lifecycle.BeginDetach();
+            return (ServiceResult.Good, true);
+        }
+
+        /// <inheritdoc/>
+        (ServiceResult Result, bool Changed) IMonitoredItemManagerLifecycle.AttachMonitoredItem(
+            ServerSystemContext context,
+            NodeHandle handle,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            Func<ISystemContext, NodeHandle, NodeState, NodeState> addNodeToComponentCache,
+            Action<ISystemContext, NodeHandle> removeNodeFromComponentCache)
+        {
+            if (monitoredItem is not IMonitoredItemLifecycle lifecycle)
+            {
+                return (StatusCodes.BadNotSupported, false);
+            }
+
+            if (MonitoredItems.TryGetValue(monitoredItem.Id, out IMonitoredItem? existing))
+            {
+                if (!ReferenceEquals(existing, monitoredItem))
+                {
+                    return (StatusCodes.BadMonitoredItemIdInvalid, false);
+                }
+
+                return lifecycle.IsDetached
+                    ? (StatusCodes.BadInvalidState, false)
+                    : (ServiceResult.Good, false);
+            }
+
+            if (!lifecycle.IsDetached)
+            {
+                return (StatusCodes.BadInvalidState, false);
+            }
+
+            if (!MonitoredItems.TryAdd(monitoredItem.Id, monitoredItem))
+            {
+                return (StatusCodes.BadMonitoredItemIdInvalid, false);
+            }
+
+            bool isEvent = (monitoredItem.MonitoredItemType & MonitoredItemTypeMask.Events) != 0;
+            MonitoredNode2? monitoredNode = null;
+            bool componentCacheAdded = false;
+            bool monitoredNodeCreated = false;
+            bool monitoredNodeLinked = false;
+            bool attached = false;
+            try
+            {
+                if (!MonitoredNodes.TryGetValue(handle.Node.NodeId, out monitoredNode))
+                {
+                    NodeState node = isEvent
+                        ? handle.Node
+                        : addNodeToComponentCache(context, handle, handle.Node);
+                    componentCacheAdded = !isEvent;
+                    MonitoredNodes[handle.Node.NodeId] = monitoredNode = new MonitoredNode2(
+                        m_nodeManager,
+                        m_server,
+                        node,
+                        IsMultiConsumerNode(node.NodeId));
+                    monitoredNodeCreated = true;
+                }
+                else
+                {
+                    if (!isEvent)
+                    {
+                        NodeState freshNode = handle.Node;
+                        handle.Node = addNodeToComponentCache(context, handle, freshNode);
+                        componentCacheAdded = true;
+                        if (!ReferenceEquals(handle.Node, freshNode))
+                        {
+                            return (StatusCodes.BadInvalidState, false);
+                        }
+                    }
+
+                    ServiceResult rebindResult = monitoredNode.Rebind(m_nodeManager, handle.Node);
+                    if (ServiceResult.IsBad(rebindResult))
+                    {
+                        return (rebindResult, false);
+                    }
+                }
+
+                handle.Node = monitoredNode.Node;
+                handle.MonitoredNode = monitoredNode;
+                if (isEvent)
+                {
+                    if (monitoredNode.EventMonitoredItems.TryGetValue(
+                        monitoredItem.Id,
+                        out IEventMonitoredItem? linkedEventItem))
+                    {
+                        return ReferenceEquals(linkedEventItem, monitoredItem)
+                            ? (StatusCodes.BadInvalidState, false)
+                            : (StatusCodes.BadMonitoredItemIdInvalid, false);
+                    }
+
+                    monitoredNode.Add((IEventMonitoredItem)monitoredItem);
+                }
+                else
+                {
+                    if (monitoredNode.DataChangeMonitoredItems.TryGetValue(
+                        monitoredItem.Id,
+                        out IDataChangeMonitoredItem2? linkedDataChangeItem))
+                    {
+                        return ReferenceEquals(linkedDataChangeItem, monitoredItem)
+                            ? (StatusCodes.BadInvalidState, false)
+                            : (StatusCodes.BadMonitoredItemIdInvalid, false);
+                    }
+
+                    monitoredNode.Add(monitoredItem);
+                }
+                monitoredNodeLinked = true;
+
+                lifecycle.Rebind(m_nodeManager, handle);
+                attached = true;
+                return (ServiceResult.Good, true);
+            }
+            finally
+            {
+                if (!attached)
+                {
+                    if (monitoredNodeLinked)
+                    {
+                        if (isEvent)
+                        {
+                            monitoredNode!.Remove((IEventMonitoredItem)monitoredItem);
+                        }
+                        else
+                        {
+                            monitoredNode!.Remove(monitoredItem);
+                        }
+                    }
+
+                    if (monitoredNodeCreated)
+                    {
+                        MonitoredNodes.Remove(handle.NodeId);
+                        monitoredNode?.Dispose();
+                    }
+
+                    if (componentCacheAdded)
+                    {
+                        removeNodeFromComponentCache(context, handle);
+                    }
+
+                    MonitoredItems.TryRemove(monitoredItem.Id, out _);
+                }
+            }
         }
 
         private bool IsMultiConsumerNode(NodeId nodeId)
