@@ -81,15 +81,17 @@ namespace Microsoft.Extensions.DependencyInjection
 
             services.TryAddSingleton<ITelemetryContext>(
                 sp => new ServiceProviderTelemetryContext(sp));
-            services.TryAddSingleton<BufferManagerFactoryOptions>();
-            services.TryAddSingleton<IBufferManagerFactory, DefaultBufferManagerFactory>();
 
-            // Always install the transport binding registry seeded with the
-            // mandatory raw-socket opc.tcp secure channel listener and tcp
-            // connection channel factories. This makes opc.tcp available to
-            // every client and server without an explicit AddOpcTcpTransport()
-            // call; optional transports (Kestrel / HTTPS / WSS) still override
-            // the seeded defaults via their own Add*Transport() extensions.
+            // Install the transport binding registry seeded with the mandatory
+            // raw-socket opc.tcp secure channel listener and tcp connection
+            // channel factories. AddTransportBindingRegistry() is the single
+            // source of truth for these (and the buffer-manager prerequisites it
+            // needs to build them). It uses TryAddSingleton, so a consumer that
+            // pre-registered its own ITransportBindingRegistry keeps it and opts
+            // out of the default seeding entirely. Otherwise opc.tcp is available
+            // to every client and server without an explicit AddOpcTcpTransport()
+            // call, and optional transports (Kestrel / HTTPS / WSS) override the
+            // seeded defaults via their own Add*Transport() extensions.
             services.AddTransportBindingRegistry();
 
             return new OpcUaBuilder(services);

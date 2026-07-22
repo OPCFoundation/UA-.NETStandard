@@ -289,8 +289,13 @@ namespace Opc.Ua.Bindings.Tests
 
             Assert.That(registry.HasListenerFactory(Utils.UriSchemeOpcTcp), Is.True);
             Assert.That(registry.HasChannelFactory(Utils.UriSchemeOpcTcp), Is.True);
-            Assert.That(registry.GetChannelFactory(Utils.UriSchemeOpcTcp),
-                Is.InstanceOf<TcpTransportChannelFactory>());
+            // Assert the contract (a factory serving the opc.tcp scheme) rather
+            // than a concrete implementation type, so swapping the default
+            // raw-socket factory does not break this test.
+            ITransportChannelFactory? channelFactory =
+                registry.GetChannelFactory(Utils.UriSchemeOpcTcp);
+            Assert.That(channelFactory, Is.Not.Null);
+            Assert.That(channelFactory!.UriScheme, Is.EqualTo(Utils.UriSchemeOpcTcp));
             Assert.That(registry, Is.InstanceOf<ITransportChannelBindings>(),
                 "The seeded registry must satisfy ITransportChannelBindings for the client channel manager.");
         }
