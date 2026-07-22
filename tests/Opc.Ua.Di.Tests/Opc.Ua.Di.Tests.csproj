@@ -43,9 +43,10 @@
     <ProjectReference Include="..\Opc.Ua.Server.TestFramework\Opc.Ua.Server.TestFramework.csproj" />
   </ItemGroup>
   <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
-    <Compile Remove="PumpDeviceHealthMappingTests.cs" />
     <Compile Remove="PumpHostingIntegrationTests.cs" />
     <Compile Remove="PumpNodeManagerFactoryTests.cs" />
+    <Compile Remove="PumpTypeInstanceTests.cs" />
     <Compile Remove="PumpsNodeSetLoadingTests.cs" />
+    <Compile Remove="TopologyElementBuilderTests.cs" />
   </ItemGroup>
 </Project>

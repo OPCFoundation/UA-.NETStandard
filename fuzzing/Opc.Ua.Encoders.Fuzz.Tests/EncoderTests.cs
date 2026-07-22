@@ -42,9 +42,15 @@ namespace Opc.Ua.Fuzzing
 
         protected override Type FuzzableCodeType => typeof(FuzzableCode);
 
-        protected override void OnFuzzTargetSetup(ITelemetryContext telemetry)
+        [Test]
+        public void MessageContextIsInitializedWithoutTestSetup()
         {
-            FuzzableCode.MessageContext = ServiceMessageContext.Create(telemetry);
+            ServiceMessageContext firstContext = FuzzableCode.MessageContext;
+            ServiceMessageContext secondContext = FuzzableCode.MessageContext;
+
+            Assert.That(firstContext, Is.Not.Null);
+            Assert.That(firstContext, Is.SameAs(secondContext));
+            Assert.That(firstContext.Factory, Is.Not.Null);
         }
     }
 }

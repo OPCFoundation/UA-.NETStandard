@@ -17,6 +17,7 @@
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.Core.Types" />
     <InternalsVisibleTo Include="Opc.Ua.Types.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.Core.Encoders.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.SourceGeneration.Core.Tests" />
   </ItemGroup>
   <ItemGroup>

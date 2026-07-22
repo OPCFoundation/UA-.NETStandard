@@ -31,6 +31,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Security;
 
 namespace Opc.Ua.PubSub.Tests.Security
@@ -100,10 +101,54 @@ namespace Opc.Ua.PubSub.Tests.Security
             var window = new SecurityTokenWindow();
             window.RegisterToken(1U);
             window.RegisterToken(2U);
+            byte[] nonce = MakeNonce(1);
             Assert.Multiple(() =>
             {
-                Assert.That(window.TryAccept(1U, 5UL, MakeNonce(1)), Is.True);
-                Assert.That(window.TryAccept(2U, 5UL, MakeNonce(2)), Is.True);
+                Assert.That(window.TryAccept(1U, 5UL, nonce), Is.True);
+                Assert.That(window.TryAccept(2U, 5UL, nonce), Is.True);
+            });
+        }
+
+        [Test]
+        public void ScopedReplayRejectsNonceReuseGloballyAcrossPublishersAndWriterGroups()
+        {
+            const uint tokenId = 1U;
+            var window = new SecurityTokenWindow(historySize: 4);
+            window.RegisterToken(tokenId);
+            var scopedWindow = (IScopedSecurityTokenWindow)window;
+            PublisherId publisherA = PublisherId.FromUInt32(100U);
+            PublisherId publisherB = PublisherId.FromUInt32(200U);
+            byte[] reusedNonce = MakeNonce(1);
+
+            Assert.That(
+                scopedWindow.TryAccept(publisherA, 1, tokenId, 1, reusedNonce),
+                Is.True);
+            for (ulong sequenceNumber = 2; sequenceNumber <= 8; sequenceNumber++)
+            {
+                Assert.That(
+                    scopedWindow.TryAccept(
+                        publisherA,
+                        1,
+                        tokenId,
+                        sequenceNumber,
+                        MakeNonce((byte)(sequenceNumber + 20))),
+                    Is.True);
+            }
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    scopedWindow.TryAccept(publisherB, 1, tokenId, 1, reusedNonce),
+                    Is.False);
+                Assert.That(
+                    scopedWindow.TryAccept(publisherA, 2, tokenId, 1, reusedNonce),
+                    Is.False);
+                Assert.That(
+                    scopedWindow.TryAccept(publisherB, 1, tokenId, 1, MakeNonce(50)),
+                    Is.True);
+                Assert.That(
+                    scopedWindow.TryAccept(publisherA, 2, tokenId, 1, MakeNonce(51)),
+                    Is.True);
             });
         }
 
@@ -114,6 +159,50 @@ namespace Opc.Ua.PubSub.Tests.Security
             window.RegisterToken(1U);
             window.RetireToken(1U);
             Assert.That(window.TryAccept(1U, 1UL, MakeNonce(1)), Is.False);
+        }
+
+        [Test]
+        public void RetireTokenClearsScopedReplayStateAndKeepsOtherTokens()
+        {
+            const uint retiredToken = 1U;
+            const uint survivingToken = 7U;
+            var window = new SecurityTokenWindow(historySize: 4);
+            window.RegisterToken(retiredToken);
+            window.RegisterToken(survivingToken);
+            var scopedWindow = (IScopedSecurityTokenWindow)window;
+            PublisherId publisherA = PublisherId.FromUInt32(100U);
+            PublisherId publisherB = PublisherId.FromUInt32(200U);
+
+            // Populate two publisher/writer-group scopes on the token that is
+            // about to be retired, plus one scope on a token that survives.
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    scopedWindow.TryAccept(publisherA, 1, retiredToken, 5, MakeNonce(10)),
+                    Is.True);
+                Assert.That(
+                    scopedWindow.TryAccept(publisherB, 2, retiredToken, 5, MakeNonce(20)),
+                    Is.True);
+                Assert.That(
+                    scopedWindow.TryAccept(publisherA, 1, survivingToken, 5, MakeNonce(30)),
+                    Is.True);
+            });
+
+            window.RetireToken(retiredToken);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(window.RegisteredTokens, Is.EquivalentTo(new[] { survivingToken }));
+                // The retired token no longer accepts anything.
+                Assert.That(
+                    scopedWindow.TryAccept(publisherA, 1, retiredToken, 5, MakeNonce(10)),
+                    Is.False);
+                // The surviving token keeps its committed sequence, so replaying
+                // sequence 5 on the retained scope is still rejected.
+                Assert.That(
+                    scopedWindow.TryAccept(publisherA, 1, survivingToken, 5, MakeNonce(31)),
+                    Is.False);
+            });
         }
 
         [Test]
@@ -239,14 +328,35 @@ namespace Opc.Ua.PubSub.Tests.Security
         }
 
         [Test]
+        public void ConstructorRejectsNonPositiveNonceFilterSize()
+        {
+            Assert.That(
+                () => new SecurityTokenWindow(
+                    historySize: 1024,
+                    timeProvider: null,
+                    nonceFilterSizeInBytes: 0),
+                Throws.TypeOf<ArgumentOutOfRangeException>());
+            Assert.That(
+                () => new SecurityTokenWindow(
+                    historySize: 1024,
+                    timeProvider: null,
+                    nonceFilterSizeInBytes: -1),
+                Throws.TypeOf<ArgumentOutOfRangeException>());
+        }
+
+        [Test]
         public void Properties_ReflectConfiguration()
         {
             TimeProvider clock = TimeProvider.System;
-            var window = new SecurityTokenWindow(historySize: 16, timeProvider: clock);
+            var window = new SecurityTokenWindow(
+                historySize: 16,
+                timeProvider: clock,
+                nonceFilterSizeInBytes: 2048);
             Assert.Multiple(() =>
             {
                 Assert.That(window.HistorySize, Is.EqualTo(16));
                 Assert.That(window.TimeProvider, Is.SameAs(clock));
+                Assert.That(window.NonceFilterSizeInBytes, Is.EqualTo(2048));
             });
         }
 
