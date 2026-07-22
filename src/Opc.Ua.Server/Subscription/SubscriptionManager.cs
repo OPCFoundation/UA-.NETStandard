@@ -1140,8 +1140,7 @@ namespace Opc.Ua.Server
                     m_abandonedSubscriptions.TryRemove(subscriptionId, out _);
                 if (wasAbandoned)
                 {
-                    m_logger.LogWarning(
-                        "Subscription DELETED(ABANDONED), Id={SubscriptionId}.",
+                    m_logger.SubscriptionDELETEDABANDONEDIdSubscriptionId(
                         subscriptionId);
                 }
 
