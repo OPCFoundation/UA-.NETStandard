@@ -249,8 +249,10 @@ namespace Opc.Ua.Bindings.Tests
             Assert.That(registryA.HasListenerFactory(FakeListenerFactory.FakeScheme), Is.False,
                 "Provider A did not register the fake transport.");
             Assert.That(registryB.HasListenerFactory(FakeListenerFactory.FakeScheme), Is.True);
-            Assert.That(registryB.HasListenerFactory(Utils.UriSchemeOpcTcp), Is.False,
-                "Provider B did not register the TCP transport.");
+            // opc.tcp is now seeded into every registry by AddOpcUa(); the two
+            // registries remain independent instances (the fake transport is
+            // only present in provider B).
+            Assert.That(registryB.HasListenerFactory(Utils.UriSchemeOpcTcp), Is.True);
         }
 
         [Test]
@@ -272,6 +274,106 @@ namespace Opc.Ua.Bindings.Tests
             Assert.That(registry.GetListenerFactory(Utils.UriSchemeOpcTcp),
                 Is.InstanceOf<FakeListenerFactory>(),
                 "The second configurator must override the first for the same URI scheme.");
+        }
+
+        [Test]
+        public void AddOpcUaRegistersMandatoryOpcTcpTransport()
+        {
+            // AddOpcUa() alone must seed the mandatory raw-socket opc.tcp
+            // listener + channel factories - no AddOpcTcpTransport() required.
+            var services = new ServiceCollection();
+            services.AddOpcUa();
+            using ServiceProvider provider = services.BuildServiceProvider();
+
+            ITransportBindingRegistry registry = provider.GetRequiredService<ITransportBindingRegistry>();
+
+            Assert.That(registry.HasListenerFactory(Utils.UriSchemeOpcTcp), Is.True);
+            Assert.That(registry.HasChannelFactory(Utils.UriSchemeOpcTcp), Is.True);
+            Assert.That(registry.GetChannelFactory(Utils.UriSchemeOpcTcp),
+                Is.InstanceOf<TcpTransportChannelFactory>());
+            Assert.That(registry, Is.InstanceOf<ITransportChannelBindings>(),
+                "The seeded registry must satisfy ITransportChannelBindings for the client channel manager.");
+        }
+
+        [Test]
+        public void DefaultOpcTcpTransportIsOverrideableWithoutAddOpcTcpTransport()
+        {
+            // A downstream configurator (e.g. AddKestrelOpcTcpTransport) must be
+            // able to override the seeded default opc.tcp listener even though
+            // AddOpcTcpTransport() was never called.
+            var services = new ServiceCollection();
+            services.AddOpcUa();
+            services.AddSingleton<ITransportBindingConfigurator>(
+                new TransportBindingConfigurator(registry =>
+                    registry.RegisterListenerFactory(new FakeListenerFactory(Utils.UriSchemeOpcTcp))));
+            using ServiceProvider provider = services.BuildServiceProvider();
+
+            ITransportBindingRegistry registry = provider.GetRequiredService<ITransportBindingRegistry>();
+
+            Assert.That(registry.GetListenerFactory(Utils.UriSchemeOpcTcp),
+                Is.InstanceOf<FakeListenerFactory>(),
+                "The configurator must override the seeded default opc.tcp listener.");
+        }
+
+        [Test]
+        public void ImplementerCanUnregisterDefaultTransport()
+        {
+            // An implementer can drop the seeded default opc.tcp transport with
+            // a plain ITransportBindingConfigurator - no fluent API required.
+            var services = new ServiceCollection();
+            services.AddOpcUa();
+            services.AddSingleton<ITransportBindingConfigurator>(
+                new TransportBindingConfigurator(registry =>
+                {
+                    registry.RemoveListenerFactory(Utils.UriSchemeOpcTcp);
+                    registry.RemoveChannelFactory(Utils.UriSchemeOpcTcp);
+                }));
+            using ServiceProvider provider = services.BuildServiceProvider();
+
+            ITransportBindingRegistry registry = provider.GetRequiredService<ITransportBindingRegistry>();
+
+            Assert.That(registry.HasListenerFactory(Utils.UriSchemeOpcTcp), Is.False);
+            Assert.That(registry.HasChannelFactory(Utils.UriSchemeOpcTcp), Is.False);
+        }
+
+        [Test]
+        public void RemoveListenerFactoryRemovesRegisteredFactory()
+        {
+            DefaultTransportBindingRegistry registry = DefaultTransportBindingRegistry.WithDefaultTcp();
+
+            Assert.That(registry.RemoveListenerFactory(Utils.UriSchemeOpcTcp), Is.True);
+            Assert.That(registry.HasListenerFactory(Utils.UriSchemeOpcTcp), Is.False);
+            Assert.That(registry.RemoveListenerFactory(Utils.UriSchemeOpcTcp), Is.False,
+                "Removing an absent listener factory returns false.");
+        }
+
+        [Test]
+        public void RemoveChannelFactoryRemovesRegisteredFactory()
+        {
+            DefaultTransportBindingRegistry registry = DefaultTransportBindingRegistry.WithDefaultTcp();
+
+            Assert.That(registry.RemoveChannelFactory(Utils.UriSchemeOpcTcp), Is.True);
+            Assert.That(registry.HasChannelFactory(Utils.UriSchemeOpcTcp), Is.False);
+            Assert.That(registry.RemoveChannelFactory(Utils.UriSchemeOpcTcp), Is.False,
+                "Removing an absent channel factory returns false.");
+        }
+
+        [Test]
+        public void RemoveListenerFactoryThrowsOnNullScheme()
+        {
+            var registry = new DefaultTransportBindingRegistry();
+            Assert.That(
+                () => registry.RemoveListenerFactory(null!),
+                Throws.TypeOf<ArgumentNullException>().With.Property("ParamName").EqualTo("uriScheme"));
+        }
+
+        [Test]
+        public void RemoveChannelFactoryThrowsOnNullScheme()
+        {
+            var registry = new DefaultTransportBindingRegistry();
+            Assert.That(
+                () => registry.RemoveChannelFactory(null!),
+                Throws.TypeOf<ArgumentNullException>().With.Property("ParamName").EqualTo("uriScheme"));
         }
 
         [Test]

@@ -84,6 +84,14 @@ namespace Microsoft.Extensions.DependencyInjection
             services.TryAddSingleton<BufferManagerFactoryOptions>();
             services.TryAddSingleton<IBufferManagerFactory, DefaultBufferManagerFactory>();
 
+            // Always install the transport binding registry seeded with the
+            // mandatory raw-socket opc.tcp secure channel listener and tcp
+            // connection channel factories. This makes opc.tcp available to
+            // every client and server without an explicit AddOpcTcpTransport()
+            // call; optional transports (Kestrel / HTTPS / WSS) still override
+            // the seeded defaults via their own Add*Transport() extensions.
+            services.AddTransportBindingRegistry();
+
             return new OpcUaBuilder(services);
         }
 

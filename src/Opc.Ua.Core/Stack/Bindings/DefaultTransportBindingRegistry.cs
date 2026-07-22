@@ -251,6 +251,32 @@ namespace Opc.Ua.Bindings
         }
 
         /// <inheritdoc/>
+        public bool RemoveListenerFactory(string uriScheme)
+        {
+            if (uriScheme == null)
+            {
+                throw new ArgumentNullException(nameof(uriScheme));
+            }
+            lock (m_lock)
+            {
+                return m_listeners.Remove(uriScheme);
+            }
+        }
+
+        /// <inheritdoc/>
+        public bool RemoveChannelFactory(string uriScheme)
+        {
+            if (uriScheme == null)
+            {
+                throw new ArgumentNullException(nameof(uriScheme));
+            }
+            lock (m_lock)
+            {
+                return m_channels.Remove(uriScheme);
+            }
+        }
+
+        /// <inheritdoc/>
         public ITransportListenerFactory? GetListenerFactory(string uriScheme)
         {
             if (uriScheme == null)
