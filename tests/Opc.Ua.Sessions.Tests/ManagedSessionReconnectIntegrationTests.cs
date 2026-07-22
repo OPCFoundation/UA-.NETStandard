@@ -1200,6 +1200,10 @@ namespace Opc.Ua.Sessions.Tests
                     MaxRetries = 1,
                     JitterFactor = 0.0
                 })
+                // A cross-Session anonymous transfer is forbidden on a None
+                // channel. Use the same authenticated ClientUserId on both
+                // sides of the recreation so transfer is expected to succeed.
+                .WithUserIdentity(new UserIdentity("user1", "password"u8))
                 .WithServerRedundancy(fakeHandler)
                 .WithTransferSubscriptionsOnRecreate()
                 .ConnectAsync(ct)

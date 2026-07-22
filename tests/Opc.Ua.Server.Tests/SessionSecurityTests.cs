@@ -262,9 +262,13 @@ namespace Opc.Ua.Server.Tests
                 [],
                 "https://issuer.example/",
                 "subject-42");
+            var roleBasedJwtIdentity = new RoleBasedIdentity(
+                jwtIdentity,
+                [Role.AuthenticatedUser],
+                new NamespaceTable());
             Assert.That(
-                SessionClientUserId.Get(issuedToken, jwtIdentity),
-                Is.EqualTo("23:https://issuer.example/subject-42"));
+                SessionClientUserId.Get(issuedToken, roleBasedJwtIdentity),
+                Is.EqualTo("https://issuer.example/subject-42"));
 
             var jwtWithoutIssuer = new JwtUserIdentity(
                 issuedToken,
@@ -277,23 +281,33 @@ namespace Opc.Ua.Server.Tests
                 SessionClientUserId.Get(issuedToken, jwtWithoutIssuer),
                 Is.EqualTo("subject-only"));
 
-            var firstAmbiguousIdentity = new JwtUserIdentity(
-                issuedToken,
-                new Dictionary<string, object?>(),
-                [],
-                [],
-                "https://issuer.example/ab",
-                "c");
-            var secondAmbiguousIdentity = new JwtUserIdentity(
-                issuedToken,
-                new Dictionary<string, object?>(),
-                [],
-                [],
-                "https://issuer.example/a",
-                "bc");
+            var jwtToken = new IssuedIdentityTokenHandler(
+                Profiles.JwtUserToken,
+                CreateJwt("https://issuer.example/", "parsed-subject"));
+            var authenticatedJwt = new UserIdentity(jwtToken)
+            {
+                DisplayName = "Display Alias"
+            };
             Assert.That(
-                SessionClientUserId.Get(issuedToken, firstAmbiguousIdentity),
-                Is.Not.EqualTo(SessionClientUserId.Get(issuedToken, secondAmbiguousIdentity)));
+                SessionClientUserId.Get(jwtToken, authenticatedJwt),
+                Is.EqualTo("https://issuer.example/parsed-subject"));
+        }
+
+        [Test]
+        public void ClientUserIdRejectsIssuedIdentityWithoutStableOwner()
+        {
+            var issuedToken = new IssuedIdentityTokenHandler(
+                Profiles.JwtUserToken,
+                "opaque-token"u8);
+            var aliasedIdentity = new UserIdentity(issuedToken)
+            {
+                DisplayName = "Shared display alias"
+            };
+
+            ServiceResultException exception = Assert.Throws<ServiceResultException>(
+                () => SessionClientUserId.Get(issuedToken, aliasedIdentity))!;
+
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenInvalid));
         }
 
         [Test]
@@ -929,6 +943,21 @@ namespace Opc.Ua.Server.Tests
                 bytes[i] = (byte)(seed + i);
             }
             return bytes;
+        }
+
+        private static byte[] CreateJwt(string issuer, string subject)
+        {
+            static string Base64UrlEncode(string value)
+            {
+                return Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(value))
+                    .TrimEnd('=')
+                    .Replace('+', '-')
+                    .Replace('/', '_');
+            }
+
+            string payload = $"{{\"iss\":\"{issuer}\",\"sub\":\"{subject}\"}}";
+            return System.Text.Encoding.UTF8.GetBytes(
+                $"{Base64UrlEncode("{}")}.{Base64UrlEncode(payload)}.signature");
         }
 
         private static void AssertRequestAcceptedOnOriginalChannel(CreatedSession created)

@@ -240,6 +240,8 @@ namespace Opc.Ua.Server
         /// </summary>
         protected IUserIdentity InnerIdentity { get; }
 
+        internal IUserIdentity AuthenticatedIdentity => InnerIdentity;
+
         /// <inheritdoc/>
         public string DisplayName => InnerIdentity.DisplayName;
 
