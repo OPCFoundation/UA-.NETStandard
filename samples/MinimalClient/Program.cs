@@ -65,6 +65,7 @@ try
 
     builder.Services
         .AddOpcUa()
+        .AddOpcTcpTransport()
         .AddClient(options =>
         {
             options.ApplicationName = "MinimalClient";

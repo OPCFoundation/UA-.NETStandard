@@ -6,7 +6,7 @@ The minimal console client demonstrates a clean, lightweight OPC UA client imple
 
 ## Key Features
 
-- **Fluent DI API**: Uses `HostApplicationBuilder` with fluent `.AddOpcUa()`, `.AddClient()`, `.AddSubscriptions()`, and `.AddAlarms()` configuration
+- **Fluent DI API**: Uses `HostApplicationBuilder` with fluent `.AddOpcUa()`, `.AddOpcTcpTransport()`, `.AddClient()`, `.AddSubscriptions()`, and `.AddAlarms()` configuration
 - **Secure by Default**: Discovers a `SignAndEncrypt` / `Basic256Sha256` endpoint unless `--insecure` is explicitly supplied
 - **Managed Sessions**: Leverages the modern `IManagedSessionFactory` for simplified session management
 - **Fluent Subscriptions**: Creates a V2 subscription and monitored item with `AddSubscription()` and `TryAddMonitoredItem()`
@@ -72,7 +72,7 @@ The application uses top-level statements and demonstrates:
 - Configuring application identity and security directly inside `.AddClient(...)`
 - Setting up `HostApplicationBuilder` with OPC UA client services
 - Building and validating the `ApplicationConfiguration` inside the DI infrastructure
-- Configuring services via fluent API: `.AddOpcUa().AddClient(...).AddSubscriptions().AddAlarms()`
+- Configuring services via fluent API: `.AddOpcUa().AddOpcTcpTransport().AddClient(...).AddSubscriptions().AddAlarms()`
 - Discovering a secure endpoint and connecting through the DI-provided managed-session delegate
 - Creating a V2 subscription and monitored item with the fluent session extensions
 - Resolving `AlarmClientFactory` for Part 9 Alarms & Conditions operations
