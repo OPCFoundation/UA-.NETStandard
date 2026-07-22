@@ -134,6 +134,69 @@ namespace Opc.Ua.Di.Tests
         }
 
         [Test]
+        public async Task PumpMeasurementPropertiesAreBrowsableAndReadableAsync()
+        {
+            const string measurementIdentifier =
+                "5001_Pump #1_Operational_Measurements_FluidTemperature";
+            ushort namespaceIndex = m_manager.DiNamespaceIndex;
+            var measurementId = new NodeId(measurementIdentifier, namespaceIndex);
+            var engineeringUnitsId = new NodeId(
+                $"{measurementIdentifier}_EngineeringUnits",
+                namespaceIndex);
+            var euRangeId = new NodeId(
+                $"{measurementIdentifier}_EURange",
+                namespaceIndex);
+
+            object handle = await m_manager.GetManagerHandleAsync(measurementId)
+                .ConfigureAwait(false);
+            Assert.That(handle, Is.Not.Null);
+
+            using var continuationPoint = new ContinuationPoint
+            {
+                NodeToBrowse = handle,
+                Manager = m_manager,
+                View = new ViewDescription(),
+                BrowseDirection = BrowseDirection.Forward,
+                ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.HasProperty,
+                IncludeSubtypes = true,
+                ResultMask = BrowseResultMask.All
+            };
+            var references = new List<ReferenceDescription>();
+
+            ContinuationPoint? result = await m_manager.BrowseAsync(
+                new OperationContext(
+                    new RequestHeader(),
+                    null,
+                    RequestType.Browse,
+                    RequestLifetime.None),
+                continuationPoint,
+                references).ConfigureAwait(false);
+
+            Assert.That(result, Is.Null);
+            Assert.That(
+                references,
+                Has.Some.Matches<ReferenceDescription>(
+                    reference =>
+                        reference.NodeId == new ExpandedNodeId(engineeringUnitsId) &&
+                        reference.BrowseName == new QualifiedName(Opc.Ua.BrowseNames.EngineeringUnits)));
+            Assert.That(
+                references,
+                Has.Some.Matches<ReferenceDescription>(
+                    reference =>
+                        reference.NodeId == new ExpandedNodeId(euRangeId) &&
+                        reference.BrowseName == new QualifiedName(Opc.Ua.BrowseNames.EURange)));
+
+            await AssertPropertyReadableAsync(
+                engineeringUnitsId,
+                Opc.Ua.BrowseNames.EngineeringUnits,
+                Opc.Ua.DataTypeIds.EUInformation).ConfigureAwait(false);
+            await AssertPropertyReadableAsync(
+                euRangeId,
+                Opc.Ua.BrowseNames.EURange,
+                Opc.Ua.DataTypeIds.Range).ConfigureAwait(false);
+        }
+
+        [Test]
         public void ByNodeIdRejectsNonMatchingStateType()
         {
             NodeId deviceSetId = NodeId.Create(
@@ -214,6 +277,57 @@ namespace Opc.Ua.Di.Tests
             Assert.That(
                 exception.StatusCode,
                 Is.EqualTo((uint)StatusCodes.BadTypeMismatch));
+        }
+
+        private async Task AssertPropertyReadableAsync(
+            NodeId nodeId,
+            string browseName,
+            NodeId dataType)
+        {
+            ArrayOf<ReadValueId> nodesToRead =
+            [
+                new ReadValueId { NodeId = nodeId, AttributeId = Attributes.BrowseName },
+                new ReadValueId { NodeId = nodeId, AttributeId = Attributes.DataType },
+                new ReadValueId { NodeId = nodeId, AttributeId = Attributes.ValueRank },
+                new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value }
+            ];
+            var values = new List<DataValue> { default, default, default, default };
+            var errors = new List<ServiceResult> { null!, null!, null!, null! };
+
+            await m_manager.ReadAsync(
+                new OperationContext(
+                    new RequestHeader(),
+                    null,
+                    RequestType.Read,
+                    RequestLifetime.None),
+                0,
+                nodesToRead,
+                values,
+                errors).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                for (int ii = 0; ii < nodesToRead.Count; ii++)
+                {
+                    Assert.That(nodesToRead[ii].Processed, Is.True);
+                }
+                Assert.That(errors, Has.All.Matches<ServiceResult>(ServiceResult.IsGood));
+                Assert.That(values, Has.All.Matches<DataValue>(
+                    value => StatusCode.IsGood(value.StatusCode)));
+                Assert.That(
+                    values[0].WrappedValue.TryGetValue(out QualifiedName actualBrowseName),
+                    Is.True);
+                Assert.That(actualBrowseName, Is.EqualTo(new QualifiedName(browseName)));
+                Assert.That(
+                    values[1].WrappedValue.TryGetValue(out NodeId actualDataType),
+                    Is.True);
+                Assert.That(actualDataType, Is.EqualTo(dataType));
+                Assert.That(
+                    values[2].WrappedValue.TryGetValue(out int actualValueRank),
+                    Is.True);
+                Assert.That(actualValueRank, Is.EqualTo(ValueRanks.Scalar));
+                Assert.That(values[3].WrappedValue.IsNull, Is.False);
+            });
         }
     }
 }
