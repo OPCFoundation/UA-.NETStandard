@@ -483,6 +483,10 @@ namespace Opc.Ua.Server
             instance.Create(contextToUse, default, browseName, default, true);
             await AddPredefinedNodeAsync(contextToUse, instance, cancellationToken).ConfigureAwait(false);
 
+            // Refresh the parent's cached component view so a Browse issued
+            // after this runtime add reflects the new child.
+            await RefreshParentComponentCacheAsync(parentId, cancellationToken).ConfigureAwait(false);
+
             NodeId resultId = instance.NodeId;
 
             if (ModelChangeEmissionEnabled)
@@ -533,6 +537,10 @@ namespace Opc.Ua.Server
             instance.UpdateReferenceTargets(context, mappingTable);
 
             await AddPredefinedNodeAsync(contextToUse, instance, cancellationToken).ConfigureAwait(false);
+
+            // Refresh the parent's cached component view so a Browse issued
+            // after this runtime add reflects the new child.
+            await RefreshParentComponentCacheAsync(parentId, cancellationToken).ConfigureAwait(false);
 
             NodeId resultId = instance.NodeId;
 
@@ -610,6 +618,7 @@ namespace Opc.Ua.Server
                 return false;
             }
             PredefinedNodes[nodeId] = node;
+            RefreshComponentCache(nodeId, node);
             return true;
         }
 
@@ -812,9 +821,14 @@ namespace Opc.Ua.Server
             }
 
             NodeId? deletedTypeDefinition = (node as BaseInstanceState)?.TypeDefinitionId;
+            NodeId parentId = (node as BaseInstanceState)?.Parent?.NodeId ?? default;
 
             await RemovePredefinedNodeAsync(contextToUse, node!, referencesToRemove, cancellationToken).ConfigureAwait(false);
             await RemoveRootNotifierAsync(node!, cancellationToken).ConfigureAwait(false);
+
+            // Refresh the parent's cached component view so a Browse issued
+            // after this runtime delete no longer reflects the removed child.
+            await RefreshParentComponentCacheAsync(parentId, cancellationToken).ConfigureAwait(false);
 
             if (referencesToRemove.Count > 0)
             {
@@ -975,6 +989,10 @@ namespace Opc.Ua.Server
                 return (new ServiceResult(ex), NodeId.Null);
             }
 
+            // Refresh the parent's cached component view so a Browse issued
+            // after this runtime add reflects the new child.
+            await RefreshParentComponentCacheAsync(parentNodeId, cancellationToken).ConfigureAwait(false);
+
             if (ModelChangeEmissionEnabled)
             {
                 ModelChangeAggregator.RecordNodeAdded(instance.NodeId, instance.TypeDefinitionId);
@@ -1009,11 +1027,16 @@ namespace Opc.Ua.Server
             }
 
             NodeId? deletedTypeDefinition = (node as BaseInstanceState)?.TypeDefinitionId;
+            NodeId parentId = (node as BaseInstanceState)?.Parent?.NodeId ?? default;
 
             var referencesToRemove = new List<LocalReference>();
             await RemovePredefinedNodeAsync(systemContext, node!, referencesToRemove, cancellationToken)
                 .ConfigureAwait(false);
             await RemoveRootNotifierAsync(node!, cancellationToken).ConfigureAwait(false);
+
+            // Refresh the parent's cached component view so a Browse issued
+            // after this runtime delete no longer reflects the removed child.
+            await RefreshParentComponentCacheAsync(parentId, cancellationToken).ConfigureAwait(false);
 
             if (item.DeleteTargetReferences && referencesToRemove.Count > 0)
             {
@@ -1548,6 +1571,10 @@ namespace Opc.Ua.Server
 
             PredefinedNodes.AddOrUpdate(activeNode.NodeId, activeNode, (key, _) => activeNode);
 
+            // Keep any cached component view pointing at the current instance
+            // when a node is re-registered/replaced at runtime.
+            RefreshComponentCache(activeNode.NodeId, activeNode);
+
             if (activeNode is BaseTypeState type)
             {
                 AddTypesToTypeTree(type);
@@ -1593,6 +1620,11 @@ namespace Opc.Ua.Server
             {
                 return;
             }
+
+            // Drop any cached component view so a later resolution does not
+            // return the removed node.
+            await InvalidateComponentCacheAsync(node.NodeId, cancellationToken).ConfigureAwait(false);
+
             node.UpdateChangeMasks(NodeStateChangeMasks.Deleted);
             await node.ClearChangeMasksAsync(context, false, cancellationToken).ConfigureAwait(false);
             await OnNodeRemovedAsync(node, cancellationToken).ConfigureAwait(false);
@@ -6818,6 +6850,102 @@ namespace Opc.Ua.Server
                 }
 
                 return node;
+            }
+            finally
+            {
+                m_componentCacheSemaphore.Release();
+            }
+        }
+
+        /// <summary>
+        /// Forcibly evicts the component-cache entry for a node id, ignoring
+        /// its reference count. Used when a node is deleted at runtime so a
+        /// subsequent Browse/Read/Call re-validates against the current
+        /// address space instead of resolving the stale, removed node.
+        /// </summary>
+        /// <param name="nodeId">The node id whose cached view to evict.</param>
+        /// <param name="cancellationToken">The token used to cancel the operation.</param>
+        private async ValueTask InvalidateComponentCacheAsync(
+            NodeId nodeId,
+            CancellationToken cancellationToken = default)
+        {
+            if (nodeId.IsNull || m_componentCache == null)
+            {
+                return;
+            }
+
+            await m_componentCacheSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                m_componentCache.Remove(nodeId);
+            }
+            finally
+            {
+                m_componentCacheSemaphore.Release();
+            }
+        }
+
+        /// <summary>
+        /// Updates the cached instance for a node id when the address-space
+        /// entry has been replaced at runtime, preserving the existing
+        /// reference count. No-op when the node is not cached or the cached
+        /// instance is already current.
+        /// </summary>
+        /// <remarks>
+        /// Invoked from the synchronous registration and upgrade paths, so it
+        /// uses the same synchronous cache synchronization as the other
+        /// synchronous component-cache helpers on this type.
+        /// </remarks>
+        /// <param name="nodeId">The node id whose cached instance to refresh.</param>
+        /// <param name="node">The current node state instance.</param>
+        private void RefreshComponentCache(NodeId nodeId, NodeState node)
+        {
+            if (nodeId.IsNull || node == null || m_componentCache == null)
+            {
+                return;
+            }
+
+            m_componentCacheSemaphore.Wait();
+            try
+            {
+                if (m_componentCache.TryGetValue(nodeId, out CacheEntry? entry) &&
+                    !ReferenceEquals(entry.Entry, node))
+                {
+                    entry.Entry = node;
+                }
+            }
+            finally
+            {
+                m_componentCacheSemaphore.Release();
+            }
+        }
+
+        /// <summary>
+        /// Refreshes the cached component view of a parent node after one of
+        /// its children was added or removed at runtime, so a Browse issued
+        /// after the change reflects the committed child set.
+        /// </summary>
+        /// <param name="parentId">The parent node id.</param>
+        /// <param name="cancellationToken">The token used to cancel the operation.</param>
+        private async ValueTask RefreshParentComponentCacheAsync(
+            NodeId parentId,
+            CancellationToken cancellationToken = default)
+        {
+            if (parentId.IsNull ||
+                m_componentCache == null ||
+                !PredefinedNodes.TryGetValue(parentId, out NodeState? parent))
+            {
+                return;
+            }
+
+            await m_componentCacheSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                if (m_componentCache.TryGetValue(parentId, out CacheEntry? entry) &&
+                    !ReferenceEquals(entry.Entry, parent))
+                {
+                    entry.Entry = parent;
+                }
             }
             finally
             {
