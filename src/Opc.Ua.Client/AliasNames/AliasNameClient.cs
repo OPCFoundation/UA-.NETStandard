@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Client;
 
 namespace Opc.Ua.Client.AliasNames
 {
@@ -444,13 +445,7 @@ namespace Opc.Ua.Client.AliasNames
                 throw new ServiceResultException(br.StatusCode);
             }
 
-            int refCount = br.References.Count;
-            var refs = new ReferenceDescription[refCount];
-            for (int i = 0; i < refCount; i++)
-            {
-                refs[i] = br.References[i];
-            }
-            foreach (ReferenceDescription r in refs)
+            foreach (ReferenceDescription r in SnapshotReferences(br.References))
             {
                 if (!r.TypeDefinition.Equals(ObjectTypeIds.AliasNameCategoryType))
                 {
@@ -467,11 +462,52 @@ namespace Opc.Ua.Client.AliasNames
                     r.BrowseName,
                     r.DisplayName);
             }
+
+            ByteString continuationPoint = br.ContinuationPoint;
+            while (!continuationPoint.IsEmpty)
+            {
+                (_, continuationPoint, ArrayOf<ReferenceDescription> nextReferences) =
+                    await Session.BrowseNextAsync(
+                        requestHeader: null,
+                        releaseContinuationPoint: false,
+                        continuationPoint,
+                        ct).ConfigureAwait(false);
+
+                foreach (ReferenceDescription r in SnapshotReferences(nextReferences))
+                {
+                    if (!r.TypeDefinition.Equals(ObjectTypeIds.AliasNameCategoryType))
+                    {
+                        continue;
+                    }
+                    var localId = ExpandedNodeId.ToNodeId(
+                        r.NodeId, Session.NamespaceUris);
+                    if (localId.IsNull)
+                    {
+                        continue;
+                    }
+                    yield return new AliasNameSubCategoryInfo(
+                        localId,
+                        r.BrowseName,
+                        r.DisplayName);
+                }
+            }
         }
 
         // --------------------------------------------------------------
         // Internal helpers
         // --------------------------------------------------------------
+
+        private static ReferenceDescription[] SnapshotReferences(
+            ArrayOf<ReferenceDescription> references)
+        {
+            int refCount = references.Count;
+            var snapshot = new ReferenceDescription[refCount];
+            for (int i = 0; i < refCount; i++)
+            {
+                snapshot[i] = references[i];
+            }
+            return snapshot;
+        }
 
         private async Task<NodeId> ResolveChildAsync(
             string childBrowseName,

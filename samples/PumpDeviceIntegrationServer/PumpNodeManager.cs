@@ -97,6 +97,21 @@ namespace Pumps
             return node.NodeId;
         }
 
+        /// <summary>
+        /// Creates and registers a generated <see cref="PumpState"/>
+        /// instance below the DI <c>DeviceSet</c>.
+        /// </summary>
+        /// <param name="pumpBrowseName">Browse name for the pump instance.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        /// <returns>The registered generated pump state.</returns>
+        /// <exception cref="ServiceResultException"></exception>
+        public ValueTask<PumpState> CreatePumpAsync(
+            QualifiedName pumpBrowseName,
+            CancellationToken cancellationToken = default)
+        {
+            return MaterialisePumpInstanceAsync(pumpBrowseName, cancellationToken);
+        }
+
         /// <inheritdoc/>
         protected override ValueTask<NodeStateCollection> LoadPredefinedNodesAsync(
             ISystemContext context,
@@ -160,7 +175,7 @@ namespace Pumps
         /// <c>CreateDeviceAsync</c> requires
         /// (<c>where TDevice : ComponentState</c>). The materialisation
         /// therefore goes through
-        /// <see cref="MaterialisePumpInstanceAsync(QualifiedName, CancellationToken)"/>
+        /// <see cref="CreatePumpAsync(QualifiedName, CancellationToken)"/>
         /// which composes the same primitives
         /// (<see cref="SystemContext"/> +
         /// <see cref="CustomNodeManager2.AddPredefinedNodeAsync(ISystemContext, NodeState, CancellationToken)"/>)
@@ -192,7 +207,7 @@ namespace Pumps
         /// before <c>AddPredefinedNodeAsync</c> recursively registers
         /// the entire subtree.
         /// </summary>
-        private async ValueTask MaterialisePumpInstanceAsync(
+        private async ValueTask<PumpState> MaterialisePumpInstanceAsync(
             QualifiedName pumpBrowseName,
             CancellationToken cancellationToken)
         {
@@ -203,26 +218,28 @@ namespace Pumps
             if (deviceSet == null)
             {
                 m_logger.DiDeviceSetNotFound(pumpBrowseName.Name);
-                return;
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConfigurationError,
+                    "The DI DeviceSet is not available.");
             }
 
-            // Fail-fast on duplicate.
             if (deviceSet.FindChild(SystemContext, pumpBrowseName) != null)
             {
                 m_logger.DeviceSetAlreadyContains(pumpBrowseName.Name);
-                return;
+                throw ServiceResultException.Create(
+                    StatusCodes.BadBrowseNameDuplicated,
+                    "DeviceSet already contains '{0}'.",
+                    pumpBrowseName);
             }
 
             PumpState pump = SystemContext
                 .CreateInstanceOfPumpType(deviceSet, pumpBrowseName);
 
+            pump.ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.HasComponent;
             pump.NodeId = SystemContext.NodeIdFactory.New(SystemContext, pump);
 
             MaterialisePumpOptionalChildren(pump);
 
-            // AddChild defaults ReferenceTypeId to HasComponent when null
-            // (NodeState.AddChild line 4511-4514); ModellingRuleId defaults
-            // to NodeId.Null on every fresh NodeState — no explicit set needed.
             deviceSet.AddChild(pump);
 
             // Walk the whole pump subtree assigning per-instance NodeIds
@@ -235,9 +252,8 @@ namespace Pumps
             await AddPredefinedNodeAsync(SystemContext, pump, cancellationToken)
                 .ConfigureAwait(false);
 
-            m_pump1 = pump;
-
             m_logger.MaterialisedPump(pumpBrowseName.Name, pump.NodeId);
+            return pump;
         }
 
         /// <summary>
@@ -302,28 +318,6 @@ namespace Pumps
                     SystemContext, child);
                 AssignChildNodeIds(child);
             }
-        }
-
-        /// <summary>
-        /// Registers a DI <c>DeviceHealth</c> variable that the
-        /// supervision simulation loop should toggle in response to
-        /// the simulated cavitation / motor-overheat flags. The
-        /// companion-spec PumpType does not itself expose
-        /// <c>DeviceHealth</c> (it inherits from
-        /// <see cref="TopologyElementState"/>, not
-        /// <see cref="DeviceState"/>); callers can
-        /// attach <c>DeviceHealth</c> to a sibling
-        /// <see cref="DeviceState"/> (e.g. the
-        /// declarative <c>Pump #2</c> created in <c>Program.cs</c>)
-        /// and register it here to participate in the simulation loop.
-        /// </summary>
-        /// <param name="health">
-        /// The variable to drive; pass <see langword="null"/> to detach.
-        /// </param>
-        public void RegisterSupervisedDeviceHealth(
-            BaseDataVariableState<DeviceHealthEnumeration>? health)
-        {
-            m_supervisedDeviceHealth = health;
         }
 
         /// <summary>

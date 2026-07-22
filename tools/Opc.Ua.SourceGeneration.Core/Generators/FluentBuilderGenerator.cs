@@ -580,7 +580,7 @@ namespace Opc.Ua.SourceGeneration
                     continue;
                 }
                 writer.WriteLine("    /// <summary>Resolves the predefined instance <c>{0}</c>.</summary>",
-                    GetBrowseName(root));
+                    EscapeXmlDoc(GetBrowseName(root)));
                 writer.WriteLine("    {0} {1} {{ get; }}", wrapper.ClassName, accessor);
             }
             writer.WriteLine("}");
@@ -1000,7 +1000,7 @@ namespace Opc.Ua.SourceGeneration
                 writer.WriteLine();
                 writer.WriteLine(
                     "{0}/// <summary>Walks the <c>{1}</c> HasProperty child.</summary>",
-                    indent, browseName);
+                    indent, EscapeXmlDoc(browseName));
                 writer.WriteLine(
                     "{0}public static global::Opc.Ua.Server.Fluent.IVariableBuilder<{1}> {2}(",
                     indent, valueType, accessorName);
@@ -1021,7 +1021,7 @@ namespace Opc.Ua.SourceGeneration
                 writer.WriteLine();
                 writer.WriteLine(
                     "{0}/// <summary>Walks the <c>{1}</c> HasComponent variable child.</summary>",
-                    indent, browseName);
+                    indent, EscapeXmlDoc(browseName));
                 writer.WriteLine(
                     "{0}public static global::Opc.Ua.Server.Fluent.IVariableBuilder<{1}> {2}(",
                     indent, valueType, accessorName);
@@ -1041,7 +1041,7 @@ namespace Opc.Ua.SourceGeneration
             writer.WriteLine();
             writer.WriteLine(
                 "{0}/// <summary>Walks the <c>{1}</c> HasComponent child.</summary>",
-                indent, browseName);
+                indent, EscapeXmlDoc(browseName));
             writer.WriteLine(
                 "{0}public static global::Opc.Ua.Server.Fluent.INodeBuilder<{1}> {2}(",
                 indent, childStateClr, accessorName);
@@ -1149,7 +1149,7 @@ namespace Opc.Ua.SourceGeneration
             {
                 case ChildKind.Variable:
                     writer.WriteLine("{0}/// <summary>Typed accessor for variable child <c>{1}</c>.</summary>",
-                        indent, child.BrowseName);
+                        indent, EscapeXmlDoc(child.BrowseName));
                     writer.WriteLine("{0}public global::Opc.Ua.Server.Fluent.IVariableBuilder<{1}> {2}",
                         indent, child.ValueClrType, child.AccessorName);
                     writer.WriteLine("{0}{{", indent);
@@ -1166,7 +1166,7 @@ namespace Opc.Ua.SourceGeneration
                     break;
                 case ChildKind.Method:
                     writer.WriteLine("{0}/// <summary>Typed accessor for method child <c>{1}</c>.</summary>",
-                        indent, child.BrowseName);
+                        indent, EscapeXmlDoc(child.BrowseName));
                     writer.WriteLine("{0}public {1} {2}", indent, child.WrapperClassName, child.AccessorName);
                     writer.WriteLine("{0}{{", indent);
                     writer.WriteLine("{0}get", bodyIndent);
@@ -1182,7 +1182,7 @@ namespace Opc.Ua.SourceGeneration
                     break;
                 case ChildKind.Object:
                     writer.WriteLine("{0}/// <summary>Typed accessor for object child <c>{1}</c>.</summary>",
-                        indent, child.BrowseName);
+                        indent, EscapeXmlDoc(child.BrowseName));
                     writer.WriteLine("{0}public {1} {2}", indent, child.WrapperClassName, child.AccessorName);
                     writer.WriteLine("{0}{{", indent);
                     writer.WriteLine("{0}get", bodyIndent);
@@ -1862,6 +1862,25 @@ namespace Opc.Ua.SourceGeneration
             return value
                 .Replace("\\", "\\\\", StringComparison.Ordinal)
                 .Replace("\"", "\\\"", StringComparison.Ordinal);
+        }
+
+        /// <summary>
+        /// Escapes a value for safe inclusion in a generated XML documentation
+        /// comment. OptionalPlaceholder browse names such as <c>&lt;Binding&gt;</c>
+        /// contain angle brackets that would otherwise produce malformed XML
+        /// (CS1570) when the consuming project enables documentation-file
+        /// generation.
+        /// </summary>
+        private static string EscapeXmlDoc(string value)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return string.Empty;
+            }
+            return value
+                .Replace("&", "&amp;", StringComparison.Ordinal)
+                .Replace("<", "&lt;", StringComparison.Ordinal)
+                .Replace(">", "&gt;", StringComparison.Ordinal);
         }
 
         /// <summary>
