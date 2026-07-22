@@ -1080,6 +1080,29 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task AddReferencesLocalNamespaceUriProcessesTargetAsync()
+        {
+            using var harness = new AuthorizationHarness();
+            AddReferencesItem item = harness.CreateAddReferencesItem();
+            item.TargetNodeId = harness.CreateTargetExpandedNodeIdWithUri();
+
+            (ArrayOf<StatusCode> results, _) = await harness.Sut.AddReferencesAsync(
+                harness.AddReferencesContext,
+                new AddReferencesItem[] { item }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(results[0], Is.EqualTo(StatusCodes.Good));
+            harness.TargetManager.Verify(
+                manager => manager.AddReferenceAsync(
+                    harness.AddReferencesContext,
+                    It.Is<AddReferencesItem>(inverse =>
+                        inverse.SourceNodeId == harness.TargetNodeId &&
+                        inverse.TargetNodeId == harness.SourceNodeId),
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+
+        [Test]
         public async Task AddReferencesInverseFailureRollsBackSourceAsync()
         {
             using var harness = new AuthorizationHarness();
@@ -1283,6 +1306,29 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<DeleteReferencesItem>(),
                     It.IsAny<CancellationToken>()),
                 Times.Never);
+        }
+
+        [Test]
+        public async Task DeleteReferencesLocalNamespaceUriProcessesTargetAsync()
+        {
+            using var harness = new AuthorizationHarness();
+            DeleteReferencesItem item = harness.CreateDeleteReferencesItem();
+            item.TargetNodeId = harness.CreateTargetExpandedNodeIdWithUri();
+
+            (ArrayOf<StatusCode> results, _) = await harness.Sut.DeleteReferencesAsync(
+                harness.DeleteReferencesContext,
+                new DeleteReferencesItem[] { item }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(results[0], Is.EqualTo(StatusCodes.Good));
+            harness.TargetManager.Verify(
+                manager => manager.DeleteReferenceAsync(
+                    harness.DeleteReferencesContext,
+                    It.Is<DeleteReferencesItem>(inverse =>
+                        inverse.SourceNodeId == harness.TargetNodeId &&
+                        inverse.TargetNodeId == harness.SourceNodeId),
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
         }
 
         [Test]
@@ -2183,6 +2229,11 @@ namespace Opc.Ua.Server.Tests
                     TargetNodeId = TargetNodeId,
                     DeleteBidirectional = true
                 };
+            }
+
+            public ExpandedNodeId CreateTargetExpandedNodeIdWithUri()
+            {
+                return new ExpandedNodeId(TargetNodeId, TargetNamespaceUri);
             }
 
             public void SetAddNodePermissions(PermissionType permissions)

@@ -1474,20 +1474,19 @@ namespace Opc.Ua.Server
             return sourceResult;
         }
 
-        private static bool TryGetExplicitLocalTargetNodeId(
+        private bool TryGetExplicitLocalTargetNodeId(
             string? targetServerUri,
             ExpandedNodeId targetNodeId,
             out NodeId localNodeId)
         {
             if (!string.IsNullOrEmpty(targetServerUri) ||
-                targetNodeId.ServerIndex != 0 ||
-                !string.IsNullOrEmpty(targetNodeId.NamespaceUri))
+                targetNodeId.ServerIndex != 0)
             {
                 localNodeId = NodeId.Null;
                 return false;
             }
 
-            localNodeId = targetNodeId.InnerNodeId;
+            localNodeId = ExpandedNodeId.ToNodeId(targetNodeId, Server.NamespaceUris);
             return !localNodeId.IsNull;
         }
 
