@@ -36,20 +36,19 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua.Server;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
-using Opc.Ua.WotCon.V2;
 using Opc.Ua.XRegistry;
 
 namespace Opc.Ua.WotCon.Server
 {
     /// <summary>
-    /// The stable NodeManager that exposes the WoT Connectivity V2 registry
+    /// The stable NodeManager that exposes the WoT Connectivity 1.1 registry
     /// (<c>WoTRegistry</c>) and its xRegistry-derived group structure. It hosts
     /// the injected <see cref="IWotRegistryService"/> and
     /// <see cref="WotMaterializationCoordinator"/>: content mutations trigger a
     /// coordinator refresh that projects TD/TM closures as separate runtime
     /// NodeManagers, so this manager stays stable while projections come and go.
     /// The generated <c>Refresh</c> Method is wired to the coordinator; the
-    /// coordinator's events are re-emitted as the generated V2 event types.
+    /// coordinator's events are re-emitted as the generated registry event types.
     /// </summary>
     public sealed class WotRegistryNodeManager : AsyncCustomNodeManager
     {
@@ -64,7 +63,7 @@ namespace Opc.Ua.WotCon.Server
                   server,
                   configuration,
                   server.Telemetry.CreateLogger<WotRegistryNodeManager>(),
-                  V2.Namespaces.WotConV2,
+                  Namespaces.WotCon,
                   XRegistry.Namespaces.XRegistry)
         {
             m_options = options ?? throw new ArgumentNullException(nameof(options));
@@ -86,9 +85,14 @@ namespace Opc.Ua.WotCon.Server
             ISystemContext context,
             CancellationToken cancellationToken = default)
         {
+            // Load the xRegistry base plus the combined WoT-Con model, then keep
+            // only the additive registry slice. The incorporated (deprecated)
+            // OPC 10100-1 v1.02 nodes are owned by WotConnectivityNodeManager, so
+            // the two managers never claim the same static model node twice.
             NodeStateCollection nodes = new NodeStateCollection()
                 .AddOpcUaXRegistry(context)
-                .AddOpcUaWotConV2(context);
+                .AddOpcUaWotCon(context);
+            WotConModelPartition.RetainRegistryNodes(nodes, context);
             return new ValueTask<NodeStateCollection>(nodes);
         }
 
@@ -99,7 +103,7 @@ namespace Opc.Ua.WotCon.Server
             CancellationToken cancellationToken = default)
         {
             NodeId registryNodeId = ExpandedNodeId.ToNodeId(
-                V2.ObjectIds.WoTRegistry, Server.NamespaceUris);
+                ObjectIds.WoTRegistry, Server.NamespaceUris);
             if (predefinedNode is BaseObjectState registry &&
                 registry.NodeId == registryNodeId)
             {
@@ -205,8 +209,8 @@ namespace Opc.Ua.WotCon.Server
 
         private void WireRefreshMethod(BaseObjectState registry)
         {
-            ushort ns = (ushort)Server.NamespaceUris.GetIndex(V2.Namespaces.WotConV2);
-            if (registry.FindChild(SystemContext, new QualifiedName(V2.BrowseNames.Refresh, ns))
+            ushort ns = (ushort)Server.NamespaceUris.GetIndex(Namespaces.WotCon);
+            if (registry.FindChild(SystemContext, new QualifiedName(BrowseNames.Refresh, ns))
                 is MethodState refresh)
             {
                 refresh.OnCallMethod2Async = OnRefreshAsync;
@@ -334,10 +338,10 @@ namespace Opc.Ua.WotCon.Server
                     // refresh summary, which is produced from the registry snapshot.
                     if (e.Summary is not null)
                     {
-                        SetEventStruct(evt, V2.BrowseNames.Summary, e.Summary);
+                        SetEventStruct(evt, BrowseNames.Summary, e.Summary);
                     }
-                    SetEventValue(evt, V2.BrowseNames.RequestId, new Variant(e.RequestId));
-                    SetEventValue(evt, V2.BrowseNames.Generation, new Variant(e.Generation));
+                    SetEventValue(evt, BrowseNames.RequestId, new Variant(e.RequestId));
+                    SetEventValue(evt, BrowseNames.Generation, new Variant(e.Generation));
                     return evt;
                 }
                 case WotMaterializationEventKind.ValidationFailure:
@@ -347,7 +351,7 @@ namespace Opc.Ua.WotCon.Server
                     PopulateResourceEventFields(evt, e);
                     if (e.Validation is not null)
                     {
-                        SetEventStruct(evt, V2.BrowseNames.ValidationOutcome, e.Validation);
+                        SetEventStruct(evt, BrowseNames.ValidationOutcome, e.Validation);
                     }
                     return evt;
                 }
@@ -356,10 +360,10 @@ namespace Opc.Ua.WotCon.Server
                     var evt = new WoTLoadFailureEventState(source);
                     InitializeEvent(evt, source, "LoadFailure: " + e.Reason);
                     PopulateResourceEventFields(evt, e);
-                    SetEventEnum(evt, V2.BrowseNames.LoadState, e.LoadState);
+                    SetEventEnum(evt, BrowseNames.LoadState, e.LoadState);
                     SetEventValue(
-                        evt, V2.BrowseNames.FailedNodeId, new Variant(e.FailedNodeId ?? NodeId.Null));
-                    SetEventValue(evt, V2.BrowseNames.Reason, new Variant(e.Reason));
+                        evt, BrowseNames.FailedNodeId, new Variant(e.FailedNodeId ?? NodeId.Null));
+                    SetEventValue(evt, BrowseNames.Reason, new Variant(e.Reason));
                     return evt;
                 }
                 case WotMaterializationEventKind.BindingFailure:
@@ -367,8 +371,8 @@ namespace Opc.Ua.WotCon.Server
                     var evt = new WoTBindingFailureEventState(source);
                     InitializeEvent(evt, source, "BindingFailure: " + e.Reason);
                     PopulateResourceEventFields(evt, e);
-                    SetEventValue(evt, V2.BrowseNames.BindingUri, new Variant(e.BindingUri));
-                    SetEventValue(evt, V2.BrowseNames.Reason, new Variant(e.Reason));
+                    SetEventValue(evt, BrowseNames.BindingUri, new Variant(e.BindingUri));
+                    SetEventValue(evt, BrowseNames.Reason, new Variant(e.Reason));
                     return evt;
                 }
                 default:
@@ -401,13 +405,13 @@ namespace Opc.Ua.WotCon.Server
         private void PopulateResourceEventFields(
             BaseEventState evt, WotMaterializationEventArgs e)
         {
-            SetEventValue(evt, V2.BrowseNames.Xid, new Variant(e.Xid));
-            SetEventValue(evt, V2.BrowseNames.ResourceId, new Variant(e.ResourceId));
-            SetEventValue(evt, V2.BrowseNames.VersionId, new Variant(e.VersionId));
-            SetEventEnum(evt, V2.BrowseNames.DocumentKind, e.DocumentKind);
-            SetEventValue(evt, V2.BrowseNames.Generation, new Variant(e.Generation));
-            SetEventEnum(evt, V2.BrowseNames.Phase, e.Phase);
-            SetEventEnum(evt, V2.BrowseNames.Outcome, e.Outcome);
+            SetEventValue(evt, BrowseNames.Xid, new Variant(e.Xid));
+            SetEventValue(evt, BrowseNames.ResourceId, new Variant(e.ResourceId));
+            SetEventValue(evt, BrowseNames.VersionId, new Variant(e.VersionId));
+            SetEventEnum(evt, BrowseNames.DocumentKind, e.DocumentKind);
+            SetEventValue(evt, BrowseNames.Generation, new Variant(e.Generation));
+            SetEventEnum(evt, BrowseNames.Phase, e.Phase);
+            SetEventEnum(evt, BrowseNames.Outcome, e.Outcome);
         }
 
         private void SetEventValue(BaseEventState evt, string browseName, Variant value)
@@ -422,7 +426,7 @@ namespace Opc.Ua.WotCon.Server
             => evt.SetChildValue(SystemContext, WoTQualifiedName(browseName), value, false);
 
         private QualifiedName WoTQualifiedName(string browseName)
-            => new(browseName, (ushort)Server.NamespaceUris.GetIndex(V2.Namespaces.WotConV2));
+            => new(browseName, (ushort)Server.NamespaceUris.GetIndex(Namespaces.WotCon));
 
         private async Task SafeReconcileAsync()
         {
@@ -496,7 +500,7 @@ namespace Opc.Ua.WotCon.Server
 
         private void SetChildValue(BaseObjectState parent, string browseName, Variant value)
         {
-            ushort ns = (ushort)Server.NamespaceUris.GetIndex(V2.Namespaces.WotConV2);
+            ushort ns = (ushort)Server.NamespaceUris.GetIndex(Namespaces.WotCon);
             if (parent.FindChild(SystemContext, new QualifiedName(browseName, ns))
                 is BaseVariableState variable)
             {

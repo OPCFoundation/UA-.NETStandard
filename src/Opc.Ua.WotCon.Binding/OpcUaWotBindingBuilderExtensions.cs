@@ -37,7 +37,7 @@ namespace Microsoft.Extensions.DependencyInjection
 {
     /// <summary>
     /// <see cref="IOpcUaBuilder"/> extensions that register replaceable WoT
-    /// protocol binders and executors and wire them into the WoT Connectivity V2
+    /// protocol binders and executors and wire them into the WoT Connectivity 1.1
     /// materialization coordinator. Binders are injected independently and are
     /// selected by pinned identification rules; concrete executors are registered
     /// separately so a protocol can be validated without being executable and can

@@ -44,9 +44,9 @@ using Opc.Ua.Tests;
 using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
-using Opc.Ua.WotCon.V2;
+using Opc.Ua.WotCon;
 using Quickstarts.ReferenceServer;
-using V2 = Opc.Ua.WotCon.V2;
+using WotConModel = Opc.Ua.WotCon;
 
 namespace Opc.Ua.Server.Tests.RuntimeNodeSet
 {
@@ -257,8 +257,8 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         private async Task AssertRegistryProjectionAsync(IServerInternal server)
         {
             var registryNodeId = ExpandedNodeId.ToNodeId(
-                V2.ObjectIds.WoTRegistry, server.NamespaceUris);
-            ushort v2Ns = (ushort)server.NamespaceUris.GetIndex(V2.Namespaces.WotConV2);
+                WotConModel.ObjectIds.WoTRegistry, server.NamespaceUris);
+            ushort v2Ns = (ushort)server.NamespaceUris.GetIndex(WotConModel.Namespaces.WotCon);
             var groupNodeId = new NodeId(
                 "WoTRegistry/groups/" + WotRegistryGroups.ThingDescriptions, v2Ns);
             var resourceNodeId = new NodeId(
@@ -287,7 +287,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         {
             IServerInternal server = m_server.CurrentInstance;
             var registryNodeId = ExpandedNodeId.ToNodeId(
-                V2.ObjectIds.WoTRegistry, server.NamespaceUris);
+                WotConModel.ObjectIds.WoTRegistry, server.NamespaceUris);
 
             // 1. CreateGroup via the xRegistry CreateGroup Method on WoTRegistry.
             NodeId createGroupId = await FindChildAsync(registryNodeId, "CreateGroup")
@@ -367,7 +367,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         {
             IServerInternal server = m_server.CurrentInstance;
             var registryNodeId = ExpandedNodeId.ToNodeId(
-                V2.ObjectIds.WoTRegistry, server.NamespaceUris);
+                WotConModel.ObjectIds.WoTRegistry, server.NamespaceUris);
 
             // ---- registry-level Labels ------------------------------------
             NodeId registryLabelsId = await FindChildAsync(registryNodeId, "Labels")

@@ -55,7 +55,7 @@ namespace Opc.Ua.WotCon.Server
         /// <inheritdoc/>
         public ArrayOf<string> NamespacesUris => new string[]
         {
-            V2.Namespaces.WotConV2,
+            Namespaces.WotCon,
             XRegistry.Namespaces.XRegistry
         };
 

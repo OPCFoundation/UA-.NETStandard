@@ -40,7 +40,6 @@ using Opc.Ua.WotCon.Binding;
 using Opc.Ua.WotCon.Binding.Http;
 using Opc.Ua.WotCon.Binding.Planners;
 using Opc.Ua.WotCon.Binding.Tests.Support;
-using Opc.Ua.WotCon.V2;
 
 namespace Opc.Ua.WotCon.Binding.Tests
 {

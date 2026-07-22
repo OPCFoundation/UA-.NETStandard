@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Globalization;
-using Opc.Ua.WotCon.V2;
 
 namespace Opc.Ua.WotCon.Binding.Planners
 {

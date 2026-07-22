@@ -6,7 +6,7 @@
     <RootNamespace>Opc.Ua.WotCon</RootNamespace>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
     <Nullable>enable</Nullable>
-    <Description>OPC UA WoT Connectivity (OPC 10100-1) information model</Description>
+    <Description>OPC UA WoT Connectivity 1.1 information model — a registry-first revision (additive registry nodes plus the incorporated, deprecated OPC 10100-1 v1.02 surface) in one namespace.</Description>
     <IsPackable>true</IsPackable>
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
@@ -41,36 +41,40 @@
     <ModelSourceGeneratorUseAllowSubtypes>true</ModelSourceGeneratorUseAllowSubtypes>
   </PropertyGroup>
   <ItemGroup>
-    <None Remove="Design\WotConnection.csv" />
-    <None Remove="Design\WotConnection.xml" />
+    <!-- Legacy OPC 10100-1 v1.02 ModelDesign sources are retained under Design
+         purely as human-readable documentation of the surface incorporated
+         into the combined 1.1 NodeSet below. They are intentionally NOT
+         source-generated: the combined NodeSet is the single generation input,
+         so the 1.02 model is never generated a second time. -->
     <None Remove="Design\Opc.Ua.XRegistry.NodeSet2.csv" />
     <None Remove="Design\Opc.Ua.XRegistry.NodeSet2.xml" />
-    <None Remove="Design\Opc.Ua.WoTConV2.NodeSet2.csv" />
-    <None Remove="Design\Opc.Ua.WoTConV2.NodeSet2.xml" />
+    <None Remove="Design\Opc.Ua.WoTCon.NodeSet2.csv" />
+    <None Remove="Design\Opc.Ua.WoTCon.NodeSet2.xml" />
   </ItemGroup>
   <ItemGroup>
-    <AdditionalFiles Include="Design\WotConnection.csv" />
-    <AdditionalFiles Include="Design\WotConnection.xml" />
     <!-- xRegistry abstract registry base model (http://opcfoundation.org/UA/xRegistry/).
          Emitted into the Opc.Ua.XRegistry C# namespace so its RegistryType /
-         GroupType / ResourceType constants coexist with the V1 and V2 models. -->
+         GroupType / ResourceType constants are available as base types for the
+         WoT registry types incorporated in the combined model below. -->
     <AdditionalFiles Include="Design\Opc.Ua.XRegistry.NodeSet2.xml">
       <ModelSourceGeneratorPrefix>Opc.Ua.XRegistry</ModelSourceGeneratorPrefix>
       <ModelSourceGeneratorName>XRegistry</ModelSourceGeneratorName>
       <ModelSourceGeneratorModelUri>http://opcfoundation.org/UA/xRegistry/</ModelSourceGeneratorModelUri>
     </AdditionalFiles>
     <AdditionalFiles Include="Design\Opc.Ua.XRegistry.NodeSet2.csv" />
-    <!-- WoT Connectivity V2 companion model (http://opcfoundation.org/UA/WoT-Con/V2/).
-         Emitted into the Opc.Ua.WotCon.V2 C# namespace (a child of the V1
-         Opc.Ua.WotCon namespace) so the V2 registry/materialization runtime can
-         reference its generated ObjectTypeIds / DataTypes without colliding with
-         the legacy 1.02 constants. -->
-    <AdditionalFiles Include="Design\Opc.Ua.WoTConV2.NodeSet2.xml">
-      <ModelSourceGeneratorPrefix>Opc.Ua.WotCon.V2</ModelSourceGeneratorPrefix>
-      <ModelSourceGeneratorName>WotConV2</ModelSourceGeneratorName>
-      <ModelSourceGeneratorModelUri>http://opcfoundation.org/UA/WoT-Con/V2/</ModelSourceGeneratorModelUri>
+    <!-- WoT Connectivity 1.1 combined model (http://opcfoundation.org/UA/WoT-Con/).
+         One NodeSet in one namespace incorporating the complete published
+         OPC 10100-1 v1.02 model (NodeIds 1..172, marked deprecated) plus the
+         additive registry nodes (64000+). Emitted into the Opc.Ua.WotCon C#
+         namespace with the same prefix / name / model URI the standalone 1.02
+         model previously used, so every existing 1.02 generated constant,
+         NodeState and proxy — and its exact NodeId — is preserved. -->
+    <AdditionalFiles Include="Design\Opc.Ua.WoTCon.NodeSet2.xml">
+      <ModelSourceGeneratorPrefix>Opc.Ua.WotCon</ModelSourceGeneratorPrefix>
+      <ModelSourceGeneratorName>WotCon</ModelSourceGeneratorName>
+      <ModelSourceGeneratorModelUri>http://opcfoundation.org/UA/WoT-Con/</ModelSourceGeneratorModelUri>
     </AdditionalFiles>
-    <AdditionalFiles Include="Design\Opc.Ua.WoTConV2.NodeSet2.csv" />
+    <AdditionalFiles Include="Design\Opc.Ua.WoTCon.NodeSet2.csv" />
   </ItemGroup>
   <ItemGroup>
     <None Include="NugetREADME.md" Pack="true" PackagePath="\" />

@@ -35,14 +35,13 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.WotCon.Server.Registry;
-using Opc.Ua.WotCon.V2;
 using Opc.Ua.XRegistry;
 
 namespace Opc.Ua.WotCon.Server
 {
     /// <summary>
-    /// Materializes the WoT Connectivity V2 registry snapshot as browseable
-    /// xRegistry/V2 Objects beneath the stable <c>WoTRegistry</c> node:
+    /// Materializes the WoT Connectivity 1.1 registry snapshot as browseable
+    /// xRegistry Objects beneath the stable <c>WoTRegistry</c> node:
     /// <c>ThingDescriptionGroupType</c>/<c>ThingModelGroupType</c> group Objects
     /// and their <c>ThingDescriptionFileType</c>/<c>ThingModelFileType</c>
     /// document resources. Every group and resource is (re)created, updated and
@@ -63,7 +62,7 @@ namespace Opc.Ua.WotCon.Server
             m_registry = registry ?? throw new ArgumentNullException(nameof(registry));
             m_options = options ?? throw new ArgumentNullException(nameof(options));
             m_logger = logger;
-            m_v2Ns = (ushort)manager.Server.NamespaceUris.GetIndex(V2.Namespaces.WotConV2);
+            m_modelNs = (ushort)manager.Server.NamespaceUris.GetIndex(Namespaces.WotCon);
         }
 
         /// <summary>
@@ -221,11 +220,11 @@ namespace Opc.Ua.WotCon.Server
             NodeId nodeId = GroupNodeId(group.GroupId);
             node.ReferenceTypeId = Ua.ReferenceTypeIds.Organizes;
             node.TypeDefinitionId = ExpandedNodeId.ToNodeId(
-                tm ? V2.ObjectTypeIds.ThingModelGroupType : V2.ObjectTypeIds.ThingDescriptionGroupType,
+                tm ? ObjectTypeIds.ThingModelGroupType : ObjectTypeIds.ThingDescriptionGroupType,
                 m_manager.Server.NamespaceUris);
             node.Create(
                 m_manager.SystemContext, nodeId,
-                new QualifiedName(group.GroupId, m_v2Ns), new LocalizedText(group.Name),
+                new QualifiedName(group.GroupId, m_modelNs), new LocalizedText(group.Name),
                 assignNodeIds: false);
 
             node.AddCreateResource(m_manager.SystemContext);
@@ -318,14 +317,14 @@ namespace Opc.Ua.WotCon.Server
             NodeId nodeId = ResourceNodeId(resource.GroupId, resource.ResourceId);
             node.ReferenceTypeId = Ua.ReferenceTypeIds.Organizes;
             node.TypeDefinitionId = ExpandedNodeId.ToNodeId(
-                tm ? V2.ObjectTypeIds.ThingModelFileType : V2.ObjectTypeIds.ThingDescriptionFileType,
+                tm ? ObjectTypeIds.ThingModelFileType : ObjectTypeIds.ThingDescriptionFileType,
                 m_manager.Server.NamespaceUris);
             node.Create(
                 m_manager.SystemContext, nodeId,
-                new QualifiedName(resource.ResourceId, m_v2Ns),
+                new QualifiedName(resource.ResourceId, m_modelNs),
                 new LocalizedText(resource.Name), assignNodeIds: false);
 
-            // Optional xRegistry + V2 metadata children.
+            // Optional xRegistry registry metadata children.
             node.AddVersionId(m_manager.SystemContext);
             node.AddFormat(m_manager.SystemContext);
             node.AddContentType(m_manager.SystemContext);
@@ -806,8 +805,8 @@ namespace Opc.Ua.WotCon.Server
                     }
                     continue;
                 }
-                PropertyState<string> created = labels.AddxAttribute_(
-                    context, new QualifiedName(label.Key, m_v2Ns));
+                PropertyState<string> created = labels.AddAttribute_Placeholder(
+                    context, new QualifiedName(label.Key, m_modelNs));
                 created.NodeId = LabelNodeId(basePath, label.Key);
                 created.Value = label.Value;
                 await m_manager.AddPredefinedNodeAsync(created, ct).ConfigureAwait(false);
@@ -823,7 +822,7 @@ namespace Opc.Ua.WotCon.Server
         }
 
         private NodeId LabelNodeId(string basePath, string key)
-            => new NodeId($"{basePath}/labels/{key}", m_v2Ns);
+            => new NodeId($"{basePath}/labels/{key}", m_modelNs);
 
         private async ValueTask<ServiceResult> OnAddRegistryLabelAsync(
             ISystemContext context, ArrayOf<Variant> input, CancellationToken ct)
@@ -1002,10 +1001,10 @@ namespace Opc.Ua.WotCon.Server
             => $"WoTRegistry/groups/{groupId}/resources/{resourceId}";
 
         private NodeId GroupNodeId(string groupId)
-            => new NodeId(GroupNodeIdPath(groupId), m_v2Ns);
+            => new NodeId(GroupNodeIdPath(groupId), m_modelNs);
 
         private NodeId ResourceNodeId(string groupId, string resourceId)
-            => new NodeId(ResourceNodeIdPath(groupId, resourceId), m_v2Ns);
+            => new NodeId(ResourceNodeIdPath(groupId, resourceId), m_modelNs);
 
         private void WireMethod(
             BaseObjectState parent, string browseName, GenericMethodCalledEventHandler2Async handler)
@@ -1013,7 +1012,7 @@ namespace Opc.Ua.WotCon.Server
             MethodState? method =
                 parent.FindChild(m_manager.SystemContext, new QualifiedName(browseName, XRegistryNs))
                     as MethodState
-                ?? parent.FindChild(m_manager.SystemContext, new QualifiedName(browseName, m_v2Ns))
+                ?? parent.FindChild(m_manager.SystemContext, new QualifiedName(browseName, m_modelNs))
                     as MethodState;
             if (method is not null)
             {
@@ -1154,7 +1153,7 @@ namespace Opc.Ua.WotCon.Server
         private readonly IWotRegistryService m_registry;
         private readonly WotRegistryServerOptions m_options;
         private readonly ILogger m_logger;
-        private readonly ushort m_v2Ns;
+        private readonly ushort m_modelNs;
         private readonly SemaphoreSlim m_gate = new(1, 1);
         private readonly Dictionary<string, GroupEntry> m_groups = new(StringComparer.Ordinal);
         private readonly System.Collections.Concurrent.ConcurrentDictionary<string, WoTDocumentState>

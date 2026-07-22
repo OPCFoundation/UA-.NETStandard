@@ -33,7 +33,7 @@ using Opc.Ua.WotCon.Server.Registry;
 namespace Opc.Ua.WotCon.Server
 {
     /// <summary>
-    /// Options for the WoT Connectivity V2 registry NodeManager. These are
+    /// Options for the WoT Connectivity 1.1 registry NodeManager. These are
     /// bindable from configuration (only the simple-typed members) and augmented
     /// at runtime with the persistence store, binder registry and management
     /// access policy.
@@ -79,7 +79,7 @@ namespace Opc.Ua.WotCon.Server
         /// <c>SupportedBindings</c> object. Empty in this phase (no concrete
         /// protocol binders are registered).
         /// </summary>
-        public IList<V2.WoTBindingCapabilityDataType> SupportedBindings { get; }
-            = new List<V2.WoTBindingCapabilityDataType>();
+        public IList<WoTBindingCapabilityDataType> SupportedBindings { get; }
+            = new List<WoTBindingCapabilityDataType>();
     }
 }

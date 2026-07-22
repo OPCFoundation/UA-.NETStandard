@@ -39,10 +39,10 @@ namespace Opc.Ua.WotCon.Server.Registry
     /// Manages the inherited OPC UA <c>FileType</c> primitives
     /// (<c>Open</c>/<c>Read</c>/<c>Write</c>/<c>Close</c>/<c>GetPosition</c>/
     /// <c>SetPosition</c>) exposed by a single xRegistry <c>ResourceType</c>
-    /// document node in the WoT Connectivity V2 registry.
+    /// document node in the WoT Connectivity 1.1 registry.
     /// </summary>
     /// <remarks>
-    /// Generalizes the legacy <c>WotAssetFileManager</c> for the xRegistry/V2
+    /// Generalizes the legacy <c>WotAssetFileManager</c> for the xRegistry
     /// document surface: per-session handles, a bounded write buffer, a single
     /// exclusive writer, and commit-on-close semantics. Read handles serve an
     /// immutable snapshot of the resource's active/default version bytes; a write

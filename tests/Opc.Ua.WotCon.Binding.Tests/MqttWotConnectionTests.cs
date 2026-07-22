@@ -37,7 +37,6 @@ using NUnit.Framework;
 using Opc.Ua.WotCon.Binding;
 using Opc.Ua.WotCon.Binding.Mqtt;
 using Opc.Ua.WotCon.Binding.Planners;
-using Opc.Ua.WotCon.V2;
 
 namespace Opc.Ua.WotCon.Binding.Tests
 {

@@ -143,7 +143,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
             string trimmed = TrimFragment(href);
             // Prefer Thing Models, then any resource, matching by thing id, xid or resource id.
-            return MatchIn(snapshot.ResourcesOfKind(V2.WoTDocumentKindEnum.ThingModel), trimmed)
+            return MatchIn(snapshot.ResourcesOfKind(WoTDocumentKindEnum.ThingModel), trimmed)
                 ?? MatchIn(snapshot.AllResources(), trimmed);
         }
 

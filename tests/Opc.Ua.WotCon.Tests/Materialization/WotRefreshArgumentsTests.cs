@@ -29,7 +29,6 @@
 
 using NUnit.Framework;
 using Opc.Ua.WotCon.Server.Materialization;
-using Opc.Ua.WotCon.V2;
 
 namespace Opc.Ua.WotCon.Tests.Materialization
 {
@@ -196,7 +195,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 encoded = encoder.CloseAndReturnBuffer()!;
             }
             var extension = new ExtensionObject(
-                Opc.Ua.WotCon.V2.DataTypeIds.WoTResourceSelectorDataType, ByteString.From(encoded));
+                Opc.Ua.WotCon.DataTypeIds.WoTResourceSelectorDataType, ByteString.From(encoded));
             ArrayOf<Variant> input = Args(new Variant(new[] { extension }));
 
             ServiceResult status = WotRefreshArguments.TryDecode(
