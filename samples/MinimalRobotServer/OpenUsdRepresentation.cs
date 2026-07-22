@@ -259,14 +259,14 @@ namespace Robotics
         // (OpenUsdRepresentationAuthoring.AddLiveBinding), not in this sample.
         private void CreateBinding(
             OpenUsdRepresentationState rep, ushort ns, string name,
-            Guid bindingDefinitionId, NodeId? sourceNodeId, string targetPrimPath,
+            Guid bindingDefinitionId, NodeId sourceNodeId, string targetPrimPath,
             string targetPropertyName, string targetUsdTypeName,
             OpenUsdRenderTargetKindEnum? kind, double scale,
             uint bindingTypeId = Opc.Ua.OpenUsd.ObjectTypes.OpenUsdValueChangeBindingType,
             OpenUsdSignalRoleEnum signalRole = OpenUsdSignalRoleEnum.Observable,
             string? sourceSemanticId = null,
             OpenUsdAlarmAspectEnum? alarmAspect = null,
-            NodeId? commandTargetNodeId = null,
+            NodeId commandTargetNodeId = default,
             string? commandTriggerPropertyName = null)
         {
             _ = rep.AddLiveBinding(
@@ -284,9 +284,9 @@ namespace Robotics
         private void CreateComponentBinding(
             OpenUsdRepresentationState rep, ushort ns, string name, Guid bindingDefinitionId,
             OpenUsdCardinalityEnum cardinality, OpenUsdCompositionArcEnum arc, string targetPrimPath,
-            NodeId? componentRepresentation = null, string? assetReference = null,
-            bool dynamic = false, NodeId? changeEventSource = null,
-            NodeId? componentTypeDefinition = null)
+            NodeId componentRepresentation = default, string? assetReference = null,
+            bool dynamic = false, NodeId changeEventSource = default,
+            NodeId componentTypeDefinition = default)
         {
             _ = rep.AddComponentBinding(
                 SystemContext, ns, name, bindingDefinitionId, cardinality, arc, targetPrimPath,

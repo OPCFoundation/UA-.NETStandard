@@ -51,7 +51,7 @@ namespace Pumps
     {
         private BaseObjectState? m_productionLine;
         private FolderState? m_linePumps;
-        private NodeId? m_dynamicPumpNodeId;
+        private NodeId m_dynamicPumpNodeId;
         private const string LinePrimPath = "/Plant/Line1";
 
         // 1:1 (Child): create Impeller + Bearing component Objects on the pump, each
@@ -186,12 +186,12 @@ namespace Pumps
                     m_dynamicPumpNodeId = await AddLinePumpAsync("P-203",
                         LinePrimPath + "/Pumps/P_203", ns).ConfigureAwait(false);
                     await Task.Delay(4000).ConfigureAwait(false);
-                    if (m_dynamicPumpNodeId != null)
+                    if (!m_dynamicPumpNodeId.IsNull)
                     {
-                        await DeleteNodeAsync(SystemContext, (NodeId)m_dynamicPumpNodeId, CancellationToken.None)
+                        await DeleteNodeAsync(SystemContext, m_dynamicPumpNodeId, CancellationToken.None)
                             .ConfigureAwait(false);
                         m_logger.RemovedLinePump(m_dynamicPumpNodeId);
-                        m_dynamicPumpNodeId = null;
+                        m_dynamicPumpNodeId = NodeId.Null;
                     }
                 }
                 // Final add: leave P-203 in place so the composed stage renders it.
@@ -206,11 +206,11 @@ namespace Pumps
             }
         }
 
-        private async Task<NodeId?> AddLinePumpAsync(string name, string primPath, ushort ns)
+        private async Task<NodeId> AddLinePumpAsync(string name, string primPath, ushort ns)
         {
             if (m_linePumps == null)
             {
-                return null;
+                return NodeId.Null;
             }
             var pump = new BaseObjectState(null)
             {
@@ -235,14 +235,14 @@ namespace Pumps
 
         private (BaseObjectState, OpenUsdRepresentationState) CreateRepresentedComponent(
             NodeState parent, string name, ushort objNs, string primPath, ushort openUsdNs,
-            NodeId? refType = null)
+            NodeId refType = default)
         {
             var obj = new BaseObjectState(parent)
             {
                 SymbolicName = name,
                 BrowseName = new QualifiedName(name, objNs),
                 DisplayName = new LocalizedText(name),
-                ReferenceTypeId = refType ?? ReferenceTypeIds.HasComponent,
+                ReferenceTypeId = refType.IsNull ? ReferenceTypeIds.HasComponent : refType,
                 TypeDefinitionId = Opc.Ua.ObjectTypeIds.BaseObjectType
             };
             parent.AddChild(obj);
@@ -265,10 +265,10 @@ namespace Pumps
         private void CreateComponentBinding(
             OpenUsdRepresentationState rep, ushort ns, string name, Guid bindingDefinitionId,
             OpenUsdCardinalityEnum cardinality, OpenUsdCompositionArcEnum arc, string targetPrimPath,
-            NodeId? componentRepresentation = null, string? assetReference = null,
-            bool dynamic = false, NodeId? changeEventSource = null,
+            NodeId componentRepresentation = default, string? assetReference = null,
+            bool dynamic = false, NodeId changeEventSource = default,
             string? componentServerUri = null, string? componentEndpointUrl = null,
-            NodeId? componentTypeDefinition = null)
+            NodeId componentTypeDefinition = default)
         {
             _ = rep.AddComponentBinding(
                 SystemContext, ns, name, bindingDefinitionId, cardinality, arc, targetPrimPath,
@@ -282,7 +282,7 @@ namespace Pumps
         [LoggerMessage(EventId = PumpDeviceIntegrationServerEventIds.OpenUsdComposition + 1,
             Level = LogLevel.Information,
             Message = "Dynamic composition: removed line pump (NodeId={NodeId}); model-change emitted.")]
-        public static partial void RemovedLinePump(this ILogger logger, NodeId? nodeId);
+        public static partial void RemovedLinePump(this ILogger logger, NodeId nodeId);
 
         [LoggerMessage(EventId = PumpDeviceIntegrationServerEventIds.OpenUsdComposition + 2,
             Level = LogLevel.Information,

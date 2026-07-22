@@ -273,7 +273,7 @@ namespace Opc.Ua.Di.Tests
 
             Assert.That(rep, Is.Not.Null, "OpenUsdRepresentation not discovered on Pump #1.");
             Assert.That(rep!.PrimPath, Is.EqualTo("/Plant/Pumps/P101"));
-            Assert.That(rep.StageNodeId, Is.Not.Null);
+            Assert.That(rep.StageNodeId.IsNull, Is.False);
             Assert.That(rep.RootLayerIdentifier, Is.EqualTo("asset-repo/Plant.usd"));
             // 0.1 telemetry (3) + 0.2 alarm (1) + 0.2 command (1) = 5 bindings.
             Assert.That(rep.Bindings, Has.Count.EqualTo(5));
@@ -308,7 +308,7 @@ namespace Opc.Ua.Di.Tests
                 // Controllable/command: a UsdToUaCommand binding is declared and marked Controllable.
                 Assert.That(command, Is.Not.Null, "No UsdToUaCommand binding discovered.");
                 Assert.That(command!.SignalRole, Is.EqualTo(OpenUsdSignalRole.Controllable));
-                Assert.That(command.CommandTargetNodeId, Is.Not.Null);
+                Assert.That(command.CommandTargetNodeId.IsNull, Is.False);
             });
         }
 
@@ -360,7 +360,7 @@ namespace Opc.Ua.Di.Tests
         {
             var connector = new OpenUsdConnector(m_session!, new MockUsdSink(), enableCommands: true);
             OpenUsdConnector.RepresentationInfo? rep = await PumpRepAsync(connector).ConfigureAwait(false);
-            NodeId? target = null;
+            NodeId target = NodeId.Null;
             foreach (OpenUsdConnector.BindingInfo b in rep!.Bindings)
             {
                 if (b.Intent == OpenUsdIntentProfile.UsdToUaCommand)
@@ -368,7 +368,7 @@ namespace Opc.Ua.Di.Tests
                     target = b.CommandTargetNodeId;
                 }
             }
-            Assert.That(target, Is.Not.Null, "Command target NodeId missing.");
+            Assert.That(target.IsNull, Is.False, "Command target NodeId missing.");
 
             const double setpoint = 42.5;
             bool ok = await connector.IssueCommandAsync(setpoint, CancellationToken.None)
@@ -377,7 +377,7 @@ namespace Opc.Ua.Di.Tests
 
             var toRead = new ReadValueId[]
             {
-                new ReadValueId { NodeId = target!.Value, AttributeId = Attributes.Value }
+                new ReadValueId { NodeId = target, AttributeId = Attributes.Value }
             };
             ReadResponse rr = await m_session!.ReadAsync(
                 null!, 0, TimestampsToReturn.Neither, toRead, CancellationToken.None)

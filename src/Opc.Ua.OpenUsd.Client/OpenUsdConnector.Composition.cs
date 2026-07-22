@@ -67,7 +67,7 @@ namespace Opc.Ua.OpenUsd.Client
 
             // Precise 1:1 (§5.12): a One binding that names the specific component's own
             // representation composes exactly that prim (arc=Child nested prim).
-            if (c.Cardinality == OpenUsdCardinality.One && c.ComponentRepresentation != null)
+            if (c.Cardinality == OpenUsdCardinality.One && !c.ComponentRepresentation.IsNull)
             {
                 string onePrim = ResolveTarget(rep, c);
                 m_sink.ComposePrim(onePrim, c.Arc, c.ComponentAssetReference, active: true);
@@ -78,13 +78,13 @@ namespace Opc.Ua.OpenUsd.Client
                 return;
             }
 
-            NodeId? representedObj = await ParentAsync(rep.NodeId!.Value, ct).ConfigureAwait(false);
-            if (representedObj == null)
+            NodeId representedObj = await ParentAsync(rep.NodeId, ct).ConfigureAwait(false);
+            if (representedObj.IsNull)
             {
                 return;
             }
             List<(NodeId Obj, NodeId Rep, string Name)> comps =
-                await ResolveComponentRepsAsync(representedObj.Value, c, ct).ConfigureAwait(false);
+                await ResolveComponentRepsAsync(representedObj, c, ct).ConfigureAwait(false);
 
             var live = new HashSet<string>(StringComparer.Ordinal);
             int index = 0;
@@ -160,41 +160,41 @@ namespace Opc.Ua.OpenUsd.Client
             NodeId parent, ComponentInfo c, CancellationToken ct)
         {
             var result = new List<(NodeId, NodeId, string)>();
-            var candidates = new List<(NodeId Id, string Name, NodeId? TypeDef)>();
-            foreach ((string name, NodeId? id, NodeId? typeDef) in await ChildrenFullAsync(parent, ct)
+            var candidates = new List<(NodeId Id, string Name, NodeId TypeDef)>();
+            foreach ((string name, NodeId id, NodeId typeDef) in await ChildrenFullAsync(parent, ct)
                 .ConfigureAwait(false))
             {
-                if (id == null)
+                if (id.IsNull)
                 {
                     continue;
                 }
                 if (typeDef == ObjectTypeIds.FolderType)
                 {
-                    foreach ((string gName, NodeId? gId, NodeId? gType) in
-                        await ChildrenFullAsync(id.Value, ct).ConfigureAwait(false))
+                    foreach ((string gName, NodeId gId, NodeId gType) in
+                        await ChildrenFullAsync(id, ct).ConfigureAwait(false))
                     {
-                        if (gId != null)
+                        if (!gId.IsNull)
                         {
-                            candidates.Add((gId.Value, gName, gType));
+                            candidates.Add((gId, gName, gType));
                         }
                     }
                 }
                 else
                 {
-                    candidates.Add((id.Value, name, typeDef));
+                    candidates.Add((id, name, typeDef));
                 }
             }
-            foreach ((NodeId id, string name, NodeId? typeDef) in candidates)
+            foreach ((NodeId id, string name, NodeId typeDef) in candidates)
             {
-                if (c.ComponentTypeDefinition != null && typeDef != c.ComponentTypeDefinition)
+                if (!c.ComponentTypeDefinition.IsNull && typeDef != c.ComponentTypeDefinition)
                 {
                     continue;
                 }
-                NodeId? repNode = await FirstChildOfTypeAsync(id, m_representationTypeId, ct)
+                NodeId repNode = await FirstChildOfTypeAsync(id, m_representationTypeId, ct)
                     .ConfigureAwait(false);
-                if (repNode != null)
+                if (!repNode.IsNull)
                 {
-                    result.Add((id, repNode.Value, name));
+                    result.Add((id, repNode, name));
                 }
             }
             return result;
@@ -350,7 +350,7 @@ namespace Opc.Ua.OpenUsd.Client
 
         // ---- browse helpers -------------------------------------------------
 
-        private async Task<NodeId?> ParentAsync(NodeId node, CancellationToken ct)
+        private async Task<NodeId> ParentAsync(NodeId node, CancellationToken ct)
         {
             // Browse the AGGREGATING parent (HasComponent/HasAddIn), not any hierarchical
             // reference — otherwise the Organizes link from the discovery registry would
@@ -360,15 +360,15 @@ namespace Opc.Ua.OpenUsd.Client
                 ReferenceTypeIds.Aggregates, includeSubtypes: true, 0, ct).ConfigureAwait(false);
             if (results.Count == 0 || results[0].Count == 0)
             {
-                return null;
+                return NodeId.Null;
             }
             NodeId parent = ExpandedNodeId.ToNodeId(results[0][0].NodeId, m_session.NamespaceUris);
-            return parent.IsNull ? null : parent;
+            return parent;
         }
 
-        private async Task<List<(string, NodeId?, NodeId?)>> ChildrenFullAsync(NodeId parent, CancellationToken ct)
+        private async Task<List<(string, NodeId, NodeId)>> ChildrenFullAsync(NodeId parent, CancellationToken ct)
         {
-            var list = new List<(string, NodeId?, NodeId?)>();
+            var list = new List<(string, NodeId, NodeId)>();
             (ArrayOf<ArrayOf<ReferenceDescription>> results, _) = await m_session.ManagedBrowseAsync(
                 null, null, [parent], 0, BrowseDirection.Forward,
                 ReferenceTypeIds.HierarchicalReferences, includeSubtypes: true, 0, ct).ConfigureAwait(false);
@@ -385,23 +385,22 @@ namespace Opc.Ua.OpenUsd.Client
                     continue;
                 }
                 NodeId typeDef = ExpandedNodeId.ToNodeId(refs[i].TypeDefinition, m_session.NamespaceUris);
-                list.Add((refs[i].BrowseName.Name ?? string.Empty, id,
-                    typeDef.IsNull ? (NodeId?)null : typeDef));
+                list.Add((refs[i].BrowseName.Name ?? string.Empty, id, typeDef));
             }
             return list;
         }
 
-        private async Task<NodeId?> FirstChildOfTypeAsync(NodeId parent, NodeId typeDefinition, CancellationToken ct)
+        private async Task<NodeId> FirstChildOfTypeAsync(NodeId parent, NodeId typeDefinition, CancellationToken ct)
         {
-            foreach ((string _, NodeId? id, NodeId? typeDef) in await ChildrenFullAsync(parent, ct)
+            foreach ((string _, NodeId id, NodeId typeDef) in await ChildrenFullAsync(parent, ct)
                 .ConfigureAwait(false))
             {
-                if (id != null && typeDef == typeDefinition)
+                if (!id.IsNull && typeDef == typeDefinition)
                 {
                     return id;
                 }
             }
-            return null;
+            return NodeId.Null;
         }
     }
 }

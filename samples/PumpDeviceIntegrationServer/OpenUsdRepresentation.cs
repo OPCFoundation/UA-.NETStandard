@@ -208,9 +208,9 @@ namespace Pumps
             rep.CreateOrReplacePrimPath(SystemContext, null!).Value = PumpPrimPath;
 
             MeasurementsState? m = pump.Operational?.Measurements;
-            NodeId? massFlow = m?.MassFlow?.NodeId;
-            NodeId? bearingTemp = m?.BearingTemperature?.NodeId;
-            NodeId? diffPressure = m?.DifferentialPressure?.NodeId;
+            NodeId massFlow = m?.MassFlow?.NodeId ?? NodeId.Null;
+            NodeId bearingTemp = m?.BearingTemperature?.NodeId ?? NodeId.Null;
+            NodeId diffPressure = m?.DifferentialPressure?.NodeId ?? NodeId.Null;
 
             CreateBinding(rep, ns, "MassFlowSpin",
                 new Guid("6e63cf2c-f2de-4f78-a8f8-f0ccdbb7647a"),
@@ -247,7 +247,7 @@ namespace Pumps
                 pump, "SpeedSetpoint", Opc.Ua.DataTypeIds.Double, new Variant(0.0), writable: true);
             CreateBinding(rep, ns, "SpeedSetpointCommand",
                 new Guid("e4d4c9a3-8f5e-5d41-c26d-5e0f7b1c3344"),
-                null, "/Plant/Pumps/P101/Impeller", "inputs:speedSetpoint", "double",
+                NodeId.Null, "/Plant/Pumps/P101/Impeller", "inputs:speedSetpoint", "double",
                 kind: null, 1.0,
                 bindingTypeId: Opc.Ua.OpenUsd.ObjectTypes.OpenUsdCommandBindingType,
                 signalRole: OpenUsdSignalRoleEnum.Controllable,
@@ -322,14 +322,14 @@ namespace Pumps
         // (OpenUsdRepresentationAuthoring.AddLiveBinding), not in this sample.
         private void CreateBinding(
             OpenUsdRepresentationState rep, ushort ns, string name,
-            Guid bindingDefinitionId, NodeId? sourceNodeId, string targetPrimPath,
+            Guid bindingDefinitionId, NodeId sourceNodeId, string targetPrimPath,
             string targetPropertyName, string targetUsdTypeName,
             OpenUsdRenderTargetKindEnum? kind, double scale,
             uint bindingTypeId = Opc.Ua.OpenUsd.ObjectTypes.OpenUsdValueChangeBindingType,
             OpenUsdSignalRoleEnum signalRole = OpenUsdSignalRoleEnum.Observable,
             string? sourceSemanticId = null,
             OpenUsdAlarmAspectEnum? alarmAspect = null,
-            NodeId? commandTargetNodeId = null,
+            NodeId commandTargetNodeId = default,
             string? commandTriggerPropertyName = null)
         {
             _ = rep.AddLiveBinding(

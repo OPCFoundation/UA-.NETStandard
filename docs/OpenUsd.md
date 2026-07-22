@@ -1,11 +1,12 @@
-# OPC UA — OpenUSD binding and Robotics SDK
+# OPC UA — OpenUSD binding
 
 This guide covers the client- and server-side libraries that bridge an OPC UA address space to an
-[OpenUSD](https://openusd.org/) stage, plus the OPC 40010 Robotics companion SDK used to label and drive robot-cell twins.
+[OpenUSD](https://openusd.org/) stage. For the OPC 40010 Robotics companion SDK used to label and drive robot-cell
+twins, see [Robotics](Robotics.md).
 
 > The OPC UA — OpenUSD Bindings companion model is a **draft** (experimental) model. The type NodeIds and the
 > `Server/OpenUSD/Representations` registry described here are subject to change until the companion specification is
-> ratified. The Robotics (`Opc.Ua.Robotics*`) libraries implement the ratified OPC 40010 companion model.
+> ratified.
 
 ## Libraries
 
@@ -15,7 +16,6 @@ This guide covers the client- and server-side libraries that bridge an OPC UA ad
 | `OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Client` | The generic, domain-agnostic `OpenUsdConnector`, the `IUsdSink` abstraction, and the file/mock sinks. |
 | `OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Server` | Server-side authoring helpers (`UsdAssetDelivery`, representation authoring). |
 | `OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Connector` | A ready-to-run console connector tool built on the client library. |
-| `OPCFoundation.NetStandard.Opc.Ua.Robotics{,.Client,.Server}` | The OPC 40010 Robotics companion model plus client/server helpers. |
 
 ## The connector
 
@@ -126,37 +126,6 @@ public sealed class TwinWorker(OpenUsdConnectorFactory connectors)
 ```
 
 Observability is threaded through `ITelemetryContext` (resolved from DI), which the factory passes to each connector.
-
-## Robotics companion SDK
-
-`Opc.Ua.Robotics.Client` lets a generic connector or viewer label and drive a robot cell without hard-coding NodeIds:
-
-```csharp
-using Opc.Ua.Robotics;
-using Opc.Ua.Robotics.Client;
-
-// Discover every MotionDeviceSystem under the DI DeviceSet or the Objects folder.
-ArrayOf<NodeId> systems = await RoboticsClient.DiscoverMotionDeviceSystemsAsync(session, root, ct);
-
-// Classify a discovered node's TypeDefinition (returns false — never throws — when the
-// Robotics namespace is not present on the server).
-if (RoboticsClient.TryGetRoboticsTypeName(typeDefinition, session.NamespaceUris, out string? name))
-{
-    // name is "MotionDeviceSystem" | "MotionDevice" | "Axis" | "Controller"
-}
-```
-
-`Opc.Ua.Robotics.Server` loads the type system into a node manager and instantiates Robotics-typed objects:
-
-```csharp
-using Opc.Ua.Robotics.Server;
-
-int added = nodes.AddRoboticsTypeSystem(context); // OPC UA DI + IA + Robotics, in dependency order
-BaseObjectState cell = context.CreateTypedObject(
-    parent, "Cell1", ns,
-    RoboticsModel.TypeNodeId(RoboticsModel.MotionDeviceSystemType, context.NamespaceUris),
-    ReferenceTypeIds.Organizes);
-```
 
 ## Server-side authoring
 

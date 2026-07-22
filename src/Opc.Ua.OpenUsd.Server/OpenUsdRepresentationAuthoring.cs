@@ -116,7 +116,7 @@ namespace Opc.Ua.OpenUsd.Server
             NodeId targetStage,
             string name,
             Guid bindingDefinitionId,
-            NodeId? sourceNodeId,
+            NodeId sourceNodeId,
             string targetPrimPath,
             string targetPropertyName,
             string targetUsdTypeName,
@@ -126,7 +126,7 @@ namespace Opc.Ua.OpenUsd.Server
             OpenUsdSignalRoleEnum signalRole = OpenUsdSignalRoleEnum.Observable,
             string? sourceSemanticId = null,
             OpenUsdAlarmAspectEnum? alarmAspect = null,
-            NodeId? commandTargetNodeId = null,
+            NodeId commandTargetNodeId = default,
             string? commandTriggerPropertyName = null)
         {
             if (representation is null)
@@ -155,12 +155,12 @@ namespace Opc.Ua.OpenUsd.Server
 
             // Optional base members are not auto-created; supply a generated node so the
             // member carries a valid BrowseName/ReferenceType and is browsable.
-            if (sourceNodeId != null)
+            if (!sourceNodeId.IsNull)
             {
                 b.CreateOrReplaceSourceNodeId(
                     context,
                     context.CreateOpenUsdLiveBindingType_SourceNodeId(b, forInstance: true))
-                    .Value = (NodeId)sourceNodeId;
+                    .Value = sourceNodeId;
             }
             // SignalRole is always asserted; the semantic id is set when provided.
             b.CreateOrReplaceSignalRole(
@@ -182,11 +182,11 @@ namespace Opc.Ua.OpenUsd.Server
                 b.AddChild(ap);
                 ap.Value = alarmAspect.Value;
             }
-            if (commandTargetNodeId != null)
+            if (!commandTargetNodeId.IsNull)
             {
                 var ct = context.CreateOpenUsdCommandBindingType_CommandTargetNodeId(b, forInstance: true);
                 b.AddChild(ct);
-                ct.Value = (NodeId)commandTargetNodeId;
+                ct.Value = commandTargetNodeId;
             }
             if (!string.IsNullOrEmpty(commandTriggerPropertyName))
             {
@@ -228,13 +228,13 @@ namespace Opc.Ua.OpenUsd.Server
             OpenUsdCardinalityEnum cardinality,
             OpenUsdCompositionArcEnum arc,
             string targetPrimPath,
-            NodeId? componentRepresentation = null,
+            NodeId componentRepresentation = default,
             string? assetReference = null,
             bool dynamic = false,
-            NodeId? changeEventSource = null,
+            NodeId changeEventSource = default,
             string? componentServerUri = null,
             string? componentEndpointUrl = null,
-            NodeId? componentTypeDefinition = null)
+            NodeId componentTypeDefinition = default)
         {
             if (representation is null)
             {
@@ -252,11 +252,11 @@ namespace Opc.Ua.OpenUsd.Server
             b.CreateOrReplaceCompositionArc(context, null!).Value = arc;
             b.CreateOrReplaceTargetPrimPath(context, null!).Value = targetPrimPath;
 
-            if (componentRepresentation != null)
+            if (!componentRepresentation.IsNull)
             {
                 b.CreateOrReplaceComponentRepresentation(context,
                     context.CreateOpenUsdComponentBindingType_ComponentRepresentation(b, forInstance: true))
-                    .Value = (NodeId)componentRepresentation;
+                    .Value = componentRepresentation;
             }
             if (!string.IsNullOrEmpty(assetReference))
             {
@@ -270,11 +270,11 @@ namespace Opc.Ua.OpenUsd.Server
                     context.CreateOpenUsdComponentBindingType_Dynamic(b, forInstance: true))
                     .Value = true;
             }
-            if (changeEventSource != null)
+            if (!changeEventSource.IsNull)
             {
                 b.CreateOrReplaceChangeEventSource(context,
                     context.CreateOpenUsdComponentBindingType_ChangeEventSource(b, forInstance: true))
-                    .Value = (NodeId)changeEventSource;
+                    .Value = changeEventSource;
             }
             if (!string.IsNullOrEmpty(componentServerUri))
             {
@@ -288,11 +288,11 @@ namespace Opc.Ua.OpenUsd.Server
                     context.CreateOpenUsdComponentBindingType_ComponentEndpointUrl(b, forInstance: true))
                     .Value = componentEndpointUrl;
             }
-            if (componentTypeDefinition != null)
+            if (!componentTypeDefinition.IsNull)
             {
                 b.CreateOrReplaceComponentTypeDefinition(context,
                     context.CreateOpenUsdComponentBindingType_ComponentTypeDefinition(b, forInstance: true))
-                    .Value = (NodeId)componentTypeDefinition;
+                    .Value = componentTypeDefinition;
             }
             return b;
         }

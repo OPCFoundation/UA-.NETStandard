@@ -389,7 +389,7 @@ namespace Opc.Ua.Di.Tests
         {
             var connector = new OpenUsdConnector(m_session!, new MockUsdSink(), enableCommands: true);
             List<OpenUsdConnector.RepresentationInfo> reps = await AllRepsAsync(connector).ConfigureAwait(false);
-            NodeId? target = null;
+            NodeId target = NodeId.Null;
             foreach (OpenUsdConnector.RepresentationInfo rep in reps)
             {
                 foreach (OpenUsdConnector.BindingInfo b in rep.Bindings)
@@ -400,7 +400,7 @@ namespace Opc.Ua.Di.Tests
                     }
                 }
             }
-            Assert.That(target, Is.Not.Null, "Command target NodeId missing.");
+            Assert.That(target.IsNull, Is.False, "Command target NodeId missing.");
 
             const double setpoint = 63.5;
             bool ok = await connector.IssueCommandAsync(setpoint, CancellationToken.None)
@@ -409,7 +409,7 @@ namespace Opc.Ua.Di.Tests
 
             var toRead = new ReadValueId[]
             {
-                new ReadValueId { NodeId = target!.Value, AttributeId = Attributes.Value }
+                new ReadValueId { NodeId = target, AttributeId = Attributes.Value }
             };
             ReadResponse rr = await m_session!.ReadAsync(
                 null!, 0, TimestampsToReturn.Neither, toRead, CancellationToken.None)

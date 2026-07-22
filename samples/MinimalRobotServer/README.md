@@ -30,17 +30,11 @@ A `MotionDeviceSystem` **"RobotCell"** (prim `/Cell`) composed recursively of:
 All 15 representations (1 system + 2 robots + 12 axes) are discoverable through the
 well-known `Server/OpenUSD/Representations` registry.
 
-## Design note — runtime NodeSet import
+## Design note — source-generated typed instances
 
-The OPC 40010 Robotics model (and its `IA` dependency) is loaded at **runtime** from
-embedded `NodeSet2.xml` via `UANodeSet.Read` + `Import`, rather than source-generated.
-The Robotics model uses base state-machine / method types whose generated NodeState
-proxies are not all present in this repository's `Opc.Ua.Core`, so the source
-generator's output does not compile for it. Runtime import loads the full, faithful
-OPC 40010 type structure; the server builds its instances from `BaseObjectState` plus
-the numeric type NodeIds, so no generated Robotics/IA typed classes are required. Only
-the `OpenUsdBinding` NodeSet is source-generated (its typed helpers are used to author
-the representations and bindings).
+The OPC 40010 Robotics model and its OPC 40001-1 `IA` dependency are **source-generated** from their `NodeSet2.xml` (over the source-generated OPC UA DI base model) and loaded through `Opc.Ua.Robotics.Server.AddRoboticsTypeSystem` (`AddOpcUaDi` + `AddOpcUaIA` + `AddOpcUaRobotics`); the draft `OpenUsdBinding` model is source-generated the same way.
+
+The server builds its robot-cell instances with the generated `CreateInstanceOf<Type>` factories (`CreateInstanceOfMotionDeviceSystemType`, `…MotionDeviceType`, `…AxisType`, `…ControllerType`), so each instance carries the full companion-type structure — the mandatory `MotionDevices` / `Controllers` / `Axes` containers — rather than only a type-definition reference on a bare `BaseObjectState`. Because those factories stamp the **type** NodeId on every materialised child, the server runs a single recursive `AssignChildNodeIds` walk to re-stamp per-instance NodeIds before `AddPredefinedNodeAsync`, so the two robots and their twelve axes never collide on NodeIds.
 
 ## Run it
 

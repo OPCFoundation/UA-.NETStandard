@@ -100,7 +100,7 @@ namespace Robotics
         private readonly List<OpenUsdRepresentationState> m_axisReps = new();
         private BaseDataVariableState? m_estopVar;
         private BaseDataVariableState? m_speedOverrideVar;
-        private NodeId? m_r1NodeId;
+        private NodeId m_r1NodeId;
 
         private NodeId RoboticsType(uint id)
             => NodeId.Create(id, RoboticsNamespaceUri, Server.NamespaceUris);
@@ -190,7 +190,7 @@ namespace Robotics
                 // intent is written to the controller SpeedOverride Variable.
                 CreateBinding(cellRep, usdNs, "SpeedOverrideCommand",
                     new Guid("a1b2c3d4-0003-4a10-9c01-100000000003"),
-                    null, "/Cell", "inputs:speedOverride", "double",
+                    NodeId.Null, "/Cell", "inputs:speedOverride", "double",
                     kind: null, 1.0,
                     bindingTypeId: Opc.Ua.OpenUsd.ObjectTypes.OpenUsdCommandBindingType,
                     signalRole: OpenUsdSignalRoleEnum.Controllable,
@@ -354,7 +354,7 @@ namespace Robotics
         {
             try
             {
-                if (m_r1NodeId == null)
+                if (m_r1NodeId.IsNull)
                 {
                     return;
                 }
@@ -369,11 +369,11 @@ namespace Robotics
             }
         }
 
-        private async Task<NodeId?> AddMountedToolAsync(ushort ns, ushort usdNs)
+        private async Task<NodeId> AddMountedToolAsync(ushort ns, ushort usdNs)
         {
-            if (m_r1NodeId == null)
+            if (m_r1NodeId.IsNull)
             {
-                return null;
+                return NodeId.Null;
             }
             var tool = new BaseObjectState(null)
             {
@@ -392,7 +392,7 @@ namespace Robotics
             rep.CreateOrReplaceStage(SystemContext, null!).Value = m_cellStage!.NodeId;
             rep.CreateOrReplacePrimPath(SystemContext, null!).Value = s_robots[0].PrimPath + ToolSuffix;
 
-            NodeId newId = await CreateNodeAsync(SystemContext, (NodeId)m_r1NodeId,
+            NodeId newId = await CreateNodeAsync(SystemContext, m_r1NodeId,
                 ReferenceTypeIds.HasComponent, new QualifiedName("MountedTool", ns), tool, CancellationToken.None)
                 .ConfigureAwait(false);
             m_logger.AttachedGripperTool(newId);

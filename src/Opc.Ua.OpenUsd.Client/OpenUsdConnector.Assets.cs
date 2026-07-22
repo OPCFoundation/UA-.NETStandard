@@ -75,24 +75,24 @@ namespace Opc.Ua.OpenUsd.Client
 
             foreach (RepresentationInfo rep in await DiscoverAllRepresentationsAsync(ct).ConfigureAwait(false))
             {
-                if (rep.StageNodeId == null)
+                if (rep.StageNodeId.IsNull)
                 {
                     continue;
                 }
                 Dictionary<string, NodeId> stageChildren =
-                    await ChildrenByNameAsync(rep.StageNodeId.Value, ct).ConfigureAwait(false);
+                    await ChildrenByNameAsync(rep.StageNodeId, ct).ConfigureAwait(false);
                 if (!stageChildren.TryGetValue("Assets", out NodeId assetsFolder))
                 {
                     continue;
                 }
-                foreach ((NodeId? assetId, NodeId? typeDef) in
+                foreach ((NodeId assetId, NodeId typeDef) in
                     await ChildrenWithTypeAsync(assetsFolder, ct).ConfigureAwait(false))
                 {
-                    if (assetId == null || typeDef != m_assetTypeId)
+                    if (assetId.IsNull || typeDef != m_assetTypeId)
                     {
                         continue;
                     }
-                    Dictionary<string, NodeId> ap = await ChildrenByNameAsync(assetId.Value, ct).ConfigureAwait(false);
+                    Dictionary<string, NodeId> ap = await ChildrenByNameAsync(assetId, ct).ConfigureAwait(false);
                     string? identifier = await ReadStringAsync(ap, "AssetIdentifier", ct).ConfigureAwait(false);
                     if (string.IsNullOrEmpty(identifier) || !seen.Add(identifier!))
                     {
@@ -104,7 +104,7 @@ namespace Opc.Ua.OpenUsd.Client
 
                     // The asset node itself is the Part 5 file (OpenUsdAssetType : FileType):
                     // stream its bytes through its own Open/Read/Close children.
-                    byte[] bytes = await ReadServedFileAsync(assetId.Value, ct).ConfigureAwait(false);
+                    byte[] bytes = await ReadServedFileAsync(assetId, ct).ConfigureAwait(false);
 
                     totalBytes += bytes.Length;
                     if (totalBytes > m_options.MaxTotalAssetBytes)

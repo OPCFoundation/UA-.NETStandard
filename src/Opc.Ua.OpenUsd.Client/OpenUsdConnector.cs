@@ -123,7 +123,7 @@ namespace Opc.Ua.OpenUsd.Client
 
         public sealed class BindingInfo
         {
-            public NodeId? SourceNodeId { get; set; }
+            public NodeId SourceNodeId { get; set; }
             public string? PrimPath { get; set; }
             public string? PropertyName { get; set; }
             public OpenUsdRenderTargetKind Kind { get; set; }
@@ -134,31 +134,31 @@ namespace Opc.Ua.OpenUsd.Client
             public string? SourceSemanticId { get; set; }
             public OpenUsdAlarmAspect? AlarmAspect { get; set; }
             public bool TimeSampled { get; set; }
-            public NodeId? CommandTargetNodeId { get; set; }
+            public NodeId CommandTargetNodeId { get; set; }
             public string? CommandTriggerPropertyName { get; set; }
         }
 
         public sealed class ComponentInfo
         {
-            public NodeId? NodeId { get; set; }
+            public NodeId NodeId { get; set; }
             public OpenUsdCardinality Cardinality { get; set; } = OpenUsdCardinality.One;
             public OpenUsdCompositionArc Arc { get; set; } = OpenUsdCompositionArc.Child;
-            public NodeId? ComponentReferenceType { get; set; }
-            public NodeId? ComponentTypeDefinition { get; set; }
+            public NodeId ComponentReferenceType { get; set; }
+            public NodeId ComponentTypeDefinition { get; set; }
             public string? TargetPrimPath { get; set; }
             public string? TargetPrimNameSource { get; set; }
             public string? ComponentAssetReference { get; set; }
-            public NodeId? ComponentRepresentation { get; set; }
+            public NodeId ComponentRepresentation { get; set; }
             public bool Dynamic { get; set; }
-            public NodeId? ChangeEventSource { get; set; }
+            public NodeId ChangeEventSource { get; set; }
             public string? ComponentServerUri { get; set; }
             public string? ComponentEndpointUrl { get; set; }
         }
 
         public sealed class RepresentationInfo
         {
-            public NodeId? NodeId { get; set; }
-            public NodeId? StageNodeId { get; set; }
+            public NodeId NodeId { get; set; }
+            public NodeId StageNodeId { get; set; }
             public string? PrimPath { get; set; }
             public string? RootLayerIdentifier { get; set; }
             public ByteString RootLayerDigest { get; set; }
@@ -171,24 +171,24 @@ namespace Opc.Ua.OpenUsd.Client
         // Representations registry (Organizes) that lists every
         // OpenUsdRepresentation in the address space, independent of the
         // represented object's own hierarchy.
-        private async Task<NodeId?> FindFirstRepresentationAsync(CancellationToken ct)
+        private async Task<NodeId> FindFirstRepresentationAsync(CancellationToken ct)
         {
             var rootId = new NodeId("OpenUSD", m_ns);
             Dictionary<string, NodeId> rootChildren =
                 await ChildrenByNameAsync(rootId, ct).ConfigureAwait(false);
             if (!rootChildren.TryGetValue("Representations", out NodeId registry))
             {
-                return null;
+                return NodeId.Null;
             }
-            foreach ((NodeId? childId, NodeId? typeDef) in
+            foreach ((NodeId childId, NodeId typeDef) in
                 await ChildrenWithTypeAsync(registry, ct).ConfigureAwait(false))
             {
-                if (childId != null && typeDef == m_representationTypeId)
+                if (!childId.IsNull && typeDef == m_representationTypeId)
                 {
                     return childId;
                 }
             }
-            return null;
+            return NodeId.Null;
         }
 
         // Enumerate every representation in the registry (there may be several: the
@@ -204,12 +204,12 @@ namespace Opc.Ua.OpenUsd.Client
             {
                 return result;
             }
-            foreach ((NodeId? childId, NodeId? typeDef) in
+            foreach ((NodeId childId, NodeId typeDef) in
                 await ChildrenWithTypeAsync(registry, ct).ConfigureAwait(false))
             {
-                if (childId != null && typeDef == m_representationTypeId)
+                if (!childId.IsNull && typeDef == m_representationTypeId)
                 {
-                    result.Add(childId.Value);
+                    result.Add(childId);
                 }
             }
             return result;
@@ -217,10 +217,10 @@ namespace Opc.Ua.OpenUsd.Client
 
         public async Task<RepresentationInfo?> DiscoverRepresentationAsync(CancellationToken ct)
         {
-            NodeId? repNodeId = await FindFirstRepresentationAsync(ct).ConfigureAwait(false);
-            return repNodeId == null
+            NodeId repNodeId = await FindFirstRepresentationAsync(ct).ConfigureAwait(false);
+            return repNodeId.IsNull
                 ? null
-                : await ReadRepresentationAsync(repNodeId.Value, ct).ConfigureAwait(false);
+                : await ReadRepresentationAsync(repNodeId, ct).ConfigureAwait(false);
         }
 
         public async Task<List<RepresentationInfo>> DiscoverAllRepresentationsAsync(CancellationToken ct)
@@ -244,10 +244,10 @@ namespace Opc.Ua.OpenUsd.Client
                 .ConfigureAwait(false);
             info.PrimPath = await ReadStringAsync(repProps, "PrimPath", ct).ConfigureAwait(false);
             info.StageNodeId = await ReadNodeIdAsync(repProps, "Stage", ct).ConfigureAwait(false);
-            if (info.StageNodeId != null)
+            if (!info.StageNodeId.IsNull)
             {
                 Dictionary<string, NodeId> stageProps =
-                    await ChildrenByNameAsync(info.StageNodeId.Value, ct).ConfigureAwait(false);
+                    await ChildrenByNameAsync(info.StageNodeId, ct).ConfigureAwait(false);
                 info.RootLayerIdentifier =
                     await ReadStringAsync(stageProps, "RootLayerIdentifier", ct).ConfigureAwait(false);
                 info.RootLayerDigest =
@@ -256,17 +256,17 @@ namespace Opc.Ua.OpenUsd.Client
                     stageProps, "RootLayerDigestAlgorithm", ct).ConfigureAwait(false);
             }
 
-            foreach ((NodeId? childId, NodeId? typeDef) in await ChildrenWithTypeAsync(repNodeId, ct)
+            foreach ((NodeId childId, NodeId typeDef) in await ChildrenWithTypeAsync(repNodeId, ct)
                 .ConfigureAwait(false))
             {
-                if (childId == null)
+                if (childId.IsNull)
                 {
                     continue;
                 }
-                if (typeDef != null
-                    && m_bindingTypeIntents.TryGetValue(typeDef.Value, out OpenUsdIntentProfile intent))
+                if (!typeDef.IsNull
+                    && m_bindingTypeIntents.TryGetValue(typeDef, out OpenUsdIntentProfile intent))
                 {
-                    Dictionary<string, NodeId> bp = await ChildrenByNameAsync(childId.Value, ct)
+                    Dictionary<string, NodeId> bp = await ChildrenByNameAsync(childId, ct)
                         .ConfigureAwait(false);
                     var b = new BindingInfo
                     {
@@ -301,7 +301,7 @@ namespace Opc.Ua.OpenUsd.Client
                 }
                 else if (typeDef == m_componentTypeId)
                 {
-                    Dictionary<string, NodeId> cp = await ChildrenByNameAsync(childId.Value, ct)
+                    Dictionary<string, NodeId> cp = await ChildrenByNameAsync(childId, ct)
                         .ConfigureAwait(false);
                     var c = new ComponentInfo
                     {
@@ -376,7 +376,7 @@ namespace Opc.Ua.OpenUsd.Client
                     // Command bindings are actuated on demand (IssueCommandAsync), and
                     // history bindings are replayed via ReplayHistoryAsync — neither is a
                     // live MonitoredItem. Telemetry and alarm bindings subscribe here.
-                    if (b.SourceNodeId == null
+                    if (b.SourceNodeId.IsNull
                         || b.Intent == OpenUsdIntentProfile.UsdToUaCommand
                         || b.Intent == OpenUsdIntentProfile.UaHistoryToUsd)
                     {
@@ -385,7 +385,7 @@ namespace Opc.Ua.OpenUsd.Client
                     var item = new MonitoredItem(subscription.DefaultItem)
                     {
                         DisplayName = b.PropertyName ?? "binding",
-                        StartNodeId = b.SourceNodeId.Value,
+                        StartNodeId = b.SourceNodeId,
                         AttributeId = Attributes.Value,
                         SamplingInterval = 250,
                         QueueSize = 5,
@@ -410,9 +410,9 @@ namespace Opc.Ua.OpenUsd.Client
                     if (c.Dynamic)
                     {
                         anyDynamic = true;
-                        if (c.ChangeEventSource != null)
+                        if (!c.ChangeEventSource.IsNull)
                         {
-                            eventSource = c.ChangeEventSource.Value;
+                            eventSource = c.ChangeEventSource;
                         }
                     }
                 }
@@ -609,7 +609,7 @@ namespace Opc.Ua.OpenUsd.Client
                 {
                     if (b.Intent == OpenUsdIntentProfile.UsdToUaCommand
                         && b.SignalRole == OpenUsdSignalRole.Controllable
-                        && b.CommandTargetNodeId != null)
+                        && !b.CommandTargetNodeId.IsNull)
                     {
                         cmd = b;
                         break;
@@ -620,11 +620,11 @@ namespace Opc.Ua.OpenUsd.Client
                     break;
                 }
             }
-            if (cmd?.CommandTargetNodeId == null)
+            if (cmd == null || cmd.CommandTargetNodeId.IsNull)
             {
                 return false;
             }
-            StatusCode sc = await WriteAsync(cmd.CommandTargetNodeId.Value, value, ct)
+            StatusCode sc = await WriteAsync(cmd.CommandTargetNodeId, value, ct)
                 .ConfigureAwait(false);
             return StatusCode.IsGood(sc);
         }
@@ -646,7 +646,7 @@ namespace Opc.Ua.OpenUsd.Client
                 foreach (BindingInfo b in rep.Bindings)
                 {
                     if (b.Intent != OpenUsdIntentProfile.UaHistoryToUsd
-                        || b.SourceNodeId == null
+                        || b.SourceNodeId.IsNull
                         || !b.TimeSampled)
                     {
                         continue;
@@ -679,7 +679,7 @@ namespace Opc.Ua.OpenUsd.Client
                     {
                         new HistoryReadValueId
                         {
-                            NodeId = b.SourceNodeId!.Value,
+                            NodeId = b.SourceNodeId,
                             ContinuationPoint = continuationPoint
                         }
                     };
@@ -735,7 +735,7 @@ namespace Opc.Ua.OpenUsd.Client
                 {
                     // Release the outstanding continuation point on early exit so the
                     // server does not retain it until timeout.
-                    await ReleaseHistoryContinuationAsync(b.SourceNodeId!.Value, continuationPoint, ct)
+                    await ReleaseHistoryContinuationAsync(b.SourceNodeId, continuationPoint, ct)
                         .ConfigureAwait(false);
                 }
             }
@@ -872,9 +872,9 @@ namespace Opc.Ua.OpenUsd.Client
             return map;
         }
 
-        private async Task<List<(NodeId?, NodeId?)>> ChildrenWithTypeAsync(NodeId parent, CancellationToken ct)
+        private async Task<List<(NodeId, NodeId)>> ChildrenWithTypeAsync(NodeId parent, CancellationToken ct)
         {
-            var list = new List<(NodeId?, NodeId?)>();
+            var list = new List<(NodeId, NodeId)>();
             foreach (ReferenceDescription r in await BrowseAsync(parent, ct).ConfigureAwait(false))
             {
                 NodeId id = ExpandedNodeId.ToNodeId(r.NodeId, m_session.NamespaceUris);
@@ -885,7 +885,7 @@ namespace Opc.Ua.OpenUsd.Client
                     continue;
                 }
                 NodeId typeDef = ExpandedNodeId.ToNodeId(r.TypeDefinition, m_session.NamespaceUris);
-                list.Add((id, typeDef.IsNull ? (NodeId?)null : typeDef));
+                list.Add((id, typeDef));
             }
             return list;
         }
@@ -912,15 +912,15 @@ namespace Opc.Ua.OpenUsd.Client
             return dv.WrappedValue.AsBoxedObject() as string;
         }
 
-        private async Task<NodeId?> ReadNodeIdAsync(
+        private async Task<NodeId> ReadNodeIdAsync(
             Dictionary<string, NodeId> props, string name, CancellationToken ct)
         {
             if (!props.TryGetValue(name, out NodeId id))
             {
-                return null;
+                return NodeId.Null;
             }
             DataValue dv = await ReadAsync(id, ct).ConfigureAwait(false);
-            return dv.WrappedValue.AsBoxedObject() is NodeId n ? n : null;
+            return dv.WrappedValue.AsBoxedObject() is NodeId n ? n : NodeId.Null;
         }
 
         private async Task<int> ReadInt32Async(
