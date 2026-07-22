@@ -36,7 +36,7 @@ info: Opc.Ua.Server.StandardServer
 
 Browse to `Objects > DeviceSet > Pump #1` in any OPC UA client (e.g.
 UaExpert) to explore the simulated pump. A second declarative pump,
-`Pump #2`, sits alongside under the same `DeviceSet` parent — it
+`Pump #2`, is organized alongside it by the same `DeviceSet` — it
 demonstrates the DI hosting `ConfigureDevicesFor` flow without the
 hand-wired fluent simulation.
 
@@ -152,7 +152,7 @@ own assembly using the same `<AdditionalFiles>` pattern.
   `builder.Node("Pump #1/Events").CreateLimitAlarm(...).WithLimits(...)`
   and wire the triggering boolean variable via `.ActivatesAlarm(...)`.
 - **Add a second pump**: two patterns are demonstrated in the sample.
-  - **Hand-rolled** (used for `Pump #1`): in `PumpNodeManager.CreatePumpAsync`, call `context.CreateInstanceOfPumpType(deviceSet, browseName)`, attach it to the DI `DeviceSet`, and `AddPredefinedNodeAsync(pump)`. The fluent `Configure.cs` then wires its measurements, alarms, and simulation by browse path.
+  - **Hand-rolled** (used for `Pump #1`): in `PumpNodeManager.CreatePumpAsync`, create the generated `PumpState`, attach it to the DI `DeviceSet` with `Organizes`, and register it. The fluent `Configure.cs` then wires its measurements, alarms, and simulation by browse path.
   - **DI declarative** (used for `Pump #2`): in `Program.cs`, call `PumpNodeManager.CreatePumpAsync(...)` from a `ConfigureDevicesFor<PumpNodeManager>` block, wrap the generated `PumpState` with `ctx.TopologyElement<PumpState>(...)`, then configure the mandatory `Identification` group. This preserves the `PumpType` type definition while exposing only topology-element operations.
 
 ## NativeAOT publishing
