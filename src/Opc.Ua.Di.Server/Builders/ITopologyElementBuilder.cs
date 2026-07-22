@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -27,30 +27,37 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using NUnit.Framework;
+using Opc.Ua.Server.Fluent;
 
-namespace Opc.Ua.Fuzzing
+namespace Opc.Ua.Di.Server.Builders
 {
-    [TestFixture]
-    [Category("Fuzzing")]
-    public class EncoderTests : FuzzTargetTestsBase
+    /// <summary>
+    /// Fluent builder for an existing DI <see cref="TopologyElementState"/>
+    /// or companion-spec subtype.
+    /// </summary>
+    /// <typeparam name="TElement">Concrete topology-element state type.</typeparam>
+    public interface ITopologyElementBuilder<TElement>
+        where TElement : TopologyElementState
     {
-        [DatapointSource]
-        public static readonly FuzzTargetFunction[] FuzzableFunctions =
-            CreateFuzzTargetFunctions(typeof(FuzzableCode));
+        /// <summary>
+        /// The topology-element state being configured.
+        /// </summary>
+        TElement Element { get; }
 
-        protected override Type FuzzableCodeType => typeof(FuzzableCode);
+        /// <summary>
+        /// Manager that owns the element's predefined-node registration.
+        /// </summary>
+        DiNodeManager Manager { get; }
 
-        [Test]
-        public void MessageContextIsInitializedWithoutTestSetup()
-        {
-            ServiceMessageContext firstContext = FuzzableCode.MessageContext;
-            ServiceMessageContext secondContext = FuzzableCode.MessageContext;
+        /// <summary>
+        /// The system context for property/reference resolution.
+        /// </summary>
+        ISystemContext Context { get; }
 
-            Assert.That(firstContext, Is.Not.Null);
-            Assert.That(firstContext, Is.SameAs(secondContext));
-            Assert.That(firstContext.Factory, Is.Not.Null);
-        }
+        /// <summary>
+        /// A typed fluent-node view of the topology element.
+        /// </summary>
+        INodeBuilder<TElement> Node { get; }
+
     }
 }

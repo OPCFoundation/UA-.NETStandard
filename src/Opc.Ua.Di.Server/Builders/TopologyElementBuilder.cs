@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -28,29 +28,33 @@
  * ======================================================================*/
 
 using System;
-using NUnit.Framework;
+using Opc.Ua.Server.Fluent;
 
-namespace Opc.Ua.Fuzzing
+namespace Opc.Ua.Di.Server.Builders
 {
-    [TestFixture]
-    [Category("Fuzzing")]
-    public class EncoderTests : FuzzTargetTestsBase
+    /// <summary>
+    /// Default state holder for <see cref="ITopologyElementBuilder{TElement}"/>.
+    /// </summary>
+    /// <typeparam name="TElement">Concrete topology-element state type.</typeparam>
+    internal sealed class TopologyElementBuilder<TElement> :
+        ITopologyElementBuilder<TElement>
+        where TElement : TopologyElementState
     {
-        [DatapointSource]
-        public static readonly FuzzTargetFunction[] FuzzableFunctions =
-            CreateFuzzTargetFunctions(typeof(FuzzableCode));
+        private readonly NodeManagerBuilder m_builder;
 
-        protected override Type FuzzableCodeType => typeof(FuzzableCode);
-
-        [Test]
-        public void MessageContextIsInitializedWithoutTestSetup()
+        internal TopologyElementBuilder(
+            DiNodeManager manager,
+            TElement element,
+            NodeManagerBuilder builder)
         {
-            ServiceMessageContext firstContext = FuzzableCode.MessageContext;
-            ServiceMessageContext secondContext = FuzzableCode.MessageContext;
-
-            Assert.That(firstContext, Is.Not.Null);
-            Assert.That(firstContext, Is.SameAs(secondContext));
-            Assert.That(firstContext.Factory, Is.Not.Null);
+            Manager = manager ?? throw new ArgumentNullException(nameof(manager));
+            Element = element ?? throw new ArgumentNullException(nameof(element));
+            m_builder = builder ?? throw new ArgumentNullException(nameof(builder));
         }
+
+        public TElement Element { get; }
+        public DiNodeManager Manager { get; }
+        public ISystemContext Context => Manager.SystemContext;
+        public INodeBuilder<TElement> Node => m_builder.Node<TElement>(Element.NodeId);
     }
 }

@@ -89,6 +89,12 @@ namespace Opc.Ua.Di.Server.Builders
         /// device. Only members set inside the action are written, so
         /// pre-existing values are preserved.
         /// </summary>
+        /// <remarks>
+        /// This method applies to <see cref="ComponentState"/> instances.
+        /// For topology elements that model nameplate data below an
+        /// <c>Identification</c> group, use
+        /// <see cref="WithIdentificationGroup(Action{IFunctionalGroupBuilder})"/>.
+        /// </remarks>
         IDeviceBuilder<TDevice> WithIdentification(
             Action<DeviceIdentificationData> configure);
 
