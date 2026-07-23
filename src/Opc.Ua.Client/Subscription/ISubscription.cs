@@ -104,6 +104,20 @@ namespace Opc.Ua.Client.Subscriptions
             CancellationToken ct = default);
 
         /// <summary>
+        /// Recreates this subscription and all of its monitored items on the
+        /// current session.
+        /// </summary>
+        /// <param name="ct">Cancellation token.</param>
+        /// <exception cref="InvalidOperationException">
+        /// The method is called from one of this subscription's notification
+        /// callbacks. Schedule the recreate after the callback returns.
+        /// </exception>
+        /// <exception cref="ObjectDisposedException">
+        /// Disposal of the subscription has started.
+        /// </exception>
+        ValueTask RecreateAsync(CancellationToken ct = default);
+
+        /// <summary>
         /// Mark this subscription as durable on the server (OPC UA Part 4
         /// §5.13.9 <c>SetSubscriptionDurable</c>). A durable subscription
         /// retains its monitored item state and message queue across

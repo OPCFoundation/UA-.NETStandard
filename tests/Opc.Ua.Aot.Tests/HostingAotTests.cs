@@ -142,6 +142,19 @@ namespace Opc.Ua.Aot.Tests
             Func<CancellationToken, Task<ManagedSession>> sessionAccessor =
                 sp.GetService<Func<CancellationToken, Task<ManagedSession>>>();
             await Assert.That(sessionAccessor).IsNotNull();
+
+            ReverseConnectManager reverseConnectManager =
+                sp.GetService<ReverseConnectManager>();
+            await Assert.That(reverseConnectManager).IsNotNull();
+
+            IReverseConnectConfigurationProvider reverseConnectProvider =
+                sp.GetService<IReverseConnectConfigurationProvider>();
+            await Assert.That(reverseConnectProvider).IsNotNull();
+
+            int reverseConnectHostedCount = services.Count(s =>
+                s.ServiceType == typeof(IHostedService) &&
+                s.ImplementationType?.Name == "ReverseConnectManagerHostedService");
+            await Assert.That(reverseConnectHostedCount).IsEqualTo(1);
         }
 
         [Test]

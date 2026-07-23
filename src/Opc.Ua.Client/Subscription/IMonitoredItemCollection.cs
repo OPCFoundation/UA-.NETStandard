@@ -94,4 +94,22 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         IReadOnlyList<IMonitoredItem> Update(IReadOnlyList<(string Name,
             IOptionsMonitor<MonitoredItemOptions> Options)> state);
     }
+
+    /// <summary>
+    /// Optional monitored-item collection capability for requeueing one
+    /// failed or otherwise unapplied item after its internal retry budget
+    /// has been exhausted.
+    /// </summary>
+    public interface IMonitoredItemRetryCollection
+    {
+        /// <summary>
+        /// Requeues the current desired state for one failed or unapplied
+        /// monitored item.
+        /// </summary>
+        /// <param name="clientHandle">The monitored-item client handle.</param>
+        /// <returns>
+        /// <c>true</c> if the item was found and its desired state was requeued.
+        /// </returns>
+        bool TryRequeue(uint clientHandle);
+    }
 }

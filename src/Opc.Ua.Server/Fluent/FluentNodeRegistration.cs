@@ -27,36 +27,18 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-
-namespace Opc.Ua.Client.Subscriptions
+namespace Opc.Ua.Server.Fluent
 {
-    /// <summary>
-    /// Non sdk interface that allows subscription manager to manage
-    /// subcriptions. Must be implemented by subscriptions to be
-    /// manageable by the subscription manager.
-    /// </summary>
-    internal interface IManagedSubscription : ISubscription, IMessageProcessor
+    internal static class FluentNodeRegistration
     {
-        /// <summary>
-        /// Called after the subscription was transferred.
-        /// </summary>
-        /// <param name="availableSequenceNumbers">A list of sequence number
-        /// ranges that identify NotificationMessages that are in the
-        /// Subscription’s retransmission queue.
-        /// </param>
-        /// <param name="ct">The cancellation token.</param>
-        ValueTask<bool> TryCompleteTransferAsync(
-            IReadOnlyList<uint> availableSequenceNumbers,
-            CancellationToken ct = default);
-
-        /// <summary>
-        /// Notify subscription that the subscription manager has paused or
-        /// resumed operations.
-        /// </summary>
-        /// <param name="paused"></param>
-        void NotifySubscriptionManagerPaused(bool paused);
+        internal static void RegisterCreatedNode(
+            INodeManagerBuilder builder,
+            NodeState node)
+        {
+            if (builder.NodeManager is AsyncCustomNodeManager manager)
+            {
+                manager.AddPredefinedNodeSynchronously(node);
+            }
+        }
     }
 }

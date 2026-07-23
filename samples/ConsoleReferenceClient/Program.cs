@@ -335,7 +335,8 @@ namespace Quickstarts.ConsoleReferenceClient
                         Console.WriteLine($"Create reverse connection endpoint at {reverseConnectUrlString}.");
                         reverseConnectManager = new ReverseConnectManager(telemetry);
                         reverseConnectManager.AddEndpoint(new Uri(reverseConnectUrlString));
-                        reverseConnectManager.StartService(config);
+                        await reverseConnectManager.StartServiceAsync(config, cancellationToken)
+                            .ConfigureAwait(false);
                     }
 
                     // wait for timeout or Ctrl-C
@@ -766,7 +767,10 @@ namespace Quickstarts.ConsoleReferenceClient
                 }
                 finally
                 {
-                    reverseConnectManager?.Dispose();
+                    if (reverseConnectManager != null)
+                    {
+                        await reverseConnectManager.DisposeAsync().ConfigureAwait(false);
+                    }
                 }
             });
 

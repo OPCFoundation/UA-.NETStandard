@@ -134,7 +134,7 @@ static async Task RunSseServerAsync(int port, CancellationToken ct)
 
 static void ConfigureServices(IServiceCollection services, PcapOptions pcapOptions)
 {
-    services.AddOpcUa().AddClient(options => { });
+    services.AddOpcUa().AddClient(options => options.Configuration = new Opc.Ua.ApplicationConfiguration());
     services.AddSingleton<OpcUaSessionManager>();
     services.AddSingleton<PubSubRuntimeManager>();
     services.AddSingleton(_ => CreateMcpServerOptions());

@@ -99,7 +99,7 @@ namespace Pumps
 
         /// <summary>
         /// Creates and registers a generated <see cref="PumpState"/>
-        /// instance below the DI <c>DeviceSet</c>.
+        /// instance organized by the DI <c>DeviceSet</c>.
         /// </summary>
         /// <param name="pumpBrowseName">Browse name for the pump instance.</param>
         /// <param name="cancellationToken">Cancellation token.</param>
@@ -193,8 +193,8 @@ namespace Pumps
 
         /// <summary>
         /// Creates a <see cref="PumpState"/> instance with the supplied
-        /// browse name as a child of the DI <c>DeviceSet</c> object and
-        /// registers it as a predefined node. The instance carries
+        /// browse name, registers it as a predefined node, and links it
+        /// from the DI <c>DeviceSet</c> with <c>Organizes</c>. The instance carries
         /// <c>PumpType</c> as its TypeDefinitionId so clients see the
         /// full OPC 40223 pump surface; the source-generated factory
         /// materialises mandatory children (Identification) automatically.
@@ -223,7 +223,10 @@ namespace Pumps
                     "The DI DeviceSet is not available.");
             }
 
-            if (deviceSet.FindChild(SystemContext, pumpBrowseName) != null)
+            var pumpNodeId = new NodeId(
+                $"{deviceSet.NodeId.IdentifierAsString}_{pumpBrowseName.Name}",
+                deviceSet.NodeId.NamespaceIndex);
+            if (PredefinedNodes.ContainsKey(pumpNodeId))
             {
                 m_logger.DeviceSetAlreadyContains(pumpBrowseName.Name);
                 throw ServiceResultException.Create(
@@ -233,14 +236,13 @@ namespace Pumps
             }
 
             PumpState pump = SystemContext
-                .CreateInstanceOfPumpType(deviceSet, pumpBrowseName);
+                .CreateInstanceOfPumpType(parent: null!, pumpBrowseName);
 
-            pump.ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.HasComponent;
+            pump.ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.Organizes;
+            deviceSet.AddChild(pump);
             pump.NodeId = SystemContext.NodeIdFactory.New(SystemContext, pump);
 
             MaterialisePumpOptionalChildren(pump);
-
-            deviceSet.AddChild(pump);
 
             // Walk the whole pump subtree assigning per-instance NodeIds
             // BEFORE AddPredefinedNodeAsync uses them as the PredefinedNodes
