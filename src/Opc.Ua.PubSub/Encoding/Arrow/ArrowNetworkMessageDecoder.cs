@@ -63,7 +63,7 @@ namespace Opc.Ua.PubSub.Encoding
         // limit (memory-exhaustion DoS). When full an arbitrary existing entry
         // is evicted; a full IPC stream re-caches its schema on the next
         // occurrence, so eviction is self-healing.
-        private const int MaxCachedSchemaMessages = 256;
+        internal const int MaxCachedSchemaMessages = 256;
         private static readonly byte[] s_streamEnd = [0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00];
         // Concurrent so a decoder instance shared across receive threads cannot corrupt the cache
         // (the schema message is written from CacheSchema/CacheSchemaMessage and read from decode).
@@ -84,6 +84,11 @@ namespace Opc.Ua.PubSub.Encoding
         /// Gets or sets the resolver invoked when a referenced SchemaId is not cached.
         /// </summary>
         public ISchemaResolver? SchemaResolver { get; set; }
+
+        /// <summary>
+        /// Gets the number of cached bare-batch schema messages (test/diagnostic accessor).
+        /// </summary>
+        internal int CachedSchemaMessageCount => m_schemaMessages.Count;
 
         /// <summary>
         /// Ingests an Arrow schema announcement into the decoder cache.

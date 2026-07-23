@@ -57,10 +57,10 @@ namespace Opc.Ua.XRegistry.Server
         // Bounds so a remote caller cannot exhaust memory or the address space
         // via the registration Methods: the number of concurrently open upload
         // handles, the cumulative bytes buffered per handle, and the number of
-        // permanently registered resource nodes.
-        private const int MaxConcurrentUploads = 64;
-        private const int MaxResourceBytes = 16 * 1024 * 1024;
-        private const int MaxRegisteredResources = 4096;
+        // permanently registered resource nodes. Configured via the options.
+        private readonly int m_maxConcurrentUploads;
+        private readonly int m_maxResourceBytes;
+        private readonly int m_maxRegisteredResources;
 
         /// <summary>
         /// Initializes the registration node manager for the registry namespace.
@@ -77,6 +77,9 @@ namespace Opc.Ua.XRegistry.Server
             XRegistryServerOptions opts = options ?? new XRegistryServerOptions();
             m_namespaceUri = opts.RegistryNamespaceUri;
             m_contentIdProvider = opts.ContentIdProvider;
+            m_maxConcurrentUploads = opts.MaxConcurrentUploads;
+            m_maxResourceBytes = opts.MaxResourceBytes;
+            m_maxRegisteredResources = opts.MaxRegisteredResources;
         }
 
         /// <summary>
@@ -129,7 +132,7 @@ namespace Opc.Ua.XRegistry.Server
         }
 
         // CreateResource(ResourceId: String, VersionId: String) -> (FileHandle: UInt32, VersionId: String)
-        private ServiceResult OnCreateResource(
+        internal ServiceResult OnCreateResource(
             ISystemContext context,
             MethodState method,
             NodeId objectId,
@@ -146,7 +149,7 @@ namespace Opc.Ua.XRegistry.Server
             uint handle;
             lock (m_gate)
             {
-                if (m_buffers.Count >= MaxConcurrentUploads)
+                if (m_buffers.Count >= m_maxConcurrentUploads)
                 {
                     return StatusCodes.BadTooManyOperations;
                 }
@@ -161,7 +164,7 @@ namespace Opc.Ua.XRegistry.Server
         }
 
         // Write(FileHandle: UInt32, Data: ByteString) -> ()
-        private ServiceResult OnWrite(
+        internal ServiceResult OnWrite(
             ISystemContext context,
             MethodState method,
             NodeId objectId,
@@ -182,7 +185,7 @@ namespace Opc.Ua.XRegistry.Server
                 }
                 if (!data.IsNull && data.Span.Length > 0)
                 {
-                    if (buffer.Count + data.Span.Length > MaxResourceBytes)
+                    if (buffer.Count + data.Span.Length > m_maxResourceBytes)
                     {
                         return StatusCodes.BadRequestTooLarge;
                     }
@@ -194,7 +197,7 @@ namespace Opc.Ua.XRegistry.Server
         }
 
         // Close(FileHandle: UInt32, Format: String) -> (ContentId: ByteString, Algorithm: String)
-        private ServiceResult OnClose(
+        internal ServiceResult OnClose(
             ISystemContext context,
             MethodState method,
             NodeId objectId,
@@ -238,7 +241,7 @@ namespace Opc.Ua.XRegistry.Server
 
             if (Find(fastPathNodeId) is null)
             {
-                if (Volatile.Read(ref m_registeredResourceCount) >= MaxRegisteredResources)
+                if (Volatile.Read(ref m_registeredResourceCount) >= m_maxRegisteredResources)
                 {
                     return StatusCodes.BadTooManyOperations;
                 }
@@ -268,7 +271,7 @@ namespace Opc.Ua.XRegistry.Server
         }
 
         // Delete(ContentId: ByteString) -> ()  (epoch-match args optional per spec §5.2)
-        private ServiceResult OnDelete(
+        internal ServiceResult OnDelete(
             ISystemContext context,
             MethodState method,
             NodeId objectId,

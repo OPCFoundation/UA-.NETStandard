@@ -64,7 +64,12 @@ namespace Opc.Ua.PubSub.Encoding
         // (memory-exhaustion DoS). Content-addressed schemas are re-added on
         // the next announce/resolve, so evicting an entry when full is
         // self-healing.
-        private const int MaxCachedSchemas = 1024;
+        internal const int MaxCachedSchemas = 1024;
+
+        /// <summary>
+        /// Gets the number of cached schemas (test/diagnostic accessor).
+        /// </summary>
+        internal int Count => _schemas.Count;
 
         /// <summary>
         /// Attempts to get a cached schema by SchemaId.

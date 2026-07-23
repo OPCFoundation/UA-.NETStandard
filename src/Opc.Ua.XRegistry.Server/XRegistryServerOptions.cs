@@ -83,5 +83,24 @@ namespace Opc.Ua.XRegistry.Server
 
         /// <summary>The BrowseName of the federated resource proxy object.</summary>
         public string FederationProxyBrowseName { get; set; } = "FederatedResourceProxy";
+
+        /// <summary>
+        /// The maximum number of concurrently open upload handles (CreateResource without Close).
+        /// A safety valve against memory exhaustion from a remote caller; CreateResource is rejected
+        /// with <c>BadTooManyOperations</c> when the limit is reached.
+        /// </summary>
+        public int MaxConcurrentUploads { get; set; } = 64;
+
+        /// <summary>
+        /// The maximum cumulative number of bytes buffered per upload handle. A safety valve against
+        /// memory exhaustion; Write is rejected with <c>BadRequestTooLarge</c> beyond this size.
+        /// </summary>
+        public int MaxResourceBytes { get; set; } = 16 * 1024 * 1024;
+
+        /// <summary>
+        /// The maximum number of permanently registered resource nodes. A safety valve against
+        /// address-space exhaustion; Close is rejected with <c>BadTooManyOperations</c> at the limit.
+        /// </summary>
+        public int MaxRegisteredResources { get; set; } = 4096;
     }
 }
