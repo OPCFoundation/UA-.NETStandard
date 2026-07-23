@@ -56,17 +56,39 @@ namespace Opc.Ua.Types.Tests.Wot
             System.Xml.XmlElement nodeExtension = nodeExtensionDoc.CreateElement("vendor", "Note", "urn:vendor");
             nodeExtension.InnerText = "annotation";
 
+            var valueDocument = new XmlDocument();
+            System.Xml.XmlElement variableValue = valueDocument.CreateElement(
+                "uax",
+                "Double",
+                Namespaces.OpcUaXsd);
+            variableValue.InnerText = "42.5";
+
+            var variableTypeValueDocument = new XmlDocument();
+            System.Xml.XmlElement variableTypeValue = variableTypeValueDocument.CreateElement(
+                "uax",
+                "String",
+                Namespaces.OpcUaXsd);
+            variableTypeValue.InnerText = "default";
+
             return new UANodeSet
             {
                 NamespaceUris = ["urn:test:model"],
+                ServerUris = ["urn:test:server"],
                 Models =
                 [
                     new ModelTableEntry
                     {
                         ModelUri = "urn:test:model",
+                        XmlSchemaUri = "urn:test:model:schema",
                         Version = "1.0.0",
+                        ModelVersion = "1.0.0+build.7",
+                        AccessRestrictions = 3,
                         PublicationDate = new DateTime(2026, 7, 20, 0, 0, 0, DateTimeKind.Utc),
                         PublicationDateSpecified = true,
+                        RolePermissions =
+                        [
+                            new RolePermission { Value = "i=15644", Permissions = 65 }
+                        ],
                         RequiredModel =
                         [
                             new ModelTableEntry
@@ -77,9 +99,20 @@ namespace Opc.Ua.Types.Tests.Wot
                                 PublicationDateSpecified = true
                             }
                         ]
+                    },
+                    new ModelTableEntry
+                    {
+                        ModelUri = "urn:test:model:secondary",
+                        Version = "1.0.0"
                     }
                 ],
+                Aliases =
+                [
+                    new NodeIdAlias { Alias = "MachineTypeAlias", Value = "ns=1;i=1001" }
+                ],
                 Extensions = [modelExtension],
+                LastModified = new DateTime(2026, 7, 21, 12, 34, 56, DateTimeKind.Utc),
+                LastModifiedSpecified = true,
                 Items =
                 [
                     new UAObjectType
@@ -89,6 +122,17 @@ namespace Opc.Ua.Types.Tests.Wot
                         SymbolicName = "MachineType",
                         DisplayName = [new Opc.Ua.Export.LocalizedText { Value = "MachineType" }],
                         Description = [new Opc.Ua.Export.LocalizedText { Locale = "en", Value = "A test type." }],
+                        Category = ["Test", "Machine"],
+                        Documentation = "https://example.test/MachineType",
+                        WriteMask = 1,
+                        UserWriteMask = 2,
+                        AccessRestrictions = 3,
+                        AccessRestrictionsSpecified = true,
+                        RolePermissions =
+                        [
+                            new RolePermission { Value = "i=15644", Permissions = 1 }
+                        ],
+                        ReleaseStatus = ReleaseStatus.Draft,
                         Extensions = [nodeExtension],
                         References =
                         [
@@ -115,6 +159,37 @@ namespace Opc.Ua.Types.Tests.Wot
                         DisplayName = [new Opc.Ua.Export.LocalizedText { Value = "Speed" }],
                         DataType = "Double",
                         AccessLevel = 3,
+                        UserAccessLevel = 2,
+                        MinimumSamplingInterval = 125.5,
+                        Historizing = true,
+                        DesignToolOnly = true,
+                        Value = variableValue,
+                        Translation =
+                        [
+                            new TranslationType
+                            {
+                                Items =
+                                [
+                                    new Opc.Ua.Export.LocalizedText
+                                    {
+                                        Locale = "en",
+                                        Value = "Speed"
+                                    },
+                                    new StructureTranslationType
+                                    {
+                                        Name = "Value",
+                                        Text =
+                                        [
+                                            new Opc.Ua.Export.LocalizedText
+                                            {
+                                                Locale = "de",
+                                                Value = "Drehzahl"
+                                            }
+                                        ]
+                                    }
+                                ]
+                            }
+                        ],
                         ParentNodeId = "ns=1;i=1001",
                         References =
                         [
@@ -129,6 +204,24 @@ namespace Opc.Ua.Types.Tests.Wot
                         BrowseName = "1:Reset",
                         DisplayName = [new Opc.Ua.Export.LocalizedText { Value = "Reset" }],
                         ParentNodeId = "ns=1;i=1001",
+                        Executable = false,
+                        UserExecutable = false,
+                        MethodDeclarationId = "ns=1;i=7000",
+                        ArgumentDescription =
+                        [
+                            new UAMethodArgument
+                            {
+                                Name = "Reason",
+                                Description =
+                                [
+                                    new Opc.Ua.Export.LocalizedText
+                                    {
+                                        Locale = "en",
+                                        Value = "Reset reason"
+                                    }
+                                ]
+                            }
+                        ],
                         References =
                         [
                             new Reference { ReferenceType = "HasModellingRule", IsForward = true, Value = "i=80" },
@@ -156,6 +249,83 @@ namespace Opc.Ua.Types.Tests.Wot
                         References =
                         [
                             new Reference { ReferenceType = "HasSubtype", IsForward = false, Value = "i=47" }
+                        ]
+                    },
+                    new UAVariableType
+                    {
+                        NodeId = "ns=1;i=3001",
+                        BrowseName = "1:ConfiguredStringType",
+                        DisplayName =
+                        [
+                            new Opc.Ua.Export.LocalizedText { Value = "ConfiguredStringType" }
+                        ],
+                        IsAbstract = true,
+                        DataType = "String",
+                        ValueRank = 1,
+                        ArrayDimensions = "4",
+                        Value = variableTypeValue,
+                        References =
+                        [
+                            new Reference
+                            {
+                                ReferenceType = "HasSubtype",
+                                IsForward = false,
+                                Value = "i=62"
+                            }
+                        ]
+                    },
+                    new UADataType
+                    {
+                        NodeId = "ns=1;i=3002",
+                        BrowseName = "1:MachineMode",
+                        DisplayName =
+                        [
+                            new Opc.Ua.Export.LocalizedText { Value = "MachineMode" }
+                        ],
+                        Purpose = DataTypePurpose.CodeGenerator,
+                        Definition = new Opc.Ua.Export.DataTypeDefinition
+                        {
+                            Name = "1:MachineMode",
+                            SymbolicName = "MachineMode",
+                            IsOptionSet = true,
+                            Field =
+                            [
+                                new Opc.Ua.Export.DataTypeField
+                                {
+                                    Name = "Stopped",
+                                    SymbolicName = "Stopped",
+                                    Value = 0,
+                                    DisplayName =
+                                    [
+                                        new Opc.Ua.Export.LocalizedText
+                                        {
+                                            Locale = "en",
+                                            Value = "Stopped"
+                                        }
+                                    ]
+                                },
+                                new Opc.Ua.Export.DataTypeField
+                                {
+                                    Name = "Running",
+                                    SymbolicName = "Running",
+                                    Value = 1,
+                                    IsOptional = true,
+                                    AllowSubTypes = true,
+                                    DataType = "i=6",
+                                    ValueRank = 1,
+                                    ArrayDimensions = "2",
+                                    MaxStringLength = 32
+                                }
+                            ]
+                        },
+                        References =
+                        [
+                            new Reference
+                            {
+                                ReferenceType = "HasSubtype",
+                                IsForward = false,
+                                Value = "i=29"
+                            }
                         ]
                     },
                     new UAView

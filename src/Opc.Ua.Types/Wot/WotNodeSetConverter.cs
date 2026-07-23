@@ -40,9 +40,10 @@ namespace Opc.Ua.Wot
 {
     /// <summary>
     /// Converts OPC UA NodeSet2 documents to and from WoT Thing Models and
-    /// Thing Descriptions, including a byte-exact preservation envelope, a
-    /// deterministic native <c>uav:nodes</c> projection and the native
-    /// readable mapping of the OPC UA WoT Binding.
+    /// Thing Descriptions. The default output uses a schema-complete,
+    /// deterministic native <c>uav:nodes</c> projection and the readable
+    /// mapping of the OPC UA WoT Binding; the byte-exact
+    /// <c>uav:nodeSet</c> envelope is an explicit or last-resort fallback.
     /// </summary>
     public static partial class WotNodeSetConverter
     {
@@ -52,9 +53,10 @@ namespace Opc.Ua.Wot
         public const string VocabularyNamespace = WotVocabulary.VocabularyNamespace;
 
         /// <summary>
-        /// Creates a deterministic WoT Thing Model/Thing Description that carries
-        /// a lossless NodeSet2 preservation envelope alongside a native
-        /// <c>uav</c> projection and the native readable affordance mapping.
+        /// Creates a deterministic WoT Thing Model/Thing Description with a
+        /// complete native <c>uav:nodes</c> projection and readable affordances.
+        /// The preservation envelope is governed by
+        /// <see cref="WotNodeSetConverterOptions.PreservationMode"/>.
         /// </summary>
         /// <param name="nodeSet">The NodeSet2 document to convert.</param>
         /// <param name="title">An optional document title.</param>
@@ -112,13 +114,70 @@ namespace Opc.Ua.Wot
                 nodeSetBytes = nodeSetStream.ToArray();
             }
 
-            WotNativeModel model = WotNativeProjection.Build(nodeSet, options);
             UANode? root = SelectRootNode(nodeSet);
             string resolvedTitle = title
                 ?? FirstText(root?.DisplayName)
-                ?? (string.IsNullOrEmpty(model.ModelUri) ? "OPC UA NodeSet" : model.ModelUri!);
+                ?? (nodeSet.Models is { Length: > 0 } &&
+                    !string.IsNullOrEmpty(nodeSet.Models[0].ModelUri)
+                    ? nodeSet.Models[0].ModelUri!
+                    : "OPC UA NodeSet");
 
             byte[] digest = ComputeSha256(nodeSetBytes);
+            var nativeDiagnostics = new List<WotDiagnostic>();
+            byte[] nativeProjection = WotNativeProjection.Write(
+                nodeSet,
+                options,
+                nativeDiagnostics);
+            bool nativeComplete = false;
+            string? nativeDifference = null;
+            if (!HasErrors(nativeDiagnostics))
+            {
+                using JsonDocument nativeDocument = JsonDocument.Parse(nativeProjection);
+                var reconstructionDiagnostics = new List<WotDiagnostic>();
+                UANodeSet? reconstructed = WotNativeProjection.Read(
+                    nativeDocument.RootElement,
+                    options,
+                    reconstructionDiagnostics);
+                if (reconstructed is not null && !HasErrors(reconstructionDiagnostics))
+                {
+                    NodeSetComparisonResult comparison =
+                        NodeSetComparer.Compare(nodeSet, reconstructed);
+                    nativeComplete = comparison.AreEquivalent;
+                    if (!nativeComplete && comparison.Differences.Count > 0)
+                    {
+                        nativeDifference = comparison.Differences[0];
+                    }
+                }
+                else
+                {
+                    nativeDifference = FirstDiagnosticMessage(reconstructionDiagnostics);
+                }
+            }
+            else
+            {
+                nativeDifference = FirstDiagnosticMessage(nativeDiagnostics);
+            }
+
+            bool emitEnvelope = options.PreservationMode ==
+                WotNodeSetPreservationMode.Always;
+            if (!nativeComplete)
+            {
+                string reason = nativeDifference ??
+                    "The structured native projection did not reproduce the source NodeSet.";
+                if (options.PreservationMode == WotNodeSetPreservationMode.Never)
+                {
+                    diagnostics.Add(new WotDiagnostic(
+                        WotDiagnosticSeverity.Error,
+                        WotDiagnosticCode.NativeProjectionIncomplete,
+                        reason));
+                    return new WotConversionResult<WotDocument>(null, diagnostics);
+                }
+                emitEnvelope = true;
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Warning,
+                    WotDiagnosticCode.NativeProjectionIncomplete,
+                    reason + " The uav:nodeSet fallback was emitted."));
+            }
 
             byte[] json;
             using (var output = new MemoryStream())
@@ -151,25 +210,41 @@ namespace Opc.Ua.Wot
                     WriteDescription(writer, root?.Description);
                     WriteAffordances(writer, nodeSet, root, diagnostics, options);
 
-                    writer.WritePropertyName("uav:nodeSet");
-                    writer.WriteStartObject();
-                    writer.WriteString("@type", WotVocabulary.EnvelopeType);
-                    writer.WriteString("contentType", WotVocabulary.NodeSetContentType);
-                    writer.WriteString("encoding", WotVocabulary.Base64Encoding);
-                    writer.WriteString("sha256", ToLowerHex(digest));
-                    writer.WriteString("data", System.Convert.ToBase64String(nodeSetBytes));
-                    writer.WriteString("profileVersion", WotVocabulary.ProfileVersion);
-                    writer.WriteEndObject();
+                    if (emitEnvelope)
+                    {
+                        writer.WritePropertyName("uav:nodeSet");
+                        writer.WriteStartObject();
+                        writer.WriteString("@type", WotVocabulary.EnvelopeType);
+                        writer.WriteString("contentType", WotVocabulary.NodeSetContentType);
+                        writer.WriteString("encoding", WotVocabulary.Base64Encoding);
+                        writer.WriteString("sha256", ToLowerHex(digest));
+                        writer.WriteString("data", System.Convert.ToBase64String(nodeSetBytes));
+                        writer.WriteString("profileVersion", WotVocabulary.ProfileVersion);
+                        writer.WriteEndObject();
+                    }
 
                     writer.WritePropertyName("uav:nodes");
-                    WotNativeProjection.Write(writer, model);
+                    using (JsonDocument nativeDocument = JsonDocument.Parse(nativeProjection))
+                    {
+                        nativeDocument.RootElement.WriteTo(writer);
+                    }
 
                     writer.WriteEndObject();
                 }
                 json = output.ToArray();
             }
 
-            WotDocument document = WotDocument.FromOwnedBytes(json);
+            json = WotJsonResidue.Apply(json, nodeSet, options, diagnostics);
+            if (json.Length > options.MaxJsonDocumentSize)
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.JsonDocumentTooLarge,
+                    $"Generated WoT document exceeds the configured " +
+                    $"{options.MaxJsonDocumentSize} byte limit."));
+                return new WotConversionResult<WotDocument>(null, diagnostics);
+            }
+            WotDocument document = WotDocument.FromOwnedBytes(json, options);
             return new WotConversionResult<WotDocument>(document, diagnostics);
         }
 
@@ -321,16 +396,30 @@ namespace Opc.Ua.Wot
                 {
                     ValidateNativeConsistency(restored, projection, options, diagnostics);
                 }
+                WotJsonResidue.Replace(restored, document, options, diagnostics);
                 return restored;
             }
 
             if (document.TryGetNativeProjection(out JsonElement nativeProjection))
             {
-                WotNativeModel model = WotNativeProjection.Read(nativeProjection, options);
-                return WotNativeProjection.ToNodeSet(model, options, diagnostics);
+                UANodeSet? restored = WotNativeProjection.Read(
+                    nativeProjection,
+                    options,
+                    diagnostics);
+                if (restored is not null)
+                {
+                    WotJsonResidue.Replace(restored, document, options, diagnostics);
+                }
+                return restored;
             }
 
-            return Synthesize(document, options, thingResolver, resolutionContext, diagnostics);
+            UANodeSet? synthesized =
+                Synthesize(document, options, thingResolver, resolutionContext, diagnostics);
+            if (synthesized is not null)
+            {
+                WotJsonResidue.Replace(synthesized, document, options, diagnostics);
+            }
+            return synthesized;
         }
 
         private static UANodeSet? RestoreFromEnvelope(
@@ -472,47 +561,49 @@ namespace Opc.Ua.Wot
             WotNodeSetConverterOptions options,
             List<WotDiagnostic> diagnostics)
         {
-            var byNodeId = new Dictionary<string, UANode>(StringComparer.Ordinal);
-            if (baseline.Items is not null)
+            var nativeDiagnostics = new List<WotDiagnostic>();
+            UANodeSet? projected = WotNativeProjection.Read(
+                projection,
+                options,
+                nativeDiagnostics);
+            if (projected is null || HasErrors(nativeDiagnostics))
             {
-                foreach (UANode node in baseline.Items)
-                {
-                    if (!string.IsNullOrEmpty(node.NodeId))
-                    {
-                        byNodeId[node.NodeId!] = node;
-                    }
-                }
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.NativeProjectionConflict,
+                    FirstDiagnosticMessage(nativeDiagnostics) ??
+                    "The native projection could not be reconstructed."));
+                return;
             }
 
-            WotNativeModel model = WotNativeProjection.Read(projection, options);
-            foreach (WotNativeNode record in model.Nodes)
+            NodeSetComparisonResult comparison = NodeSetComparer.Compare(baseline, projected);
+            if (!comparison.AreEquivalent)
             {
-                if (string.IsNullOrEmpty(record.NodeId) ||
-                    !byNodeId.TryGetValue(record.NodeId!, out UANode? node))
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.NativeProjectionConflict,
+                    comparison.Differences.Count > 0
+                        ? comparison.Differences[0]
+                        : "The native projection conflicts with the preservation baseline."));
+            }
+        }
+
+        private static bool HasErrors(List<WotDiagnostic> diagnostics)
+        {
+            for (int ii = 0; ii < diagnostics.Count; ii++)
+            {
+                if (diagnostics[ii].Severity == WotDiagnosticSeverity.Error)
                 {
-                    continue;
-                }
-                if (!string.IsNullOrEmpty(record.BrowseName) &&
-                    !string.Equals(record.BrowseName, node.BrowseName, StringComparison.Ordinal))
-                {
-                    diagnostics.Add(new WotDiagnostic(
-                        WotDiagnosticSeverity.Error,
-                        WotDiagnosticCode.NativeProjectionConflict,
-                        $"The native BrowseName '{record.BrowseName}' conflicts with the baseline BrowseName '{node.BrowseName}'.",
-                        WotLocation.FromNode(record.NodeId!, "BrowseName")));
-                }
-                string? baselineRule = GetBaselineModellingRule(node);
-                if (record.ModellingRule is not null &&
-                    baselineRule is not null &&
-                    !string.Equals(record.ModellingRule, baselineRule, StringComparison.Ordinal))
-                {
-                    diagnostics.Add(new WotDiagnostic(
-                        WotDiagnosticSeverity.Error,
-                        WotDiagnosticCode.NativeProjectionConflict,
-                        $"The native modelling rule '{record.ModellingRule}' conflicts with the baseline '{baselineRule}'.",
-                        WotLocation.FromNode(record.NodeId!, "HasModellingRule")));
+                    return true;
                 }
             }
+            return false;
+        }
+
+        private static string? FirstDiagnosticMessage(
+            List<WotDiagnostic> diagnostics)
+        {
+            return diagnostics.Count > 0 ? diagnostics[0].Message : null;
         }
 
         private static string? GetBaselineModellingRule(UANode node)

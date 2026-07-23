@@ -63,19 +63,35 @@ namespace Opc.Ua.Wot
     public sealed class NodeSetRoundtripReport
     {
         internal NodeSetRoundtripReport(
+            bool nativeProjectionPreserved,
             bool envelopePreserved,
+            bool usedPreservationEnvelope,
             NodeSetComparisonResult comparison,
             IReadOnlyList<WotDiagnostic> diagnostics)
         {
+            NativeProjectionPreserved = nativeProjectionPreserved;
             EnvelopePreserved = envelopePreserved;
+            UsedPreservationEnvelope = usedPreservationEnvelope;
             Comparison = comparison;
             Diagnostics = diagnostics;
         }
 
         /// <summary>
+        /// Gets a value indicating whether the structured native projection,
+        /// without an envelope, reproduced an equivalent NodeSet2.
+        /// </summary>
+        public bool NativeProjectionPreserved { get; }
+
+        /// <summary>
         /// Gets a value indicating whether the envelope reproduced a byte-identical NodeSet2.
         /// </summary>
         public bool EnvelopePreserved { get; }
+
+        /// <summary>
+        /// Gets a value indicating whether the conversion used a
+        /// <c>uav:nodeSet</c> preservation envelope.
+        /// </summary>
+        public bool UsedPreservationEnvelope { get; }
 
         /// <summary>Gets the canonical comparison of the source and restored NodeSet2.</summary>
         public NodeSetComparisonResult Comparison { get; }
@@ -133,8 +149,9 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
-        /// Converts a NodeSet2 document to a WoT document carrying a preservation
-        /// envelope and back, then reports whether the round trip preserved it.
+        /// Converts a NodeSet2 document to a WoT document and back. By default,
+        /// the report uses native-only mode so completeness is never proved by
+        /// the preservation envelope.
         /// </summary>
         /// <param name="source">The NodeSet2 document to round trip.</param>
         /// <param name="options">Resource limits; defaults are used when omitted.</param>
@@ -150,34 +167,49 @@ namespace Opc.Ua.Wot
 
             var diagnostics = new List<WotDiagnostic>();
             byte[] sourceBytes = Serialize(source);
+            WotNodeSetConverterOptions effectiveOptions = options ??
+                new WotNodeSetConverterOptions
+                {
+                    PreservationMode = WotNodeSetPreservationMode.Never
+                };
 
             WotConversionResult<WotDocument> forward =
-                WotNodeSetConverter.FromNodeSetResult(source, null, options);
+                WotNodeSetConverter.FromNodeSetResult(source, null, effectiveOptions);
             AddRange(diagnostics, forward.Diagnostics);
             if (forward.Value is null)
             {
                 return new NodeSetRoundtripReport(
+                    false,
+                    false,
                     false,
                     new NodeSetComparisonResult(false, ["The NodeSet could not be converted to a WoT document."]),
                     diagnostics);
             }
 
             using WotDocument document = forward.Value;
+            bool usedEnvelope = document.TryGetEnvelope(out _);
             WotConversionResult<UANodeSet> backward =
-                WotNodeSetConverter.ToNodeSetResult(document, options);
+                WotNodeSetConverter.ToNodeSetResult(document, effectiveOptions);
             AddRange(diagnostics, backward.Diagnostics);
             if (backward.Value is null)
             {
                 return new NodeSetRoundtripReport(
                     false,
+                    false,
+                    usedEnvelope,
                     new NodeSetComparisonResult(false, ["The WoT document could not be converted back to a NodeSet."]),
                     diagnostics);
             }
 
             byte[] restoredBytes = Serialize(backward.Value);
-            bool envelopePreserved = ByteEquals(sourceBytes, restoredBytes);
             NodeSetComparisonResult comparison = CompareXml(sourceBytes, restoredBytes);
-            return new NodeSetRoundtripReport(envelopePreserved, comparison, diagnostics);
+            bool byteIdentical = ByteEquals(sourceBytes, restoredBytes);
+            return new NodeSetRoundtripReport(
+                !usedEnvelope && comparison.AreEquivalent,
+                usedEnvelope && byteIdentical,
+                usedEnvelope,
+                comparison,
+                diagnostics);
         }
 
         private static NodeSetComparisonResult BuildResult(string left, string right)

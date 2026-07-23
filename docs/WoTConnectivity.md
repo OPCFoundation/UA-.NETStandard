@@ -617,10 +617,29 @@ browseable object tree and wires the inherited xRegistry / registry Methods:
 ### 11.8 Binding-vocabulary alignment (NodeSet2 ↔ WoT)
 
 `Opc.Ua.Wot.WotNodeSetConverter` maps a NodeSet2 model to a WoT Thing
-Model / Thing Description and back. Beyond the byte-exact `uav:nodeSet`
-preservation envelope and the deterministic `uav:nodes` projection, the
-native readable surface tracks the current
+Model / Thing Description and back. The deterministic, versioned
+`uav:nodes` projection covers the complete UANodeSet schema and is the
+default lossless path; `uav:nodeSet` is emitted only for explicit byte
+archival or a demonstrated fallback. Unmapped WoT JSON members are stored
+individually by RFC 6901 pointer in a `WoTJsonResidue` NodeSet Extension,
+not by copying the source document. The readable surface tracks the current
 [OPC UA WoT Binding](https://reference.opcfoundation.org/) revision:
+
+* **Native conversion is the default.** `WotNodeSetPreservationMode`
+  selects `WhenRequired` (default), `Always` (explicit byte archive), or
+  `Never` (conformance/completeness tests). The converter reconstructs and
+  compares `uav:nodes` before reporting native completeness. Tests that
+  prove the Binding mapping use `Never` and assert that no envelope exists.
+  `NodeSetRoundtripReport.NativeProjectionPreserved` and
+  `UsedPreservationEnvelope` distinguish the two paths.
+
+* **Unknown members survive as residue, not an envelope.** During
+  TD/TM-to-NodeSet synthesis, only unrecognized or unmapped JSON values are
+  stored in the root `Extensions` collection as digest-protected
+  `WoTJsonResidue/Member` entries. Reverse conversion regenerates mapped
+  facts from OPC UA and applies the pointer-addressed values. A collision
+  with a regenerated model fact is reported as
+  `WotDiagnosticCode.ResidueConflict`.
 
 * **Event affordances carry `uav:eventType`.** An OPC UA EventType (a
   `BaseEventType` subtype) projects to an event affordance annotated
@@ -641,8 +660,14 @@ native readable surface tracks the current
   and the session-local `ns=<index>` form is never emitted. On input the
   converter diagnoses an `ns=<index>` in any of these terms
   (`WotDiagnosticCode.NonPortableIdentity`). The `uav:nodeSet` envelope
-  and `uav:nodes` projection keep their own namespace indices and are
-  excluded from this rule.
+  and NodeSet-local fields inside `uav:nodes` keep their own namespace
+  tables and are excluded from this readable-identity rule.
+
+* **`observable` advertises binding support.** A generated
+  `observable: true` / `observeproperty` form states that the TD exposes
+  observation through this binding. It is not a claim that other OPC UA
+  Variables are technically unmonitorable; any Variable can be a
+  MonitoredItem when the Server grants access.
 
 * **HasComponent subtypes are pinned by a typed link.**
   `uav:hasComponent` / `uav:componentOf` expose parent-child ownership

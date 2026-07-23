@@ -33,6 +33,28 @@ using System;
 namespace Opc.Ua.Wot
 {
     /// <summary>
+    /// Controls whether a converter emits the opaque byte-exact
+    /// <c>uav:nodeSet</c> preservation envelope.
+    /// </summary>
+    public enum WotNodeSetPreservationMode
+    {
+        /// <summary>
+        /// Emit the envelope only if the structured native projection cannot
+        /// reproduce the source NodeSet.
+        /// </summary>
+        WhenRequired,
+
+        /// <summary>Always emit the byte-exact preservation envelope.</summary>
+        Always,
+
+        /// <summary>
+        /// Never emit the envelope; report an error if native projection is not
+        /// complete. This mode is intended for conformance and completeness tests.
+        /// </summary>
+        Never
+    }
+
+    /// <summary>
     /// Resource limits and behavioural switches used while reading and
     /// writing WoT documents, preservation envelopes and NodeSet2 payloads.
     /// </summary>
@@ -43,6 +65,13 @@ namespace Opc.Ua.Wot
     /// </remarks>
     public sealed class WotNodeSetConverterOptions
     {
+        /// <summary>
+        /// Gets or sets the preservation-envelope policy. The default is
+        /// native-first and emits an envelope only when required.
+        /// </summary>
+        public WotNodeSetPreservationMode PreservationMode { get; set; } =
+            WotNodeSetPreservationMode.WhenRequired;
+
         /// <summary>
         /// Gets or sets the maximum accepted WoT JSON document size in bytes.
         /// </summary>
@@ -109,6 +138,16 @@ namespace Opc.Ua.Wot
         /// </exception>
         public void Validate()
         {
+            if (PreservationMode is not (
+                WotNodeSetPreservationMode.WhenRequired or
+                WotNodeSetPreservationMode.Always or
+                WotNodeSetPreservationMode.Never))
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(PreservationMode),
+                    PreservationMode,
+                    "The preservation mode is not defined.");
+            }
             EnsurePositive(MaxJsonDocumentSize, nameof(MaxJsonDocumentSize));
             EnsurePositive(MaxNodeSetSize, nameof(MaxNodeSetSize));
             EnsurePositive(MaxJsonDepth, nameof(MaxJsonDepth));

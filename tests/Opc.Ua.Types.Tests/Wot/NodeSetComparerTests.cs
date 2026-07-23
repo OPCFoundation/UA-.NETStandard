@@ -91,12 +91,14 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         [Test]
-        public void RoundtripReportConfirmsEnvelopePreservation()
+        public void RoundtripReportConfirmsNativePreservationWithoutEnvelope()
         {
             NodeSetRoundtripReport report = NodeSetComparer.Roundtrip(
                 WotTestData.CreateRichNodeSet());
 
-            Assert.That(report.EnvelopePreserved, Is.True);
+            Assert.That(report.NativeProjectionPreserved, Is.True);
+            Assert.That(report.UsedPreservationEnvelope, Is.False);
+            Assert.That(report.EnvelopePreserved, Is.False);
             Assert.That(report.Comparison.AreEquivalent, Is.True);
             Assert.That(
                 report.Diagnostics.Any(d => d.Severity == WotDiagnosticSeverity.Error),

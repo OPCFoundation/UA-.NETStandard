@@ -109,6 +109,23 @@ namespace Opc.Ua.Wot
         /// <summary>A native projection record was structurally invalid.</summary>
         NativeProjectionInvalid = 3002,
 
+        /// <summary>
+        /// The structured native projection could not reproduce the source
+        /// NodeSet and required an explicit preservation-envelope fallback.
+        /// </summary>
+        NativeProjectionIncomplete = 3003,
+
+        /// <summary>
+        /// Pointer-addressed WoT JSON residue in a NodeSet Extension was invalid.
+        /// </summary>
+        ResidueInvalid = 3004,
+
+        /// <summary>
+        /// Preserved WoT JSON residue conflicted with a value reconstructed from
+        /// OPC UA model facts.
+        /// </summary>
+        ResidueConflict = 3005,
+
         /// <summary>A referenced target could not be resolved to a NodeId.</summary>
         UnresolvedReference = 4000,
 
