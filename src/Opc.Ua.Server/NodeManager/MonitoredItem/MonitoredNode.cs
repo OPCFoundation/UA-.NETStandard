@@ -167,15 +167,18 @@ namespace Opc.Ua.Server
         /// <param name="datachangeItem">The monitored item.</param>
         public void Add(IDataChangeMonitoredItem2 datachangeItem)
         {
-            bool wasEmpty = DataChangeMonitoredItems.IsEmpty;
-            DataChangeMonitoredItems.TryAdd(datachangeItem.Id, datachangeItem);
-
-            Node.OnStateChangedAsync = OnMonitoredNodeChangedAsync;
-
-            // Subscribe to namespace default permission changes when the first item is added.
-            if (wasEmpty && m_server.ConfigurationNodeManager != null)
+            lock (m_rebindLock)
             {
-                m_server.ConfigurationNodeManager.DefaultPermissionsChanged += OnDefaultPermissionsChanged;
+                bool wasEmpty = DataChangeMonitoredItems.IsEmpty;
+                DataChangeMonitoredItems.TryAdd(datachangeItem.Id, datachangeItem);
+
+                Node.OnStateChangedAsync = OnMonitoredNodeChangedAsync;
+
+                // Subscribe to namespace default permission changes when the first item is added.
+                if (wasEmpty && m_server.ConfigurationNodeManager != null)
+                {
+                    m_server.ConfigurationNodeManager.DefaultPermissionsChanged += OnDefaultPermissionsChanged;
+                }
             }
         }
 
@@ -185,19 +188,22 @@ namespace Opc.Ua.Server
         /// <param name="datachangeItem">The monitored item.</param>
         public void Remove(IDataChangeMonitoredItem2 datachangeItem)
         {
-            if (DataChangeMonitoredItems.TryRemove(datachangeItem.Id, out _))
+            lock (m_rebindLock)
             {
-                // Remove the cached context for the monitored item
-                m_contextCache.TryRemove(datachangeItem.Id, out _);
-                m_permissionCache.TryRemove(datachangeItem.Id, out _);
-            }
+                if (DataChangeMonitoredItems.TryRemove(datachangeItem.Id, out _))
+                {
+                    // Remove the cached context for the monitored item
+                    m_contextCache.TryRemove(datachangeItem.Id, out _);
+                    m_permissionCache.TryRemove(datachangeItem.Id, out _);
+                }
 
-            if (DataChangeMonitoredItems.IsEmpty)
-            {
-                Node.OnStateChangedAsync = null;
+                if (DataChangeMonitoredItems.IsEmpty)
+                {
+                    Node.OnStateChangedAsync = null;
 
-                // Unsubscribe from namespace default permission changes when the last item is removed.
-                m_server.ConfigurationNodeManager?.DefaultPermissionsChanged -= OnDefaultPermissionsChanged;
+                    // Unsubscribe from namespace default permission changes when the last item is removed.
+                    m_server.ConfigurationNodeManager?.DefaultPermissionsChanged -= OnDefaultPermissionsChanged;
+                }
             }
         }
 
@@ -207,21 +213,24 @@ namespace Opc.Ua.Server
         /// <param name="eventItem">The monitored item.</param>
         public void Add(IEventMonitoredItem eventItem)
         {
-            EventMonitoredItems.TryAdd(eventItem.Id, eventItem);
-
-            Node.OnReportEventAsync = OnReportEventAsync;
-
-            // Scale up: add a consumer task for each new event MI beyond the first.
-            if (m_useMultipleConsumers && m_additionalConsumers != null)
+            lock (m_rebindLock)
             {
-                lock (m_additionalConsumersLock)
+                EventMonitoredItems.TryAdd(eventItem.Id, eventItem);
+
+                Node.OnReportEventAsync = OnReportEventAsync;
+
+                // Scale up: add a consumer task for each new event MI beyond the first.
+                if (m_useMultipleConsumers && m_additionalConsumers != null)
                 {
-                    // The primary consumer task always runs; add additional ones
-                    // so total consumers = EventMonitoredItems.Count.
-                    int totalDesired = EventMonitoredItems.Count;
-                    if (totalDesired > m_additionalConsumers.Count + 1)
+                    lock (m_additionalConsumersLock)
                     {
-                        AddConsumer();
+                        // The primary consumer task always runs; add additional ones
+                        // so total consumers = EventMonitoredItems.Count.
+                        int totalDesired = EventMonitoredItems.Count;
+                        if (totalDesired > m_additionalConsumers.Count + 1)
+                        {
+                            AddConsumer();
+                        }
                     }
                 }
             }
@@ -233,26 +242,81 @@ namespace Opc.Ua.Server
         /// <param name="eventItem">The monitored item.</param>
         public void Remove(IEventMonitoredItem eventItem)
         {
-            EventMonitoredItems.TryRemove(eventItem.Id, out _);
-            DropEventPermissionCacheEntries(eventItem.Id);
-
-            if (EventMonitoredItems.IsEmpty)
+            lock (m_rebindLock)
             {
-                Node.OnReportEventAsync = null;
-            }
+                EventMonitoredItems.TryRemove(eventItem.Id, out _);
+                DropEventPermissionCacheEntries(eventItem.Id);
 
-            // Scale down: remove a consumer task when MIs decrease (keep at least 1 total = primary).
-            if (m_useMultipleConsumers && m_additionalConsumers != null)
-            {
-                lock (m_additionalConsumersLock)
+                if (EventMonitoredItems.IsEmpty)
                 {
-                    // Total consumers = 1 (primary) + m_additionalConsumers.Count
-                    int totalDesired = Math.Max(1, EventMonitoredItems.Count);
-                    while (m_additionalConsumers.Count + 1 > totalDesired)
+                    Node.OnReportEventAsync = null;
+                }
+
+                // Scale down: remove a consumer task when MIs decrease (keep at least 1 total = primary).
+                if (m_useMultipleConsumers && m_additionalConsumers != null)
+                {
+                    lock (m_additionalConsumersLock)
                     {
-                        RemoveLastConsumer();
+                        // Total consumers = 1 (primary) + m_additionalConsumers.Count
+                        int totalDesired = Math.Max(1, EventMonitoredItems.Count);
+                        while (m_additionalConsumers.Count + 1 > totalDesired)
+                        {
+                            RemoveLastConsumer();
+                        }
                     }
                 }
+            }
+        }
+
+        /// <summary>
+        /// Rebinds the monitored node to a replacement NodeState and node manager.
+        /// </summary>
+        internal ServiceResult Rebind(IAsyncNodeManager nodeManager, NodeState node)
+        {
+            if (nodeManager == null)
+            {
+                return StatusCodes.BadInvalidArgument;
+            }
+
+            if (node == null || node.NodeId != Node.NodeId)
+            {
+                return StatusCodes.BadNodeIdInvalid;
+            }
+
+            lock (m_rebindLock)
+            {
+                if (m_disposed)
+                {
+                    return StatusCodes.BadInvalidState;
+                }
+
+                if (!ReferenceEquals(Node, node))
+                {
+                    if (Node.OnStateChangedAsync == OnMonitoredNodeChangedAsync)
+                    {
+                        Node.OnStateChangedAsync = null;
+                    }
+
+                    if (Node.OnReportEventAsync == OnReportEventAsync)
+                    {
+                        Node.OnReportEventAsync = null;
+                    }
+                }
+
+                NodeManager = nodeManager;
+                Node = node;
+
+                if (!DataChangeMonitoredItems.IsEmpty)
+                {
+                    Node.OnStateChangedAsync = OnMonitoredNodeChangedAsync;
+                }
+
+                if (!EventMonitoredItems.IsEmpty)
+                {
+                    Node.OnReportEventAsync = OnReportEventAsync;
+                }
+
+                return ServiceResult.Good;
             }
         }
 
@@ -334,6 +398,26 @@ namespace Opc.Ua.Server
         {
             if (m_disposed)
             {
+                return;
+            }
+
+            if ((changes & NodeStateChangeMasks.Deleted) != 0)
+            {
+                foreach (IDataChangeMonitoredItem2 monitoredItem in
+                    DataChangeMonitoredItems.Values)
+                {
+                    if (monitoredItem is IMonitoredItemLifecycle lifecycle)
+                    {
+                        lifecycle.MarkNodeDeleted();
+                    }
+                }
+                foreach (IEventMonitoredItem monitoredItem in EventMonitoredItems.Values)
+                {
+                    if (monitoredItem is IMonitoredItemLifecycle lifecycle)
+                    {
+                        lifecycle.MarkNodeDeleted();
+                    }
+                }
                 return;
             }
 
@@ -877,6 +961,7 @@ namespace Opc.Ua.Server
         private readonly bool m_useMultipleConsumers;
         private readonly List<ConsumerEntry>? m_additionalConsumers;
         private readonly Lock m_additionalConsumersLock = new();
+        private readonly Lock m_rebindLock = new();
         private bool m_disposed;
 
         /// <inheritdoc/>

@@ -141,6 +141,41 @@ namespace Opc.Ua.Server
             }
         }
 
+        public void RemoveBrowseForManager(IAsyncNodeManager nodeManager)
+        {
+            if (nodeManager is null)
+            {
+                throw new ArgumentNullException(nameof(nodeManager));
+            }
+
+            lock (m_lock)
+            {
+                if (m_browse == null)
+                {
+                    return;
+                }
+
+                for (int ii = m_browse.Count - 1; ii >= 0; ii--)
+                {
+                    ContinuationPoint continuationPoint = m_browse[ii];
+                    if (!ReferenceEquals(continuationPoint.Manager, nodeManager) &&
+                        !ReferenceEquals(
+                            continuationPoint.Manager.SyncNodeManager,
+                            nodeManager.SyncNodeManager))
+                    {
+                        continue;
+                    }
+
+                    m_browse.RemoveAt(ii);
+                    m_store?.RemoveContinuationPoint(
+                        Id,
+                        ContinuationPointKind.Browse,
+                        continuationPoint.Id);
+                    continuationPoint.Dispose();
+                }
+            }
+        }
+
         /// <summary>
         /// Saves a history continuation point, dropping the oldest when the limit is reached. A point that implements
         /// <see cref="IDisposable"/> is disposed when it is dropped or the session is cleared.

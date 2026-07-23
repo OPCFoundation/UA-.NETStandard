@@ -43,6 +43,7 @@ you need finer control.
 | `Opc.Ua.Server`                | `builder.AddServer(opt => …)`            | `IOpcUaServerBuilder`    | yes     | `OpcUa:Server`           |
 | `Opc.Ua.Server` (node manager)| `builder.AddNodeManager<T>()`            | `IOpcUaServerBuilder`    | —       | —                        |
 | `Opc.Ua.Server` (runtime NodeSet) | `builder.AddRuntimeNodeSet(…)`       | `IOpcUaServerBuilder`    | —       | —                        |
+| `Opc.Ua.Server` (live NodeManagers) | resolve `INodeManagerLifecycle`   | `INodeManagerLifecycle`  | yes     | —                        |
 | `Opc.Ua.Gds.Client.Common`     | `builder.AddGdsClient(opt => …)`         | `IGdsClientBuilder`      | —       | `OpcUa:Gds:Client`       |
 | `Opc.Ua.Gds.Server.Common`     | `builder.AddGdsServer(opt => …)`         | `IGdsServerBuilder`      | yes     | `OpcUa:Gds:Server`       |
 | `Opc.Ua.Lds.Server`            | `builder.AddLdsServer(opt => …)`         | `ILdsServerBuilder`      | yes     | `OpcUa:Lds`              |
@@ -276,6 +277,25 @@ same container. See *Combined hosts* below.
 
 `.AddServer(...)` throws `InvalidOperationException` on a second call:
 at most one regular server may be registered per service collection.
+
+The regular hosted server also registers `INodeManagerLifecycle` as a singleton forwarding provider. After the server reaches `Running`, application services can inject it to add, reload, or remove lifecycle-owned NodeManagers. Calls made before startup or after shutdown fail explicitly.
+
+```csharp
+public sealed class RuntimeModelService(INodeManagerLifecycle lifecycle)
+{
+    public ValueTask<NodeManagerRegistration> AddAsync(CancellationToken ct)
+    {
+        return lifecycle.AddRuntimeNodeSetAsync(
+            new RuntimeNodeSetOptions
+            {
+                Sources = [RuntimeNodeSetSource.FromFile("Models/Line.NodeSet2.xml")]
+            },
+            ct);
+    }
+}
+```
+
+Applications that construct `StandardServer` directly use `server.NodeManagerLifecycle` instead. Both paths use the same lifecycle implementation and generation-aware registration handles.
 
 Advanced server services can be supplied through the same fluent builder:
 

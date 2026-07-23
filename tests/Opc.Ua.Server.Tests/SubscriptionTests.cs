@@ -1,4 +1,34 @@
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Threading;
@@ -79,11 +109,567 @@ namespace Opc.Ua.Server.Tests
                 timeProvider: timeProvider);
         }
 
+        [Test]
+        [Category("NodeManagerLifecycle")]
+        public void HasMonitoredItemsThrowsForNullNodeManager()
+        {
+            using Subscription subscription = CreateSubscription();
+
+            ArgumentNullException exception = Assert.Throws<ArgumentNullException>(
+                () => subscription.HasMonitoredItems(null!));
+
+            Assert.That(exception.ParamName, Is.EqualTo("nodeManager"));
+        }
+
+        [Test]
+        [Category("NodeManagerLifecycle")]
+        public void CreateMonitoredItemsRejectsClosingSession()
+        {
+            using ServerInternalData server = CreateServerInternalData();
+            ConcurrentDictionary<NodeId, int> closingSessions =
+                GetPrivateField<ConcurrentDictionary<NodeId, int>>(
+                    server,
+                    "m_closingSessions");
+            closingSessions.TryAdd(m_sessionMock.Object.Id, 1);
+            using var subscription = new Subscription(
+                server,
+                m_sessionMock.Object,
+                subscriptionId: 1,
+                publishingInterval: 1000,
+                maxLifetimeCount: 10,
+                maxKeepAliveCount: 5,
+                maxNotificationsPerPublish: 0,
+                priority: 0,
+                publishingEnabled: true,
+                maxMessageCount: 10);
+            var context = new OperationContext(
+                m_sessionMock.Object,
+                DiagnosticsMasks.None);
+
+            ServiceResultException exception =
+                Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await subscription
+                        .CreateMonitoredItemsAsync(
+                            context,
+                            TimestampsToReturn.Both,
+                            [],
+                            CancellationToken.None)
+                        .ConfigureAwait(false));
+
+            Assert.That(
+                exception.StatusCode,
+                Is.EqualTo(StatusCodes.BadSessionClosed));
+        }
+
+        private ServerInternalData CreateServerInternalData()
+        {
+            var configuration = new ApplicationConfiguration
+            {
+                ApplicationUri = "urn:opcfoundation.org:Tests:Subscription",
+                ServerConfiguration = new ServerConfiguration
+                {
+                    BaseAddresses = []
+                }
+            };
+            var server = new ServerInternalData(
+                new ServerProperties(),
+                configuration,
+                ServiceMessageContext.Create(m_telemetry));
+            var masterNodeManager = new Mock<IMasterNodeManager>();
+            masterNodeManager
+                .SetupGet(manager => manager.DiagnosticsNodeManager)
+                .Returns(m_diagnosticsNodeManagerMock.Object);
+            masterNodeManager
+                .SetupGet(manager => manager.ConfigurationNodeManager)
+                .Returns((IConfigurationNodeManager)null);
+            masterNodeManager
+                .SetupGet(manager => manager.CoreNodeManager)
+                .Returns((ICoreNodeManager)null);
+            server.SetNodeManager(masterNodeManager.Object);
+            server.SetMonitoredItemQueueFactory(m_queueFactoryMock.Object);
+            return server;
+        }
+
+        [Test]
+        [Category("NodeManagerLifecycle")]
+        public void ClosePublishQueueRetainsClaimedDeletingSubscription()
+        {
+            var configuration = new ApplicationConfiguration
+            {
+                ServerConfiguration = new ServerConfiguration()
+            };
+            using var manager = new SubscriptionManager(
+                m_serverMock.Object,
+                configuration);
+            var sessionId = new NodeId(Guid.NewGuid());
+            NodeId currentSessionId = sessionId;
+            var subscription = new Mock<ISubscription>();
+            subscription.SetupGet(value => value.Id).Returns(1);
+            subscription
+                .SetupGet(value => value.SessionId)
+                .Returns(() => currentSessionId);
+            subscription
+                .Setup(value => value.SessionClosed())
+                .Callback(() => currentSessionId = NodeId.Null);
+
+            ConcurrentDictionary<uint, ISubscription> activeSubscriptions =
+                GetPrivateField<ConcurrentDictionary<uint, ISubscription>>(
+                    manager,
+                    "m_subscriptions");
+            ConcurrentDictionary<uint, byte> deletingSubscriptions =
+                GetPrivateField<ConcurrentDictionary<uint, byte>>(
+                    manager,
+                    "m_deletingSubscriptions");
+            ConcurrentDictionary<uint, ISubscription> abandonedSubscriptions =
+                GetPrivateField<ConcurrentDictionary<uint, ISubscription>>(
+                    manager,
+                    "m_abandonedSubscriptions");
+            ConcurrentDictionary<NodeId, IList<ISubscription>>
+                closedSessionSubscriptions =
+                    GetPrivateField<
+                        ConcurrentDictionary<NodeId, IList<ISubscription>>>(
+                            manager,
+                            "m_closedSessionSubscriptions");
+            activeSubscriptions.TryAdd(subscription.Object.Id, subscription.Object);
+            deletingSubscriptions.TryAdd(subscription.Object.Id, 0);
+
+            MethodInfo closePublishQueue = typeof(SubscriptionManager).GetMethod(
+                "ClosePublishQueue",
+                BindingFlags.Instance | BindingFlags.NonPublic)
+                ?? throw new InvalidOperationException(
+                    "ClosePublishQueue method not found.");
+            object closeWork = closePublishQueue.Invoke(
+                manager,
+                [sessionId, true]);
+
+            Assert.That(closeWork, Is.Not.Null);
+            Assert.That(
+                closedSessionSubscriptions.TryGetValue(
+                    sessionId,
+                    out IList<ISubscription> subscriptions),
+                Is.True);
+            Assert.That(subscriptions, Has.Count.EqualTo(1));
+            Assert.That(subscriptions![0], Is.SameAs(subscription.Object));
+            Assert.That(currentSessionId.IsNull, Is.True);
+            subscription.Verify(value => value.SessionClosed(), Times.Once);
+
+            Type claimType = typeof(SubscriptionManager).GetNestedType(
+                "SubscriptionDeletionClaim",
+                BindingFlags.NonPublic)
+                ?? throw new InvalidOperationException(
+                    "SubscriptionDeletionClaim type not found.");
+            ConstructorInfo claimConstructor = claimType.GetConstructors(
+                BindingFlags.Instance |
+                BindingFlags.Public |
+                BindingFlags.NonPublic)[0];
+            object claim = claimConstructor.Invoke(
+                [subscription.Object, sessionId, null, false]);
+            MethodInfo restoreSubscriptionDeletion =
+                typeof(SubscriptionManager).GetMethod(
+                    "RestoreSubscriptionDeletion",
+                    BindingFlags.Instance | BindingFlags.NonPublic)
+                ?? throw new InvalidOperationException(
+                    "RestoreSubscriptionDeletion method not found.");
+
+            Assert.That(
+                restoreSubscriptionDeletion.Invoke(manager, [claim]),
+                Is.True);
+            Assert.That(
+                abandonedSubscriptions.TryGetValue(
+                    subscription.Object.Id,
+                    out ISubscription restoredSubscription),
+                Is.True);
+            Assert.That(
+                restoredSubscription,
+                Is.SameAs(subscription.Object));
+            Assert.That(
+                deletingSubscriptions.ContainsKey(subscription.Object.Id),
+                Is.False);
+        }
+
+        [Test]
+        [Category("NodeManagerLifecycle")]
+        public async Task HasMonitoredItemsReturnsTrueForDifferentAdaptersOverSameSynchronousManagerAsync()
+        {
+            var synchronousNodeManager = new Mock<INodeManager>();
+            var adapterA = new AsyncNodeManagerAdapter(synchronousNodeManager.Object);
+            var adapterB = new AsyncNodeManagerAdapter(synchronousNodeManager.Object);
+            var differentAdapter = new AsyncNodeManagerAdapter(new Mock<INodeManager>().Object);
+            using var queueFactory = new MonitoredItemQueueFactory(m_telemetry);
+            m_serverMock.Setup(s => s.MonitoredItemQueueFactory).Returns(queueFactory);
+
+            using Subscription subscription = CreateSubscription();
+            var itemToMonitor = new ReadValueId
+            {
+                NodeId = new NodeId(1),
+                AttributeId = Attributes.Value
+            };
+            var monitoredItem = new MonitoredItem(
+                m_serverMock.Object,
+                adapterA,
+                new object(),
+                subscription.Id,
+                id: 1,
+                itemToMonitor,
+                DiagnosticsMasks.None,
+                TimestampsToReturn.Both,
+                MonitoringMode.Reporting,
+                clientHandle: 1,
+                originalFilter: null,
+                filterToUse: null,
+                range: null,
+                samplingInterval: 0,
+                queueSize: 1,
+                discardOldest: true,
+                sourceSamplingInterval: 0);
+            var masterNodeManager = new Mock<IMasterNodeManager>();
+            masterNodeManager
+                .Setup(n => n.CreateMonitoredItemsAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<double>(),
+                    It.IsAny<TimestampsToReturn>(),
+                    It.IsAny<ArrayOf<MonitoredItemCreateRequest>>(),
+                    It.IsAny<IList<ServiceResult>>(),
+                    It.IsAny<IList<MonitoringFilterResult>>(),
+                    It.IsAny<IList<IMonitoredItem>>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback<
+                    OperationContext,
+                    uint,
+                    double,
+                    TimestampsToReturn,
+                    ArrayOf<MonitoredItemCreateRequest>,
+                    IList<ServiceResult>,
+                    IList<MonitoringFilterResult>,
+                    IList<IMonitoredItem>,
+                    bool,
+                    CancellationToken>((
+                    _,
+                    _,
+                    _,
+                    _,
+                    _,
+                    errors,
+                    filterResults,
+                    monitoredItems,
+                    _,
+                    _) =>
+                {
+                    errors[0] = ServiceResult.Good;
+                    filterResults[0] = null;
+                    monitoredItems[0] = monitoredItem;
+                })
+                .Returns(default(ValueTask));
+            m_serverMock.Setup(s => s.NodeManager).Returns(masterNodeManager.Object);
+
+            var request = new MonitoredItemCreateRequest
+            {
+                ItemToMonitor = itemToMonitor,
+                MonitoringMode = MonitoringMode.Reporting,
+                RequestedParameters = new MonitoringParameters
+                {
+                    ClientHandle = 1,
+                    SamplingInterval = 0,
+                    QueueSize = 1,
+                    DiscardOldest = true
+                }
+            };
+            var context = new OperationContext(m_sessionMock.Object, DiagnosticsMasks.None);
+
+            CreateMonitoredItemsResponse response = await subscription.CreateMonitoredItemsAsync(
+                context,
+                TimestampsToReturn.Both,
+                [request],
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(adapterA, Is.Not.SameAs(adapterB));
+            Assert.That(adapterA.SyncNodeManager, Is.SameAs(synchronousNodeManager.Object));
+            Assert.That(adapterB.SyncNodeManager, Is.SameAs(synchronousNodeManager.Object));
+            Assert.That(response.Results, Has.Count.EqualTo(1));
+            Assert.That(response.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(subscription.HasMonitoredItems(adapterA), Is.True);
+            Assert.That(subscription.HasMonitoredItems(adapterB), Is.True);
+            Assert.That(subscription.HasMonitoredItems(differentAdapter), Is.False);
+        }
+
+        [Test]
+        [Category("NodeManagerLifecycle")]
+        public async Task CreateMonitoredItemsWhileDeletionInProgressRejectsRequestAsync()
+        {
+            var deletionStarted = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseDeletion = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var nodeManager = new Mock<IMasterNodeManager>();
+            m_serverMock.Setup(server => server.NodeManager).Returns(nodeManager.Object);
+
+            var serverDiagnostics = new ServerDiagnosticsSummaryDataType();
+            var sessionDiagnostics = new SessionDiagnosticsDataType();
+            m_serverMock
+                .Setup(server => server.DiagnosticsWriteLock)
+                .Returns(new object());
+            m_serverMock
+                .Setup(server => server.ServerDiagnostics)
+                .Returns(serverDiagnostics);
+            m_sessionMock
+                .Setup(session => session.DiagnosticsLock)
+                .Returns(new object());
+            m_sessionMock
+                .Setup(session => session.SessionDiagnostics)
+                .Returns(sessionDiagnostics);
+            m_diagnosticsNodeManagerMock
+                .Setup(diagnostics => diagnostics.DeleteSubscriptionDiagnosticsAsync(
+                    It.IsAny<ServerSystemContext>(),
+                    It.IsAny<NodeId>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    deletionStarted.TrySetResult(true);
+                    return new ValueTask(releaseDeletion.Task);
+                });
+
+            var configuration = new ApplicationConfiguration
+            {
+                ServerConfiguration = new ServerConfiguration
+                {
+                    MinPublishingInterval = 10,
+                    MaxPublishingInterval = 3600000,
+                    PublishingResolution = 10,
+                    MinSubscriptionLifetime = 1000,
+                    MaxSubscriptionLifetime = 3600000,
+                    MaxMessageQueueSize = 10,
+                    MaxNotificationsPerPublish = 1000,
+                    MaxPublishRequestCount = 10,
+                    MaxSubscriptionCount = 10
+                }
+            };
+            using var manager = new SubscriptionManager(
+                m_serverMock.Object,
+                configuration);
+            m_serverMock
+                .Setup(server => server.SubscriptionManager)
+                .Returns(manager);
+            var context = new OperationContext(
+                m_sessionMock.Object,
+                DiagnosticsMasks.None);
+            CreateSubscriptionResponse createSubscription = await manager
+                .CreateSubscriptionAsync(
+                    context,
+                    requestedPublishingInterval: 100,
+                    requestedLifetimeCount: 100,
+                    requestedMaxKeepAliveCount: 10,
+                    maxNotificationsPerPublish: 0,
+                    publishingEnabled: true,
+                    priority: 0,
+                    cancellationToken: CancellationToken.None)
+                .ConfigureAwait(false);
+            using var subscription =
+                (Subscription)manager.GetSubscriptions()[0];
+            ArrayOf<MonitoredItemCreateRequest> requests =
+            [
+                new MonitoredItemCreateRequest
+                {
+                    ItemToMonitor = new ReadValueId
+                    {
+                        NodeId = new NodeId(1000),
+                        AttributeId = Attributes.Value
+                    },
+                    MonitoringMode = MonitoringMode.Reporting,
+                    RequestedParameters = new MonitoringParameters
+                    {
+                        ClientHandle = 1,
+                        SamplingInterval = 100,
+                        QueueSize = 1,
+                        DiscardOldest = true
+                    }
+                }
+            ];
+
+            Task<StatusCode> deleteTask = manager
+                .DeleteSubscriptionAsync(
+                    context,
+                    createSubscription.SubscriptionId,
+                    CancellationToken.None)
+                .AsTask();
+            Task deletionStart = await Task.WhenAny(
+                deletionStarted.Task,
+                Task.Delay(TimeSpan.FromSeconds(5))).ConfigureAwait(false);
+            Assert.That(deletionStart, Is.SameAs(deletionStarted.Task));
+            await deletionStarted.Task.ConfigureAwait(false);
+
+            try
+            {
+                ServiceResultException exception =
+                    Assert.ThrowsAsync<ServiceResultException>(
+                        async () => await subscription
+                            .CreateMonitoredItemsAsync(
+                                context,
+                                TimestampsToReturn.Both,
+                                requests,
+                                CancellationToken.None)
+                            .ConfigureAwait(false));
+
+                Assert.That(
+                    exception.StatusCode,
+                    Is.EqualTo(StatusCodes.BadSubscriptionIdInvalid));
+                Assert.That(subscription.MonitoredItemCount, Is.Zero);
+                nodeManager.Verify(
+                    candidate => candidate.CreateMonitoredItemsAsync(
+                        It.IsAny<OperationContext>(),
+                        createSubscription.SubscriptionId,
+                        It.IsAny<double>(),
+                        It.IsAny<TimestampsToReturn>(),
+                        It.IsAny<ArrayOf<MonitoredItemCreateRequest>>(),
+                        It.IsAny<IList<ServiceResult>>(),
+                        It.IsAny<IList<MonitoringFilterResult>>(),
+                        It.IsAny<IList<IMonitoredItem>>(),
+                        It.IsAny<bool>(),
+                        It.IsAny<CancellationToken>()),
+                    Times.Never);
+            }
+            finally
+            {
+                releaseDeletion.TrySetResult(true);
+            }
+
+            StatusCode deleteResult = await deleteTask.ConfigureAwait(false);
+            Assert.That(deleteResult, Is.EqualTo(StatusCodes.Good));
+            Assert.That(manager.GetSubscriptions(), Is.Empty);
+        }
+
+        [Test]
+        [Category("NodeManagerLifecycle")]
+        public async Task SessionClosingWithoutDeleteAbandonsThenDeleteRemovesSubscriptionAsync()
+        {
+            var serverDiagnostics = new ServerDiagnosticsSummaryDataType();
+            var sessionDiagnostics = new SessionDiagnosticsDataType();
+            var ownerIdentity = new Mock<IUserIdentity>();
+            object serverDiagnosticsLock = new();
+            object sessionDiagnosticsLock = new();
+            m_serverMock
+                .Setup(server => server.DiagnosticsWriteLock)
+                .Returns(serverDiagnosticsLock);
+            m_serverMock
+                .Setup(server => server.ServerDiagnostics)
+                .Returns(serverDiagnostics);
+            m_serverMock
+                .Setup(server => server.NodeManager)
+                .Returns(new Mock<IMasterNodeManager>().Object);
+            m_sessionMock
+                .Setup(session => session.DiagnosticsLock)
+                .Returns(sessionDiagnosticsLock);
+            m_sessionMock
+                .Setup(session => session.SessionDiagnostics)
+                .Returns(sessionDiagnostics);
+            m_sessionMock
+                .Setup(session => session.EffectiveIdentity)
+                .Returns(ownerIdentity.Object);
+
+            var configuration = new ApplicationConfiguration
+            {
+                ServerConfiguration = new ServerConfiguration
+                {
+                    MinPublishingInterval = 10,
+                    MaxPublishingInterval = 3600000,
+                    PublishingResolution = 10,
+                    MinSubscriptionLifetime = 1000,
+                    MaxSubscriptionLifetime = 3600000,
+                    MaxMessageQueueSize = 10,
+                    MaxNotificationsPerPublish = 1000,
+                    MaxPublishRequestCount = 10,
+                    MaxSubscriptionCount = 10
+                }
+            };
+            using var manager = new SubscriptionManager(
+                m_serverMock.Object,
+                configuration);
+            int createdEvents = 0;
+            int deletedEvents = 0;
+            manager.SubscriptionCreated += (_, deleted) =>
+            {
+                Assert.That(deleted, Is.False);
+                createdEvents++;
+            };
+            manager.SubscriptionDeleted += (_, deleted) =>
+            {
+                Assert.That(deleted, Is.True);
+                deletedEvents++;
+            };
+            var context = new OperationContext(
+                m_sessionMock.Object,
+                DiagnosticsMasks.None);
+
+            CreateSubscriptionResponse response = await manager
+                .CreateSubscriptionAsync(
+                    context,
+                    requestedPublishingInterval: 100,
+                    requestedLifetimeCount: 100,
+                    requestedMaxKeepAliveCount: 10,
+                    maxNotificationsPerPublish: 0,
+                    publishingEnabled: true,
+                    priority: 0,
+                    cancellationToken: CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(manager.GetSubscriptions(), Has.Count.EqualTo(1));
+            Assert.That(serverDiagnostics.CurrentSubscriptionCount, Is.EqualTo(1));
+            Assert.That(createdEvents, Is.EqualTo(1));
+
+            await manager.SessionClosingAsync(
+                context,
+                m_sessionMock.Object.Id,
+                deleteSubscriptions: false,
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
+
+            IList<ISubscription> abandonedSubscriptions = manager.GetSubscriptions();
+            Assert.That(abandonedSubscriptions, Has.Count.EqualTo(1));
+            var abandonedSubscription = (Subscription)abandonedSubscriptions[0];
+            Assert.That(abandonedSubscription.Id, Is.EqualTo(response.SubscriptionId));
+            Assert.That(abandonedSubscription.SessionId.IsNull, Is.True);
+            Assert.That(
+                abandonedSubscription.EffectiveIdentity,
+                Is.SameAs(ownerIdentity.Object));
+            Assert.That(serverDiagnostics.CurrentSubscriptionCount, Is.EqualTo(1));
+            Assert.That(deletedEvents, Is.Zero);
+
+            await manager.SessionClosingAsync(
+                context,
+                m_sessionMock.Object.Id,
+                deleteSubscriptions: true,
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(manager.GetSubscriptions(), Is.Empty);
+            Assert.That(serverDiagnostics.CurrentSubscriptionCount, Is.Zero);
+            Assert.That(deletedEvents, Is.EqualTo(1));
+            m_diagnosticsNodeManagerMock.Verify(
+                diagnostics => diagnostics.DeleteSubscriptionDiagnosticsAsync(
+                    It.IsAny<ServerSystemContext>(),
+                    It.IsAny<NodeId>(),
+                    CancellationToken.None),
+                Times.Once);
+        }
+
         private static void SetExpiryTime(Subscription subscription, long expiryTime)
         {
             FieldInfo field = typeof(Subscription).GetField("m_publishTimerExpiry", BindingFlags.NonPublic | BindingFlags.Instance)
                 ?? throw new InvalidOperationException("Field m_publishTimerExpiry not found");
             field.SetValue(subscription, expiryTime);
+        }
+
+        private static T GetPrivateField<T>(
+            object instance,
+            string fieldName)
+        {
+            FieldInfo field = instance.GetType().GetField(
+                fieldName,
+                BindingFlags.Instance | BindingFlags.NonPublic)
+                ?? throw new InvalidOperationException(
+                    $"Field {fieldName} not found.");
+            return (T)(field.GetValue(instance) ??
+                throw new InvalidOperationException(
+                    $"Field {fieldName} is null."));
         }
 
         private static void ResetKeepAlive(Subscription subscription)

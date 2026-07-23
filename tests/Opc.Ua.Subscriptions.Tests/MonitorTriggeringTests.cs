@@ -385,10 +385,15 @@ namespace Opc.Ua.Subscriptions.Tests
 
             await ConsumeAllNotificationsAsync().ConfigureAwait(false);
 
-            // Write to A to fire trigger chain
-            await WriteValueAsync(nodeA,
+            // Queue data for the Sampling items before A fires. The initial drain above may
+            // consume B's first queued notification, especially on slower CI runners.
+            await WriteValueAsync(nodeB,
                 UnsecureRandom.Shared.Next(1, 10000)).ConfigureAwait(false);
             await WriteValueAsync(nodeC,
+                UnsecureRandom.Shared.Next(1, 10000)).ConfigureAwait(false);
+            await Task.Delay(300).ConfigureAwait(false);
+
+            await WriteValueAsync(nodeA,
                 UnsecureRandom.Shared.Next(1, 10000)).ConfigureAwait(false);
 
             PublishResponse pubResp = await PublishAndWaitAsync().ConfigureAwait(false);

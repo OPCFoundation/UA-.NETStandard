@@ -99,6 +99,10 @@ namespace Opc.Ua.Aot.Tests
             await Assert.That(resolved.ApplicationUri).IsEqualTo(expectedUri);
             await Assert.That(resolved.AutoAcceptUntrustedCertificates).IsTrue();
 
+            INodeManagerLifecycle lifecycle =
+                sp.GetService<INodeManagerLifecycle>();
+            await Assert.That(lifecycle).IsNotNull();
+
             // The hosted service is registered via the AOT-safe
             // AddHostedService<T>() overload. Resolve it via the
             // ServiceDescriptor collection rather than constructing it,

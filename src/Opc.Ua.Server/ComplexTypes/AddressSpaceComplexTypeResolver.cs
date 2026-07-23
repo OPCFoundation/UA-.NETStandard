@@ -51,10 +51,16 @@ namespace Opc.Ua.Server
         /// inspected.
         /// </summary>
         /// <param name="server">The server to resolve types from.</param>
-        public AddressSpaceComplexTypeResolver(IServerInternal server)
+        /// <param name="additionalNodeManager">
+        /// A prepared NodeManager to inspect before it is published.
+        /// </param>
+        public AddressSpaceComplexTypeResolver(
+            IServerInternal server,
+            IAsyncNodeManager? additionalNodeManager = null)
         {
             m_server = server;
             m_systemContext = server.DefaultSystemContext;
+            m_additionalNodeManager = additionalNodeManager;
             FactoryBuilder = server.Factory.Builder;
         }
 
@@ -149,8 +155,9 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
-                    NodeState? encodingNode = await m_server.NodeManager
-                        .FindNodeInAddressSpaceAsync(encodingNodeId, ct)
+                    NodeState? encodingNode = await FindNodeStateAsync(
+                        encodingNodeId,
+                        ct)
                         .ConfigureAwait(false);
                     string? browseName = encodingNode?.BrowseName.Name;
                     if (browseName == null)
@@ -281,8 +288,7 @@ namespace Opc.Ua.Server
                 {
                     continue;
                 }
-                NodeState? property = await m_server.NodeManager
-                    .FindNodeInAddressSpaceAsync(propertyId, ct)
+                NodeState? property = await FindNodeStateAsync(propertyId, ct)
                     .ConfigureAwait(false);
                 if (property is BaseVariableState variable && !variable.WrappedValue.IsNull)
                 {
@@ -322,8 +328,23 @@ namespace Opc.Ua.Server
             {
                 return null;
             }
+            return await FindNodeStateAsync(localId, ct).ConfigureAwait(false);
+        }
+
+        private async ValueTask<NodeState?> FindNodeStateAsync(
+            NodeId nodeId,
+            CancellationToken ct)
+        {
+            if (m_additionalNodeManager is not null &&
+                await m_additionalNodeManager
+                    .GetManagerHandleAsync(nodeId, ct)
+                    .ConfigureAwait(false) is NodeHandle handle)
+            {
+                return handle.Node;
+            }
+
             return await m_server.NodeManager
-                .FindNodeInAddressSpaceAsync(localId, ct)
+                .FindNodeInAddressSpaceAsync(nodeId, ct)
                 .ConfigureAwait(false);
         }
 
@@ -337,6 +358,8 @@ namespace Opc.Ua.Server
             EnumStringsBrowseName,
             OptionSetValuesBrowseName
         ];
+
+        private readonly IAsyncNodeManager? m_additionalNodeManager;
 
         private readonly IServerInternal m_server;
         private readonly ISystemContext m_systemContext;

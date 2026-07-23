@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
@@ -260,6 +262,289 @@ namespace Opc.Ua.Server.Tests
 
             // Assert
             Assert.That(requestLifetime.CancellationToken.IsCancellationRequested, Is.True);
+        }
+
+        [Test]
+        [Category("NodeManagerLifecycle")]
+        public async Task WaitForCurrentRequestsAsyncCompletesAfterAllSnapshotRequestsCompleteAsync()
+        {
+            using var requestLifetimeA = new RequestLifetime();
+            using var requestLifetimeB = new RequestLifetime();
+            OperationContext contextA = CreateOperationContext(1, requestLifetimeA);
+            OperationContext contextB = CreateOperationContext(2, requestLifetimeB);
+
+            m_requestManager.RequestReceived(contextA);
+            m_requestManager.RequestReceived(contextB);
+
+            Task waiter = m_requestManager.WaitForCurrentRequestsAsync().AsTask();
+
+            Assert.That(waiter.IsCompleted, Is.False);
+
+            m_requestManager.RequestCompleted(contextA);
+
+            Assert.That(waiter.IsCompleted, Is.False);
+
+            m_requestManager.RequestCompleted(contextB);
+
+            await AssertCompletesWithinTimeoutAsync(waiter).ConfigureAwait(false);
+            Assert.That(waiter.IsCompleted, Is.True);
+            Assert.That(waiter.IsCanceled, Is.False);
+            Assert.That(waiter.IsFaulted, Is.False);
+        }
+
+        [Test]
+        [Category("NodeManagerLifecycle")]
+        public async Task WaitForCurrentRequestsAsyncExcludesRequestsReceivedAfterSnapshotAsync()
+        {
+            using var requestLifetimeA = new RequestLifetime();
+            using var requestLifetimeB = new RequestLifetime();
+            OperationContext contextA = CreateOperationContext(1, requestLifetimeA);
+            OperationContext contextB = CreateOperationContext(2, requestLifetimeB);
+
+            m_requestManager.RequestReceived(contextA);
+            Task snapshotWaiter = m_requestManager.WaitForCurrentRequestsAsync().AsTask();
+            m_requestManager.RequestReceived(contextB);
+
+            m_requestManager.RequestCompleted(contextA);
+
+            await AssertCompletesWithinTimeoutAsync(snapshotWaiter).ConfigureAwait(false);
+            Assert.That(requestLifetimeB.CancellationToken.IsCancellationRequested, Is.False);
+
+            Task remainingRequestWaiter = m_requestManager.WaitForCurrentRequestsAsync().AsTask();
+            Assert.That(remainingRequestWaiter.IsCompleted, Is.False);
+
+            m_requestManager.RequestCompleted(contextB);
+
+            await AssertCompletesWithinTimeoutAsync(remainingRequestWaiter).ConfigureAwait(false);
+        }
+
+        [Test]
+        [Category("NodeManagerLifecycle")]
+        public async Task WaitForCurrentRequestsAsyncCancellationCancelsOnlyTheWaiterAsync()
+        {
+            using var requestLifetime = new RequestLifetime();
+            using var cancellationTokenSource = new CancellationTokenSource();
+            OperationContext context = CreateOperationContext(1, requestLifetime);
+            m_requestManager.RequestReceived(context);
+
+            Task canceledWaiter = m_requestManager
+                .WaitForCurrentRequestsAsync(cancellationTokenSource.Token)
+                .AsTask();
+
+            cancellationTokenSource.Cancel();
+
+            Assert.That(
+                async () => await canceledWaiter.ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>());
+            Assert.That(requestLifetime.CancellationToken.IsCancellationRequested, Is.False);
+
+            Task remainingRequestWaiter = m_requestManager.WaitForCurrentRequestsAsync().AsTask();
+            Assert.That(remainingRequestWaiter.IsCompleted, Is.False);
+
+            m_requestManager.RequestCompleted(context);
+
+            await AssertCompletesWithinTimeoutAsync(remainingRequestWaiter).ConfigureAwait(false);
+        }
+
+        [Test]
+        [Category("NodeManagerLifecycle")]
+        public async Task WaitForCurrentRequestsAsyncWithNoRequestsCompletesImmediatelyAsync()
+        {
+            Task waiter = m_requestManager.WaitForCurrentRequestsAsync().AsTask();
+
+            Assert.That(waiter.IsCompleted, Is.True);
+            Assert.That(waiter.IsCanceled, Is.False);
+            Assert.That(waiter.IsFaulted, Is.False);
+
+            await waiter.ConfigureAwait(false);
+        }
+
+        [Test]
+        public void RequestReceivedCalledTwiceWithSameContextIsIdempotent()
+        {
+            using var requestLifetime = new RequestLifetime();
+            OperationContext context = CreateOperationContext(45, requestLifetime);
+
+            m_requestManager.RequestReceived(context);
+
+            Assert.DoesNotThrow(() => m_requestManager.RequestReceived(context));
+
+            m_requestManager.RequestCompleted(context);
+            Assert.That(requestLifetime.TryCancel(StatusCodes.BadTimeout), Is.False);
+        }
+
+        [Test]
+        public void RequestCompletedForUnknownContextDoesNotThrowAndLeavesLifetimeActive()
+        {
+            using var requestLifetime = new RequestLifetime();
+            OperationContext context = CreateOperationContext(50, requestLifetime);
+            // The context was never passed to RequestReceived.
+
+            Assert.DoesNotThrow(() => m_requestManager.RequestCompleted(context));
+
+            // The lifetime was not marked completed, so it can still be cancelled.
+            Assert.That(requestLifetime.TryCancel(StatusCodes.BadTimeout), Is.True);
+        }
+
+        [Test]
+        public void IsExecutingRequestIsFalseInitiallyAndTrueWithinRequestScope()
+        {
+            Assert.That(m_requestManager.IsExecutingRequest, Is.False);
+
+            using var requestLifetime = new RequestLifetime();
+            OperationContext context = CreateOperationContext(60, requestLifetime);
+
+            using (m_requestManager.EnterRequestScope(context))
+            {
+                Assert.That(m_requestManager.IsExecutingRequest, Is.True);
+            }
+
+            Assert.That(m_requestManager.IsExecutingRequest, Is.False);
+            Assert.That(requestLifetime.TryCancel(StatusCodes.BadTimeout), Is.False);
+        }
+
+        [Test]
+        public void EnterRequestScopeThrowsArgumentNullExceptionWhenContextNull()
+        {
+            Assert.That(() => m_requestManager.EnterRequestScope(null), Throws.ArgumentNullException);
+        }
+
+        [Test]
+        public void EnterRequestScopeDisposeCompletesTheRequest()
+        {
+            using var requestLifetime = new RequestLifetime();
+            OperationContext context = CreateOperationContext(46, requestLifetime);
+
+            IDisposable scope = m_requestManager.EnterRequestScope(context);
+            scope.Dispose();
+
+            Assert.That(requestLifetime.TryCancel(StatusCodes.BadTimeout), Is.False);
+        }
+
+        [Test]
+        public void NestedRequestScopesOnlyCompleteTheirOwnRequestOnDispose()
+        {
+            using var outerLifetime = new RequestLifetime();
+            using var innerLifetime = new RequestLifetime();
+            OperationContext outerContext = CreateOperationContext(47, outerLifetime);
+            OperationContext innerContext = CreateOperationContext(48, innerLifetime);
+
+            using (m_requestManager.EnterRequestScope(outerContext))
+            {
+                using (m_requestManager.EnterRequestScope(innerContext))
+                {
+                    Assert.That(m_requestManager.IsExecutingRequest, Is.True);
+                }
+
+                // Disposing the inner scope must complete only innerContext.
+                Assert.That(innerLifetime.TryCancel(StatusCodes.BadTimeout), Is.False);
+                Assert.That(m_requestManager.IsExecutingRequest, Is.True);
+            }
+
+            Assert.That(m_requestManager.IsExecutingRequest, Is.False);
+            Assert.That(outerLifetime.TryCancel(StatusCodes.BadTimeout), Is.False);
+        }
+
+        [Test]
+        public void PromoteValidatedRequestThrowsArgumentNullExceptionWhenContextNull()
+        {
+            Assert.That(() => m_requestManager.PromoteValidatedRequest(null), Throws.ArgumentNullException);
+        }
+
+        [Test]
+        [Category("NodeManagerLifecycle")]
+        public async Task EnterValidationScopeCompletesRegisteredRequestsOnDisposeAsync()
+        {
+            using var requestLifetime = new RequestLifetime();
+            OperationContext context = CreateOperationContext(70, requestLifetime);
+            Task waiter;
+
+            using (m_requestManager.EnterValidationScope())
+            {
+                Assert.That(m_requestManager.IsExecutingRequest, Is.True);
+                m_requestManager.RequestReceived(context);
+
+                waiter = m_requestManager.WaitForCurrentRequestsAsync().AsTask();
+                Assert.That(waiter.IsCompleted, Is.False);
+            }
+
+            // Disposing the validation scope completes every request it registered
+            // and unblocks waiters that were tracking the active validation scope.
+            await AssertCompletesWithinTimeoutAsync(waiter).ConfigureAwait(false);
+            Assert.That(requestLifetime.TryCancel(StatusCodes.BadTimeout), Is.False);
+        }
+
+        [Test]
+        public void PromoteValidatedRequestExcludesContextFromValidationScopeAutoCompletion()
+        {
+            using var requestLifetime = new RequestLifetime();
+            OperationContext context = CreateOperationContext(71, requestLifetime);
+
+            using (m_requestManager.EnterValidationScope())
+            {
+                m_requestManager.RequestReceived(context);
+                m_requestManager.PromoteValidatedRequest(context);
+            }
+
+            // The promoted request was handed off to ordinary request-scope ownership,
+            // so disposing the validation scope must not have completed it.
+            m_requestManager.CancelRequests(
+                context.SessionId,
+                71,
+                out uint cancelCount);
+            Assert.That(cancelCount, Is.EqualTo(1));
+
+            // Clean up explicitly since the validation scope no longer owns it.
+            m_requestManager.RequestCompleted(context);
+        }
+
+        [Test]
+        public void NestedValidationScopesOnlyCompleteRequestsRegisteredWithinThem()
+        {
+            using var outerLifetime = new RequestLifetime();
+            using var innerLifetime = new RequestLifetime();
+            OperationContext outerContext = CreateOperationContext(80, outerLifetime);
+            OperationContext innerContext = CreateOperationContext(81, innerLifetime);
+
+            using (m_requestManager.EnterValidationScope())
+            {
+                m_requestManager.RequestReceived(outerContext);
+
+                using (m_requestManager.EnterValidationScope())
+                {
+                    m_requestManager.RequestReceived(innerContext);
+                }
+
+                // The inner scope disposed and completed only innerContext.
+                Assert.That(innerLifetime.TryCancel(StatusCodes.BadTimeout), Is.False);
+            }
+
+            // The outer scope disposal then completes outerContext too.
+            Assert.That(outerLifetime.TryCancel(StatusCodes.BadTimeout), Is.False);
+        }
+
+        private static OperationContext CreateOperationContext(
+            uint requestHandle,
+            RequestLifetime requestLifetime)
+        {
+            return new OperationContext(
+                new RequestHeader
+                {
+                    RequestHandle = requestHandle,
+                    TimeoutHint = 0
+                },
+                null,
+                RequestType.Read,
+                requestLifetime);
+        }
+
+        private static async Task AssertCompletesWithinTimeoutAsync(Task task)
+        {
+            Task completedTask = await Task.WhenAny(
+                task,
+                Task.Delay(TimeSpan.FromSeconds(5))).ConfigureAwait(false);
+            Assert.That(completedTask, Is.SameAs(task));
+            await task.ConfigureAwait(false);
         }
     }
 }

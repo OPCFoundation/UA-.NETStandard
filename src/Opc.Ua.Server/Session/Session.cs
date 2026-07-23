@@ -40,7 +40,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// A generic session manager object for a server.
     /// </summary>
-    public class Session : ISession
+    public class Session : ISession, INodeManagerContinuationPointTracker
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="Session"/> class.
@@ -770,6 +770,12 @@ namespace Opc.Ua.Server
         public ContinuationPoint? RestoreContinuationPoint(ByteString continuationPoint)
         {
             return m_continuationPoints.RestoreBrowse(continuationPoint);
+        }
+
+        /// <inheritdoc/>
+        public void InvalidateContinuationPoints(IAsyncNodeManager nodeManager)
+        {
+            m_continuationPoints.RemoveBrowseForManager(nodeManager);
         }
 
         /// <summary>
