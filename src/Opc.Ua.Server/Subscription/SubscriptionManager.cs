@@ -2489,13 +2489,18 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual uint CalculateMaxNotificationsPerPublish(uint maxNotificationsPerPublish)
         {
-            if (maxNotificationsPerPublish == 0 ||
-                maxNotificationsPerPublish > m_maxNotificationsPerPublish)
+            if (maxNotificationsPerPublish == 0)
             {
                 return m_maxNotificationsPerPublish;
             }
 
-            return maxNotificationsPerPublish;
+            if (m_maxNotificationsPerPublish == 0 ||
+                maxNotificationsPerPublish <= m_maxNotificationsPerPublish)
+            {
+                return maxNotificationsPerPublish;
+            }
+
+            return m_maxNotificationsPerPublish;
         }
 
         /// <summary>

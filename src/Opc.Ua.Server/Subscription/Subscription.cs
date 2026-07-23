@@ -1254,11 +1254,15 @@ namespace Opc.Ua.Server
                 Diagnostics.NextSequenceNumber = m_messageQueue.NextSequenceNumber;
             }
 
+            uint notificationLimit = m_maxNotificationsPerPublish == 0
+                ? uint.MaxValue
+                : m_maxNotificationsPerPublish;
+
             // add events.
-            if (events.Count > 0 && notificationCount < m_maxNotificationsPerPublish)
+            if (events.Count > 0 && notificationCount < notificationLimit)
             {
                 var eventList = new List<EventFieldList>();
-                while (events.Count > 0 && notificationCount < m_maxNotificationsPerPublish)
+                while (events.Count > 0 && notificationCount < notificationLimit)
                 {
                     eventList.Add(events.Dequeue());
                     notificationCount++;
@@ -1270,13 +1274,13 @@ namespace Opc.Ua.Server
             }
 
             // add datachanges (space permitting).
-            if (datachanges.Count > 0 && notificationCount < m_maxNotificationsPerPublish)
+            if (datachanges.Count > 0 && notificationCount < notificationLimit)
             {
                 bool diagnosticsExist = false;
 
                 var dataChangeList = new List<MonitoredItemNotification>(datachanges.Count);
                 var diagnosticInfos = new List<DiagnosticInfo>(datachanges.Count);
-                while (datachanges.Count > 0 && notificationCount < m_maxNotificationsPerPublish)
+                while (datachanges.Count > 0 && notificationCount < notificationLimit)
                 {
                     MonitoredItemNotification datachange = datachanges.Dequeue();
                     dataChangeList.Add(datachange);
