@@ -6,7 +6,7 @@
     <RootNamespace>Opc.Ua.Robotics.Server</RootNamespace>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
     <Nullable>enable</Nullable>
-    <Description>Server-side reusable functionality for the OPC 40010 Robotics companion model: loads the Robotics + IA + DI type system into a node manager (runtime NodeSet import) and instantiates Robotics-typed objects (MotionDeviceSystem / MotionDevice / Axis / Controller) from the numeric type NodeIds.</Description>
+    <Description>Server hosting for the source-generated OPC 40010 Robotics model, including compiled model providers, a stock DI-based node manager and factory, and fluent application configuration APIs.</Description>
     <IsPackable>true</IsPackable>
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
@@ -18,7 +18,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Opc.Ua.Robotics\Opc.Ua.Robotics.csproj" />
-    <ProjectReference Include="..\Opc.Ua.Di\Opc.Ua.Di.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Di.Server\Opc.Ua.Di.Server.csproj" />
     <ProjectReference Include="..\Opc.Ua.Server\Opc.Ua.Server.csproj" />
   </ItemGroup>
   <ItemGroup>
