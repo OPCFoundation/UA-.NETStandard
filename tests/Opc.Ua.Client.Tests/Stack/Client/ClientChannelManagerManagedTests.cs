@@ -1331,7 +1331,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client
         [Test]
         public async Task ReconnectAsyncWithBudgetShrinksDelayToFitRemainingAsync()
         {
-            var timeProvider = new FakeTimeProvider();
+            var timeProvider = new ObservableFakeTimeProvider();
             var reconnectPolicy = new ExponentialBackoffChannelReconnectPolicy
             {
                 MinDelay = TimeSpan.FromSeconds(10),
@@ -1357,6 +1357,9 @@ namespace Opc.Ua.Client.Tests.Stack.Client
 
                 Task reconnectTask = sut.ReconnectAsync(ch, budget, default).AsTask();
                 await reconnecting.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                await timeProvider.WaitForTimerCreatedAsync(1)
+                    .WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false);
 
                 Assert.That(reconnectTask.IsCompleted, Is.False);
 
@@ -2064,6 +2067,44 @@ namespace Opc.Ua.Client.Tests.Stack.Client
                     ?? ParticipantReconnectResult.Reactivated;
                 return new ValueTask<ParticipantReconnectResult>(result);
             }
+        }
+
+        private sealed class ObservableFakeTimeProvider : FakeTimeProvider
+        {
+            public override ITimer CreateTimer(
+                TimerCallback callback,
+                object? state,
+                TimeSpan dueTime,
+                TimeSpan period)
+            {
+                ITimer timer = base.CreateTimer(callback, state, dueTime, period);
+                int timerNumber = Interlocked.Increment(ref m_timerCount);
+                if (timerNumber == 1)
+                {
+                    m_firstTimerCreated.TrySetResult(true);
+                }
+                else if (timerNumber == 2)
+                {
+                    m_secondTimerCreated.TrySetResult(true);
+                }
+                return timer;
+            }
+
+            public Task<bool> WaitForTimerCreatedAsync(int timerNumber)
+            {
+                return timerNumber switch
+                {
+                    1 => m_firstTimerCreated.Task,
+                    2 => m_secondTimerCreated.Task,
+                    _ => throw new ArgumentOutOfRangeException(nameof(timerNumber))
+                };
+            }
+
+            private readonly TaskCompletionSource<bool> m_firstTimerCreated = new(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            private readonly TaskCompletionSource<bool> m_secondTimerCreated = new(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            private int m_timerCount;
         }
     }
 }
