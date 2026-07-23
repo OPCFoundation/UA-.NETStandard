@@ -121,7 +121,7 @@ namespace Opc.Ua
                 string? requesterId = requesterBranch switch
                 {
                     0 => null,
-                    1 => reader.ReadString(),
+                    1 => reader.ReadString(SchemaExchangePayload.MaxSchemaBytes),
                     _ => throw new FormatException("Invalid Avro RequesterId union branch."),
                 };
                 var schemaIds = new List<ByteString>();
@@ -141,11 +141,19 @@ namespace Opc.Ua
 
                     for (long i = 0; i < count; i++)
                     {
-                        schemaIds.Add(ByteString.From(reader.ReadBytes()));
+                        if (schemaIds.Count >= SchemaExchangePayload.MaxSchemaIds)
+                        {
+                            throw new FormatException("The AvroSchemaRequest exceeds the SchemaId count limit.");
+                        }
+                        schemaIds.Add(ByteString.From(reader.ReadBytes(SchemaExchangePayload.MaxSchemaIdBytes)));
                     }
                 }
 
                 return new AvroSchemaRequest(requesterId, schemaIds);
+            }
+            catch (Exception ex) when (SchemaExchangePayload.IsMalformedPayload(ex))
+            {
+                throw new FormatException("The AvroSchemaRequest payload is malformed.", ex);
             }
             finally
             {

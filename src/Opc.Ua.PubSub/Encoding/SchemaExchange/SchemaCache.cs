@@ -59,6 +59,13 @@ namespace Opc.Ua.PubSub.Encoding
         private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, byte>> _announced =
             new(StringComparer.Ordinal);
 
+        // Bounds the number of distinct cached schemas so a peer announcing
+        // many distinct schemas cannot grow the cache without limit
+        // (memory-exhaustion DoS). Content-addressed schemas are re-added on
+        // the next announce/resolve, so evicting an entry when full is
+        // self-healing.
+        private const int MaxCachedSchemas = 1024;
+
         /// <summary>
         /// Attempts to get a cached schema by SchemaId.
         /// </summary>
@@ -84,7 +91,18 @@ namespace Opc.Ua.PubSub.Encoding
             {
                 throw new InvalidOperationException("The announced SchemaId does not match the schema fingerprint.");
             }
-            _schemas[ToKey(schemaId)] = new SchemaCacheEntry(schemaId, schema, NormalizeFormat(format));
+            string key = ToKey(schemaId);
+            if (_schemas.Count >= MaxCachedSchemas && !_schemas.ContainsKey(key))
+            {
+                foreach (string existing in _schemas.Keys)
+                {
+                    if (_schemas.TryRemove(existing, out _))
+                    {
+                        break;
+                    }
+                }
+            }
+            _schemas[key] = new SchemaCacheEntry(schemaId, schema, NormalizeFormat(format));
         }
 
         /// <summary>

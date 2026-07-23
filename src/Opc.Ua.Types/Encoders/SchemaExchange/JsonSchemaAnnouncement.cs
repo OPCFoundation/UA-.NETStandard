@@ -112,17 +112,24 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(stream));
             }
 
-            using JsonDocument document = JsonDocument.Parse(stream);
-            JsonElement root = document.RootElement;
-            ByteString schemaId = ByteString.From(
-                Convert.FromBase64String(root.GetProperty("schemaId").GetString() ?? string.Empty));
-            string schemaJson = root.GetProperty("schemaJson").GetString()
-                ?? throw new FormatException("The JSON schema envelope is missing SchemaJson.");
-            JsonElement epoch = root.GetProperty("schemaEpoch");
-            long? schemaEpoch = epoch.ValueKind == JsonValueKind.Null
-                ? null
-                : epoch.GetInt64();
-            return new JsonSchemaAnnouncement(schemaId, schemaJson, schemaEpoch);
+            try
+            {
+                using JsonDocument document = JsonDocument.Parse(stream);
+                JsonElement root = document.RootElement;
+                ByteString schemaId = ByteString.From(
+                    Convert.FromBase64String(root.GetProperty("schemaId").GetString() ?? string.Empty));
+                string schemaJson = root.GetProperty("schemaJson").GetString()
+                    ?? throw new FormatException("The JSON schema envelope is missing SchemaJson.");
+                JsonElement epoch = root.GetProperty("schemaEpoch");
+                long? schemaEpoch = epoch.ValueKind == JsonValueKind.Null
+                    ? null
+                    : epoch.GetInt64();
+                return new JsonSchemaAnnouncement(schemaId, schemaJson, schemaEpoch);
+            }
+            catch (Exception ex) when (SchemaExchangePayload.IsMalformedPayload(ex))
+            {
+                throw new FormatException("The JsonSchemaAnnouncement payload is malformed.", ex);
+            }
         }
 
         /// <summary>

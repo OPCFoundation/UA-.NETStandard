@@ -80,27 +80,43 @@ namespace Opc.Ua
         /// <returns>The decoded request.</returns>
         public static ArrowSchemaRequest Decode(ReadOnlyMemory<byte> payload)
         {
-            using MemoryStream stream = new(payload.ToArray(), writable: false);
-            using ArrowStreamReader reader = new(stream, leaveOpen: true);
-            using RecordBatch? batch = reader.ReadNextRecordBatch();
-            if (batch is null || batch.Length != 1)
+            try
             {
-                throw new FormatException("ArrowSchemaRequest requires one row.");
-            }
+                using MemoryStream stream = new(payload.ToArray(), writable: false);
+                using ArrowStreamReader reader = new(stream, leaveOpen: true);
+                using RecordBatch? batch = reader.ReadNextRecordBatch();
+                if (batch is null || batch.Length != 1 || batch.ColumnCount < 2)
+                {
+                    throw new FormatException("ArrowSchemaRequest requires one row with two columns.");
+                }
 
-            var requesterIds = (StringArray)batch.Column(0);
-            string? requesterId = requesterIds.IsNull(0) ? null : requesterIds.GetString(0);
-            var schemaIdsList = (ListArray)batch.Column(1);
-            int start = schemaIdsList.ValueOffsets[0];
-            int length = schemaIdsList.ValueOffsets[1] - start;
-            var values = (FixedSizeBinaryArray)schemaIdsList.Values;
-            var schemaIds = new List<ByteString>(length);
-            for (int i = 0; i < length; i++)
+                var requesterIds = (StringArray)batch.Column(0);
+                string? requesterId = requesterIds.IsNull(0) ? null : requesterIds.GetString(0);
+                var schemaIdsList = (ListArray)batch.Column(1);
+                var values = (FixedSizeBinaryArray)schemaIdsList.Values;
+                int start = schemaIdsList.ValueOffsets[0];
+                int end = schemaIdsList.ValueOffsets[1];
+                if (start < 0 || end < start || end > values.Length)
+                {
+                    throw new FormatException("The ArrowSchemaRequest list offsets are invalid.");
+                }
+                int length = end - start;
+                if (length > SchemaExchangePayload.MaxSchemaIds)
+                {
+                    throw new FormatException("The ArrowSchemaRequest exceeds the SchemaId count limit.");
+                }
+                var schemaIds = new List<ByteString>(length);
+                for (int i = 0; i < length; i++)
+                {
+                    schemaIds.Add(ArrowSchemaAnnouncement.ReadFixed8(values, start + i));
+                }
+
+                return new ArrowSchemaRequest(requesterId, schemaIds);
+            }
+            catch (Exception ex) when (SchemaExchangePayload.IsMalformedPayload(ex))
             {
-                schemaIds.Add(ArrowSchemaAnnouncement.ReadFixed8(values, start + i));
+                throw new FormatException("The ArrowSchemaRequest payload is malformed.", ex);
             }
-
-            return new ArrowSchemaRequest(requesterId, schemaIds);
         }
 
         private StringArray BuildRequester()

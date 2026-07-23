@@ -57,6 +57,13 @@ namespace Opc.Ua.PubSub.Encoding
         private const string Magic = "OPC-UA-PubSub-Arrow";
         private const string Version = "1";
         private const int HeaderColumnCount = 5;
+
+        // Bounds the number of distinct cached schema messages so a peer that
+        // sends many distinct schemaId values cannot grow the cache without
+        // limit (memory-exhaustion DoS). When full an arbitrary existing entry
+        // is evicted; a full IPC stream re-caches its schema on the next
+        // occurrence, so eviction is self-healing.
+        private const int MaxCachedSchemaMessages = 256;
         private static readonly byte[] s_streamEnd = [0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00];
         // Concurrent so a decoder instance shared across receive threads cannot corrupt the cache
         // (the schema message is written from CacheSchema/CacheSchemaMessage and read from decode).
@@ -100,7 +107,7 @@ namespace Opc.Ua.PubSub.Encoding
             {
                 return;
             }
-            m_schemaMessages[schemaId] = schemaMessage.ToArray();
+            StoreSchemaMessage(schemaId, schemaMessage.ToArray());
         }
 
         /// <summary>
@@ -486,8 +493,24 @@ namespace Opc.Ua.PubSub.Encoding
             int length = SchemaMessageLength(frame.Span);
             if (length > 0 && length <= frame.Length)
             {
-                m_schemaMessages[schemaId] = frame.Slice(0, length).ToArray();
+                StoreSchemaMessage(schemaId, frame.Slice(0, length).ToArray());
             }
+        }
+
+        private void StoreSchemaMessage(string schemaId, byte[] schemaMessage)
+        {
+            if (m_schemaMessages.Count >= MaxCachedSchemaMessages
+                && !m_schemaMessages.ContainsKey(schemaId))
+            {
+                foreach (string existing in m_schemaMessages.Keys)
+                {
+                    if (m_schemaMessages.TryRemove(existing, out _))
+                    {
+                        break;
+                    }
+                }
+            }
+            m_schemaMessages[schemaId] = schemaMessage;
         }
 
         private static int SchemaMessageLength(ReadOnlySpan<byte> frame)

@@ -115,19 +115,30 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(stream));
             }
 
-            using JsonDocument document = JsonDocument.Parse(stream);
-            JsonElement root = document.RootElement;
-            JsonElement requester = root.GetProperty("requesterId");
-            string? requesterId = requester.ValueKind == JsonValueKind.Null
-                ? null
-                : requester.GetString();
-            var schemaIds = new List<ByteString>();
-            foreach (JsonElement item in root.GetProperty("schemaIds").EnumerateArray())
+            try
             {
-                schemaIds.Add(ByteString.From(Convert.FromBase64String(item.GetString() ?? string.Empty)));
-            }
+                using JsonDocument document = JsonDocument.Parse(stream);
+                JsonElement root = document.RootElement;
+                JsonElement requester = root.GetProperty("requesterId");
+                string? requesterId = requester.ValueKind == JsonValueKind.Null
+                    ? null
+                    : requester.GetString();
+                var schemaIds = new List<ByteString>();
+                foreach (JsonElement item in root.GetProperty("schemaIds").EnumerateArray())
+                {
+                    if (schemaIds.Count >= SchemaExchangePayload.MaxSchemaIds)
+                    {
+                        throw new FormatException("The JsonSchemaRequest exceeds the SchemaId count limit.");
+                    }
+                    schemaIds.Add(ByteString.From(Convert.FromBase64String(item.GetString() ?? string.Empty)));
+                }
 
-            return new JsonSchemaRequest(requesterId, schemaIds);
+                return new JsonSchemaRequest(requesterId, schemaIds);
+            }
+            catch (Exception ex) when (SchemaExchangePayload.IsMalformedPayload(ex))
+            {
+                throw new FormatException("The JsonSchemaRequest payload is malformed.", ex);
+            }
         }
     }
 }

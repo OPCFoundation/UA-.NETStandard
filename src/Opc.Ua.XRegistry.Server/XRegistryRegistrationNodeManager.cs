@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Threading;
 using Opc.Ua.Server;
 
 namespace Opc.Ua.XRegistry.Server
@@ -51,6 +52,15 @@ namespace Opc.Ua.XRegistry.Server
         private readonly string m_namespaceUri;
         private readonly IResourceContentIdProvider? m_contentIdProvider;
         private uint m_nextHandle;
+        private int m_registeredResourceCount;
+
+        // Bounds so a remote caller cannot exhaust memory or the address space
+        // via the registration Methods: the number of concurrently open upload
+        // handles, the cumulative bytes buffered per handle, and the number of
+        // permanently registered resource nodes.
+        private const int MaxConcurrentUploads = 64;
+        private const int MaxResourceBytes = 16 * 1024 * 1024;
+        private const int MaxRegisteredResources = 4096;
 
         /// <summary>
         /// Initializes the registration node manager for the registry namespace.
@@ -136,6 +146,10 @@ namespace Opc.Ua.XRegistry.Server
             uint handle;
             lock (m_gate)
             {
+                if (m_buffers.Count >= MaxConcurrentUploads)
+                {
+                    return StatusCodes.BadTooManyOperations;
+                }
                 handle = ++m_nextHandle;
                 m_buffers[handle] = [];
                 m_versions[handle] = versionId;
@@ -168,6 +182,10 @@ namespace Opc.Ua.XRegistry.Server
                 }
                 if (!data.IsNull && data.Span.Length > 0)
                 {
+                    if (buffer.Count + data.Span.Length > MaxResourceBytes)
+                    {
+                        return StatusCodes.BadRequestTooLarge;
+                    }
                     buffer.AddRange(data.Span.ToArray());
                 }
             }
@@ -220,6 +238,11 @@ namespace Opc.Ua.XRegistry.Server
 
             if (Find(fastPathNodeId) is null)
             {
+                if (Volatile.Read(ref m_registeredResourceCount) >= MaxRegisteredResources)
+                {
+                    return StatusCodes.BadTooManyOperations;
+                }
+
                 var node = new BaseDataVariableState(null)
                 {
                     NodeId = fastPathNodeId,
@@ -236,6 +259,7 @@ namespace Opc.Ua.XRegistry.Server
                 };
 
                 AddPredefinedNode(SystemContext, node);
+                Interlocked.Increment(ref m_registeredResourceCount);
             }
 
             outputs.Add(new Variant(contentId));
@@ -259,6 +283,10 @@ namespace Opc.Ua.XRegistry.Server
             ushort ns = (ushort)Server.NamespaceUris.GetIndex(m_namespaceUri);
 
             bool removed = DeleteNode(SystemContext, new NodeId(contentId, ns));
+            if (removed)
+            {
+                Interlocked.Decrement(ref m_registeredResourceCount);
+            }
             return removed ? ServiceResult.Good : StatusCodes.BadNotFound;
         }
     }

@@ -79,19 +79,26 @@ namespace Opc.Ua
         /// <returns>The decoded announcement.</returns>
         public static ArrowSchemaAnnouncement Decode(ReadOnlyMemory<byte> payload)
         {
-            using MemoryStream stream = new(payload.ToArray(), writable: false);
-            using ArrowStreamReader reader = new(stream, leaveOpen: true);
-            using RecordBatch? batch = reader.ReadNextRecordBatch();
-            if (batch is null || batch.Length != 1)
+            try
             {
-                throw new FormatException("ArrowSchemaAnnouncement requires one row.");
-            }
+                using MemoryStream stream = new(payload.ToArray(), writable: false);
+                using ArrowStreamReader reader = new(stream, leaveOpen: true);
+                using RecordBatch? batch = reader.ReadNextRecordBatch();
+                if (batch is null || batch.Length != 1 || batch.ColumnCount < 3)
+                {
+                    throw new FormatException("ArrowSchemaAnnouncement requires one row with three columns.");
+                }
 
-            ByteString schemaId = ReadFixed8((FixedSizeBinaryArray)batch.Column(0), 0);
-            ByteString schema = ByteString.From(((BinaryArray)batch.Column(1)).GetBytes(0).ToArray());
-            var epochs = (Int64Array)batch.Column(2);
-            long? epoch = epochs.IsNull(0) ? null : epochs.GetValue(0);
-            return new ArrowSchemaAnnouncement(schemaId, schema, epoch);
+                ByteString schemaId = ReadFixed8((FixedSizeBinaryArray)batch.Column(0), 0);
+                ByteString schema = ByteString.From(((BinaryArray)batch.Column(1)).GetBytes(0).ToArray());
+                var epochs = (Int64Array)batch.Column(2);
+                long? epoch = epochs.IsNull(0) ? null : epochs.GetValue(0);
+                return new ArrowSchemaAnnouncement(schemaId, schema, epoch);
+            }
+            catch (Exception ex) when (SchemaExchangePayload.IsMalformedPayload(ex))
+            {
+                throw new FormatException("The ArrowSchemaAnnouncement payload is malformed.", ex);
+            }
         }
 
         /// <summary>

@@ -118,8 +118,8 @@ namespace Opc.Ua
             AvroBinaryReader reader = new(stream);
             try
             {
-                ByteString schemaId = ByteString.From(reader.ReadBytes());
-                string schemaJson = reader.ReadString();
+                ByteString schemaId = ByteString.From(reader.ReadBytes(SchemaExchangePayload.MaxSchemaIdBytes));
+                string schemaJson = reader.ReadString(SchemaExchangePayload.MaxSchemaBytes);
                 long branch = reader.ReadLong();
                 long? schemaEpoch = branch switch
                 {
@@ -128,6 +128,10 @@ namespace Opc.Ua
                     _ => throw new FormatException("Invalid Avro SchemaEpoch union branch."),
                 };
                 return new AvroSchemaAnnouncement(schemaId, schemaJson, schemaEpoch);
+            }
+            catch (Exception ex) when (SchemaExchangePayload.IsMalformedPayload(ex))
+            {
+                throw new FormatException("The AvroSchemaAnnouncement payload is malformed.", ex);
             }
             finally
             {
