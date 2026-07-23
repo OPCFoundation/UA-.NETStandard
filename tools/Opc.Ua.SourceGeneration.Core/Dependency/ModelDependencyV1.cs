@@ -303,6 +303,13 @@ namespace Opc.Ua.SourceGeneration.Dependency
         public string ModelUri { get; set; } = string.Empty;
 
         /// <summary>
+        /// Whether the producing assembly emitted the per-ObjectType typed
+        /// fluent accessor extension classes. <c>null</c> means the payload
+        /// predates this capability and cannot prove whether accessors exist.
+        /// </summary>
+        public bool? FluentAccessorsEmitted { get; set; }
+
+        /// <summary>
         /// Nodes in the dependency payload.
         /// </summary>
         public List<DependencyNode> Nodes { get; } = [];
@@ -442,6 +449,11 @@ namespace Opc.Ua.SourceGeneration.Dependency
                     }
                 }
             }
+            if (FluentAccessorsEmitted.HasValue)
+            {
+                byte capabilities = FluentAccessorsEmitted.Value ? (byte)0x01 : (byte)0x00;
+                writer.Write(capabilities);
+            }
         }
 
         private void ReadUncompressed(Stream source)
@@ -556,6 +568,11 @@ namespace Opc.Ua.SourceGeneration.Dependency
                     node.Children = children;
                 }
                 Nodes.Add(node);
+            }
+            if (reader.BaseStream.Position < reader.BaseStream.Length)
+            {
+                byte capabilities = reader.ReadByte();
+                FluentAccessorsEmitted = (capabilities & 0x01) != 0;
             }
         }
 

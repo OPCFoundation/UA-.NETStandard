@@ -170,6 +170,9 @@ namespace Opc.Ua.SourceGeneration
             using var templateWriter = new TemplateWriter(writer);
             var template = new Template(templateWriter, FluentBuilderTemplates.File);
 
+            template.AddReplacement(
+                Tokens.ModelUri,
+                EscapeStringLiteral(m_context.ModelDesign.TargetNamespace.Value));
             template.AddReplacement(Tokens.NamespacePrefix, outputNamespace);
 
             // Render the typed manager interface, the typed manager
@@ -1069,9 +1072,14 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-            string stateName = typeName.EndsWith("Type", StringComparison.Ordinal)
-                ? typeName[..^"Type".Length] + "State"
-                : typeName + "State";
+            if (!string.IsNullOrEmpty(type.ClassName))
+            {
+                return type.GetClassName(m_context.ModelDesign.Namespaces) + "State";
+            }
+            string className = typeName.EndsWith("Type", StringComparison.Ordinal)
+                ? typeName[..^"Type".Length]
+                : typeName;
+            string stateName = className + "State";
             string nsUri = type.SymbolicName?.Namespace;
             string prefix = ResolveCSharpNamespaceForUri(nsUri);
             return string.IsNullOrEmpty(prefix)
@@ -1095,6 +1103,10 @@ namespace Opc.Ua.SourceGeneration
             if (typeDef == null || string.IsNullOrEmpty(typeDef.Name))
             {
                 return ResolveStateClrType(child);
+            }
+            if (child.TypeDefinitionNode is ObjectTypeDesign objectType)
+            {
+                return ResolveObjectTypeStateClr(objectType);
             }
             string stateName = typeDef.Name.EndsWith("Type", StringComparison.Ordinal)
                 ? typeDef.Name[..^"Type".Length] + "State"

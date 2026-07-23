@@ -61,6 +61,7 @@ namespace Opc.Ua.SourceGeneration
             ModelCompilationOptions options,
             CompilationOptions compilationOptions,
             ImmutableArray<ModelDependencyReference> referencedModels,
+            ImmutableArray<ModelFluentAccessorProviderReference> referencedAccessorProviders,
             ImmutableArray<NodeManagerAttributeDiscovery> nodeManagerBindings,
             ImmutableHashSet<string> availableStateTypeNames,
             ILogger logger)
@@ -72,6 +73,7 @@ namespace Opc.Ua.SourceGeneration
             m_compilationOptions = compilationOptions;
             m_nodeManagerBindings = nodeManagerBindings;
             m_referencedModels = referencedModels;
+            m_referencedAccessorProviders = referencedAccessorProviders;
             m_availableStateTypeNames = availableStateTypeNames;
             m_telemetry = SourceGeneratorTelemetry.Create(logger, m_context);
         }
@@ -117,7 +119,8 @@ namespace Opc.Ua.SourceGeneration
                     UseTypeDefinitionModellingRules =
                         m_options.UseTypeDefinitionModellingRules,
                     EmitDependencyMetadata = ResolveEmitDependencyMetadata(),
-                    OmitFluentApi = m_options.OmitFluentApi
+                    OmitFluentApi = m_options.OmitFluentApi,
+                    FluentAccessorsOnly = m_options.FluentAccessorsOnly
                 };
 
                 // Load all available nodeset files from the input
@@ -164,13 +167,29 @@ namespace Opc.Ua.SourceGeneration
                             message));
                 }
 
+                void reportFluentAccessorsOnly(
+                    string modelUri,
+                    string prefix,
+                    string path,
+                    string reason)
+                {
+                    m_context.ReportDiagnostic(
+                        Diagnostic.Create(
+                            SourceGenerator.FluentAccessorsOnlyModelError,
+                            Location.None,
+                            modelUri,
+                            prefix,
+                            path,
+                            reason));
+                }
+
                 // Reduce referenced model attributes to a single dictionary by
                 // model URI (with tie-break on highest version+publication date)
                 // so the downstream generators can apply override resolution.
                 IReadOnlyDictionary<string, ModelDependencyReference>
                     referencedModels = BuildReferencedModelMap();
                 IReadOnlyDictionary<string, ModelDependencyV1>
-                    referencedDependencies = BuildReferencedDependencyMap();
+                    referencedDependencies = BuildReferencedDependencyMap(referencedModels);
 
                 // The design files that are not NodeSet2 inputs form the
                 // ModelDesign pass. Compute them up front so the total model
@@ -220,7 +239,10 @@ namespace Opc.Ua.SourceGeneration
                     bindings.Count > 0 ? reportBinding : null,
                     referencedDependencies,
                     usedBindings,
-                    totalModelCount);
+                    totalModelCount,
+                    reportFluentAccessorsOnly,
+                    m_referencedModels,
+                    m_referencedAccessorProviders);
 
                 // Process the remaining design files. Every NodeSet2 input
                 // (encoded with the prefix/name computed by the nodeset
@@ -245,7 +267,10 @@ namespace Opc.Ua.SourceGeneration
                     bindings.Count > 0 ? bindings : null,
                     bindings.Count > 0 ? reportBinding : null,
                     usedBindings,
-                    totalModelCount);
+                    totalModelCount,
+                    reportFluentAccessorsOnly,
+                    m_referencedModels,
+                    m_referencedAccessorProviders);
 
                 // Report any [NodeManager] bindings that neither pass matched,
                 // once, against the shared used-set aggregated across passes.
@@ -289,14 +314,35 @@ namespace Opc.Ua.SourceGeneration
                         "Minimum required language version is CSharp 8."));
                 return false;
             }
+            if (m_options.FluentAccessorsOnly && m_options.OmitFluentApi)
+            {
+                m_context.ReportDiagnostic(
+                    Diagnostic.Create(
+                        SourceGenerator.FluentAccessorsOnlyOptionsError,
+                        Location.None,
+                        "ModelSourceGeneratorFluentAccessorsOnly and " +
+                        "ModelSourceGeneratorOmitFluentApi cannot both be enabled."));
+                return false;
+            }
+            if (m_options.FluentAccessorsOnly && m_options.Options.GenerateNodeManager)
+            {
+                m_context.ReportDiagnostic(
+                    Diagnostic.Create(
+                        SourceGenerator.FluentAccessorsOnlyOptionsError,
+                        Location.None,
+                        "ModelSourceGeneratorFluentAccessorsOnly cannot be combined with " +
+                        "ModelSourceGeneratorGenerateNodeManager."));
+                return false;
+            }
             return true;
         }
 
         /// <summary>
         /// Group the referenced-assembly attributes by model URI; when more
-        /// than one assembly contributes the same URI, prefer the entry with
-        /// the highest <c>(Version, PublicationDate)</c> lexicographic tuple
-        /// per the contract on <see cref="ModelDependencyAttribute"/>.
+        /// than one assembly contributes the same URI, prefer a payload-bearing
+        /// self producer over payloadless transitive re-exports, then use the
+        /// highest <c>(Version, PublicationDate)</c> lexicographic tuple per
+        /// the contract on <see cref="ModelDependencyAttribute"/>.
         /// </summary>
         private IReadOnlyDictionary<string, ModelDependencyReference>
             BuildReferencedModelMap()
@@ -318,7 +364,13 @@ namespace Opc.Ua.SourceGeneration
                     map[candidate.ModelUri] = candidate;
                     continue;
                 }
-                int cmp = string.CompareOrdinal(candidate.Version, existing.Version);
+                bool candidateIsProducer = IsModelProducer(candidate);
+                bool existingIsProducer = IsModelProducer(existing);
+                int cmp = candidateIsProducer.CompareTo(existingIsProducer);
+                if (cmp == 0)
+                {
+                    cmp = string.CompareOrdinal(candidate.Version, existing.Version);
+                }
                 if (cmp == 0)
                 {
                     cmp = string.CompareOrdinal(
@@ -356,27 +408,33 @@ namespace Opc.Ua.SourceGeneration
         /// silently dropped.
         /// </summary>
         private IReadOnlyDictionary<string, ModelDependencyV1>
-            BuildReferencedDependencyMap()
+            BuildReferencedDependencyMap(
+                IReadOnlyDictionary<string, ModelDependencyReference> referencedModels)
         {
-            if (m_referencedModels.IsDefaultOrEmpty)
+            if (referencedModels.Count == 0)
             {
                 return ImmutableDictionary<string, ModelDependencyV1>.Empty;
             }
             var map = new Dictionary<string, ModelDependencyV1>(
                 StringComparer.Ordinal);
-            foreach (ModelDependencyReference candidate in m_referencedModels)
+            foreach (KeyValuePair<string, ModelDependencyReference> entry in referencedModels)
             {
-                ModelDependencyV1 decoded = candidate.GetDependency();
-                if (decoded == null)
+                ModelDependencyV1 decoded = entry.Value.GetDependency();
+                if (decoded == null ||
+                    !string.Equals(decoded.ModelUri, entry.Key, StringComparison.Ordinal))
                 {
                     continue;
                 }
-                if (!map.ContainsKey(candidate.ModelUri))
-                {
-                    map[candidate.ModelUri] = decoded;
-                }
+                map[entry.Key] = decoded;
             }
             return map;
+        }
+
+        private static bool IsModelProducer(ModelDependencyReference reference)
+        {
+            ModelDependencyV1 dependency = reference.GetDependency();
+            return dependency != null &&
+                string.Equals(dependency.ModelUri, reference.ModelUri, StringComparison.Ordinal);
         }
 
         /// <summary>
@@ -402,6 +460,8 @@ namespace Opc.Ua.SourceGeneration
         private readonly ModelCompilationOptions m_options;
         private readonly CompilationOptions m_compilationOptions;
         private readonly ImmutableArray<ModelDependencyReference> m_referencedModels;
+        private readonly ImmutableArray<ModelFluentAccessorProviderReference>
+            m_referencedAccessorProviders;
         private readonly ImmutableArray<NodeManagerAttributeDiscovery> m_nodeManagerBindings;
         private readonly ImmutableHashSet<string> m_availableStateTypeNames;
         private readonly SourceGeneratorTelemetry m_telemetry;
