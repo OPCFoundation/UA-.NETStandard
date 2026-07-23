@@ -601,14 +601,14 @@ namespace Opc.Ua
 
                 ExpectBranch(branch, 1);
                 int[] outerDims = ReadInt32Array(null).ToArray() ?? Array.Empty<int>();
-                return readArray().ToMatrix(outerDims);
+                return readArray().ToDecodedMatrix(outerDims);
             }
 
             // A Variant matrix body: MatrixBody { dimensions: plain array<int>, values: plain array }.
             m_nextArrayPlain = true;
             int[] dims = ReadInt32Array(null).ToArray() ?? Array.Empty<int>();
             m_nextArrayPlain = true;
-            return readArray().ToMatrix(dims);
+            return readArray().ToDecodedMatrix(dims);
         }
 
         /// <inheritdoc/>
