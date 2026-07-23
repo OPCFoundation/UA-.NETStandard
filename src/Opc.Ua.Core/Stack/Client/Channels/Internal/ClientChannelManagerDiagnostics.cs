@@ -97,18 +97,29 @@ namespace Opc.Ua
             activity?.SetTag("outcome", outcome);
             string statusCode = string.Empty;
             string errorMessage = string.Empty;
-            if (error != null && (activity != null || m_logger.IsEnabled(LogLevel.Warning)))
+            if (error != null && activity != null)
             {
                 statusCode = GetStatusCode(error);
                 errorMessage = GetSafeErrorMessage(error);
-                activity?.SetTag("error.status_code", statusCode);
-                activity?.SetTag("error.message", errorMessage);
+                activity.SetTag("error.status_code", statusCode);
+                activity.SetTag("error.message", errorMessage);
             }
 
             if (outcome == kReconnectOutcomeSuccess)
             {
                 m_logger.ChannelManagerReconnectCompleted(entry.EndpointUrl, attemptCount, outcome);
                 return;
+            }
+
+            if (!m_logger.IsEnabled(LogLevel.Warning))
+            {
+                return;
+            }
+
+            if (error != null && activity == null)
+            {
+                statusCode = GetStatusCode(error);
+                errorMessage = GetSafeErrorMessage(error);
             }
 
             m_logger.ChannelManagerReconnectFailed(

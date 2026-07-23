@@ -921,8 +921,11 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         }
 
         [Test]
+        [NonParallelizable]
         public async Task ReconnectAsyncWithBudgetStopsWhenExhaustedAsync()
         {
+            using var listener = new ChannelActivityListener();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Critical);
             var timeProvider = new FakeTimeProvider();
             var reconnectPolicy = new ExponentialBackoffChannelReconnectPolicy
             {
@@ -930,7 +933,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 MaxDelay = TimeSpan.Zero
             };
             (ClientChannelManager sut, Certificate serverCert, Mock<IChannel> chMock) =
-                CreateMockedSut(reconnectPolicy: reconnectPolicy, timeProvider: timeProvider);
+                CreateMockedSut(telemetry, reconnectPolicy, timeProvider);
             try
             {
                 ConfiguredEndpoint endpoint = GetTestEndpoint(serverCert);
@@ -944,6 +947,16 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 Assert.That(ex, Is.Not.Null);
                 Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelClosed));
                 Assert.That(ch.State, Is.EqualTo(ChannelState.Faulted));
+                Activity activity = await listener
+                    .WaitForStoppedActivityAsync("OpcUaChannelReconnect")
+                    .ConfigureAwait(false);
+                var tags = activity.TagObjects.ToDictionary(t => t.Key, t => t.Value);
+                Assert.That(tags["attempt.count"], Is.Zero);
+                Assert.That(tags["outcome"], Is.EqualTo("policy-exhausted"));
+                Assert.That(tags["error.status_code"], Is.EqualTo("BadSecureChannelClosed"));
+                Assert.That(
+                    tags["error.message"],
+                    Is.EqualTo("Channel reconnect policy exhausted after 0 attempts."));
                 chMock.Verify(c => c.ReconnectAsync(
                         It.IsAny<ITransportWaitingConnection?>(),
                         It.IsAny<CancellationToken>()),
