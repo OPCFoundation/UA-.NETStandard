@@ -238,6 +238,8 @@ The stack shipped four internal `EventSource` providers for high-performance tra
 
 The replacement logger category is always the **exact old ETW provider name**, not the assembly's usual typed category. Migrated filters can therefore keep the same identifying string (for example, `AddFilter("OPC-UA-Client", LogLevel.Trace)`) after they move from an ETW provider subscription to `ILogger` configuration. `EventLevel` mapped to `LogLevel` on a like-for-like basis (`Verbose` &rarr; `Trace`, `Informational` &rarr; `Information`, `Warning` &rarr; `Warning`, `Error`/`Critical` &rarr; `Error`/`Critical`). See [DeveloperGuide.md — narrow exception: retained EventSource-compatibility ids](../../DeveloperGuide.md#narrow-exception-retained-eventsource-compatibility-ids) for the authoring-side rules and [Sessions.md — diagnostics surface contract](../../Sessions.md#diagnostics-surface-contract--what-tags-and-structured-log-fields-carry) for the full `Opc.Ua.ChannelManager` event table.
 
+The `OPC-UA-Server` compatibility category remains opt-in like the retired EventSource provider. Enable that category at `Trace` to receive its records, including the `ServerCall` and `SessionState` records whose retained legacy level is `Information`. A global `Information` minimum therefore does not emit a record for every server request.
+
 **Not retained:** the ETW provider GUID, `EventTask`/`EventKeywords` definitions, and the ETW manifest. There is no `ILogger` equivalent for these, and providers/consumers that depended on them (raw ETW session subscribers keyed by provider GUID, manifest-based decoders) must move to `Microsoft.Extensions.Logging` category/event-name filtering instead.
 
 ### `ClientTraceFlags.EventLog` removed (source breaking)

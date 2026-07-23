@@ -64,7 +64,7 @@ namespace Opc.Ua.Server
             : base(telemetry)
         {
             TimeProvider = timeProvider ?? TimeProvider.System;
-            m_compatibilityLogger = telemetry.CreateLogger(
+            m_eventLogger = telemetry.CreateLogger(
                 ServerCompatibilityEventIds.CategoryName);
         }
 
@@ -3000,14 +3000,14 @@ namespace Opc.Ua.Server
             OperationContext context = await ServerInternal.SessionManager
                 .ValidateRequestAsync(requestHeader, secureChannelContext, requestType, requestLifetime).ConfigureAwait(false);
 
-            if (m_compatibilityLogger.IsEnabled(LogLevel.Information))
+            if (m_eventLogger.IsEventLogEnabled())
             {
                 string? requestTypeString = Enum.GetName(
 #if !NET8_0_OR_GREATER
                    typeof(RequestType),
 #endif
                    context.RequestType);
-                m_compatibilityLogger.CompatibilityServerCall(requestTypeString!, context.RequestId);
+                m_eventLogger.CompatibilityServerCall(requestTypeString!, context.RequestId);
             }
 
             // notify the request manager.
@@ -4489,7 +4489,7 @@ namespace Opc.Ua.Server
         private ServerRateLimitOptions? m_rateLimitOptions;
         private IServerRateLimiterProvider? m_rateLimiterProvider;
         private bool m_ownsRateLimiterProvider;
-        private readonly ILogger m_compatibilityLogger;
+        private readonly ILogger m_eventLogger;
 
         /// <summary>
         /// The interval at which the <see cref="ConfigurationNodeManager"/>

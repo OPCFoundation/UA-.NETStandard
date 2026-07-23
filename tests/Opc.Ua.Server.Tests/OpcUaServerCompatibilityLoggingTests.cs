@@ -50,6 +50,8 @@ namespace Opc.Ua.Server.Tests
             ILogger logger = telemetry.CreateLogger(
                 ServerCompatibilityEventIds.CategoryName);
 
+            Assert.That(logger.IsEventLogEnabled(), Is.True);
+
             logger.CompatibilityServerCall("Browse", 99);
             logger.CompatibilitySessionState("Activated", "sid", "sname", "chan", "ident");
             logger.CompatibilityMonitoredItemReady(123, "publishing");
@@ -77,6 +79,28 @@ namespace Opc.Ua.Server.Tests
                 LogLevel.Trace);
             Assert.That(monitoredItem.Properties["Id"], Is.EqualTo(123u));
             Assert.That(monitoredItem.Properties["State"], Is.EqualTo("publishing"));
+        }
+
+        [Test]
+        public void ServerEventsRemainDisabledAtInformationLevel()
+        {
+            using var provider = new RecordingLoggerProvider();
+            ITelemetryContext telemetry = DefaultTelemetry.Create(
+                builder => builder
+                    .SetMinimumLevel(LogLevel.Information)
+                    .AddProvider(provider));
+            ILogger logger = telemetry.CreateLogger(
+                ServerCompatibilityEventIds.CategoryName);
+
+            Assert.That(logger.IsEventLogEnabled(), Is.False);
+
+            if (logger.IsEventLogEnabled())
+            {
+                logger.CompatibilityServerCall("Browse", 99);
+                logger.CompatibilitySessionState("Activated", "sid", "sname", "chan", "ident");
+            }
+
+            Assert.That(provider.Records, Is.Empty);
         }
 
         private static RecordedLogRecord AssertRecord(

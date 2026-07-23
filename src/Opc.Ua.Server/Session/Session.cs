@@ -151,7 +151,7 @@ namespace Opc.Ua.Server
                 ?? (server as ITimeProviderProvider)?.TimeProvider
                 ?? TimeProvider.System;
             m_logger = server.Telemetry.CreateLogger<Session>();
-            m_compatibilityLogger = server.Telemetry.CreateLogger(
+            m_eventLogger = server.Telemetry.CreateLogger(
                 ServerCompatibilityEventIds.CategoryName);
             ClientNonce = clientNonce;
             m_serverNonce = serverNonce;
@@ -816,9 +816,14 @@ namespace Opc.Ua.Server
         /// </summary>
         internal void TraceState(string context)
         {
+            if (!m_eventLogger.IsEventLogEnabled())
+            {
+                return;
+            }
+
             string sessionId = Id.ToString();
 
-            m_compatibilityLogger.CompatibilitySessionState(
+            m_eventLogger.CompatibilitySessionState(
                 context,
                 sessionId,
                 m_sessionName,
@@ -1315,7 +1320,7 @@ namespace Opc.Ua.Server
 
         private readonly Lock m_lock = new();
         private readonly ILogger m_logger;
-        private readonly ILogger m_compatibilityLogger;
+        private readonly ILogger m_eventLogger;
         private readonly IServerInternal m_server;
         private readonly TimeProvider m_timeProvider;
         private readonly string m_sessionName;
