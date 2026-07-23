@@ -33,8 +33,8 @@ namespace Opc.Ua.PubSub.Kafka
 {
     /// <summary>
     /// Transport-level security protocol negotiated with the Kafka
-    /// brokers, mirroring the librdkafka <c>security.protocol</c>
-    /// property.
+    /// brokers, corresponding to the standard <c>security.protocol</c>
+    /// setting.
     /// </summary>
     /// <remarks>
     /// Implements the security profile selector of
@@ -67,8 +67,8 @@ namespace Opc.Ua.PubSub.Kafka
 
     /// <summary>
     /// SASL authentication mechanism used when the negotiated
-    /// <see cref="KafkaSecurityProtocol"/> carries SASL, mirroring the
-    /// librdkafka <c>sasl.mechanism</c> property.
+    /// <see cref="KafkaSecurityProtocol"/> carries SASL, corresponding to
+    /// the standard <c>sasl.mechanism</c> setting.
     /// </summary>
     /// <remarks>
     /// Implements the SASL mechanism selector of
@@ -105,8 +105,8 @@ namespace Opc.Ua.PubSub.Kafka
 
     /// <summary>
     /// Offset reset policy applied when a consumer group has no
-    /// committed offset for a partition, mirroring the librdkafka
-    /// <c>auto.offset.reset</c> property.
+    /// committed offset for a partition, corresponding to the standard
+    /// <c>auto.offset.reset</c> setting.
     /// </summary>
     /// <remarks>
     /// Implements the subscriber start-offset policy of
@@ -160,9 +160,8 @@ namespace Opc.Ua.PubSub.Kafka
 
         /// <summary>
         /// Comma-separated <c>host:port</c> bootstrap server list passed
-        /// to librdkafka <c>bootstrap.servers</c>. Populated by the
-        /// transport factory from <see cref="Endpoint"/> when not set
-        /// explicitly.
+        /// to the Kafka client. Populated by the transport factory from
+        /// <see cref="Endpoint"/> when not set explicitly.
         /// </summary>
         public string BootstrapServers { get; set; } = string.Empty;
 
@@ -235,8 +234,8 @@ namespace Opc.Ua.PubSub.Kafka
         public KafkaTlsOptions? Tls { get; set; }
 
         /// <summary>
-        /// Producer delivery guarantee mapped to the librdkafka
-        /// <c>acks</c> / <c>enable.idempotence</c> settings. Defaults to
+        /// Producer delivery guarantee mapped to the Kafka <c>acks</c>
+        /// and idempotent-producer settings. Defaults to
         /// <see cref="KafkaQualityOfService.AtLeastOnce"/>.
         /// </summary>
         public KafkaQualityOfService DeliveryGuarantee { get; set; }
@@ -268,15 +267,13 @@ namespace Opc.Ua.PubSub.Kafka
 
         /// <summary>
         /// Maximum time the producer waits for a record to be delivered
-        /// before failing it, mapped to librdkafka
-        /// <c>message.timeout.ms</c>.
+        /// before failing it.
         /// </summary>
         public TimeSpan MessageTimeout { get; set; } = TimeSpan.FromSeconds(30);
 
         /// <summary>
-        /// Maximum size (in bytes) of a single Kafka record, mapped to
-        /// librdkafka <c>message.max.bytes</c>. The default of 1048576
-        /// matches the common broker default.
+        /// Maximum configured size (in bytes) of a single Kafka record.
+        /// The default of 1048576 matches the common broker default.
         /// </summary>
         public int MaxMessageSize { get; set; } = 1048576;
 
