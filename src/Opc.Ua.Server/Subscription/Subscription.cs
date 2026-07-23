@@ -91,6 +91,7 @@ namespace Opc.Ua.Server
         {
             Id = subscriptionId;
             Session = session ?? throw new ArgumentNullException(nameof(session));
+            UpdateOwnerIdentity(Session);
             m_server = server ?? throw new ArgumentNullException(nameof(server));
             m_logger = server.Telemetry.CreateLogger<Subscription>();
             m_timeProvider = timeProvider
@@ -252,6 +253,14 @@ namespace Opc.Ua.Server
             m_savedOwnerIdentity = storedSubscription.UserIdentityToken != null
                 ? new UserIdentity(storedSubscription.UserIdentityToken)
                 : null;
+            m_ownerUserTokenType = m_savedOwnerIdentity?.TokenType ?? UserTokenType.Anonymous;
+            if (m_savedOwnerIdentity != null)
+            {
+                ClientUserIdResolver.TryResolve(
+                    m_savedOwnerIdentity.TokenHandler,
+                    m_savedOwnerIdentity,
+                    out m_ownerClientUserId);
+            }
 
             m_monitoredItems = [];
             m_itemsToCheck = new LinkedList<IMonitoredItem>();
@@ -655,6 +664,7 @@ namespace Opc.Ua.Server
         {
             // locked by caller
             Session = context.Session;
+            UpdateOwnerIdentity(Session);
 
             var monitoredItems = m_monitoredItems.Select(v => v.Value.Value).ToList();
             var errors = new List<ServiceResult>(monitoredItems.Count);
@@ -685,6 +695,39 @@ namespace Opc.Ua.Server
             {
                 Diagnostics.SessionId = Session.Id;
             }
+        }
+
+        /// <inheritdoc/>
+        public bool IsTransferIdentityCompatible(ISession targetSession)
+        {
+            if (targetSession == null)
+            {
+                throw new ArgumentNullException(nameof(targetSession));
+            }
+
+            UserTokenType targetTokenType = targetSession.IdentityToken.TokenType;
+            if (m_ownerUserTokenType == UserTokenType.Anonymous ||
+                targetTokenType == UserTokenType.Anonymous)
+            {
+                return m_ownerUserTokenType == UserTokenType.Anonymous &&
+                    targetTokenType == UserTokenType.Anonymous &&
+                    !string.IsNullOrEmpty(m_ownerClientApplicationUri) &&
+                    string.Equals(
+                        m_ownerClientApplicationUri,
+                        targetSession.SessionDiagnostics.ClientDescription.ApplicationUri,
+                        StringComparison.Ordinal);
+            }
+
+            return m_ownerClientUserId != null &&
+                ClientUserIdResolver.TryResolve(
+                    targetSession.IdentityToken,
+                    targetSession.Identity,
+                    out string? targetClientUserId) &&
+                targetClientUserId != null &&
+                string.Equals(
+                    m_ownerClientUserId,
+                    targetClientUserId,
+                    StringComparison.Ordinal);
         }
 
         /// <summary>
@@ -748,6 +791,17 @@ namespace Opc.Ua.Server
             {
                 Diagnostics.CurrentLifetimeCount = 0;
             }
+        }
+
+        private void UpdateOwnerIdentity(ISession session)
+        {
+            m_ownerUserTokenType = session.IdentityToken.TokenType;
+            ClientUserIdResolver.TryResolve(
+                session.IdentityToken,
+                session.Identity,
+                out m_ownerClientUserId);
+            m_ownerClientApplicationUri =
+                session.SessionDiagnostics.ClientDescription.ApplicationUri;
         }
 
         /// <summary>
@@ -2744,6 +2798,9 @@ namespace Opc.Ua.Server
         private readonly IServerInternal m_server;
         private readonly TimeProvider m_timeProvider;
         private IUserIdentity? m_savedOwnerIdentity;
+        private UserTokenType m_ownerUserTokenType;
+        private string? m_ownerClientUserId;
+        private string? m_ownerClientApplicationUri;
         private double m_publishingInterval;
         private uint m_maxLifetimeCount;
         private uint m_maxKeepAliveCount;

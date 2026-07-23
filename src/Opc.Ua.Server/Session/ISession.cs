@@ -239,8 +239,31 @@ namespace Opc.Ua.Server
         bool UpdateLocaleIds(ArrayOf<string> localeIds);
 
         /// <summary>
-        /// Activates the session and binds it to the current secure channel.
+        /// Validates the application signature and user identity token before activation.
         /// </summary>
+        /// <param name="context">The operation context for the activation request.</param>
+        /// <param name="clientSignature">The client application signature.</param>
+        /// <param name="userIdentityToken">The encoded user identity token.</param>
+        /// <param name="userTokenSignature">The user token signature.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>The validated identity token handler and matching user token policy.</returns>
+        ValueTask<(
+            IUserIdentityTokenHandler IdentityToken,
+            UserTokenPolicy? UserTokenPolicy)> ValidateBeforeActivateAsync(
+            OperationContext context,
+            SignatureData clientSignature,
+            ExtensionObject userIdentityToken,
+            SignatureData userTokenSignature,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Validates the application signature and user identity token before activation.
+        /// </summary>
+        /// <remarks>
+        /// Retained for compatibility with 1.5.378 implementations. New code should use
+        /// <see cref="ValidateBeforeActivateAsync"/>.
+        /// </remarks>
+        [Obsolete("Use ValidateBeforeActivateAsync instead.")]
         void ValidateBeforeActivate(
             OperationContext context,
             SignatureData clientSignature,

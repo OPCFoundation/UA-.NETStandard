@@ -125,6 +125,7 @@ namespace Opc.Ua.Sessions.Tests
                     .UseEndpoint(endpointA)
                     .WithSessionName(nameof(TokenReuseFailoverRestoresSessionOnStandbyAsync))
                     .WithSessionTimeout(TimeSpan.FromSeconds(60))
+                    .WithUserIdentity(new UserIdentity("user1", "password"u8))
                     .WithServerRedundancy(redundancyHandler)
                     .WithTokenReuseFailover()
                     .WithReconnectPolicy(p => p with
@@ -145,6 +146,24 @@ namespace Opc.Ua.Sessions.Tests
 
                 NodeId sessionIdBefore = session.InnerSession.SessionId;
                 Assert.That(sessionIdBefore.IsNull, Is.False);
+                SessionConfiguration saved = session.InnerSession.SaveSessionConfiguration();
+                var mirroredStore = new SharedKeyValueSessionStore(
+                    sharedStore,
+                    fixtureA.Server.CurrentInstance.MessageContext,
+                    protector);
+                SharedSessionEntry? mirrored = await mirroredStore
+                    .TryGetAsync(saved.AuthenticationToken, ct)
+                    .ConfigureAwait(false);
+                Assert.That(mirrored, Is.Not.Null);
+                Assert.That(
+                    mirrored!.SecurityStateVersion,
+                    Is.EqualTo(SharedSessionEntry.CurrentSecurityStateVersion));
+                Assert.That(mirrored.ClientUserId, Is.EqualTo("user1"));
+                Assert.That(
+                    mirrored.ClientUserTokenType,
+                    Is.EqualTo(UserTokenType.UserName));
+                Assert.That(mirrored.HasActivatedUserIdentity, Is.True);
+                Assert.That(mirrored.OriginalClientChannelCertificate.IsEmpty, Is.False);
 
                 // Force a failover: make the in-place reconnect fail so the state
                 // machine selects the redundant endpoint B.
@@ -215,6 +234,12 @@ namespace Opc.Ua.Sessions.Tests
                 OperationLimits = true
             };
 
+            await fixture.LoadConfigurationAsync().ConfigureAwait(false);
+            fixture.Config.ServerConfiguration!.UserTokenPolicies =
+            [
+                new UserTokenPolicy(UserTokenType.Anonymous),
+                new UserTokenPolicy(UserTokenType.UserName)
+            ];
             await fixture.StartAsync().ConfigureAwait(false);
             return (fixture, new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{fixture.Port}"));
         }

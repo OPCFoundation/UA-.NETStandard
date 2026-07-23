@@ -1408,10 +1408,10 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
-                    // Validate the identity of the user who owns/owned the subscription
-                    // is the same as the new owner.
-                    bool validIdentity = subscription.EffectiveIdentity.TokenHandler.Equals(
-                        context.Session.EffectiveIdentity.TokenHandler);
+                    // Validate that the old and new Sessions represent the same
+                    // ClientUserId. Issued tokens may be refreshed while preserving
+                    // the authenticated owner, so raw token equality is not sufficient.
+                    bool validIdentity = subscription.IsTransferIdentityCompatible(context.Session);
 
                     // Test if anonymous user is using a secure session using Sign or SignAndEncrypt
                     if (validIdentity &&

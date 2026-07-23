@@ -33,6 +33,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -57,6 +58,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
     public sealed class ClientChannelManagerCertRotationTests
     {
         private static readonly ICertificateFactory s_factory = DefaultCertificateFactory.Instance;
+        private static readonly int[] s_firstTwoReconnectAttempts = [0, 1];
 
         [Test]
         public async Task CertificateRotationTriggersReconnectAllAsync()
@@ -175,6 +177,264 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         }
 
         [Test]
+        public async Task ReconnectWaitsForRequiredParticipantRecreationAsync()
+        {
+            using Certificate clientCertificate = s_factory
+                .CreateCertificate("CN=recreate-client")
+                .CreateForRSA();
+            using Certificate serverCertificate = s_factory
+                .CreateCertificate("CN=recreate-server")
+                .CreateForRSA();
+
+            TestCertificateChangeSource changes = new();
+            ConcurrentQueue<TransportChannelSettings> openSettings = new();
+            ClientChannelManager sut = CreateSut(
+                clientCertificate,
+                changes,
+                openSettings);
+            var participant = new BlockingRecreateParticipant(
+                "recreate",
+                GetTestEndpoint(serverCertificate));
+            IManagedTransportChannel? channel = null;
+
+            try
+            {
+                sut.UpdateClientCertificate(clientCertificate, null);
+                channel = await sut.GetAsync(participant).ConfigureAwait(false);
+
+                Task reconnect = sut.ReconnectAsync(channel).AsTask();
+                await participant.RecreateStarted.Task
+                    .WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false);
+
+                Assert.That(reconnect.IsCompleted, Is.False);
+                Assert.That(channel.State, Is.Not.EqualTo(ChannelState.Ready));
+
+                participant.ReleaseRecreate();
+                await reconnect.ConfigureAwait(false);
+
+                Assert.That(participant.RecreateCount, Is.EqualTo(1));
+                Assert.That(channel.State, Is.EqualTo(ChannelState.Ready));
+            }
+            finally
+            {
+                participant.ReleaseRecreate();
+                if (channel != null)
+                {
+                    await channel.CloseAsync().ConfigureAwait(false);
+                }
+                await sut.DisposeAsync().ConfigureAwait(false);
+                while (openSettings.TryDequeue(out TransportChannelSettings? opened))
+                {
+                    opened.ServerCertificate?.Dispose();
+                }
+            }
+        }
+
+        [Test]
+        public async Task ReconnectRetriesAfterParticipantRecreationFailureAsync()
+        {
+            using Certificate clientCertificate = s_factory
+                .CreateCertificate("CN=retry-client")
+                .CreateForRSA();
+            using Certificate serverCertificate = s_factory
+                .CreateCertificate("CN=retry-server")
+                .CreateForRSA();
+
+            TestCertificateChangeSource changes = new();
+            ConcurrentQueue<TransportChannelSettings> openSettings = new();
+            ClientChannelManager sut = CreateSut(
+                clientCertificate,
+                changes,
+                openSettings,
+                new FixedAttemptReconnectPolicy(2));
+            var participant = new FailingRecreateParticipant(
+                "retry",
+                GetTestEndpoint(serverCertificate),
+                failuresBeforeSuccess: 1);
+            var states = new ConcurrentQueue<ChannelState>();
+            IManagedTransportChannel? channel = null;
+
+            try
+            {
+                sut.UpdateClientCertificate(clientCertificate, null);
+                channel = await sut.GetAsync(participant).ConfigureAwait(false);
+                channel.StateChanged += (_, change) => states.Enqueue(change.NewState);
+
+                await sut.ReconnectAsync(channel).ConfigureAwait(false);
+
+                Assert.That(participant.RecreateCount, Is.EqualTo(2));
+                Assert.That(participant.ReconnectAttempts, Is.EqualTo(s_firstTwoReconnectAttempts));
+                Assert.That(
+                    states.Count(state => state == ChannelState.TransportReconnecting),
+                    Is.EqualTo(2));
+                Assert.That(
+                    states.Count(state => state == ChannelState.TransportConnectedSessionReactivating),
+                    Is.EqualTo(2));
+                Assert.That(channel.State, Is.EqualTo(ChannelState.Ready));
+            }
+            finally
+            {
+                if (channel != null)
+                {
+                    await channel.CloseAsync().ConfigureAwait(false);
+                }
+                await sut.DisposeAsync().ConfigureAwait(false);
+                DisposeOpenedServerCertificates(openSettings);
+            }
+        }
+
+        [Test]
+        public async Task ReconnectFaultsAfterParticipantRecreationFailuresExhaustPolicyAsync()
+        {
+            using Certificate clientCertificate = s_factory
+                .CreateCertificate("CN=failure-client")
+                .CreateForRSA();
+            using Certificate serverCertificate = s_factory
+                .CreateCertificate("CN=failure-server")
+                .CreateForRSA();
+
+            TestCertificateChangeSource changes = new();
+            ConcurrentQueue<TransportChannelSettings> openSettings = new();
+            ClientChannelManager sut = CreateSut(
+                clientCertificate,
+                changes,
+                openSettings,
+                new FixedAttemptReconnectPolicy(2));
+            var participant = new FailingRecreateParticipant(
+                "failure",
+                GetTestEndpoint(serverCertificate),
+                failuresBeforeSuccess: int.MaxValue);
+            IManagedTransportChannel? channel = null;
+
+            try
+            {
+                sut.UpdateClientCertificate(clientCertificate, null);
+                channel = await sut.GetAsync(participant).ConfigureAwait(false);
+
+                await sut.ReconnectAsync(channel).ConfigureAwait(false);
+
+                Assert.That(participant.RecreateCount, Is.EqualTo(2));
+                Assert.That(participant.ReconnectAttempts, Is.EqualTo(s_firstTwoReconnectAttempts));
+                Assert.That(channel.State, Is.EqualTo(ChannelState.Faulted));
+                Assert.That(
+                    sut.GetChannelDiagnostics().Single().LastReconnectAttempt,
+                    Is.EqualTo(2));
+            }
+            finally
+            {
+                if (channel != null)
+                {
+                    await channel.CloseAsync().ConfigureAwait(false);
+                }
+                await sut.DisposeAsync().ConfigureAwait(false);
+                DisposeOpenedServerCertificates(openSettings);
+            }
+        }
+
+        [Test]
+        public async Task DisposeCancelsParticipantRecreationAndCleansEntryAsync()
+        {
+            using Certificate clientCertificate = s_factory
+                .CreateCertificate("CN=cancel-client")
+                .CreateForRSA();
+            using Certificate serverCertificate = s_factory
+                .CreateCertificate("CN=cancel-server")
+                .CreateForRSA();
+
+            TestCertificateChangeSource changes = new();
+            ConcurrentQueue<TransportChannelSettings> openSettings = new();
+            ClientChannelManager sut = CreateSut(
+                clientCertificate,
+                changes,
+                openSettings,
+                new FixedAttemptReconnectPolicy(3));
+            var participant = new CancellationAwareRecreateParticipant(
+                "cancel",
+                GetTestEndpoint(serverCertificate));
+            IManagedTransportChannel? channel = null;
+
+            try
+            {
+                channel = await sut.GetAsync(participant).ConfigureAwait(false);
+                Task reconnect = sut.ReconnectAsync(channel).AsTask();
+                await participant.RecreateStarted.Task
+                    .WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false);
+
+                await sut.DisposeAsync().ConfigureAwait(false);
+                await participant.RecreateCanceled.Task
+                    .WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false);
+
+                Assert.That(
+                    async () => await reconnect.ConfigureAwait(false),
+                    Throws.InstanceOf<OperationCanceledException>());
+                Assert.That(participant.RecreateCount, Is.EqualTo(1));
+                Assert.That(channel.State, Is.EqualTo(ChannelState.Closed));
+                Assert.That(sut.GetChannelDiagnostics(), Is.Empty);
+            }
+            finally
+            {
+                await sut.DisposeAsync().ConfigureAwait(false);
+                DisposeOpenedServerCertificates(openSettings);
+            }
+        }
+
+        [Test]
+        public async Task ReconnectingStaleLeasesReusesReplacementEntryAsync()
+        {
+            using Certificate clientCertificate = s_factory
+                .CreateCertificate("CN=stale-client")
+                .CreateForRSA();
+            using Certificate serverCertificate = s_factory
+                .CreateCertificate("CN=stale-server")
+                .CreateForRSA();
+
+            TestCertificateChangeSource changes = new();
+            ConcurrentQueue<TransportChannelSettings> openSettings = new();
+            ClientChannelManager sut = CreateSut(clientCertificate, changes, openSettings);
+            ConfiguredEndpoint endpoint = GetTestEndpoint(serverCertificate);
+            var fatalOnce = new FatalOnceParticipant("fatal-once", endpoint);
+            var stable = new TestParticipant("stable", endpoint);
+            IManagedTransportChannel? firstChannel = null;
+            IManagedTransportChannel? secondChannel = null;
+
+            try
+            {
+                sut.UpdateClientCertificate(clientCertificate, null);
+                firstChannel = await sut.GetAsync(fatalOnce).ConfigureAwait(false);
+                secondChannel = await sut.GetAsync(stable).ConfigureAwait(false);
+
+                await sut.ReconnectAsync(firstChannel).ConfigureAwait(false);
+                Assert.That(firstChannel.State, Is.EqualTo(ChannelState.Faulted));
+                Assert.That(secondChannel.State, Is.EqualTo(ChannelState.Faulted));
+
+                await sut.ReconnectAsync(firstChannel).ConfigureAwait(false);
+                await sut.ReconnectAsync(secondChannel).ConfigureAwait(false);
+
+                ManagedChannelDiagnostic diagnostic = sut.GetChannelDiagnostics().Single();
+                Assert.That(firstChannel.State, Is.EqualTo(ChannelState.Ready));
+                Assert.That(secondChannel.State, Is.EqualTo(ChannelState.Ready));
+                Assert.That(diagnostic.Refcount, Is.EqualTo(2));
+                Assert.That(diagnostic.ParticipantCount, Is.EqualTo(2));
+            }
+            finally
+            {
+                if (firstChannel != null)
+                {
+                    await firstChannel.CloseAsync().ConfigureAwait(false);
+                }
+                if (secondChannel != null)
+                {
+                    await secondChannel.CloseAsync().ConfigureAwait(false);
+                }
+                await sut.DisposeAsync().ConfigureAwait(false);
+                DisposeOpenedServerCertificates(openSettings);
+            }
+        }
+
+        [Test]
         public async Task DisposeUnsubscribesFromCertEvent()
         {
             using Certificate oldCertificate = s_factory.CreateCertificate("CN=old-client").CreateForRSA();
@@ -204,7 +464,8 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         private static ClientChannelManager CreateSut(
             Certificate applicationCertificate,
             TestCertificateChangeSource changes,
-            ConcurrentQueue<TransportChannelSettings> openSettings)
+            ConcurrentQueue<TransportChannelSettings> openSettings,
+            IChannelReconnectPolicy? reconnectPolicy = null)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var certificateManager = new Mock<ICertificateManager>();
@@ -247,7 +508,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 configuration,
                 telemetry,
                 bindings.Object,
-                new ImmediateReconnectPolicy());
+                reconnectPolicy ?? new ImmediateReconnectPolicy());
         }
 
         private static ConfiguredEndpoint GetTestEndpoint(Certificate serverCertificate)
@@ -280,6 +541,15 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             }
         }
 
+        private static void DisposeOpenedServerCertificates(
+            ConcurrentQueue<TransportChannelSettings> openSettings)
+        {
+            while (openSettings.TryDequeue(out TransportChannelSettings? opened))
+            {
+                opened.ServerCertificate?.Dispose();
+            }
+        }
+
         public interface IChannel : ITransportChannel, ISecureChannel;
 
         private sealed class ImmediateReconnectPolicy : IChannelReconnectPolicy
@@ -288,6 +558,23 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             {
                 return attempt == 0 ? TimeSpan.Zero : Timeout.InfiniteTimeSpan;
             }
+        }
+
+        private sealed class FixedAttemptReconnectPolicy : IChannelReconnectPolicy
+        {
+            public FixedAttemptReconnectPolicy(int maxAttempts)
+            {
+                m_maxAttempts = maxAttempts;
+            }
+
+            public TimeSpan GetDelay(int attempt)
+            {
+                return attempt < m_maxAttempts
+                    ? TimeSpan.Zero
+                    : Timeout.InfiniteTimeSpan;
+            }
+
+            private readonly int m_maxAttempts;
         }
 
         private sealed class TestCertificateChangeSource : IObservable<CertificateChangeEvent>
@@ -393,6 +680,194 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 Interlocked.Increment(ref m_notificationCount);
                 return new ValueTask<ParticipantReconnectResult>(ParticipantReconnectResult.Reactivated);
             }
+        }
+
+        private sealed class BlockingRecreateParticipant :
+            IRecreateAwareReconnectParticipant
+        {
+            public BlockingRecreateParticipant(
+                string id,
+                ConfiguredEndpoint endpoint)
+            {
+                Id = id;
+                Endpoint = endpoint;
+            }
+
+            public string Id { get; }
+
+            public ConfiguredEndpoint Endpoint { get; }
+
+            public TaskCompletionSource<bool> RecreateStarted { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            public int RecreateCount => Volatile.Read(ref m_recreateCount);
+
+            public ValueTask<ParticipantReconnectResult> OnReconnectAsync(
+                IManagedTransportChannel channel,
+                int reconnectAttempt,
+                CancellationToken ct)
+            {
+                return new ValueTask<ParticipantReconnectResult>(
+                    reconnectAttempt < 0
+                        ? ParticipantReconnectResult.Reactivated
+                        : ParticipantReconnectResult.RequiresSessionRecreate);
+            }
+
+            public async ValueTask RecreateAsync(CancellationToken ct = default)
+            {
+                Interlocked.Increment(ref m_recreateCount);
+                RecreateStarted.TrySetResult(true);
+                await m_release.Task.WaitAsync(ct).ConfigureAwait(false);
+            }
+
+            public void ReleaseRecreate()
+            {
+                m_release.TrySetResult(true);
+            }
+
+            private readonly TaskCompletionSource<bool> m_release =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            private int m_recreateCount;
+        }
+
+        private sealed class FailingRecreateParticipant :
+            IRecreateAwareReconnectParticipant
+        {
+            public FailingRecreateParticipant(
+                string id,
+                ConfiguredEndpoint endpoint,
+                int failuresBeforeSuccess)
+            {
+                Id = id;
+                Endpoint = endpoint;
+                m_failuresBeforeSuccess = failuresBeforeSuccess;
+            }
+
+            public string Id { get; }
+
+            public ConfiguredEndpoint Endpoint { get; }
+
+            public int RecreateCount => Volatile.Read(ref m_recreateCount);
+
+            public int[] ReconnectAttempts => [.. m_reconnectAttempts];
+
+            public ValueTask<ParticipantReconnectResult> OnReconnectAsync(
+                IManagedTransportChannel channel,
+                int reconnectAttempt,
+                CancellationToken ct)
+            {
+                if (reconnectAttempt < 0)
+                {
+                    return new ValueTask<ParticipantReconnectResult>(
+                        ParticipantReconnectResult.Reactivated);
+                }
+
+                m_reconnectAttempts.Enqueue(reconnectAttempt);
+                return new ValueTask<ParticipantReconnectResult>(
+                    ParticipantReconnectResult.RequiresSessionRecreate);
+            }
+
+            public ValueTask RecreateAsync(CancellationToken ct = default)
+            {
+                int attempt = Interlocked.Increment(ref m_recreateCount);
+                if (attempt <= m_failuresBeforeSuccess)
+                {
+                    throw new InvalidOperationException("Injected recreation failure.");
+                }
+
+                return default;
+            }
+
+            private readonly ConcurrentQueue<int> m_reconnectAttempts = new();
+            private readonly int m_failuresBeforeSuccess;
+            private int m_recreateCount;
+        }
+
+        private sealed class CancellationAwareRecreateParticipant :
+            IRecreateAwareReconnectParticipant
+        {
+            public CancellationAwareRecreateParticipant(
+                string id,
+                ConfiguredEndpoint endpoint)
+            {
+                Id = id;
+                Endpoint = endpoint;
+            }
+
+            public string Id { get; }
+
+            public ConfiguredEndpoint Endpoint { get; }
+
+            public int RecreateCount => Volatile.Read(ref m_recreateCount);
+
+            public TaskCompletionSource<bool> RecreateStarted { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            public TaskCompletionSource<bool> RecreateCanceled { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            public ValueTask<ParticipantReconnectResult> OnReconnectAsync(
+                IManagedTransportChannel channel,
+                int reconnectAttempt,
+                CancellationToken ct)
+            {
+                return new ValueTask<ParticipantReconnectResult>(
+                    reconnectAttempt < 0
+                        ? ParticipantReconnectResult.Reactivated
+                        : ParticipantReconnectResult.RequiresSessionRecreate);
+            }
+
+            public async ValueTask RecreateAsync(CancellationToken ct = default)
+            {
+                Interlocked.Increment(ref m_recreateCount);
+                RecreateStarted.TrySetResult(true);
+                try
+                {
+                    await Task.Delay(Timeout.InfiniteTimeSpan, ct).ConfigureAwait(false);
+                }
+                finally
+                {
+                    if (ct.IsCancellationRequested)
+                    {
+                        RecreateCanceled.TrySetResult(true);
+                    }
+                }
+            }
+
+            private int m_recreateCount;
+        }
+
+        private sealed class FatalOnceParticipant : IReconnectParticipant
+        {
+            public FatalOnceParticipant(string id, ConfiguredEndpoint endpoint)
+            {
+                Id = id;
+                Endpoint = endpoint;
+            }
+
+            public string Id { get; }
+
+            public ConfiguredEndpoint Endpoint { get; }
+
+            public ValueTask<ParticipantReconnectResult> OnReconnectAsync(
+                IManagedTransportChannel channel,
+                int reconnectAttempt,
+                CancellationToken ct)
+            {
+                if (reconnectAttempt < 0)
+                {
+                    return new ValueTask<ParticipantReconnectResult>(
+                        ParticipantReconnectResult.Reactivated);
+                }
+
+                return new ValueTask<ParticipantReconnectResult>(
+                    Interlocked.Exchange(ref m_fatalReturned, 1) == 0
+                        ? ParticipantReconnectResult.FatalForChannel
+                        : ParticipantReconnectResult.Reactivated);
+            }
+
+            private int m_fatalReturned;
         }
     }
 }

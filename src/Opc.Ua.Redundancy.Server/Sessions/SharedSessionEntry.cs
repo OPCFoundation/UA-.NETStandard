@@ -88,8 +88,7 @@ namespace Opc.Ua.Redundancy.Server
         /// <summary>
         /// The client certificate chain (leaf first, then issuers) as a single
         /// blob (see <see cref="Utils.CreateCertificateChainBlob"/>). Used to
-        /// reconstruct the session and to enforce that a failover reconnect
-        /// presents the same client certificate.
+        /// reconstruct the application certificate retained by the Session.
         /// </summary>
         public ByteString ClientCertificateChain { get; init; }
 
@@ -122,9 +121,40 @@ namespace Opc.Ua.Redundancy.Server
         public ApplicationDescription ClientDescription { get; init; } = new();
 
         /// <summary>
+        /// Version of the security state appended to the persisted entry.
+        /// </summary>
+        public uint SecurityStateVersion { get; init; }
+
+        /// <summary>
+        /// The client certificate used to establish the original SecureChannel.
+        /// </summary>
+        public ByteString OriginalClientChannelCertificate { get; init; }
+
+        /// <summary>
+        /// The OPC ClientUserId associated with the activated Session. This is
+        /// <c>null</c> for an anonymous identity.
+        /// </summary>
+        public string? ClientUserId { get; init; }
+
+        /// <summary>
+        /// The UserIdentityToken type used to derive <see cref="ClientUserId"/>.
+        /// </summary>
+        public UserTokenType ClientUserTokenType { get; init; }
+
+        /// <summary>
+        /// Whether the Session has completed activation and the ClientUserId state is valid.
+        /// </summary>
+        public bool HasActivatedUserIdentity { get; init; }
+
+        /// <summary>
         /// Optional opaque, caller-encrypted secret material. May be a null
         /// <see cref="ByteString"/>.
         /// </summary>
         public ByteString SecretMaterial { get; init; }
+
+        /// <summary>
+        /// The current persisted Session security state version.
+        /// </summary>
+        public const uint CurrentSecurityStateVersion = 2;
     }
 }

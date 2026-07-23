@@ -329,6 +329,12 @@ The factory caches the connected session — subsequent awaits return the same i
 
 This iteration uses single-instance options (no named/keyed registrations); the underlying V2 manager consumes options via `IOptionsMonitor<T>` unfiltered. For one-off use, the `AddSubscription`/`TryAddMonitoredItem` extensions adapt plain options snapshots into the required `IOptionsMonitor<T>` automatically. Named-options dependency injection is deferred to a future iteration.
 
+## Server Session Activation and Subscription Transfer
+
+`ISession.ValidateBeforeActivateAsync(...)` is now the direct activation-validation contract. Custom server `ISession` implementations must validate the application signature and user identity token asynchronously and return the validated token handler and matching `UserTokenPolicy`. The synchronous `ValidateBeforeActivate(...)` member remains available but is obsolete; migrate callers and implementations to the asynchronous member.
+
+`ISubscription` now exposes `IsTransferIdentityCompatible(ISession targetSession)`. Custom server subscription implementations must compare the authenticated owner of the target Session with the identity that owns the subscription and return `false` when the transfer would cross ClientUserIds.
+
 ## Subscriptions and Transports
 
 ### Durable subscriptions and reshaped Subscription tree
@@ -446,4 +452,3 @@ The DI extension resolves both factory types out of the container (so they may h
 - Related: [certificates.md](certificates.md), [identity.md](identity.md), [node-states.md](node-states.md).
 - [2.0 migration index](README.md) — analyzer quick-start + symptom → sub-doc table.
 - [Migration Guide](../../MigrationGuide.md) — landing page across versions.
-

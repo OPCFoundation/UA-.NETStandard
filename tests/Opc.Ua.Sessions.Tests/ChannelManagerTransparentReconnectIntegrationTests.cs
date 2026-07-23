@@ -37,6 +37,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
+using Opc.Ua.Client.TestFramework;
 using ManagedSessionType = Opc.Ua.Client.ManagedSession;
 
 // CA2000: integration-test disposables are released by helper cleanup paths.
@@ -58,6 +59,14 @@ namespace Opc.Ua.Sessions.Tests
     public sealed class ChannelManagerTransparentReconnectIntegrationTests
         : ChannelManagerIntegrationTestBase
     {
+        private static readonly StatusCode[] s_reactivationSecurityFailureStatusCodes =
+        [
+            StatusCodes.BadApplicationSignatureInvalid,
+            StatusCodes.BadSecurityChecksFailed,
+            StatusCodes.BadIdentityChangeNotSupported,
+            StatusCodes.BadSecureChannelIdInvalid
+        ];
+
         [Test]
         [Order(100)]
         [CancelAfter(120_000)]
@@ -83,6 +92,7 @@ namespace Opc.Ua.Sessions.Tests
                     nameof(ChannelManagerReconnectDoesNotChurnOuterManagedSessionStateAsync),
                     ct).ConfigureAwait(false);
 
+                NodeId originalSessionId = session.SessionId;
                 IManagedTransportChannel channel = GetManagedChannel(session);
                 var outerStates = new ConcurrentQueue<ConnectionState>();
                 var channelStates = new ConcurrentQueue<ChannelState>();
@@ -105,11 +115,99 @@ namespace Opc.Ua.Sessions.Tests
                 Assert.That(outerStates, Has.No.Member(ConnectionState.Reconnecting));
                 Assert.That(outerStates, Has.No.Member(ConnectionState.Connected));
                 Assert.That(session.StateMachine.State, Is.EqualTo(ConnectionState.Connected));
+                Assert.That(session.SessionId, Is.EqualTo(originalSessionId));
 
                 await AssertReadServerStatusAsync(session, ct).ConfigureAwait(false);
             }
             finally
             {
+                await CloseAndDisposeAsync(session).ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        [Order(150)]
+        [CancelAfter(120_000)]
+        public async Task AnonymousSignChannelManagerReconnectRecreatesSessionAsync(
+            CancellationToken ct)
+        {
+            await using ClientChannelManager manager = CreateChannelManager(
+                new ExponentialBackoffChannelReconnectPolicy
+                {
+                    MinDelay = TimeSpan.Zero,
+                    MaxDelay = TimeSpan.Zero,
+                    MaxAttempts = 3
+                });
+            ConfiguredEndpoint endpoint = await GetEndpointAsync(SecurityPolicies.Basic256Sha256)
+                .ConfigureAwait(false);
+            endpoint.Description.SecurityMode = MessageSecurityMode.Sign;
+            ManagedSessionType? session = null;
+
+            try
+            {
+                session = await ConnectManagedSessionAsync(
+                    endpoint,
+                    manager,
+                    nameof(AnonymousSignChannelManagerReconnectRecreatesSessionAsync),
+                    ct).ConfigureAwait(false);
+                NodeId originalSessionId = session.SessionId;
+                IManagedTransportChannel channel = GetManagedChannel(session);
+
+                await manager.ReconnectAsync(channel, ct).ConfigureAwait(false);
+
+                Assert.That(session.SessionId, Is.Not.EqualTo(originalSessionId));
+                Assert.That(channel.State, Is.EqualTo(ChannelState.Ready));
+                await AssertReadServerStatusAsync(session, ct).ConfigureAwait(false);
+            }
+            finally
+            {
+                await CloseAndDisposeAsync(session).ConfigureAwait(false);
+            }
+        }
+
+        [TestCaseSource(nameof(s_reactivationSecurityFailureStatusCodes))]
+        [Order(175)]
+        [CancelAfter(120_000)]
+        public async Task ReactivationSecurityFailureRecreatesSessionAsync(
+            StatusCode statusCode,
+            CancellationToken ct)
+        {
+            await using ClientChannelManager manager = CreateChannelManager(
+                new ExponentialBackoffChannelReconnectPolicy
+                {
+                    MinDelay = TimeSpan.Zero,
+                    MaxDelay = TimeSpan.Zero,
+                    MaxAttempts = 3
+                });
+            ConfiguredEndpoint endpoint = await GetEndpointAsync(SecurityPolicies.None)
+                .ConfigureAwait(false);
+            ManagedSessionType? session = null;
+            IServiceResponseMutator? originalResponseMutator = ReferenceServer.ResponseMutator;
+            var mockController = new MockResponseController();
+
+            try
+            {
+                session = await ConnectManagedSessionAsync(
+                    endpoint,
+                    manager,
+                    nameof(ReactivationSecurityFailureRecreatesSessionAsync),
+                    ct).ConfigureAwait(false);
+                NodeId originalSessionId = session.SessionId;
+                IManagedTransportChannel channel = GetManagedChannel(session);
+                ReferenceServer.ResponseMutator = mockController;
+                using IDisposable expectation = mockController
+                    .ExpectNextResponse<ActivateSessionResponse>(
+                        response => response.ResponseHeader.ServiceResult = statusCode);
+
+                await manager.ReconnectAsync(channel, ct).ConfigureAwait(false);
+
+                Assert.That(session.SessionId, Is.Not.EqualTo(originalSessionId));
+                Assert.That(channel.State, Is.EqualTo(ChannelState.Ready));
+                await AssertReadServerStatusAsync(session, ct).ConfigureAwait(false);
+            }
+            finally
+            {
+                ReferenceServer.ResponseMutator = originalResponseMutator;
                 await CloseAndDisposeAsync(session).ConfigureAwait(false);
             }
         }
@@ -185,23 +283,14 @@ namespace Opc.Ua.Sessions.Tests
                 ReferenceServer.TokenValidator = TokenValidator;
                 serverStopped = false;
 
-                // ServerFixture.StartAsync returns when the listener's
-                // StartAsync resolves, but the accept-loop has a small
-                // post-bind warm-up window on slower / loaded CI runners
-                // (Windows TIME_WAIT recycling, Kestrel host-started vs
-                // accept-ready ordering, GH-hosted scheduling jitter).
-                // Without this short delay the next ReconnectAsync can
-                // race the warm-up and faults the fresh swap entry with
-                // a SocketException — and because the policy's
-                // MaxAttempts=1 ceiling is exhausted by the first
-                // ReconnectAsync's deliberate failure, the manager does
-                // not retry internally and the channel never transitions
-                // back to Ready. 250ms is well below the per-test
-                // [CancelAfter(120_000)] budget and disappears off the
-                // critical path on healthy runners.
-                await Task.Delay(250, ct).ConfigureAwait(false);
-
-                await manager.ReconnectAsync(channel, ct).ConfigureAwait(false);
+                Assert.That(
+                    await ReconnectUntilReadyAsync(
+                        manager,
+                        channel,
+                        DefaultWait,
+                        ct).ConfigureAwait(false),
+                    Is.True,
+                    "The manager should recover after the restarted server accepts session services.");
 
                 Assert.That(
                     await WaitForAsync(
@@ -234,11 +323,9 @@ namespace Opc.Ua.Sessions.Tests
                     "Manager diagnostics should observe Ready after the swap completes.");
 
                 // The participant returned RequiresSessionRecreate from OnReconnectAsync
-                // (the server lost the session id while down). The manager dispatches
-                // Session.RecreateAsync fire-and-forget; poll the read until the
-                // recreate has installed a fresh server-side session id. On a slow
-                // CI runner (macOS) the fire-and-forget can lose the race against
-                // an immediate Read.
+                // (the server lost the session id while down). The manager awaits
+                // Session.RecreateAsync before reporting Ready; retain the retry loop
+                // here for transient service startup lag after the server restart.
                 Assert.That(
                     await WaitForAsync(
                         () => TryReadServerStatus(session),
@@ -278,6 +365,54 @@ namespace Opc.Ua.Sessions.Tests
             {
                 return false;
             }
+        }
+
+        private static async Task<bool> ReconnectUntilReadyAsync(
+            ClientChannelManager manager,
+            IManagedTransportChannel channel,
+            TimeSpan timeout,
+            CancellationToken ct)
+        {
+            using var timeoutCts = new CancellationTokenSource(timeout);
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
+                timeoutCts.Token,
+                ct);
+
+            while (!linkedCts.IsCancellationRequested)
+            {
+                try
+                {
+                    await manager.ReconnectAsync(channel, linkedCts.Token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (linkedCts.IsCancellationRequested)
+                {
+                    break;
+                }
+                catch (SocketException)
+                {
+                }
+                catch (ServiceResultException sre) when (
+                    sre.StatusCode == StatusCodes.BadServerHalted ||
+                    sre.InnerException is SocketException)
+                {
+                }
+
+                if (channel.State == ChannelState.Ready)
+                {
+                    return true;
+                }
+
+                try
+                {
+                    await Task.Delay(PollInterval, linkedCts.Token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (linkedCts.IsCancellationRequested)
+                {
+                    break;
+                }
+            }
+
+            return channel.State == ChannelState.Ready;
         }
     }
 }
