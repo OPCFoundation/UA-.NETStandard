@@ -84,10 +84,20 @@ namespace Opc.Ua.Wot
             writer.WriteEndArray();
         }
 
-        private static void WriteRootType(Utf8JsonWriter writer, UANode? root)
+        private static void WriteRootType(Utf8JsonWriter writer, UANode? root, bool isEventType)
         {
             switch (root)
             {
+                case UAObjectType when isEventType:
+                    // An ObjectType derived from BaseEventType projects a UA
+                    // EventType, annotated with uav:eventType (WoT Binding
+                    // Section 5.2) rather than the generic uav:objectType.
+                    writer.WritePropertyName("@type");
+                    writer.WriteStartArray();
+                    writer.WriteStringValue(WotVocabulary.ThingModelType);
+                    writer.WriteStringValue(WotVocabulary.EventTypeAnnotation);
+                    writer.WriteEndArray();
+                    break;
                 case UAObjectType:
                     writer.WritePropertyName("@type");
                     writer.WriteStartArray();
@@ -136,17 +146,26 @@ namespace Opc.Ua.Wot
             }
 
             Dictionary<string, UANode> index = BuildIndex(nodeSet);
+            string[]? namespaceUris = nodeSet.NamespaceUris;
             var properties = new List<UAVariable>();
             var actions = new List<UAMethod>();
             var events = new List<UANode>();
 
+            // HasComponent subtypes (for example HasOrderedComponent) are
+            // surfaced for discovery under uav:hasComponent / uav:componentOf and
+            // additionally pinned by a uav:typedReference link that carries the
+            // exact ReferenceType (WoT Binding Section 5.3).
+            var componentChildren = new List<string>();
+            var componentParents = new List<string>();
+            var typedComponentLinks = new List<(string Target, string RefType, string RefName)>();
+
             foreach (Reference reference in root.References)
             {
-                if (!reference.IsForward || reference.Value is null)
+                if (reference.Value is null)
                 {
                     continue;
                 }
-                if (IsComponentReference(reference.ReferenceType))
+                if (reference.IsForward && IsComponentReference(reference.ReferenceType))
                 {
                     if (index.TryGetValue(reference.Value, out UANode? target))
                     {
@@ -160,15 +179,34 @@ namespace Opc.Ua.Wot
                         }
                     }
                 }
-                else if (IsGeneratesEventReference(reference.ReferenceType) &&
+                else if (reference.IsForward &&
+                    IsGeneratesEventReference(reference.ReferenceType) &&
                     index.TryGetValue(reference.Value, out UANode? eventType))
                 {
                     events.Add(eventType);
+                }
+                else if (WotVocabulary.TryGetHasComponentSubtype(
+                    reference.ReferenceType, out string subtypeNodeId))
+                {
+                    string? portableTarget = ToPortableNodeId(reference.Value, namespaceUris);
+                    if (string.IsNullOrEmpty(portableTarget))
+                    {
+                        continue;
+                    }
+                    (reference.IsForward ? componentChildren : componentParents)
+                        .Add(portableTarget!);
+                    typedComponentLinks.Add((
+                        portableTarget!,
+                        subtypeNodeId,
+                        ComponentRefName(reference.Value, index)));
                 }
             }
 
             bool isThingModel = root is UAObjectType or UAVariableType;
             int affordanceCount = 0;
+
+            WriteComponentArray(writer, "uav:hasComponent", componentChildren);
+            WriteComponentArray(writer, "uav:componentOf", componentParents);
 
             if (properties.Count > 0)
             {
@@ -182,7 +220,7 @@ namespace Opc.Ua.Wot
                         break;
                     }
                     writer.WritePropertyName(UniqueKey(LocalName(variable.BrowseName), used));
-                    WriteVariableAffordance(writer, variable, isThingModel);
+                    WriteVariableAffordance(writer, variable, isThingModel, namespaceUris);
                 }
                 writer.WriteEndObject();
             }
@@ -199,7 +237,7 @@ namespace Opc.Ua.Wot
                         break;
                     }
                     writer.WritePropertyName(UniqueKey(LocalName(method.BrowseName), used));
-                    WriteMethodAffordance(writer, method);
+                    WriteMethodAffordance(writer, method, namespaceUris);
                 }
                 writer.WriteEndObject();
             }
@@ -216,23 +254,76 @@ namespace Opc.Ua.Wot
                         break;
                     }
                     writer.WritePropertyName(UniqueKey(LocalName(eventType.BrowseName), used));
-                    WriteEventAffordance(writer, eventType);
+                    WriteEventAffordance(writer, eventType, namespaceUris);
                 }
                 writer.WriteEndObject();
             }
+
+            WriteTypedComponentLinks(writer, typedComponentLinks);
+        }
+
+        private static void WriteComponentArray(
+            Utf8JsonWriter writer,
+            string name,
+            List<string> targets)
+        {
+            if (targets.Count == 0)
+            {
+                return;
+            }
+            writer.WritePropertyName(name);
+            writer.WriteStartArray();
+            foreach (string target in targets)
+            {
+                writer.WriteStringValue(target);
+            }
+            writer.WriteEndArray();
+        }
+
+        private static void WriteTypedComponentLinks(
+            Utf8JsonWriter writer,
+            List<(string Target, string RefType, string RefName)> links)
+        {
+            if (links.Count == 0)
+            {
+                return;
+            }
+            writer.WritePropertyName("links");
+            writer.WriteStartArray();
+            foreach ((string target, string refType, string refName) in links)
+            {
+                writer.WriteStartObject();
+                writer.WriteString("rel", "uav:typedReference");
+                writer.WriteString("href", target);
+                writer.WriteString("uav:refType", refType);
+                writer.WriteString("uav:refName", refName);
+                writer.WriteEndObject();
+            }
+            writer.WriteEndArray();
+        }
+
+        private static string ComponentRefName(string rawTarget, Dictionary<string, UANode> index)
+        {
+            if (index.TryGetValue(rawTarget, out UANode? node) &&
+                LocalName(node.BrowseName) is { Length: > 0 } local)
+            {
+                return local;
+            }
+            return rawTarget;
         }
 
         private static void WriteVariableAffordance(
             Utf8JsonWriter writer,
             UAVariable variable,
-            bool isThingModel)
+            bool isThingModel,
+            string[]? namespaceUris)
         {
             writer.WriteStartObject();
             writer.WriteString("@type", isThingModel ? "uav:variableType" : "uav:variable");
             WriteOptional(writer, "title", FirstText(variable.DisplayName));
             WriteDescription(writer, variable.Description);
             WriteOptional(writer, "uav:browseName", variable.BrowseName);
-            WriteOptional(writer, "uav:id", variable.NodeId);
+            WriteOptional(writer, "uav:id", ToPortableNodeId(variable.NodeId, namespaceUris));
 
             string? jsonType = MapDataTypeToJson(variable.DataType);
             if (jsonType is not null)
@@ -259,26 +350,35 @@ namespace Opc.Ua.Wot
             writer.WriteEndObject();
         }
 
-        private static void WriteMethodAffordance(Utf8JsonWriter writer, UAMethod method)
+        private static void WriteMethodAffordance(
+            Utf8JsonWriter writer,
+            UAMethod method,
+            string[]? namespaceUris)
         {
             writer.WriteStartObject();
             writer.WriteString("@type", "uav:method");
             WriteOptional(writer, "title", FirstText(method.DisplayName));
             WriteDescription(writer, method.Description);
             WriteOptional(writer, "uav:browseName", method.BrowseName);
-            WriteOptional(writer, "uav:id", method.NodeId);
+            WriteOptional(writer, "uav:id", ToPortableNodeId(method.NodeId, namespaceUris));
             WriteModellingRule(writer, method);
             writer.WriteEndObject();
         }
 
-        private static void WriteEventAffordance(Utf8JsonWriter writer, UANode eventType)
+        private static void WriteEventAffordance(
+            Utf8JsonWriter writer,
+            UANode eventType,
+            string[]? namespaceUris)
         {
             writer.WriteStartObject();
+            // uav:eventType is the @type annotation counterpart of the uav:isEvent
+            // flag; an EventType projection carries both (WoT Binding Section 5.2).
+            writer.WriteString("@type", WotVocabulary.EventTypeAnnotation);
             WriteOptional(writer, "title", FirstText(eventType.DisplayName));
             WriteDescription(writer, eventType.Description);
             writer.WriteBoolean("uav:isEvent", true);
             WriteOptional(writer, "uav:browseName", eventType.BrowseName);
-            WriteOptional(writer, "uav:id", eventType.NodeId);
+            WriteOptional(writer, "uav:id", ToPortableNodeId(eventType.NodeId, namespaceUris));
             WriteModellingRule(writer, eventType);
             writer.WriteEndObject();
         }
@@ -310,6 +410,16 @@ namespace Opc.Ua.Wot
             }
 
             bool isThingModel = kind == WotDocumentKind.ThingModel;
+            bool isEventType = isThingModel && HasEventTypeAnnotation(document);
+
+            // Portable identity and event-annotation validation (WoT Binding
+            // Sections 5.1.1 and 5.2). Runs before synthesis so a document that
+            // uses the session-local ns=<index> form or contradicts itself is
+            // diagnosed; the exact uav:nodeSet envelope and uav:nodes projection
+            // are never reached here and keep their own namespace indices.
+            ValidatePortableIdentity(document, diagnostics);
+            ValidateEventAnnotations(document, diagnostics);
+
             string modelUri = DeriveModelUri(document);
             string rootLocal = LocalName(GetUavString(document, "browseName")) ??
                 SanitizeName(document.Title) ?? "Thing";
@@ -340,7 +450,11 @@ namespace Opc.Ua.Wot
                 {
                     ReferenceType = "HasSubtype",
                     IsForward = false,
-                    Value = WotVocabulary.BaseObjectType
+                    // An event-type Thing Model (@type uav:eventType) derives
+                    // from BaseEventType rather than BaseObjectType.
+                    Value = isEventType
+                        ? WotVocabulary.BaseEventType
+                        : WotVocabulary.BaseObjectType
                 });
             }
             else
@@ -396,9 +510,16 @@ namespace Opc.Ua.Wot
                     eventAffordance.Key, eventAffordance.Value, rootLocal, items, rootReferences);
             }
 
+            // A uav:typedReference link whose target is also listed under
+            // uav:hasComponent / uav:componentOf pins the exact subtype of that
+            // component (WoT Binding Section 5.3). Collect those pins once so the
+            // link pass does not also emit a separate generic reference and the
+            // component pass recreates the exact ReferenceType.
+            Dictionary<string, string> componentTypedRefs = CollectComponentTypedRefs(document);
             SynthesizeLinks(
-                document, rootReferences, thingResolver, resolutionContext, options, diagnostics);
-            SynthesizeComponentArrays(document, rootReferences);
+                document, rootReferences, componentTypedRefs, thingResolver,
+                resolutionContext, options, diagnostics);
+            SynthesizeComponentArrays(document, rootReferences, componentTypedRefs);
 
             rootNode.References = [.. rootReferences];
             items.Insert(0, rootNode);
@@ -552,6 +673,7 @@ namespace Opc.Ua.Wot
         private static void SynthesizeLinks(
             WotDocument document,
             List<Reference> rootReferences,
+            Dictionary<string, string> componentTypedRefs,
             IWotThingResolver? thingResolver,
             WotResolutionContext resolutionContext,
             WotNodeSetConverterOptions options,
@@ -581,6 +703,15 @@ namespace Opc.Ua.Wot
                     continue;
                 }
 
+                // A typed link that pins the subtype of a listed component is
+                // realized by the component pass, not here, so the component is
+                // not emitted twice (WoT Binding Section 5.3).
+                if (string.Equals(rel, "uav:typedReference", StringComparison.Ordinal) &&
+                    componentTypedRefs.ContainsKey(href))
+                {
+                    continue;
+                }
+
                 string referenceType = GetElementString(link, "uav:refType")
                     ?? DefaultReferenceType(rel);
                 if (TryResolveTargetNodeId(
@@ -596,9 +727,63 @@ namespace Opc.Ua.Wot
             }
         }
 
+        /// <summary>
+        /// Collects the subtype pins carried by <c>uav:typedReference</c> links
+        /// whose target is also listed under <c>uav:hasComponent</c> or
+        /// <c>uav:componentOf</c>: target ExpandedNodeId to the exact
+        /// ReferenceType named by the link's <c>uav:refType</c>
+        /// (WoT Binding Section 5.3).
+        /// </summary>
+        private static Dictionary<string, string> CollectComponentTypedRefs(WotDocument document)
+        {
+            var pins = new Dictionary<string, string>(StringComparer.Ordinal);
+            var componentTargets = new HashSet<string>(StringComparer.Ordinal);
+            CollectComponentTargets(document, "hasComponent", componentTargets);
+            CollectComponentTargets(document, "componentOf", componentTargets);
+            if (componentTargets.Count == 0)
+            {
+                return pins;
+            }
+            foreach (JsonElement link in document.Links)
+            {
+                if (!string.Equals(
+                        GetElementString(link, "rel"), "uav:typedReference", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+                string? href = GetElementString(link, "href");
+                string? refType = GetElementString(link, "uav:refType");
+                if (href is not null && refType is not null && componentTargets.Contains(href))
+                {
+                    pins[href] = refType;
+                }
+            }
+            return pins;
+        }
+
+        private static void CollectComponentTargets(
+            WotDocument document,
+            string localName,
+            HashSet<string> targets)
+        {
+            if (document.TryGetUav(localName, out JsonElement array) &&
+                array.ValueKind == JsonValueKind.Array)
+            {
+                foreach (JsonElement target in array.EnumerateArray())
+                {
+                    if (target.ValueKind == JsonValueKind.String &&
+                        target.GetString() is { Length: > 0 } value)
+                    {
+                        targets.Add(value);
+                    }
+                }
+            }
+        }
+
         private static void SynthesizeComponentArrays(
             WotDocument document,
-            List<Reference> rootReferences)
+            List<Reference> rootReferences,
+            Dictionary<string, string> componentTypedRefs)
         {
             if (document.TryGetUav("hasComponent", out JsonElement hasComponent) &&
                 hasComponent.ValueKind == JsonValueKind.Array)
@@ -609,7 +794,7 @@ namespace Opc.Ua.Wot
                     {
                         rootReferences.Add(new Reference
                         {
-                            ReferenceType = "HasComponent",
+                            ReferenceType = ComponentReferenceType(target.GetString(), componentTypedRefs),
                             IsForward = true,
                             Value = target.GetString()
                         });
@@ -625,13 +810,27 @@ namespace Opc.Ua.Wot
                     {
                         rootReferences.Add(new Reference
                         {
-                            ReferenceType = "HasComponent",
+                            ReferenceType = ComponentReferenceType(target.GetString(), componentTypedRefs),
                             IsForward = false,
                             Value = target.GetString()
                         });
                     }
                 }
             }
+        }
+
+        private static string ComponentReferenceType(
+            string? target,
+            Dictionary<string, string> componentTypedRefs)
+        {
+            // A component whose exact subtype is pinned by a matching
+            // uav:typedReference link is recreated with that ReferenceType;
+            // otherwise plain HasComponent is used (WoT Binding Section 5.3).
+            if (target is not null && componentTypedRefs.TryGetValue(target, out string? refType))
+            {
+                return refType;
+            }
+            return "HasComponent";
         }
 
         private static bool TryResolveTargetNodeId(
@@ -884,6 +1083,295 @@ namespace Opc.Ua.Wot
         private static string GenerateNodeId(string browsePath)
         {
             return "ns=1;s=" + browsePath;
+        }
+
+        /// <summary>
+        /// Renders a NodeSet-local NodeId string as a portable OPC 10000-6
+        /// ExpandedNodeId (WoT Binding Section 5.1.1): namespace 0 keeps its
+        /// canonical <c>i=</c>/<c>s=</c> form, while a higher namespace index is
+        /// resolved to <c>nsu=&lt;NamespaceUri&gt;;...</c> through the source
+        /// NodeSet's <c>NamespaceUris</c> table so the value survives a
+        /// namespace-table reordering. The session-local <c>ns=&lt;index&gt;</c>
+        /// form is never emitted. An unparseable or unresolvable value is left
+        /// untouched.
+        /// </summary>
+        private static string? ToPortableNodeId(string? rawNodeId, string[]? namespaceUris)
+        {
+            if (string.IsNullOrEmpty(rawNodeId))
+            {
+                return rawNodeId;
+            }
+            NodeId parsed;
+            try
+            {
+                parsed = NodeId.Parse(rawNodeId!);
+            }
+            catch (ServiceResultException)
+            {
+                return rawNodeId;
+            }
+            var buffer = new System.Text.StringBuilder();
+            ushort index = parsed.NamespaceIndex;
+            if (index != 0)
+            {
+                if (namespaceUris is null || index - 1 >= namespaceUris.Length)
+                {
+                    return rawNodeId;
+                }
+                buffer.Append("nsu=")
+                    .Append(CoreUtils.EscapeUri(namespaceUris[index - 1]))
+                    .Append(';');
+            }
+            NodeId.Format(
+                System.Globalization.CultureInfo.InvariantCulture,
+                buffer,
+                parsed.IdentifierAsString,
+                parsed.IdType,
+                0);
+            return buffer.ToString();
+        }
+
+        private static bool HasEventTypeAnnotation(WotDocument document)
+        {
+            foreach (string token in document.TypeTokens)
+            {
+                if (string.Equals(token, WotVocabulary.EventTypeAnnotation, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Determines whether the projected root ObjectType derives from
+        /// BaseEventType and therefore projects a UA EventType, annotated with
+        /// <c>uav:eventType</c> (WoT Binding Section 5.2).
+        /// </summary>
+        private static bool IsEventTypeRoot(UANode? root, UANodeSet nodeSet)
+        {
+            if (root is not UAObjectType)
+            {
+                return false;
+            }
+            Dictionary<string, UANode> index = BuildIndex(nodeSet);
+            UANode? current = root;
+            int guard = index.Count + 1;
+            while (current is UAObjectType && guard-- > 0)
+            {
+                string? superType = FindSuperTypeId(current);
+                if (superType is null)
+                {
+                    return false;
+                }
+                if (string.Equals(superType, WotVocabulary.BaseEventType, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+                if (!index.TryGetValue(superType, out current))
+                {
+                    return false;
+                }
+            }
+            return false;
+        }
+
+        private static string? FindSuperTypeId(UANode node)
+        {
+            if (node.References is null)
+            {
+                return null;
+            }
+            foreach (Reference reference in node.References)
+            {
+                if (!reference.IsForward && reference.Value is not null &&
+                    (string.Equals(reference.ReferenceType, "HasSubtype", StringComparison.Ordinal) ||
+                     string.Equals(reference.ReferenceType, WotVocabulary.HasSubtype, StringComparison.Ordinal)))
+                {
+                    return reference.Value;
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Portable identity validation (WoT Binding Section 5.1.1): every
+        /// NodeId-valued term (<c>uav:id</c>, each <c>uav:hasComponent</c> /
+        /// <c>uav:componentOf</c> entry, <c>uav:mapToNodeId</c>,
+        /// <c>uav:mapToType</c>, a NodeId-valued <c>uav:refType</c>, and a
+        /// <c>?id=</c> href) shall be a portable ExpandedNodeId, never the
+        /// session-local <c>ns=&lt;index&gt;</c> form. The exact <c>uav:nodeSet</c>
+        /// envelope and <c>uav:nodes</c> projection subtrees are skipped so their
+        /// own namespace indices - resolved through their own NamespaceUris table -
+        /// are unaffected.
+        /// </summary>
+        private static void ValidatePortableIdentity(
+            WotDocument document,
+            List<WotDiagnostic> diagnostics)
+        {
+            ValidatePortableIdentity(document.RootElement, diagnostics);
+        }
+
+        private static void ValidatePortableIdentity(
+            JsonElement element,
+            List<WotDiagnostic> diagnostics)
+        {
+            switch (element.ValueKind)
+            {
+                case JsonValueKind.Object:
+                    foreach (JsonProperty member in element.EnumerateObject())
+                    {
+                        if (string.Equals(member.Name, "uav:nodeSet", StringComparison.Ordinal) ||
+                            string.Equals(member.Name, "uav:nodes", StringComparison.Ordinal))
+                        {
+                            // Exact preservation subtrees keep their own indices.
+                            continue;
+                        }
+                        CheckPortableMember(member.Name, member.Value, diagnostics);
+                        ValidatePortableIdentity(member.Value, diagnostics);
+                    }
+                    break;
+                case JsonValueKind.Array:
+                    foreach (JsonElement item in element.EnumerateArray())
+                    {
+                        ValidatePortableIdentity(item, diagnostics);
+                    }
+                    break;
+            }
+        }
+
+        private static void CheckPortableMember(
+            string name,
+            JsonElement value,
+            List<WotDiagnostic> diagnostics)
+        {
+            switch (name)
+            {
+                case "uav:id":
+                case "uav:mapToNodeId":
+                case "uav:mapToType":
+                    if (value.ValueKind == JsonValueKind.String)
+                    {
+                        CheckPortableValue(name, value.GetString(), diagnostics);
+                    }
+                    break;
+                case "uav:hasComponent":
+                case "uav:componentOf":
+                    if (value.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (JsonElement entry in value.EnumerateArray())
+                        {
+                            if (entry.ValueKind == JsonValueKind.String)
+                            {
+                                CheckPortableValue(name + " entry", entry.GetString(), diagnostics);
+                            }
+                        }
+                    }
+                    break;
+                case "uav:refType":
+                    // Only a NodeId-valued refType is portable; a reference-type
+                    // BrowseName (for example HasComponent) is not a NodeId.
+                    if (value.ValueKind == JsonValueKind.String &&
+                        value.GetString() is { } refType && IsNodeId(refType))
+                    {
+                        CheckPortableValue(name, refType, diagnostics);
+                    }
+                    break;
+                case "href":
+                    if (value.ValueKind == JsonValueKind.String &&
+                        value.GetString() is { } href)
+                    {
+                        int marker = href.IndexOf("?id=", StringComparison.Ordinal);
+                        if (marker >= 0)
+                        {
+                            CheckPortableValue(
+                                "href ?id=", href.Substring(marker + 4), diagnostics);
+                        }
+                    }
+                    break;
+            }
+        }
+
+        private static void CheckPortableValue(
+            string term,
+            string? value,
+            List<WotDiagnostic> diagnostics)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return;
+            }
+            int marker = value!.IndexOf("ns=", StringComparison.Ordinal);
+            if (marker >= 0 &&
+                marker + 3 < value.Length &&
+                char.IsDigit(value[marker + 3]) &&
+                (marker == 0 || value[marker - 1] is ';' or '='))
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Warning,
+                    WotDiagnosticCode.NonPortableIdentity,
+                    $"The portable identity term {term} uses the session-local " +
+                    $"ns=<index> form ('{value}'); a persisted document shall use an " +
+                    "ExpandedNodeId (nsu=<NamespaceUri>;... or namespace-0 i=...) " +
+                    "so it survives a namespace-table reordering (WoT Binding Section 5.1.1).",
+                    new WotLocation(reference: value)));
+            }
+        }
+
+        /// <summary>
+        /// Event-annotation consistency (WoT Binding Section 5.2): an event
+        /// affordance annotated <c>@type: uav:eventType</c> shall not set
+        /// <c>uav:isEvent: false</c>; the two forms record the same fact.
+        /// </summary>
+        private static void ValidateEventAnnotations(
+            WotDocument document,
+            List<WotDiagnostic> diagnostics)
+        {
+            foreach (KeyValuePair<string, JsonElement> affordance in document.Events)
+            {
+                JsonElement node = affordance.Value;
+                if (node.ValueKind != JsonValueKind.Object || !HasEventTypeType(node))
+                {
+                    continue;
+                }
+                if (node.TryGetProperty("uav:isEvent", out JsonElement isEvent) &&
+                    isEvent.ValueKind == JsonValueKind.False)
+                {
+                    diagnostics.Add(new WotDiagnostic(
+                        WotDiagnosticSeverity.Error,
+                        WotDiagnosticCode.EventAnnotationConflict,
+                        $"The event affordance '{affordance.Key}' is annotated " +
+                        "@type uav:eventType but sets uav:isEvent: false; the two " +
+                        "forms record the same EventType projection (WoT Binding Section 5.2).",
+                        WotLocation.FromPointer("/events/" + affordance.Key)));
+                }
+            }
+        }
+
+        private static bool HasEventTypeType(JsonElement node)
+        {
+            if (!node.TryGetProperty("@type", out JsonElement type))
+            {
+                return false;
+            }
+            if (type.ValueKind == JsonValueKind.String)
+            {
+                return string.Equals(
+                    type.GetString(), WotVocabulary.EventTypeAnnotation, StringComparison.Ordinal);
+            }
+            if (type.ValueKind == JsonValueKind.Array)
+            {
+                foreach (JsonElement token in type.EnumerateArray())
+                {
+                    if (token.ValueKind == JsonValueKind.String &&
+                        string.Equals(
+                            token.GetString(), WotVocabulary.EventTypeAnnotation, StringComparison.Ordinal))
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
         }
 
         private static string DeriveModelUri(WotDocument document)

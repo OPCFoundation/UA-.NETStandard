@@ -137,7 +137,20 @@ namespace Opc.Ua.Wot
         ResolverNotFound = 5003,
 
         /// <summary>A document validation rule was violated.</summary>
-        ValidationError = 6000
+        ValidationError = 6000,
+
+        /// <summary>
+        /// A portable identity term used the session-local <c>ns=&lt;index&gt;</c>
+        /// form instead of an OPC 10000-6 ExpandedNodeId (WoT Binding Section 5.1.1).
+        /// </summary>
+        NonPortableIdentity = 6001,
+
+        /// <summary>
+        /// An event affordance annotated <c>@type: uav:eventType</c> also set
+        /// <c>uav:isEvent: false</c>, contradicting the event mapping
+        /// (WoT Binding Section 5.2).
+        /// </summary>
+        EventAnnotationConflict = 6002
     }
 
     /// <summary>
