@@ -1420,7 +1420,7 @@ namespace Opc.Ua
 
             var dims = ReadListAt((null!, s.Fields[0]), i, ReadI32Many);
             var vals = ReadListAt((null!, s.Fields[1]), i, read);
-            return vals.ToMatrix(dims);
+            return vals.ToDecodedMatrix(dims.ToArray() ?? []);
         }
 
         /// <summary>
