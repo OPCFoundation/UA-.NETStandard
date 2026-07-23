@@ -158,8 +158,12 @@ namespace Opc.Ua.Types.Tests.Wot
 
             // No emitted WoT-native identity uses the session-local ns=<index> form.
             string text = Encoding.UTF8.GetString(document.Utf8Json.ToArray());
-            int afterEnvelope = text.IndexOf("\"uav:nodeSet\"", System.StringComparison.Ordinal);
-            string readable = afterEnvelope < 0 ? text : text.Substring(0, afterEnvelope);
+            int nativeProjection = text.IndexOf(
+                "\"uav:nodes\"",
+                System.StringComparison.Ordinal);
+            string readable = nativeProjection < 0
+                ? text
+                : text.Substring(0, nativeProjection);
             Assert.That(readable, Does.Not.Contain("\"ns=1;"));
         }
 

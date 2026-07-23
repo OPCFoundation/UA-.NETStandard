@@ -343,6 +343,9 @@ namespace Opc.Ua.Wot
             }
             if (readable)
             {
+                // This advertises observation through the WoT binding. It does
+                // not define core UA monitorability; any Variable may be a
+                // MonitoredItem when the Server grants access.
                 writer.WriteBoolean("observable", true);
             }
 

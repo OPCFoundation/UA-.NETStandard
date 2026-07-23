@@ -95,16 +95,21 @@ namespace Opc.Ua.Types.Tests.Wot
         public void NativeProjectionExposesDerivedTypeInformation()
         {
             UANodeSet source = WotTestData.CreateReconstructableNodeSet();
-            var options = new WotNodeSetConverterOptions();
+            using WotDocument document = WotNodeSetConverter.FromNodeSet(
+                source,
+                options: NativeOnly());
+            JsonElement nodes = document.RootElement
+                .GetProperty("uav:nodes")
+                .GetProperty("nodes");
 
-            WotNativeModel model = WotNativeProjection.Build(source, options);
+            JsonElement variable = nodes.EnumerateArray()
+                .Single(n => n.GetProperty("nodeClass").GetString() == "Variable");
+            Assert.That(variable.GetProperty("typeDefinition").GetString(), Is.EqualTo("i=63"));
+            Assert.That(variable.GetProperty("modellingRule").GetString(), Is.EqualTo("Mandatory"));
 
-            WotNativeNode variable = model.Nodes.Single(n => n.NodeClass == "Variable");
-            Assert.That(variable.TypeDefinition, Is.EqualTo("i=63"));
-            Assert.That(variable.ModellingRule, Is.EqualTo("Mandatory"));
-
-            WotNativeNode objectType = model.Nodes.Single(n => n.NodeClass == "ObjectType");
-            Assert.That(objectType.SuperType, Is.EqualTo("i=58"));
+            JsonElement objectType = nodes.EnumerateArray()
+                .Single(n => n.GetProperty("nodeClass").GetString() == "ObjectType");
+            Assert.That(objectType.GetProperty("superType").GetString(), Is.EqualTo("i=58"));
         }
 
         [Test]
@@ -150,19 +155,19 @@ namespace Opc.Ua.Types.Tests.Wot
 
         private static byte[] BuildNativeOnlyDocument(UANodeSet source)
         {
-            var options = new WotNodeSetConverterOptions();
-            WotNativeModel model = WotNativeProjection.Build(source, options);
-            using var stream = new MemoryStream();
-            using (var writer = new Utf8JsonWriter(stream))
+            using WotDocument document = WotNodeSetConverter.FromNodeSet(
+                source,
+                options: NativeOnly());
+            Assert.That(document.TryGetEnvelope(out _), Is.False);
+            return document.Utf8Json.ToArray();
+        }
+
+        private static WotNodeSetConverterOptions NativeOnly()
+        {
+            return new WotNodeSetConverterOptions
             {
-                writer.WriteStartObject();
-                writer.WriteString("@type", "tm:ThingModel");
-                writer.WriteString("title", "Reconstructed");
-                writer.WritePropertyName("uav:nodes");
-                WotNativeProjection.Write(writer, model);
-                writer.WriteEndObject();
-            }
-            return stream.ToArray();
+                PreservationMode = WotNodeSetPreservationMode.Never
+            };
         }
     }
 }

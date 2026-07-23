@@ -48,7 +48,9 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             UANodeSet source = CreateNodeSet();
 
-            using WotDocument document = WotNodeSetConverter.FromNodeSet(source);
+            using WotDocument document = WotNodeSetConverter.FromNodeSet(
+                source,
+                options: AlwaysPreserve());
             UANodeSet restored = WotNodeSetConverter.ToNodeSet(document);
 
             Assert.That(Write(restored), Is.EqualTo(Write(source)));
@@ -62,8 +64,12 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             UANodeSet source = CreateNodeSet();
 
-            using WotDocument first = WotNodeSetConverter.FromNodeSet(source);
-            using WotDocument second = WotNodeSetConverter.FromNodeSet(source);
+            using WotDocument first = WotNodeSetConverter.FromNodeSet(
+                source,
+                options: AlwaysPreserve());
+            using WotDocument second = WotNodeSetConverter.FromNodeSet(
+                source,
+                options: AlwaysPreserve());
 
             Assert.That(first.Utf8Json.ToArray(), Is.EqualTo(second.Utf8Json.ToArray()));
         }
@@ -84,7 +90,9 @@ namespace Opc.Ua.Types.Tests.Wot
         [Test]
         public void DigestMismatchIsRejected()
         {
-            using WotDocument document = WotNodeSetConverter.FromNodeSet(CreateNodeSet());
+            using WotDocument document = WotNodeSetConverter.FromNodeSet(
+                CreateNodeSet(),
+                options: AlwaysPreserve());
             string json = Encoding.UTF8.GetString(document.Utf8Json.ToArray());
             const string marker = "\"data\": \"";
             int valueIndex = json.IndexOf(marker, StringComparison.Ordinal) + marker.Length;
@@ -150,6 +158,14 @@ namespace Opc.Ua.Types.Tests.Wot
                         ]
                     }
                 ]
+            };
+        }
+
+        private static WotNodeSetConverterOptions AlwaysPreserve()
+        {
+            return new WotNodeSetConverterOptions
+            {
+                PreservationMode = WotNodeSetPreservationMode.Always
             };
         }
 

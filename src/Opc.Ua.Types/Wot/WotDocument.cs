@@ -409,9 +409,18 @@ namespace Opc.Ua.Wot
             m_document.Dispose();
         }
 
-        internal static WotDocument FromOwnedBytes(byte[] utf8Json)
+        internal static WotDocument FromOwnedBytes(
+            byte[] utf8Json,
+            WotNodeSetConverterOptions options)
         {
-            JsonDocument document = JsonDocument.Parse(utf8Json);
+            JsonDocument document = JsonDocument.Parse(
+                utf8Json,
+                new JsonDocumentOptions
+                {
+                    AllowTrailingCommas = false,
+                    CommentHandling = JsonCommentHandling.Disallow,
+                    MaxDepth = options.MaxJsonDepth
+                });
             return new WotDocument(utf8Json, document);
         }
 

@@ -51,7 +51,9 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             UANodeSet source = WotTestData.CreateRichNodeSet();
 
-            using WotDocument document = WotNodeSetConverter.FromNodeSet(source);
+            using WotDocument document = WotNodeSetConverter.FromNodeSet(
+                source,
+                options: AlwaysPreserve());
             UANodeSet restored = WotNodeSetConverter.ToNodeSet(document);
 
             Assert.That(WotTestData.Serialize(restored), Is.EqualTo(WotTestData.Serialize(source)));
@@ -60,7 +62,9 @@ namespace Opc.Ua.Types.Tests.Wot
         [Test]
         public void EnvelopeDigestIsLowercaseHex()
         {
-            using WotDocument document = WotNodeSetConverter.FromNodeSet(WotTestData.CreateRichNodeSet());
+            using WotDocument document = WotNodeSetConverter.FromNodeSet(
+                WotTestData.CreateRichNodeSet(),
+                options: AlwaysPreserve());
 
             string digest = document.RootElement
                 .GetProperty("uav:nodeSet")
@@ -114,7 +118,9 @@ namespace Opc.Ua.Types.Tests.Wot
         [Test]
         public void DigestMismatchProducesDiagnostic()
         {
-            using WotDocument original = WotNodeSetConverter.FromNodeSet(WotTestData.CreateRichNodeSet());
+            using WotDocument original = WotNodeSetConverter.FromNodeSet(
+                WotTestData.CreateRichNodeSet(),
+                options: AlwaysPreserve());
             string json = Encoding.UTF8.GetString(original.Utf8Json.ToArray());
             const string marker = "\"data\": \"";
             int index = json.IndexOf(marker, StringComparison.Ordinal) + marker.Length;
@@ -134,7 +140,9 @@ namespace Opc.Ua.Types.Tests.Wot
         [Test]
         public void NativeProjectionConflictIsReportedNotSilentlyResolved()
         {
-            using WotDocument original = WotNodeSetConverter.FromNodeSet(WotTestData.CreateRichNodeSet());
+            using WotDocument original = WotNodeSetConverter.FromNodeSet(
+                WotTestData.CreateRichNodeSet(),
+                options: AlwaysPreserve());
             string json = Encoding.UTF8.GetString(original.Utf8Json.ToArray());
 
             // Rewrite the plaintext BrowseName; the base64 envelope keeps the
@@ -155,7 +163,9 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             UANodeSet source = WotTestData.CreateReconstructableNodeSet();
 
-            using WotDocument document = WotNodeSetConverter.FromNodeSet(source);
+            using WotDocument document = WotNodeSetConverter.FromNodeSet(
+                source,
+                options: AlwaysPreserve());
             UANodeSet restored = WotNodeSetConverter.ToNodeSet(document.Utf8Json);
 
             Assert.That(WotTestData.Serialize(restored), Is.EqualTo(WotTestData.Serialize(source)));
@@ -164,7 +174,9 @@ namespace Opc.Ua.Types.Tests.Wot
         [Test]
         public void MissingDigestIsRejectedAsMandatory()
         {
-            using WotDocument original = WotNodeSetConverter.FromNodeSet(WotTestData.CreateReconstructableNodeSet());
+            using WotDocument original = WotNodeSetConverter.FromNodeSet(
+                WotTestData.CreateReconstructableNodeSet(),
+                options: AlwaysPreserve());
             string json = Encoding.UTF8.GetString(original.Utf8Json.ToArray());
             string withoutDigest = RemoveJsonStringProperty(json, "sha256");
 
@@ -180,7 +192,9 @@ namespace Opc.Ua.Types.Tests.Wot
         [Test]
         public void MalformedDigestIsRejected()
         {
-            using WotDocument original = WotNodeSetConverter.FromNodeSet(WotTestData.CreateReconstructableNodeSet());
+            using WotDocument original = WotNodeSetConverter.FromNodeSet(
+                WotTestData.CreateReconstructableNodeSet(),
+                options: AlwaysPreserve());
             string json = Encoding.UTF8.GetString(original.Utf8Json.ToArray());
             string malformed = ReplaceJsonStringProperty(json, "sha256", "not-a-valid-digest");
 
@@ -214,7 +228,9 @@ namespace Opc.Ua.Types.Tests.Wot
         [Test]
         public void UnsupportedEncodingIsRejected()
         {
-            using WotDocument original = WotNodeSetConverter.FromNodeSet(WotTestData.CreateReconstructableNodeSet());
+            using WotDocument original = WotNodeSetConverter.FromNodeSet(
+                WotTestData.CreateReconstructableNodeSet(),
+                options: AlwaysPreserve());
             string json = Encoding.UTF8.GetString(original.Utf8Json.ToArray());
             string tampered = ReplaceJsonStringProperty(json, "encoding", "base64url");
 
@@ -231,7 +247,9 @@ namespace Opc.Ua.Types.Tests.Wot
         public void Base64IsTheOnlyAcceptedEncodingPerSpecAndRoundTrips()
         {
             UANodeSet source = WotTestData.CreateReconstructableNodeSet();
-            using WotDocument document = WotNodeSetConverter.FromNodeSet(source);
+            using WotDocument document = WotNodeSetConverter.FromNodeSet(
+                source,
+                options: AlwaysPreserve());
 
             string encoding = document.RootElement
                 .GetProperty("uav:nodeSet")
@@ -249,6 +267,14 @@ namespace Opc.Ua.Types.Tests.Wot
                 json,
                 "\"" + Regex.Escape(propertyName) + "\":\\s*\"[^\"]*\",?\\s*",
                 string.Empty);
+        }
+
+        private static WotNodeSetConverterOptions AlwaysPreserve()
+        {
+            return new WotNodeSetConverterOptions
+            {
+                PreservationMode = WotNodeSetPreservationMode.Always
+            };
         }
 
         private static string ReplaceJsonStringProperty(string json, string propertyName, string newValue)

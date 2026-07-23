@@ -289,7 +289,12 @@ namespace Opc.Ua.Types.Tests.Wot
         [Test]
         public void DecodedNodeSetExceedingLimitIsReported()
         {
-            using WotDocument document = WotNodeSetConverter.FromNodeSet(WotTestData.CreateReconstructableNodeSet());
+            using WotDocument document = WotNodeSetConverter.FromNodeSet(
+                WotTestData.CreateReconstructableNodeSet(),
+                options: new WotNodeSetConverterOptions
+                {
+                    PreservationMode = WotNodeSetPreservationMode.Always
+                });
             var options = new WotNodeSetConverterOptions { MaxNodeSetSize = 16 };
 
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document, options);

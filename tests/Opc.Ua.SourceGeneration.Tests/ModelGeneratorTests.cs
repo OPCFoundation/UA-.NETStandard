@@ -142,7 +142,7 @@ namespace Opc.Ua.SourceGeneration
         }
 
         [Test]
-        public void GenerateAndCompileDemoModelWotEnvelopeTest()
+        public void GenerateAndCompileDemoModelWotNativeProjectionTest()
         {
             var generator = new ModelSourceGenerator();
             var host = new ModelSourceGeneratorHoist(generator);
@@ -162,6 +162,10 @@ namespace Opc.Ua.SourceGeneration
                 Encoding.UTF8.GetBytes(nodeSetText.GetText()!.ToString()));
             UANodeSet nodeSet = UANodeSet.Read(nodeSetStream)!;
             using WotDocument wot = WotNodeSetConverter.FromNodeSet(nodeSet);
+            Assert.That(
+                wot.TryGetEnvelope(out _),
+                Is.False,
+                "Source-generation equivalence shall be proved by uav:nodes, not the envelope.");
             AdditionalText wotText = EmbeddedText.FromContent(
                 "DemoModel.tm.json",
                 Encoding.UTF8.GetString(wot.Utf8Json.ToArray()));
@@ -348,7 +352,8 @@ namespace Opc.Ua.SourceGeneration
         public void DigestMismatchedWotEnvelopeProducesDiagnosticWithoutGeneratorExceptionTest()
         {
             string nodeSetXml = EmbeddedText.From("DemoModel.NodeSet2.xml").GetText()!.ToString();
-            string tamperedJson = TamperEnvelopeDigestData(BuildDemoModelWotEnvelopeJson(nodeSetXml));
+            string tamperedJson = TamperEnvelopeDigestData(
+                BuildDemoModelWotEnvelopeJson(nodeSetXml, includeEnvelope: true));
 
             (ImmutableArray<Diagnostic> diagnostics, GeneratorDriverRunResult runResult) =
                 RunGeneratorLeniently(
@@ -376,7 +381,8 @@ namespace Opc.Ua.SourceGeneration
             // wrapper must exclude this errored result so no generated model is
             // emitted, independent of whether MODELGEN031 is later suppressed.
             string nodeSetXml = EmbeddedText.From("DemoModel.NodeSet2.xml").GetText()!.ToString();
-            string conflicted = TamperNativeProjectionBrowseName(BuildDemoModelWotEnvelopeJson(nodeSetXml));
+            string conflicted = TamperNativeProjectionBrowseName(
+                BuildDemoModelWotEnvelopeJson(nodeSetXml, includeEnvelope: true));
 
             WotConversionOutcome outcome = WotNodeSetAdditionalText.Convert(
                 EmbeddedText.FromContent("Conflict.tm.json", conflicted),
@@ -1026,16 +1032,26 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <summary>
-        /// Converts a NodeSet2 XML document to a byte-preserving WoT
-        /// envelope document (Thing Model/Description carrying the
-        /// <c>uav:nodeSet</c> preservation envelope) and returns its UTF-8
-        /// JSON text.
+        /// Converts a NodeSet2 XML document to a native-first WoT document.
+        /// Tests that exercise envelope integrity can request the explicit
+        /// byte-preserving <c>uav:nodeSet</c> archival mode.
         /// </summary>
-        private static string BuildDemoModelWotEnvelopeJson(string nodeSetXml, string title = null)
+        private static string BuildDemoModelWotEnvelopeJson(
+            string nodeSetXml,
+            string title = null,
+            bool includeEnvelope = false)
         {
             using var nodeSetStream = new MemoryStream(Encoding.UTF8.GetBytes(nodeSetXml));
             UANodeSet nodeSet = UANodeSet.Read(nodeSetStream)!;
-            using WotDocument wot = WotNodeSetConverter.FromNodeSet(nodeSet, title);
+            using WotDocument wot = WotNodeSetConverter.FromNodeSet(
+                nodeSet,
+                title,
+                new WotNodeSetConverterOptions
+                {
+                    PreservationMode = includeEnvelope
+                        ? WotNodeSetPreservationMode.Always
+                        : WotNodeSetPreservationMode.Never
+                });
             return Encoding.UTF8.GetString(wot.Utf8Json.ToArray());
         }
 
