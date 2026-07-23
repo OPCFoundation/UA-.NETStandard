@@ -246,6 +246,16 @@ namespace Opc.Ua.Server
             out bool moreNotifications);
 
         /// <summary>
+        /// Determines whether the authenticated owner of a target Session is compatible
+        /// with the identity that owns this subscription.
+        /// </summary>
+        /// <param name="targetSession">The target Session for a transfer request.</param>
+        /// <returns>
+        /// <c>true</c> when the target Session represents the same ClientUserId; otherwise, <c>false</c>.
+        /// </returns>
+        bool IsTransferIdentityCompatible(ISession targetSession);
+
+        /// <summary>
         /// Transfers the subscription to a new session.
         /// </summary>
         /// <param name="context">The session to which the subscription is transferred.</param>

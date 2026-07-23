@@ -227,7 +227,7 @@ namespace Opc.Ua.Server.Tests
         {
             var anonymousToken = new AnonymousIdentityTokenHandler();
             Assert.That(
-                SessionClientUserId.Get(anonymousToken, new UserIdentity()),
+                ClientUserIdResolver.Resolve(anonymousToken, new UserIdentity()),
                 Is.Null);
 
             var userNameToken = new UserNameIdentityTokenHandler("ExactUser", [1, 2, 3]);
@@ -236,7 +236,7 @@ namespace Opc.Ua.Server.Tests
                 DisplayName = "Display Alias"
             };
             Assert.That(
-                SessionClientUserId.Get(userNameToken, aliasedUserName),
+                ClientUserIdResolver.Resolve(userNameToken, aliasedUserName),
                 Is.EqualTo("ExactUser"));
 
             var x509Token = new X509IdentityTokenHandler(new X509IdentityToken
@@ -248,7 +248,7 @@ namespace Opc.Ua.Server.Tests
                 DisplayName = "Certificate Alias"
             };
             Assert.That(
-                SessionClientUserId.Get(x509Token, aliasedCertificate),
+                ClientUserIdResolver.Resolve(x509Token, aliasedCertificate),
                 Is.EqualTo(m_clientCertificate.Subject));
 
             var issuedToken = new IssuedIdentityTokenHandler(new IssuedIdentityToken
@@ -267,7 +267,7 @@ namespace Opc.Ua.Server.Tests
                 [Role.AuthenticatedUser],
                 new NamespaceTable());
             Assert.That(
-                SessionClientUserId.Get(issuedToken, roleBasedJwtIdentity),
+                ClientUserIdResolver.Resolve(issuedToken, roleBasedJwtIdentity),
                 Is.EqualTo("https://issuer.example/subject-42"));
 
             var jwtWithoutIssuer = new JwtUserIdentity(
@@ -278,7 +278,7 @@ namespace Opc.Ua.Server.Tests
                 null,
                 "subject-only");
             Assert.That(
-                SessionClientUserId.Get(issuedToken, jwtWithoutIssuer),
+                ClientUserIdResolver.Resolve(issuedToken, jwtWithoutIssuer),
                 Is.EqualTo("subject-only"));
 
             var jwtToken = new IssuedIdentityTokenHandler(
@@ -289,7 +289,7 @@ namespace Opc.Ua.Server.Tests
                 DisplayName = "Display Alias"
             };
             Assert.That(
-                SessionClientUserId.Get(jwtToken, authenticatedJwt),
+                ClientUserIdResolver.Resolve(jwtToken, authenticatedJwt),
                 Is.EqualTo("https://issuer.example/parsed-subject"));
         }
 
@@ -305,7 +305,7 @@ namespace Opc.Ua.Server.Tests
             };
 
             ServiceResultException exception = Assert.Throws<ServiceResultException>(
-                () => SessionClientUserId.Get(issuedToken, aliasedIdentity))!;
+                () => ClientUserIdResolver.Resolve(issuedToken, aliasedIdentity))!;
 
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenInvalid));
         }

@@ -36,9 +36,30 @@ using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Server
 {
-    internal static class SessionClientUserId
+    /// <summary>
+    /// Resolves the OPC UA ClientUserId used to compare authenticated Session owners.
+    /// </summary>
+    /// <remarks>
+    /// The resolver uses the token-specific identity defined by OPC 10000-4:
+    /// the username, X.509 subject, or stable issued-token issuer and subject.
+    /// </remarks>
+    internal static class ClientUserIdResolver
     {
-        public static string? Get(
+        /// <summary>
+        /// Resolves the ClientUserId represented by a validated identity token.
+        /// </summary>
+        /// <param name="identityToken">The validated identity token handler.</param>
+        /// <param name="authenticatedIdentity">The authenticated identity produced for the token.</param>
+        /// <returns>
+        /// The stable ClientUserId, or <c>null</c> for an anonymous identity.
+        /// </returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="identityToken"/> or <paramref name="authenticatedIdentity"/> is <c>null</c>.
+        /// </exception>
+        /// <exception cref="ServiceResultException">
+        /// The token type does not expose a valid ClientUserId.
+        /// </exception>
+        public static string? Resolve(
             IUserIdentityTokenHandler identityToken,
             IUserIdentity authenticatedIdentity)
         {
@@ -63,14 +84,25 @@ namespace Opc.Ua.Server
             };
         }
 
-        public static bool TryGet(
+        /// <summary>
+        /// Attempts to resolve the ClientUserId represented by a validated identity token.
+        /// </summary>
+        /// <param name="identityToken">The validated identity token handler.</param>
+        /// <param name="authenticatedIdentity">The authenticated identity produced for the token.</param>
+        /// <param name="clientUserId">
+        /// The resolved ClientUserId, or <c>null</c> for anonymous and invalid identities.
+        /// </param>
+        /// <returns>
+        /// <c>true</c> when the token type defines a ClientUserId; otherwise, <c>false</c>.
+        /// </returns>
+        public static bool TryResolve(
             IUserIdentityTokenHandler identityToken,
             IUserIdentity authenticatedIdentity,
             out string? clientUserId)
         {
             try
             {
-                clientUserId = Get(identityToken, authenticatedIdentity);
+                clientUserId = Resolve(identityToken, authenticatedIdentity);
                 return true;
             }
             catch (ServiceResultException exception)
@@ -81,6 +113,9 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Resolves the certificate subject used as the X.509 ClientUserId.
+        /// </summary>
         private static string GetX509Subject(X509IdentityToken token)
         {
             using Certificate? certificate = token.CertificateData.IsEmpty
@@ -92,6 +127,9 @@ namespace Opc.Ua.Server
                     "The X509IdentityToken does not contain a valid Certificate.");
         }
 
+        /// <summary>
+        /// Resolves a stable issued-token owner from authenticated claims or validated JWT data.
+        /// </summary>
         private static string GetIssuedTokenOwner(
             IUserIdentityTokenHandler identityToken,
             IUserIdentity authenticatedIdentity)
@@ -119,6 +157,9 @@ namespace Opc.Ua.Server
                 "The authenticated IssuedIdentityToken does not expose a stable owner.");
         }
 
+        /// <summary>
+        /// Attempts to read the issued-token issuer and subject from authenticated claims.
+        /// </summary>
         private static bool TryGetClaimsOwner(
             IIdentityClaims claims,
             out string? issuer,
@@ -141,6 +182,9 @@ namespace Opc.Ua.Server
             return !string.IsNullOrEmpty(subject);
         }
 
+        /// <summary>
+        /// Attempts to read the issuer and subject from a validated JWT token payload.
+        /// </summary>
         private static bool TryGetJwtOwner(
             IssuedIdentityTokenHandler token,
             out string? issuer,
@@ -235,11 +279,17 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Combines the issued-token issuer and subject into the ClientUserId.
+        /// </summary>
         private static string GetIssuedTokenOwner(string? issuer, string subject)
         {
             return issuer == null ? subject : string.Concat(issuer, subject);
         }
 
+        /// <summary>
+        /// Decodes an unpadded Base64Url value.
+        /// </summary>
         private static byte[] Base64UrlDecode(string value)
         {
             string padded = value.Replace('-', '+').Replace('_', '/');

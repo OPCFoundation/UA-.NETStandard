@@ -40,7 +40,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// A generic session manager object for a server.
     /// </summary>
-    public class Session : ISession, IAsyncSessionActivationValidator
+    public class Session : ISession
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="Session"/> class.
@@ -1303,7 +1303,7 @@ namespace Opc.Ua.Server
                 // update diagnostics.
                 lock (DiagnosticsLock)
                 {
-                    string? clientUserId = SessionClientUserId.Get(
+                    string? clientUserId = ClientUserIdResolver.Resolve(
                         identityToken,
                         identity);
                     m_securityDiagnostics.ClientUserIdOfSession = clientUserId;

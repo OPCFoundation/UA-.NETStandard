@@ -619,7 +619,7 @@ namespace Opc.Ua.Server
                         throw new ServiceResultException(error!);
                     }
 
-                    clientUserId = SessionClientUserId.Get(
+                    clientUserId = ClientUserIdResolver.Resolve(
                         newIdentity!,
                         identity);
                     clientUserTokenType = newIdentity!.TokenType;

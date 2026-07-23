@@ -239,8 +239,31 @@ namespace Opc.Ua.Server
         bool UpdateLocaleIds(ArrayOf<string> localeIds);
 
         /// <summary>
-        /// Activates the session and binds it to the current secure channel.
+        /// Validates the application signature and user identity token before activation.
         /// </summary>
+        /// <param name="context">The operation context for the activation request.</param>
+        /// <param name="clientSignature">The client application signature.</param>
+        /// <param name="userIdentityToken">The encoded user identity token.</param>
+        /// <param name="userTokenSignature">The user token signature.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>The validated identity token handler and matching user token policy.</returns>
+        ValueTask<(
+            IUserIdentityTokenHandler IdentityToken,
+            UserTokenPolicy? UserTokenPolicy)> ValidateBeforeActivateAsync(
+            OperationContext context,
+            SignatureData clientSignature,
+            ExtensionObject userIdentityToken,
+            SignatureData userTokenSignature,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Validates the application signature and user identity token before activation.
+        /// </summary>
+        /// <remarks>
+        /// Retained for compatibility with 1.5.378 implementations. New code should use
+        /// <see cref="ValidateBeforeActivateAsync"/>.
+        /// </remarks>
+        [Obsolete("Use ValidateBeforeActivateAsync instead.")]
         void ValidateBeforeActivate(
             OperationContext context,
             SignatureData clientSignature,
@@ -258,71 +281,5 @@ namespace Opc.Ua.Server
         /// Validates the request.
         /// </summary>
         void ValidateRequest(RequestHeader requestHeader, SecureChannelContext secureChannelContext, RequestType requestType);
-    }
-
-    /// <summary>
-    /// Optional asynchronous activation validator implemented by Sessions whose
-    /// identity-token validation can require asynchronous stores or providers.
-    /// </summary>
-    public interface IAsyncSessionActivationValidator
-    {
-        /// <summary>
-        /// Validates the application signature and user identity token before activation.
-        /// </summary>
-        ValueTask<(
-            IUserIdentityTokenHandler IdentityToken,
-            UserTokenPolicy? UserTokenPolicy)> ValidateBeforeActivateAsync(
-                OperationContext context,
-                SignatureData clientSignature,
-                ExtensionObject userIdentityToken,
-                SignatureData userTokenSignature,
-                CancellationToken cancellationToken = default);
-    }
-
-    /// <summary>
-    /// Asynchronous activation validation extensions for <see cref="ISession"/>.
-    /// </summary>
-    public static class SessionActivationValidationExtensions
-    {
-        /// <summary>
-        /// Validates activation asynchronously when supported and otherwise
-        /// falls back to the compatible synchronous <see cref="ISession"/> contract.
-        /// </summary>
-        public static ValueTask<(
-            IUserIdentityTokenHandler IdentityToken,
-            UserTokenPolicy? UserTokenPolicy)> ValidateBeforeActivateAsync(
-                this ISession session,
-                OperationContext context,
-                SignatureData clientSignature,
-                ExtensionObject userIdentityToken,
-                SignatureData userTokenSignature,
-                CancellationToken cancellationToken = default)
-        {
-            if (session == null)
-            {
-                throw new ArgumentNullException(nameof(session));
-            }
-
-            if (session is IAsyncSessionActivationValidator asyncValidator)
-            {
-                return asyncValidator.ValidateBeforeActivateAsync(
-                    context,
-                    clientSignature,
-                    userIdentityToken,
-                    userTokenSignature,
-                    cancellationToken);
-            }
-
-            session.ValidateBeforeActivate(
-                context,
-                clientSignature,
-                userIdentityToken,
-                userTokenSignature,
-                out IUserIdentityTokenHandler? identityToken,
-                out UserTokenPolicy? userTokenPolicy);
-            return new ValueTask<(
-                IUserIdentityTokenHandler IdentityToken,
-                UserTokenPolicy? UserTokenPolicy)>((identityToken!, userTokenPolicy));
-        }
     }
 }

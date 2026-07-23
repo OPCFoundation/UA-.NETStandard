@@ -256,7 +256,7 @@ namespace Opc.Ua.Server
             m_ownerUserTokenType = m_savedOwnerIdentity?.TokenType ?? UserTokenType.Anonymous;
             if (m_savedOwnerIdentity != null)
             {
-                SessionClientUserId.TryGet(
+                ClientUserIdResolver.TryResolve(
                     m_savedOwnerIdentity.TokenHandler,
                     m_savedOwnerIdentity,
                     out m_ownerClientUserId);
@@ -697,7 +697,8 @@ namespace Opc.Ua.Server
             }
         }
 
-        internal bool IsTransferIdentityCompatible(ISession targetSession)
+        /// <inheritdoc/>
+        public bool IsTransferIdentityCompatible(ISession targetSession)
         {
             if (targetSession == null)
             {
@@ -718,7 +719,7 @@ namespace Opc.Ua.Server
             }
 
             return m_ownerClientUserId != null &&
-                SessionClientUserId.TryGet(
+                ClientUserIdResolver.TryResolve(
                     targetSession.IdentityToken,
                     targetSession.Identity,
                     out string? targetClientUserId) &&
@@ -795,7 +796,7 @@ namespace Opc.Ua.Server
         private void UpdateOwnerIdentity(ISession session)
         {
             m_ownerUserTokenType = session.IdentityToken.TokenType;
-            SessionClientUserId.TryGet(
+            ClientUserIdResolver.TryResolve(
                 session.IdentityToken,
                 session.Identity,
                 out m_ownerClientUserId);

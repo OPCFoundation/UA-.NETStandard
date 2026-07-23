@@ -1411,9 +1411,7 @@ namespace Opc.Ua.Server
                     // Validate that the old and new Sessions represent the same
                     // ClientUserId. Issued tokens may be refreshed while preserving
                     // the authenticated owner, so raw token equality is not sufficient.
-                    bool validIdentity = subscription is Subscription concreteSubscription
-                        ? concreteSubscription.IsTransferIdentityCompatible(context.Session)
-                        : IsTransferIdentityCompatible(subscription, context.Session);
+                    bool validIdentity = subscription.IsTransferIdentityCompatible(context.Session);
 
                     // Test if anonymous user is using a secure session using Sign or SignAndEncrypt
                     if (validIdentity &&
@@ -1616,55 +1614,6 @@ namespace Opc.Ua.Server
                 Results = results,
                 DiagnosticInfos = diagnosticInfos
             };
-        }
-
-        private static bool IsTransferIdentityCompatible(
-            ISubscription subscription,
-            ISession targetSession)
-        {
-            ISession? ownerSession = subscription.Session;
-            IUserIdentity sourceIdentity = ownerSession?.Identity ??
-                subscription.EffectiveIdentity;
-            IUserIdentityTokenHandler sourceToken = ownerSession?.IdentityToken ??
-                sourceIdentity.TokenHandler;
-            UserTokenType sourceTokenType = sourceToken.TokenType;
-            UserTokenType targetTokenType = targetSession.IdentityToken.TokenType;
-
-            if (sourceTokenType == UserTokenType.Anonymous ||
-                targetTokenType == UserTokenType.Anonymous)
-            {
-                if (sourceTokenType != UserTokenType.Anonymous ||
-                    targetTokenType != UserTokenType.Anonymous ||
-                    ownerSession == null)
-                {
-                    return false;
-                }
-
-                string? sourceApplicationUri =
-                    ownerSession.SessionDiagnostics.ClientDescription.ApplicationUri;
-                string? targetApplicationUri =
-                    targetSession.SessionDiagnostics.ClientDescription.ApplicationUri;
-                return !string.IsNullOrEmpty(sourceApplicationUri) &&
-                    string.Equals(
-                        sourceApplicationUri,
-                        targetApplicationUri,
-                        StringComparison.Ordinal);
-            }
-
-            return SessionClientUserId.TryGet(
-                    sourceToken,
-                    sourceIdentity,
-                    out string? sourceClientUserId) &&
-                sourceClientUserId != null &&
-                SessionClientUserId.TryGet(
-                    targetSession.IdentityToken,
-                    targetSession.Identity,
-                    out string? targetClientUserId) &&
-                targetClientUserId != null &&
-                string.Equals(
-                    sourceClientUserId,
-                    targetClientUserId,
-                    StringComparison.Ordinal);
         }
 
         /// <summary>

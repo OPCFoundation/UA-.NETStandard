@@ -5503,7 +5503,9 @@ namespace Opc.Ua.Client
         private byte[]? m_clientNonce;
         private ByteString m_serverNonce;
         private ByteString m_previousServerNonce;
-        // OPC 10000-4 §5.7.3.1 forbids reuse of any once-used server nonce, so retain the full Session history.
+        // OPC 10000-4 §5.7.3.1 forbids reuse of any once-used server nonce, so retain the full
+        // Session history. This state is owned by the Session and released when it is disposed;
+        // bounding or evicting entries would allow non-consecutive nonce reuse to go undetected.
         private readonly HashSet<ByteString> m_serverNonceHistory = [];
         private ByteString m_sessionClientCertificate;
 #pragma warning disable CA2213 // Disposed in Dispose method (m_serverCertificate?.Dispose() in cleanup path)
