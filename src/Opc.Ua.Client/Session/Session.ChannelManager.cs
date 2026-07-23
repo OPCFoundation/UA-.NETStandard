@@ -171,6 +171,15 @@ namespace Opc.Ua.Client
             }
         }
 
+        /// <summary>
+        /// Determines whether the Session must be recreated rather than
+        /// reactivated on the new channel because an Anonymous identity is used
+        /// with a Sign-only SecureChannel. OPC 10000-4 §5.7.3.1 states: "If an
+        /// Anonymous UserIdentityToken is used, then ActivateSession over a new
+        /// SecureChannel shall fail if the SecureChannel is using Sign." The
+        /// Session therefore cannot be transferred to the new channel and must be
+        /// recreated with a fresh CreateSession/ActivateSession exchange.
+        /// </summary>
         private bool RequiresAnonymousSignSessionRecreation()
         {
             return (m_identity?.TokenType ?? UserTokenType.Anonymous) == UserTokenType.Anonymous &&
@@ -190,6 +199,13 @@ namespace Opc.Ua.Client
                 sessionClientCertificate = m_sessionClientCertificate;
             }
 
+            // A client certificate on the new channel that differs from the one
+            // bound to the Session means the ApplicationInstanceCertificate was
+            // rotated. OPC 10000-4 §5.7.3.1 requires the Server to verify that the
+            // Certificate used to create the new SecureChannel is the same as the
+            // one used for the original SecureChannel; a rotated certificate would
+            // make ActivateSession transfer fail (Bad_SecurityChecksFailed), so the
+            // Session must be recreated instead of reactivated.
             byte[] channelClientCertificate = channel.ClientChannelCertificate;
             return !sessionClientCertificate.IsEmpty &&
                 channelClientCertificate is { Length: > 0 } &&

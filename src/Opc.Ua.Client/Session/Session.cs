@@ -385,6 +385,11 @@ namespace Opc.Ua.Client
                 return;
             }
 
+            // OPC 10000-4 §5.7.2.2 (Table 15) requires the nonce to have a length
+            // between 32 and 128 bytes inclusive, independent of the SecurityPolicy
+            // and of the Client's own configured NonceLength. Enforce that fixed
+            // spec range and reject all-zero nonces here rather than validating the
+            // Server nonce against the Client's local NonceLength.
             if (serverNonce.IsNull ||
                 serverNonce.Length < 32 ||
                 serverNonce.Length > 128 ||
@@ -1426,6 +1431,14 @@ namespace Opc.Ua.Client
                     m_clientNonce,
                     serverNonce);
 
+                // The nonce returned by CreateSession belongs to a brand-new
+                // server-side Session, so it is validated as a new nonce
+                // (isNewNonce defaults to true) and recorded in the reuse history.
+                // The lifetime history is only pre-seeded with the current nonce by
+                // Restore(); that seeded nonce is re-checked exclusively through the
+                // reactivation/reconnect paths, which pass isNewNonce:false and so
+                // never raise a false Bad_NonceInvalid for the nonce being reused as
+                // the activation signature input.
                 ValidateServerNonce(
                     serverNonce,
                     m_serverNonce,
