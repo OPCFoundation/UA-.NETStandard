@@ -74,7 +74,8 @@ namespace Opc.Ua.Client.Subscriptions
             m_loggerFactory = loggerFactory;
             m_logger = loggerFactory.CreateLogger<SubscriptionManager>();
             ReturnDiagnostics = returnDiagnostics;
-            m_publishController = PublishControllerAsync(m_cts.Token);
+            m_disposeToken = m_cts.Token;
+            m_publishController = PublishControllerAsync(m_disposeToken);
             m_acks = Channel.CreateUnboundedPrioritized(
                 new UnboundedPrioritizedChannelOptions<SubscriptionAcknowledgement>
                 {
@@ -249,11 +250,14 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 return;
             }
+            bool quiescenceAcquired = false;
             try
             {
                 await m_cts.CancelAsync().ConfigureAwait(false);
                 m_publishControl.Set();
                 await m_publishController.ConfigureAwait(false);
+                await m_publishQuiescenceGate.WaitAsync().ConfigureAwait(false);
+                quiescenceAcquired = true;
 
                 List<LogicalSubscription>? logicals;
                 List<IManagedSubscription>? orphans;
@@ -300,6 +304,12 @@ namespace Opc.Ua.Client.Subscriptions
             }
             finally
             {
+                if (!quiescenceAcquired)
+                {
+                    await m_publishQuiescenceGate.WaitAsync().ConfigureAwait(false);
+                }
+                m_publishQuiescenceGate.Release();
+                m_publishQuiescenceGate.Dispose();
                 m_cts.Dispose();
                 (m_acks as IDisposable)?.Dispose();
                 GC.SuppressFinalize(this);
@@ -322,20 +332,56 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <inheritdoc/>
+        public async ValueTask RunWithPublishingQuiescedAsync(
+            Func<CancellationToken, ValueTask> operation,
+            CancellationToken ct)
+        {
+            if (operation == null)
+            {
+                throw new ArgumentNullException(nameof(operation));
+            }
+            if (Volatile.Read(ref m_disposed) != 0)
+            {
+                throw new ObjectDisposedException(nameof(SubscriptionManager));
+            }
+
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(
+                ct, m_disposeToken);
+            CancellationToken linkedToken = linked.Token;
+            await m_publishQuiescenceGate.WaitAsync(linkedToken)
+                .ConfigureAwait(false);
+            try
+            {
+                if (Volatile.Read(ref m_disposed) != 0)
+                {
+                    throw new ObjectDisposedException(nameof(SubscriptionManager));
+                }
+                SetPublishingQuiesced(true);
+                try
+                {
+                    await DrainAsync(linkedToken).ConfigureAwait(false);
+                    await operation(linkedToken).ConfigureAwait(false);
+                }
+                finally
+                {
+                    SetPublishingQuiesced(false);
+                }
+            }
+            finally
+            {
+                m_publishQuiescenceGate.Release();
+            }
+        }
+
+        /// <inheritdoc/>
         public int DropPendingForSubscription(uint subscriptionId)
         {
             // Drain the prioritised channel into a local buffer,
             // keeping only the acks that do not target the dead
             // subscription id, then re-publish the kept items.
-            // Concurrent workers may interleave reads or writes
-            // during this loop; that is intentional — a worker
-            // racing in is acceptable because (a) any ack it reads
-            // would have been sent to the server anyway, (b) any
-            // ack it writes is queued back into the channel. The
-            // contract is "no targeted acks remain when this
-            // method returns" — callers must invoke it BEFORE
-            // recreate assigns a fresh subscription id so a new
-            // generation cannot enter the queue.
+            // Recreate callers invoke this while publish ingress is
+            // quiesced, so no worker can remove or requeue an old
+            // acknowledgement while the generation changes.
             var keep = new List<SubscriptionAcknowledgement>();
             int dropped = 0;
             while (m_acks.Reader.TryRead(out SubscriptionAcknowledgement? ack))
@@ -1064,14 +1110,7 @@ namespace Opc.Ua.Client.Subscriptions
         /// </summary>
         internal void Resume()
         {
-            lock (m_subscriptionLock)
-            {
-                foreach (IManagedSubscription item in m_subscriptions)
-                {
-                    item.NotifySubscriptionManagerPaused(false);
-                }
-            }
-            m_running.Set();
+            SetPublishingRequested(true);
         }
 
         /// <summary>
@@ -1079,14 +1118,68 @@ namespace Opc.Ua.Client.Subscriptions
         /// </summary>
         internal void Pause()
         {
+            SetPublishingRequested(false);
+        }
+
+        private void SetPublishingRequested(bool requested)
+        {
+            bool? paused;
+            lock (m_publishStateLock)
+            {
+                m_publishingRequested = requested;
+                paused = UpdatePublishingState();
+            }
+            if (paused.HasValue)
+            {
+                NotifySubscriptionsPaused(paused.Value);
+            }
+        }
+
+        private void SetPublishingQuiesced(bool quiesced)
+        {
+            bool? paused;
+            lock (m_publishStateLock)
+            {
+                m_publishingQuiesced = quiesced;
+                paused = UpdatePublishingState();
+            }
+            if (paused.HasValue)
+            {
+                NotifySubscriptionsPaused(paused.Value);
+            }
+        }
+
+        private bool? UpdatePublishingState()
+        {
+            bool shouldRun = m_publishingRequested &&
+                !m_publishingQuiesced &&
+                Volatile.Read(ref m_disposed) == 0;
+            if (m_running.IsSet == shouldRun)
+            {
+                return null;
+            }
+            if (shouldRun)
+            {
+                m_publishingPaused.Reset();
+                m_running.Set();
+            }
+            else
+            {
+                m_running.Reset();
+                m_publishingPaused.Set();
+            }
+            return !shouldRun;
+        }
+
+        private void NotifySubscriptionsPaused(bool paused)
+        {
             lock (m_subscriptionLock)
             {
                 foreach (IManagedSubscription item in m_subscriptions)
                 {
-                    item.NotifySubscriptionManagerPaused(true);
+                    item.NotifySubscriptionManagerPaused(paused);
                 }
             }
-            m_running.Reset();
         }
 
         /// <summary>
@@ -1107,6 +1200,33 @@ namespace Opc.Ua.Client.Subscriptions
             return m_drainSignal.WaitAsync(ct);
         }
 
+        private bool TryBeginPublishRequest()
+        {
+            lock (m_publishStateLock)
+            {
+                if (!m_running.IsSet || Volatile.Read(ref m_disposed) != 0)
+                {
+                    return false;
+                }
+                if (++m_activePublishRequests == 1)
+                {
+                    m_drainSignal.Reset();
+                }
+                return true;
+            }
+        }
+
+        private void EndPublishRequest()
+        {
+            lock (m_publishStateLock)
+            {
+                if (--m_activePublishRequests == 0)
+                {
+                    m_drainSignal.Set();
+                }
+            }
+        }
+
         /// <summary>
         /// Recreate subscriptions
         /// </summary>
@@ -1123,7 +1243,11 @@ namespace Opc.Ua.Client.Subscriptions
                 return;
             }
 
-            IReadOnlyList<IManagedSubscription> subscriptions = [.. m_subscriptions];
+            IReadOnlyList<IManagedSubscription> subscriptions;
+            lock (m_subscriptionLock)
+            {
+                subscriptions = [.. m_subscriptions];
+            }
             if (TransferSubscriptionsOnRecreate && previousSessionId != null)
             {
                 subscriptions = await TransferSubscriptionsAsync(subscriptions,
@@ -1132,7 +1256,6 @@ namespace Opc.Ua.Client.Subscriptions
             // Force creation of the subscriptions which were not transferred.
             foreach (IManagedSubscription subscription in subscriptions)
             {
-                bool force = previousSessionId != null && subscription.Created;
                 await subscription.RecreateAsync(ct).ConfigureAwait(false);
             }
             m_publishControl.Set();
@@ -1446,81 +1569,84 @@ namespace Opc.Ua.Client.Subscriptions
                         : (long)publishLatency.TotalMilliseconds;
                     int ackWaitTimeout = CalculateTimeouts(
                         currentLatencyMs, ref timeoutHint);
-                    ArrayOf<SubscriptionAcknowledgement> acks = GetAcksReadyToSend();
-                    uint handle = Utils.IncrementIdentifier(ref m_outer.m_publishRequestCounter);
+                    if (!m_outer.TryBeginPublishRequest())
+                    {
+                        continue;
+                    }
+                    ArrayOf<SubscriptionAcknowledgement> acks = [];
+                    uint handle = 0;
+                    bool publishActive = true;
                     try
                     {
+                        acks = GetAcksReadyToSend();
+                        handle = Utils.IncrementIdentifier(
+                            ref m_outer.m_publishRequestCounter);
                         if (acks.Count == 0 && !moreNotifications && ackWaitTimeout != 0)
                         {
                             // Throttle publishing as we wait for acks to arrive
                             acks = await WaitForAcksAsync(ackWaitTimeout, ct).ConfigureAwait(false);
                         }
+                        if (!m_outer.m_running.IsSet)
+                        {
+                            acks.ForEach(ack => m_outer.m_acks.Writer.TryWrite(ack));
+                            continue;
+                        }
                         publishLatencyStart = m_outer.m_timeProvider.GetTimestamp();
                         publishLatencyRunning = true;
-                        if (Interlocked.Increment(ref m_outer.m_activePublishRequests) == 1)
-                        {
-                            m_outer.m_drainSignal.Reset();
-                        }
-                        try
-                        {
-                            PublishResponse response = await m_outer.m_session.PublishAsync(new RequestHeader
+                        PublishResponse response = await m_outer.m_session.PublishAsync(
+                            new RequestHeader
                             {
                                 TimeoutHint = timeoutHint,
                                 ReturnDiagnostics = (uint)(int)m_outer.ReturnDiagnostics,
                                 RequestHandle = handle
                             }, acks, ct).ConfigureAwait(false);
 
-                            moreNotifications = response.MoreNotifications;
-                            uint subscriptionId = response.SubscriptionId;
-                            NotificationMessage notificationMessage = response.NotificationMessage;
-                            ArrayOf<uint> availableSequenceNumbers = response.AvailableSequenceNumbers;
+                        moreNotifications = response.MoreNotifications;
+                        uint subscriptionId = response.SubscriptionId;
+                        NotificationMessage notificationMessage = response.NotificationMessage;
+                        ArrayOf<uint> availableSequenceNumbers =
+                            response.AvailableSequenceNumbers;
 
-                            ArrayOf<StatusCode> acknowledgeResults = response.Results;
-                            ArrayOf<DiagnosticInfo> acknowledgeDiagnosticInfos = response.DiagnosticInfos;
-                            ClientBase.ValidateResponse(acknowledgeResults, acks);
-                            ClientBase.ValidateDiagnosticInfos(acknowledgeDiagnosticInfos, acks);
-                            TooManyPublishRequests = false;
+                        ArrayOf<StatusCode> acknowledgeResults = response.Results;
+                        ArrayOf<DiagnosticInfo> acknowledgeDiagnosticInfos =
+                            response.DiagnosticInfos;
+                        ClientBase.ValidateResponse(acknowledgeResults, acks);
+                        ClientBase.ValidateDiagnosticInfos(acknowledgeDiagnosticInfos, acks);
+                        TooManyPublishRequests = false;
 
-                            // A publish completed, so the channel is healthy:
-                            // clear the consecutive-error backoff state.
-                            m_consecutivePublishErrors = 0;
-                            m_lastLoggedErrorStatus = default;
+                        // A publish completed, so the channel is healthy:
+                        // clear the consecutive-error backoff state.
+                        m_consecutivePublishErrors = 0;
+                        m_lastLoggedErrorStatus = default;
 
-                            // Get the subscription with the provided identifier
-                            IManagedSubscription? subscription = m_outer.GetById(subscriptionId);
-                            publishLatency = m_outer.m_timeProvider.GetElapsedTime(publishLatencyStart);
-                            publishLatencyRunning = false;
-                            if (subscription != null)
-                            {
-                                // deliver to subscription
-                                await subscription.OnPublishReceivedAsync(
-                                    notificationMessage,
-                                    availableSequenceNumbers.ToList(),
-                                    response.ResponseHeader.StringTable.ToList()).ConfigureAwait(false);
-                                Interlocked.Increment(ref m_outer.m_goodPublishRequestCount);
-                            }
-                            else if (!ct.IsCancellationRequested &&
-                                !m_outer.m_subscriptionHistory.Contains(subscriptionId))
-                            {
-                                // ignore messages with a subscription that was deleted
-                                // Do not delete publish requests of stale subscriptions
-                                m_logger.PublishWorkerReceivedUnknownSubscription(
-                                    Index, handle, subscriptionId);
-                                Interlocked.Increment(ref m_outer.m_badPublishRequestCount);
-                                await m_outer.m_session.DeleteSubscriptionsAsync(
-                                    null,
-                                    [subscriptionId],
-                                    ct).ConfigureAwait(false);
-                                moreNotifications = true;
-                            }
-                        }
-                        finally
+                        // Get the subscription with the provided identifier
+                        IManagedSubscription? subscription = m_outer.GetById(subscriptionId);
+                        publishLatency = m_outer.m_timeProvider.GetElapsedTime(
+                            publishLatencyStart);
+                        publishLatencyRunning = false;
+                        if (subscription != null)
                         {
-                            int active = Interlocked.Decrement(ref m_outer.m_activePublishRequests);
-                            if (active == 0)
-                            {
-                                m_outer.m_drainSignal.Set();
-                            }
+                            // deliver to subscription
+                            await subscription.OnPublishReceivedAsync(
+                                notificationMessage,
+                                availableSequenceNumbers.ToList(),
+                                response.ResponseHeader.StringTable.ToList())
+                                .ConfigureAwait(false);
+                            Interlocked.Increment(ref m_outer.m_goodPublishRequestCount);
+                        }
+                        else if (!ct.IsCancellationRequested &&
+                            !m_outer.m_subscriptionHistory.Contains(subscriptionId))
+                        {
+                            // ignore messages with a subscription that was deleted
+                            // Do not delete publish requests of stale subscriptions
+                            m_logger.PublishWorkerReceivedUnknownSubscription(
+                                Index, handle, subscriptionId);
+                            Interlocked.Increment(ref m_outer.m_badPublishRequestCount);
+                            await m_outer.m_session.DeleteSubscriptionsAsync(
+                                null,
+                                [subscriptionId],
+                                ct).ConfigureAwait(false);
+                            moreNotifications = true;
                         }
                     }
                     catch (OperationCanceledException)
@@ -1543,6 +1669,8 @@ namespace Opc.Ua.Client.Subscriptions
                         Interlocked.Increment(ref m_outer.m_badPublishRequestCount);
                         // Rollback acks we collected
                         acks.ForEach(ack => m_outer.m_acks.Writer.TryWrite(ack));
+                        m_outer.EndPublishRequest();
+                        publishActive = false;
 
                         // ignore errors if paused.
                         if (!m_outer.m_running.IsSet)
@@ -1637,6 +1765,13 @@ namespace Opc.Ua.Client.Subscriptions
                             break;
                         }
                     }
+                    finally
+                    {
+                        if (publishActive)
+                        {
+                            m_outer.EndPublishRequest();
+                        }
+                    }
                 }
                 m_logger.PublishWorkerStopped(Index);
             }
@@ -1681,8 +1816,40 @@ namespace Opc.Ua.Client.Subscriptions
                 }
                 try
                 {
-                    SubscriptionAcknowledgement firstAck = await m_outer.m_acks.Reader.ReadAsync(
-                        waitToken).ConfigureAwait(false);
+                    using var pauseCts =
+                        CancellationTokenSource.CreateLinkedTokenSource(waitToken);
+                    Task<SubscriptionAcknowledgement> readTask = m_outer.m_acks.Reader
+                        .ReadAsync(pauseCts.Token).AsTask();
+                    Task pausedTask = m_outer.m_publishingPaused
+                        .WaitAsync(pauseCts.Token);
+                    Task completed = await Task.WhenAny(readTask, pausedTask)
+                        .ConfigureAwait(false);
+                    if (ReferenceEquals(completed, pausedTask))
+                    {
+                        await pausedTask.ConfigureAwait(false);
+                        await pauseCts.CancelAsync().ConfigureAwait(false);
+                        try
+                        {
+                            SubscriptionAcknowledgement acknowledgement =
+                                await readTask.ConfigureAwait(false);
+                            m_outer.m_acks.Writer.TryWrite(acknowledgement);
+                        }
+                        catch (OperationCanceledException)
+                        {
+                        }
+                        return [];
+                    }
+
+                    SubscriptionAcknowledgement firstAck =
+                        await readTask.ConfigureAwait(false);
+                    await pauseCts.CancelAsync().ConfigureAwait(false);
+                    try
+                    {
+                        await pausedTask.ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                    }
                     ArrayOf<SubscriptionAcknowledgement> restAcks = GetAcksReadyToSend();
                     var ackList = restAcks.ToList();
                     ackList.Insert(0, firstAck);
@@ -1817,10 +1984,16 @@ namespace Opc.Ua.Client.Subscriptions
 #pragma warning restore IDE0032 // Use auto property
         private readonly Channel<SubscriptionAcknowledgement> m_acks;
         private readonly AsyncManualResetEvent m_running = new();
+        private readonly AsyncManualResetEvent m_publishingPaused = new(true);
         private readonly AsyncAutoResetEvent m_publishControl = new();
         private readonly AsyncManualResetEvent m_drainSignal = new(true);
+        private readonly SemaphoreSlim m_publishQuiescenceGate = new(1, 1);
+        private readonly Lock m_publishStateLock = new();
+        private readonly CancellationToken m_disposeToken;
         private int m_activePublishRequests;
         private int m_disposed;
+        private bool m_publishingRequested;
+        private bool m_publishingQuiesced;
         private readonly ConcurrentQueue<uint> m_subscriptionHistory = new();
         private readonly Task m_publishController;
         private readonly Lock m_subscriptionLock = new();

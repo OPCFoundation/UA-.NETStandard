@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -776,6 +778,67 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         [Test]
+        public async Task RecreateAsyncFromNotificationCallbackShouldFailFastAsync()
+        {
+            var observed = new TaskCompletionSource<Exception>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 10);
+            await using (sut.ConfigureAwait(false))
+            {
+                sut.OnKeepAliveAsync = async () =>
+                {
+                    try
+                    {
+                        await sut.RecreateAsync(default).ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        observed.TrySetResult(ex);
+                    }
+                };
+
+                await sut.OnPublishReceivedAsync(BuildKeepAliveMessage(1), null, [])
+                    .ConfigureAwait(false);
+                Exception exception = await observed.Task
+                    .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+
+                Assert.That(exception, Is.TypeOf<InvalidOperationException>());
+                Assert.That(m_completion.PublishingQuiescenceCalls, Is.Zero);
+            }
+        }
+
+        [Test]
+        public async Task DisposeAsyncFromNotificationCallbackShouldFailFastAsync()
+        {
+            var observed = new TaskCompletionSource<Exception>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 10);
+            await using (sut.ConfigureAwait(false))
+            {
+                sut.OnKeepAliveAsync = async () =>
+                {
+                    try
+                    {
+                        await sut.DisposeAsync().ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        observed.TrySetResult(ex);
+                    }
+                };
+
+                await sut.OnPublishReceivedAsync(BuildKeepAliveMessage(1), null, [])
+                    .ConfigureAwait(false);
+                Exception exception = await observed.Task
+                    .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+
+                Assert.That(exception, Is.TypeOf<InvalidOperationException>());
+            }
+        }
+
+        [Test]
         public async Task RecreateAsyncShouldReCreateSubscriptionAndMonitoredItemsAsync()
         {
             // Arrange
@@ -790,6 +853,16 @@ namespace Opc.Ua.Client.Subscriptions
 
                 // We have a running subscription with one monitored item.
 
+                m_mockSubscriptionServices
+                    .Setup(s => s.DeleteSubscriptionsAsync(
+                        It.IsAny<RequestHeader>(),
+                        It.Is<ArrayOf<uint>>(a => a.Count == 1 && a[0] == 10u),
+                        It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(new DeleteSubscriptionsResponse
+                    {
+                        Results = [StatusCodes.Good]
+                    })
+                    .Verifiable(Times.Once);
                 m_mockSubscriptionServices
                     .Setup(s => s.CreateSubscriptionAsync(It.IsAny<RequestHeader>(),
                         TimeSpan.FromSeconds(100).TotalMilliseconds, 21, 7, 10, false,
@@ -822,6 +895,7 @@ namespace Opc.Ua.Client.Subscriptions
                     .Verifiable(Times.Once);
 
                 Assert.That(sut.Created, Is.True);
+                sut.SetMessageStateForTest(17, 19, [11, 13]);
 
                 // Act
                 await sut.RecreateAsync(default).ConfigureAwait(false);
@@ -835,6 +909,10 @@ namespace Opc.Ua.Client.Subscriptions
                 Assert.That(sut.CurrentPriority, Is.EqualTo(3));
                 Assert.That(sut.Id, Is.EqualTo(22));
                 Assert.That(monitoredItem.ServerId, Is.EqualTo(200));
+                Assert.That(sut.LastSequenceNumberForTest, Is.Zero);
+                Assert.That(sut.LastDataSequenceNumberForTest, Is.Zero);
+                Assert.That(sut.AvailableSequenceNumbersForTest, Is.Empty);
+                Assert.That(m_completion.PublishingQuiescenceCalls, Is.EqualTo(1));
                 // m_mockSession.Verify() was no-op (no Verifiable setups on the context); inner-mock verifications retained.
             }
         }
@@ -853,6 +931,16 @@ namespace Opc.Ua.Client.Subscriptions
                 Assert.That(monitoredItem, Is.Not.Null);
                 Assert.That(success, Is.True);
 
+                m_mockSubscriptionServices
+                    .Setup(s => s.DeleteSubscriptionsAsync(
+                        It.IsAny<RequestHeader>(),
+                        It.Is<ArrayOf<uint>>(a => a.Count == 1 && a[0] == 10u),
+                        It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(new DeleteSubscriptionsResponse
+                    {
+                        Results = [StatusCodes.Good]
+                    })
+                    .Verifiable(Times.Once);
                 m_mockSubscriptionServices
                     .Setup(s => s.CreateSubscriptionAsync(It.IsAny<RequestHeader>(),
                         TimeSpan.FromSeconds(100).TotalMilliseconds, 21, 7, 10, false,
@@ -900,6 +988,235 @@ namespace Opc.Ua.Client.Subscriptions
                 Assert.That(sut.MonitoredItems.Count, Is.EqualTo(1));
                 Assert.That(monitoredItem.ServerId, Is.EqualTo(200));
                 // m_mockSession.Verify() was no-op (no Verifiable setups on the context); inner-mock verifications retained.
+            }
+        }
+
+        [Test]
+        public async Task RecreateAsyncShouldPreserveCurrentGenerationWhenDeleteFailsAsync()
+        {
+            m_mockSubscriptionServices
+                .Setup(s => s.DeleteSubscriptionsAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.Is<ArrayOf<uint>>(a => a.Count == 1 && a[0] == 10u),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new DeleteSubscriptionsResponse
+                {
+                    Results = [StatusCodes.BadUserAccessDenied]
+                });
+
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 10);
+            await using (sut.ConfigureAwait(false))
+            {
+                sut.SetMessageStateForTest(17, 19, [11, 13]);
+
+                ServiceResultException exception =
+                    Assert.ThrowsAsync<ServiceResultException>(async () =>
+                        await sut.RecreateAsync(default).ConfigureAwait(false));
+
+                Assert.That(exception.StatusCode,
+                    Is.EqualTo(StatusCodes.BadUserAccessDenied));
+                Assert.That(sut.Id, Is.EqualTo(10u));
+                Assert.That(sut.Created, Is.True);
+                Assert.That(sut.LastSequenceNumberForTest, Is.EqualTo(17u));
+                Assert.That(sut.LastDataSequenceNumberForTest, Is.EqualTo(19u));
+                Assert.That(sut.AvailableSequenceNumbersForTest,
+                    Is.EqualTo(new uint[] { 11, 13 }));
+                Assert.That(m_completion.DroppedSubscriptions,
+                    Does.Not.Contain(10u));
+                Assert.That(m_completion.PublishingQuiescenceCalls, Is.EqualTo(1));
+                m_mockSubscriptionServices.Verify(s =>
+                    s.CreateSubscriptionAsync(It.IsAny<RequestHeader>(),
+                        It.IsAny<double>(), It.IsAny<uint>(), It.IsAny<uint>(),
+                        It.IsAny<uint>(), It.IsAny<bool>(), It.IsAny<byte>(),
+                        It.IsAny<CancellationToken>()),
+                    Times.Never);
+            }
+        }
+
+        [Test]
+        public async Task RecreateAsyncShouldDiscardQueuedBurstFromRetiredGenerationAsync()
+        {
+            var deleteEntered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var continueDelete = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            m_mockSubscriptionServices
+                .Setup(s => s.DeleteSubscriptionsAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.Is<ArrayOf<uint>>(a => a.Count == 1 && a[0] == 10u),
+                    It.IsAny<CancellationToken>()))
+                .Returns(async (RequestHeader _, ArrayOf<uint> _,
+                    CancellationToken _) =>
+                {
+                    deleteEntered.TrySetResult(true);
+                    await continueDelete.Task.ConfigureAwait(false);
+                    return new DeleteSubscriptionsResponse
+                    {
+                        Results = [StatusCodes.Good]
+                    };
+                });
+            m_mockSubscriptionServices
+                .Setup(s => s.CreateSubscriptionAsync(It.IsAny<RequestHeader>(),
+                    TimeSpan.FromSeconds(100).TotalMilliseconds, 21, 7, 10, false,
+                    3, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new CreateSubscriptionResponse
+                {
+                    SubscriptionId = 22,
+                    RevisedLifetimeCount = 10,
+                    RevisedMaxKeepAliveCount = 5,
+                    RevisedPublishingInterval = 10000
+                });
+
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 10);
+            await using (sut.ConfigureAwait(false))
+            {
+                Task recreate = sut.RecreateAsync(default).AsTask();
+                await deleteEntered.Task.WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false);
+
+                for (uint sequenceNumber = 1; sequenceNumber <= 1024; sequenceNumber++)
+                {
+                    await sut.OnPublishReceivedAsync(
+                        BuildKeepAliveMessage(sequenceNumber), null, [])
+                        .ConfigureAwait(false);
+                }
+                continueDelete.TrySetResult(true);
+                await recreate.WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false);
+
+                for (uint sequenceNumber = 1; sequenceNumber <= 3; sequenceNumber++)
+                {
+                    await sut.OnPublishReceivedAsync(
+                        BuildKeepAliveMessage(sequenceNumber), null, [])
+                        .ConfigureAwait(false);
+                }
+                await WaitForAsync(() => sut.KeepAliveNotificationCount == 3,
+                    TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                await Task.Delay(100).ConfigureAwait(false);
+
+                Assert.That(sut.KeepAliveNotificationCount, Is.EqualTo(3));
+                Assert.That(sut.KeepAliveSequenceNumbers,
+                    Is.EqualTo(new uint[] { 1, 2, 3 }));
+            }
+        }
+
+        [Test]
+        public async Task DisposeAsyncShouldWaitForActiveRecreateAsync()
+        {
+            var deleteEntered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var continueDelete = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            m_mockSubscriptionServices
+                .Setup(s => s.DeleteSubscriptionsAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ArrayOf<uint>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(async (RequestHeader _, ArrayOf<uint> ids,
+                    CancellationToken _) =>
+                {
+                    if (ids[0] == 10u)
+                    {
+                        deleteEntered.TrySetResult(true);
+                        await continueDelete.Task.ConfigureAwait(false);
+                    }
+                    return new DeleteSubscriptionsResponse
+                    {
+                        Results = [StatusCodes.Good]
+                    };
+                });
+            m_mockSubscriptionServices
+                .Setup(s => s.CreateSubscriptionAsync(It.IsAny<RequestHeader>(),
+                    TimeSpan.FromSeconds(100).TotalMilliseconds, 21, 7, 10, false,
+                    3, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new CreateSubscriptionResponse
+                {
+                    SubscriptionId = 22,
+                    RevisedLifetimeCount = 10,
+                    RevisedMaxKeepAliveCount = 5,
+                    RevisedPublishingInterval = 10000
+                });
+
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 10);
+            Task recreate = sut.RecreateAsync(default).AsTask();
+            await deleteEntered.Task.WaitAsync(TimeSpan.FromSeconds(5))
+                .ConfigureAwait(false);
+
+            Task dispose = sut.DisposeAsync().AsTask();
+            await Task.Delay(100).ConfigureAwait(false);
+            Assert.That(dispose.IsCompleted, Is.False);
+
+            continueDelete.TrySetResult(true);
+            await recreate.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            await dispose.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task RecreateAsyncShouldRunAfterCreateHookBeforeMonitoredItemsOnEveryCreateAsync()
+        {
+            var order = new List<string>();
+            m_mockSubscriptionServices
+                .Setup(s => s.DeleteSubscriptionsAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ArrayOf<uint>>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new DeleteSubscriptionsResponse
+                {
+                    Results = [StatusCodes.Good]
+                });
+            m_mockSubscriptionServices
+                .Setup(s => s.CreateSubscriptionAsync(It.IsAny<RequestHeader>(),
+                    TimeSpan.FromSeconds(100).TotalMilliseconds, 21, 7, 10, false,
+                    3, It.IsAny<CancellationToken>()))
+                .Callback(() => order.Add("subscription"))
+                .ReturnsAsync(new CreateSubscriptionResponse
+                {
+                    SubscriptionId = 22,
+                    RevisedLifetimeCount = 10,
+                    RevisedMaxKeepAliveCount = 5,
+                    RevisedPublishingInterval = 10000
+                });
+            m_mockMonitoredItemServices
+                .Setup(s => s.CreateMonitoredItemsAsync(It.IsAny<RequestHeader>(), 22,
+                    TimestampsToReturn.Both,
+                    It.IsAny<ArrayOf<MonitoredItemCreateRequest>>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback(() => order.Add("items"))
+                .ReturnsAsync(new CreateMonitoredItemsResponse
+                {
+                    Results =
+                    [
+                        new ()
+                        {
+                            StatusCode = StatusCodes.Good,
+                            MonitoredItemId = 200,
+                            RevisedSamplingInterval = 10000,
+                            RevisedQueueSize = 10
+                        }
+                    ]
+                });
+
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 10);
+            await using (sut.ConfigureAwait(false))
+            {
+                OptionsMonitor<MonitoredItems.MonitoredItemOptions> options =
+                    OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
+                Assert.That(sut.MonitoredItems.TryAdd("Test", options, out _), Is.True);
+                sut.OnAfterCreateAsync = _ =>
+                {
+                    order.Add("durable");
+                    return default;
+                };
+
+                await sut.RecreateAsync(default).ConfigureAwait(false);
+                await sut.RecreateAsync(default).ConfigureAwait(false);
+
+                Assert.That(order,
+                    Is.EqualTo(s_recreateOperationOrder));
             }
         }
 
@@ -1169,6 +1486,61 @@ namespace Opc.Ua.Client.Subscriptions
                 // Assert
                 // m_mockSession.Verify() was no-op (no Verifiable setups on the context); inner-mock verifications retained.
                 Assert.That(success, Is.True);
+            }
+        }
+
+        [Test]
+        public async Task TryCompleteTransferAsyncShouldReturnFalseWhenDeletingExtraneousServerItemFailsAsync()
+        {
+            // Arrange
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 2);
+            await using (sut.ConfigureAwait(false))
+            {
+                m_mockMethodServices
+                    .Setup(s => s.CallAsync(
+                        It.IsAny<RequestHeader>(),
+                        It.Is<ArrayOf<CallMethodRequest>>(r =>
+                            r.Count == 1 &&
+                            r[0].InputArguments.Count == 1 &&
+                            r[0].InputArguments[0].AsBoxedObject().Equals(2u) &&
+                            r[0].ObjectId == ObjectIds.Server &&
+                            r[0].MethodId == MethodIds.Server_GetMonitoredItems), It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(new CallResponse
+                    {
+                        Results =
+                        [
+                            new ()
+                            {
+                                StatusCode = StatusCodes.Good,
+                                OutputArguments =
+                                [
+                                    new Variant([19900u]), // serverHandles
+                                    new Variant([300u])  // clientHandles
+                                ]
+                            }
+                        ]
+                    })
+                    .Verifiable(Times.Once);
+
+                m_mockMonitoredItemServices
+                    .Setup(s => s.DeleteMonitoredItemsAsync(It.IsAny<RequestHeader>(), 2,
+                        It.Is<ArrayOf<uint>>(a => a.Count == 1 && a[0] == 19900u), It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(new DeleteMonitoredItemsResponse
+                    {
+                        ResponseHeader = new ResponseHeader
+                        {
+                            ServiceResult = StatusCodes.Good
+                        },
+                        Results = [StatusCodes.BadUnexpectedError]
+                    })
+                    .Verifiable(Times.Once);
+
+                // Act
+                bool success = await sut.TryCompleteTransferAsync([], default).ConfigureAwait(false);
+
+                // Assert
+                Assert.That(success, Is.False);
             }
         }
 
@@ -1489,7 +1861,8 @@ namespace Opc.Ua.Client.Subscriptions
         /// Regression coverage for OPCFoundation/UA-.NETStandard#3540.
         /// With <see cref="SubscriptionRecoveryPolicy.RecreateOnUnsolicitedTransfer"/>
         /// the V2 engine must recreate the subscription in place on the
-        /// same session (driven through <c>ResetToRecreateAsync</c>) so
+        /// same session (driven through <see cref="ISubscription.RecreateAsync"/>)
+        /// so
         /// the application keeps receiving data after a server-side
         /// quirk emits Good_SubscriptionTransferred against a freshly
         /// created subscription.
@@ -1497,6 +1870,16 @@ namespace Opc.Ua.Client.Subscriptions
         [Test]
         public async Task GoodSubscriptionTransferredRecreatesSubscriptionWhenPolicyEnabledAsync()
         {
+            m_mockSubscriptionServices
+                .Setup(s => s.DeleteSubscriptionsAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.Is<ArrayOf<uint>>(a => a.Count == 1 && a[0] == 22u),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new DeleteSubscriptionsResponse
+                {
+                    Results = [StatusCodes.Good]
+                })
+                .Verifiable(Times.Once);
             m_mockSubscriptionServices
                 .Setup(s => s.CreateSubscriptionAsync(It.IsAny<RequestHeader>(),
                     TimeSpan.FromSeconds(100).TotalMilliseconds, 21, 7, 10, false,
@@ -1519,7 +1902,7 @@ namespace Opc.Ua.Client.Subscriptions
                 Assert.That(sut.Id, Is.EqualTo(22u));
 
                 // Queue a stale ack for the doomed id so we can assert
-                // the ack-pruning step ran before recreate.
+                // the ack-pruning step ran after successful retirement.
                 await m_completion.QueueAsync(new SubscriptionAcknowledgement
                 {
                     SubscriptionId = 22u,
@@ -1537,7 +1920,7 @@ namespace Opc.Ua.Client.Subscriptions
                     "Recovery must assign the new server-side id.");
                 Assert.That(m_completion.DroppedSubscriptions,
                     Does.Contain(22u),
-                    "Ack-pruning must run for the dead subscription id before recreate.");
+                    "Ack-pruning must run for the retired subscription id.");
                 m_mockSubscriptionServices.Verify();
             }
         }
@@ -1552,6 +1935,16 @@ namespace Opc.Ua.Client.Subscriptions
         [Test]
         public async Task GoodSubscriptionTransferredCollapsesConcurrentRecreatesAsync()
         {
+            m_mockSubscriptionServices
+                .Setup(s => s.DeleteSubscriptionsAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.Is<ArrayOf<uint>>(a => a.Count == 1 && a[0] == 22u),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new DeleteSubscriptionsResponse
+                {
+                    Results = [StatusCodes.Good]
+                })
+                .Verifiable(Times.Once);
             m_mockSubscriptionServices
                 .Setup(s => s.CreateSubscriptionAsync(It.IsAny<RequestHeader>(),
                     TimeSpan.FromSeconds(100).TotalMilliseconds, 21, 7, 10, false,
@@ -1606,6 +1999,15 @@ namespace Opc.Ua.Client.Subscriptions
                         Status = status
                     })
                 ]
+            };
+        }
+
+        private static NotificationMessage BuildKeepAliveMessage(uint sequenceNumber)
+        {
+            return new NotificationMessage
+            {
+                SequenceNumber = sequenceNumber,
+                NotificationData = []
             };
         }
 
@@ -1703,6 +2105,24 @@ namespace Opc.Ua.Client.Subscriptions
             public AsyncManualResetEvent SubscriptionStateChanged { get; } = new();
             public AsyncManualResetEvent PublishStateChanged { get; } = new();
             public PublishState LastPublishState { get; private set; }
+            public uint LastSequenceNumberForTest => LastSequenceNumberProcessed;
+            public uint LastDataSequenceNumberForTest => LastDataSequenceNumberProcessed;
+            public IReadOnlyList<uint> AvailableSequenceNumbersForTest
+                => AvailableInRetransmissionQueue;
+            public int KeepAliveNotificationCount
+                => Volatile.Read(ref m_keepAliveNotificationCount);
+            public IReadOnlyList<uint> KeepAliveSequenceNumbers
+                => [.. m_keepAliveSequenceNumbers];
+            public Func<ValueTask>? OnKeepAliveAsync { get; set; }
+
+            public void SetMessageStateForTest(uint lastSequenceNumber,
+                uint lastDataSequenceNumber,
+                IReadOnlyList<uint> availableSequenceNumbers)
+            {
+                LastSequenceNumberProcessed = lastSequenceNumber;
+                LastDataSequenceNumberProcessed = lastDataSequenceNumber;
+                AvailableInRetransmissionQueue = availableSequenceNumbers;
+            }
 
             public async ValueTask WaitAsync()
             {
@@ -1738,10 +2158,20 @@ namespace Opc.Ua.Client.Subscriptions
             protected override ValueTask OnKeepAliveNotificationAsync(uint sequenceNumber,
                 DateTime publishTime, PublishState publishStateMask)
             {
-                return default;
+                m_keepAliveSequenceNumbers.Enqueue(sequenceNumber);
+                Interlocked.Increment(ref m_keepAliveNotificationCount);
+                return OnKeepAliveAsync?.Invoke() ?? default;
             }
+
+            private readonly ConcurrentQueue<uint> m_keepAliveSequenceNumbers = new();
+            private int m_keepAliveNotificationCount;
         }
 
+        private static readonly string[] s_recreateOperationOrder =
+        [
+            "subscription", "durable", "items",
+            "subscription", "durable", "items"
+        ];
         private FakeMessageAckQueue m_completion;
         private OptionsMonitor<SubscriptionOptions> m_options;
         private ITelemetryContext m_telemetry;

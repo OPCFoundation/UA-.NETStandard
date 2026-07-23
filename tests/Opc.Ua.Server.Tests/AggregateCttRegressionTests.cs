@@ -329,6 +329,44 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task DirectAndLiveNumberOfTransitionsCountUncertainValuesAsync()
+        {
+            var rawValues = new List<DataValue>(25);
+            for (int index = 0; index <= 24; index++)
+            {
+                StatusCode status = (index % 10) switch
+                {
+                    7 => StatusCodes.BadDataUnavailable,
+                    9 => StatusCodes.UncertainSubstituteValue,
+                    _ => StatusCodes.Good
+                };
+                rawValues.Add(CreateValue(index, status, index));
+            }
+            DateTimeUtc endTime = AtSeconds(24);
+            AggregateConfiguration configuration = CreateConfiguration(treatUncertainAsBad: true);
+
+            List<DataValue> direct = RunDirect(
+                ObjectIds.AggregateFunction_NumberOfTransitions,
+                rawValues,
+                s_baseTime,
+                endTime,
+                24_000,
+                configuration);
+
+            using var harness = new AggregateHarness();
+            List<DataValue> live = await harness.ReadProcessedAsync(
+                ObjectIds.AggregateFunction_NumberOfTransitions,
+                rawValues,
+                s_baseTime,
+                endTime,
+                24_000,
+                configuration).ConfigureAwait(false);
+
+            AssertNumberOfTransitionsWithMixedQuality(direct);
+            AssertNumberOfTransitionsWithMixedQuality(live);
+        }
+
+        [Test]
         public async Task LiveProcessedReadWithEqualTimesReturnsBadInvalidArgumentAsync()
         {
             using var harness = new AggregateHarness();
@@ -418,6 +456,17 @@ namespace Opc.Ua.Server.Tests
             Assert.That(
                 result.StatusCode.AggregateBits,
                 Is.EqualTo(AggregateBits.Calculated | AggregateBits.MultipleValues));
+        }
+
+        private static void AssertNumberOfTransitionsWithMixedQuality(List<DataValue> results)
+        {
+            Assert.That(results, Has.Count.EqualTo(1));
+            DataValue result = results[0];
+            Assert.That(result.WrappedValue.TryGetValue(out int transitions), Is.True);
+            Assert.That(transitions, Is.EqualTo(22));
+            Assert.That(result.SourceTimestamp, Is.EqualTo(s_baseTime));
+            Assert.That(result.StatusCode.CodeBits, Is.EqualTo(StatusCodes.UncertainDataSubNormal));
+            Assert.That(result.StatusCode.AggregateBits, Is.EqualTo(AggregateBits.Calculated));
         }
 
         private static List<DataValue> RunDirect(

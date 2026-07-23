@@ -386,6 +386,53 @@ namespace Opc.Ua.Server.Tests.FileSystem
         }
 
         [Test]
+        public void DisposeClosesOpenFileHandles()
+        {
+            FileSystemNodeManager manager = CreateManager(out _);
+            NodeId nodeId = FileSystemNodeId.BuildFile("f.txt", manager.NamespaceIndex);
+            FileHandle handle = manager.GetOrCreateHandle(nodeId, "f.txt")!;
+            var sessionId = new NodeId("dispose-session", 0);
+            ServiceResult openResult = handle.Open(sessionId, 0x2, out uint fileHandle);
+            Assert.That(ServiceResult.IsGood(openResult), Is.True);
+
+            manager.Dispose();
+
+            Assert.That(handle.OpenCount, Is.Zero);
+            Assert.That(handle.GetStream(sessionId, fileHandle), Is.Null);
+        }
+
+        [Test]
+        public async Task SessionClosingAsyncClosesHandlesOwnedBySessionAcrossMultipleFilesAsync()
+        {
+            using FileSystemNodeManager manager = CreateManager(out _);
+            NodeId nodeIdA = FileSystemNodeId.BuildFile("a.txt", manager.NamespaceIndex);
+            NodeId nodeIdB = FileSystemNodeId.BuildFile("b.txt", manager.NamespaceIndex);
+            FileHandle handleA = manager.GetOrCreateHandle(nodeIdA, "a.txt")!;
+            FileHandle handleB = manager.GetOrCreateHandle(nodeIdB, "b.txt")!;
+
+            var sessionId = new NodeId("closing-session", 0);
+            var otherSessionId = new NodeId("other-closing-session", 0);
+            handleA.Open(sessionId, 0x2, out uint fileHandleA);
+            handleB.Open(otherSessionId, 0x2, out uint fileHandleB);
+
+            var session = new Mock<ISession>();
+            session.Setup(s => s.Id).Returns(sessionId);
+            session.Setup(s => s.Identity).Returns(new Mock<IUserIdentity>().Object);
+            session.Setup(s => s.PreferredLocales).Returns([]);
+            var operationContext = new OperationContext(session.Object, DiagnosticsMasks.None);
+
+            await manager.SessionClosingAsync(
+                operationContext,
+                sessionId,
+                deleteSubscriptions: false).ConfigureAwait(false);
+
+            Assert.That(handleA.OpenCount, Is.Zero);
+            Assert.That(handleA.GetStream(sessionId, fileHandleA), Is.Null);
+            Assert.That(handleB.OpenCount, Is.EqualTo(1));
+            Assert.That(handleB.GetStream(otherSessionId, fileHandleB), Is.Not.Null);
+        }
+
+        [Test]
         public void FactoryWithNullProviderThrows()
         {
             Assert.That(

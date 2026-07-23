@@ -84,4 +84,19 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         /// </summary>
         ValueTask<DtlsDatagram> ReceiveAsync(CancellationToken cancellationToken = default);
     }
+
+    /// <summary>
+    /// Optional channel capability used by a DTLS context to pin the
+    /// connection-ID-less association to the peer endpoint authenticated
+    /// by the completed handshake.
+    /// </summary>
+    public interface IDtlsAuthenticatedPeerChannel
+    {
+        /// <summary>
+        /// Pins the authenticated peer endpoint. Rebinding requires a new
+        /// handshake when DTLS connection IDs are not negotiated.
+        /// </summary>
+        /// <param name="peer">Authenticated remote endpoint.</param>
+        void SetAuthenticatedPeer(IPEndPoint peer);
+    }
 }

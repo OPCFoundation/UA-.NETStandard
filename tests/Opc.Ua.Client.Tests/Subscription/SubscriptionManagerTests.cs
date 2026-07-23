@@ -442,6 +442,141 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         [Test]
+        public async Task PublishingQuiescencePreservesConcurrentPauseAsync()
+        {
+            var subscription = new FakeManagedSubscription();
+            m_session.CreateSubscriptionFactory =
+                (handler, options, queue) => subscription;
+            m_subscriptionManager.Add(m_mockNotificationDataHandler.Object,
+                Mock.Of<IOptionsMonitor<SubscriptionOptions>>());
+            m_subscriptionManager.Resume();
+
+            var entered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            Task quiesced = m_subscriptionManager
+                .RunWithPublishingQuiescedAsync(async ct =>
+                {
+                    entered.TrySetResult(true);
+                    await release.Task.WaitAsync(ct).ConfigureAwait(false);
+                }, CancellationToken.None)
+                .AsTask();
+
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(5))
+                .ConfigureAwait(false);
+            m_subscriptionManager.Pause();
+            release.TrySetResult(true);
+            await quiesced.WaitAsync(TimeSpan.FromSeconds(5))
+                .ConfigureAwait(false);
+
+            Assert.That(subscription.NotifySubscriptionManagerPausedCalls,
+                Is.EqualTo(s_resumedThenPaused));
+        }
+
+        [Test]
+        [CancelAfter(30_000)]
+        public async Task DisposeAsyncCancelsActivePublishingQuiescenceAsync(
+            CancellationToken testCt)
+        {
+            var entered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var cancelled = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            Task quiesced = m_subscriptionManager
+                .RunWithPublishingQuiescedAsync(async ct =>
+                {
+                    entered.TrySetResult(true);
+                    try
+                    {
+                        await Task.Delay(Timeout.Infinite, ct)
+                            .ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                    {
+                        cancelled.TrySetResult(true);
+                        throw;
+                    }
+                }, testCt)
+                .AsTask();
+
+            await entered.Task.WaitAsync(testCt).ConfigureAwait(false);
+            Task dispose = m_subscriptionManager.DisposeAsync().AsTask();
+
+            await cancelled.Task.WaitAsync(testCt).ConfigureAwait(false);
+            await dispose.WaitAsync(testCt).ConfigureAwait(false);
+            Assert.That(async () => await quiesced.ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>());
+        }
+
+        [Test]
+        [CancelAfter(30_000)]
+        public async Task PublishingQuiescenceWaitsForAckRollbackAsync(
+            CancellationToken testCt)
+        {
+            ILoggerFactory loggerFactory = m_telemetry.LoggerFactory;
+            var session = new FakeSubscriptionManagerContext();
+            var subscription = new FakeManagedSubscription
+            {
+                Id = 1,
+                Created = true
+            };
+            var sut = new SubscriptionManager(session,
+                loggerFactory, DiagnosticsMasks.None);
+            try
+            {
+                session.CreateSubscriptionFactory = (_, _, _) => subscription;
+                var publishCalled = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                var publishGate = new TaskCompletionSource<PublishResponse>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                session.OnPublishAsync = (_, acknowledgements, _) =>
+                {
+                    Assert.That(acknowledgements, Has.Count.EqualTo(1));
+                    publishCalled.TrySetResult(true);
+                    return new ValueTask<PublishResponse>(publishGate.Task);
+                };
+
+                sut.MinPublishWorkerCount = 1;
+                sut.MaxPublishWorkerCount = 1;
+                sut.Add(m_mockNotificationDataHandler.Object,
+                    Mock.Of<IOptionsMonitor<SubscriptionOptions>>());
+                await sut.QueueAsync(new SubscriptionAcknowledgement
+                {
+                    SubscriptionId = 1,
+                    SequenceNumber = 7
+                }, testCt).ConfigureAwait(false);
+                sut.Resume();
+                await publishCalled.Task.WaitAsync(testCt).ConfigureAwait(false);
+
+                var actionEntered = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                var dropped = 0;
+                Task quiesced = sut.RunWithPublishingQuiescedAsync(_ =>
+                {
+                    dropped = sut.DropPendingForSubscription(1);
+                    sut.Pause();
+                    actionEntered.TrySetResult(true);
+                    return default;
+                }, testCt).AsTask();
+
+                await Task.Delay(100, testCt).ConfigureAwait(false);
+                Assert.That(actionEntered.Task.IsCompleted, Is.False);
+
+                publishGate.TrySetException(
+                    new ServiceResultException(StatusCodes.BadNotConnected));
+                await actionEntered.Task.WaitAsync(testCt).ConfigureAwait(false);
+                await quiesced.WaitAsync(testCt).ConfigureAwait(false);
+
+                Assert.That(dropped, Is.EqualTo(1));
+            }
+            finally
+            {
+                await sut.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        [Test]
         public async Task RecreateSubscriptionsAsyncRecreatesSubscriptionsAsync()
         {
             var mockSubscription = new FakeManagedSubscription();
@@ -658,6 +793,7 @@ namespace Opc.Ua.Client.Subscriptions
                 $"got {sut.PublishWorkerCount} after {sw.ElapsedMilliseconds} ms.");
         }
 
+        private static readonly bool[] s_resumedThenPaused = [false, true];
         private FakeSubscriptionManagerContext m_session;
         private ITelemetryContext m_telemetry;
         private Mock<ISubscriptionNotificationHandler> m_mockNotificationDataHandler;

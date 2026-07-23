@@ -33,6 +33,18 @@ using System.Collections.Generic;
 namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 {
     /// <summary>
+    /// Exposes whether a monitored item still has desired-state changes
+    /// waiting to be applied to the server.
+    /// </summary>
+    public interface IMonitoredItemApplyState
+    {
+        /// <summary>
+        /// Whether one or more changes are waiting for a final apply result.
+        /// </summary>
+        bool HasPendingChanges { get; }
+    }
+
+    /// <summary>
     /// The current monitored item inside a subscription
     /// </summary>
     public interface IMonitoredItem

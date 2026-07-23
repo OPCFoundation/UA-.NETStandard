@@ -62,6 +62,7 @@ namespace Opc.Ua.SourceGeneration
             CompilationOptions compilationOptions,
             ImmutableArray<ModelDependencyReference> referencedModels,
             ImmutableArray<NodeManagerAttributeDiscovery> nodeManagerBindings,
+            ImmutableHashSet<string> availableStateTypeNames,
             ILogger logger)
         {
             m_context = context;
@@ -71,6 +72,7 @@ namespace Opc.Ua.SourceGeneration
             m_compilationOptions = compilationOptions;
             m_nodeManagerBindings = nodeManagerBindings;
             m_referencedModels = referencedModels;
+            m_availableStateTypeNames = availableStateTypeNames;
             m_telemetry = SourceGeneratorTelemetry.Create(logger, m_context);
         }
 
@@ -197,6 +199,15 @@ namespace Opc.Ua.SourceGeneration
                 HashSet<NodeManagerAttributeBinding> usedBindings =
                     bindings.Count > 0 ? [] : null;
                 int totalModelCount = nodesets.ModelUris.Count() + designTargets.Count;
+
+                // Enter the standard method-state fallback scope for the whole
+                // model-generation pass: a reference to a standard
+                // global::Opc.Ua.*MethodState class degrades to the base
+                // MethodState only when the typed class is neither present in
+                // the compilation nor declared by this pass. The Stack
+                // generator (which builds Opc.Ua.Core) never enters this scope.
+                using IDisposable fallbackScope =
+                    StandardMethodStateFallback.Enter(m_availableStateTypeNames);
 
                 nodesets.GenerateCode(
                     sourceFiles.WithFallback(vfs),
@@ -392,6 +403,7 @@ namespace Opc.Ua.SourceGeneration
         private readonly CompilationOptions m_compilationOptions;
         private readonly ImmutableArray<ModelDependencyReference> m_referencedModels;
         private readonly ImmutableArray<NodeManagerAttributeDiscovery> m_nodeManagerBindings;
+        private readonly ImmutableHashSet<string> m_availableStateTypeNames;
         private readonly SourceGeneratorTelemetry m_telemetry;
     }
 }

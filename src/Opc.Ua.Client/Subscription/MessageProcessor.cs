@@ -108,6 +108,13 @@ namespace Opc.Ua.Client.Subscriptions
         /// <inheritdoc/>
         public ValueTask DisposeAsync()
         {
+            if (IsDispatchingNotification)
+            {
+                throw new InvalidOperationException(
+                    "A subscription cannot be disposed from one of its " +
+                    "notification callbacks. Schedule disposal after the " +
+                    "callback returns.");
+            }
             GC.SuppressFinalize(this);
             return DisposeAsync(true);
         }
@@ -124,7 +131,9 @@ namespace Opc.Ua.Client.Subscriptions
             }
             LastNotificationTimestamp = TimeProvider.GetTimestamp();
             await m_messages.Writer.WriteAsync(new IncomingMessage(message, stringTable,
-                TimeProvider.GetUtcNow())).ConfigureAwait(false);
+                TimeProvider.GetUtcNow(),
+                Volatile.Read(ref m_generation)))
+                .ConfigureAwait(false);
         }
 
         /// <summary>
@@ -143,6 +152,7 @@ namespace Opc.Ua.Client.Subscriptions
                 }
                 finally
                 {
+                    m_messageDispatchGate.Dispose();
                     m_cts.Dispose();
                     (m_messages as IDisposable)?.Dispose();
                     Disposed = true;
@@ -299,6 +309,33 @@ namespace Opc.Ua.Client.Subscriptions
         /// <returns></returns>
         private async Task ProcessMessageAsync(IncomingMessage incoming, CancellationToken ct)
         {
+            await m_messageDispatchGate.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                if (incoming.Generation != Volatile.Read(ref m_generation))
+                {
+                    return;
+                }
+                bool wasDispatching = m_dispatchContext.Value;
+                m_dispatchContext.Value = true;
+                try
+                {
+                    await ProcessMessageCoreAsync(incoming, ct).ConfigureAwait(false);
+                }
+                finally
+                {
+                    m_dispatchContext.Value = wasDispatching;
+                }
+            }
+            finally
+            {
+                m_messageDispatchGate.Release();
+            }
+        }
+
+        private async Task ProcessMessageCoreAsync(
+            IncomingMessage incoming, CancellationToken ct)
+        {
             uint curSeqNum = incoming.Message.SequenceNumber;
             bool isKeepAlive = incoming.Message.NotificationData.Count == 0;
             const uint kBackwardThreshold = 1u << 31;
@@ -390,6 +427,36 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
+        /// Retires the current server-side generation while message delivery is
+        /// quiesced, resets generation-specific cursors, and initializes the
+        /// replacement before queued messages can resume.
+        /// </summary>
+        /// <param name="retireAsync">Retires the current generation.</param>
+        /// <param name="initializeAsync">Initializes the replacement generation.</param>
+        /// <param name="ct">Cancellation token.</param>
+        protected async ValueTask ResetMessageGenerationAsync(
+            Func<CancellationToken, ValueTask> retireAsync,
+            Func<CancellationToken, ValueTask> initializeAsync,
+            CancellationToken ct)
+        {
+            await m_messageDispatchGate.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                await retireAsync(ct).ConfigureAwait(false);
+                Interlocked.Increment(ref m_generation);
+                LastSequenceNumberProcessed = 0;
+                LastDataSequenceNumberProcessed = 0;
+                LastNotificationTimestamp = 0;
+                AvailableInRetransmissionQueue = [];
+                await initializeAsync(ct).ConfigureAwait(false);
+            }
+            finally
+            {
+                m_messageDispatchGate.Release();
+            }
+        }
+
+        /// <summary>
         /// Try republish a missing message
         /// </summary>
         /// <param name="missing"></param>
@@ -456,7 +523,8 @@ namespace Opc.Ua.Client.Subscriptions
         {
             try
             {
-                if (message.NotificationData.Count == 0)
+                bool shouldAcknowledge = message.NotificationData.Count != 0;
+                if (!shouldAcknowledge)
                 {
                     publishStateMask |= PublishState.KeepAlive;
                     await OnKeepAliveNotificationAsync(
@@ -474,11 +542,14 @@ namespace Opc.Ua.Client.Subscriptions
                             message.NotificationData[i]).ConfigureAwait(false);
                     }
                 }
-                await AckQueue.QueueAsync(new SubscriptionAcknowledgement
+                if (shouldAcknowledge)
                 {
-                    SequenceNumber = message.SequenceNumber,
-                    SubscriptionId = Id
-                }, ct).ConfigureAwait(false);
+                    await AckQueue.QueueAsync(new SubscriptionAcknowledgement
+                    {
+                        SequenceNumber = message.SequenceNumber,
+                        SubscriptionId = Id
+                    }, ct).ConfigureAwait(false);
+                }
             }
             catch (Exception ex)
             {
@@ -553,10 +624,12 @@ namespace Opc.Ua.Client.Subscriptions
         /// <param name="Message"></param>
         /// <param name="StringTable"></param>
         /// <param name="Enqueued"></param>
+        /// <param name="Generation"></param>
         private readonly record struct IncomingMessage(
             NotificationMessage Message,
             IReadOnlyList<string> StringTable,
-            DateTimeOffset Enqueued)
+            DateTimeOffset Enqueued,
+            long Generation)
         {
             public static int Compare(IncomingMessage message, IncomingMessage other)
             {
@@ -586,12 +659,22 @@ namespace Opc.Ua.Client.Subscriptions
         /// subscription that the server has invalidated under us.
         /// </summary>
         protected IMessageAckQueue AckQueue { get; }
+
+        /// <summary>
+        /// Whether the current asynchronous flow is dispatching one of this
+        /// processor's notification callbacks.
+        /// </summary>
+        protected bool IsDispatchingNotification => m_dispatchContext.Value;
+
         private readonly ISubscriptionServiceSetClientMethods m_services;
-        // CA2213: m_cts is disposed in DisposeAsync(bool) — suppressed because
-        // the analyzer does not track IAsyncDisposable disposal paths.
+        // CA2213: both fields are disposed in DisposeAsync(bool) — suppressed
+        // because the analyzer does not track IAsyncDisposable disposal paths.
 #pragma warning disable CA2213
+        private readonly SemaphoreSlim m_messageDispatchGate = new(1, 1);
         private readonly CancellationTokenSource m_cts = new();
 #pragma warning restore CA2213
+        private readonly AsyncLocal<bool> m_dispatchContext = new();
+        private long m_generation;
         private readonly Task m_messageWorkerTask;
         private readonly Channel<IncomingMessage> m_messages;
     }

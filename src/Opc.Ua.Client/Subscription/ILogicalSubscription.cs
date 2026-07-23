@@ -28,8 +28,6 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Opc.Ua.Client.Subscriptions
 {
@@ -60,14 +58,6 @@ namespace Opc.Ua.Client.Subscriptions
         /// <see cref="IPartitionedSubscription.PartitionIds"/>.
         /// </summary>
         IReadOnlyList<IManagedSubscription> Partitions { get; }
-
-        /// <summary>
-        /// Recreate every partition on the new session after
-        /// reconnect/recreate. Mirrors
-        /// <see cref="IManagedSubscription.RecreateAsync"/>; called
-        /// by <see cref="SubscriptionManager.RecreateSubscriptionsAsync"/>.
-        /// </summary>
-        ValueTask RecreateAsync(CancellationToken ct = default);
 
         /// <summary>
         /// Notify every partition that the publish pipeline has

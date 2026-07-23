@@ -248,7 +248,7 @@ namespace Opc.Ua.Server.Tests
                 }
             ];
 
-            RequestHeader requestHeader = m_requestHeader;
+            var requestHeader = (RequestHeader)m_requestHeader.Clone();
             requestHeader.Timestamp = DateTimeUtc.Now;
             ReadResponse readResponse = await m_server.ReadAsync(
                 m_secureChannelContext,
@@ -482,6 +482,219 @@ namespace Opc.Ua.Server.Tests
             // Verify the second timestamp is recent
             Assert.That((long)secondValue.SourceTimestamp, Is.GreaterThanOrEqualTo((long)timeBeforeSecondRead.SubtractMilliseconds(1000)),
                 "SourceTimestamp should be close to the second read time");
+        }
+
+        /// <summary>
+        /// Test that the ReferenceNodeManager SelectionList variable exposes its
+        /// value.
+        /// </summary>
+        [Test]
+        public async Task ReferenceNodeManagerSelectionListVariableAsync()
+        {
+            ushort namespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(
+                Quickstarts.ReferenceServer.Namespaces.ReferenceServer);
+
+            var valueNodeId = new NodeId("DataAccess_SelectionList_Colors", namespaceIndex);
+            var selectionsNodeId = new NodeId(
+                "DataAccess_SelectionList_Colors_Selections",
+                namespaceIndex);
+            var descriptionsNodeId = new NodeId(
+                "DataAccess_SelectionList_Colors_SelectionDescriptions",
+                namespaceIndex);
+            var restrictToListNodeId = new NodeId(
+                "DataAccess_SelectionList_Colors_RestrictToList",
+                namespaceIndex);
+
+            ArrayOf<ReadValueId> nodesToRead =
+            [
+                new ReadValueId { NodeId = valueNodeId, AttributeId = Attributes.Value },
+                new ReadValueId { NodeId = valueNodeId, AttributeId = Attributes.DataType },
+                new ReadValueId { NodeId = selectionsNodeId, AttributeId = Attributes.Value },
+                new ReadValueId { NodeId = selectionsNodeId, AttributeId = Attributes.DataType },
+                new ReadValueId { NodeId = descriptionsNodeId, AttributeId = Attributes.Value },
+                new ReadValueId { NodeId = restrictToListNodeId, AttributeId = Attributes.Value }
+            ];
+
+            RequestHeader requestHeader = m_requestHeader;
+            requestHeader.Timestamp = DateTimeUtc.Now;
+            ReadResponse readResponse = await m_server.ReadAsync(
+                m_secureChannelContext,
+                requestHeader,
+                kMaxAge,
+                TimestampsToReturn.Both,
+                nodesToRead,
+                RequestLifetime.None).ConfigureAwait(false);
+
+            Assert.That(readResponse, Is.Not.Null);
+            Assert.That(readResponse.Results.IsNull, Is.False);
+            Assert.That(readResponse.Results.Count, Is.EqualTo(nodesToRead.Count));
+
+            DataValue value = readResponse.Results[0];
+            Assert.That(value.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(value.WrappedValue.GetString(), Is.EqualTo("Red"));
+
+            Assert.That(
+                readResponse.Results[1].WrappedValue.TryGetValue(out NodeId valueDataType),
+                Is.True);
+            Assert.That(valueDataType, Is.EqualTo(DataTypeIds.String));
+
+            Assert.That(
+                readResponse.Results[2].WrappedValue.TryGetValue(
+                    out ArrayOf<string> selections),
+                Is.True);
+            Assert.That(selections, Has.Count.EqualTo(3));
+            Assert.That(selections[0], Is.EqualTo("Red"));
+            Assert.That(selections[1], Is.EqualTo("Green"));
+            Assert.That(selections[2], Is.EqualTo("Blue"));
+            Assert.That(
+                readResponse.Results[3].WrappedValue.TryGetValue(out NodeId selectionsDataType),
+                Is.True);
+            Assert.That(selectionsDataType, Is.EqualTo(DataTypeIds.String));
+
+            Assert.That(
+                readResponse.Results[4].WrappedValue.TryGetValue(
+                    out ArrayOf<LocalizedText> selectionDescriptions),
+                Is.True);
+            Assert.That(selectionDescriptions, Has.Count.EqualTo(3));
+            Assert.That(selectionDescriptions[0].Text, Is.EqualTo("The color red"));
+            Assert.That(readResponse.Results[5].WrappedValue.GetBoolean(), Is.True);
+
+            ArrayOf<WriteValue> nodesToWrite =
+            [
+                new WriteValue
+                {
+                    NodeId = valueNodeId,
+                    AttributeId = Attributes.Value,
+                    Value = new DataValue("Green")
+                },
+                new WriteValue
+                {
+                    NodeId = valueNodeId,
+                    AttributeId = Attributes.Value,
+                    Value = new DataValue("Purple")
+                },
+                new WriteValue
+                {
+                    NodeId = valueNodeId,
+                    AttributeId = Attributes.Value,
+                    Value = new DataValue("Red")
+                }
+            ];
+            WriteResponse writeResponse = await m_server.WriteAsync(
+                m_secureChannelContext,
+                requestHeader,
+                nodesToWrite,
+                RequestLifetime.None).ConfigureAwait(false);
+            Assert.That(writeResponse.Results, Has.Count.EqualTo(nodesToWrite.Count));
+            Assert.That(writeResponse.Results[0], Is.EqualTo(StatusCodes.Good));
+            Assert.That(writeResponse.Results[1], Is.EqualTo(StatusCodes.BadOutOfRange));
+            Assert.That(writeResponse.Results[2], Is.EqualTo(StatusCodes.Good));
+        }
+
+        /// <summary>
+        /// Tests that AccessLevelEx retains the same base access bits as AccessLevel.
+        /// </summary>
+        [Test]
+        public async Task ReferenceNodeManagerNonatomicAccessLevelsAreConsistentAsync()
+        {
+            ushort namespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(
+                Quickstarts.ReferenceServer.Namespaces.ReferenceServer);
+            var nodeId = new NodeId("Scalar_Static_NonatomicReadWrite", namespaceIndex);
+            ArrayOf<ReadValueId> nodesToRead =
+            [
+                new ReadValueId { NodeId = nodeId, AttributeId = Attributes.AccessLevel },
+                new ReadValueId { NodeId = nodeId, AttributeId = Attributes.UserAccessLevel },
+                new ReadValueId { NodeId = nodeId, AttributeId = Attributes.AccessLevelEx }
+            ];
+
+            var requestHeader = (RequestHeader)m_requestHeader.Clone();
+            requestHeader.Timestamp = DateTimeUtc.Now;
+            ReadResponse response = await m_server.ReadAsync(
+                m_secureChannelContext,
+                requestHeader,
+                kMaxAge,
+                TimestampsToReturn.Neither,
+                nodesToRead,
+                RequestLifetime.None).ConfigureAwait(false);
+
+            Assert.That(response.Results, Has.Count.EqualTo(nodesToRead.Count));
+            Assert.That(response.Results[0].WrappedValue.GetByte(),
+                Is.EqualTo(AccessLevels.CurrentReadOrWrite));
+            Assert.That(response.Results[1].WrappedValue.GetByte(),
+                Is.EqualTo(AccessLevels.CurrentReadOrWrite));
+
+            uint accessLevelEx = response.Results[2].WrappedValue.GetUInt32();
+            Assert.That(
+                accessLevelEx & 0xff,
+                Is.EqualTo((uint)AccessLevels.CurrentReadOrWrite));
+            Assert.That(
+                accessLevelEx & (uint)AccessLevelExType.NonatomicRead,
+                Is.EqualTo((uint)AccessLevelExType.NonatomicRead));
+            Assert.That(
+                accessLevelEx & (uint)AccessLevelExType.NonatomicWrite,
+                Is.EqualTo((uint)AccessLevelExType.NonatomicWrite));
+        }
+
+        /// <summary>
+        /// Test that the ReferenceNodeManager Currency variable exposes its value
+        /// and its CurrencyUnit property.
+        /// </summary>
+        [Test]
+        public async Task ReferenceNodeManagerCurrencyVariableAsync()
+        {
+            ushort namespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(
+                Quickstarts.ReferenceServer.Namespaces.ReferenceServer);
+
+            var amountNodeId = new NodeId("DataAccess_Currency_Amount", namespaceIndex);
+            var currencyUnitNodeId = new NodeId(
+                "DataAccess_Currency_Amount_CurrencyUnit",
+                namespaceIndex);
+
+            ArrayOf<ReadValueId> nodesToRead =
+            [
+                new ReadValueId { NodeId = amountNodeId, AttributeId = Attributes.Value },
+                new ReadValueId { NodeId = currencyUnitNodeId, AttributeId = Attributes.Value }
+            ];
+
+            RequestHeader requestHeader = m_requestHeader;
+            requestHeader.Timestamp = DateTimeUtc.Now;
+            ReadResponse readResponse = await m_server.ReadAsync(
+                m_secureChannelContext,
+                requestHeader,
+                kMaxAge,
+                TimestampsToReturn.Both,
+                nodesToRead,
+                RequestLifetime.None).ConfigureAwait(false);
+
+            Assert.That(readResponse, Is.Not.Null);
+            Assert.That(readResponse.Results.IsNull, Is.False);
+            Assert.That(readResponse.Results.Count, Is.EqualTo(2));
+
+            DataValue amount = readResponse.Results[0];
+            Assert.That(amount.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(amount.WrappedValue.GetDouble(), Is.EqualTo(42.0));
+
+            DataValue currencyUnit = readResponse.Results[1];
+            Assert.That(currencyUnit.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(currencyUnit.WrappedValue.TryGetValue(out ExtensionObject currencyUnitObject), Is.True);
+            Assert.That(currencyUnitObject.TryGetValue(out CurrencyUnitType unit), Is.True);
+            Assert.That(unit.NumericCode, Is.EqualTo(978));
+            Assert.That(unit.Exponent, Is.EqualTo(2));
+            Assert.That(unit.AlphabeticCode, Is.EqualTo("EUR"));
+
+            using var stream = new MemoryStream();
+            using (var encoder = new BinaryEncoder(
+                stream,
+                m_server.CurrentInstance.MessageContext,
+                leaveOpen: true))
+            {
+                unit.Encode(encoder);
+            }
+            byte[] encoded = stream.ToArray();
+            Assert.That(encoded, Has.Length.GreaterThan(2));
+            Assert.That(encoded[0], Is.EqualTo(0xD2), "NumericCode low byte");
+            Assert.That(encoded[1], Is.EqualTo(0x03), "NumericCode high byte");
+            Assert.That(encoded[2], Is.EqualTo(0x02), "Exponent byte");
         }
 
         /// <summary>
@@ -1784,6 +1997,98 @@ namespace Opc.Ua.Server.Tests
             {
                 Assert.Fail("HistoryData body should be of type HistoryData");
             }
+        }
+
+        /// <summary>
+        /// Test that a HistoryRead on the <c>AccessRights_AccessAll_RO_NotUser</c>
+        /// node is denied for the current (anonymous) user. The node advertises
+        /// HistoryRead in its AccessLevel but its UserAccessLevel is None, so the
+        /// server must return BadUserAccessDenied instead of the historical data.
+        /// </summary>
+        [Test]
+        public async Task HistoryReadUserAccessDeniedNodeAsync()
+        {
+            ushort namespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(
+                Quickstarts.ReferenceServer.Namespaces.ReferenceServer);
+            var nodeId = new NodeId("AccessRights_AccessAll_RO_NotUser", namespaceIndex);
+
+            // Sanity check: the node advertises HistoryRead in AccessLevel but the
+            // current user is not granted HistoryRead via UserAccessLevel.
+            ArrayOf<ReadValueId> readIdCollection =
+            [
+                new ReadValueId
+                {
+                    AttributeId = Attributes.AccessLevel,
+                    NodeId = nodeId
+                },
+                new ReadValueId
+                {
+                    AttributeId = Attributes.UserAccessLevel,
+                    NodeId = nodeId
+                }
+            ];
+
+            m_requestHeader.Timestamp = DateTimeUtc.Now;
+            ReadResponse readResponse = await m_server.ReadAsync(
+                m_secureChannelContext,
+                m_requestHeader,
+                kMaxAge,
+                TimestampsToReturn.Neither,
+                readIdCollection,
+                RequestLifetime.None).ConfigureAwait(false);
+
+            ServerFixtureUtils.ValidateResponse(readResponse.ResponseHeader, readResponse.Results, readIdCollection);
+            Assert.That(readResponse.Results.Count, Is.EqualTo(2));
+
+            byte accessLevel = (byte)readResponse.Results[0].WrappedValue;
+            byte userAccessLevel = (byte)readResponse.Results[1].WrappedValue;
+
+            Assert.That(accessLevel & AccessLevels.HistoryRead,
+                Is.Not.Zero,
+                "Node should advertise HistoryRead in AccessLevel");
+            Assert.That(userAccessLevel & AccessLevels.HistoryRead,
+                Is.Zero,
+                "Node should not grant HistoryRead to the current user via UserAccessLevel");
+
+            // Perform a history read operation; it must be denied for the current user.
+            var historyReadDetails = new ReadRawModifiedDetails
+            {
+                StartTime = DateTimeUtc.Now.SubtractMilliseconds(60 * 60 * 1000),
+                EndTime = DateTimeUtc.Now,
+                NumValuesPerNode = 10,
+                IsReadModified = false,
+                ReturnBounds = false
+            };
+
+            ArrayOf<HistoryReadValueId> nodesToRead =
+            [
+                new HistoryReadValueId
+                {
+                    NodeId = nodeId
+                }
+            ];
+
+            m_requestHeader.Timestamp = DateTimeUtc.Now;
+            HistoryReadResponse historyReadResponse = await m_server.HistoryReadAsync(
+                m_secureChannelContext,
+                m_requestHeader,
+                new ExtensionObject(historyReadDetails),
+                TimestampsToReturn.Both,
+                false,
+                nodesToRead,
+                RequestLifetime.None).ConfigureAwait(false);
+
+            ServerFixtureUtils.ValidateResponse(historyReadResponse.ResponseHeader, historyReadResponse.Results, nodesToRead);
+            Assert.That(historyReadResponse.Results.Count, Is.EqualTo(1));
+
+            HistoryReadResult result = historyReadResponse.Results[0];
+
+            Assert.That(result.StatusCode.Code,
+                Is.EqualTo(StatusCodes.BadUserAccessDenied),
+                $"History read on a node without user HistoryRead access should be denied, but got: {result.StatusCode}");
+            Assert.That(result.HistoryData.IsNull,
+                Is.True,
+                "No historical data should be returned when access is denied");
         }
 
         /// <summary>

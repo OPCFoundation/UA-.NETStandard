@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if !NET10_0_OR_GREATER
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -49,8 +48,8 @@ namespace Opc.Ua.PubSub.Kafka.Internal
     /// loop (built on first subscribe), so a send-only or receive-only
     /// connection never instantiates the unused half. Confluent.Kafka
     /// wraps native librdkafka via P/Invoke and is therefore not
-    /// NativeAOT/trim-safe; this transport library is intentionally
-    /// excluded from AOT publishing (see the project file).
+    /// NativeAOT/trim-safe. Select it only for JIT-compiled hosts through
+    /// <c>WithConfluentKafkaClient()</c>.
     /// </remarks>
     internal sealed class ConfluentKafkaClientAdapter : IKafkaClientAdapter
     {
@@ -652,6 +651,4 @@ namespace Opc.Ua.PubSub.Kafka.Internal
             Message = "Kafka error {Code}: {Reason}")]
         public static partial void KafkaError(this ILogger logger, ErrorCode code, string? reason);
     }
-
 }
-#endif

@@ -249,6 +249,8 @@ Kestrel listener factory for `opc.tcp://`. The same pattern applies to
 `AddHttpsTransport()` / `AddWssTransport()` (HTTPS / WSS) and any custom
 binding registered via `AddCustomTransport<TListener, TChannel>()`.
 
+> **`AddOpcTcpTransport()` is optional.** `AddOpcUa()` already seeds the mandatory raw-socket `opc.tcp` listener and channel factories into the transport binding registry, so clients and servers reach `opc.tcp://` without it. Call it only to be explicit; the `Add*Transport()` extensions above still override the seeded defaults (last-writer-wins per URI scheme) whether or not it was called.
+
 The package targets net8.0+ only (the ASP.NET Core `ConnectionContext`
 API surface used to bridge `Socket`-like semantics — `LocalEndPoint`,
 `RemoteEndPoint`, `ConnectionClosed` — is not consistently available

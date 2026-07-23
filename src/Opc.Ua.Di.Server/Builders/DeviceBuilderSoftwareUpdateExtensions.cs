@@ -45,8 +45,7 @@ namespace Opc.Ua.Di.Server.Builders
         /// <see cref="ISoftwarePackageStore"/>.
         /// </summary>
         /// <typeparam name="TDevice">
-        /// Concrete device state class — must derive from
-        /// <see cref="ComponentState"/>.
+        /// Concrete component/device state class.
         /// </typeparam>
         /// <param name="device">
         /// The owning device builder (typically the result of

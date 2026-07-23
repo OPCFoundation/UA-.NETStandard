@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -74,6 +75,7 @@ namespace Opc.Ua.Di.Server.SoftwareUpdate
 
         private readonly IFileSystemProvider m_provider;
         private readonly string m_rootPath;
+        private readonly string m_rootPrefix;
         private readonly TimeProvider m_timeProvider;
 
 #if NET8_0_OR_GREATER
@@ -109,7 +111,10 @@ namespace Opc.Ua.Di.Server.SoftwareUpdate
                 throw new ArgumentException(
                     "Root path must be a non-empty string.", nameof(rootPath));
             }
-            m_rootPath = rootPath;
+            m_rootPath = CanonicalizeProviderPath(rootPath, nameof(rootPath));
+            m_rootPrefix = m_rootPath == "/"
+                ? m_rootPath
+                : m_rootPath + "/";
             m_timeProvider = timeProvider ?? TimeProvider.System;
         }
 
@@ -299,9 +304,25 @@ namespace Opc.Ua.Di.Server.SoftwareUpdate
 
         private string BuildPath(string packageId, string? leaf = null)
         {
-            string root = m_rootPath.TrimEnd('/');
-            string path = $"{root}/{packageId}";
-            return leaf == null ? path : $"{path}/{leaf}";
+            ValidateId(packageId);
+
+            string path = m_rootPath == "/"
+                ? $"/{packageId}"
+                : $"{m_rootPath}/{packageId}";
+            if (leaf != null)
+            {
+                path += $"/{leaf}";
+            }
+
+            string canonicalPath = CanonicalizeProviderPath(path, nameof(path));
+            if (canonicalPath.Length <= m_rootPath.Length ||
+                !canonicalPath.StartsWith(m_rootPrefix, StringComparison.Ordinal))
+            {
+                throw new UnauthorizedAccessException(
+                    "The package path escapes the configured package-store root.");
+            }
+
+            return canonicalPath;
         }
 
         private static void ValidateId(string packageId)
@@ -316,6 +337,54 @@ namespace Opc.Ua.Di.Server.SoftwareUpdate
                 throw new ArgumentException(
                     "Package id must not contain path separators.", nameof(packageId));
             }
+            if (packageId is "." or "..")
+            {
+                throw new ArgumentException(
+                    "Package id must not be a dot segment.", nameof(packageId));
+            }
+        }
+
+        private static string CanonicalizeProviderPath(string path, string parameterName)
+        {
+            var canonicalPath = new StringBuilder(path.Length + 1);
+            canonicalPath.Append('/');
+            int index = 0;
+            while (index < path.Length)
+            {
+                while (index < path.Length && path[index] is '/' or '\\')
+                {
+                    index++;
+                }
+
+                int segmentStart = index;
+                while (index < path.Length && path[index] is not ('/' or '\\'))
+                {
+                    index++;
+                }
+
+                int segmentLength = index - segmentStart;
+                if (segmentLength == 0)
+                {
+                    break;
+                }
+                if ((segmentLength == 1 && path[segmentStart] == '.') ||
+                    (segmentLength == 2 &&
+                        path[segmentStart] == '.' &&
+                        path[segmentStart + 1] == '.'))
+                {
+                    throw new ArgumentException(
+                        "Provider-relative paths must not contain dot segments.",
+                        parameterName);
+                }
+
+                if (canonicalPath.Length > 1)
+                {
+                    canonicalPath.Append('/');
+                }
+                canonicalPath.Append(path, segmentStart, segmentLength);
+            }
+
+            return canonicalPath.ToString();
         }
     }
 
