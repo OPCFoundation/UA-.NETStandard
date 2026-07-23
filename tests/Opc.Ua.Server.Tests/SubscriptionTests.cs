@@ -472,6 +472,7 @@ namespace Opc.Ua.Server.Tests
         [TestCase(10, 10L, 10L)]
         [TestCase(10, 25L, 10L)]
         [TestCase(0, uint.MaxValue, uint.MaxValue)]
+        [TestCase(10, uint.MaxValue, 10L)]
         [TestCase(int.MaxValue, uint.MaxValue, int.MaxValue)]
         public async Task CreateSubscriptionWithNotificationLimitsUsesEffectiveLimitAsync(
             int serverLimit,
@@ -498,6 +499,60 @@ namespace Opc.Ua.Server.Tests
                 maxNotificationsPerPublish: (uint)requestedLimit,
                 publishingEnabled: true,
                 priority: 0).ConfigureAwait(false);
+
+            Assert.That(
+                manager.TryGetSubscription(response.SubscriptionId, out ISubscription subscription),
+                Is.True);
+            Assert.That(
+                subscription.Diagnostics.MaxNotificationsPerPublish,
+                Is.EqualTo((uint)expectedLimit));
+        }
+
+        [TestCase(0, 0L, 0L)]
+        [TestCase(0, 25L, 25L)]
+        [TestCase(10, 0L, 10L)]
+        [TestCase(10, 10L, 10L)]
+        [TestCase(10, 25L, 10L)]
+        [TestCase(0, uint.MaxValue, uint.MaxValue)]
+        [TestCase(10, uint.MaxValue, 10L)]
+        [TestCase(int.MaxValue, uint.MaxValue, int.MaxValue)]
+        public async Task ModifySubscriptionWithNotificationLimitsUsesEffectiveLimitAsync(
+            int serverLimit,
+            long requestedLimit,
+            long expectedLimit)
+        {
+            var configuration = new ApplicationConfiguration
+            {
+                ServerConfiguration = new ServerConfiguration
+                {
+                    MaxNotificationsPerPublish = serverLimit
+                }
+            };
+            using var manager = new SubscriptionManager(
+                m_serverMock.Object,
+                configuration);
+
+            var context = new OperationContext(m_sessionMock.Object, new DiagnosticsMasks());
+            CreateSubscriptionResponse response = await manager.CreateSubscriptionAsync(
+                context,
+                requestedPublishingInterval: 1000,
+                requestedLifetimeCount: 30,
+                requestedMaxKeepAliveCount: 10,
+                maxNotificationsPerPublish: 1,
+                publishingEnabled: true,
+                priority: 0).ConfigureAwait(false);
+
+            manager.ModifySubscription(
+                context,
+                response.SubscriptionId,
+                requestedPublishingInterval: 1000,
+                requestedLifetimeCount: 30,
+                requestedMaxKeepAliveCount: 10,
+                maxNotificationsPerPublish: (uint)requestedLimit,
+                priority: 0,
+                revisedPublishingInterval: out _,
+                revisedLifetimeCount: out _,
+                revisedMaxKeepAliveCount: out _);
 
             Assert.That(
                 manager.TryGetSubscription(response.SubscriptionId, out ISubscription subscription),
