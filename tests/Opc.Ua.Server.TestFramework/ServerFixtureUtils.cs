@@ -48,6 +48,8 @@ namespace Opc.Ua.Server.TestFramework
         public const uint DefaultMaxResponseMessageSize = 128 * 1024;
         public const int MinTestPort = 50000;
         public const int MaxTestPort = 65000;
+        private const string kDefaultClientApplicationUri =
+            "urn:localhost:opcfoundation.org:ServerFixtureClient";
 
         /// <summary>
         /// Create and Activate a session without security.
@@ -66,8 +68,16 @@ namespace Opc.Ua.Server.TestFramework
             bool useSecurity = false,
             UserIdentityToken identityToken = null,
             double sessionTimeout = DefaultSessionTimeout,
-            uint maxResponseMessageSize = DefaultMaxResponseMessageSize)
+            uint maxResponseMessageSize = DefaultMaxResponseMessageSize,
+            string clientApplicationUri = null)
         {
+            if (clientApplicationUri != null && clientApplicationUri.Length == 0)
+            {
+                throw new ArgumentException(
+                    "The client ApplicationUri must not be empty.",
+                    nameof(clientApplicationUri));
+            }
+
             // Find TCP endpoint
             ArrayOf<EndpointDescription> endpoints = server.GetEndpoints();
             EndpointDescription endpoint = endpoints.Find(e =>
@@ -100,6 +110,10 @@ namespace Opc.Ua.Server.TestFramework
                 {
                     clientCertificate = CertificateBuilder
                         .Create("CN=ServerFixtureClient")
+                        .AddExtension(
+                            new X509SubjectAltNameExtension(
+                                clientApplicationUri ?? kDefaultClientApplicationUri,
+                                [Utils.GetHostName()]))
                         .SetRSAKeySize(CertificateFactory.DefaultKeySize)
                         .CreateForRSA();
                     clientNonce = Nonce.CreateRandomNonceData(32).ToByteString();
@@ -124,11 +138,19 @@ namespace Opc.Ua.Server.TestFramework
                     serverChannelCertificate,
                     channelThumbprint);
                 var requestHeader = new RequestHeader();
+                ApplicationDescription clientDescription = clientApplicationUri == null
+                    ? null
+                    : new ApplicationDescription
+                    {
+                        ApplicationUri = clientApplicationUri,
+                        ApplicationName = new LocalizedText("ServerFixtureClient"),
+                        ApplicationType = ApplicationType.Client
+                    };
 
                 CreateSessionResponse createSessionResponse = await server.CreateSessionAsync(
                     secureChannelContext,
                     requestHeader,
-                    null,
+                    clientDescription,
                     null,
                     null,
                     sessionName,

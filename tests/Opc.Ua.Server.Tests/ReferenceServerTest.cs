@@ -58,6 +58,8 @@ namespace Opc.Ua.Server.Tests
         private const double kMaxAge = 10000;
         private const uint kTimeoutHint = 10000;
         private const uint kQueueSize = 5;
+        private const string kClientApplicationUri =
+            "urn:localhost:opcfoundation.org:ReferenceServerTests";
         private ITelemetryContext m_telemetry;
         private ServerFixture<ReferenceServer> m_fixture;
         private ReferenceServer m_server;
@@ -82,7 +84,8 @@ namespace Opc.Ua.Server.Tests
                 AllNodeManagers = true,
                 OperationLimits = true,
                 DurableSubscriptionsEnabled = false,
-                UseSamplingGroupsInReferenceNodeManager = false
+                UseSamplingGroupsInReferenceNodeManager = false,
+                AutoAccept = true
             };
             m_server = await m_fixture.StartAsync().ConfigureAwait(false);
         }
@@ -104,7 +107,8 @@ namespace Opc.Ua.Server.Tests
         public async Task SetUpAsync()
         {
             (m_requestHeader, m_secureChannelContext) = await m_server.CreateAndActivateSessionAsync(
-                TestContext.CurrentContext.Test.Name).ConfigureAwait(false);
+                TestContext.CurrentContext.Test.Name,
+                clientApplicationUri: kClientApplicationUri).ConfigureAwait(false);
             m_requestHeader.Timestamp = DateTimeUtc.Now;
             m_requestHeader.TimeoutHint = kTimeoutHint;
             m_random = new RandomSource();
@@ -842,7 +846,8 @@ namespace Opc.Ua.Server.Tests
             var serverTestServices = new ServerTestServices(m_server, m_secureChannelContext);
             (RequestHeader transferRequestHeader, SecureChannelContext transferContext) = await m_server.CreateAndActivateSessionAsync(
                 "ClosedSession",
-                useSecurity).ConfigureAwait(false);
+                useSecurity,
+                clientApplicationUri: kClientApplicationUri).ConfigureAwait(false);
             NamespaceTable namespaceUris = m_server.CurrentInstance.NamespaceUris;
             NodeId[] testSet =
             [
@@ -915,7 +920,8 @@ namespace Opc.Ua.Server.Tests
 
             (RequestHeader transferRequestHeader, SecureChannelContext transferSecurityContext) = await m_server.CreateAndActivateSessionAsync(
                 "TransferSession",
-                useSecurity).ConfigureAwait(false);
+                useSecurity,
+                clientApplicationUri: kClientApplicationUri).ConfigureAwait(false);
             serverTestServices.SecureChannelContext = transferSecurityContext;
             await CommonTestWorkers.TransferSubscriptionTestAsync(
                 serverTestServices,
@@ -937,6 +943,55 @@ namespace Opc.Ua.Server.Tests
 
             transferRequestHeader.Timestamp = DateTimeUtc.Now;
             await m_server.CloseSessionAsync(transferSecurityContext, transferRequestHeader, true, RequestLifetime.None).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Verifies that an anonymous Subscription cannot be transferred to a
+        /// Session with a different client ApplicationUri.
+        /// </summary>
+        [Test]
+        public async Task TransferAnonymousSubscriptionWithDifferentApplicationUriDeniedAsync()
+        {
+            var serverTestServices = new ServerTestServices(m_server, m_secureChannelContext);
+            NamespaceTable namespaceUris = m_server.CurrentInstance.NamespaceUris;
+            NodeId[] testSet =
+            [
+                .. CommonTestWorkers.NodeIdTestSetStatic
+                    .Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris))
+            ];
+            ArrayOf<uint> subscriptionIds = await CommonTestWorkers.CreateSubscriptionForTransferAsync(
+                serverTestServices,
+                m_requestHeader,
+                testSet,
+                kQueueSize,
+                -1).ConfigureAwait(false);
+
+            (RequestHeader transferRequestHeader, SecureChannelContext transferSecurityContext) =
+                await m_server.CreateAndActivateSessionAsync(
+                    "TransferSessionDifferentApplicationUri",
+                    useSecurity: true,
+                    clientApplicationUri:
+                        "urn:localhost:opcfoundation.org:DifferentServerFixtureClient")
+                    .ConfigureAwait(false);
+            try
+            {
+                serverTestServices.SecureChannelContext = transferSecurityContext;
+                await CommonTestWorkers.TransferSubscriptionTestAsync(
+                    serverTestServices,
+                    transferRequestHeader,
+                    subscriptionIds,
+                    sendInitialData: false,
+                    expectAccessDenied: true).ConfigureAwait(false);
+            }
+            finally
+            {
+                transferRequestHeader.Timestamp = DateTimeUtc.Now;
+                await m_server.CloseSessionAsync(
+                    transferSecurityContext,
+                    transferRequestHeader,
+                    true,
+                    RequestLifetime.None).ConfigureAwait(false);
+            }
         }
 
         /// <summary>
