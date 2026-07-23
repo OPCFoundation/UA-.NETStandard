@@ -869,6 +869,92 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        [Test]
+        public async Task HistoryUpdateRejectsTooManyDataOperationsAsync()
+        {
+            NodeId nodeId = ToNodeId(Constants.ScalarStaticDouble);
+            var details = new ExtensionObject[1001];
+
+            for (int i = 0; i < details.Length; i++)
+            {
+                details[i] = new ExtensionObject(new UpdateDataDetails
+                {
+                    NodeId = nodeId,
+                    PerformInsertReplace = PerformUpdateType.Insert,
+                    UpdateValues =
+                    [
+                        new DataValue(
+                            new Variant((double)i),
+                            StatusCodes.Good,
+                            DateTime.UtcNow.AddSeconds(i))
+                    ]
+                });
+            }
+
+            uint originalDataLimit = Session.OperationLimits.MaxNodesPerHistoryUpdateData;
+            uint originalEventLimit = Session.OperationLimits.MaxNodesPerHistoryUpdateEvents;
+
+            try
+            {
+                // Disable client-side batching so the oversized request reaches
+                // the server as a single HistoryUpdate call.
+                Session.OperationLimits.MaxNodesPerHistoryUpdateData = 0;
+                Session.OperationLimits.MaxNodesPerHistoryUpdateEvents = 0;
+
+                ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await Session.HistoryUpdateAsync(
+                        null,
+                        details.ToArrayOf(),
+                        CancellationToken.None).ConfigureAwait(false));
+
+                Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTooManyOperations));
+            }
+            finally
+            {
+                Session.OperationLimits.MaxNodesPerHistoryUpdateData = originalDataLimit;
+                Session.OperationLimits.MaxNodesPerHistoryUpdateEvents = originalEventLimit;
+            }
+        }
+
+        [Test]
+        public async Task HistoryUpdateRejectsTooManyEventOperationsAsync()
+        {
+            var details = new ExtensionObject[1001];
+
+            for (int i = 0; i < details.Length; i++)
+            {
+                details[i] = new ExtensionObject(new DeleteEventDetails
+                {
+                    NodeId = ObjectIds.Server,
+                    EventIds = [ByteString.From([(byte)(i & 0xff)])]
+                });
+            }
+
+            uint originalDataLimit = Session.OperationLimits.MaxNodesPerHistoryUpdateData;
+            uint originalEventLimit = Session.OperationLimits.MaxNodesPerHistoryUpdateEvents;
+
+            try
+            {
+                // Disable client-side batching so the oversized request reaches
+                // the server as a single HistoryUpdate call.
+                Session.OperationLimits.MaxNodesPerHistoryUpdateData = 0;
+                Session.OperationLimits.MaxNodesPerHistoryUpdateEvents = 0;
+
+                ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await Session.HistoryUpdateAsync(
+                        null,
+                        details.ToArrayOf(),
+                        CancellationToken.None).ConfigureAwait(false));
+
+                Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTooManyOperations));
+            }
+            finally
+            {
+                Session.OperationLimits.MaxNodesPerHistoryUpdateData = originalDataLimit;
+                Session.OperationLimits.MaxNodesPerHistoryUpdateEvents = originalEventLimit;
+            }
+        }
+
         [Description("Verify that HistoryRead can read history for multiple nodes in a single request and returns one result per node.")]
         [Test]
         public async Task HistoryReadMultipleNodesAtOnceAsync()

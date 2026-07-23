@@ -222,6 +222,32 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 "unwrap and decode (SA-REGR-01 legit secured+chunked path).");
         }
 
+        [Test]
+        public async Task OpportunisticReaderUnwrapsSecuredFrameWhenSecurityNotRequiredAsync()
+        {
+            // A reader configured with SecurityMode.None but supplied with a
+            // security wrapper unwraps a secured inbound frame opportunistically
+            // (requiredMode None) instead of dropping it.
+            (UadpSecurityWrapper publisher, UadpSecurityWrapper subscriber) =
+                CreateMatchingWrapperPair(tokenId: 1U);
+
+            byte[] secured = await BuildSecuredFrameAsync(publisher).ConfigureAwait(false);
+            var transport = new ProgrammableTransport([secured]);
+            var decoder = new RecordingDecoder();
+
+            await using PubSubConnection conn = NewConnection(
+                transport, decoder, subscriber,
+                MessageSecurityMode.None);
+
+            await conn.EnableAsync().ConfigureAwait(false);
+            await transport.WaitUntilDrainedAsync().ConfigureAwait(false);
+            await conn.DisableAsync().ConfigureAwait(false);
+
+            Assert.That(decoder.CallCount, Is.GreaterThanOrEqualTo(1),
+                "A reader that does not require security must still unwrap and decode " +
+                "a secured frame when a security wrapper is available.");
+        }
+
         private static byte[][] ChunkFrames(byte[] message)
         {
             int maxFrameSize = UadpChunker.ChunkHeaderSize +

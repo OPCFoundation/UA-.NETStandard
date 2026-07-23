@@ -200,6 +200,34 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(results.Count, Is.EqualTo(1));
             Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+            Assert.That(results[0].ContinuationPoint.IsNull, Is.True);
+        }
+
+        [Test]
+        public async Task BrowseAsyncCompletedBrowseReturnsNullContinuationPointAsync()
+        {
+            IMasterNodeManager sut = m_server.CurrentInstance.NodeManager;
+            OperationContext ctx = CreateContext();
+
+            var nodeToBrowse = new BrowseDescription
+            {
+                NodeId = ObjectIds.ViewsFolder,
+                BrowseDirection = BrowseDirection.Forward,
+                ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
+                IncludeSubtypes = true,
+                ResultMask = (uint)BrowseResultMask.All
+            };
+
+            (ArrayOf<BrowseResult> results, _) = await sut.BrowseAsync(
+                ctx,
+                new ViewDescription(),
+                0u,
+                new BrowseDescription[] { nodeToBrowse }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(results.Count, Is.EqualTo(1));
+            Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(results[0].ContinuationPoint.IsNull, Is.True);
         }
 
         [Test]
@@ -330,6 +358,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(results.Count, Is.EqualTo(1));
             Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
+            Assert.That(results[0].ContinuationPoint.IsNull, Is.True);
         }
 
         [Test]
@@ -351,6 +380,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(results.Count, Is.EqualTo(1));
             Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(results[0].ContinuationPoint.IsNull, Is.True);
         }
 
         [Test]

@@ -78,10 +78,14 @@ COPY --from=build /app/publish .
 
 # The .NET base images ship a predefined non-root user `app` (UID 1654,
 # exposed via the APP_UID env var). The server creates its
-# certificate/PKI store under /app at runtime, so make it writable by
-# that user.
-ENV HOME=/app
-RUN mkdir -p /app/pki && chown -R $APP_UID:$APP_UID /app
+# certificate/PKI store under /app at runtime. The shared /diag
+# directory carries the diagnostic socket and collected artifacts for
+# the companion Kubernetes diagnostics container.
+ENV HOME=/app \
+    DOTNET_DiagnosticPorts=/diag/dotnet-diagnostic.sock,suspend=n,listen
+RUN mkdir -p /app/pki /diag \
+    && chown -R $APP_UID:0 /app /diag \
+    && chmod -R g=u /app /diag
 
 USER $APP_UID
 

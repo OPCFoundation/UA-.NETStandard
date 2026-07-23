@@ -85,7 +85,7 @@ namespace Opc.Ua.Server
                 m_browse ??= [];
 
                 // remove the first continuation point if too many points.
-                while (m_browse.Count > MaxBrowse)
+                while (m_browse.Count >= MaxBrowse)
                 {
                     ContinuationPoint cp = m_browse[0];
                     m_browse.RemoveAt(0);
