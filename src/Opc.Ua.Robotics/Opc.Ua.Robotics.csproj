@@ -6,7 +6,7 @@
     <RootNamespace>Opc.Ua.Robotics</RootNamespace>
     <NoWarn>$(NoWarn);CS1591;CS0108</NoWarn>
     <Nullable>enable</Nullable>
-    <Description>Shared foundation for the OPC 40010 Robotics companion specification (MotionDeviceSystem -&gt; MotionDevice -&gt; Axis). Source-generated from the Robotics + Industrial Automation (IA) NodeSet2 XMLs over the OPC UA DI base model, exposing the typed model, the AddOpcUaRobotics / AddOpcUaIA loaders, and key type NodeIds. Used together with the draft OPC UA - OpenUSD Bindings model to render a live robot-cell twin.</Description>
+    <Description>Server/client-independent OPC 40010 Robotics contracts and source-generated Robotics and Industrial Automation models over OPC UA DI, including model identifiers, typed states and proxies, model loaders, and focused topology read-projection contracts.</Description>
     <IsPackable>true</IsPackable>
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
