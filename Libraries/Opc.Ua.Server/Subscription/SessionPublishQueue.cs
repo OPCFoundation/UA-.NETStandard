@@ -451,7 +451,7 @@ namespace Opc.Ua.Server
                 {
                     lock (m_lock)
                     {
-                        if (!subscription.Publishing)
+                        if (!subscription.Publishing && !subscription.ReadyToPublish)
                         {
                             AssignSubscriptionToRequest(subscription);
                         }
