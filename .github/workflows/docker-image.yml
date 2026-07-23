@@ -143,7 +143,7 @@ jobs:
         labels: ${{ steps.meta.outputs.labels }}
         provenance: false
         cache-from: type=gha,scope=${{ matrix.image }}
-        cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+        cache-to: type=gha,mode=max,scope=${{ matrix.image }},ignore-error=true
 
     # Sign the resulting Docker image digest except on PRs.
     # https://github.com/sigstore/cosign
