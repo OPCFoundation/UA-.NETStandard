@@ -129,51 +129,64 @@ namespace Opc.Ua.Server.Tests
 
         [Test]
         [CancelAfter(10000)]
-        public async Task PublishTimerAssignsRequeuedSubscriptionToWaitingRequestAsync()
+        public async Task PublishTimerPreservesReadySubscriptionTimestampOrderAsync()
         {
             using var queue = new SessionPublishQueue(
                 m_serverMock.Object,
                 m_sessionMock.Object,
                 kMaxPublishRequests);
-            var subscription = new Mock<ISubscription>();
-            subscription.Setup(s => s.Id).Returns(1);
-            subscription
+
+            PublishingState publishingState = PublishingState.Idle;
+            var timerOrder = new List<ISubscription>();
+            var subscription1 = new Mock<ISubscription>();
+            subscription1.Setup(s => s.Id).Returns(1);
+            subscription1.Setup(s => s.Priority).Returns(1);
+            subscription1
                 .Setup(s => s.PublishTimerExpired())
-                .Returns(PublishingState.NotificationsAvailable);
-            queue.Add(subscription.Object);
+                .Callback(() => timerOrder.Add(subscription1.Object))
+                .Returns(() => publishingState);
+            queue.Add(subscription1.Object);
 
-            queue.Requeue(subscription.Object);
+            var subscription2 = new Mock<ISubscription>();
+            subscription2.Setup(s => s.Id).Returns(2);
+            subscription2.Setup(s => s.Priority).Returns(1);
+            subscription2
+                .Setup(s => s.PublishTimerExpired())
+                .Callback(() => timerOrder.Add(subscription2.Object))
+                .Returns(() => publishingState);
+            queue.Add(subscription2.Object);
+
+            queue.PublishTimerExpired();
+            Assert.That(timerOrder, Has.Count.EqualTo(2));
+
+            ISubscription newerSubscription = timerOrder[0];
+            ISubscription olderSubscription = timerOrder[1];
+            queue.PublishCompleted(olderSubscription, false);
+            DateTime timestampBoundary = DateTime.UtcNow;
             Assert.That(
-                await queue.PublishAsync(
-                    "channel1",
-                    DateTime.MaxValue,
-                    false,
-                    null,
-                    CancellationToken.None).ConfigureAwait(false),
-                Is.SameAs(subscription.Object));
+                SpinWait.SpinUntil(
+                    () => DateTime.UtcNow > timestampBoundary,
+                    TimeSpan.FromSeconds(1)),
+                Is.True,
+                "The clock did not advance while preparing distinct subscription timestamps.");
+            queue.PublishCompleted(newerSubscription, false);
 
-            Task<ISubscription> publishTask = queue.PublishAsync(
+            queue.Requeue(newerSubscription);
+            queue.Requeue(olderSubscription);
+            publishingState = PublishingState.NotificationsAvailable;
+            timerOrder.Clear();
+            queue.PublishTimerExpired();
+
+            Assert.That(timerOrder, Has.Count.EqualTo(2));
+            Assert.That(timerOrder[0], Is.SameAs(newerSubscription));
+            Assert.That(timerOrder[1], Is.SameAs(olderSubscription));
+            ISubscription result = await queue.PublishAsync(
                 "channel1",
                 DateTime.MaxValue,
                 false,
                 null,
-                CancellationToken.None);
-            Assert.That(publishTask.IsCompleted, Is.False);
-
-            queue.Requeue(subscription.Object);
-            queue.PublishTimerExpired();
-
-            Task completed = await Task.WhenAny(
-                publishTask,
-                Task.Delay(TimeSpan.FromSeconds(2))).ConfigureAwait(false);
-
-            Assert.That(
-                completed,
-                Is.SameAs(publishTask),
-                "The timer did not assign the requeued Subscription to the waiting Publish request.");
-            Assert.That(
-                await publishTask.ConfigureAwait(false),
-                Is.SameAs(subscription.Object));
+                CancellationToken.None).ConfigureAwait(false);
+            Assert.That(result, Is.SameAs(olderSubscription));
         }
 
         [Test]
@@ -717,6 +730,5 @@ namespace Opc.Ua.Server.Tests
             Assert.That(validSubscriptions, Is.EqualTo(numItems), "All publish requests should have received a subscription.");
             Assert.That(returnedSubIds, Has.Count.EqualTo(numItems), "All subscriptions should have been processed.");
         }
-
     }
 }
