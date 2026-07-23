@@ -661,6 +661,12 @@ namespace Opc.Ua
                 ApplicationUri = GenerateDefaultUri();
             }
 
+            // Ensure the transport quotas are always available. The transport
+            // and secure channel layers rely on them being non-null (e.g. during
+            // server bring-up), so default them to sensible values when a
+            // configuration was assembled manually without specifying them.
+            TransportQuotas ??= new TransportQuotas();
+
             if (applicationType is ApplicationType.Client or ApplicationType.ClientAndServer)
             {
                 if (ClientConfiguration == null)

@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Opc.Ua;
 using Opc.Ua.Server;
 using Quickstarts.Servers;
@@ -299,7 +300,7 @@ namespace Boiler
             }
         }
 
-        private ILogger m_logger = null!;
+        private ILogger m_logger = NullLogger<BoilerState>.Instance;
         private ISystemContext m_simulationContext = null!;
         private ITimer? m_simulationTimer;
     }

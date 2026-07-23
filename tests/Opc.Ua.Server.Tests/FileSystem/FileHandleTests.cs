@@ -30,8 +30,12 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Server.FileSystem;
 
@@ -50,6 +54,8 @@ namespace Opc.Ua.Server.Tests.FileSystem
         private const byte ModeEraseExisting = 0x4;
         private const byte ModeAppend = 0x8;
 
+        private static readonly NodeId s_sessionId = new("FileHandleSession", 0);
+        private static readonly NodeId s_otherSessionId = new("OtherFileHandleSession", 0);
         private string m_root = null!;
 
         [SetUp]
@@ -90,9 +96,20 @@ namespace Opc.Ua.Server.Tests.FileSystem
         {
             using var handle = new FileHandle(CreateProvider(), "f.txt");
 
-            ServiceResult result = handle.Open(0x0, out uint fileHandle);
+            ServiceResult result = handle.Open(s_sessionId, 0x0, out uint fileHandle);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+            Assert.That(fileHandle, Is.Zero);
+        }
+
+        [Test]
+        public void OpenWithNullSessionReturnsBadSessionIdInvalid()
+        {
+            using var handle = new FileHandle(CreateProvider(), "f.txt");
+
+            ServiceResult result = handle.Open(NodeId.Null, ModeRead, out uint fileHandle);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
             Assert.That(fileHandle, Is.Zero);
         }
 
@@ -101,7 +118,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         {
             using var handle = new FileHandle(CreateProvider(), "f.txt");
 
-            ServiceResult result = handle.Open(ModeRead | ModeWrite, out _);
+            ServiceResult result = handle.Open(s_sessionId, ModeRead | ModeWrite, out _);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
@@ -112,7 +129,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             WriteFile("f.txt", "abc");
             using var handle = new FileHandle(CreateProvider(isWritable: false), "f.txt");
 
-            ServiceResult result = handle.Open(ModeWrite, out _);
+            ServiceResult result = handle.Open(s_sessionId, ModeWrite, out _);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
@@ -122,7 +139,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         {
             using var handle = new FileHandle(CreateProvider(), "missing.txt");
 
-            ServiceResult result = handle.Open(ModeRead, out _);
+            ServiceResult result = handle.Open(s_sessionId, ModeRead, out _);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotFound));
         }
@@ -133,12 +150,12 @@ namespace Opc.Ua.Server.Tests.FileSystem
             WriteFile("f.txt", "hello");
             using var handle = new FileHandle(CreateProvider(), "f.txt");
 
-            ServiceResult result = handle.Open(ModeRead, out uint fileHandle);
+            ServiceResult result = handle.Open(s_sessionId, ModeRead, out uint fileHandle);
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(fileHandle, Is.GreaterThan(0u));
             Assert.That(handle.OpenCount, Is.EqualTo(1));
-            Assert.That(handle.GetStream(fileHandle), Is.Not.Null);
+            Assert.That(handle.GetStream(s_sessionId, fileHandle), Is.Not.Null);
         }
 
         [Test]
@@ -147,8 +164,8 @@ namespace Opc.Ua.Server.Tests.FileSystem
             WriteFile("f.txt", "hello");
             using var handle = new FileHandle(CreateProvider(), "f.txt");
 
-            handle.Open(ModeRead, out uint first);
-            handle.Open(ModeRead, out uint second);
+            handle.Open(s_sessionId, ModeRead, out uint first);
+            handle.Open(s_sessionId, ModeRead, out uint second);
 
             Assert.That(first, Is.Not.EqualTo(second));
             Assert.That(handle.OpenCount, Is.EqualTo(2));
@@ -159,9 +176,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
         {
             WriteFile("f.txt", "hello");
             using var handle = new FileHandle(CreateProvider(), "f.txt");
-            handle.Open(ModeRead, out _);
+            handle.Open(s_sessionId, ModeRead, out _);
 
-            ServiceResult result = handle.Open(ModeWrite, out _);
+            ServiceResult result = handle.Open(s_sessionId, ModeWrite, out _);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
         }
@@ -171,24 +188,59 @@ namespace Opc.Ua.Server.Tests.FileSystem
         {
             WriteFile("f.txt", "hello");
             using var handle = new FileHandle(CreateProvider(), "f.txt");
-            handle.Open(ModeWrite, out _);
+            handle.Open(s_sessionId, ModeWrite, out _);
 
-            ServiceResult result = handle.Open(ModeRead, out _);
+            ServiceResult result = handle.Open(s_sessionId, ModeRead, out _);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
         }
 
         [Test]
-        public void OpenWriteReturnsHandleOne()
+        public void OpenReadWhileWriteHandleAlreadyOpenInternallyReturnsBadInvalidState()
+        {
+            // Uses a provider whose streams do not take exclusive OS-level
+            // file locks, so this exercises FileHandle's own in-memory
+            // "already open for write" guard rather than an IOException
+            // bubbling up from the OS.
+            using var handle = new FileHandle(new NonExclusiveStreamProvider(), "f.txt");
+            handle.Open(s_sessionId, ModeWrite, out uint writeHandle);
+
+            ServiceResult result = handle.Open(s_sessionId, ModeRead, out uint readHandle);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(readHandle, Is.Zero);
+            Assert.That(handle.OpenCount, Is.EqualTo(1));
+            Assert.That(handle.GetStream(s_sessionId, writeHandle), Is.Not.Null);
+        }
+
+        [Test]
+        public void OpenWriteWhileAnyHandleAlreadyOpenInternallyReturnsBadInvalidState()
+        {
+            // Same rationale as above, but for the write-open guard that
+            // rejects opening for write while any reader or writer holds
+            // the file.
+            using var handle = new FileHandle(new NonExclusiveStreamProvider(), "f.txt");
+            handle.Open(s_sessionId, ModeRead, out uint readHandle);
+
+            ServiceResult result = handle.Open(s_sessionId, ModeWrite, out uint writeHandle);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(writeHandle, Is.Zero);
+            Assert.That(handle.OpenCount, Is.EqualTo(1));
+            Assert.That(handle.GetStream(s_sessionId, readHandle), Is.Not.Null);
+        }
+
+        [Test]
+        public void OpenWriteReturnsOpaqueHandle()
         {
             WriteFile("f.txt", "hello");
             using var handle = new FileHandle(CreateProvider(), "f.txt");
 
-            ServiceResult result = handle.Open(ModeWrite, out uint fileHandle);
+            ServiceResult result = handle.Open(s_sessionId, ModeWrite, out uint fileHandle);
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
-            Assert.That(fileHandle, Is.EqualTo(1u));
-            Assert.That(handle.GetStream(1u), Is.Not.Null);
+            Assert.That(fileHandle, Is.Not.Zero);
+            Assert.That(handle.GetStream(s_sessionId, fileHandle), Is.Not.Null);
         }
 
         [Test]
@@ -197,11 +249,11 @@ namespace Opc.Ua.Server.Tests.FileSystem
             WriteFile("f.txt", "existing-content");
             using var handle = new FileHandle(CreateProvider(), "f.txt");
 
-            handle.Open(ModeWrite | ModeEraseExisting, out uint fileHandle);
-            Stream stream = handle.GetStream(fileHandle)!;
+            handle.Open(s_sessionId, ModeWrite | ModeEraseExisting, out uint fileHandle);
+            Stream stream = handle.GetStream(s_sessionId, fileHandle)!;
             byte[] payload = Encoding.UTF8.GetBytes("new");
             stream.Write(payload, 0, payload.Length);
-            handle.Close(fileHandle);
+            handle.Close(s_sessionId, fileHandle);
 
             Assert.That(File.ReadAllText(Path.Combine(m_root, "f.txt")), Is.EqualTo("new"));
         }
@@ -212,11 +264,11 @@ namespace Opc.Ua.Server.Tests.FileSystem
             WriteFile("f.txt", "a");
             using var handle = new FileHandle(CreateProvider(), "f.txt");
 
-            handle.Open(ModeWrite | ModeAppend, out uint fileHandle);
-            Stream stream = handle.GetStream(fileHandle)!;
+            handle.Open(s_sessionId, ModeWrite | ModeAppend, out uint fileHandle);
+            Stream stream = handle.GetStream(s_sessionId, fileHandle)!;
             byte[] payload = Encoding.UTF8.GetBytes("b");
             stream.Write(payload, 0, payload.Length);
-            handle.Close(fileHandle);
+            handle.Close(s_sessionId, fileHandle);
 
             Assert.That(File.ReadAllText(Path.Combine(m_root, "f.txt")), Is.EqualTo("ab"));
         }
@@ -226,7 +278,29 @@ namespace Opc.Ua.Server.Tests.FileSystem
         {
             using var handle = new FileHandle(CreateProvider(), "f.txt");
 
-            Assert.That(handle.GetStream(999u), Is.Null);
+            Assert.That(handle.GetStream(s_sessionId, 999u), Is.Null);
+        }
+
+        [Test]
+        public void GetStreamReturnsNullForDifferentSession()
+        {
+            WriteFile("f.txt", "hello");
+            using var handle = new FileHandle(CreateProvider(), "f.txt");
+            handle.Open(s_sessionId, ModeRead, out uint fileHandle);
+
+            Assert.That(handle.GetStream(s_otherSessionId, fileHandle), Is.Null);
+            Assert.That(handle.GetStream(s_sessionId, fileHandle), Is.Not.Null);
+        }
+
+        [Test]
+        public void GetStreamReturnsNullForDifferentSessionOnWriteHandle()
+        {
+            WriteFile("f.txt", "hello");
+            using var handle = new FileHandle(CreateProvider(), "f.txt");
+            handle.Open(s_sessionId, ModeWrite, out uint fileHandle);
+
+            Assert.That(handle.GetStream(s_otherSessionId, fileHandle), Is.Null);
+            Assert.That(handle.GetStream(s_sessionId, fileHandle), Is.Not.Null);
         }
 
         [Test]
@@ -234,7 +308,76 @@ namespace Opc.Ua.Server.Tests.FileSystem
         {
             using var handle = new FileHandle(CreateProvider(), "f.txt");
 
-            Assert.That(handle.Close(42u), Is.False);
+            Assert.That(handle.Close(s_sessionId, 42u), Is.False);
+        }
+
+        [Test]
+        public void CloseReturnsFalseForDifferentSessionOnWriteHandle()
+        {
+            WriteFile("f.txt", "hello");
+            using var handle = new FileHandle(CreateProvider(), "f.txt");
+            handle.Open(s_sessionId, ModeWrite, out uint fileHandle);
+
+            bool closed = handle.Close(s_otherSessionId, fileHandle);
+
+            Assert.That(closed, Is.False);
+            Assert.That(handle.OpenCount, Is.EqualTo(1));
+            Assert.That(handle.GetStream(s_sessionId, fileHandle), Is.Not.Null);
+        }
+
+        [Test]
+        public void CloseReturnsFalseForDifferentSessionOnReadHandle()
+        {
+            WriteFile("f.txt", "hello");
+            using var handle = new FileHandle(CreateProvider(), "f.txt");
+            handle.Open(s_sessionId, ModeRead, out uint fileHandle);
+
+            bool closed = handle.Close(s_otherSessionId, fileHandle);
+
+            Assert.That(closed, Is.False);
+            Assert.That(handle.OpenCount, Is.EqualTo(1));
+            Assert.That(handle.GetStream(s_sessionId, fileHandle), Is.Not.Null);
+        }
+
+        [Test]
+        public void CloseSessionRemovesOwnedWriteHandle()
+        {
+            WriteFile("f.txt", "hello");
+            using var handle = new FileHandle(CreateProvider(), "f.txt");
+            handle.Open(s_sessionId, ModeWrite, out uint fileHandle);
+
+            handle.CloseSession(s_sessionId);
+
+            Assert.That(handle.OpenCount, Is.Zero);
+            Assert.That(handle.GetStream(s_sessionId, fileHandle), Is.Null);
+        }
+
+        [Test]
+        public void CloseSessionRemovesOwnedReadHandlesButKeepsOtherSessions()
+        {
+            WriteFile("f.txt", "hello");
+            using var handle = new FileHandle(CreateProvider(), "f.txt");
+            handle.Open(s_sessionId, ModeRead, out uint ownHandle);
+            handle.Open(s_otherSessionId, ModeRead, out uint otherHandle);
+
+            handle.CloseSession(s_sessionId);
+
+            Assert.That(handle.OpenCount, Is.EqualTo(1));
+            Assert.That(handle.GetStream(s_sessionId, ownHandle), Is.Null);
+            Assert.That(handle.GetStream(s_otherSessionId, otherHandle), Is.Not.Null);
+        }
+
+        [Test]
+        public void CloseSessionForSessionWithNoOpenHandlesIsNoOp()
+        {
+            WriteFile("f.txt", "hello");
+            using var handle = new FileHandle(CreateProvider(), "f.txt");
+            handle.Open(s_sessionId, ModeRead, out uint fileHandle);
+
+            handle.CloseSession(s_otherSessionId);
+
+            Assert.That(handle.OpenCount, Is.EqualTo(1));
+            Assert.That(handle.GetStream(s_sessionId, fileHandle), Is.Not.Null);
         }
 
         [Test]
@@ -242,13 +385,13 @@ namespace Opc.Ua.Server.Tests.FileSystem
         {
             WriteFile("f.txt", "hello");
             using var handle = new FileHandle(CreateProvider(), "f.txt");
-            handle.Open(ModeRead, out uint fileHandle);
+            handle.Open(s_sessionId, ModeRead, out uint fileHandle);
 
-            bool closed = handle.Close(fileHandle);
+            bool closed = handle.Close(s_sessionId, fileHandle);
 
             Assert.That(closed, Is.True);
             Assert.That(handle.OpenCount, Is.Zero);
-            Assert.That(handle.GetStream(fileHandle), Is.Null);
+            Assert.That(handle.GetStream(s_sessionId, fileHandle), Is.Null);
         }
 
         [Test]
@@ -256,9 +399,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
         {
             WriteFile("f.txt", "hello");
             using var handle = new FileHandle(CreateProvider(), "f.txt");
-            handle.Open(ModeWrite, out uint fileHandle);
+            handle.Open(s_sessionId, ModeWrite, out uint fileHandle);
 
-            bool closed = handle.Close(fileHandle);
+            bool closed = handle.Close(s_sessionId, fileHandle);
 
             Assert.That(closed, Is.True);
             Assert.That(handle.OpenCount, Is.Zero);
@@ -292,7 +435,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         {
             WriteFile("f.txt", "hello");
             using var handle = new FileHandle(CreateProvider(), "f.txt");
-            handle.Open(ModeRead, out _);
+            handle.Open(s_sessionId, ModeRead, out _);
 
             Assert.That(handle.IsWriteable, Is.False);
         }
@@ -311,12 +454,75 @@ namespace Opc.Ua.Server.Tests.FileSystem
         {
             WriteFile("f.txt", "hello");
             var handle = new FileHandle(CreateProvider(), "f.txt");
-            handle.Open(ModeRead, out _);
-            handle.Open(ModeRead, out _);
+            handle.Open(s_sessionId, ModeRead, out _);
+            handle.Open(s_sessionId, ModeRead, out _);
 
             handle.Dispose();
 
             Assert.That(handle.OpenCount, Is.Zero);
+        }
+
+        /// <summary>
+        /// Minimal <see cref="IFileSystemProvider"/> fake whose read/write
+        /// streams are independent in-memory buffers rather than OS file
+        /// handles. Unlike <see cref="PhysicalFileSystemProvider"/>, opening
+        /// the same path twice never fails at the OS level, which lets
+        /// tests drive <see cref="FileHandle"/>'s own in-memory
+        /// already-open guards instead of the IOException fallback path.
+        /// </summary>
+        private sealed class NonExclusiveStreamProvider : IFileSystemProvider
+        {
+            public string MountName => "mount";
+
+            public bool IsWritable => true;
+
+            public ValueTask<FileSystemEntry?> GetEntryAsync(string path, CancellationToken ct)
+            {
+                return new ValueTask<FileSystemEntry?>((FileSystemEntry?)null);
+            }
+
+            public async IAsyncEnumerable<FileSystemEntry> EnumerateAsync(
+                string path,
+                [EnumeratorCancellation] CancellationToken ct)
+            {
+                await Task.CompletedTask.ConfigureAwait(false);
+                yield break;
+            }
+
+            public ValueTask<Stream> OpenReadAsync(string path, CancellationToken ct)
+            {
+                return new ValueTask<Stream>((Stream)new MemoryStream());
+            }
+
+            public ValueTask<Stream> OpenWriteAsync(string path, FileWriteMode mode, CancellationToken ct)
+            {
+                return new ValueTask<Stream>((Stream)new MemoryStream());
+            }
+
+            public ValueTask CreateDirectoryAsync(string path, CancellationToken ct)
+            {
+                throw new NotSupportedException();
+            }
+
+            public ValueTask CreateFileAsync(string path, CancellationToken ct)
+            {
+                throw new NotSupportedException();
+            }
+
+            public ValueTask DeleteAsync(string path, CancellationToken ct)
+            {
+                throw new NotSupportedException();
+            }
+
+            public ValueTask MoveAsync(string source, string target, CancellationToken ct)
+            {
+                throw new NotSupportedException();
+            }
+
+            public ValueTask CopyAsync(string source, string target, CancellationToken ct)
+            {
+                throw new NotSupportedException();
+            }
         }
     }
 }

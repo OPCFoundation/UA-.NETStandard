@@ -454,7 +454,13 @@ namespace Opc.Ua.Di.Server
             device.SymbolicName = browseName.Name ?? string.Empty;
             device.BrowseName = browseName;
             device.DisplayName = new LocalizedText(browseName.Name);
-            device.ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.HasComponent;
+            NodeId deviceSetId = NodeId.Create(
+                Opc.Ua.Di.Objects.DeviceSet,
+                DiNamespaceUri,
+                Server.NamespaceUris);
+            device.ReferenceTypeId = effectiveParent.NodeId == deviceSetId
+                ? Opc.Ua.Types.ReferenceTypeIds.Organizes
+                : Opc.Ua.Types.ReferenceTypeIds.HasComponent;
             device.NodeId = SystemContext.NodeIdFactory.New(SystemContext, device);
 
             effectiveParent.AddChild(device);
@@ -545,17 +551,141 @@ namespace Opc.Ua.Di.Server
                         "No default device parent could be resolved.");
 
             NodeState? child = effectiveParent.FindChild(SystemContext, browseName);
-            if (child is not TDevice typed)
+            if (child == null)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadNodeIdUnknown,
-                    "No child '{0}' of type {1} on '{2}'.",
+                    "No child '{0}' exists on '{1}'.",
                     browseName,
-                    typeof(TDevice).Name,
                     effectiveParent.BrowseName);
+            }
+            if (child is not TDevice typed)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadTypeMismatch,
+                    "Child '{0}' on '{1}' is of type {2}, which is not assignable to {3}.",
+                    browseName,
+                    effectiveParent.BrowseName,
+                    child.GetType().Name,
+                    typeof(TDevice).Name);
             }
 
             return new DeviceBuilder<TDevice>(this, typed, GetOrCreateBuilder());
+        }
+
+        /// <summary>
+        /// Wraps an existing topology element with the common fluent
+        /// topology-element surface.
+        /// </summary>
+        /// <typeparam name="TElement">Concrete topology-element state type.</typeparam>
+        /// <param name="element">The topology element to wrap.</param>
+        /// <returns>A fluent topology-element builder.</returns>
+        /// <exception cref="System.ArgumentNullException">
+        /// <paramref name="element"/> is <see langword="null"/>.
+        /// </exception>
+        public ITopologyElementBuilder<TElement> TopologyElement<TElement>(
+            TElement element)
+            where TElement : TopologyElementState
+        {
+            if (element == null)
+            {
+                throw new System.ArgumentNullException(nameof(element));
+            }
+            return new TopologyElementBuilder<TElement>(
+                this,
+                element,
+                GetOrCreateBuilder());
+        }
+
+        /// <summary>
+        /// Resolves a predefined topology element by NodeId.
+        /// </summary>
+        /// <typeparam name="TElement">Concrete topology-element state type.</typeparam>
+        /// <param name="nodeId">NodeId of the registered topology element.</param>
+        /// <returns>A fluent topology-element builder.</returns>
+        /// <exception cref="System.ArgumentNullException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public ITopologyElementBuilder<TElement> TopologyElement<TElement>(
+            NodeId nodeId)
+            where TElement : TopologyElementState
+        {
+            if (nodeId.IsNull)
+            {
+                throw new System.ArgumentNullException(nameof(nodeId));
+            }
+            if (!PredefinedNodes.TryGetValue(nodeId, out NodeState? state))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadNodeIdUnknown,
+                    "No predefined node with NodeId '{0}'.",
+                    nodeId);
+            }
+            if (state is not TElement typed)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadTypeMismatch,
+                    "Node '{0}' is of type {1}, which is not assignable to {2}.",
+                    nodeId,
+                    state.GetType().Name,
+                    typeof(TElement).Name);
+            }
+
+            return new TopologyElementBuilder<TElement>(
+                this,
+                typed,
+                GetOrCreateBuilder());
+        }
+
+        /// <summary>
+        /// Resolves an existing topology element by browse name.
+        /// </summary>
+        /// <typeparam name="TElement">Concrete topology-element state type.</typeparam>
+        /// <param name="browseName">Browse name below the resolved parent.</param>
+        /// <param name="parent">
+        /// Optional parent; the default device parent is used when omitted.
+        /// </param>
+        /// <returns>A fluent topology-element builder.</returns>
+        /// <exception cref="System.ArgumentNullException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public ITopologyElementBuilder<TElement> TopologyElementByBrowseName<TElement>(
+            QualifiedName browseName,
+            NodeState? parent = null)
+            where TElement : TopologyElementState
+        {
+            if (browseName.IsNull)
+            {
+                throw new System.ArgumentNullException(nameof(browseName));
+            }
+            NodeState effectiveParent = parent ??
+                ResolveDefaultDeviceParent()
+                    ?? throw ServiceResultException.Create(
+                        StatusCodes.BadConfigurationError,
+                        "No default device parent could be resolved.");
+
+            NodeState? child = effectiveParent.FindChild(SystemContext, browseName);
+            if (child == null)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadNodeIdUnknown,
+                    "No child '{0}' exists on '{1}'.",
+                    browseName,
+                    effectiveParent.BrowseName);
+            }
+            if (child is not TElement typed)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadTypeMismatch,
+                    "Child '{0}' on '{1}' is of type {2}, which is not assignable to {3}.",
+                    browseName,
+                    effectiveParent.BrowseName,
+                    child.GetType().Name,
+                    typeof(TElement).Name);
+            }
+
+            return new TopologyElementBuilder<TElement>(
+                this,
+                typed,
+                GetOrCreateBuilder());
         }
 
         /// <summary>
@@ -574,6 +704,19 @@ namespace Opc.Ua.Di.Server
                 return null;
             }
             return PredefinedNodes.TryGetValue(nodeId, out NodeState? node) ? node : null;
+        }
+
+        /// <summary>
+        /// Synchronously indexes a plain builder-created node subtree.
+        /// </summary>
+        /// <remarks>
+        /// This path intentionally skips asynchronous behavior attachment and
+        /// is reserved for plain states configured directly by fluent builders.
+        /// </remarks>
+        /// <param name="node">The node subtree to index.</param>
+        internal void AddPlainPredefinedNodeSynchronously(NodeState node)
+        {
+            AddPredefinedNodeSynchronously(node);
         }
 
         /// <summary>

@@ -297,11 +297,10 @@ needs to redo browse-path resolution. See
 [`StateMachines.md`](StateMachines.md) for the generic state-machine
 API the typed wrappers build on.
 
-## Walkthrough — `samples/PumpDeviceIntegrationServer`
+## Hosted-server walkthrough
 
-The pump server doubles as the software-update walkthrough: a second
-declarative pump (`Pump #2`) created via `ConfigureDevicesFor` has the
-SU facet attached on top of the standard DI identification properties.
+Attach the software-update facet to a `ComponentType`-derived device
+created through the Device Integration builder:
 
 ```csharp
 services.AddSingleton<ISoftwarePackageStore, MemoryPackageStore>();
@@ -310,34 +309,32 @@ services
     .AddOpcUa()
     .AddServer(o =>
     {
-        o.ApplicationName = "PumpDeviceIntegrationServer";
-        o.EndpointUrls.Add($"opc.tcp://localhost:{port}/PumpDeviceIntegrationServer");
+        o.ApplicationName = "DeviceIntegrationServer";
+        o.EndpointUrls.Add($"opc.tcp://localhost:{port}/DeviceIntegrationServer");
     })
-    .AddNodeManager<PumpNodeManagerFactory>()
-    .ConfigureDevicesFor<PumpNodeManager>(async ctx =>
+    .AddOpcUaDi()
+    .ConfigureDevicesFor<DiNodeManager>(async ctx =>
     {
-        var pump = await ctx.CreateDeviceAsync(
-            new QualifiedName("Pump #2", ctx.Manager.DiNamespaceIndex));
+        IDeviceBuilder<DeviceState> device = await ctx.CreateDeviceAsync(
+            new QualifiedName("Controller #1", ctx.Manager.DiNamespaceIndex));
 
-        pump.WithIdentification(id =>
+        device.WithIdentification(id =>
         {
-            id.Manufacturer = new LocalizedText("Acme Pumps Inc.");
-            id.Model = new LocalizedText("PumpX-2000 (declarative)");
-            id.SerialNumber = "SN-DI-2";
+            id.Manufacturer = new LocalizedText("Acme Controls");
+            id.Model = new LocalizedText("Controller 2000");
+            id.SerialNumber = "SN-DI-1";
             id.SoftwareRevision = "2.5.3";
         });
 
         var packageStore = ctx.GetRequiredService<ISoftwarePackageStore>();
-        await SoftwarePackageSeeder.SeedAsync(packageStore);
-
-        pump.WithSoftwareUpdate(packageStore, su => su.UsePackageLoading());
+        device.WithSoftwareUpdate(packageStore, su => su.UsePackageLoading());
     });
 
 await builder.Build().RunAsync();
 ```
 
 A client connecting to the running server will discover the SU
-subtree under `Pump #2.SoftwareUpdate`, can browse the state
+subtree under `Controller #1.SoftwareUpdate`, can browse the state
 machines, and invoke `InstallSoftwarePackage`,
 `PrepareForUpdate.Prepare`, `Confirmation.Confirm`, etc. The
 library-supplied default handlers record the installed version in the
@@ -375,8 +372,6 @@ device's `SoftwareVersion` reflects the new version.
   end-to-end against `DiInProcessSessionBridge`),
   `MemorySoftwareFolderTests.cs`, `PackageStoreTests.cs`,
   `SoftwareUpdateClientTests.cs`.
-- Sample: `samples/PumpDeviceIntegrationServer/Program.cs` (the
-  `Pump #2` declarative-device block attaches the SU facet).
 
 ## Spec references
 

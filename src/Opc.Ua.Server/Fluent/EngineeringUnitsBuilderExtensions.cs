@@ -89,7 +89,7 @@ namespace Opc.Ua.Server.Fluent
             }
 
             BaseAnalogState analog = RequireAnalog(builder);
-            EnsureEngineeringUnitsProperty(analog, builder.Builder.Context);
+            EnsureEngineeringUnitsProperty(builder, analog);
             analog.EngineeringUnits!.Value = units ?? throw new ArgumentNullException(nameof(units));
             return builder;
         }
@@ -129,7 +129,7 @@ namespace Opc.Ua.Server.Fluent
             }
 
             BaseAnalogState analog = RequireAnalog(builder);
-            EnsureEURangeProperty(analog, builder.Builder.Context);
+            EnsureEURangeProperty(builder, analog);
             analog.EURange!.Value = new Range(high: max, low: min);
             return builder;
         }
@@ -166,23 +166,29 @@ namespace Opc.Ua.Server.Fluent
             return analog;
         }
 
-        private static void EnsureEngineeringUnitsProperty(
-            BaseAnalogState analog,
-            ISystemContext context)
+        private static void EnsureEngineeringUnitsProperty<TValue>(
+            IVariableBuilder<TValue> builder,
+            BaseAnalogState analog)
         {
             if (analog.EngineeringUnits == null)
             {
-                analog.AddEngineeringUnits(context);
+                analog.AddEngineeringUnits(builder.Builder.Context);
+                FluentNodeRegistration.RegisterCreatedNode(
+                    builder.Builder,
+                    analog.EngineeringUnits!);
             }
         }
 
-        private static void EnsureEURangeProperty(
-            BaseAnalogState analog,
-            ISystemContext context)
+        private static void EnsureEURangeProperty<TValue>(
+            IVariableBuilder<TValue> builder,
+            BaseAnalogState analog)
         {
             if (analog.EURange == null)
             {
-                analog.AddEURange(context);
+                analog.AddEURange(builder.Builder.Context);
+                FluentNodeRegistration.RegisterCreatedNode(
+                    builder.Builder,
+                    analog.EURange!);
             }
         }
     }

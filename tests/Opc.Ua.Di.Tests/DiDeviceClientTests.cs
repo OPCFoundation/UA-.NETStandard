@@ -239,6 +239,77 @@ namespace Opc.Ua.Di.Tests
         }
 
         [Test]
+        public async Task BrowseFunctionalGroupsAsyncReturnsSubtypeInstancesAsync()
+        {
+            Mock<ISession> sessionMock = CreateSessionMock();
+            var nodeCacheMock = new Mock<INodeCache>(MockBehavior.Strict);
+            sessionMock.SetupGet(s => s.NodeCache).Returns(nodeCacheMock.Object);
+
+            ExpandedNodeId functionalGroupSubtype = new("VendorFunctionalGroupType", 2);
+            ExpandedNodeId unrelatedType = new("FolderType", 2);
+            ReferenceDescription subtypeGroup = new()
+            {
+                NodeId = new ExpandedNodeId(new NodeId("group-1", 2)),
+                DisplayName = new LocalizedText("VendorGroup"),
+                TypeDefinition = functionalGroupSubtype,
+                NodeClass = NodeClass.Object
+            };
+            ReferenceDescription folder = new()
+            {
+                NodeId = new ExpandedNodeId(new NodeId("folder-1", 2)),
+                DisplayName = new LocalizedText("Folder"),
+                TypeDefinition = unrelatedType,
+                NodeClass = NodeClass.Object
+            };
+
+            sessionMock
+                .Setup(s => s.BrowseAsync(
+                    It.IsAny<RequestHeader?>(),
+                    It.IsAny<ViewDescription?>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<ArrayOf<BrowseDescription>>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new BrowseResponse
+                {
+                    Results =
+                    [
+                        new BrowseResult
+                        {
+                            StatusCode = StatusCodes.Good,
+                            References = [subtypeGroup, folder]
+                        }
+                    ]
+                });
+
+            nodeCacheMock
+                .Setup(c => c.IsTypeOfAsync(
+                    functionalGroupSubtype,
+                    Opc.Ua.Di.ObjectTypeIds.FunctionalGroupType,
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<bool>(true));
+            nodeCacheMock
+                .Setup(c => c.IsTypeOfAsync(
+                    unrelatedType,
+                    Opc.Ua.Di.ObjectTypeIds.FunctionalGroupType,
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<bool>(false));
+
+            var client = new DiDeviceClient(
+                sessionMock.Object, new NodeId("dev-1", 2), NullTelemetry());
+
+            var groups = new System.Collections.Generic.List<FunctionalGroupEntry>();
+            await foreach (FunctionalGroupEntry group in client.BrowseFunctionalGroupsAsync())
+            {
+                groups.Add(group);
+            }
+
+            Assert.That(groups, Has.Count.EqualTo(1));
+            Assert.That(groups[0].NodeId, Is.EqualTo(new NodeId("group-1", 2)));
+            Assert.That(groups[0].DisplayName, Is.EqualTo("VendorGroup"));
+            nodeCacheMock.VerifyAll();
+        }
+
+        [Test]
         public void ForDeviceAsyncThrowsOnNullSession()
         {
             ArgumentNullException ex = Assert.ThrowsAsync<ArgumentNullException>(

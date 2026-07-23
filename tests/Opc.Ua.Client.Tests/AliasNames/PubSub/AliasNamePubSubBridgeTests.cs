@@ -176,6 +176,48 @@ namespace Opc.Ua.Client.Tests.AliasNames.PubSub
             }
         }
 
+        [Test]
+        public async Task StrategyMatchesStringIdentifiersContainingSemicolonsAsync()
+        {
+            var reader = new AliasNamePubSubReader();
+            var strategy = new AliasNamePubSubRefreshStrategy(reader);
+            var harness = AliasNameSessionHarness.Create();
+            harness.SessionMock.SetupGet(s => s.NamespaceUris)
+                .Returns(BuildNamespaceTable());
+
+            var categoryId = new NodeId("A;B", 1);
+            var client = new AliasNameClient(harness.Session, categoryId);
+
+            int invalidations = 0;
+            await strategy.StartAsync(
+                client, () => invalidations++, CancellationToken.None).ConfigureAwait(false);
+            try
+            {
+                reader.Submit(new AliasUpdateDataType
+                {
+                    ApplicationUri = "urn:p",
+                    Categories = new[]
+                    {
+                        new AliasCategoryUpdateDataType
+                        {
+                            Category = new PortableNodeId
+                            {
+                                NamespaceUri = "http://test.example/",
+                                Identifier = NodeId.Parse("s=A;B")
+                            },
+                            LastChange = 7
+                        }
+                    }.ToArrayOf()
+                });
+
+                Assert.That(invalidations, Is.EqualTo(1));
+            }
+            finally
+            {
+                await strategy.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
         private static NamespaceTable BuildNamespaceTable()
         {
             var ns = new NamespaceTable();

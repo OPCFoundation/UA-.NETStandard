@@ -140,6 +140,27 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         /// <summary>
+        /// Replaces the default managed Dekaf client with Confluent.Kafka.
+        /// </summary>
+        /// <remarks>
+        /// Confluent.Kafka uses native librdkafka and is not NativeAOT or
+        /// trimming compatible. Use this option only for JIT-compiled hosts.
+        /// </remarks>
+        /// <param name="builder">PubSub builder.</param>
+        /// <returns>The same <paramref name="builder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static IPubSubBuilder WithConfluentKafkaClient(this IPubSubBuilder builder)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            builder.Services.Replace(
+                ServiceDescriptor.Singleton<IKafkaClientFactory, ConfluentKafkaClientFactory>());
+            return builder;
+        }
+
+        /// <summary>
         /// One-shot: registers a PubSub publisher and subscriber together with
         /// the Apache Kafka transport (JSON + UADP profiles) on a fresh OPC UA
         /// DI root.
@@ -187,11 +208,7 @@ namespace Microsoft.Extensions.DependencyInjection
 
         private static void RegisterShared(IServiceCollection services)
         {
-#if NET10_0_OR_GREATER
             services.TryAddSingleton<IKafkaClientFactory, DekafKafkaClientFactory>();
-#else
-            services.TryAddSingleton<IKafkaClientFactory, ConfluentKafkaClientFactory>();
-#endif
             services.AddPubSubTransportFactory(sp =>
                 new KafkaPubSubTransportFactory(
                     KafkaProfiles.PubSubKafkaJsonTransport,

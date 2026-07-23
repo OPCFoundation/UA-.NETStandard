@@ -45,12 +45,13 @@ namespace Opc.Ua.Client.TestFramework
     /// <summary>
     /// Client fixture for tests.
     /// </summary>
-    public class ClientFixture : IDisposable
+    public class ClientFixture : IDisposable, IAsyncDisposable
     {
         private const uint kDefaultOperationLimits = 5000;
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
         private ApplicationInstance m_application;
+        private int m_disposed;
 
         public ApplicationConfiguration Config { get; private set; }
         public ConfiguredEndpoint Endpoint { get; private set; }
@@ -159,6 +160,13 @@ namespace Opc.Ua.Client.TestFramework
             GC.SuppressFinalize(this);
         }
 
+        /// <inheritdoc/>
+        public async ValueTask DisposeAsync()
+        {
+            await DisposeAsyncCore().ConfigureAwait(false);
+            GC.SuppressFinalize(this);
+        }
+
         /// <summary>
         /// An overrideable version of the Dispose.
         /// </summary>
@@ -166,10 +174,29 @@ namespace Opc.Ua.Client.TestFramework
         {
             if (disposing)
             {
-                StopActivityListener();
-                ReverseConnectManager?.Dispose();
+                DisposeAsyncCore().AsTask().GetAwaiter().GetResult();
+            }
+        }
+
+        /// <summary>
+        /// Asynchronously releases fixture resources.
+        /// </summary>
+        protected virtual async ValueTask DisposeAsyncCore()
+        {
+            if (Interlocked.Exchange(ref m_disposed, 1) != 0)
+            {
+                return;
+            }
+
+            StopActivityListener();
+            if (ReverseConnectManager != null)
+            {
+                await ReverseConnectManager.DisposeAsync().ConfigureAwait(false);
                 ReverseConnectManager = null;
-                m_application?.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            }
+            if (m_application != null)
+            {
+                await m_application.DisposeAsync().ConfigureAwait(false);
                 m_application = null;
             }
         }
@@ -182,7 +209,10 @@ namespace Opc.Ua.Client.TestFramework
             string pkiRoot = null,
             string clientName = "TestClient")
         {
-            m_application?.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            if (m_application != null)
+            {
+                await m_application.DisposeAsync().ConfigureAwait(false);
+            }
             m_application = new ApplicationInstance(m_telemetry) { ApplicationName = clientName };
             ApplicationInstance application = m_application;
 
@@ -258,7 +288,7 @@ namespace Opc.Ua.Client.TestFramework
                 {
                     var reverseConnectUri = new Uri($"{uriScheme}://localhost:{testPort}");
                     ReverseConnectManager.AddEndpoint(reverseConnectUri, Config);
-                    ReverseConnectManager.StartService(Config);
+                    await ReverseConnectManager.StartServiceAsync(Config).ConfigureAwait(false);
                     ReverseConnectUri = reverseConnectUri.ToString();
                 }
                 catch (ServiceResultException sre)
@@ -269,7 +299,7 @@ namespace Opc.Ua.Client.TestFramework
                         throw;
                     }
 
-                    ReverseConnectManager.Dispose();
+                    await ReverseConnectManager.DisposeAsync().ConfigureAwait(false);
                     ReverseConnectManager = CreateReverseConnectManager();
                     testPort = UnsecureRandom.Shared.Next(
                         ServerFixtureUtils.MinTestPort,

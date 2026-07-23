@@ -46,6 +46,8 @@ namespace Quickstarts.Servers
             "Durable Subscriptions");
 
         private const string kFilename = "subscriptionsStore.bin";
+        private const uint kStoreMagic = 0x44535541;
+        private const uint kStoreVersion = 1;
         private readonly DurableMonitoredItemQueueFactory? m_durableMonitoredItemQueueFactory;
         private readonly ILogger m_logger;
         private readonly IServiceMessageContext m_messageContext;
@@ -75,11 +77,18 @@ namespace Quickstarts.Servers
                 }
 
                 var subs = subscriptions.Cast<StoredSubscription>().ToList();
+                // Validate identities before File.Create can truncate an existing store.
+                foreach (StoredSubscription sub in subs)
+                {
+                    _ = SanitizeUserIdentityToken(sub.UserIdentityToken);
+                }
+
                 using (FileStream fileStream = File.Create(
                     Path.Combine(s_storage_path, kFilename)))
                 using (var encoder = new BinaryEncoder(
                     fileStream, m_messageContext, true))
                 {
+                    WriteStoreHeader(encoder);
                     encoder.WriteStringArray(
                         null, m_messageContext.NamespaceUris.ToArrayOf());
                     encoder.WriteStringArray(
@@ -126,6 +135,7 @@ namespace Quickstarts.Servers
                     using (var decoder = new BinaryDecoder(
                         fileStream, m_messageContext, true))
                     {
+                        ValidateStoreHeader(decoder);
                         ArrayOf<string> nsUris = decoder.ReadStringArray(null)!;
                         ArrayOf<string> serverUris = decoder.ReadStringArray(null)!;
                         decoder.SetMappingTables(
@@ -210,6 +220,30 @@ namespace Quickstarts.Servers
             return default;
         }
 
+        internal static void WriteStoreHeader(BinaryEncoder encoder)
+        {
+            encoder.WriteUInt32(null, kStoreMagic);
+            encoder.WriteUInt32(null, kStoreVersion);
+        }
+
+        internal static void ValidateStoreHeader(BinaryDecoder decoder)
+        {
+            uint magic = decoder.ReadUInt32(null);
+            if (magic != kStoreMagic)
+            {
+                throw new InvalidDataException(
+                    "The durable subscription store has an invalid header or uses the " +
+                    "legacy unsafe format.");
+            }
+
+            uint version = decoder.ReadUInt32(null);
+            if (version != kStoreVersion)
+            {
+                throw new InvalidDataException(
+                    $"Unsupported durable subscription store version {version}.");
+            }
+        }
+
         public static void EncodeSubscription(
             BinaryEncoder encoder, StoredSubscription subscription)
         {
@@ -225,9 +259,11 @@ namespace Quickstarts.Servers
             encoder.WriteInt32(null, subscription.LastSentMessage);
             encoder.WriteUInt32(null, subscription.SequenceNumber);
 
+            UserIdentityToken? sanitizedIdentityToken =
+                SanitizeUserIdentityToken(subscription.UserIdentityToken);
             encoder.WriteExtensionObject(null,
-                subscription.UserIdentityToken != null
-                    ? new ExtensionObject(subscription.UserIdentityToken)
+                sanitizedIdentityToken != null
+                    ? new ExtensionObject(sanitizedIdentityToken)
                     : ExtensionObject.Null);
 
             ExtensionObject[] sentMsgs = subscription.SentMessages?
@@ -330,6 +366,37 @@ namespace Quickstarts.Servers
             }
             subscription.MonitoredItems = items;
             return subscription;
+        }
+
+        internal static UserIdentityToken? SanitizeUserIdentityToken(
+            UserIdentityToken? identityToken)
+        {
+            return identityToken switch
+            {
+                null => null,
+                AnonymousIdentityToken anonymous => new AnonymousIdentityToken
+                {
+                    PolicyId = anonymous.PolicyId
+                },
+                UserNameIdentityToken userName => new UserNameIdentityToken
+                {
+                    PolicyId = userName.PolicyId,
+                    UserName = userName.UserName,
+                    Password = default,
+                    EncryptionAlgorithm = null
+                },
+                X509IdentityToken x509 => new X509IdentityToken
+                {
+                    PolicyId = x509.PolicyId,
+                    CertificateData = x509.CertificateData
+                },
+                IssuedIdentityToken => throw new NotSupportedException(
+                    "Durable subscriptions owned by issued-token identities cannot be " +
+                    "persisted without storing bearer credentials."),
+                _ => throw new NotSupportedException(
+                    $"User identity token type '{identityToken.GetType().Name}' is not safe " +
+                    "for durable subscription persistence.")
+            };
         }
 
         internal static StoredMonitoredItem DecodeMonitoredItem(BinaryDecoder decoder)

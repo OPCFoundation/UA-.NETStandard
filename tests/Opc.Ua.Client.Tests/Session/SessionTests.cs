@@ -1583,6 +1583,78 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
+        public async Task OpenAsyncAcceptsServerEndpointsWithDifferentOrderingAsync()
+        {
+            EndpointDescription primaryEndpoint = CreateSessionEndpointDescription(
+                "opc.tcp://localhost:4840");
+            primaryEndpoint.SecurityLevel = 1;
+            primaryEndpoint.TransportProfileUri = Profiles.UaTcpTransport;
+
+            EndpointDescription secondaryEndpoint = CreateSessionEndpointDescription(
+                "opc.tcp://localhost:4841");
+            secondaryEndpoint.SecurityMode = MessageSecurityMode.Sign;
+            secondaryEndpoint.SecurityPolicyUri = SecurityPolicies.Basic256Sha256;
+            secondaryEndpoint.SecurityLevel = 2;
+            secondaryEndpoint.TransportProfileUri = Profiles.UaTcpTransport;
+
+            using var sut = SessionMock.Create(
+                primaryEndpoint,
+                [primaryEndpoint, secondaryEndpoint],
+                [Profiles.UaTcpTransport]);
+
+            ConfigureSuccessfulOpenResponses(
+                sut.Channel,
+                [secondaryEndpoint, primaryEndpoint],
+                ByteString.From([1, 2, 3, 4]),
+                NodeId.Parse("s=cookie"));
+
+            await sut.OpenAsync("test", new UserIdentity(), CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(sut.ServerNonce, Is.EqualTo(ByteString.From([1, 2, 3, 4])));
+            sut.Channel.Verify();
+        }
+
+        [Test]
+        public async Task OpenAsyncAcceptsUserTokenPoliciesWithDifferentOrderingAsync()
+        {
+            EndpointDescription discoveryEndpoint = CreateSessionEndpointDescription(
+                "opc.tcp://localhost:4840");
+            discoveryEndpoint.TransportProfileUri = Profiles.UaTcpTransport;
+            discoveryEndpoint.UserIdentityTokens =
+            [
+                CreateUserTokenPolicy("anonymous", UserTokenType.Anonymous),
+                CreateUserTokenPolicy("username", UserTokenType.UserName)
+            ];
+
+            EndpointDescription responseEndpoint = CreateSessionEndpointDescription(
+                "opc.tcp://localhost:4840");
+            responseEndpoint.TransportProfileUri = Profiles.UaTcpTransport;
+            responseEndpoint.UserIdentityTokens =
+            [
+                CreateUserTokenPolicy("username", UserTokenType.UserName),
+                CreateUserTokenPolicy("anonymous", UserTokenType.Anonymous)
+            ];
+
+            using var sut = SessionMock.Create(
+                discoveryEndpoint,
+                [discoveryEndpoint],
+                [Profiles.UaTcpTransport]);
+
+            ConfigureSuccessfulOpenResponses(
+                sut.Channel,
+                [responseEndpoint],
+                ByteString.From([1, 2, 3, 4]),
+                NodeId.Parse("s=cookie"));
+
+            await sut.OpenAsync("test", new UserIdentity(), CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(sut.ServerNonce, Is.EqualTo(ByteString.From([1, 2, 3, 4])));
+            sut.Channel.Verify();
+        }
+
+        [Test]
         public void OpenAsyncShouldHandleCreateSessionSuccessButActivationError()
         {
             // Arrange
@@ -2036,6 +2108,18 @@ namespace Opc.Ua.Client.Tests
             };
         }
 
+        private static UserTokenPolicy CreateUserTokenPolicy(
+            string policyId,
+            UserTokenType tokenType)
+        {
+            return new UserTokenPolicy
+            {
+                PolicyId = policyId,
+                TokenType = tokenType,
+                SecurityPolicyUri = SecurityPolicies.None
+            };
+        }
+
         private static Mock<ITransportChannel> CreateReconnectChannelMock(
             SessionMock session,
             EndpointDescription endpointDescription)
@@ -2049,6 +2133,38 @@ namespace Opc.Ua.Client.Tests
             channel.SetupGet(c => c.ClientChannelCertificate).Returns([]);
             channel.SetupGet(c => c.ServerChannelCertificate).Returns([]);
             return channel;
+        }
+
+        private static void ConfigureSuccessfulOpenResponses(
+            Mock<ITransportChannel> channel,
+            ArrayOf<EndpointDescription> serverEndpoints,
+            ByteString serverNonce,
+            NodeId authToken)
+        {
+            channel
+                .Setup(c => c.SendRequestAsync(
+                    It.IsAny<CreateSessionRequest>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<IServiceResponse>(new CreateSessionResponse
+                {
+                    ServerNonce = serverNonce,
+                    SessionId = NodeId.Parse("s=connected"),
+                    AuthenticationToken = authToken,
+                    ServerEndpoints = serverEndpoints
+                }));
+
+            channel
+                .Setup(c => c.SendRequestAsync(
+                    It.Is<ActivateSessionRequest>(r => r.RequestHeader.AuthenticationToken == authToken),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<IServiceResponse>(new ActivateSessionResponse
+                {
+                    ServerNonce = serverNonce,
+                    Results = [],
+                    DiagnosticInfos = []
+                }));
+
+            ConfigureOpenAsyncReadResponses(channel);
         }
 
         private static void ConfigureOpenAsyncReadResponses(Mock<ITransportChannel> channel)
