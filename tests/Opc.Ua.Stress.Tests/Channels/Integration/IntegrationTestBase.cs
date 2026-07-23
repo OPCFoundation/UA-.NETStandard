@@ -69,11 +69,12 @@ namespace Opc.Ua.Stress.Tests.Channels.Integration
         }
 
         protected ClientChannelManager CreateChannelManager(
-            IChannelReconnectPolicy? reconnectPolicy = null)
+            IChannelReconnectPolicy? reconnectPolicy = null,
+            ITelemetryContext? telemetry = null)
         {
             return new ClientChannelManager(
                 ClientFixture.Config,
-                Telemetry,
+                telemetry ?? Telemetry,
                 reconnectPolicy: reconnectPolicy);
         }
 

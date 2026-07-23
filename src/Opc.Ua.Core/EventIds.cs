@@ -41,6 +41,24 @@ namespace Opc.Ua
     /// </remarks>
     internal static class CoreEventIds
     {
+        // Compatibility events retain their former EventSource ids. They are scoped by
+        // their dedicated ILogger categories and intentionally overlap the per-class ids below.
+        public const string CoreCompatibilityCategory = "OPC-UA-Core";
+        public const int CoreServiceCallStart = 10;
+        public const int CoreServiceCallStop = 11;
+        public const int CoreServiceCallBadStop = 12;
+        public const int CoreSendResponse = 14;
+
+        public const string ChannelManagerCompatibilityCategory = "Opc.Ua.ChannelManager";
+        public const int ChannelManagerChannelOpened = 1;
+        public const int ChannelManagerChannelClosed = 2;
+        public const int ChannelManagerStateChanged = 3;
+        public const int ChannelManagerReconnectStarted = 4;
+        public const int ChannelManagerReconnectCompleted = 5;
+        public const int ChannelManagerReconnectFailed = 6;
+        public const int ChannelManagerParticipantAttached = 7;
+        public const int ChannelManagerParticipantDetached = 8;
+
         public const int ApplicationConfiguration = 0;
         public const int AsyncResultBase = 10;
         public const int Audit = 20;

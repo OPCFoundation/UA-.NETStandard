@@ -89,12 +89,15 @@ namespace Opc.Ua
             ApplicationConfiguration configuration,
             ITransportChannelBindings? channelFactory = null,
             ChannelManagerOptions? options = null)
+            : this(
+                configuration,
+                GetConfigurationTelemetry(configuration),
+                channelFactory,
+                reconnectPolicy: null,
+                timeProvider: null,
+                options,
+                enableGeneralTelemetry: false)
         {
-            Configuration = configuration;
-            ChannelBindings = channelFactory;
-            m_options = options ?? new ChannelManagerOptions();
-            m_certRotation = new ClientChannelManagerCertRotation(this);
-            WireCertificateRotation();
         }
 
         /// <summary>
@@ -457,15 +460,45 @@ namespace Opc.Ua
             IChannelReconnectPolicy? reconnectPolicy = null,
             TimeProvider? timeProvider = null,
             ChannelManagerOptions? options = null)
-            : this(configuration, channelFactory, options)
+            : this(
+                configuration,
+                telemetry,
+                channelFactory,
+                reconnectPolicy,
+                timeProvider,
+                options,
+                enableGeneralTelemetry: true)
         {
-            Logger = telemetry?.CreateLogger<ClientChannelManager>();
-            m_meter = telemetry?.CreateMeter();
-            m_metrics = m_meter != null
-                ? new ClientChannelManagerMetrics(this, m_meter)
-                : null;
+        }
+
+        private ClientChannelManager(
+            ApplicationConfiguration configuration,
+            ITelemetryContext? telemetry,
+            ITransportChannelBindings? channelFactory,
+            IChannelReconnectPolicy? reconnectPolicy,
+            TimeProvider? timeProvider,
+            ChannelManagerOptions? options,
+            bool enableGeneralTelemetry)
+        {
+            Configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+            ChannelBindings = channelFactory;
+            m_options = options ?? new ChannelManagerOptions();
+            m_diagnostics = new ClientChannelManagerDiagnostics(
+                TelemetryExtensions.CreateLogger(
+                    telemetry,
+                    CoreEventIds.ChannelManagerCompatibilityCategory));
+            if (enableGeneralTelemetry)
+            {
+                Logger = TelemetryExtensions.CreateLogger<ClientChannelManager>(telemetry);
+                m_meter = telemetry?.CreateMeter();
+                m_metrics = m_meter != null
+                    ? new ClientChannelManagerMetrics(this, m_meter)
+                    : null;
+            }
             ReconnectPolicy = reconnectPolicy ?? new ExponentialBackoffChannelReconnectPolicy();
             TimeProvider = timeProvider ?? TimeProvider.System;
+            m_certRotation = new ClientChannelManagerCertRotation(this);
+            WireCertificateRotation();
         }
 
         /// <inheritdoc/>
@@ -1264,6 +1297,14 @@ namespace Opc.Ua
             return s_defaultBindings.Value;
         }
 
+        private static ITelemetryContext? GetConfigurationTelemetry(
+            ApplicationConfiguration configuration)
+        {
+            return (configuration ?? throw new ArgumentNullException(nameof(configuration)))
+                .CreateMessageContext()
+                .Telemetry;
+        }
+
         [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage(
             "Trimming", "IL2026",
             Justification = "Pre-DI fallback path only; DI consumers receive an explicit registry.")]
@@ -1276,7 +1317,7 @@ namespace Opc.Ua
             CreateDefaultBindingsRegistry,
             LazyThreadSafetyMode.ExecutionAndPublication);
 
-        private readonly ClientChannelManagerDiagnostics m_diagnostics = new();
+        private readonly ClientChannelManagerDiagnostics m_diagnostics;
     }
 
     /// <summary>
