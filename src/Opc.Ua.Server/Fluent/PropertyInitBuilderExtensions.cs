@@ -429,15 +429,7 @@ namespace Opc.Ua.Server.Fluent
             property.WrappedValue = value;
             parent.AddChild(property);
 
-            // Index the freshly created node so browse / NodeId lookup work
-            // when the parent was already registered (e.g. a custom
-            // functional group built during DI post-setup). When the owning
-            // manager is not an AsyncCustomNodeManager (e.g. a unit-test
-            // double) the node remains reachable via its parent.
-            if (builder.Builder.NodeManager is AsyncCustomNodeManager manager)
-            {
-                manager.AddPredefinedNodeSynchronously(property);
-            }
+            FluentNodeRegistration.RegisterCreatedNode(builder.Builder, property);
         }
 
         private static ServiceResultException NotVariable(
