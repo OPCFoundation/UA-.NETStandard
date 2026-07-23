@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
@@ -122,7 +123,7 @@ namespace Opc.Ua.Server.Tests
 
         [Test]
         [CancelAfter(10000)]
-        public async Task PublishTimerAssignsRequeuedSubscriptionToWaitingRequestAsync()
+        public async Task PublishTimerPreservesReadySubscriptionTimestampOrderAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var subscriptionManager = new Mock<ISubscriptionManager>();
@@ -135,43 +136,56 @@ namespace Opc.Ua.Server.Tests
             session.Setup(s => s.IsSecureChannelValid(It.IsAny<string>())).Returns(true);
 
             using var queue = new SessionPublishQueue(server.Object, session.Object, 10);
-            var subscription = new Mock<ISubscription>();
-            subscription.Setup(s => s.Id).Returns(1);
-            subscription
+            PublishingState publishingState = PublishingState.Idle;
+            var timerOrder = new List<ISubscription>();
+            var subscription1 = new Mock<ISubscription>();
+            subscription1.Setup(s => s.Id).Returns(1);
+            subscription1.Setup(s => s.Priority).Returns(1);
+            subscription1
                 .Setup(s => s.PublishTimerExpired())
-                .Returns(PublishingState.NotificationsAvailable);
-            queue.Add(subscription.Object);
+                .Callback(() => timerOrder.Add(subscription1.Object))
+                .Returns(() => publishingState);
+            queue.Add(subscription1.Object);
 
-            queue.Requeue(subscription.Object);
+            var subscription2 = new Mock<ISubscription>();
+            subscription2.Setup(s => s.Id).Returns(2);
+            subscription2.Setup(s => s.Priority).Returns(1);
+            subscription2
+                .Setup(s => s.PublishTimerExpired())
+                .Callback(() => timerOrder.Add(subscription2.Object))
+                .Returns(() => publishingState);
+            queue.Add(subscription2.Object);
+
+            queue.PublishTimerExpired();
+            Assert.That(timerOrder, Has.Count.EqualTo(2));
+
+            ISubscription newerSubscription = timerOrder[0];
+            ISubscription olderSubscription = timerOrder[1];
+            queue.PublishCompleted(olderSubscription, false);
+            DateTime timestampBoundary = DateTime.UtcNow;
             Assert.That(
-                await queue.PublishAsync(
-                    "channel1",
-                    DateTime.MaxValue,
-                    false,
-                    CancellationToken.None).ConfigureAwait(false),
-                Is.SameAs(subscription.Object));
+                SpinWait.SpinUntil(
+                    () => DateTime.UtcNow > timestampBoundary,
+                    TimeSpan.FromSeconds(1)),
+                Is.True,
+                "The clock did not advance while preparing distinct subscription timestamps.");
+            queue.PublishCompleted(newerSubscription, false);
 
-            Task<ISubscription> publishTask = queue.PublishAsync(
+            queue.Requeue(newerSubscription);
+            queue.Requeue(olderSubscription);
+            publishingState = PublishingState.NotificationsAvailable;
+            timerOrder.Clear();
+            queue.PublishTimerExpired();
+
+            Assert.That(timerOrder, Has.Count.EqualTo(2));
+            Assert.That(timerOrder[0], Is.SameAs(newerSubscription));
+            Assert.That(timerOrder[1], Is.SameAs(olderSubscription));
+            ISubscription result = await queue.PublishAsync(
                 "channel1",
                 DateTime.MaxValue,
                 false,
-                CancellationToken.None);
-            Assert.That(publishTask.IsCompleted, Is.False);
-
-            queue.Requeue(subscription.Object);
-            queue.PublishTimerExpired();
-
-            Task completed = await Task.WhenAny(
-                publishTask,
-                Task.Delay(TimeSpan.FromSeconds(2))).ConfigureAwait(false);
-
-            Assert.That(
-                completed,
-                Is.SameAs(publishTask),
-                "The timer did not assign the already-ready Subscription to the queued Publish request.");
-            Assert.That(
-                await publishTask.ConfigureAwait(false),
-                Is.SameAs(subscription.Object));
+                CancellationToken.None).ConfigureAwait(false);
+            Assert.That(result, Is.SameAs(olderSubscription));
         }
 
         private static (Lock QueueLock, Lock SplitPublishLock) GetPrivateLocks(
