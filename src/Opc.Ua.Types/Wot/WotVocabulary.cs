@@ -56,10 +56,28 @@ namespace Opc.Ua.Wot
         public const string HasSubtype = "i=45";
         public const string HasProperty = "i=46";
         public const string HasComponent = "i=47";
+        public const string HasOrderedComponent = "i=49";
         public const string Organizes = "i=35";
         public const string HasTypeDefinition = "i=40";
         public const string HasModellingRule = "i=37";
         public const string GeneratesEvent = "i=41";
+
+        // Type-annotation term for an event affordance projecting a UA EventType.
+        public const string EventTypeAnnotation = "uav:eventType";
+
+        // HasComponent subtypes (base namespace) that carry stronger semantics
+        // than plain HasComponent and must be pinned by a uav:typedReference
+        // link (WoT Binding Section 5.3). Keyed by both the reference-type
+        // BrowseName and its base-namespace NodeId; the value is the canonical
+        // base-namespace ExpandedNodeId used for the typed link's uav:refType.
+        // HasComponent and HasProperty are intentionally excluded: they are the
+        // baseline parent-child forms surfaced directly as affordances.
+        private static readonly Dictionary<string, string> s_hasComponentSubtypes =
+            new(StringComparer.Ordinal)
+            {
+                ["HasOrderedComponent"] = HasOrderedComponent,
+                [HasOrderedComponent] = HasOrderedComponent
+            };
 
         // Base types (base namespace).
         public const string BaseObjectType = "i=58";
@@ -127,6 +145,23 @@ namespace Opc.Ua.Wot
         public static bool IsModellingRule(string modellingRule)
         {
             return s_modellingRuleToNodeId.ContainsKey(modellingRule);
+        }
+
+        /// <summary>
+        /// Determines whether a reference type (given as a BrowseName or a NodeId)
+        /// is a HasComponent subtype whose exact semantics must be pinned by a
+        /// <c>uav:typedReference</c> link, and returns the canonical
+        /// base-namespace ExpandedNodeId to use for the link's <c>uav:refType</c>.
+        /// </summary>
+        public static bool TryGetHasComponentSubtype(string? referenceType, out string subtypeNodeId)
+        {
+            if (referenceType is not null &&
+                s_hasComponentSubtypes.TryGetValue(referenceType, out subtypeNodeId!))
+            {
+                return true;
+            }
+            subtypeNodeId = string.Empty;
+            return false;
         }
 
         public static string FormatUInt(uint value)

@@ -129,7 +129,8 @@ namespace Opc.Ua.Wot
                 {
                     writer.WriteStartObject();
                     WriteContext(writer);
-                    WriteRootType(writer, root);
+                    bool rootIsEventType = IsEventTypeRoot(root, nodeSet);
+                    WriteRootType(writer, root, rootIsEventType);
                     writer.WriteString("title", resolvedTitle);
                     if (!string.IsNullOrEmpty(root?.BrowseName))
                     {
@@ -137,7 +138,15 @@ namespace Opc.Ua.Wot
                     }
                     if (!string.IsNullOrEmpty(root?.NodeId))
                     {
-                        writer.WriteString("uav:id", root!.NodeId);
+                        string? portableId = ToPortableNodeId(root!.NodeId, nodeSet.NamespaceUris);
+                        if (!string.IsNullOrEmpty(portableId))
+                        {
+                            writer.WriteString("uav:id", portableId);
+                        }
+                    }
+                    if (rootIsEventType)
+                    {
+                        writer.WriteBoolean("uav:isEvent", true);
                     }
                     WriteDescription(writer, root?.Description);
                     WriteAffordances(writer, nodeSet, root, diagnostics, options);

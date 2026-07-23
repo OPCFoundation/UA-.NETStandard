@@ -613,3 +613,43 @@ browseable object tree and wires the inherited xRegistry / registry Methods:
   model for API completeness but are not materialized as a separate
   AddressSpace node, since the xRegistry model does not define a
   `VersionType.Labels` container (only Registry/Group/Resource expose one).
+
+### 11.8 Binding-vocabulary alignment (NodeSet2 ↔ WoT)
+
+`Opc.Ua.Wot.WotNodeSetConverter` maps a NodeSet2 model to a WoT Thing
+Model / Thing Description and back. Beyond the byte-exact `uav:nodeSet`
+preservation envelope and the deterministic `uav:nodes` projection, the
+native readable surface tracks the current
+[OPC UA WoT Binding](https://reference.opcfoundation.org/) revision:
+
+* **Event affordances carry `uav:eventType`.** An OPC UA EventType (a
+  `BaseEventType` subtype) projects to an event affordance annotated
+  `@type: uav:eventType` alongside `uav:isEvent: true`; a NodeSet whose
+  root is an EventType is annotated the same way. The two forms are the
+  `@type` annotation and the boolean anchor of the same fact, so a
+  document that pairs `@type: uav:eventType` with `uav:isEvent: false`
+  is rejected (`WotDiagnosticCode.EventAnnotationConflict`). Reverse
+  conversion recreates a `BaseEventType` subtype from either form.
+
+* **Identity terms are portable ExpandedNodeIds.** Every persisted
+  identity term — `uav:id`, each `uav:hasComponent` / `uav:componentOf`
+  entry, `uav:mapToNodeId` / `uav:mapToType`, a NodeId-valued
+  `uav:refType`, and a generated `?id=` href — is emitted as an
+  OPC 10000-6 `nsu=<NamespaceUri>;...` ExpandedNodeId, resolved through
+  the source NodeSet's `NamespaceUris` table so the value survives a
+  namespace-table reordering; namespace 0 keeps its canonical `i=` form
+  and the session-local `ns=<index>` form is never emitted. On input the
+  converter diagnoses an `ns=<index>` in any of these terms
+  (`WotDiagnosticCode.NonPortableIdentity`). The `uav:nodeSet` envelope
+  and `uav:nodes` projection keep their own namespace indices and are
+  excluded from this rule.
+
+* **HasComponent subtypes are pinned by a typed link.**
+  `uav:hasComponent` / `uav:componentOf` expose parent-child ownership
+  for discovery across `HasComponent` and its subtypes. When the source
+  ReferenceType is a subtype (for example `HasOrderedComponent`, `i=49`),
+  the converter additionally emits a `rel: uav:typedReference` link whose
+  `uav:refType` is that ReferenceType's ExpandedNodeId and whose
+  `uav:refName` names the reference. Reverse conversion recreates the
+  exact subtype from that link and otherwise falls back to plain
+  `HasComponent`.
