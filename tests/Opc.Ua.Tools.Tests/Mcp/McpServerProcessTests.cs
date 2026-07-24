@@ -167,9 +167,9 @@ namespace Opc.Ua.Tools.Tests.Mcp
             {
                 using JsonDocument initialize = await SendRequestAsync(
                     process,
-                    """
-                    {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"Opc.Ua.Tools.Tests","version":"1.0"}}}
-                    """,
+                    "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\"," +
+                    "\"params\":{\"protocolVersion\":\"2025-06-18\",\"capabilities\":{}," +
+                    "\"clientInfo\":{\"name\":\"Opc.Ua.Tools.Tests\",\"version\":\"1.0\"}}}",
                     1,
                     timeout.Token).ConfigureAwait(false);
                 Assert.That(initialize.RootElement.TryGetProperty("result", out _), Is.True);
@@ -304,9 +304,9 @@ namespace Opc.Ua.Tools.Tests.Mcp
             var request = new HttpRequestMessage(HttpMethod.Post, requestUri)
             {
                 Content = new StringContent(
-                    """
-                    {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"Opc.Ua.Tools.Tests","version":"1.0"}}}
-                    """,
+                    "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\"," +
+                    "\"params\":{\"protocolVersion\":\"2025-06-18\",\"capabilities\":{}," +
+                    "\"clientInfo\":{\"name\":\"Opc.Ua.Tools.Tests\",\"version\":\"1.0\"}}}",
                     Encoding.UTF8,
                     "application/json")
             };
