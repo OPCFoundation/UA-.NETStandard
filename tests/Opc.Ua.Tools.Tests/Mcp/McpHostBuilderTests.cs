@@ -110,6 +110,23 @@ namespace Opc.Ua.Tools.Tests.Mcp
         }
 
         [Test]
+        public async Task ConfigureServicesUsesProvidedMcpServerOptionsAsync()
+        {
+            var services = new ServiceCollection();
+            var expected = new Opc.Ua.Mcp.McpServerOptions
+            {
+                ToolProfile = McpToolProfile.Core
+            };
+
+            McpHostBuilder.ConfigureServices(services, new PcapOptions(), expected);
+
+            await using ServiceProvider provider = services.BuildServiceProvider();
+            Assert.That(
+                provider.GetRequiredService<Opc.Ua.Mcp.McpServerOptions>(),
+                Is.SameAs(expected));
+        }
+
+        [Test]
         public void CreateMcpServerOptionsReadsEnvironmentVariables()
         {
             Environment.SetEnvironmentVariable(kExportRootVariable, "export-root");
@@ -162,6 +179,31 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 McpToolProfile.Core);
 
             Assert.That(options.ToolProfile, Is.EqualTo(McpToolProfile.Core));
+        }
+
+        [Test]
+        public void CreateMcpServerOptionsReturnsDefaultsWhenProfileIsUnconfigured()
+        {
+            IConfiguration configuration = new ConfigurationBuilder().Build();
+
+            Opc.Ua.Mcp.McpServerOptions options = McpHostBuilder.CreateMcpServerOptions(
+                configuration,
+                null);
+
+            Assert.That(options.ToolProfile, Is.EqualTo(McpToolProfile.Full));
+        }
+
+        [Test]
+        public void CreateMcpServerOptionsReadsProfileFromEnvironment()
+        {
+            Environment.SetEnvironmentVariable(kProfileVariable, "pubsub");
+            IConfiguration configuration = new ConfigurationBuilder().Build();
+
+            Opc.Ua.Mcp.McpServerOptions options = McpHostBuilder.CreateMcpServerOptions(
+                configuration,
+                null);
+
+            Assert.That(options.ToolProfile, Is.EqualTo(McpToolProfile.PubSub));
         }
 
         [Test]
@@ -290,6 +332,21 @@ namespace Opc.Ua.Tools.Tests.Mcp
 
             Assert.That(disabledPubSub, Does.Not.Contain("pubsub_decode_pcap"));
             Assert.That(enabledPubSub, Does.Contain("pubsub_decode_pcap"));
+        }
+
+        [Test]
+        public void ConfigureMcpToolsRejectsUnknownProfile()
+        {
+            var services = new ServiceCollection();
+            IMcpServerBuilder builder = services.AddMcpServer();
+
+            ArgumentOutOfRangeException? exception = Assert.Throws<ArgumentOutOfRangeException>(
+                () => McpHostBuilder.ConfigureMcpTools(
+                    builder,
+                    (McpToolProfile)int.MaxValue,
+                    false));
+
+            Assert.That(exception!.ParamName, Is.EqualTo("toolProfile"));
         }
 
         [TestCase(true, LogLevel.Trace)]

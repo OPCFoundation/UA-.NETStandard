@@ -139,21 +139,36 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 "stdio",
                 enableDiagnostics: true);
             Task<string> standardError = process.StandardError.ReadToEndAsync();
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
 
-            await Task.Delay(TimeSpan.FromSeconds(2)).ConfigureAwait(false);
-            bool running = !process.HasExited;
-            if (running)
+            bool running;
+            try
             {
-                process.Kill(true);
+                await Task.Delay(TimeSpan.FromSeconds(2), timeout.Token).ConfigureAwait(false);
+                running = !process.HasExited;
+                if (running)
+                {
+                    process.StandardInput.Close();
+                }
+                await process.WaitForExitAsync(timeout.Token).ConfigureAwait(false);
             }
-            await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
+            finally
+            {
+                if (!process.HasExited)
+                {
+                    process.Kill(true);
+                }
+                await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
+            }
 
             string error = await standardError.ConfigureAwait(false);
             Assert.That(
                 running,
                 Is.True,
                 $"MCP server exited with code {process.ExitCode}:{Environment.NewLine}{error}");
+            Assert.That(process.ExitCode, Is.Zero);
             Assert.That(error, Does.Contain("Starting MCP server with stdio transport"));
+            Assert.That(error, Does.Contain("Pcap diagnostics MCP tools"));
         }
 
         [Test]
