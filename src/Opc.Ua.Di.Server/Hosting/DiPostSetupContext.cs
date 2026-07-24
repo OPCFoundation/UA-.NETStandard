@@ -95,5 +95,20 @@ namespace Opc.Ua.Di.Server.Hosting
         {
             return Manager.DeviceByBrowseName<TDevice>(browseName, parent);
         }
+
+        public ITopologyElementBuilder<TElement> TopologyElement<TElement>(
+            NodeId nodeId)
+            where TElement : TopologyElementState
+        {
+            return Manager.TopologyElement<TElement>(nodeId);
+        }
+
+        public ITopologyElementBuilder<TElement> TopologyElementByBrowseName<TElement>(
+            QualifiedName browseName,
+            NodeState? parent = null)
+            where TElement : TopologyElementState
+        {
+            return Manager.TopologyElementByBrowseName<TElement>(browseName, parent);
+        }
     }
 }

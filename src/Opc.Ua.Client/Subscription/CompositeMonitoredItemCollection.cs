@@ -67,7 +67,9 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
     /// </list>
     /// </para>
     /// </summary>
-    internal sealed class CompositeMonitoredItemCollection : IMonitoredItemCollection
+    internal sealed class CompositeMonitoredItemCollection :
+        IMonitoredItemCollection,
+        IMonitoredItemRetryCollection
     {
         /// <summary>
         /// Construct a composite over the supplied (shared) partition
@@ -461,6 +463,39 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 MaybeArmIdleTimer(owner);
             }
             return removed;
+        }
+
+        /// <inheritdoc/>
+        public bool TryRequeue(uint clientHandle)
+        {
+            if (IsSinglePartitionFastPath)
+            {
+                return m_partitions[0].MonitoredItems is
+                    IMonitoredItemRetryCollection retry &&
+                    retry.TryRequeue(clientHandle);
+            }
+            IManagedSubscription? owner = null;
+            lock (m_partitionLock)
+            {
+                if (m_byClientHandle.TryGetValue(clientHandle, out Entry entry))
+                {
+                    owner = entry.Partition;
+                }
+                else
+                {
+                    foreach (IManagedSubscription partition in m_partitions)
+                    {
+                        if (partition.MonitoredItems.TryGetMonitoredItemByClientHandle(
+                            clientHandle, out _))
+                        {
+                            owner = partition;
+                            break;
+                        }
+                    }
+                }
+            }
+            return owner?.MonitoredItems is IMonitoredItemRetryCollection retryCollection &&
+                retryCollection.TryRequeue(clientHandle);
         }
 
         /// <summary>

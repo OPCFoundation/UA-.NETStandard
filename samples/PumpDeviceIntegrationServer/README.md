@@ -2,10 +2,9 @@
 
 A self-contained, NativeAOT-friendly OPC UA server that demonstrates
 the [OPC 40223 Pumps companion specification](https://reference.opcfoundation.org/specs/OPC-40223)
-with a full live simulation **and** the
-[OPC 10000-100 (Device Integration) software-update facet](https://reference.opcfoundation.org/specs/OPC-10000-100),
-wired entirely through the fluent `INodeManagerBuilder` API and the
-DI hosting integration.
+with a full live simulation, wired through the fluent
+`INodeManagerBuilder` API and the additive OPC 10000-100 topology-element
+builder integration.
 
 The pump sample is the integration test for every fluent API extension
 shipped under `src/Opc.Ua.Server/Fluent/`. Each extension is
@@ -37,12 +36,9 @@ info: Opc.Ua.Server.StandardServer
 
 Browse to `Objects > DeviceSet > Pump #1` in any OPC UA client (e.g.
 UaExpert) to explore the simulated pump. A second declarative pump,
-`Pump #2`, sits alongside under the same `DeviceSet` parent — it
+`Pump #2`, is organized alongside it by the same `DeviceSet` — it
 demonstrates the DI hosting `ConfigureDevicesFor` flow without the
-hand-wired fluent simulation, and additionally exposes the OPC
-10000-100 software-update facet (`Pump #2 > SoftwareUpdate`) backed
-by an in-memory `ISoftwarePackageStore` seeded with two demo
-firmware payloads.
+hand-wired fluent simulation.
 
 ## Running in Docker
 
@@ -104,21 +100,18 @@ workflow on every push to `master` and on manual dispatch.
 | Limit alarm with thresholds and acknowledge handler via `CreateLimitAlarm(...).WithLimits(...)` | `WithSupervision` |
 | Boolean supervision (TwoStateDiscreteState) → alarm activation via `.ActivatesAlarm(...)` | `WithSupervision` |
 | Cross-namespace path resolution (Pump #1 in Pumps NS → Operational in Machinery NS → Measurements in Pumps NS, all in one unqualified browse path) | `src/Opc.Ua.Server/Fluent/BrowsePathResolver.cs` |
-| Cross-pump device-health simulation via `RegisterSupervisedDeviceHealth` + `WithDeviceHealth` | `PumpNodeManager.cs` + `Program.cs` (`Pump #2`) |
-| DI declarative device + `WithIdentification` | `Program.cs` (`Pump #2`) |
-| Software-update facet (`ISoftwarePackageStore` + `WithSoftwareUpdate`) | `Program.cs` (`Pump #2`), `SoftwarePackageSeeder.cs` |
+| Generated `PumpType` instance + typed Identification group configuration | `Program.cs` (`Pump #2`) |
 
 ## Architecture
 
 ```
 PumpDeviceIntegrationServer/
 ├── Program.cs                          # AddOpcUa().AddServer(...).AddNodeManager<T>()
-│                                       # + ConfigureDevicesFor declarative Pump #2 + SU
+│                                       # + ConfigureDevicesFor declarative Pump #2
 ├── PumpNodeManager.cs                  # Hand-written FluentNodeManagerBase
 │                                       # + LoadPredefinedNodesAsync (multi-model)
 │                                       # + CreateAddressSpaceAsync (builder setup)
 ├── PumpNodeManager.Configure.cs        # partial — fluent wiring + simulation tick
-├── SoftwarePackageSeeder.cs            # seeds demo firmware payloads
 ├── PumpDeviceIntegrationServer.csproj  # ProjectReference to Opc.Ua.Di model lib
 │                                       # AdditionalFiles for Machinery + Pumps
 │                                       # NodeSet2 (consumed by source generator)
@@ -159,23 +152,8 @@ own assembly using the same `<AdditionalFiles>` pattern.
   `builder.Node("Pump #1/Events").CreateLimitAlarm(...).WithLimits(...)`
   and wire the triggering boolean variable via `.ActivatesAlarm(...)`.
 - **Add a second pump**: two patterns are demonstrated in the sample.
-  - **Hand-rolled** (used for `Pump #1`): in `PumpNodeManager.CreatePumpInstanceAsync`, call `context.CreateInstanceOfPumpType(deviceSet, browseName)`, attach it to the DI `DeviceSet`, and `AddPredefinedNodeAsync(pump)`. The fluent `Configure.cs` then wires its measurements, alarms, and simulation by browse path.
-  - **DI declarative** (used for `Pump #2`): in `Program.cs`, call `ctx.CreateDeviceAsync(new QualifiedName("Pump #N", ctx.Manager.DiNamespaceIndex))` from a `ConfigureDevicesFor<PumpNodeManager>` block, then call `pump.WithIdentification(...)` for the nameplate. This route exercises the `Opc.Ua.Di.Server` builder surface.
-- **Swap the software-update store**: replace the singleton
-  `ISoftwarePackageStore` registration in `Program.cs` with a
-  `FileSystemPackageStore` over an `IFileSystemProvider` for
-  on-disk persistence:
-
-  ```csharp
-  builder.Services.AddSingleton<ISoftwarePackageStore>(_ =>
-  {
-      var provider = new PhysicalFileSystemProvider(
-          rootDirectory: "/var/lib/sw-update",
-          mountName: "Packages",
-          isWritable: true);
-      return new FileSystemPackageStore(provider, rootPath: "/SoftwarePackages");
-  });
-  ```
+  - **Hand-rolled** (used for `Pump #1`): in `PumpNodeManager.CreatePumpAsync`, create the generated `PumpState`, attach it to the DI `DeviceSet` with `Organizes`, and register it. The fluent `Configure.cs` then wires its measurements, alarms, and simulation by browse path.
+  - **DI declarative** (used for `Pump #2`): in `Program.cs`, call `PumpNodeManager.CreatePumpAsync(...)` from a `ConfigureDevicesFor<PumpNodeManager>` block, wrap the generated `PumpState` with `ctx.TopologyElement<PumpState>(...)`, then configure the mandatory `Identification` group. This preserves the `PumpType` type definition while exposing only topology-element operations.
 
 ## NativeAOT publishing
 
@@ -194,7 +172,3 @@ generated model factories are statically rooted.
   full developer guide for the DI library trio (device builder,
   hosting integration, lock service, software-update package store,
   client helpers).
-- [`docs/SoftwareUpdate.md`](../../docs/SoftwareUpdate.md) —
-  in-depth coverage of the software-update facet wiring, file-transfer
-  pipeline, and client `UploadPackageAsync`.
-

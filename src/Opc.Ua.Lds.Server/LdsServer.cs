@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -491,24 +492,40 @@ namespace Opc.Ua.Lds.Server
                     new LocalizedText("ServerType is out of range."));
             }
 
-            // Match the client cert ApplicationUri against the ServerUri.
-            if (secureChannelContext?.ClientChannelCertificate is { Length: > 0 } certBytes)
+            byte[] certBytes = secureChannelContext.ClientChannelCertificate;
+            if (certBytes == null || certBytes.Length == 0)
             {
-                try
+                return new ServiceResult(
+                    StatusCodes.BadSecurityChecksFailed,
+                    new LocalizedText("RegisterServer requires a SecureChannel client certificate."));
+            }
+
+            try
+            {
+                using var cert = Certificate.FromRawData(certBytes);
+                IReadOnlyList<string> applicationUris = X509Utils.GetApplicationUrisFromCertificate(cert);
+                if (applicationUris.Count == 0)
                 {
-                    using var cert = Certificate.FromRawData(certBytes);
-                    IReadOnlyList<string> applicationUris = X509Utils.GetApplicationUrisFromCertificate(cert);
-                    if (applicationUris.Count > 0 &&
-                        !applicationUris.Any(uri => string.Equals(uri, server.ServerUri, StringComparison.Ordinal)))
-                    {
-                        return new ServiceResult(StatusCodes.BadServerUriInvalid,
-                            new LocalizedText("ServerUri does not match the certificate ApplicationUri."));
-                    }
+                    return new ServiceResult(
+                        StatusCodes.BadServerUriInvalid,
+                        new LocalizedText(
+                            "The SecureChannel client certificate has no ApplicationUri."));
                 }
-                catch (Exception ex)
+                if (!applicationUris.Any(
+                        uri => string.Equals(uri, server.ServerUri, StringComparison.Ordinal)))
                 {
-                    m_log?.FailedToInspectClientCertApplicationUri(ex);
+                    return new ServiceResult(
+                        StatusCodes.BadServerUriInvalid,
+                        new LocalizedText(
+                            "ServerUri must exactly match a certificate ApplicationUri."));
                 }
+            }
+            catch (CryptographicException ex)
+            {
+                m_log?.FailedToInspectClientCertApplicationUri(ex);
+                return new ServiceResult(
+                    StatusCodes.BadCertificateInvalid,
+                    new LocalizedText("The SecureChannel client certificate is invalid."));
             }
 
             return ServiceResult.Good;

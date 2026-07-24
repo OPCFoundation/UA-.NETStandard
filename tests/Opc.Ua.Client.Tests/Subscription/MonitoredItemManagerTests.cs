@@ -120,6 +120,50 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         }
 
         [Test]
+        public async Task TryRequeueFailedItemSucceedsAsync()
+        {
+            var options = OptionsFactory.Create<MonitoredItemOptions>();
+            var sut = new MonitoredItemManager(m_context, m_telemetry);
+            await using (sut.ConfigureAwait(false))
+            {
+                Assert.That(sut.TryAdd("Item", options,
+                    out IMonitoredItem monitoredItem), Is.True);
+                var item = (TestMonitoredItem)monitoredItem;
+                Assert.That(item.TryGetPendingChange(
+                    out MonitoredItem.Change change), Is.True);
+                var request = new MonitoredItemCreateRequest
+                {
+                    MonitoringMode = MonitoringMode.Reporting,
+                    RequestedParameters = new MonitoringParameters
+                    {
+                        ClientHandle = item.ClientHandle,
+                        SamplingInterval = 1000,
+                        QueueSize = 1,
+                        DiscardOldest = true
+                    }
+                };
+                var result = new MonitoredItemCreateResult
+                {
+                    StatusCode = StatusCodes.BadNodeIdUnknown
+                };
+                for (var attempt = 0; attempt < 6; attempt++)
+                {
+                    change.SetCreateResult(request, result,
+                        0, [], new ResponseHeader());
+                }
+
+                Assert.That(change.RetryCount, Is.EqualTo(6));
+                Assert.That(item.HasPendingChanges, Is.False);
+                Assert.That(item.Error.StatusCode,
+                    Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                Assert.That(sut.TryRequeue(item.ClientHandle), Is.True);
+                Assert.That(item.HasPendingChanges, Is.True);
+                Assert.That(sut.TryRequeue(item.ClientHandle), Is.False);
+                Assert.That(sut.TryRequeue(uint.MaxValue), Is.False);
+            }
+        }
+
+        [Test]
         public async Task PauseAndUnpauseMonitoredItemsAsync()
         {
             // Arrange

@@ -222,6 +222,24 @@ namespace Opc.Ua.Server.FileSystem
                         "File name required.")
                 };
             }
+
+            NodeId sessionId = NodeId.Null;
+            if (requestFileOpen)
+            {
+                if (!FileSystemNodeManager.TryGetSessionId(
+                        context,
+                        out NodeId validSessionId,
+                        out ServiceResult sessionResult))
+                {
+                    return new CreateFileMethodStateResult
+                    {
+                        ServiceResult = sessionResult
+                    };
+                }
+
+                sessionId = validSessionId;
+            }
+
             string newPath = manager.CombineProviderPath(ProviderPath, fileName);
             try
             {
@@ -248,7 +266,7 @@ namespace Opc.Ua.Server.FileSystem
                 }
                 // Open with write + erase to mirror the spec's
                 // "create + open for write" semantics.
-                ServiceResult openResult = handle.Open(0x6, out uint fileHandle);
+                ServiceResult openResult = handle.Open(sessionId, 0x6, out uint fileHandle);
                 return new CreateFileMethodStateResult
                 {
                     ServiceResult = openResult,

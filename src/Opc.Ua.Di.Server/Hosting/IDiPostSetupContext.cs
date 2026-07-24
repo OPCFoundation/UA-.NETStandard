@@ -122,5 +122,21 @@ namespace Opc.Ua.Di.Server.Hosting
             QualifiedName browseName,
             NodeState? parent = null)
             where TDevice : ComponentState;
+
+        /// <summary>
+        /// Resolves an existing topology element by NodeId.
+        /// </summary>
+        /// <typeparam name="TElement">Concrete topology-element state type.</typeparam>
+        ITopologyElementBuilder<TElement> TopologyElement<TElement>(NodeId nodeId)
+            where TElement : TopologyElementState;
+
+        /// <summary>
+        /// Resolves an existing topology element by browse name.
+        /// </summary>
+        /// <typeparam name="TElement">Concrete topology-element state type.</typeparam>
+        ITopologyElementBuilder<TElement> TopologyElementByBrowseName<TElement>(
+            QualifiedName browseName,
+            NodeState? parent = null)
+            where TElement : TopologyElementState;
     }
 }

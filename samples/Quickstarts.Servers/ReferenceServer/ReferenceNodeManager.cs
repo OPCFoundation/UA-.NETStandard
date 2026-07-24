@@ -496,6 +496,35 @@ namespace Quickstarts.ReferenceServer
                             new NodeId(DataTypes.ImagePNG),
                             ValueRanks.Scalar));
 
+                    // A node that advertises the NonatomicRead and NonatomicWrite
+                    // extension flags in its AccessLevelEx attribute so clients (and
+                    // the CTT) can exercise the extended access-level bits.
+                    BaseDataVariableState nonatomicVariable = CreateVariable(
+                        staticFolder,
+                        scalarStatic + "NonatomicReadWrite",
+                        "NonatomicReadWrite",
+                        DataTypeIds.Int32,
+                        ValueRanks.Scalar);
+                    nonatomicVariable.AccessLevel = AccessLevels.CurrentReadOrWrite;
+                    nonatomicVariable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+                    nonatomicVariable.AccessLevelEx =
+                        AccessLevels.CurrentReadOrWrite
+                        | (uint)AccessLevelExType.NonatomicRead
+                        | (uint)AccessLevelExType.NonatomicWrite;
+                    variables.Add(nonatomicVariable);
+
+                    // A historizing node whose historian does not support server
+                    // timestamps (registered with ServerTimestampSupported = false in
+                    // EnableHistoryArchivingAsync). Backs the CTT
+                    // "HA Profile > NodeDoesNotSupportServerTimestamp" slot.
+                    BaseDataVariableState noServerTimestampVariable = CreateVariable(
+                        staticFolder,
+                        NodeDoesNotSupportServerTimestampNodeName,
+                        "NodeDoesNotSupportServerTimestamp",
+                        DataTypeIds.Int32,
+                        ValueRanks.Scalar);
+                    variables.Add(noServerTimestampVariable);
+
                     ResetRandomGenerator(2);
                     FolderState arraysFolder = CreateFolder(
                         staticFolder,
@@ -519,10 +548,10 @@ namespace Quickstarts.ReferenceServer
                             ValueRanks.OneDimension));
                     variables.Add(
                         CreateVariable(
-                            arraysFolder,
-                            staticArrays + "ByteString",
-                            "ByteString",
-                            DataTypeIds.ByteString,
+                        arraysFolder,
+                        staticArrays + "ByteString",
+                        "ByteString",
+                        DataTypeIds.ByteString,
                             ValueRanks.OneDimension));
                     variables.Add(
                         CreateVariable(
@@ -2202,6 +2231,26 @@ namespace Quickstarts.ReferenceServer
                     CreateCubeItemVariable(arrayItemTypeFolder, daArrayItemType + "Cube", "Cube");
                     CreateNDimensionArrayItemVariable(arrayItemTypeFolder, daArrayItemType + "NDimension", "NDimension");
 
+                    FolderState selectionListFolder = CreateFolder(
+                        daFolder,
+                        "DataAccess_SelectionList",
+                        "SelectionList");
+                    variables.Add(
+                        CreateSelectionListVariable(
+                            selectionListFolder,
+                            "DataAccess_SelectionList_Colors",
+                            "Colors"));
+
+                    FolderState currencyFolder = CreateFolder(
+                        daFolder,
+                        "DataAccess_Currency",
+                        "Currency");
+                    variables.Add(
+                        CreateCurrencyVariable(
+                            currencyFolder,
+                            "DataAccess_Currency_Amount",
+                            "Amount"));
+
                     ResetRandomGenerator(14);
                     FolderState referencesFolder = CreateFolder(root, "References", "References");
                     const string referencesPrefix = "References_";
@@ -2344,8 +2393,8 @@ namespace Quickstarts.ReferenceServer
                         "RO",
                         BuiltInType.Int16,
                         ValueRanks.Scalar);
-                    arAllRO.AccessLevel = AccessLevels.CurrentRead;
-                    arAllRO.UserAccessLevel = AccessLevels.CurrentRead;
+                    arAllRO.AccessLevel = AccessLevels.CurrentRead | AccessLevels.HistoryRead;
+                    arAllRO.UserAccessLevel = AccessLevels.CurrentRead | AccessLevels.HistoryRead;
                     variables.Add(arAllRO);
                     BaseDataVariableState arAllWO = CreateVariable(
                         folderAccessRightsAccessAll,
@@ -2353,8 +2402,8 @@ namespace Quickstarts.ReferenceServer
                         "WO",
                         BuiltInType.Int16,
                         ValueRanks.Scalar);
-                    arAllWO.AccessLevel = AccessLevels.CurrentWrite;
-                    arAllWO.UserAccessLevel = AccessLevels.CurrentWrite;
+                    arAllWO.AccessLevel = AccessLevels.CurrentWrite | AccessLevels.HistoryWrite;
+                    arAllWO.UserAccessLevel = AccessLevels.CurrentWrite | AccessLevels.HistoryWrite;
                     variables.Add(arAllWO);
                     BaseDataVariableState arAllRW = CreateVariable(
                         folderAccessRightsAccessAll,
@@ -2380,7 +2429,7 @@ namespace Quickstarts.ReferenceServer
                         "RO_NotUser",
                         BuiltInType.Int16,
                         ValueRanks.Scalar);
-                    arAllRONotUser.AccessLevel = AccessLevels.CurrentRead;
+                    arAllRONotUser.AccessLevel = AccessLevels.CurrentRead | AccessLevels.HistoryRead;
                     arAllRONotUser.UserAccessLevel = AccessLevels.None;
                     variables.Add(arAllRONotUser);
                     BaseDataVariableState arAllWONotUser = CreateVariable(
@@ -2398,7 +2447,7 @@ namespace Quickstarts.ReferenceServer
                         "RW_NotUser",
                         BuiltInType.Int16,
                         ValueRanks.Scalar);
-                    arAllRWNotUser.AccessLevel = AccessLevels.CurrentReadOrWrite;
+                    arAllRWNotUser.AccessLevel = AccessLevels.CurrentReadOrWrite | AccessLevels.HistoryReadOrWrite;
                     arAllRWNotUser.UserAccessLevel = AccessLevels.CurrentRead;
                     variables.Add(arAllRWNotUser);
                     BaseDataVariableState arAllROUserRW = CreateVariable(
@@ -2434,7 +2483,7 @@ namespace Quickstarts.ReferenceServer
                         BuiltInType.Int16,
                         ValueRanks.Scalar);
                     arUserRO.AccessLevel = AccessLevels.CurrentRead;
-                    arUserRO.UserAccessLevel = AccessLevels.CurrentRead;
+                    arUserRO.UserAccessLevel = AccessLevels.CurrentRead | AccessLevels.HistoryRead;
                     variables.Add(arUserRO);
                     BaseDataVariableState arUserWO = CreateVariable(
                         folderAccessRightsAccessUser1,
@@ -4376,6 +4425,203 @@ namespace Quickstarts.ReferenceServer
             return variable;
         }
 
+        /// <summary>
+        /// Creates a SelectionListType instance with a set of
+        /// selectable values, their localized descriptions and RestrictToList set.
+        /// </summary>
+        private SelectionListState CreateSelectionListVariable(
+            NodeState parent,
+            string path,
+            string name)
+        {
+            SelectionListState variable = SystemContext.CreateInstanceOfSelectionListType(
+                parent,
+                new QualifiedName(path, NamespaceIndex));
+            variable.SymbolicName = name;
+            variable.ReferenceTypeId = ReferenceTypeIds.Organizes;
+            variable.NodeId = new NodeId(path, NamespaceIndex);
+            variable.BrowseName = new QualifiedName(path, NamespaceIndex);
+            variable.DisplayName = new LocalizedText("en-US", name);
+            variable.WriteMask = AttributeWriteMask.DisplayName | AttributeWriteMask.Description;
+            variable.UserWriteMask = AttributeWriteMask.DisplayName | AttributeWriteMask.Description;
+            variable.DataType = DataTypeIds.String;
+            variable.ValueRank = ValueRanks.Scalar;
+            variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
+            variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+            variable.Historizing = false;
+            variable.Value = Variant.From("Red");
+            variable.StatusCode = StatusCodes.Good;
+            variable.Description = LocalizedText.From("Default Description");
+            variable.OnWriteValue = OnWriteSelectionList;
+
+            if (variable.Selections != null)
+            {
+                PropertyState<ArrayOf<Variant>> generatedSelections = variable.Selections;
+                variable.RemoveChild(generatedSelections);
+                // Nulling the generated Variant-typed property allows FindChild to
+                // resolve the String[] Selections property added below for this
+                // instance.
+                variable.Selections = null!;
+            }
+
+            var selections = PropertyState<ArrayOf<string>>
+                .With<VariantBuilder>(variable);
+            selections.NodeId = new NodeId(path + "_Selections", NamespaceIndex);
+            selections.BrowseName = new QualifiedName(BrowseNames.Selections);
+            selections.DisplayName = LocalizedText.From(BrowseNames.Selections);
+            selections.TypeDefinitionId = VariableTypeIds.PropertyType;
+            selections.ReferenceTypeId = ReferenceTypeIds.HasProperty;
+            selections.DataType = DataTypeIds.String;
+            selections.ValueRank = ValueRanks.OneDimension;
+            selections.AccessLevel = AccessLevels.CurrentRead;
+            selections.UserAccessLevel = AccessLevels.CurrentRead;
+            selections.Value =
+            [
+                "Red",
+                "Green",
+                "Blue"
+            ];
+            variable.AddChild(selections);
+
+            if (variable.SelectionDescriptions == null)
+            {
+                variable.AddSelectionDescriptions(
+                    SystemContext,
+                    new NodeId(path + "_SelectionDescriptions", NamespaceIndex));
+            }
+
+            PropertyState<ArrayOf<LocalizedText>> selectionDescriptions =
+                variable.SelectionDescriptions ??
+                throw new InvalidOperationException(
+                    "SelectionDescriptions property is null after calling AddSelectionDescriptions. " +
+                    "Expected AddSelectionDescriptions to populate variable.SelectionDescriptions " +
+                    "with a non-null PropertyState<ArrayOf<LocalizedText>>.");
+            selectionDescriptions.NodeId = new NodeId(
+                path + "_SelectionDescriptions",
+                NamespaceIndex);
+            selectionDescriptions.BrowseName = new QualifiedName(
+                BrowseNames.SelectionDescriptions);
+            selectionDescriptions.DisplayName = LocalizedText.From(
+                BrowseNames.SelectionDescriptions);
+            selectionDescriptions.TypeDefinitionId = VariableTypeIds.PropertyType;
+            selectionDescriptions.ReferenceTypeId = ReferenceTypeIds.HasProperty;
+            selectionDescriptions.DataType = DataTypeIds.LocalizedText;
+            selectionDescriptions.ValueRank = ValueRanks.OneDimension;
+            selectionDescriptions.AccessLevel = AccessLevels.CurrentRead;
+            selectionDescriptions.UserAccessLevel = AccessLevels.CurrentRead;
+            selectionDescriptions.Value =
+            [
+                new LocalizedText("en-US", "The color red"),
+                new LocalizedText("en-US", "The color green"),
+                new LocalizedText("en-US", "The color blue")
+            ];
+
+            if (variable.RestrictToList == null)
+            {
+                variable.AddRestrictToList(
+                    SystemContext,
+                    new NodeId(path + "_RestrictToList", NamespaceIndex));
+            }
+
+            PropertyState<bool> restrictToList = variable.RestrictToList ??
+                throw new InvalidOperationException(
+                    "RestrictToList property is null after calling AddRestrictToList. " +
+                    "Expected AddRestrictToList to populate variable.RestrictToList " +
+                    "with a non-null PropertyState<bool>.");
+            restrictToList.NodeId = new NodeId(path + "_RestrictToList", NamespaceIndex);
+            restrictToList.BrowseName = new QualifiedName(BrowseNames.RestrictToList);
+            restrictToList.DisplayName = LocalizedText.From(BrowseNames.RestrictToList);
+            restrictToList.TypeDefinitionId = VariableTypeIds.PropertyType;
+            restrictToList.ReferenceTypeId = ReferenceTypeIds.HasProperty;
+            restrictToList.DataType = DataTypeIds.Boolean;
+            restrictToList.ValueRank = ValueRanks.Scalar;
+            restrictToList.AccessLevel = AccessLevels.CurrentRead;
+            restrictToList.UserAccessLevel = AccessLevels.CurrentRead;
+            restrictToList.Value = true;
+
+            parent?.AddChild(variable);
+
+            return variable;
+        }
+
+        private static ServiceResult OnWriteSelectionList(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref Variant value,
+            ref StatusCode statusCode,
+            ref DateTimeUtc timestamp)
+        {
+            if (!indexRange.IsNull)
+            {
+                return StatusCodes.BadIndexRangeInvalid;
+            }
+
+            if (!value.TryGetValue(out string? selection))
+            {
+                return StatusCodes.BadTypeMismatch;
+            }
+
+            if (node.FindChild(
+                context,
+                new QualifiedName(BrowseNames.Selections)) is not
+                PropertyState<ArrayOf<string>> selections ||
+                selections.Value.IsNull)
+            {
+                return StatusCodes.BadConfigurationError;
+            }
+
+            foreach (string allowedSelection in selections.Value)
+            {
+                if (string.Equals(selection, allowedSelection, StringComparison.Ordinal))
+                {
+                    return ServiceResult.Good;
+                }
+            }
+
+            return StatusCodes.BadOutOfRange;
+        }
+
+        /// <summary>
+        /// Creates a data variable that carries a CurrencyUnit property of DataType
+        /// <see cref="DataTypeIds.CurrencyUnitType"/>.
+        /// </summary>
+        private BaseDataVariableState CreateCurrencyVariable(NodeState parent, string path, string name)
+        {
+            BaseDataVariableState variable = CreateVariable(
+                parent,
+                path,
+                name,
+                DataTypeIds.Double,
+                ValueRanks.Scalar);
+            variable.Value = 42.0;
+
+            var currencyUnit =
+                new PropertyState<CurrencyUnitType>.Implementation<StructureBuilder<CurrencyUnitType>>(variable)
+                {
+                    NodeId = new NodeId(path + "_CurrencyUnit", NamespaceIndex),
+                    BrowseName = new QualifiedName("CurrencyUnit", 0)
+                };
+            currencyUnit.DisplayName = LocalizedText.From(currencyUnit.BrowseName.Name!);
+            currencyUnit.TypeDefinitionId = VariableTypeIds.PropertyType;
+            currencyUnit.ReferenceTypeId = ReferenceTypeIds.HasProperty;
+            currencyUnit.DataType = DataTypeIds.CurrencyUnitType;
+            currencyUnit.ValueRank = ValueRanks.Scalar;
+            currencyUnit.AccessLevel = AccessLevels.CurrentRead;
+            currencyUnit.UserAccessLevel = AccessLevels.CurrentRead;
+            currencyUnit.Value = new CurrencyUnitType
+            {
+                NumericCode = 978,
+                Exponent = 2,
+                AlphabeticCode = "EUR",
+                Currency = new LocalizedText("Euro")
+            };
+
+            variable.AddChild(currencyUnit);
+            return variable;
+        }
+
         private ServiceResult OnWriteDiscrete(
             ISystemContext context,
             NodeState node,
@@ -5354,7 +5600,39 @@ namespace Quickstarts.ReferenceServer
                     dimensions,
                     Server.TypeTree);
             }
+
+            // The CTT requires the leading ByteString array elements to be at
+            // least four bytes long. The random generator can produce shorter
+            // values, so pad indexes 0..2 up to the minimum length.
+            if (variable.DataType == DataTypeIds.ByteString &&
+                variable.ValueRank == ValueRanks.OneDimension &&
+                value.TryGetValue(out ArrayOf<ByteString> byteStringArray))
+            {
+                ByteString[] byteStrings = byteStringArray.ToArray()!;
+                for (int ii = 0; ii < 3 && ii < byteStrings.Length; ii++)
+                {
+                    byteStrings[ii] = EnsureMinimumByteStringLength(byteStrings[ii], 4);
+                }
+                value = Variant.From(byteStrings.ToArrayOf());
+            }
+
             return value;
+        }
+
+        /// <summary>
+        /// Returns a ByteString that is at least <paramref name="minimumLength"/>
+        /// bytes long, right-padding the original bytes with zeros when needed.
+        /// </summary>
+        private static ByteString EnsureMinimumByteStringLength(ByteString value, int minimumLength)
+        {
+            ReadOnlySpan<byte> bytes = value.IsNull ? default : value.Span;
+            if (bytes.Length >= minimumLength)
+            {
+                return value;
+            }
+            byte[] padded = new byte[minimumLength];
+            bytes.CopyTo(padded);
+            return ByteString.From(padded);
         }
 
         /// <summary>
@@ -5501,6 +5779,13 @@ namespace Quickstarts.ReferenceServer
         /// array so its value and ArrayDimensions attribute stay deterministic.
         /// </summary>
         private const uint MultiDimensionalArrayLength = 3;
+
+        /// <summary>
+        /// NodeId identifier of the historizing node whose historian intentionally
+        /// does not support server timestamps.
+        /// </summary>
+        private const string NodeDoesNotSupportServerTimestampNodeName
+            = "Scalar_Static_NodeDoesNotSupportServerTimestamp";
 
         private InMemoryHistorianProvider? m_historian;
 
@@ -5702,6 +5987,22 @@ namespace Quickstarts.ReferenceServer
             "Scalar_Static_Decimal"
         ];
 
+        /// <summary>
+        /// Identifiers of the AccessRights nodes that are marked as supporting
+        /// history archiving so History Access clients (and the CTT) can
+        /// exercise access-right handling on historizing nodes. These nodes are
+        /// registered with the historian and seeded with the same deterministic
+        /// sample set as the other historized test nodes.
+        /// </summary>
+        private static readonly string[] AccessRightsHistoricalNodeNames =
+        [
+            "AccessRights_AccessAll_RO",
+            "AccessRights_AccessAll_WO",
+            "AccessRights_AccessAll_NoAccess",
+            "AccessRights_AccessAll_RW_NotUser",
+            "AccessRights_AccessAll_RO_NotUser"
+        ];
+
         /// <inheritdoc/>
         protected override IHistorianProvider? GetHistorianProvider(NodeState node)
         {
@@ -5743,10 +6044,21 @@ namespace Quickstarts.ReferenceServer
                 StartOfOnlineArchive = new DateTimeUtc(DateTime.UtcNow.AddSeconds(-10000))
             };
 
+            // The dedicated node whose historian does not support server
+            // timestamps reuses the shared capabilities with
+            // ServerTimestampSupported cleared, so History Read never returns a
+            // ServerTimestamp for it (backs the CTT
+            // "HA Profile > NodeDoesNotSupportServerTimestamp" slot).
+            HistorianNodeCapabilities noServerTimestampCapabilities =
+                capabilities with { ServerTimestampSupported = false };
+
             foreach (string name in HistoricalNodeNames
                 .Concat(HistoricalArrayNodeNames)
                 .Concat(HistoricalMatrixNodeNames)
-                .Concat(HistoricalStructureNodeNames))
+                .Concat(HistoricalStructureNodeNames)
+                .Concat(AccessRightsHistoricalNodeNames)
+                .Append(NodeDoesNotSupportServerTimestampNodeName)
+                )
             {
                 var nodeId = new NodeId(name, NamespaceIndex);
 
@@ -5761,10 +6073,18 @@ namespace Quickstarts.ReferenceServer
                 }
 
                 variable.Historizing = true;
-                variable.AccessLevel = (byte)(variable.AccessLevel | AccessLevels.HistoryRead | AccessLevels.HistoryWrite);
-                variable.UserAccessLevel = (byte)(variable.UserAccessLevel | AccessLevels.HistoryRead | AccessLevels.HistoryWrite);
+                if (!AccessRightsHistoricalNodeNames.Contains(name))
+                {
+                    variable.AccessLevel = (byte)(variable.AccessLevel | AccessLevels.HistoryRead | AccessLevels.HistoryWrite);
+                    variable.UserAccessLevel = (byte)(variable.UserAccessLevel | AccessLevels.HistoryRead | AccessLevels.HistoryWrite);
+                }
 
-                m_historian.Register(nodeId, capabilities);
+                m_historian.Register(
+                    nodeId,
+                    name == NodeDoesNotSupportServerTimestampNodeName
+                        ? noServerTimestampCapabilities
+                        : capabilities);
+
                 await SeedHistoricalNodeAsync(variable, cancellationToken).ConfigureAwait(false);
 
                 // Attach a HistoricalDataConfigurationType companion object

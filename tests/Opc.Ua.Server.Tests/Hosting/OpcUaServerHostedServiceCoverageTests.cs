@@ -267,7 +267,16 @@ namespace Opc.Ua.Server.Tests.Hosting
                     message => message.Contains(
                         "without a matching identity authenticator", StringComparison.Ordinal)),
                 Is.False);
-            Assert.That(server.IdentityRegistry.UnregisterAugmenter(augmenter.Object), Is.True);
+            // The augmenter is registered during the hosted service's post-start
+            // phase (RegisterIdentityAugmenters), which runs after OnServerStarted
+            // sets StartedServer. Poll UnregisterAugmenter (which returns false
+            // until the augmenter is present, then true once, removing it) so the
+            // assertion does not race that background registration.
+            Assert.That(
+                await WaitForAsync(
+                    () => server.IdentityRegistry.UnregisterAugmenter(augmenter.Object),
+                    TimeSpan.FromSeconds(60)).ConfigureAwait(false),
+                Is.True);
         }
 
         private static void ConfigureHostedOptions(OpcUaServerOptions options, string applicationName)

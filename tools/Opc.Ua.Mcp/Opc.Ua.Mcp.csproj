@@ -39,6 +39,9 @@
     <ProjectReference Include="..\..\src\Opc.Ua.PubSub.Diagnostics\Opc.Ua.PubSub.Diagnostics.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.Tools.Tests" />
+  </ItemGroup>
+  <ItemGroup>
     <None Update="Opc.Ua.Mcp.Config.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>

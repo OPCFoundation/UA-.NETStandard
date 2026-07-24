@@ -47,11 +47,10 @@ namespace Opc.Ua.Fuzzing
         /// Run the encoder test cases
         /// </summary>
         /// <param name="workPath"></param>
-        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
+        /// <param name="telemetry">Unused; retained for the common fuzz-tool signature.</param>
         public static void Run(string workPath, ITelemetryContext telemetry)
         {
-            // Create the Testcases for the binary decoder.
-            FuzzableCode.MessageContext = ServiceMessageContext.Create(telemetry);
+            _ = telemetry;
             string pathSuffix = GetTestcaseEncoderSuffix(TestCaseEncoders.Binary);
             string pathTarget = workPath + pathSuffix + Path.DirectorySeparatorChar;
             Directory.CreateDirectory(pathTarget);

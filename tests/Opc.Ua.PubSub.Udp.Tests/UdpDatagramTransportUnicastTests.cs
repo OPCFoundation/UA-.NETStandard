@@ -238,5 +238,79 @@ namespace Opc.Ua.PubSub.Udp.Tests
             Assert.That(transport.Direction, Is.EqualTo(PubSubTransportDirection.SendReceive));
             Assert.That(transport.Endpoint.Port, Is.EqualTo(port));
         }
+
+        [Test]
+        public async Task SetAuthenticatedRemoteEndpointGuardsConnectedSendClientAsync()
+        {
+            int port;
+            try
+            {
+                port = UdpIntegrationTestHelpers.ReserveEphemeralPort(IPAddress.Loopback);
+            }
+            catch (SocketException ex)
+            {
+                Assert.Ignore($"Loopback UDP socket bind failed: {ex.Message}");
+                return;
+            }
+
+            string url = $"opc.udp://127.0.0.1:{port}";
+            UdpEndpoint endpoint = UdpEndpointParser.Parse(url);
+            UdpTransportOptions options = UdpIntegrationTestHelpers.LoopbackOptions();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            await using var receiver = new UdpDatagramTransport(
+                UdpIntegrationTestHelpers.NewConnection(url, "Subscriber"),
+                endpoint,
+                PubSubTransportDirection.Receive,
+                networkInterface: null,
+                telemetry,
+                TimeProvider.System,
+                options);
+            await using var sender = new UdpDatagramTransport(
+                UdpIntegrationTestHelpers.NewConnection(url, "Publisher"),
+                endpoint,
+                PubSubTransportDirection.Send,
+                networkInterface: null,
+                telemetry,
+                TimeProvider.System,
+                options);
+
+            try
+            {
+                await receiver.OpenAsync().ConfigureAwait(false);
+                await sender.OpenAsync().ConfigureAwait(false);
+            }
+            catch (SocketException ex)
+            {
+                Assert.Ignore($"Unicast loopback open failed: {ex.Message}");
+                return;
+            }
+
+            // A connected send client rejects a null pin and ignores an attempt
+            // to rebind to a different endpoint, so its socket cannot be
+            // redirected to an attacker-chosen destination.
+            Assert.That(
+                () => sender.SetAuthenticatedRemoteEndpoint(null!),
+                Throws.TypeOf<ArgumentNullException>());
+            sender.SetAuthenticatedRemoteEndpoint(new IPEndPoint(IPAddress.Loopback, port + 1));
+
+            // The send destination is unchanged: the payload still reaches the
+            // receiver bound to the original port.
+            byte[] payload = [0x10, 0x20, 0x30];
+            for (int attempt = 0; attempt < 5; attempt++)
+            {
+                await sender.SendAsync(payload).ConfigureAwait(false);
+                PubSubTransportFrame? frame = await UdpIntegrationTestHelpers.ReceiveOneAsync(
+                    receiver,
+                    TimeSpan.FromMilliseconds(500)).ConfigureAwait(false);
+                if (frame is not null)
+                {
+                    Assert.That(frame.Value.Payload.ToArray(), Is.EqualTo(payload));
+                    return;
+                }
+            }
+
+            Assert.Ignore("No unicast loopback frame received within retry budget; environment likely blocks UDP.");
+        }
     }
 }

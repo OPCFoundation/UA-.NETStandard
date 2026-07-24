@@ -29,13 +29,15 @@
 
 using System;
 using System.IO;
+using Microsoft.Extensions.Logging.Abstractions;
 using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Fuzzing
 {
     public static partial class FuzzableCode
     {
-        public static ServiceMessageContext MessageContext { get; set; }
+        public static ServiceMessageContext MessageContext { get; } =
+            ServiceMessageContext.Create(new FuzzTelemetryContext());
 
         /// <summary>
         /// Print information about the fuzzer target.
@@ -69,6 +71,14 @@ namespace Opc.Ua.Fuzzing
             }
 
             return memoryStream;
+        }
+
+        private sealed class FuzzTelemetryContext : TelemetryContextBase
+        {
+            public FuzzTelemetryContext()
+                : base(NullLoggerFactory.Instance)
+            {
+            }
         }
     }
 }

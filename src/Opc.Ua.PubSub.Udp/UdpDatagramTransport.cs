@@ -92,6 +92,7 @@ namespace Opc.Ua.PubSub.Udp
         private IPEndPoint? m_sendDestination;
         private bool m_socketIsConnected;
         private readonly bool m_useConnectedUnicastClient;
+        private readonly bool m_trackLastSeenUnicastPeer;
 
         /// <summary>
         /// Initializes a new <see cref="UdpDatagramTransport"/>.
@@ -135,7 +136,17 @@ namespace Opc.Ua.PubSub.Udp
             TimeProvider timeProvider,
             UdpTransportOptions options,
             IPubSubDiagnostics? diagnostics = null)
-            : this(connection, endpoint, direction, networkInterface, telemetry, timeProvider, options, diagnostics, false)
+            : this(
+                connection,
+                endpoint,
+                direction,
+                networkInterface,
+                telemetry,
+                timeProvider,
+                options,
+                diagnostics,
+                useConnectedUnicastClient: false,
+                trackLastSeenUnicastPeer: true)
         {
         }
 
@@ -148,7 +159,8 @@ namespace Opc.Ua.PubSub.Udp
             TimeProvider timeProvider,
             UdpTransportOptions options,
             IPubSubDiagnostics? diagnostics,
-            bool useConnectedUnicastClient)
+            bool useConnectedUnicastClient,
+            bool trackLastSeenUnicastPeer)
         {
             if (connection is null)
             {
@@ -180,6 +192,7 @@ namespace Opc.Ua.PubSub.Udp
             m_options = options;
             m_diagnostics = diagnostics;
             m_useConnectedUnicastClient = useConnectedUnicastClient;
+            m_trackLastSeenUnicastPeer = trackLastSeenUnicastPeer;
             m_logger = telemetry.CreateLogger<UdpDatagramTransport>();
             m_repeater = new UdpMessageRepeater(
                 options.MessageRepeatCount,
@@ -224,6 +237,26 @@ namespace Opc.Ua.PubSub.Udp
             }
         }
 
+        internal void SetAuthenticatedRemoteEndpoint(IPEndPoint remoteEndpoint)
+        {
+            if (remoteEndpoint is null)
+            {
+                throw new ArgumentNullException(nameof(remoteEndpoint));
+            }
+
+            lock (m_sync)
+            {
+                if (m_socketIsConnected &&
+                    m_sendDestination is not null &&
+                    !m_sendDestination.Equals(remoteEndpoint))
+                {
+                    return;
+                }
+
+                m_sendDestination = new IPEndPoint(remoteEndpoint.Address, remoteEndpoint.Port);
+            }
+        }
+
         /// <summary>
         /// DiscoveryAnnounceRate value (milliseconds) honoured from the
         /// <c>DatagramConnectionTransport2DataType</c> per
@@ -231,9 +264,6 @@ namespace Opc.Ua.PubSub.Udp
         /// Part 14 §6.4.1.2.7</see>. Zero means disabled.
         /// </summary>
         public uint DiscoveryAnnounceRate => m_v2Settings.DiscoveryAnnounceRate;
-        // TODO(B15): add DTLS 1.3 handshake/record protection for opc.dtls://
-        // unicast per Part 14 §7.3.2.4; the parser rejects DTLS URLs until an
-        // injectable provider can guarantee payload protection.
 
         /// <summary>
         /// Standard IPv4 discovery multicast destination from Part 14 §7.3.2.1.
@@ -696,6 +726,7 @@ namespace Opc.Ua.PubSub.Udp
                         receivedAt: new DateTimeUtc(m_timeProvider.GetUtcNow().UtcDateTime),
                         sourceEndpoint: sourceEndpoint);
                     if (Endpoint.AddressType == UdpAddressType.Unicast &&
+                        m_trackLastSeenUnicastPeer &&
                         sourceEndpoint is not null)
                     {
                         lock (m_sync)

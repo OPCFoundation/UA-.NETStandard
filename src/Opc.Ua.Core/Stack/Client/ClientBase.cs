@@ -51,6 +51,7 @@ namespace Opc.Ua
         public ClientBase(ITransportChannel channel, ITelemetryContext telemetry)
         {
             m_logger = telemetry.CreateLogger<ClientBase>();
+            m_eventLogger = telemetry.CreateLogger(CoreEventIds.CoreCompatibilityCategory);
             m_meter = telemetry.CreateMeter();
 
             if (channel == null)
@@ -389,11 +390,7 @@ namespace Opc.Ua
 
             if ((ActivityTraceFlags & ClientTraceFlags.Log) != 0)
             {
-                m_logger.ClientBaseLogMessage0(serviceName, request.RequestHeader.RequestHandle);
-            }
-            if ((ActivityTraceFlags & ClientTraceFlags.EventLog) != 0)
-            {
-                Utils.EventLog.ServiceCallStart(
+                m_eventLogger.CoreServiceCallStart(
                     serviceName,
                     (int)request.RequestHeader.RequestHandle,
                     incrementedCount);
@@ -492,32 +489,17 @@ namespace Opc.Ua
             TimeSpan? duration = timestamp != null ? DateTime.UtcNow - timestamp.Value : null;
             if ((ActivityTraceFlags & ClientTraceFlags.Log) != 0)
             {
-                if (ServiceResult.IsGood(statusCode))
-                {
-                    m_logger.ClientBaseLogMessage1(serviceName, requestHandle, duration);
-                }
-                else
-                {
-                    m_logger.ClientBaseLogMessage2(
-                        serviceName,
-                        requestHandle,
-                        statusCode,
-                        duration);
-                }
-            }
-            if ((ActivityTraceFlags & ClientTraceFlags.EventLog) != 0)
-            {
                 if (statusCode != StatusCodes.Good)
                 {
-                    Utils.EventLog.ServiceCallBadStop(
+                    m_eventLogger.CoreServiceCallBadStop(
                         serviceName,
                         (int)requestHandle,
-                        (int)statusCode.Code,
-                        pendingRequestCount);
+                        pendingRequestCount,
+                        (int)statusCode.Code);
                 }
                 else
                 {
-                    Utils.EventLog.ServiceCallStop(
+                    m_eventLogger.CoreServiceCallStop(
                         serviceName,
                         (int)requestHandle,
                         pendingRequestCount);
@@ -843,6 +825,7 @@ namespace Opc.Ua
 #pragma warning disable IDE1006 // Naming Styles
         protected readonly ILogger m_logger;
 #pragma warning restore IDE1006 // Naming Styles
+        private readonly ILogger m_eventLogger;
         private readonly Meter m_meter;
         private ITransportChannel? m_channel;
         private readonly ConcurrentDictionary<string, Instrument<double>> m_instruments = [];
@@ -875,12 +858,7 @@ namespace Opc.Ua
         /// <summary>
         /// Write the activity as a record to the log
         /// </summary>
-        Log = 0x4,
-
-        /// <summary>
-        /// Write activity to event log (legacy)
-        /// </summary>
-        EventLog = 0x10
+        Log = 0x4
     }
 
     /// <summary>
@@ -888,29 +866,41 @@ namespace Opc.Ua
     /// </summary>
     internal static partial class ClientBaseLog
     {
-        [LoggerMessage(EventId = CoreEventIds.ClientBase + 0, Level = LogLevel.Information,
-            Message = "{Activity}#{Handle} started...")]
-        public static partial void ClientBaseLogMessage0(
+        [LoggerMessage(
+            EventId = CoreEventIds.CoreServiceCallStart,
+            EventName = "ServiceCallStart",
+            Level = LogLevel.Trace,
+            Message = "{ServiceName} Called. RequestHandle={RequestHandle}, PendingRequestCount={PendingRequestCount}")]
+        public static partial void CoreServiceCallStart(
             this ILogger logger,
-            string activity,
-            uint handle);
+            string serviceName,
+            int requestHandle,
+            int pendingRequestCount);
 
-        [LoggerMessage(EventId = CoreEventIds.ClientBase + 1, Level = LogLevel.Information,
-            Message = "{Activity}#{Handle} success received after {Elapsed}.")]
-        public static partial void ClientBaseLogMessage1(
+        [LoggerMessage(
+            EventId = CoreEventIds.CoreServiceCallStop,
+            EventName = "ServiceCallStop",
+            Level = LogLevel.Trace,
+            Message = "{ServiceName} Completed. RequestHandle={RequestHandle}, " +
+                "PendingRequestCount={PendingRequestCount}")]
+        public static partial void CoreServiceCallStop(
             this ILogger logger,
-            string activity,
-            uint handle,
-            global::System.TimeSpan? elapsed);
+            string serviceName,
+            int requestHandle,
+            int pendingRequestCount);
 
-        [LoggerMessage(EventId = CoreEventIds.ClientBase + 2, Level = LogLevel.Error,
-            Message = "{Activity}#{Handle} failed with {StatusCode} in {Elapsed}.")]
-        public static partial void ClientBaseLogMessage2(
+        [LoggerMessage(
+            EventId = CoreEventIds.CoreServiceCallBadStop,
+            EventName = "ServiceCallBadStop",
+            Level = LogLevel.Warning,
+            Message = "{ServiceName} Completed. RequestHandle={RequestHandle}, " +
+                "PendingRequestCount={PendingRequestCount}, StatusCode={StatusCode}")]
+        public static partial void CoreServiceCallBadStop(
             this ILogger logger,
-            string activity,
-            uint handle,
-            global::Opc.Ua.StatusCode statusCode,
-            global::System.TimeSpan? elapsed);
+            string serviceName,
+            int requestHandle,
+            int pendingRequestCount,
+            int statusCode);
     }
 
 }

@@ -54,7 +54,7 @@ jobs:
           fetch-depth: 0   # nbgv needs full git history
 
       - name: Setup .NET 10.0
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '10.0.x'
 
@@ -119,7 +119,6 @@ jobs:
         shell: pwsh
         run: |
           dotnet restore 'preview-pack.slnx' `
-            --configuration Release `
             --disable-parallel
 
       - name: Build (with optional strong-name signing)
@@ -185,6 +184,12 @@ jobs:
             --no-build `
             --configuration Release `
             --output "$env:ARTIFACTS_DIR"
+
+      - name: Validate source generator packages
+        shell: pwsh
+        run: |
+          ./.azurepipelines/validate-source-generator-packages.ps1 `
+            -PackageDirectory "$env:ARTIFACTS_DIR"
 
       - name: Pack NuGet Legacy (nuget/*.nuspec, version from PACK_MODE)
         shell: pwsh

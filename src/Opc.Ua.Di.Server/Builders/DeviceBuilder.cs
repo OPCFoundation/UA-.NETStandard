@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -34,15 +34,14 @@ namespace Opc.Ua.Di.Server.Builders
 {
     /// <summary>
     /// Default <see cref="IDeviceBuilder{TDevice}"/> implementation backed
-    /// by a <see cref="ComponentState"/> instance attached to a parent
-    /// node within a <see cref="DiNodeManager"/>'s address space.
+    /// by a <see cref="ComponentState"/> instance.
     /// </summary>
     /// <typeparam name="TDevice">Concrete device state type.</typeparam>
-    internal sealed class DeviceBuilder<TDevice> : IDeviceBuilder<TDevice>
+    internal sealed class DeviceBuilder<TDevice> :
+        IDeviceBuilder<TDevice>,
+        ITopologyElementBuilder<TDevice>
         where TDevice : ComponentState
     {
-        private readonly NodeManagerBuilder m_builder;
-
         internal DeviceBuilder(
             DiNodeManager manager,
             TDevice device,
@@ -54,9 +53,11 @@ namespace Opc.Ua.Di.Server.Builders
         }
 
         public TDevice Device { get; }
+        public TDevice Element => Device;
         public DiNodeManager Manager { get; }
         public ISystemContext Context => Manager.SystemContext;
         public INodeBuilder<TDevice> Node => m_builder.Node<TDevice>(Device.NodeId);
+        private ITopologyElementBuilder<TDevice> Topology => this;
 
         public IDeviceBuilder<TDevice> WithIdentification(
             Action<DeviceIdentificationData> configure)
@@ -75,306 +76,183 @@ namespace Opc.Ua.Di.Server.Builders
         public IDeviceBuilder<TDevice> WithIdentificationGroup(
             Action<IFunctionalGroupBuilder> configure)
         {
-            return ConfigureFunctionalGroup(
-                new QualifiedName(WellKnownFunctionalGroups.Identification, Manager.DiNamespaceIndex),
-                useIdentificationSlot: true,
-                configure);
+            Topology.WithIdentificationGroup(configure);
+            return this;
         }
 
         public IDeviceBuilder<TDevice> WithConfigurationGroup(
             Action<IFunctionalGroupBuilder> configure)
         {
-            return ConfigureFunctionalGroup(
-                new QualifiedName(WellKnownFunctionalGroups.Configuration, Manager.DiNamespaceIndex),
-                useIdentificationSlot: false,
-                configure);
+            Topology.WithConfigurationGroup(configure);
+            return this;
         }
 
         public IDeviceBuilder<TDevice> WithMaintenanceGroup(
             Action<IFunctionalGroupBuilder> configure)
         {
-            return ConfigureFunctionalGroup(
-                new QualifiedName(WellKnownFunctionalGroups.Maintenance, Manager.DiNamespaceIndex),
-                useIdentificationSlot: false,
-                configure);
+            Topology.WithMaintenanceGroup(configure);
+            return this;
         }
 
         public IDeviceBuilder<TDevice> WithDiagnosticsGroup(
             Action<IFunctionalGroupBuilder> configure)
         {
-            return ConfigureFunctionalGroup(
-                new QualifiedName(WellKnownFunctionalGroups.Diagnostics, Manager.DiNamespaceIndex),
-                useIdentificationSlot: false,
-                configure);
+            Topology.WithDiagnosticsGroup(configure);
+            return this;
         }
 
         public IDeviceBuilder<TDevice> WithStatusGroup(
             Action<IFunctionalGroupBuilder> configure)
         {
-            return ConfigureFunctionalGroup(
-                new QualifiedName(WellKnownFunctionalGroups.Status, Manager.DiNamespaceIndex),
-                useIdentificationSlot: false,
-                configure);
+            Topology.WithStatusGroup(configure);
+            return this;
         }
 
         public IDeviceBuilder<TDevice> WithOperationalGroup(
             Action<IFunctionalGroupBuilder> configure)
         {
-            return ConfigureFunctionalGroup(
-                new QualifiedName(WellKnownFunctionalGroups.Operational, Manager.DiNamespaceIndex),
-                useIdentificationSlot: false,
-                configure);
+            Topology.WithOperationalGroup(configure);
+            return this;
         }
 
         public IDeviceBuilder<TDevice> WithStatisticsGroup(
             Action<IFunctionalGroupBuilder> configure)
         {
-            return ConfigureFunctionalGroup(
-                new QualifiedName(WellKnownFunctionalGroups.Statistics, Manager.DiNamespaceIndex),
-                useIdentificationSlot: false,
-                configure);
+            Topology.WithStatisticsGroup(configure);
+            return this;
         }
 
         public IDeviceBuilder<TDevice> WithOperationCountersGroup(
             Action<IFunctionalGroupBuilder> configure)
         {
-            return ConfigureFunctionalGroup(
-                new QualifiedName(WellKnownFunctionalGroups.OperationCounters, Manager.DiNamespaceIndex),
-                useIdentificationSlot: false,
-                configure);
+            Topology.WithOperationCountersGroup(configure);
+            return this;
         }
 
         public IDeviceBuilder<TDevice> WithFunctionalGroup(
             QualifiedName name,
             Action<IFunctionalGroupBuilder> configure)
         {
-            return ConfigureFunctionalGroup(name, useIdentificationSlot: false, configure);
+            Topology.WithFunctionalGroup(name, configure);
+            return this;
         }
 
         public IDeviceBuilder<TDevice> ConnectsTo(NodeId other)
         {
-            if (other.IsNull)
-            {
-                throw new ArgumentNullException(nameof(other));
-            }
-            // OPC 10000-100: ConnectsTo is forward from this device to the
-            // adjacent device in the topology graph.
-            Device.AddReference(ResolveConnectsToRefType(), false, other);
+            Topology.ConnectsTo(other);
             return this;
         }
 
         public IDeviceBuilder<TDevice> ConnectsToParent(NodeId parent)
         {
-            if (parent.IsNull)
-            {
-                throw new ArgumentNullException(nameof(parent));
-            }
-            // Inverse of ConnectsTo: identify the parent topology element
-            // (the device that contains or aggregates this one).
-            Device.AddReference(ResolveConnectsToRefType(), true, parent);
+            Topology.ConnectsToParent(parent);
             return this;
-        }
-
-        private NodeId ResolveConnectsToRefType()
-        {
-            return NodeId.Create(
-                Opc.Ua.Di.ReferenceTypes.ConnectsTo,
-                DiNodeManager.DiNamespaceUri,
-                Manager.Server.NamespaceUris);
         }
 
         public IDeviceBuilder<TDevice> Configure(
             Action<TDevice, ISystemContext> configure)
         {
-            if (configure == null)
-            {
-                throw new ArgumentNullException(nameof(configure));
-            }
-            configure(Device, Context);
+            Topology.Configure(configure);
             return this;
-        }
-
-        private DeviceBuilder<TDevice> ConfigureFunctionalGroup(
-            QualifiedName browseName,
-            bool useIdentificationSlot,
-            Action<IFunctionalGroupBuilder> configure)
-        {
-            if (configure == null)
-            {
-                throw new ArgumentNullException(nameof(configure));
-            }
-            FunctionalGroupState group = GetOrCreateFunctionalGroup(
-                browseName,
-                useIdentificationSlot);
-
-            INodeBuilder groupNode = m_builder.Node(group.NodeId);
-            var fgBuilder = new FunctionalGroupBuilder(group, groupNode, Context);
-            configure(fgBuilder);
-            return this;
-        }
-
-        private FunctionalGroupState GetOrCreateFunctionalGroup(
-            QualifiedName browseName,
-            bool useIdentificationSlot)
-        {
-            // Reuse an existing child with the same browse name. This makes
-            // the builder idempotent and lets callers configure
-            // NodeSet-loaded groups through the same surface.
-            NodeState? existing = Device.FindChild(Context, browseName);
-            if (existing is FunctionalGroupState reusable)
-            {
-                return reusable;
-            }
-            FunctionalGroupState group;
-            if (Device is TopologyElementState topology)
-            {
-                if (useIdentificationSlot && topology.Identification == null)
-                {
-                    topology.AddIdentification(Context);
-                    group = topology.Identification!;
-                }
-                else
-                {
-                    group = topology.AddGroupIdentifier(Context, browseName);
-                }
-            }
-            else
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadTypeMismatch,
-                    "Device '{0}' is not a TopologyElementState; functional groups can only be added to topology elements.",
-                    Device.BrowseName);
-            }
-
-            // Normalize order: BrowseName/SymbolicName → NodeIdFactory →
-            // TypeDefinitionId → children/references (added by the caller).
-            group.SymbolicName = browseName.Name ?? string.Empty;
-            group.BrowseName = browseName;
-            group.DisplayName = new LocalizedText(browseName.Name);
-            group.NodeId = Context.NodeIdFactory.New(Context, group);
-            group.TypeDefinitionId = NodeId.Create(
-                Opc.Ua.Di.ObjectTypes.FunctionalGroupType,
-                DiNodeManager.DiNamespaceUri,
-                Manager.Server.NamespaceUris);
-            group.ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.HasComponent;
-            group.ModellingRuleId = NodeId.Null;
-
-            // Recursively register the new group + its children with the
-            // manager so direct NodeId lookup and event delivery work.
-            Manager.AddPredefinedNodeAsync(
-                group,
-                System.Threading.CancellationToken.None)
-                .AsTask().GetAwaiter().GetResult();
-
-            return group;
         }
 
         private void ApplyIdentification(DeviceIdentificationData data)
         {
-            // Nameplate properties live on ComponentState and its
-            // subtypes; if Device isn't a ComponentState the call is a
-            // no-op (DI shouldn't see those, but the constraint allows
-            // it). Writes only the properties that were assigned by the
-            // caller, leaving the rest untouched.
-            if (Device is not ComponentState component)
-            {
-                return;
-            }
             if (!data.Manufacturer.IsNull)
             {
                 WriteLocalizedText(
-                    component.Manufacturer,
+                    Device.Manufacturer,
                     "Manufacturer",
                     data.Manufacturer,
-                    p => component.Manufacturer = p);
+                    property => Device.Manufacturer = property);
             }
             if (data.ManufacturerUri != null)
             {
                 WriteString(
-                    component.ManufacturerUri,
+                    Device.ManufacturerUri,
                     "ManufacturerUri",
                     data.ManufacturerUri,
-                    p => component.ManufacturerUri = p);
+                    property => Device.ManufacturerUri = property);
             }
             if (!data.Model.IsNull)
             {
                 WriteLocalizedText(
-                    component.Model,
+                    Device.Model,
                     "Model",
                     data.Model,
-                    p => component.Model = p);
+                    property => Device.Model = property);
             }
             if (data.HardwareRevision != null)
             {
                 WriteString(
-                    component.HardwareRevision,
+                    Device.HardwareRevision,
                     "HardwareRevision",
                     data.HardwareRevision,
-                    p => component.HardwareRevision = p);
+                    property => Device.HardwareRevision = property);
             }
             if (data.SoftwareRevision != null)
             {
                 WriteString(
-                    component.SoftwareRevision,
+                    Device.SoftwareRevision,
                     "SoftwareRevision",
                     data.SoftwareRevision,
-                    p => component.SoftwareRevision = p);
+                    property => Device.SoftwareRevision = property);
             }
             if (data.DeviceRevision != null)
             {
                 WriteString(
-                    component.DeviceRevision,
+                    Device.DeviceRevision,
                     "DeviceRevision",
                     data.DeviceRevision,
-                    p => component.DeviceRevision = p);
+                    property => Device.DeviceRevision = property);
             }
             if (data.ProductCode != null)
             {
                 WriteString(
-                    component.ProductCode,
+                    Device.ProductCode,
                     "ProductCode",
                     data.ProductCode,
-                    p => component.ProductCode = p);
+                    property => Device.ProductCode = property);
             }
             if (data.DeviceManual != null)
             {
                 WriteString(
-                    component.DeviceManual,
+                    Device.DeviceManual,
                     "DeviceManual",
                     data.DeviceManual,
-                    p => component.DeviceManual = p);
+                    property => Device.DeviceManual = property);
             }
             if (data.DeviceClass != null)
             {
                 WriteString(
-                    component.DeviceClass,
+                    Device.DeviceClass,
                     "DeviceClass",
                     data.DeviceClass,
-                    p => component.DeviceClass = p);
+                    property => Device.DeviceClass = property);
             }
             if (data.SerialNumber != null)
             {
                 WriteString(
-                    component.SerialNumber,
+                    Device.SerialNumber,
                     "SerialNumber",
                     data.SerialNumber,
-                    p => component.SerialNumber = p);
+                    property => Device.SerialNumber = property);
             }
             if (data.ProductInstanceUri != null)
             {
                 WriteString(
-                    component.ProductInstanceUri,
+                    Device.ProductInstanceUri,
                     "ProductInstanceUri",
                     data.ProductInstanceUri,
-                    p => component.ProductInstanceUri = p);
+                    property => Device.ProductInstanceUri = property);
             }
             if (data.RevisionCounter.HasValue)
             {
                 WriteInt32(
-                    component.RevisionCounter,
+                    Device.RevisionCounter,
                     "RevisionCounter",
                     data.RevisionCounter.Value,
-                    p => component.RevisionCounter = p);
+                    property => Device.RevisionCounter = property);
             }
         }
 
@@ -444,22 +322,11 @@ namespace Opc.Ua.Di.Server.Builders
             setBackingField(typed);
         }
 
-        /// <summary>
-        /// Stamps the manager-assigned NodeId on a freshly created
-        /// nameplate property, writes its value, and registers it with
-        /// the manager so direct NodeId lookup and event delivery work.
-        /// </summary>
-        /// <typeparam name="TValue">Property value type.</typeparam>
         private void FinalizeAndRegister<TValue>(
             PropertyState created,
             PropertyState<TValue> typed,
             TValue value)
         {
-            // NodeState.AddProperty stamps a namespace-0 BrowseName; the DI
-            // nameplate properties are declared in the DI namespace, so
-            // re-qualify the BrowseName before the node is registered
-            // (otherwise the instance carries e.g. 0:DeviceClass instead of
-            // 4:DeviceClass and fails GEN-14 / GEN-05).
             created.BrowseName = new QualifiedName(
                 created.BrowseName.Name,
                 Manager.DiNamespaceIndex);
@@ -471,5 +338,7 @@ namespace Opc.Ua.Di.Server.Builders
                 System.Threading.CancellationToken.None)
                 .AsTask().GetAwaiter().GetResult();
         }
+
+        private readonly NodeManagerBuilder m_builder;
     }
 }
