@@ -157,7 +157,22 @@ IOpcUaBuilder opcUa = services.AddOpcUa()
         options.ApplicationName = "MyApplication";
         options.ApplicationUri = "urn:localhost:MyApplication";
         options.ProductUri = "uri:example.com:MyApplication";
-        options.AutoAcceptUntrustedCertificates = true;
+        options.SubjectName = "CN=MyApplication, O=Example, DC=localhost";
+        options.PkiRoot = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "Example",
+            "MyApplication",
+            "pki");
+        options.AutoAcceptUntrustedCertificates = false;
+        options.RejectSHA1SignedCertificates = true;
+        options.MinimumCertificateKeySize = 2048;
+
+        // Code-only advanced settings, applied after the values above.
+        options.ConfigureSecurity = security => security
+            .SetMaxRejectedCertificates(20)
+            .SetRejectUnknownRevocationStatus(true)
+            .SetUseValidatedCertificates(false)
+            .SetSendCertificateChain(true);
     });
 
 opcUa.AddClient(options =>
@@ -175,6 +190,56 @@ opcUa.AddServer(options =>
 ```
 
 When both features are registered, the shared configuration has `ApplicationType.ClientAndServer` and one application-certificate lifecycle. An explicitly supplied `OpcUaClientOptions.Configuration` still wins for that client registration.
+
+### Application identity and certificate defaults
+
+| Setting | Behavior when omitted |
+|---------|-----------------------|
+| `ApplicationName` | Required after client/server feature defaults are applied. The server feature defaults to `OpcUaServer`; client-only applications should set it explicitly. |
+| `ApplicationUri` | Generated from the host name and application name during validation. Set a stable URI for deployed applications. |
+| `ProductUri` | Uses the contributing feature value. Set a stable product URI for deployed applications. |
+| `SubjectName` | `CN={ApplicationName}, O=OPC Foundation, DC=localhost`; `DC=localhost` is replaced with the host name. |
+| `PkiRoot` | A per-application `OPC Foundation/{ApplicationName}/pki` directory below the process temporary directory. Configure a persistent, access-controlled location in production. |
+| Application certificates and stores | Directory-backed application, trusted peer/issuer, HTTPS, user, and rejected stores are created below `PkiRoot`; default RSA and supported ECC application-certificate identifiers are selected. |
+
+The security builder starts with secure defaults: unknown certificates are not
+auto-accepted, the application certificate is not copied into a shared trusted
+store, SHA-1 certificates and unknown revocation status are rejected, nonce
+validation errors are not suppressed, certificate chains are sent, the minimum
+RSA key size is 2048, and at most five rejected certificates are retained.
+Validated-certificate caching is off unless enabled explicitly.
+
+### Advanced application certificate validation
+
+`OpcUaApplicationOptions.ConfigureSecurity` is an
+`Action<IApplicationConfigurationBuilderSecurityOptions>?`. It is invoked after
+the default application certificates and stores and after the first-class
+`AutoAcceptUntrustedCertificates`, `RejectSHA1SignedCertificates`, and
+`MinimumCertificateKeySize` values. It is the final security customization
+before `CreateAsync`, so it can override those first-class values. The callback
+is code-only and is not bound from `IConfiguration`; exceptions are not
+swallowed and fail application-configuration provider creation.
+
+Prefer the first-class properties for their common settings and use
+`ConfigureSecurity` only for advanced certificate/store behavior:
+
+| Method | Purpose and secure default |
+|--------|----------------------------|
+| `SetApplicationCertificates(...)` | Replaces the generated application-certificate identifiers. Prefer `SubjectName` and `PkiRoot` for the normal generated layout. |
+| `SetMaxRejectedCertificates(...)` | Sets rejected-certificate retention; default `5`, `0` keeps all, and a negative value keeps no history. |
+| `SetAutoAcceptUntrustedCertificates(...)` | Accepts otherwise-valid unknown peer certificates; default `false`. Prefer `AutoAcceptUntrustedCertificates`. Use `true` only in an isolated lab. |
+| `SetAddAppCertToTrustedStore(...)` | Adds a newly created application certificate to a shared trusted store; default `false`. |
+| `SetRejectSHA1SignedCertificates(...)` | Rejects SHA-1-signed certificates; default `true`. Prefer `RejectSHA1SignedCertificates`. |
+| `SetRejectUnknownRevocationStatus(...)` | Rejects chains when CA revocation status cannot be determined; default `true`. |
+| `SetUseValidatedCertificates(...)` | Reuses previously validated certificates without repeating the full validation path; default `false`. Leave disabled unless the reduced revalidation is explicitly acceptable for the deployment. |
+| `SetSuppressNonceValidationErrors(...)` | Suppresses zero/weak nonce errors; default `false`. Enabling it weakens user-token protection and is only for unavoidable legacy interoperability. |
+| `SetSendCertificateChain(...)` | Sends the chain with a CA-signed application certificate; default `true`. |
+| `SetMinimumCertificateKeySize(...)` | Sets the minimum accepted RSA key size; default `2048`. Prefer `MinimumCertificateKeySize`. |
+| `AddCertificatePasswordProvider(...)` | Supplies an `ICertificatePasswordProvider` for protected private keys; no provider is registered by default. |
+
+See [Certificates](Certificates.md) for trust-store deployment and validation,
+and [Certificate Manager](CertificateManager.md) for injectable certificate
+lifecycle management.
 
 Discovery servers expose the same transport and reverse-connect shortcuts as
 the regular server builder:
@@ -259,7 +324,7 @@ builder.Services
         o.ApplicationName = "MyServer";
         o.ApplicationUri = "urn:localhost:MyOrg:MyServer";
         o.ProductUri = "uri:myorg:myserver";
-        o.AutoAcceptUntrustedCertificates = true;
+        o.AutoAcceptUntrustedCertificates = false;
         o.EndpointUrls.Add("opc.tcp://localhost:51210/MyServer");
     })
     .AddNodeManager<MyNodeManagerFactory>()       // IAsyncNodeManagerFactory
@@ -298,23 +363,100 @@ an anonymous authenticator matching its default anonymous user-token policy.
 If a non-anonymous user-token policy is configured without a corresponding
 authenticator, startup logs a warning.
 
-For advanced configuration (custom security policies, custom security
-stores), set `OpcUaServerOptions.ConfigureBuilder` — it receives the
-underlying `IApplicationConfigurationBuilderServerSelected` between the
-default policy/quota steps and `CreateAsync`.
+### Server security and resource controls
+
+The hosted server is secure by default: sign-and-encrypt policies are included,
+`SecurityPolicy#None` is excluded, SHA-1 certificates are rejected, the minimum
+RSA key size is 2048, and unknown certificates are not auto-accepted. Review
+these controls explicitly for every deployment:
+
+- Keep `IncludeSignAndEncryptPolicies = true`. Set
+  `IncludeUnsecurePolicyNone = true` only for an isolated lab endpoint with no
+  sensitive data or credentials.
+- Enable `IncludeEccPolicies` only when the deployment certificates and clients
+  support the advertised ECC policies.
+- Configure `UserTokenPolicies` together with matching authenticators. An empty
+  list advertises `Anonymous`; adding a token policy alone does not authenticate
+  it. See [Identity Providers](IdentityProviders.md) and
+  [Role-Based User Management](RoleBasedUserManagement.md).
+- Keep certificate auto-accept disabled and provision trust lists. For
+  advanced validation, use the shared
+  `ConfigureApplication(...).ConfigureSecurity` callback described above.
+- Bound transport and service work for the deployment. `MaxByteStringLength`,
+  `MaxArrayLength`, `MaxMessageSize`, and `OperationTimeoutMs` control transport
+  quotas; `OperationLimits` bounds nodes processed by individual services.
+- Set deployment-specific channel, session, and failed-authentication ceilings
+  through `ConfigureBuilder` to reduce resource-exhaustion and credential-guessing
+  exposure.
+
+`OpcUaServerOptions.ConfigureBuilder` receives
+`IApplicationConfigurationBuilderServerSelected` after the standard transport
+quotas, policies, user-token policies, and server options are applied, but
+**before** application certificates and security stores are added.
+Use it for server policy and server-runtime options. In contrast,
+`OpcUaApplicationOptions.ConfigureSecurity` runs **after** certificates, stores,
+and first-class certificate-validation values are applied. Use it for
+post-security certificate and validation options.
+
+```csharp
+services.AddOpcUa()
+    .ConfigureApplication(application =>
+    {
+        application.ApplicationName = "MyServer";
+        application.AutoAcceptUntrustedCertificates = false;
+        application.RejectSHA1SignedCertificates = true;
+        application.MinimumCertificateKeySize = 2048;
+        application.ConfigureSecurity = security => security
+            .SetRejectUnknownRevocationStatus(true);
+    })
+    .AddServer(server =>
+    {
+        server.IncludeSignAndEncryptPolicies = true;
+        server.IncludeUnsecurePolicyNone = false;
+        server.IncludeEccPolicies = true;
+        server.ConfigureBuilder = configuration => configuration
+            .SetMaxFailedAuthenticationAttempts(5)
+            .SetMaxSessionCount(100)
+            .SetMaxChannelCount(200)
+            .SetAuditingEnabled(true)
+            .SetHttpsMutualTls(true);
+        server.ConfigureRateLimits = limits =>
+        {
+            limits.ConnectionsPerSecond = 200;
+            limits.ConnectionBurst = 400;
+            limits.MaxConcurrentSessionEstablishment = 64;
+        };
+    });
+```
+
+`SetAuditingEnabled(true)` enables OPC UA audit-event reporting.
+`SetHttpsMutualTls(true)` requests and validates a client certificate when one
+is supplied on HTTPS endpoints; it does not by itself require every client to
+present one. Enforce certificate-only Web API access through the corresponding
+authentication and authorization setup. Server admission rate limiting is
+enabled by default with conservative connection and concurrent
+session-establishment limits. Tune it with `ConfigureRateLimits`, or register a
+custom `IServerRateLimiterProvider`; do not disable it without an equivalent
+upstream control. See [Rate Limiting](RateLimiting.md) rather than duplicating
+the full algorithm and deployment guidance here.
 
 ### First-class server options
 
 In addition to the basic application-identity / endpoint / PKI knobs
 covered above, `OpcUaServerOptions` exposes the following first-class
 properties (bindable from `IConfiguration` or set via the
-`Action<OpcUaServerOptions>` overload). Anything not listed here remains
-reachable through `ConfigureBuilder`.
+`Action<OpcUaServerOptions>` overload). Certificate options added by
+`AddSecurityConfiguration` are instead reached through
+`OpcUaApplicationOptions.ConfigureSecurity`.
 
 | Property | Underlying builder call | Purpose |
 |----------|-------------------------|---------|
+| `IncludeSignAndEncryptPolicies` | `AddSignAndEncryptPolicies()` | Add the standard sign-and-encrypt policies. On by default. |
+| `IncludeUnsecurePolicyNone` | `AddUnsecurePolicyNone()` | Advertise an unsecured endpoint. Off by default; lab use only. |
 | `IncludeEccPolicies` | `AddEccSignAndEncryptPolicies()` | Add ECC sign-and-encrypt security policies. Off by default. |
 | `UserTokenPolicies` | `AddUserTokenPolicy(UserTokenType)` | List of user-token policies advertised on every endpoint. Defaults to `Anonymous` when empty. |
+| `MaxByteStringLength` | `SetMaxByteStringLength(int)` | Transport byte-string quota; defaults to 4 MiB. |
+| `MaxArrayLength` | `SetMaxArrayLength(int)` | Transport array-element quota; defaults to 1 Mi elements. |
 | `MaxMessageSize` | `SetMaxMessageSize(int)` | Transport quota in bytes; `null` keeps the stack default. |
 | `OperationTimeoutMs` | `SetOperationTimeout(int)` | Transport operation timeout in ms; `null` keeps the stack default. |
 | `RejectSHA1Certificates` | `SetRejectSHA1SignedCertificates(bool)` | Security hardening — defaults to `true`. |
@@ -322,6 +464,8 @@ reachable through `ConfigureBuilder`.
 | `RegistrationEndpointUrl` | `SetRegistrationEndpoint(EndpointDescription)` | LDS/GDS endpoint URL the server registers itself with on startup. |
 | `ReverseConnect` | `SetReverseConnect(ReverseConnectServerConfiguration)` | Server-side reverse-connect clients (see below). |
 | `OperationLimits` | `SetOperationLimits(OperationLimits)` | Per-service node limits (max nodes per read/write/browse/...). |
+| `ConfigureBuilder` | Code-only callback | Pre-security server-policy and server-option escape hatch, including max failed authentication attempts, sessions, channels, auditing, and HTTPS mutual TLS. |
+| `ConfigureRateLimits` | Code-only callback | Tunes the default connection and session-establishment admission controls. |
 
 ### Server-side reverse connect
 
@@ -607,6 +751,20 @@ services.AddOpcUa()
         options.SecurityPolicyUri = SecurityPolicies.Basic256Sha256;
     });
 ```
+
+Client security checklist:
+
+- Select `MessageSecurityMode.SignAndEncrypt` and an approved policy such as
+  `Basic256Sha256` (or a supported stronger policy) during discovery. Do not
+  fall back to `SecurityPolicy#None` outside isolated lab environments.
+- Keep `AutoAcceptUntrustedCertificates = false`; provision the server or issuer
+  certificate in the client trust store and retain URI/hostname, chain,
+  revocation, key-size, and nonce validation. See
+  [Certificates](Certificates.md).
+- Register an `IClientIdentityProvider` appropriate for the selected endpoint's
+  user-token policy. Keep passwords and tokens in the secret/provider
+  infrastructure rather than embedding them in configuration. See
+  [Identity Providers](IdentityProviders.md).
 
 ### Identity (client)
 
@@ -897,7 +1055,7 @@ services
         o.ApplicationName = "MyGds";
         o.ApplicationUri = "urn:localhost:MyOrg:MyGds";
         o.ProductUri = "uri:myorg:mygds";
-        o.AutoAcceptUntrustedCertificates = true;
+        o.AutoAcceptUntrustedCertificates = false;
         o.EndpointUrls.Add("opc.tcp://localhost:58810/GlobalDiscoveryServer");
         o.AuthoritiesStorePath = "%LocalApplicationData%/OPC Foundation/pki/CA";
     })
@@ -1106,7 +1264,7 @@ services.AddOpcUa()
         o.ApplicationName = "AotServer";
         o.ApplicationUri = "urn:host:AotServer";
         o.EndpointUrls.Add("opc.tcp://localhost:51210/AotServer");
-        o.AutoAcceptUntrustedCertificates = true;
+        o.AutoAcceptUntrustedCertificates = false;
     })
     .AddNodeManager<MyAotNodeManagerFactory>();
 ```

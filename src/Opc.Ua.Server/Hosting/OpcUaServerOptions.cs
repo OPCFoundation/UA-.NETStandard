@@ -40,8 +40,10 @@ namespace Opc.Ua.Server.Hosting
     /// <remarks>
     /// Only the most common knobs are exposed directly. Use
     /// <see cref="ConfigureBuilder"/> for full control of the underlying
-    /// <see cref="IApplicationConfigurationBuilder"/> chain (security policies,
-    /// transport quotas, custom security stores, etc.).
+    /// server-policy and server-option builder stages. Use
+    /// <see cref="OpcUaApplicationOptions.ConfigureSecurity"/> through
+    /// <c>ConfigureApplication(...)</c> for post-security certificate and
+    /// validation settings.
     /// </remarks>
     public sealed class OpcUaServerOptions
     {
@@ -192,10 +194,13 @@ namespace Opc.Ua.Server.Hosting
         public OperationLimitsOptions? OperationLimits { get; set; }
 
         /// <summary>
-        /// Optional escape hatch invoked after the standard configuration steps
-        /// (transport quotas, server policies, security configuration) but
-        /// before <c>CreateAsync</c>. Use it to add bespoke security policies,
-        /// override quotas, or add custom security stores.
+        /// Optional escape hatch invoked after the standard transport-quota,
+        /// server-policy, and server-option steps, but before the application
+        /// security configuration is added. Use it to add bespoke server
+        /// policies or override server options. Use
+        /// <see cref="OpcUaApplicationOptions.ConfigureSecurity"/> through
+        /// <c>ConfigureApplication(...)</c> for post-security certificate and
+        /// validation settings.
         /// </summary>
         public Action<IApplicationConfigurationBuilderServerSelected>? ConfigureBuilder { get; set; }
 

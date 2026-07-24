@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.IO;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -57,7 +58,11 @@ builder.Services
         o.ApplicationName = "PumpDeviceIntegrationServer";
         o.ApplicationUri = "urn:localhost:OPCFoundation:PumpDeviceIntegrationServer";
         o.ProductUri = "uri:opcfoundation.org:PumpDeviceIntegrationServer";
+        // Sample convenience only; never auto-accept untrusted certificates in production.
         o.AutoAcceptUntrustedCertificates = true;
+        o.PkiRoot = Path.Combine(AppContext.BaseDirectory, "pki");
+        o.RejectSHA1Certificates = true;
+        o.MinCertificateKeySize = 2048;
         o.EndpointUrls.Add($"opc.tcp://{host}:{port}/PumpDeviceIntegrationServer");
     })
     .AddNodeManager<PumpNodeManagerFactory>()
