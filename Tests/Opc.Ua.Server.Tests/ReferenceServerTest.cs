@@ -1351,6 +1351,67 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Verifies that one-sided raw history reads use the specified time as
+        /// the starting boundary and return values in the required direction.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task HistoryReadOneSidedTimeReturnsValuesInRequestedOrderAsync(bool startOnly)
+        {
+            var int32ValueNodeId = new NodeId(
+                TestData.Variables.Data_Dynamic_Scalar_Int32Value,
+                (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(TestData.Namespaces.TestData));
+
+            DateTime boundary = startOnly ? DateTime.UtcNow.AddHours(-1) : DateTime.UtcNow;
+            var historyReadDetails = new ReadRawModifiedDetails
+            {
+                StartTime = startOnly ? boundary : DateTime.MinValue,
+                EndTime = startOnly ? DateTime.MinValue : boundary,
+                NumValuesPerNode = 10,
+                IsReadModified = false,
+                ReturnBounds = false
+            };
+
+            var nodesToRead = new HistoryReadValueIdCollection {
+                new HistoryReadValueId {
+                    NodeId = int32ValueNodeId
+                }
+            };
+
+            m_requestHeader.Timestamp = DateTime.UtcNow;
+            HistoryReadResponse response = await m_server.HistoryReadAsync(
+                m_secureChannelContext,
+                m_requestHeader,
+                new ExtensionObject(historyReadDetails),
+                TimestampsToReturn.Both,
+                false,
+                nodesToRead,
+                CancellationToken.None).ConfigureAwait(false);
+
+            ServerFixtureUtils.ValidateResponse(response.ResponseHeader, response.Results, nodesToRead);
+            Assert.AreEqual(1, response.Results.Count);
+
+            HistoryReadResult result = response.Results[0];
+            Assert.IsTrue(StatusCode.IsGood(result.StatusCode),
+                $"History read should succeed, but got: {result.StatusCode}");
+            Assert.IsTrue(result.ContinuationPoint == null || result.ContinuationPoint.Length == 0,
+                "A one-sided read limited by NumValuesPerNode should not return a continuation point.");
+            Assert.IsTrue(result.HistoryData?.Body is HistoryData,
+                "HistoryData body should be of type HistoryData.");
+
+            var historyData = (HistoryData)result.HistoryData.Body;
+            Assert.AreEqual(10, historyData.DataValues.Count);
+
+            for (int ii = 1; ii < historyData.DataValues.Count; ii++)
+            {
+                DateTime previous = historyData.DataValues[ii - 1].ServerTimestamp;
+                DateTime current = historyData.DataValues[ii].ServerTimestamp;
+                Assert.IsTrue(startOnly ? current > previous : current < previous,
+                    $"History values should be returned in {(startOnly ? "ascending" : "descending")} timestamp order.");
+            }
+        }
+
+        /// <summary>
         /// Test provisioning mode - server should start with limited namespace.
         /// </summary>
         [Test]
