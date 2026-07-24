@@ -17,6 +17,9 @@
     <PackageId>$(PackageId).Debug</PackageId>
   </PropertyGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.Di.Tests" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\Opc.Ua.Robotics\Opc.Ua.Robotics.csproj" />
     <ProjectReference Include="..\Opc.Ua.Di.Server\Opc.Ua.Di.Server.csproj" />
     <ProjectReference Include="..\Opc.Ua.Server\Opc.Ua.Server.csproj" />

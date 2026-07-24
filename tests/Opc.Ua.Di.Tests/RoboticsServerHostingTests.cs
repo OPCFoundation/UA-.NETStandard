@@ -200,6 +200,63 @@ namespace Opc.Ua.Di.Tests
         }
 
         [Test]
+        public void StandardModelNamespacesCannotBeInstanceNamespace()
+        {
+            string[] reservedNamespaces =
+            [
+                global::Opc.Ua.Namespaces.OpcUa,
+                DiNodeManager.DiNamespaceUri,
+                Opc.Ua.IA.Namespaces.IA,
+                Robotics.Namespaces.Robotics
+            ];
+
+            for (int ii = 0; ii < reservedNamespaces.Length; ii++)
+            {
+                var options = new RoboticsServerOptions
+                {
+                    InstanceNamespaceUri = reservedNamespaces[ii]
+                };
+                ServiceResultException exception =
+                    Assert.Throws<ServiceResultException>(
+                        () => new RoboticsNodeManagerFactory(
+                            new IRoboticsModelProvider[]
+                            {
+                                new RoboticsModelProvider()
+                            },
+                            options))!;
+
+                Assert.That(
+                    exception.StatusCode,
+                    Is.EqualTo(StatusCodes.BadConfigurationError));
+                Assert.That(exception.Message, Does.Contain(reservedNamespaces[ii]));
+                Assert.That(exception.Message, Does.Contain("application-owned"));
+            }
+        }
+
+        [Test]
+        public void ProviderNamespaceCannotBeInstanceNamespace()
+        {
+            var options = new RoboticsServerOptions
+            {
+                InstanceNamespaceUri = CustomModelProvider.ModelNamespaceUri
+            };
+
+            ServiceResultException exception =
+                Assert.Throws<ServiceResultException>(
+                    () => new RoboticsNodeManagerFactory(
+                        new IRoboticsModelProvider[] { new CustomModelProvider() },
+                        options))!;
+
+            Assert.That(
+                exception.StatusCode,
+                Is.EqualTo(StatusCodes.BadConfigurationError));
+            Assert.That(
+                exception.Message,
+                Does.Contain(CustomModelProvider.ModelNamespaceUri));
+            Assert.That(exception.Message, Does.Contain(nameof(CustomModelProvider)));
+        }
+
+        [Test]
         public void BuiltInProviderGuardsNullArguments()
         {
             var provider = new RoboticsModelProvider();
@@ -236,6 +293,24 @@ namespace Opc.Ua.Di.Tests
             public ArrayOf<string> NamespaceUris => new string[]
             {
                 Opc.Ua.IA.Namespaces.IA
+            };
+
+            public void AddPredefinedNodes(NodeStateCollection nodes, ISystemContext context)
+            {
+            }
+        }
+
+        private sealed class CustomModelProvider : IRoboticsModelProvider
+        {
+            public const string ModelNamespaceUri = "urn:tests:robotics:custom-model";
+
+            public int Order => 0;
+
+            public ArrayOf<string> NamespaceUris => new string[]
+            {
+                Opc.Ua.IA.Namespaces.IA,
+                Robotics.Namespaces.Robotics,
+                ModelNamespaceUri
             };
 
             public void AddPredefinedNodes(NodeStateCollection nodes, ISystemContext context)

@@ -62,8 +62,8 @@ namespace Opc.Ua.Robotics.Server
             RoboticsServerOptions options,
             IDiPostSetupRunner? postSetupRunner = null)
         {
-            m_options = RoboticsModelProviderUtilities.ValidateOptions(options);
             m_providers = RoboticsModelProviderUtilities.Normalize(providers);
+            m_options = RoboticsModelProviderUtilities.ValidateOptions(options, m_providers);
             m_postSetupRunner = postSetupRunner;
         }
 

@@ -35,12 +35,25 @@ using Opc.Ua.Server.Fluent;
 
 namespace Opc.Ua.Robotics.Server
 {
-    internal sealed class RoboticsBuildContext : IRoboticsBuildContext
+    internal interface IRoboticsBuildCoordinator
     {
-        private readonly NodeManagerBuilder m_nodes;
-        private readonly IDiPostSetupContext? m_postSetupContext;
-        private bool m_sealed;
+        bool IsSealed { get; }
 
+        IDisposable AcquireBuildLease();
+
+        bool ReleasesNodeIdReservations { get; }
+
+        void ReleaseNodeIdReservation(NodeState node);
+
+        IDisposable ReserveRootBrowseName(
+            NodeState parent,
+            QualifiedName browseName);
+    }
+
+    internal sealed class RoboticsBuildContext :
+        IRoboticsBuildContext,
+        IRoboticsBuildCoordinator
+    {
         public RoboticsBuildContext(
             DiNodeManager manager,
             RoboticsServerOptions options,
@@ -53,6 +66,31 @@ namespace Opc.Ua.Robotics.Server
             m_postSetupContext = postSetupContext;
 
             Context = manager.SystemContext;
+            if (Context.NodeIdFactory is not IRoboticsNodeIdFactory)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConfigurationError,
+                    "The custom DI node manager '{0}' cannot build Robotics instances because " +
+                    "Context.NodeIdFactory does not implement {1}. Implement the marker on the " +
+                    "manager with a thread-safe allocator for the configured instance namespace, " +
+                    "or assign such a factory before ConfigureRoboticsFor/CreateRoboticsBuildContext.",
+                    manager.GetType().FullName ?? manager.GetType().Name,
+                    nameof(IRoboticsNodeIdFactory));
+            }
+            m_releasesNodeIdReservations =
+                manager is RoboticsNodeManager &&
+                ReferenceEquals(Context.NodeIdFactory, manager);
+
+            int iaNamespaceIndex = Context.NamespaceUris.GetIndex(
+                Opc.Ua.IA.Namespaces.IA);
+            if (iaNamespaceIndex < 0)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConfigurationError,
+                    "The IA namespace '{0}' is not registered.",
+                    Opc.Ua.IA.Namespaces.IA);
+            }
+
             int roboticsNamespaceIndex = Context.NamespaceUris.GetIndex(
                 Opc.Ua.Robotics.Namespaces.Robotics);
             if (roboticsNamespaceIndex < 0)
@@ -73,6 +111,7 @@ namespace Opc.Ua.Robotics.Server
                     options.InstanceNamespaceUri);
             }
             InstanceNamespaceIndex = (ushort)instanceNamespaceIndex;
+            m_managerCoordinator = RoboticsBuildCoordinator.Get(manager);
 
             var deviceSetId = NodeId.Create(
                 Opc.Ua.Di.Objects.DeviceSet,
@@ -82,6 +121,15 @@ namespace Opc.Ua.Robotics.Server
                 throw ServiceResultException.Create(
                     StatusCodes.BadConfigurationError,
                     "The DI DeviceSet node is not available in the Robotics address space.");
+
+            var motionDeviceSystemTypeId = NodeId.Create(
+                Opc.Ua.Robotics.ObjectTypes.MotionDeviceSystemType,
+                Opc.Ua.Robotics.Namespaces.Robotics,
+                Context.NamespaceUris);
+            _ = manager.FindPredefinedNode(motionDeviceSystemTypeId) ??
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConfigurationError,
+                    "The Robotics MotionDeviceSystemType is not available in the address space.");
 
             m_nodes = manager.CreateFluentBuilder(InstanceNamespaceIndex);
         }
@@ -98,6 +146,17 @@ namespace Opc.Ua.Robotics.Server
 
         public CancellationToken CancellationToken { get; }
 
+        internal bool IsSealed
+        {
+            get
+            {
+                lock (m_stateLock)
+                {
+                    return m_sealed;
+                }
+            }
+        }
+
         public T GetRequiredService<T>() where T : notnull
         {
             if (m_postSetupContext == null)
@@ -110,12 +169,97 @@ namespace Opc.Ua.Robotics.Server
 
         public void Seal()
         {
-            if (m_sealed)
+            lock (m_stateLock)
             {
-                return;
+                if (m_sealed)
+                {
+                    return;
+                }
+                if (m_activeBuildLeaseCount != 0)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadInvalidState,
+                        "The Robotics build context cannot be sealed while a build is active.");
+                }
+
+                m_sealed = true;
+                m_nodes.Seal();
             }
-            m_nodes.Seal();
-            m_sealed = true;
+        }
+
+        IDisposable IRoboticsBuildCoordinator.AcquireBuildLease()
+        {
+            lock (m_stateLock)
+            {
+                if (m_sealed)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadInvalidState,
+                        "The Robotics build context is sealed.");
+                }
+                m_activeBuildLeaseCount++;
+            }
+            return new BuildLease(this);
+        }
+
+        void IRoboticsBuildCoordinator.ReleaseNodeIdReservation(NodeState node)
+        {
+            if (m_releasesNodeIdReservations)
+            {
+                m_managerCoordinator.ReleaseNodeId(node);
+            }
+        }
+
+        IDisposable IRoboticsBuildCoordinator.ReserveRootBrowseName(
+            NodeState parent,
+            QualifiedName browseName)
+        {
+            return m_managerCoordinator.ReserveRootBrowseName(
+                Context,
+                parent,
+                browseName);
+        }
+
+        bool IRoboticsBuildCoordinator.IsSealed => IsSealed;
+
+        bool IRoboticsBuildCoordinator.ReleasesNodeIdReservations =>
+            m_releasesNodeIdReservations;
+
+        private void ReleaseBuildLease()
+        {
+            lock (m_stateLock)
+            {
+                if (m_activeBuildLeaseCount == 0)
+                {
+                    throw new InvalidOperationException(
+                        "The Robotics build context has no active build lease to release.");
+                }
+                m_activeBuildLeaseCount--;
+            }
+        }
+
+        private readonly NodeManagerBuilder m_nodes;
+        private readonly IDiPostSetupContext? m_postSetupContext;
+        private readonly RoboticsBuildCoordinator m_managerCoordinator;
+        private readonly Lock m_stateLock = new();
+        private readonly bool m_releasesNodeIdReservations;
+        private int m_activeBuildLeaseCount;
+        private bool m_sealed;
+
+        private sealed class BuildLease : IDisposable
+        {
+            public BuildLease(RoboticsBuildContext context)
+            {
+                m_context = context;
+            }
+
+            public void Dispose()
+            {
+                RoboticsBuildContext? context = Interlocked.Exchange(ref m_context, null);
+                context?.ReleaseBuildLease();
+            }
+
+            private RoboticsBuildContext? m_context;
         }
     }
 }

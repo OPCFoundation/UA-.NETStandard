@@ -127,6 +127,7 @@ namespace Opc.Ua.Robotics.Server
         {
             options = ValidateOptions(options);
             ArrayOf<IRoboticsModelProvider> normalized = Normalize(providers);
+            ValidateInstanceNamespace(options, normalized);
             var namespaceUris = new List<string>();
             AddProviderNamespaces(namespaceUris, normalized);
             AddNamespace(namespaceUris, options.InstanceNamespaceUri);
@@ -141,6 +142,7 @@ namespace Opc.Ua.Robotics.Server
         {
             options = ValidateOptions(options);
             ArrayOf<IRoboticsModelProvider> normalized = Normalize(providers);
+            ValidateInstanceNamespace(options, normalized);
             var namespaceUris = new List<string>();
             AddProviderNamespaces(namespaceUris, normalized);
             AddNamespace(namespaceUris, options.InstanceNamespaceUri);
@@ -155,6 +157,15 @@ namespace Opc.Ua.Robotics.Server
                 throw new ArgumentNullException(nameof(options));
             }
             options.Validate();
+            return options;
+        }
+
+        public static RoboticsServerOptions ValidateOptions(
+            RoboticsServerOptions options,
+            ArrayOf<IRoboticsModelProvider> providers)
+        {
+            options = ValidateOptions(options);
+            ValidateInstanceNamespace(options, providers);
             return options;
         }
 
@@ -216,6 +227,31 @@ namespace Opc.Ua.Robotics.Server
                     "and Robotics namespace '{1}'.",
                     Opc.Ua.IA.Namespaces.IA,
                     Opc.Ua.Robotics.Namespaces.Robotics);
+            }
+        }
+
+        private static void ValidateInstanceNamespace(
+            RoboticsServerOptions options,
+            ArrayOf<IRoboticsModelProvider> providers)
+        {
+            for (int providerIndex = 0; providerIndex < providers.Count; providerIndex++)
+            {
+                ArrayOf<string> providerNamespaces = providers[providerIndex].NamespaceUris;
+                for (int namespaceIndex = 0;
+                    namespaceIndex < providerNamespaces.Count;
+                    namespaceIndex++)
+                {
+                    if (options.InstanceNamespaceUri == providerNamespaces[namespaceIndex])
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadConfigurationError,
+                            "RoboticsServerOptions.InstanceNamespaceUri '{0}' is provided by " +
+                            "Robotics model provider '{1}'. Configure a distinct " +
+                            "application-owned namespace for Robotics instances.",
+                            options.InstanceNamespaceUri,
+                            GetStableTypeName(providers[providerIndex]));
+                    }
+                }
             }
         }
 

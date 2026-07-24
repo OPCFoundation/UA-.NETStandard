@@ -40,10 +40,11 @@ namespace Opc.Ua.Robotics.Server
     /// Stock DI-based node manager for compiled Robotics models and
     /// application-owned instances.
     /// </summary>
-    public sealed class RoboticsNodeManager : DiNodeManager
+    public sealed class RoboticsNodeManager : DiNodeManager, IRoboticsNodeIdFactory
     {
         private readonly RoboticsServerOptions m_options;
         private readonly ArrayOf<IRoboticsModelProvider> m_providers;
+        private readonly RoboticsBuildCoordinator m_buildCoordinator;
         private bool m_addressSpaceReady;
 
         /// <summary>
@@ -75,8 +76,9 @@ namespace Opc.Ua.Robotics.Server
                   postSetupRunner,
                   RoboticsModelProviderUtilities.GetManagerNamespaceUris(providers, options))
         {
-            m_options = RoboticsModelProviderUtilities.ValidateOptions(options);
             m_providers = RoboticsModelProviderUtilities.Normalize(providers);
+            m_options = RoboticsModelProviderUtilities.ValidateOptions(options, m_providers);
+            m_buildCoordinator = RoboticsBuildCoordinator.Get(this);
         }
 
         /// <summary>
@@ -99,6 +101,9 @@ namespace Opc.Ua.Robotics.Server
             }
         }
 
+        internal int ReservedNodeIdCount =>
+            m_buildCoordinator.GetReservedNodeIdCount(InstanceNamespaceIndex);
+
         /// <summary>
         /// Creates a build context for direct, non-hosted configuration.
         /// </summary>
@@ -115,6 +120,40 @@ namespace Opc.Ua.Robotics.Server
                     "The Robotics address space is not available yet.");
             }
             return new RoboticsBuildContext(this, m_options, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public override NodeId New(ISystemContext context, NodeState node)
+        {
+            if (node.NodeId.IsNull)
+            {
+                return m_buildCoordinator.ReserveNodeId(
+                    this,
+                    InstanceNamespaceIndex,
+                    node);
+            }
+            return node.NodeId;
+        }
+
+        /// <inheritdoc/>
+        protected override async ValueTask AddPredefinedNodeAsync(
+            ISystemContext context,
+            NodeState node,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                await base.AddPredefinedNodeAsync(context, node, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                if (!node.NodeId.IsNull &&
+                    ReferenceEquals(FindPredefinedNode(node.NodeId), node))
+                {
+                    m_buildCoordinator.ReleaseNodeId(node.NodeId, node);
+                }
+            }
         }
 
         /// <inheritdoc/>
