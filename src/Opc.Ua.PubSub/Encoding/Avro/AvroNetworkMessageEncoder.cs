@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -67,9 +68,18 @@ namespace Opc.Ua.PubSub.Encoding
         public string DestinationId { get; set; } = string.Empty;
 
         /// <summary>
-        /// Gets the announcement produced by the most recent encode call, if one was needed.
+        /// Gets the announcement produced by the most recent encode call, if one was needed. When
+        /// the NetworkMessage carries multiple DataSetMessages this is the last newly announced
+        /// per-DataSet schema; see <see cref="LastSchemaAnnouncements"/> for the full set.
         /// </summary>
         public AvroSchemaAnnouncement? LastSchemaAnnouncement { get; private set; }
+
+        /// <summary>
+        /// Gets the per-DataSet schema announcements newly produced by the most recent encode call.
+        /// Empty when every DataSet's schema was already announced to the destination.
+        /// </summary>
+        public IReadOnlyList<AvroSchemaAnnouncement> LastSchemaAnnouncements { get; private set; }
+            = Array.Empty<AvroSchemaAnnouncement>();
 
         /// <inheritdoc/>
         public async ValueTask<ReadOnlyMemory<byte>> EncodeAsync(
@@ -94,11 +104,12 @@ namespace Opc.Ua.PubSub.Encoding
                     nameof(networkMessage));
             }
 
-            AvroSchemaAnnouncement announcement = SchemaExchangeMessages.CreateAvroAnnouncement(message, context);
-            LastSchemaAnnouncement = SchemaCache.MarkAnnounced(DestinationId, announcement.SchemaId)
-                ? announcement
-                : null;
-            SchemaCache.Add(announcement);
+            // The Avro NetworkMessage is a fixed envelope (Part 14 Avro mapping §8.1): its record
+            // shape never varies with the DataSets it carries. Each DataSetMessage is carried
+            // opaquely as a { schemaId, dataSetMessage } payload entry and is identified and decoded
+            // by its own per-DataSet SchemaId, so schema evolution is confined to the per-DataSet
+            // schemas and the envelope keeps a stable, specification-defined layout.
+            var newAnnouncements = new List<AvroSchemaAnnouncement>();
 
             using MemoryStream stream = new();
             using AvroEncoder encoder = new(stream, context.MessageContext, leaveOpen: true);
@@ -107,7 +118,6 @@ namespace Opc.Ua.PubSub.Encoding
             WritePublisherId(encoder, message.PublisherId);
             WriteNullableUInt16(encoder, message.WriterGroupId);
             encoder.WriteGuid(null, message.DataSetClassId);
-            encoder.WriteString(null, string.IsNullOrEmpty(message.SchemaId) ? null : message.SchemaId);
             encoder.WriteInt32(null, message.DataSetMessages.Count);
 
             for (int i = 0; i < message.DataSetMessages.Count; i++)
@@ -118,10 +128,39 @@ namespace Opc.Ua.PubSub.Encoding
                         "DataSetMessage entries must be AvroDataSetMessage instances.",
                         nameof(networkMessage));
                 }
-                WriteDataSetMessage(encoder, message, dataSetMessage, context);
+
+                AvroSchemaAnnouncement announcement =
+                    SchemaExchangeMessages.CreateAvroDataSetAnnouncement(message, dataSetMessage, context);
+                SchemaCache.Add(announcement);
+                if (SchemaCache.MarkAnnounced(DestinationId, announcement.SchemaId))
+                {
+                    newAnnouncements.Add(announcement);
+                }
+
+                byte[] body = EncodeDataSetMessageBody(message, dataSetMessage, context);
+                encoder.WriteByteString(null, announcement.SchemaId);
+                encoder.WriteByteString(null, ByteString.From(body));
             }
             encoder.Close();
+
+            LastSchemaAnnouncements = newAnnouncements;
+            LastSchemaAnnouncement = newAnnouncements.Count > 0
+                ? newAnnouncements[newAnnouncements.Count - 1]
+                : null;
+
             await Task.CompletedTask.ConfigureAwait(false);
+            return stream.ToArray();
+        }
+
+        private static byte[] EncodeDataSetMessageBody(
+            AvroNetworkMessage envelope,
+            AvroDataSetMessage message,
+            PubSubNetworkMessageContext context)
+        {
+            using MemoryStream stream = new();
+            using AvroEncoder encoder = new(stream, context.MessageContext, leaveOpen: true);
+            WriteDataSetMessage(encoder, envelope, message, context);
+            encoder.Close();
             return stream.ToArray();
         }
 

@@ -104,12 +104,6 @@ namespace Opc.Ua.PubSub.Encoding
                 PublisherId publisherId = ReadPublisherId(decoder);
                 ushort? writerGroupId = ReadNullableUInt16(decoder);
                 Uuid dataSetClassId = decoder.ReadGuid(null);
-                string schemaId = decoder.ReadString(null) ?? string.Empty;
-                if (SchemaCache.TryParseKey(schemaId, out ByteString schemaIdBytes)
-                    && !SchemaCache.TryGetOrResolve(schemaIdBytes, SchemaResolver, out _))
-                {
-                    throw new FormatException($"Avro schema '{schemaId}' is not available.");
-                }
                 int count = decoder.ReadInt32(null);
                 if (count < 0)
                 {
@@ -127,12 +121,21 @@ namespace Opc.Ua.PubSub.Encoding
                     PublisherId = publisherId,
                     WriterGroupId = writerGroupId,
                     DataSetClassId = dataSetClassId,
-                    SchemaId = schemaId
+                    SchemaId = string.Empty
                 };
 
                 for (int i = 0; i < count; i++)
                 {
-                    messages.Add(ReadDataSetMessage(decoder, envelope, context));
+                    // Each DataSetMessage is carried opaquely with its own per-DataSet SchemaId
+                    // (Part 14 Avro mapping §8.1). Resolve the SchemaId best-effort to prime the
+                    // cache / verify availability, then decode the opaque body from its own buffer.
+                    ByteString entrySchemaId = decoder.ReadByteString(null);
+                    ByteString body = decoder.ReadByteString(null);
+                    if (!entrySchemaId.IsNull && entrySchemaId.Span.Length > 0)
+                    {
+                        SchemaCache.TryGetOrResolve(entrySchemaId, SchemaResolver, out _);
+                    }
+                    messages.Add(DecodeDataSetMessageBody(body, envelope, context));
                 }
 
                 context.Diagnostics.Increment(
@@ -157,6 +160,15 @@ namespace Opc.Ua.PubSub.Encoding
                     ex.Message);
                 return null;
             }
+        }
+
+        private static AvroDataSetMessage DecodeDataSetMessageBody(
+            ByteString body,
+            AvroNetworkMessage envelope,
+            PubSubNetworkMessageContext context)
+        {
+            using AvroDecoder bodyDecoder = new(body.Span.ToArray(), context.MessageContext);
+            return ReadDataSetMessage(bodyDecoder, envelope, context);
         }
 
         private static AvroDataSetMessage ReadDataSetMessage(

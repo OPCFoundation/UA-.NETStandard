@@ -53,18 +53,21 @@ namespace Opc.Ua.PubSub.Encoding
     internal static class SchemaExchangeMessages
     {
         /// <summary>
-        /// Creates an Avro announcement for the current PubSub schema shape. The SchemaId and
-        /// SchemaJson are derived from the internal descriptor (see the type remarks), not yet the
-        /// canonical Avro Parsing Canonical Form.
+        /// Creates an Avro announcement for a single DataSetMessage's schema. Per the Part 14 Avro
+        /// mapping (§8.1) the SchemaId identifies the schema of one DataSet, so each DataSetMessage
+        /// carried opaquely in the fixed NetworkMessage envelope is announced and identified by its
+        /// own per-DataSet SchemaId.
         /// </summary>
-        /// <param name="message">The Avro network message.</param>
+        /// <param name="envelope">The Avro network message envelope.</param>
+        /// <param name="dataSetMessage">The DataSetMessage whose schema is announced.</param>
         /// <param name="context">The encoding context (used to resolve DataSetMetaData).</param>
-        /// <returns>The schema announcement.</returns>
-        internal static AvroSchemaAnnouncement CreateAvroAnnouncement(
-            AvroNetworkMessage message,
+        /// <returns>The per-DataSet schema announcement.</returns>
+        internal static AvroSchemaAnnouncement CreateAvroDataSetAnnouncement(
+            AvroNetworkMessage envelope,
+            PubSubDataSetMessage dataSetMessage,
             PubSubNetworkMessageContext context)
         {
-            string schemaJson = BuildSchemaDescriptor(message, SchemaCache.AvroFormat, context);
+            string schemaJson = BuildDataSetDescriptor(envelope, dataSetMessage, SchemaCache.AvroFormat, context);
             ByteString schemaBytes = ByteString.From(System.Text.Encoding.UTF8.GetBytes(schemaJson));
             ByteString schemaId = SchemaCache.ComputeSchemaId(schemaBytes, SchemaCache.AvroFormat);
             return new AvroSchemaAnnouncement(schemaId, schemaJson, null);
@@ -174,6 +177,51 @@ namespace Opc.Ua.PubSub.Encoding
                     WriteDataSetMessage(writer, dataSetMessage, metaData);
                 }
                 writer.WriteEndArray();
+                writer.WriteEndObject();
+            }
+            return System.Text.Encoding.UTF8.GetString(stream.ToArray());
+        }
+
+        /// <summary>
+        /// Builds a deterministic per-DataSet schema descriptor for a single DataSetMessage. This is
+        /// the per-DataSet analog of <see cref="BuildSchemaDescriptor"/>: it is a function of the
+        /// DataSet shape only (writer, ConfigurationVersion, field-content mask and the
+        /// metadata-driven field list), independent of the NetworkMessage envelope routing, so two
+        /// frames of the same DataSet - including a full key frame and any sparse subset - produce
+        /// the identical descriptor and per-DataSet SchemaId.
+        /// </summary>
+        /// <param name="envelope">The network message envelope.</param>
+        /// <param name="dataSetMessage">The DataSetMessage to describe.</param>
+        /// <param name="format">The schema format.</param>
+        /// <param name="context">The encoding context (used to resolve DataSetMetaData).</param>
+        /// <returns>The deterministic per-DataSet schema descriptor.</returns>
+        internal static string BuildDataSetDescriptor(
+            PubSubNetworkMessage envelope,
+            PubSubDataSetMessage dataSetMessage,
+            string format,
+            PubSubNetworkMessageContext context)
+        {
+            Uuid dataSetClassId = envelope switch
+            {
+                AvroNetworkMessage avroMessage => avroMessage.DataSetClassId,
+#if NET8_0_OR_GREATER
+                ArrowNetworkMessage arrowMessage => arrowMessage.DataSetClassId,
+#endif
+                _ => default
+            };
+            DataSetMetaDataType? metaData = PubSubMessageEncoding.ResolveMetaData(
+                envelope,
+                dataSetMessage,
+                context,
+                dataSetClassId);
+            using MemoryStream stream = new();
+            using (Utf8JsonWriter writer = new(stream, new JsonWriterOptions { Indented = false }))
+            {
+                writer.WriteStartObject();
+                writer.WriteString("format", format);
+                writer.WriteString("dataSetClassId", dataSetClassId.ToString());
+                writer.WritePropertyName("dataSet");
+                WriteDataSetMessage(writer, dataSetMessage, metaData);
                 writer.WriteEndObject();
             }
             return System.Text.Encoding.UTF8.GetString(stream.ToArray());
