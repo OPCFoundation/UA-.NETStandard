@@ -618,18 +618,20 @@ browseable object tree and wires the inherited xRegistry / registry Methods:
 
 `Opc.Ua.Wot.WotNodeSetConverter` maps a NodeSet2 model to a WoT Thing
 Model / Thing Description and back. The deterministic, versioned
-`uav:nodes` projection covers the complete UANodeSet schema and is the
-default lossless path; `uav:nodeSet` is emitted only for explicit byte
-archival or a demonstrated fallback. Unmapped WoT JSON members are stored
+`uav:nodes` projection covers the complete UANodeSet schema and is emitted
+only when the semantic/readable mapping cannot reproduce all source facts;
+`uav:nodeSet` is emitted only for explicit byte archival or a demonstrated
+final fallback. Unmapped WoT JSON members are stored
 individually by RFC 6901 pointer in a `WoTJsonResidue` NodeSet Extension,
 not by copying the source document. The readable surface tracks the current
 [OPC UA WoT Binding](https://reference.opcfoundation.org/) revision:
 
-* **Native conversion is the default.** `WotNodeSetPreservationMode`
+* **Semantic conversion is the default.** `WotNodeSetPreservationMode`
   selects `WhenRequired` (default), `Always` (explicit byte archive), or
-  `Never` (conformance/completeness tests). The converter reconstructs and
-  compares `uav:nodes` before reporting native completeness. Tests that
-  prove the Binding mapping use `Never` and assert that no envelope exists.
+  `Never` (conformance/completeness tests). The converter first reconstructs
+  the readable document and omits `uav:nodes` when it is equivalent; it then
+  validates the structured projection when fallback is required. Tests that
+  prove completeness use `Never` and assert that no opaque envelope exists.
   `NodeSetRoundtripReport.NativeProjectionPreserved` and
   `UsedPreservationEnvelope` distinguish the two paths.
 
@@ -653,7 +655,7 @@ not by copying the source document. The readable surface tracks the current
 * **Identity terms are portable ExpandedNodeIds.** Every persisted
   identity term — `uav:id`, each `uav:hasComponent` / `uav:componentOf`
   entry, `uav:mapToNodeId` / `uav:mapToType`, a NodeId-valued
-  `uav:refType`, and a generated `?id=` href — is emitted as an
+  `uav:refId`, and a generated `?id=` href — is emitted as an
   OPC 10000-6 `nsu=<NamespaceUri>;...` ExpandedNodeId, resolved through
   the source NodeSet's `NamespaceUris` table so the value survives a
   namespace-table reordering; namespace 0 keeps its canonical `i=` form
@@ -663,11 +665,17 @@ not by copying the source document. The readable surface tracks the current
   and NodeSet-local fields inside `uav:nodes` keep their own namespace
   tables and are excluded from this readable-identity rule.
 
+* **BrowseNames are portable QualifiedNames.** Generated readable
+  `uav:browseName` values use OPC 10000-6 `nsu=<NamespaceUri>;<Name>` for
+  non-base namespaces and the bare Name for namespace 0. Numeric
+  `namespaceIndex:name` is retained only inside `uav:nodes`, which carries
+  its own `namespaceUris` table.
+
 * **Model concepts carry NamespaceUri-qualified names.** Generated
   contexts bind `ua` to the base OPC UA namespace and deterministic
   `ns1`, `ns2`, … prefixes to companion NamespaceUris. A typed link emits
   the ReferenceType model name directly in `rel` (for example
-  `ua:HasOrderedComponent`) beside its definitive `uav:refType`
+  `ua:HasOrderedComponent`) beside its definitive `uav:refId`
   ExpandedNodeId. Authored
   `uav:mapToTypeName` / `uav:congruentTypeName` hints are validated and
   preserved beside their definitive identifiers. Compact model names are
@@ -684,8 +692,8 @@ not by copying the source document. The readable surface tracks the current
   for discovery across `HasComponent` and its subtypes. When the source
   ReferenceType is a subtype (for example `HasOrderedComponent`, `i=49`),
   the converter additionally emits a link whose `rel` is
-  `ua:HasOrderedComponent`, whose `uav:refType` fallback is `i=49`, and
+  `ua:HasOrderedComponent`, whose `uav:refId` is `i=49`, and
   whose `uav:refName` names the reference.
-  Reverse conversion resolves the name, verifies the fallback when both
+  Reverse conversion resolves the name, verifies the identifier when both
   are present, recreates the exact subtype, and otherwise falls back to
   plain `HasComponent`.

@@ -43,7 +43,48 @@ namespace Opc.Ua.Types.Tests.Wot
     public class WotNativeFirstRoundtripTests
     {
         [Test]
-        public void DefaultConversionUsesCompleteNativeProjectionWithoutEnvelope()
+        public void CompleteReadableMappingOmitsStructuredFallback()
+        {
+            var source = new UANodeSet
+            {
+                NamespaceUris = ["urn:test:readable"],
+                Models = [new ModelTableEntry { ModelUri = "urn:test:readable" }],
+                Items =
+                [
+                    new UAObjectType
+                    {
+                        NodeId = "ns=1;s=ReadableType",
+                        BrowseName = "1:ReadableType",
+                        DisplayName =
+                        [
+                            new Opc.Ua.Export.LocalizedText
+                            {
+                                Value = "ReadableType"
+                            }
+                        ],
+                        References =
+                        [
+                            new Reference
+                            {
+                                ReferenceType = "HasSubtype",
+                                IsForward = false,
+                                Value = "i=58"
+                            }
+                        ]
+                    }
+                ]
+            };
+
+            using WotDocument document = WotNodeSetConverter.FromNodeSet(source);
+
+            Assert.That(document.TryGetNativeProjection(out _), Is.False);
+            Assert.That(document.TryGetEnvelope(out _), Is.False);
+            UANodeSet restored = WotNodeSetConverter.ToNodeSet(document);
+            Assert.That(NodeSetComparer.Compare(source, restored).AreEquivalent, Is.True);
+        }
+
+        [Test]
+        public void IncompleteReadableMappingUsesStructuredFallbackWithoutEnvelope()
         {
             UANodeSet source = WotTestData.CreateRichNodeSet();
 
@@ -311,7 +352,11 @@ namespace Opc.Ua.Types.Tests.Wot
                 .GetProperty("properties")
                 .GetProperty("Speed");
             Assert.That(
-                speed.GetProperty("vendor:quality").GetProperty("mode").GetString(),
+                speed.TryGetProperty("vendor:quality", out JsonElement quality),
+                Is.True,
+                Encoding.UTF8.GetString(document.Utf8Json.ToArray()));
+            Assert.That(
+                quality.GetProperty("mode").GetString(),
                 Is.EqualTo("good"));
             Assert.That(
                 speed.GetProperty("forms")[0].GetProperty("op")[0].GetString(),

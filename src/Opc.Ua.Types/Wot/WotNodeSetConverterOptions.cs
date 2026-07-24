@@ -66,8 +66,9 @@ namespace Opc.Ua.Wot
     public sealed class WotNodeSetConverterOptions
     {
         /// <summary>
-        /// Gets or sets the preservation-envelope policy. The default is
-        /// native-first and emits an envelope only when required.
+        /// Gets or sets the preservation-envelope policy. The default uses
+        /// readable mapping plus structured fallback and emits an opaque envelope
+        /// only when required.
         /// </summary>
         public WotNodeSetPreservationMode PreservationMode { get; set; } =
             WotNodeSetPreservationMode.WhenRequired;

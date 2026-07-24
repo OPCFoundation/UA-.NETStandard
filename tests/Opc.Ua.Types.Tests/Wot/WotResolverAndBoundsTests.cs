@@ -316,7 +316,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 ",",
                 hrefs.Select(href =>
                     "{\"rel\":\"ua:HasComponent\",\"href\":\"" + href +
-                    "\",\"uav:refType\":\"i=47\"}"));
+                    "\",\"uav:refId\":\"i=47\"}"));
             return
                 "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
                 "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"," +

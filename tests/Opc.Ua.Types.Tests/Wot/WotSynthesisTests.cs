@@ -72,7 +72,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             UAObjectType root = nodeSet.Items!.OfType<UAObjectType>()
                 .Single(t => t.BrowseName == "1:PumpType");
-            Assert.That(root.NodeId, Is.EqualTo("ns=1;s=PumpType"));
+            Assert.That(root.NodeId, Is.EqualTo("ns=1;i=1001"));
             Assert.That(
                 root.References!.Any(r => r.ReferenceType == "HasSubtype" && !r.IsForward && r.Value == "i=58"),
                 Is.True);

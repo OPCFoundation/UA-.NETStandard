@@ -60,7 +60,7 @@ namespace Opc.Ua.Wot
 
             public string? LinkHref { get; init; }
 
-            public string? LinkRefType { get; init; }
+            public string? LinkRefId { get; init; }
 
             public string? LinkRefName { get; init; }
         }
@@ -423,7 +423,7 @@ namespace Opc.Ua.Wot
                         Json = extras,
                         LinkRel = rel,
                         LinkHref = GetString(link, "href"),
-                        LinkRefType = GetString(link, "uav:refType"),
+                        LinkRefId = GetString(link, "uav:refId"),
                         LinkRefName = GetString(link, "uav:refName")
                     });
                 }
@@ -439,7 +439,7 @@ namespace Opc.Ua.Wot
                 hasExtras = false;
                 foreach (JsonProperty property in link.EnumerateObject())
                 {
-                    if (property.Name is "rel" or "href" or "uav:refType" or
+                    if (property.Name is "rel" or "href" or "uav:refId" or
                         "uav:refName")
                     {
                         continue;
@@ -468,7 +468,7 @@ namespace Opc.Ua.Wot
             }
             return rel.StartsWith("ua:", StringComparison.Ordinal) ||
                 StartsWithGeneratedNamespacePrefix(rel) ||
-                link.TryGetProperty("uav:refType", out _);
+                link.TryGetProperty("uav:refId", out _);
         }
 
         private static bool StartsWithGeneratedNamespacePrefix(string rel)
@@ -489,6 +489,19 @@ namespace Opc.Ua.Wot
         {
             if (string.IsNullOrEmpty(browseName))
             {
+                return null;
+            }
+            if (browseName!.StartsWith("nsu=", StringComparison.Ordinal))
+            {
+                for (int ii = 4; ii < browseName.Length; ii++)
+                {
+                    if (browseName[ii] == ';')
+                    {
+                        return ii + 1 < browseName.Length
+                            ? browseName.Substring(ii + 1)
+                            : null;
+                    }
+                }
                 return null;
             }
             int separator = -1;
@@ -548,7 +561,7 @@ namespace Opc.Ua.Wot
                 member.SetAttribute("Sha256", ToLowerHex(ComputeSha256(bytes)));
                 SetOptionalAttribute(member, "LinkRel", entry.LinkRel);
                 SetOptionalAttribute(member, "LinkHref", entry.LinkHref);
-                SetOptionalAttribute(member, "LinkRefType", entry.LinkRefType);
+                SetOptionalAttribute(member, "LinkRefId", entry.LinkRefId);
                 SetOptionalAttribute(member, "LinkRefName", entry.LinkRefName);
                 member.InnerText = Convert.ToBase64String(bytes);
                 root.AppendChild(member);
@@ -677,7 +690,7 @@ namespace Opc.Ua.Wot
                         Json = Encoding.UTF8.GetString(bytes),
                         LinkRel = OptionalAttribute(member, "LinkRel"),
                         LinkHref = OptionalAttribute(member, "LinkHref"),
-                        LinkRefType = OptionalAttribute(member, "LinkRefType"),
+                        LinkRefId = OptionalAttribute(member, "LinkRefId"),
                         LinkRefName = OptionalAttribute(member, "LinkRefName")
                     });
                 }
@@ -865,7 +878,7 @@ namespace Opc.Ua.Wot
                 target = new JsonObject();
                 SetString(target, "rel", entry.LinkRel);
                 SetString(target, "href", entry.LinkHref);
-                SetString(target, "uav:refType", entry.LinkRefType);
+                SetString(target, "uav:refId", entry.LinkRefId);
                 SetString(target, "uav:refName", entry.LinkRefName);
                 links.Add(target);
             }
@@ -875,8 +888,8 @@ namespace Opc.Ua.Wot
                 MergeString(target, "href", entry.LinkHref, entry.Pointer, diagnostics);
                 MergeString(
                     target,
-                    "uav:refType",
-                    entry.LinkRefType,
+                    "uav:refId",
+                    entry.LinkRefId,
                     entry.Pointer,
                     diagnostics);
                 MergeString(
@@ -927,8 +940,8 @@ namespace Opc.Ua.Wot
                     }
                     continue;
                 }
-                if (entry.LinkRefType is not null &&
-                    StringNodeEquals(link["uav:refType"], entry.LinkRefType))
+                if (entry.LinkRefId is not null &&
+                    StringNodeEquals(link["uav:refId"], entry.LinkRefId))
                 {
                     return link;
                 }

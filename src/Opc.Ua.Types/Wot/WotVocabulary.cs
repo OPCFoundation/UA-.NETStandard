@@ -95,7 +95,7 @@ namespace Opc.Ua.Wot
         // than plain HasComponent and must be pinned by a link whose rel is
         // the ReferenceType model name (WoT Binding Section 5.3). Keyed by both the reference-type
         // BrowseName and its base-namespace NodeId; the value is the canonical
-        // base-namespace ExpandedNodeId used for the typed link's uav:refType.
+        // base-namespace ExpandedNodeId used for the typed link's uav:refId.
         // HasComponent and HasProperty are intentionally excluded: they are the
         // baseline parent-child forms surfaced directly as affordances.
         private static readonly Dictionary<string, string> s_hasComponentSubtypes =
@@ -177,7 +177,7 @@ namespace Opc.Ua.Wot
         /// Determines whether a reference type (given as a BrowseName or a NodeId)
         /// is a HasComponent subtype whose exact semantics must be pinned by a
         /// typed Reference link, and returns the canonical
-        /// base-namespace ExpandedNodeId to use for the link's <c>uav:refType</c>.
+        /// base-namespace ExpandedNodeId to use for the link's <c>uav:refId</c>.
         /// </summary>
         public static bool TryGetHasComponentSubtype(string? referenceType, out string subtypeNodeId)
         {

@@ -165,7 +165,7 @@ namespace Opc.Ua.Wot
             // HasComponent subtypes (for example HasOrderedComponent) are
             // surfaced for discovery under uav:hasComponent / uav:componentOf and
             // additionally pinned by a link whose rel is the semantic
-            // ReferenceType model name and whose uav:refType is the definitive
+            // ReferenceType model name and whose uav:refId is the definitive
             // ExpandedNodeId (WoT Binding Sections 5.1.2 and 5.3).
             var componentChildren = new List<string>();
             var componentParents = new List<string>();
@@ -321,7 +321,7 @@ namespace Opc.Ua.Wot
                 writer.WriteStartObject();
                 writer.WriteString("rel", rel);
                 writer.WriteString("href", target);
-                writer.WriteString("uav:refType", refType);
+                writer.WriteString("uav:refId", refType);
                 writer.WriteString("uav:refName", refName);
                 writer.WriteEndObject();
             }
@@ -411,7 +411,10 @@ namespace Opc.Ua.Wot
             writer.WriteString("@type", isThingModel ? "uav:variableType" : "uav:variable");
             WriteOptional(writer, "title", FirstText(variable.DisplayName));
             WriteDescription(writer, variable.Description);
-            WriteOptional(writer, "uav:browseName", variable.BrowseName);
+            WriteOptional(
+                writer,
+                "uav:browseName",
+                ToPortableQualifiedName(variable.BrowseName, namespaceUris));
             WriteOptional(writer, "uav:id", ToPortableNodeId(variable.NodeId, namespaceUris));
 
             string? jsonType = MapDataTypeToJson(variable.DataType);
@@ -451,7 +454,10 @@ namespace Opc.Ua.Wot
             writer.WriteString("@type", "uav:method");
             WriteOptional(writer, "title", FirstText(method.DisplayName));
             WriteDescription(writer, method.Description);
-            WriteOptional(writer, "uav:browseName", method.BrowseName);
+            WriteOptional(
+                writer,
+                "uav:browseName",
+                ToPortableQualifiedName(method.BrowseName, namespaceUris));
             WriteOptional(writer, "uav:id", ToPortableNodeId(method.NodeId, namespaceUris));
             WriteModellingRule(writer, method);
             writer.WriteEndObject();
@@ -469,7 +475,10 @@ namespace Opc.Ua.Wot
             WriteOptional(writer, "title", FirstText(eventType.DisplayName));
             WriteDescription(writer, eventType.Description);
             writer.WriteBoolean("uav:isEvent", true);
-            WriteOptional(writer, "uav:browseName", eventType.BrowseName);
+            WriteOptional(
+                writer,
+                "uav:browseName",
+                ToPortableQualifiedName(eventType.BrowseName, namespaceUris));
             WriteOptional(writer, "uav:id", ToPortableNodeId(eventType.NodeId, namespaceUris));
             WriteModellingRule(writer, eventType);
             writer.WriteEndObject();
@@ -516,12 +525,8 @@ namespace Opc.Ua.Wot
             string modelUri = DeriveModelUri(document);
             string rootLocal = LocalName(GetUavString(document, "browseName")) ??
                 SanitizeName(document.Title) ?? "Thing";
+            string? authoredRootId = GetUavString(document, "id");
             string rootNodeId = GenerateNodeId(rootLocal);
-            diagnostics.Add(new WotDiagnostic(
-                WotDiagnosticSeverity.Info,
-                WotDiagnosticCode.GeneratedNodeId,
-                "NodeIds were generated deterministically from the target namespace and browse paths.",
-                new WotLocation(nodeId: rootNodeId)));
 
             var nodeSet = new UANodeSet
             {
@@ -531,6 +536,18 @@ namespace Opc.Ua.Wot
                     new ModelTableEntry { ModelUri = modelUri }
                 ]
             };
+            if (authoredRootId is not null)
+            {
+                rootNodeId = ToNodeSetNodeId(authoredRootId, nodeSet, diagnostics);
+            }
+            else
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Info,
+                    WotDiagnosticCode.GeneratedNodeId,
+                    "NodeIds were generated deterministically from the target namespace and browse paths.",
+                    new WotLocation(nodeId: rootNodeId)));
+            }
 
             var items = new List<UANode>();
             var rootReferences = new List<Reference>();
@@ -562,7 +579,10 @@ namespace Opc.Ua.Wot
             }
 
             rootNode.NodeId = rootNodeId;
-            rootNode.BrowseName = GetUavString(document, "browseName") ?? "1:" + rootLocal;
+            string? rootBrowseName = GetUavString(document, "browseName");
+            rootNode.BrowseName = rootBrowseName is null
+                ? "1:" + rootLocal
+                : ToNodeSetQualifiedName(rootBrowseName, nodeSet, diagnostics);
             rootNode.DisplayName = MakeText(document.Title ?? rootLocal);
             string? rootDescription = GetRootString(document, "description");
             if (rootDescription is not null)
@@ -579,7 +599,8 @@ namespace Opc.Ua.Wot
                     break;
                 }
                 SynthesizeProperty(
-                    property.Key, property.Value, rootLocal, rootNodeId, isThingModel,
+                    nodeSet, property.Key, property.Value, rootLocal,
+                    rootNodeId, isThingModel,
                     items, rootReferences, diagnostics);
             }
 
@@ -590,7 +611,8 @@ namespace Opc.Ua.Wot
                     break;
                 }
                 SynthesizeAction(
-                    action.Key, action.Value, rootLocal, rootNodeId, items, rootReferences);
+                    nodeSet, action.Key, action.Value, rootLocal,
+                    rootNodeId, items, rootReferences, diagnostics);
             }
 
             foreach (KeyValuePair<string, JsonElement> eventAffordance in document.Events)
@@ -600,7 +622,8 @@ namespace Opc.Ua.Wot
                     break;
                 }
                 SynthesizeEvent(
-                    eventAffordance.Key, eventAffordance.Value, rootLocal, items, rootReferences);
+                    nodeSet, eventAffordance.Key, eventAffordance.Value,
+                    rootLocal, items, rootReferences, diagnostics);
             }
 
             // A ReferenceType relation whose target is also listed under
@@ -622,6 +645,7 @@ namespace Opc.Ua.Wot
         }
 
         private static void SynthesizeProperty(
+            UANodeSet nodeSet,
             string key,
             JsonElement schema,
             string rootLocal,
@@ -632,11 +656,20 @@ namespace Opc.Ua.Wot
             List<WotDiagnostic> diagnostics)
         {
             string local = LocalName(GetElementString(schema, "uav:browseName")) ?? key;
-            string nodeId = GenerateNodeId(rootLocal + "/" + local);
+            string? authoredNodeId = GetElementString(schema, "uav:id");
+            string nodeId = authoredNodeId is null
+                ? GenerateNodeId(rootLocal + "/" + local)
+                : ToNodeSetNodeId(authoredNodeId, nodeSet, diagnostics);
+            string? authoredBrowseName = GetElementString(schema, "uav:browseName");
             var variable = new UAVariable
             {
                 NodeId = nodeId,
-                BrowseName = GetElementString(schema, "uav:browseName") ?? "1:" + local,
+                BrowseName = authoredBrowseName is null
+                    ? "1:" + local
+                    : ToNodeSetQualifiedName(
+                        authoredBrowseName,
+                        nodeSet,
+                        diagnostics),
                 ParentNodeId = rootNodeId,
                 DataType = MapJsonSchemaToDataType(schema),
                 AccessLevel = MapAccessLevel(schema)
@@ -683,19 +716,30 @@ namespace Opc.Ua.Wot
         }
 
         private static void SynthesizeAction(
+            UANodeSet nodeSet,
             string key,
             JsonElement action,
             string rootLocal,
             string rootNodeId,
             List<UANode> items,
-            List<Reference> rootReferences)
+            List<Reference> rootReferences,
+            List<WotDiagnostic> diagnostics)
         {
             string local = LocalName(GetElementString(action, "uav:browseName")) ?? key;
-            string nodeId = GenerateNodeId(rootLocal + "/" + local);
+            string? authoredNodeId = GetElementString(action, "uav:id");
+            string nodeId = authoredNodeId is null
+                ? GenerateNodeId(rootLocal + "/" + local)
+                : ToNodeSetNodeId(authoredNodeId, nodeSet, diagnostics);
+            string? authoredBrowseName = GetElementString(action, "uav:browseName");
             var method = new UAMethod
             {
                 NodeId = nodeId,
-                BrowseName = GetElementString(action, "uav:browseName") ?? "1:" + local,
+                BrowseName = authoredBrowseName is null
+                    ? "1:" + local
+                    : ToNodeSetQualifiedName(
+                        authoredBrowseName,
+                        nodeSet,
+                        diagnostics),
                 ParentNodeId = rootNodeId
             };
             string? title = GetElementString(action, "title");
@@ -726,18 +770,33 @@ namespace Opc.Ua.Wot
         }
 
         private static void SynthesizeEvent(
+            UANodeSet nodeSet,
             string key,
             JsonElement eventAffordance,
             string rootLocal,
             List<UANode> items,
-            List<Reference> rootReferences)
+            List<Reference> rootReferences,
+            List<WotDiagnostic> diagnostics)
         {
             string local = LocalName(GetElementString(eventAffordance, "uav:browseName")) ?? key;
-            string nodeId = GenerateNodeId(rootLocal + "/" + local);
+            string? authoredNodeId = GetElementString(
+                eventAffordance,
+                "uav:id");
+            string nodeId = authoredNodeId is null
+                ? GenerateNodeId(rootLocal + "/" + local)
+                : ToNodeSetNodeId(authoredNodeId, nodeSet, diagnostics);
+            string? authoredBrowseName = GetElementString(
+                eventAffordance,
+                "uav:browseName");
             var eventType = new UAObjectType
             {
                 NodeId = nodeId,
-                BrowseName = GetElementString(eventAffordance, "uav:browseName") ?? "1:" + local,
+                BrowseName = authoredBrowseName is null
+                    ? "1:" + local
+                    : ToNodeSetQualifiedName(
+                        authoredBrowseName,
+                        nodeSet,
+                        diagnostics),
                 IsAbstract = false
             };
             string? title = GetElementString(eventAffordance, "title");
@@ -837,14 +896,14 @@ namespace Opc.Ua.Wot
             string? modelName = IsModelConceptRelation(document, link, rel)
                 ? rel
                 : null;
-            string? definitive = GetElementString(link, "uav:refType");
+            string? definitive = GetElementString(link, "uav:refId");
             string? canonicalDefinitive = CanonicalReferenceType(definitive);
             if (definitive is not null && canonicalDefinitive is null)
             {
                 diagnostics.Add(new WotDiagnostic(
                     WotDiagnosticSeverity.Error,
                     WotDiagnosticCode.ModelConceptUnresolved,
-                    $"The uav:refType value '{definitive}' is not a portable " +
+                    $"The uav:refId value '{definitive}' is not a portable " +
                     "ExpandedNodeId.",
                     new WotLocation(reference: definitive)));
                 referenceType = string.Empty;
@@ -867,7 +926,7 @@ namespace Opc.Ua.Wot
                         WotDiagnosticSeverity.Error,
                         WotDiagnosticCode.ModelConceptConflict,
                         $"The ReferenceType model name '{modelName}' resolves to " +
-                        $"'{resolvedName}' but uav:refType is '{definitive}'.",
+                        $"'{resolvedName}' but uav:refId is '{definitive}'.",
                         new WotLocation(reference: modelName)));
                     referenceType = string.Empty;
                     return false;
@@ -1030,7 +1089,7 @@ namespace Opc.Ua.Wot
         /// whose target is also listed under <c>uav:hasComponent</c> or
         /// <c>uav:componentOf</c>: target ExpandedNodeId to the exact
         /// ReferenceType named by <c>rel</c> and, when needed,
-        /// <c>uav:refType</c>
+        /// <c>uav:refId</c>
         /// (WoT Binding Section 5.3).
         /// </summary>
         private static Dictionary<string, string> CollectComponentTypedRefs(
@@ -1406,7 +1465,7 @@ namespace Opc.Ua.Wot
         {
             return string.Equals(prefix, "ua", StringComparison.Ordinal) ||
                 StartsWithGeneratedNamespacePrefix(prefix) ||
-                link.TryGetProperty("uav:refType", out _) ||
+                link.TryGetProperty("uav:refId", out _) ||
                 link.TryGetProperty("uav:refName", out _);
         }
 
@@ -1445,6 +1504,7 @@ namespace Opc.Ua.Wot
         {
             return reference.StartsWith("ns=", StringComparison.Ordinal) ||
                 reference.StartsWith("nsu=", StringComparison.Ordinal) ||
+                reference.StartsWith("svr=", StringComparison.Ordinal) ||
                 reference.StartsWith("i=", StringComparison.Ordinal) ||
                 reference.StartsWith("s=", StringComparison.Ordinal) ||
                 reference.StartsWith("g=", StringComparison.Ordinal) ||
@@ -1500,6 +1560,189 @@ namespace Opc.Ua.Wot
                 parsed.IdType,
                 0);
             return buffer.ToString();
+        }
+
+        private static string? ToPortableQualifiedName(
+            string? rawBrowseName,
+            string[]? namespaceUris)
+        {
+            if (string.IsNullOrEmpty(rawBrowseName) ||
+                rawBrowseName!.StartsWith("nsu=", StringComparison.Ordinal))
+            {
+                return rawBrowseName;
+            }
+            int separator = -1;
+            for (int ii = 0; ii < rawBrowseName.Length; ii++)
+            {
+                if (rawBrowseName[ii] == ':')
+                {
+                    separator = ii;
+                    break;
+                }
+                if (rawBrowseName[ii] is not (>= '0' and <= '9'))
+                {
+                    return rawBrowseName;
+                }
+            }
+            if (separator <= 0 || separator + 1 >= rawBrowseName.Length)
+            {
+                return rawBrowseName;
+            }
+            int namespaceIndex = 0;
+            for (int ii = 0; ii < separator; ii++)
+            {
+                int digit = rawBrowseName[ii] - '0';
+                if (namespaceIndex > (int.MaxValue - digit) / 10)
+                {
+                    return rawBrowseName;
+                }
+                namespaceIndex = (namespaceIndex * 10) + digit;
+            }
+            string name = rawBrowseName.Substring(separator + 1);
+            if (namespaceIndex == 0)
+            {
+                return name;
+            }
+            if (namespaceUris is null || namespaceIndex > namespaceUris.Length)
+            {
+                return rawBrowseName;
+            }
+            return "nsu=" +
+                CoreUtils.EscapeUri(namespaceUris[namespaceIndex - 1]) +
+                ";" +
+                name;
+        }
+
+        private static string ToNodeSetQualifiedName(
+            string rawBrowseName,
+            UANodeSet nodeSet,
+            List<WotDiagnostic> diagnostics)
+        {
+            if (rawBrowseName.StartsWith("nsu=", StringComparison.Ordinal))
+            {
+                int delimiter = rawBrowseName.IndexOf(';', 4);
+                if (delimiter < 0 || delimiter + 1 >= rawBrowseName.Length)
+                {
+                    diagnostics.Add(new WotDiagnostic(
+                        WotDiagnosticSeverity.Error,
+                        WotDiagnosticCode.NonPortableQualifiedName,
+                        $"The uav:browseName '{rawBrowseName}' is not a valid " +
+                        "NamespaceUri-qualified QualifiedName."));
+                    return rawBrowseName;
+                }
+                string namespaceUri = CoreUtils.UnescapeUri(
+                    rawBrowseName.AsSpan(4, delimiter - 4));
+                string name = rawBrowseName.Substring(delimiter + 1);
+                if (string.Equals(
+                    namespaceUri,
+                    WotVocabulary.OpcUaNamespace,
+                    StringComparison.Ordinal))
+                {
+                    return name;
+                }
+                int namespaceIndex = GetOrAppendNamespaceUri(nodeSet, namespaceUri);
+                return namespaceIndex.ToString(
+                    System.Globalization.CultureInfo.InvariantCulture) +
+                    ":" +
+                    name;
+            }
+
+            int separator = -1;
+            for (int ii = 0; ii < rawBrowseName.Length; ii++)
+            {
+                if (rawBrowseName[ii] == ':')
+                {
+                    separator = ii;
+                    break;
+                }
+            }
+            if (separator > 0)
+            {
+                bool numeric = true;
+                for (int ii = 0; ii < separator; ii++)
+                {
+                    if (rawBrowseName[ii] is not (>= '0' and <= '9'))
+                    {
+                        numeric = false;
+                        break;
+                    }
+                }
+                diagnostics.Add(new WotDiagnostic(
+                    numeric
+                        ? WotDiagnosticSeverity.Warning
+                        : WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.NonPortableQualifiedName,
+                    numeric
+                        ? $"The uav:browseName '{rawBrowseName}' uses a numeric " +
+                          "NamespaceIndex; persisted documents shall use " +
+                          "nsu=<NamespaceUri>;<Name>."
+                        : $"The uav:browseName '{rawBrowseName}' is a compact model " +
+                          "name, not an OPC 10000-6 QualifiedName.",
+                    new WotLocation(reference: rawBrowseName)));
+            }
+            return rawBrowseName;
+        }
+
+        private static string ToNodeSetNodeId(
+            string portableNodeId,
+            UANodeSet nodeSet,
+            List<WotDiagnostic> diagnostics)
+        {
+            if (portableNodeId.StartsWith("nsu=", StringComparison.Ordinal))
+            {
+                int delimiter = portableNodeId.IndexOf(';', 4);
+                if (delimiter < 0 || delimiter + 1 >= portableNodeId.Length)
+                {
+                    diagnostics.Add(new WotDiagnostic(
+                        WotDiagnosticSeverity.Error,
+                        WotDiagnosticCode.ValidationError,
+                        $"The NodeId '{portableNodeId}' is not a valid " +
+                        "NamespaceUri-qualified NodeId."));
+                    return portableNodeId;
+                }
+                string namespaceUri = CoreUtils.UnescapeUri(
+                    portableNodeId.AsSpan(4, delimiter - 4));
+                string identifier = portableNodeId.Substring(delimiter + 1);
+                if (string.Equals(
+                    namespaceUri,
+                    WotVocabulary.OpcUaNamespace,
+                    StringComparison.Ordinal))
+                {
+                    return identifier;
+                }
+                int namespaceIndex = GetOrAppendNamespaceUri(nodeSet, namespaceUri);
+                return "ns=" +
+                    namespaceIndex.ToString(
+                        System.Globalization.CultureInfo.InvariantCulture) +
+                    ";" +
+                    identifier;
+            }
+            return portableNodeId;
+        }
+
+        private static int GetOrAppendNamespaceUri(
+            UANodeSet nodeSet,
+            string namespaceUri)
+        {
+            if (nodeSet.NamespaceUris is not null)
+            {
+                for (int ii = 0; ii < nodeSet.NamespaceUris.Length; ii++)
+                {
+                    if (string.Equals(
+                        nodeSet.NamespaceUris[ii],
+                        namespaceUri,
+                        StringComparison.Ordinal))
+                    {
+                        return ii + 1;
+                    }
+                }
+            }
+            var uris = nodeSet.NamespaceUris is null
+                ? new List<string>()
+                : new List<string>(nodeSet.NamespaceUris);
+            uris.Add(namespaceUri);
+            nodeSet.NamespaceUris = [.. uris];
+            return uris.Count;
         }
 
         private static bool HasEventTypeAnnotation(WotDocument document)
@@ -1569,7 +1812,7 @@ namespace Opc.Ua.Wot
         /// Portable identity validation (WoT Binding Section 5.1.1): every
         /// NodeId-valued term (<c>uav:id</c>, each <c>uav:hasComponent</c> /
         /// <c>uav:componentOf</c> entry, <c>uav:mapToNodeId</c>,
-        /// <c>uav:mapToType</c>, a NodeId-valued <c>uav:refType</c>, and a
+        /// <c>uav:mapToType</c>, <c>uav:refId</c>, and a
         /// <c>?id=</c> href) shall be a portable ExpandedNodeId, never the
         /// session-local <c>ns=&lt;index&gt;</c> form. The exact <c>uav:nodeSet</c>
         /// envelope and <c>uav:nodes</c> projection subtrees are skipped so their
@@ -1639,13 +1882,10 @@ namespace Opc.Ua.Wot
                         }
                     }
                     break;
-                case "uav:refType":
-                    // Only a NodeId-valued refType is portable; a reference-type
-                    // BrowseName (for example HasComponent) is not a NodeId.
-                    if (value.ValueKind == JsonValueKind.String &&
-                        value.GetString() is { } refType && IsNodeId(refType))
+                case "uav:refId":
+                    if (value.ValueKind == JsonValueKind.String)
                     {
-                        CheckPortableValue(name, refType, diagnostics);
+                        CheckPortableValue(name, value.GetString(), diagnostics);
                     }
                     break;
                 case "href":
@@ -1670,6 +1910,16 @@ namespace Opc.Ua.Wot
         {
             if (string.IsNullOrEmpty(value))
             {
+                return;
+            }
+            if (!IsNodeId(value!))
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.ValidationError,
+                    $"The NodeId-valued term {term} uses '{value}', which is not " +
+                    "an ExpandedNodeId.",
+                    new WotLocation(reference: value)));
                 return;
             }
             int marker = value!.IndexOf("ns=", StringComparison.Ordinal);
@@ -1963,6 +2213,21 @@ namespace Opc.Ua.Wot
             if (string.IsNullOrEmpty(browseName))
             {
                 return null;
+            }
+            if (browseName!.StartsWith("nsu=", StringComparison.Ordinal))
+            {
+                int delimiter = -1;
+                for (int ii = 4; ii < browseName.Length; ii++)
+                {
+                    if (browseName[ii] == ';')
+                    {
+                        delimiter = ii;
+                        break;
+                    }
+                }
+                return delimiter >= 0 && delimiter + 1 < browseName.Length
+                    ? browseName.Substring(delimiter + 1)
+                    : null;
             }
             int colon = browseName!.IndexOf(':', StringComparison.Ordinal);
             return colon >= 0 && colon + 1 < browseName.Length

@@ -40,9 +40,9 @@ namespace Opc.Ua.Wot
 {
     /// <summary>
     /// Converts OPC UA NodeSet2 documents to and from WoT Thing Models and
-    /// Thing Descriptions. The default output uses a schema-complete,
-    /// deterministic native <c>uav:nodes</c> projection and the readable
-    /// mapping of the OPC UA WoT Binding; the byte-exact
+    /// Thing Descriptions. The default output uses the semantic/readable
+    /// mapping of the OPC UA WoT Binding and adds the schema-complete,
+    /// deterministic <c>uav:nodes</c> projection only when needed; the byte-exact
     /// <c>uav:nodeSet</c> envelope is an explicit or last-resort fallback.
     /// </summary>
     public static partial class WotNodeSetConverter
@@ -53,9 +53,9 @@ namespace Opc.Ua.Wot
         public const string VocabularyNamespace = WotVocabulary.VocabularyNamespace;
 
         /// <summary>
-        /// Creates a deterministic WoT Thing Model/Thing Description with a
-        /// complete native <c>uav:nodes</c> projection and readable affordances.
-        /// The preservation envelope is governed by
+        /// Creates a deterministic WoT Thing Model/Thing Description with
+        /// readable affordances and an exceptional complete
+        /// <c>uav:nodes</c> projection when required. The preservation envelope is governed by
         /// <see cref="WotNodeSetConverterOptions.PreservationMode"/>.
         /// </summary>
         /// <param name="nodeSet">The NodeSet2 document to convert.</param>
@@ -193,7 +193,11 @@ namespace Opc.Ua.Wot
                     writer.WriteString("title", resolvedTitle);
                     if (!string.IsNullOrEmpty(root?.BrowseName))
                     {
-                        writer.WriteString("uav:browseName", root!.BrowseName);
+                        writer.WriteString(
+                            "uav:browseName",
+                            ToPortableQualifiedName(
+                                root!.BrowseName,
+                                nodeSet.NamespaceUris));
                     }
                     if (!string.IsNullOrEmpty(root?.NodeId))
                     {
@@ -235,6 +239,10 @@ namespace Opc.Ua.Wot
             }
 
             json = WotJsonResidue.Apply(json, nodeSet, options, diagnostics);
+            if (IsReadableMappingComplete(json, nodeSet, options))
+            {
+                json = RemoveRootMembers(json, options, "uav:nodes");
+            }
             if (json.Length > options.MaxJsonDocumentSize)
             {
                 diagnostics.Add(new WotDiagnostic(
@@ -246,6 +254,49 @@ namespace Opc.Ua.Wot
             }
             WotDocument document = WotDocument.FromOwnedBytes(json, options);
             return new WotConversionResult<WotDocument>(document, diagnostics);
+        }
+
+        private static bool IsReadableMappingComplete(
+            byte[] json,
+            UANodeSet source,
+            WotNodeSetConverterOptions options)
+        {
+            byte[] readable = RemoveRootMembers(
+                json,
+                options,
+                "uav:nodes",
+                "uav:nodeSet");
+            using WotDocument document = WotDocument.Parse(readable, options);
+            WotConversionResult<UANodeSet> result =
+                ToNodeSetResult(document, options);
+            return result.Success &&
+                NodeSetComparer.Compare(source, result.Value!).AreEquivalent;
+        }
+
+        private static byte[] RemoveRootMembers(
+            byte[] json,
+            WotNodeSetConverterOptions options,
+            params string[] names)
+        {
+            using WotDocument document = WotDocument.Parse(json, options);
+            var excluded = new HashSet<string>(names, StringComparer.Ordinal);
+            using var output = new MemoryStream();
+            using (var writer = new Utf8JsonWriter(
+                output,
+                new JsonWriterOptions { Indented = true, SkipValidation = false }))
+            {
+                writer.WriteStartObject();
+                foreach (JsonProperty member in document.RootElement.EnumerateObject())
+                {
+                    if (!excluded.Contains(member.Name))
+                    {
+                        writer.WritePropertyName(member.Name);
+                        member.Value.WriteTo(writer);
+                    }
+                }
+                writer.WriteEndObject();
+            }
+            return output.ToArray();
         }
 
         /// <summary>

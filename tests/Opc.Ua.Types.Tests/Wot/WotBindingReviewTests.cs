@@ -58,6 +58,13 @@ namespace Opc.Ua.Types.Tests.Wot
             "nsu=urn:demo:pump;i=2002"
         ];
 
+        private static readonly string[] s_portableBrowseNameNamespaces =
+        [
+            "urn:opcua:wot:synthesized",
+            "urn:demo:pump",
+            "urn:demo:measurement"
+        ];
+
         // ---- uav:eventType (Section 5.2) -----------------------------------
 
         [Test]
@@ -198,6 +205,63 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         [Test]
+        public void ForwardBrowseNamesUsePortableQualifiedNameSyntax()
+        {
+            using WotDocument document =
+                WotNodeSetConverter.FromNodeSet(WotTestData.CreateRichNodeSet());
+
+            Assert.That(
+                document.RootElement.GetProperty("uav:browseName").GetString(),
+                Is.EqualTo("nsu=urn:test:model;MachineType"));
+            Assert.That(
+                document.Properties["Speed"].GetProperty("uav:browseName").GetString(),
+                Is.EqualTo("nsu=urn:test:model;Speed"));
+        }
+
+        [Test]
+        public void UriQualifiedBrowseNamesMapToNodeSetNamespaceIndexes()
+        {
+            string json =
+                "{" + Context +
+                "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"]," +
+                "\"title\":\"PumpType\"," +
+                "\"uav:browseName\":\"nsu=urn:demo:pump;PumpType\"," +
+                "\"properties\":{\"speed\":{" +
+                "\"uav:browseName\":\"nsu=urn:demo:measurement;Speed\"," +
+                "\"type\":\"number\"}}}";
+
+            UANodeSet nodeSet = WotNodeSetConverter.ToNodeSet(Encoding.UTF8.GetBytes(json));
+
+            Assert.That(
+                nodeSet.NamespaceUris,
+                Is.EqualTo(s_portableBrowseNameNamespaces));
+            Assert.That(
+                nodeSet.Items!.OfType<UAObjectType>().Single().BrowseName,
+                Is.EqualTo("2:PumpType"));
+            Assert.That(
+                nodeSet.Items!.OfType<UAVariable>().Single().BrowseName,
+                Is.EqualTo("3:Speed"));
+        }
+
+        [Test]
+        public void NumericReadableBrowseNameIsDiagnosed()
+        {
+            string json =
+                "{" + Context +
+                "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"]," +
+                "\"title\":\"PumpType\",\"uav:browseName\":\"1:PumpType\"}";
+
+            using WotDocument document = WotDocument.Parse(Encoding.UTF8.GetBytes(json));
+            WotConversionResult<UANodeSet> result =
+                WotNodeSetConverter.ToNodeSetResult(document);
+
+            Assert.That(
+                result.Diagnostics.Any(d =>
+                    d.Code == WotDiagnosticCode.NonPortableQualifiedName),
+                Is.True);
+        }
+
+        [Test]
         public void PortableIdentityIsStableAcrossNamespaceTableReordering()
         {
             using WotDocument first = WotNodeSetConverter.FromNodeSet(
@@ -255,7 +319,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 Assert.That(
                     link.GetProperty("rel").GetString(),
                     Is.EqualTo("ua:HasOrderedComponent"));
-                Assert.That(link.GetProperty("uav:refType").GetString(), Is.EqualTo("i=49"));
+                Assert.That(link.GetProperty("uav:refId").GetString(), Is.EqualTo("i=49"));
                 Assert.That(link.GetProperty("href").GetString(), Does.StartWith("nsu=urn:demo:pump;"));
                 Assert.That(link.GetProperty("uav:refName").GetString(), Does.StartWith("Stage_"));
             }
@@ -270,7 +334,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"title\":\"PumpType\",\"uav:browseName\":\"1:PumpType\"," +
                 "\"uav:hasComponent\":[\"nsu=urn:demo:pump;i=2001\"]," +
                 "\"links\":[{\"rel\":\"ua:HasOrderedComponent\"," +
-                "\"href\":\"nsu=urn:demo:pump;i=2001\",\"uav:refType\":\"i=49\"," +
+                "\"href\":\"nsu=urn:demo:pump;i=2001\",\"uav:refId\":\"i=49\"," +
                 "\"uav:refName\":\"Stage_1\"}]}";
 
             UANodeSet nodeSet = WotNodeSetConverter.ToNodeSet(Encoding.UTF8.GetBytes(json));
@@ -315,7 +379,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"title\":\"PumpType\",\"uav:browseName\":\"1:PumpType\"," +
                 "\"links\":[{\"rel\":\"pump:FlowsTo\"," +
                 "\"href\":\"nsu=urn:demo:pump;i=2001\"," +
-                "\"uav:refType\":\"nsu=urn:demo:pump;i=4001\"}]}";
+                "\"uav:refId\":\"nsu=urn:demo:pump;i=4001\"}]}";
 
             UANodeSet nodeSet = WotNodeSetConverter.ToNodeSet(Encoding.UTF8.GetBytes(json));
 
@@ -336,7 +400,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"title\":\"PumpType\",\"uav:browseName\":\"1:PumpType\"," +
                 "\"links\":[{\"rel\":\"ua:HasOrderedComponent\"," +
                 "\"href\":\"nsu=urn:demo:pump;i=2001\"," +
-                "\"uav:refType\":\"i=47\"}]}";
+                "\"uav:refId\":\"i=47\"}]}";
 
             using WotDocument document = WotDocument.Parse(Encoding.UTF8.GetBytes(json));
             WotConversionResult<UANodeSet> result =
@@ -384,6 +448,31 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo("nsu=urn:demo:pump;i=3010"));
         }
 
+        [TestCase("uav:mapToNodeId")]
+        [TestCase("uav:mapToType")]
+        public void MappingIdentifiersRejectCompactModelNames(string term)
+        {
+            string json =
+                "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\",{" +
+                "\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"," +
+                "\"pump\":\"urn:demo:pump#\"}]," +
+                "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"]," +
+                "\"title\":\"PumpType\"," +
+                "\"uav:browseName\":\"nsu=urn:demo:pump;PumpType\"," +
+                "\"properties\":{\"speed\":{\"type\":\"number\",\"" +
+                term + "\":\"pump:Measurement\"}}}";
+
+            using WotDocument document = WotDocument.Parse(Encoding.UTF8.GetBytes(json));
+            WotConversionResult<UANodeSet> result =
+                WotNodeSetConverter.ToNodeSetResult(document);
+
+            Assert.That(result.HasErrors, Is.True);
+            Assert.That(
+                result.Diagnostics.Any(d =>
+                    d.Code == WotDiagnosticCode.ValidationError),
+                Is.True);
+        }
+
         [Test]
         public void GeneratedContextBindsBaseAndNodeSetNamespaces()
         {
@@ -408,7 +497,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"title\":\"PumpType\",\"uav:browseName\":\"1:PumpType\"," +
                 "\"links\":[{\"rel\":\"uav:componentModel\"," +
                 "\"href\":\"nsu=urn:demo:pump;i=2001\"," +
-                "\"uav:refType\":\"i=47\",\"uav:refName\":\"Stage\"}]}";
+                "\"uav:refId\":\"i=47\",\"uav:refName\":\"Stage\"}]}";
 
             using WotDocument document = WotDocument.Parse(Encoding.UTF8.GetBytes(json));
             WotConversionResult<UANodeSet> result =

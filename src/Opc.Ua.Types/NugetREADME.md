@@ -25,9 +25,11 @@ conversion surface used by the WoT source generator and WoT Connectivity
 runtime. `WotNodeSetConverter` converts `UANodeSet` models to and from
 Thing Models / Thing Descriptions.
 
-The default output is native-first: the versioned `uav:nodes` projection
-covers the complete UANodeSet schema and no `uav:nodeSet` envelope is
-emitted when it reconstructs equivalently. Configure
+The default output is semantic-first: the converter omits `uav:nodes` when
+the readable vocabulary reconstructs equivalently and adds that complete
+structured projection only for source facts not yet expressible. No
+`uav:nodeSet` envelope is emitted when the structured path is complete.
+Configure
 `WotNodeSetConverterOptions.PreservationMode` as:
 
 * `WhenRequired` (default) — use the envelope only for a demonstrated
@@ -42,7 +44,7 @@ pointer-addressed, digest-protected residue in standard NodeSet
 
 Typed-reference links also use NamespaceUri-qualified model names such as
 `ua:HasOrderedComponent` directly in `rel`, alongside a definitive
-`uav:refType` ExpandedNodeId when needed. These names improve model
+`uav:refId` ExpandedNodeId when needed. These names improve model
 semantics without replacing ExpandedNodeIds for instance identity.
 
 ## Target frameworks

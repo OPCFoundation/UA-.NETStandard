@@ -179,7 +179,13 @@ namespace Opc.Ua.Wot
         /// A model-name hint and its definitive ExpandedNodeId resolved to
         /// different OPC UA model Nodes.
         /// </summary>
-        ModelConceptConflict = 6004
+        ModelConceptConflict = 6004,
+
+        /// <summary>
+        /// A readable QualifiedName or BrowsePath persisted a numeric namespace
+        /// index instead of a NamespaceUri-qualified form.
+        /// </summary>
+        NonPortableQualifiedName = 6005
     }
 
     /// <summary>
