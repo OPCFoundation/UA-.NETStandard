@@ -73,13 +73,24 @@ namespace Opc.Ua.Wot
                 ["String"] = "string"
             };
 
-        private static void WriteContext(Utf8JsonWriter writer)
+        private static void WriteContext(Utf8JsonWriter writer, UANodeSet nodeSet)
         {
             writer.WritePropertyName("@context");
             writer.WriteStartArray();
             writer.WriteStringValue(WotVocabulary.WotContext);
             writer.WriteStartObject();
             writer.WriteString("uav", WotVocabulary.VocabularyNamespace);
+            writer.WriteString("ua", WotVocabulary.OpcUaNamespace);
+            if (nodeSet.NamespaceUris is not null)
+            {
+                for (int ii = 0; ii < nodeSet.NamespaceUris.Length; ii++)
+                {
+                    writer.WriteString(
+                        "ns" + (ii + 1).ToString(
+                            System.Globalization.CultureInfo.InvariantCulture),
+                        nodeSet.NamespaceUris[ii]);
+                }
+            }
             writer.WriteEndObject();
             writer.WriteEndArray();
         }
@@ -153,11 +164,16 @@ namespace Opc.Ua.Wot
 
             // HasComponent subtypes (for example HasOrderedComponent) are
             // surfaced for discovery under uav:hasComponent / uav:componentOf and
-            // additionally pinned by a uav:typedReference link that carries the
-            // exact ReferenceType (WoT Binding Section 5.3).
+            // additionally pinned by a link whose rel is the semantic
+            // ReferenceType model name and whose uav:refType is the definitive
+            // ExpandedNodeId (WoT Binding Sections 5.1.2 and 5.3).
             var componentChildren = new List<string>();
             var componentParents = new List<string>();
-            var typedComponentLinks = new List<(string Target, string RefType, string RefName)>();
+            var typedComponentLinks = new List<(
+                string Target,
+                string Rel,
+                string RefType,
+                string RefName)>();
 
             foreach (Reference reference in root.References)
             {
@@ -197,6 +213,8 @@ namespace Opc.Ua.Wot
                         .Add(portableTarget!);
                     typedComponentLinks.Add((
                         portableTarget!,
+                        ToReferenceTypeModelName(reference.ReferenceType, index)
+                            ?? "ua:HasOrderedComponent",
                         subtypeNodeId,
                         ComponentRefName(reference.Value, index)));
                 }
@@ -282,7 +300,11 @@ namespace Opc.Ua.Wot
 
         private static void WriteTypedComponentLinks(
             Utf8JsonWriter writer,
-            List<(string Target, string RefType, string RefName)> links)
+            List<(
+                string Target,
+                string Rel,
+                string RefType,
+                string RefName)> links)
         {
             if (links.Count == 0)
             {
@@ -290,10 +312,14 @@ namespace Opc.Ua.Wot
             }
             writer.WritePropertyName("links");
             writer.WriteStartArray();
-            foreach ((string target, string refType, string refName) in links)
+            foreach ((
+                string target,
+                string rel,
+                string refType,
+                string refName) in links)
             {
                 writer.WriteStartObject();
-                writer.WriteString("rel", "uav:typedReference");
+                writer.WriteString("rel", rel);
                 writer.WriteString("href", target);
                 writer.WriteString("uav:refType", refType);
                 writer.WriteString("uav:refName", refName);
@@ -310,6 +336,69 @@ namespace Opc.Ua.Wot
                 return local;
             }
             return rawTarget;
+        }
+
+        private static string? ToReferenceTypeModelName(
+            string? referenceType,
+            Dictionary<string, UANode> index)
+        {
+            if (WotVocabulary.TryGetReferenceTypeBrowseName(
+                referenceType,
+                out string browseName))
+            {
+                return "ua:" + browseName;
+            }
+            if (referenceType is not null &&
+                index.TryGetValue(referenceType, out UANode? node) &&
+                node is UAReferenceType referenceTypeNode)
+            {
+                return ToCompactModelName(referenceTypeNode.BrowseName);
+            }
+            return ToCompactModelName(referenceType);
+        }
+
+        private static string? ToCompactModelName(string? qualifiedBrowseName)
+        {
+            if (string.IsNullOrEmpty(qualifiedBrowseName))
+            {
+                return null;
+            }
+            int separator = -1;
+            for (int ii = 0; ii < qualifiedBrowseName!.Length; ii++)
+            {
+                if (qualifiedBrowseName[ii] == ':')
+                {
+                    separator = ii;
+                    break;
+                }
+            }
+            if (separator <= 0 || separator + 1 >= qualifiedBrowseName.Length)
+            {
+                return null;
+            }
+            int namespaceIndex = 0;
+            for (int ii = 0; ii < separator; ii++)
+            {
+                char character = qualifiedBrowseName[ii];
+                if (!char.IsDigit(character) ||
+                    namespaceIndex > (int.MaxValue - (character - '0')) / 10)
+                {
+                    return null;
+                }
+                namespaceIndex = (namespaceIndex * 10) + (character - '0');
+            }
+            string prefix = namespaceIndex == 0
+                ? "ua"
+                : "ns" + namespaceIndex.ToString(
+                    System.Globalization.CultureInfo.InvariantCulture);
+            var builder = new System.Text.StringBuilder(
+                prefix.Length + qualifiedBrowseName.Length - separator);
+            builder.Append(prefix);
+            builder.Append(
+                qualifiedBrowseName,
+                separator,
+                qualifiedBrowseName.Length - separator);
+            return builder.ToString();
         }
 
         private static void WriteVariableAffordance(
@@ -422,6 +511,7 @@ namespace Opc.Ua.Wot
             // are never reached here and keep their own namespace indices.
             ValidatePortableIdentity(document, diagnostics);
             ValidateEventAnnotations(document, diagnostics);
+            ValidateModelConceptNames(document, diagnostics);
 
             string modelUri = DeriveModelUri(document);
             string rootLocal = LocalName(GetUavString(document, "browseName")) ??
@@ -513,12 +603,13 @@ namespace Opc.Ua.Wot
                     eventAffordance.Key, eventAffordance.Value, rootLocal, items, rootReferences);
             }
 
-            // A uav:typedReference link whose target is also listed under
+            // A ReferenceType relation whose target is also listed under
             // uav:hasComponent / uav:componentOf pins the exact subtype of that
             // component (WoT Binding Section 5.3). Collect those pins once so the
             // link pass does not also emit a separate generic reference and the
             // component pass recreates the exact ReferenceType.
-            Dictionary<string, string> componentTypedRefs = CollectComponentTypedRefs(document);
+            Dictionary<string, string> componentTypedRefs =
+                CollectComponentTypedRefs(document, diagnostics);
             SynthesizeLinks(
                 document, rootReferences, componentTypedRefs, thingResolver,
                 resolutionContext, options, diagnostics);
@@ -701,7 +792,7 @@ namespace Opc.Ua.Wot
                     continue;
                 }
 
-                if (!IsUavReferenceRel(rel))
+                if (!IsReferenceRel(document, link, rel))
                 {
                     continue;
                 }
@@ -709,14 +800,20 @@ namespace Opc.Ua.Wot
                 // A typed link that pins the subtype of a listed component is
                 // realized by the component pass, not here, so the component is
                 // not emitted twice (WoT Binding Section 5.3).
-                if (string.Equals(rel, "uav:typedReference", StringComparison.Ordinal) &&
-                    componentTypedRefs.ContainsKey(href))
+                if (componentTypedRefs.ContainsKey(href))
                 {
                     continue;
                 }
 
-                string referenceType = GetElementString(link, "uav:refType")
-                    ?? DefaultReferenceType(rel);
+                if (!TryResolveLinkReferenceType(
+                    document,
+                    link,
+                    rel,
+                    diagnostics,
+                    out string referenceType))
+                {
+                    continue;
+                }
                 if (TryResolveTargetNodeId(
                     href, thingResolver, resolutionContext, options, diagnostics, out string linkTarget))
                 {
@@ -730,14 +827,215 @@ namespace Opc.Ua.Wot
             }
         }
 
+        private static bool TryResolveLinkReferenceType(
+            WotDocument document,
+            JsonElement link,
+            string rel,
+            List<WotDiagnostic> diagnostics,
+            out string referenceType)
+        {
+            string? modelName = IsModelConceptRelation(document, link, rel)
+                ? rel
+                : null;
+            string? definitive = GetElementString(link, "uav:refType");
+            string? canonicalDefinitive = CanonicalReferenceType(definitive);
+            if (definitive is not null && canonicalDefinitive is null)
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.ModelConceptUnresolved,
+                    $"The uav:refType value '{definitive}' is not a portable " +
+                    "ExpandedNodeId.",
+                    new WotLocation(reference: definitive)));
+                referenceType = string.Empty;
+                return false;
+            }
+
+            if (modelName is not null &&
+                TryResolveReferenceTypeName(
+                    document,
+                    modelName,
+                    out string resolvedName))
+            {
+                if (canonicalDefinitive is not null &&
+                    !string.Equals(
+                        resolvedName,
+                        canonicalDefinitive,
+                        StringComparison.Ordinal))
+                {
+                    diagnostics.Add(new WotDiagnostic(
+                        WotDiagnosticSeverity.Error,
+                        WotDiagnosticCode.ModelConceptConflict,
+                        $"The ReferenceType model name '{modelName}' resolves to " +
+                        $"'{resolvedName}' but uav:refType is '{definitive}'.",
+                        new WotLocation(reference: modelName)));
+                    referenceType = string.Empty;
+                    return false;
+                }
+                referenceType = resolvedName;
+                return true;
+            }
+
+            if (canonicalDefinitive is not null)
+            {
+                referenceType = canonicalDefinitive;
+                return true;
+            }
+
+            if (modelName is not null)
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.ModelConceptUnresolved,
+                    $"The ReferenceType relation '{modelName}' could not be " +
+                    "resolved and has no ExpandedNodeId fallback.",
+                    new WotLocation(reference: modelName)));
+                referenceType = string.Empty;
+                return false;
+            }
+
+            referenceType = DefaultReferenceType(rel);
+            return true;
+        }
+
+        private static string? CanonicalReferenceType(string? referenceType)
+        {
+            if (string.IsNullOrEmpty(referenceType))
+            {
+                return null;
+            }
+            return IsNodeId(referenceType) ? referenceType : null;
+        }
+
+        private static bool TryResolveReferenceTypeName(
+            WotDocument document,
+            string modelName,
+            out string referenceType)
+        {
+            referenceType = string.Empty;
+            if (!TrySplitCompactModelName(
+                modelName,
+                out string prefix,
+                out string browseName) ||
+                !TryGetContextNamespace(document, prefix, out string namespaceUri))
+            {
+                return false;
+            }
+            return string.Equals(
+                    namespaceUri,
+                    WotVocabulary.OpcUaNamespace,
+                    StringComparison.Ordinal) &&
+                WotVocabulary.TryGetReferenceTypeNodeId(
+                    browseName,
+                    out referenceType);
+        }
+
+        private static bool TrySplitCompactModelName(
+            string value,
+            out string prefix,
+            out string browseName)
+        {
+            prefix = string.Empty;
+            browseName = string.Empty;
+            int separator = -1;
+            for (int ii = 0; ii < value.Length; ii++)
+            {
+                if (value[ii] == ':')
+                {
+                    separator = ii;
+                    break;
+                }
+            }
+            if (separator <= 0 || separator + 1 >= value.Length)
+            {
+                return false;
+            }
+            string candidate = value.Substring(0, separator);
+            if (!IsAsciiLetter(candidate[0]) && candidate[0] != '_')
+            {
+                return false;
+            }
+            for (int ii = 0; ii < candidate.Length; ii++)
+            {
+                char character = candidate[ii];
+                if (!IsAsciiLetter(character) &&
+                    character is not (>= '0' and <= '9') &&
+                    character is not ('_' or '.' or '-'))
+                {
+                    return false;
+                }
+            }
+            prefix = candidate;
+            browseName = value.Substring(separator + 1);
+            return true;
+        }
+
+        private static bool IsAsciiLetter(char value)
+        {
+            return value is >= 'A' and <= 'Z' or >= 'a' and <= 'z';
+        }
+
+        private static bool TryGetContextNamespace(
+            WotDocument document,
+            string prefix,
+            out string namespaceUri)
+        {
+            if (string.Equals(prefix, "ua", StringComparison.Ordinal))
+            {
+                namespaceUri = WotVocabulary.OpcUaNamespace;
+                return true;
+            }
+            if (string.Equals(prefix, "uav", StringComparison.Ordinal))
+            {
+                namespaceUri = WotVocabulary.VocabularyNamespace;
+                return true;
+            }
+            if (document.TryGetContext(out JsonElement context) &&
+                TryGetContextNamespace(context, prefix, out namespaceUri))
+            {
+                return true;
+            }
+            namespaceUri = string.Empty;
+            return false;
+        }
+
+        private static bool TryGetContextNamespace(
+            JsonElement context,
+            string prefix,
+            out string namespaceUri)
+        {
+            if (context.ValueKind == JsonValueKind.Object &&
+                context.TryGetProperty(prefix, out JsonElement value) &&
+                value.ValueKind == JsonValueKind.String)
+            {
+                namespaceUri = value.GetString()!;
+                return true;
+            }
+            if (context.ValueKind == JsonValueKind.Array)
+            {
+                foreach (JsonElement entry in context.EnumerateArray())
+                {
+                    if (TryGetContextNamespace(entry, prefix, out namespaceUri))
+                    {
+                        return true;
+                    }
+                }
+            }
+            namespaceUri = string.Empty;
+            return false;
+        }
+
         /// <summary>
-        /// Collects the subtype pins carried by <c>uav:typedReference</c> links
+        /// Collects the subtype pins carried by ReferenceType model-name links
         /// whose target is also listed under <c>uav:hasComponent</c> or
         /// <c>uav:componentOf</c>: target ExpandedNodeId to the exact
-        /// ReferenceType named by the link's <c>uav:refType</c>
+        /// ReferenceType named by <c>rel</c> and, when needed,
+        /// <c>uav:refType</c>
         /// (WoT Binding Section 5.3).
         /// </summary>
-        private static Dictionary<string, string> CollectComponentTypedRefs(WotDocument document)
+        private static Dictionary<string, string> CollectComponentTypedRefs(
+            WotDocument document,
+            List<WotDiagnostic> diagnostics)
         {
             var pins = new Dictionary<string, string>(StringComparer.Ordinal);
             var componentTargets = new HashSet<string>(StringComparer.Ordinal);
@@ -749,14 +1047,21 @@ namespace Opc.Ua.Wot
             }
             foreach (JsonElement link in document.Links)
             {
-                if (!string.Equals(
-                        GetElementString(link, "rel"), "uav:typedReference", StringComparison.Ordinal))
+                string? rel = GetElementString(link, "rel");
+                if (rel is null ||
+                    !IsModelConceptRelation(document, link, rel))
                 {
                     continue;
                 }
                 string? href = GetElementString(link, "href");
-                string? refType = GetElementString(link, "uav:refType");
-                if (href is not null && refType is not null && componentTargets.Contains(href))
+                if (href is not null &&
+                    componentTargets.Contains(href) &&
+                    TryResolveLinkReferenceType(
+                        document,
+                        link,
+                        rel,
+                        diagnostics,
+                        out string refType))
                 {
                     pins[href] = refType;
                 }
@@ -827,7 +1132,7 @@ namespace Opc.Ua.Wot
             Dictionary<string, string> componentTypedRefs)
         {
             // A component whose exact subtype is pinned by a matching
-            // uav:typedReference link is recreated with that ReferenceType;
+            // ReferenceType link is recreated with that ReferenceType;
             // otherwise plain HasComponent is used (WoT Binding Section 5.3).
             if (target is not null && componentTypedRefs.TryGetValue(target, out string? refType))
             {
@@ -1056,12 +1361,75 @@ namespace Opc.Ua.Wot
                 string.Equals(referenceType, WotVocabulary.GeneratesEvent, StringComparison.Ordinal);
         }
 
-        private static bool IsUavReferenceRel(string rel)
+        private static bool IsReferenceRel(
+            WotDocument document,
+            JsonElement link,
+            string rel)
         {
-            return string.Equals(rel, "uav:typedReference", StringComparison.Ordinal) ||
-                string.Equals(rel, "uav:reference", StringComparison.Ordinal) ||
-                string.Equals(rel, "uav:componentModel", StringComparison.Ordinal) ||
-                string.Equals(rel, "uav:capability", StringComparison.Ordinal);
+            return rel is "uav:reference" or
+                "uav:componentModel" or
+                "uav:capability" ||
+                IsModelConceptRelation(document, link, rel);
+        }
+
+        private static bool IsModelConceptRelation(
+            WotDocument document,
+            JsonElement link,
+            string rel)
+        {
+            if (!TrySplitCompactModelName(
+                    rel,
+                    out string prefix,
+                    out _) ||
+                string.Equals(prefix, "uav", StringComparison.Ordinal) ||
+                string.Equals(prefix, "tm", StringComparison.Ordinal) ||
+                IsExternalRelationPrefix(prefix) ||
+                !IsModelConceptCandidate(link, prefix) ||
+                !TryGetContextNamespace(document, prefix, out _))
+            {
+                return false;
+            }
+            return true;
+        }
+
+        private static bool IsKnownBindingRelation(string rel)
+        {
+            return rel is "uav:reference" or
+                "uav:componentModel" or
+                "uav:capability" or
+                "uav:componentOf";
+        }
+
+        private static bool IsModelConceptCandidate(
+            JsonElement link,
+            string prefix)
+        {
+            return string.Equals(prefix, "ua", StringComparison.Ordinal) ||
+                StartsWithGeneratedNamespacePrefix(prefix) ||
+                link.TryGetProperty("uav:refType", out _) ||
+                link.TryGetProperty("uav:refName", out _);
+        }
+
+        private static bool StartsWithGeneratedNamespacePrefix(string prefix)
+        {
+            if (!prefix.StartsWith("ns", StringComparison.Ordinal) ||
+                prefix.Length == 2)
+            {
+                return false;
+            }
+            for (int ii = 2; ii < prefix.Length; ii++)
+            {
+                if (prefix[ii] is not (>= '0' and <= '9'))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        private static bool IsExternalRelationPrefix(string prefix)
+        {
+            return prefix is "http" or "https" or "urn";
         }
 
         private static string DefaultReferenceType(string rel)
@@ -1318,6 +1686,145 @@ namespace Opc.Ua.Wot
                     "ExpandedNodeId (nsu=<NamespaceUri>;... or namespace-0 i=...) " +
                     "so it survives a namespace-table reordering (WoT Binding Section 5.1.1).",
                     new WotLocation(reference: value)));
+            }
+        }
+
+        private static void ValidateModelConceptNames(
+            WotDocument document,
+            List<WotDiagnostic> diagnostics)
+        {
+            ValidateModelConceptNames(
+                document,
+                document.RootElement,
+                diagnostics);
+        }
+
+        private static void ValidateModelConceptNames(
+            WotDocument document,
+            JsonElement element,
+            List<WotDiagnostic> diagnostics)
+        {
+            if (element.ValueKind == JsonValueKind.Object)
+            {
+                ValidateReferenceTypeRelation(document, element, diagnostics);
+                ValidateModelConceptMember(
+                    document,
+                    element,
+                    "uav:mapToTypeName",
+                    requiredDefinitiveMember: "uav:mapToType",
+                    diagnostics);
+                ValidateModelConceptMember(
+                    document,
+                    element,
+                    "uav:congruentTypeName",
+                    requiredDefinitiveMember: "uav:congruentType",
+                    diagnostics);
+                foreach (JsonProperty member in element.EnumerateObject())
+                {
+                    if (member.Name is not ("uav:nodeSet" or "uav:nodes"))
+                    {
+                        ValidateModelConceptNames(
+                            document,
+                            member.Value,
+                            diagnostics);
+                    }
+                }
+            }
+            else if (element.ValueKind == JsonValueKind.Array)
+            {
+                foreach (JsonElement item in element.EnumerateArray())
+                {
+                    ValidateModelConceptNames(document, item, diagnostics);
+                }
+            }
+        }
+
+        private static void ValidateModelConceptMember(
+            WotDocument document,
+            JsonElement element,
+            string memberName,
+            string? requiredDefinitiveMember,
+            List<WotDiagnostic> diagnostics)
+        {
+            if (!element.TryGetProperty(memberName, out JsonElement member))
+            {
+                return;
+            }
+            string? value = member.ValueKind == JsonValueKind.String
+                ? member.GetString()
+                : null;
+            if (value is null ||
+                !TrySplitCompactModelName(
+                    value,
+                    out string prefix,
+                    out _) ||
+                !TryGetContextNamespace(document, prefix, out _))
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.ModelConceptUnresolved,
+                    $"The {memberName} value '{value}' is not a compact model name " +
+                    "whose non-numeric prefix is bound in @context.",
+                    new WotLocation(reference: value)));
+            }
+            if (requiredDefinitiveMember is not null &&
+                !element.TryGetProperty(requiredDefinitiveMember, out _))
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.ModelConceptUnresolved,
+                    $"{memberName} requires {requiredDefinitiveMember}.",
+                    new WotLocation(reference: value)));
+            }
+        }
+
+        private static void ValidateReferenceTypeRelation(
+            WotDocument document,
+            JsonElement element,
+            List<WotDiagnostic> diagnostics)
+        {
+            string? rel = GetElementString(element, "rel");
+            if (rel is null)
+            {
+                return;
+            }
+            if (IsKnownBindingRelation(rel) ||
+                rel.StartsWith("http:", StringComparison.Ordinal) ||
+                rel.StartsWith("https:", StringComparison.Ordinal) ||
+                rel.StartsWith("urn:", StringComparison.Ordinal))
+            {
+                return;
+            }
+            if (!TrySplitCompactModelName(
+                    rel,
+                    out string prefix,
+                    out _) ||
+                prefix == "tm")
+            {
+                return;
+            }
+            if (prefix == "uav")
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.ModelConceptUnresolved,
+                    $"The Binding relation '{rel}' is not defined.",
+                    new WotLocation(reference: rel)));
+                return;
+            }
+            if (IsExternalRelationPrefix(prefix) ||
+                !IsModelConceptCandidate(element, prefix))
+            {
+                return;
+            }
+            if (!TryGetContextNamespace(document, prefix, out _))
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.ModelConceptUnresolved,
+                    $"The ReferenceType relation '{rel}' uses a prefix that is " +
+                    "not bound in @context.",
+                    new WotLocation(reference: rel)));
             }
         }
 

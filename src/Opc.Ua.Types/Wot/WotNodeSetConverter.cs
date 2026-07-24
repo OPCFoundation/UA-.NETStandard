@@ -187,7 +187,7 @@ namespace Opc.Ua.Wot
                     new JsonWriterOptions { Indented = true, SkipValidation = false }))
                 {
                     writer.WriteStartObject();
-                    WriteContext(writer);
+                    WriteContext(writer, nodeSet);
                     bool rootIsEventType = IsEventTypeRoot(root, nodeSet);
                     WriteRootType(writer, root, rootIsEventType);
                     writer.WriteString("title", resolvedTitle);

@@ -315,10 +315,12 @@ namespace Opc.Ua.Types.Tests.Wot
             string links = string.Join(
                 ",",
                 hrefs.Select(href =>
-                    "{\"rel\":\"uav:typedReference\",\"href\":\"" + href + "\",\"uav:refType\":\"i=47\"}"));
+                    "{\"rel\":\"ua:HasComponent\",\"href\":\"" + href +
+                    "\",\"uav:refType\":\"i=47\"}"));
             return
                 "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
-                "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"}]," +
+                "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"," +
+                "\"ua\":\"http://opcfoundation.org/UA/\"}]," +
                 "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"]," +
                 "\"title\":\"T\",\"uav:browseName\":\"1:T\"," +
                 "\"links\":[" + links + "]}";

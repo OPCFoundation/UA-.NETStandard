@@ -663,6 +663,16 @@ not by copying the source document. The readable surface tracks the current
   and NodeSet-local fields inside `uav:nodes` keep their own namespace
   tables and are excluded from this readable-identity rule.
 
+* **Model concepts carry NamespaceUri-qualified names.** Generated
+  contexts bind `ua` to the base OPC UA namespace and deterministic
+  `ns1`, `ns2`, … prefixes to companion NamespaceUris. A typed link emits
+  the ReferenceType model name directly in `rel` (for example
+  `ua:HasOrderedComponent`) beside its definitive `uav:refType`
+  ExpandedNodeId. Authored
+  `uav:mapToTypeName` / `uav:congruentTypeName` hints are validated and
+  preserved beside their definitive identifiers. Compact model names are
+  never used for arbitrary instance targets.
+
 * **`observable` advertises binding support.** A generated
   `observable: true` / `observeproperty` form states that the TD exposes
   observation through this binding. It is not a claim that other OPC UA
@@ -673,8 +683,9 @@ not by copying the source document. The readable surface tracks the current
   `uav:hasComponent` / `uav:componentOf` expose parent-child ownership
   for discovery across `HasComponent` and its subtypes. When the source
   ReferenceType is a subtype (for example `HasOrderedComponent`, `i=49`),
-  the converter additionally emits a `rel: uav:typedReference` link whose
-  `uav:refType` is that ReferenceType's ExpandedNodeId and whose
-  `uav:refName` names the reference. Reverse conversion recreates the
-  exact subtype from that link and otherwise falls back to plain
-  `HasComponent`.
+  the converter additionally emits a link whose `rel` is
+  `ua:HasOrderedComponent`, whose `uav:refType` fallback is `i=49`, and
+  whose `uav:refName` names the reference.
+  Reverse conversion resolves the name, verifies the fallback when both
+  are present, recreates the exact subtype, and otherwise falls back to
+  plain `HasComponent`.
