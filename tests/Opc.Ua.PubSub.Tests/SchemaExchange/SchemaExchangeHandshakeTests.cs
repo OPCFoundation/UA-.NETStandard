@@ -109,13 +109,17 @@ namespace Opc.Ua.PubSub.Encoding.Tests
         [Test]
         public async Task AvroDecoder_CacheHitAndMiss_UseResolverCorrectly()
         {
-            ByteString schema = ByteString.From(System.Text.Encoding.UTF8.GetBytes("{\"name\":\"T\"}"));
-            ByteString schemaId = SchemaCache.ComputeSchemaId(schema, SchemaCache.AvroFormat);
-            string schemaKey = SchemaCache.ToKey(schemaId);
             PubSubNetworkMessageContext context = CreateContext(100, CreateMetaData(includeSecondField: false));
-            AvroNetworkMessage message = CreateAvroMessage(schemaKey, includeSecondField: false);
+            AvroNetworkMessage message = CreateAvroMessage(string.Empty, includeSecondField: false);
             AvroNetworkMessageEncoder encoder = new();
             ReadOnlyMemory<byte> frame = await encoder.EncodeAsync(message, context);
+
+            // In the fixed envelope each DataSetMessage carries its own per-DataSet SchemaId; the
+            // decoder resolves that SchemaId best-effort. A cache hit avoids the resolver; a miss
+            // invokes it exactly once.
+            AvroSchemaAnnouncement announcement = encoder.LastSchemaAnnouncement!;
+            ByteString schemaId = announcement.SchemaId;
+            ByteString schema = ByteString.From(System.Text.Encoding.UTF8.GetBytes(announcement.SchemaJson));
             CountingResolver resolver = new(schemaId, schema, SchemaCache.AvroFormat);
             AvroNetworkMessageDecoder hitDecoder = new() { SchemaResolver = resolver };
             hitDecoder.SchemaCache.Add(schemaId, schema, SchemaCache.AvroFormat);

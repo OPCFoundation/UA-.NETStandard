@@ -169,7 +169,10 @@ namespace Opc.Ua.PubSub.Encoding.Tests
             Assert.That(decodedMessage.PublisherId, Is.EqualTo(message.PublisherId));
             Assert.That(decodedMessage.WriterGroupId, Is.EqualTo(message.WriterGroupId));
             Assert.That(decodedMessage.DataSetClassId, Is.EqualTo(message.DataSetClassId));
-            Assert.That(decodedMessage.SchemaId, Is.EqualTo(message.SchemaId));
+            // The fixed envelope no longer carries a NetworkMessage-level SchemaId; each
+            // DataSetMessage is identified by its own per-DataSet SchemaId in its payload entry
+            // (Part 14 Avro mapping §8.1).
+            Assert.That(decodedMessage.SchemaId, Is.Empty);
             Assert.That(decodedMessage.DataSetMessages.Count, Is.EqualTo(2));
 
             AvroDataSetMessage first = (AvroDataSetMessage)decodedMessage.DataSetMessages[0];
@@ -439,9 +442,12 @@ namespace Opc.Ua.PubSub.Encoding.Tests
             AvroNetworkMessageEncoder encoder = new();
             _ = await encoder.EncodeAsync(template, context);
             AvroSchemaAnnouncement announcement = encoder.LastSchemaAnnouncement!;
-            string schemaId = SchemaCache.ToKey(announcement.SchemaId);
-            AvroNetworkMessage message = template with { SchemaId = schemaId };
-            ReadOnlyMemory<byte> frame = await encoder.EncodeAsync(message, context);
+
+            // The fixed envelope carries each DataSetMessage opaquely with its own per-DataSet
+            // SchemaId (Part 14 Avro mapping §8.1). A decoder primed with the announcement resolves
+            // that SchemaId from its cache; an un-primed decoder still decodes the self-describing
+            // body but does not have the schema cached.
+            ReadOnlyMemory<byte> frame = await encoder.EncodeAsync(template, context);
             AvroNetworkMessageDecoder coldDecoder = new();
             AvroNetworkMessageDecoder primedDecoder = new();
             primedDecoder.Ingest(announcement);
@@ -449,8 +455,10 @@ namespace Opc.Ua.PubSub.Encoding.Tests
             PubSubNetworkMessage? cold = await coldDecoder.TryDecodeAsync(frame, context);
             PubSubNetworkMessage? primed = await primedDecoder.TryDecodeAsync(frame, context);
 
-            Assert.That(cold, Is.Null);
             Assert.That(primed, Is.TypeOf<AvroNetworkMessage>(), diagnostics.LastError?.Message);
+            Assert.That(cold, Is.TypeOf<AvroNetworkMessage>(), diagnostics.LastError?.Message);
+            Assert.That(primedDecoder.SchemaCache.TryGet(announcement.SchemaId, out _), Is.True);
+            Assert.That(coldDecoder.SchemaCache.TryGet(announcement.SchemaId, out _), Is.False);
             AvroDataSetMessage decodedDataSet =
                 (AvroDataSetMessage)((AvroNetworkMessage)primed!).DataSetMessages[0];
             Assert.That(FieldByName(decodedDataSet, "Enabled").Value.TryGetValue(out bool enabled), Is.True);
@@ -706,8 +714,14 @@ namespace Opc.Ua.PubSub.Encoding.Tests
             using MemoryStream stream = new();
             using AvroEncoder encoder = new(stream, context.MessageContext, leaveOpen: true);
             WriteEnvelope(encoder, 1);
-            WriteDataSetHeader(encoder);
-            encoder.WriteInt32(null, fieldCount);
+            using MemoryStream bodyStream = new();
+            using (AvroEncoder bodyEncoder = new(bodyStream, context.MessageContext, leaveOpen: true))
+            {
+                WriteDataSetHeader(bodyEncoder);
+                bodyEncoder.WriteInt32(null, fieldCount);
+                bodyEncoder.Close();
+            }
+            WriteDataSetEntry(encoder, bodyStream.ToArray());
             encoder.Close();
             return stream.ToArray();
         }
@@ -718,20 +732,34 @@ namespace Opc.Ua.PubSub.Encoding.Tests
             using MemoryStream stream = new();
             using AvroEncoder encoder = new(stream, context.MessageContext, leaveOpen: true);
             WriteEnvelope(encoder, 1);
-            WriteDataSetHeader(encoder);
-            encoder.WriteInt32(null, 1);
-            encoder.WriteString(null, "Enabled");
-            encoder.WriteInt32(null, 0);
-            encoder.WriteEnumerated(null, PubSubFieldEncoding.RawData);
-            using MemoryStream valueStream = new();
-            using (AvroEncoder valueEncoder = new(valueStream, context.MessageContext, leaveOpen: true))
+            using MemoryStream bodyStream = new();
+            using (AvroEncoder bodyEncoder = new(bodyStream, context.MessageContext, leaveOpen: true))
             {
-                valueEncoder.WriteVariantValue(null, new Variant(true));
-                valueEncoder.Close();
+                WriteDataSetHeader(bodyEncoder);
+                bodyEncoder.WriteInt32(null, 1);
+                bodyEncoder.WriteString(null, "Enabled");
+                bodyEncoder.WriteInt32(null, 0);
+                bodyEncoder.WriteEnumerated(null, PubSubFieldEncoding.RawData);
+                using MemoryStream valueStream = new();
+                using (AvroEncoder valueEncoder = new(valueStream, context.MessageContext, leaveOpen: true))
+                {
+                    valueEncoder.WriteVariantValue(null, new Variant(true));
+                    valueEncoder.Close();
+                }
+                bodyEncoder.WriteByteString(null, ByteString.From(valueStream.ToArray()));
+                bodyEncoder.Close();
             }
-            encoder.WriteByteString(null, ByteString.From(valueStream.ToArray()));
+            WriteDataSetEntry(encoder, bodyStream.ToArray());
             encoder.Close();
             return stream.ToArray();
+        }
+
+        private static void WriteDataSetEntry(AvroEncoder encoder, byte[] body)
+        {
+            // Each opaque payload entry is { schemaId, dataSetMessage } (Part 14 Avro mapping §8.1);
+            // the placeholder SchemaId is resolved best-effort and does not gate decoding.
+            encoder.WriteByteString(null, ByteString.From(new byte[] { 0x01 }));
+            encoder.WriteByteString(null, ByteString.From(body));
         }
 
         private static void WriteEnvelope(AvroEncoder encoder, int dataSetCount)
@@ -743,7 +771,6 @@ namespace Opc.Ua.PubSub.Encoding.Tests
             encoder.WriteBoolean(null, true);
             encoder.WriteUInt16(null, 10);
             encoder.WriteGuid(null, new Uuid(new Guid("8c2f8f1c-c9a1-48b0-a90b-7d8f6e725013")));
-            encoder.WriteString(null, null);
             encoder.WriteInt32(null, dataSetCount);
         }
 
