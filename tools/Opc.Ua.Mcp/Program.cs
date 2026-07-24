@@ -47,40 +47,55 @@ Console.Error.WriteLine(
 
 var transportOption = new Option<string>("--transport", "-t")
 {
-    Description = "Transport mode: 'stdio' (default) or 'sse' for HTTP/SSE",
+    Description = "Transport mode: 'stdio' (default) or 'http'. 'sse' is a deprecated alias for 'http'.",
     DefaultValueFactory = _ => "stdio"
 };
 
 var portOption = new Option<int>("--port", "-p")
 {
-    Description = "HTTP port for SSE transport (default: 5100)",
+    Description = "Port for Streamable HTTP transport (default: 5100)",
     DefaultValueFactory = _ => 5100
+};
+
+var profileOption = new Option<McpToolProfile?>("--profile")
+{
+    Description = "Tool profile: core, services, administration, pubsub, diagnostics, or full (default)"
 };
 
 var rootCommand = new RootCommand("OPC UA MCP Server - Exposes OPC UA Part 4 services as MCP tools")
 {
     transportOption,
-    portOption
+    portOption,
+    profileOption
 };
 
 rootCommand.SetAction(async (parseResult, ct) =>
 {
     string transport = parseResult.GetValue(transportOption)!;
     int port = parseResult.GetValue(portOption);
+    McpToolProfile? toolProfile = parseResult.GetValue(profileOption);
 
-    if (transport.Equals("sse", StringComparison.OrdinalIgnoreCase))
+    if (transport.Equals("stdio", StringComparison.OrdinalIgnoreCase))
     {
-        await RunSseServerAsync(port, ct).ConfigureAwait(false);
+        await RunStdioServerAsync(toolProfile, ct).ConfigureAwait(false);
+        return 0;
     }
-    else
+
+    if (transport.Equals("http", StringComparison.OrdinalIgnoreCase) ||
+        transport.Equals("sse", StringComparison.OrdinalIgnoreCase))
     {
-        await RunStdioServerAsync(ct).ConfigureAwait(false);
+        await RunHttpServerAsync(port, toolProfile, ct).ConfigureAwait(false);
+        return 0;
     }
+
+    await Console.Error.WriteLineAsync(
+        $"Unknown transport '{transport}'. Valid transports: stdio, http, sse.").ConfigureAwait(false);
+    return 2;
 });
 
 return await rootCommand.Parse(args).InvokeAsync().ConfigureAwait(false);
 
-static async Task RunStdioServerAsync(CancellationToken ct)
+static async Task RunStdioServerAsync(McpToolProfile? toolProfileOverride, CancellationToken ct)
 {
     await Console.Error.WriteLineAsync(
         "Starting MCP server with stdio transport...").ConfigureAwait(false);
@@ -90,38 +105,53 @@ static async Task RunStdioServerAsync(CancellationToken ct)
 
     PcapOptions pcapOptions = McpHostBuilder.CreatePcapOptions(builder.Configuration);
     bool diagnosticsToolsEnabled = McpHostBuilder.AreDiagnosticsToolsEnabled(pcapOptions);
-    McpHostBuilder.ConfigureServices(builder.Services, pcapOptions);
+    McpServerOptions mcpServerOptions = McpHostBuilder.CreateMcpServerOptions(
+        builder.Configuration,
+        toolProfileOverride);
+    McpHostBuilder.ConfigureServices(builder.Services, pcapOptions, mcpServerOptions);
 
     IMcpServerBuilder mcpServerBuilder = builder.Services
         .AddMcpServer()
         .WithStdioServerTransport();
-    McpHostBuilder.ConfigureMcpTools(mcpServerBuilder, diagnosticsToolsEnabled);
+    McpHostBuilder.ConfigureMcpTools(
+        mcpServerBuilder,
+        mcpServerOptions.ToolProfile,
+        diagnosticsToolsEnabled);
 
     IHost app = builder.Build();
     McpHostBuilder.LogDiagnosticsToolsWarning(app.Services, diagnosticsToolsEnabled);
     await app.RunAsync(ct).ConfigureAwait(false);
 }
 
-static async Task RunSseServerAsync(int port, CancellationToken ct)
+static async Task RunHttpServerAsync(
+    int port,
+    McpToolProfile? toolProfileOverride,
+    CancellationToken ct)
 {
     await Console.Error.WriteLineAsync(
-        $"Starting MCP server with HTTP/SSE transport on port {port}...").ConfigureAwait(false);
+        $"Starting MCP server with Streamable HTTP transport on port {port} at /mcp...").ConfigureAwait(false);
 
     WebApplicationBuilder builder = WebApplication.CreateBuilder();
     McpHostBuilder.ConfigureLogging(builder.Logging, useStdioTransport: false);
 
     PcapOptions pcapOptions = McpHostBuilder.CreatePcapOptions(builder.Configuration);
     bool diagnosticsToolsEnabled = McpHostBuilder.AreDiagnosticsToolsEnabled(pcapOptions);
-    McpHostBuilder.ConfigureServices(builder.Services, pcapOptions);
+    McpServerOptions mcpServerOptions = McpHostBuilder.CreateMcpServerOptions(
+        builder.Configuration,
+        toolProfileOverride);
+    McpHostBuilder.ConfigureServices(builder.Services, pcapOptions, mcpServerOptions);
 
     IMcpServerBuilder mcpServerBuilder = builder.Services
         .AddMcpServer()
         .WithHttpTransport();
-    McpHostBuilder.ConfigureMcpTools(mcpServerBuilder, diagnosticsToolsEnabled);
+    McpHostBuilder.ConfigureMcpTools(
+        mcpServerBuilder,
+        mcpServerOptions.ToolProfile,
+        diagnosticsToolsEnabled);
 
     WebApplication app = builder.Build();
     McpHostBuilder.LogDiagnosticsToolsWarning(app.Services, diagnosticsToolsEnabled);
-    app.MapMcp();
+    app.MapMcp("/mcp");
     app.Urls.Add($"http://localhost:{port}");
 
     await app.RunAsync(ct).ConfigureAwait(false);

@@ -47,19 +47,31 @@ namespace Opc.Ua.Mcp
     /// </summary>
     internal static class McpHostBuilder
     {
+        private const string kApplicationName = "OPC UA MCP Server";
+        private const string kApplicationUri = "urn:localhost:UA:McpServer";
+        private const string kProductUri = "uri:opcfoundation.org:McpServer";
+
         /// <summary>
         /// Registers the OPC UA client, session/PubSub managers and Pcap
         /// diagnostics services used by the MCP tools.
         /// </summary>
-        public static void ConfigureServices(IServiceCollection services, PcapOptions pcapOptions)
+        public static void ConfigureServices(
+            IServiceCollection services,
+            PcapOptions pcapOptions,
+            McpServerOptions? mcpServerOptions = null)
         {
             ArgumentNullException.ThrowIfNull(services);
             ArgumentNullException.ThrowIfNull(pcapOptions);
 
-            services.AddOpcUa().AddClient(options => { });
+            services.AddOpcUa().AddClient(options =>
+            {
+                options.ApplicationName = kApplicationName;
+                options.ApplicationUri = kApplicationUri;
+                options.ProductUri = kProductUri;
+            });
             services.AddSingleton<OpcUaSessionManager>();
             services.AddSingleton<PubSubRuntimeManager>();
-            services.AddSingleton(_ => CreateMcpServerOptions());
+            services.AddSingleton(mcpServerOptions ?? CreateMcpServerOptions());
             services.AddPcap(options =>
             {
                 options.BaseFolder = pcapOptions.BaseFolder;
@@ -82,6 +94,41 @@ namespace Opc.Ua.Mcp
                 NodeSetExportRoot = Environment.GetEnvironmentVariable("OPCUA_MCP_NODESET_EXPORT_ROOT"),
                 PcapBaseFolder = Environment.GetEnvironmentVariable("OPCUA_MCP_PCAP_BASE_FOLDER")
             };
+        }
+
+        /// <summary>
+        /// Creates the <see cref="McpServerOptions"/> from configuration and an optional CLI override.
+        /// </summary>
+        public static McpServerOptions CreateMcpServerOptions(
+            IConfiguration configuration,
+            McpToolProfile? toolProfileOverride)
+        {
+            ArgumentNullException.ThrowIfNull(configuration);
+
+            McpServerOptions options = CreateMcpServerOptions();
+            if (toolProfileOverride.HasValue)
+            {
+                options.ToolProfile = toolProfileOverride.Value;
+                return options;
+            }
+
+            string? configuredProfile = configuration["McpServer:ToolProfile"] ??
+                Environment.GetEnvironmentVariable("OPCUA_MCP_TOOL_PROFILE");
+            if (string.IsNullOrWhiteSpace(configuredProfile))
+            {
+                return options;
+            }
+
+            if (!Enum.TryParse(configuredProfile, ignoreCase: true, out McpToolProfile toolProfile) ||
+                !Enum.IsDefined(toolProfile))
+            {
+                throw new InvalidOperationException(
+                    $"Unknown MCP tool profile '{configuredProfile}'. " +
+                    $"Valid profiles: {string.Join(", ", Enum.GetNames<McpToolProfile>())}.");
+            }
+
+            options.ToolProfile = toolProfile;
+            return options;
         }
 
         /// <summary>
@@ -131,11 +178,130 @@ namespace Opc.Ua.Mcp
         /// </summary>
         public static void ConfigureMcpTools(IMcpServerBuilder mcpServerBuilder, bool diagnosticsToolsEnabled)
         {
+            ConfigureMcpTools(mcpServerBuilder, McpToolProfile.Full, diagnosticsToolsEnabled);
+        }
+
+        /// <summary>
+        /// Registers the MCP tool types selected by <paramref name="toolProfile"/>.
+        /// </summary>
+        public static void ConfigureMcpTools(
+            IMcpServerBuilder mcpServerBuilder,
+            McpToolProfile toolProfile,
+            bool diagnosticsToolsEnabled)
+        {
             ArgumentNullException.ThrowIfNull(mcpServerBuilder);
 
+            mcpServerBuilder.WithRequestFilters(filters =>
+            {
+                filters.AddCallToolFilter(McpRequestFilters.ValidateRequiredArguments);
+                filters.AddListToolsFilter(McpSchemaFilters.AddExplicitRequiredArrays);
+            });
+
+            switch (toolProfile)
+            {
+                case McpToolProfile.Core:
+                    ConfigureCoreTools(mcpServerBuilder);
+                    break;
+                case McpToolProfile.Services:
+                    ConfigureServiceTools(mcpServerBuilder);
+                    break;
+                case McpToolProfile.Administration:
+                    ConfigureAdministrationTools(mcpServerBuilder);
+                    break;
+                case McpToolProfile.PubSub:
+                    ConfigurePubSubTools(mcpServerBuilder, diagnosticsToolsEnabled);
+                    break;
+                case McpToolProfile.Diagnostics:
+                    ConfigureDiagnosticsTools(mcpServerBuilder, diagnosticsToolsEnabled);
+                    break;
+                case McpToolProfile.Full:
+                    ConfigureFullTools(mcpServerBuilder, diagnosticsToolsEnabled);
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(
+                        nameof(toolProfile),
+                        toolProfile,
+                        "Unknown MCP tool profile.");
+            }
+
+            mcpServerBuilder.WithResources<SessionResources>();
+        }
+
+        private static void ConfigureCoreTools(IMcpServerBuilder mcpServerBuilder)
+        {
+            mcpServerBuilder
+                .WithTools<ConfigurationReadTools>()
+                .WithTools<ConfigurationUpdateTools>()
+                .WithTools<ConnectionTools>()
+                .WithTools<ConvenienceTools>();
+        }
+
+        private static void ConfigureServiceTools(IMcpServerBuilder mcpServerBuilder)
+        {
+            mcpServerBuilder
+                .WithTools<AttributeServiceTools>()
+                .WithTools<ConfigurationReadTools>()
+                .WithTools<ConfigurationUpdateTools>()
+                .WithTools<ConnectionTools>()
+                .WithTools<ConvenienceTools>()
+                .WithTools<DiscoveryServiceTools>()
+                .WithTools<MethodServiceTools>()
+                .WithTools<MonitoredItemServiceTools>()
+                .WithTools<NodeManagementServiceTools>()
+                .WithTools<SubscriptionServiceTools>()
+                .WithTools<ViewServiceTools>();
+        }
+
+        private static void ConfigureAdministrationTools(IMcpServerBuilder mcpServerBuilder)
+        {
+            mcpServerBuilder
+                .WithTools<ConfigurationReadTools>()
+                .WithTools<ConfigurationUpdateTools>()
+                .WithTools<ConnectionTools>()
+                .WithTools<NodeSetExportTools>()
+                .WithTools<PkiTools>();
+        }
+
+        private static void ConfigurePubSubTools(
+            IMcpServerBuilder mcpServerBuilder,
+            bool diagnosticsToolsEnabled)
+        {
+            mcpServerBuilder
+                .WithTools<PubSubActionTools>()
+                .WithTools<PubSubCaptureTools>()
+                .WithTools<PubSubDiscoveryTools>()
+                .WithTools<PubSubRuntimeTools>();
+
+            if (diagnosticsToolsEnabled)
+            {
+                mcpServerBuilder.WithTools<PubSubDecodeTools>();
+            }
+        }
+
+        private static void ConfigureDiagnosticsTools(
+            IMcpServerBuilder mcpServerBuilder,
+            bool diagnosticsToolsEnabled)
+        {
+            mcpServerBuilder
+                .WithTools<ConnectionTools>()
+                .WithTools<PacketCaptureTools>();
+
+            if (diagnosticsToolsEnabled)
+            {
+                mcpServerBuilder
+                    .WithTools<PacketDecodeTools>()
+                    .WithTools<PacketReplayTools>();
+            }
+        }
+
+        private static void ConfigureFullTools(
+            IMcpServerBuilder mcpServerBuilder,
+            bool diagnosticsToolsEnabled)
+        {
             mcpServerBuilder
                 .WithTools<AttributeServiceTools>()
                 .WithTools<ConfigurationTools>()
+                .WithTools<ConfigurationUpdateTools>()
                 .WithTools<ConnectionTools>()
                 .WithTools<ConvenienceTools>()
                 .WithTools<DiscoveryServiceTools>()
@@ -145,8 +311,8 @@ namespace Opc.Ua.Mcp
                 .WithTools<NodeSetExportTools>()
                 .WithTools<PacketCaptureTools>()
                 .WithTools<PkiTools>()
-                .WithTools<PubSubCaptureTools>()
                 .WithTools<PubSubActionTools>()
+                .WithTools<PubSubCaptureTools>()
                 .WithTools<PubSubDiscoveryTools>()
                 .WithTools<PubSubRuntimeTools>()
                 .WithTools<SubscriptionServiceTools>()
@@ -159,8 +325,6 @@ namespace Opc.Ua.Mcp
                     .WithTools<PacketReplayTools>()
                     .WithTools<PubSubDecodeTools>();
             }
-
-            mcpServerBuilder.WithResources<SessionResources>();
         }
 
         /// <summary>
@@ -205,8 +369,11 @@ namespace Opc.Ua.Mcp
 
     internal static partial class ProgramLog
     {
-        [LoggerMessage(EventId = McpServerEventIds.Program + 0, Level = LogLevel.Warning,
-            Message = "OPC UA Pcap diagnostics MCP tools (dump_keys, decode_pcap_with_keys, replay_pcap) are ENABLED. " +
+        [LoggerMessage(
+            EventId = McpServerEventIds.Program + 0,
+            Level = LogLevel.Warning,
+            Message =
+                "OPC UA Pcap diagnostics MCP tools (dump_keys, decode_pcap_with_keys, replay_pcap) are ENABLED. " +
                 "These tools disclose symmetric channel keys and can be used to replay captured traffic. " +
                 "Ensure the MCP transport is authenticated and audited.")]
         public static partial void PcapDiagnosticsToolsEnabled(this ILogger logger);

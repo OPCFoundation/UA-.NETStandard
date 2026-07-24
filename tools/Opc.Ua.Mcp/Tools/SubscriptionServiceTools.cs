@@ -48,7 +48,10 @@ namespace Opc.Ua.Mcp.Tools
         /// Create a subscription.
         /// </summary>
         [McpServerTool(Name = "CreateSubscription")]
-        [Description("Create a subscription for receiving data change and event notifications.")]
+        [Description("Create a subscription for receiving data change and event notifications. Returns JSON with " +
+            "responseHeader, subscriptionId (needed by CreateMonitoredItems/Publish/etc.), and the revised " +
+            "publishing interval/lifetime count/max keep-alive count; on failure returns {error:true, statusCode, " +
+            "message}.")]
         public static async Task<string> CreateSubscriptionAsync(
             OpcUaSessionManager sessionManager,
             [Description("Requested publishing interval in milliseconds (default: 1000)")] double publishingInterval = 1000,
@@ -98,7 +101,9 @@ namespace Opc.Ua.Mcp.Tools
         /// Modify an existing subscription.
         /// </summary>
         [McpServerTool(Name = "ModifySubscription")]
-        [Description("Modify parameters of an existing subscription.")]
+        [Description("Modify parameters of an existing subscription. Returns JSON with responseHeader and the " +
+            "revised publishing interval/lifetime count/max keep-alive count; on failure returns {error:true, " +
+            "statusCode, message}.")]
         public static async Task<string> ModifySubscriptionAsync(
             OpcUaSessionManager sessionManager,
             [Description("Subscription ID to modify")] uint subscriptionId,
@@ -147,10 +152,12 @@ namespace Opc.Ua.Mcp.Tools
         /// Set the publishing mode for one or more subscriptions.
         /// </summary>
         [McpServerTool(Name = "SetPublishingMode")]
-        [Description("Enable or disable publishing for one or more subscriptions.")]
+        [Description("Enable or disable publishing for one or more subscriptions. Returns JSON with " +
+            "responseHeader and results (array of per-subscription status codes); on failure returns " +
+            "{error:true, statusCode, message}.")]
         public static async Task<string> SetPublishingModeAsync(
             OpcUaSessionManager sessionManager,
-            [Description("Array of subscription IDs")] uint[] subscriptionIds,
+            [Description("Array of subscription IDs, e.g. [1, 2]")] uint[] subscriptionIds,
             [Description("Whether to enable publishing (true) or disable it (false)")] bool publishingEnabled,
             [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
@@ -186,7 +193,9 @@ namespace Opc.Ua.Mcp.Tools
         /// Send a publish request to get notifications.
         /// </summary>
         [McpServerTool(Name = "Publish")]
-        [Description("Send a publish request to collect queued notification messages from subscriptions.")]
+        [Description("Send a publish request to collect queued notification messages from subscriptions. Returns " +
+            "JSON with responseHeader, subscriptionId, moreNotifications, notificationMessage summary, and " +
+            "availableSequenceNumbers; on failure returns {error:true, statusCode, message}.")]
         public static async Task<string> PublishAsync(
             OpcUaSessionManager sessionManager,
             [Description(
@@ -246,7 +255,9 @@ namespace Opc.Ua.Mcp.Tools
         /// Republish a notification message.
         /// </summary>
         [McpServerTool(Name = "Republish")]
-        [Description("Request the server to republish a previously sent notification message.")]
+        [Description("Request the server to republish a previously sent notification message (e.g. after a gap in " +
+            "Publish sequence numbers). Returns JSON with responseHeader and the notificationMessage summary; on " +
+            "failure returns {error:true, statusCode, message}.")]
         public static async Task<string> RepublishAsync(
             OpcUaSessionManager sessionManager,
             [Description("Subscription ID")] uint subscriptionId,
@@ -291,10 +302,12 @@ namespace Opc.Ua.Mcp.Tools
         /// Delete subscriptions.
         /// </summary>
         [McpServerTool(Name = "DeleteSubscriptions")]
-        [Description("Delete one or more subscriptions.")]
+        [Description("Delete one or more subscriptions and their monitored items. Returns JSON with " +
+            "responseHeader and results (array of per-subscription status codes); on failure returns " +
+            "{error:true, statusCode, message}.")]
         public static async Task<string> DeleteSubscriptionsAsync(
             OpcUaSessionManager sessionManager,
-            [Description("Array of subscription IDs to delete")] uint[] subscriptionIds,
+            [Description("Array of subscription IDs to delete, e.g. [1, 2]")] uint[] subscriptionIds,
             [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
@@ -328,10 +341,12 @@ namespace Opc.Ua.Mcp.Tools
         /// Transfer subscriptions from another session.
         /// </summary>
         [McpServerTool(Name = "TransferSubscriptions")]
-        [Description("Transfer subscriptions from another session to the current session.")]
+        [Description("Transfer subscriptions from another session to the current session (e.g. after reconnecting " +
+            "with a new session). Returns JSON with responseHeader and results (array with statusCode and " +
+            "availableSequenceNumbers per subscription); on failure returns {error:true, statusCode, message}.")]
         public static async Task<string> TransferSubscriptionsAsync(
             OpcUaSessionManager sessionManager,
-            [Description("Array of subscription IDs to transfer")] uint[] subscriptionIds,
+            [Description("Array of subscription IDs to transfer, e.g. [1, 2]")] uint[] subscriptionIds,
             [Description("Whether to send initial data change notifications (default: true)")] bool sendInitialValues = true,
             [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)

@@ -126,7 +126,10 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 SessionManager.Dispose();
             }
 
-            Services?.Dispose();
+            if (Services != null)
+            {
+                await Services.DisposeAsync().ConfigureAwait(false);
+            }
 
             if (ServerFixture != null)
             {

@@ -14,13 +14,17 @@ dotnet tool install --global OPCFoundation.NetStandard.Opc.Ua.Mcp
 # stdio transport (default) — for Claude Desktop, VS Code, Copilot
 opcua-mcp
 
-# HTTP/SSE transport — for remote clients
-opcua-mcp --transport sse --port 5100
+# Streamable HTTP transport (exposed only at /mcp) — for remote clients
+opcua-mcp --transport http --port 5100
+
+# --transport sse is a deprecated alias for --transport http
 ```
 
 ## Tools
 
-43 MCP tools covering all OPC UA Part 4 service sets:
+The server exposes tools through a **tool profile** — a bounded, named catalog selected with `--profile core|services|administration|pubsub|diagnostics|full`. `full` is the default and currently registers every tool listed below; `core` and the other profiles expose a smaller, focused subset. See the [full documentation](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/McpServer.md#tool-profiles) for the profile-to-tool mapping.
+
+Tools in the `full` profile cover all OPC UA Part 4 service sets:
 
 - **Connection**: Connect, Disconnect, GetConnectionStatus
 - **Attribute**: Read, Write, HistoryRead, HistoryUpdate

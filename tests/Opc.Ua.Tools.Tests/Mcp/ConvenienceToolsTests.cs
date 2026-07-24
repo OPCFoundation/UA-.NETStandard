@@ -64,8 +64,10 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [Test]
         public async Task ReadValuesAsyncWithCurrentTimeAndStateNodesReturnsArrayJsonAsync()
         {
-            string currentTimeNodeId = VariableIds.Server_ServerStatus_CurrentTime.ToString(null, CultureInfo.InvariantCulture);
-            string stateNodeId = VariableIds.Server_ServerStatus_State.ToString(null, CultureInfo.InvariantCulture);
+            string currentTimeNodeId = VariableIds.Server_ServerStatus_CurrentTime
+                .ToString(null, CultureInfo.InvariantCulture);
+            string stateNodeId = VariableIds.Server_ServerStatus_State
+                .ToString(null, CultureInfo.InvariantCulture);
             string[] nodeIds = [currentTimeNodeId, stateNodeId];
 
             string json = await ConvenienceTools.ReadValuesAsync(
@@ -136,7 +138,9 @@ namespace Opc.Ua.Tools.Tests.Mcp
             Assert.That(GetRequiredProperty(root, "startingNode").GetString(), Is.EqualTo(objectsFolderNodeId));
             Assert.That(GetRequiredProperty(root, "totalReferences").GetInt32(), Is.GreaterThan(0));
             Assert.That(references.ValueKind, Is.EqualTo(JsonValueKind.Array));
-            Assert.That(references.GetArrayLength(), Is.EqualTo(GetRequiredProperty(root, "totalReferences").GetInt32()));
+            Assert.That(
+                references.GetArrayLength(),
+                Is.EqualTo(GetRequiredProperty(root, "totalReferences").GetInt32()));
             Assert.That(
                 references.EnumerateArray().Any(reference =>
                     GetRequiredProperty(reference, "nodeId").GetString() == serverNodeId),
@@ -176,6 +180,94 @@ namespace Opc.Ua.Tools.Tests.Mcp
             Assert.That(GetRequiredProperty(root, "objectId").GetString(), Is.EqualTo(objectId));
             Assert.That(GetRequiredProperty(root, "methodId").GetString(), Is.EqualTo(methodId));
             Assert.That(GetRequiredProperty(root, "outputArguments").ValueKind, Is.EqualTo(JsonValueKind.Array));
+        }
+
+        [Test]
+        public async Task ReadNodeAsyncReturnsVariableAttributesAsync()
+        {
+            string nodeId = VariableIds.Server_ServerStatus_CurrentTime
+                .ToString(null, CultureInfo.InvariantCulture);
+
+            string json = await ConvenienceTools.ReadNodeAsync(
+                McpTestEnvironment.SessionManager,
+                nodeId,
+                McpTestEnvironment.SessionName).ConfigureAwait(false);
+
+            using JsonDocument document = JsonDocument.Parse(json);
+            JsonElement root = document.RootElement;
+
+            Assert.That(GetRequiredProperty(root, "nodeClass").GetString(), Is.EqualTo("Variable"));
+            Assert.That(GetRequiredProperty(root, "dataType").GetString(), Is.Not.Empty);
+            Assert.That(GetRequiredProperty(root, "valueRank").ValueKind, Is.EqualTo(JsonValueKind.Number));
+            Assert.That(GetRequiredProperty(root, "historizing").GetBoolean(), Is.False);
+        }
+
+        [Test]
+        public async Task ReadNodeAsyncReturnsObjectAttributesAsync()
+        {
+            string nodeId = ObjectIds.Server.ToString(null, CultureInfo.InvariantCulture);
+
+            string json = await ConvenienceTools.ReadNodeAsync(
+                McpTestEnvironment.SessionManager,
+                nodeId,
+                McpTestEnvironment.SessionName).ConfigureAwait(false);
+
+            using JsonDocument document = JsonDocument.Parse(json);
+            JsonElement root = document.RootElement;
+
+            Assert.That(GetRequiredProperty(root, "nodeClass").GetString(), Is.EqualTo("Object"));
+            Assert.That(
+                GetRequiredProperty(root, "eventNotifier").ValueKind,
+                Is.EqualTo(JsonValueKind.Number));
+        }
+
+        [Test]
+        public async Task ReadNodeAsyncReturnsMethodAttributesAsync()
+        {
+            string nodeId = MethodIds.Server_GetMonitoredItems
+                .ToString(null, CultureInfo.InvariantCulture);
+
+            string json = await ConvenienceTools.ReadNodeAsync(
+                McpTestEnvironment.SessionManager,
+                nodeId,
+                McpTestEnvironment.SessionName).ConfigureAwait(false);
+
+            using JsonDocument document = JsonDocument.Parse(json);
+            JsonElement root = document.RootElement;
+
+            Assert.That(GetRequiredProperty(root, "nodeClass").GetString(), Is.EqualTo("Method"));
+            Assert.That(
+                GetRequiredProperty(root, "executable").ValueKind,
+                Is.EqualTo(JsonValueKind.True).Or.EqualTo(JsonValueKind.False));
+            Assert.That(
+                GetRequiredProperty(root, "userExecutable").ValueKind,
+                Is.EqualTo(JsonValueKind.True).Or.EqualTo(JsonValueKind.False));
+        }
+
+        [Test]
+        public async Task CancelAsyncReturnsCharacterizedJsonAsync()
+        {
+            string json = await ConvenienceTools.CancelAsync(
+                McpTestEnvironment.SessionManager,
+                0,
+                McpTestEnvironment.SessionName).ConfigureAwait(false);
+
+            using JsonDocument document = JsonDocument.Parse(json);
+            JsonElement root = document.RootElement;
+
+            if (root.TryGetProperty("error", out JsonElement error))
+            {
+                Assert.That(error.GetBoolean(), Is.True);
+                AssertCharacterizedErrorPayload(root);
+                return;
+            }
+
+            Assert.That(
+                GetRequiredProperty(root, "responseHeader").ValueKind,
+                Is.EqualTo(JsonValueKind.Object));
+            Assert.That(
+                GetRequiredProperty(root, "cancelCount").GetUInt32(),
+                Is.GreaterThanOrEqualTo(0));
         }
 
         private static void AssertCharacterizedErrorPayload(JsonElement root)

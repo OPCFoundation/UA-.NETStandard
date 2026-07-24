@@ -49,7 +49,11 @@ namespace Opc.Ua.Mcp.Tools
         /// Requests DataSetMetaData discovery from PubSub publishers.
         /// </summary>
         [McpServerTool(Name = "pubsub_discover_metadata")]
-        [Description("Send a PubSub DataSetMetaData discovery request and collect publisher responses.")]
+        [Description("Send a PubSub DataSetMetaData discovery request to learn the field-level schema (names, " +
+            "count) of one or more DataSetWriters. Use pubsub_discover_writer_config instead to learn which " +
+            "writer group/DataSetWriterIds a publisher exposes, or pubsub_discover_publisher_endpoints to learn " +
+            "transport endpoint URLs. Returns a PubSubDiscoverySummary with metaData populated (writer ids, " +
+            "dataset name, field count); the other two arrays are empty.")]
         public static async Task<PubSubDiscoverySummary> DiscoverMetaDataAsync(
             PubSubRuntimeManager manager,
             [Description("DataSetWriterIds to query; empty queries all.")] ushort[]? dataSetWriterIds = null,
@@ -66,7 +70,11 @@ namespace Opc.Ua.Mcp.Tools
         /// Requests DataSetWriterConfiguration discovery from PubSub publishers.
         /// </summary>
         [McpServerTool(Name = "pubsub_discover_writer_config")]
-        [Description("Send a PubSub DataSetWriterConfiguration discovery request and collect publisher responses.")]
+        [Description("Send a PubSub DataSetWriterConfiguration discovery request to learn which WriterGroupId and " +
+            "DataSetWriterIds a publisher currently exposes. Use pubsub_discover_metadata instead to learn the " +
+            "field-level schema of a DataSetWriter, or pubsub_discover_publisher_endpoints to learn transport " +
+            "endpoint URLs. Returns a PubSubDiscoverySummary with writerConfigurations populated (publisherId, " +
+            "writerGroupId, dataSetWriterIds); the other two arrays are empty.")]
         public static async Task<PubSubDiscoverySummary> DiscoverWriterConfigurationAsync(
             PubSubRuntimeManager manager,
             [Description("DataSetWriterIds to query; empty queries all.")] ushort[]? dataSetWriterIds = null,
@@ -83,7 +91,10 @@ namespace Opc.Ua.Mcp.Tools
         /// Requests PublisherEndpoints discovery from PubSub publishers.
         /// </summary>
         [McpServerTool(Name = "pubsub_discover_publisher_endpoints")]
-        [Description("Send a PubSub PublisherEndpoints discovery request and collect publisher responses.")]
+        [Description("Send a PubSub PublisherEndpoints discovery request to learn the transport endpoint URLs a " +
+            "publisher listens on. Use pubsub_discover_metadata instead to learn a DataSetWriter's field-level " +
+            "schema, or pubsub_discover_writer_config to learn its WriterGroupId/DataSetWriterIds. Returns a " +
+            "PubSubDiscoverySummary with publisherEndpointUrls populated; the other two arrays are empty.")]
         public static async Task<PubSubDiscoverySummary> DiscoverPublisherEndpointsAsync(
             PubSubRuntimeManager manager,
             [Description("Collection window in milliseconds.")] int timeoutMs = 2000,
@@ -112,7 +123,7 @@ namespace Opc.Ua.Mcp.Tools
             return await manager.RequestDiscoveryAsync(request, timeout, ct).ConfigureAwait(false);
         }
 
-        private static PubSubDiscoverySummary Summarize(PubSubDiscoveryResult result)
+        internal static PubSubDiscoverySummary Summarize(PubSubDiscoveryResult result)
         {
             var metaData = new PubSubDiscoveredMetaData[result.DataSetMetaDataEntries.Count];
             for (int i = 0; i < result.DataSetMetaDataEntries.Count; i++)

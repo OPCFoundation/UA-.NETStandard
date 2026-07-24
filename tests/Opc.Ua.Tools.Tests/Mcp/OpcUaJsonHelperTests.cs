@@ -29,6 +29,7 @@
 
 #if NET10_0
 using System;
+using System.Globalization;
 using System.Text.Json;
 using NUnit.Framework;
 using Opc.Ua.Mcp.Serialization;
@@ -125,8 +126,12 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 OpcUaJsonHelper.DataValueToDict(dataValue);
 
             Assert.That(dict["value"], Is.EqualTo(42));
-            Assert.That(dict["sourceTimestamp"], Is.EqualTo(timestamp.ToString("o", System.Globalization.CultureInfo.InvariantCulture)));
-            Assert.That(dict["serverTimestamp"], Is.EqualTo(timestamp.ToString("o", System.Globalization.CultureInfo.InvariantCulture)));
+            Assert.That(
+                dict["sourceTimestamp"],
+                Is.EqualTo(timestamp.ToString("o", CultureInfo.InvariantCulture)));
+            Assert.That(
+                dict["serverTimestamp"],
+                Is.EqualTo(timestamp.ToString("o", CultureInfo.InvariantCulture)));
         }
 
         [Test]
@@ -214,6 +219,40 @@ namespace Opc.Ua.Tools.Tests.Mcp
             object? result = OpcUaJsonHelper.VariantToObject(new Variant(StatusCodes.BadNotFound));
 
             Assert.That(result, Is.EqualTo("BadNotFound"));
+        }
+
+        [Test]
+        public void VariantToObjectConvertsAdditionalScalarTypes()
+        {
+            var uuid = new Uuid(Guid.NewGuid());
+            var expandedNodeId = new ExpandedNodeId(new NodeId(42, 2));
+            var qualifiedName = new QualifiedName("Name", 2);
+            var extensionObject = new ExtensionObject(new ReadRawModifiedDetails());
+
+            Assert.That(
+                OpcUaJsonHelper.VariantToObject(new Variant(1.25f)),
+                Is.EqualTo(1.25f));
+            Assert.That(
+                OpcUaJsonHelper.VariantToObject(new Variant(2.5d)),
+                Is.EqualTo(2.5d));
+            Assert.That(
+                OpcUaJsonHelper.VariantToObject(new Variant("text")),
+                Is.EqualTo("text"));
+            Assert.That(
+                OpcUaJsonHelper.VariantToObject(new Variant(uuid)),
+                Is.EqualTo(uuid.ToString()));
+            Assert.That(
+                OpcUaJsonHelper.VariantToObject(new Variant(expandedNodeId)),
+                Is.EqualTo(expandedNodeId.ToString()));
+            Assert.That(
+                OpcUaJsonHelper.VariantToObject(new Variant(qualifiedName)),
+                Is.EqualTo(qualifiedName.ToString()));
+
+            object? extensionResult = OpcUaJsonHelper.VariantToObject(
+                new Variant(extensionObject));
+            Assert.That(
+                extensionResult,
+                Is.InstanceOf<System.Collections.Generic.Dictionary<string, object?>>());
         }
 
         [Test]
@@ -381,6 +420,39 @@ namespace Opc.Ua.Tools.Tests.Mcp
         }
 
         [Test]
+        public void JsonElementToVariantParsesAllTypedNumericValues()
+        {
+            Variant uint32Variant = ParseVariant("42", "UInt32");
+            Variant int16Variant = ParseVariant("-12", "Int16");
+            Variant uint16Variant = ParseVariant("12", "UInt16");
+            Variant int64Variant = ParseVariant("-5000000000", "Int64");
+            Variant uint64Variant = ParseVariant("5000000000", "UInt64");
+            Variant floatVariant = ParseVariant("1.25", "Float");
+            Variant byteVariant = ParseVariant("200", "Byte");
+            Variant sbyteVariant = ParseVariant("-100", "SByte");
+            Variant falseVariant = ParseVariant("false");
+
+            Assert.That(uint32Variant.TryGetValue(out uint uint32Value), Is.True);
+            Assert.That(uint32Value, Is.EqualTo(42));
+            Assert.That(int16Variant.TryGetValue(out short int16Value), Is.True);
+            Assert.That(int16Value, Is.EqualTo(-12));
+            Assert.That(uint16Variant.TryGetValue(out ushort uint16Value), Is.True);
+            Assert.That(uint16Value, Is.EqualTo(12));
+            Assert.That(int64Variant.TryGetValue(out long int64Value), Is.True);
+            Assert.That(int64Value, Is.EqualTo(-5000000000));
+            Assert.That(uint64Variant.TryGetValue(out ulong uint64Value), Is.True);
+            Assert.That(uint64Value, Is.EqualTo(5000000000));
+            Assert.That(floatVariant.TryGetValue(out float floatValue), Is.True);
+            Assert.That(floatValue, Is.EqualTo(1.25f));
+            Assert.That(byteVariant.TryGetValue(out byte byteValue), Is.True);
+            Assert.That(byteValue, Is.EqualTo(200));
+            Assert.That(sbyteVariant.TryGetValue(out sbyte sbyteValue), Is.True);
+            Assert.That(sbyteValue, Is.EqualTo(-100));
+            Assert.That(falseVariant.TryGetValue(out bool falseValue), Is.True);
+            Assert.That(falseValue, Is.False);
+        }
+
+        [Test]
         public void JsonElementToVariantParsesUntypedNumberAsInt32()
         {
             using JsonDocument doc = JsonDocument.Parse("7");
@@ -393,7 +465,8 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [Test]
         public void JsonElementToVariantParsesLargeNumberAsInt64()
         {
-            using JsonDocument doc = JsonDocument.Parse(long.MaxValue.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            using JsonDocument doc = JsonDocument.Parse(
+                long.MaxValue.ToString(CultureInfo.InvariantCulture));
 
             Variant variant = OpcUaJsonHelper.JsonElementToVariant(doc.RootElement);
 
@@ -417,7 +490,11 @@ namespace Opc.Ua.Tools.Tests.Mcp
 
             Variant variant = OpcUaJsonHelper.JsonElementToVariant(doc.RootElement, "DateTime");
 
-            Assert.That(variant.AsBoxedObject(), Is.EqualTo(DateTime.Parse("2024-01-01T00:00:00Z", System.Globalization.CultureInfo.InvariantCulture)));
+            Assert.That(variant.TryGetValue(out DateTimeUtc value), Is.True);
+            Assert.That(
+                value,
+                Is.EqualTo(new DateTimeUtc(
+                    new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc))));
         }
 
         [Test]
@@ -466,9 +543,37 @@ namespace Opc.Ua.Tools.Tests.Mcp
 
         [TestCase("DisplayName", ExpectedResult = (uint)Attributes.DisplayName)]
         [TestCase("displayname", ExpectedResult = (uint)Attributes.DisplayName)]
+        [TestCase("NodeId", ExpectedResult = (uint)Attributes.NodeId)]
         [TestCase("BrowseName", ExpectedResult = (uint)Attributes.BrowseName)]
         [TestCase("NodeClass", ExpectedResult = (uint)Attributes.NodeClass)]
+        [TestCase("Description", ExpectedResult = (uint)Attributes.Description)]
+        [TestCase("WriteMask", ExpectedResult = (uint)Attributes.WriteMask)]
+        [TestCase("UserWriteMask", ExpectedResult = (uint)Attributes.UserWriteMask)]
+        [TestCase("IsAbstract", ExpectedResult = (uint)Attributes.IsAbstract)]
+        [TestCase("Symmetric", ExpectedResult = (uint)Attributes.Symmetric)]
+        [TestCase("InverseName", ExpectedResult = (uint)Attributes.InverseName)]
+        [TestCase("ContainsNoLoops", ExpectedResult = (uint)Attributes.ContainsNoLoops)]
+        [TestCase("EventNotifier", ExpectedResult = (uint)Attributes.EventNotifier)]
+        [TestCase("Value", ExpectedResult = (uint)Attributes.Value)]
         [TestCase("DataType", ExpectedResult = (uint)Attributes.DataType)]
+        [TestCase("ValueRank", ExpectedResult = (uint)Attributes.ValueRank)]
+        [TestCase("ArrayDimensions", ExpectedResult = (uint)Attributes.ArrayDimensions)]
+        [TestCase("AccessLevel", ExpectedResult = (uint)Attributes.AccessLevel)]
+        [TestCase("UserAccessLevel", ExpectedResult = (uint)Attributes.UserAccessLevel)]
+        [TestCase(
+            "MinimumSamplingInterval",
+            ExpectedResult = (uint)Attributes.MinimumSamplingInterval)]
+        [TestCase("Historizing", ExpectedResult = (uint)Attributes.Historizing)]
+        [TestCase("Executable", ExpectedResult = (uint)Attributes.Executable)]
+        [TestCase("UserExecutable", ExpectedResult = (uint)Attributes.UserExecutable)]
+        [TestCase(
+            "DataTypeDefinition",
+            ExpectedResult = (uint)Attributes.DataTypeDefinition)]
+        [TestCase("RolePermissions", ExpectedResult = (uint)Attributes.RolePermissions)]
+        [TestCase(
+            "UserRolePermissions",
+            ExpectedResult = (uint)Attributes.UserRolePermissions)]
+        [TestCase("AccessRestrictions", ExpectedResult = (uint)Attributes.AccessRestrictions)]
         [TestCase("AccessLevelEx", ExpectedResult = (uint)Attributes.AccessLevelEx)]
         public uint ParseAttributeIdAcceptsKnownNames(string name)
         {
@@ -481,6 +586,14 @@ namespace Opc.Ua.Tools.Tests.Mcp
             Assert.That(
                 () => OpcUaJsonHelper.ParseAttributeId("NotARealAttribute"),
                 Throws.TypeOf<ArgumentException>());
+        }
+
+        private static Variant ParseVariant(string json, string? dataType = null)
+        {
+            using JsonDocument document = JsonDocument.Parse(json);
+            return OpcUaJsonHelper.JsonElementToVariant(
+                document.RootElement,
+                dataType);
         }
     }
 }

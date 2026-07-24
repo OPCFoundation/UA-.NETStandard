@@ -59,6 +59,23 @@ namespace Opc.Ua.Tools.Tests.Mcp
         }
 
         [Test]
+        public async Task GetEndpointsAsyncWithInvalidUrlReturnsUnexpectedErrorJsonAsync()
+        {
+            string json = await ConnectionTools.GetEndpointsAsync(
+                McpTestEnvironment.SessionManager,
+                "not-a-valid-uri").ConfigureAwait(false);
+
+            using JsonDocument document = JsonDocument.Parse(json);
+            JsonElement root = document.RootElement;
+
+            Assert.That(root.GetProperty("error").GetBoolean(), Is.True);
+            Assert.That(
+                root.GetProperty("statusCode").GetString(),
+                Is.EqualTo("BadUnexpectedError"));
+            Assert.That(root.GetProperty("message").GetString(), Is.Not.Empty);
+        }
+
+        [Test]
         public async Task ConnectAsyncWithValidEndpointReturnsSessionInfoAsync()
         {
             try
@@ -83,6 +100,24 @@ namespace Opc.Ua.Tools.Tests.Mcp
             {
                 await DisconnectIfPresentAsync(kConnectSessionName).ConfigureAwait(false);
             }
+        }
+
+        [Test]
+        public async Task ConnectAsyncWithInvalidUrlReturnsExceptionDetailsAsync()
+        {
+            string json = await ConnectionTools.ConnectAsync(
+                McpTestEnvironment.SessionManager,
+                "not-a-valid-uri",
+                name: "invalid-uri").ConfigureAwait(false);
+
+            using JsonDocument document = JsonDocument.Parse(json);
+            JsonElement root = document.RootElement;
+
+            Assert.That(root.GetProperty("error").GetBoolean(), Is.True);
+            Assert.That(
+                root.GetProperty("statusCode").GetString(),
+                Is.EqualTo("BadUnexpectedError"));
+            Assert.That(root.GetProperty("exceptionType").GetString(), Is.Not.Empty);
         }
 
         [Test]

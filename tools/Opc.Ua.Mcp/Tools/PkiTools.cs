@@ -91,7 +91,10 @@ namespace Opc.Ua.Mcp.Tools
         /// </summary>
         [McpServerTool(Name = "TrustCertificate")]
         [Description(
-            "Trust a previously rejected certificate by moving it from the Rejected store to the Trusted peer store. Use ListCertificates with store='Rejected' to find the thumbprint.")]
+            "Trust a previously rejected certificate by moving it from the Rejected store to the Trusted peer " +
+            "store. Use ListCertificates with store='Rejected' to find the thumbprint. Returns JSON with " +
+            "success:true, a confirmation message, and the moved certificate's details; on failure returns " +
+            "{error:true, message} (e.g. thumbprint not found in Rejected store).")]
         public static async Task<string> TrustCertificateAsync(
             OpcUaSessionManager sessionManager,
             [Description("Thumbprint (SHA-1 hex) of the certificate to trust")] string thumbprint,
@@ -162,7 +165,9 @@ namespace Opc.Ua.Mcp.Tools
         /// Remove a certificate from a trust store.
         /// </summary>
         [McpServerTool(Name = "RemoveCertificate")]
-        [Description("Remove a certificate from a PKI store by thumbprint. Can be used to untrust a certificate or clear a rejected certificate.")]
+        [Description("Remove a certificate from a PKI store by thumbprint. Can be used to untrust a certificate " +
+            "or clear a rejected certificate. Returns JSON with success (bool) and a confirmation message stating " +
+            "whether the certificate was found and removed; on unexpected failure returns {error:true, message}.")]
         public static async Task<string> RemoveCertificateAsync(
             OpcUaSessionManager sessionManager,
             [Description("Thumbprint (SHA-1 hex) of the certificate to remove")] string thumbprint,
@@ -202,7 +207,10 @@ namespace Opc.Ua.Mcp.Tools
         /// </summary>
         [McpServerTool(Name = "GetPkiStorePaths")]
         [Description(
-            "Get the file system paths for all PKI certificate stores (Trusted, Issuer, Rejected, Own). Useful for understanding where certificates are stored.")]
+            "Get the file system paths for all PKI certificate stores (Trusted, Issuer, Rejected, Own). Useful " +
+            "for understanding where certificates are stored. Returns JSON with per-store storeType/storePath, " +
+            "the application certificates list, and security settings (autoAcceptUntrustedCertificates, " +
+            "rejectSHA1SignedCertificates, minimumCertificateKeySize); on failure returns {error:true, message}.")]
         public static async Task<string> GetPkiStorePathsAsync(
             OpcUaSessionManager sessionManager,
             CancellationToken ct = default)
