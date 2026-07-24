@@ -41,7 +41,9 @@ namespace Opc.Ua.OpenUsd.Client.Tests
     {
         private static OpenUsdConnector.BindingInfo Binding(
             OpenUsdRenderTargetKind kind, double scale = 1.0, double offset = 0.0)
-            => new() { Kind = kind, Scale = scale, Offset = offset };
+        {
+            return new() { Kind = kind, Scale = scale, Offset = offset };
+        }
 
         [TestCase(OpenUsdRenderTargetKind.Translation)]
         [TestCase(OpenUsdRenderTargetKind.Rotation)]
@@ -124,6 +126,118 @@ namespace Opc.Ua.OpenUsd.Client.Tests
             Variant result = OpenUsdConnector.Convert(b, default);
 
             Assert.That(result.IsNull, Is.True);
+        }
+
+        [Test]
+        public void ThreeDCartesianCoordinatesTranslationReturnsDoubleArray()
+        {
+            OpenUsdConnector.BindingInfo b = Binding(OpenUsdRenderTargetKind.Translation);
+            var coordinates = new ThreeDCartesianCoordinates { X = 1.0, Y = 2.0, Z = 3.0 };
+
+            Variant result = OpenUsdConnector.Convert(b, new Variant(new ExtensionObject(coordinates)));
+
+            Assert.That(result.TryGetValue(out ArrayOf<double> vector), Is.True);
+            Assert.That(vector.Count, Is.EqualTo(3));
+            Assert.That(vector[0], Is.EqualTo(1.0).Within(1e-9));
+            Assert.That(vector[1], Is.EqualTo(2.0).Within(1e-9));
+            Assert.That(vector[2], Is.EqualTo(3.0).Within(1e-9));
+        }
+
+        [Test]
+        public void ThreeDCartesianCoordinatesTranslationAppliesScaleAndOffsetElementWise()
+        {
+            OpenUsdConnector.BindingInfo b = Binding(OpenUsdRenderTargetKind.Translation, scale: 2.0, offset: 1.0);
+            var coordinates = new ThreeDCartesianCoordinates { X = 1.0, Y = 2.0, Z = 3.0 };
+
+            Variant result = OpenUsdConnector.Convert(b, new Variant(new ExtensionObject(coordinates)));
+
+            Assert.That(result.TryGetValue(out ArrayOf<double> vector), Is.True);
+            Assert.That(vector[0], Is.EqualTo(3.0).Within(1e-9));
+            Assert.That(vector[1], Is.EqualTo(5.0).Within(1e-9));
+            Assert.That(vector[2], Is.EqualTo(7.0).Within(1e-9));
+        }
+
+        [Test]
+        public void ThreeDOrientationRotationReturnsDoubleArray()
+        {
+            OpenUsdConnector.BindingInfo b = Binding(OpenUsdRenderTargetKind.Rotation);
+            var orientation = new ThreeDOrientation { A = 0.1, B = 0.2, C = 0.3 };
+
+            Variant result = OpenUsdConnector.Convert(b, new Variant(new ExtensionObject(orientation)));
+
+            Assert.That(result.TryGetValue(out ArrayOf<double> vector), Is.True);
+            Assert.That(vector.Count, Is.EqualTo(3));
+            Assert.That(vector[0], Is.EqualTo(0.1).Within(1e-9));
+            Assert.That(vector[1], Is.EqualTo(0.2).Within(1e-9));
+            Assert.That(vector[2], Is.EqualTo(0.3).Within(1e-9));
+        }
+
+        [Test]
+        public void ThreeDOrientationRotationAppliesScaleAndOffsetElementWise()
+        {
+            OpenUsdConnector.BindingInfo b = Binding(OpenUsdRenderTargetKind.Rotation, scale: 10.0, offset: 1.0);
+            var orientation = new ThreeDOrientation { A = 1.0, B = 2.0, C = 3.0 };
+
+            Variant result = OpenUsdConnector.Convert(b, new Variant(new ExtensionObject(orientation)));
+
+            Assert.That(result.TryGetValue(out ArrayOf<double> vector), Is.True);
+            Assert.That(vector[0], Is.EqualTo(11.0).Within(1e-9));
+            Assert.That(vector[1], Is.EqualTo(21.0).Within(1e-9));
+            Assert.That(vector[2], Is.EqualTo(31.0).Within(1e-9));
+        }
+
+        [Test]
+        public void ThreeDFrameTranslationReturnsCartesianCoordinatesArray()
+        {
+            OpenUsdConnector.BindingInfo b = Binding(OpenUsdRenderTargetKind.Translation);
+            var frame = new ThreeDFrame
+            {
+                CartesianCoordinates = new ThreeDCartesianCoordinates { X = 4.0, Y = 5.0, Z = 6.0 },
+                Orientation = new ThreeDOrientation { A = 0.0, B = 0.0, C = 0.0 }
+            };
+
+            Variant result = OpenUsdConnector.Convert(b, new Variant(new ExtensionObject(frame)));
+
+            Assert.That(result.TryGetValue(out ArrayOf<double> vector), Is.True);
+            Assert.That(vector[0], Is.EqualTo(4.0).Within(1e-9));
+            Assert.That(vector[1], Is.EqualTo(5.0).Within(1e-9));
+            Assert.That(vector[2], Is.EqualTo(6.0).Within(1e-9));
+        }
+
+        [Test]
+        public void ThreeDFrameRotationReturnsOrientationArray()
+        {
+            OpenUsdConnector.BindingInfo b = Binding(OpenUsdRenderTargetKind.Rotation);
+            var frame = new ThreeDFrame
+            {
+                CartesianCoordinates = new ThreeDCartesianCoordinates { X = 0.0, Y = 0.0, Z = 0.0 },
+                Orientation = new ThreeDOrientation { A = 7.0, B = 8.0, C = 9.0 }
+            };
+
+            Variant result = OpenUsdConnector.Convert(b, new Variant(new ExtensionObject(frame)));
+
+            Assert.That(result.TryGetValue(out ArrayOf<double> vector), Is.True);
+            Assert.That(vector[0], Is.EqualTo(7.0).Within(1e-9));
+            Assert.That(vector[1], Is.EqualTo(8.0).Within(1e-9));
+            Assert.That(vector[2], Is.EqualTo(9.0).Within(1e-9));
+        }
+
+        [Test]
+        public void ThreeDFrameTranslationAppliesScaleAndOffsetElementWise()
+        {
+            OpenUsdConnector.BindingInfo b = Binding(OpenUsdRenderTargetKind.Translation, scale: 0.5, offset: -1.0);
+            var frame = new ThreeDFrame
+            {
+                CartesianCoordinates = new ThreeDCartesianCoordinates { X = 2.0, Y = 4.0, Z = 6.0 },
+                Orientation = new ThreeDOrientation { A = 0.0, B = 0.0, C = 0.0 }
+            };
+
+            Variant result = OpenUsdConnector.Convert(b, new Variant(new ExtensionObject(frame)));
+
+            Assert.That(result.TryGetValue(out ArrayOf<double> vector), Is.True);
+            Assert.That(vector[0], Is.Zero);
+            Assert.That(vector[1], Is.EqualTo(1.0).Within(1e-9));
+            Assert.That(vector[2], Is.EqualTo(2.0).Within(1e-9));
         }
     }
 }

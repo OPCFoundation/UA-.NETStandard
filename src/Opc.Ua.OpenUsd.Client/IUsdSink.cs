@@ -28,15 +28,16 @@
  * ======================================================================*/
 
 using System;
-using Opc.Ua;
 
 namespace Opc.Ua.OpenUsd.Client
 {
     /// <summary>
     /// USD-side sink the <see cref="OpenUsdConnector"/> writes into. Values cross the
     /// boundary as <see cref="Variant"/> (never <see cref="object"/>): a scalar
-    /// attribute is a <c>double</c>, a colour is a three-element <c>float</c> array
-    /// (<see cref="ArrayOf{T}"/>), and a token/visibility value is a <c>string</c>.
+    /// attribute is a <c>double</c>, a structured Translation/Rotation attribute is a
+    /// three-element <c>double</c> array, a colour is a three-element <c>float</c>
+    /// array (<see cref="ArrayOf{T}"/>), and a token/visibility value is a
+    /// <c>string</c>.
     /// </summary>
     public interface IUsdSink
     {

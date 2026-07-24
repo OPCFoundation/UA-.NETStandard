@@ -32,7 +32,6 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Opc.Ua;
 using Opc.Ua.Client;
 
 namespace Opc.Ua.OpenUsd.Client
@@ -57,7 +56,7 @@ namespace Opc.Ua.OpenUsd.Client
         private readonly NodeId m_componentTypeId;
         private readonly NodeId m_assetTypeId;
         private Subscription? m_subscription;
-        private readonly List<OpenUsdConnector> m_remoteConnectors = new();
+        private readonly List<OpenUsdConnector> m_remoteConnectors = [];
         private readonly bool m_ownsSession;
         private readonly OpenUsdConnectorOptions m_options;
         private readonly ITelemetryContext? m_telemetry;
@@ -93,9 +92,16 @@ namespace Opc.Ua.OpenUsd.Client
         {
         }
 
-        // ownsSession is set for connector-owned remote sessions (§5.14 cross-server
-        // federation): the connector opened this session via the remote-session factory
-        // and therefore closes it on DisposeAsync (unlike the caller-owned primary session).
+        /// <summary>
+        /// ownsSession is set for connector-owned remote sessions (§5.14 cross-server
+        /// federation): the connector opened this session via the remote-session factory
+        /// and therefore closes it on DisposeAsync (unlike the caller-owned primary session).
+        /// </summary>
+        /// <param name="session"></param>
+        /// <param name="sink"></param>
+        /// <param name="options"></param>
+        /// <param name="telemetry"></param>
+        /// <param name="ownsSession"></param>
         private OpenUsdConnector(ISession session, IUsdSink sink, OpenUsdConnectorOptions options,
             ITelemetryContext? telemetry, bool ownsSession)
         {
@@ -115,7 +121,7 @@ namespace Opc.Ua.OpenUsd.Client
                 { new NodeId(OpenUsdModel.ValueChangeBindingTypeId, m_ns), OpenUsdIntentProfile.UaToUsdTelemetry },
                 { new NodeId(OpenUsdModel.AlarmBindingTypeId, m_ns), OpenUsdIntentProfile.UaAlarmToUsd },
                 { new NodeId(OpenUsdModel.HistoryBindingTypeId, m_ns), OpenUsdIntentProfile.UaHistoryToUsd },
-                { new NodeId(OpenUsdModel.CommandBindingTypeId, m_ns), OpenUsdIntentProfile.UsdToUaCommand },
+                { new NodeId(OpenUsdModel.CommandBindingTypeId, m_ns), OpenUsdIntentProfile.UsdToUaCommand }
             };
             m_componentTypeId = new NodeId(OpenUsdModel.ComponentBindingTypeId, m_ns);
             m_assetTypeId = new NodeId(OpenUsdModel.AssetTypeId, m_ns);
@@ -163,14 +169,18 @@ namespace Opc.Ua.OpenUsd.Client
             public string? RootLayerIdentifier { get; set; }
             public ByteString RootLayerDigest { get; set; }
             public OpenUsdDigestAlgorithm DigestAlgorithm { get; set; } = OpenUsdDigestAlgorithm.None;
-            public List<BindingInfo> Bindings { get; } = new();
-            public List<ComponentInfo> Components { get; } = new();
+            public List<BindingInfo> Bindings { get; } = [];
+            public List<ComponentInfo> Components { get; } = [];
         }
 
-        // Part 1 discovery: the well-known OpenUSD facility exposes a
-        // Representations registry (Organizes) that lists every
-        // OpenUsdRepresentation in the address space, independent of the
-        // represented object's own hierarchy.
+        /// <summary>
+        /// Part 1 discovery: the well-known OpenUSD facility exposes a
+        /// Representations registry (Organizes) that lists every
+        /// OpenUsdRepresentation in the address space, independent of the
+        /// represented object's own hierarchy.
+        /// </summary>
+        /// <param name="ct"></param>
+        /// <returns></returns>
         private async Task<NodeId?> FindFirstRepresentationAsync(CancellationToken ct)
         {
             var rootId = new NodeId("OpenUSD", m_ns);
@@ -191,9 +201,13 @@ namespace Opc.Ua.OpenUsd.Client
             return null;
         }
 
-        // Enumerate every representation in the registry (there may be several: the
-        // top asset, plus each component's own representation, plus aggregating
-        // representations such as a production line).
+        /// <summary>
+        /// Enumerate every representation in the registry (there may be several: the
+        /// top asset, plus each component's own representation, plus aggregating
+        /// representations such as a production line).
+        /// </summary>
+        /// <param name="ct"></param>
+        /// <returns></returns>
         private async Task<List<NodeId>> FindAllRepresentationsAsync(CancellationToken ct)
         {
             var result = new List<NodeId>();
@@ -263,8 +277,8 @@ namespace Opc.Ua.OpenUsd.Client
                 {
                     continue;
                 }
-                if (typeDef != null
-                    && m_bindingTypeIntents.TryGetValue(typeDef.Value, out OpenUsdIntentProfile intent))
+                if (typeDef != null &&
+                    m_bindingTypeIntents.TryGetValue(typeDef.Value, out OpenUsdIntentProfile intent))
                 {
                     Dictionary<string, NodeId> bp = await ChildrenByNameAsync(childId.Value, ct)
                         .ConfigureAwait(false);
@@ -348,9 +362,9 @@ namespace Opc.Ua.OpenUsd.Client
             // before authoring any opinions into it. A mismatch is fail-closed.
             foreach (RepresentationInfo rep in reps)
             {
-                if (rep.RootLayerDigest is { IsNull: false, Length: > 0 }
-                    && rep.DigestAlgorithm != OpenUsdDigestAlgorithm.None
-                    && !VerifyStageDigest(rep))
+                if (rep.RootLayerDigest is { IsNull: false, Length: > 0 } &&
+                    rep.DigestAlgorithm != OpenUsdDigestAlgorithm.None &&
+                    !VerifyStageDigest(rep))
                 {
                     throw new InvalidOperationException(
                         "OpenUSD stage RootLayerDigest verification failed — refusing to compose.");
@@ -376,9 +390,9 @@ namespace Opc.Ua.OpenUsd.Client
                     // Command bindings are actuated on demand (IssueCommandAsync), and
                     // history bindings are replayed via ReplayHistoryAsync — neither is a
                     // live MonitoredItem. Telemetry and alarm bindings subscribe here.
-                    if (b.SourceNodeId == null
-                        || b.Intent == OpenUsdIntentProfile.UsdToUaCommand
-                        || b.Intent == OpenUsdIntentProfile.UaHistoryToUsd)
+                    if (b.SourceNodeId == null ||
+                        b.Intent == OpenUsdIntentProfile.UsdToUaCommand ||
+                        b.Intent == OpenUsdIntentProfile.UaHistoryToUsd)
                     {
                         continue;
                     }
@@ -428,7 +442,10 @@ namespace Opc.Ua.OpenUsd.Client
         /// connector-owned remote connector. Does not close sessions; use
         /// <see cref="DisposeAsync"/> to also release connector-owned remote sessions.
         /// </summary>
-        public Task StopAsync() => StopAsync(CancellationToken.None);
+        public Task StopAsync()
+        {
+            return StopAsync(CancellationToken.None);
+        }
 
         /// <summary>
         /// Stops streaming with a cancellation token. See <see cref="StopAsync()"/>.
@@ -518,15 +535,37 @@ namespace Opc.Ua.OpenUsd.Client
         /// <summary>
         /// Applies the binding's declared <see cref="OpenUsdRenderTargetKind"/> to a
         /// raw source value, returning the USD-side value as a <see cref="Variant"/>
-        /// (a <c>double</c> for scalars, a three-element <c>float</c> array for colours,
-        /// a token <c>string</c> for visibility). Returns a null <see cref="Variant"/>
-        /// (see <see cref="Variant.IsNull"/>) when the source value is null.
+        /// (a <c>double</c> for scalars, a three-element <c>double</c> array for a
+        /// structured Translation/Rotation source, a three-element <c>float</c> array
+        /// for colours, a token <c>string</c> for visibility). Returns a null
+        /// <see cref="Variant"/> (see <see cref="Variant.IsNull"/>) when the source
+        /// value is null.
         /// </summary>
         public static Variant Convert(BindingInfo b, Variant raw)
         {
             if (raw.IsNull)
             {
                 return default;
+            }
+            if (b.Kind == OpenUsdRenderTargetKind.Translation &&
+                TryGetTranslation(raw, out double x, out double y, out double z))
+            {
+                return new Variant(
+                [
+                    (x * b.Scale) + b.Offset,
+                    (y * b.Scale) + b.Offset,
+                    (z * b.Scale) + b.Offset
+                ]);
+            }
+            if (b.Kind == OpenUsdRenderTargetKind.Rotation &&
+                TryGetRotation(raw, out double a, out double bAngle, out double c))
+            {
+                return new Variant(
+                [
+                    (a * b.Scale) + b.Offset,
+                    (bAngle * b.Scale) + b.Offset,
+                    (c * b.Scale) + b.Offset
+                ]);
             }
             double d = ToDouble(raw);
             switch (b.Kind)
@@ -535,20 +574,89 @@ namespace Opc.Ua.OpenUsd.Client
                 case OpenUsdRenderTargetKind.Translation:
                 case OpenUsdRenderTargetKind.Scale:
                 case OpenUsdRenderTargetKind.Opacity:
-                    return new Variant(d * b.Scale + b.Offset);
+                    return new Variant((d * b.Scale) + b.Offset);
                 case OpenUsdRenderTargetKind.DisplayColor:
                     // Temperature: blue (cool) -> red (hot).
-                    double t = System.Math.Max(0.0, System.Math.Min(1.0, (d - 20.0) / 80.0));
-                    return new Variant((ArrayOf<float>)new[] { (float)t, 0f, (float)(1.0 - t) });
+                    double t = Math.Max(0.0, Math.Min(1.0, (d - 20.0) / 80.0));
+                    return new Variant([(float)t, 0f, (float)(1.0 - t)]);
                 case OpenUsdRenderTargetKind.EmissiveColor:
                     // Pressure: dark -> bright green-white glow.
-                    double e = System.Math.Max(0.0, System.Math.Min(1.0, d / 6.0));
-                    return new Variant((ArrayOf<float>)new[] { (float)(0.1 * e), (float)e, (float)(0.2 * e) });
+                    double e = Math.Max(0.0, Math.Min(1.0, d / 6.0));
+                    return new Variant([(float)(0.1 * e), (float)e, (float)(0.2 * e)]);
                 case OpenUsdRenderTargetKind.Visibility:
                     return new Variant(d != 0.0 ? "inherited" : "invisible");
                 default:
-                    return new Variant(d * b.Scale + b.Offset);
+                    return new Variant((d * b.Scale) + b.Offset);
             }
+        }
+
+        /// <summary>
+        /// Extracts X/Y/Z from a core OPC UA ThreeDCartesianCoordinates value, or from
+        /// the CartesianCoordinates field of a ThreeDFrame value. Domain-agnostic: only
+        /// the core Part 5 3D data types are used, never any Positioning-specific type.
+        /// </summary>
+        /// <param name="raw"></param>
+        /// <param name="x"></param>
+        /// <param name="y"></param>
+        /// <param name="z"></param>
+        /// <returns></returns>
+        private static bool TryGetTranslation(Variant raw, out double x, out double y, out double z)
+        {
+#pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type
+            if (raw.TryGetStructure(out ThreeDCartesianCoordinates coordinates))
+            {
+                x = coordinates.X;
+                y = coordinates.Y;
+                z = coordinates.Z;
+                return true;
+            }
+            if (raw.TryGetStructure(out ThreeDFrame frame) &&
+                frame.CartesianCoordinates is { } frameCoordinates)
+#pragma warning restore CS8600
+            {
+                x = frameCoordinates.X;
+                y = frameCoordinates.Y;
+                z = frameCoordinates.Z;
+                return true;
+            }
+            x = 0.0;
+            y = 0.0;
+            z = 0.0;
+            return false;
+        }
+
+        /// <summary>
+        /// Extracts A/B/C from a core OPC UA ThreeDOrientation value, or from the
+        /// Orientation field of a ThreeDFrame value.
+        /// </summary>
+        /// <param name="raw"></param>
+        /// <param name="a"></param>
+        /// <param name="b"></param>
+        /// <param name="c"></param>
+        /// <returns></returns>
+        private static bool TryGetRotation(Variant raw, out double a, out double b, out double c)
+        {
+#pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type
+            if (raw.TryGetStructure(out ThreeDOrientation orientation))
+            {
+                a = orientation.A;
+                b = orientation.B;
+                c = orientation.C;
+                return true;
+            }
+            if (raw.TryGetStructure(out ThreeDFrame frame) &&
+                frame.Orientation is { } frameOrientation)
+#pragma warning restore CS8600
+            {
+                a = frameOrientation.A;
+                b = frameOrientation.B;
+                c = frameOrientation.C;
+                return true;
+            }
+            a = 0.0;
+            b = 0.0;
+            c = 0.0;
+            return false;
         }
 
         private static double ToDouble(Variant v)
@@ -579,9 +687,10 @@ namespace Opc.Ua.OpenUsd.Client
         /// </summary>
         public bool VerifyStageDigest(RepresentationInfo rep)
         {
-            if (rep.RootLayerDigest.IsNull || rep.RootLayerDigest.Length == 0
-                || rep.DigestAlgorithm == OpenUsdDigestAlgorithm.None
-                || string.IsNullOrEmpty(rep.RootLayerIdentifier))
+            if (rep.RootLayerDigest.IsNull ||
+                rep.RootLayerDigest.Length == 0 ||
+                rep.DigestAlgorithm == OpenUsdDigestAlgorithm.None ||
+                string.IsNullOrEmpty(rep.RootLayerIdentifier))
             {
                 return false;
             }
@@ -595,6 +704,7 @@ namespace Opc.Ua.OpenUsd.Client
         /// not explicitly enabled. Single-writer: uses the first controllable command
         /// binding found. Returns true when the UA write succeeds.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         public async Task<bool> IssueCommandAsync(double value, CancellationToken ct)
         {
             if (!m_enableCommands)
@@ -607,9 +717,9 @@ namespace Opc.Ua.OpenUsd.Client
             {
                 foreach (BindingInfo b in r.Bindings)
                 {
-                    if (b.Intent == OpenUsdIntentProfile.UsdToUaCommand
-                        && b.SignalRole == OpenUsdSignalRole.Controllable
-                        && b.CommandTargetNodeId != null)
+                    if (b.Intent == OpenUsdIntentProfile.UsdToUaCommand &&
+                        b.SignalRole == OpenUsdSignalRole.Controllable &&
+                        b.CommandTargetNodeId != null)
                     {
                         cmd = b;
                         break;
@@ -645,9 +755,9 @@ namespace Opc.Ua.OpenUsd.Client
             {
                 foreach (BindingInfo b in rep.Bindings)
                 {
-                    if (b.Intent != OpenUsdIntentProfile.UaHistoryToUsd
-                        || b.SourceNodeId == null
-                        || !b.TimeSampled)
+                    if (b.Intent != OpenUsdIntentProfile.UaHistoryToUsd ||
+                        b.SourceNodeId == null ||
+                        !b.TimeSampled)
                     {
                         continue;
                     }
@@ -677,8 +787,7 @@ namespace Opc.Ua.OpenUsd.Client
                     };
                     var toRead = new HistoryReadValueId[]
                     {
-                        new HistoryReadValueId
-                        {
+                        new() {
                             NodeId = b.SourceNodeId!.Value,
                             ContinuationPoint = continuationPoint
                         }
@@ -687,7 +796,7 @@ namespace Opc.Ua.OpenUsd.Client
                     try
                     {
                         resp = await m_session.HistoryReadAsync(
-                            null!, new ExtensionObject(details), TimestampsToReturn.Source,
+                            null, new ExtensionObject(details), TimestampsToReturn.Source,
                             false, toRead, ct).ConfigureAwait(false);
                     }
                     catch (ServiceResultException)
@@ -753,12 +862,12 @@ namespace Opc.Ua.OpenUsd.Client
             };
             var toRead = new HistoryReadValueId[]
             {
-                new HistoryReadValueId { NodeId = nodeId, ContinuationPoint = continuationPoint }
+                new() { NodeId = nodeId, ContinuationPoint = continuationPoint }
             };
             try
             {
                 await m_session.HistoryReadAsync(
-                    null!, new ExtensionObject(details), TimestampsToReturn.Source,
+                    null, new ExtensionObject(details), TimestampsToReturn.Source,
                     true, toRead, ct).ConfigureAwait(false);
             }
             catch (ServiceResultException)
@@ -791,7 +900,7 @@ namespace Opc.Ua.OpenUsd.Client
                         return h.ComputeHash(bytes);
                     }
                 default:
-                    return System.Array.Empty<byte>();
+                    return [];
             }
 #pragma warning restore CA1850
         }
@@ -814,27 +923,26 @@ namespace Opc.Ua.OpenUsd.Client
         {
             var toWrite = new WriteValue[]
             {
-                new WriteValue
-                {
+                new() {
                     NodeId = nodeId,
                     AttributeId = Attributes.Value,
                     Value = new DataValue(new Variant(value))
                 }
             };
-            WriteResponse resp = await m_session.WriteAsync(null!, toWrite, ct).ConfigureAwait(false);
+            WriteResponse resp = await m_session.WriteAsync(null, toWrite, ct).ConfigureAwait(false);
             return resp.Results.Count > 0
                 ? resp.Results[0]
-                : (StatusCode)StatusCodes.BadUnexpectedError;
+                : StatusCodes.BadUnexpectedError;
         }
 
         public async Task<string> ReadBrowseNameAsync(NodeId nodeId, CancellationToken ct)
         {
             var toRead = new ReadValueId[]
             {
-                new ReadValueId { NodeId = nodeId, AttributeId = Attributes.BrowseName }
+                new() { NodeId = nodeId, AttributeId = Attributes.BrowseName }
             };
             ReadResponse response = await m_session.ReadAsync(
-                null!, 0, TimestampsToReturn.Neither, toRead, ct).ConfigureAwait(false);
+                null, 0, TimestampsToReturn.Neither, toRead, ct).ConfigureAwait(false);
             return response.Results[0].WrappedValue.AsBoxedObject() is QualifiedName qn ? qn.Name ?? string.Empty : string.Empty;
         }
 
@@ -877,15 +985,15 @@ namespace Opc.Ua.OpenUsd.Client
             var list = new List<(NodeId?, NodeId?)>();
             foreach (ReferenceDescription r in await BrowseAsync(parent, ct).ConfigureAwait(false))
             {
-                NodeId id = ExpandedNodeId.ToNodeId(r.NodeId, m_session.NamespaceUris);
+                var id = ExpandedNodeId.ToNodeId(r.NodeId, m_session.NamespaceUris);
                 if (id.IsNull)
                 {
                     // Skip references whose target NodeId cannot be resolved in the
                     // session namespace table (unresolved external server references).
                     continue;
                 }
-                NodeId typeDef = ExpandedNodeId.ToNodeId(r.TypeDefinition, m_session.NamespaceUris);
-                list.Add((id, typeDef.IsNull ? (NodeId?)null : typeDef));
+                var typeDef = ExpandedNodeId.ToNodeId(r.TypeDefinition, m_session.NamespaceUris);
+                list.Add((id, typeDef.IsNull ? null : typeDef));
             }
             return list;
         }
@@ -894,10 +1002,10 @@ namespace Opc.Ua.OpenUsd.Client
         {
             var toRead = new ReadValueId[]
             {
-                new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value }
+                new() { NodeId = nodeId, AttributeId = Attributes.Value }
             };
             ReadResponse response = await m_session.ReadAsync(
-                null!, 0, TimestampsToReturn.Neither, toRead, ct).ConfigureAwait(false);
+                null, 0, TimestampsToReturn.Neither, toRead, ct).ConfigureAwait(false);
             return response.Results[0];
         }
 
@@ -958,8 +1066,8 @@ namespace Opc.Ua.OpenUsd.Client
             }
             DataValue dv = await ReadAsync(id, ct).ConfigureAwait(false);
             object? v = dv.WrappedValue.AsBoxedObject();
-            return v != null
-                && System.Convert.ToBoolean(v, System.Globalization.CultureInfo.InvariantCulture);
+            return v != null &&
+                System.Convert.ToBoolean(v, System.Globalization.CultureInfo.InvariantCulture);
         }
 
         private async Task<ByteString> ReadByteStringAsync(

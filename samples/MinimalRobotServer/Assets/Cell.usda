@@ -63,14 +63,22 @@ def Xform "Cell"
     {
         def Xform "R1"
         {
+            custom double inputs:longitude = 11.576124
+            custom double inputs:latitude = 48.137154
+            custom double inputs:elevation = 520
             double3 xformOp:translate = (-1.2, 0, 0)
-            uniform token[] xformOpOrder = ["xformOp:translate"]
+            double3 xformOp:rotateXYZ = (0, 0, 0)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ"]
         }
 
         def Xform "R2"
         {
+            custom double inputs:longitude = 11.576124
+            custom double inputs:latitude = 48.137154
+            custom double inputs:elevation = 520
             double3 xformOp:translate = (1.2, 0, 0)
-            uniform token[] xformOpOrder = ["xformOp:translate"]
+            double3 xformOp:rotateXYZ = (0, 0, 0)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ"]
         }
     }
 

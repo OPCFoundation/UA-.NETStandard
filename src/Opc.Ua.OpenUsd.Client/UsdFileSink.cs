@@ -33,7 +33,6 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Threading;
-using Opc.Ua;
 
 namespace Opc.Ua.OpenUsd.Client
 {
@@ -47,18 +46,24 @@ namespace Opc.Ua.OpenUsd.Client
     public sealed class UsdFileSink : IUsdSink
     {
         private static readonly char[] s_pathSeparator = ['/'];
+
         private static readonly DateTime s_epoch =
-            new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            new(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
         private readonly string m_path;
         private readonly Lock m_gate = new();
         private readonly Dictionary<string, Variant> m_values = new(StringComparer.Ordinal);
-        private readonly List<(string Prim, string Prop)> m_order = new();
+        private readonly List<(string Prim, string Prop)> m_order = [];
+
         private readonly Dictionary<string, SortedList<double, Variant>> m_timeSamples =
             new(StringComparer.Ordinal);
-        private readonly List<(string Prim, string Prop)> m_tsOrder = new();
+
+        private readonly List<(string Prim, string Prop)> m_tsOrder = [];
+
         private readonly Dictionary<string, (OpenUsdCompositionArc Arc, string? Asset, bool Active)> m_prims =
             new(StringComparer.Ordinal);
-        private readonly List<string> m_primOrder = new();
+
+        private readonly List<string> m_primOrder = [];
         private int m_batchDepth;
         private bool m_pendingWrite;
 
@@ -123,7 +128,7 @@ namespace Opc.Ua.OpenUsd.Client
                 string key = primPath + "|" + propertyName;
                 if (!m_timeSamples.TryGetValue(key, out SortedList<double, Variant>? samples))
                 {
-                    samples = new SortedList<double, Variant>();
+                    samples = [];
                     m_timeSamples[key] = samples;
                     m_tsOrder.Add((primPath, propertyName));
                 }
@@ -142,9 +147,11 @@ namespace Opc.Ua.OpenUsd.Client
             return new BatchScope(this);
         }
 
-        // Writes immediately unless a batch is open, in which case the write is
-        // deferred until the outermost batch scope is disposed (a single file write
-        // for an entire history replay instead of one per sample).
+        /// <summary>
+        /// Writes immediately unless a batch is open, in which case the write is
+        /// deferred until the outermost batch scope is disposed (a single file write
+        /// for an entire history replay instead of one per sample).
+        /// </summary>
         private void WriteOrDefer()
         {
             if (m_batchDepth == 0)
@@ -206,8 +213,12 @@ namespace Opc.Ua.OpenUsd.Client
             return true;
         }
 
-        // A USD property name is one or more identifier segments separated by ':'
-        // (the USD namespace separator), e.g. "xformOp:rotateZ", "inputs:emissiveColor".
+        /// <summary>
+        /// A USD property name is one or more identifier segments separated by ':'
+        /// (the USD namespace separator), e.g. "xformOp:rotateZ", "inputs:emissiveColor".
+        /// </summary>
+        /// <param name="propertyName"></param>
+        /// <returns></returns>
         private static bool IsValidPropertyName(string propertyName)
         {
             if (string.IsNullOrEmpty(propertyName))
@@ -224,7 +235,11 @@ namespace Opc.Ua.OpenUsd.Client
             return true;
         }
 
-        // USD identifier: starts with a letter or '_', then letters/digits/'_'.
+        /// <summary>
+        /// USD identifier: starts with a letter or '_', then letters/digits/'_'.
+        /// </summary>
+        /// <param name="s"></param>
+        /// <returns></returns>
         private static bool IsValidIdentifier(string s)
         {
             if (string.IsNullOrEmpty(s))
@@ -249,11 +264,14 @@ namespace Opc.Ua.OpenUsd.Client
 
         private sealed class Node
         {
-            public List<(string Prop, string UsdType, string Value)> Props { get; } = new();
-            public List<(string Prop, string UsdType, string Block)> TimeSamples { get; } = new();
+            public List<(string Prop, string UsdType, string Value)> Props { get; } = [];
+            public List<(string Prop, string UsdType, string Block)> TimeSamples { get; } = [];
             public Dictionary<string, Node> Children { get; } = new(StringComparer.Ordinal);
-            public List<string> ChildOrder { get; } = new();
-            // Composition metadata (§5.12/§5.13): reference/payload asset, instanceable, active.
+            public List<string> ChildOrder { get; } = [];
+
+            /// <summary>
+            /// Composition metadata (§5.12/§5.13): reference/payload asset, instanceable, active.
+            /// </summary>
             public string? Reference { get; set; }
             public string? Payload { get; set; }
             public bool Instanceable { get; set; }
@@ -379,8 +397,8 @@ namespace Opc.Ua.OpenUsd.Client
                 }
                 sb.Append(indent).Append(')');
             }
-            sb.Append('\n');
-            sb.Append(indent).Append("{\n");
+            sb.Append('\n')
+                .Append(indent).Append("{\n");
             foreach ((string prop, string usdType, string value) in node.Props)
             {
                 sb.Append(indent).Append("    ").Append(usdType).Append(' ')
@@ -398,18 +416,30 @@ namespace Opc.Ua.OpenUsd.Client
             sb.Append(indent).Append("}\n");
         }
 
-        // A USD asset reference (e.g. @pump.usda@</Pump>) must not contain characters
-        // that would break the layer syntax; reject newlines and quotes.
+        /// <summary>
+        /// A USD asset reference (for example <c>@pump.usda@</c>) must not contain characters
+        /// that would break the layer syntax; reject newlines and quotes.
+        /// </summary>
+        /// <param name="assetRef"></param>
+        /// <returns></returns>
         private static bool IsSafeAssetRef(string? assetRef)
-            => !string.IsNullOrEmpty(assetRef)
-               && assetRef!.IndexOfAny(['\n', '\r', '"']) < 0;
+        {
+            return !string.IsNullOrEmpty(assetRef) &&
+                assetRef!.IndexOfAny(['\n', '\r', '"']) < 0;
+        }
 
         private static string F(double x)
-            => x.ToString("0.0000", CultureInfo.InvariantCulture);
+        {
+            return x.ToString("0.0000", CultureInfo.InvariantCulture);
+        }
 
-        // Escape a USD string/token value: backslash and quote are escaped and
-        // control characters (newline, carriage return, tab) are rendered as
-        // escape sequences so a value cannot break out of the quoted literal.
+        /// <summary>
+        /// Escape a USD string/token value: backslash and quote are escaped and
+        /// control characters (newline, carriage return, tab) are rendered as
+        /// escape sequences so a value cannot break out of the quoted literal.
+        /// </summary>
+        /// <param name="s"></param>
+        /// <returns></returns>
         private static string EscapeToken(string s)
         {
             var sb = new StringBuilder(s.Length);
@@ -417,12 +447,24 @@ namespace Opc.Ua.OpenUsd.Client
             {
                 switch (c)
                 {
-                    case '\\': sb.Append("\\\\"); break;
-                    case '"': sb.Append("\\\""); break;
-                    case '\n': sb.Append("\\n"); break;
-                    case '\r': sb.Append("\\r"); break;
-                    case '\t': sb.Append("\\t"); break;
-                    default: sb.Append(c); break;
+                    case '\\':
+                        sb.Append("\\\\");
+                        break;
+                    case '"':
+                        sb.Append("\\\"");
+                        break;
+                    case '\n':
+                        sb.Append("\\n");
+                        break;
+                    case '\r':
+                        sb.Append("\\r");
+                        break;
+                    case '\t':
+                        sb.Append("\\t");
+                        break;
+                    default:
+                        sb.Append(c);
+                        break;
                 }
             }
             return sb.ToString();
@@ -436,6 +478,11 @@ namespace Opc.Ua.OpenUsd.Client
                 return prop.EndsWith("displayColor", StringComparison.OrdinalIgnoreCase)
                     ? ("color3f[]", "[" + body + "]")
                     : ("color3f", body);
+            }
+            if (value.TryGetValue(out ArrayOf<double> vector) && vector.Count >= 3)
+            {
+                string body = "(" + F(vector[0]) + ", " + F(vector[1]) + ", " + F(vector[2]) + ")";
+                return ("double3", body);
             }
             if (value.TryGetValue(out string token))
             {

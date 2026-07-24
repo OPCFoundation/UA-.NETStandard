@@ -168,7 +168,10 @@ created `OpenUsdAssetState` nodes as an `ArrayOf<OpenUsdAssetState>`.
 ## Samples
 
 * [`MinimalRobotServer`](../samples/MinimalRobotServer) — a self-contained server exposing an OPC 40010
-  MotionDeviceSystem (two 6-axis robots) bound to OpenUSD; a generic connector renders the cell live.
+  MotionDeviceSystem with two independently mobile robots. OPC 10000-210 RSL
+  frames drive live `double3` translation/rotation, and OPC 10000-211 GPOS
+  locations drive geospatial metadata; a generic connector renders the cell
+  live. See [Positioning](Positioning.md).
 * [`PumpDeviceIntegrationServer`](../samples/PumpDeviceIntegrationServer) — a DI pump line bound to OpenUSD, including
   component composition, cross-server components, and served-asset delivery.
 

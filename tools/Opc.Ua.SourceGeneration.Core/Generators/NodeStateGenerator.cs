@@ -1644,7 +1644,7 @@ namespace Opc.Ua.SourceGeneration
                             forInstanceVariableValue);
                         return null;
                     case InstanceDesign parentInstance:
-                        if (HasChildDefined(parentInstance.TypeDefinitionNode, instance.SymbolicName.Name) ||
+                        if (HasFixedChildSlot(parentInstance.TypeDefinitionNode, instance.SymbolicName.Name) ||
                             IsBuiltInProperty(node))
                         {
                             // Children whose SymbolicName ends in "_Placeholder"
@@ -2939,7 +2939,7 @@ namespace Opc.Ua.SourceGeneration
             return false;
         }
 
-        private static bool HasChildDefined(TypeDesign typeDefinitionNode, string symbolicName)
+        internal static bool HasFixedChildSlot(TypeDesign typeDefinitionNode, string symbolicName)
         {
             if (typeDefinitionNode == null)
             {
@@ -2949,13 +2949,14 @@ namespace Opc.Ua.SourceGeneration
             {
                 foreach (InstanceDesign child in typeDefinitionNode.Children.Items)
                 {
-                    if (child.SymbolicName.Name == symbolicName)
+                    if (child.SymbolicName.Name == symbolicName &&
+                        child.ModellingRule is ModellingRule.Mandatory or ModellingRule.Optional)
                     {
                         return true;
                     }
                 }
             }
-            return HasChildDefined(typeDefinitionNode.BaseTypeNode, symbolicName);
+            return HasFixedChildSlot(typeDefinitionNode.BaseTypeNode, symbolicName);
         }
 
         /// <summary>

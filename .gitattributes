@@ -28,3 +28,7 @@
 
 # OPC UA
 *.uanodes binary
+
+# Preserve official NodeSet artifacts byte-for-byte.
+src/Opc.Ua.Positioning/Model/*.csv binary
+src/Opc.Ua.Positioning/Model/*.xml binary

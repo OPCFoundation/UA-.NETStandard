@@ -118,19 +118,22 @@ namespace Robotics
             {
                 m_cellStage = null;
                 m_openUsdRoot = null;
-                m_logger.LogError(ex, "Failed to materialise the OpenUSD facility.");
+                m_logger.OpenUsdFacilityFailed(ex);
             }
         }
 
-        // Loads the embedded artist-authored USD layers this server serves (spec §5.15).
+        /// <summary>
+        /// Loads the embedded artist-authored USD layers this server serves (spec §5.15).
+        /// </summary>
+        /// <returns></returns>
         private static List<ServedAsset> LoadServedAssets()
         {
-            return new List<ServedAsset>
-            {
-                new ServedAsset("Cell.usda", OpenUsdAssetKindEnum.RootLayer, ReadEmbeddedAsset("Cell.usda")),
-                new ServedAsset("robot.usda", OpenUsdAssetKindEnum.Reference, ReadEmbeddedAsset("robot.usda")),
-                new ServedAsset("tool.usda", OpenUsdAssetKindEnum.Reference, ReadEmbeddedAsset("tool.usda")),
-            };
+            return
+            [
+                new("Cell.usda", OpenUsdAssetKindEnum.RootLayer, ReadEmbeddedAsset("Cell.usda")),
+                new("robot.usda", OpenUsdAssetKindEnum.Reference, ReadEmbeddedAsset("robot.usda")),
+                new("tool.usda", OpenUsdAssetKindEnum.Reference, ReadEmbeddedAsset("tool.usda"))
+            ];
         }
 
         private static byte[] ReadEmbeddedAsset(string resourceName)
@@ -138,7 +141,7 @@ namespace Robotics
             using Stream? s = typeof(RoboticsNodeManager).Assembly.GetManifestResourceStream(resourceName);
             if (s == null)
             {
-                return Array.Empty<byte>();
+                return [];
             }
             using var ms = new MemoryStream();
             s.CopyTo(ms);
@@ -167,20 +170,25 @@ namespace Robotics
             {
                 return;
             }
-            if (!externalReferences.TryGetValue(Opc.Ua.ObjectIds.Server, out IList<IReference>? references)
-                || references == null)
+            if (!externalReferences.TryGetValue(Opc.Ua.ObjectIds.Server, out IList<IReference>? references) ||
+                references == null)
             {
-                externalReferences[Opc.Ua.ObjectIds.Server] = references = new List<IReference>();
+                externalReferences[Opc.Ua.ObjectIds.Server] = references = [];
             }
             references.Add(new NodeStateReference(
                 ReferenceTypeIds.HasComponent, false, m_openUsdRoot.NodeId));
-            m_logger.LogInformation(
-                "Linked OpenUSD facility under the Server Object (i=2253).");
+            m_logger.LinkedOpenUsdFacility();
         }
 
-        // Attaches an OpenUsdRepresentation AddIn to an Object and registers it in the
-        // discovery registry (Server/OpenUSD/Representations, Organizes). Returns the
-        // representation so the caller can add live/component bindings to it.
+        /// <summary>
+        /// Attaches an OpenUsdRepresentation AddIn to an Object and registers it in the
+        /// discovery registry (Server/OpenUSD/Representations, Organizes). Returns the
+        /// representation so the caller can add live/component bindings to it.
+        /// </summary>
+        /// <param name="owner"></param>
+        /// <param name="primPath"></param>
+        /// <param name="ns"></param>
+        /// <returns></returns>
         private OpenUsdRepresentationState AttachRepresentation(
             NodeState owner, string primPath, ushort ns)
         {
@@ -197,8 +205,11 @@ namespace Robotics
             return rep;
         }
 
-        // Adds the Organizes reference pair between the discovery registry and a
-        // representation, so a generic connector discovers it without domain knowledge.
+        /// <summary>
+        /// Adds the Organizes reference pair between the discovery registry and a
+        /// representation, so a generic connector discovers it without domain knowledge.
+        /// </summary>
+        /// <param name="rep"></param>
         private void OrganiseRepresentation(OpenUsdRepresentationState rep)
         {
             FolderState? registry = m_openUsdRoot?.Representations;
@@ -210,8 +221,17 @@ namespace Robotics
             rep.AddReference(ReferenceTypeIds.Organizes, true, registry.NodeId);
         }
 
-        // Creates a simple Variable child on any Object, assigning a per-instance
-        // NodeId immediately (callers assign parent NodeIds first).
+        /// <summary>
+        /// Creates a simple Variable child on any Object, assigning a per-instance
+        /// NodeId immediately (callers assign parent NodeIds first).
+        /// </summary>
+        /// <param name="parent"></param>
+        /// <param name="name"></param>
+        /// <param name="dataType"></param>
+        /// <param name="initialValue"></param>
+        /// <param name="writable"></param>
+        /// <param name="ns"></param>
+        /// <returns></returns>
         private BaseDataVariableState CreateVariable(
             NodeState parent, string name, NodeId dataType, Variant initialValue, bool writable, ushort ns)
         {
@@ -229,14 +249,20 @@ namespace Robotics
                 ValueRank = ValueRanks.Scalar,
                 AccessLevel = access,
                 UserAccessLevel = access,
-                Value = initialValue,
+                Value = initialValue
             };
             parent.AddChild(v);
             v.NodeId = SystemContext.NodeIdFactory.New(SystemContext, v);
             return v;
         }
 
-        // Creates a FolderState child on any Object.
+        /// <summary>
+        /// Creates a FolderState child on any Object.
+        /// </summary>
+        /// <param name="parent"></param>
+        /// <param name="name"></param>
+        /// <param name="ns"></param>
+        /// <returns></returns>
         private FolderState CreateFolder(NodeState parent, string name, ushort ns)
         {
             var folder = new FolderState(parent)
@@ -252,12 +278,31 @@ namespace Robotics
             return folder;
         }
 
-        // Instantiates the OpenUsdLiveBinding <Binding> placeholder as a concrete
-        // browsable child of a representation and sets its members (spec §5.4/§5.10/§5.11).
-        // Thin adapter over the reusable Opc.Ua.OpenUsd.Server authoring API: binds the
-        // cell stage and forwards. The binding-authoring logic lives in the SDK
-        // (OpenUsdRepresentationAuthoring.AddLiveBinding), not in this sample.
-        private void CreateBinding(
+        /// <summary>
+        /// Instantiates the OpenUsdLiveBinding <Binding> placeholder as a concrete
+        /// browsable child of a representation and sets its members (spec §5.4/§5.10/§5.11).
+        /// Thin adapter over the reusable Opc.Ua.OpenUsd.Server authoring API: binds the
+        /// cell stage and forwards. The binding-authoring logic lives in the SDK
+        /// (OpenUsdRepresentationAuthoring.AddLiveBinding), not in this sample.
+        /// </summary>
+        /// <param name="rep"></param>
+        /// <param name="ns"></param>
+        /// <param name="name"></param>
+        /// <param name="bindingDefinitionId"></param>
+        /// <param name="sourceNodeId"></param>
+        /// <param name="targetPrimPath"></param>
+        /// <param name="targetPropertyName"></param>
+        /// <param name="targetUsdTypeName"></param>
+        /// <param name="kind"></param>
+        /// <param name="scale"></param>
+        /// <param name="bindingTypeId"></param>
+        /// <param name="signalRole"></param>
+        /// <param name="sourceSemanticId"></param>
+        /// <param name="alarmAspect"></param>
+        /// <param name="commandTargetNodeId"></param>
+        /// <param name="commandTriggerPropertyName"></param>
+        /// <returns></returns>
+        private OpenUsdLiveBindingState CreateBinding(
             OpenUsdRepresentationState rep, ushort ns, string name,
             Guid bindingDefinitionId, NodeId? sourceNodeId, string targetPrimPath,
             string targetPropertyName, string targetUsdTypeName,
@@ -269,18 +314,32 @@ namespace Robotics
             NodeId? commandTargetNodeId = null,
             string? commandTriggerPropertyName = null)
         {
-            _ = rep.AddLiveBinding(
+            return rep.AddLiveBinding(
                 SystemContext, ns, m_cellStage!.NodeId, name, bindingDefinitionId, sourceNodeId,
                 targetPrimPath, targetPropertyName, targetUsdTypeName, kind, scale,
                 bindingTypeId, signalRole, sourceSemanticId, alarmAspect,
                 commandTargetNodeId, commandTriggerPropertyName);
         }
 
-        // Instantiates the OpenUsdComponentBinding <Component> placeholder on a
-        // representation and sets its members (spec §5.12–5.14).
-        // Thin adapter over the reusable Opc.Ua.OpenUsd.Server authoring API: the
-        // component/composition-binding logic lives in the SDK
-        // (OpenUsdRepresentationAuthoring.AddComponentBinding), not in this sample.
+        /// <summary>
+        /// Instantiates the OpenUsdComponentBinding <Component> placeholder on a
+        /// representation and sets its members (spec §5.12–5.14).
+        /// Thin adapter over the reusable Opc.Ua.OpenUsd.Server authoring API: the
+        /// component/composition-binding logic lives in the SDK
+        /// (OpenUsdRepresentationAuthoring.AddComponentBinding), not in this sample.
+        /// </summary>
+        /// <param name="rep"></param>
+        /// <param name="ns"></param>
+        /// <param name="name"></param>
+        /// <param name="bindingDefinitionId"></param>
+        /// <param name="cardinality"></param>
+        /// <param name="arc"></param>
+        /// <param name="targetPrimPath"></param>
+        /// <param name="componentRepresentation"></param>
+        /// <param name="assetReference"></param>
+        /// <param name="dynamic"></param>
+        /// <param name="changeEventSource"></param>
+        /// <param name="componentTypeDefinition"></param>
         private void CreateComponentBinding(
             OpenUsdRepresentationState rep, ushort ns, string name, Guid bindingDefinitionId,
             OpenUsdCardinalityEnum cardinality, OpenUsdCompositionArcEnum arc, string targetPrimPath,
@@ -302,5 +361,17 @@ namespace Robotics
             Message = "Materialised OpenUSD facility (root {RootId}, RobotCellStage {StageId}).")]
         public static partial void MaterialisedOpenUsdFacility(
             this ILogger logger, NodeId rootId, NodeId stageId);
+
+        [LoggerMessage(EventId = MinimalRobotServerEventIds.OpenUsdRepresentation + 2,
+            Level = LogLevel.Error,
+            Message = "Failed to materialise the OpenUSD facility.")]
+        public static partial void OpenUsdFacilityFailed(
+            this ILogger logger,
+            Exception exception);
+
+        [LoggerMessage(EventId = MinimalRobotServerEventIds.OpenUsdRepresentation + 3,
+            Level = LogLevel.Information,
+            Message = "Linked OpenUSD facility under the Server Object (i=2253).")]
+        public static partial void LinkedOpenUsdFacility(this ILogger logger);
     }
 }

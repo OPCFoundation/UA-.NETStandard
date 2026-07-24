@@ -1212,6 +1212,11 @@ namespace Opc.Ua.Schema.Model
             output.SymbolicName = ImportSymbolicName(input);
             output.Extensions = input.Extensions;
 
+            output.SymbolicName = NormalizeSymbolicNameNamespace(
+                input,
+                output.SymbolicId,
+                output.SymbolicName);
+
             if (input is UAType &&
                 output.SymbolicId.Name.EndsWith(
                     "_" + nodeId.IdentifierAsString, StringComparison.Ordinal))
@@ -1279,6 +1284,22 @@ namespace Opc.Ua.Schema.Model
             }
 
             return output;
+        }
+
+        internal static XmlQualifiedName NormalizeSymbolicNameNamespace(
+            UANode input,
+            XmlQualifiedName symbolicId,
+            XmlQualifiedName symbolicName)
+        {
+            if (input is UAType &&
+                symbolicId != null &&
+                symbolicName != null &&
+                symbolicId.Namespace != symbolicName.Namespace)
+            {
+                return new XmlQualifiedName(symbolicName.Name, symbolicId.Namespace);
+            }
+
+            return symbolicName;
         }
 
         private UANode FindNode(UANodeSet nodeset, ExpandedNodeId targetId)

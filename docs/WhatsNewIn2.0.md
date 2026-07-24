@@ -179,6 +179,12 @@ server- and client-side implementations:
   sub-type extensions, lock service, software-update package store, and
   client helpers. See [Device Integration](DeviceIntegration.md) and
   [Software Update](SoftwareUpdate.md).
+- **Parts 210 and 211 — Relative Spatial Location and Global Positioning**:
+  source-generated released RSL/GPOS models, standalone and composed server
+  hosting, technology-neutral position providers, typed clients and streams,
+  frame-chain resolution, WGS84/ENU conversion, and rigid/similarity/affine
+  Zone fitting. The robot/OpenUSD sample publishes independently configurable
+  mobile robot poses. See [Positioning](Positioning.md).
 - **OPC 10100-1 — WoT Connectivity**: model, server, and client libraries
   for surfacing OPC UA servers as Web of Things Thing Descriptions, with
   the `WoTAssetConnectionManagement` server methods gated by a
@@ -445,6 +451,7 @@ projects.
   [State Machines](StateMachines.md),
   [Alias Names](AliasNames.md),
   [Device Integration](DeviceIntegration.md),
+  [Relative Spatial Location and Global Positioning](Positioning.md),
   [Software Update](SoftwareUpdate.md),
   [WoT Connectivity](WoTConnectivity.md),
   [Subscriptions and Monitored Items](Subscriptions.md),

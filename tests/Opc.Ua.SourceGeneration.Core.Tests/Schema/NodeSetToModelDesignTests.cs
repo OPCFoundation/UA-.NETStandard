@@ -32,8 +32,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Xml;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
+using Opc.Ua.Export;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.Schema.Model.Tests
@@ -201,6 +203,43 @@ namespace Opc.Ua.Schema.Model.Tests
             InvalidDataException ex = Assert.Throws<InvalidDataException>(
                 () => importer.Import("Test", "CrossModel"));
             Assert.That(ex.Message, Does.Contain("WidgetType"));
+        }
+
+        [Test]
+        public void TypeSymbolicNameUsesNodeIdNamespace()
+        {
+            var symbolicId = new XmlQualifiedName(
+                "GroundControlPointDataType",
+                "http://opcfoundation.org/UA/GPOS/");
+            var symbolicName = new XmlQualifiedName(
+                "GroundControlPointDataType",
+                "http://opcfoundation.org/UA/RSL/");
+
+            XmlQualifiedName normalized = NodeSetToModelDesign.NormalizeSymbolicNameNamespace(
+                new UADataType(),
+                symbolicId,
+                symbolicName);
+
+            Assert.That(normalized.Name, Is.EqualTo(symbolicName.Name));
+            Assert.That(normalized.Namespace, Is.EqualTo(symbolicId.Namespace));
+        }
+
+        [Test]
+        public void InstanceSymbolicNameKeepsBrowseNameNamespace()
+        {
+            var symbolicId = new XmlQualifiedName(
+                "Position",
+                "http://opcfoundation.org/UA/GPOS/");
+            var symbolicName = new XmlQualifiedName(
+                "Position",
+                "http://opcfoundation.org/UA/RSL/");
+
+            XmlQualifiedName normalized = NodeSetToModelDesign.NormalizeSymbolicNameNamespace(
+                new UAVariable(),
+                symbolicId,
+                symbolicName);
+
+            Assert.That(normalized, Is.SameAs(symbolicName));
         }
 
         private static ITelemetryContext CreateTelemetry()

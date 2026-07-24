@@ -1,7 +1,8 @@
 # MinimalRobotServer
 
 A minimal, self-contained .NET console OPC UA server that demonstrates the **OPC 40010
-Robotics** companion specification bound to **OpenUSD** through the draft
+Robotics**, **OPC 10000-210 Relative Spatial Location**, and **OPC 10000-211
+Global Positioning** companion specifications bound to **OpenUSD** through the draft
 [*OPC UA — OpenUSD Bindings*](../../../opcua-drafts/core-specs/openusd-binding/OPC-UA-OpenUSD-Bindings.md)
 companion model, so a **generic** connector renders a robot cell live with **no
 robot-specific code**. It is built on the `Opc.Ua.Robotics` and `Opc.Ua.OpenUsd`
@@ -26,6 +27,11 @@ A `MotionDeviceSystem` **"RobotCell"** (prim `/Cell`) composed recursively of:
 - An opt-in **SpeedOverride** command (`UsdToUaCommand`, fail-closed).
 - A **gripper tool** mounted on R1's flange at runtime (`One` / `Reference`,
   `Dynamic = true`) via a model-change event.
+- One RSL spatial-object list with a world frame, R1/R2 SpatialObject AddIns,
+  each robot's PositionFrame, and R1's ToolFlange AttachPoint.
+- One GPOS Zone with ground-control points and one live GlobalLocation per
+  robot. Each robot independently selects `Fixed`, `FigureEight`, `Circle`, or
+  `Shuttle` motion; the default uses phase-shifted figure-eight paths.
 
 All 15 representations (1 system + 2 robots + 12 axes) are discoverable through the
 well-known `Server/OpenUSD/Representations` registry.
@@ -61,3 +67,9 @@ Compose `live.usda` over the base `Cell.usda` (see the example `stage.usda`) and
 it in `usdview` / NVIDIA Omniverse to see the two arms articulate live. The example
 USD assets, descriptor, writer, and a step-by-step guide live in the `opcua-drafts`
 repo under `core-specs/extras/openusd-binding/examples/robotics/`.
+
+The robot motion is configured through `RobotMobilityOptions`. RSL
+Position/Orientation values author `xformOp:translate` and
+`xformOp:rotateXYZ`; GPOS longitude, latitude, and elevation author the
+`inputs:longitude`, `inputs:latitude`, and `inputs:elevation` attributes. See
+[`docs/Positioning.md`](../../docs/Positioning.md).

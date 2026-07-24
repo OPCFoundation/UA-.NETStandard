@@ -107,6 +107,38 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(generator, Is.Not.Null);
         }
 
+        [TestCase(ModellingRule.Mandatory, true)]
+        [TestCase(ModellingRule.Optional, true)]
+        [TestCase(ModellingRule.None, false)]
+        [TestCase(ModellingRule.OptionalPlaceholder, false)]
+        public void HasFixedChildSlotRequiresFixedModellingRule(
+            ModellingRule modellingRule,
+            bool expected)
+        {
+            var type = new ObjectTypeDesign
+            {
+                Children = new ListOfChildren
+                {
+                    Items =
+                    [
+                        new VariableDesign
+                        {
+                            SymbolicName = new System.Xml.XmlQualifiedName(
+                                "DefaultInstanceBrowseName",
+                                Types.Namespaces.OpcUa),
+                            ModellingRule = modellingRule
+                        }
+                    ]
+                }
+            };
+
+            Assert.That(
+                NodeStateGenerator.HasFixedChildSlot(
+                    type,
+                    "DefaultInstanceBrowseName"),
+                Is.EqualTo(expected));
+        }
+
         /// <summary>
         /// Tests that Emit returns early without creating files when no node state classes exist.
         /// </summary>

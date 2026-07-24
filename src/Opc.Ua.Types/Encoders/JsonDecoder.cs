@@ -2831,6 +2831,17 @@ namespace Opc.Ua
             out T value)
             where T : IEncodeable
         {
+            if (!encodeableTypeId.IsAbsolute)
+            {
+                var absoluteId = NodeId.ToExpandedNodeId(
+                    encodeableTypeId.InnerNodeId,
+                    Context.NamespaceUris);
+                if (!absoluteId.IsNull)
+                {
+                    encodeableTypeId = absoluteId;
+                }
+            }
+
             if (!Context.Factory.TryGetEncodeableType(
                 encodeableTypeId,
                 out IEncodeableType? activator))
@@ -3958,9 +3969,10 @@ namespace Opc.Ua
                     value = default;
                     return true;
                 case JsonValueKind.Object:
-                    if (TryGetUInt32FromElement(
-                        GetPropertyElement(JsonProperties.EncodingMask),
-                        out value))
+                    JsonElement encodingMask =
+                        GetPropertyElement(JsonProperties.EncodingMask);
+                    if (encodingMask.ValueKind != JsonValueKind.Undefined &&
+                        TryGetUInt32FromElement(encodingMask, out value))
                     {
                         return true;
                     }

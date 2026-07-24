@@ -33,9 +33,13 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
+using Opc.Ua.Gpos;
 using Opc.Ua.OpenUsd;
+using Opc.Ua.Positioning;
+using Opc.Ua.Positioning.Server;
+using Opc.Ua.Positioning.Server.Hosting;
 using Opc.Ua.Robotics;
-using Opc.Ua.Server;
+using Opc.Ua.Rsl;
 using Opc.Ua.Server.NodeManager;
 using ReferenceTypeIds = Opc.Ua.ReferenceTypeIds;
 
@@ -57,35 +61,43 @@ namespace Robotics
         private const string RobotsScopePrimPath = "/Cell/Robots";
         private const string ToolSuffix = "/Base/J1/J2/J3/J4/J5/J6/Flange/Tool";
 
-        // OPC 40010 Robotics type NodeIds used only for OpenUSD component-binding type
-        // definitions (the robotics instances themselves are created via the generated
-        // CreateInstanceOf<Type> factories, so they are properly typed — not bare
-        // BaseObjectStates carrying only a type-definition reference).
+        /// <summary>
+        /// OPC 40010 Robotics type NodeIds used only for OpenUSD component-binding type
+        /// definitions (the robotics instances themselves are created via the generated
+        /// CreateInstanceOf<Type> factories, so they are properly typed — not bare
+        /// BaseObjectStates carrying only a type-definition reference).
+        /// </summary>
         private const uint MotionDeviceTypeId = 1004;
         private const uint AxisTypeId = 16601;
 
-        // 6-axis articulated arm. Link Xforms are nested in robot.usda to form a serial
-        // kinematic chain; each Axis' ActualPosition drives the named rotate op.
+        /// <summary>
+        /// 6-axis articulated arm. Link Xforms are nested in robot.usda to form a serial
+        /// kinematic chain; each Axis' ActualPosition drives the named rotate op.
+        /// </summary>
         private static readonly (string Name, string LinkPrimPath, string RotateOp, double Home, double Min, double Max)[] s_axisTemplate =
-        {
+        [
             ("A1", "Base/J1", "xformOp:rotateZ", 0.0, -170.0, 170.0),
             ("A2", "Base/J1/J2", "xformOp:rotateY", -30.0, -120.0, 120.0),
             ("A3", "Base/J1/J2/J3", "xformOp:rotateY", 45.0, -120.0, 120.0),
             ("A4", "Base/J1/J2/J3/J4", "xformOp:rotateX", 0.0, -180.0, 180.0),
             ("A5", "Base/J1/J2/J3/J4/J5", "xformOp:rotateY", 60.0, -120.0, 120.0),
-            ("A6", "Base/J1/J2/J3/J4/J5/J6", "xformOp:rotateX", 0.0, -360.0, 360.0),
-        };
+            ("A6", "Base/J1/J2/J3/J4/J5/J6", "xformOp:rotateX", 0.0, -360.0, 360.0)
+        ];
 
-        // The cell aggregates two independently-articulated robots; R2 is phase-shifted
-        // so the two arms move differently (proving the Reference — not Instance —
-        // aggregation gives each robot its own overridable copy of the chain).
+        /// <summary>
+        /// The cell aggregates two independently-articulated robots; R2 is phase-shifted
+        /// so the two arms move differently (proving the Reference — not Instance —
+        /// aggregation gives each robot its own overridable copy of the chain).
+        /// </summary>
         private static readonly (string BrowseName, string PrimPath, bool HasTool, double PhaseSeconds)[] s_robots =
-        {
+        [
             ("R1", "/Cell/Robots/R1", true, 0.0),
-            ("R2", "/Cell/Robots/R2", false, 3.0),
-        };
+            ("R2", "/Cell/Robots/R2", false, 3.0)
+        ];
 
-        // Runtime simulation state (animated by the Configure.cs tick).
+        /// <summary>
+        /// Runtime simulation state (animated by the Configure.cs tick).
+        /// </summary>
         internal sealed class AxisRuntime
         {
             public BaseDataVariableState Position = null!;
@@ -96,14 +108,27 @@ namespace Robotics
             public int Index;
         }
 
-        private readonly List<AxisRuntime> m_axes = new();
-        private readonly List<OpenUsdRepresentationState> m_axisReps = new();
+        internal sealed class RobotRuntime
+        {
+            public string SourceId = string.Empty;
+            public string PrimPath = string.Empty;
+            public MotionDeviceState Robot = null!;
+            public OpenUsdRepresentationState Representation = null!;
+        }
+
+        private readonly List<AxisRuntime> m_axes = [];
+        private readonly List<OpenUsdRepresentationState> m_axisReps = [];
+        private readonly List<RobotRuntime> m_robots = [];
+        private readonly List<PositioningProviderSubscription> m_positioningSubscriptions = [];
         private BaseDataVariableState? m_estopVar;
         private BaseDataVariableState? m_speedOverrideVar;
         private NodeId? m_r1NodeId;
+        private MotionDeviceSystemState? m_robotCell;
 
         private NodeId RoboticsType(uint id)
-            => NodeId.Create(id, RoboticsNamespaceUri, Server.NamespaceUris);
+        {
+            return NodeId.Create(id, RoboticsNamespaceUri, Server.NamespaceUris);
+        }
 
         private async ValueTask MaterialiseRobotCellAsync(CancellationToken cancellationToken)
         {
@@ -120,7 +145,7 @@ namespace Robotics
                     Opc.Ua.Di.Objects.DeviceSet, DiNamespaceUri, Server.NamespaceUris));
                 if (deviceSet == null)
                 {
-                    m_logger.LogWarning("DI DeviceSet not found — RobotCell will not be created.");
+                    m_logger.DeviceSetMissing();
                     return;
                 }
 
@@ -136,6 +161,7 @@ namespace Robotics
                 cell.ReferenceTypeId = ReferenceTypeIds.HasComponent;
                 cell.NodeId = SystemContext.NodeIdFactory.New(SystemContext, cell);
                 deviceSet.AddChild(cell);
+                m_robotCell = cell;
                 OpenUsdRepresentationState cellRep = AttachRepresentation(cell, CellPrimPath, usdNs);
 
                 // SafetyStates / EmergencyStop (Boolean, animated demo signal).
@@ -226,7 +252,7 @@ namespace Robotics
             }
             catch (Exception ex)
             {
-                m_logger.LogError(ex, "Failed to materialise the RobotCell.");
+                m_logger.RobotCellFailed(ex);
             }
         }
 
@@ -246,6 +272,13 @@ namespace Robotics
             }
 
             OpenUsdRepresentationState robotRep = AttachRepresentation(robot, r.PrimPath, usdNs);
+            m_robots.Add(new RobotRuntime
+            {
+                SourceId = r.BrowseName,
+                PrimPath = r.PrimPath,
+                Robot = robot,
+                Representation = robotRep
+            });
 
             // 6 axes as generated AxisType instances in the motion device's mandatory Axes
             // folder (each with its own representation + articulation).
@@ -321,7 +354,7 @@ namespace Robotics
                 Min = a.Min,
                 Max = a.Max,
                 PhaseSeconds = r.PhaseSeconds,
-                Index = index,
+                Index = index
             });
         }
 
@@ -345,11 +378,16 @@ namespace Robotics
             return CreateVariable(parent, name, dataType, initial, writable, ns);
         }
 
-        // Dynamic composition (§5.13): mount the gripper tool on R1's flange shortly
-        // after startup. The CreateNode emits a GeneralModelChangeEvent, so a connector
-        // already watching reconciles the tool prim (recompose path), and a connector
-        // attaching later composes it from the now-present MountedTool (initial path).
-        // The tool then stays mounted, so the composed stage renders it deterministically.
+        /// <summary>
+        /// Dynamic composition (§5.13): mount the gripper tool on R1's flange shortly
+        /// after startup. The CreateNode emits a GeneralModelChangeEvent, so a connector
+        /// already watching reconciles the tool prim (recompose path), and a connector
+        /// attaching later composes it from the now-present MountedTool (initial path).
+        /// The tool then stays mounted, so the composed stage renders it deterministically.
+        /// </summary>
+        /// <param name="ns"></param>
+        /// <param name="usdNs"></param>
+        /// <returns></returns>
         private async Task RunDynamicToolAsync(ushort ns, ushort usdNs)
         {
             try
@@ -360,12 +398,11 @@ namespace Robotics
                 }
                 await Task.Delay(3000).ConfigureAwait(false);
                 _ = await AddMountedToolAsync(ns, usdNs).ConfigureAwait(false);
-                m_logger.LogInformation(
-                    "Dynamic composition: gripper tool mounted on R1 flange at runtime (stays attached).");
+                m_logger.GripperToolMounted();
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(ex, "Dynamic tool composition demo failed.");
+                m_logger.DynamicToolFailed(ex);
             }
         }
 
@@ -399,8 +436,274 @@ namespace Robotics
             return newId;
         }
 
-        // Deterministic Guid from a stable key (SHA-256 truncated to 16 bytes), so
-        // binding ids are reproducible across builds without a broken hash algorithm.
+        internal async ValueTask ConfigurePositioningAsync(
+            PositioningServerContext context)
+        {
+            if (m_robotCell == null)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidState,
+                    "RobotCell must exist before Positioning is configured.");
+            }
+
+            MobileRobotPositionProvider? provider = null;
+            for (int i = 0; i < context.GlobalPositionProviders.Count; i++)
+            {
+                if (context.GlobalPositionProviders[i] is MobileRobotPositionProvider candidate)
+                {
+                    provider = candidate;
+                    break;
+                }
+            }
+            if (provider == null)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadConfigurationError,
+                    "MobileRobotPositionProvider is not registered.");
+            }
+
+            PositioningAddressSpaceBuilder builder = context.AddressSpace;
+            ushort rslNamespaceIndex = (ushort)Server.NamespaceUris.GetIndex(
+                Opc.Ua.Rsl.Namespaces.RSL);
+            ushort gposNamespaceIndex = (ushort)Server.NamespaceUris.GetIndex(
+                Opc.Ua.Gpos.Namespaces.GPOS);
+            ushort usdNamespaceIndex = (ushort)Server.NamespaceUris.GetIndex(
+                Opc.Ua.OpenUsd.Namespaces.OpenUSD);
+            EUInformation metres = new(
+                "m",
+                "metre",
+                "http://www.opcfoundation.org/UA/units/un/cefact");
+            EUInformation degrees = new(
+                "deg",
+                "degree",
+                "http://www.opcfoundation.org/UA/units/un/cefact");
+
+            SpatialObjectsListState list = builder.CreateSpatialObjectsList(
+                m_robotCell,
+                new QualifiedName("RobotCellFrames", rslNamespaceIndex),
+                "RobotCell",
+                CreateZeroFrame(),
+                metres,
+                degrees);
+            await builder.RegisterAsync(
+                list,
+                context.CancellationToken).ConfigureAwait(false);
+
+            ZoneState zone = builder.CreateZone(
+                new QualifiedName("RobotCellZone", gposNamespaceIndex),
+                RobotPositioningScenario.ZoneId,
+                provider.Scenario.GroundControlPoints);
+            await builder.RegisterAsync(
+                zone,
+                context.CancellationToken).ConfigureAwait(false);
+
+            foreach (RobotRuntime runtime in m_robots)
+            {
+                await ConfigureRobotPositioningAsync(
+                    context,
+                    builder,
+                    provider,
+                    runtime,
+                    list,
+                    zone,
+                    metres,
+                    degrees,
+                    rslNamespaceIndex,
+                    gposNamespaceIndex,
+                    usdNamespaceIndex).ConfigureAwait(false);
+            }
+
+            m_logger.PositioningConfigured(m_robots.Count);
+        }
+
+        private async ValueTask ConfigureRobotPositioningAsync(
+            PositioningServerContext context,
+            PositioningAddressSpaceBuilder builder,
+            MobileRobotPositionProvider provider,
+            RobotRuntime runtime,
+            SpatialObjectsListState list,
+            ZoneState zone,
+            EUInformation metres,
+            EUInformation degrees,
+            ushort rslNamespaceIndex,
+            ushort gposNamespaceIndex,
+            ushort usdNamespaceIndex)
+        {
+            GlobalPositionSample initial = await provider.ReadAsync(
+                runtime.SourceId,
+                context.CancellationToken).ConfigureAwait(false);
+            ThreeDCartesianCoordinates localPosition =
+                provider.Scenario.Fit.GlobalToLocal(
+                    initial.Location.Position,
+                    AngleUnit.Degrees);
+            var localFrame = new ThreeDFrame
+            {
+                CartesianCoordinates = localPosition,
+                Orientation = initial.Location.Orientation
+            };
+
+            SpatialObjectState spatialObject = builder.AttachSpatialObject(
+                runtime.Robot,
+                list,
+                new QualifiedName("SpatialObject", rslNamespaceIndex),
+                runtime.SourceId,
+                localFrame,
+                metres,
+                degrees);
+            var positionFrame =
+                (CartesianFrameAngleOrientationState)spatialObject.PositionFrame!;
+            if (runtime.SourceId == "R1")
+            {
+                _ = builder.AddAttachPoint(
+                    spatialObject,
+                    new QualifiedName("ToolFlange", rslNamespaceIndex),
+                    positionFrame.NodeId,
+                    CreateZeroFrame(),
+                    metres,
+                    degrees);
+            }
+            await builder.RegisterAsync(
+                spatialObject,
+                context.CancellationToken).ConfigureAwait(false);
+
+            GlobalLocationState globalLocation = builder.AttachGlobalLocation(
+                runtime.Robot,
+                new QualifiedName("GlobalLocation", gposNamespaceIndex),
+                zone.NodeId,
+                4326);
+            globalLocation.Position!.AddElevationReference(SystemContext);
+            globalLocation.Position.ElevationReference!.Value = 1;
+            globalLocation.Orientation!.AddAngleUnit(SystemContext);
+            globalLocation.Orientation!.AngleUnit!.Value = degrees;
+
+            PositioningProviderSubscription subscription =
+                await builder.BindGlobalLocationAsync(
+                    globalLocation,
+                    provider,
+                    runtime.SourceId,
+                    (sample, _) =>
+                    {
+                        ThreeDCartesianCoordinates local =
+                            provider.Scenario.Fit.GlobalToLocal(
+                                sample.Location.Position,
+                                AngleUnit.Degrees);
+                        builder.SetFrameValue(
+                            positionFrame,
+                            new ThreeDFrame
+                            {
+                                CartesianCoordinates = local,
+                                Orientation = sample.Location.Orientation
+                            },
+                            sample.StatusCode,
+                            sample.SourceTimestamp);
+                        return default;
+                    },
+                    context.CancellationToken).ConfigureAwait(false);
+            m_positioningSubscriptions.Add(subscription);
+            await builder.RegisterAsync(
+                globalLocation,
+                context.CancellationToken).ConfigureAwait(false);
+
+            OpenUsdLiveBindingState[] bindings =
+            [
+                CreateBinding(
+                    runtime.Representation,
+                    usdNamespaceIndex,
+                    $"{runtime.SourceId}Position",
+                    GuidFor($"{runtime.SourceId}:position"),
+                    positionFrame.Position!.NodeId,
+                    runtime.PrimPath,
+                    "xformOp:translate",
+                    "double3",
+                    OpenUsdRenderTargetKindEnum.Translation,
+                    1.0),
+                CreateBinding(
+                    runtime.Representation,
+                    usdNamespaceIndex,
+                    $"{runtime.SourceId}Orientation",
+                    GuidFor($"{runtime.SourceId}:orientation"),
+                    positionFrame.Orientation!.NodeId,
+                    runtime.PrimPath,
+                    "xformOp:rotateXYZ",
+                    "double3",
+                    OpenUsdRenderTargetKindEnum.Rotation,
+                    1.0),
+                CreateBinding(
+                    runtime.Representation,
+                    usdNamespaceIndex,
+                    $"{runtime.SourceId}Longitude",
+                    GuidFor($"{runtime.SourceId}:longitude"),
+                    globalLocation.Position.Longitude!.NodeId,
+                    runtime.PrimPath,
+                    "inputs:longitude",
+                    "double",
+                    OpenUsdRenderTargetKindEnum.Custom,
+                    1.0),
+                CreateBinding(
+                    runtime.Representation,
+                    usdNamespaceIndex,
+                    $"{runtime.SourceId}Latitude",
+                    GuidFor($"{runtime.SourceId}:latitude"),
+                    globalLocation.Position.Latitude!.NodeId,
+                    runtime.PrimPath,
+                    "inputs:latitude",
+                    "double",
+                    OpenUsdRenderTargetKindEnum.Custom,
+                    1.0),
+                CreateBinding(
+                    runtime.Representation,
+                    usdNamespaceIndex,
+                    $"{runtime.SourceId}Elevation",
+                    GuidFor($"{runtime.SourceId}:elevation"),
+                    globalLocation.Position.Elevation!.NodeId,
+                    runtime.PrimPath,
+                    "inputs:elevation",
+                    "double",
+                    OpenUsdRenderTargetKindEnum.Custom,
+                    1.0)
+            ];
+
+            foreach (OpenUsdLiveBindingState binding in bindings)
+            {
+                runtime.Representation.RemoveChild(binding);
+                _ = await AddNodeAsync(
+                    SystemContext,
+                    runtime.Representation.NodeId,
+                    binding,
+                    context.CancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        private static ThreeDFrame CreateZeroFrame()
+        {
+            return new ThreeDFrame
+            {
+                CartesianCoordinates = new ThreeDCartesianCoordinates(),
+                Orientation = new ThreeDOrientation()
+            };
+        }
+
+        /// <inheritdoc/>
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                foreach (PositioningProviderSubscription subscription in
+                    m_positioningSubscriptions)
+                {
+                    subscription.Dispose();
+                }
+                m_positioningSubscriptions.Clear();
+            }
+            base.Dispose(disposing);
+        }
+
+        /// <summary>
+        /// Deterministic Guid from a stable key (SHA-256 truncated to 16 bytes), so
+        /// binding ids are reproducible across builds without a broken hash algorithm.
+        /// </summary>
+        /// <param name="key"></param>
+        /// <returns></returns>
         private static Guid GuidFor(string key)
         {
             byte[] hash;
@@ -410,7 +713,7 @@ namespace Robotics
                 hash = sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes("robotics:" + key));
             }
 #pragma warning restore CA1850
-            var g = new byte[16];
+            byte[] g = new byte[16];
             Array.Copy(hash, g, 16);
             return new Guid(g);
         }
@@ -428,5 +731,36 @@ namespace Robotics
             Level = LogLevel.Information,
             Message = "Dynamic composition: attached gripper tool (NodeId={NodeId}); model-change emitted.")]
         public static partial void AttachedGripperTool(this ILogger logger, NodeId nodeId);
+
+        [LoggerMessage(EventId = MinimalRobotServerEventIds.RobotCell + 3,
+            Level = LogLevel.Information,
+            Message = "Configured RSL/GPOS positioning for {RobotCount} robots.")]
+        public static partial void PositioningConfigured(
+            this ILogger logger,
+            int robotCount);
+
+        [LoggerMessage(EventId = MinimalRobotServerEventIds.RobotCell + 4,
+            Level = LogLevel.Warning,
+            Message = "DI DeviceSet was not found; RobotCell was not created.")]
+        public static partial void DeviceSetMissing(this ILogger logger);
+
+        [LoggerMessage(EventId = MinimalRobotServerEventIds.RobotCell + 5,
+            Level = LogLevel.Error,
+            Message = "Failed to materialise RobotCell.")]
+        public static partial void RobotCellFailed(
+            this ILogger logger,
+            Exception exception);
+
+        [LoggerMessage(EventId = MinimalRobotServerEventIds.RobotCell + 6,
+            Level = LogLevel.Information,
+            Message = "Dynamic composition mounted the gripper tool on R1.")]
+        public static partial void GripperToolMounted(this ILogger logger);
+
+        [LoggerMessage(EventId = MinimalRobotServerEventIds.RobotCell + 7,
+            Level = LogLevel.Warning,
+            Message = "Dynamic tool composition failed.")]
+        public static partial void DynamicToolFailed(
+            this ILogger logger,
+            Exception exception);
     }
 }

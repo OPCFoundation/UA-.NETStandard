@@ -27,10 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Positioning.Server.Hosting;
 using Robotics;
 
 // Self-contained OPC UA server exposing an OPC 40010 Robotics MotionDeviceSystem
@@ -50,7 +50,11 @@ int port = int.TryParse(builder.Configuration["port"], out int p) ? p : 62830;
 // from outside a container; override with --host / host env var (e.g. "localhost").
 string host = builder.Configuration["host"] is { Length: > 0 } h ? h : "0.0.0.0";
 
-builder.Services
+builder.Services.AddOptions<RobotMobilityOptions>()
+    .Bind(builder.Configuration.GetSection("Robots"));
+builder.Services.AddSingleton<RobotPositioningScenario>();
+
+IPositioningServerBuilder positioning = builder.Services
     .AddOpcUa()
     .AddServer(o =>
     {
@@ -60,7 +64,14 @@ builder.Services
         o.AutoAcceptUntrustedCertificates = true;
         o.EndpointUrls.Add($"opc.tcp://{host}:{port}/MinimalRobotServer");
     })
-    .AddNodeManager<RoboticsNodeManagerFactory>();
+    .AddNodeManager<RoboticsNodeManagerFactory>()
+    .AddPositioningFor<RoboticsNodeManager>();
+
+positioning
+    .AddGlobalPositionProvider<MobileRobotPositionProvider>()
+    .ConfigurePositioningFor<RoboticsNodeManager>(
+        context => ((RoboticsNodeManager)context.Manager)
+            .ConfigurePositioningAsync(context));
 
 using IHost app = builder.Build();
 await app.RunAsync().ConfigureAwait(false);
