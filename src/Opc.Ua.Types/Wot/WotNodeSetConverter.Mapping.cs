@@ -582,7 +582,11 @@ namespace Opc.Ua.Wot
             string? rootBrowseName = GetUavString(document, "browseName");
             rootNode.BrowseName = rootBrowseName is null
                 ? "1:" + rootLocal
-                : ToNodeSetQualifiedName(rootBrowseName, nodeSet, diagnostics);
+                : ToNodeSetQualifiedName(
+                    document,
+                    rootBrowseName,
+                    nodeSet,
+                    diagnostics);
             rootNode.DisplayName = MakeText(document.Title ?? rootLocal);
             string? rootDescription = GetRootString(document, "description");
             if (rootDescription is not null)
@@ -599,7 +603,7 @@ namespace Opc.Ua.Wot
                     break;
                 }
                 SynthesizeProperty(
-                    nodeSet, property.Key, property.Value, rootLocal,
+                    document, nodeSet, property.Key, property.Value, rootLocal,
                     rootNodeId, isThingModel,
                     items, rootReferences, diagnostics);
             }
@@ -611,7 +615,7 @@ namespace Opc.Ua.Wot
                     break;
                 }
                 SynthesizeAction(
-                    nodeSet, action.Key, action.Value, rootLocal,
+                    document, nodeSet, action.Key, action.Value, rootLocal,
                     rootNodeId, items, rootReferences, diagnostics);
             }
 
@@ -622,7 +626,7 @@ namespace Opc.Ua.Wot
                     break;
                 }
                 SynthesizeEvent(
-                    nodeSet, eventAffordance.Key, eventAffordance.Value,
+                    document, nodeSet, eventAffordance.Key, eventAffordance.Value,
                     rootLocal, items, rootReferences, diagnostics);
             }
 
@@ -645,6 +649,7 @@ namespace Opc.Ua.Wot
         }
 
         private static void SynthesizeProperty(
+            WotDocument document,
             UANodeSet nodeSet,
             string key,
             JsonElement schema,
@@ -667,6 +672,7 @@ namespace Opc.Ua.Wot
                 BrowseName = authoredBrowseName is null
                     ? "1:" + local
                     : ToNodeSetQualifiedName(
+                        document,
                         authoredBrowseName,
                         nodeSet,
                         diagnostics),
@@ -716,6 +722,7 @@ namespace Opc.Ua.Wot
         }
 
         private static void SynthesizeAction(
+            WotDocument document,
             UANodeSet nodeSet,
             string key,
             JsonElement action,
@@ -737,6 +744,7 @@ namespace Opc.Ua.Wot
                 BrowseName = authoredBrowseName is null
                     ? "1:" + local
                     : ToNodeSetQualifiedName(
+                        document,
                         authoredBrowseName,
                         nodeSet,
                         diagnostics),
@@ -770,6 +778,7 @@ namespace Opc.Ua.Wot
         }
 
         private static void SynthesizeEvent(
+            WotDocument document,
             UANodeSet nodeSet,
             string key,
             JsonElement eventAffordance,
@@ -794,6 +803,7 @@ namespace Opc.Ua.Wot
                 BrowseName = authoredBrowseName is null
                     ? "1:" + local
                     : ToNodeSetQualifiedName(
+                        document,
                         authoredBrowseName,
                         nodeSet,
                         diagnostics),
@@ -1607,13 +1617,15 @@ namespace Opc.Ua.Wot
             {
                 return rawBrowseName;
             }
-            return "nsu=" +
-                CoreUtils.EscapeUri(namespaceUris[namespaceIndex - 1]) +
-                ";" +
+            return "ns" +
+                namespaceIndex.ToString(
+                    System.Globalization.CultureInfo.InvariantCulture) +
+                ":" +
                 name;
         }
 
         private static string ToNodeSetQualifiedName(
+            WotDocument document,
             string rawBrowseName,
             UANodeSet nodeSet,
             List<WotDiagnostic> diagnostics)
@@ -1667,18 +1679,41 @@ namespace Opc.Ua.Wot
                         break;
                     }
                 }
-                diagnostics.Add(new WotDiagnostic(
-                    numeric
-                        ? WotDiagnosticSeverity.Warning
-                        : WotDiagnosticSeverity.Error,
-                    WotDiagnosticCode.NonPortableQualifiedName,
-                    numeric
-                        ? $"The uav:browseName '{rawBrowseName}' uses a numeric " +
-                          "NamespaceIndex; persisted documents shall use " +
-                          "nsu=<NamespaceUri>;<Name>."
-                        : $"The uav:browseName '{rawBrowseName}' is a compact model " +
-                          "name, not an OPC 10000-6 QualifiedName.",
-                    new WotLocation(reference: rawBrowseName)));
+                if (numeric)
+                {
+                    diagnostics.Add(new WotDiagnostic(
+                        WotDiagnosticSeverity.Warning,
+                        WotDiagnosticCode.NonPortableQualifiedName,
+                        $"The uav:browseName '{rawBrowseName}' uses a numeric " +
+                        "NamespaceIndex; persisted documents shall use a " +
+                        "context prefix or nsu=<NamespaceUri>;<Name>.",
+                        new WotLocation(reference: rawBrowseName)));
+                    return rawBrowseName;
+                }
+                string prefix = rawBrowseName.Substring(0, separator);
+                if (!TryGetContextNamespace(document, prefix, out string namespaceUri))
+                {
+                    diagnostics.Add(new WotDiagnostic(
+                        WotDiagnosticSeverity.Error,
+                        WotDiagnosticCode.NonPortableQualifiedName,
+                        $"The uav:browseName '{rawBrowseName}' uses an unbound " +
+                        $"context prefix '{prefix}'.",
+                        new WotLocation(reference: rawBrowseName)));
+                    return rawBrowseName;
+                }
+                string name = rawBrowseName.Substring(separator + 1);
+                if (string.Equals(
+                    namespaceUri,
+                    WotVocabulary.OpcUaNamespace,
+                    StringComparison.Ordinal))
+                {
+                    return name;
+                }
+                int namespaceIndex = GetOrAppendNamespaceUri(nodeSet, namespaceUri);
+                return namespaceIndex.ToString(
+                    System.Globalization.CultureInfo.InvariantCulture) +
+                    ":" +
+                    name;
             }
             return rawBrowseName;
         }

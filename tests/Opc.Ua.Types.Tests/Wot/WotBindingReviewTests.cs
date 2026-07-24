@@ -212,22 +212,25 @@ namespace Opc.Ua.Types.Tests.Wot
 
             Assert.That(
                 document.RootElement.GetProperty("uav:browseName").GetString(),
-                Is.EqualTo("nsu=urn:test:model;MachineType"));
+                Is.EqualTo("ns1:MachineType"));
             Assert.That(
                 document.Properties["Speed"].GetProperty("uav:browseName").GetString(),
-                Is.EqualTo("nsu=urn:test:model;Speed"));
+                Is.EqualTo("ns1:Speed"));
         }
 
         [Test]
-        public void UriQualifiedBrowseNamesMapToNodeSetNamespaceIndexes()
+        public void ContextQualifiedBrowseNamesMapToNodeSetNamespaceIndexes()
         {
-            string json =
-                "{" + Context +
+            const string json =
+                "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\",{" +
+                "\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"," +
+                "\"pump\":\"urn:demo:pump\"," +
+                "\"measurement\":\"urn:demo:measurement\"}]," +
                 "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"]," +
                 "\"title\":\"PumpType\"," +
-                "\"uav:browseName\":\"nsu=urn:demo:pump;PumpType\"," +
+                "\"uav:browseName\":\"pump:PumpType\"," +
                 "\"properties\":{\"speed\":{" +
-                "\"uav:browseName\":\"nsu=urn:demo:measurement;Speed\"," +
+                "\"uav:browseName\":\"measurement:Speed\"," +
                 "\"type\":\"number\"}}}";
 
             UANodeSet nodeSet = WotNodeSetConverter.ToNodeSet(Encoding.UTF8.GetBytes(json));
