@@ -222,6 +222,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
             JsonElement root = document.RootElement;
 
             Assert.That(GetRequiredProperty(root, "success").GetBoolean(), Is.False);
+            Assert.That(GetRequiredProperty(root, "error").GetBoolean(), Is.True);
             Assert.That(GetRequiredProperty(root, "changes").GetArrayLength(), Is.Zero);
             Assert.That(
                 GetRequiredProperty(root, "message").GetString(),

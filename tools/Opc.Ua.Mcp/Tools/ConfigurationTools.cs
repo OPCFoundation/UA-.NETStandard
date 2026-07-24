@@ -198,6 +198,7 @@ namespace Opc.Ua.Mcp.Tools
                     return OpcUaJsonHelper.Serialize(new Dictionary<string, object?>
                     {
                         ["success"] = false,
+                        ["error"] = true,
                         ["changes"] = Array.Empty<string>(),
                         ["message"] = "No changes specified. Provide at least one setting to modify."
                     });
