@@ -59,7 +59,8 @@ namespace Opc.Ua.Mcp.Tools
         /// </summary>
         [McpServerTool(Name = "pubsub_start_capture")]
         [Description("Starts a new in-process OPC UA PubSub capture session. The MCP server must share the " +
-            "registered PubSub capture registry with the PubSub transports for live frames to appear.")]
+            "registered PubSub capture registry with the PubSub transports for live frames to appear. Returns a " +
+            "PubSubCaptureSessionInfo (isActive:true, frameCount, byteCount, state).")]
         public static async Task<PubSubCaptureSessionInfo> StartCaptureAsync(
             PubSubCaptureSessionManager manager,
             CancellationToken ct)
@@ -76,7 +77,8 @@ namespace Opc.Ua.Mcp.Tools
         /// </summary>
         [McpServerTool(Name = "pubsub_stop_capture")]
         [Description("Stops the active in-process PubSub capture session and keeps a reusable in-memory snapshot " +
-            "for pubsub_write_pcap and pubsub_dissect_capture.")]
+            "for pubsub_write_pcap and pubsub_dissect_capture. Returns a PubSubCaptureSessionInfo (isActive:false, " +
+            "frameCount, byteCount, state) describing the stopped or last snapshot.")]
         public static async Task<PubSubCaptureSessionInfo> StopCaptureAsync(
             PubSubCaptureSessionManager manager,
             CancellationToken ct)
@@ -144,7 +146,8 @@ namespace Opc.Ua.Mcp.Tools
         [McpServerTool(Name = "pubsub_write_pcap")]
         [Description("Writes the active or last stopped PubSub capture to a .pcap or .pcapng file. If a capture is " +
             "active, it is stopped first so the buffered frames can be flushed safely. Only UDP/UADP frames are " +
-            "written; MQTT payloads are skipped by the PubSub pcap writer.")]
+            "written; MQTT payloads are skipped by the PubSub pcap writer. Returns a PubSubPcapWriteInfo (filePath, " +
+            "format, framesCaptured, bytesCaptured, framesWritten).")]
         public static async Task<PubSubPcapWriteInfo> WritePcapAsync(
             IServiceProvider services,
             PubSubCaptureSessionManager manager,

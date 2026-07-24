@@ -47,11 +47,13 @@ namespace Opc.Ua.Mcp.Tools
         /// Create monitored items in a subscription.
         /// </summary>
         [McpServerTool(Name = "CreateMonitoredItems")]
-        [Description("Create monitored items in a subscription to receive data change or event notifications.")]
+        [Description("Create monitored items in a subscription to receive data change or event notifications. " +
+            "Returns JSON with responseHeader and results (array with statusCode, monitoredItemId, and revised " +
+            "sampling interval/queue size per node); on failure returns {error:true, statusCode, message}.")]
         public static async Task<string> CreateMonitoredItemsAsync(
             OpcUaSessionManager sessionManager,
             [Description("Subscription ID to add monitored items to")] uint subscriptionId,
-            [Description("Array of node IDs to monitor")] string[] nodeIds,
+            [Description("Array of node IDs to monitor, e.g. ['ns=2;s=Temperature', 'ns=2;s=Pressure']")] string[] nodeIds,
             [Description("Sampling interval in milliseconds (default: 1000)")] double samplingInterval = 1000,
             [Description("Queue size for notifications (default: 10)")] uint queueSize = 10,
             [Description("Discard oldest notifications when queue is full (default: true)")] bool discardOldest = true,
@@ -115,11 +117,13 @@ namespace Opc.Ua.Mcp.Tools
         /// Modify monitored items.
         /// </summary>
         [McpServerTool(Name = "ModifyMonitoredItems")]
-        [Description("Modify parameters of existing monitored items in a subscription.")]
+        [Description("Modify sampling interval, queue size, or discard policy of existing monitored items in a " +
+            "subscription. Returns JSON with responseHeader and results (array with statusCode and revised " +
+            "sampling interval/queue size per item); on failure returns {error:true, statusCode, message}.")]
         public static async Task<string> ModifyMonitoredItemsAsync(
             OpcUaSessionManager sessionManager,
             [Description("Subscription ID containing the monitored items")] uint subscriptionId,
-            [Description("Array of monitored item IDs to modify")] uint[] monitoredItemIds,
+            [Description("Array of monitored item IDs to modify, e.g. [1, 2, 3]")] uint[] monitoredItemIds,
             [Description("New sampling interval in milliseconds")] double samplingInterval = 1000,
             [Description("New queue size")] uint queueSize = 10,
             [Description("Discard oldest (default: true)")] bool discardOldest = true,
@@ -177,11 +181,13 @@ namespace Opc.Ua.Mcp.Tools
         /// Set the monitoring mode for monitored items.
         /// </summary>
         [McpServerTool(Name = "SetMonitoringMode")]
-        [Description("Set the monitoring mode (Disabled, Sampling, or Reporting) for monitored items.")]
+        [Description("Set the monitoring mode (Disabled, Sampling, or Reporting) for monitored items. Returns " +
+            "JSON with responseHeader and results (array of per-item status codes); on failure returns " +
+            "{error:true, statusCode, message}.")]
         public static async Task<string> SetMonitoringModeAsync(
             OpcUaSessionManager sessionManager,
             [Description("Subscription ID")] uint subscriptionId,
-            [Description("Array of monitored item IDs")] uint[] monitoredItemIds,
+            [Description("Array of monitored item IDs, e.g. [1, 2, 3]")] uint[] monitoredItemIds,
             [Description("Monitoring mode: 'Disabled', 'Sampling', or 'Reporting' (default: 'Reporting')")] string monitoringMode = "Reporting",
             [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
@@ -225,7 +231,10 @@ namespace Opc.Ua.Mcp.Tools
         /// Set triggering links between monitored items.
         /// </summary>
         [McpServerTool(Name = "SetTriggering")]
-        [Description("Create or delete triggering links between a triggering item and linked items in a subscription.")]
+        [Description("Create or delete triggering links between a triggering item and linked items in a " +
+            "subscription (a linked item reports only when the triggering item fires). Returns JSON with " +
+            "responseHeader, addResults, and removeResults (status codes per link); on failure returns " +
+            "{error:true, statusCode, message}.")]
         public static async Task<string> SetTriggeringAsync(
             OpcUaSessionManager sessionManager,
             [Description("Subscription ID")] uint subscriptionId,
@@ -269,11 +278,13 @@ namespace Opc.Ua.Mcp.Tools
         /// Delete monitored items from a subscription.
         /// </summary>
         [McpServerTool(Name = "DeleteMonitoredItems")]
-        [Description("Delete monitored items from a subscription.")]
+        [Description("Delete monitored items from a subscription, stopping their notifications. Returns JSON with " +
+            "responseHeader and results (array of per-item status codes); on failure returns {error:true, " +
+            "statusCode, message}.")]
         public static async Task<string> DeleteMonitoredItemsAsync(
             OpcUaSessionManager sessionManager,
             [Description("Subscription ID")] uint subscriptionId,
-            [Description("Array of monitored item IDs to delete")] uint[] monitoredItemIds,
+            [Description("Array of monitored item IDs to delete, e.g. [1, 2, 3]")] uint[] monitoredItemIds,
             [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {

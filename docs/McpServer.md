@@ -4,7 +4,7 @@ The OPC UA MCP Server exposes all OPC UA Part 4 service calls as [Model Context 
 
 ## What It Does
 
-The MCP server wraps the OPC UA .NET Standard client library, translating between JSON-based MCP tool calls and OPC UA binary protocol operations. It provides **43 tools** organized by OPC UA Part 4 service set:
+The MCP server wraps the OPC UA .NET Standard client library, translating between JSON-based MCP tool calls and OPC UA binary protocol operations. The server exposes tools through a [tool profile](#tool-profiles) — a named, bounded catalog selected at startup — rather than a single fixed tool count. The default `full` profile currently registers every tool below; running a narrower profile (`core`, `services`, `administration`, `pubsub`, or `diagnostics`) exposes only the subset relevant to that workflow. The tables below list the complete tool surface, organized by OPC UA Part 4 service set:
 
 | Service Set | Tools | Description |
 |---|---|---|
@@ -17,7 +17,7 @@ The MCP server wraps the OPC UA .NET Standard client library, translating betwee
 | **MonitoredItem** | `CreateMonitoredItems`, `ModifyMonitoredItems`, `SetMonitoringMode`, `SetTriggering`, `DeleteMonitoredItems` | Monitor data changes and events |
 | **Discovery** | `FindServers`, `FindServersOnNetwork`, `RegisterServer`, `RegisterServer2` | Discover servers and register |
 | **PKI Management** | `ListCertificates`, `TrustCertificate`, `RemoveCertificate`, `GetPkiStorePaths` | Manage certificate trust lists |
-| **Configuration** | `GetConfiguration`, `SetConfiguration` | View/modify client settings for current session |
+| **Configuration** | `GetConfiguration`, `SetTransportConfiguration`, `SetClientConfiguration`, `SetSecurityConfiguration`, `SetConfiguration` | View/modify in-memory client settings; `SetConfiguration` is the `full`-profile compatibility tool |
 | **NodeSet Export** | `ExportNodeSet`, `ExportNodeSetPerNamespace` | Export address space to NodeSet2 XML |
 | **Convenience** | `ReadValue`, `ReadValues`, `WriteValue`, `BrowseAll`, `CallMethod`, `ReadNode`, `Cancel` | Simplified high-level operations |
 | **Packet Capture** | `list_interfaces`, `start_capture`, `stop_capture`, `list_captures`, `get_capture`, `capture_now`, `list_active_channels`, `dump_keys`, `decode_pcap_with_keys`, `summarize_service_calls`, `replay_pcap`, `stop_replay`, `list_replays` | OPC UA-aware packet capture, offline decode, service-call summaries, replay |
@@ -41,6 +41,27 @@ The packet-capture tools are described in detail in [Diagnostics](Diagnostics.md
 | `replay_pcap` | Replays as a mock server or mock client. | `pcapPath`, `keylogPath`, `mode`, endpoints, `speed` |
 | `stop_replay` | Stops an active replay session. | `sessionId` |
 | `list_replays` | Lists active and recently-completed replay sessions. | None |
+
+## Tool Profiles
+
+The server selects its tool catalog through a **tool profile** — a bounded set of tool classes registered at startup. Profiles let a client request only the tools it needs (smaller catalogs are easier for an LLM to reason about and reduce prompt size), while `full` preserves the complete surface for clients that want everything.
+
+| Profile | Tool classes registered | Typical use case |
+|---|---|---|
+| `core` | Configuration, Connection, Convenience | Minimal footprint: connect, read/write values, adjust settings |
+| `services` | Attribute, Configuration, Connection, Convenience, Discovery, Method, MonitoredItem, Node Management, Subscription, View | Full OPC UA Part 4 client workflows without PKI/PubSub/packet capture |
+| `administration` | Configuration, Connection, NodeSet Export, PKI Management | Certificate trust management and NodeSet export |
+| `pubsub` | PubSub runtime, discovery, action, and capture tools (plus PubSub decode when diagnostics tools are enabled) | Part 14 PubSub publish/subscribe, discovery, and capture workflows |
+| `diagnostics` | Connection, Packet Capture (plus decode/replay when diagnostics tools are enabled) | OPC UA-aware packet capture, offline decode, and replay |
+| `full` (default) | Every tool class above | Unrestricted access; the current-major default so existing integrations keep working unchanged |
+
+`full` is the default for the current major version — `core` and the other bounded profiles are opt-in. Select a profile with:
+
+- The `--profile` CLI option, e.g. `opcua-mcp --profile core`
+- The `McpServer:ToolProfile` configuration value
+- The `OPCUA_MCP_TOOL_PROFILE` environment variable
+
+Because the exact number of tools in each profile (and in `full`) changes as tools are added or removed, this document intentionally does not hard-code a tool count. Use the tables above (or `tools/list`) to enumerate the tools actually exposed by a running server.
 
 ## Resources
 
@@ -145,13 +166,15 @@ Add to your Cursor MCP settings:
 }
 ```
 
-### HTTP/SSE Transport (for remote clients)
+### HTTP Transport (for remote clients)
 
-By default, the server uses stdio transport for local tool integration. For remote clients, use the HTTP/SSE transport:
+By default, the server uses stdio transport for local tool integration. For remote clients, use the Streamable HTTP transport, exposed only at the `/mcp` path (there is no root route):
 
 ```bash
-opcua-mcp --transport sse --port 5100
+opcua-mcp --transport http --port 5100
 ```
+
+The server listens at `http://localhost:5100/mcp`. `--transport sse` is a deprecated alias for `http` kept for the current major version only — prefer `http` in new configurations.
 
 ## Usage
 
@@ -358,9 +381,9 @@ runtime and collect publisher responses):
 
 | Tool | Purpose |
 | --- | --- |
-| `pubsub_discover_metadata` | Request DataSetMetaData from publishers |
-| `pubsub_discover_writer_config` | Request DataSetWriterConfiguration from publishers |
-| `pubsub_discover_publisher_endpoints` | Request PublisherEndpoints from publishers |
+| `pubsub_discover_metadata` | Learn the field-level schema of a DataSetWriter (names, field count) |
+| `pubsub_discover_writer_config` | Learn a publisher's WriterGroupId and DataSetWriterIds |
+| `pubsub_discover_publisher_endpoints` | Learn a publisher's transport endpoint URLs |
 
 **Actions** (Part 14 §7.2.5.6 &mdash; request/response over PubSub):
 
@@ -386,7 +409,7 @@ runtime and collect publisher responses):
 ```
 tools/Opc.Ua.Mcp/
 ├── Opc.Ua.Mcp.csproj                    # .NET 10 project, packaged as dotnet tool
-├── Program.cs                           # Entry point, stdio + HTTP/SSE transport
+├── Program.cs                           # Entry point, stdio + Streamable HTTP transport (/mcp)
 ├── OpcUaSessionManager.cs               # OPC UA client session lifecycle
 ├── Opc.Ua.Mcp.Config.xml                # OPC UA client application config
 ├── .mcp/server.json                     # MCP server manifest for NuGet discovery
@@ -400,7 +423,9 @@ tools/Opc.Ua.Mcp/
 │   ├── MonitoredItemServiceTools.cs     # CreateMonitoredItems, etc.
 │   ├── DiscoveryServiceTools.cs         # FindServers, RegisterServer, etc.
 │   ├── PkiTools.cs                      # ListCertificates, TrustCertificate, etc.
-│   ├── ConfigurationTools.cs            # GetConfiguration, SetConfiguration
+│   ├── ConfigurationTools.cs            # Full-profile compatibility configuration tools
+│   ├── ConfigurationReadTools.cs        # Profile-safe configuration reader
+│   ├── ConfigurationUpdateTools.cs      # Focused transport/client/security setters
 │   ├── NodeSetExportTools.cs            # ExportNodeSet, ExportNodeSetPerNamespace
 │   └── ConvenienceTools.cs              # ReadValue, BrowseAll, CallMethod, etc.
 └── Serialization/
@@ -413,6 +438,24 @@ tools/Opc.Ua.Mcp/
 - The server manages a single OPC UA session at a time. Disconnect before connecting to a different server.
 - Application certificates are automatically created on first use and stored in the local certificate store.
 - Logs are written to `%LocalApplicationData%/OPC Foundation/Logs/McpServer.log.txt`.
+
+## Agent-Usability Quality Gate
+
+Contributors can run the same deterministic static and live-probe grading used in CI:
+
+```powershell
+./tools/Opc.Ua.Mcp/Test-McpGrade.ps1
+```
+
+The script builds the server, checks out `mcpgrade` at the reviewed commit pinned in the script,
+grades the `core` and `full` Streamable HTTP catalogs, and probes the full stdio catalog. Reports
+are written under `artifacts/mcpgrade` by default.
+
+The repository `.mcpgraderc.json` disables N002 after descriptions have been disambiguated.
+`RegisterServer`/`RegisterServer2` are OPC UA standard service names, while
+`ReadValue`/`ReadValues` and `GetConfiguration`/`SetConfiguration` are compatibility-sensitive
+singular/plural and get/set pairs. These names must not be changed solely to satisfy edit-distance
+heuristics.
 
 ## Requirements
 

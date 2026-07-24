@@ -44,7 +44,9 @@ namespace Opc.Ua.Mcp.Tools
         /// Starts an in-process UDP/UADP publisher.
         /// </summary>
         [McpServerTool(Name = "pubsub_runtime_start_publisher")]
-        [Description("Starts an in-process OPC UA PubSub UDP/UADP publisher. fieldSpec uses name:type pairs.")]
+        [Description("Starts an in-process OPC UA PubSub UDP/UADP publisher. fieldSpec uses name:type pairs. " +
+            "Returns a PubSubRuntimeStatus describing the running publisher (isRunning, mode, endpoint, " +
+            "publisherId, writerGroupId).")]
         public static async Task<PubSubRuntimeStatus> StartPublisherAsync(
             PubSubRuntimeManager manager,
             [Description("UDP endpoint URL, for example opc.udp://239.0.0.1:4840")] string udpUrl,
@@ -65,7 +67,9 @@ namespace Opc.Ua.Mcp.Tools
         /// Starts an in-process UDP/UADP subscriber.
         /// </summary>
         [McpServerTool(Name = "pubsub_runtime_start_subscriber")]
-        [Description("Starts an in-process OPC UA PubSub UDP/UADP subscriber and buffers received DataSets.")]
+        [Description("Starts an in-process OPC UA PubSub UDP/UADP subscriber and buffers received DataSets for " +
+            "later retrieval with pubsub_runtime_read_received. Returns a PubSubRuntimeStatus describing the " +
+            "running subscriber (isRunning, mode, endpoint, bufferedDataSetCount).")]
         public static async Task<PubSubRuntimeStatus> StartSubscriberAsync(
             PubSubRuntimeManager manager,
             [Description("UDP endpoint URL, for example opc.udp://239.0.0.1:4840")] string udpUrl,
@@ -86,7 +90,8 @@ namespace Opc.Ua.Mcp.Tools
         /// Updates the active publisher's DataSet fields.
         /// </summary>
         [McpServerTool(Name = "pubsub_runtime_publish")]
-        [Description("Updates active publisher fields. Use JSON object text or name=value pairs separated by ';'.")]
+        [Description("Updates active publisher fields. Use JSON object text or name=value pairs separated by ';'. " +
+            "Returns a PubSubRuntimePublishResult describing the fields that were published.")]
         public static async Task<PubSubRuntimePublishResult> PublishAsync(
             PubSubRuntimeManager manager,
             [Description("Field values as JSON object text or name=value pairs")] string fieldValues,
@@ -99,7 +104,9 @@ namespace Opc.Ua.Mcp.Tools
         /// Reads buffered DataSets from the active subscriber.
         /// </summary>
         [McpServerTool(Name = "pubsub_runtime_read_received")]
-        [Description("Returns the DataSets buffered by the active subscriber.")]
+        [Description("Reads the DataSets received and buffered by the active in-process PubSub subscriber since " +
+            "the last read (set clear=true to also empty the buffer afterward). Returns an array of " +
+            "PubSubReceivedDataSet; empty if no subscriber is running or nothing has been received yet.")]
         public static async Task<ArrayOf<PubSubReceivedDataSet>> ReadReceivedAsync(
             PubSubRuntimeManager manager,
             [Description("Clear the receive buffer after reading")] bool clear = false,
@@ -112,7 +119,8 @@ namespace Opc.Ua.Mcp.Tools
         /// Reports the in-process PubSub runtime status.
         /// </summary>
         [McpServerTool(Name = "pubsub_runtime_status")]
-        [Description("Reports whether the in-process PubSub runtime is running as a publisher or subscriber.")]
+        [Description("Reports whether the in-process PubSub runtime is running as a publisher or subscriber. " +
+            "Returns a PubSubRuntimeStatus (isRunning, mode: 'Publisher'/'Subscriber', endpoint, and related fields).")]
         public static async Task<PubSubRuntimeStatus> StatusAsync(
             PubSubRuntimeManager manager,
             CancellationToken ct = default)
@@ -124,7 +132,8 @@ namespace Opc.Ua.Mcp.Tools
         /// Stops the in-process PubSub runtime.
         /// </summary>
         [McpServerTool(Name = "pubsub_runtime_stop")]
-        [Description("Stops and disposes the active in-process PubSub publisher or subscriber.")]
+        [Description("Stops and disposes the active in-process PubSub publisher or subscriber. Returns a " +
+            "PubSubRuntimeStatus with isRunning:false.")]
         public static async Task<PubSubRuntimeStatus> StopAsync(
             PubSubRuntimeManager manager,
             CancellationToken ct = default)

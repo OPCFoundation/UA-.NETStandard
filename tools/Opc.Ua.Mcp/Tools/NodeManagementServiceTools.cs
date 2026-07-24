@@ -49,7 +49,10 @@ namespace Opc.Ua.Mcp.Tools
         /// </summary>
         /// <exception cref="ArgumentException"></exception>
         [McpServerTool(Name = "AddNodes")]
-        [Description("Add one or more nodes to the OPC UA server address space.")]
+        [Description("Create and add one or more new nodes to the OPC UA server address space (Object, Variable, " +
+            "Method, etc. under a parent node). Use DeleteNodes instead to remove existing nodes. Returns JSON " +
+            "with responseHeader and results (array with statusCode and the addedNodeId per new node); on failure " +
+            "returns {error:true, statusCode, message}.")]
         public static async Task<string> AddNodesAsync(
             OpcUaSessionManager sessionManager,
             [Description("Parent node ID under which to add the new node")] string parentNodeId,
@@ -151,7 +154,10 @@ namespace Opc.Ua.Mcp.Tools
         /// Add references between nodes.
         /// </summary>
         [McpServerTool(Name = "AddReferences")]
-        [Description("Add references (relationships) between existing nodes in the address space.")]
+        [Description("Add references (relationships) between existing nodes in the address space; does not " +
+            "create nodes. Use AddNodes first if the target node does not exist yet. Returns JSON with " +
+            "responseHeader and results (array of per-reference status codes); on failure returns {error:true, " +
+            "statusCode, message}.")]
         public static async Task<string> AddReferencesAsync(
             OpcUaSessionManager sessionManager,
             [Description("Source node ID")] string sourceNodeId,
@@ -203,10 +209,13 @@ namespace Opc.Ua.Mcp.Tools
         /// Delete nodes from the address space.
         /// </summary>
         [McpServerTool(Name = "DeleteNodes")]
-        [Description("Delete one or more nodes from the OPC UA server address space.")]
+        [Description("Permanently remove one or more existing nodes (and optionally their target references) from " +
+            "the OPC UA server address space. Use AddNodes instead to create new nodes. Returns JSON with " +
+            "responseHeader and results (array of per-node status codes); on failure returns {error:true, " +
+            "statusCode, message}.")]
         public static async Task<string> DeleteNodesAsync(
             OpcUaSessionManager sessionManager,
-            [Description("Array of node IDs to delete")] string[] nodeIds,
+            [Description("Array of node IDs to delete, e.g. ['ns=2;s=MyNode']")] string[] nodeIds,
             [Description("Also delete all target references (default: true)")] bool deleteTargetReferences = true,
             [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
@@ -247,7 +256,9 @@ namespace Opc.Ua.Mcp.Tools
         /// Delete references between nodes.
         /// </summary>
         [McpServerTool(Name = "DeleteReferences")]
-        [Description("Delete references (relationships) between nodes in the address space.")]
+        [Description("Delete references (relationships) between nodes in the address space; does not delete the " +
+            "nodes themselves. Use DeleteNodes to remove a node entirely. Returns JSON with responseHeader and " +
+            "results (array of per-reference status codes); on failure returns {error:true, statusCode, message}.")]
         public static async Task<string> DeleteReferencesAsync(
             OpcUaSessionManager sessionManager,
             [Description("Source node ID")] string sourceNodeId,

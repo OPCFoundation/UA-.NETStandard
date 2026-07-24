@@ -50,7 +50,9 @@ namespace Opc.Ua.Mcp.Tools
         /// </summary>
         [McpServerTool(Name = "GetConfiguration")]
         [Description(
-            "Get the current OPC UA client configuration settings, including transport quotas, security settings, and client configuration. Changes made with SetConfiguration are reflected here but are in-memory only (not saved to disk).")]
+            "Get current OPC UA client transport quotas, certificate security settings, and client defaults. " +
+            "Use before changing configuration. Returns JSON with transportQuotas, security, and " +
+            "clientConfiguration sections, or {error, message}.")]
         public static async Task<string> GetConfigurationAsync(
             OpcUaSessionManager sessionManager,
             CancellationToken ct = default)
@@ -86,7 +88,10 @@ namespace Opc.Ua.Mcp.Tools
         /// </summary>
         [McpServerTool(Name = "SetConfiguration")]
         [Description(
-            "Modify OPC UA client configuration settings for the current session. Changes are in-memory only and apply to subsequent connections. Use GetConfiguration to see current values. Provide only the settings you want to change.")]
+            "Set transport, client, and certificate security configuration in one compatibility call. " +
+            "Use only when the focused SetTransportConfiguration, SetClientConfiguration, and " +
+            "SetSecurityConfiguration tools are unavailable. Returns JSON {success, changes, message}, " +
+            "or {success:false, error, changes, message}.")]
         public static async Task<string> SetConfigurationAsync(
             OpcUaSessionManager sessionManager,
             [Description("Operation timeout in milliseconds (e.g. 120000)")] int? operationTimeout = null,
@@ -192,6 +197,9 @@ namespace Opc.Ua.Mcp.Tools
                 {
                     return OpcUaJsonHelper.Serialize(new Dictionary<string, object?>
                     {
+                        ["success"] = false,
+                        ["error"] = true,
+                        ["changes"] = Array.Empty<string>(),
                         ["message"] = "No changes specified. Provide at least one setting to modify."
                     });
                 }
@@ -208,7 +216,9 @@ namespace Opc.Ua.Mcp.Tools
             {
                 return OpcUaJsonHelper.Serialize(new Dictionary<string, object?>
                 {
+                    ["success"] = false,
                     ["error"] = true,
+                    ["changes"] = Array.Empty<string>(),
                     ["message"] = ex.Message
                 });
             }

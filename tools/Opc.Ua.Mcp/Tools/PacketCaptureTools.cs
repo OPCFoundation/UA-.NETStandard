@@ -81,7 +81,10 @@ namespace Opc.Ua.Mcp.Tools
         public static async Task<CaptureSessionInfo> StartCaptureAsync(
             CaptureSessionManager manager,
             OpcUaSessionManager sessions,
-            [Description("The capture request, including the source name and source-specific parameters.")]
+            [Description(
+                "The capture request, including the source name and source-specific parameters, " +
+                "e.g. {\"source\":\"inproc-client\",\"maxDurationSeconds\":60} or " +
+                "{\"source\":\"nic\",\"interfaceName\":\"eth0\",\"bpfFilter\":\"tcp port 4840\"}.")]
             StartCaptureRequest request,
             CancellationToken ct)
         {
@@ -174,7 +177,10 @@ namespace Opc.Ua.Mcp.Tools
             CaptureSessionManager manager,
             OpcUaSessionManager sessions,
             TraceFormatterRegistry formatters,
-            [Description("Capture configuration, format, and duration.")] CaptureNowRequest request,
+            [Description(
+                "Capture configuration, format, and duration, e.g. " +
+                "{\"start\":{\"source\":\"inproc-client\"},\"durationSeconds\":10,\"format\":\"service-timeline\"}.")]
+            CaptureNowRequest request,
             CancellationToken ct)
         {
             ArgumentNullException.ThrowIfNull(manager);

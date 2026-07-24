@@ -27,41 +27,52 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using ModelContextProtocol.Protocol;
+using ModelContextProtocol.Server;
+
 namespace Opc.Ua.Mcp
 {
     /// <summary>
-    /// Strongly-typed options for the OPC UA MCP server.
+    /// Normalizes generated MCP tool schemas for explicit client behavior.
     /// </summary>
-    /// <remarks>
-    /// Bound from the <c>McpServer</c> configuration section at host
-    /// startup and consumed by the MCP host and individual tool helpers.
-    /// </remarks>
-    public sealed class McpServerOptions
+    internal static class McpSchemaFilters
     {
         /// <summary>
-        /// Gets or sets the tool catalog exposed by the MCP server.
+        /// Adds an empty required array to schemas whose parameters are all optional.
         /// </summary>
-        public McpToolProfile ToolProfile { get; set; } = McpToolProfile.Full;
+        public static McpRequestHandler<ListToolsRequestParams, ListToolsResult> AddExplicitRequiredArrays(
+            McpRequestHandler<ListToolsRequestParams, ListToolsResult> next)
+        {
+            ArgumentNullException.ThrowIfNull(next);
 
-        /// <summary>
-        /// Base directory under which the
-        /// <see cref="Tools.NodeSetExportTools"/> is
-        /// allowed to write exported NodeSet2 XML files. When
-        /// <c>null</c> or whitespace the tool falls back to the
-        /// <c>OPCUA_MCP_EXPORT_ROOT</c> environment variable and
-        /// finally to a default under the system temp folder.
-        /// </summary>
-        public string? NodeSetExportRoot { get; set; }
+            return async (request, ct) =>
+            {
+                ListToolsResult result = await next(request, ct).ConfigureAwait(false);
 
-        /// <summary>
-        /// Base directory under which
-        /// <see cref="Tools.PacketDecodeTools"/> is
-        /// allowed to read pcap and keylog files. When <c>null</c>
-        /// or whitespace the tool falls back to
-        /// <c>PcapOptions.BaseFolder</c> resolved from DI, and
-        /// finally to a default under the per-user
-        /// <c>LocalApplicationData</c> directory.
-        /// </summary>
-        public string? PcapBaseFolder { get; set; }
+                foreach (Tool tool in result.Tools)
+                {
+                    JsonElement inputSchema = tool.InputSchema;
+                    if (inputSchema.ValueKind != JsonValueKind.Object ||
+                        inputSchema.TryGetProperty("required", out _))
+                    {
+                        continue;
+                    }
+
+                    JsonObject? schema = JsonNode.Parse(inputSchema.GetRawText()) as JsonObject;
+                    if (schema == null)
+                    {
+                        continue;
+                    }
+
+                    schema["required"] = new JsonArray();
+                    tool.InputSchema = JsonSerializer.SerializeToElement(schema);
+                }
+
+                return result;
+            };
+        }
     }
 }

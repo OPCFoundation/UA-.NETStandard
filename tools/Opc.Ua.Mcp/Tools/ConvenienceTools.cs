@@ -51,7 +51,9 @@ namespace Opc.Ua.Mcp.Tools
         /// Read a single variable value by NodeId.
         /// </summary>
         [McpServerTool(Name = "ReadValue")]
-        [Description("Read the Value attribute of a single variable node. Simpler than the full Read tool for common read operations.")]
+        [Description("Read the Value attribute of a single variable node. Simpler than the full Read tool for " +
+            "one node; for many nodes at once use ReadValues instead. Returns JSON with nodeId, value, " +
+            "statusCode, sourceTimestamp, and serverTimestamp; on failure returns {error:true, statusCode, message}.")]
         public static async Task<string> ReadValueAsync(
             OpcUaSessionManager sessionManager,
             [Description("Node ID of the variable to read, e.g. 'ns=2;s=MyVariable' or 'i=2258' (ServerStatus/CurrentTime)")] string nodeId,
@@ -90,10 +92,12 @@ namespace Opc.Ua.Mcp.Tools
         /// Read multiple variable values by NodeId.
         /// </summary>
         [McpServerTool(Name = "ReadValues")]
-        [Description("Read the Value attribute of multiple variable nodes at once.")]
+        [Description("Read the Value attribute of multiple variable nodes in a single call. Use this instead of " +
+            "calling ReadValue in a loop when reading more than one node. Returns a JSON array with one entry per " +
+            "node (nodeId, value, statusCode, serviceResult); on failure returns {error:true, statusCode, message}.")]
         public static async Task<string> ReadValuesAsync(
             OpcUaSessionManager sessionManager,
-            [Description("Array of node IDs to read values from")] string[] nodeIds,
+            [Description("Array of node IDs to read values from, e.g. ['ns=2;s=Temperature', 'ns=2;s=Pressure']")] string[] nodeIds,
             [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
@@ -133,7 +137,10 @@ namespace Opc.Ua.Mcp.Tools
         /// Write a single value to a variable node.
         /// </summary>
         [McpServerTool(Name = "WriteValue")]
-        [Description("Write a value to a single variable node. Simpler than the full Write tool for common write operations.")]
+        [Description("Write a value to the Value attribute of a single variable node. Simpler than the full Write " +
+            "tool for one node/value; use Write for multiple nodes or non-Value attributes in one call. To read " +
+            "the value back, use ReadValue (not this tool). Returns JSON with nodeId and statusCode; on failure " +
+            "returns {error:true, statusCode, message}.")]
         public static async Task<string> WriteValueAsync(
             OpcUaSessionManager sessionManager,
             [Description("Node ID of the variable to write")] string nodeId,
@@ -351,7 +358,9 @@ namespace Opc.Ua.Mcp.Tools
         /// Read all attributes of a single node.
         /// </summary>
         [McpServerTool(Name = "ReadNode")]
-        [Description("Read all standard attributes of a single node (NodeId, BrowseName, DisplayName, Description, NodeClass, etc.).")]
+        [Description("Read all standard attributes of a single node (NodeId, BrowseName, DisplayName, Description, NodeClass, etc.). " +
+            "Returns JSON with those attributes, plus Variable-, Object-, or Method-specific fields depending on the " +
+            "node's NodeClass; on failure returns {error:true, statusCode, message}.")]
         public static async Task<string> ReadNodeAsync(
             OpcUaSessionManager sessionManager,
             [Description("Node ID to read, e.g. 'i=85' or 'ns=2;s=MyNode'")] string nodeId,
@@ -411,7 +420,9 @@ namespace Opc.Ua.Mcp.Tools
         /// Cancel an outstanding service request.
         /// </summary>
         [McpServerTool(Name = "Cancel")]
-        [Description("Cancel an outstanding service request using its request handle.")]
+        [Description("Cancel an outstanding service request using its request handle. Returns JSON with " +
+            "responseHeader and cancelCount (number of requests actually cancelled); on failure returns " +
+            "{error:true, statusCode, message}.")]
         public static async Task<string> CancelAsync(
             OpcUaSessionManager sessionManager,
             [Description("The request handle of the request to cancel")] uint requestHandle,
