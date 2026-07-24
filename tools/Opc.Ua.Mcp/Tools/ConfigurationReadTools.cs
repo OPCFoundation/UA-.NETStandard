@@ -27,41 +27,32 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Opc.Ua.Mcp
+using System.ComponentModel;
+using System.Threading;
+using System.Threading.Tasks;
+using ModelContextProtocol.Server;
+
+namespace Opc.Ua.Mcp.Tools
 {
     /// <summary>
-    /// Strongly-typed options for the OPC UA MCP server.
+    /// MCP tool for reading OPC UA client configuration in bounded profiles.
     /// </summary>
-    /// <remarks>
-    /// Bound from the <c>McpServer</c> configuration section at host
-    /// startup and consumed by the MCP host and individual tool helpers.
-    /// </remarks>
-    public sealed class McpServerOptions
+    [McpServerToolType]
+    public sealed class ConfigurationReadTools
     {
         /// <summary>
-        /// Gets or sets the tool catalog exposed by the MCP server.
+        /// Gets the current OPC UA client configuration.
         /// </summary>
-        public McpToolProfile ToolProfile { get; set; } = McpToolProfile.Full;
-
-        /// <summary>
-        /// Base directory under which the
-        /// <see cref="Tools.NodeSetExportTools"/> is
-        /// allowed to write exported NodeSet2 XML files. When
-        /// <c>null</c> or whitespace the tool falls back to the
-        /// <c>OPCUA_MCP_EXPORT_ROOT</c> environment variable and
-        /// finally to a default under the system temp folder.
-        /// </summary>
-        public string? NodeSetExportRoot { get; set; }
-
-        /// <summary>
-        /// Base directory under which
-        /// <see cref="Tools.PacketDecodeTools"/> is
-        /// allowed to read pcap and keylog files. When <c>null</c>
-        /// or whitespace the tool falls back to
-        /// <c>PcapOptions.BaseFolder</c> resolved from DI, and
-        /// finally to a default under the per-user
-        /// <c>LocalApplicationData</c> directory.
-        /// </summary>
-        public string? PcapBaseFolder { get; set; }
+        [McpServerTool(Name = "GetConfiguration")]
+        [Description(
+            "Get current transport quotas, certificate security settings, and client defaults. " +
+            "Use before changing configuration. Returns a JSON object with transportQuotas, security, " +
+            "and clientConfiguration sections, or {error, message}.")]
+        public static Task<string> GetConfigurationAsync(
+            OpcUaSessionManager sessionManager,
+            CancellationToken ct = default)
+        {
+            return ConfigurationTools.GetConfigurationAsync(sessionManager, ct);
+        }
     }
 }

@@ -32,15 +32,10 @@ using System.CommandLine;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Console;
 using Opc.Ua.Mcp;
-using Opc.Ua.Mcp.Tools;
 using Opc.Ua.Pcap.DependencyInjection;
-using Opc.Ua.PubSub.Pcap;
 
 Console.Error.WriteLine("OPC UA MCP Server");
 Console.Error.WriteLine(
@@ -52,200 +47,112 @@ Console.Error.WriteLine(
 
 var transportOption = new Option<string>("--transport", "-t")
 {
-    Description = "Transport mode: 'stdio' (default) or 'sse' for HTTP/SSE",
+    Description = "Transport mode: 'stdio' (default) or 'http'. 'sse' is a deprecated alias for 'http'.",
     DefaultValueFactory = _ => "stdio"
 };
 
 var portOption = new Option<int>("--port", "-p")
 {
-    Description = "HTTP port for SSE transport (default: 5100)",
+    Description = "Port for Streamable HTTP transport (default: 5100)",
     DefaultValueFactory = _ => 5100
+};
+
+var profileOption = new Option<McpToolProfile?>("--profile")
+{
+    Description = "Tool profile: core, services, administration, pubsub, diagnostics, or full (default)"
 };
 
 var rootCommand = new RootCommand("OPC UA MCP Server - Exposes OPC UA Part 4 services as MCP tools")
 {
     transportOption,
-    portOption
+    portOption,
+    profileOption
 };
 
 rootCommand.SetAction(async (parseResult, ct) =>
 {
     string transport = parseResult.GetValue(transportOption)!;
     int port = parseResult.GetValue(portOption);
+    McpToolProfile? toolProfile = parseResult.GetValue(profileOption);
 
-    if (transport.Equals("sse", StringComparison.OrdinalIgnoreCase))
+    if (transport.Equals("stdio", StringComparison.OrdinalIgnoreCase))
     {
-        await RunSseServerAsync(port, ct).ConfigureAwait(false);
+        await RunStdioServerAsync(toolProfile, ct).ConfigureAwait(false);
+        return 0;
     }
-    else
+
+    if (transport.Equals("http", StringComparison.OrdinalIgnoreCase) ||
+        transport.Equals("sse", StringComparison.OrdinalIgnoreCase))
     {
-        await RunStdioServerAsync(ct).ConfigureAwait(false);
+        await RunHttpServerAsync(port, toolProfile, ct).ConfigureAwait(false);
+        return 0;
     }
+
+    await Console.Error.WriteLineAsync(
+        $"Unknown transport '{transport}'. Valid transports: stdio, http, sse.").ConfigureAwait(false);
+    return 2;
 });
 
 return await rootCommand.Parse(args).InvokeAsync().ConfigureAwait(false);
 
-static async Task RunStdioServerAsync(CancellationToken ct)
+static async Task RunStdioServerAsync(McpToolProfile? toolProfileOverride, CancellationToken ct)
 {
     await Console.Error.WriteLineAsync(
         "Starting MCP server with stdio transport...").ConfigureAwait(false);
 
     HostApplicationBuilder builder = Host.CreateApplicationBuilder();
-    ConfigureLogging(builder.Logging, useStdioTransport: true);
+    McpHostBuilder.ConfigureLogging(builder.Logging, useStdioTransport: true);
 
-    PcapOptions pcapOptions = CreatePcapOptions(builder.Configuration);
-    bool diagnosticsToolsEnabled = AreDiagnosticsToolsEnabled(pcapOptions);
-    ConfigureServices(builder.Services, pcapOptions);
+    PcapOptions pcapOptions = McpHostBuilder.CreatePcapOptions(builder.Configuration);
+    bool diagnosticsToolsEnabled = McpHostBuilder.AreDiagnosticsToolsEnabled(pcapOptions);
+    McpServerOptions mcpServerOptions = McpHostBuilder.CreateMcpServerOptions(
+        builder.Configuration,
+        toolProfileOverride);
+    McpHostBuilder.ConfigureServices(builder.Services, pcapOptions, mcpServerOptions);
 
     IMcpServerBuilder mcpServerBuilder = builder.Services
         .AddMcpServer()
         .WithStdioServerTransport();
-    ConfigureMcpTools(mcpServerBuilder, diagnosticsToolsEnabled);
+    McpHostBuilder.ConfigureMcpTools(
+        mcpServerBuilder,
+        mcpServerOptions.ToolProfile,
+        diagnosticsToolsEnabled);
 
     IHost app = builder.Build();
-    LogDiagnosticsToolsWarning(app.Services, diagnosticsToolsEnabled);
+    McpHostBuilder.LogDiagnosticsToolsWarning(app.Services, diagnosticsToolsEnabled);
     await app.RunAsync(ct).ConfigureAwait(false);
 }
 
-static async Task RunSseServerAsync(int port, CancellationToken ct)
+static async Task RunHttpServerAsync(
+    int port,
+    McpToolProfile? toolProfileOverride,
+    CancellationToken ct)
 {
     await Console.Error.WriteLineAsync(
-        $"Starting MCP server with HTTP/SSE transport on port {port}...").ConfigureAwait(false);
+        $"Starting MCP server with Streamable HTTP transport on port {port} at /mcp...").ConfigureAwait(false);
 
     WebApplicationBuilder builder = WebApplication.CreateBuilder();
-    ConfigureLogging(builder.Logging, useStdioTransport: false);
+    McpHostBuilder.ConfigureLogging(builder.Logging, useStdioTransport: false);
 
-    PcapOptions pcapOptions = CreatePcapOptions(builder.Configuration);
-    bool diagnosticsToolsEnabled = AreDiagnosticsToolsEnabled(pcapOptions);
-    ConfigureServices(builder.Services, pcapOptions);
+    PcapOptions pcapOptions = McpHostBuilder.CreatePcapOptions(builder.Configuration);
+    bool diagnosticsToolsEnabled = McpHostBuilder.AreDiagnosticsToolsEnabled(pcapOptions);
+    McpServerOptions mcpServerOptions = McpHostBuilder.CreateMcpServerOptions(
+        builder.Configuration,
+        toolProfileOverride);
+    McpHostBuilder.ConfigureServices(builder.Services, pcapOptions, mcpServerOptions);
 
     IMcpServerBuilder mcpServerBuilder = builder.Services
         .AddMcpServer()
         .WithHttpTransport();
-    ConfigureMcpTools(mcpServerBuilder, diagnosticsToolsEnabled);
+    McpHostBuilder.ConfigureMcpTools(
+        mcpServerBuilder,
+        mcpServerOptions.ToolProfile,
+        diagnosticsToolsEnabled);
 
     WebApplication app = builder.Build();
-    LogDiagnosticsToolsWarning(app.Services, diagnosticsToolsEnabled);
-    app.MapMcp();
+    McpHostBuilder.LogDiagnosticsToolsWarning(app.Services, diagnosticsToolsEnabled);
+    app.MapMcp("/mcp");
     app.Urls.Add($"http://localhost:{port}");
 
     await app.RunAsync(ct).ConfigureAwait(false);
-}
-
-static void ConfigureServices(IServiceCollection services, PcapOptions pcapOptions)
-{
-    services.AddOpcUa().AddClient(options => options.Configuration = new Opc.Ua.ApplicationConfiguration());
-    services.AddSingleton<OpcUaSessionManager>();
-    services.AddSingleton<PubSubRuntimeManager>();
-    services.AddSingleton(_ => CreateMcpServerOptions());
-    services.AddPcap(options =>
-    {
-        options.BaseFolder = pcapOptions.BaseFolder;
-        options.MaxActiveSessions = pcapOptions.MaxActiveSessions;
-        options.EnableDiagnosticsTools = pcapOptions.EnableDiagnosticsTools;
-    });
-    services.AddPcapFormatters();
-    services.AddPcapReplay();
-    services.AddPubSubPcap();
-}
-
-static McpServerOptions CreateMcpServerOptions()
-{
-    return new McpServerOptions
-    {
-        NodeSetExportRoot = Environment.GetEnvironmentVariable("OPCUA_MCP_NODESET_EXPORT_ROOT"),
-        PcapBaseFolder = Environment.GetEnvironmentVariable("OPCUA_MCP_PCAP_BASE_FOLDER")
-    };
-}
-
-static PcapOptions CreatePcapOptions(IConfiguration configuration)
-{
-    var options = new PcapOptions();
-
-    string? enableDiagnosticsTools = configuration["Pcap:EnableDiagnosticsTools"];
-    if (bool.TryParse(enableDiagnosticsTools, out bool parsedEnableDiagnosticsTools))
-    {
-        options.EnableDiagnosticsTools = parsedEnableDiagnosticsTools;
-    }
-
-    return options;
-}
-
-static bool AreDiagnosticsToolsEnabled(PcapOptions pcapOptions)
-{
-    return pcapOptions.EnableDiagnosticsTools ||
-        string.Equals(
-            Environment.GetEnvironmentVariable("OPCUA_PCAP_ENABLE_DIAGNOSTICS"),
-            "1",
-            StringComparison.Ordinal) ||
-        string.Equals(
-            Environment.GetEnvironmentVariable("OPCUA_PCAP_ENABLE_DIAGNOSTICS"),
-            "true",
-            StringComparison.OrdinalIgnoreCase);
-}
-
-static void ConfigureMcpTools(IMcpServerBuilder mcpServerBuilder, bool diagnosticsToolsEnabled)
-{
-    mcpServerBuilder
-        .WithTools<AttributeServiceTools>()
-        .WithTools<ConfigurationTools>()
-        .WithTools<ConnectionTools>()
-        .WithTools<ConvenienceTools>()
-        .WithTools<DiscoveryServiceTools>()
-        .WithTools<MethodServiceTools>()
-        .WithTools<MonitoredItemServiceTools>()
-        .WithTools<NodeManagementServiceTools>()
-        .WithTools<NodeSetExportTools>()
-        .WithTools<PacketCaptureTools>()
-        .WithTools<PkiTools>()
-        .WithTools<PubSubCaptureTools>()
-        .WithTools<PubSubActionTools>()
-        .WithTools<PubSubDiscoveryTools>()
-        .WithTools<PubSubRuntimeTools>()
-        .WithTools<SubscriptionServiceTools>()
-        .WithTools<ViewServiceTools>();
-
-    if (diagnosticsToolsEnabled)
-    {
-        mcpServerBuilder
-            .WithTools<PacketDecodeTools>()
-            .WithTools<PacketReplayTools>()
-            .WithTools<PubSubDecodeTools>();
-    }
-
-    mcpServerBuilder.WithResources<SessionResources>();
-}
-
-static void LogDiagnosticsToolsWarning(IServiceProvider services, bool diagnosticsToolsEnabled)
-{
-    if (!diagnosticsToolsEnabled)
-    {
-        return;
-    }
-
-    ILoggerFactory loggerFactory = services.GetRequiredService<ILoggerFactory>();
-    ILogger logger = loggerFactory.CreateLogger("Opc.Ua.Mcp.Program");
-    logger.PcapDiagnosticsToolsEnabled();
-}
-
-static void ConfigureLogging(ILoggingBuilder logging, bool useStdioTransport = false)
-{
-    logging.ClearProviders();
-    logging.SetMinimumLevel(LogLevel.Information);
-    logging.AddSimpleConsole(options =>
-    {
-        options.UseUtcTimestamp = true;
-        options.TimestampFormat = "yyyy-MM-dd HH:mm:ss ";
-    });
-    logging.Services.Configure<ConsoleLoggerOptions>(o =>
-        o.LogToStandardErrorThreshold = useStdioTransport ? LogLevel.Trace : LogLevel.Error);
-}
-
-internal static partial class ProgramLog
-{
-    [LoggerMessage(EventId = McpServerEventIds.Program + 0, Level = LogLevel.Warning,
-        Message = "OPC UA Pcap diagnostics MCP tools (dump_keys, decode_pcap_with_keys, replay_pcap) are ENABLED. " +
-            "These tools disclose symmetric channel keys and can be used to replay captured traffic. " +
-            "Ensure the MCP transport is authenticated and audited.")]
-    public static partial void PcapDiagnosticsToolsEnabled(this ILogger logger);
 }

@@ -30,38 +30,38 @@
 namespace Opc.Ua.Mcp
 {
     /// <summary>
-    /// Strongly-typed options for the OPC UA MCP server.
+    /// Selects a bounded catalog of OPC UA MCP tools.
     /// </summary>
-    /// <remarks>
-    /// Bound from the <c>McpServer</c> configuration section at host
-    /// startup and consumed by the MCP host and individual tool helpers.
-    /// </remarks>
-    public sealed class McpServerOptions
+    public enum McpToolProfile
     {
         /// <summary>
-        /// Gets or sets the tool catalog exposed by the MCP server.
+        /// Common connection, browse, read, write, call, and configuration workflows.
         /// </summary>
-        public McpToolProfile ToolProfile { get; set; } = McpToolProfile.Full;
+        Core,
 
         /// <summary>
-        /// Base directory under which the
-        /// <see cref="Tools.NodeSetExportTools"/> is
-        /// allowed to write exported NodeSet2 XML files. When
-        /// <c>null</c> or whitespace the tool falls back to the
-        /// <c>OPCUA_MCP_EXPORT_ROOT</c> environment variable and
-        /// finally to a default under the system temp folder.
+        /// OPC UA Part 4 service-set and convenience tools.
         /// </summary>
-        public string? NodeSetExportRoot { get; set; }
+        Services,
 
         /// <summary>
-        /// Base directory under which
-        /// <see cref="Tools.PacketDecodeTools"/> is
-        /// allowed to read pcap and keylog files. When <c>null</c>
-        /// or whitespace the tool falls back to
-        /// <c>PcapOptions.BaseFolder</c> resolved from DI, and
-        /// finally to a default under the per-user
-        /// <c>LocalApplicationData</c> directory.
+        /// Configuration, PKI, and NodeSet administration tools.
         /// </summary>
-        public string? PcapBaseFolder { get; set; }
+        Administration,
+
+        /// <summary>
+        /// PubSub runtime, discovery, action, capture, and decode tools.
+        /// </summary>
+        PubSub,
+
+        /// <summary>
+        /// OPC UA packet capture, decode, and replay tools.
+        /// </summary>
+        Diagnostics,
+
+        /// <summary>
+        /// Every available tool, preserving the current-major default catalog.
+        /// </summary>
+        Full
     }
 }
