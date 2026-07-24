@@ -60,11 +60,6 @@ namespace Opc.Ua
     public static partial class Utils
     {
         /// <summary>
-        /// The high performance EventSource log interface.
-        /// </summary>
-        internal static OpcUaCoreEventSource EventLog { get; } = new();
-
-        /// <summary>
         /// Global default logger provider
         /// </summary>
         internal static TraceLoggerProvider LoggerProvider { get; } = new();

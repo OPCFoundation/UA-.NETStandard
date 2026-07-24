@@ -101,7 +101,7 @@ Actions to an external OPC UA server over a managed client session.
         │                                │                       │
 ┌─────────────────┐  ┌──────────────────────┐  ┌────────────────────┐
 │ Opc.Ua.PubSub.  │  │ Opc.Ua.PubSub.Mqtt   │  │ Opc.Ua.PubSub.Kafka│
-│      Udp        │  │ MQTTnet 4 / 5        │  │ Dekaf / librdkafka │
+│      Udp        │  │ MQTTnet 4 / 5        │  │ Dekaf / Confluent  │
 └─────────────────┘  └──────────────────────┘  └────────────────────┘
 ```
 
@@ -756,6 +756,15 @@ pubsub.AddPublisher()
     });
 ```
 
+The managed Dekaf client is the default on every target framework. JIT-compiled hosts can select the native Confluent.Kafka alternative through DI:
+
+```csharp
+pubsub.AddKafkaTransport()
+    .WithConfluentKafkaClient();
+```
+
+The Confluent backend uses native librdkafka and is not NativeAOT or trimming compatible.
+
 Subscribers set `GroupId` (consumer group) and `AutoOffsetReset` instead of the delivery guarantee. Writer and reader groups use the same fluent `PubSubConfigurationBuilder` shown under [Fluent builder walkthrough](#fluent-builder-walkthrough); the [reference sample](../samples/ConsoleReferencePubSubClient/README.md) contains complete Kafka publisher and subscriber configurations.
 
 **Topic mapping.** Kafka topics come from the OPC UA broker transport settings: `BrokerDataSetWriterTransportDataType.QueueName` / `BrokerDataSetReaderTransportDataType.QueueName` select the per-writer/reader data topic, `BrokerWriterGroupTransportDataType.QueueName` is the writer-group fallback, and `MetaDataQueueName` selects the metadata topic. When `MetaDataQueueName` is unset the transport derives a deterministic fallback from `KafkaConnectionOptions.Topics.Prefix`, the encoding, message type, PublisherId, WriterGroupId, and DataSetWriterId (segments joined with `.`). Use Kafka-safe characters (letters, digits, `.`, `_`, `-`).
@@ -764,7 +773,7 @@ Subscribers set `GroupId` (consumer group) and `AutoOffsetReset` instead of the 
 
 **SASL and TLS.** Use `kafkas://` or `KafkaConnectionOptions.Tls.UseTls` for TLS; `KafkaTlsOptions` carries CA / client-certificate / client-key PEM paths. `SecurityProtocol = KafkaSecurityProtocol.SaslSsl` with `SaslMechanism`, `UserName`, and `PasswordSecretId` enables SASL over TLS, and `PasswordSecretId` is resolved through the OPC UA secret store so configuration never carries a plaintext password. Sending SASL credentials over plaintext `kafka://` is rejected unless `AllowCredentialsOverPlaintext` is explicitly set for local development.
 
-**NativeAOT.** On `net10.0` the transport uses the pure-managed [Dekaf](https://github.com/thomhurst/Dekaf) client and is NativeAOT/trimming compatible; on `net472`, `net48`, `netstandard2.1`, `net8.0`, and `net9.0` it uses `Confluent.Kafka` (native librdkafka), which is not AOT-compatible. See [Native AOT](#native-aot).
+**NativeAOT.** The default pure-managed [Dekaf](https://github.com/thomhurst/Dekaf) backend is validated for NativeAOT/trimming on `net10.0`. The opt-in Confluent.Kafka backend uses native librdkafka and is not NativeAOT or trimming compatible. See [Native AOT](#native-aot).
 
 ## Encodings
 
@@ -1826,11 +1835,7 @@ detailed the counters become; configure via
 
 ## Native AOT
 
-The four core PubSub assemblies (`Opc.Ua.PubSub`, `.Udp`, `.Eth`, `.Mqtt`) are
-AOT-clean on every target framework. The `Opc.Ua.PubSub.Kafka` transport is
-AOT-clean only on `net10.0` (managed Dekaf client); on the other frameworks it
-uses `Confluent.Kafka` / native librdkafka and is not AOT-compatible (see
-[Apache Kafka](#apache-kafka)).
+The PubSub assemblies (`Opc.Ua.PubSub`, `.Udp`, `.Eth`, `.Mqtt`, and `.Kafka`) are AOT-clean on the repository's NativeAOT validation target (`net10.0`) when using their default backends. The Kafka transport's opt-in Confluent.Kafka backend uses native librdkafka and is not AOT-compatible (see [Apache Kafka](#apache-kafka)).
 
 - **No reflection-based serialization.** Source-generated
   `IEncodeable` types (Part 14 datatypes) plus hand-written

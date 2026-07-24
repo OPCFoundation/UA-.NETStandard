@@ -28,19 +28,17 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if !NET10_0_OR_GREATER
 using System;
 
 namespace Opc.Ua.PubSub.Kafka.Internal
 {
     /// <summary>
-    /// Default <see cref="IKafkaClientFactory"/> implementation backed by
+    /// Optional <see cref="IKafkaClientFactory"/> implementation backed by
     /// Confluent.Kafka (native librdkafka).
     /// </summary>
     /// <remarks>
-    /// Wired into the DI container by the PubSub transport composition;
-    /// tests may instantiate it directly or substitute a fake factory to
-    /// avoid an actual broker connection.
+    /// Selected through <c>WithConfluentKafkaClient()</c>. The default
+    /// transport registration uses the managed Dekaf client.
     /// </remarks>
     internal sealed class ConfluentKafkaClientFactory : IKafkaClientFactory
     {
@@ -59,4 +57,3 @@ namespace Opc.Ua.PubSub.Kafka.Internal
         }
     }
 }
-#endif

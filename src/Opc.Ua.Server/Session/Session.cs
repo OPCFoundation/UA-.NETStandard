@@ -151,6 +151,8 @@ namespace Opc.Ua.Server
                 ?? (server as ITimeProviderProvider)?.TimeProvider
                 ?? TimeProvider.System;
             m_logger = server.Telemetry.CreateLogger<Session>();
+            m_eventLogger = server.Telemetry.CreateLogger(
+                ServerCompatibilityEventIds.CategoryName);
             ClientNonce = clientNonce;
             m_serverNonce = serverNonce;
             m_sessionName = sessionName;
@@ -814,17 +816,14 @@ namespace Opc.Ua.Server
         /// </summary>
         internal void TraceState(string context)
         {
+            if (!m_eventLogger.IsEventLogEnabled())
+            {
+                return;
+            }
+
             string sessionId = Id.ToString();
 
-            // Legacy event source logging
-            ServerUtils.EventLog.SessionState(
-                context,
-                sessionId,
-                m_sessionName,
-                SecureChannelId,
-                Identity?.DisplayName ?? "(none)");
-
-            m_logger.SessionContextIdSessionIdNameNameChannelId(
+            m_eventLogger.CompatibilitySessionState(
                 context,
                 sessionId,
                 m_sessionName,
@@ -1321,6 +1320,7 @@ namespace Opc.Ua.Server
 
         private readonly Lock m_lock = new();
         private readonly ILogger m_logger;
+        private readonly ILogger m_eventLogger;
         private readonly IServerInternal m_server;
         private readonly TimeProvider m_timeProvider;
         private readonly string m_sessionName;
@@ -1340,15 +1340,19 @@ namespace Opc.Ua.Server
     /// </summary>
     internal static partial class SessionLog
     {
-        [LoggerMessage(EventId = ServerEventIds.Session + 0, Level = LogLevel.Information,
-            Message = "Session {Context}, Id={SessionId}, Name={Name}, ChannelId={ChannelId}, User={User}")]
-        public static partial void SessionContextIdSessionIdNameNameChannelId(
+        [LoggerMessage(
+            EventId = ServerCompatibilityEventIds.SessionState,
+            EventName = "SessionState",
+            Level = LogLevel.Information,
+            Message = "Session {Context}, Id={SessionId}, Name={SessionName}, ChannelId={SecureChannelId}, " +
+                "User={Identity}")]
+        public static partial void CompatibilitySessionState(
             this ILogger logger,
             string context,
-            string? sessionId,
-            string? name,
-            string channelId,
-            string? user);
+            string sessionId,
+            string sessionName,
+            string secureChannelId,
+            string identity);
     }
 
 }

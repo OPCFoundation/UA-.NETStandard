@@ -223,6 +223,82 @@ obtained from `ITelemetryContext.CreateLogger<T>()`.
 
 ---
 
+## ETW `EventSource` provider removal
+
+> **When to read this:** Read this if your application or tooling attaches an `EventListener`, `dotnet-trace`, PerfView, or any other ETW consumer to one of the stack's `System.Diagnostics.Tracing.EventSource` providers, or if it sets `ClientTraceFlags.EventLog` on a client.
+
+The stack shipped four internal `EventSource` providers for high-performance tracing. All four are **removed** in 2.0; there is no compile-time or runtime fallback. Their events are replaced one-for-one by `[LoggerMessage]`-generated `ILogger` calls that preserve the original numeric `EventId`, `EventId.Name`, mapped level, message template, and structured fields, so the *event identity* survives even though the transport changes from ETW to `Microsoft.Extensions.Logging` / OpenTelemetry logging.
+
+| Removed provider (ETW name) | Assembly | Replacement `ILogger` category |
+|---|---|---|
+| `OPC-UA-Core` | `Opc.Ua.Core` | `OPC-UA-Core` |
+| `OPC-UA-Client` | `Opc.Ua.Client` | `OPC-UA-Client` |
+| `OPC-UA-Server` | `Opc.Ua.Server` | `OPC-UA-Server` |
+| `Opc.Ua.ChannelManager` | `Opc.Ua.Core` (client channel manager) | `Opc.Ua.ChannelManager` |
+
+The replacement logger category is always the **exact old ETW provider name**, not the assembly's usual typed category. Migrated filters can therefore keep the same identifying string (for example, `AddFilter("OPC-UA-Client", LogLevel.Trace)`) after they move from an ETW provider subscription to `ILogger` configuration. `EventLevel` mapped to `LogLevel` on a like-for-like basis (`Verbose` &rarr; `Trace`, `Informational` &rarr; `Information`, `Warning` &rarr; `Warning`, `Error`/`Critical` &rarr; `Error`/`Critical`). See [DeveloperGuide.md — narrow exception: retained EventSource-compatibility ids](../../DeveloperGuide.md#narrow-exception-retained-eventsource-compatibility-ids) for the authoring-side rules and [Sessions.md — diagnostics surface contract](../../Sessions.md#diagnostics-surface-contract--what-tags-and-structured-log-fields-carry) for the full `Opc.Ua.ChannelManager` event table.
+
+The `OPC-UA-Server` compatibility category remains opt-in like the retired EventSource provider. Enable that category at `Trace` to receive its records, including the `ServerCall` and `SessionState` records whose retained legacy level is `Information`. A global `Information` minimum therefore does not emit a record for every server request.
+
+**Not retained:** the ETW provider GUID, `EventTask`/`EventKeywords` definitions, and the ETW manifest. There is no `ILogger` equivalent for these, and providers/consumers that depended on them (raw ETW session subscribers keyed by provider GUID, manifest-based decoders) must move to `Microsoft.Extensions.Logging` category/event-name filtering instead.
+
+### `ClientTraceFlags.EventLog` removed (source breaking)
+
+`ClientTraceFlags.EventLog` — the flag that routed `ClientBase` request/response tracing to the (now-removed) `OPC-UA-Core` `EventSource` — is **removed**. Code that references it fails to compile:
+
+```csharp
+// OLD - no longer compiles (ClientTraceFlags.EventLog removed)
+client.ActivityTraceFlags = ClientTraceFlags.Log | ClientTraceFlags.EventLog;
+
+// NEW - ClientTraceFlags.Log alone now emits the canonical OPC-UA-Core
+// compatibility events (same EventId / EventName / message as the old
+// EventLog flag); the separate per-call ClientBase structured logs that
+// ClientTraceFlags.Log used to emit are replaced by these events
+client.ActivityTraceFlags = ClientTraceFlags.Log;
+```
+
+`ClientTraceFlags.Log` now emits the canonical `OPC-UA-Core` request events (`ServiceCallStart` / `ServiceCallStop` / `ServiceCallBadStop`) through the `OPC-UA-Core` logger category, so existing filters or dashboards keyed on those event names keep matching without further changes. The separate `SendResponse` compatibility event is emitted by `TcpServerChannel` under the same category and is not controlled by `ClientTraceFlags`. There is no separate flag for the compatibility events; remove any reference to `ClientTraceFlags.EventLog` from your code.
+
+This consolidation also adopts the legacy event levels and fields: request start/stop move from `Information` to `Trace`, failure moves from `Error` to `Warning`, and the former per-call elapsed-time field is no longer part of these log records (request duration remains available through `opc.ua.client.request.duration`). Configure the `OPC-UA-Core` category at `Trace` if you need successful request start/stop records.
+
+### Migrating `EventListener` / `dotnet-trace` consumers
+
+If your code or tooling previously attached to one of the four providers, replace it with the `Microsoft.Extensions.Logging` / OpenTelemetry logging equivalent:
+
+```csharp
+// OLD - ETW EventListener attached to a stack provider (removed in 2.0)
+public sealed class ClientEventListener : EventListener
+{
+    protected override void OnEventSourceCreated(EventSource source)
+    {
+        if (source.Name == "OPC-UA-Client")
+        {
+            EnableEvents(source, EventLevel.Verbose);
+        }
+    }
+
+    protected override void OnEventWritten(EventWrittenEventArgs e)
+    {
+        Console.WriteLine($"{e.EventName}: {string.Join(", ", e.Payload ?? [])}");
+    }
+}
+
+// NEW - ILoggerProvider filtered to the same category name
+builder.Services.AddLogging(b => b
+    .AddFilter("OPC-UA-Client", LogLevel.Trace)
+    .AddConsole());
+
+// NEW - OpenTelemetry Logs SDK, same category
+builder.Services.AddOpenTelemetry().WithLogging(l => l
+    .AddProcessor(/* your exporter of choice */));
+```
+
+`dotnet-trace` / PerfView users who captured `OPC-UA-Core`, `OPC-UA-Client`, `OPC-UA-Server`, or `Opc.Ua.ChannelManager` as ETW providers should instead configure an `ILoggerProvider` (Console, OpenTelemetry OTLP, Application Insights, etc.) filtered to the matching category name, or use the [`Microsoft-Extensions-Logging` ETW provider](https://learn.microsoft.com/dotnet/core/diagnostics/logging-tracing) that `dotnet-trace` already understands for standard `ILogger` output, if ETW-shaped capture is still required.
+
+> **Out of scope.** The OPC UA information-model `EventSourceRegistry` / `HasEventSource` reference type (`Opc.Ua.Server.Fluent`, used for Alarms & Conditions modelling) and the BCL's own `System.Buffers.ArrayPoolEventSource` are unrelated to this removal — neither is a stack-owned ETW provider, and neither is affected by this migration.
+
+---
+
 ## Migration utilities
 
 To aid migration the stack provides:
@@ -253,6 +329,7 @@ test time.
 - [`docs/Diagnostics.md`](../../Diagnostics.md) &mdash; full
   end-state usage and extensibility guidance for `ITelemetryContext`
   (custom contexts, OpenTelemetry wiring, metrics inventory).
+- [`docs/Sessions.md` — diagnostics surface contract](../../Sessions.md#diagnostics-surface-contract--what-tags-and-structured-log-fields-carry) &mdash; full `Opc.Ua.ChannelManager` compatibility event table and safe-field policy.
+- [`docs/DeveloperGuide.md` — narrow exception: retained EventSource-compatibility ids](../../DeveloperGuide.md#narrow-exception-retained-eventsource-compatibility-ids) &mdash; authoring rules for the retained compatibility ids.
 - [2.0 migration index](README.md) &mdash; analyzer quick-start + symptom → sub-doc table.
 - [Migration Guide](../../MigrationGuide.md) &mdash; landing page across versions.
-

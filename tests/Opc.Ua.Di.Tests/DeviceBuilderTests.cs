@@ -74,8 +74,35 @@ namespace Opc.Ua.Di.Tests
             Assert.That(builder.Device.Parent!.BrowseName.Name,
                 Is.EqualTo("DeviceSet"));
             Assert.That(
+                builder.Device.ReferenceTypeId,
+                Is.EqualTo(Opc.Ua.Types.ReferenceTypeIds.Organizes));
+            Assert.That(
                 builder,
                 Is.InstanceOf<ITopologyElementBuilder<DeviceState>>());
+        }
+
+        [Test]
+        public async Task CreateDeviceAsyncUsesHasComponentForCustomParent()
+        {
+            ushort ns = m_fixture.Manager.DiNamespaceIndex;
+            var parent = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("CustomDeviceParent", ns),
+                BrowseName = new QualifiedName("CustomDeviceParent", ns),
+                DisplayName = new LocalizedText("CustomDeviceParent")
+            };
+            await m_fixture.Manager.AddPredefinedNodeAsync(parent)
+                .ConfigureAwait(false);
+
+            IDeviceBuilder<DeviceState> builder = await m_fixture.Manager
+                .CreateDeviceAsync(
+                    new QualifiedName("CustomParentDevice", ns),
+                    parent)
+                .ConfigureAwait(false);
+
+            Assert.That(
+                builder.Device.ReferenceTypeId,
+                Is.EqualTo(Opc.Ua.Types.ReferenceTypeIds.HasComponent));
         }
 
         [Test]

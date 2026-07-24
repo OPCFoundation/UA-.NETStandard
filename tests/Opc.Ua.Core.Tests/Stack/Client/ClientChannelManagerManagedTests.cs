@@ -35,13 +35,13 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
-using System.Diagnostics.Tracing;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
@@ -835,10 +835,11 @@ namespace Opc.Ua.Core.Tests.Stack.Client
 
         [Test]
         [NonParallelizable]
-        public async Task EventSourceFiresStateTransitionsAsync()
+        public async Task StructuredLogsCaptureStateTransitionsAsync()
         {
-            using var listener = new ChannelEventListener();
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var loggerProvider = new RecordingLoggerProvider();
+            ITelemetryContext telemetry = DefaultTelemetry.Create(
+                builder => builder.AddProvider(loggerProvider));
             (ClientChannelManager sut, Certificate serverCert, Mock<IChannel> chMock) = CreateMockedSut(telemetry);
             try
             {
@@ -855,22 +856,29 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 await sut.ReconnectAsync(ch, default).ConfigureAwait(false);
                 ch.Dispose();
 
-                // ch.Dispose() is non-blocking; the ParticipantDetached
-                // and ChannelClosed EventSource events fire from the
-                // background teardown task, so poll for them before the
-                // hard assertions.
+                // ch.Dispose() is non-blocking; teardown logs are emitted by
+                // the background cleanup task.
                 await WaitForConditionAsync(
-                    () => listener.EventNames.Contains("ParticipantDetached") &&
-                          listener.EventNames.Contains("ChannelClosed"),
+                    () => loggerProvider.Records.Any(record =>
+                            record.EventId.Name == "ParticipantDetached") &&
+                        loggerProvider.Records.Any(record =>
+                            record.EventId.Name == "ChannelClosed"),
                     "ParticipantDetached + ChannelClosed events").ConfigureAwait(false);
 
-                Assert.That(listener.EventNames, Does.Contain("StateChanged"), listener.FormatEvents());
-                Assert.That(listener.EventNames, Does.Contain("ReconnectStarted"), listener.FormatEvents());
-                Assert.That(listener.EventNames, Does.Contain("ReconnectCompleted"), listener.FormatEvents());
-                Assert.That(listener.EventNames, Does.Contain("ParticipantAttached"), listener.FormatEvents());
-                Assert.That(listener.EventNames, Does.Contain("ParticipantDetached"), listener.FormatEvents());
-                Assert.That(listener.EventNames, Does.Contain("ChannelOpened"), listener.FormatEvents());
-                Assert.That(listener.EventNames, Does.Contain("ChannelClosed"), listener.FormatEvents());
+                RecordedLogRecord[] records = loggerProvider.Records
+                    .Where(record => record.CategoryName == "Opc.Ua.ChannelManager")
+                    .ToArray();
+                string formatted = string.Join(
+                    Environment.NewLine,
+                    records.Select(record => $"{record.EventId.Name} {record.Message}"));
+                string?[] eventNames = records.Select(record => record.EventId.Name).ToArray();
+                Assert.That(eventNames, Does.Contain("StateChanged"), formatted);
+                Assert.That(eventNames, Does.Contain("ReconnectStarted"), formatted);
+                Assert.That(eventNames, Does.Contain("ReconnectCompleted"), formatted);
+                Assert.That(eventNames, Does.Contain("ParticipantAttached"), formatted);
+                Assert.That(eventNames, Does.Contain("ParticipantDetached"), formatted);
+                Assert.That(eventNames, Does.Contain("ChannelOpened"), formatted);
+                Assert.That(eventNames, Does.Contain("ChannelClosed"), formatted);
             }
             finally
             {
@@ -913,8 +921,11 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         }
 
         [Test]
+        [NonParallelizable]
         public async Task ReconnectAsyncWithBudgetStopsWhenExhaustedAsync()
         {
+            using var listener = new ChannelActivityListener();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Critical);
             var timeProvider = new FakeTimeProvider();
             var reconnectPolicy = new ExponentialBackoffChannelReconnectPolicy
             {
@@ -922,7 +933,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 MaxDelay = TimeSpan.Zero
             };
             (ClientChannelManager sut, Certificate serverCert, Mock<IChannel> chMock) =
-                CreateMockedSut(reconnectPolicy: reconnectPolicy, timeProvider: timeProvider);
+                CreateMockedSut(telemetry, reconnectPolicy, timeProvider);
             try
             {
                 ConfiguredEndpoint endpoint = GetTestEndpoint(serverCert);
@@ -936,6 +947,16 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 Assert.That(ex, Is.Not.Null);
                 Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelClosed));
                 Assert.That(ch.State, Is.EqualTo(ChannelState.Faulted));
+                Activity activity = await listener
+                    .WaitForStoppedActivityAsync("OpcUaChannelReconnect")
+                    .ConfigureAwait(false);
+                var tags = activity.TagObjects.ToDictionary(t => t.Key, t => t.Value);
+                Assert.That(tags["attempt.count"], Is.Zero);
+                Assert.That(tags["outcome"], Is.EqualTo("policy-exhausted"));
+                Assert.That(tags["error.status_code"], Is.EqualTo("BadSecureChannelClosed"));
+                Assert.That(
+                    tags["error.message"],
+                    Is.EqualTo("Channel reconnect policy exhausted after 0 attempts."));
                 chMock.Verify(c => c.ReconnectAsync(
                         It.IsAny<ITransportWaitingConnection?>(),
                         It.IsAny<CancellationToken>()),
@@ -1033,7 +1054,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         [Test]
         public async Task ReconnectAsyncWithBudgetShrinksDelayToFitRemainingAsync()
         {
-            var timeProvider = new FakeTimeProvider();
+            var timeProvider = new ObservableFakeTimeProvider();
             var reconnectPolicy = new ExponentialBackoffChannelReconnectPolicy
             {
                 MinDelay = TimeSpan.FromSeconds(10),
@@ -1059,6 +1080,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
 
                 Task reconnectTask = sut.ReconnectAsync(ch, budget, default).AsTask();
                 await reconnecting.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                await timeProvider.WaitForTimerCreatedAsync(1)
+                    .WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false);
 
                 Assert.That(reconnectTask.IsCompleted, Is.False);
 
@@ -1257,72 +1281,6 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             private readonly ActivityListener m_listener;
             private readonly TaskCompletionSource<Activity> m_stoppedActivity = new(
                 TaskCreationOptions.RunContinuationsAsynchronously);
-        }
-
-        private sealed class ChannelEventListener : EventListener
-        {
-            public ConcurrentQueue<ChannelEventRecord> Events { get; } = new();
-
-            public IEnumerable<string> EventNames => Events.Select(e => e.Name);
-
-            public string FormatEvents()
-            {
-                var builder = new StringBuilder();
-                // ConcurrentQueue enumeration is snapshot-stable so it
-                // races safely with concurrent EventWritten callbacks
-                // arriving on the EventSource's worker thread.
-                foreach (ChannelEventRecord record in Events)
-                {
-                    builder.Append(record.Name);
-                    if (record.Payload.Count > 0)
-                    {
-                        builder.Append(' ');
-                        builder.Append(string.Join(
-                            ", ",
-                            record.Payload.Select(p => $"{p.Key}={p.Value}")));
-                    }
-                    builder.AppendLine();
-                }
-                return builder.ToString();
-            }
-
-            protected override void OnEventSourceCreated(EventSource eventSource)
-            {
-                if (eventSource.Name == "Opc.Ua.ChannelManager")
-                {
-                    EnableEvents(eventSource, EventLevel.LogAlways);
-                }
-            }
-
-            protected override void OnEventWritten(EventWrittenEventArgs eventData)
-            {
-                string name = eventData.EventName ?? eventData.EventId.ToString(CultureInfo.InvariantCulture);
-                var payload = new Dictionary<string, object?>();
-                IList<object?>? payloadValues = eventData.Payload;
-                IList<string>? payloadNames = eventData.PayloadNames;
-                if (payloadValues != null)
-                {
-                    for (int i = 0; i < payloadValues.Count; i++)
-                    {
-                        string key = payloadNames?[i] ?? i.ToString(CultureInfo.InvariantCulture);
-                        payload[key] = payloadValues[i];
-                    }
-                }
-                Events.Enqueue(new ChannelEventRecord(name, payload));
-            }
-        }
-
-        private sealed class ChannelEventRecord
-        {
-            public ChannelEventRecord(string name, Dictionary<string, object?> payload)
-            {
-                Name = name;
-                Payload = payload;
-            }
-
-            public string Name { get; }
-
-            public Dictionary<string, object?> Payload { get; }
         }
 
         private sealed class ChannelMetricListener : IDisposable
