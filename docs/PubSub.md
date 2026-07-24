@@ -57,7 +57,7 @@
   group, writer, reader.
 - Runtime configuration mutation via
   `IPubSubApplication.AddConnectionAsync` / `AddWriterGroupAsync` / etc.
-- High-performance transcoders bridge subscriber-side NetworkMessages to publisher connections with UADP/JSON cross-encoding, transform pipelines, and managed UADP re-securing.
+- High-performance transcoders bridge subscriber-side NetworkMessages to publisher connections with UADP/JSON cross-encoding (plus the experimental Avro mapping), transform pipelines, managed UADP re-securing, and optional experimental schema exchange for Avro / Arrow / JSON targets.
 
 ## Architecture
 
@@ -415,6 +415,7 @@ DI extension methods provided by `Opc.Ua.PubSub`:
 | `AddPubSub(Action<IPubSubBuilder>)`        | Fluent composition root. Exposes `AddPublisher` / `AddSubscriber`, `ConfigureApplication`, `ConfigureConfiguration`, `AddSecurityKeyProvider`, `AddDataSetSource`, `AddSubscribedDataSetSink`, `UseConfiguration` / `UseConfigurationFile`, `Configure`, plus the transport extensions. |
 | `AddPubSub(Action<PubSubApplicationOptions>?)` | Registers the `IPubSubApplication`, its hosted-service driver, all standard encoders/decoders, the scheduler, the diagnostics aggregator and the security policies. |
 | `AddPubSub(IConfiguration)`                | Same, binding `PubSubApplicationOptions` from the `OpcUa:PubSub` section. |
+| `AddJsonSchemaExchange(Action<JsonSchemaExchangeOptions>?)` | Enables the experimental JSON schema-exchange provider for JSON NetworkMessage encoders; off by default. |
 | `AddPubSubPublisher` / `AddPubSubSubscriber` | Convenience aliases. Both register the full surface; "publisher" / "subscriber" only changes the `Role` field on the options bag. |
 | `AddPubSubSecurityKeyServiceClient(securityGroupId, securityPolicyUri, Func<IServiceProvider,ISecurityKeyService>, Action<PullSecurityKeyProviderOptions>?)` | Registers a `PullSecurityKeyProvider` for one SecurityGroup as an `IPubSubSecurityKeyProvider`, plus a hosted service that starts its initial pull and background refresh so subscribers can pull keys from a remote SKS. An overload taking an SKS `EndpointDescription` builds the `OpcUaSecurityKeyServiceClient` for you (requires a registered `ApplicationConfiguration`). |
 | `AddPubSubSecurityKeyServiceServer(Action<InMemoryPubSubKeyServiceServer>?)` | Registers an in-process SKS with optional initial groups. |
@@ -834,9 +835,150 @@ Additional v1.05.06 flavours:
 - `SingleNetworkMessage` mode flips the JSON array wrapper off, so
   each MQTT publish maps 1:1 to a single `JsonNetworkMessage`.
 
+### JSON schema exchange — `Opc.Ua.PubSub.Encoding.Json` (experimental)
+
+> **Experimental.** JSON schema exchange is annotated with
+> `[Experimental("UA_NETStandard_1")]`; you must acknowledge diagnostic
+> `UA_NETStandard_1` to consume the new API. It is **opt-in and off by default**.
+> The standard JSON PubSub encode / decode path is unchanged and performs no schema
+> work unless the feature is explicitly enabled.
+
+JSON schema exchange extends the existing PubSub schema-exchange handshake used by
+Avro and Arrow to the standard Part 14 JSON NetworkMessage mapping. For each
+`JsonNetworkMessage` DataSet shape, the encoder asks the injected
+`IDataSetJsonSchemaProvider` to produce a real
+[JSON Schema](https://json-schema.org/) draft 2020-12 document. The provider reuses
+the OPC UA Core.Schema generator (`ISchemaProvider`) so the schema describes the
+OPC UA Part 6 JSON encoding for the `ua-data` DataSetMessage envelope instead of a
+hand-written descriptor. `JsonSchemaAnnouncement.ComputeSchemaId` fingerprints the
+UTF-8 schema JSON with SHA-256 and uses the first eight bytes as the `SchemaId`.
+
+Enable it from the fluent DI builder:
+
+```csharp
+services.AddOpcUa()
+    .AddPubSub()
+    .AddJsonSchemaExchange(options =>
+    {
+        options.Verbose = true;              // compact (default) vs verbose JSON encoding flavor
+        options.DestinationId = "subscriber-a";
+    });
+```
+
+Or bind the `PubSubApplicationOptions` flag from configuration when the standard
+PubSub services are registered from configuration:
+
+```json
+{
+  "OpcUa": {
+    "PubSub": {
+      "JsonSchemaExchange": "Compact"
+    }
+  }
+}
+```
+
+The fluent API also registers the default `DataSetJsonSchemaProvider` and the Core
+schema-generation services. Configuration-only enablement uses the same provider;
+set `JsonSchemaExchange` to `Compact` or `Verbose` to enable the feature (`Verbose`
+selects verbose OPC UA JSON encoding, `Compact` the compact form; the default
+`Disabled` leaves the standard JSON path unchanged). `JsonSchemaExchangeOptions.DestinationId`
+controls the announce-once key and defaults to the PubSub application id when it is
+not supplied.
+
+A publisher can send the JSON payload normally and forward the out-of-band schema
+announcement through the same control channel used for Avro / Arrow announcements;
+a subscriber ingests the announcement before schema-aware consumers process the
+matching data stream:
+
+```csharp
+JsonEncoder encoder = new(JsonEncodingMode.Compact)
+{
+    EnableSchemaExchange = true,
+    SchemaProvider = new DataSetJsonSchemaProvider(schemaProvider, dataTypeRegistry),
+    DestinationId = "subscriber-a",
+    SchemaVerbose = false
+};
+
+ReadOnlyMemory<byte> frame = await encoder.EncodeAsync(message, context, cancellationToken);
+JsonSchemaAnnouncement? announcement = encoder.LastSchemaAnnouncement;
+
+if (announcement is not null)
+{
+    // Publish this record on the deployment's schema-exchange control channel.
+    decoder.Ingest(announcement);
+}
+
+PubSubNetworkMessage? decoded = await decoder.TryDecodeAsync(frame, context, cancellationToken);
+```
+
+`LastSchemaAnnouncement` is set only when an announcement must be forwarded. The
+encoder caches every generated schema and calls `SchemaCache.MarkAnnounced` with the
+configured destination id, so each destination sees a schema once. When the
+`DataSetMetaDataType` shape or configuration version changes, the computed schema
+id changes and the next encode announces the replacement schema. `SchemaCache.Reset()`
+forces an explicit re-announce; transcoding routes that recreate their bridge on
+reload also start with fresh progressive schema state. JSON target routes use the
+same JSON encoder hooks, so schema exchange remains opt-in there as well.
+
+For callers that do not use DI, construct
+`DataSetJsonSchemaProvider(ISchemaProvider, DataTypeDefinitionRegistry)` directly
+and set `JsonEncoder.EnableSchemaExchange`, `SchemaProvider`, `DestinationId`, and
+`SchemaVerbose`. The decoder-side fallback is `JsonDecoder.Ingest(JsonSchemaAnnouncement)`.
+`SchemaCache.JsonFormat`, `SchemaCache.Add(JsonSchemaAnnouncement)`,
+`JsonSchemaAnnouncement`, and `JsonSchemaRequest` are the public cache / envelope
+APIs for custom control channels; the announcement and request records include
+`Encode` / `Decode` helpers for transport-specific framing.
+
+Known limitation: fields whose `DataType` is a custom complex structure or custom
+enumeration require the corresponding `DataTypeDefinition` to be pre-registered in
+the injected `DataTypeDefinitionRegistry`. Built-in, scalar, and array fields work
+out of the box. The current `DataSetMetaDataType` surface does not carry embedded
+type-definition collections, so the provider cannot discover those custom
+definitions from metadata alone.
+
+### Avro — `Opc.Ua.PubSub.Encoding` (experimental)
+
+> **Experimental.** The Avro encoding is annotated with
+> `[Experimental("UA_NETStandard_1")]`; you must acknowledge diagnostic
+> `UA_NETStandard_1` to consume it, and the wire format may change without a
+> major-version bump.
+
+An Avro PubSub network-message encoding (`AvroNetworkMessage`, transport profile
+`AvroNetworkMessage.PubSubMqttAvroTransport`) built on the experimental Part 6
+`AvroEncoder`/`AvroDecoder` in `Opc.Ua.Types`. The Part 6 codec implements the full
+built-in / `Variant` / `ExtensionObject` / `Enumeration` surface and is exercised by
+the same shared encoder round-trip matrix as Binary/JSON/XML. Avro is available on
+**every** target framework: the net5+ BCL fast paths (span-based `Encoding`,
+`Stream.ReadExactly`, `BitConverter` bit-casts) are provided by the polyfills under
+`Opc.Ua.Types/Polyfills` on `net472` / `net48` / `netstandard2.0` / `netstandard2.1`,
+so there is no `net8.0`+ performance regression.
+
+The Avro encoder generates the per-DataSet schema progressively and exchanges it out
+of band through the schema-exchange handshake (`SchemaCache`, schema announcements /
+requests); it is also available as a [transcoding](#transcoding) target with
+progressive schema generation and reset (`SchemaCache.Reset()`).
+
+### Arrow — `Opc.Ua.PubSub.Encoding.Arrow` (experimental)
+
+> **Experimental.** The Arrow encoding is annotated with
+> `[Experimental("UA_NETStandard_1")]`; you must acknowledge diagnostic
+> `UA_NETStandard_1` to consume it, and the wire format may change without a
+> major-version bump.
+
+A columnar [Apache Arrow](https://arrow.apache.org/) PubSub network-message encoding
+(`ArrowNetworkMessage`) built on the Part 6 `ArrowEncoder`/`ArrowDecoder`. Unlike
+Avro, Arrow requires the `Apache.Arrow` package and therefore targets **`net8.0`+
+only** — it is not compiled or testable on the legacy target frameworks. The Part 6
+codec runs the full shared round-trip matrix, including `IEncodeable` /
+`ExtensionObject` values (decoded back to the concrete `IEncodeable` through the
+message context's `EncodeableFactory`, falling back to the raw binary body when the
+type id is not registered) and `Enumeration` Variants (scalar / array / matrix,
+carried as `Int32` columns).
+
 ## Transcoding
 
-High-performance PubSub transcoders in `Opc.Ua.PubSub.Transcoding` bridge subscriber-side `PubSubNetworkMessage` traffic to publisher-side output without forcing applications to deserialize into their domain model first. A route can change the NetworkMessage mapping (`Uadp` or `Json`), field encoding (`Variant`, `RawData`, or `DataValue`), identifiers, fields, values, metadata, message types, and target broker topic before the message is re-encoded and sent.
+High-performance PubSub transcoders in `Opc.Ua.PubSub.Transcoding` bridge subscriber-side `PubSubNetworkMessage` traffic to publisher-side output without forcing applications to deserialize into their domain model first. A route can change the NetworkMessage mapping (`Uadp`, `Json`, or the experimental `Avro`), field encoding (`Variant`, `RawData`, or `DataValue`), identifiers, fields, values, metadata, message types, and target broker topic before the message is re-encoded and sent.
 
 Use transcoders when a deployment needs an in-process PubSub gateway: for example, a UADP UDP subscriber feeding an MQTT JSON publisher, a JSON cloud topic being normalized before it is re-published as UADP, or a relay that preserves UADP frames on an identity route but rewrites selected fields on another route. The implementation is aligned with OPC UA Part 14 NetworkMessage mappings for [UADP §7.2.4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.4), [JSON §7.2.5](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.5), PubSub connection filtering in [§6.2.7](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/6.2.7), and Security Key Service (SKS) key distribution in [§8](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/8).
 
@@ -868,7 +1010,9 @@ encoder + TranscodeSecurity (target re-securing where applicable)
 TranscodeResult(Frames, Messages, FastPath)
 ```
 
-`PubSubNetworkMessage` is the seam between the receive path and the target profile. Built-in and custom transforms operate on that decoded message tree, while `NetworkMessageProfileProjector` re-materializes it as the concrete UADP or JSON record requested by `TranscodeSpec.TargetEncoding`. `NetworkMessageTranscoder` is the structured primitive that applies transforms and projection; `PubSubTranscoder` is the frame-level primitive that also encodes output frames, applies target-side UADP security, and exposes the raw-frame fast path.
+`PubSubNetworkMessage` is the seam between the receive path and the target profile. Built-in and custom transforms operate on that decoded message tree, while `NetworkMessageProfileProjector` re-materializes it as the concrete UADP, JSON, or experimental Avro record requested by `TranscodeSpec.TargetEncoding`. `NetworkMessageTranscoder` is the structured primitive that applies transforms and projection; `PubSubTranscoder` is the frame-level primitive that also encodes output frames, applies target-side UADP security, and exposes the raw-frame fast path.
+
+When a route targets the experimental Avro mapping, the Avro encoder generates the per-DataSet schema progressively (announce-once through the `SchemaCache` schema handshake) as each DataSet shape is first seen. JSON target routes can opt into the same model with JSON schema exchange: the JSON encoder announces a draft 2020-12 schema once per destination and re-announces when the DataSet shape changes. A DataSet MetaData version change re-announces automatically because the announced schema descriptor embeds the version; `SchemaCache.Reset()` forces an explicit reset, and because the experimental encoders are registered per transcoding bridge, reloading a route (which recreates the bridge) also resets its progressive-schema state.
 
 The fast path is used only when the route is an identity transcode (`TranscodeSpec.IsIdentity`), the source and target encoding match, the subscriber supplied a raw source frame, the source frame is not still message-layer secured, and the target route is not configured for message-layer security. In that case the input frame is returned as a `TranscodeResult` without rebuilding the message.
 

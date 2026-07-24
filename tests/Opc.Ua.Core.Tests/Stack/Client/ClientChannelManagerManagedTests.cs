@@ -1107,8 +1107,6 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             }
         }
 
-        // ---- helpers ----
-
         private static (ClientChannelManager sut, Certificate serverCert, Mock<IChannel> chMock) CreateMockedSut(
             ITelemetryContext? telemetry = null,
             IChannelReconnectPolicy? reconnectPolicy = null,

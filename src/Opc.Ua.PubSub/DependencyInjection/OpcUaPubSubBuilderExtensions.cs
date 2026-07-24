@@ -102,7 +102,7 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 opt.Configure(configure);
             }
-            RegisterCoreServices(builder.Services);
+            RegisterCoreServices(builder);
             return builder;
         }
 
@@ -148,7 +148,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 throw new ArgumentNullException(nameof(section));
             }
             builder.Services.AddOptions<PubSubApplicationOptions>().Bind(section);
-            RegisterCoreServices(builder.Services);
+            RegisterCoreServices(builder);
             return builder;
         }
 
@@ -177,7 +177,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 throw new ArgumentNullException(nameof(configure));
             }
             builder.Services.AddOptions<PubSubApplicationOptions>();
-            RegisterCoreServices(builder.Services);
+            RegisterCoreServices(builder);
             var pubSubBuilder = new PubSubBuilder(builder);
             configure(pubSubBuilder);
             pubSubBuilder.Build();
@@ -210,8 +210,39 @@ namespace Microsoft.Extensions.DependencyInjection
             return builder.AddPubSub(configure);
         }
 
-        private static void RegisterCoreServices(IServiceCollection services)
+        /// <summary>
+        /// Registers and enables the experimental JSON schema-exchange provider used by JSON NetworkMessage encoders.
+        /// </summary>
+        /// <param name="builder">OPC UA root builder.</param>
+        /// <param name="configure">Optional JSON schema-exchange options callback.</param>
+        /// <returns>The original <paramref name="builder"/>.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static IOpcUaBuilder AddJsonSchemaExchange(
+            this IOpcUaBuilder builder,
+            Action<JsonSchemaExchangeOptions>? configure = null)
         {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.AddSchemaGeneration();
+            RegisterJsonSchemaExchangeServices(builder.Services);
+            if (configure is not null)
+            {
+                builder.Services.Configure(configure);
+            }
+            builder.Services.Configure<PubSubApplicationOptions>(options =>
+            {
+                options.JsonSchemaExchange = JsonSchemaExchangeMode.Compact;
+            });
+            return builder;
+        }
+
+        private static void RegisterCoreServices(IOpcUaBuilder builder)
+        {
+            builder.AddSchemaGeneration();
+            IServiceCollection services = builder.Services;
             services.TryAddSingleton(TimeProvider.System);
             services.TryAddSingleton<ITelemetryContext>(
                 sp => new ServiceProviderTelemetryContext(sp));
@@ -231,10 +262,19 @@ namespace Microsoft.Extensions.DependencyInjection
                 sp.GetService<TimeProvider>()));
 
             // Standard encoders / decoders — opt-in via options.
+            RegisterJsonSchemaExchangeServices(services);
             services.AddSingleton<INetworkMessageEncoder>(_ => new Opc.Ua.PubSub.Encoding.Uadp.UadpEncoder());
-            services.AddSingleton<INetworkMessageEncoder>(_ => new Opc.Ua.PubSub.Encoding.Json.JsonEncoder());
+            services.AddSingleton<INetworkMessageEncoder>(CreateJsonEncoder);
             services.AddSingleton<INetworkMessageDecoder>(_ => new Opc.Ua.PubSub.Encoding.Uadp.UadpDecoder());
             services.AddSingleton<INetworkMessageDecoder>(_ => new Opc.Ua.PubSub.Encoding.Json.JsonDecoder());
+
+            // Experimental Avro NetworkMessage encoder/decoder (Part 14 draft) so routes can
+            // transcode to and from the Avro mapping alongside UADP and JSON. Registered transient so
+            // each transcoding bridge gets its own progressive-schema state, which resets naturally
+            // when a route is reloaded (the bridge is recreated); SchemaCache.Reset provides an
+            // explicit reset, and a DataSet MetaData version change re-announces automatically.
+            services.AddTransient<INetworkMessageEncoder>(_ => new Opc.Ua.PubSub.Encoding.AvroNetworkMessageEncoder());
+            services.AddTransient<INetworkMessageDecoder>(_ => new Opc.Ua.PubSub.Encoding.AvroNetworkMessageDecoder());
 
             // Security policies.
             foreach (IPubSubSecurityPolicy policy in PubSubSecurityPolicyRegistry.All)
@@ -313,6 +353,30 @@ namespace Microsoft.Extensions.DependencyInjection
             });
 
             services.AddSingleton<IHostedService, PubSubApplicationHostedService>();
+        }
+
+        private static Opc.Ua.PubSub.Encoding.Json.JsonEncoder CreateJsonEncoder(IServiceProvider sp)
+        {
+            var encoder = new Opc.Ua.PubSub.Encoding.Json.JsonEncoder();
+            PubSubApplicationOptions options =
+                sp.GetRequiredService<IOptions<PubSubApplicationOptions>>().Value;
+            if (options.JsonSchemaExchange == JsonSchemaExchangeMode.Disabled)
+            {
+                return encoder;
+            }
+
+            JsonSchemaExchangeOptions jsonOptions =
+                sp.GetService<IOptions<JsonSchemaExchangeOptions>>()?.Value ?? new JsonSchemaExchangeOptions();
+            encoder.EnableSchemaExchange = true;
+            encoder.SchemaProvider = sp.GetRequiredService<IDataSetJsonSchemaProvider>();
+            encoder.SchemaVerbose = options.JsonSchemaExchange == JsonSchemaExchangeMode.Verbose || jsonOptions.Verbose;
+            encoder.DestinationId = jsonOptions.DestinationId ?? options.ApplicationId ?? "pubsub-json-schema-exchange";
+            return encoder;
+        }
+
+        private static void RegisterJsonSchemaExchangeServices(IServiceCollection services)
+        {
+            services.TryAddSingleton<IDataSetJsonSchemaProvider, DataSetJsonSchemaProvider>();
         }
     }
 

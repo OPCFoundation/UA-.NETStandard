@@ -17,7 +17,7 @@
       UA0023 + CS0618 within the library while keeping the warnings active for
       downstream consumers.
     -->
-    <NoWarn>$(NoWarn);UA0023;CS0618</NoWarn>
+    <NoWarn>$(NoWarn);UA0023;CS0618;CS1591;UA_NETStandard_Avro;UA_NETStandard_Arrow</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.PubSub.Tests" />
@@ -27,7 +27,30 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Opc.Ua.Core\Opc.Ua.Core.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Core.Schema\Opc.Ua.Core.Schema.csproj" />
     <ProjectReference Include="..\Opc.Ua.Client\Opc.Ua.Client.csproj" />
+    <ProjectReference Include="..\Opc.Ua.XRegistry\Opc.Ua.XRegistry.csproj" />
+    <ProjectReference Include="..\Opc.Ua.XRegistry.Client\Opc.Ua.XRegistry.Client.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj">
+      <OutputItemType>Analyzer</OutputItemType>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="..\..\tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />
+  <PropertyGroup>
+    <ModelSourceGeneratorVersion>v105</ModelSourceGeneratorVersion>
+    <!-- Model-only assembly: opt out of typed-accessor emission since the
+         emitted code references Opc.Ua.Server.Fluent.* which this project
+         does not reference. The xRegistry base model is resolved from the
+         referenced Opc.Ua.XRegistry assembly's ModelDependency metadata. -->
+    <ModelSourceGeneratorOmitFluentApi>true</ModelSourceGeneratorOmitFluentApi>
+    <ModelSourceGeneratorUseAllowSubtypes>true</ModelSourceGeneratorUseAllowSubtypes>
+  </PropertyGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="SchemaRegistry\Opc.Ua.SchemaRegistry.NodeSet2.xml" LogicalName="Opc.Ua.PubSub.SchemaRegistry.Opc.Ua.SchemaRegistry.NodeSet2.xml" />
+    <AdditionalFiles Include="SchemaRegistry\Opc.Ua.SchemaRegistry.NodeSet2.xml" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
@@ -35,6 +58,11 @@
     <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
+  </ItemGroup>
+  <!-- Apache.Arrow backs the Arrow PubSub adapter; only referenced on the modern
+       target frameworks where the Arrow encoding is compiled (net8+). -->
+  <ItemGroup Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">
+    <PackageReference Include="Apache.Arrow" />
   </ItemGroup>
   <Choose>
     <When Condition="'$(TargetFramework)' != 'netstandard2.1' AND '$(TargetFramework)' != 'net48' and '$(TargetFramework)' != 'net472'">

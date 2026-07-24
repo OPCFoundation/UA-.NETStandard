@@ -149,6 +149,8 @@ namespace Opc.Ua.Core.Encoders.Tests
                         Is.True);
                     break;
                 case EncodingType.Binary:
+                case EncodingType.Avro:
+                case EncodingType.Arrow:
                     break;
                 default:
                     Assert.Fail($"Encoder type {encoderType} not supported.");

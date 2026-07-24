@@ -24,6 +24,11 @@
     <PackageReference Include="System.Collections.Immutable" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
   </ItemGroup>
+  <!-- Apache.Arrow backs the Arrow reference encoder; it is only referenced on the
+       modern target frameworks where the Arrow encoders are compiled (net8+). -->
+  <ItemGroup Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">
+    <PackageReference Include="Apache.Arrow" />
+  </ItemGroup>
   <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0' OR '$(TargetFramework)' == 'net472' OR '$(TargetFramework)' == 'net48'">
     <PackageReference Include="Microsoft.Bcl.HashCode" />
     <PackageReference Include="System.Threading.Tasks.Extensions" />

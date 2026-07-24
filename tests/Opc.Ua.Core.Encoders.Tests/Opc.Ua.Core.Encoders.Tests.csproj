@@ -30,6 +30,16 @@
   <ItemGroup>
     <Compile Include="..\Common\Main.cs" />
   </ItemGroup>
+  <!-- Arrow reference encoder tests stay net8.0+ only (Apache.Arrow) and require the
+       referenced Opc.Ua.Types build to include Arrow. Under CustomTestTarget=netstandard2.1
+       the test host builds net8.0 but the libraries build netstandard2.1 (no Arrow), so the
+       Arrow tests are also excluded when NetStandardTests is set. Avro is supported on every
+       target framework. SchemaExchangeRoundTripTests mixes Avro and Arrow cases, so it is
+       excluded wherever the Arrow types do not exist. -->
+  <ItemGroup Condition="!$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0')) Or '$(NetStandardTests)' == 'true'">
+    <Compile Remove="Arrow\**\*.cs" />
+    <Compile Remove="SchemaExchange\SchemaExchangeRoundTripTests.cs" />
+  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Opc.Ua.Core\Opc.Ua.Core.csproj" />
     <ProjectReference Include="..\Opc.Ua.Core.TestFramework\Opc.Ua.Core.TestFramework.csproj" />

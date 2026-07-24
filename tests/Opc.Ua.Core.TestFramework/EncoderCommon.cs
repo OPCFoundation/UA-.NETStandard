@@ -185,7 +185,12 @@ namespace Opc.Ua.Core.TestFramework
             new EncodingTypeGroup(EncodingType.Binary),
             new EncodingTypeGroup(EncodingType.Xml, useXmlParser: false),
             new EncodingTypeGroup(EncodingType.Xml, useXmlParser: true),
-            new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Compact)
+            new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Compact),
+            // Experimental encodings are exercised by the same shared round-trip matrix.
+            new EncodingTypeGroup(EncodingType.Avro),
+#if NET8_0_OR_GREATER && !NET_STANDARD_TESTS
+            new EncodingTypeGroup(EncodingType.Arrow)
+#endif
         ];
 
         public static readonly EncodingTypeGroup[] EncodingTypesAll =
@@ -194,7 +199,25 @@ namespace Opc.Ua.Core.TestFramework
             new EncodingTypeGroup(EncodingType.Xml, useXmlParser: false),
             new EncodingTypeGroup(EncodingType.Xml, useXmlParser: true),
             new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Compact),
-            new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Verbose)
+            new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Verbose),
+            // Experimental encodings are exercised by the same shared round-trip matrix.
+            new EncodingTypeGroup(EncodingType.Avro),
+#if NET8_0_OR_GREATER && !NET_STANDARD_TESTS
+            new EncodingTypeGroup(EncodingType.Arrow)
+#endif
+        ];
+
+        // Standard (non-experimental) encoders only. Complex-type resolution round-trips
+        // rely on the encoding-id based ExtensionObject model of the built-in Binary/XML/JSON
+        // encoders; the experimental Avro/Arrow codecs do not implement that resolution, so
+        // suites that exercise complex-type resolution use this source instead of the shared
+        // matrix that includes the experimental encodings.
+        public static readonly EncodingTypeGroup[] StandardEncodingTypes =
+        [
+            new EncodingTypeGroup(EncodingType.Binary),
+            new EncodingTypeGroup(EncodingType.Xml, useXmlParser: false),
+            new EncodingTypeGroup(EncodingType.Xml, useXmlParser: true),
+            new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Compact)
         ];
 
         /// <summary>
@@ -592,6 +615,12 @@ namespace Opc.Ua.Core.TestFramework
                         stream,
                         context,
                         jsonEncoding == JsonEncodingType.Verbose ? JsonEncoderOptions.Verbose : JsonEncoderOptions.Compact);
+                case EncodingType.Avro:
+                    return new AvroEncoder(stream, context, true);
+#if NET8_0_OR_GREATER && !NET_STANDARD_TESTS
+                case EncodingType.Arrow:
+                    return new ArrowEncoder(stream, context, true);
+#endif
                 default:
                     throw new ArgumentOutOfRangeException(
                         nameof(encoderType),
@@ -621,6 +650,12 @@ namespace Opc.Ua.Core.TestFramework
                     return new XmlDecoder(systemType, xmlReader, context);
                 case EncodingType.Json:
                     return new JsonDecoder(stream, context);
+                case EncodingType.Avro:
+                    return new AvroDecoder(stream, context, true);
+#if NET8_0_OR_GREATER && !NET_STANDARD_TESTS
+                case EncodingType.Arrow:
+                    return new ArrowDecoder(stream, context);
+#endif
                 default:
                     return null;
             }

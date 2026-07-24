@@ -82,6 +82,9 @@
     <Project Path="src/Opc.Ua.PubSub.Udp/Opc.Ua.PubSub.Udp.csproj" />
     <Project Path="src/Opc.Ua.Redundancy.PubSub/Opc.Ua.Redundancy.PubSub.csproj" />
     <Project Path="src/Opc.Ua.Server/Opc.Ua.Server.csproj" />
+    <Project Path="src/Opc.Ua.XRegistry/Opc.Ua.XRegistry.csproj" />
+    <Project Path="src/Opc.Ua.XRegistry.Client/Opc.Ua.XRegistry.Client.csproj" />
+    <Project Path="src/Opc.Ua.XRegistry.Server/Opc.Ua.XRegistry.Server.csproj" />
     <Project Path="src/Opc.Ua.Redundancy.Server/Opc.Ua.Redundancy.Server.csproj" />
     <Project Path="src/Opc.Ua.Redundancy.Client/Opc.Ua.Redundancy.Client.csproj" />
     <Project Path="src/Opc.Ua.Redundancy.Kubernetes/Opc.Ua.Redundancy.Kubernetes.csproj" />
@@ -243,7 +246,7 @@
     <Project Path="tests/Opc.Ua.Security.Certificates.Tests/Opc.Ua.Security.Certificates.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Server.Tests/Opc.Ua.Server.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Redundancy.Server.Tests/Opc.Ua.Redundancy.Server.Tests.csproj" />
-    <Project Path="tests/Opc.Ua.Redundancy.Kubernetes.Tests/Opc.Ua.Redundancy.Kubernetes.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.XRegistry.Server.Tests/Opc.Ua.XRegistry.Server.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Redundancy.Samples.Tests/Opc.Ua.Redundancy.Samples.Tests.csproj" />
     <Project Path="tests/Opc.Ua.SourceGeneration.Core.Tests/Opc.Ua.SourceGeneration.Core.Tests.csproj" />
     <Project Path="tests/Opc.Ua.SourceGeneration.Stack.Tests/Opc.Ua.SourceGeneration.Stack.Tests.csproj" />
