@@ -167,7 +167,19 @@ namespace Opc.Ua.Wot
         /// <c>uav:isEvent: false</c>, contradicting the event mapping
         /// (WoT Binding Section 5.2).
         /// </summary>
-        EventAnnotationConflict = 6002
+        EventAnnotationConflict = 6002,
+
+        /// <summary>
+        /// A NamespaceUri-qualified model-name hint could not be resolved and
+        /// no definitive ExpandedNodeId fallback was available.
+        /// </summary>
+        ModelConceptUnresolved = 6003,
+
+        /// <summary>
+        /// A model-name hint and its definitive ExpandedNodeId resolved to
+        /// different OPC UA model Nodes.
+        /// </summary>
+        ModelConceptConflict = 6004
     }
 
     /// <summary>

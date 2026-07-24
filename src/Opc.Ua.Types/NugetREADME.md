@@ -40,6 +40,11 @@ Unmapped WoT JSON-LD members are retained individually as
 pointer-addressed, digest-protected residue in standard NodeSet
 `Extensions`; mapped OPC UA facts are never duplicated there.
 
+Typed-reference links also use NamespaceUri-qualified model names such as
+`ua:HasOrderedComponent` directly in `rel`, alongside a definitive
+`uav:refType` ExpandedNodeId when needed. These names improve model
+semantics without replacing ExpandedNodeIds for instance identity.
+
 ## Target frameworks
 
 `net472`, `net48`, `netstandard2.0`, `netstandard2.1`, `net8.0`,

@@ -65,9 +65,35 @@ namespace Opc.Ua.Wot
         // Type-annotation term for an event affordance projecting a UA EventType.
         public const string EventTypeAnnotation = "uav:eventType";
 
+        private static readonly Dictionary<string, string> s_referenceTypeNameToNodeId =
+            new(StringComparer.Ordinal)
+            {
+                ["Organizes"] = Organizes,
+                ["HasModellingRule"] = HasModellingRule,
+                ["HasTypeDefinition"] = HasTypeDefinition,
+                ["GeneratesEvent"] = GeneratesEvent,
+                ["HasSubtype"] = HasSubtype,
+                ["HasProperty"] = HasProperty,
+                ["HasComponent"] = HasComponent,
+                ["HasOrderedComponent"] = HasOrderedComponent
+            };
+
+        private static readonly Dictionary<string, string> s_referenceTypeNodeIdToName =
+            new(StringComparer.Ordinal)
+            {
+                [Organizes] = "Organizes",
+                [HasModellingRule] = "HasModellingRule",
+                [HasTypeDefinition] = "HasTypeDefinition",
+                [GeneratesEvent] = "GeneratesEvent",
+                [HasSubtype] = "HasSubtype",
+                [HasProperty] = "HasProperty",
+                [HasComponent] = "HasComponent",
+                [HasOrderedComponent] = "HasOrderedComponent"
+            };
+
         // HasComponent subtypes (base namespace) that carry stronger semantics
-        // than plain HasComponent and must be pinned by a uav:typedReference
-        // link (WoT Binding Section 5.3). Keyed by both the reference-type
+        // than plain HasComponent and must be pinned by a link whose rel is
+        // the ReferenceType model name (WoT Binding Section 5.3). Keyed by both the reference-type
         // BrowseName and its base-namespace NodeId; the value is the canonical
         // base-namespace ExpandedNodeId used for the typed link's uav:refType.
         // HasComponent and HasProperty are intentionally excluded: they are the
@@ -150,7 +176,7 @@ namespace Opc.Ua.Wot
         /// <summary>
         /// Determines whether a reference type (given as a BrowseName or a NodeId)
         /// is a HasComponent subtype whose exact semantics must be pinned by a
-        /// <c>uav:typedReference</c> link, and returns the canonical
+        /// typed Reference link, and returns the canonical
         /// base-namespace ExpandedNodeId to use for the link's <c>uav:refType</c>.
         /// </summary>
         public static bool TryGetHasComponentSubtype(string? referenceType, out string subtypeNodeId)
@@ -161,6 +187,41 @@ namespace Opc.Ua.Wot
                 return true;
             }
             subtypeNodeId = string.Empty;
+            return false;
+        }
+
+        public static bool TryGetReferenceTypeNodeId(
+            string? browseName,
+            out string nodeId)
+        {
+            if (browseName is not null &&
+                s_referenceTypeNameToNodeId.TryGetValue(browseName, out nodeId!))
+            {
+                return true;
+            }
+            nodeId = string.Empty;
+            return false;
+        }
+
+        public static bool TryGetReferenceTypeBrowseName(
+            string? referenceType,
+            out string browseName)
+        {
+            if (referenceType is not null)
+            {
+                if (s_referenceTypeNodeIdToName.TryGetValue(
+                    referenceType,
+                    out browseName!))
+                {
+                    return true;
+                }
+                if (s_referenceTypeNameToNodeId.ContainsKey(referenceType))
+                {
+                    browseName = referenceType;
+                    return true;
+                }
+            }
+            browseName = string.Empty;
             return false;
         }
 

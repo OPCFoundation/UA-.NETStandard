@@ -49,7 +49,8 @@ namespace Opc.Ua.Types.Tests.Wot
     {
         private const string Context =
             "\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
-            "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"}],";
+            "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"," +
+            "\"ua\":\"http://opcfoundation.org/UA/\"}],";
 
         private static readonly string[] s_orderedStageIds =
         [
@@ -239,7 +240,7 @@ namespace Opc.Ua.Types.Tests.Wot
         // ---- HasComponent subtypes (Section 5.3) ---------------------------
 
         [Test]
-        public void HasComponentSubtypeEmitsDiscoveryAndTypedReference()
+        public void HasComponentSubtypeEmitsDiscoveryAndReferenceTypeRelation()
         {
             using WotDocument document = WotNodeSetConverter.FromNodeSet(CreateOrderedComponentNodeSet());
 
@@ -251,7 +252,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(links.GetArrayLength(), Is.EqualTo(2));
             foreach (JsonElement link in links.EnumerateArray())
             {
-                Assert.That(link.GetProperty("rel").GetString(), Is.EqualTo("uav:typedReference"));
+                Assert.That(
+                    link.GetProperty("rel").GetString(),
+                    Is.EqualTo("ua:HasOrderedComponent"));
                 Assert.That(link.GetProperty("uav:refType").GetString(), Is.EqualTo("i=49"));
                 Assert.That(link.GetProperty("href").GetString(), Does.StartWith("nsu=urn:demo:pump;"));
                 Assert.That(link.GetProperty("uav:refName").GetString(), Does.StartWith("Stage_"));
@@ -259,14 +262,14 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         [Test]
-        public void TypedReferencePinnedComponentRecreatesExactSubtype()
+        public void ReferenceTypeRelationPinnedComponentRecreatesExactSubtype()
         {
             string json =
                 "{" + Context +
                 "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"]," +
                 "\"title\":\"PumpType\",\"uav:browseName\":\"1:PumpType\"," +
                 "\"uav:hasComponent\":[\"nsu=urn:demo:pump;i=2001\"]," +
-                "\"links\":[{\"rel\":\"uav:typedReference\"," +
+                "\"links\":[{\"rel\":\"ua:HasOrderedComponent\"," +
                 "\"href\":\"nsu=urn:demo:pump;i=2001\",\"uav:refType\":\"i=49\"," +
                 "\"uav:refName\":\"Stage_1\"}]}";
 
@@ -279,6 +282,165 @@ namespace Opc.Ua.Types.Tests.Wot
                 "The pinned component must not be emitted twice.");
             Assert.That(toTarget[0].ReferenceType, Is.EqualTo("i=49"));
             Assert.That(toTarget[0].IsForward, Is.True);
+        }
+
+        [Test]
+        public void ReferenceTypeModelNameResolvesWithoutFallbackWhenUnique()
+        {
+            string json =
+                "{" + Context +
+                "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"]," +
+                "\"title\":\"PumpType\",\"uav:browseName\":\"1:PumpType\"," +
+                "\"uav:hasComponent\":[\"nsu=urn:demo:pump;i=2001\"]," +
+                "\"links\":[{\"rel\":\"ua:HasOrderedComponent\"," +
+                "\"href\":\"nsu=urn:demo:pump;i=2001\"," +
+                "\"uav:refName\":\"Stage_1\"}]}";
+
+            UANodeSet nodeSet = WotNodeSetConverter.ToNodeSet(Encoding.UTF8.GetBytes(json));
+
+            UAObjectType root = nodeSet.Items!.OfType<UAObjectType>().Single();
+            Reference reference = root.References!
+                .Single(r => r.Value == "nsu=urn:demo:pump;i=2001");
+            Assert.That(reference.ReferenceType, Is.EqualTo("i=49"));
+        }
+
+        [Test]
+        public void CustomReferenceTypeModelNameUsesExpandedNodeIdFallback()
+        {
+            const string json =
+                "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\",{" +
+                "\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"," +
+                "\"pump\":\"urn:demo:pump#\"}]," +
+                "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"]," +
+                "\"title\":\"PumpType\",\"uav:browseName\":\"1:PumpType\"," +
+                "\"links\":[{\"rel\":\"pump:FlowsTo\"," +
+                "\"href\":\"nsu=urn:demo:pump;i=2001\"," +
+                "\"uav:refType\":\"nsu=urn:demo:pump;i=4001\"}]}";
+
+            UANodeSet nodeSet = WotNodeSetConverter.ToNodeSet(Encoding.UTF8.GetBytes(json));
+
+            UAObjectType root = nodeSet.Items!.OfType<UAObjectType>().Single();
+            Assert.That(
+                root.References!.Any(r =>
+                    r.ReferenceType == "nsu=urn:demo:pump;i=4001" &&
+                    r.Value == "nsu=urn:demo:pump;i=2001"),
+                Is.True);
+        }
+
+        [Test]
+        public void ConflictingReferenceTypeNameAndNodeIdIsRejected()
+        {
+            string json =
+                "{" + Context +
+                "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"]," +
+                "\"title\":\"PumpType\",\"uav:browseName\":\"1:PumpType\"," +
+                "\"links\":[{\"rel\":\"ua:HasOrderedComponent\"," +
+                "\"href\":\"nsu=urn:demo:pump;i=2001\"," +
+                "\"uav:refType\":\"i=47\"}]}";
+
+            using WotDocument document = WotDocument.Parse(Encoding.UTF8.GetBytes(json));
+            WotConversionResult<UANodeSet> result =
+                WotNodeSetConverter.ToNodeSetResult(document);
+
+            Assert.That(result.HasErrors, Is.True);
+            Assert.That(
+                result.Diagnostics.Any(d =>
+                    d.Code == WotDiagnosticCode.ModelConceptConflict),
+                Is.True);
+        }
+
+        [Test]
+        public void TypeModelNameRemainsSemanticHintBesideExpandedNodeId()
+        {
+            const string json =
+                "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\",{" +
+                "\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"," +
+                "\"pump\":\"urn:demo:pump#\"}]," +
+                "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"]," +
+                "\"title\":\"PumpType\",\"uav:browseName\":\"1:PumpType\"," +
+                "\"properties\":{\"speed\":{\"uav:browseName\":\"1:Speed\"," +
+                "\"type\":\"number\",\"uav:mapToTypeName\":\"pump:Measurement\"," +
+                "\"uav:mapToType\":\"nsu=urn:demo:pump;i=3010\"}}}";
+
+            using WotDocument source = WotDocument.Parse(Encoding.UTF8.GetBytes(json));
+            WotConversionResult<UANodeSet> result =
+                WotNodeSetConverter.ToNodeSetResult(source);
+
+            Assert.That(result.HasErrors, Is.False);
+            Assert.That(
+                result.Diagnostics.Any(d =>
+                    d.Code == WotDiagnosticCode.NonPortableIdentity),
+                Is.False);
+
+            using WotDocument restored = WotNodeSetConverter.FromNodeSet(result.Value!);
+            JsonElement speed = restored.RootElement
+                .GetProperty("properties")
+                .GetProperty("Speed");
+            Assert.That(
+                speed.GetProperty("uav:mapToTypeName").GetString(),
+                Is.EqualTo("pump:Measurement"));
+            Assert.That(
+                speed.GetProperty("uav:mapToType").GetString(),
+                Is.EqualTo("nsu=urn:demo:pump;i=3010"));
+        }
+
+        [Test]
+        public void GeneratedContextBindsBaseAndNodeSetNamespaces()
+        {
+            using WotDocument document =
+                WotNodeSetConverter.FromNodeSet(WotTestData.CreateRichNodeSet());
+
+            JsonElement prefixes = document.RootElement.GetProperty("@context")[1];
+            Assert.That(
+                prefixes.GetProperty("ua").GetString(),
+                Is.EqualTo("http://opcfoundation.org/UA/"));
+            Assert.That(
+                prefixes.GetProperty("ns1").GetString(),
+                Is.EqualTo("urn:test:model"));
+        }
+
+        [Test]
+        public void DefinedBindingRelationIsNotTreatedAsUnknownModelConcept()
+        {
+            string json =
+                "{" + Context +
+                "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"]," +
+                "\"title\":\"PumpType\",\"uav:browseName\":\"1:PumpType\"," +
+                "\"links\":[{\"rel\":\"uav:componentModel\"," +
+                "\"href\":\"nsu=urn:demo:pump;i=2001\"," +
+                "\"uav:refType\":\"i=47\",\"uav:refName\":\"Stage\"}]}";
+
+            using WotDocument document = WotDocument.Parse(Encoding.UTF8.GetBytes(json));
+            WotConversionResult<UANodeSet> result =
+                WotNodeSetConverter.ToNodeSetResult(document);
+
+            Assert.That(result.HasErrors, Is.False);
+            Assert.That(
+                result.Diagnostics.Any(d =>
+                    d.Code == WotDiagnosticCode.ModelConceptUnresolved),
+                Is.False);
+        }
+
+        [Test]
+        public void ExternalIriRelationIsPreservedRatherThanRejected()
+        {
+            string json =
+                "{" + Context +
+                "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"]," +
+                "\"title\":\"PumpType\",\"uav:browseName\":\"1:PumpType\"," +
+                "\"links\":[{\"rel\":\"https://schema.org/about\"," +
+                "\"href\":\"https://example.com/about\"}]}";
+
+            using WotDocument source = WotDocument.Parse(Encoding.UTF8.GetBytes(json));
+            WotConversionResult<UANodeSet> result =
+                WotNodeSetConverter.ToNodeSetResult(source);
+
+            Assert.That(result.HasErrors, Is.False);
+            using WotDocument restored = WotNodeSetConverter.FromNodeSet(result.Value!);
+            JsonElement link = restored.RootElement.GetProperty("links")[0];
+            Assert.That(
+                link.GetProperty("rel").GetString(),
+                Is.EqualTo("https://schema.org/about"));
         }
 
         [Test]

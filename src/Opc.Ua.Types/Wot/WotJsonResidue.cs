@@ -282,7 +282,7 @@ namespace Opc.Ua.Wot
                 {
                     foreach (JsonProperty property in item.EnumerateObject())
                     {
-                        if (!string.Equals(property.Name, "uav", StringComparison.Ordinal))
+                        if (!IsGeneratedContextBinding(property))
                         {
                             Add(
                                 entries,
@@ -294,6 +294,27 @@ namespace Opc.Ua.Wot
                 }
                 Add(entries, pointer + "/-", item);
             }
+        }
+
+        private static bool IsGeneratedContextBinding(JsonProperty property)
+        {
+            if (property.Name is "uav" or "ua")
+            {
+                return true;
+            }
+            if (!property.Name.StartsWith("ns", StringComparison.Ordinal) ||
+                property.Name.Length == 2)
+            {
+                return false;
+            }
+            for (int ii = 2; ii < property.Name.Length; ii++)
+            {
+                if (!char.IsDigit(property.Name[ii]))
+                {
+                    return false;
+                }
+            }
+            return property.Value.ValueKind == JsonValueKind.String;
         }
 
         private static void CaptureAffordanceMap(
@@ -388,7 +409,7 @@ namespace Opc.Ua.Wot
                     relElement.ValueKind == JsonValueKind.String
                     ? relElement.GetString()
                     : null;
-                if (!IsMappedLink(rel))
+                if (!IsMappedLink(rel, link))
                 {
                     Add(entries, pointer + "/-", link);
                     continue;
@@ -418,7 +439,8 @@ namespace Opc.Ua.Wot
                 hasExtras = false;
                 foreach (JsonProperty property in link.EnumerateObject())
                 {
-                    if (property.Name is "rel" or "href" or "uav:refType" or "uav:refName")
+                    if (property.Name is "rel" or "href" or "uav:refType" or
+                        "uav:refName")
                     {
                         continue;
                     }
@@ -431,13 +453,36 @@ namespace Opc.Ua.Wot
             return Encoding.UTF8.GetString(stream.ToArray());
         }
 
-        private static bool IsMappedLink(string? rel)
+        private static bool IsMappedLink(string? rel, JsonElement link)
         {
-            return rel is "tm:extends" or
-                "uav:typedReference" or
+            if (rel is "tm:extends" or
                 "uav:reference" or
                 "uav:componentModel" or
-                "uav:capability";
+                "uav:capability")
+            {
+                return true;
+            }
+            if (rel is null || rel.StartsWith("uav:", StringComparison.Ordinal))
+            {
+                return false;
+            }
+            return rel.StartsWith("ua:", StringComparison.Ordinal) ||
+                StartsWithGeneratedNamespacePrefix(rel) ||
+                link.TryGetProperty("uav:refType", out _);
+        }
+
+        private static bool StartsWithGeneratedNamespacePrefix(string rel)
+        {
+            if (!rel.StartsWith("ns", StringComparison.Ordinal))
+            {
+                return false;
+            }
+            int ii = 2;
+            while (ii < rel.Length && char.IsDigit(rel[ii]))
+            {
+                ii++;
+            }
+            return ii > 2 && ii < rel.Length && rel[ii] == ':';
         }
 
         private static string? LocalName(string? browseName)
