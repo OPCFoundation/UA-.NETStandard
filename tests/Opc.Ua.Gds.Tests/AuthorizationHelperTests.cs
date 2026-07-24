@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
+using System.Security.Cryptography;
 using System.Text;
 using NUnit.Framework;
 using Opc.Ua.Gds.Server;
@@ -210,6 +211,88 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
+        public void HasAuthorizationSucceedsWithKeyCredentialAdminRole()
+        {
+            var innerIdentity = new UserIdentity("keyadmin", s_passwordBytes);
+            var roles = new List<Role> { GdsRole.KeyCredentialAdmin };
+            var identity = new GdsRoleBasedIdentity(innerIdentity, roles, m_namespaceTable);
+
+            var context = new SessionSystemContext(m_telemetry)
+            {
+                UserIdentity = identity,
+                NamespaceUris = m_namespaceTable
+            };
+
+            Assert.DoesNotThrow(() =>
+                AuthorizationHelper.HasAuthorization(
+                    context,
+                    AuthorizationHelper.KeyCredentialAdmin));
+        }
+
+        [Test]
+        public void KeyCredentialAuthorizationAllowsSelfAdminOnlyForOwnApplication()
+        {
+            var ownAppId = new NodeId(99);
+            var otherAppId = new NodeId(100);
+            var identity = new GdsRoleBasedIdentity(
+                new UserIdentity("appuser", s_passwordBytes),
+                [GdsRole.ApplicationSelfAdmin],
+                ownAppId,
+                m_namespaceTable);
+            var context = new SessionSystemContext(m_telemetry)
+            {
+                UserIdentity = identity,
+                NamespaceUris = m_namespaceTable
+            };
+
+            Assert.DoesNotThrow(() =>
+                AuthorizationHelper.HasAuthorization(
+                    context,
+                    AuthorizationHelper.KeyCredentialAdminOrSelfAdminOrAppAdmin,
+                    ownAppId));
+            Assert.That(
+                () => AuthorizationHelper.HasAuthorization(
+                    context,
+                    AuthorizationHelper.KeyCredentialAdminOrSelfAdminOrAppAdmin,
+                    otherAppId),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadUserAccessDenied));
+        }
+
+        [Test]
+        public void KeyCredentialAuthorizationAllowsApplicationAdminOnlyForManagedApplication()
+        {
+            var managedAppId = new NodeId(11);
+            var unmanagedAppId = new NodeId(12);
+            var identity = new GdsRoleBasedIdentity(
+                new UserIdentity("agent", s_passwordBytes),
+                [GdsRole.ApplicationAdmin],
+                NodeId.Null,
+                [managedAppId],
+                m_namespaceTable);
+            var context = new SessionSystemContext(m_telemetry)
+            {
+                UserIdentity = identity,
+                NamespaceUris = m_namespaceTable
+            };
+
+            Assert.DoesNotThrow(() =>
+                AuthorizationHelper.HasAuthorization(
+                    context,
+                    AuthorizationHelper.KeyCredentialAdminOrSelfAdminOrAppAdmin,
+                    managedAppId));
+            Assert.That(
+                () => AuthorizationHelper.HasAuthorization(
+                    context,
+                    AuthorizationHelper.KeyCredentialAdminOrSelfAdminOrAppAdmin,
+                    unmanagedAppId),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadUserAccessDenied));
+        }
+
+        [Test]
         public void HasAuthenticatedSecureChannelThrowsForNonSystemContext()
         {
             var context = new SessionSystemContext(m_telemetry)
@@ -321,6 +404,101 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
+        public void GetClientCertificateFingerprintReturnsSha256()
+        {
+            byte[] clientCertificate = [1, 2, 3, 4, 5];
+            var endpoint = new EndpointDescription
+            {
+                SecurityMode = MessageSecurityMode.SignAndEncrypt
+            };
+            var channelContext = new SecureChannelContext(
+                "test-channel",
+                endpoint,
+                RequestEncoding.Binary,
+                clientCertificate);
+            var operationContext = new OperationContext(
+                new RequestHeader(),
+                channelContext,
+                RequestType.Call,
+                RequestLifetime.None);
+            var context = new SystemContext(operationContext, m_telemetry)
+            {
+                NamespaceUris = m_namespaceTable
+            };
+
+#if NET6_0_OR_GREATER
+            byte[] expected = SHA256.HashData(clientCertificate);
+#else
+            byte[] expected;
+            using (var sha256 = SHA256.Create())
+            {
+                expected = sha256.ComputeHash(clientCertificate);
+            }
+#endif
+
+            ByteString fingerprint = AuthorizationHelper.GetClientCertificateFingerprint(context);
+
+            Assert.That(fingerprint.ToArray(), Is.EqualTo(expected));
+        }
+
+        [Test]
+        public void GetClientCertificateFingerprintThrowsWhenCertificateIsMissing()
+        {
+            var endpoint = new EndpointDescription
+            {
+                SecurityMode = MessageSecurityMode.SignAndEncrypt
+            };
+            var channelContext = new SecureChannelContext(
+                "test-channel",
+                endpoint,
+                RequestEncoding.Binary);
+            var operationContext = new OperationContext(
+                new RequestHeader(),
+                channelContext,
+                RequestType.Call,
+                RequestLifetime.None);
+            var context = new SystemContext(operationContext, m_telemetry)
+            {
+                NamespaceUris = m_namespaceTable
+            };
+
+            Assert.That(
+                () => AuthorizationHelper.GetClientCertificateFingerprint(context),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadSecurityChecksFailed));
+        }
+
+        [Test]
+        public void GetClientCertificateFingerprintThrowsWhenCertificateIsEmpty()
+        {
+            var endpoint = new EndpointDescription
+            {
+                SecurityMode = MessageSecurityMode.SignAndEncrypt
+            };
+            var channelContext = new SecureChannelContext(
+                "test-channel",
+                endpoint,
+                RequestEncoding.Binary,
+                []);
+            var operationContext = new OperationContext(
+                new RequestHeader(),
+                channelContext,
+                RequestType.Call,
+                RequestLifetime.None);
+            var context = new SystemContext(operationContext, m_telemetry)
+            {
+                NamespaceUris = m_namespaceTable
+            };
+
+            Assert.That(
+                () => AuthorizationHelper.GetClientCertificateFingerprint(context),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadSecurityChecksFailed));
+        }
+
+        [Test]
         public void StaticRoleListsAreCorrectlyPopulated()
         {
             Assert.That(AuthorizationHelper.AuthenticatedUser, Has.Count.EqualTo(1));
@@ -328,6 +506,19 @@ namespace Opc.Ua.Gds.Tests
 
             Assert.That(AuthorizationHelper.DiscoveryAdmin, Has.Count.EqualTo(1));
             Assert.That(AuthorizationHelper.DiscoveryAdmin[0], Is.EqualTo(GdsRole.DiscoveryAdmin));
+
+            Assert.That(AuthorizationHelper.KeyCredentialAdmin, Has.Count.EqualTo(1));
+            Assert.That(AuthorizationHelper.KeyCredentialAdmin[0],
+                Is.EqualTo(GdsRole.KeyCredentialAdmin));
+
+            Assert.That(
+                AuthorizationHelper.KeyCredentialAdminOrSelfAdminOrAppAdmin,
+                Is.EquivalentTo(
+                [
+                    GdsRole.KeyCredentialAdmin,
+                    GdsRole.ApplicationSelfAdmin,
+                    GdsRole.ApplicationAdmin
+                ]));
 
             Assert.That(AuthorizationHelper.DiscoveryAdminOrSelfAdmin, Has.Count.EqualTo(2));
             Assert.That(AuthorizationHelper.DiscoveryAdminOrSelfAdmin,
