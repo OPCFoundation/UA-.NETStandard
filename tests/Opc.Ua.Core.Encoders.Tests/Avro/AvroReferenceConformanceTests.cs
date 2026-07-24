@@ -293,7 +293,7 @@ namespace Opc.Ua.Core.Tests
 
         private static string ToHex(byte[] bytes)
         {
-            return BitConverter.ToString(bytes).Replace("-", string.Empty).ToLowerInvariant();
+            return CoreUtils.ToHexString(bytes).ToLowerInvariant();
         }
     }
 }

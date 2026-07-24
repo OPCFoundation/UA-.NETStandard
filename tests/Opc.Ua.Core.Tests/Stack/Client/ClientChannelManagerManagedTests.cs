@@ -1033,7 +1033,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         [Test]
         public async Task ReconnectAsyncWithBudgetShrinksDelayToFitRemainingAsync()
         {
-            var timeProvider = new FakeTimeProvider();
+            var timeProvider = new ObservableFakeTimeProvider();
             var reconnectPolicy = new ExponentialBackoffChannelReconnectPolicy
             {
                 MinDelay = TimeSpan.FromSeconds(10),
@@ -1059,6 +1059,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
 
                 Task reconnectTask = sut.ReconnectAsync(ch, budget, default).AsTask();
                 await reconnecting.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                await timeProvider.WaitForTimerCreatedAsync(1)
+                    .WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false);
 
                 Assert.That(reconnectTask.IsCompleted, Is.False);
 
@@ -1082,8 +1085,6 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 serverCert.Dispose();
             }
         }
-
-        // ---- helpers ----
 
         private static (ClientChannelManager sut, Certificate serverCert, Mock<IChannel> chMock) CreateMockedSut(
             ITelemetryContext? telemetry = null,

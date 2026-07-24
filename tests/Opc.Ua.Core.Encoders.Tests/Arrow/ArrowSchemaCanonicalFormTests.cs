@@ -95,7 +95,7 @@ namespace Opc.Ua.Core.Tests
                             new Field("Int32", Int32Type.Default, nullable: true, null),
                             new Field("bin", BinaryType.Default, nullable: true, null),
                         },
-                        new[] { 0, 1, 2 },
+                        s_unionTypeIds,
                         UnionMode.Dense)),
                     "arrow-schema-v1\nM:\"opcua-arrow\"=\"1\"\nF:\"value\":union<dense;0=\"null\":null:1,1=\"Int32\":i32:1,2=\"bin\":bin:1>:1:",
                     "0e27f7d8eed05f55"),
@@ -110,8 +110,7 @@ namespace Opc.Ua.Core.Tests
                         $"Canonical form mismatch for SchemaId {expectedSchemaId}");
 
                     byte[] schemaId = ArrowSchemaCanonicalForm.ComputeSchemaId(schema, 8);
-                    string schemaIdHex = BitConverter.ToString(schemaId)
-                        .Replace("-", string.Empty).ToLowerInvariant();
+                    string schemaIdHex = CoreUtils.ToHexString(schemaId).ToLowerInvariant();
                     Assert.That(schemaIdHex, Is.EqualTo(expectedSchemaId),
                         $"SchemaId mismatch for canonical form: {expectedCanonical}");
                 }
@@ -125,6 +124,8 @@ namespace Opc.Ua.Core.Tests
                 .Field(new Field("value", type, nullable: true, null))
                 .Build();
         }
+
+        private static readonly int[] s_unionTypeIds = [0, 1, 2];
     }
 }
 #endif

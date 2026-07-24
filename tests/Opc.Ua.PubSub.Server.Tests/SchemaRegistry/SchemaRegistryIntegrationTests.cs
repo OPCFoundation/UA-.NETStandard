@@ -460,8 +460,8 @@ namespace Opc.Ua.PubSub.Server.Tests.SchemaRegistry
             // A distinct document, registered fresh (not the startup-seeded fast-path schema).
             byte[] document = System.Text.Encoding.UTF8.GetBytes(
                 "{\"type\":\"record\",\"name\":\"Registered\",\"fields\":[]}");
-            byte[] chunk1 = document[..20];
-            byte[] chunk2 = document[20..];
+            byte[] chunk1 = document.AsSpan(0, 20).ToArray();
+            byte[] chunk2 = document.AsSpan(20).ToArray();
 
             // 1) CreateResource -> (fileHandle, versionId).
             var createOutputs = new List<Variant>();

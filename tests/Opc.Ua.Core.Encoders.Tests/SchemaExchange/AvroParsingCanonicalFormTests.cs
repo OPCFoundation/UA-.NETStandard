@@ -116,7 +116,7 @@ namespace Opc.Ua.Core.Tests
                     ulong fingerprint = SchemaId.RabinCrc64Avro(Encoding.UTF8.GetBytes(pcf));
                     byte[] wire = new byte[8];
                     SchemaId.AvroSingleObjectPrefix(fingerprint).AsSpan(2, 8).CopyTo(wire);
-                    string wireHex = BitConverter.ToString(wire).Replace("-", string.Empty).ToLowerInvariant();
+                    string wireHex = CoreUtils.ToHexString(wire).ToLowerInvariant();
 
                     Assert.That(wireHex, Is.EqualTo(expectedWireHex),
                         $"On-wire SchemaId mismatch for input: {input}");
