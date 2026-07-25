@@ -150,6 +150,24 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         [Test]
+        public async Task ExternalWebDependencyIsNotResolvedOutsideRegistry()
+        {
+            await RegisterTd(
+                "td-a",
+                TestMaterialization.Td(
+                    "urn:td-a",
+                    extendsHrefs: "https://example.invalid/models/pump.tm.jsonld"));
+
+            WotRefreshResult result = await m_coordinator.RefreshAsync(new WotRefreshRequest());
+
+            Assert.That(m_host.AddCount, Is.Zero);
+            WoTResourceLoadResultDataType tdResult =
+                result.Results.Single(r => r.ResourceId == "td-a");
+            Assert.That(tdResult.Outcome, Is.EqualTo(WoTOutcomeEnum.Failed));
+            Assert.That(tdResult.Phase, Is.EqualTo(WoTPhaseEnum.DependencyResolution));
+        }
+
+        [Test]
         public async Task UnchangedRefresh_PreservesRegistration_NoModelEvent()
         {
             await RegisterTd("td-a", TestMaterialization.Td("urn:td-a"));
@@ -160,6 +178,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
             Assert.That(m_host.AddCount, Is.EqualTo(1), "No new add on an unchanged refresh.");
             Assert.That(m_host.ShadowCount, Is.EqualTo(0), "No shadow reload on an unchanged refresh.");
+            Assert.That(m_host.ImmediateCount, Is.EqualTo(0),
+                "No immediate reload on an unchanged refresh.");
             Assert.That(
                 second.Results.Single(r => r.ResourceId == "td-a").Outcome,
                 Is.EqualTo(WoTOutcomeEnum.Unchanged));
@@ -211,6 +231,44 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(m_host.AddCount, Is.EqualTo(1), "A version switch must not re-add.");
             Assert.That(m_host.ShadowCount, Is.EqualTo(1),
                 "A version switch must shadow-reload the projection.");
+        }
+
+        [Test]
+        public async Task VersionSwitch_UsesImmediateReloadWhenConfigured()
+        {
+            m_coordinator.RetirementPolicy = WotProjectionRetirementPolicy.Immediate;
+            await RegisterTd("td-a", TestMaterialization.Td("urn:td-a", "v1"));
+            await m_coordinator.RefreshAsync(new WotRefreshRequest());
+
+            await RegisterTd("td-a", TestMaterialization.Td("urn:td-a", "v2"));
+            await m_coordinator.RefreshAsync(new WotRefreshRequest());
+
+            Assert.That(m_host.ShadowCount, Is.Zero);
+            Assert.That(m_host.ImmediateCount, Is.EqualTo(1),
+                "Immediate retirement must use the host's immediate reload path.");
+        }
+
+        [Test]
+        public async Task VersionSwitchCleanupWarningTracksCommittedReplacement()
+        {
+            await RegisterTd("td-a", TestMaterialization.Td("urn:td-a", "v1"));
+            await m_coordinator.RefreshAsync(new WotRefreshRequest());
+
+            m_host.NextReloadWarning = "Prior-generation cleanup is pending.";
+            await RegisterTd("td-a", TestMaterialization.Td("urn:td-a", "v2"));
+            WotRefreshResult switched = await m_coordinator.RefreshAsync(new WotRefreshRequest());
+
+            WoTResourceLoadResultDataType result =
+                switched.Results.Single(r => r.ResourceId == "td-a");
+            Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Warning));
+            Assert.That(result.Message, Does.Contain("cleanup is pending"));
+
+            WotRefreshResult unchanged = await m_coordinator.RefreshAsync(new WotRefreshRequest());
+            Assert.That(m_host.ShadowCount, Is.EqualTo(1),
+                "The committed replacement handle must remain tracked after a cleanup warning.");
+            Assert.That(
+                unchanged.Results.Single(r => r.ResourceId == "td-a").Outcome,
+                Is.EqualTo(WoTOutcomeEnum.Unchanged));
         }
 
         [Test]

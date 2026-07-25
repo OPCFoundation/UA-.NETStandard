@@ -246,6 +246,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
         public bool StrictBindings { get; set; }
 
         /// <summary>
+        /// Gets or sets how previous projection generations are retired after a
+        /// successful version switch.
+        /// </summary>
+        public WotProjectionRetirementPolicy RetirementPolicy { get; set; } =
+            WotProjectionRetirementPolicy.Graceful;
+
+        /// <summary>
         /// Gets the binding capability snapshots advertised by the registered
         /// binders. These populate the registry <c>SelectedBindings</c> node and
         /// contribute to refresh unchanged-detection.
@@ -413,10 +420,21 @@ namespace Opc.Ua.WotCon.Server.Materialization
             WotProjectionHandle handle;
             try
             {
-                handle = tracked?.Handle is not null
-                    ? await m_host.ShadowReloadAsync(
-                        tracked.Handle, document, cancellationToken).ConfigureAwait(false)
-                    : await m_host.AddAsync(document, cancellationToken).ConfigureAwait(false);
+                if (tracked?.Handle is null)
+                {
+                    handle = await m_host.AddAsync(document, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                else if (RetirementPolicy == WotProjectionRetirementPolicy.Immediate)
+                {
+                    handle = await m_host.ImmediateReloadAsync(
+                        tracked.Handle, document, cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    handle = await m_host.ShadowReloadAsync(
+                        tracked.Handle, document, cancellationToken).ConfigureAwait(false);
+                }
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -432,6 +450,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     RaiseLoadFailure(member, generation, ex.Message);
                 }
                 return new ClosureOutcome(results.ToImmutable(), projections);
+            }
+
+            string projectionWarning = handle.Warning;
+            if (projectionWarning.Length != 0)
+            {
+                degraded = true;
             }
 
             // The shadow switch (or first add) succeeded. On an update, retire the
@@ -485,7 +509,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     MaterializedNodeCount = (uint)nodeCount,
                     RootNodeId = rootNodeId ?? NodeId.Null,
                     ContentDigest = DigestOf(member),
-                    Message = degraded ? "Projected with degraded bindings." : "Projected."
+                    Message = projectionWarning.Length != 0
+                        ? "Projected with warning: " + projectionWarning
+                        : degraded ? "Projected with degraded bindings." : "Projected."
                 });
                 projections.Add(new WotResourceProjection(
                     member.GroupId,
@@ -496,7 +522,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     nodeCount,
                     rootNodeId,
                     validation,
-                    ImmutableArray<string>.Empty,
+                    projectionWarning.Length == 0
+                        ? ImmutableArray<string>.Empty
+                        : ImmutableArray.Create(projectionWarning),
                     DateTime.UtcNow));
                 RaiseResource(member, generation, memberOutcome, WoTLoadStateEnum.Active);
             }

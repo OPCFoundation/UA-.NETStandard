@@ -78,17 +78,23 @@ The current generation is not torn down immediately. It is moved to the same ret
 
 Use `ShadowReloadAsync` when a model update must take effect for new requests without waiting for existing subscriptions to unsubscribe first; use the fail-closed `ReloadAsync` when a stale generation must never remain reachable, even briefly, for already-open monitored items.
 
+### Immediate reload
+
+`ImmediateReloadRuntimeNodeSetAsync` (backed by `INodeManagerLifecycle.ImmediateReloadAsync`) performs the same atomic replacement but does not retain the previous generation until monitored items drain. After requests that already captured the old routing generation finish, every affected data-change monitored item is made publishable with `BadNodeIdUnknown`, event monitored items stop producing events, continuation points are invalidated, and the old NodeManager is disposed. The subscription and monitored-item records remain available so clients can receive the status and delete or recreate the affected items.
+
+Use immediate reload only when continuity through the previous generation is not required. Durable monitored items are not eligible for immediate retirement because their terminal state would have to survive restart; choose shadow reload for any generation that owns them.
+
 Treat `INodeManagerLifecycle` as a host control-plane API. Do not invoke reload or removal from inside an OPC UA service or Method callback: teardown waits for requests that already captured the retired routing generation to complete before disposing it.
 
 The built-in runtime NodeSet manager implements `INodeManagerReloadParticipant`, which transfers inbound cross-manager references to retained NodeIds and removes counterparts for dropped nodes. A custom NodeManager can be added and removed through the lifecycle provider, but must implement this participant contract before it can be reloaded safely.
 
-Reload and removal invalidate saved Browse continuation points owned by the retired manager. A later `BrowseNext` with one of those tokens returns `BadContinuationPointInvalid` instead of invoking a disposed generation. A shadow reload defers this invalidation until the retired generation's monitored items have drained, so continuation points that already captured it keep working until then.
+Reload and removal invalidate saved Browse continuation points owned by the retired manager. A later `BrowseNext` with one of those tokens returns `BadContinuationPointInvalid` instead of invoking a disposed generation. A shadow reload defers this invalidation until the retired generation's monitored items have drained, so continuation points that already captured it keep working until then. Immediate reload invalidates them as soon as in-flight requests complete.
 
 Namespace indexes are append-only for the lifetime of a running server. Removing a model removes its nodes and routing but leaves its namespace URI in `NamespaceArray`; a later reload or add reuses the same index. When a live add appends a URI, the server updates `NamespaceArray` and `UrisVersion`.
 
 Runtime DataType registrations are also additive. Reload accepts an existing DataType only when its definition is structurally compatible, rejects incompatible changes, and retains removed stand-in encodeables so existing sessions and in-flight values remain decodable.
 
-Every committed lifecycle transaction, including a shadow reload, emits one compressed model-change notification. Reload also emits a semantic-change notification when values of properties marked with the `SemanticChange` access-level bit changed.
+Every committed lifecycle transaction, including shadow and immediate reload, emits one compressed model-change notification. Reload also emits a semantic-change notification when values of properties marked with the `SemanticChange` access-level bit changed.
 
 ## Quick-start examples
 

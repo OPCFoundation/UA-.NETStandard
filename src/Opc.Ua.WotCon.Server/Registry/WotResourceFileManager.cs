@@ -64,11 +64,13 @@ namespace Opc.Ua.WotCon.Server.Registry
             FileState file,
             int maxOpenHandles,
             int maxDocumentSize,
+            Func<ISystemContext, string, ServiceResult> authorizeWrite,
             Func<byte[], NodeId?, CancellationToken, ValueTask<ServiceResult>> onCommit)
         {
             m_file = file ?? throw new ArgumentNullException(nameof(file));
             m_maxHandles = maxOpenHandles;
             m_maxSize = maxDocumentSize;
+            m_authorizeWrite = authorizeWrite ?? throw new ArgumentNullException(nameof(authorizeWrite));
             m_onCommit = onCommit ?? throw new ArgumentNullException(nameof(onCommit));
 
             if (m_file.Writable is not null)
@@ -190,6 +192,14 @@ namespace Opc.Ua.WotCon.Server.Registry
                 return ServiceResult.Create(StatusCodes.BadNotSupported,
                     "A WoT document file only supports modes Read (1) and Write+EraseExisting (6).");
             }
+            if (mode == WriteEraseMode)
+            {
+                ServiceResult access = m_authorizeWrite(context, "OpenWrite");
+                if (ServiceResult.IsBad(access))
+                {
+                    return access;
+                }
+            }
             NodeId? sessionId = SessionIdOf(context);
             lock (m_handles)
             {
@@ -230,12 +240,24 @@ namespace Opc.Ua.WotCon.Server.Registry
                 {
                     return err;
                 }
-                m_handles.Remove(fileHandle);
                 commit = m_writingHandle == fileHandle;
                 if (commit)
                 {
+                    ServiceResult access = m_authorizeWrite(context, "CloseWrite");
+                    if (ServiceResult.IsBad(access))
+                    {
+                        m_handles.Remove(fileHandle);
+                        m_writingHandle = 0;
+                        if (m_file.OpenCount is not null)
+                        {
+                            m_file.OpenCount.Value = (ushort)m_handles.Count;
+                        }
+                        handle.Dispose();
+                        return access;
+                    }
                     m_writingHandle = 0;
                 }
+                m_handles.Remove(fileHandle);
                 if (m_file.OpenCount is not null)
                 {
                     m_file.OpenCount.Value = (ushort)m_handles.Count;
@@ -327,6 +349,11 @@ namespace Opc.Ua.WotCon.Server.Registry
                     return ServiceResult.Create(
                         StatusCodes.BadInvalidState, "File handle is opened for reading.");
                 }
+                ServiceResult access = m_authorizeWrite(context, "Write");
+                if (ServiceResult.IsBad(access))
+                {
+                    return access;
+                }
                 if (data.IsNull || data.Span.Length == 0)
                 {
                     return ServiceResult.Good;
@@ -367,6 +394,14 @@ namespace Opc.Ua.WotCon.Server.Registry
                 if (!TryGetHandleLocked(context, fileHandle, out Handle handle, out ServiceResult err))
                 {
                     return err;
+                }
+                if (handle.Writing)
+                {
+                    ServiceResult access = m_authorizeWrite(context, "SetWritePosition");
+                    if (ServiceResult.IsBad(access))
+                    {
+                        return access;
+                    }
                 }
                 if (position > (ulong)handle.Stream.Length)
                 {
@@ -425,6 +460,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         private readonly FileState m_file;
         private readonly int m_maxHandles;
         private readonly int m_maxSize;
+        private readonly Func<ISystemContext, string, ServiceResult> m_authorizeWrite;
         private readonly Func<byte[], NodeId?, CancellationToken, ValueTask<ServiceResult>> m_onCommit;
         private readonly Dictionary<uint, Handle> m_handles = new();
         private uint m_nextHandle;

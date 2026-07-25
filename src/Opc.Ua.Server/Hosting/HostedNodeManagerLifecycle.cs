@@ -84,6 +84,22 @@ namespace Opc.Ua.Server.Hosting
             return Current.ShadowReloadAsync(registration, replacement, ct);
         }
 
+        public ValueTask<NodeManagerRegistration> ImmediateReloadAsync(
+            NodeManagerRegistration registration,
+            IAsyncNodeManagerFactory replacement,
+            CancellationToken ct = default)
+        {
+            return Current.ImmediateReloadAsync(registration, replacement, ct);
+        }
+
+        public ValueTask<NodeManagerRegistration> ImmediateReloadAsync(
+            NodeManagerRegistration registration,
+            INodeManagerFactory replacement,
+            CancellationToken ct = default)
+        {
+            return Current.ImmediateReloadAsync(registration, replacement, ct);
+        }
+
         public ValueTask RemoveAsync(
             NodeManagerRegistration registration,
             CancellationToken ct = default)

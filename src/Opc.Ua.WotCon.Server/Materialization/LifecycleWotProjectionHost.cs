@@ -85,15 +85,61 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 return await AddAsync(document, cancellationToken).ConfigureAwait(false);
             }
             RuntimeNodeSetOptions options = BuildOptions(document);
-            NodeManagerRegistration next = await m_lifecycle
-                .ShadowReloadRuntimeNodeSetAsync(registration, options, cancellationToken)
-                .ConfigureAwait(false);
+            NodeManagerRegistration next;
+            string warning = string.Empty;
+            try
+            {
+                next = await m_lifecycle
+                    .ShadowReloadRuntimeNodeSetAsync(registration, options, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (NodeManagerReloadCommittedException ex)
+            {
+                next = ex.Registration;
+                warning = "The replacement is active, but prior-generation cleanup is pending: " +
+                    ex.Message;
+            }
             return new WotProjectionHandle(
                 document.ClosureKey,
                 next.Generation,
                 next,
                 ImmutableArray<NodeId>.Empty,
-                0);
+                0,
+                warning);
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask<WotProjectionHandle> ImmediateReloadAsync(
+            WotProjectionHandle current,
+            WotProjectionDocument document,
+            CancellationToken cancellationToken = default)
+        {
+            if (current?.Registration is not NodeManagerRegistration registration)
+            {
+                return await AddAsync(document, cancellationToken).ConfigureAwait(false);
+            }
+            RuntimeNodeSetOptions options = BuildOptions(document);
+            NodeManagerRegistration next;
+            string warning = string.Empty;
+            try
+            {
+                next = await m_lifecycle
+                    .ImmediateReloadRuntimeNodeSetAsync(registration, options, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (NodeManagerReloadCommittedException ex)
+            {
+                next = ex.Registration;
+                warning = "The replacement is active, but prior-generation cleanup is pending: " +
+                    ex.Message;
+            }
+            return new WotProjectionHandle(
+                document.ClosureKey,
+                next.Generation,
+                next,
+                ImmutableArray<NodeId>.Empty,
+                0,
+                warning);
         }
 
         /// <inheritdoc/>

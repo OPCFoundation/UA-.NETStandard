@@ -99,6 +99,24 @@ namespace Opc.Ua.Server
             CancellationToken ct = default);
 
         /// <summary>
+        /// Replaces a live registration and immediately invalidates monitored items
+        /// owned by the previous generation with <see cref="StatusCodes.BadNodeIdUnknown"/>.
+        /// </summary>
+        ValueTask<NodeManagerRegistration> ImmediateReloadAsync(
+            NodeManagerRegistration registration,
+            IAsyncNodeManagerFactory replacement,
+            CancellationToken ct = default);
+
+        /// <summary>
+        /// Replaces a live registration and immediately invalidates monitored items
+        /// owned by the previous generation with <see cref="StatusCodes.BadNodeIdUnknown"/>.
+        /// </summary>
+        ValueTask<NodeManagerRegistration> ImmediateReloadAsync(
+            NodeManagerRegistration registration,
+            INodeManagerFactory replacement,
+            CancellationToken ct = default);
+
+        /// <summary>
         /// Removes a live registration from the server.
         /// </summary>
         ValueTask RemoveAsync(

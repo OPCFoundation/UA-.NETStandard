@@ -51,7 +51,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
         public int AddCount { get; private set; }
         public int ShadowCount { get; private set; }
+        public int ImmediateCount { get; private set; }
         public int RemoveCount { get; private set; }
+        public string NextReloadWarning { get; set; } = string.Empty;
 
         public ValueTask<WotProjectionHandle> AddAsync(
             WotProjectionDocument document, CancellationToken cancellationToken = default)
@@ -68,7 +70,21 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             ShadowCount++;
             Operations.Add(new HostOperation("shadow", document));
             long gen = (current?.Generation ?? 0) + 1;
-            return new ValueTask<WotProjectionHandle>(MakeHandle(document, gen));
+            string warning = NextReloadWarning;
+            NextReloadWarning = string.Empty;
+            return new ValueTask<WotProjectionHandle>(MakeHandle(document, gen, warning));
+        }
+
+        public ValueTask<WotProjectionHandle> ImmediateReloadAsync(
+            WotProjectionHandle current, WotProjectionDocument document,
+            CancellationToken cancellationToken = default)
+        {
+            ImmediateCount++;
+            Operations.Add(new HostOperation("immediate", document));
+            long gen = (current?.Generation ?? 0) + 1;
+            string warning = NextReloadWarning;
+            NextReloadWarning = string.Empty;
+            return new ValueTask<WotProjectionHandle>(MakeHandle(document, gen, warning));
         }
 
         public ValueTask RemoveAsync(
@@ -79,10 +95,18 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             return default;
         }
 
-        private static WotProjectionHandle MakeHandle(WotProjectionDocument document, long gen = 1)
+        private static WotProjectionHandle MakeHandle(
+            WotProjectionDocument document,
+            long gen = 1,
+            string warning = "")
         {
             return new WotProjectionHandle(
-                document.ClosureKey, gen, new object(), ImmutableArray<NodeId>.Empty, 0);
+                document.ClosureKey,
+                gen,
+                new object(),
+                ImmutableArray<NodeId>.Empty,
+                0,
+                warning);
         }
     }
 

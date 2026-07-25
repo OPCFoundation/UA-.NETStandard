@@ -382,11 +382,12 @@ services.AddOpcUa()
     });
 ```
 
-To loosen the policy (for example a closed lab deployment where the
-client cannot present a non-anonymous identity), set
-`AllowAnonymous = true` and grant the anonymous identity the chosen
-role via your role-mapping layer; do not weaken `MinimumSecurityMode`
-in production.
+To loosen identity policy in a closed lab, set `AllowAnonymous = true`
+and grant the anonymous identity the chosen role via your role-mapping
+layer. A conformant registry mutation surface still requires
+`MinimumSecurityMode = MessageSecurityMode.SignAndEncrypt`; lowering it
+is suitable only for isolated test harnesses. Read-only registry access
+may be exposed over `MessageSecurityMode.None` by deployment policy.
 
 ---
 
@@ -457,9 +458,12 @@ projections**:
 * Registry documents are projected into the AddressSpace as **separate
   runtime NodeManagers** through the public `INodeManagerLifecycle`
   (`AddRuntimeNodeSetAsync` for first activation,
-  `ShadowReloadRuntimeNodeSetAsync` for updates). The previous generation
-  keeps serving its existing monitored items until they drain — clients
-  are never disconnected.
+  `ShadowReloadRuntimeNodeSetAsync` or
+  `ImmediateReloadRuntimeNodeSetAsync` for updates). Graceful retirement
+  keeps the previous generation serving existing monitored items until
+  they drain. Immediate retirement reports `BadNodeIdUnknown` for affected
+  monitored items and disposes the previous generation without waiting
+  for drain.
 
 Register it on an OPC UA server host:
 
@@ -471,6 +475,7 @@ builder
         options.StorageFolder = Path.Combine(AppContext.BaseDirectory, "wot-registry");
         options.AutoRefresh = true;      // re-project after every content mutation
         options.StrictBindings = false;  // materialize degraded nodes for unsupported forms
+        options.RetirementPolicy = WotProjectionRetirementPolicy.Graceful;
     });
 ```
 
@@ -503,15 +508,17 @@ versions per resource, resources per group, and group count.
 2. Builds the TD/TM dependency graph from `links` (`rel = tm:extends /
    type / tm:submodel`), a top-level `tm:extends`, and `tm:ref` pointers,
    resolving references against the registry by Thing id / xid / resource
-   id.
+   id. It never follows an arbitrary external URL; an unresolved absolute
+   URL remains a missing dependency unless a configured xRegistry
+   federation layer has registered it.
 3. Partitions the graph into **dependency closures** (weakly-connected
    components) with Thing Models topologically ordered before the Thing
    Descriptions that extend them; a shared model lands in a single
    closure. Cycles and missing dependencies produce deterministic
    diagnostics.
 4. Converts each closure to one or more NodeSet2 documents and projects
-   the closure as one runtime NodeManager (Add, or ShadowReload on
-   update).
+   the closure as one runtime NodeManager (Add, or graceful/immediate
+   reload on update according to `RetirementPolicy`).
 
 Behaviours:
 
@@ -519,6 +526,12 @@ Behaviours:
   **retains its previous active generation**.
 * An **unchanged** closure (same content digest, options and binder
   version) returns `WoTOutcomeEnum.Unchanged` and emits no model change.
+* `WotProjectionRetirementPolicy.Graceful` preserves existing monitored
+  items on the previous generation until drain.
+  `WotProjectionRetirementPolicy.Immediate` invalidates affected items
+  with `BadNodeIdUnknown` and disposes the previous generation. The proof
+  rejects immediate retirement when the old generation owns a durable
+  monitored item; configure `Graceful` for that closure.
 * `Refresh` returns a detailed `WoTRefreshSummaryDataType` plus a
   per-resource `WoTResourceLoadResultDataType[]` and the new generation,
   matching the generated Method signature.
@@ -580,6 +593,8 @@ browseable object tree and wires the inherited xRegistry / registry Methods:
   document `Delete`, `Validate`, `SetEnabled` and `SetDefaultVersion` (on a
   resource) Methods are wired to the registry service, enforcing
   `ExpectedEpoch` optimistic concurrency and the management access policy.
+  Registry mutations require a `SignAndEncrypt` SecureChannel; deployments
+  may separately permit read-only registry access over `SecurityMode.None`.
 * The inherited FileType (`Open` / `Read` / `Write` / `Close` /
   `GetPosition` / `SetPosition`) transfers the document body with
   per-session handles, a single exclusive writer and bounds. Closing a

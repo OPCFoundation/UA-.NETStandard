@@ -1074,8 +1074,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             const uint clientHandle = 1;
 
             var services = new ServerTestServices(m_server, m_secureChannelContext);
-            uint subscriptionId = await CreateSubscriptionWithMonitoredItemAsync(services, valueNodeId)
-                .ConfigureAwait(false);
+            (uint subscriptionId, _) = await CreateSubscriptionWithMonitoredItemAsync(
+                services,
+                valueNodeId).ConfigureAwait(false);
 
             // Drain the initial data-change sample delivered on monitored-item creation so
             // the later publish loop only observes the value pushed after the switch.
@@ -1166,6 +1167,153 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(
                 CountMatches(m_server.NodeManagerLifecycle.Registrations, r => r.Id == original.Id),
                 Is.Zero);
+        }
+
+        /// <summary>
+        /// Immediate reload switches new service requests to the replacement, queues
+        /// BadNodeIdUnknown for every data monitored item owned by the prior generation,
+        /// and disposes that generation without waiting for the subscription to drain.
+        /// </summary>
+        [Test]
+        public async Task ImmediateReloadAsyncReportsBadNodeIdUnknownAndDisposesPriorGenerationAsync()
+        {
+            NodeManagerRegistration original = await m_server.NodeManagerLifecycle
+                .AddRuntimeNodeSetAsync(CreateGenerationOptions(generation: 1))
+                .ConfigureAwait(false);
+
+            IServerInternal server = m_server.CurrentInstance;
+            ushort ns = (ushort)server.NamespaceUris.GetIndex(kModelNamespaceUri);
+            var valueNodeId = new NodeId(kValueNodeId, ns);
+            var originalManager = (AsyncCustomNodeManager)original.NodeManager;
+            const uint clientHandle = 1;
+
+            var services = new ServerTestServices(m_server, m_secureChannelContext);
+            (uint subscriptionId, uint monitoredItemId) =
+                await CreateSubscriptionAndMonitoredItemAsync(
+                    services,
+                    valueNodeId,
+                    clientHandle).ConfigureAwait(false);
+            ArrayOf<SubscriptionAcknowledgement> acknowledgements = default;
+            (_, acknowledgements) = await PublishForDataChangeAsync(
+                services,
+                subscriptionId,
+                acknowledgements,
+                clientHandle).ConfigureAwait(false);
+
+            RequestHeader queueHeader = m_requestHeader;
+            queueHeader.Timestamp = DateTimeUtc.Now;
+            ModifyMonitoredItemsResponse queueResponse = await services
+                .ModifyMonitoredItemsAsync(
+                    queueHeader,
+                    subscriptionId,
+                    TimestampsToReturn.Both,
+                    [
+                        new MonitoredItemModifyRequest
+                        {
+                            MonitoredItemId = monitoredItemId,
+                            RequestedParameters = new MonitoringParameters
+                            {
+                                ClientHandle = clientHandle,
+                                SamplingInterval = 0,
+                                QueueSize = 5,
+                                DiscardOldest = true
+                            }
+                        }
+                    ])
+                .ConfigureAwait(false);
+            Assert.That(queueResponse.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+
+            RequestHeader samplingHeader = m_requestHeader;
+            samplingHeader.Timestamp = DateTimeUtc.Now;
+            SetMonitoringModeResponse samplingResponse = await services
+                .SetMonitoringModeAsync(
+                    samplingHeader,
+                    subscriptionId,
+                    MonitoringMode.Sampling,
+                    [monitoredItemId])
+                .ConfigureAwait(false);
+            Assert.That(samplingResponse.Results[0], Is.EqualTo(StatusCodes.Good));
+
+            try
+            {
+                NodeManagerRegistration reloaded = await m_server.NodeManagerLifecycle
+                    .ImmediateReloadRuntimeNodeSetAsync(
+                        original,
+                        CreateGenerationOptions(generation: 2))
+                    .ConfigureAwait(false);
+
+                DataValue current = await ReadValueAsync(valueNodeId).ConfigureAwait(false);
+                Assert.That(current.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(current.WrappedValue.GetInt32(), Is.EqualTo(kGeneration2Value));
+
+                ISubscription subscription = server.SubscriptionManager
+                    .GetSubscriptions()
+                    .Single(s => s.Id == subscriptionId);
+                var tracker = (INodeManagerMonitoredItemTracker)subscription;
+                Assert.That(tracker.HasMonitoredItems(original.NodeManager), Is.False);
+                Assert.That(originalManager.Find(valueNodeId), Is.Null,
+                    "The prior generation must be disposed before immediate reload returns.");
+
+                DataValue? retiredNotification;
+                (retiredNotification, acknowledgements) = await PublishForDataChangeAsync(
+                    services,
+                    subscriptionId,
+                    acknowledgements,
+                    clientHandle).ConfigureAwait(false);
+                Assert.That(retiredNotification, Is.Not.Null);
+                Assert.That(
+                    retiredNotification!.Value.StatusCode,
+                    Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                Assert.That(reloaded.Generation, Is.EqualTo(original.Generation + 1));
+
+                RequestHeader header = m_requestHeader;
+                header.Timestamp = DateTimeUtc.Now;
+                ModifyMonitoredItemsResponse modifyResponse = await services
+                    .ModifyMonitoredItemsAsync(
+                        header,
+                        subscriptionId,
+                        TimestampsToReturn.Both,
+                        [
+                            new MonitoredItemModifyRequest
+                            {
+                                MonitoredItemId = monitoredItemId,
+                                RequestedParameters = new MonitoringParameters
+                                {
+                                    ClientHandle = clientHandle,
+                                    SamplingInterval = 0,
+                                    QueueSize = 2,
+                                    DiscardOldest = true
+                                }
+                            }
+                        ])
+                    .ConfigureAwait(false);
+                Assert.That(
+                    modifyResponse.Results[0].StatusCode,
+                    Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+
+                header = m_requestHeader;
+                header.Timestamp = DateTimeUtc.Now;
+                SetMonitoringModeResponse modeResponse = await services
+                    .SetMonitoringModeAsync(
+                        header,
+                        subscriptionId,
+                        MonitoringMode.Reporting,
+                        [monitoredItemId])
+                    .ConfigureAwait(false);
+                Assert.That(modeResponse.Results[0], Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+
+                header = m_requestHeader;
+                header.Timestamp = DateTimeUtc.Now;
+                DeleteMonitoredItemsResponse deleteResponse = await services
+                    .DeleteMonitoredItemsAsync(header, subscriptionId, [monitoredItemId])
+                    .ConfigureAwait(false);
+                Assert.That(deleteResponse.Results[0], Is.EqualTo(StatusCodes.Good));
+                Assert.That(subscription.MonitoredItemCount, Is.Zero);
+            }
+            finally
+            {
+                await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
+            }
         }
 
         /// <summary>
@@ -1598,8 +1746,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(replacementManager.Object);
 
-            InvalidOperationException exception =
-                Assert.ThrowsAsync<InvalidOperationException>(
+            NodeManagerReloadCommittedException exception =
+                Assert.ThrowsAsync<NodeManagerReloadCommittedException>(
                     async () => await m_server.NodeManagerLifecycle
                         .ShadowReloadAsync(
                             originalRegistration,
@@ -2014,8 +2162,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .ReturnsAsync(replacementManager.Object);
 
             failRetiredSessionClosing = true;
-            InvalidOperationException exception =
-                Assert.ThrowsAsync<InvalidOperationException>(
+            NodeManagerReloadCommittedException exception =
+                Assert.ThrowsAsync<NodeManagerReloadCommittedException>(
                     async () => await m_server.NodeManagerLifecycle
                         .ReloadAsync(original, replacementFactory.Object)
                         .ConfigureAwait(false));
@@ -2025,6 +2173,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Does.Contain("replacement NodeManager is live"));
             Assert.That(exception.InnerException, Is.TypeOf<SentinelException>());
             Assert.That(exception.InnerException!.Message, Is.EqualTo(ExpectedMessage));
+            Assert.That(exception.Registration.Id, Is.EqualTo(original.Id));
+            Assert.That(exception.Registration.Generation, Is.EqualTo(original.Generation + 1));
 
             ArrayOf<NodeManagerRegistration> registrations =
                 m_server.NodeManagerLifecycle.Registrations;
@@ -2343,8 +2493,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(replacementManager.Object);
 
-            InvalidOperationException exception =
-                Assert.ThrowsAsync<InvalidOperationException>(
+            NodeManagerReloadCommittedException exception =
+                Assert.ThrowsAsync<NodeManagerReloadCommittedException>(
                     async () => await m_server.NodeManagerLifecycle
                         .ReloadAsync(
                             originalRegistration,

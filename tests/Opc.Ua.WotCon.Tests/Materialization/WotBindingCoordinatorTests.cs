@@ -289,6 +289,14 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 return new ValueTask<WotProjectionHandle>(Handle(document));
             }
 
+            public ValueTask<WotProjectionHandle> ImmediateReloadAsync(
+                WotProjectionHandle current, WotProjectionDocument document,
+                CancellationToken cancellationToken = default)
+            {
+                m_recorder.Record("immediate");
+                return new ValueTask<WotProjectionHandle>(Handle(document));
+            }
+
             public ValueTask RemoveAsync(WotProjectionHandle handle, CancellationToken cancellationToken = default)
             {
                 m_recorder.Record("remove");
@@ -363,6 +371,14 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 WotProjectionHandle current, WotProjectionDocument document, CancellationToken cancellationToken = default)
             {
                 m_timeline.Add("shadow");
+                return new ValueTask<WotProjectionHandle>(Handle(document));
+            }
+
+            public ValueTask<WotProjectionHandle> ImmediateReloadAsync(
+                WotProjectionHandle current, WotProjectionDocument document,
+                CancellationToken cancellationToken = default)
+            {
+                m_timeline.Add("immediate");
                 return new ValueTask<WotProjectionHandle>(Handle(document));
             }
 

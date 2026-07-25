@@ -14,6 +14,7 @@
  *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
  * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -27,39 +28,32 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.Diagnostics.CodeAnalysis;
+
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Reports whether a subscription owns monitored items created by a NodeManager.
+    /// Reports a reload failure that occurred after the replacement generation
+    /// was committed and provides its authoritative registration.
     /// </summary>
-    public interface INodeManagerMonitoredItemTracker
+    [SuppressMessage(
+        "Design",
+        "CA1032:Implement standard exception constructors",
+        Justification = "A committed reload exception is meaningful only with its authoritative registration.")]
+    public sealed class NodeManagerReloadCommittedException : InvalidOperationException
     {
-        /// <summary>
-        /// Returns whether the subscription has monitored items owned by the NodeManager.
-        /// </summary>
-        bool HasMonitoredItems(IAsyncNodeManager nodeManager);
-    }
+        /// <summary>Initializes the exception.</summary>
+        public NodeManagerReloadCommittedException(
+            NodeManagerRegistration registration,
+            string message,
+            Exception innerException)
+            : base(message, innerException)
+        {
+            Registration = registration ?? throw new ArgumentNullException(nameof(registration));
+        }
 
-    /// <summary>
-    /// Internal extension that invalidates monitored items owned by a NodeManager
-    /// before an immediate generation retirement.
-    /// </summary>
-    internal interface INodeManagerMonitoredItemRetirementTracker
-    {
-        /// <summary>
-        /// Returns whether every monitored item owned by the NodeManager supports
-        /// immediate retirement.
-        /// </summary>
-        bool CanRetireMonitoredItems(IAsyncNodeManager nodeManager);
-
-        /// <summary>
-        /// Invalidates all monitored items owned by the NodeManager.
-        /// </summary>
-        void RetireMonitoredItems(IAsyncNodeManager nodeManager, ServiceResult error);
-
-        /// <summary>
-        /// Releases owner references from retired monitored items.
-        /// </summary>
-        void DetachRetiredMonitoredItems(IAsyncNodeManager nodeManager);
+        /// <summary>Gets the committed replacement registration.</summary>
+        public NodeManagerRegistration Registration { get; }
     }
 }

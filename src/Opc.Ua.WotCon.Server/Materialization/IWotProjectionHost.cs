@@ -36,6 +36,25 @@ using System.Threading.Tasks;
 namespace Opc.Ua.WotCon.Server.Materialization
 {
     /// <summary>
+    /// Selects how the previous projection generation is retired after a
+    /// successful replacement.
+    /// </summary>
+    public enum WotProjectionRetirementPolicy
+    {
+        /// <summary>
+        /// Keep the previous generation alive until its monitored items and
+        /// requests drain.
+        /// </summary>
+        Graceful,
+
+        /// <summary>
+        /// Invalidate its monitored items with BadNodeIdUnknown and dispose the
+        /// previous generation without waiting for drain.
+        /// </summary>
+        Immediate
+    }
+
+    /// <summary>
     /// One NodeSet2 document loaded as a runtime NodeManager source. A projection
     /// closure produces one or more of these (TM type NodeSets loaded before the
     /// dependent TD instance NodeSet).
@@ -99,13 +118,15 @@ namespace Opc.Ua.WotCon.Server.Materialization
             long generation,
             object? registration,
             ImmutableArray<NodeId> rootNodeIds,
-            int materializedNodeCount)
+            int materializedNodeCount,
+            string warning = "")
         {
             ClosureKey = closureKey ?? string.Empty;
             Generation = generation;
             Registration = registration;
             RootNodeIds = rootNodeIds.IsDefault ? ImmutableArray<NodeId>.Empty : rootNodeIds;
             MaterializedNodeCount = materializedNodeCount;
+            Warning = warning ?? string.Empty;
         }
 
         /// <summary>Gets the closure key.</summary>
@@ -122,6 +143,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
         /// <summary>Gets the materialized node count.</summary>
         public int MaterializedNodeCount { get; }
+
+        /// <summary>
+        /// Gets a non-fatal host warning produced after the replacement generation
+        /// was committed, for example deferred cleanup of the previous generation.
+        /// </summary>
+        public string Warning { get; }
     }
 
     /// <summary>
@@ -147,6 +174,16 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// its existing monitored items until they drain.
         /// </summary>
         ValueTask<WotProjectionHandle> ShadowReloadAsync(
+            WotProjectionHandle current,
+            WotProjectionDocument document,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Reloads a live projection and immediately retires the previous
+        /// generation. Affected data-change monitored items report
+        /// <see cref="StatusCodes.BadNodeIdUnknown"/>.
+        /// </summary>
+        ValueTask<WotProjectionHandle> ImmediateReloadAsync(
             WotProjectionHandle current,
             WotProjectionDocument document,
             CancellationToken cancellationToken = default);

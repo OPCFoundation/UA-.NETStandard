@@ -396,6 +396,7 @@ namespace Opc.Ua.WotCon.Server
                 node,
                 m_options.Bounds.MaxOpenFileHandles,
                 m_options.Bounds.MaxDocumentBytes,
+                (context, operation) => m_manager.CheckManagementAccess(context, operation),
                 (bytes, session, token) => CommitDocumentAsync(groupId, resourceId, kind, bytes, token));
 
             ApplyResourceProperties(new ResourceEntry(node, file, groupId, resourceId, kind), resource);

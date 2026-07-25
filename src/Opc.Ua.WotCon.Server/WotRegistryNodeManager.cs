@@ -70,6 +70,7 @@ namespace Opc.Ua.WotCon.Server
             m_registry = registry ?? throw new ArgumentNullException(nameof(registry));
             m_coordinator = coordinator ?? throw new ArgumentNullException(nameof(coordinator));
             m_coordinator.StrictBindings = options.StrictBindings;
+            m_coordinator.RetirementPolicy = options.RetirementPolicy;
             m_coordinator.ServerNamespaceUris = server.NamespaceUris;
             m_projection = new WotRegistryProjection(this, m_registry, m_options, m_logger);
         }

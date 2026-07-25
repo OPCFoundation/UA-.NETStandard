@@ -152,6 +152,30 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
+    /// Internal lifecycle contract used to invalidate a monitored item when its
+    /// owning NodeManager generation is retired immediately.
+    /// </summary>
+    internal interface IRetirableMonitoredItem
+    {
+        /// <summary>Gets whether the item has been retired.</summary>
+        bool IsRetired { get; }
+
+        /// <summary>Gets the error reported for the retired item.</summary>
+        ServiceResult? RetirementError { get; }
+
+        /// <summary>
+        /// Marks the item retired and queues its terminal status when the monitored
+        /// item kind supports status values.
+        /// </summary>
+        void Retire(ServiceResult error);
+
+        /// <summary>
+        /// Releases references to the disposed owner after retirement is final.
+        /// </summary>
+        void DetachOwner();
+    }
+
+    /// <summary>
     /// A monitored item that can be triggered.
     /// </summary>
     public interface ITriggeredMonitoredItem

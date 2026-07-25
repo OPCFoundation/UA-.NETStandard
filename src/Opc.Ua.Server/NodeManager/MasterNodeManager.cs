@@ -4647,6 +4647,13 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
+                ServiceResult? retirementError = GetRetirementError(monitoredItems[ii]);
+                if (retirementError is not null)
+                {
+                    errors[ii] = retirementError;
+                    itemsToModify[ii].Processed = true;
+                    continue;
+                }
                 if (monitoredItems[ii] is IMonitoredItemLifecycle
                     {
                         IsDetached: true
@@ -4853,15 +4860,23 @@ namespace Opc.Ua.Server
             for (int ii = 0; ii < monitoredItems.Count; ii++)
             {
                 IMonitoredItem? monitoredItem = monitoredItems[ii];
+                ServiceResult? retirementError = GetRetirementError(monitoredItem);
                 bool isDetached = monitoredItem is IMonitoredItemLifecycle
                 {
                     IsDetached: true
                 };
-                processedItems.Add(monitoredItem == null || isDetached);
-                errors[ii] = isDetached
-                    ? ServiceResult.Good
-                    : new ServiceResult(StatusCodes.BadMonitoredItemIdInvalid);
-                if (isDetached && sendInitialValues && monitoredItem is not null)
+                processedItems.Add(
+                    monitoredItem == null ||
+                    retirementError is not null ||
+                    isDetached);
+                errors[ii] = retirementError ??
+                    (isDetached
+                        ? ServiceResult.Good
+                        : new ServiceResult(StatusCodes.BadMonitoredItemIdInvalid));
+                if (retirementError is null &&
+                    isDetached &&
+                    sendInitialValues &&
+                    monitoredItem is not null)
                 {
                     ((IMonitoredItemLifecycle)monitoredItem).QueueNodeIdUnknown();
                 }
@@ -4931,6 +4946,7 @@ namespace Opc.Ua.Server
             for (int ii = 0; ii < itemsToDelete.Count; ii++)
             {
                 IMonitoredItem? monitoredItem = itemsToDelete[ii];
+                ServiceResult? retirementError = GetRetirementError(monitoredItem);
                 bool isDetached = monitoredItem is IMonitoredItemLifecycle
                 {
                     IsDetached: true
@@ -4938,8 +4954,10 @@ namespace Opc.Ua.Server
                 processedItems.Add(
                     ServiceResult.IsBad(errors[ii]) ||
                     monitoredItem == null ||
+                    retirementError is not null ||
                     isDetached);
-                if (isDetached && monitoredItem is not null)
+                if ((retirementError is not null || isDetached) &&
+                    monitoredItem is not null)
                 {
                     errors[ii] = ServiceResult.Good;
                     if ((monitoredItem.MonitoredItemType & MonitoredItemTypeMask.Events) != 0)
@@ -5075,6 +5093,13 @@ namespace Opc.Ua.Server
             for (int ii = 0; ii < itemsToModify.Count; ii++)
             {
                 IMonitoredItem? monitoredItem = itemsToModify[ii];
+                ServiceResult? retirementError = GetRetirementError(monitoredItem);
+                if (retirementError is not null)
+                {
+                    processedItems.Add(true);
+                    errors[ii] = retirementError;
+                    continue;
+                }
                 bool isDetached = monitoredItem is IMonitoredItemLifecycle
                 {
                     IsDetached: true
@@ -5211,6 +5236,11 @@ namespace Opc.Ua.Server
 
             return owners;
         }
+
+        private static ServiceResult? GetRetirementError(IMonitoredItem? monitoredItem)
+            => monitoredItem is IRetirableMonitoredItem { RetirementError: { } error }
+                ? error
+                : null;
 
         /// <summary>
         /// Dispatches an ownership-sensitive data monitored item operation to each item's

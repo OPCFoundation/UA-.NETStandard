@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
+using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
 
 namespace Opc.Ua.WotCon.Server
@@ -57,6 +58,13 @@ namespace Opc.Ua.WotCon.Server
         /// (rather than materializing degraded nodes).
         /// </summary>
         public bool StrictBindings { get; set; }
+
+        /// <summary>
+        /// Gets or sets how a superseded projection generation is retired after
+        /// a successful version switch.
+        /// </summary>
+        public WotProjectionRetirementPolicy RetirementPolicy { get; set; } =
+            WotProjectionRetirementPolicy.Graceful;
 
         /// <summary>
         /// Gets or sets the id of the group into which legacy 1.02 assets are

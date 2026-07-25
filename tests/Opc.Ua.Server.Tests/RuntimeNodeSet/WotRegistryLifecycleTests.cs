@@ -87,6 +87,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         private WotRegistryService m_registry = null!;
         private WotMaterializationCoordinator m_coordinator = null!;
         private NodeManagerRegistration m_registryRegistration = null!;
+        private WotRegistryServerOptions m_options = null!;
 
         [SetUp]
         public async Task SetUpAsync()
@@ -113,7 +114,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
 
             // Host the WoT registry NodeManager on the running server with a
             // deterministic converter so the projected value node is predictable.
-            var options = new WotRegistryServerOptions
+            m_options = new WotRegistryServerOptions
             {
                 AutoRefresh = false,
                 ManagementAccess = new WotManagementAccessPolicy
@@ -127,7 +128,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             var host = new LifecycleWotProjectionHost(m_server.NodeManagerLifecycle);
             m_coordinator = new WotMaterializationCoordinator(
                 m_registry, host, documentConverter: new SensorConverter());
-            var factory = new WotRegistryNodeManagerFactory(options, m_registry, m_coordinator);
+            var factory = new WotRegistryNodeManagerFactory(m_options, m_registry, m_coordinator);
             m_registryRegistration = await m_server.NodeManagerLifecycle
                 .AddAsync(factory).ConfigureAwait(false);
         }
@@ -360,6 +361,101 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 resourceNodeId, deleteId, new Variant(0u)).ConfigureAwait(false);
             Assert.That(delete.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(m_registry.Current.FindResource("sensors", "thing1"), Is.Null);
+        }
+
+        [Test]
+        public async Task FileWriteRequiresConfiguredSecureChannelWhileReadMayUseNoneAsync()
+        {
+            IServerInternal server = m_server.CurrentInstance;
+            NodeId registryNodeId = ExpandedNodeId.ToNodeId(
+                WotConModel.ObjectIds.WoTRegistry,
+                server.NamespaceUris);
+
+            NodeId createGroupId = await FindChildAsync(registryNodeId, "CreateGroup")
+                .ConfigureAwait(false);
+            CallMethodResult createGroup = await CallAsync(
+                registryNodeId,
+                createGroupId,
+                new Variant("secure-files")).ConfigureAwait(false);
+            var groupNodeId = (NodeId)createGroup.OutputArguments[0]
+                .AsBoxedObject(Variant.BoxingBehavior.Legacy);
+
+            NodeId createResourceId = await FindChildAsync(groupNodeId, "GetOrCreateResource")
+                .ConfigureAwait(false);
+            CallMethodResult createResource = await CallAsync(
+                groupNodeId,
+                createResourceId,
+                new Variant("thing1"),
+                new Variant(string.Empty),
+                new Variant(true)).ConfigureAwait(false);
+            var resourceNodeId = (NodeId)createResource.OutputArguments[0]
+                .AsBoxedObject(Variant.BoxingBehavior.Legacy);
+            uint writeHandle = createResource.OutputArguments[2].GetUInt32();
+
+            m_options.ManagementAccess = new WotManagementAccessPolicy
+            {
+                AllowAnonymous = true,
+                RequiredRoleId = ObjectIds.WellKnownRole_Anonymous
+            };
+
+            NodeId writeId = await FindChildAsync(resourceNodeId, "Write").ConfigureAwait(false);
+            CallMethodResult write = await CallAsync(
+                resourceNodeId,
+                writeId,
+                new Variant(writeHandle),
+                new Variant(ByteString.From(new byte[] { 1, 2, 3 }))).ConfigureAwait(false);
+            Assert.That(write.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+
+            NodeId closeId = await FindChildAsync(resourceNodeId, "Close").ConfigureAwait(false);
+            CallMethodResult writeClose = await CallAsync(
+                resourceNodeId,
+                closeId,
+                new Variant(writeHandle)).ConfigureAwait(false);
+            Assert.That(writeClose.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+
+            m_options.ManagementAccess = new WotManagementAccessPolicy
+            {
+                MinimumSecurityMode = MessageSecurityMode.None,
+                AllowAnonymous = true,
+                RequiredRoleId = ObjectIds.WellKnownRole_Anonymous
+            };
+            NodeId openId = await FindChildAsync(resourceNodeId, "Open").ConfigureAwait(false);
+            CallMethodResult authorizedWriteOpen = await CallAsync(
+                resourceNodeId,
+                openId,
+                new Variant((byte)6)).ConfigureAwait(false);
+            Assert.That(authorizedWriteOpen.StatusCode, Is.EqualTo(StatusCodes.Good),
+                "A denied close must discard and release the prior writer handle.");
+            uint authorizedWriteHandle = authorizedWriteOpen.OutputArguments[0].GetUInt32();
+            CallMethodResult authorizedWriteClose = await CallAsync(
+                resourceNodeId,
+                closeId,
+                new Variant(authorizedWriteHandle)).ConfigureAwait(false);
+            Assert.That(authorizedWriteClose.StatusCode, Is.EqualTo(StatusCodes.Good));
+
+            m_options.ManagementAccess = new WotManagementAccessPolicy
+            {
+                AllowAnonymous = true,
+                RequiredRoleId = ObjectIds.WellKnownRole_Anonymous
+            };
+            CallMethodResult writeOpen = await CallAsync(
+                resourceNodeId,
+                openId,
+                new Variant((byte)6)).ConfigureAwait(false);
+            Assert.That(writeOpen.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+
+            CallMethodResult readOpen = await CallAsync(
+                resourceNodeId,
+                openId,
+                new Variant((byte)1)).ConfigureAwait(false);
+            Assert.That(readOpen.StatusCode, Is.EqualTo(StatusCodes.Good));
+            uint readHandle = readOpen.OutputArguments[0].GetUInt32();
+
+            CallMethodResult close = await CallAsync(
+                resourceNodeId,
+                closeId,
+                new Variant(readHandle)).ConfigureAwait(false);
+            Assert.That(close.StatusCode, Is.EqualTo(StatusCodes.Good));
         }
 
         [Test]

@@ -131,5 +131,35 @@ namespace Opc.Ua.Server.RuntimeNodeSet
                 new RuntimeNodeSetNodeManagerFactory(replacement),
                 ct);
         }
+
+        /// <summary>
+        /// Replaces a live runtime NodeSet registration and immediately invalidates
+        /// monitored items owned by the previous generation with
+        /// <see cref="StatusCodes.BadNodeIdUnknown"/>.
+        /// </summary>
+        public static ValueTask<NodeManagerRegistration> ImmediateReloadRuntimeNodeSetAsync(
+            this INodeManagerLifecycle lifecycle,
+            NodeManagerRegistration registration,
+            RuntimeNodeSetOptions replacement,
+            CancellationToken ct = default)
+        {
+            if (lifecycle is null)
+            {
+                throw new ArgumentNullException(nameof(lifecycle));
+            }
+            if (registration is null)
+            {
+                throw new ArgumentNullException(nameof(registration));
+            }
+            if (replacement is null)
+            {
+                throw new ArgumentNullException(nameof(replacement));
+            }
+
+            return lifecycle.ImmediateReloadAsync(
+                registration,
+                new RuntimeNodeSetNodeManagerFactory(replacement),
+                ct);
+        }
     }
 }

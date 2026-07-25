@@ -1688,6 +1688,39 @@ namespace Opc.Ua.Server
             uint lifetimeInHours,
             out uint revisedLifetimeInHours)
         {
+            if (m_server.NodeManager is INodeManagerMutationCoordinator coordinator)
+            {
+                (ServiceResult Result, uint Revised) outcome = coordinator
+                    .ExecuteMonitoredItemMutationAsync<(ServiceResult Result, uint Revised)>(
+                        () =>
+                        {
+                            ServiceResult result = SetSubscriptionDurableCore(
+                                context,
+                                subscriptionId,
+                                lifetimeInHours,
+                                out uint revised);
+                            return new ValueTask<(ServiceResult Result, uint Revised)>(
+                                (result, revised));
+                        },
+                        CancellationToken.None)
+                    .AsTask().GetAwaiter().GetResult();
+                revisedLifetimeInHours = outcome.Revised;
+                return outcome.Result;
+            }
+
+            return SetSubscriptionDurableCore(
+                context,
+                subscriptionId,
+                lifetimeInHours,
+                out revisedLifetimeInHours);
+        }
+
+        private ServiceResult SetSubscriptionDurableCore(
+            ISystemContext context,
+            uint subscriptionId,
+            uint lifetimeInHours,
+            out uint revisedLifetimeInHours)
+        {
             revisedLifetimeInHours = 0;
 
             if (!m_subscriptions.TryGetValue(subscriptionId, out ISubscription? subscription))

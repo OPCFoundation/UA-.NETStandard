@@ -193,7 +193,7 @@ namespace Opc.Ua.Server
             return ReloadCoreAsync(
                 registration,
                 replacement.CreateAsync,
-                allowActiveMonitoredItems: false,
+                ReloadRetirementMode.Migrate,
                 ct);
         }
 
@@ -212,7 +212,7 @@ namespace Opc.Ua.Server
                 registration,
                 (server, configuration, _) => new ValueTask<IAsyncNodeManager>(
                     replacement.Create(server, configuration).ToAsyncNodeManager()),
-                allowActiveMonitoredItems: false,
+                ReloadRetirementMode.Migrate,
                 ct);
         }
 
@@ -230,7 +230,7 @@ namespace Opc.Ua.Server
             return ReloadCoreAsync(
                 registration,
                 replacement.CreateAsync,
-                allowActiveMonitoredItems: true,
+                ReloadRetirementMode.Graceful,
                 ct);
         }
 
@@ -249,7 +249,44 @@ namespace Opc.Ua.Server
                 registration,
                 (server, configuration, _) => new ValueTask<IAsyncNodeManager>(
                     replacement.Create(server, configuration).ToAsyncNodeManager()),
-                allowActiveMonitoredItems: true,
+                ReloadRetirementMode.Graceful,
+                ct);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<NodeManagerRegistration> ImmediateReloadAsync(
+            NodeManagerRegistration registration,
+            IAsyncNodeManagerFactory replacement,
+            CancellationToken ct = default)
+        {
+            if (replacement is null)
+            {
+                throw new ArgumentNullException(nameof(replacement));
+            }
+
+            return ReloadCoreAsync(
+                registration,
+                replacement.CreateAsync,
+                ReloadRetirementMode.Immediate,
+                ct);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<NodeManagerRegistration> ImmediateReloadAsync(
+            NodeManagerRegistration registration,
+            INodeManagerFactory replacement,
+            CancellationToken ct = default)
+        {
+            if (replacement is null)
+            {
+                throw new ArgumentNullException(nameof(replacement));
+            }
+
+            return ReloadCoreAsync(
+                registration,
+                (server, configuration, _) => new ValueTask<IAsyncNodeManager>(
+                    replacement.Create(server, configuration).ToAsyncNodeManager()),
+                ReloadRetirementMode.Immediate,
                 ct);
         }
 
@@ -621,7 +658,7 @@ namespace Opc.Ua.Server
         private async ValueTask<NodeManagerRegistration> ReloadCoreAsync(
             NodeManagerRegistration registration,
             CreateNodeManagerAsync createNodeManager,
-            bool allowActiveMonitoredItems,
+            ReloadRetirementMode retirementMode,
             CancellationToken ct)
         {
             if (registration is null)
@@ -638,12 +675,26 @@ namespace Opc.Ua.Server
             IServerInternal? server = null;
             IDynamicNodeManagerHost? host = null;
             int namespaceCountBefore = 0;
+            bool allowActiveMonitoredItems =
+                retirementMode != ReloadRetirementMode.Migrate;
+            bool deferForActiveMonitoredItems =
+                retirementMode == ReloadRetirementMode.Graceful;
+            ServiceResult? immediateRetirementError =
+                retirementMode == ReloadRetirementMode.Immediate
+                    ? new ServiceResult(StatusCodes.BadNodeIdUnknown)
+                    : null;
             try
             {
                 (server, host) = GetRunningServer();
                 await CleanupRetiredNodeManagersAsync(server, host).ConfigureAwait(false);
                 namespaceCountBefore = server.NamespaceUris.Count;
                 current = GetCurrentState(registration);
+                if (immediateRetirementError is not null)
+                {
+                    EnsureImmediateRetirementSupported(
+                        server,
+                        current.Prepared.NodeManager);
+                }
 
                 replacementManager = await createNodeManager(
                     server,
@@ -700,6 +751,17 @@ namespace Opc.Ua.Server
                     rollbackTransitionCommit =
                         () => monitoredItemTransition.RollbackAsync(CancellationToken.None);
                 }
+                Func<ValueTask>? beforeReloadCommit = beforeTransitionCommit;
+                if (immediateRetirementError is not null)
+                {
+                    beforeReloadCommit = () =>
+                    {
+                        EnsureImmediateRetirementSupported(
+                            server,
+                            current.Prepared.NodeManager);
+                        return default;
+                    };
+                }
                 ArrayOf<SemanticChangeStructureDataType> semanticChanges =
                     GetSemanticChanges(
                         current.Prepared.NodeManager,
@@ -737,7 +799,7 @@ namespace Opc.Ua.Server
                     replacementManager,
                     bindings,
                     ct,
-                    beforeCommit: beforeTransitionCommit,
+                    beforeCommit: beforeReloadCommit,
                     afterCommit: afterTransitionCommit,
                     rollbackCommit: rollbackTransitionCommit).ConfigureAwait(false);
                 current.Prepared.Published = false;
@@ -756,7 +818,8 @@ namespace Opc.Ua.Server
                     current.Prepared.NodeManager,
                     droppedInboundReferences,
                     needsDetachment: true,
-                    allowActiveMonitoredItems: allowActiveMonitoredItems);
+                    allowActiveMonitoredItems: deferForActiveMonitoredItems,
+                    immediateRetirementError: immediateRetirementError);
                 lock (m_registrationLock)
                 {
                     m_retiredNodeManagers.Add(retired);
@@ -765,11 +828,12 @@ namespace Opc.Ua.Server
                 // Register the drain observer so the host can trigger prompt cleanup once a
                 // shadow-retired generation's monitored items drain, rather than waiting for
                 // the next lifecycle operation or server shutdown.
-                if (allowActiveMonitoredItems)
+                if (deferForActiveMonitoredItems)
                 {
                     host.SetRetiredGenerationDrainObserver(
                         ScheduleRetiredGenerationDrainCleanup);
                 }
+                Exception? postCommitFailure = null;
                 try
                 {
                     await server.RequestManager
@@ -792,22 +856,47 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception ex) when (ex is not OutOfMemoryException)
                 {
-                    throw new InvalidOperationException(
-                        "The replacement NodeManager is live, but the retired generation " +
-                        "could not be cleaned up. A later lifecycle operation will retry cleanup.",
-                        ex);
+                    postCommitFailure = ex;
                 }
 
-                await NotifyCommittedChangeAsync(
-                    server,
-                    allowActiveMonitoredItems ? "shadow-reloaded" : "reloaded",
-                    namespaceCountBefore,
-                    CancellationToken.None,
-                    semanticChanges).ConfigureAwait(false);
+                try
+                {
+                    await NotifyCommittedChangeAsync(
+                        server,
+                        retirementMode switch
+                        {
+                            ReloadRetirementMode.Graceful => "shadow-reloaded",
+                            ReloadRetirementMode.Immediate => "immediate-reloaded",
+                            _ => "reloaded"
+                        },
+                        namespaceCountBefore,
+                        CancellationToken.None,
+                        semanticChanges).ConfigureAwait(false);
+                }
+                catch (Exception ex) when (ex is not OutOfMemoryException)
+                {
+                    postCommitFailure = postCommitFailure is null
+                        ? ex
+                        : new AggregateException(postCommitFailure, ex);
+                }
+
+                if (postCommitFailure is not null)
+                {
+                    throw new NodeManagerReloadCommittedException(
+                        nextRegistration,
+                        "The replacement NodeManager is live, but reload completion failed. " +
+                        "A later lifecycle operation will retry retired-generation cleanup.",
+                        postCommitFailure);
+                }
                 return nextRegistration;
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)
             {
+                if (ex is NodeManagerReloadCommittedException)
+                {
+                    throw;
+                }
+
                 Exception? cleanupException = null;
                 if (replacement is not null &&
                     !replacement.Published &&
@@ -820,6 +909,7 @@ namespace Opc.Ua.Server
                 }
 
                 NodeManagerRegistration? retainedRegistration = null;
+                NodeManagerRegistration? committedRegistration = null;
                 Exception? recoveryException = null;
                 if (replacement?.Published == true &&
                     replacementManager is not null &&
@@ -830,13 +920,16 @@ namespace Opc.Ua.Server
                     bool registrationAlreadyUpdated;
                     lock (m_registrationLock)
                     {
-                        registrationAlreadyUpdated =
-                            m_registrations.TryGetValue(
-                                current.Registration.Id,
-                                out RegistrationState? retainedState) &&
+                        registrationAlreadyUpdated = m_registrations.TryGetValue(
+                            current.Registration.Id,
+                            out RegistrationState? retainedState) &&
                             ReferenceEquals(
                                 retainedState.Registration.NodeManager,
                                 replacementManager);
+                        if (registrationAlreadyUpdated)
+                        {
+                            committedRegistration = retainedState!.Registration;
+                        }
                     }
 
                     if (!registrationAlreadyUpdated)
@@ -856,7 +949,8 @@ namespace Opc.Ua.Server
                                     current.Prepared.NodeManager,
                                     droppedInboundReferences,
                                     needsDetachment: true,
-                                    allowActiveMonitoredItems: allowActiveMonitoredItems));
+                                    allowActiveMonitoredItems: deferForActiveMonitoredItems,
+                                    immediateRetirementError: immediateRetirementError));
                         }
 
                         try
@@ -888,6 +982,15 @@ namespace Opc.Ua.Server
                     }
                 }
 
+                if (committedRegistration is not null)
+                {
+                    throw new NodeManagerReloadCommittedException(
+                        committedRegistration,
+                        "The replacement NodeManager is live, but reload completion failed. " +
+                        "A later lifecycle operation will retry retired-generation cleanup.",
+                        ex);
+                }
+
                 if (server is not null)
                 {
                     if (replacementManager is not null)
@@ -917,7 +1020,8 @@ namespace Opc.Ua.Server
                     {
                         failures.Add(recoveryException);
                     }
-                    throw new InvalidOperationException(
+                    throw new NodeManagerReloadCommittedException(
+                        retainedRegistration,
                         "NodeManager reload failed during rollback. " +
                         "The replacement generation was retained and is available " +
                         "from Registrations for retry or removal.",
@@ -1211,6 +1315,105 @@ namespace Opc.Ua.Server
                 }
             }
             return false;
+        }
+
+        private static void EnsureImmediateRetirementSupported(
+            IServerInternal server,
+            IAsyncNodeManager nodeManager)
+        {
+            foreach (ISubscription subscription in server.SubscriptionManager.GetSubscriptions())
+            {
+                if (subscription.MonitoredItemCount == 0)
+                {
+                    continue;
+                }
+                if (subscription is not INodeManagerMonitoredItemTracker tracker)
+                {
+                    throw new NotSupportedException(
+                        "The configured subscription cannot verify NodeManager ownership.");
+                }
+                if (!tracker.HasMonitoredItems(nodeManager))
+                {
+                    continue;
+                }
+                if (subscription is not INodeManagerMonitoredItemRetirementTracker retirementTracker ||
+                    !retirementTracker.CanRetireMonitoredItems(nodeManager))
+                {
+                    throw new NotSupportedException(
+                        "The configured subscription cannot retire NodeManager-owned monitored items.");
+                }
+            }
+        }
+
+        private static async ValueTask RetireMonitoredItemsAsync(
+            IServerInternal server,
+            IAsyncNodeManager nodeManager,
+            ServiceResult error,
+            bool detachOwner = false)
+        {
+            if (server.NodeManager is INodeManagerMutationCoordinator coordinator)
+            {
+                await coordinator.ExecuteMonitoredItemMutationAsync(
+                    () =>
+                    {
+                        RetireMonitoredItemsCore(server, nodeManager, error);
+                        if (detachOwner)
+                        {
+                            DetachRetiredMonitoredItemsCore(server, nodeManager);
+                        }
+                        return new ValueTask<bool>(true);
+                    },
+                    CancellationToken.None).ConfigureAwait(false);
+                return;
+            }
+
+            RetireMonitoredItemsCore(server, nodeManager, error);
+            if (detachOwner)
+            {
+                DetachRetiredMonitoredItemsCore(server, nodeManager);
+            }
+        }
+
+        private static void RetireMonitoredItemsCore(
+            IServerInternal server,
+            IAsyncNodeManager nodeManager,
+            ServiceResult error)
+        {
+            foreach (ISubscription subscription in server.SubscriptionManager.GetSubscriptions())
+            {
+                if (subscription.MonitoredItemCount == 0)
+                {
+                    continue;
+                }
+                if (subscription is not INodeManagerMonitoredItemTracker tracker)
+                {
+                    throw new NotSupportedException(
+                        "The configured subscription cannot verify NodeManager ownership.");
+                }
+                if (!tracker.HasMonitoredItems(nodeManager))
+                {
+                    continue;
+                }
+                if (subscription is not INodeManagerMonitoredItemRetirementTracker retirementTracker)
+                {
+                    throw new NotSupportedException(
+                        "The configured subscription cannot retire NodeManager-owned monitored items.");
+                }
+                retirementTracker.RetireMonitoredItems(nodeManager, error);
+            }
+        }
+
+        private static void DetachRetiredMonitoredItemsCore(
+            IServerInternal server,
+            IAsyncNodeManager nodeManager)
+        {
+            foreach (ISubscription subscription in server.SubscriptionManager.GetSubscriptions())
+            {
+                if (subscription is INodeManagerMonitoredItemRetirementTracker retirementTracker)
+                {
+                    retirementTracker.DetachRetiredMonitoredItems(nodeManager);
+                }
+            }
         }
 
         private static void InvalidateContinuationPoints(
@@ -2137,8 +2340,9 @@ namespace Opc.Ua.Server
         /// once fully cleaned up. A shadow-reloaded generation that still owns active
         /// monitored items is left untouched (requests, continuation points, and
         /// monitored items that already captured it keep working) and <c>false</c> is
-        /// returned so the caller retries cleanup on a later opportunity, without ever
-        /// force-deleting a client's monitored items or subscription.
+        /// returned so the caller retries cleanup on a later opportunity. An immediate
+        /// retirement instead invalidates owned monitored items before detachment; neither
+        /// policy deletes the client's subscription.
         /// </summary>
         private static async ValueTask<bool> CleanupRetiredNodeManagerAsync(
             IServerInternal server,
@@ -2153,11 +2357,31 @@ namespace Opc.Ua.Server
                     return false;
                 }
 
+                if (retired.ImmediateRetirementError is not null)
+                {
+                    await RetireMonitoredItemsAsync(
+                            server,
+                            retired.NodeManager,
+                            retired.ImmediateRetirementError)
+                        .ConfigureAwait(false);
+                }
                 InvalidateContinuationPoints(server, retired.NodeManager);
                 await server.RequestManager
                     .WaitForCurrentRequestsAsync(CancellationToken.None)
                     .ConfigureAwait(false);
                 InvalidateContinuationPoints(server, retired.NodeManager);
+                if (retired.ImmediateRetirementError is not null)
+                {
+                    // A request that captured the old routing generation before the
+                    // switch may have completed monitored-item creation during the
+                    // drain. Retire that late item before detaching the owner.
+                    await RetireMonitoredItemsAsync(
+                            server,
+                            retired.NodeManager,
+                            retired.ImmediateRetirementError,
+                            detachOwner: true)
+                        .ConfigureAwait(false);
+                }
                 EnsureNoActiveMonitoredItems(server, retired.NodeManager);
                 await UnbindFromServerAsync(
                     server,
@@ -2420,6 +2644,13 @@ namespace Opc.Ua.Server
             }
         }
 
+        private enum ReloadRetirementMode
+        {
+            Migrate,
+            Graceful,
+            Immediate
+        }
+
         private sealed class RegistrationState
         {
             public RegistrationState(
@@ -2463,12 +2694,14 @@ namespace Opc.Ua.Server
                 IAsyncNodeManager nodeManager,
                 List<LocalReference> pendingReferences,
                 bool needsDetachment,
-                bool allowActiveMonitoredItems = false)
+                bool allowActiveMonitoredItems = false,
+                ServiceResult? immediateRetirementError = null)
             {
                 NodeManager = nodeManager;
                 PendingReferences = pendingReferences;
                 NeedsDetachment = needsDetachment;
                 AllowActiveMonitoredItems = allowActiveMonitoredItems;
+                ImmediateRetirementError = immediateRetirementError;
             }
 
             public IAsyncNodeManager NodeManager { get; }
@@ -2483,6 +2716,11 @@ namespace Opc.Ua.Server
             /// this holds true and monitored items remain.
             /// </summary>
             public bool AllowActiveMonitoredItems { get; }
+
+            /// <summary>
+            /// Gets the status queued to monitored items before immediate cleanup.
+            /// </summary>
+            public ServiceResult? ImmediateRetirementError { get; }
         }
 
         private readonly StandardServer m_server;
