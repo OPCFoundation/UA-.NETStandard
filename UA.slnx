@@ -11,6 +11,9 @@
     <Project Path="samples/MinimalCalcServer/MinimalCalcServer.csproj" />
     <Project Path="samples/MinimalClient/MinimalClient.csproj" />
     <Project Path="samples/PumpDeviceIntegrationServer/PumpDeviceIntegrationServer.csproj" />
+    <Project Path="samples/WotAggregationClient/WotAggregationClient.csproj" />
+    <Project Path="samples/WotAggregationServer/WotAggregationServer.csproj" />
+    <Project Path="samples/WotFlatTagServer/WotFlatTagServer.csproj" />
     <Project Path="samples/Quickstarts.Servers/Quickstarts.Servers.csproj" />
     <Project Path="samples/RedundantClient/RedundantClient.csproj" />
   </Folder>
@@ -86,11 +89,8 @@
     <Project Path="src/Opc.Ua.Redundancy.Client/Opc.Ua.Redundancy.Client.csproj" />
     <Project Path="src/Opc.Ua.Redundancy.Kubernetes/Opc.Ua.Redundancy.Kubernetes.csproj" />
     <Project Path="src/Opc.Ua.WotCon/Opc.Ua.WotCon.csproj" />
-    <Project Path="src/Opc.Ua.WotCon.Binding/Opc.Ua.WotCon.Binding.csproj" />
-    <Project Path="src/Opc.Ua.WotCon.Binding.Http/Opc.Ua.WotCon.Binding.Http.csproj" />
-    <Project Path="src/Opc.Ua.WotCon.Binding.Mqtt/Opc.Ua.WotCon.Binding.Mqtt.csproj" />
-    <Project Path="src/Opc.Ua.WotCon.Binding.Modbus/Opc.Ua.WotCon.Binding.Modbus.csproj" />
-    <Project Path="src/Opc.Ua.WotCon.Binding.OpcUa/Opc.Ua.WotCon.Binding.OpcUa.csproj" />
+    <Project Path="src/Opc.Ua.WotCon.Bindings/Opc.Ua.WotCon.Bindings.csproj" />
+    <Project Path="src/Opc.Ua.WotCon.Bindings.Mqtt/Opc.Ua.WotCon.Bindings.Mqtt.csproj" />
     <Project Path="src/Opc.Ua.WotCon.Client/Opc.Ua.WotCon.Client.csproj" />
     <Project Path="src/Opc.Ua.WotCon.Server/Opc.Ua.WotCon.Server.csproj" />
     <Project Path="src/Opc.Ua.Bindings.Https/Opc.Ua.Bindings.Https.csproj" />
@@ -258,7 +258,8 @@
     <Project Path="tests/Opc.Ua.Tools.Tests/Opc.Ua.Tools.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Types.Tests/Opc.Ua.Types.Tests.csproj" />
     <Project Path="tests/Opc.Ua.WotCon.Tests/Opc.Ua.WotCon.Tests.csproj" />
-    <Project Path="tests/Opc.Ua.WotCon.Binding.Tests/Opc.Ua.WotCon.Binding.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.WotCon.Bindings.Tests/Opc.Ua.WotCon.Bindings.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.WotCon.Samples.Tests/Opc.Ua.WotCon.Samples.Tests.csproj" />
   </Folder>
   <Folder Name="/tests/TestFramework/">
     <Project Path="tests/Opc.Ua.Test.Common/Opc.Ua.Test.Common.csproj" />

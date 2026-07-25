@@ -34,8 +34,9 @@ using Microsoft.Extensions.Options;
 using Opc.Ua;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Hosting;
+using Opc.Ua.Wot;
+using Opc.Ua.WotCon.Bindings;
 using Opc.Ua.WotCon.Server;
-using Opc.Ua.WotCon.Binding;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
 
@@ -50,13 +51,17 @@ namespace Microsoft.Extensions.DependencyInjection
     /// </summary>
     public static class OpcUaWotRegistryServerBuilderExtensions
     {
-        /// <summary>Default configuration section for the registry options.</summary>
+        /// <summary>
+        /// Default configuration section for the registry options.
+        /// </summary>
         public const string DefaultConfigurationSection = "OpcUa:WotConRegistry:Server";
 
         /// <summary>
         /// Registers the WoT Connectivity 1.1 registry NodeManager configured by
         /// <paramref name="configure"/>.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaBuilder AddWotRegistryServer(
             this IOpcUaBuilder builder,
             Action<WotRegistryServerOptions>? configure = null)
@@ -81,6 +86,8 @@ namespace Microsoft.Extensions.DependencyInjection
         /// Registers the WoT Connectivity 1.1 registry NodeManager with options
         /// bound from the supplied configuration section.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaBuilder AddWotRegistryServer(
             this IOpcUaBuilder builder,
             IConfiguration configuration)
@@ -97,6 +104,8 @@ namespace Microsoft.Extensions.DependencyInjection
         /// Registers the WoT Connectivity 1.1 registry NodeManager with options
         /// bound from the supplied configuration section.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaBuilder AddWotRegistryServer(
             this IOpcUaBuilder builder,
             IConfigurationSection section)
@@ -120,7 +129,14 @@ namespace Microsoft.Extensions.DependencyInjection
                 sp.GetRequiredService<IOptions<WotRegistryServerOptions>>().Value
                 ?? new WotRegistryServerOptions());
 
-            services.TryAddSingleton<IWotBinderRegistry>(NullWotBinderRegistry.Instance);
+            services.EnsureWotBinderRegistry();
+
+            services.TryAddSingleton<IWotTargetVariableResolver>(new WotTargetVariableResolver());
+
+            services.TryAddSingleton<IWotProjectionBindingRuntimeFactory>(sp =>
+                new WotProjectionBindingRuntimeFactory(
+                    sp.GetRequiredService<IWotBindingChannelFactory>(),
+                    sp.GetRequiredService<IWotTargetVariableResolver>()));
 
             services.TryAddSingleton<IWotRegistryService>(sp =>
             {
@@ -134,13 +150,24 @@ namespace Microsoft.Extensions.DependencyInjection
 
             services.TryAddSingleton<IWotProjectionHost>(sp =>
                 new LifecycleWotProjectionHost(
-                    sp.GetRequiredService<INodeManagerLifecycle>()));
+                    sp.GetRequiredService<INodeManagerLifecycle>(),
+                    sp.GetRequiredService<IWotProjectionBindingRuntimeFactory>()));
 
             services.TryAddSingleton(sp =>
-                new WotMaterializationCoordinator(
+            {
+                WotRegistryServerOptions options =
+                    sp.GetRequiredService<WotRegistryServerOptions>();
+                var converterOptions = new WotNodeSetConverterOptions
+                {
+                    MaxJsonDocumentSize = options.Bounds.MaxDocumentBytes,
+                    MaxResolverDocumentBytes = options.Bounds.MaxDocumentBytes
+                };
+                return new WotMaterializationCoordinator(
                     sp.GetRequiredService<IWotRegistryService>(),
                     sp.GetRequiredService<IWotProjectionHost>(),
-                    sp.GetRequiredService<IWotBinderRegistry>()));
+                    sp.GetRequiredService<IWotBinderRegistry>(),
+                    converterOptions);
+            });
 
             services.TryAddSingleton(sp =>
                 new WotRegistryNodeManagerFactory(

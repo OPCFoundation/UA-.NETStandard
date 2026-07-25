@@ -72,7 +72,9 @@ namespace Opc.Ua.WotCon.Server
         /// </summary>
         public string LegacyGroupId { get; set; } = WotRegistryGroups.ThingDescriptions;
 
-        /// <summary>Gets the resource bounds enforced by the registry service.</summary>
+        /// <summary>
+        /// Gets the resource bounds enforced by the registry service.
+        /// </summary>
         public WotRegistryPersistenceBounds Bounds { get; } = new WotRegistryPersistenceBounds();
 
         /// <summary>
@@ -88,6 +90,6 @@ namespace Opc.Ua.WotCon.Server
         /// protocol binders are registered).
         /// </summary>
         public IList<WoTBindingCapabilityDataType> SupportedBindings { get; }
-            = new List<WoTBindingCapabilityDataType>();
+            = [];
     }
 }

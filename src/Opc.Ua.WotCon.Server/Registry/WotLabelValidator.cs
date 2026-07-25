@@ -62,8 +62,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                     "The label key exceeds the maximum length of {0} characters.",
                     bounds.MaxLabelKeyLength);
             }
-            if (string.Equals(key, Opc.Ua.XRegistry.BrowseNames.AddAttribute, StringComparison.Ordinal) ||
-                string.Equals(key, Opc.Ua.XRegistry.BrowseNames.RemoveAttribute, StringComparison.Ordinal))
+            if (string.Equals(key, XRegistry.BrowseNames.AddAttribute, StringComparison.Ordinal) ||
+                string.Equals(key, XRegistry.BrowseNames.RemoveAttribute, StringComparison.Ordinal))
             {
                 return ServiceResult.Create(
                     StatusCodes.BadBrowseNameDuplicated,
@@ -95,6 +95,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// <see cref="ServiceResultException"/> with a precise StatusCode on
         /// the first failing check.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public static void Validate(string? key, string? value, WotRegistryPersistenceBounds bounds)
         {
             ServiceResult keyResult = ValidateKey(key, bounds);

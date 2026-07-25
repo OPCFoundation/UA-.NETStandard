@@ -37,7 +37,9 @@ namespace Opc.Ua.WotCon.Tests
     /// </summary>
     internal static class TestMaterialization
     {
-        /// <summary>Builds a minimal Thing Description document.</summary>
+        /// <summary>
+        /// Builds a minimal Thing Description document.
+        /// </summary>
         public static byte[] Td(string id, string variant = "1", params string[] extendsHrefs)
         {
             var builder = new StringBuilder();
@@ -51,7 +53,9 @@ namespace Opc.Ua.WotCon.Tests
             return Encoding.UTF8.GetBytes(builder.ToString());
         }
 
-        /// <summary>Builds a minimal Thing Model document.</summary>
+        /// <summary>
+        /// Builds a minimal Thing Model document.
+        /// </summary>
         public static byte[] Tm(string id, string variant = "1", params string[] extendsHrefs)
         {
             var builder = new StringBuilder();
@@ -65,7 +69,9 @@ namespace Opc.Ua.WotCon.Tests
             return Encoding.UTF8.GetBytes(builder.ToString());
         }
 
-        /// <summary>Builds a syntactically invalid JSON document.</summary>
+        /// <summary>
+        /// Builds a syntactically invalid JSON document.
+        /// </summary>
         public static byte[] InvalidJson() => Encoding.UTF8.GetBytes("{ not valid json ");
 
         private static void AppendLinks(StringBuilder builder, string[] extendsHrefs)

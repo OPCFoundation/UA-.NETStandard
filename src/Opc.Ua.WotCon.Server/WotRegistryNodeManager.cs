@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -52,7 +51,9 @@ namespace Opc.Ua.WotCon.Server
     /// </summary>
     public sealed class WotRegistryNodeManager : AsyncCustomNodeManager
     {
-        /// <summary>Initializes a new registry NodeManager.</summary>
+        /// <summary>
+        /// Initializes a new registry NodeManager.
+        /// </summary>
         public WotRegistryNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration,
@@ -67,19 +68,23 @@ namespace Opc.Ua.WotCon.Server
                   XRegistry.Namespaces.XRegistry)
         {
             m_options = options ?? throw new ArgumentNullException(nameof(options));
-            m_registry = registry ?? throw new ArgumentNullException(nameof(registry));
-            m_coordinator = coordinator ?? throw new ArgumentNullException(nameof(coordinator));
-            m_coordinator.StrictBindings = options.StrictBindings;
-            m_coordinator.RetirementPolicy = options.RetirementPolicy;
-            m_coordinator.ServerNamespaceUris = server.NamespaceUris;
-            m_projection = new WotRegistryProjection(this, m_registry, m_options, m_logger);
+            Registry = registry ?? throw new ArgumentNullException(nameof(registry));
+            Coordinator = coordinator ?? throw new ArgumentNullException(nameof(coordinator));
+            Coordinator.StrictBindings = options.StrictBindings;
+            Coordinator.RetirementPolicy = options.RetirementPolicy;
+            Coordinator.ServerNamespaceUris = server.NamespaceUris;
+            m_projection = new WotRegistryProjection(this, Registry, m_options, m_logger);
         }
 
-        /// <summary>Gets the hosted registry service.</summary>
-        public IWotRegistryService Registry => m_registry;
+        /// <summary>
+        /// Gets the hosted registry service.
+        /// </summary>
+        public IWotRegistryService Registry { get; }
 
-        /// <summary>Gets the hosted materialization coordinator.</summary>
-        public WotMaterializationCoordinator Coordinator => m_coordinator;
+        /// <summary>
+        /// Gets the hosted materialization coordinator.
+        /// </summary>
+        public WotMaterializationCoordinator Coordinator { get; }
 
         /// <inheritdoc/>
         protected override ValueTask<NodeStateCollection> LoadPredefinedNodesAsync(
@@ -103,7 +108,7 @@ namespace Opc.Ua.WotCon.Server
             NodeState predefinedNode,
             CancellationToken cancellationToken = default)
         {
-            NodeId registryNodeId = ExpandedNodeId.ToNodeId(
+            var registryNodeId = ExpandedNodeId.ToNodeId(
                 ObjectIds.WoTRegistry, Server.NamespaceUris);
             if (predefinedNode is BaseObjectState registry &&
                 registry.NodeId == registryNodeId)
@@ -129,8 +134,8 @@ namespace Opc.Ua.WotCon.Server
             // fresh per-instance NodeIds (through the NodeManager's NodeIdFactory)
             // and rebase the argument references so the Methods never collide with
             // the RegistryType Method declarations.
-            typed.AddCreateGroup(context);
-            typed.AddGetOrCreateGroup(context);
+            typed.AddCreateGroup(context)
+                .AddGetOrCreateGroup(context);
             WotRegistryProjection.LinkMethodArguments(typed.CreateGroup, context);
             WotRegistryProjection.LinkMethodArguments(typed.GetOrCreateGroup, context);
 
@@ -172,9 +177,9 @@ namespace Opc.Ua.WotCon.Server
                 }
             }
 
-            await m_registry.InitializeAsync(cancellationToken).ConfigureAwait(false);
-            m_registry.Changed += OnRegistryChanged;
-            m_coordinator.Event += OnCoordinatorEvent;
+            await Registry.InitializeAsync(cancellationToken).ConfigureAwait(false);
+            Registry.Changed += OnRegistryChanged;
+            Coordinator.Event += OnCoordinatorEvent;
 
             // Materialize the browseable group/resource projection, then project
             // whatever is already persisted into the AddressSpace.
@@ -191,9 +196,9 @@ namespace Opc.Ua.WotCon.Server
         public override async ValueTask DeleteAddressSpaceAsync(
             CancellationToken cancellationToken = default)
         {
-            m_registry.Changed -= OnRegistryChanged;
-            m_coordinator.Event -= OnCoordinatorEvent;
-            await m_coordinator.RemoveAllAsync(cancellationToken).ConfigureAwait(false);
+            Registry.Changed -= OnRegistryChanged;
+            Coordinator.Event -= OnCoordinatorEvent;
+            await Coordinator.RemoveAllAsync(cancellationToken).ConfigureAwait(false);
             m_projection.Dispose();
             await base.DeleteAddressSpaceAsync(cancellationToken).ConfigureAwait(false);
         }
@@ -204,6 +209,7 @@ namespace Opc.Ua.WotCon.Server
             if (disposing)
             {
                 m_projection.Dispose();
+                m_refreshGate.Dispose();
             }
             base.Dispose(disposing);
         }
@@ -224,13 +230,13 @@ namespace Opc.Ua.WotCon.Server
             SetChildValue(registry, "RefreshMode",
                 new Variant((int)WoTRefreshModeEnum.EventDriven));
             SetChildValue(registry, "VocabularyVersion",
-                new Variant(Opc.Ua.Wot.WotNodeSetConverter.VocabularyNamespace));
+                new Variant(Wot.WotNodeSetConverter.VocabularyNamespace));
             ApplyBindingCapabilities(registry);
         }
 
         private void ApplyBindingCapabilities(BaseObjectState registry)
         {
-            IReadOnlyList<WoTBindingCapabilityDataType> caps = m_coordinator.BindingCapabilities;
+            IReadOnlyList<WoTBindingCapabilityDataType> caps = Coordinator.BindingCapabilities;
             if (caps.Count == 0)
             {
                 return;
@@ -265,19 +271,32 @@ namespace Opc.Ua.WotCon.Server
                 return decoded;
             }
 
-            WotRefreshResult result = await m_coordinator
-                .RefreshAsync(request, cancellationToken).ConfigureAwait(false);
-
-            outputArguments.Clear();
-            outputArguments.Add(new Variant(new ExtensionObject(result.Summary)));
-            var encodedResults = new ExtensionObject[result.Results.Length];
-            for (int i = 0; i < result.Results.Length; i++)
+            if (!await m_refreshGate
+                    .WaitAsync(0, cancellationToken)
+                    .ConfigureAwait(false))
             {
-                encodedResults[i] = new ExtensionObject(result.Results[i]);
+                return StatusCodes.BadServerTooBusy;
             }
-            outputArguments.Add(new Variant(new ArrayOf<ExtensionObject>(encodedResults)));
-            outputArguments.Add(new Variant(result.NewGeneration));
-            return ServiceResult.Good;
+            try
+            {
+                WotRefreshResult result = await Coordinator
+                    .RefreshAsync(request, cancellationToken).ConfigureAwait(false);
+
+                outputArguments.Clear();
+                outputArguments.Add(new Variant(new ExtensionObject(result.Summary)));
+                var encodedResults = new ExtensionObject[result.Results.Length];
+                for (int i = 0; i < result.Results.Length; i++)
+                {
+                    encodedResults[i] = new ExtensionObject(result.Results[i]);
+                }
+                outputArguments.Add(new Variant(new ArrayOf<ExtensionObject>(encodedResults)));
+                outputArguments.Add(new Variant(result.NewGeneration));
+                return ServiceResult.Good;
+            }
+            finally
+            {
+                m_refreshGate.Release();
+            }
         }
 
         private void OnRegistryChanged(object? sender, WotRegistryChangedEventArgs e)
@@ -311,7 +330,7 @@ namespace Opc.Ua.WotCon.Server
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(ex, "Failed to report WoT materialization event.");
+                m_logger.FailedToReportMaterializationEvent(ex);
             }
         }
 
@@ -416,18 +435,26 @@ namespace Opc.Ua.WotCon.Server
         }
 
         private void SetEventValue(BaseEventState evt, string browseName, Variant value)
-            => evt.SetChildValue(SystemContext, WoTQualifiedName(browseName), value, false);
+        {
+            evt.SetChildValue(SystemContext, WoTQualifiedName(browseName), value, false);
+        }
 
         private void SetEventEnum<TEnum>(BaseEventState evt, string browseName, TEnum value)
             where TEnum : struct, Enum
-            => evt.SetChildValue(SystemContext, WoTQualifiedName(browseName), value);
+        {
+            evt.SetChildValue(SystemContext, WoTQualifiedName(browseName), value);
+        }
 
         private void SetEventStruct<TStruct>(BaseEventState evt, string browseName, TStruct value)
             where TStruct : IEncodeable
-            => evt.SetChildValue(SystemContext, WoTQualifiedName(browseName), value, false);
+        {
+            evt.SetChildValue(SystemContext, WoTQualifiedName(browseName), value, false);
+        }
 
         private QualifiedName WoTQualifiedName(string browseName)
-            => new(browseName, (ushort)Server.NamespaceUris.GetIndex(Namespaces.WotCon));
+        {
+            return new(browseName, (ushort)Server.NamespaceUris.GetIndex(Namespaces.WotCon));
+        }
 
         private async Task SafeReconcileAsync()
         {
@@ -437,7 +464,7 @@ namespace Opc.Ua.WotCon.Server
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(ex, "WoT registry projection reconcile failed.");
+                m_logger.RegistryProjectionReconcileFailed(ex);
             }
         }
 
@@ -445,12 +472,12 @@ namespace Opc.Ua.WotCon.Server
         {
             try
             {
-                await m_coordinator.RefreshAsync(new WotRefreshRequest { RequestId = reason })
+                await Coordinator.RefreshAsync(new WotRefreshRequest { RequestId = reason })
                     .ConfigureAwait(false);
             }
             catch (Exception ex)
             {
-                m_logger.LogWarning(ex, "WoT registry refresh ({Reason}) failed.", reason);
+                m_logger.RegistryRefreshFailed(ex, reason);
             }
         }
 
@@ -463,26 +490,23 @@ namespace Opc.Ua.WotCon.Server
             }
             WotManagementAccessPolicy policy = m_options.ManagementAccess;
             MessageSecurityMode securityMode = operationContext.ChannelContext?
-                .EndpointDescription?.SecurityMode ?? MessageSecurityMode.None;
+                .EndpointDescription?.SecurityMode ??
+                MessageSecurityMode.None;
             if (securityMode != policy.MinimumSecurityMode)
             {
-                m_logger.LogWarning(
-                    "Denied WoT registry '{Operation}': channel security mode {Mode} is too low.",
-                    operation, securityMode);
+                m_logger.ManagementCallDeniedSecurityMode(operation, securityMode);
                 return StatusCodes.BadUserAccessDenied;
             }
             IUserIdentity? identity = operationContext.UserIdentity;
             if (identity is null ||
                 (!policy.AllowAnonymous && identity.TokenType == UserTokenType.Anonymous))
             {
-                m_logger.LogWarning(
-                    "Denied WoT registry '{Operation}': anonymous or missing identity.", operation);
+                m_logger.ManagementCallDeniedAnonymousIdentity(operation);
                 return StatusCodes.BadUserAccessDenied;
             }
             if (!identity.GrantedRoleIds.Contains(policy.RequiredRoleId))
             {
-                m_logger.LogWarning(
-                    "Denied WoT registry '{Operation}': caller lacks required role.", operation);
+                m_logger.ManagementCallDeniedMissingRole(operation);
                 return StatusCodes.BadUserAccessDenied;
             }
             return ServiceResult.Good;
@@ -493,7 +517,7 @@ namespace Opc.Ua.WotCon.Server
         {
             if (!externalReferences.TryGetValue(nodeId, out IList<IReference>? list))
             {
-                list = new List<IReference>();
+                list = [];
                 externalReferences[nodeId] = list;
             }
             return list;
@@ -510,9 +534,38 @@ namespace Opc.Ua.WotCon.Server
         }
 
         private readonly WotRegistryServerOptions m_options;
-        private readonly IWotRegistryService m_registry;
-        private readonly WotMaterializationCoordinator m_coordinator;
         private readonly WotRegistryProjection m_projection;
+        private readonly SemaphoreSlim m_refreshGate = new(1, 1);
         private BaseObjectState? m_registryNode;
+    }
+
+    internal static partial class WotRegistryNodeManagerLog
+    {
+        [LoggerMessage(EventId = WotConServerEventIds.WotRegistryNodeManager + 0, Level = LogLevel.Warning,
+            Message = "Failed to report WoT materialization event.")]
+        public static partial void FailedToReportMaterializationEvent(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = WotConServerEventIds.WotRegistryNodeManager + 1, Level = LogLevel.Warning,
+            Message = "WoT registry projection reconcile failed.")]
+        public static partial void RegistryProjectionReconcileFailed(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = WotConServerEventIds.WotRegistryNodeManager + 2, Level = LogLevel.Warning,
+            Message = "WoT registry refresh ({Reason}) failed.")]
+        public static partial void RegistryRefreshFailed(this ILogger logger, Exception ex, string reason);
+
+        [LoggerMessage(EventId = WotConServerEventIds.WotRegistryNodeManager + 3, Level = LogLevel.Warning,
+            Message = "Denied WoT registry '{Operation}': channel security mode {Mode} is too low.")]
+        public static partial void ManagementCallDeniedSecurityMode(
+            this ILogger logger,
+            string operation,
+            MessageSecurityMode mode);
+
+        [LoggerMessage(EventId = WotConServerEventIds.WotRegistryNodeManager + 4, Level = LogLevel.Warning,
+            Message = "Denied WoT registry '{Operation}': anonymous or missing identity.")]
+        public static partial void ManagementCallDeniedAnonymousIdentity(this ILogger logger, string operation);
+
+        [LoggerMessage(EventId = WotConServerEventIds.WotRegistryNodeManager + 5, Level = LogLevel.Warning,
+            Message = "Denied WoT registry '{Operation}': caller lacks required role.")]
+        public static partial void ManagementCallDeniedMissingRole(this ILogger logger, string operation);
     }
 }

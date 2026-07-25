@@ -309,7 +309,7 @@ namespace Opc.Ua.WotCon.Tests.Hosting
         }
 
         [Test]
-        public async Task LazyConnectFalseDoesNotResolveManagedSessionAsync()
+        public Task LazyConnectFalseDoesNotResolveManagedSessionAsync()
         {
             IServiceCollection services = new ServiceCollection();
 
@@ -322,6 +322,23 @@ namespace Opc.Ua.WotCon.Tests.Hosting
             InvalidOperationException ex = Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await factory(CancellationToken.None).ConfigureAwait(false))!;
             Assert.That(ex.Message, Does.Contain(nameof(WotConClientOptions.LazyConnect)));
+            return Task.CompletedTask;
+        }
+
+        [Test]
+        public async Task LazyConnectRequiresRegisteredManagedSessionFactoryAsync()
+        {
+            IServiceCollection services = new ServiceCollection();
+
+            services.AddOpcUa().AddWotConClient();
+
+            await using ServiceProvider sp = services.BuildServiceProvider();
+            Func<CancellationToken, Task<WotConnectivityClient>> factory =
+                sp.GetRequiredService<Func<CancellationToken, Task<WotConnectivityClient>>>();
+
+            InvalidOperationException ex = Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await factory(CancellationToken.None).ConfigureAwait(false))!;
+            Assert.That(ex.Message, Does.Contain("AddClient"));
         }
 
         [Test]

@@ -836,7 +836,8 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 acknowledgements = response.AvailableSequenceNumbers.ToArrayOf(
                     sequenceNumber => new SubscriptionAcknowledgement
                     {
-                        SubscriptionId = subscriptionId, SequenceNumber = sequenceNumber
+                        SubscriptionId = subscriptionId,
+                        SequenceNumber = sequenceNumber
                     });
                 if (response.NotificationMessage is { } message)
                 {
@@ -875,7 +876,8 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             ArrayOf<SubscriptionAcknowledgement> acks = response.AvailableSequenceNumbers.ToArrayOf(
                 sequenceNumber => new SubscriptionAcknowledgement
                 {
-                    SubscriptionId = subscriptionId, SequenceNumber = sequenceNumber
+                    SubscriptionId = subscriptionId,
+                    SequenceNumber = sequenceNumber
                 });
             return (true, acks);
         }

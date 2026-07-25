@@ -779,7 +779,8 @@ namespace Opc.Ua.SourceGeneration
             {
                 case BasicDataType.UserDefined:
                     context.Out.WriteLine(
-                        "    if (!_outputArguments[{0}].TryGetStructure(out {1} {2}))",
+                        "    if (!_outputArguments[{0}].TryGetStructure(" +
+                        "base.Session.MessageContext, out {1} {2}))",
                         index,
                         typeName,
                         localName);

@@ -35,20 +35,28 @@ namespace Opc.Ua.WotCon.Server.Registry
     /// Bounds enforced by the registry service before a document is accepted or
     /// persisted. They cap the resource cost of a hostile or misbehaving client
     /// and mirror the bounded-resolution limits used by the
-    /// <see cref="Opc.Ua.Wot.WotNodeSetConverter"/>.
+    /// <see cref="Wot.WotNodeSetConverter"/>.
     /// </summary>
     public sealed class WotRegistryPersistenceBounds
     {
-        /// <summary>Gets or sets the maximum accepted size of a single document.</summary>
+        /// <summary>
+        /// Gets or sets the maximum accepted size of a single document.
+        /// </summary>
         public int MaxDocumentBytes { get; set; } = 4 * 1024 * 1024;
 
-        /// <summary>Gets or sets the maximum number of retained versions per resource.</summary>
+        /// <summary>
+        /// Gets or sets the maximum number of retained versions per resource.
+        /// </summary>
         public int MaxVersionsPerResource { get; set; } = 32;
 
-        /// <summary>Gets or sets the maximum number of resources per group.</summary>
+        /// <summary>
+        /// Gets or sets the maximum number of resources per group.
+        /// </summary>
         public int MaxResourcesPerGroup { get; set; } = 1024;
 
-        /// <summary>Gets or sets the maximum number of groups.</summary>
+        /// <summary>
+        /// Gets or sets the maximum number of groups.
+        /// </summary>
         public int MaxGroups { get; set; } = 64;
 
         /// <summary>
@@ -111,10 +119,14 @@ namespace Opc.Ua.WotCon.Server.Registry
     /// </summary>
     public static class WotRegistryGroups
     {
-        /// <summary>The reserved Thing Description group id.</summary>
+        /// <summary>
+        /// The reserved Thing Description group id.
+        /// </summary>
         public const string ThingDescriptions = "thingdescriptions";
 
-        /// <summary>The reserved Thing Model group id.</summary>
+        /// <summary>
+        /// The reserved Thing Model group id.
+        /// </summary>
         public const string ThingModels = "thingmodels";
     }
 }

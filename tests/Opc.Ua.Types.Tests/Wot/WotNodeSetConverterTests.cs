@@ -78,9 +78,10 @@ namespace Opc.Ua.Types.Tests.Wot
         public void WotDocumentPreservesUnknownMembersLexically()
         {
             byte[] json = Encoding.UTF8.GetBytes(
-                "{\"@context\":[],\"title\":\"T\",\"vendor:unknown\":{\"b\":2,\"a\":1}}");
+                /*lang=json,strict*/
+                                     "{\"@context\":[],\"title\":\"T\",\"vendor:unknown\":{\"b\":2,\"a\":1}}");
 
-            using WotDocument document = WotDocument.Parse(json);
+            using var document = WotDocument.Parse(json);
             using var output = new MemoryStream();
             document.Write(output);
 
@@ -134,14 +135,14 @@ namespace Opc.Ua.Types.Tests.Wot
                         SymbolicName = "MachineType",
                         DisplayName =
                         [
-                            new Opc.Ua.Export.LocalizedText
+                            new Export.LocalizedText
                             {
                                 Value = "MachineType"
                             }
                         ],
                         Description =
                         [
-                            new Opc.Ua.Export.LocalizedText
+                            new Export.LocalizedText
                             {
                                 Locale = "en",
                                 Value = "A test type."

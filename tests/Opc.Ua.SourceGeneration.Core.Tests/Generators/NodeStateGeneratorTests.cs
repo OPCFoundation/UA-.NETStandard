@@ -486,6 +486,76 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies DataTypeEncoding objects remain independent predefined
+        /// nodes when a NodeSet exporter authors a same-namespace
+        /// <c>ParentNodeId</c> pointing at the owning DataType. Absorbing the
+        /// encoding into the DataType child collection drops it from the
+        /// generated NodeManager and leaves the server TypeTree without the
+        /// encoding-to-DataType relationship required for structured values.
+        /// </summary>
+        [Test]
+        public void SameNamespaceEncodingNodesAreEmittedAsPredefinedNodes()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
+
+            Dictionary<string, string> files = GenerateFromNodeSet(
+                "SameNamespaceEncoding.NodeSet2.xml",
+                telemetry);
+
+            string code = files.Single(
+                kv => kv.Key.EndsWith(".NodeStates.ex.g.cs", StringComparison.Ordinal)).Value;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    code,
+                    Does.Contain("CreateMyDataType_Encoding_DefaultBinary"),
+                    "The Default Binary encoding factory must be emitted.");
+                Assert.That(
+                    code,
+                    Does.Contain("CreateMyDataType_Encoding_Default_JSON"),
+                    "The Default JSON encoding factory must be emitted.");
+                Assert.That(
+                    code,
+                    Does.Contain(
+                        "NodeState state = CreateMyDataType_Encoding_DefaultBinary(context);"),
+                    "The Default Binary encoding must be registered as a predefined node.");
+                Assert.That(
+                    code,
+                    Does.Contain(
+                        "NodeState state = CreateMyDataType_Encoding_Default_JSON(context);"),
+                    "The Default JSON encoding must be registered as a predefined node.");
+            });
+        }
+
+        [Test]
+        public void MethodArgumentDataTypesUseRuntimeNamespaceTable()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
+
+            Dictionary<string, string> files = GenerateFromNodeSet(
+                "MethodArgumentNamespace.NodeSet2.xml",
+                telemetry);
+
+            string code = files.Single(
+                kv => kv.Key.EndsWith(".NodeStates.ex.g.cs", StringComparison.Ordinal)).Value;
+            string factory = ExtractMethodBody(
+                code,
+                "CreateMyObjectType_DoWork_InputArguments");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    factory,
+                    Does.Contain(
+                        "DataType = global::Opc.Ua.NodeId.Create(100u, " +
+                        "global::MethodArguments.Namespaces.MethodArguments, " +
+                        "context.NamespaceUris)"));
+                Assert.That(factory, Does.Not.Contain("Variant.FromXml"));
+            });
+        }
+
         private static Dictionary<string, string> GenerateFromNodeSet(
             string nodeSetResource,
             ITelemetryContext telemetry)

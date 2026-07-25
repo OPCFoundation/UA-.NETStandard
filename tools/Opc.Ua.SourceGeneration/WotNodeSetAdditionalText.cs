@@ -92,7 +92,7 @@ namespace Opc.Ua.SourceGeneration
 
     /// <summary>
     /// Presents a WoT model input to the existing generator as an in-memory
-    /// NodeSet2 file, using the completed <see cref="Opc.Ua.Wot"/> converter
+    /// NodeSet2 file, using the completed <see cref="Wot"/> converter
     /// entirely in memory (no file or network I/O beyond the supplied
     /// <see cref="AdditionalText"/> content).
     /// </summary>
@@ -129,7 +129,7 @@ namespace Opc.Ua.SourceGeneration
             CancellationToken cancellationToken)
         {
             string sourcePath = source.Path;
-            var diagnostics = ImmutableArray.CreateBuilder<Diagnostic>();
+            ImmutableArray<Diagnostic>.Builder diagnostics = ImmutableArray.CreateBuilder<Diagnostic>();
 
             SourceText sourceText;
             try
@@ -230,7 +230,7 @@ namespace Opc.Ua.SourceGeneration
             }
             if (xml.Length > 0 && xml[0] == '\uFEFF')
             {
-                xml = xml.Substring(1);
+                xml = xml[1..];
             }
 
             var nodeSetText = new WotNodeSetAdditionalText(
@@ -316,10 +316,10 @@ namespace Opc.Ua.SourceGeneration
             }
             int line = 0;
             int character = 0;
-            if (lineNumber.HasValue && lineNumber.Value >= 0 && lineNumber.Value < text.Lines.Count)
+            if (lineNumber >= 0 && lineNumber.Value < text.Lines.Count)
             {
                 line = (int)lineNumber.Value;
-                if (bytePositionInLine.HasValue && bytePositionInLine.Value >= 0)
+                if (bytePositionInLine >= 0)
                 {
                     character = Math.Min((int)bytePositionInLine.Value, text.Lines[line].Span.Length);
                 }
@@ -343,14 +343,14 @@ namespace Opc.Ua.SourceGeneration
             {
                 if (name.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
                 {
-                    name = name.Substring(0, name.Length - suffix.Length);
+                    name = name[..^suffix.Length];
                     return System.IO.Path.Combine(directory, name + ".NodeSet2.xml");
                 }
             }
             const string plainJsonLd = ".jsonld";
             if (name.EndsWith(plainJsonLd, StringComparison.OrdinalIgnoreCase))
             {
-                name = name.Substring(0, name.Length - plainJsonLd.Length);
+                name = name[..^plainJsonLd.Length];
             }
             return System.IO.Path.Combine(directory, name + ".NodeSet2.xml");
         }

@@ -127,7 +127,7 @@ namespace Opc.Ua.Types.Tests.Wot
             char[] characters = json.ToCharArray();
             characters[index] = characters[index] == 'A' ? 'B' : 'A';
 
-            using WotDocument tampered = WotDocument.Parse(
+            using var tampered = WotDocument.Parse(
                 Encoding.UTF8.GetBytes(new string(characters)));
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(tampered);
 
@@ -149,7 +149,7 @@ namespace Opc.Ua.Types.Tests.Wot
             // authoritative value so the native projection now conflicts.
             string conflicted = json.Replace("1:MachineType", "1:Tampered", StringComparison.Ordinal);
 
-            using WotDocument document = WotDocument.Parse(Encoding.UTF8.GetBytes(conflicted));
+            using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(conflicted));
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
 
             Assert.That(
@@ -180,7 +180,7 @@ namespace Opc.Ua.Types.Tests.Wot
             string json = Encoding.UTF8.GetString(original.Utf8Json.ToArray());
             string withoutDigest = RemoveJsonStringProperty(json, "sha256");
 
-            using WotDocument document = WotDocument.Parse(Encoding.UTF8.GetBytes(withoutDigest));
+            using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(withoutDigest));
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
 
             Assert.That(result.Value, Is.Null);
@@ -198,7 +198,7 @@ namespace Opc.Ua.Types.Tests.Wot
             string json = Encoding.UTF8.GetString(original.Utf8Json.ToArray());
             string malformed = ReplaceJsonStringProperty(json, "sha256", "not-a-valid-digest");
 
-            using WotDocument document = WotDocument.Parse(Encoding.UTF8.GetBytes(malformed));
+            using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(malformed));
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
 
             Assert.That(result.Value, Is.Null);
@@ -213,7 +213,7 @@ namespace Opc.Ua.Types.Tests.Wot
             byte[] payload = Encoding.UTF8.GetBytes("this is not a valid NodeSet2 XML document at all");
             string json = BuildEnvelopeJson(payload);
 
-            using WotDocument document = WotDocument.Parse(Encoding.UTF8.GetBytes(json));
+            using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(json));
 
             WotConversionResult<UANodeSet> result = null;
             Assert.That(
@@ -234,7 +234,7 @@ namespace Opc.Ua.Types.Tests.Wot
             string json = Encoding.UTF8.GetString(original.Utf8Json.ToArray());
             string tampered = ReplaceJsonStringProperty(json, "encoding", "base64url");
 
-            using WotDocument document = WotDocument.Parse(Encoding.UTF8.GetBytes(tampered));
+            using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(tampered));
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
 
             Assert.That(result.Value, Is.Null);
@@ -291,8 +291,12 @@ namespace Opc.Ua.Types.Tests.Wot
             return "{\"@type\":\"tm:ThingModel\",\"uav:nodeSet\":{" +
                 "\"@type\":\"uav:nodeSet\",\"contentType\":\"application/opcua-nodeset+xml\"," +
                 "\"encoding\":\"base64\"," +
-                "\"sha256\":\"" + ToLowerHexString(digest) + "\"," +
-                "\"data\":\"" + Convert.ToBase64String(nodeSetBytes) + "\"}}";
+                "\"sha256\":\"" +
+                ToLowerHexString(digest) +
+                "\"," +
+                "\"data\":\"" +
+                Convert.ToBase64String(nodeSetBytes) +
+                "\"}}";
         }
 
         private static byte[] ComputeSha256(byte[] data)
@@ -300,7 +304,7 @@ namespace Opc.Ua.Types.Tests.Wot
 #if NET6_0_OR_GREATER
             return SHA256.HashData(data);
 #else
-            using SHA256 sha256 = SHA256.Create();
+            using var sha256 = SHA256.Create();
             return sha256.ComputeHash(data);
 #endif
         }

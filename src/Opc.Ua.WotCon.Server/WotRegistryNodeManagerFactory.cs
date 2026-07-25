@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using Opc.Ua.Server;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
@@ -35,13 +37,15 @@ using Opc.Ua.WotCon.Server.Registry;
 namespace Opc.Ua.WotCon.Server
 {
     /// <summary>
-    /// <see cref="INodeManagerFactory"/> that produces the stable
+    /// <see cref="IAsyncNodeManagerFactory"/> that produces the stable
     /// <see cref="WotRegistryNodeManager"/> configured with the shared registry
     /// service and materialization coordinator.
     /// </summary>
-    public sealed class WotRegistryNodeManagerFactory : INodeManagerFactory
+    public sealed class WotRegistryNodeManagerFactory : IAsyncNodeManagerFactory
     {
-        /// <summary>Creates a new factory.</summary>
+        /// <summary>
+        /// Creates a new factory.
+        /// </summary>
         public WotRegistryNodeManagerFactory(
             WotRegistryServerOptions options,
             IWotRegistryService registry,
@@ -60,12 +64,22 @@ namespace Opc.Ua.WotCon.Server
         };
 
         /// <inheritdoc/>
-        public INodeManager Create(IServerInternal server, ApplicationConfiguration configuration)
+        public ValueTask<IAsyncNodeManager> CreateAsync(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            CancellationToken cancellationToken = default)
         {
-#pragma warning disable CA2000 // Ownership transfers to the MasterNodeManager.
-            return new WotRegistryNodeManager(
-                server, configuration, m_options, m_registry, m_coordinator).SyncNodeManager;
+            // CA2000 cannot model ownership transfer through ValueTask<IAsyncNodeManager>.
+            // TODO: Remove this suppression when CA2000 recognizes factory ownership transfer.
+#pragma warning disable CA2000
+            IAsyncNodeManager nodeManager = new WotRegistryNodeManager(
+                server,
+                configuration,
+                m_options,
+                m_registry,
+                m_coordinator);
 #pragma warning restore CA2000
+            return new ValueTask<IAsyncNodeManager>(nodeManager);
         }
 
         private readonly WotRegistryServerOptions m_options;

@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -27,7 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Collections.Generic;
+using System.Xml;
 using NUnit.Framework;
+using Opc.Ua.Encoders;
 using Opc.Ua.WotCon.Server.Materialization;
 
 namespace Opc.Ua.WotCon.Tests.Materialization
@@ -43,7 +46,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     {
         private static IServiceMessageContext Context => ServiceMessageContext.CreateEmpty(null!);
 
-        private static ArrayOf<Variant> Args(params Variant[] values) => values;
+        private static ArrayOf<Variant> Args(params Variant[] values)
+        {
+            return values;
+        }
 
         [Test]
         public void EmptyArgumentsDecodeToFullRefreshWithDefaults()
@@ -53,7 +59,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
             Assert.That(ServiceResult.IsGood(status), Is.True);
             Assert.That(request.Selection, Is.Empty);
-            Assert.That(request.ExpectedGeneration, Is.EqualTo(0u));
+            Assert.That(request.ExpectedGeneration, Is.Zero);
             Assert.That(request.RequestId, Is.EqualTo(string.Empty));
             Assert.That(request.Options, Is.Not.Null);
         }
@@ -76,7 +82,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 IncludeDependents = true
             };
             ArrayOf<Variant> input = Args(
-                new Variant(new ExtensionObject[] { new ExtensionObject(selector) }),
+                new Variant(new ExtensionObject[] { new(selector) }),
                 new Variant(new ExtensionObject(options)),
                 new Variant(7u),
                 new Variant("req-42"));
@@ -195,7 +201,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 encoded = encoder.CloseAndReturnBuffer()!;
             }
             var extension = new ExtensionObject(
-                Opc.Ua.WotCon.DataTypeIds.WoTResourceSelectorDataType, ByteString.From(encoded));
+                DataTypeIds.WoTResourceSelectorDataType, ByteString.From(encoded));
             ArrayOf<Variant> input = Args(new Variant(new[] { extension }));
 
             ServiceResult status = WotRefreshArguments.TryDecode(
@@ -204,6 +210,106 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(ServiceResult.IsGood(status), Is.True);
             Assert.That(request.Selection, Has.Length.EqualTo(1));
             Assert.That(request.Selection[0].ResourceId, Is.EqualTo("encoded"));
+        }
+
+        [Test]
+        public void DecodesDynamicStructureOptionsBody()
+        {
+            Structure options = CreateDynamicOptions(
+                DataTypeIds.WoTRefreshOptionsDataType,
+                ObjectIds.WoTRefreshOptionsDataType_Encoding_DefaultBinary);
+            ArrayOf<Variant> input = Args(
+                Variant.Null,
+                new Variant(new ExtensionObject(
+                    ObjectIds.WoTRefreshOptionsDataType_Encoding_DefaultBinary,
+                    options)));
+
+            ServiceResult status = WotRefreshArguments.TryDecode(
+                input,
+                Context,
+                out WotRefreshRequest request);
+
+            Assert.That(ServiceResult.IsGood(status), Is.True);
+            Assert.That(request.Options.Atomicity, Is.EqualTo(WoTAtomicityEnum.PerGroup));
+            Assert.That(request.Options.Force, Is.True);
+            Assert.That(request.Options.DryRun, Is.True);
+            Assert.That(request.Options.IncludeDependents, Is.True);
+            Assert.That(request.Options.DeletePolicy, Is.EqualTo(WoTDeletePolicyEnum.Retire));
+            Assert.That(request.Options.MaxParallelism, Is.EqualTo(4u));
+            Assert.That(request.Options.Timeout, Is.EqualTo(2.5));
+        }
+
+        [Test]
+        public void RejectsDynamicStructureWithDifferentTypeIdentity()
+        {
+            var wrongTypeId = new ExpandedNodeId(
+                9001u,
+                0,
+                "urn:opcfoundation.org:UA:WotAggregation:WrongType",
+                0);
+            var wrongEncodingId = new ExpandedNodeId(
+                9002u,
+                0,
+                "urn:opcfoundation.org:UA:WotAggregation:WrongType",
+                0);
+            Structure options = CreateDynamicOptions(wrongTypeId, wrongEncodingId);
+            ArrayOf<Variant> input = Args(
+                Variant.Null,
+                new Variant(new ExtensionObject(wrongEncodingId, options)));
+
+            ServiceResult status = WotRefreshArguments.TryDecode(input, Context, out _);
+
+            Assert.That(status.StatusCode.Code, Is.EqualTo(StatusCodes.BadInvalidArgument));
+        }
+
+        private static Structure CreateDynamicOptions(
+            ExpandedNodeId typeId,
+            ExpandedNodeId binaryEncodingId)
+        {
+            StructureField[] fields =
+            [
+                new StructureField { Name = "Atomicity", DataType = Ua.DataTypeIds.Int32 },
+                new StructureField { Name = "Force", DataType = Ua.DataTypeIds.Boolean },
+                new StructureField { Name = "DryRun", DataType = Ua.DataTypeIds.Boolean },
+                new StructureField { Name = "IncludeDependents", DataType = Ua.DataTypeIds.Boolean },
+                new StructureField { Name = "DeletePolicy", DataType = Ua.DataTypeIds.Int32 },
+                new StructureField { Name = "MaxParallelism", DataType = Ua.DataTypeIds.UInt32 },
+                new StructureField { Name = "Timeout", DataType = Ua.DataTypeIds.Double }
+            ];
+            var definition = new StructureDefinition
+            {
+                BaseDataType = Ua.DataTypeIds.Structure,
+                StructureType = StructureType.Structure,
+                Fields = fields
+            };
+            var fieldTypes = new Dictionary<string, BuiltInType>
+            {
+                ["Atomicity"] = BuiltInType.Enumeration,
+                ["Force"] = BuiltInType.Boolean,
+                ["DryRun"] = BuiltInType.Boolean,
+                ["IncludeDependents"] = BuiltInType.Boolean,
+                ["DeletePolicy"] = BuiltInType.Enumeration,
+                ["MaxParallelism"] = BuiltInType.UInt32,
+                ["Timeout"] = BuiltInType.Double
+            };
+            return new Structure(
+                new XmlQualifiedName(
+                    nameof(WoTRefreshOptionsDataType),
+                    Namespaces.WotCon),
+                typeId,
+                binaryEncodingId,
+                ExpandedNodeId.Null,
+                definition,
+                fieldTypes)
+            {
+                ["Atomicity"] = Variant.From(WoTAtomicityEnum.PerGroup),
+                ["Force"] = Variant.From(true),
+                ["DryRun"] = Variant.From(true),
+                ["IncludeDependents"] = Variant.From(true),
+                ["DeletePolicy"] = Variant.From(WoTDeletePolicyEnum.Retire),
+                ["MaxParallelism"] = Variant.From(4u),
+                ["Timeout"] = Variant.From(2.5)
+            };
         }
     }
 }

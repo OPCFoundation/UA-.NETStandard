@@ -32,7 +32,6 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Globalization;
 using System.IO;
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
@@ -99,13 +98,15 @@ namespace Opc.Ua.WotCon.Server.Registry
             ImmutableSortedDictionary<string, string> registryLabels = ToLabels(manifest.RegistryLabels);
             long generation = manifest.Generation;
 
-            var groups = ImmutableDictionary.CreateBuilder<string, WotResourceGroup>();
+            ImmutableDictionary<string, WotResourceGroup>.Builder groups =
+                ImmutableDictionary.CreateBuilder<string, WotResourceGroup>();
             if (manifest.Groups is not null)
             {
                 foreach (GroupDto groupDto in manifest.Groups)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    var resources = ImmutableDictionary.CreateBuilder<string, WotResource>();
+                    ImmutableDictionary<string, WotResource>.Builder resources =
+                        ImmutableDictionary.CreateBuilder<string, WotResource>();
                     if (groupDto.Resources is not null)
                     {
                         foreach (ResourceDto resourceDto in groupDto.Resources)
@@ -196,7 +197,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             ResourceDto dto,
             CancellationToken cancellationToken)
         {
-            var versions = ImmutableArray.CreateBuilder<WotResourceVersion>();
+            ImmutableArray<WotResourceVersion>.Builder versions = ImmutableArray.CreateBuilder<WotResourceVersion>();
             if (dto.Versions is not null)
             {
                 foreach (VersionDto v in dto.Versions)
@@ -234,7 +235,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 loadState: (WoTLoadStateEnum)dto.LoadState,
                 validation: FromDto(dto.Validation),
                 diagnostics: dto.Diagnostics is null
-                    ? ImmutableArray<string>.Empty
+                    ? []
                     : ImmutableArray.Create(dto.Diagnostics),
                 epoch: dto.Epoch,
                 refreshGeneration: dto.RefreshGeneration,
@@ -266,7 +267,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                     Description = group.Description,
                     Epoch = group.Epoch,
                     Labels = FromLabels(group.Labels),
-                    Resources = resources.Count == 0 ? null : resources.ToArray()
+                    Resources = resources.Count == 0 ? null : [.. resources]
                 });
             }
             return new ManifestDto
@@ -274,7 +275,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 SchemaVersion = CurrentSchemaVersion,
                 Generation = snapshot.Generation,
                 RegistryLabels = FromLabels(snapshot.Labels),
-                Groups = groups.Count == 0 ? null : groups.ToArray()
+                Groups = groups.Count == 0 ? null : [.. groups]
             };
         }
 
@@ -388,7 +389,9 @@ namespace Opc.Ua.WotCon.Server.Registry
         }
 
         private string BlobPath(string digestHex)
-            => Path.Combine(m_blobsFolder, digestHex + ".bin");
+        {
+            return Path.Combine(m_blobsFolder, digestHex + ".bin");
+        }
 
         private void PruneOrphanBlobs(HashSet<string> referenced)
         {
@@ -554,7 +557,9 @@ namespace Opc.Ua.WotCon.Server.Registry
         }
 
         private static string FormatDate(DateTime value)
-            => value.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture);
+        {
+            return value.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture);
+        }
 
         private static DateTime ParseDate(string? value)
         {
@@ -673,7 +678,5 @@ namespace Opc.Ua.WotCon.Server.Registry
     [JsonSerializable(typeof(FileWotRegistryStore.ResourceDto))]
     [JsonSerializable(typeof(FileWotRegistryStore.VersionDto))]
     [JsonSerializable(typeof(FileWotRegistryStore.ValidationDto))]
-    internal sealed partial class WotRegistryStoreJson : JsonSerializerContext
-    {
-    }
+    internal sealed partial class WotRegistryStoreJson : JsonSerializerContext;
 }

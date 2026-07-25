@@ -140,7 +140,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         }
 
         [Test]
-        public async Task RefreshCompletedEvent_DeliversPopulatedSummaryFieldsThroughNotifierChain()
+        public async Task RefreshCompletedEventDeliversPopulatedSummaryFieldsThroughNotifierChain()
         {
             NodeId registryNodeId = ExpandedNodeId.ToNodeId(
                 WotConModel.ObjectIds.WoTRegistry, m_server.CurrentInstance.NamespaceUris);
@@ -181,7 +181,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         }
 
         [Test]
-        public async Task ResourceEvent_DeliversPopulatedIdentityFieldsThroughNotifierChain()
+        public async Task ResourceEventDeliversPopulatedIdentityFieldsThroughNotifierChain()
         {
             NodeId registryNodeId = ExpandedNodeId.ToNodeId(
                 WotConModel.ObjectIds.WoTRegistry, m_server.CurrentInstance.NamespaceUris);
@@ -224,7 +224,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         }
 
         [Test]
-        public async Task ValidationFailureEvent_DeliversValidationOutcomeThroughNotifierChain()
+        public async Task ValidationFailureEventDeliversValidationOutcomeThroughNotifierChain()
         {
             NodeId registryNodeId = ExpandedNodeId.ToNodeId(
                 WotConModel.ObjectIds.WoTRegistry, m_server.CurrentInstance.NamespaceUris);
@@ -386,7 +386,8 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 acks = response.AvailableSequenceNumbers.ToArrayOf(
                     sequenceNumber => new SubscriptionAcknowledgement
                     {
-                        SubscriptionId = subscriptionId, SequenceNumber = sequenceNumber
+                        SubscriptionId = subscriptionId,
+                        SequenceNumber = sequenceNumber
                     });
 
                 if (response.NotificationMessage is { } message)

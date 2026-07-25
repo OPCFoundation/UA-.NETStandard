@@ -38,13 +38,19 @@ namespace Opc.Ua.Wot
     /// </summary>
     public enum WotResolutionKind
     {
-        /// <summary>A JSON-LD <c>@context</c> document.</summary>
+        /// <summary>
+        /// A JSON-LD <c>@context</c> document.
+        /// </summary>
         Context,
 
-        /// <summary>An external DataSchema referenced by <c>uav:externalSchema</c>.</summary>
+        /// <summary>
+        /// An external DataSchema referenced by <c>uav:externalSchema</c>.
+        /// </summary>
         Schema,
 
-        /// <summary>A referenced Thing Description or Thing Model document.</summary>
+        /// <summary>
+        /// A referenced Thing Description or Thing Model document.
+        /// </summary>
         Thing
     }
 
@@ -53,16 +59,24 @@ namespace Opc.Ua.Wot
     /// </summary>
     public sealed class WotResolverOptions
     {
-        /// <summary>Gets or sets the maximum resolution depth.</summary>
+        /// <summary>
+        /// Gets or sets the maximum resolution depth.
+        /// </summary>
         public int MaxDepth { get; set; } = 16;
 
-        /// <summary>Gets or sets the maximum number of documents resolved.</summary>
+        /// <summary>
+        /// Gets or sets the maximum number of documents resolved.
+        /// </summary>
         public int MaxDocuments { get; set; } = 256;
 
-        /// <summary>Gets or sets the maximum accepted size of a single resolved document.</summary>
+        /// <summary>
+        /// Gets or sets the maximum accepted size of a single resolved document.
+        /// </summary>
         public int MaxDocumentBytes { get; set; } = 16 * 1024 * 1024;
 
-        /// <summary>Gets or sets the maximum total size of all resolved documents.</summary>
+        /// <summary>
+        /// Gets or sets the maximum total size of all resolved documents.
+        /// </summary>
         public long MaxTotalBytes { get; set; } = 128L * 1024 * 1024;
 
         /// <summary>
@@ -112,20 +126,30 @@ namespace Opc.Ua.Wot
             ContentType = contentType;
         }
 
-        /// <summary>Gets a value indicating whether the document was found.</summary>
+        /// <summary>
+        /// Gets a value indicating whether the document was found.
+        /// </summary>
         public bool Found { get; }
 
-        /// <summary>Gets the resolved UTF-8 document bytes.</summary>
+        /// <summary>
+        /// Gets the resolved UTF-8 document bytes.
+        /// </summary>
         public ReadOnlyMemory<byte> Content { get; }
 
-        /// <summary>Gets the media type of the resolved document, if known.</summary>
+        /// <summary>
+        /// Gets the media type of the resolved document, if known.
+        /// </summary>
         public string? ContentType { get; }
 
-        /// <summary>A shared result indicating the document was not found.</summary>
+        /// <summary>
+        /// A shared result indicating the document was not found.
+        /// </summary>
         public static WotResolverResult NotFound { get; } =
             new WotResolverResult(false, ReadOnlyMemory<byte>.Empty, null);
 
-        /// <summary>Creates a successful result from resolved bytes.</summary>
+        /// <summary>
+        /// Creates a successful result from resolved bytes.
+        /// </summary>
         /// <param name="content">The resolved UTF-8 document bytes.</param>
         /// <param name="contentType">The media type of the document, if known.</param>
         public static WotResolverResult FromBytes(
@@ -142,7 +166,9 @@ namespace Opc.Ua.Wot
     /// </summary>
     public interface IWotContextResolver
     {
-        /// <summary>Resolves a context document by reference.</summary>
+        /// <summary>
+        /// Resolves a context document by reference.
+        /// </summary>
         /// <param name="reference">The context reference (absolute or relative IRI).</param>
         /// <param name="context">The active resolution context.</param>
         /// <returns>The resolution result.</returns>
@@ -156,7 +182,9 @@ namespace Opc.Ua.Wot
     /// </summary>
     public interface IWotSchemaResolver
     {
-        /// <summary>Resolves a schema document by reference.</summary>
+        /// <summary>
+        /// Resolves a schema document by reference.
+        /// </summary>
         /// <param name="reference">The schema reference (absolute or relative IRI or path).</param>
         /// <param name="context">The active resolution context.</param>
         /// <returns>The resolution result.</returns>
@@ -170,7 +198,9 @@ namespace Opc.Ua.Wot
     /// </summary>
     public interface IWotThingResolver
     {
-        /// <summary>Resolves a referenced TD/TM document by reference.</summary>
+        /// <summary>
+        /// Resolves a referenced TD/TM document by reference.
+        /// </summary>
         /// <param name="reference">The document reference (absolute or relative IRI).</param>
         /// <param name="context">The active resolution context.</param>
         /// <returns>The resolution result.</returns>
@@ -184,7 +214,9 @@ namespace Opc.Ua.Wot
     public sealed class NullWotResolver
         : IWotContextResolver, IWotSchemaResolver, IWotThingResolver
     {
-        /// <summary>The shared instance.</summary>
+        /// <summary>
+        /// The shared instance.
+        /// </summary>
         public static NullWotResolver Instance { get; } = new NullWotResolver();
 
         /// <inheritdoc/>
@@ -219,25 +251,35 @@ namespace Opc.Ua.Wot
         /// <param name="options">The bounded resolution options.</param>
         public WotResolutionContext(WotResolverOptions? options = null)
         {
-            m_options = options ?? new WotResolverOptions();
-            m_options.Validate();
+            Options = options ?? new WotResolverOptions();
+            Options.Validate();
             m_active = new HashSet<string>(StringComparer.Ordinal);
-            m_diagnostics = new List<WotDiagnostic>();
+            m_diagnostics = [];
         }
 
-        /// <summary>Gets the bounded resolution options.</summary>
-        public WotResolverOptions Options => m_options;
+        /// <summary>
+        /// Gets the bounded resolution options.
+        /// </summary>
+        public WotResolverOptions Options { get; }
 
-        /// <summary>Gets the current resolution depth.</summary>
+        /// <summary>
+        /// Gets the current resolution depth.
+        /// </summary>
         public int Depth => m_depth;
 
-        /// <summary>Gets the number of documents entered so far.</summary>
+        /// <summary>
+        /// Gets the number of documents entered so far.
+        /// </summary>
         public int DocumentCount => m_documentCount;
 
-        /// <summary>Gets the cumulative resolved byte count.</summary>
+        /// <summary>
+        /// Gets the cumulative resolved byte count.
+        /// </summary>
         public long TotalBytes => m_totalBytes;
 
-        /// <summary>Gets the diagnostics accumulated during resolution.</summary>
+        /// <summary>
+        /// Gets the diagnostics accumulated during resolution.
+        /// </summary>
         public IReadOnlyList<WotDiagnostic> Diagnostics => m_diagnostics;
 
         /// <summary>
@@ -250,6 +292,7 @@ namespace Opc.Ua.Wot
         /// <param name="reference">The document reference.</param>
         /// <param name="diagnostic">The blocking diagnostic when the method returns <c>false</c>.</param>
         /// <returns><c>true</c> when resolution may proceed.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public bool TryEnter(
             WotResolutionKind kind,
             string reference,
@@ -272,22 +315,22 @@ namespace Opc.Ua.Wot
                 return false;
             }
 
-            if (m_depth >= m_options.MaxDepth)
+            if (m_depth >= Options.MaxDepth)
             {
                 diagnostic = Add(
                     WotDiagnosticSeverity.Error,
                     WotDiagnosticCode.ResolverDepthExceeded,
-                    $"External {kind} resolution exceeded the maximum depth of {m_options.MaxDepth}.",
+                    $"External {kind} resolution exceeded the maximum depth of {Options.MaxDepth}.",
                     location);
                 return false;
             }
 
-            if (m_documentCount >= m_options.MaxDocuments)
+            if (m_documentCount >= Options.MaxDocuments)
             {
                 diagnostic = Add(
                     WotDiagnosticSeverity.Error,
                     WotDiagnosticCode.ResolverLimitExceeded,
-                    $"External resolution exceeded the maximum document count of {m_options.MaxDocuments}.",
+                    $"External resolution exceeded the maximum document count of {Options.MaxDocuments}.",
                     location);
                 return false;
             }
@@ -304,6 +347,7 @@ namespace Opc.Ua.Wot
         /// successful <see cref="TryEnter(WotResolutionKind, string, out WotDiagnostic?)"/>.
         /// </summary>
         /// <param name="reference">The document reference.</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public void Leave(string reference)
         {
             if (reference is null)
@@ -327,22 +371,23 @@ namespace Opc.Ua.Wot
         public bool TryAddBytes(string reference, int byteCount, out WotDiagnostic? diagnostic)
         {
             var location = new WotLocation(reference: reference);
-            if (byteCount > m_options.MaxDocumentBytes)
+            if (byteCount > Options.MaxDocumentBytes)
             {
                 diagnostic = Add(
                     WotDiagnosticSeverity.Error,
                     WotDiagnosticCode.ResolverLimitExceeded,
-                    $"Resolved document '{reference}' of {byteCount} bytes exceeds the per-document limit of {m_options.MaxDocumentBytes}.",
+                    $"Resolved document '{reference}' of {byteCount} bytes exceeds the " +
+                    $"per-document limit of {Options.MaxDocumentBytes}.",
                     location);
                 return false;
             }
 
-            if (m_totalBytes + byteCount > m_options.MaxTotalBytes)
+            if (m_totalBytes + byteCount > Options.MaxTotalBytes)
             {
                 diagnostic = Add(
                     WotDiagnosticSeverity.Error,
                     WotDiagnosticCode.ResolverLimitExceeded,
-                    $"Cumulative resolved size exceeded the total limit of {m_options.MaxTotalBytes} bytes.",
+                    $"Cumulative resolved size exceeded the total limit of {Options.MaxTotalBytes} bytes.",
                     location);
                 return false;
             }
@@ -363,7 +408,6 @@ namespace Opc.Ua.Wot
             return diagnostic;
         }
 
-        private readonly WotResolverOptions m_options;
         private readonly HashSet<string> m_active;
         private readonly List<WotDiagnostic> m_diagnostics;
         private int m_depth;

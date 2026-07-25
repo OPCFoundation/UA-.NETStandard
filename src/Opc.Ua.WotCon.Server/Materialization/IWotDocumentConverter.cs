@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using Opc.Ua.Export;
 using Opc.Ua.Wot;
@@ -41,21 +40,27 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// </summary>
     public sealed class WotConversionOutput
     {
-        /// <summary>Initializes a successful or failed conversion output.</summary>
+        /// <summary>
+        /// Initializes a successful or failed conversion output.
+        /// </summary>
         public WotConversionOutput(
             UANodeSet? nodeSet,
             ImmutableArray<string> errors,
             ExpandedNodeId? rootNodeId = null)
         {
             NodeSet = nodeSet;
-            Errors = errors.IsDefault ? ImmutableArray<string>.Empty : errors;
+            Errors = errors.IsDefault ? [] : errors;
             RootNodeId = rootNodeId;
         }
 
-        /// <summary>Gets the produced NodeSet2, or <c>null</c> on failure.</summary>
+        /// <summary>
+        /// Gets the produced NodeSet2, or <c>null</c> on failure.
+        /// </summary>
         public UANodeSet? NodeSet { get; }
 
-        /// <summary>Gets the conversion error messages.</summary>
+        /// <summary>
+        /// Gets the conversion error messages.
+        /// </summary>
         public ImmutableArray<string> Errors { get; }
 
         /// <summary>
@@ -67,19 +72,29 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// </summary>
         public ExpandedNodeId? RootNodeId { get; }
 
-        /// <summary>Gets whether the conversion succeeded.</summary>
+        /// <summary>
+        /// Gets whether the conversion succeeded.
+        /// </summary>
         public bool Succeeded => NodeSet is not null && Errors.IsEmpty;
 
-        /// <summary>Creates a successful output.</summary>
+        /// <summary>
+        /// Creates a successful output.
+        /// </summary>
         public static WotConversionOutput Success(UANodeSet nodeSet)
-            => new WotConversionOutput(
-                nodeSet,
-                ImmutableArray<string>.Empty,
-                WotNodeSetConverter.TrySelectProjectionRoot(nodeSet));
+        {
+            return new WotConversionOutput(
+                        nodeSet,
+                        [],
+                        WotNodeSetConverter.TrySelectProjectionRoot(nodeSet));
+        }
 
-        /// <summary>Creates a failed output.</summary>
+        /// <summary>
+        /// Creates a failed output.
+        /// </summary>
         public static WotConversionOutput Failure(params string[] errors)
-            => new WotConversionOutput(null, errors.ToImmutableArray());
+        {
+            return new WotConversionOutput(null, [.. errors]);
+        }
     }
 
     /// <summary>
@@ -90,7 +105,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// </summary>
     public interface IWotDocumentConverter
     {
-        /// <summary>Converts a resource's default document to a NodeSet2 model.</summary>
+        /// <summary>
+        /// Converts a resource's default document to a NodeSet2 model.
+        /// </summary>
         WotConversionOutput Convert(
             WotResource resource,
             ReadOnlyMemory<byte> content,
@@ -102,7 +119,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// </summary>
     public sealed class WotNodeSetDocumentConverter : IWotDocumentConverter
     {
-        /// <summary>Initializes a new converter with the supplied options.</summary>
+        /// <summary>
+        /// Initializes a new converter with the supplied options.
+        /// </summary>
         public WotNodeSetDocumentConverter(WotNodeSetConverterOptions? options = null)
         {
             m_options = options ?? new WotNodeSetConverterOptions();
@@ -116,7 +135,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         {
             try
             {
-                using WotDocument document = WotDocument.Parse(content, m_options);
+                using var document = WotDocument.Parse(content, m_options);
                 var resolver = new SnapshotThingResolver(snapshot);
                 // One resolution context per top-level conversion, seeded from
                 // the configured converter options, so depth/document/byte
@@ -125,7 +144,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 var resolution = new WotResolutionContext(m_options.ToResolverOptions());
                 WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(
                     document, m_options, resolver, resolution);
-                var errors = ImmutableArray.CreateBuilder<string>();
+                ImmutableArray<string>.Builder errors = ImmutableArray.CreateBuilder<string>();
                 foreach (WotDiagnostic diagnostic in result.Diagnostics)
                 {
                     if (diagnostic.Severity == WotDiagnosticSeverity.Error)
@@ -143,7 +162,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
                 return new WotConversionOutput(
                     result.Value,
-                    ImmutableArray<string>.Empty,
+                    [],
                     WotNodeSetConverter.TrySelectProjectionRoot(result.Value));
             }
             catch (Exception ex) when (ex is System.Text.Json.JsonException or FormatException)

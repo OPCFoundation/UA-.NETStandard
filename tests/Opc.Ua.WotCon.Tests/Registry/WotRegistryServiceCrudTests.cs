@@ -43,7 +43,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
     public sealed class WotRegistryServiceCrudTests
     {
         [Test]
-        public async Task TryCreateGroup_CreatesThenFailsOnDuplicate()
+        public async Task TryCreateGroupCreatesThenFailsOnDuplicate()
         {
             using var service = new WotRegistryService();
 
@@ -58,7 +58,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public async Task DeleteGroup_RemovesGroupAndResources()
+        public async Task DeleteGroupRemovesGroupAndResources()
         {
             using var service = new WotRegistryService();
             await service.UpsertResourceAsync(new WotUpsertResourceRequest
@@ -77,7 +77,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public async Task DeleteGroup_WithWrongEpoch_Rejected()
+        public async Task DeleteGroupWithWrongEpochRejected()
         {
             using var service = new WotRegistryService();
             WotResourceGroup group = await service.GetOrCreateGroupAsync(
@@ -91,7 +91,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public async Task GetOrCreateResource_CreatesPlaceholderThenReturnsExisting()
+        public async Task GetOrCreateResourceCreatesPlaceholderThenReturnsExisting()
         {
             using var service = new WotRegistryService();
 
@@ -108,7 +108,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public async Task TryCreateResource_FailsWhenResourceExists()
+        public async Task TryCreateResourceFailsWhenResourceExists()
         {
             using var service = new WotRegistryService();
             await service.TryCreateResourceAsync("sensors", "a", WoTDocumentKindEnum.ThingDescription);
@@ -120,7 +120,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public async Task Validate_ValidDocument_ReportsSuccess()
+        public async Task ValidateValidDocumentReportsSuccess()
         {
             using var service = new WotRegistryService();
             await service.UpsertResourceAsync(new WotUpsertResourceRequest
@@ -141,7 +141,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public async Task Validate_InvalidDocument_ReportsFailure()
+        public async Task ValidateInvalidDocumentReportsFailure()
         {
             using var service = new WotRegistryService();
             await service.UpsertResourceAsync(new WotUpsertResourceRequest
@@ -158,7 +158,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public void Validate_NoDefaultVersion_Throws()
+        public void ValidateNoDefaultVersionThrows()
         {
             using var service = new WotRegistryService();
             _ = service.TryCreateResourceAsync(

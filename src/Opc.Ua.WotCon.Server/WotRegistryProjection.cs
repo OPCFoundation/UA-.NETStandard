@@ -71,6 +71,7 @@ namespace Opc.Ua.WotCon.Server
         /// and wires its Labels (AttributesType) container, and performs the
         /// first reconcile.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public async ValueTask AttachAsync(BaseObjectState registryNode, CancellationToken ct)
         {
             m_registryNode = registryNode ?? throw new ArgumentNullException(nameof(registryNode));
@@ -208,8 +209,6 @@ namespace Opc.Ua.WotCon.Server
             m_gate.Dispose();
         }
 
-        // ---- group nodes -------------------------------------------------
-
         private async ValueTask<GroupEntry> CreateGroupNodeAsync(
             WotResourceGroup group, CancellationToken ct)
         {
@@ -227,35 +226,26 @@ namespace Opc.Ua.WotCon.Server
                 new QualifiedName(group.GroupId, m_modelNs), new LocalizedText(group.Name),
                 assignNodeIds: false);
 
-            node.AddCreateResource(m_manager.SystemContext);
-            node.AddGetOrCreateResource(m_manager.SystemContext);
-            node.AddDelete(m_manager.SystemContext);
-            node.AddXid(m_manager.SystemContext);
-            node.AddEpoch(m_manager.SystemContext);
-            node.AddName(m_manager.SystemContext);
-            node.AddDescription(m_manager.SystemContext);
-            node.AddCreatedAt(m_manager.SystemContext);
-            node.AddModifiedAt(m_manager.SystemContext);
-            node.AddLabels(m_manager.SystemContext);
+            node.AddCreateResource(m_manager.SystemContext)
+                .AddGetOrCreateResource(m_manager.SystemContext)
+                .AddDelete(m_manager.SystemContext)
+                .AddXid(m_manager.SystemContext)
+                .AddEpoch(m_manager.SystemContext)
+                .AddName(m_manager.SystemContext)
+                .AddDescription(m_manager.SystemContext)
+                .AddCreatedAt(m_manager.SystemContext)
+                .AddModifiedAt(m_manager.SystemContext)
+                .AddLabels(m_manager.SystemContext);
             node.EventNotifier = EventNotifiers.SubscribeToEvents;
 
             string groupId = group.GroupId;
             WoTDocumentKindEnum kind = group.Kind;
-            if (node.CreateResource is not null)
-            {
-                node.CreateResource.OnCallMethod2Async =
+            node.CreateResource?.OnCallMethod2Async =
                     (c, m, o, i, ot, t) => OnCreateResourceAsync(groupId, kind, c, i, ot, t);
-            }
-            if (node.GetOrCreateResource is not null)
-            {
-                node.GetOrCreateResource.OnCallMethod2Async =
+            node.GetOrCreateResource?.OnCallMethod2Async =
                     (c, m, o, i, ot, t) => OnGetOrCreateResourceAsync(groupId, kind, c, i, ot, t);
-            }
-            if (node.Delete is not null)
-            {
-                node.Delete.OnCallMethod2Async =
+            node.Delete?.OnCallMethod2Async =
                     (c, m, o, i, ot, t) => OnDeleteGroupAsync(groupId, c, i, t);
-            }
             WireLabelsContainer(
                 node.Labels,
                 (c, i, t) => OnAddGroupLabelAsync(groupId, c, i, t),
@@ -305,8 +295,6 @@ namespace Opc.Ua.WotCon.Server
             m_groups.Remove(groupId);
         }
 
-        // ---- resource nodes ----------------------------------------------
-
         private async ValueTask<ResourceEntry> CreateResourceNodeAsync(
             GroupEntry group, WotResource resource, CancellationToken ct)
         {
@@ -325,15 +313,15 @@ namespace Opc.Ua.WotCon.Server
                 new LocalizedText(resource.Name), assignNodeIds: false);
 
             // Optional xRegistry registry metadata children.
-            node.AddVersionId(m_manager.SystemContext);
-            node.AddFormat(m_manager.SystemContext);
-            node.AddContentType(m_manager.SystemContext);
-            node.AddXid(m_manager.SystemContext);
-            node.AddEpoch(m_manager.SystemContext);
-            node.AddName(m_manager.SystemContext);
-            node.AddDescription(m_manager.SystemContext);
-            node.AddCreatedAt(m_manager.SystemContext);
-            node.AddModifiedAt(m_manager.SystemContext);
+            node.AddVersionId(m_manager.SystemContext)
+                .AddFormat(m_manager.SystemContext)
+                .AddContentType(m_manager.SystemContext)
+                .AddXid(m_manager.SystemContext)
+                .AddEpoch(m_manager.SystemContext)
+                .AddName(m_manager.SystemContext)
+                .AddDescription(m_manager.SystemContext)
+                .AddCreatedAt(m_manager.SystemContext)
+                .AddModifiedAt(m_manager.SystemContext);
             node.AddDesiredVersionId(m_manager.SystemContext);
             node.AddActiveVersionId(m_manager.SystemContext);
             node.AddIsDefault(m_manager.SystemContext);
@@ -366,26 +354,14 @@ namespace Opc.Ua.WotCon.Server
             string groupId = resource.GroupId;
             string resourceId = resource.ResourceId;
             WoTDocumentKindEnum kind = resource.Kind;
-            if (node.Delete is not null)
-            {
-                node.Delete.OnCallMethod2Async =
+            node.Delete?.OnCallMethod2Async =
                     (c, m, o, i, ot, t) => OnDeleteResourceAsync(groupId, resourceId, c, i, t);
-            }
-            if (node.Validate is not null)
-            {
-                node.Validate.OnCallMethod2Async =
+            node.Validate?.OnCallMethod2Async =
                     (c, m, o, i, ot, t) => OnValidateAsync(groupId, resourceId, c, ot, t);
-            }
-            if (node.SetEnabled is not null)
-            {
-                node.SetEnabled.OnCallMethod2Async =
+            node.SetEnabled?.OnCallMethod2Async =
                     (c, m, o, i, ot, t) => OnSetEnabledAsync(groupId, resourceId, c, i, t);
-            }
-            if (node.SetDefaultVersion is not null)
-            {
-                node.SetDefaultVersion.OnCallMethod2Async =
+            node.SetDefaultVersion?.OnCallMethod2Async =
                     (c, m, o, i, ot, t) => OnSetDefaultVersionAsync(groupId, resourceId, c, i, t);
-            }
             WireLabelsContainer(
                 node.Labels,
                 (c, i, t) => OnAddResourceLabelAsync(groupId, resourceId, c, i, t),
@@ -443,7 +419,7 @@ namespace Opc.Ua.WotCon.Server
             SetValue(node.ActiveVersionId, resource.ActiveVersionId ?? string.Empty);
             SetValue(node.IsDefault, version is not null &&
                 string.Equals(version.VersionId, resource.DefaultVersionId, StringComparison.Ordinal));
-            SetValue(node.ContentDigest, (ByteString)(version?.Digest ?? Array.Empty<byte>()));
+            SetValue(node.ContentDigest, (ByteString)(version?.Digest ?? []));
             if (resource.Validation is not null)
             {
                 SetValue(node.ValidationOutcome, resource.Validation);
@@ -464,7 +440,7 @@ namespace Opc.Ua.WotCon.Server
                 SetValue(tmNode.DerivedTypeNodeId, resource.RootNodeId ?? NodeId.Null);
             }
 
-            byte[] content = active?.Content.ToArray() ?? Array.Empty<byte>();
+            byte[] content = active?.Content.ToArray() ?? [];
             entry.File?.UpdatePersistedContent(content, version?.ContentType);
         }
 
@@ -483,8 +459,6 @@ namespace Opc.Ua.WotCon.Server
                 .ConfigureAwait(false);
             group.Resources.Remove(resourceId);
         }
-
-        // ---- method handlers ---------------------------------------------
 
         private async ValueTask<ServiceResult> OnCreateGroupAsync(
             ISystemContext context, MethodState method, NodeId objectId,
@@ -737,12 +711,10 @@ namespace Opc.Ua.WotCon.Server
                 .UpsertResourceAsync(request, ct).ConfigureAwait(false);
             // A validation failure still stores the version (Warning): the bytes
             // are never lost and the previous active projection is retained.
-            return result.Outcome == WoTOutcomeEnum.Rejected || result.Outcome == WoTOutcomeEnum.Failed
+            return result.Outcome is WoTOutcomeEnum.Rejected or WoTOutcomeEnum.Failed
                 ? ServiceResult.Create(StatusCodes.BadInvalidState, result.Message)
                 : ServiceResult.Good;
         }
-
-        // ---- labels --------------------------------------------------------
 
         /// <summary>
         /// Wires the AddAttribute/RemoveAttribute Method handlers on a
@@ -760,14 +732,8 @@ namespace Opc.Ua.WotCon.Server
             }
             labels.AddAddAttribute(m_manager.SystemContext);
             labels.AddRemoveAttribute(m_manager.SystemContext);
-            if (labels.AddAttribute is not null)
-            {
-                labels.AddAttribute.OnCallMethod2Async = (c, m, o, i, ot, t) => onAdd(c, i, t);
-            }
-            if (labels.RemoveAttribute is not null)
-            {
-                labels.RemoveAttribute.OnCallMethod2Async = (c, m, o, i, ot, t) => onRemove(c, i, t);
-            }
+            labels.AddAttribute?.OnCallMethod2Async = (c, m, o, i, ot, t) => onAdd(c, i, t);
+            labels.RemoveAttribute?.OnCallMethod2Async = (c, m, o, i, ot, t) => onRemove(c, i, t);
         }
 
         /// <summary>
@@ -823,7 +789,9 @@ namespace Opc.Ua.WotCon.Server
         }
 
         private NodeId LabelNodeId(string basePath, string key)
-            => new NodeId($"{basePath}/labels/{key}", m_modelNs);
+        {
+            return new NodeId($"{basePath}/labels/{key}", m_modelNs);
+        }
 
         private async ValueTask<ServiceResult> OnAddRegistryLabelAsync(
             ISystemContext context, ArrayOf<Variant> input, CancellationToken ct)
@@ -980,45 +948,54 @@ namespace Opc.Ua.WotCon.Server
             return ToServiceResult(result);
         }
 
-        // ---- helpers -----------------------------------------------------
-
         private WoTDocumentKindEnum KindForGroup(string groupId)
-            => string.Equals(NormalizeId(groupId), WotRegistryGroups.ThingModels, StringComparison.Ordinal)
-                ? WoTDocumentKindEnum.ThingModel
-                : WoTDocumentKindEnum.ThingDescription;
+        {
+            return string.Equals(NormalizeId(groupId), WotRegistryGroups.ThingModels, StringComparison.Ordinal)
+                        ? WoTDocumentKindEnum.ThingModel
+                        : WoTDocumentKindEnum.ThingDescription;
+        }
 
         private static string NormalizeId(string id)
-            => id.Trim().ToLowerInvariant();
+        {
+            return id.Trim().ToLowerInvariant();
+        }
 
         private static string BuildXid(string groupId, string resourceId)
-            => $"/groups/{groupId}/resources/{resourceId}";
+        {
+            return $"/groups/{groupId}/resources/{resourceId}";
+        }
 
         private const string RegistryNodeIdPath = "WoTRegistry";
 
         private static string GroupNodeIdPath(string groupId)
-            => "WoTRegistry/groups/" + groupId;
+        {
+            return "WoTRegistry/groups/" + groupId;
+        }
 
         private static string ResourceNodeIdPath(string groupId, string resourceId)
-            => $"WoTRegistry/groups/{groupId}/resources/{resourceId}";
+        {
+            return $"WoTRegistry/groups/{groupId}/resources/{resourceId}";
+        }
 
         private NodeId GroupNodeId(string groupId)
-            => new NodeId(GroupNodeIdPath(groupId), m_modelNs);
+        {
+            return new NodeId(GroupNodeIdPath(groupId), m_modelNs);
+        }
 
         private NodeId ResourceNodeId(string groupId, string resourceId)
-            => new NodeId(ResourceNodeIdPath(groupId, resourceId), m_modelNs);
+        {
+            return new NodeId(ResourceNodeIdPath(groupId, resourceId), m_modelNs);
+        }
 
         private void WireMethod(
             BaseObjectState parent, string browseName, GenericMethodCalledEventHandler2Async handler)
         {
             MethodState? method =
-                parent.FindChild(m_manager.SystemContext, new QualifiedName(browseName, XRegistryNs))
-                    as MethodState
-                ?? parent.FindChild(m_manager.SystemContext, new QualifiedName(browseName, m_modelNs))
-                    as MethodState;
-            if (method is not null)
-            {
-                method.OnCallMethod2Async = handler;
-            }
+                parent.FindChild(m_manager.SystemContext, new QualifiedName(browseName, XRegistryNs)) as
+                    MethodState
+                ?? parent.FindChild(m_manager.SystemContext, new QualifiedName(browseName, m_modelNs)) as
+                    MethodState;
+            method?.OnCallMethod2Async = handler;
         }
 
         private ushort XRegistryNs
@@ -1072,22 +1049,25 @@ namespace Opc.Ua.WotCon.Server
 
         private static void SetValue<T>(PropertyState<T>? property, T value)
         {
-            if (property is not null)
-            {
-                property.Value = value;
-            }
+            property?.Value = value;
         }
 
         private static string? GetString(ArrayOf<Variant> input, int index)
-            => index < input.Count && input[index].AsBoxedObject(Variant.BoxingBehavior.Legacy) is string s
-                ? s : null;
+        {
+            return index < input.Count && input[index].AsBoxedObject(Variant.BoxingBehavior.Legacy) is string s
+                        ? s : null;
+        }
 
         private static bool GetBool(ArrayOf<Variant> input, int index, bool fallback)
-            => GetBoolOrNull(input, index) ?? fallback;
+        {
+            return GetBoolOrNull(input, index) ?? fallback;
+        }
 
         private static bool? GetBoolOrNull(ArrayOf<Variant> input, int index)
-            => index < input.Count && input[index].AsBoxedObject(Variant.BoxingBehavior.Legacy) is bool b
-                ? b : null;
+        {
+            return index < input.Count && input[index].AsBoxedObject(Variant.BoxingBehavior.Legacy) is bool b
+                        ? b : null;
+        }
 
         private static long? OptionalEpoch(ArrayOf<Variant> input, int index)
         {
@@ -1126,6 +1106,7 @@ namespace Opc.Ua.WotCon.Server
 
             public GroupState Node { get; }
             public WoTDocumentKindEnum Kind { get; }
+
             public Dictionary<string, ResourceEntry> Resources { get; }
                 = new(StringComparer.Ordinal);
         }
@@ -1157,8 +1138,10 @@ namespace Opc.Ua.WotCon.Server
         private readonly ushort m_modelNs;
         private readonly SemaphoreSlim m_gate = new(1, 1);
         private readonly Dictionary<string, GroupEntry> m_groups = new(StringComparer.Ordinal);
+
         private readonly System.Collections.Concurrent.ConcurrentDictionary<string, WoTDocumentState>
             m_resourcesByXid = new(StringComparer.Ordinal);
+
         private BaseObjectState? m_registryNode;
         private bool m_disposed;
     }

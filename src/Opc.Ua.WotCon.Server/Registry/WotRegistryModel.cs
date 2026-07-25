@@ -53,6 +53,11 @@ namespace Opc.Ua.WotCon.Server.Registry
         public static byte[] Compute(ReadOnlyMemory<byte> content)
         {
             using var sha = SHA256.Create();
+            // TODO: SHA256.HashData is only available on .NET 5+; this project also
+            // targets net472/net48/netstandard2.1, where the instance ComputeHash API
+            // is the portable equivalent. Revisit if the minimum TFM floor is ever
+            // raised to drop those targets.
+#pragma warning disable CA1850
             if (System.Runtime.InteropServices.MemoryMarshal.TryGetArray(
                     content, out ArraySegment<byte> segment) &&
                 segment.Array is not null)
@@ -60,6 +65,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 return sha.ComputeHash(segment.Array, segment.Offset, segment.Count);
             }
             return sha.ComputeHash(content.ToArray());
+#pragma warning restore CA1850
         }
 
         /// <summary>
@@ -72,7 +78,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             {
                 return string.Empty;
             }
-            var chars = new char[digest.Length * 2];
+            char[] chars = new char[digest.Length * 2];
             for (int i = 0; i < digest.Length; i++)
             {
                 byte b = digest[i];
@@ -83,7 +89,9 @@ namespace Opc.Ua.WotCon.Server.Registry
         }
 
         private static char GetHexChar(int nibble)
-            => (char)(nibble < 10 ? '0' + nibble : 'a' + (nibble - 10));
+        {
+            return (char)(nibble < 10 ? '0' + nibble : 'a' + (nibble - 10));
+        }
 
         /// <summary>
         /// Determines whether two digests are byte-for-byte equal.
@@ -130,28 +138,44 @@ namespace Opc.Ua.WotCon.Server.Registry
             Digest = digest ?? WotContentDigest.Compute(content);
         }
 
-        /// <summary>Gets the xRegistry versionid.</summary>
+        /// <summary>
+        /// Gets the xRegistry versionid.
+        /// </summary>
         public string VersionId { get; }
 
-        /// <summary>Gets the raw, authoritative document source bytes.</summary>
+        /// <summary>
+        /// Gets the raw, authoritative document source bytes.
+        /// </summary>
         public ReadOnlyMemory<byte> Content { get; }
 
-        /// <summary>Gets the media type of the document (for example application/td+json).</summary>
+        /// <summary>
+        /// Gets the media type of the document (for example application/td+json).
+        /// </summary>
         public string ContentType { get; }
 
-        /// <summary>Gets the document format tag (for example WoT-TD/1.1).</summary>
+        /// <summary>
+        /// Gets the document format tag (for example WoT-TD/1.1).
+        /// </summary>
         public string Format { get; }
 
-        /// <summary>Gets the UTC creation time.</summary>
+        /// <summary>
+        /// Gets the UTC creation time.
+        /// </summary>
         public DateTime CreatedAt { get; }
 
-        /// <summary>Gets the UTC modification time.</summary>
+        /// <summary>
+        /// Gets the UTC modification time.
+        /// </summary>
         public DateTime ModifiedAt { get; }
 
-        /// <summary>Gets the SHA-256 content digest of <see cref="Content"/>.</summary>
+        /// <summary>
+        /// Gets the SHA-256 content digest of <see cref="Content"/>.
+        /// </summary>
         public byte[] Digest { get; }
 
-        /// <summary>Gets the content digest as a lowercase hexadecimal string.</summary>
+        /// <summary>
+        /// Gets the content digest as a lowercase hexadecimal string.
+        /// </summary>
         public string DigestHex => WotContentDigest.ToHex(Digest);
     }
 
@@ -164,7 +188,9 @@ namespace Opc.Ua.WotCon.Server.Registry
     /// </summary>
     public static class WotLabels
     {
-        /// <summary>Gets the empty, ordinally-ordered label dictionary.</summary>
+        /// <summary>
+        /// Gets the empty, ordinally-ordered label dictionary.
+        /// </summary>
         public static ImmutableSortedDictionary<string, string> Empty { get; } =
             ImmutableSortedDictionary.Create<string, string>(StringComparer.Ordinal);
     }
@@ -204,14 +230,14 @@ namespace Opc.Ua.WotCon.Server.Registry
             GroupId = groupId ?? throw new ArgumentNullException(nameof(groupId));
             ResourceId = resourceId ?? throw new ArgumentNullException(nameof(resourceId));
             Kind = kind;
-            Versions = versions.IsDefault ? ImmutableArray<WotResourceVersion>.Empty : versions;
+            Versions = versions.IsDefault ? [] : versions;
             DefaultVersionId = defaultVersionId;
             DesiredVersionId = desiredVersionId ?? defaultVersionId;
             ActiveVersionId = activeVersionId;
             Enabled = enabled;
             LoadState = loadState;
             Validation = validation;
-            Diagnostics = diagnostics.IsDefault ? ImmutableArray<string>.Empty : diagnostics;
+            Diagnostics = diagnostics.IsDefault ? [] : diagnostics;
             Epoch = epoch;
             RefreshGeneration = refreshGeneration;
             LastRefreshTime = lastRefreshTime;
@@ -224,67 +250,109 @@ namespace Opc.Ua.WotCon.Server.Registry
             Labels = labels ?? WotLabels.Empty;
         }
 
-        /// <summary>Gets the owning group id.</summary>
+        /// <summary>
+        /// Gets the owning group id.
+        /// </summary>
         public string GroupId { get; }
 
-        /// <summary>Gets the xRegistry resourceid.</summary>
+        /// <summary>
+        /// Gets the xRegistry resourceid.
+        /// </summary>
         public string ResourceId { get; }
 
-        /// <summary>Gets the xRegistry xid (<c>/groups/{group}/resources/{resource}</c>).</summary>
+        /// <summary>
+        /// Gets the xRegistry xid (<c>/groups/{group}/resources/{resource}</c>).
+        /// </summary>
         public string Xid => $"/groups/{GroupId}/resources/{ResourceId}";
 
-        /// <summary>Gets whether the document is a Thing Description or Thing Model.</summary>
+        /// <summary>
+        /// Gets whether the document is a Thing Description or Thing Model.
+        /// </summary>
         public WoTDocumentKindEnum Kind { get; }
 
-        /// <summary>Gets the immutable set of versions, oldest first.</summary>
+        /// <summary>
+        /// Gets the immutable set of versions, oldest first.
+        /// </summary>
         public ImmutableArray<WotResourceVersion> Versions { get; }
 
-        /// <summary>Gets the versionid marked as default (the projected version).</summary>
+        /// <summary>
+        /// Gets the versionid marked as default (the projected version).
+        /// </summary>
         public string? DefaultVersionId { get; }
 
-        /// <summary>Gets the versionid the operator wants active.</summary>
+        /// <summary>
+        /// Gets the versionid the operator wants active.
+        /// </summary>
         public string? DesiredVersionId { get; }
 
-        /// <summary>Gets the versionid currently projected into the AddressSpace.</summary>
+        /// <summary>
+        /// Gets the versionid currently projected into the AddressSpace.
+        /// </summary>
         public string? ActiveVersionId { get; }
 
-        /// <summary>Gets whether the resource is enabled for projection.</summary>
+        /// <summary>
+        /// Gets whether the resource is enabled for projection.
+        /// </summary>
         public bool Enabled { get; }
 
-        /// <summary>Gets the current load/projection state.</summary>
+        /// <summary>
+        /// Gets the current load/projection state.
+        /// </summary>
         public WoTLoadStateEnum LoadState { get; }
 
-        /// <summary>Gets the last validation outcome, if any.</summary>
+        /// <summary>
+        /// Gets the last validation outcome, if any.
+        /// </summary>
         public WoTValidationOutcomeDataType? Validation { get; }
 
-        /// <summary>Gets the human-readable diagnostics for the last operation.</summary>
+        /// <summary>
+        /// Gets the human-readable diagnostics for the last operation.
+        /// </summary>
         public ImmutableArray<string> Diagnostics { get; }
 
-        /// <summary>Gets the resource epoch (bumped on every mutation).</summary>
+        /// <summary>
+        /// Gets the resource epoch (bumped on every mutation).
+        /// </summary>
         public long Epoch { get; }
 
-        /// <summary>Gets the refresh generation of the active projection.</summary>
+        /// <summary>
+        /// Gets the refresh generation of the active projection.
+        /// </summary>
         public uint RefreshGeneration { get; }
 
-        /// <summary>Gets the UTC time of the last refresh.</summary>
+        /// <summary>
+        /// Gets the UTC time of the last refresh.
+        /// </summary>
         public DateTime LastRefreshTime { get; }
 
-        /// <summary>Gets the number of AddressSpace nodes materialized for the active projection.</summary>
+        /// <summary>
+        /// Gets the number of AddressSpace nodes materialized for the active projection.
+        /// </summary>
         public int MaterializedNodeCount { get; }
 
-        /// <summary>Gets the root node of the active projection, if any.</summary>
+        /// <summary>
+        /// Gets the root node of the active projection, if any.
+        /// </summary>
         public NodeId? RootNodeId { get; }
 
-        /// <summary>Gets the resource display name.</summary>
+        /// <summary>
+        /// Gets the resource display name.
+        /// </summary>
         public string Name { get; }
 
-        /// <summary>Gets the resource description.</summary>
+        /// <summary>
+        /// Gets the resource description.
+        /// </summary>
         public string Description { get; }
 
-        /// <summary>Gets the WoT Thing id parsed from the default document (TD only).</summary>
+        /// <summary>
+        /// Gets the WoT Thing id parsed from the default document (TD only).
+        /// </summary>
         public string? ThingId { get; }
 
-        /// <summary>Gets the WoT title parsed from the default document.</summary>
+        /// <summary>
+        /// Gets the WoT title parsed from the default document.
+        /// </summary>
         public string? Title { get; }
 
         /// <summary>
@@ -294,14 +362,20 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// </summary>
         public ImmutableSortedDictionary<string, string> Labels { get; }
 
-        /// <summary>Gets the default (or desired) version snapshot, if present.</summary>
+        /// <summary>
+        /// Gets the default (or desired) version snapshot, if present.
+        /// </summary>
         public WotResourceVersion? DefaultVersion
             => FindVersion(DesiredVersionId ?? DefaultVersionId);
 
-        /// <summary>Gets the active version snapshot, if present.</summary>
+        /// <summary>
+        /// Gets the active version snapshot, if present.
+        /// </summary>
         public WotResourceVersion? ActiveVersion => FindVersion(ActiveVersionId);
 
-        /// <summary>Finds a version by id.</summary>
+        /// <summary>
+        /// Finds a version by id.
+        /// </summary>
         public WotResourceVersion? FindVersion(string? versionId)
         {
             if (string.IsNullOrEmpty(versionId))
@@ -392,32 +466,46 @@ namespace Opc.Ua.WotCon.Server.Registry
         {
             GroupId = groupId ?? throw new ArgumentNullException(nameof(groupId));
             Kind = kind;
-            Resources = resources ?? ImmutableDictionary<string, WotResource>.Empty;
+            Resources = resources ?? [];
             Name = name ?? groupId;
             Description = description ?? string.Empty;
             Epoch = epoch;
             Labels = labels ?? WotLabels.Empty;
         }
 
-        /// <summary>Gets the xRegistry groupid.</summary>
+        /// <summary>
+        /// Gets the xRegistry groupid.
+        /// </summary>
         public string GroupId { get; }
 
-        /// <summary>Gets the xRegistry xid (<c>/groups/{group}</c>).</summary>
+        /// <summary>
+        /// Gets the xRegistry xid (<c>/groups/{group}</c>).
+        /// </summary>
         public string Xid => $"/groups/{GroupId}";
 
-        /// <summary>Gets the document kind shared by all resources in this group.</summary>
+        /// <summary>
+        /// Gets the document kind shared by all resources in this group.
+        /// </summary>
         public WoTDocumentKindEnum Kind { get; }
 
-        /// <summary>Gets the resources keyed by resourceid.</summary>
+        /// <summary>
+        /// Gets the resources keyed by resourceid.
+        /// </summary>
         public ImmutableDictionary<string, WotResource> Resources { get; }
 
-        /// <summary>Gets the group display name.</summary>
+        /// <summary>
+        /// Gets the group display name.
+        /// </summary>
         public string Name { get; }
 
-        /// <summary>Gets the group description.</summary>
+        /// <summary>
+        /// Gets the group description.
+        /// </summary>
         public string Description { get; }
 
-        /// <summary>Gets the group epoch.</summary>
+        /// <summary>
+        /// Gets the group epoch.
+        /// </summary>
         public long Epoch { get; }
 
         /// <summary>
@@ -427,7 +515,9 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// </summary>
         public ImmutableSortedDictionary<string, string> Labels { get; }
 
-        /// <summary>Returns a copy of this group with the resource set replaced.</summary>
+        /// <summary>
+        /// Returns a copy of this group with the resource set replaced.
+        /// </summary>
         public WotResourceGroup WithResources(
             ImmutableDictionary<string, WotResource> resources,
             long epoch)
@@ -435,7 +525,9 @@ namespace Opc.Ua.WotCon.Server.Registry
             return new WotResourceGroup(GroupId, Kind, resources, Name, Description, epoch, Labels);
         }
 
-        /// <summary>Returns a copy of this group with the label set replaced.</summary>
+        /// <summary>
+        /// Returns a copy of this group with the label set replaced.
+        /// </summary>
         public WotResourceGroup WithLabels(
             ImmutableSortedDictionary<string, string> labels,
             long epoch)
@@ -452,9 +544,11 @@ namespace Opc.Ua.WotCon.Server.Registry
     /// </summary>
     public sealed class WotRegistrySnapshot
     {
-        /// <summary>Gets the empty snapshot (generation 0, no groups).</summary>
+        /// <summary>
+        /// Gets the empty snapshot (generation 0, no groups).
+        /// </summary>
         public static WotRegistrySnapshot Empty { get; } =
-            new WotRegistrySnapshot(0, ImmutableDictionary<string, WotResourceGroup>.Empty);
+            new WotRegistrySnapshot(0, []);
 
         /// <summary>
         /// Initializes a new immutable registry snapshot.
@@ -465,7 +559,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             ImmutableSortedDictionary<string, string>? labels = null)
         {
             Generation = generation;
-            Groups = groups ?? ImmutableDictionary<string, WotResourceGroup>.Empty;
+            Groups = groups ?? [];
             Labels = labels ?? WotLabels.Empty;
         }
 
@@ -474,7 +568,9 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// </summary>
         public long Generation { get; }
 
-        /// <summary>Gets the groups keyed by groupid.</summary>
+        /// <summary>
+        /// Gets the groups keyed by groupid.
+        /// </summary>
         public ImmutableDictionary<string, WotResourceGroup> Groups { get; }
 
         /// <summary>
@@ -487,7 +583,9 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// </summary>
         public ImmutableSortedDictionary<string, string> Labels { get; }
 
-        /// <summary>Enumerates every resource across all groups.</summary>
+        /// <summary>
+        /// Enumerates every resource across all groups.
+        /// </summary>
         public IEnumerable<WotResource> AllResources()
         {
             foreach (WotResourceGroup group in Groups.Values)
@@ -499,15 +597,25 @@ namespace Opc.Ua.WotCon.Server.Registry
             }
         }
 
-        /// <summary>Enumerates every resource of the requested kind.</summary>
+        /// <summary>
+        /// Enumerates every resource of the requested kind.
+        /// </summary>
         public IEnumerable<WotResource> ResourcesOfKind(WoTDocumentKindEnum kind)
-            => AllResources().Where(r => r.Kind == kind);
+        {
+            return AllResources().Where(r => r.Kind == kind);
+        }
 
-        /// <summary>Finds a group by id, or <c>null</c>.</summary>
+        /// <summary>
+        /// Finds a group by id, or <c>null</c>.
+        /// </summary>
         public WotResourceGroup? FindGroup(string groupId)
-            => Groups.TryGetValue(groupId, out WotResourceGroup? group) ? group : null;
+        {
+            return Groups.TryGetValue(groupId, out WotResourceGroup? group) ? group : null;
+        }
 
-        /// <summary>Finds a resource by group and resource id, or <c>null</c>.</summary>
+        /// <summary>
+        /// Finds a resource by group and resource id, or <c>null</c>.
+        /// </summary>
         public WotResource? FindResource(string groupId, string resourceId)
         {
             if (Groups.TryGetValue(groupId, out WotResourceGroup? group) &&
@@ -518,15 +626,20 @@ namespace Opc.Ua.WotCon.Server.Registry
             return null;
         }
 
-        /// <summary>Finds a resource by its xRegistry xid, or <c>null</c>.</summary>
+        /// <summary>
+        /// Finds a resource by its xRegistry xid, or <c>null</c>.
+        /// </summary>
         public WotResource? FindResourceByXid(string xid)
-            => AllResources().FirstOrDefault(
-                r => string.Equals(r.Xid, xid, StringComparison.Ordinal));
+        {
+            return AllResources().FirstOrDefault(
+                        r => string.Equals(r.Xid, xid, StringComparison.Ordinal));
+        }
 
         /// <summary>
         /// Produces a new snapshot with <paramref name="group"/> upserted and the
         /// generation advanced to <paramref name="generation"/>.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public WotRegistrySnapshot WithGroup(WotResourceGroup group, long generation)
         {
             if (group is null)
@@ -536,20 +649,30 @@ namespace Opc.Ua.WotCon.Server.Registry
             return new WotRegistrySnapshot(generation, Groups.SetItem(group.GroupId, group), Labels);
         }
 
-        /// <summary>Produces a new snapshot with a group removed.</summary>
+        /// <summary>
+        /// Produces a new snapshot with a group removed.
+        /// </summary>
         public WotRegistrySnapshot WithoutGroup(string groupId, long generation)
-            => new WotRegistrySnapshot(generation, Groups.Remove(groupId), Labels);
+        {
+            return new WotRegistrySnapshot(generation, Groups.Remove(groupId), Labels);
+        }
 
-        /// <summary>Produces a new snapshot with the registry-level label set replaced.</summary>
+        /// <summary>
+        /// Produces a new snapshot with the registry-level label set replaced.
+        /// </summary>
         public WotRegistrySnapshot WithLabels(
             ImmutableSortedDictionary<string, string> labels, long generation)
-            => new WotRegistrySnapshot(generation, Groups, labels);
+        {
+            return new WotRegistrySnapshot(generation, Groups, labels);
+        }
 
         /// <summary>
         /// Formats a monotonic version id from the sequence number, using the
         /// zero-padded, lexicographically sortable form used by the file store.
         /// </summary>
         public static string FormatVersionId(long sequence)
-            => sequence.ToString("D19", CultureInfo.InvariantCulture);
+        {
+            return sequence.ToString("D19", CultureInfo.InvariantCulture);
+        }
     }
 }

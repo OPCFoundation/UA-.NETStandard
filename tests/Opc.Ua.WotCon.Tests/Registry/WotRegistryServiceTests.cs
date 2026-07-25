@@ -55,7 +55,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
             };
 
         [Test]
-        public async Task Upsert_CreatesResourceAndBumpsGeneration()
+        public async Task UpsertCreatesResourceAndBumpsGeneration()
         {
             using var service = new WotRegistryService();
             byte[] doc = TestMaterialization.Td("urn:a");
@@ -68,13 +68,13 @@ namespace Opc.Ua.WotCon.Tests.Registry
             WotResource? resource = service.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions, "a");
             Assert.That(resource, Is.Not.Null);
-            Assert.That(resource!.Versions.Length, Is.EqualTo(1));
+            Assert.That(resource!.Versions, Has.Length.EqualTo(1));
             Assert.That(resource.DefaultVersionId, Is.EqualTo(resource.Versions[0].VersionId));
             Assert.That(resource.Kind, Is.EqualTo(WoTDocumentKindEnum.ThingDescription));
         }
 
         [Test]
-        public async Task Upsert_SameContent_ReturnsUnchanged()
+        public async Task UpsertSameContentReturnsUnchanged()
         {
             using var service = new WotRegistryService();
             byte[] doc = TestMaterialization.Td("urn:a");
@@ -88,13 +88,12 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(service.Current.Generation, Is.EqualTo(generation),
                 "An unchanged upload must not advance the registry generation.");
             Assert.That(
-                service.Current.FindResource(WotRegistryGroups.ThingDescriptions, "a")!
-                    .Versions.Length,
-                Is.EqualTo(1));
+                service.Current.FindResource(WotRegistryGroups.ThingDescriptions, "a")!.Versions,
+                Has.Length.EqualTo(1));
         }
 
         [Test]
-        public async Task Upsert_NewContent_AddsVersion()
+        public async Task UpsertNewContentAddsVersion()
         {
             using var service = new WotRegistryService();
             await service.UpsertResourceAsync(TdRequest("a", TestMaterialization.Td("urn:a", "v1")));
@@ -102,12 +101,12 @@ namespace Opc.Ua.WotCon.Tests.Registry
 
             WotResource resource = service.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions, "a")!;
-            Assert.That(resource.Versions.Length, Is.EqualTo(2));
+            Assert.That(resource.Versions, Has.Length.EqualTo(2));
             Assert.That(resource.DefaultVersionId, Is.EqualTo(resource.Versions[1].VersionId));
         }
 
         [Test]
-        public async Task InvalidDocument_IsStoredWithFailureState()
+        public async Task InvalidDocumentIsStoredWithFailureState()
         {
             using var service = new WotRegistryService();
 
@@ -120,12 +119,12 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(resource.LoadState, Is.EqualTo(WoTLoadStateEnum.Failed));
             Assert.That(resource.Validation, Is.Not.Null);
             Assert.That(resource.Validation!.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Failed));
-            Assert.That(resource.Versions.Length, Is.EqualTo(1),
+            Assert.That(resource.Versions, Has.Length.EqualTo(1),
                 "The invalid document must still be stored.");
         }
 
         [Test]
-        public async Task Upsert_TooLarge_IsRejectedAndNotStored()
+        public async Task UpsertTooLargeIsRejectedAndNotStored()
         {
             var bounds = new WotRegistryPersistenceBounds { MaxDocumentBytes = 32 };
             using var service = new WotRegistryService(bounds: bounds);
@@ -140,13 +139,13 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public async Task MaxGroups_ImplicitCreateViaGetOrCreateResource_IsRejected()
+        public async Task MaxGroupsImplicitCreateViaGetOrCreateResourceIsRejected()
         {
             var bounds = new WotRegistryPersistenceBounds { MaxGroups = 1 };
             using var service = new WotRegistryService(bounds: bounds);
             // Fill the single group slot via the well-known Thing Description group.
             await service.UpsertResourceAsync(TdRequest("a", TestMaterialization.Td("urn:a")));
-            Assert.That(service.Current.Groups.Count, Is.EqualTo(1));
+            Assert.That(service.Current.Groups, Has.Count.EqualTo(1));
 
             // Implicitly creating a placeholder in a new group would exceed
             // MaxGroups and must be rejected identically to the explicit
@@ -159,7 +158,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public async Task MaxGroups_ImplicitCreateViaTryCreateResource_IsRejected()
+        public async Task MaxGroupsImplicitCreateViaTryCreateResourceIsRejected()
         {
             var bounds = new WotRegistryPersistenceBounds { MaxGroups = 1 };
             using var service = new WotRegistryService(bounds: bounds);
@@ -172,7 +171,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public async Task MaxGroups_ImplicitCreateViaUpsert_IsRejected()
+        public async Task MaxGroupsImplicitCreateViaUpsertIsRejected()
         {
             var bounds = new WotRegistryPersistenceBounds { MaxGroups = 1 };
             using var service = new WotRegistryService(bounds: bounds);
@@ -194,7 +193,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public async Task MaxGroups_AllowsAnotherResourceInExistingGroup()
+        public async Task MaxGroupsAllowsAnotherResourceInExistingGroup()
         {
             var bounds = new WotRegistryPersistenceBounds { MaxGroups = 1 };
             using var service = new WotRegistryService(bounds: bounds);
@@ -206,11 +205,11 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 WotRegistryGroups.ThingDescriptions, "b", WoTDocumentKindEnum.ThingDescription);
 
             Assert.That(created, Is.True);
-            Assert.That(service.Current.Groups.Count, Is.EqualTo(1));
+            Assert.That(service.Current.Groups, Has.Count.EqualTo(1));
         }
 
         [Test]
-        public async Task VersionRetention_TrimsOldestBeyondBound()
+        public async Task VersionRetentionTrimsOldestBeyondBound()
         {
             var bounds = new WotRegistryPersistenceBounds { MaxVersionsPerResource = 3 };
             using var service = new WotRegistryService(bounds: bounds);
@@ -222,12 +221,12 @@ namespace Opc.Ua.WotCon.Tests.Registry
 
             WotResource resource = service.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions, "a")!;
-            Assert.That(resource.Versions.Length, Is.EqualTo(3),
+            Assert.That(resource.Versions, Has.Length.EqualTo(3),
                 "Version retention must trim the oldest versions.");
         }
 
         [Test]
-        public async Task SetDefaultVersion_SwitchesActiveDefault()
+        public async Task SetDefaultVersionSwitchesActiveDefault()
         {
             using var service = new WotRegistryService();
             await service.UpsertResourceAsync(TdRequest("a", TestMaterialization.Td("urn:a", "v1")));
@@ -247,7 +246,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public async Task SetDefaultVersion_WrongEpoch_IsRejected()
+        public async Task SetDefaultVersionWrongEpochIsRejected()
         {
             using var service = new WotRegistryService();
             await service.UpsertResourceAsync(TdRequest("a", TestMaterialization.Td("urn:a")));
@@ -262,7 +261,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public async Task SetEnabled_TogglesEnabledState()
+        public async Task SetEnabledTogglesEnabledState()
         {
             using var service = new WotRegistryService();
             await service.UpsertResourceAsync(TdRequest("a", TestMaterialization.Td("urn:a")));
@@ -275,7 +274,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public async Task Delete_RemovesResource()
+        public async Task DeleteRemovesResource()
         {
             using var service = new WotRegistryService();
             await service.UpsertResourceAsync(TdRequest("a", TestMaterialization.Td("urn:a")));
@@ -289,7 +288,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public async Task Changed_RaisedForContentMutation()
+        public async Task ChangedRaisedForContentMutation()
         {
             using var service = new WotRegistryService();
             WotRegistryChangedEventArgs? captured = null;

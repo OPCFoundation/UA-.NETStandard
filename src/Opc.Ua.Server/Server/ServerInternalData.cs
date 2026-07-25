@@ -705,7 +705,8 @@ namespace Opc.Ua.Server
             {
                 await NodeManager.SessionClosingAsync(context, sessionId, deleteSubscriptions, cancellationToken)
                     .ConfigureAwait(false);
-                await SubscriptionManager.SessionClosingAsync(context, sessionId, deleteSubscriptions, cancellationToken)
+                await SubscriptionManager
+                    .SessionClosingAsync(context, sessionId, deleteSubscriptions, cancellationToken)
                     .ConfigureAwait(false);
                 await SessionManager.CloseSessionAsync(sessionId, cancellationToken).ConfigureAwait(false);
             }

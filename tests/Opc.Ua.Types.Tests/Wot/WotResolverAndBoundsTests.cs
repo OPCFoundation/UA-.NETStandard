@@ -50,7 +50,7 @@ namespace Opc.Ua.Types.Tests.Wot
             var context = new WotResolutionContext();
 
             Assert.That(context.TryEnter(WotResolutionKind.Thing, "urn:a", out _), Is.True);
-            Assert.That(context.TryEnter(WotResolutionKind.Thing, "urn:a", out var diagnostic), Is.False);
+            Assert.That(context.TryEnter(WotResolutionKind.Thing, "urn:a", out WotDiagnostic diagnostic), Is.False);
             Assert.That(diagnostic!.Code, Is.EqualTo(WotDiagnosticCode.ResolverCycle));
         }
 
@@ -60,7 +60,7 @@ namespace Opc.Ua.Types.Tests.Wot
             var context = new WotResolutionContext(new WotResolverOptions { MaxDepth = 1 });
 
             Assert.That(context.TryEnter(WotResolutionKind.Thing, "urn:a", out _), Is.True);
-            Assert.That(context.TryEnter(WotResolutionKind.Thing, "urn:b", out var diagnostic), Is.False);
+            Assert.That(context.TryEnter(WotResolutionKind.Thing, "urn:b", out WotDiagnostic diagnostic), Is.False);
             Assert.That(diagnostic!.Code, Is.EqualTo(WotDiagnosticCode.ResolverDepthExceeded));
         }
 
@@ -71,11 +71,11 @@ namespace Opc.Ua.Types.Tests.Wot
                 new WotResolverOptions { MaxDocuments = 1, MaxDepth = 10, MaxDocumentBytes = 5 });
 
             Assert.That(context.TryEnter(WotResolutionKind.Thing, "urn:a", out _), Is.True);
-            Assert.That(context.TryAddBytes("urn:a", 10, out var byteLimit), Is.False);
+            Assert.That(context.TryAddBytes("urn:a", 10, out WotDiagnostic byteLimit), Is.False);
             Assert.That(byteLimit!.Code, Is.EqualTo(WotDiagnosticCode.ResolverLimitExceeded));
 
             context.Leave("urn:a");
-            Assert.That(context.TryEnter(WotResolutionKind.Thing, "urn:b", out var documentLimit), Is.False);
+            Assert.That(context.TryEnter(WotResolutionKind.Thing, "urn:b", out WotDiagnostic documentLimit), Is.False);
             Assert.That(documentLimit!.Code, Is.EqualTo(WotDiagnosticCode.ResolverLimitExceeded));
         }
 
@@ -92,11 +92,11 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             var resolver = new MapResolver(new Dictionary<string, string>(StringComparer.Ordinal)
             {
-                ["urn:a"] = "{\"uav:congruentType\":\"urn:b\"}",
-                ["urn:b"] = "{\"uav:id\":\"ns=2;i=99\"}"
+                ["urn:a"] = /*lang=json,strict*/ "{\"uav:congruentType\":\"urn:b\"}",
+                ["urn:b"] = /*lang=json,strict*/ "{\"uav:id\":\"ns=2;i=99\"}"
             });
 
-            using WotDocument document = WotDocument.Parse(Encoding.UTF8.GetBytes(LinkModel("urn:a")));
+            using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(LinkModel("urn:a")));
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(
                 document, null, resolver);
 
@@ -109,11 +109,11 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             var resolver = new MapResolver(new Dictionary<string, string>(StringComparer.Ordinal)
             {
-                ["urn:a"] = "{\"uav:congruentType\":\"urn:b\"}",
-                ["urn:b"] = "{\"uav:congruentType\":\"urn:a\"}"
+                ["urn:a"] = /*lang=json,strict*/ "{\"uav:congruentType\":\"urn:b\"}",
+                ["urn:b"] = /*lang=json,strict*/ "{\"uav:congruentType\":\"urn:a\"}"
             });
 
-            using WotDocument document = WotDocument.Parse(Encoding.UTF8.GetBytes(LinkModel("urn:a")));
+            using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(LinkModel("urn:a")));
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(
                 document, null, resolver, new WotResolutionContext());
 
@@ -134,13 +134,13 @@ namespace Opc.Ua.Types.Tests.Wot
             // each silently getting a fresh, unbounded context of its own.
             var resolver = new MapResolver(new Dictionary<string, string>(StringComparer.Ordinal)
             {
-                ["urn:a"] = "{\"uav:id\":\"ns=2;i=101\"}",
-                ["urn:b"] = "{\"uav:id\":\"ns=2;i=102\"}",
-                ["urn:c"] = "{\"uav:id\":\"ns=2;i=103\"}"
+                ["urn:a"] = /*lang=json,strict*/ "{\"uav:id\":\"ns=2;i=101\"}",
+                ["urn:b"] = /*lang=json,strict*/ "{\"uav:id\":\"ns=2;i=102\"}",
+                ["urn:c"] = /*lang=json,strict*/ "{\"uav:id\":\"ns=2;i=103\"}"
             });
             var options = new WotNodeSetConverterOptions { MaxResolverDocuments = 2 };
 
-            using WotDocument document = WotDocument.Parse(
+            using var document = WotDocument.Parse(
                 Encoding.UTF8.GetBytes(MultiLinkModel("urn:a", "urn:b", "urn:c")));
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document, options, resolver);
 
@@ -164,12 +164,12 @@ namespace Opc.Ua.Types.Tests.Wot
             // would ever be produced.
             var resolver = new MapResolver(new Dictionary<string, string>(StringComparer.Ordinal)
             {
-                ["urn:a"] = "{\"uav:id\":\"ns=2;i=101\"}",
-                ["urn:b"] = "{\"uav:id\":\"ns=2;i=102\"}"
+                ["urn:a"] = /*lang=json,strict*/ "{\"uav:id\":\"ns=2;i=101\"}",
+                ["urn:b"] = /*lang=json,strict*/ "{\"uav:id\":\"ns=2;i=102\"}"
             });
             var options = new WotNodeSetConverterOptions { MaxResolverTotalBytes = 30 };
 
-            using WotDocument document = WotDocument.Parse(
+            using var document = WotDocument.Parse(
                 Encoding.UTF8.GetBytes(MultiLinkModel("urn:a", "urn:b")));
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document, options, resolver);
 
@@ -183,12 +183,12 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             var resolver = new MapResolver(new Dictionary<string, string>(StringComparer.Ordinal)
             {
-                ["urn:ok"] = "{\"uav:id\":\"ns=2;i=201\"}",
-                ["urn:cyclic-a"] = "{\"uav:congruentType\":\"urn:cyclic-b\"}",
-                ["urn:cyclic-b"] = "{\"uav:congruentType\":\"urn:cyclic-a\"}"
+                ["urn:ok"] = /*lang=json,strict*/ "{\"uav:id\":\"ns=2;i=201\"}",
+                ["urn:cyclic-a"] = /*lang=json,strict*/ "{\"uav:congruentType\":\"urn:cyclic-b\"}",
+                ["urn:cyclic-b"] = /*lang=json,strict*/ "{\"uav:congruentType\":\"urn:cyclic-a\"}"
             });
 
-            using WotDocument document = WotDocument.Parse(
+            using var document = WotDocument.Parse(
                 Encoding.UTF8.GetBytes(MultiLinkModel("urn:ok", "urn:cyclic-a")));
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document, null, resolver);
 
@@ -236,14 +236,14 @@ namespace Opc.Ua.Types.Tests.Wot
         public void OptionsValidateRejectsNonPositiveLimits()
         {
             var options = new WotNodeSetConverterOptions { MaxJsonDepth = 0 };
-            Assert.That(() => options.Validate(), Throws.TypeOf<ArgumentOutOfRangeException>());
+            Assert.That(options.Validate, Throws.TypeOf<ArgumentOutOfRangeException>());
         }
 
         [Test]
         public void ParseRejectsOversizedDocuments()
         {
             var options = new WotNodeSetConverterOptions { MaxJsonDocumentSize = 8 };
-            byte[] json = Encoding.UTF8.GetBytes("{\"title\":\"a rather long value\"}");
+            byte[] json = Encoding.UTF8.GetBytes(/*lang=json,strict*/ "{\"title\":\"a rather long value\"}");
 
             Assert.That(
                 () => WotDocument.Parse(json, options),
@@ -254,7 +254,7 @@ namespace Opc.Ua.Types.Tests.Wot
         public void ParseEnforcesDepthLimit()
         {
             var options = new WotNodeSetConverterOptions { MaxJsonDepth = 2 };
-            byte[] json = Encoding.UTF8.GetBytes("{\"a\":{\"b\":{\"c\":1}}}");
+            byte[] json = Encoding.UTF8.GetBytes(/*lang=json,strict*/ "{\"a\":{\"b\":{\"c\":1}}}");
 
             Assert.That(
                 () => WotDocument.Parse(json, options),
@@ -277,7 +277,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"@type\":\"uav:nodeSet\",\"contentType\":\"application/opcua-nodeset+xml\"," +
                 "\"encoding\":\"base64\",\"data\":\"not*valid*base64\"}}";
 
-            using WotDocument document = WotDocument.Parse(Encoding.UTF8.GetBytes(json));
+            using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(json));
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
 
             Assert.That(result.Value, Is.Null);
@@ -323,7 +323,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"ua\":\"http://opcfoundation.org/UA/\"}]," +
                 "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"]," +
                 "\"title\":\"T\",\"uav:browseName\":\"1:T\"," +
-                "\"links\":[" + links + "]}";
+                "\"links\":[" +
+                links +
+                "]}";
         }
 
         private sealed class MapResolver : IWotThingResolver

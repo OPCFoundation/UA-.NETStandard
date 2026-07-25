@@ -160,6 +160,7 @@ namespace Opc.Ua.Server
 
             return AddCoreAsync(
                 factory.CreateAsync,
+                IsRequestCallbackSafe(factory),
                 ct);
         }
 
@@ -176,6 +177,7 @@ namespace Opc.Ua.Server
             return AddCoreAsync(
                 (server, configuration, _) => new ValueTask<IAsyncNodeManager>(
                     factory.Create(server, configuration).ToAsyncNodeManager()),
+                allowRequestCallback: false,
                 ct);
         }
 
@@ -194,6 +196,7 @@ namespace Opc.Ua.Server
                 registration,
                 replacement.CreateAsync,
                 ReloadRetirementMode.Migrate,
+                allowRequestCallback: IsRequestCallbackSafe(replacement),
                 ct);
         }
 
@@ -213,6 +216,7 @@ namespace Opc.Ua.Server
                 (server, configuration, _) => new ValueTask<IAsyncNodeManager>(
                     replacement.Create(server, configuration).ToAsyncNodeManager()),
                 ReloadRetirementMode.Migrate,
+                allowRequestCallback: false,
                 ct);
         }
 
@@ -231,6 +235,7 @@ namespace Opc.Ua.Server
                 registration,
                 replacement.CreateAsync,
                 ReloadRetirementMode.Graceful,
+                allowRequestCallback: IsRequestCallbackSafe(replacement),
                 ct);
         }
 
@@ -250,6 +255,7 @@ namespace Opc.Ua.Server
                 (server, configuration, _) => new ValueTask<IAsyncNodeManager>(
                     replacement.Create(server, configuration).ToAsyncNodeManager()),
                 ReloadRetirementMode.Graceful,
+                allowRequestCallback: false,
                 ct);
         }
 
@@ -268,6 +274,7 @@ namespace Opc.Ua.Server
                 registration,
                 replacement.CreateAsync,
                 ReloadRetirementMode.Immediate,
+                allowRequestCallback: IsRequestCallbackSafe(replacement),
                 ct);
         }
 
@@ -287,6 +294,7 @@ namespace Opc.Ua.Server
                 (server, configuration, _) => new ValueTask<IAsyncNodeManager>(
                     replacement.Create(server, configuration).ToAsyncNodeManager()),
                 ReloadRetirementMode.Immediate,
+                allowRequestCallback: false,
                 ct);
         }
 
@@ -300,13 +308,14 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(registration));
             }
 
-            EnsureNotRequestCallback();
             await m_lifecycleSemaphore.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                (IServerInternal server, IDynamicNodeManagerHost host) = GetRunningServer();
-                await CleanupRetiredNodeManagersAsync(server, host).ConfigureAwait(false);
                 RegistrationState state = GetCurrentState(registration);
+                EnsureRequestCallbackAllowed(state.AllowLifecycleFromRequestCallback);
+                (IServerInternal server, IDynamicNodeManagerHost host) = GetRunningServer(
+                    state.AllowLifecycleFromRequestCallback);
+                await CleanupRetiredNodeManagersAsync(server, host).ConfigureAwait(false);
                 MonitoredItemTransition monitoredItemTransition =
                     await PrepareMonitoredItemRemovalAsync(
                         server,
@@ -456,9 +465,10 @@ namespace Opc.Ua.Server
 
         private async ValueTask<NodeManagerRegistration> AddCoreAsync(
             CreateNodeManagerAsync createNodeManager,
+            bool allowRequestCallback,
             CancellationToken ct)
         {
-            EnsureNotRequestCallback();
+            EnsureRequestCallbackAllowed(allowRequestCallback);
             await m_lifecycleSemaphore.WaitAsync(ct).ConfigureAwait(false);
             IAsyncNodeManager? nodeManager = null;
             PreparedNodeManager? prepared = null;
@@ -468,7 +478,7 @@ namespace Opc.Ua.Server
             bool committed = false;
             try
             {
-                (server, host) = GetRunningServer();
+                (server, host) = GetRunningServer(allowRequestCallback);
                 await CleanupRetiredNodeManagersAsync(server, host).ConfigureAwait(false);
                 namespaceCountBefore = server.NamespaceUris.Count;
                 nodeManager = await createNodeManager(
@@ -501,6 +511,7 @@ namespace Opc.Ua.Server
                         server,
                         nodeManager,
                         ct)).ConfigureAwait(false);
+                RebuildTypeTree(nodeManager);
 
                 var registration = new NodeManagerRegistration(
                     Guid.NewGuid(),
@@ -510,7 +521,10 @@ namespace Opc.Ua.Server
                 {
                     m_registrations.Add(
                         registration.Id,
-                        new RegistrationState(registration, prepared));
+                        new RegistrationState(
+                            registration,
+                            prepared,
+                            allowRequestCallback));
                 }
                 committed = true;
 
@@ -564,7 +578,8 @@ namespace Opc.Ua.Server
                         m_registrations[retainedRegistration.Id] =
                             new RegistrationState(
                                 retainedRegistration,
-                                prepared);
+                                prepared,
+                                allowRequestCallback);
                     }
 
                     try
@@ -659,6 +674,7 @@ namespace Opc.Ua.Server
             NodeManagerRegistration registration,
             CreateNodeManagerAsync createNodeManager,
             ReloadRetirementMode retirementMode,
+            bool allowRequestCallback,
             CancellationToken ct)
         {
             if (registration is null)
@@ -666,7 +682,6 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(registration));
             }
 
-            EnsureNotRequestCallback();
             await m_lifecycleSemaphore.WaitAsync(ct).ConfigureAwait(false);
             IAsyncNodeManager? replacementManager = null;
             PreparedNodeManager? replacement = null;
@@ -685,10 +700,13 @@ namespace Opc.Ua.Server
                     : null;
             try
             {
-                (server, host) = GetRunningServer();
+                current = GetCurrentState(registration);
+                allowRequestCallback &=
+                    current.AllowLifecycleFromRequestCallback;
+                EnsureRequestCallbackAllowed(allowRequestCallback);
+                (server, host) = GetRunningServer(allowRequestCallback);
                 await CleanupRetiredNodeManagersAsync(server, host).ConfigureAwait(false);
                 namespaceCountBefore = server.NamespaceUris.Count;
-                current = GetCurrentState(registration);
                 if (immediateRetirementError is not null)
                 {
                     EnsureImmediateRetirementSupported(
@@ -802,6 +820,7 @@ namespace Opc.Ua.Server
                     beforeCommit: beforeReloadCommit,
                     afterCommit: afterTransitionCommit,
                     rollbackCommit: rollbackTransitionCommit).ConfigureAwait(false);
+                RebuildTypeTree(replacementManager);
                 current.Prepared.Published = false;
                 var nextRegistration = new NodeManagerRegistration(
                     current.Registration.Id,
@@ -811,7 +830,8 @@ namespace Opc.Ua.Server
                 {
                     m_registrations[current.Registration.Id] = new RegistrationState(
                         nextRegistration,
-                        replacement);
+                        replacement,
+                        allowRequestCallback);
                 }
 
                 var retired = new RetiredNodeManager(
@@ -943,7 +963,8 @@ namespace Opc.Ua.Server
                             m_registrations[current.Registration.Id] =
                                 new RegistrationState(
                                     retainedRegistration,
-                                    replacement);
+                                    replacement,
+                                    allowRequestCallback);
                             m_retiredNodeManagers.Add(
                                 new RetiredNodeManager(
                                     current.Prepared.NodeManager,
@@ -1050,7 +1071,8 @@ namespace Opc.Ua.Server
             }
         }
 
-        private (IServerInternal Server, IDynamicNodeManagerHost Host) GetRunningServer()
+        private (IServerInternal Server, IDynamicNodeManagerHost Host) GetRunningServer(
+            bool allowRequestCallback = false)
         {
             if (m_disposed)
             {
@@ -1069,7 +1091,8 @@ namespace Opc.Ua.Server
             }
 
             IServerInternal server = m_server.CurrentInstance;
-            if (server.RequestManager.IsExecutingRequest)
+            if (server.RequestManager.IsExecutingRequest &&
+                !allowRequestCallback)
             {
                 throw new InvalidOperationException(
                     "NodeManager lifecycle operations cannot run from an OPC UA request callback.");
@@ -1082,14 +1105,23 @@ namespace Opc.Ua.Server
             return (server, host);
         }
 
-        private void EnsureNotRequestCallback()
+        private void EnsureRequestCallbackAllowed(bool allowRequestCallback)
         {
             if (m_server.CurrentState == ServerState.Running &&
-                m_server.CurrentInstance.RequestManager.IsExecutingRequest)
+                m_server.CurrentInstance.RequestManager.IsExecutingRequest &&
+                !allowRequestCallback)
             {
                 throw new InvalidOperationException(
                     "NodeManager lifecycle operations cannot run from an OPC UA request callback.");
             }
+        }
+
+        private static bool IsRequestCallbackSafe(IAsyncNodeManagerFactory factory)
+        {
+            return factory is IRequestCallbackSafeNodeManagerFactory
+            {
+                AllowLifecycleFromRequestCallback: true
+            };
         }
 
         private RegistrationState GetCurrentState(NodeManagerRegistration registration)
@@ -1944,15 +1976,19 @@ namespace Opc.Ua.Server
         {
             foreach (IAsyncNodeManager nodeManager in server.NodeManager.AsyncNodeManagers)
             {
-                if (nodeManager is AsyncCustomNodeManager asyncCustomNodeManager)
-                {
-                    asyncCustomNodeManager.RebuildTypeTree();
-                }
-                else if (nodeManager.SyncNodeManager is
-                    CustomNodeManager2 customNodeManager)
-                {
-                    customNodeManager.RebuildTypeTree();
-                }
+                RebuildTypeTree(nodeManager);
+            }
+        }
+
+        private static void RebuildTypeTree(IAsyncNodeManager nodeManager)
+        {
+            if (nodeManager is AsyncCustomNodeManager asyncCustomNodeManager)
+            {
+                asyncCustomNodeManager.RebuildTypeTree();
+            }
+            else if (nodeManager.SyncNodeManager is CustomNodeManager2 customNodeManager)
+            {
+                customNodeManager.RebuildTypeTree();
             }
         }
 
@@ -2655,15 +2691,19 @@ namespace Opc.Ua.Server
         {
             public RegistrationState(
                 NodeManagerRegistration registration,
-                PreparedNodeManager prepared)
+                PreparedNodeManager prepared,
+                bool allowLifecycleFromRequestCallback)
             {
                 Registration = registration;
                 Prepared = prepared;
+                AllowLifecycleFromRequestCallback = allowLifecycleFromRequestCallback;
             }
 
             public NodeManagerRegistration Registration { get; }
 
             public PreparedNodeManager Prepared { get; }
+
+            public bool AllowLifecycleFromRequestCallback { get; }
         }
 
         private sealed class ServerBindings

@@ -31,8 +31,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.WotCon.Binding;
-using Opc.Ua.WotCon.Binding.Samples;
+using Opc.Ua.WotCon.Bindings;
+using Opc.Ua.WotCon.Bindings.Samples;
 
 namespace Opc.Ua.WotCon.Tests.Binding
 {
@@ -45,14 +45,14 @@ namespace Opc.Ua.WotCon.Tests.Binding
     public sealed class WotCustomBinderSampleTests
     {
         [Test]
-        public async Task SampleBinder_CompilesAndExecutesReadWrite()
+        public async Task SampleBinderCompilesAndExecutesReadWrite()
         {
             var store = new MemoryWotStore();
             var registry = new WotProtocolBinderRegistry(
                 new IWotProtocolBinder[] { new MemoryWotBinder() },
                 new IWotBindingExecutor[] { new MemoryWotBindingExecutor(store) });
 
-            string td = "{\"@context\":\"https://www.w3.org/2022/wot/td/v1.1\",\"title\":\"t\"," +
+            const string td = "{\"@context\":\"https://www.w3.org/2022/wot/td/v1.1\",\"title\":\"t\"," +
                 "\"properties\":{\"setpoint\":{\"type\":\"number\",\"forms\":[{\"href\":\"mem://store/setpoint\"}]}}}";
             WotBindingPlan plan = registry.Prepare(WotBindingPlanRequest.FromDocument(
                 "xid", WoTDocumentKindEnum.ThingDescription, Encoding.UTF8.GetBytes(td)));
@@ -63,17 +63,17 @@ namespace Opc.Ua.WotCon.Tests.Binding
             WotCompiledForm write = plan.CompiledForms.First(f => f.Operation == WoTBindingCapabilityEnum.WriteProperty);
             WotCompiledForm read = plan.CompiledForms.First(f => f.Operation == WoTBindingCapabilityEnum.ReadProperty);
 
-            IWotBindingChannel writeChannel = await registry.OpenChannelAsync(write);
+            IWotBindingChannel writeChannel = await registry.OpenChannelAsync(write).ConfigureAwait(false);
             await using (writeChannel.ConfigureAwait(false))
             {
-                WotWriteResult result = await writeChannel.WriteAsync(new DataValue(new Variant(42.5)));
+                WotWriteResult result = await writeChannel.WriteAsync(new DataValue(new Variant(42.5))).ConfigureAwait(false);
                 Assert.That(result.Success, Is.True);
             }
 
-            IWotBindingChannel readChannel = await registry.OpenChannelAsync(read);
+            IWotBindingChannel readChannel = await registry.OpenChannelAsync(read).ConfigureAwait(false);
             await using (readChannel.ConfigureAwait(false))
             {
-                WotReadResult result = await readChannel.ReadAsync();
+                WotReadResult result = await readChannel.ReadAsync().ConfigureAwait(false);
                 Assert.That(result.Success, Is.True);
                 Assert.That(result.Value.WrappedValue.AsBoxedObject(), Is.EqualTo(42.5));
             }

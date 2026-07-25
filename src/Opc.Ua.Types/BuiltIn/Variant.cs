@@ -1887,6 +1887,40 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Tries to get a structure value, converting a dynamically decoded
+        /// structure to the requested generated type when necessary.
+        /// </summary>
+        /// <typeparam name="T">The requested structure type.</typeparam>
+        /// <param name="context">The message context used for binary conversion.</param>
+        /// <param name="value">The converted structure value.</param>
+        /// <returns><c>true</c> when the structure could be converted.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        public bool TryGetStructure<T>(
+            IServiceMessageContext context,
+            [MaybeNullWhen(false)] out T value)
+            where T : class, IEncodeable, new()
+        {
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
+            if (TryGetStructure(out value))
+            {
+                return true;
+            }
+
+            if (TryGetValue(out ExtensionObject extension) &&
+                TryDecodeStructure(extension, context, out value))
+            {
+                return true;
+            }
+
+            value = default;
+            return false;
+        }
+
+        /// <summary>
         /// Try convert the variant to a <see cref="EnumValue"/> value.
         /// </summary>
         /// <param name="value">The <see cref="EnumValue"/> value to get
@@ -2304,6 +2338,51 @@ namespace Opc.Ua
         public bool TryGetStructure<T>(out ArrayOf<T> value) where T : IEncodeable
         {
             return TryGetValue(out value, null);
+        }
+
+        /// <summary>
+        /// Tries to get an array of structure values, converting dynamically
+        /// decoded structures to the requested generated type when necessary.
+        /// </summary>
+        /// <typeparam name="T">The requested structure element type.</typeparam>
+        /// <param name="context">The message context used for binary conversion.</param>
+        /// <param name="value">The converted structure values.</param>
+        /// <returns><c>true</c> when every structure could be converted.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        public bool TryGetStructure<T>(
+            IServiceMessageContext context,
+            out ArrayOf<T> value)
+            where T : class, IEncodeable, new()
+        {
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
+            if (TryGetStructure(out value))
+            {
+                return true;
+            }
+
+            if (!TryGetValue(out ArrayOf<ExtensionObject> extensions))
+            {
+                value = default;
+                return false;
+            }
+
+            var structures = new T[extensions.Count];
+            for (int ii = 0; ii < extensions.Count; ii++)
+            {
+                if (!TryDecodeStructure(extensions[ii], context, out T? structure))
+                {
+                    value = default;
+                    return false;
+                }
+                structures[ii] = structure;
+            }
+
+            value = new ArrayOf<T>(structures);
+            return true;
         }
 
         /// <summary>
@@ -8157,6 +8236,114 @@ namespace Opc.Ua
                 return convertible.ToArray();
             }
             return value;
+        }
+
+        private static bool TryDecodeStructure<T>(
+            ExtensionObject extension,
+            IServiceMessageContext context,
+            [NotNullWhen(true)] out T? value)
+            where T : class, IEncodeable, new()
+        {
+            if (extension.TryGetValue(out T? typed, context))
+            {
+                value = typed;
+                return true;
+            }
+
+            try
+            {
+                if (extension.TryGetValue(out IEncodeable? encodeable, context))
+                {
+                    var decoded = new T();
+                    if (!IsMatchingStructureIdentifier(
+                            extension.TypeId,
+                            decoded,
+                            context.NamespaceUris) &&
+                        !IsMatchingStructureIdentifier(
+                            encodeable.TypeId,
+                            decoded,
+                            context.NamespaceUris))
+                    {
+                        value = default;
+                        return false;
+                    }
+                    using var encoder = new BinaryEncoder(context);
+                    encodeable.Encode(encoder);
+                    byte[] buffer = encoder.CloseAndReturnBuffer() ??
+                        throw new InvalidOperationException(
+                            "The structure encoder returned no buffer.");
+                    using var decoder = new BinaryDecoder(buffer, context);
+                    decoded.Decode(decoder);
+                    value = decoded;
+                    return true;
+                }
+
+                if (extension.TryGetAsBinary(out ByteString binary) && !binary.IsNull)
+                {
+                    var decoded = new T();
+                    if (!IsMatchingStructureIdentifier(
+                            extension.TypeId,
+                            decoded,
+                            context.NamespaceUris))
+                    {
+                        value = default;
+                        return false;
+                    }
+                    using var decoder = new BinaryDecoder(binary.ToArray(), context);
+                    decoded.Decode(decoder);
+                    value = decoded;
+                    return true;
+                }
+            }
+            catch (Exception ex) when (
+                ex is ServiceResultException or FormatException or InvalidOperationException)
+            {
+                value = default;
+                return false;
+            }
+
+            value = default;
+            return false;
+        }
+
+        private static bool IsMatchingStructureIdentifier(
+            ExpandedNodeId actual,
+            IEncodeable expected,
+            NamespaceTable namespaceUris)
+        {
+            return AreEquivalentStructureIdentifiers(
+                    actual,
+                    expected.TypeId,
+                    namespaceUris) ||
+                AreEquivalentStructureIdentifiers(
+                    actual,
+                    expected.BinaryEncodingId,
+                    namespaceUris) ||
+                AreEquivalentStructureIdentifiers(
+                    actual,
+                    expected.XmlEncodingId,
+                    namespaceUris);
+        }
+
+        private static bool AreEquivalentStructureIdentifiers(
+            ExpandedNodeId first,
+            ExpandedNodeId second,
+            NamespaceTable namespaceUris)
+        {
+            if (first.IsNull || second.IsNull)
+            {
+                return false;
+            }
+            if (first == second)
+            {
+                return true;
+            }
+
+            var firstLocal = ExpandedNodeId.ToNodeId(first, namespaceUris);
+            var secondLocal = ExpandedNodeId.ToNodeId(second, namespaceUris);
+            return !firstLocal.IsNull &&
+                !secondLocal.IsNull &&
+                firstLocal == secondLocal;
         }
 
         /// <summary>

@@ -235,7 +235,7 @@ namespace Opc.Ua.SourceGeneration
             string nodeSetXml = EmbeddedText.From("DemoModel.NodeSet2.xml").GetText()!.ToString();
             string wotJson = BuildDemoModelWotEnvelopeJson(nodeSetXml);
 
-            var options = DefaultWotOptions();
+            AnalyzerOptionsProvider options = DefaultWotOptions();
             options.TextOptions["DemoModel.jsonld"] = new Dictionary<string, string>
             {
                 ["build_metadata.AdditionalFiles.ModelSourceGeneratorWot"] = "true"
@@ -329,7 +329,7 @@ namespace Opc.Ua.SourceGeneration
         [Test]
         public void WotDocumentWithoutEnvelopeNativeMappingOrRecognizedTypeProducesDiagnosticTest()
         {
-            const string json = """{ "title": "NotARecognizedThing" }""";
+            const string json = /*lang=json,strict*/ """{ "title": "NotARecognizedThing" }""";
             (ImmutableArray<Diagnostic> diagnostics, GeneratorDriverRunResult runResult) =
                 RunGeneratorLeniently(
                     DefaultWotOptions(),
@@ -463,7 +463,7 @@ namespace Opc.Ua.SourceGeneration
             string nodeSetXml = EmbeddedText.From("DemoModel.NodeSet2.xml").GetText()!.ToString();
             string wotJson = BuildDemoModelWotEnvelopeJson(nodeSetXml);
 
-            var options = DefaultWotOptions();
+            AnalyzerOptionsProvider options = DefaultWotOptions();
             options.TextOptions["CustomWot.tm.json"] = new Dictionary<string, string>
             {
                 ["build_metadata.AdditionalFiles.ModelSourceGeneratorPrefix"] = "CustomWotPrefix",
@@ -503,7 +503,7 @@ namespace Opc.Ua.SourceGeneration
             var host = new ModelSourceGeneratorHoist(generator);
             CSharpCompilation compilation = OptimizationLevel.Release.CreateCompilation()
                 .AddCode(new Dictionary<string, string>().WithOpcUaGeneratedStack(), LanguageVersion.CSharp13);
-            var options = DefaultWotOptions();
+            AnalyzerOptionsProvider options = DefaultWotOptions();
 
             string nodeSetXmlV1 = EmbeddedText.From("DemoModel.NodeSet2.xml").GetText()!.ToString();
             const string originalAttr = "BrowseName=\"1:Yellow\" ParentNodeId=\"ns=1;i=125\"";
@@ -598,7 +598,7 @@ namespace Opc.Ua.SourceGeneration
                 .ToString();
             Assert.That(nodeSet, Does.Contain("OPC Foundation MIT License 1.00"));
 
-            XDocument document = XDocument.Parse(nodeSet);
+            var document = XDocument.Parse(nodeSet);
             XNamespace ua = "http://opcfoundation.org/UA/2011/03/UANodeSet.xsd";
             XElement root = document.Root!;
             XElement[] models = [.. root.Element(ua + "Models")!.Elements(ua + "Model")];
@@ -952,7 +952,7 @@ namespace Opc.Ua.SourceGeneration
                 Has.Length.EqualTo(1),
                 "a selector-less binding must be reported once, not once per pass");
             Assert.That(
-                unmatched[0].GetMessage(System.Globalization.CultureInfo.InvariantCulture),
+                unmatched[0].GetMessage(CultureInfo.InvariantCulture),
                 Does.Contain("multiple models"),
                 "the diagnostic should explain the ambiguity");
         }

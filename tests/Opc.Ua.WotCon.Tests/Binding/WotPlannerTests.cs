@@ -30,8 +30,8 @@
 using System.Linq;
 using NUnit.Framework;
 using Opc.Ua.Wot;
-using Opc.Ua.WotCon.Binding;
-using Opc.Ua.WotCon.Binding.Planners;
+using Opc.Ua.WotCon.Bindings;
+using Opc.Ua.WotCon.Bindings.Planners;
 
 namespace Opc.Ua.WotCon.Tests.Binding
 {
@@ -48,12 +48,13 @@ namespace Opc.Ua.WotCon.Tests.Binding
         // ---- HTTP -------------------------------------------------------------
 
         [Test]
-        public void Http_ValidProperty_CompilesReadAndWrite()
+        public void HttpValidPropertyCompilesReadAndWrite()
         {
             var planner = new HttpBindingPlanner();
             WotAffordanceForm form = WotBindingTestSupport.Form(
                 WotBindingTestSupport.Property("temp",
-                    "{\"href\":\"https://d.example.com/temp\",\"contentType\":\"application/json\"}"),
+                                         /*lang=json,strict*/
+                                         "{\"href\":\"https://d.example.com/temp\",\"contentType\":\"application/json\"}"),
                 "temp");
 
             WotBindingCompilation result = planner.Compile(form, WotBindingTestSupport.Context());
@@ -70,11 +71,11 @@ namespace Opc.Ua.WotCon.Tests.Binding
         }
 
         [Test]
-        public void Http_MethodOverride_IsHonoured()
+        public void HttpMethodOverrideIsHonoured()
         {
             var planner = new HttpBindingPlanner();
             WotAffordanceForm form = WotBindingTestSupport.Form(
-                WotBindingTestSupport.Action("run", "{\"href\":\"http://d/run\",\"htv:methodName\":\"POST\"}"),
+                WotBindingTestSupport.Action("run", /*lang=json,strict*/ "{\"href\":\"http://d/run\",\"htv:methodName\":\"POST\"}"),
                 "run");
 
             WotBindingCompilation result = planner.Compile(form, WotBindingTestSupport.Context());
@@ -84,11 +85,11 @@ namespace Opc.Ua.WotCon.Tests.Binding
         }
 
         [Test]
-        public void Http_InvalidMethod_IsRejectedWithPointer()
+        public void HttpInvalidMethodIsRejectedWithPointer()
         {
             var planner = new HttpBindingPlanner();
             WotAffordanceForm form = WotBindingTestSupport.Form(
-                WotBindingTestSupport.Property("temp", "{\"href\":\"http://d/x\",\"htv:methodName\":\"FETCHY\"}"),
+                WotBindingTestSupport.Property("temp", /*lang=json,strict*/ "{\"href\":\"http://d/x\",\"htv:methodName\":\"FETCHY\"}"),
                 "temp");
 
             WotBindingCompilation result = planner.Compile(form, WotBindingTestSupport.Context());
@@ -100,11 +101,11 @@ namespace Opc.Ua.WotCon.Tests.Binding
         }
 
         [Test]
-        public void Http_MissingScheme_IsRejected()
+        public void HttpMissingSchemeIsRejected()
         {
             var planner = new HttpBindingPlanner();
             WotAffordanceForm form = WotBindingTestSupport.Form(
-                WotBindingTestSupport.Property("temp", "{\"href\":\"relative/path\"}"), "temp");
+                WotBindingTestSupport.Property("temp", /*lang=json,strict*/ "{\"href\":\"relative/path\"}"), "temp");
 
             WotBindingCompilation result = planner.Compile(form, WotBindingTestSupport.Context());
 
@@ -115,12 +116,13 @@ namespace Opc.Ua.WotCon.Tests.Binding
         // ---- MQTT -------------------------------------------------------------
 
         [Test]
-        public void Mqtt_ValidProperty_ResolvesTopicAndQos()
+        public void MqttValidPropertyResolvesTopicAndQos()
         {
             var planner = new MqttBindingPlanner();
             WotAffordanceForm form = WotBindingTestSupport.Form(
                 WotBindingTestSupport.Property("temp",
-                    "{\"href\":\"mqtt://broker:1883/things/temp\",\"mqv:qos\":1,\"mqv:retain\":true}"),
+                                         /*lang=json,strict*/
+                                         "{\"href\":\"mqtt://broker:1883/things/temp\",\"mqv:qos\":1,\"mqv:retain\":true}"),
                 "temp");
 
             WotBindingCompilation result = planner.Compile(form, WotBindingTestSupport.Context());
@@ -134,11 +136,11 @@ namespace Opc.Ua.WotCon.Tests.Binding
         }
 
         [Test]
-        public void Mqtt_InvalidQos_IsRejected()
+        public void MqttInvalidQosIsRejected()
         {
             var planner = new MqttBindingPlanner();
             WotAffordanceForm form = WotBindingTestSupport.Form(
-                WotBindingTestSupport.Property("temp", "{\"href\":\"mqtt://b:1883/t\",\"mqv:qos\":5}"), "temp");
+                WotBindingTestSupport.Property("temp", /*lang=json,strict*/ "{\"href\":\"mqtt://b:1883/t\",\"mqv:qos\":5}"), "temp");
 
             WotBindingCompilation result = planner.Compile(form, WotBindingTestSupport.Context());
 
@@ -150,7 +152,7 @@ namespace Opc.Ua.WotCon.Tests.Binding
         // ---- Modbus -----------------------------------------------------------
 
         [Test]
-        public void Modbus_HoldingRegisterInt32_Compiles()
+        public void ModbusHoldingRegisterInt32Compiles()
         {
             var planner = new ModbusBindingPlanner();
             WotAffordanceForm form = WotBindingTestSupport.Form(
@@ -172,7 +174,7 @@ namespace Opc.Ua.WotCon.Tests.Binding
         }
 
         [Test]
-        public void Modbus_QuantityBeyondBounds_IsRejected()
+        public void ModbusQuantityBeyondBoundsIsRejected()
         {
             var planner = new ModbusBindingPlanner();
             WotAffordanceForm form = WotBindingTestSupport.Form(
@@ -188,7 +190,7 @@ namespace Opc.Ua.WotCon.Tests.Binding
         }
 
         [Test]
-        public void Modbus_WriteToReadOnlyEntity_IsRejected()
+        public void ModbusWriteToReadOnlyEntityIsRejected()
         {
             var planner = new ModbusBindingPlanner();
             WotAffordanceForm form = WotBindingTestSupport.Form(
@@ -205,7 +207,7 @@ namespace Opc.Ua.WotCon.Tests.Binding
         }
 
         [Test]
-        public void Modbus_AddressBeyond16Bit_IsRejected()
+        public void ModbusAddressBeyond16BitIsRejected()
         {
             var planner = new ModbusBindingPlanner();
             WotAffordanceForm form = WotBindingTestSupport.Form(
@@ -221,7 +223,7 @@ namespace Opc.Ua.WotCon.Tests.Binding
         }
 
         [Test]
-        public void Modbus_AddressPlusQuantityOverflow_IsRejected()
+        public void ModbusAddressPlusQuantityOverflowIsRejected()
         {
             var planner = new ModbusBindingPlanner();
             WotAffordanceForm form = WotBindingTestSupport.Form(
@@ -237,7 +239,7 @@ namespace Opc.Ua.WotCon.Tests.Binding
         }
 
         [Test]
-        public void Modbus_FunctionOnlyNumericCode_MapsEntityAndMethod()
+        public void ModbusFunctionOnlyNumericCodeMapsEntityAndMethod()
         {
             var planner = new ModbusBindingPlanner();
             WotAffordanceForm form = WotBindingTestSupport.Form(
@@ -258,7 +260,7 @@ namespace Opc.Ua.WotCon.Tests.Binding
         }
 
         [Test]
-        public void Modbus_FunctionOnlyMnemonic_MapsCoilWrite()
+        public void ModbusFunctionOnlyMnemonicMapsCoilWrite()
         {
             var planner = new ModbusBindingPlanner();
             WotAffordanceForm form = WotBindingTestSupport.Form(
@@ -278,7 +280,7 @@ namespace Opc.Ua.WotCon.Tests.Binding
         }
 
         [Test]
-        public void Modbus_EntityFunctionMismatch_IsRejected()
+        public void ModbusEntityFunctionMismatchIsRejected()
         {
             var planner = new ModbusBindingPlanner();
             WotAffordanceForm form = WotBindingTestSupport.Form(
@@ -295,12 +297,13 @@ namespace Opc.Ua.WotCon.Tests.Binding
         }
 
         [Test]
-        public void Modbus_InvalidFunction_IsRejected()
+        public void ModbusInvalidFunctionIsRejected()
         {
             var planner = new ModbusBindingPlanner();
             WotAffordanceForm form = WotBindingTestSupport.Form(
                 WotBindingTestSupport.Property("weird",
-                    "{\"href\":\"modbus+tcp://plc:502/1\",\"modv:function\":99,\"modv:address\":0}"),
+                                         /*lang=json,strict*/
+                                         "{\"href\":\"modbus+tcp://plc:502/1\",\"modv:function\":99,\"modv:address\":0}"),
                 "weird");
 
             WotBindingCompilation result = planner.Compile(form, WotBindingTestSupport.Context());
@@ -311,7 +314,7 @@ namespace Opc.Ua.WotCon.Tests.Binding
         }
 
         [Test]
-        public void Modbus_ExplicitWriteOpWithReadFunction_IsRejected()
+        public void ModbusExplicitWriteOpWithReadFunctionIsRejected()
         {
             var planner = new ModbusBindingPlanner();
             WotAffordanceForm form = WotBindingTestSupport.Form(
@@ -328,12 +331,13 @@ namespace Opc.Ua.WotCon.Tests.Binding
         }
 
         [Test]
-        public void Mqtts_Scheme_CompilesWithSecureEndpoint()
+        public void MqttsSchemeCompilesWithSecureEndpoint()
         {
             var planner = new MqttBindingPlanner();
             WotAffordanceForm form = WotBindingTestSupport.Form(
                 WotBindingTestSupport.Property("temp",
-                    "{\"href\":\"mqtts://broker:8883/things/temp\",\"mqv:qos\":1}"),
+                                         /*lang=json,strict*/
+                                         "{\"href\":\"mqtts://broker:8883/things/temp\",\"mqv:qos\":1}"),
                 "temp");
 
             WotBindingCompilation result = planner.Compile(form, WotBindingTestSupport.Context());
@@ -347,11 +351,11 @@ namespace Opc.Ua.WotCon.Tests.Binding
         // ---- CoAP (planner only, non-executable) ------------------------------
 
         [Test]
-        public void Coap_ValidForm_CompilesButNonExecutable()
+        public void CoapValidFormCompilesButNonExecutable()
         {
             var planner = new CoapBindingPlanner();
             WotAffordanceForm form = WotBindingTestSupport.Form(
-                WotBindingTestSupport.Property("temp", "{\"href\":\"coap://d/temp\",\"cov:method\":\"GET\"}"), "temp");
+                WotBindingTestSupport.Property("temp", /*lang=json,strict*/ "{\"href\":\"coap://d/temp\",\"cov:method\":\"GET\"}"), "temp");
 
             WotBindingCompilation result = planner.Compile(form, WotBindingTestSupport.Context());
 
@@ -361,11 +365,11 @@ namespace Opc.Ua.WotCon.Tests.Binding
         }
 
         [Test]
-        public void Coap_InvalidMethod_IsRejected()
+        public void CoapInvalidMethodIsRejected()
         {
             var planner = new CoapBindingPlanner();
             WotAffordanceForm form = WotBindingTestSupport.Form(
-                WotBindingTestSupport.Property("temp", "{\"href\":\"coap://d/x\",\"cov:method\":\"NOPE\"}"), "temp");
+                WotBindingTestSupport.Property("temp", /*lang=json,strict*/ "{\"href\":\"coap://d/x\",\"cov:method\":\"NOPE\"}"), "temp");
 
             WotBindingCompilation result = planner.Compile(form, WotBindingTestSupport.Context());
 
@@ -376,7 +380,7 @@ namespace Opc.Ua.WotCon.Tests.Binding
         // ---- BACnet (schema only) --------------------------------------------
 
         [Test]
-        public void Bacnet_ValidObject_Compiles()
+        public void BacnetValidObjectCompiles()
         {
             var planner = new BacnetBindingPlanner();
             WotAffordanceForm form = WotBindingTestSupport.Form(
@@ -393,12 +397,13 @@ namespace Opc.Ua.WotCon.Tests.Binding
         }
 
         [Test]
-        public void Bacnet_MissingInstance_IsRejected()
+        public void BacnetMissingInstanceIsRejected()
         {
             var planner = new BacnetBindingPlanner();
             WotAffordanceForm form = WotBindingTestSupport.Form(
                 WotBindingTestSupport.Property("t",
-                    "{\"bacv:objectType\":\"analogInput\",\"bacv:propertyIdentifier\":\"presentValue\"}"),
+                                         /*lang=json,strict*/
+                                         "{\"bacv:objectType\":\"analogInput\",\"bacv:propertyIdentifier\":\"presentValue\"}"),
                 "t");
 
             WotBindingCompilation result = planner.Compile(form, WotBindingTestSupport.Context());
@@ -411,11 +416,11 @@ namespace Opc.Ua.WotCon.Tests.Binding
         // ---- PROFINET (schema only) ------------------------------------------
 
         [Test]
-        public void Profinet_ValidSlot_Compiles()
+        public void ProfinetValidSlotCompiles()
         {
             var planner = new ProfinetBindingPlanner();
             WotAffordanceForm form = WotBindingTestSupport.Form(
-                WotBindingTestSupport.Property("t", "{\"pnv:slot\":1,\"pnv:subslot\":2,\"pnv:index\":100}"), "t");
+                WotBindingTestSupport.Property("t", /*lang=json,strict*/ "{\"pnv:slot\":1,\"pnv:subslot\":2,\"pnv:index\":100}"), "t");
 
             WotBindingCompilation result = planner.Compile(form, WotBindingTestSupport.Context());
 
@@ -424,11 +429,11 @@ namespace Opc.Ua.WotCon.Tests.Binding
         }
 
         [Test]
-        public void Profinet_MissingIndex_IsRejected()
+        public void ProfinetMissingIndexIsRejected()
         {
             var planner = new ProfinetBindingPlanner();
             WotAffordanceForm form = WotBindingTestSupport.Form(
-                WotBindingTestSupport.Property("t", "{\"pnv:slot\":1,\"pnv:subslot\":2}"), "t");
+                WotBindingTestSupport.Property("t", /*lang=json,strict*/ "{\"pnv:slot\":1,\"pnv:subslot\":2}"), "t");
 
             WotBindingCompilation result = planner.Compile(form, WotBindingTestSupport.Context());
 
@@ -439,12 +444,13 @@ namespace Opc.Ua.WotCon.Tests.Binding
         // ---- LoRaWAN (schema only) -------------------------------------------
 
         [Test]
-        public void LoRaWan_ValidDevice_Compiles()
+        public void LoRaWanValidDeviceCompiles()
         {
             var planner = new LoRaWanBindingPlanner();
             WotAffordanceForm form = WotBindingTestSupport.Form(
                 WotBindingTestSupport.Property("t",
-                    "{\"lorawan:DevEUI\":\"0011223344556677\",\"lorawan:fPort\":10}"), "t");
+                                         /*lang=json,strict*/
+                                         "{\"lorawan:DevEUI\":\"0011223344556677\",\"lorawan:fPort\":10}"), "t");
 
             WotBindingCompilation result = planner.Compile(form, WotBindingTestSupport.Context());
 
@@ -454,11 +460,11 @@ namespace Opc.Ua.WotCon.Tests.Binding
         }
 
         [Test]
-        public void LoRaWan_InvalidDevEui_IsRejected()
+        public void LoRaWanInvalidDevEuiIsRejected()
         {
             var planner = new LoRaWanBindingPlanner();
             WotAffordanceForm form = WotBindingTestSupport.Form(
-                WotBindingTestSupport.Property("t", "{\"lorawan:DevEUI\":\"not-hex\"}"), "t");
+                WotBindingTestSupport.Property("t", /*lang=json,strict*/ "{\"lorawan:DevEUI\":\"not-hex\"}"), "t");
 
             WotBindingCompilation result = planner.Compile(form, WotBindingTestSupport.Context());
 
@@ -469,12 +475,13 @@ namespace Opc.Ua.WotCon.Tests.Binding
         // ---- OPC UA -----------------------------------------------------------
 
         [Test]
-        public void OpcUa_ValidNodeId_Compiles()
+        public void OpcUaValidNodeIdCompiles()
         {
             var planner = new OpcUaBindingPlanner();
             WotAffordanceForm form = WotBindingTestSupport.Form(
                 WotBindingTestSupport.Property("t",
-                    "{\"href\":\"opc.tcp://server:4840\",\"uav:id\":\"ns=2;i=5\"}"), "t");
+                                         /*lang=json,strict*/
+                                         "{\"href\":\"opc.tcp://server:4840\",\"uav:id\":\"ns=2;i=5\"}"), "t");
 
             WotBindingCompilation result = planner.Compile(form, WotBindingTestSupport.Context());
 
@@ -486,11 +493,11 @@ namespace Opc.Ua.WotCon.Tests.Binding
         }
 
         [Test]
-        public void OpcUa_MissingNodeId_IsRejected()
+        public void OpcUaMissingNodeIdIsRejected()
         {
             var planner = new OpcUaBindingPlanner();
             WotAffordanceForm form = WotBindingTestSupport.Form(
-                WotBindingTestSupport.Property("t", "{\"href\":\"opc.tcp://server:4840\"}"), "t");
+                WotBindingTestSupport.Property("t", /*lang=json,strict*/ "{\"href\":\"opc.tcp://server:4840\"}"), "t");
 
             WotBindingCompilation result = planner.Compile(form, WotBindingTestSupport.Context());
 
@@ -499,12 +506,13 @@ namespace Opc.Ua.WotCon.Tests.Binding
         }
 
         [Test]
-        public void OpcUa_ActionCarriesComponentOf()
+        public void OpcUaActionCarriesComponentOf()
         {
             var planner = new OpcUaBindingPlanner();
             WotAffordanceForm form = WotBindingTestSupport.Form(
                 WotBindingTestSupport.Action("run",
-                    "{\"href\":\"opc.tcp://server:4840\",\"uav:id\":\"ns=2;i=9\",\"uav:componentOf\":\"ns=2;i=1\"}"),
+                                         /*lang=json,strict*/
+                                         "{\"href\":\"opc.tcp://server:4840\",\"uav:id\":\"ns=2;i=9\",\"uav:componentOf\":\"ns=2;i=1\"}"),
                 "run");
 
             WotBindingCompilation result = planner.Compile(form, WotBindingTestSupport.Context());
@@ -517,7 +525,7 @@ namespace Opc.Ua.WotCon.Tests.Binding
         }
 
         [Test]
-        public void OpcUa_EventCarriesAuthoredEventFields()
+        public void OpcUaEventCarriesAuthoredEventFields()
         {
             var planner = new OpcUaBindingPlanner();
             WotAffordanceForm form = WotBindingTestSupport.Form(
@@ -535,12 +543,13 @@ namespace Opc.Ua.WotCon.Tests.Binding
         }
 
         [Test]
-        public void OpcUa_EventWithoutEventFields_OmitsMetadataKey()
+        public void OpcUaEventWithoutEventFieldsOmitsMetadataKey()
         {
             var planner = new OpcUaBindingPlanner();
             WotAffordanceForm form = WotBindingTestSupport.Form(
                 WotBindingTestSupport.Event("trigger",
-                    "{\"href\":\"opc.tcp://server:4840\",\"uav:id\":\"ns=2;i=42\",\"op\":[\"subscribeevent\"]}"),
+                                         /*lang=json,strict*/
+                                         "{\"href\":\"opc.tcp://server:4840\",\"uav:id\":\"ns=2;i=42\",\"op\":[\"subscribeevent\"]}"),
                 "trigger");
 
             WotBindingCompilation result = planner.Compile(form, WotBindingTestSupport.Context());
@@ -554,7 +563,7 @@ namespace Opc.Ua.WotCon.Tests.Binding
         // ---- Capability metadata ---------------------------------------------
 
         [Test]
-        public void Capabilities_PinSourcesAndNeverClaimRegistryCurrent()
+        public void CapabilitiesPinSourcesAndNeverClaimRegistryCurrent()
         {
             foreach (IWotProtocolBinder binder in WotBuiltInBinders.CreateAll())
             {
@@ -569,15 +578,15 @@ namespace Opc.Ua.WotCon.Tests.Binding
         }
 
         [Test]
-        public void Diagnostics_ExposeJsonPointerViaSharedModel()
+        public void DiagnosticsExposeJsonPointerViaSharedModel()
         {
             var planner = new HttpBindingPlanner();
             WotAffordanceForm form = WotBindingTestSupport.Form(
-                WotBindingTestSupport.Property("temp", "{\"contentType\":\"application/json\"}"), "temp");
+                WotBindingTestSupport.Property("temp", /*lang=json,strict*/ "{\"contentType\":\"application/json\"}"), "temp");
 
             WotBindingCompilation result = planner.Compile(form, WotBindingTestSupport.Context());
             WotBindingDiagnostic diagnostic = result.Diagnostics.First(d => d.IsError);
-            WotDiagnostic shared = diagnostic.ToWotDiagnostic();
+            var shared = diagnostic.ToWotDiagnostic();
 
             Assert.That(shared.Location?.JsonPointer, Does.StartWith("/properties/temp/forms/0"));
         }

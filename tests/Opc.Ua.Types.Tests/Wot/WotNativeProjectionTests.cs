@@ -138,8 +138,8 @@ namespace Opc.Ua.Types.Tests.Wot
             // Exercise the localized-entry path: a locale plus a second entry.
             sourceReference.InverseName =
             [
-                new Opc.Ua.Export.LocalizedText { Locale = "en", Value = "IsControlledBy" },
-                new Opc.Ua.Export.LocalizedText { Locale = "de", Value = "WirdGesteuertVon" }
+                new Export.LocalizedText { Locale = "en", Value = "IsControlledBy" },
+                new Export.LocalizedText { Locale = "de", Value = "WirdGesteuertVon" }
             ];
 
             byte[] json = BuildNativeOnlyDocument(source);

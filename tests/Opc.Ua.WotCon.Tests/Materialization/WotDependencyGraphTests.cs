@@ -67,7 +67,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         [Test]
-        public void ExtractReferences_FindsTmExtendsLinks()
+        public void ExtractReferencesFindsTmExtendsLinks()
         {
             byte[] doc = TestMaterialization.Td("urn:td", extendsHrefs: "urn:tm-1");
 
@@ -79,7 +79,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         [Test]
-        public async Task BuildClosures_SharedModel_YieldsSingleClosure_TmFirst()
+        public async Task BuildClosuresSharedModelYieldsSingleClosureTmFirst()
         {
             WotRegistrySnapshot snapshot = await Snapshot(
                 (WoTDocumentKindEnum.ThingModel, "tm", TestMaterialization.Tm("urn:tm")),
@@ -89,7 +89,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             ImmutableArray<WotDependencyClosure> closures =
                 WotDependencyGraph.BuildClosures(snapshot, snapshot.AllResources().ToList(), 64);
 
-            Assert.That(closures.Length, Is.EqualTo(1));
+            Assert.That(closures, Has.Length.EqualTo(1));
             Assert.That(closures[0].IsProjectable, Is.True);
             Assert.That(
                 closures[0].OrderedResources.Select(r => r.ResourceId),
@@ -97,7 +97,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         [Test]
-        public async Task BuildClosures_IndependentResources_YieldSeparateClosures()
+        public async Task BuildClosuresIndependentResourcesYieldSeparateClosures()
         {
             WotRegistrySnapshot snapshot = await Snapshot(
                 (WoTDocumentKindEnum.ThingDescription, "a", TestMaterialization.Td("urn:a")),
@@ -106,12 +106,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             ImmutableArray<WotDependencyClosure> closures =
                 WotDependencyGraph.BuildClosures(snapshot, snapshot.AllResources().ToList(), 64);
 
-            Assert.That(closures.Length, Is.EqualTo(2));
+            Assert.That(closures, Has.Length.EqualTo(2));
             Assert.That(closures.All(c => c.OrderedResources.Length == 1), Is.True);
         }
 
         [Test]
-        public async Task BuildClosures_MissingDependency_IsFlagged()
+        public async Task BuildClosuresMissingDependencyIsFlagged()
         {
             WotRegistrySnapshot snapshot = await Snapshot(
                 (WoTDocumentKindEnum.ThingDescription, "td",
@@ -120,13 +120,13 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             ImmutableArray<WotDependencyClosure> closures =
                 WotDependencyGraph.BuildClosures(snapshot, snapshot.AllResources().ToList(), 64);
 
-            Assert.That(closures.Length, Is.EqualTo(1));
+            Assert.That(closures, Has.Length.EqualTo(1));
             Assert.That(closures[0].HasMissingDependency, Is.True);
             Assert.That(closures[0].IsProjectable, Is.False);
         }
 
         [Test]
-        public async Task BuildClosures_Cycle_IsDetected()
+        public async Task BuildClosuresCycleIsDetected()
         {
             WotRegistrySnapshot snapshot = await Snapshot(
                 (WoTDocumentKindEnum.ThingModel, "a",
@@ -137,10 +137,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             ImmutableArray<WotDependencyClosure> closures =
                 WotDependencyGraph.BuildClosures(snapshot, snapshot.AllResources().ToList(), 64);
 
-            Assert.That(closures.Length, Is.EqualTo(1));
+            Assert.That(closures, Has.Length.EqualTo(1));
             Assert.That(closures[0].HasCycle, Is.True);
             Assert.That(closures[0].IsProjectable, Is.False);
-            Assert.That(closures[0].Members.Length, Is.EqualTo(2),
+            Assert.That(closures[0].Members, Has.Length.EqualTo(2),
                 "A cyclic closure must still report its members for diagnostics.");
         }
     }

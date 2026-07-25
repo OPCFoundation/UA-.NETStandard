@@ -15,6 +15,8 @@ WoT-configured asset connections. The split provider model
 (FileSystem, ThingDescription, ConnectionStore) lets each backing
 store be swapped independently.
 
+The package also hosts the WoT Connectivity 1.1 registry materialization coordinator and generic target-mapping runtime. Prepared binding plans are wired onto runtime-loaded NodeSet generations, channels open lazily, local monitored items sample the async read handlers, and shadow reload keeps existing monitored items on the retired generation until they drain.
+
 ## Target frameworks
 
 `net472`, `net48`, `netstandard2.1`, `net8.0`, `net9.0`,
@@ -25,3 +27,5 @@ store be swapped independently.
 See the [main repository README](https://github.com/OPCFoundation/UA-.NETStandard)
 and the
 [WoT Connectivity guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/WoTConnectivity.md).
+
+See also the [protocol binding overview](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/WoTProtocolBindings.md), [binding-authoring guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/WoTBindingDevelopment.md), and [WoT aggregation sample](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/WoTAggregationSample.md).

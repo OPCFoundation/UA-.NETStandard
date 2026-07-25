@@ -44,9 +44,10 @@ namespace Opc.Ua.Types.Tests.Wot
         public void ParseAndWritePreservesUnknownMembersExactly()
         {
             byte[] json = Encoding.UTF8.GetBytes(
-                "{\"@context\":[],\"title\":\"T\",\"vendor:unknown\":{\"b\":2,\"a\":1}}");
+                /*lang=json,strict*/
+                                     "{\"@context\":[],\"title\":\"T\",\"vendor:unknown\":{\"b\":2,\"a\":1}}");
 
-            using WotDocument document = WotDocument.Parse(json);
+            using var document = WotDocument.Parse(json);
             using var output = new System.IO.MemoryStream();
             document.Write(output);
 
@@ -67,7 +68,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"securityDefinitions\":{\"nosec_sc\":{\"scheme\":\"nosec\"}}," +
                 "\"schemaDefinitions\":{\"S\":{\"type\":\"object\"}}}");
 
-            using WotDocument document = WotDocument.Parse(json);
+            using var document = WotDocument.Parse(json);
 
             Assert.That(document.Kind, Is.EqualTo(WotDocumentKind.ThingModel));
             Assert.That(document.Title, Is.EqualTo("PumpType"));
@@ -87,9 +88,10 @@ namespace Opc.Ua.Types.Tests.Wot
         public void JsonPointerResolvesNestedMembersIncludingEscapes()
         {
             byte[] json = Encoding.UTF8.GetBytes(
-                "{\"properties\":{\"speed\":{\"uav:unit~x\":\"rpm\",\"items\":[10,20]}}}");
+                /*lang=json,strict*/
+                                     "{\"properties\":{\"speed\":{\"uav:unit~x\":\"rpm\",\"items\":[10,20]}}}");
 
-            using WotDocument document = WotDocument.Parse(json);
+            using var document = WotDocument.Parse(json);
 
             Assert.That(
                 document.TryEvaluatePointer("/properties/speed/items/1", out JsonElement item),
@@ -108,12 +110,14 @@ namespace Opc.Ua.Types.Tests.Wot
         public void CanonicalWriterProducesDeterministicSortedOutput()
         {
             byte[] first = Encoding.UTF8.GetBytes(
-                "{ \"b\": 2, \"a\": 1, \"nested\": { \"y\": 2, \"x\": 1 } }");
+                /*lang=json,strict*/
+                                     "{ \"b\": 2, \"a\": 1, \"nested\": { \"y\": 2, \"x\": 1 } }");
             byte[] second = Encoding.UTF8.GetBytes(
-                "{\"a\":1,\"nested\":{\"x\":1,\"y\":2},\"b\":2}");
+                /*lang=json,strict*/
+                                     "{\"a\":1,\"nested\":{\"x\":1,\"y\":2},\"b\":2}");
 
-            using WotDocument firstDocument = WotDocument.Parse(first);
-            using WotDocument secondDocument = WotDocument.Parse(second);
+            using var firstDocument = WotDocument.Parse(first);
+            using var secondDocument = WotDocument.Parse(second);
 
             byte[] firstCanonical = firstDocument.ToCanonicalUtf8();
             byte[] secondCanonical = secondDocument.ToCanonicalUtf8();
@@ -121,14 +125,14 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(firstCanonical, Is.EqualTo(secondCanonical));
             Assert.That(
                 Encoding.UTF8.GetString(firstCanonical),
-                Is.EqualTo("{\"a\":1,\"b\":2,\"nested\":{\"x\":1,\"y\":2}}"));
+                Is.EqualTo(/*lang=json,strict*/ "{\"a\":1,\"b\":2,\"nested\":{\"x\":1,\"y\":2}}"));
         }
 
         [Test]
         public void CanonicalWriterIsSeparateFromExactWrite()
         {
-            byte[] json = Encoding.UTF8.GetBytes("{ \"b\" : 2, \"a\" : 1 }");
-            using WotDocument document = WotDocument.Parse(json);
+            byte[] json = Encoding.UTF8.GetBytes(/*lang=json,strict*/ "{ \"b\" : 2, \"a\" : 1 }");
+            using var document = WotDocument.Parse(json);
 
             using var exact = new System.IO.MemoryStream();
             document.Write(exact);

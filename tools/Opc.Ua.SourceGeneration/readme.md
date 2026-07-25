@@ -67,12 +67,7 @@ for the end-to-end pattern.
 
 ## Generate code from WoT Thing Models / Thing Descriptions
 
-An `AdditionalFiles` input can also be a W3C Web of Things (WoT) Thing Model
-or Thing Description. It is converted in memory to a NodeSet2 document (using
-the `Opc.Ua.Wot` converter) before the normal NodeSet2/ModelDesign pipeline
-above runs — the rest of the generator cannot tell the difference. No file or
-network I/O beyond the supplied `AdditionalFiles` content is performed, and
-externally referenced TD/TM documents are not resolved.
+An `AdditionalFiles` input can also be a W3C Web of Things (WoT) Thing Model or Thing Description. It is converted in memory to a NodeSet2 document (using the `Opc.Ua.Wot` converter) before the normal NodeSet2/ModelDesign pipeline above runs — the rest of the generator cannot tell the difference. No file or network I/O beyond the supplied `AdditionalFiles` content is performed, and externally referenced TD/TM documents are not resolved.
 
 The following extensions are always recognized as WoT model input:
 
@@ -83,9 +78,7 @@ The following extensions are always recognized as WoT model input:
 | `.tm.jsonld` | Thing Model, JSON-LD |
 | `.td.jsonld` | Thing Description, JSON-LD |
 
-A plain `.jsonld` file is **not** treated as a WoT input by default — arbitrary
-JSON-LD is not consumed as a model. Opt a specific file in with the
-`ModelSourceGeneratorWot` metadata:
+A plain `.jsonld` file is **not** treated as a WoT input by default — arbitrary JSON-LD is not consumed as a model. Opt a specific file in with the `ModelSourceGeneratorWot` metadata:
 
 ```xml
 <ItemGroup>
@@ -95,15 +88,9 @@ JSON-LD is not consumed as a model. Opt a specific file in with the
 </ItemGroup>
 ```
 
-The same per-file metadata described above (`ModelSourceGeneratorModelUri`,
-`ModelSourceGeneratorName`, `ModelSourceGeneratorPrefix`, as well as
-`ModelSourceGeneratorVersion` and `ModelSourceGeneratorIgnore`) is honored on a
-WoT input exactly as it is on a `NodeSet2`/`ModelDesign` input, and is
-preserved after the WoT document is wrapped as an in-memory NodeSet2 file.
+The same per-file metadata described above (`ModelSourceGeneratorModelUri`, `ModelSourceGeneratorName`, `ModelSourceGeneratorPrefix`, as well as `ModelSourceGeneratorVersion` and `ModelSourceGeneratorIgnore`) is honored on a WoT input exactly as it is on a `NodeSet2`/`ModelDesign` input, and is preserved after the WoT document is wrapped as an in-memory NodeSet2 file.
 
-A malformed or unsupported WoT document never crashes the generator. Instead
-it is reported through one of these diagnostics, and the affected input is
-excluded from generation while every other input continues to be processed:
+A malformed or unsupported WoT document never crashes the generator. Instead it is reported through one of these diagnostics, and the affected input is excluded from generation while every other input continues to be processed:
 
 | Diagnostic | Meaning |
 | ---------- | ------- |

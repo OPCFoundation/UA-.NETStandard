@@ -4762,14 +4762,12 @@ namespace Opc.Ua.Server
             Message = "Server - SESSION ACTIVATE failed. {ErrorMessage}")]
         public static partial void ServerSESSIONACTIVATEFailedErrorMessage(this ILogger logger, string? errorMessage);
 
-
         [LoggerMessage(EventId = ServerEventIds.StandardServer + 5, Level = LogLevel.Trace,
             Message = "PUBLISH #{RequestHandle} RECEIVED. TIME={Timestamp:hh:mm:ss.fff}")]
         public static partial void PUBLISHRequestHandleRECEIVEDTIMETimestampHhMm(
             this ILogger logger,
             uint requestHandle,
             DateTimeUtc timestamp);
-
 
         [LoggerMessage(EventId = ServerEventIds.StandardServer + 6, Level = LogLevel.Warning,
             Message = "RegisterServer{Api} failed for {EndpointUrl}. Exception={ErrorMessage}")]
@@ -4905,5 +4903,4 @@ namespace Opc.Ua.Server
             Message = "CertificateManager change observer failed to fan-out cert update.")]
         public static partial void CertificateManagerChangeObserverFailedToFanOut(this ILogger logger, Exception ex);
     }
-
 }

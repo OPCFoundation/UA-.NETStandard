@@ -85,7 +85,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
             };
 
         [Test]
-        public async Task CommitFailure_LeavesCurrentUnchanged_AndRaisesNoEvent()
+        public async Task CommitFailureLeavesCurrentUnchangedAndRaisesNoEvent()
         {
             var store = new FaultInjectingWotRegistryStore(new InMemoryWotRegistryStore());
             using var service = new WotRegistryService(store);
@@ -112,12 +112,12 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(
                 service.Current.FindResource(WotRegistryGroups.ThingDescriptions, "a"),
                 Is.Not.Null, "The prior generation must remain intact after a failed commit.");
-            Assert.That(changedCount, Is.EqualTo(0),
+            Assert.That(changedCount, Is.Zero,
                 "A failed commit must not raise a Changed event.");
         }
 
         [Test]
-        public async Task CommitFailure_ThenRetry_Persists_AndRaisesExactlyOneEvent()
+        public async Task CommitFailureThenRetryPersistsAndRaisesExactlyOneEvent()
         {
             var store = new FaultInjectingWotRegistryStore(new InMemoryWotRegistryStore());
             using var service = new WotRegistryService(store);
@@ -129,7 +129,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
             store.FailNextCommit = true;
             Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await service.UpsertResourceAsync(TdRequest("a", "urn:a")));
-            Assert.That(changedCount, Is.EqualTo(0));
+            Assert.That(changedCount, Is.Zero);
 
             // Retry after the fault clears: the same mutation now commits and the
             // resource becomes visible with a single change notification.
@@ -148,7 +148,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public async Task CommitFailure_RestartSeesNoPartialData()
+        public async Task CommitFailureRestartSeesNoPartialData()
         {
             // First service instance persists 'a', then fails to commit 'b'.
             var store = new FaultInjectingWotRegistryStore(new FileWotRegistryStore(m_root));
@@ -176,7 +176,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public async Task FileStore_Load_ReadsOnlyCommittedGeneration_IgnoringStagedFiles()
+        public async Task FileStoreLoadReadsOnlyCommittedGenerationIgnoringStagedFiles()
         {
             using (var service = new WotRegistryService(new FileWotRegistryStore(m_root)))
             {
@@ -208,7 +208,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public async Task ProjectionResults_AreDurablyCommitted_AndSurviveRestart()
+        public async Task ProjectionResultsAreDurablyCommittedAndSurviveRestart()
         {
             string activeVersionId;
             using (var service = new WotRegistryService(new FileWotRegistryStore(m_root)))
@@ -248,7 +248,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public async Task InMemoryStore_CommitFailure_LoadReturnsPreviousGeneration()
+        public async Task InMemoryStoreCommitFailureLoadReturnsPreviousGeneration()
         {
             var store = new FaultInjectingWotRegistryStore(new InMemoryWotRegistryStore());
             using (var service = new WotRegistryService(store))

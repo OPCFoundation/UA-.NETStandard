@@ -49,7 +49,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         private static readonly string[] s_zebraLabel = ["zebra"];
 
         [Test]
-        public async Task AddResourceLabel_AddsThenUpdatesValue()
+        public async Task AddResourceLabelAddsThenUpdatesValue()
         {
             using var service = new WotRegistryService();
             await service.TryCreateResourceAsync(
@@ -65,13 +65,13 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 "sensors", "a", "site", "portland");
             Assert.That(updated.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
             resource = service.Current.FindResource("sensors", "a");
-            Assert.That(resource!.Labels.Count, Is.EqualTo(1),
+            Assert.That(resource!.Labels, Has.Count.EqualTo(1),
                 "Re-adding the same key must update in place, not duplicate.");
             Assert.That(resource.Labels["site"], Is.EqualTo("portland"));
         }
 
         [Test]
-        public async Task RemoveResourceLabel_RemovesKey()
+        public async Task RemoveResourceLabelRemovesKey()
         {
             using var service = new WotRegistryService();
             await service.TryCreateResourceAsync(
@@ -87,7 +87,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public async Task RemoveResourceLabel_UnknownKey_Fails()
+        public async Task RemoveResourceLabelUnknownKeyFails()
         {
             using var service = new WotRegistryService();
             await service.TryCreateResourceAsync(
@@ -100,7 +100,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public async Task AddResourceLabel_EpochMismatch_Rejected()
+        public async Task AddResourceLabelEpochMismatchRejected()
         {
             using var service = new WotRegistryService();
             (WotResource resource, _) = await service.GetOrCreateResourceAsync(
@@ -116,7 +116,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public async Task AddResourceLabel_CorrectEpoch_Succeeds()
+        public async Task AddResourceLabelCorrectEpochSucceeds()
         {
             using var service = new WotRegistryService();
             (WotResource resource, _) = await service.GetOrCreateResourceAsync(
@@ -129,7 +129,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public void AddResourceLabel_MissingKey_Throws()
+        public void AddResourceLabelMissingKeyThrows()
         {
             using var service = new WotRegistryService();
             ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
@@ -142,7 +142,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         [TestCase("a\u202Eb")]           // BIDI override
         [TestCase("AddAttribute")]       // reserved container member
         [TestCase("RemoveAttribute")]    // reserved container member
-        public void AddResourceLabel_InvalidOrReservedKey_Throws(string key)
+        public void AddResourceLabelInvalidOrReservedKeyThrows(string key)
         {
             using var service = new WotRegistryService();
             Assert.ThrowsAsync<ServiceResultException>(
@@ -150,7 +150,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public void AddResourceLabel_KeyTooLong_Throws()
+        public void AddResourceLabelKeyTooLongThrows()
         {
             using var service = new WotRegistryService();
             string longKey = new string('k', service.Bounds.MaxLabelKeyLength + 1);
@@ -161,7 +161,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public void AddResourceLabel_ValueTooLong_Throws()
+        public void AddResourceLabelValueTooLongThrows()
         {
             using var service = new WotRegistryService();
             string longValue = new string('v', service.Bounds.MaxLabelValueLength + 1);
@@ -172,7 +172,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public async Task AddResourceLabel_ExceedsMaxLabelsPerEntity_Throws()
+        public async Task AddResourceLabelExceedsMaxLabelsPerEntityThrows()
         {
             var bounds = new WotRegistryPersistenceBounds { MaxLabelsPerEntity = 2 };
             using var service = new WotRegistryService(bounds: bounds);
@@ -192,7 +192,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public async Task GroupLabels_AddUpdateRemove_EpochAndOrdering()
+        public async Task GroupLabelsAddUpdateRemoveEpochAndOrdering()
         {
             using var service = new WotRegistryService();
             WotResourceGroup group = await service.GetOrCreateGroupAsync(
@@ -217,7 +217,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public void AddGroupLabel_UnknownGroup_Fails()
+        public void AddGroupLabelUnknownGroupFails()
         {
             using var service = new WotRegistryService();
             WotRegistryMutationResult result = service.AddGroupLabelAsync(
@@ -226,7 +226,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public async Task RegistryLabels_AddUpdateRemove_UsesSnapshotGenerationAsEpoch()
+        public async Task RegistryLabelsAddUpdateRemoveUsesSnapshotGenerationAsEpoch()
         {
             using var service = new WotRegistryService();
             long generationBefore = service.Current.Generation;
@@ -247,7 +247,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public async Task LabelMutations_AreProjectionOnly_AndDoNotChangeResourceContent()
+        public async Task LabelMutationsAreProjectionOnlyAndDoNotChangeResourceContent()
         {
             using var service = new WotRegistryService();
             await service.UpsertResourceAsync(new WotUpsertResourceRequest
@@ -269,7 +269,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public async Task FileStore_PersistsLabels_AcrossReload()
+        public async Task FileStorePersistsLabelsAcrossReload()
         {
             string root = Path.Combine(
                 TestContext.CurrentContext.TestDirectory,

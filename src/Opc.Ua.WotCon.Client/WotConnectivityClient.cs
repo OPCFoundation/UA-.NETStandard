@@ -107,38 +107,15 @@ namespace Opc.Ua.WotCon.Client
                 throw new ArgumentNullException(nameof(telemetry));
             }
             ushort ns = session.NamespaceUris.GetIndexOrAppend(Namespaces.WotCon);
-            BrowsePath path = new()
-            {
-                StartingNode = Ua.ObjectIds.ObjectsFolder,
-                RelativePath = new RelativePath
-                {
-                    Elements =
-                    [
-                        new RelativePathElement
-                        {
-                            ReferenceTypeId = Ua.ReferenceTypeIds.Organizes,
-                            IsInverse = false,
-                            IncludeSubtypes = true,
-                            TargetName = new QualifiedName("WoTAssetConnectionManagement", ns)
-                        }
-                    ]
-                }
-            };
-            ArrayOf<BrowsePath> paths = new[] { path }.ToArrayOf();
-            TranslateBrowsePathsToNodeIdsResponse response = await session
-                .TranslateBrowsePathsToNodeIdsAsync(null, paths, ct)
-                .ConfigureAwait(false);
-            if (response.Results.Count == 0 ||
-                response.Results[0].Targets.Count == 0 ||
-                StatusCode.IsBad(response.Results[0].StatusCode))
-            {
-                throw new ServiceResultException(
-                    StatusCodes.BadNodeIdUnknown,
-                    "WoTAssetConnectionManagement entry point not found on the connected server.");
-            }
-            var managementId = ExpandedNodeId.ToNodeId(
-                response.Results[0].Targets[0].TargetId,
-                session.NamespaceUris);
+            NodeId managementId = await WotConBrowsePathResolver.ResolveChildAsync(
+                session,
+                Ua.ObjectIds.ObjectsFolder,
+                Ua.ReferenceTypeIds.Organizes,
+                ns,
+                "WoTAssetConnectionManagement",
+                StatusCodes.BadNodeIdUnknown,
+                "WoTAssetConnectionManagement entry point not found on the connected server.",
+                ct).ConfigureAwait(false);
             return new WotConnectivityClient(session, managementId, telemetry);
         }
 
@@ -174,13 +151,17 @@ namespace Opc.Ua.WotCon.Client
             return await OpenAssetAsync(assetId, ct).ConfigureAwait(false);
         }
 
-        /// <summary>Calls <c>DeleteAsset</c>.</summary>
+        /// <summary>
+        /// Calls <c>DeleteAsset</c>.
+        /// </summary>
         public ValueTask DeleteAssetAsync(NodeId assetId, CancellationToken ct = default)
         {
             return Proxy.DeleteAssetAsync(assetId, ct);
         }
 
-        /// <summary>Calls <c>DiscoverAssets</c>.</summary>
+        /// <summary>
+        /// Calls <c>DiscoverAssets</c>.
+        /// </summary>
         public async ValueTask<IReadOnlyList<string>> DiscoverAssetsAsync(
             CancellationToken ct = default)
         {
@@ -193,7 +174,9 @@ namespace Opc.Ua.WotCon.Client
             return copy;
         }
 
-        /// <summary>Calls <c>CreateAssetForEndpoint</c>.</summary>
+        /// <summary>
+        /// Calls <c>CreateAssetForEndpoint</c>.
+        /// </summary>
         public async ValueTask<WotAssetClient> CreateAssetForEndpointAsync(
             string assetName,
             string assetEndpoint,
@@ -205,7 +188,9 @@ namespace Opc.Ua.WotCon.Client
             return await OpenAssetAsync(assetId, ct).ConfigureAwait(false);
         }
 
-        /// <summary>Calls <c>ConnectionTest</c>.</summary>
+        /// <summary>
+        /// Calls <c>ConnectionTest</c>.
+        /// </summary>
         public ValueTask<(bool Success, string Status)> ConnectionTestAsync(
             string assetEndpoint,
             CancellationToken ct = default)
@@ -229,37 +214,15 @@ namespace Opc.Ua.WotCon.Client
                 throw new ArgumentException("Asset NodeId is required.", nameof(assetId));
             }
             ushort wotConNs = Session.NamespaceUris.GetIndexOrAppend(Namespaces.WotCon);
-            ArrayOf<BrowsePath> paths = new[]
-            {
-                new BrowsePath
-                {
-                    StartingNode = assetId,
-                    RelativePath = new RelativePath
-                    {
-                        Elements =
-                        [
-                            new RelativePathElement
-                            {
-                                ReferenceTypeId = Ua.ReferenceTypeIds.HasComponent,
-                                IsInverse = false,
-                                IncludeSubtypes = true,
-                                TargetName = new QualifiedName("WoTFile", wotConNs)
-                            }
-                        ]
-                    }
-                }
-            }.ToArrayOf();
-            TranslateBrowsePathsToNodeIdsResponse response = await Session
-                .TranslateBrowsePathsToNodeIdsAsync(null, paths, ct)
-                .ConfigureAwait(false);
-            BrowsePathResult result = response.Results[0];
-            if (StatusCode.IsBad(result.StatusCode) || result.Targets.Count == 0)
-            {
-                throw new ServiceResultException(
-                    StatusCodes.BadNoMatch,
-                    "WoTFile child not found below the asset object.");
-            }
-            var fileId = ExpandedNodeId.ToNodeId(result.Targets[0].TargetId, Session.NamespaceUris);
+            NodeId fileId = await WotConBrowsePathResolver.ResolveChildAsync(
+                Session,
+                assetId,
+                Ua.ReferenceTypeIds.HasComponent,
+                wotConNs,
+                "WoTFile",
+                StatusCodes.BadNoMatch,
+                "WoTFile child not found below the asset object.",
+                ct).ConfigureAwait(false);
 
             string assetName = await ReadDisplayNameAsync(assetId, ct).ConfigureAwait(false);
             WoTAssetFileTypeClient file = new(Session, fileId, Telemetry);

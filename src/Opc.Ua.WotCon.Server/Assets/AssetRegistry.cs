@@ -81,7 +81,9 @@ namespace Opc.Ua.WotCon.Server.Assets
             }
         }
 
-        /// <summary>Looks up an asset by NodeId. Returns <c>null</c> when missing.</summary>
+        /// <summary>
+        /// Looks up an asset by NodeId. Returns <c>null</c> when missing.
+        /// </summary>
         public AssetEntry? FindByNodeId(NodeId nodeId)
         {
             lock (m_byName)

@@ -43,28 +43,44 @@ namespace Opc.Ua.WotCon.Server.Registry
     /// </summary>
     public sealed class WotUpsertResourceRequest
     {
-        /// <summary>Gets or sets the target group id (defaults per <see cref="Kind"/>).</summary>
+        /// <summary>
+        /// Gets or sets the target group id (defaults per <see cref="Kind"/>).
+        /// </summary>
         public string? GroupId { get; set; }
 
-        /// <summary>Gets or sets the resource id; derived from the document when omitted.</summary>
+        /// <summary>
+        /// Gets or sets the resource id; derived from the document when omitted.
+        /// </summary>
         public string? ResourceId { get; set; }
 
-        /// <summary>Gets or sets the document kind.</summary>
+        /// <summary>
+        /// Gets or sets the document kind.
+        /// </summary>
         public WoTDocumentKindEnum Kind { get; set; } = WoTDocumentKindEnum.ThingDescription;
 
-        /// <summary>Gets or sets the raw document source bytes.</summary>
+        /// <summary>
+        /// Gets or sets the raw document source bytes.
+        /// </summary>
         public ReadOnlyMemory<byte> Content { get; set; }
 
-        /// <summary>Gets or sets the document media type.</summary>
+        /// <summary>
+        /// Gets or sets the document media type.
+        /// </summary>
         public string ContentType { get; set; } = "application/td+json";
 
-        /// <summary>Gets or sets the document format tag.</summary>
+        /// <summary>
+        /// Gets or sets the document format tag.
+        /// </summary>
         public string Format { get; set; } = "WoT-TD/1.1";
 
-        /// <summary>Gets or sets an optional resource display name.</summary>
+        /// <summary>
+        /// Gets or sets an optional resource display name.
+        /// </summary>
         public string? Name { get; set; }
 
-        /// <summary>Gets or sets an optional resource description.</summary>
+        /// <summary>
+        /// Gets or sets an optional resource description.
+        /// </summary>
         public string? Description { get; set; }
 
         /// <summary>
@@ -89,26 +105,38 @@ namespace Opc.Ua.WotCon.Server.Registry
             Outcome = outcome;
             Resource = resource;
             Generation = generation;
-            Diagnostics = diagnostics.IsDefault ? ImmutableArray<string>.Empty : diagnostics;
+            Diagnostics = diagnostics.IsDefault ? [] : diagnostics;
             Message = message ?? string.Empty;
         }
 
-        /// <summary>Gets the outcome of the mutation.</summary>
+        /// <summary>
+        /// Gets the outcome of the mutation.
+        /// </summary>
         public WoTOutcomeEnum Outcome { get; }
 
-        /// <summary>Gets the affected resource snapshot, if any.</summary>
+        /// <summary>
+        /// Gets the affected resource snapshot, if any.
+        /// </summary>
         public WotResource? Resource { get; }
 
-        /// <summary>Gets the registry generation after the mutation.</summary>
+        /// <summary>
+        /// Gets the registry generation after the mutation.
+        /// </summary>
         public long Generation { get; }
 
-        /// <summary>Gets diagnostics produced by the mutation.</summary>
+        /// <summary>
+        /// Gets diagnostics produced by the mutation.
+        /// </summary>
         public ImmutableArray<string> Diagnostics { get; }
 
-        /// <summary>Gets a human-readable message.</summary>
+        /// <summary>
+        /// Gets a human-readable message.
+        /// </summary>
         public string Message { get; }
 
-        /// <summary>Gets whether the mutation changed the registry contents.</summary>
+        /// <summary>
+        /// Gets whether the mutation changed the registry contents.
+        /// </summary>
         public bool Changed => Outcome is WoTOutcomeEnum.Success or WoTOutcomeEnum.Warning;
     }
 
@@ -133,13 +161,19 @@ namespace Opc.Ua.WotCon.Server.Registry
             ProjectionOnly = projectionOnly;
         }
 
-        /// <summary>Gets the snapshot before the change.</summary>
+        /// <summary>
+        /// Gets the snapshot before the change.
+        /// </summary>
         public WotRegistrySnapshot Previous { get; }
 
-        /// <summary>Gets the snapshot after the change.</summary>
+        /// <summary>
+        /// Gets the snapshot after the change.
+        /// </summary>
         public WotRegistrySnapshot Current { get; }
 
-        /// <summary>Gets the xids of the resources that changed.</summary>
+        /// <summary>
+        /// Gets the xids of the resources that changed.
+        /// </summary>
         public IReadOnlyList<string> ChangedResourceXids { get; }
 
         /// <summary>
@@ -155,7 +189,9 @@ namespace Opc.Ua.WotCon.Server.Registry
     /// </summary>
     public sealed class WotResourceProjection
     {
-        /// <summary>Initializes a new projection record.</summary>
+        /// <summary>
+        /// Initializes a new projection record.
+        /// </summary>
         public WotResourceProjection(
             string groupId,
             string resourceId,
@@ -176,41 +212,63 @@ namespace Opc.Ua.WotCon.Server.Registry
             MaterializedNodeCount = materializedNodeCount;
             RootNodeId = rootNodeId;
             Validation = validation;
-            Diagnostics = diagnostics.IsDefault ? ImmutableArray<string>.Empty : diagnostics;
+            Diagnostics = diagnostics.IsDefault ? [] : diagnostics;
             LastRefreshTime = lastRefreshTime;
         }
 
-        /// <summary>Gets the group id.</summary>
+        /// <summary>
+        /// Gets the group id.
+        /// </summary>
         public string GroupId { get; }
 
-        /// <summary>Gets the resource id.</summary>
+        /// <summary>
+        /// Gets the resource id.
+        /// </summary>
         public string ResourceId { get; }
 
-        /// <summary>Gets the resulting load state.</summary>
+        /// <summary>
+        /// Gets the resulting load state.
+        /// </summary>
         public WoTLoadStateEnum LoadState { get; }
 
-        /// <summary>Gets the active version id, if any.</summary>
+        /// <summary>
+        /// Gets the active version id, if any.
+        /// </summary>
         public string? ActiveVersionId { get; }
 
-        /// <summary>Gets the refresh generation.</summary>
+        /// <summary>
+        /// Gets the refresh generation.
+        /// </summary>
         public uint RefreshGeneration { get; }
 
-        /// <summary>Gets the materialized node count.</summary>
+        /// <summary>
+        /// Gets the materialized node count.
+        /// </summary>
         public int MaterializedNodeCount { get; }
 
-        /// <summary>Gets the root node of the projection, if any.</summary>
+        /// <summary>
+        /// Gets the root node of the projection, if any.
+        /// </summary>
         public NodeId? RootNodeId { get; }
 
-        /// <summary>Gets the validation outcome, if any.</summary>
+        /// <summary>
+        /// Gets the validation outcome, if any.
+        /// </summary>
         public WoTValidationOutcomeDataType? Validation { get; }
 
-        /// <summary>Gets the diagnostics.</summary>
+        /// <summary>
+        /// Gets the diagnostics.
+        /// </summary>
         public ImmutableArray<string> Diagnostics { get; }
 
-        /// <summary>Gets the UTC last-refresh time.</summary>
+        /// <summary>
+        /// Gets the UTC last-refresh time.
+        /// </summary>
         public DateTime LastRefreshTime { get; }
 
-        /// <summary>Gets whether the projection failed to keep a previous active generation.</summary>
+        /// <summary>
+        /// Gets whether the projection failed to keep a previous active generation.
+        /// </summary>
         public bool RetainPreviousActiveVersion { get; init; }
     }
 
@@ -222,10 +280,14 @@ namespace Opc.Ua.WotCon.Server.Registry
     /// </summary>
     public interface IWotRegistryService
     {
-        /// <summary>Gets the current immutable snapshot.</summary>
+        /// <summary>
+        /// Gets the current immutable snapshot.
+        /// </summary>
         WotRegistrySnapshot Current { get; }
 
-        /// <summary>Gets the configured resource bounds.</summary>
+        /// <summary>
+        /// Gets the configured resource bounds.
+        /// </summary>
         WotRegistryPersistenceBounds Bounds { get; }
 
         /// <summary>
@@ -235,10 +297,14 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// </summary>
         event EventHandler<WotRegistryChangedEventArgs>? Changed;
 
-        /// <summary>Loads persisted state from the backing store.</summary>
+        /// <summary>
+        /// Loads persisted state from the backing store.
+        /// </summary>
         ValueTask InitializeAsync(CancellationToken cancellationToken = default);
 
-        /// <summary>Gets, or creates, a group.</summary>
+        /// <summary>
+        /// Gets, or creates, a group.
+        /// </summary>
         ValueTask<WotResourceGroup> GetOrCreateGroupAsync(
             string groupId,
             WoTDocumentKindEnum kind,
@@ -256,7 +322,9 @@ namespace Opc.Ua.WotCon.Server.Registry
             string? name = null,
             CancellationToken cancellationToken = default);
 
-        /// <summary>Deletes a group and every resource it contains.</summary>
+        /// <summary>
+        /// Deletes a group and every resource it contains.
+        /// </summary>
         ValueTask<WotRegistryMutationResult> DeleteGroupAsync(
             string groupId,
             long? expectedEpoch = null,
@@ -294,19 +362,25 @@ namespace Opc.Ua.WotCon.Server.Registry
             string resourceId,
             CancellationToken cancellationToken = default);
 
-        /// <summary>Creates or updates a document resource (uploads a version).</summary>
+        /// <summary>
+        /// Creates or updates a document resource (uploads a version).
+        /// </summary>
         ValueTask<WotRegistryMutationResult> UpsertResourceAsync(
             WotUpsertResourceRequest request,
             CancellationToken cancellationToken = default);
 
-        /// <summary>Deletes a resource and all of its versions.</summary>
+        /// <summary>
+        /// Deletes a resource and all of its versions.
+        /// </summary>
         ValueTask<WotRegistryMutationResult> DeleteResourceAsync(
             string groupId,
             string resourceId,
             long? expectedEpoch = null,
             CancellationToken cancellationToken = default);
 
-        /// <summary>Sets the default (and desired) version of a resource.</summary>
+        /// <summary>
+        /// Sets the default (and desired) version of a resource.
+        /// </summary>
         ValueTask<WotRegistryMutationResult> SetDefaultVersionAsync(
             string groupId,
             string resourceId,
@@ -314,7 +388,9 @@ namespace Opc.Ua.WotCon.Server.Registry
             long? expectedEpoch = null,
             CancellationToken cancellationToken = default);
 
-        /// <summary>Enables or disables a resource for projection.</summary>
+        /// <summary>
+        /// Enables or disables a resource for projection.
+        /// </summary>
         ValueTask<WotRegistryMutationResult> SetEnabledAsync(
             string groupId,
             string resourceId,
@@ -337,7 +413,9 @@ namespace Opc.Ua.WotCon.Server.Registry
             long? expectedEpoch = null,
             CancellationToken cancellationToken = default);
 
-        /// <summary>Removes a registry-level xRegistry label (attribute).</summary>
+        /// <summary>
+        /// Removes a registry-level xRegistry label (attribute).
+        /// </summary>
         ValueTask<WotRegistryMutationResult> RemoveRegistryLabelAsync(
             string key,
             long? expectedEpoch = null,
@@ -356,7 +434,9 @@ namespace Opc.Ua.WotCon.Server.Registry
             long? expectedEpoch = null,
             CancellationToken cancellationToken = default);
 
-        /// <summary>Removes a group-level xRegistry label (attribute).</summary>
+        /// <summary>
+        /// Removes a group-level xRegistry label (attribute).
+        /// </summary>
         ValueTask<WotRegistryMutationResult> RemoveGroupLabelAsync(
             string groupId,
             string key,
@@ -377,7 +457,9 @@ namespace Opc.Ua.WotCon.Server.Registry
             long? expectedEpoch = null,
             CancellationToken cancellationToken = default);
 
-        /// <summary>Removes a resource-level xRegistry label (attribute).</summary>
+        /// <summary>
+        /// Removes a resource-level xRegistry label (attribute).
+        /// </summary>
         ValueTask<WotRegistryMutationResult> RemoveResourceLabelAsync(
             string groupId,
             string resourceId,

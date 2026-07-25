@@ -5273,7 +5273,7 @@ namespace Opc.Ua.Server
             foreach ((IAsyncNodeManager owner, List<int> indices) in owners)
             {
                 // Present only this owner's items as unprocessed.
-                var ownedItems = new bool[monitoredItems.Count];
+                bool[] ownedItems = new bool[monitoredItems.Count];
                 for (int ii = 0; ii < ownedItems.Length; ii++)
                 {
                     ownedItems[ii] = true;
@@ -5332,7 +5332,7 @@ namespace Opc.Ua.Server
 
             foreach ((IAsyncNodeManager owner, List<int> indices) in owners)
             {
-                var ownedItems = new bool[monitoredItems.Count];
+                bool[] ownedItems = new bool[monitoredItems.Count];
                 foreach (int ii in indices)
                 {
                     ownedItems[ii] = true;
@@ -6724,5 +6724,4 @@ namespace Opc.Ua.Server
             NodeId source,
             ExpandedNodeId target);
     }
-
 }

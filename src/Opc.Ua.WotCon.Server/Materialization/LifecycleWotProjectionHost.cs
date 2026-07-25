@@ -35,6 +35,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Server;
 using Opc.Ua.Server.RuntimeNodeSet;
+using Opc.Ua.WotCon.Bindings;
 
 namespace Opc.Ua.WotCon.Server.Materialization
 {
@@ -50,10 +51,25 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// </summary>
     public sealed class LifecycleWotProjectionHost : IWotProjectionHost
     {
-        /// <summary>Initializes a new host over the supplied lifecycle.</summary>
-        public LifecycleWotProjectionHost(INodeManagerLifecycle lifecycle)
+        /// <summary>
+        /// Initializes a new host over the supplied lifecycle.
+        /// </summary>
+        /// <param name="lifecycle">The node manager lifecycle to project onto.</param>
+        /// <param name="runtimeFactory">
+        /// The optional projection binding runtime factory. When supplied, each
+        /// runtime NodeSet generation created for a document that carries
+        /// prepared <see cref="WotProjectionDocument.BindingPlans"/> owns its own
+        /// binding runtime: it is created after the NodeSet is imported (via
+        /// <see cref="RuntimeNodeSetOptions.ConfigureAsync"/>) and disposed with
+        /// the generation. When <c>null</c>, no binding runtime is wired (the
+        /// NodeSet is materialized as data only).
+        /// </param>
+        public LifecycleWotProjectionHost(
+            INodeManagerLifecycle lifecycle,
+            IWotProjectionBindingRuntimeFactory? runtimeFactory = null)
         {
             m_lifecycle = lifecycle ?? throw new ArgumentNullException(nameof(lifecycle));
+            m_runtimeFactory = runtimeFactory;
         }
 
         /// <inheritdoc/>
@@ -69,7 +85,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 document.ClosureKey,
                 registration.Generation,
                 registration,
-                ImmutableArray<NodeId>.Empty,
+                [],
                 0);
         }
 
@@ -153,7 +169,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
         }
 
-        private static RuntimeNodeSetOptions BuildOptions(WotProjectionDocument document)
+        private RuntimeNodeSetOptions BuildOptions(WotProjectionDocument document)
         {
             var sources = new RuntimeNodeSetSource[document.Sources.Length];
             for (int i = 0; i < document.Sources.Length; i++)
@@ -166,12 +182,21 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     _ => new ValueTask<Stream>(new MemoryStream(xml, writable: false)),
                     uris);
             }
-            return new RuntimeNodeSetOptions
+            var options = new RuntimeNodeSetOptions
             {
-                Sources = new ArrayOf<RuntimeNodeSetSource>(sources)
+                Sources = new ArrayOf<RuntimeNodeSetSource>(sources),
+                AllowLifecycleFromRequestCallback = true
             };
+            if (m_runtimeFactory is { } runtimeFactory)
+            {
+                ArrayOf<WotBindingPlan> bindingPlans = document.BindingPlans;
+                options.ConfigureAsync = (builder, cancellationToken)
+                    => runtimeFactory.CreateAsync(builder, bindingPlans, cancellationToken);
+            }
+            return options;
         }
 
         private readonly INodeManagerLifecycle m_lifecycle;
+        private readonly IWotProjectionBindingRuntimeFactory? m_runtimeFactory;
     }
 }

@@ -71,7 +71,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public async Task Persist_And_Reload_RoundTripsResource()
+        public async Task PersistAndReloadRoundTripsResource()
         {
             var store = new FileWotRegistryStore(m_root);
             using (var service = new WotRegistryService(store))
@@ -101,7 +101,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 WotRegistryGroups.ThingDescriptions, "a");
             Assert.That(td, Is.Not.Null);
             Assert.That(td!.Kind, Is.EqualTo(WoTDocumentKindEnum.ThingDescription));
-            Assert.That(td.Versions.Length, Is.EqualTo(1));
+            Assert.That(td.Versions, Has.Length.EqualTo(1));
             Assert.That(
                 Encoding.UTF8.GetString(td.Versions[0].Content.ToArray()),
                 Does.Contain("urn:a"));
@@ -110,7 +110,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public async Task InvalidDocument_SurvivesReload_WithFailureState()
+        public async Task InvalidDocumentSurvivesReloadWithFailureState()
         {
             var store = new FileWotRegistryStore(m_root);
             using (var service = new WotRegistryService(store))
@@ -137,7 +137,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public async Task Upsert_OverwritesResourceAtomically()
+        public async Task UpsertOverwritesResourceAtomically()
         {
             var store = new FileWotRegistryStore(m_root);
             using var service = new WotRegistryService(store);
@@ -161,9 +161,8 @@ namespace Opc.Ua.WotCon.Tests.Registry
             using var reloaded = new WotRegistryService(reloadStore);
             await reloaded.InitializeAsync();
             Assert.That(
-                reloaded.Current.FindResource(WotRegistryGroups.ThingDescriptions, "a")!
-                    .Versions.Length,
-                Is.EqualTo(2));
+                reloaded.Current.FindResource(WotRegistryGroups.ThingDescriptions, "a")!.Versions,
+                Has.Length.EqualTo(2));
         }
     }
 }

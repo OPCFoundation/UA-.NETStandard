@@ -28,21 +28,24 @@
  * ======================================================================*/
 
 using NUnit.Framework;
-using Opc.Ua.WotCon.Binding;
+using Opc.Ua.WotCon.Bindings;
 
 namespace Opc.Ua.WotCon.Tests.Binding
 {
-    /// <summary>Round-trip and selection tests for the built-in payload codecs.</summary>
+    /// <summary>
+    /// Round-trip and selection tests for the built-in payload codecs.
+    /// </summary>
     [TestFixture]
     public sealed class WotCodecTests
     {
-        private static readonly WotPayloadDescriptor s_json = new WotPayloadDescriptor("application/json", "json");
-        private static readonly WotPayloadDescriptor s_text = new WotPayloadDescriptor("text/plain", "text");
+        private static readonly WotPayloadDescriptor s_json = new("application/json", "json");
+        private static readonly WotPayloadDescriptor s_text = new("text/plain", "text");
+
         private static readonly WotPayloadDescriptor s_octet =
-            new WotPayloadDescriptor("application/octet-stream", "octet-stream");
+            new("application/octet-stream", "octet-stream");
 
         [Test]
-        public void Json_RoundTripsScalars()
+        public void JsonRoundTripsScalars()
         {
             AssertRoundTrip(JsonWotPayloadCodec.Instance, s_json, new Variant(42L), 42L);
             AssertRoundTrip(JsonWotPayloadCodec.Instance, s_json, new Variant(true), true);
@@ -51,7 +54,7 @@ namespace Opc.Ua.WotCon.Tests.Binding
         }
 
         [Test]
-        public void Text_RoundTripsString()
+        public void TextRoundTripsString()
         {
             WotEncodeResult encoded = TextWotPayloadCodec.Instance.Encode(new Variant("abc"), s_text);
             Assert.That(encoded.Success, Is.True);
@@ -60,9 +63,9 @@ namespace Opc.Ua.WotCon.Tests.Binding
         }
 
         [Test]
-        public void OctetStream_RoundTripsBytes()
+        public void OctetStreamRoundTripsBytes()
         {
-            byte[] payload = { 1, 2, 3, 4 };
+            byte[] payload = [1, 2, 3, 4];
             WotEncodeResult encoded = OctetStreamWotPayloadCodec.Instance.Encode(
                 new Variant(new ByteString(payload)), s_octet);
             Assert.That(encoded.Success, Is.True);
@@ -73,9 +76,9 @@ namespace Opc.Ua.WotCon.Tests.Binding
         }
 
         [Test]
-        public void Registry_SelectsByContentType()
+        public void RegistrySelectsByContentType()
         {
-            var registry = WotPayloadCodecRegistry.Default;
+            WotPayloadCodecRegistry registry = WotPayloadCodecRegistry.Default;
 
             Assert.That(registry.TrySelect("application/json", out IWotPayloadCodec json), Is.True);
             Assert.That(json.Id, Is.EqualTo("json"));
@@ -86,7 +89,7 @@ namespace Opc.Ua.WotCon.Tests.Binding
         }
 
         private static void AssertRoundTrip(
-            IWotPayloadCodec codec, WotPayloadDescriptor payload, Variant value, object expected)
+            JsonWotPayloadCodec codec, WotPayloadDescriptor payload, Variant value, object expected)
         {
             WotEncodeResult encoded = codec.Encode(value, payload);
             Assert.That(encoded.Success, Is.True);

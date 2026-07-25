@@ -3170,5 +3170,4 @@ namespace Opc.Ua.Server
             this ILogger logger,
             uint subscriptionId);
     }
-
 }

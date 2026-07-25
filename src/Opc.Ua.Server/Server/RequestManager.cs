@@ -264,14 +264,24 @@ namespace Opc.Ua.Server
             RequestDrain requestDrain;
             lock (m_requestsLock)
             {
-                if (m_requests.Count == 0 &&
+                uint? currentRequestId = m_currentRequestId.Value;
+                var requestIds = new List<uint>(m_requests.Count);
+                foreach (uint requestId in m_requests.Keys)
+                {
+                    if (requestId != currentRequestId)
+                    {
+                        requestIds.Add(requestId);
+                    }
+                }
+
+                if (requestIds.Count == 0 &&
                     m_activeValidationScopes.Count == 0)
                 {
                     return;
                 }
 
                 requestDrain = new RequestDrain(
-                    m_requests.Keys,
+                    requestIds,
                     m_activeValidationScopes);
                 m_requestDrains.Add(requestDrain);
             }
@@ -578,5 +588,4 @@ namespace Opc.Ua.Server
             Message = "Unexpected error reporting RequestCancelled event.")]
         public static partial void UnexpectedErrorReportingRequestCancelledEvent(this ILogger logger, Exception ex);
     }
-
 }

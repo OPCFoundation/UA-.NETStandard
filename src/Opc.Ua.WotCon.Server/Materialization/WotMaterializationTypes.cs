@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Server.Registry;
@@ -41,11 +40,15 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// </summary>
     public sealed class WotRefreshRequest
     {
-        /// <summary>Gets or sets the resource selectors; empty selects all resources.</summary>
+        /// <summary>
+        /// Gets or sets the resource selectors; empty selects all resources.
+        /// </summary>
         public ImmutableArray<WoTResourceSelectorDataType> Selection { get; set; }
-            = ImmutableArray<WoTResourceSelectorDataType>.Empty;
+            = [];
 
-        /// <summary>Gets or sets the refresh options.</summary>
+        /// <summary>
+        /// Gets or sets the refresh options.
+        /// </summary>
         public WoTRefreshOptionsDataType Options { get; set; } = new WoTRefreshOptionsDataType();
 
         /// <summary>
@@ -54,7 +57,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// </summary>
         public uint ExpectedGeneration { get; set; }
 
-        /// <summary>Gets or sets an opaque request id echoed in the summary.</summary>
+        /// <summary>
+        /// Gets or sets an opaque request id echoed in the summary.
+        /// </summary>
         public string RequestId { get; set; } = string.Empty;
     }
 
@@ -74,32 +79,50 @@ namespace Opc.Ua.WotCon.Server.Materialization
             NewGeneration = newGeneration;
         }
 
-        /// <summary>Gets the overall refresh summary.</summary>
+        /// <summary>
+        /// Gets the overall refresh summary.
+        /// </summary>
         public WoTRefreshSummaryDataType Summary { get; }
 
-        /// <summary>Gets the per-resource results.</summary>
+        /// <summary>
+        /// Gets the per-resource results.
+        /// </summary>
         public ImmutableArray<WoTResourceLoadResultDataType> Results { get; }
 
-        /// <summary>Gets the committed refresh generation.</summary>
+        /// <summary>
+        /// Gets the committed refresh generation.
+        /// </summary>
         public uint NewGeneration { get; }
     }
 
-    /// <summary>The kind of materialization event emitted by the coordinator.</summary>
+    /// <summary>
+    /// The kind of materialization event emitted by the coordinator.
+    /// </summary>
     public enum WotMaterializationEventKind
     {
-        /// <summary>A refresh completed.</summary>
+        /// <summary>
+        /// A refresh completed.
+        /// </summary>
         RefreshCompleted,
 
-        /// <summary>A resource projection changed state.</summary>
+        /// <summary>
+        /// A resource projection changed state.
+        /// </summary>
         Resource,
 
-        /// <summary>A resource failed format/compatibility validation.</summary>
+        /// <summary>
+        /// A resource failed format/compatibility validation.
+        /// </summary>
         ValidationFailure,
 
-        /// <summary>A resource failed to load/project.</summary>
+        /// <summary>
+        /// A resource failed to load/project.
+        /// </summary>
         LoadFailure,
 
-        /// <summary>A binding failed.</summary>
+        /// <summary>
+        /// A binding failed.
+        /// </summary>
         BindingFailure
     }
 
@@ -116,49 +139,79 @@ namespace Opc.Ua.WotCon.Server.Materialization
             Kind = kind;
         }
 
-        /// <summary>Gets the event kind.</summary>
+        /// <summary>
+        /// Gets the event kind.
+        /// </summary>
         public WotMaterializationEventKind Kind { get; }
 
-        /// <summary>Gets or sets the affected resource xid.</summary>
+        /// <summary>
+        /// Gets or sets the affected resource xid.
+        /// </summary>
         public string Xid { get; init; } = string.Empty;
 
-        /// <summary>Gets or sets the resource id.</summary>
+        /// <summary>
+        /// Gets or sets the resource id.
+        /// </summary>
         public string ResourceId { get; init; } = string.Empty;
 
-        /// <summary>Gets or sets the version id.</summary>
+        /// <summary>
+        /// Gets or sets the version id.
+        /// </summary>
         public string VersionId { get; init; } = string.Empty;
 
-        /// <summary>Gets or sets the document kind.</summary>
+        /// <summary>
+        /// Gets or sets the document kind.
+        /// </summary>
         public WoTDocumentKindEnum DocumentKind { get; init; }
 
-        /// <summary>Gets or sets the refresh generation.</summary>
+        /// <summary>
+        /// Gets or sets the refresh generation.
+        /// </summary>
         public uint Generation { get; init; }
 
-        /// <summary>Gets or sets the phase reached.</summary>
+        /// <summary>
+        /// Gets or sets the phase reached.
+        /// </summary>
         public WoTPhaseEnum Phase { get; init; }
 
-        /// <summary>Gets or sets the outcome.</summary>
+        /// <summary>
+        /// Gets or sets the outcome.
+        /// </summary>
         public WoTOutcomeEnum Outcome { get; init; }
 
-        /// <summary>Gets or sets the resulting load state.</summary>
+        /// <summary>
+        /// Gets or sets the resulting load state.
+        /// </summary>
         public WoTLoadStateEnum LoadState { get; init; }
 
-        /// <summary>Gets or sets the validation outcome, if any.</summary>
+        /// <summary>
+        /// Gets or sets the validation outcome, if any.
+        /// </summary>
         public WoTValidationOutcomeDataType? Validation { get; init; }
 
-        /// <summary>Gets or sets the failing node id, if any.</summary>
+        /// <summary>
+        /// Gets or sets the failing node id, if any.
+        /// </summary>
         public NodeId? FailedNodeId { get; init; }
 
-        /// <summary>Gets or sets the binding URI, if any.</summary>
+        /// <summary>
+        /// Gets or sets the binding URI, if any.
+        /// </summary>
         public string BindingUri { get; init; } = string.Empty;
 
-        /// <summary>Gets or sets a human-readable reason/message.</summary>
+        /// <summary>
+        /// Gets or sets a human-readable reason/message.
+        /// </summary>
         public string Reason { get; init; } = string.Empty;
 
-        /// <summary>Gets or sets the refresh summary (RefreshCompleted only).</summary>
+        /// <summary>
+        /// Gets or sets the refresh summary (RefreshCompleted only).
+        /// </summary>
         public WoTRefreshSummaryDataType? Summary { get; init; }
 
-        /// <summary>Gets or sets the request id (RefreshCompleted only).</summary>
+        /// <summary>
+        /// Gets or sets the request id (RefreshCompleted only).
+        /// </summary>
         public string RequestId { get; init; } = string.Empty;
     }
 

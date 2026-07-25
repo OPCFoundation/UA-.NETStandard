@@ -658,7 +658,9 @@ namespace Opc.Ua.SourceGeneration
             {
                 case BasicDataType.UserDefined:
                     context.Out.WriteLine(
-                        "_inputArguments[{2}].TryGetStructure(out {1} {0});",
+                        "_inputArguments[{2}].TryGetStructure(" +
+                        "global::Opc.Ua.SystemContextExtensions.AsMessageContext(_context), " +
+                        "out {1} {0});",
                         fieldName,
                         typeName,
                         context.Index);
@@ -698,7 +700,9 @@ namespace Opc.Ua.SourceGeneration
             {
                 case BasicDataType.UserDefined:
                     context.Out.WriteLine(
-                        "_outputArguments[{2}].TryGetStructure(out {1} {0});",
+                        "_outputArguments[{2}].TryGetStructure(" +
+                        "global::Opc.Ua.SystemContextExtensions.AsMessageContext(_context), " +
+                        "out {1} {0});",
                         fieldName,
                         typeName,
                         context.Index);
@@ -2279,7 +2283,16 @@ namespace Opc.Ua.SourceGeneration
                 return;
             }
 
-            if (node.DecodedValue is IList<Argument> args)
+            Parameter[] methodArguments = GetMethodArgumentParameters(nodeToGenerate);
+            if (methodArguments != null)
+            {
+                context.Template.AddReplacement(
+                    Tokens.ValueCode,
+                    NodeStateTemplates.VariantArrayOfValue,
+                    [methodArguments],
+                    WriteTemplate_ArgumentCollection);
+            }
+            else if (node.DecodedValue is IList<Argument> args)
             {
                 context.Template.AddReplacement(
                     Tokens.ValueCode,
@@ -2312,6 +2325,28 @@ namespace Opc.Ua.SourceGeneration
                             node.DataTypeNode,
                             node.DefaultValue))));
             }
+        }
+
+        private static Parameter[] GetMethodArgumentParameters(NodeToGenerate node)
+        {
+            if (node.Parent?.Design is not MethodDesign method)
+            {
+                return null;
+            }
+
+            if (node.Design.SymbolicName ==
+                new XmlQualifiedName("InputArguments", Namespaces.OpcUa))
+            {
+                return MethodDesignArgumentResolver.ResolveMethodInputs(method);
+            }
+
+            if (node.Design.SymbolicName ==
+                new XmlQualifiedName("OutputArguments", Namespaces.OpcUa))
+            {
+                return MethodDesignArgumentResolver.ResolveMethodOutputs(method);
+            }
+
+            return null;
         }
 
         private void AddReferenceTypeStateFactoryReplacements(

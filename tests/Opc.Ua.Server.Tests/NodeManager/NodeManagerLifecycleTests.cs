@@ -457,6 +457,87 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
+        [Test]
+        public async Task OptedInRuntimeNodeSetCanBeAddedFromRequestScopeAsync()
+        {
+            IServerInternal server = m_server.CurrentInstance;
+            var context = new OperationContext(
+                new RequestHeader(),
+                secureChannelContext: null,
+                RequestType.Call,
+                RequestLifetime.None);
+            RuntimeNodeSetOptions options = CreateGenerationOptions(generation: 1);
+            options.AllowLifecycleFromRequestCallback = true;
+            NodeManagerRegistration registration = null;
+
+            try
+            {
+                using IDisposable requestScope =
+                    server.RequestManager.EnterRequestScope(context);
+                registration = await m_server.NodeManagerLifecycle
+                    .AddRuntimeNodeSetAsync(options)
+                    .ConfigureAwait(false);
+
+                Assert.That(registration, Is.Not.Null);
+                Assert.That(registration.Generation, Is.EqualTo(1));
+            }
+            finally
+            {
+                server.RequestManager.RequestCompleted(context);
+            }
+
+            if (registration is not null)
+            {
+                await m_server.NodeManagerLifecycle
+                    .RemoveAsync(registration)
+                    .ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task OptedInRuntimeNodeSetCanBeReloadedAndRemovedFromRequestScopeAsync()
+        {
+            RuntimeNodeSetOptions initialOptions = CreateGenerationOptions(generation: 1);
+            initialOptions.AllowLifecycleFromRequestCallback = true;
+            NodeManagerRegistration registration = await m_server.NodeManagerLifecycle
+                .AddRuntimeNodeSetAsync(initialOptions)
+                .ConfigureAwait(false);
+            IServerInternal server = m_server.CurrentInstance;
+            var context = new OperationContext(
+                new RequestHeader(),
+                secureChannelContext: null,
+                RequestType.Call,
+                RequestLifetime.None);
+
+            try
+            {
+                using IDisposable requestScope =
+                    server.RequestManager.EnterRequestScope(context);
+                RuntimeNodeSetOptions replacement = CreateGenerationOptions(generation: 2);
+                replacement.AllowLifecycleFromRequestCallback = true;
+                registration = await m_server.NodeManagerLifecycle
+                    .ShadowReloadRuntimeNodeSetAsync(registration, replacement)
+                    .ConfigureAwait(false);
+                Assert.That(registration.Generation, Is.EqualTo(2));
+
+                await m_server.NodeManagerLifecycle
+                    .RemoveAsync(registration)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                server.RequestManager.RequestCompleted(context);
+            }
+
+            bool remainsRegistered = false;
+            foreach (NodeManagerRegistration candidate
+                in m_server.NodeManagerLifecycle.Registrations)
+            {
+                remainsRegistered |= candidate.Id == registration.Id;
+            }
+            Assert.That(remainsRegistered, Is.False);
+        }
+
         /// <summary>
         /// When the replacement factory throws during Reload, the sentinel exception must
         /// propagate unchanged, the current generation's registration, routing, value, and

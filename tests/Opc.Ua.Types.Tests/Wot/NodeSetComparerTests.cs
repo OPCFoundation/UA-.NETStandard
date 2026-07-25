@@ -79,7 +79,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 XmlResolver = null
             };
             using (var stream = new System.IO.MemoryStream(indented))
-            using (XmlReader reader = XmlReader.Create(stream, settings))
+            using (var reader = XmlReader.Create(stream, settings))
             {
                 document.Load(reader);
             }

@@ -206,8 +206,12 @@ namespace Opc.Ua.Aot.Tests
             string nodeSetXml =
                 "<?xml version=\"1.0\" encoding=\"utf-8\"?>" +
                 "<UANodeSet xmlns=\"http://opcfoundation.org/UA/2011/03/UANodeSet.xsd\">" +
-                "<NamespaceUris><Uri>" + namespaceUri + "</Uri></NamespaceUris>" +
-                "<Models><Model ModelUri=\"" + namespaceUri + "\" /></Models>" +
+                "<NamespaceUris><Uri>" +
+                namespaceUri +
+                "</Uri></NamespaceUris>" +
+                "<Models><Model ModelUri=\"" +
+                namespaceUri +
+                "\" /></Models>" +
                 "<UAObject NodeId=\"ns=1;i=1\" BrowseName=\"1:Root\">" +
                 "<DisplayName>Root</DisplayName></UAObject>" +
                 "</UANodeSet>";
@@ -219,17 +223,14 @@ namespace Opc.Ua.Aot.Tests
                     o.ApplicationName = "AotRuntimeNodeSetServer";
                     o.AutoAcceptUntrustedCertificates = true;
                 })
-                .AddRuntimeNodeSet(options =>
-                {
-                    options.Sources =
+                .AddRuntimeNodeSet(options => options.Sources =
                     [
                         RuntimeNodeSetSource.FromStream(
                             "AOT runtime NodeSet",
                             _ => new ValueTask<Stream>(
                                 new MemoryStream(Encoding.UTF8.GetBytes(nodeSetXml))),
                             [namespaceUri])
-                    ];
-                });
+                    ]);
 
             using ServiceProvider sp = services.BuildServiceProvider();
             IAsyncNodeManagerFactory factory = sp.GetService<IAsyncNodeManagerFactory>();

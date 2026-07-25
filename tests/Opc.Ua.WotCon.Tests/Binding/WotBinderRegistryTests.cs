@@ -30,9 +30,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
-using Opc.Ua.WotCon.Binding;
-using Opc.Ua.WotCon.Binding.Planners;
-using Opc.Ua.WotCon.Binding.Samples;
+using Opc.Ua.WotCon.Bindings;
+using Opc.Ua.WotCon.Bindings.Planners;
+using Opc.Ua.WotCon.Bindings.Samples;
 
 namespace Opc.Ua.WotCon.Tests.Binding
 {
@@ -45,22 +45,29 @@ namespace Opc.Ua.WotCon.Tests.Binding
     public sealed class WotBinderRegistryTests
     {
         private static readonly string[] s_stubVersions = ["1.0", "2.0"];
+
         private static readonly WoTBindingCapabilityEnum[] s_readCapabilities =
             [WoTBindingCapabilityEnum.ReadProperty];
+
         private static readonly string[] s_jsonContentTypes = ["application/json"];
 
         private static WotBindingPlanRequest Request(string affordance, string href, string extraTerms = "")
         {
             string terms = string.IsNullOrEmpty(extraTerms) ? string.Empty : "," + extraTerms;
             string td = "{\"@context\":\"https://www.w3.org/2022/wot/td/v1.1\",\"title\":\"t\"," +
-                "\"properties\":{\"" + affordance + "\":{\"type\":\"number\",\"forms\":[{\"href\":\"" +
-                href + "\"" + terms + "}]}}}";
+                "\"properties\":{\"" +
+                affordance +
+                "\":{\"type\":\"number\",\"forms\":[{\"href\":\"" +
+                href +
+                "\"" +
+                terms +
+                "}]}}}";
             return WotBindingPlanRequest.FromDocument("xid", WoTDocumentKindEnum.ThingDescription,
                 System.Text.Encoding.UTF8.GetBytes(td));
         }
 
         [Test]
-        public void Prepare_SelectsBinderByScheme()
+        public void PrepareSelectsBinderByScheme()
         {
             var registry = new WotProtocolBinderRegistry(WotBuiltInBinders.CreateAll());
 
@@ -73,7 +80,7 @@ namespace Opc.Ua.WotCon.Tests.Binding
         }
 
         [Test]
-        public void Prepare_NoBinder_MarksFormUnsupported()
+        public void PrepareNoBinderMarksFormUnsupported()
         {
             var registry = new WotProtocolBinderRegistry(WotBuiltInBinders.CreateAll());
 
@@ -84,7 +91,7 @@ namespace Opc.Ua.WotCon.Tests.Binding
         }
 
         [Test]
-        public void Prepare_PlannerOnly_ProducesNonExecutableForms()
+        public void PreparePlannerOnlyProducesNonExecutableForms()
         {
             var registry = new WotProtocolBinderRegistry(WotBuiltInBinders.CreateAll());
 
@@ -96,7 +103,7 @@ namespace Opc.Ua.WotCon.Tests.Binding
         }
 
         [Test]
-        public void Prepare_ModbusReadOnlyEntity_DefaultOps_KeepsReadPlan()
+        public void PrepareModbusReadOnlyEntityDefaultOpsKeepsReadPlan()
         {
             var registry = new WotProtocolBinderRegistry(WotBuiltInBinders.CreateAll());
 
@@ -122,14 +129,14 @@ namespace Opc.Ua.WotCon.Tests.Binding
                 Assert.That(
                     plan.Diagnostics.Any(d =>
                         d.Code == WotBindingDiagnosticCode.ConflictingFields &&
-                        d.Severity == Opc.Ua.Wot.WotDiagnosticSeverity.Warning),
+                        d.Severity == Wot.WotDiagnosticSeverity.Warning),
                     Is.True,
                     "The dropped write must be reported as a warning, not an error.");
             }
         }
 
         [Test]
-        public void Prepare_WithExecutor_UpgradesToExecutable()
+        public void PrepareWithExecutorUpgradesToExecutable()
         {
             var store = new MemoryWotStore();
             var registry = new WotProtocolBinderRegistry(
@@ -144,13 +151,13 @@ namespace Opc.Ua.WotCon.Tests.Binding
         }
 
         [Test]
-        public void Registry_ExposesOneCapabilityPerBinder()
+        public void RegistryExposesOneCapabilityPerBinder()
         {
             var registry = new WotProtocolBinderRegistry(WotBuiltInBinders.CreateAll());
 
             IReadOnlyList<WoTBindingCapabilityDataType> capabilities = registry.Capabilities;
 
-            Assert.That(capabilities.Count, Is.EqualTo(8));
+            Assert.That(capabilities, Has.Count.EqualTo(8));
             Assert.That(capabilities.Select(c => c.BindingUri),
                 Has.Some.EqualTo(HttpBindingPlanner.BindingUri));
             Assert.That(capabilities.Select(c => c.BindingUri),
@@ -158,7 +165,7 @@ namespace Opc.Ua.WotCon.Tests.Binding
         }
 
         [Test]
-        public void Registry_MultipleVersionsCoexist()
+        public void RegistryMultipleVersionsCoexist()
         {
             var registry = new WotProtocolBinderRegistry(new IWotProtocolBinder[]
             {
@@ -166,15 +173,15 @@ namespace Opc.Ua.WotCon.Tests.Binding
                 new StubBinder("2.0")
             });
 
-            Assert.That(registry.Binders.Count, Is.EqualTo(2));
+            Assert.That(registry.Binders, Has.Count.EqualTo(2));
             Assert.That(
                 registry.Binders.Select(b => b.Identity.Version),
                 Is.EquivalentTo(s_stubVersions));
-            Assert.That(registry.Capabilities.Count, Is.EqualTo(2));
+            Assert.That(registry.Capabilities, Has.Count.EqualTo(2));
         }
 
         [Test]
-        public void Registry_ExplicitPin_OverridesSchemeSelection()
+        public void RegistryExplicitPinOverridesSchemeSelection()
         {
             var registry = new WotProtocolBinderRegistry(new IWotProtocolBinder[]
             {
@@ -183,11 +190,11 @@ namespace Opc.Ua.WotCon.Tests.Binding
             });
 
             // A stub-scheme href with an explicit pin on the stub binder id.
-            string td = "{\"@context\":\"https://www.w3.org/2022/wot/td/v1.1\",\"title\":\"t\"," +
+            const string td = "{\"@context\":\"https://www.w3.org/2022/wot/td/v1.1\",\"title\":\"t\"," +
                 "\"properties\":{\"t\":{\"forms\":[{\"href\":\"stub://d/x\"}]}}}";
             var selection = new WotBindingSelectionContext(
-                System.Collections.Immutable.ImmutableArray.Create("stub.binder"),
-                System.Collections.Immutable.ImmutableArray<string>.Empty);
+                ["stub.binder"],
+                []);
             var request = new WotBindingPlanRequest("xid", WoTDocumentKindEnum.ThingDescription,
                 WotFormExtractor.Extract(System.Text.Encoding.UTF8.GetBytes(td)),
                 selection: selection);
@@ -197,10 +204,12 @@ namespace Opc.Ua.WotCon.Tests.Binding
             Assert.That(plan.CompiledForms.All(f => f.Binding.Id == "stub.binder"), Is.True);
         }
 
-        /// <summary>A minimal stub binder used for version and selection tests.</summary>
+        /// <summary>
+        /// A minimal stub binder used for version and selection tests.
+        /// </summary>
         private sealed class StubBinder : WotProtocolBinderBase
         {
-            private static readonly string[] s_schemes = { "stub" };
+            private static readonly string[] s_schemes = ["stub"];
 
             public StubBinder(string version)
             {
@@ -219,7 +228,9 @@ namespace Opc.Ua.WotCon.Tests.Binding
             protected override IReadOnlyCollection<string> Schemes => s_schemes;
 
             public override WotBindingMatch Match(WotAffordanceForm form, WotBindingSelectionContext context)
-                => MatchStandard(form, context, null);
+            {
+                return MatchStandard(form, context, null);
+            }
 
             public override WotBindingCompilation Compile(WotAffordanceForm form, WotBindingPlanContext context)
             {
@@ -230,11 +241,11 @@ namespace Opc.Ua.WotCon.Tests.Binding
                     new WotAddressingDescriptor(form.AffordanceName),
                     new WotOperationDescriptor(WoTBindingCapabilityEnum.ReadProperty, "readproperty", "GET"),
                     new WotPayloadDescriptor("application/json", "json"),
-                    System.Collections.Immutable.ImmutableArray<WotCredentialReference>.Empty,
+                    [],
                     isExecutable: false);
                 return WotBindingCompilation.Supported(
-                    System.Collections.Immutable.ImmutableArray.Create(entry),
-                    System.Collections.Immutable.ImmutableArray<WotBindingDiagnostic>.Empty);
+                    [entry],
+                    []);
             }
         }
     }

@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Immutable;
@@ -108,20 +107,23 @@ namespace Opc.Ua.WotCon.Server.Materialization
         }
 
         private static Variant ArgumentAt(ArrayOf<Variant> inputArguments, int index)
-            => index < inputArguments.Count ? inputArguments[index] : Variant.Null;
+        {
+            return index < inputArguments.Count ? inputArguments[index] : Variant.Null;
+        }
 
         private static ServiceResult TryDecodeSelection(
             Variant value,
             IServiceMessageContext context,
             out ImmutableArray<WoTResourceSelectorDataType> selectors)
         {
-            selectors = ImmutableArray<WoTResourceSelectorDataType>.Empty;
+            selectors = [];
             if (value.IsNull)
             {
                 return ServiceResult.Good;
             }
 
-            var builder = ImmutableArray.CreateBuilder<WoTResourceSelectorDataType>();
+            ImmutableArray<WoTResourceSelectorDataType>.Builder builder =
+                ImmutableArray.CreateBuilder<WoTResourceSelectorDataType>();
             foreach (object? element in Enumerate(value.AsBoxedObject(Variant.BoxingBehavior.Legacy)))
             {
                 if (element is null)
@@ -178,7 +180,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 case int i when i >= 0:
                     result = (uint)i;
                     return ServiceResult.Good;
-                case long l when l >= 0 && l <= uint.MaxValue:
+                case long l when l is >= 0 and <= uint.MaxValue:
                     result = (uint)l;
                     return ServiceResult.Good;
                 case ushort us:
@@ -221,7 +223,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     yield return single;
                     break;
                 case IConvertableToArray convertible:
-                    Array? array = convertible.ToArray();
+                    var array = convertible.ToArray();
                     if (array is not null)
                     {
                         foreach (object? item in array)
@@ -256,6 +258,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     return ServiceResult.Good;
                 case ExtensionObject extension:
                     return TryDecodeExtensionObject(extension, context, out value);
+                case IEncodeable encodeable:
+                    return TryDecodeExtensionObject(
+                        new ExtensionObject(encodeable),
+                        context,
+                        out value);
                 default:
                     return StatusCodes.BadInvalidArgument;
             }
@@ -272,28 +279,18 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 return StatusCodes.BadInvalidArgument;
             }
-            if (extension.TryGetValue(out T? typed))
+#pragma warning disable IDE0018, IDE0059 // must stay a separate, non-inlined out-var (see IDE0001 note below)
+            T? typed = default;
+#pragma warning disable IDE0001 // explicit <T> avoids CS8631/CS8634: inference from a nullable out-var picks 'T?'
+            if (new Variant(extension).TryGetStructure<T>(context, out typed))
+#pragma warning restore IDE0001, IDE0018, IDE0059
             {
                 value = typed;
                 return ServiceResult.Good;
             }
-            if (extension.TryGetAsBinary(out ByteString binary) && !binary.IsNull)
-            {
-                try
-                {
-                    using var decoder = new BinaryDecoder(binary.ToArray(), context);
-                    value = decoder.ReadEncodeable<T>(null);
-                    return ServiceResult.Good;
-                }
-                catch (Exception ex) when (
-                    ex is ServiceResultException or FormatException or InvalidOperationException)
-                {
-                    return ServiceResult.Create(
-                        ex, StatusCodes.BadInvalidArgument,
-                        "The encoded argument body could not be decoded.");
-                }
-            }
-            return StatusCodes.BadInvalidArgument;
+            return ServiceResult.Create(
+                StatusCodes.BadInvalidArgument,
+                "The encoded argument body could not be decoded.");
         }
     }
 }

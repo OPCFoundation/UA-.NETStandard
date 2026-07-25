@@ -432,10 +432,10 @@ namespace Opc.Ua.Schema.Model
             if (rawName != null &&
                 rawName.Length > 2 &&
                 rawName[0] == '<' &&
-                rawName[rawName.Length - 1] == '>')
+                rawName[^1] == '>')
             {
                 return new XmlQualifiedName(
-                    ToSymbolicName(rawName.Substring(1, rawName.Length - 2)) + "_Placeholder",
+                    ToSymbolicName(rawName[1..^1]) + "_Placeholder",
                     browseName.Namespace);
             }
 
@@ -1395,7 +1395,8 @@ namespace Opc.Ua.Schema.Model
 
             if (typeDefinitionId == ObjectTypeIds.DataTypeEncodingType)
             {
-                if (input.SymbolicName.Contains("Default", StringComparison.Ordinal) &&
+                if (!string.IsNullOrEmpty(input.SymbolicName) &&
+                    input.SymbolicName.Contains("Default", StringComparison.Ordinal) &&
                     input.SymbolicName.Contains("XML", StringComparison.OrdinalIgnoreCase) &&
                     input.SymbolicName != "DefaultXml")
                 {
@@ -1842,8 +1843,20 @@ namespace Opc.Ua.Schema.Model
                         NodeId childId = ImportNodeId(instance.NodeId);
 
                         if (parentId.NamespaceIndex != childId.NamespaceIndex)
-
                         {
+                            instance.ParentNodeId = null;
+                        }
+                        else if (FindTarget(
+                            node,
+                            ReferenceTypeIds.HasTypeDefinition,
+                            false) == ObjectTypeIds.DataTypeEncodingType)
+                        {
+                            // DataTypeEncoding objects are independent address-space
+                            // nodes even when an exporter sets ParentNodeId to the
+                            // owning DataType. Keeping that parent absorbs the
+                            // encoding into DataType.Children, excludes it from the
+                            // top-level model items and prevents the NodeManager
+                            // generator from registering the encoding node.
                             instance.ParentNodeId = null;
                         }
                     }

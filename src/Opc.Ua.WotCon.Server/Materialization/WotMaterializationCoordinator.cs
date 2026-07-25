@@ -38,14 +38,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Export;
 using Opc.Ua.Wot;
-using Opc.Ua.WotCon.Binding;
+using Opc.Ua.WotCon.Bindings;
 using Opc.Ua.WotCon.Server.Registry;
 
 namespace Opc.Ua.WotCon.Server.Materialization
 {
     /// <summary>
     /// Coordinates projecting registry documents into the AddressSpace. It parses
-    /// and validates each document with <see cref="Opc.Ua.Wot"/>, builds the TD/TM
+    /// and validates each document with <see cref="Wot"/>, builds the TD/TM
     /// dependency closures, converts each closure to one or more NodeSet2
     /// documents and projects them through the <see cref="IWotProjectionHost"/>
     /// (runtime NodeSet Add for first activation, ShadowReload for updates). The
@@ -56,7 +56,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// </summary>
     public sealed class WotMaterializationCoordinator : IDisposable
     {
-        /// <summary>Initializes a new coordinator.</summary>
+        /// <summary>
+        /// Initializes a new coordinator.
+        /// </summary>
         public WotMaterializationCoordinator(
             IWotRegistryService registry,
             IWotProjectionHost projectionHost,
@@ -72,16 +74,21 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 ?? new WotNodeSetDocumentConverter(m_converterOptions);
         }
 
-        /// <summary>Raised for each materialization event (resource / validation / load / refresh).</summary>
+        /// <summary>
+        /// Raised for each materialization event (resource / validation / load / refresh).
+        /// </summary>
         public event EventHandler<WotMaterializationEventArgs>? Event;
 
-        /// <summary>Gets the current refresh generation.</summary>
+        /// <summary>
+        /// Gets the current refresh generation.
+        /// </summary>
         public uint Generation => m_generation;
 
         /// <summary>
         /// Refreshes (re-projects) the registry into the AddressSpace and returns
         /// the detailed result.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public async ValueTask<WotRefreshResult> RefreshAsync(
             WotRefreshRequest request,
             CancellationToken cancellationToken = default)
@@ -106,7 +113,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 bool dryRun = request.Options?.DryRun ?? false;
                 bool force = request.Options?.Force ?? false;
                 bool strict = StrictBindings;
-                var selectedXids = ResolveSelection(snapshot, request.Selection);
+                HashSet<string> selectedXids = ResolveSelection(snapshot, request.Selection);
 
                 var enabled = snapshot.AllResources()
                     .Where(r => r.Enabled && r.DefaultVersion is not null)
@@ -119,9 +126,14 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     closures.Select(c => c.Key), StringComparer.Ordinal);
 
                 uint newGeneration = ++m_generation;
-                var results = ImmutableArray.CreateBuilder<WoTResourceLoadResultDataType>();
+                ImmutableArray<WoTResourceLoadResultDataType>.Builder results =
+                    ImmutableArray.CreateBuilder<WoTResourceLoadResultDataType>();
                 var projections = new List<WotResourceProjection>();
-                int succeeded = 0, unchanged = 0, failed = 0, skipped = 0, retired = 0;
+                int succeeded = 0;
+                int unchanged = 0;
+                int failed = 0;
+                int skipped = 0;
+                int retired = 0;
 
                 // Retire tracked closures no longer desired (deleted / disabled /
                 // membership changed) after their monitored items drain.
@@ -242,7 +254,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
         }
 
-        /// <summary>Gets or sets whether unsupported forms fail a strict closure.</summary>
+        /// <summary>
+        /// Gets or sets whether unsupported forms fail a strict closure.
+        /// </summary>
         public bool StrictBindings { get; set; }
 
         /// <summary>
@@ -268,14 +282,18 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// </summary>
         public NamespaceTable? ServerNamespaceUris { get; set; }
 
-        /// <summary>Releases the mutex used to serialise refreshes.</summary>
+        /// <summary>
+        /// Releases the mutex used to serialise refreshes.
+        /// </summary>
         public void Dispose()
         {
             m_mutex.Dispose();
         }
 
         private static ByteString DigestOf(WotResource resource)
-            => (ByteString)(resource.DefaultVersion?.Digest ?? Array.Empty<byte>());
+        {
+            return (ByteString)(resource.DefaultVersion?.Digest ?? []);
+        }
 
         private async ValueTask<ClosureOutcome> ProcessClosureAsync(
             WotRegistrySnapshot snapshot,
@@ -286,7 +304,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             bool strict,
             CancellationToken cancellationToken)
         {
-            var results = ImmutableArray.CreateBuilder<WoTResourceLoadResultDataType>();
+            ImmutableArray<WoTResourceLoadResultDataType>.Builder results =
+                ImmutableArray.CreateBuilder<WoTResourceLoadResultDataType>();
             var projections = new List<WotResourceProjection>();
             IReadOnlyList<WotResource> members = MembersOf(closure);
 
@@ -326,7 +345,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
 
             // Convert every member to a NodeSet2 source in dependency order.
-            var sources = ImmutableArray.CreateBuilder<WotProjectionSource>();
+            ImmutableArray<WotProjectionSource>.Builder sources = ImmutableArray.CreateBuilder<WotProjectionSource>();
             var perMemberNodeCount = new Dictionary<string, int>(StringComparer.Ordinal);
             var perMemberRoot = new Dictionary<string, ExpandedNodeId>(StringComparer.Ordinal);
             var bindingPlans = new List<WotBindingPlan>();
@@ -337,7 +356,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 WotResourceVersion? version = member.DefaultVersion;
                 if (version is null)
                 {
-                    string reason = "Resource has no default version.";
+                    const string reason = "Resource has no default version.";
                     results.Add(FailResult(member, generation, WoTPhaseEnum.Fetch, reason));
                     projections.Add(FailProjection(member, reason));
                     RaiseLoadFailure(member, generation, reason);
@@ -362,7 +381,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 {
                     if (strict)
                     {
-                        string reason = "Unsupported binding forms in a strict closure.";
+                        const string reason = "Unsupported binding forms in a strict closure.";
                         results.Add(FailResult(
                             member, generation, WoTPhaseEnum.Projection, reason));
                         projections.Add(FailProjection(member, reason));
@@ -416,7 +435,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 return new ClosureOutcome(results.ToImmutable(), projections);
             }
 
-            var document = new WotProjectionDocument(closure.Key, sources.ToImmutable());
+            var document = new WotProjectionDocument(
+                closure.Key, sources.ToImmutable(), bindingPlans.ToArrayOf());
             WotProjectionHandle handle;
             try
             {
@@ -478,8 +498,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 Handle = handle,
                 AggregateDigest = aggregateDigest,
                 Generation = generation,
-                MemberXids = members.Select(m => m.Xid).ToImmutableArray(),
-                BindingPlans = bindingPlans.ToImmutableArray()
+                MemberXids = [.. members.Select(m => m.Xid)],
+                BindingPlans = [.. bindingPlans]
             };
 
             foreach (WotBindingPlan plan in bindingPlans)
@@ -537,10 +557,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             CancellationToken cancellationToken)
         {
             int retired = 0;
-            List<string> stale = m_closures.Keys
-                .Where(k => !targetKeys.Contains(k))
-                .ToList();
-            foreach (string key in stale)
+            foreach (string key in (List<string>)[.. m_closures.Keys.Where(k => !targetKeys.Contains(k))])
             {
                 if (m_closures.TryGetValue(key, out ClosureState? state))
                 {
@@ -598,7 +615,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 return null;
             }
-            NodeId resolved = ExpandedNodeId.ToNodeId(value, namespaces);
+            var resolved = ExpandedNodeId.ToNodeId(value, namespaces);
             return resolved.IsNull ? null : resolved;
         }
 
@@ -620,7 +637,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 {
                     writer.Write(member.Xid);
                     writer.Write(member.DefaultVersionId ?? string.Empty);
-                    byte[] digest = member.DefaultVersion?.Digest ?? Array.Empty<byte>();
+                    byte[] digest = member.DefaultVersion?.Digest ?? [];
                     writer.Write(digest.Length);
                     writer.Write(digest);
                 }
@@ -628,7 +645,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 writer.Write(BinderVersion);
             }
             buffer.Position = 0;
+            // TODO: SHA256.HashData(ReadOnlySpan<byte>) is only available on .NET 5+;
+            // this project also targets net472/net48/netstandard2.1, where the instance
+            // ComputeHash API is the portable equivalent. Revisit if the minimum TFM
+            // floor is ever raised to drop those targets.
+#pragma warning disable CA1850
             return sha.ComputeHash(buffer.ToArray());
+#pragma warning restore CA1850
         }
 
         private string BinderVersion
@@ -670,23 +693,25 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
                 if (uris.Count > 0)
                 {
-                    return uris.ToImmutableArray();
+                    return [.. uris];
                 }
             }
             if (nodeSet.NamespaceUris is { Length: > 0 })
             {
-                return nodeSet.NamespaceUris
-                    .Where(u => !string.Equals(u, Opc.Ua.Namespaces.OpcUa, StringComparison.Ordinal))
-                    .ToImmutableArray();
+                return
+                [
+                    .. nodeSet.NamespaceUris
+                        .Where(u => !string.Equals(u, Ua.Namespaces.OpcUa, StringComparison.Ordinal))
+                ];
             }
-            return ImmutableArray<string>.Empty;
+            return [];
         }
 
         private static IReadOnlyList<WotResource> MembersOf(WotDependencyClosure closure)
         {
             return closure.Members.IsDefaultOrEmpty
                 ? Array.Empty<WotResource>()
-                : (IReadOnlyList<WotResource>)closure.Members;
+                : closure.Members;
         }
 
         private HashSet<string> ResolveSelection(
@@ -731,21 +756,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
             return true;
         }
 
-        private static string? FirstError(IReadOnlyList<WotDiagnostic> diagnostics)
-        {
-            foreach (WotDiagnostic diagnostic in diagnostics)
-            {
-                if (diagnostic.Severity == WotDiagnosticSeverity.Error)
-                {
-                    return diagnostic.ToString();
-                }
-            }
-            return null;
-        }
-
         private static WoTResourceLoadResultDataType FailResult(
             WotResource resource, uint generation, WoTPhaseEnum phase, string? message)
-            => new WoTResourceLoadResultDataType
+        {
+            return new()
             {
                 Xid = resource.Xid,
                 GroupId = resource.GroupId,
@@ -760,10 +774,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 ContentDigest = DigestOf(resource),
                 Message = message ?? string.Empty
             };
+        }
 
         private static WoTResourceLoadResultDataType UnchangedResult(
             WotResource resource, uint generation)
-            => new WoTResourceLoadResultDataType
+        {
+            return new()
             {
                 Xid = resource.Xid,
                 GroupId = resource.GroupId,
@@ -778,29 +794,33 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 ContentDigest = DigestOf(resource),
                 Message = "Content digest unchanged."
             };
+        }
 
         private static WotResourceProjection FailProjection(
             WotResource resource, string? message, WoTValidationOutcomeDataType? validation = null)
-            => new WotResourceProjection(
-                resource.GroupId,
-                resource.ResourceId,
-                WoTLoadStateEnum.Failed,
-                activeVersionId: null,
-                resource.RefreshGeneration,
-                resource.MaterializedNodeCount,
-                rootNodeId: null,
-                validation,
-                string.IsNullOrEmpty(message)
-                    ? ImmutableArray<string>.Empty
-                    : ImmutableArray.Create(message!),
-                DateTime.UtcNow)
+        {
+            return new(
+                        resource.GroupId,
+                        resource.ResourceId,
+                        WoTLoadStateEnum.Failed,
+                        activeVersionId: null,
+                        resource.RefreshGeneration,
+                        resource.MaterializedNodeCount,
+                        rootNodeId: null,
+                        validation,
+                        string.IsNullOrEmpty(message)
+                            ? []
+                            : [message!],
+                        DateTime.UtcNow)
             {
                 // Keep the previous active projection when a refresh fails.
                 RetainPreviousActiveVersion = true
             };
+        }
 
         private static WoTValidationOutcomeDataType SuccessValidation()
-            => new WoTValidationOutcomeDataType
+        {
+            return new()
             {
                 FormatValidated = true,
                 FormatOutcome = WoTOutcomeEnum.Success,
@@ -809,9 +829,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 ValidatedAt = DateTime.UtcNow,
                 VocabularyVersion = WotNodeSetConverter.VocabularyNamespace
             };
+        }
 
         private static WoTValidationOutcomeDataType FormatFailure(string? reason)
-            => new WoTValidationOutcomeDataType
+        {
+            return new()
             {
                 FormatValidated = true,
                 FormatOutcome = WoTOutcomeEnum.Failed,
@@ -821,10 +843,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 ValidatedAt = DateTime.UtcNow,
                 VocabularyVersion = WotNodeSetConverter.VocabularyNamespace
             };
+        }
 
         private void RaiseResource(
             WotResource resource, uint generation, WoTOutcomeEnum outcome, WoTLoadStateEnum state)
-            => RaiseEvent(new WotMaterializationEventArgs(WotMaterializationEventKind.Resource)
+        {
+            RaiseEvent(new WotMaterializationEventArgs(WotMaterializationEventKind.Resource)
             {
                 Xid = resource.Xid,
                 ResourceId = resource.ResourceId,
@@ -835,9 +859,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 Outcome = outcome,
                 LoadState = state
             });
+        }
 
         private void RaiseLoadFailure(WotResource resource, uint generation, string? reason)
-            => RaiseEvent(new WotMaterializationEventArgs(WotMaterializationEventKind.LoadFailure)
+        {
+            RaiseEvent(new WotMaterializationEventArgs(WotMaterializationEventKind.LoadFailure)
             {
                 Xid = resource.Xid,
                 ResourceId = resource.ResourceId,
@@ -849,12 +875,14 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 LoadState = WoTLoadStateEnum.Failed,
                 Reason = reason ?? string.Empty
             });
+        }
 
         private void RaiseValidationFailure(
             WotResource resource, uint generation,
             WoTValidationOutcomeDataType validation, string? reason)
-            => RaiseEvent(new WotMaterializationEventArgs(
-                WotMaterializationEventKind.ValidationFailure)
+        {
+            RaiseEvent(new WotMaterializationEventArgs(
+                        WotMaterializationEventKind.ValidationFailure)
             {
                 Xid = resource.Xid,
                 ResourceId = resource.ResourceId,
@@ -867,10 +895,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 Validation = validation,
                 Reason = reason ?? string.Empty
             });
+        }
 
         private void RaiseBindingFailure(WotResource resource, string? reason)
-            => RaiseEvent(new WotMaterializationEventArgs(
-                WotMaterializationEventKind.BindingFailure)
+        {
+            RaiseEvent(new WotMaterializationEventArgs(
+                        WotMaterializationEventKind.BindingFailure)
             {
                 Xid = resource.Xid,
                 ResourceId = resource.ResourceId,
@@ -879,9 +909,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 LoadState = WoTLoadStateEnum.Failed,
                 Reason = reason ?? string.Empty
             });
+        }
 
         private void RaiseEvent(WotMaterializationEventArgs args)
-            => Event?.Invoke(this, args);
+        {
+            Event?.Invoke(this, args);
+        }
 
         private WotRefreshResult RejectedResult(
             WotRefreshRequest request, WotRegistrySnapshot snapshot, DateTime start)
@@ -895,7 +928,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 EndTime = DateTime.UtcNow
             };
             return new WotRefreshResult(
-                summary, ImmutableArray<WoTResourceLoadResultDataType>.Empty,
+                summary, [],
                 (uint)snapshot.Generation);
         }
 
@@ -903,11 +936,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
         {
             public string Key { get; set; } = string.Empty;
             public WotProjectionHandle? Handle { get; set; }
-            public byte[] AggregateDigest { get; set; } = Array.Empty<byte>();
+            public byte[] AggregateDigest { get; set; } = [];
             public uint Generation { get; set; }
-            public ImmutableArray<string> MemberXids { get; set; } = ImmutableArray<string>.Empty;
+            public ImmutableArray<string> MemberXids { get; set; } = [];
+
             public ImmutableArray<WotBindingPlan> BindingPlans { get; set; }
-                = ImmutableArray<WotBindingPlan>.Empty;
+                = [];
         }
 
         private sealed class ClosureOutcome
@@ -930,8 +964,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
         private readonly IWotDocumentConverter m_converter;
         private readonly WotNodeSetConverterOptions m_converterOptions;
         private readonly SemaphoreSlim m_mutex = new(1, 1);
+
         private readonly Dictionary<string, ClosureState> m_closures =
             new(StringComparer.Ordinal);
+
         private uint m_generation;
     }
 }

@@ -326,12 +326,13 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         public void DeclarationBackedNodeSetFixtureCarriesDeclarationInputArgument()
         {
             Dictionary<string, string> files = GenerateForDeclarationBackedNodeSet();
-            string values = files.Single(kv => kv.Key.EndsWith(".NodeStates.i.g.cs", StringComparison.Ordinal)).Value;
+            string values = files.Single(
+                kv => kv.Key.EndsWith(".NodeStates.ex.g.cs", StringComparison.Ordinal)).Value;
 
             Assert.Multiple(() =>
             {
                 Assert.That(values, Does.Contain("AdjustDeclaration_InputArguments"));
-                Assert.That(values, Does.Contain("<uax:Name>setpoint</uax:Name>"));
+                Assert.That(values, Does.Contain("Name = \"setpoint\""));
             });
         }
 

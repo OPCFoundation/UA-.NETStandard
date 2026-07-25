@@ -1,0 +1,214 @@
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+using System;
+using System.Globalization;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+
+namespace WotFlatTagServer
+{
+    /// <summary>
+    /// Builds and runs the reusable flat-tag source host.
+    /// </summary>
+    public static class WotFlatTagServerHost
+    {
+        /// <summary>
+        /// Builds a host from explicit options.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static IHost Build(WotFlatTagServerOptions options)
+        {
+            if (options is null)
+            {
+                throw new ArgumentNullException(nameof(options));
+            }
+
+            HostApplicationBuilder builder = Host.CreateApplicationBuilder();
+            Configure(builder, options);
+            return builder.Build();
+        }
+
+        /// <summary>
+        /// Builds and runs a host from explicit options.
+        /// </summary>
+        public static async Task RunAsync(
+            WotFlatTagServerOptions options,
+            CancellationToken cancellationToken = default)
+        {
+            using IHost host = Build(options);
+            await host.RunAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Builds and runs a host from command-line configuration.
+        /// </summary>
+        public static async Task RunAsync(
+            string[] args,
+            CancellationToken cancellationToken = default)
+        {
+            HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
+            WotFlatTagServerOptions options = FromConfiguration(builder.Configuration);
+            Configure(builder, options);
+            using IHost host = builder.Build();
+            await host.RunAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        private static void Configure(
+            HostApplicationBuilder builder,
+            WotFlatTagServerOptions options)
+        {
+            Validate(options);
+            builder.Logging.ClearProviders();
+            builder.Logging.AddConsole();
+            builder.Services.AddSingleton(options);
+
+            string endpoint = options.EndpointUrl ??
+                $"opc.tcp://{options.Host}:{options.Port}/{options.InstanceName}";
+
+            builder.Services
+                .AddOpcUa()
+                .AddServer(server =>
+                {
+                    server.ApplicationName = options.ApplicationName;
+                    server.ApplicationUri =
+                        $"urn:localhost:OPCFoundation:{options.ApplicationName}:{options.InstanceName}";
+                    server.ProductUri = "uri:opcfoundation.org:WotFlatTagServer";
+                    if (!string.IsNullOrWhiteSpace(options.PkiRoot))
+                    {
+                        server.PkiRoot = options.PkiRoot;
+                    }
+                    server.AutoAcceptUntrustedCertificates = true;
+                    server.IncludeUnsecurePolicyNone = true;
+                    server.EndpointUrls.Add(endpoint);
+                })
+                .AddNodeManager<WotFlatTagNodeManagerFactory>();
+        }
+
+        private static WotFlatTagServerOptions FromConfiguration(ConfigurationManager configuration)
+        {
+            var options = new WotFlatTagServerOptions
+            {
+                EndpointUrl = configuration["endpoint"],
+                Host = configuration["host"] ?? "localhost",
+                Port = ReadInt32(configuration, "port", 62551),
+                SourceNamespaceUri = configuration["namespace"] ??
+                    WotFlatTagServerOptions.SourceANamespaceUri,
+                ApplicationName = configuration["applicationName"] ?? "WotFlatTagServer",
+                InstanceName = configuration["instanceName"] ?? "SourceA"
+            };
+
+            options.Values.DifferentialPressure = ReadDouble(
+                configuration, "differentialPressure", options.Values.DifferentialPressure);
+            options.Values.FluidTemperature = ReadDouble(
+                configuration, "fluidTemperature", options.Values.FluidTemperature);
+            options.Values.MassFlow = ReadDouble(
+                configuration, "massFlow", options.Values.MassFlow);
+            options.Values.Level = ReadDouble(configuration, "level", options.Values.Level);
+            options.Values.Cavitation = ReadBoolean(
+                configuration, "cavitation", options.Values.Cavitation);
+            options.Values.BearingTemperature = ReadDouble(
+                configuration, "bearingTemperature", options.Values.BearingTemperature);
+            options.Values.PumpPowerInput = ReadDouble(
+                configuration, "pumpPowerInput", options.Values.PumpPowerInput);
+            options.Values.PumpEfficiency = ReadDouble(
+                configuration, "pumpEfficiency", options.Values.PumpEfficiency);
+            options.Values.NumberOfStarts = ReadUInt32(
+                configuration, "numberOfStarts", options.Values.NumberOfStarts);
+            options.Values.MotorOverheat = ReadBoolean(
+                configuration, "motorOverheat", options.Values.MotorOverheat);
+            return options;
+        }
+
+        private static void Validate(WotFlatTagServerOptions options)
+        {
+            if (options.SourceNamespaceUri is not WotFlatTagServerOptions.SourceANamespaceUri and
+                not WotFlatTagServerOptions.SourceBNamespaceUri)
+            {
+                throw new ArgumentException(
+                    "The source namespace must identify SourceA or SourceB.",
+                    nameof(options));
+            }
+            if (string.IsNullOrWhiteSpace(options.ApplicationName) ||
+                string.IsNullOrWhiteSpace(options.InstanceName))
+            {
+                throw new ArgumentException(
+                    "ApplicationName and InstanceName are required.",
+                    nameof(options));
+            }
+            if (options.EndpointUrl is null &&
+                (string.IsNullOrWhiteSpace(options.Host) || options.Port is < 1 or > 65535))
+            {
+                throw new ArgumentException("A valid host and port are required.", nameof(options));
+            }
+        }
+
+        private static int ReadInt32(ConfigurationManager configuration, string key, int fallback)
+        {
+            return int.TryParse(
+                configuration[key],
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out int value)
+                ? value
+                : fallback;
+        }
+
+        private static uint ReadUInt32(ConfigurationManager configuration, string key, uint fallback)
+        {
+            return uint.TryParse(
+                configuration[key],
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out uint value)
+                ? value
+                : fallback;
+        }
+
+        private static double ReadDouble(ConfigurationManager configuration, string key, double fallback)
+        {
+            return double.TryParse(
+                configuration[key],
+                NumberStyles.Float,
+                CultureInfo.InvariantCulture,
+                out double value)
+                ? value
+                : fallback;
+        }
+
+        private static bool ReadBoolean(ConfigurationManager configuration, string key, bool fallback)
+        {
+            return bool.TryParse(configuration[key], out bool value) ? value : fallback;
+        }
+    }
+}

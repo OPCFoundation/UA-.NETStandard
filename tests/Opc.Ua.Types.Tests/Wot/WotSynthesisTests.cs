@@ -138,7 +138,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"@type\":\"uav:variableType\",\"uav:browseName\":\"1:Blob\"," +
                 "\"uav:externalSchema\":\"https://example.com/schema.json\"}}}";
 
-            using WotDocument document = WotDocument.Parse(Encoding.UTF8.GetBytes(model));
+            using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(model));
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
 
             Assert.That(result.Value, Is.Not.Null);

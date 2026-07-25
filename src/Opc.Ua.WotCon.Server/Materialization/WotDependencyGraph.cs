@@ -41,7 +41,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// </summary>
     public sealed class WotDependency
     {
-        /// <summary>Initializes a new dependency edge.</summary>
+        /// <summary>
+        /// Initializes a new dependency edge.
+        /// </summary>
         public WotDependency(
             string sourceXid,
             string targetHref,
@@ -56,19 +58,29 @@ namespace Opc.Ua.WotCon.Server.Materialization
             Resolved = resolved;
         }
 
-        /// <summary>Gets the xid of the dependent document.</summary>
+        /// <summary>
+        /// Gets the xid of the dependent document.
+        /// </summary>
         public string SourceXid { get; }
 
-        /// <summary>Gets the raw href/URI of the dependency.</summary>
+        /// <summary>
+        /// Gets the raw href/URI of the dependency.
+        /// </summary>
         public string TargetHref { get; }
 
-        /// <summary>Gets the xid of the resolved target document, if any.</summary>
+        /// <summary>
+        /// Gets the xid of the resolved target document, if any.
+        /// </summary>
         public string? TargetXid { get; }
 
-        /// <summary>Gets the dependency kind (tm:extends / tm:ref / links.rel=type).</summary>
+        /// <summary>
+        /// Gets the dependency kind (tm:extends / tm:ref / links.rel=type).
+        /// </summary>
         public string RefType { get; }
 
-        /// <summary>Gets whether the dependency resolved to a stored document.</summary>
+        /// <summary>
+        /// Gets whether the dependency resolved to a stored document.
+        /// </summary>
         public bool Resolved { get; }
     }
 
@@ -98,28 +110,44 @@ namespace Opc.Ua.WotCon.Server.Materialization
             HasMissingDependency = hasMissingDependency;
         }
 
-        /// <summary>Gets the stable closure key (sorted member xids).</summary>
+        /// <summary>
+        /// Gets the stable closure key (sorted member xids).
+        /// </summary>
         public string Key { get; }
 
-        /// <summary>Gets every member of the closure (populated even on a cycle).</summary>
+        /// <summary>
+        /// Gets every member of the closure (populated even on a cycle).
+        /// </summary>
         public ImmutableArray<WotResource> Members { get; }
 
-        /// <summary>Gets the resources in topological (dependency-first) order.</summary>
+        /// <summary>
+        /// Gets the resources in topological (dependency-first) order.
+        /// </summary>
         public ImmutableArray<WotResource> OrderedResources { get; }
 
-        /// <summary>Gets the dependency edges within the closure.</summary>
+        /// <summary>
+        /// Gets the dependency edges within the closure.
+        /// </summary>
         public ImmutableArray<WotDependency> Dependencies { get; }
 
-        /// <summary>Gets the diagnostics for the closure.</summary>
+        /// <summary>
+        /// Gets the diagnostics for the closure.
+        /// </summary>
         public ImmutableArray<string> Diagnostics { get; }
 
-        /// <summary>Gets whether the closure contains a dependency cycle.</summary>
+        /// <summary>
+        /// Gets whether the closure contains a dependency cycle.
+        /// </summary>
         public bool HasCycle { get; }
 
-        /// <summary>Gets whether the closure has an unresolved dependency.</summary>
+        /// <summary>
+        /// Gets whether the closure has an unresolved dependency.
+        /// </summary>
         public bool HasMissingDependency { get; }
 
-        /// <summary>Gets whether the closure is projectable (no cycle, no missing dependency).</summary>
+        /// <summary>
+        /// Gets whether the closure is projectable (no cycle, no missing dependency).
+        /// </summary>
         public bool IsProjectable => !HasCycle && !HasMissingDependency;
     }
 
@@ -158,7 +186,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             try
             {
                 var options = new JsonDocumentOptions { MaxDepth = maxJsonDepth };
-                using JsonDocument json = JsonDocument.Parse(document, options);
+                using var json = JsonDocument.Parse(document, options);
                 JsonElement root = json.RootElement;
                 if (root.ValueKind != JsonValueKind.Object)
                 {
@@ -189,7 +217,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         {
             if (selected.Count == 0)
             {
-                return ImmutableArray<WotDependencyClosure>.Empty;
+                return [];
             }
 
             // Expand the selection to include resolvable transitive dependencies.
@@ -239,7 +267,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 foreach (WotDependency edge in list)
                 {
-                    if (edge.Resolved && edge.TargetXid is not null &&
+                    if (edge.Resolved &&
+                        edge.TargetXid is not null &&
                         byXid.ContainsKey(edge.TargetXid))
                     {
                         Union(parent, edge.SourceXid, edge.TargetXid);
@@ -253,21 +282,20 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 string root = Find(parent, entry.Key);
                 if (!components.TryGetValue(root, out List<WotResource>? members))
                 {
-                    members = new List<WotResource>();
+                    members = [];
                     components[root] = members;
                 }
                 members.Add(entry.Value);
             }
 
-            var closures = ImmutableArray.CreateBuilder<WotDependencyClosure>();
+            ImmutableArray<WotDependencyClosure>.Builder closures =
+                ImmutableArray.CreateBuilder<WotDependencyClosure>();
             foreach (List<WotResource> members in components.Values)
             {
                 closures.Add(BuildClosure(members, edges, byXid));
             }
             // Deterministic order by closure key.
-            return closures
-                .OrderBy(c => c.Key, StringComparer.Ordinal)
-                .ToImmutableArray();
+            return [.. closures.OrderBy(c => c.Key, StringComparer.Ordinal)];
         }
 
         private static WotDependencyClosure BuildClosure(
@@ -276,15 +304,15 @@ namespace Opc.Ua.WotCon.Server.Materialization
             Dictionary<string, WotResource> byXid)
         {
             var memberXids = new HashSet<string>(members.Select(m => m.Xid), StringComparer.Ordinal);
-            var dependencies = ImmutableArray.CreateBuilder<WotDependency>();
-            var diagnostics = ImmutableArray.CreateBuilder<string>();
+            ImmutableArray<WotDependency>.Builder dependencies = ImmutableArray.CreateBuilder<WotDependency>();
+            ImmutableArray<string>.Builder diagnostics = ImmutableArray.CreateBuilder<string>();
             bool missing = false;
 
             // Adjacency (source depends on target): target must be ordered first.
             var adjacency = new Dictionary<string, List<string>>(StringComparer.Ordinal);
             foreach (WotResource member in members)
             {
-                adjacency[member.Xid] = new List<string>();
+                adjacency[member.Xid] = [];
             }
             foreach (WotResource member in members)
             {
@@ -320,7 +348,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
             string key = string.Join(
                 "|", members.Select(m => m.Xid).OrderBy(x => x, StringComparer.Ordinal));
-            ImmutableArray<WotResource> memberArray = members
+            var memberArray = members
                 .OrderBy(m => m.Xid, StringComparer.Ordinal)
                 .ToImmutableArray();
             return new WotDependencyClosure(
@@ -385,7 +413,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
             return hasCycle
                 ? (ImmutableArray<WotResource>.Empty, true)
-                : (ordered.ToImmutableArray(), false);
+                : ([.. ordered], false);
         }
 
         private static WotResource? MatchIn(IEnumerable<WotResource> resources, string href)
@@ -405,12 +433,14 @@ namespace Opc.Ua.WotCon.Server.Materialization
         }
 
         private static string RegistryUri(WotResource resource)
-            => $"urn:wot:{resource.GroupId}/{resource.ResourceId}";
+        {
+            return $"urn:wot:{resource.GroupId}/{resource.ResourceId}";
+        }
 
         private static string TrimFragment(string href)
         {
             int hash = href.AsSpan().IndexOf('#');
-            return hash >= 0 ? href.Substring(0, hash) : href;
+            return hash >= 0 ? href[..hash] : href;
         }
 
         private static void CollectLinks(

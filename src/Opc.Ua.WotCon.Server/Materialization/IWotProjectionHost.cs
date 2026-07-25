@@ -28,10 +28,10 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.WotCon.Bindings;
 
 namespace Opc.Ua.WotCon.Server.Materialization
 {
@@ -61,7 +61,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// </summary>
     public sealed class WotProjectionSource
     {
-        /// <summary>Initializes a new projection source.</summary>
+        /// <summary>
+        /// Initializes a new projection source.
+        /// </summary>
         public WotProjectionSource(
             string name,
             ImmutableArray<string> modelNamespaceUris,
@@ -69,17 +71,23 @@ namespace Opc.Ua.WotCon.Server.Materialization
         {
             Name = name ?? throw new ArgumentNullException(nameof(name));
             ModelNamespaceUris = modelNamespaceUris.IsDefault
-                ? ImmutableArray<string>.Empty : modelNamespaceUris;
+                ? [] : modelNamespaceUris;
             NodeSetXml = nodeSetXml ?? throw new ArgumentNullException(nameof(nodeSetXml));
         }
 
-        /// <summary>Gets the diagnostic source name.</summary>
+        /// <summary>
+        /// Gets the diagnostic source name.
+        /// </summary>
         public string Name { get; }
 
-        /// <summary>Gets the model namespace URIs this source owns.</summary>
+        /// <summary>
+        /// Gets the model namespace URIs this source owns.
+        /// </summary>
         public ImmutableArray<string> ModelNamespaceUris { get; }
 
-        /// <summary>Gets the serialized NodeSet2 XML bytes.</summary>
+        /// <summary>
+        /// Gets the serialized NodeSet2 XML bytes.
+        /// </summary>
         public byte[] NodeSetXml { get; }
     }
 
@@ -89,20 +97,47 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// </summary>
     public sealed class WotProjectionDocument
     {
-        /// <summary>Initializes a new projection document.</summary>
+        /// <summary>
+        /// Initializes a new projection document.
+        /// </summary>
         public WotProjectionDocument(
             string closureKey,
             ImmutableArray<WotProjectionSource> sources)
+            : this(closureKey, sources, [])
         {
-            ClosureKey = closureKey ?? throw new ArgumentNullException(nameof(closureKey));
-            Sources = sources.IsDefault ? ImmutableArray<WotProjectionSource>.Empty : sources;
         }
 
-        /// <summary>Gets the stable closure key this document projects.</summary>
+        /// <summary>
+        /// Initializes a new projection document that also carries the prepared
+        /// binding plans for the closure, so the projection host can wire a
+        /// per-generation binding runtime while it materializes the NodeSet.
+        /// </summary>
+        public WotProjectionDocument(
+            string closureKey,
+            ImmutableArray<WotProjectionSource> sources,
+            ArrayOf<WotBindingPlan> bindingPlans)
+        {
+            ClosureKey = closureKey ?? throw new ArgumentNullException(nameof(closureKey));
+            Sources = sources.IsDefault ? [] : sources;
+            BindingPlans = bindingPlans;
+        }
+
+        /// <summary>
+        /// Gets the stable closure key this document projects.
+        /// </summary>
         public string ClosureKey { get; }
 
-        /// <summary>Gets the ordered NodeSet2 sources.</summary>
+        /// <summary>
+        /// Gets the ordered NodeSet2 sources.
+        /// </summary>
         public ImmutableArray<WotProjectionSource> Sources { get; }
+
+        /// <summary>
+        /// Gets the prepared binding plans for the closure's members, in the
+        /// same order the members were projected. Empty when the coordinator
+        /// did not prepare any bindings (for example a dry run).
+        /// </summary>
+        public ArrayOf<WotBindingPlan> BindingPlans { get; }
     }
 
     /// <summary>
@@ -112,7 +147,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// </summary>
     public sealed class WotProjectionHandle
     {
-        /// <summary>Initializes a new projection handle.</summary>
+        /// <summary>
+        /// Initializes a new projection handle.
+        /// </summary>
         public WotProjectionHandle(
             string closureKey,
             long generation,
@@ -124,24 +161,34 @@ namespace Opc.Ua.WotCon.Server.Materialization
             ClosureKey = closureKey ?? string.Empty;
             Generation = generation;
             Registration = registration;
-            RootNodeIds = rootNodeIds.IsDefault ? ImmutableArray<NodeId>.Empty : rootNodeIds;
+            RootNodeIds = rootNodeIds.IsDefault ? [] : rootNodeIds;
             MaterializedNodeCount = materializedNodeCount;
             Warning = warning ?? string.Empty;
         }
 
-        /// <summary>Gets the closure key.</summary>
+        /// <summary>
+        /// Gets the closure key.
+        /// </summary>
         public string ClosureKey { get; }
 
-        /// <summary>Gets the projection generation.</summary>
+        /// <summary>
+        /// Gets the projection generation.
+        /// </summary>
         public long Generation { get; }
 
-        /// <summary>Gets the underlying runtime registration (host-specific).</summary>
+        /// <summary>
+        /// Gets the underlying runtime registration (host-specific).
+        /// </summary>
         public object? Registration { get; }
 
-        /// <summary>Gets the materialized root NodeIds.</summary>
+        /// <summary>
+        /// Gets the materialized root NodeIds.
+        /// </summary>
         public ImmutableArray<NodeId> RootNodeIds { get; }
 
-        /// <summary>Gets the materialized node count.</summary>
+        /// <summary>
+        /// Gets the materialized node count.
+        /// </summary>
         public int MaterializedNodeCount { get; }
 
         /// <summary>
