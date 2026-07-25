@@ -122,9 +122,12 @@ namespace Opc.Ua.Schema.Model
             if (instance is MethodDesign method)
             {
                 string className;
-                if (method.TypeDefinition != null)
+                XmlQualifiedName methodStateIdentity =
+                    MethodDesignArgumentResolver.ResolveMethodStateIdentity(method);
+                if (methodStateIdentity != null)
                 {
-                    className = method.TypeDefinition.AsFullyQualifiedTypeSymbol(namespaces);
+                    className =
+                        methodStateIdentity.AsFullyQualifiedTypeSymbol(namespaces);
 
                     if (className.EndsWith("MethodType", StringComparison.Ordinal))
                     {
@@ -138,14 +141,9 @@ namespace Opc.Ua.Schema.Model
                 else
                 {
                     className = method.SymbolicName.AsFullyQualifiedTypeSymbol(namespaces);
-
-                    if (className.EndsWith("MethodType", StringComparison.Ordinal))
-                    {
-                        className = className[..^"MethodType".Length];
-                    }
                 }
 
-                if (method.HasArguments)
+                if (MethodDesignArgumentResolver.HasMethodArguments(method))
                 {
                     string typedClassName = CoreUtils.Format(
                         "{0}{1}MethodState",

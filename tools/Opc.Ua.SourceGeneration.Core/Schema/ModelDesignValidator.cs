@@ -3531,6 +3531,8 @@ namespace Opc.Ua.Schema.Model
                 }
 
                 method.OutputArguments = parameters;
+                method.HasArguments =
+                    MethodDesignArgumentResolver.HasMethodArguments(method);
             }
         }
 
@@ -4229,16 +4231,12 @@ namespace Opc.Ua.Schema.Model
             {
                 if (instance.TypeDefinition != null)
                 {
-                    method.MethodType = this.FindNode<MethodDesign>(
+                    method.MethodType ??= this.FindNode<MethodDesign>(
                         instance.TypeDefinition,
                         instance.SymbolicId.Name,
                         "TypeDefinition");
 
                     method.Description = method.MethodType.Description;
-                    method.InputArguments = method.MethodType.InputArguments;
-                    method.OutputArguments = method.MethodType.OutputArguments;
-                    method.HasArguments = (method.InputArguments != null && method.InputArguments.Length > 0) ||
-                        (method.OutputArguments != null && method.OutputArguments.Length > 0);
 
                     //if (!method.ModellingRuleSpecified || method.ModellingRule == ModellingRule.None)
                     //{
@@ -4268,8 +4266,14 @@ namespace Opc.Ua.Schema.Model
                     //}
                 }
 
+                MethodDesign methodDefinition =
+                    MethodDesignArgumentResolver.ResolveMethodDefinition(method);
+                method.InputArguments = methodDefinition.InputArguments ?? [];
+                method.OutputArguments = methodDefinition.OutputArguments ?? [];
                 ValidateParameters(method, method.InputArguments);
                 ValidateParameters(method, method.OutputArguments);
+                method.HasArguments =
+                    MethodDesignArgumentResolver.HasMethodArguments(method);
 
                 if (method.Parent != null)
                 {
@@ -4698,9 +4702,18 @@ namespace Opc.Ua.Schema.Model
                 mergedInstance = instance.Copy();
 
                 if (instance is MethodDesign method)
-
                 {
-                    ((MethodDesign)mergedInstance).MethodDeclarationNode = method;
+                    var mergedMethod = (MethodDesign)mergedInstance;
+                    mergedMethod.MethodDeclarationNode ??=
+                        method.MethodDeclarationNode ?? mergedMethod;
+                    MethodDesign methodDefinition =
+                        MethodDesignArgumentResolver.ResolveMethodDefinition(mergedMethod);
+                    mergedMethod.InputArguments =
+                        methodDefinition.InputArguments ?? [];
+                    mergedMethod.OutputArguments =
+                        methodDefinition.OutputArguments ?? [];
+                    mergedMethod.HasArguments =
+                        MethodDesignArgumentResolver.HasMethodArguments(mergedMethod);
                 }
             }
             else
@@ -5083,6 +5096,27 @@ namespace Opc.Ua.Schema.Model
             MethodDesign mergedMethod,
             MethodDesign method)
         {
+            bool overridesType = method.TypeDefinition != null ||
+                method.MethodType != null;
+            bool overridesArguments =
+                MethodDesignArgumentResolver.HasDeclaredArguments(method);
+            bool overridesDeclaration = method.MethodDeclarationNode != null;
+
+            if (overridesType || overridesArguments || overridesDeclaration)
+            {
+                mergedMethod.TypeDefinition = method.TypeDefinition;
+                mergedMethod.TypeDefinitionNode = null;
+                mergedMethod.MethodType = method.MethodType;
+                mergedMethod.MethodDeclarationNode =
+                    method.MethodDeclarationNode ?? mergedMethod;
+                mergedMethod.InputArguments =
+                    MethodDesignArgumentResolver.ResolveMethodInputs(method);
+                mergedMethod.OutputArguments =
+                    MethodDesignArgumentResolver.ResolveMethodOutputs(method);
+            }
+            mergedMethod.HasArguments =
+                MethodDesignArgumentResolver.HasMethodArguments(mergedMethod);
+
             if (method.NonExecutableSpecified)
             {
                 mergedMethod.NonExecutable = method.NonExecutable;
@@ -5660,12 +5694,13 @@ namespace Opc.Ua.Schema.Model
                     depth + 1);
             }
 
-            if (parent.TypeDefinition != null && parent is MethodDesign)
+            if (parent.TypeDefinition != null && parent is MethodDesign method)
             {
-                MethodDesign methodType = this.FindNode<MethodDesign>(
-                    parent.TypeDefinition,
-                    parent.SymbolicId.Name,
-                    "MethodType");
+                MethodDesign methodType = method.MethodType ??
+                    this.FindNode<MethodDesign>(
+                        parent.TypeDefinition,
+                        parent.SymbolicId.Name,
+                        "MethodType");
 
                 if (methodType != null)
                 {
@@ -6374,16 +6409,79 @@ namespace Opc.Ua.Schema.Model
             }
             else if (instance is MethodDesign method)
             {
-                // Methods carry their own argument lists; the TypeDefinition
-                // would point at a MethodType (a separate MethodDesign in
-                // the upstream model) which is NOT carried by the dependency
-                // payload, so clear it to avoid a downstream
-                // FindNode<MethodDesign> failure during ValidateInstance.
-                method.TypeDefinition = null;
                 method.InputArguments = MaterialiseMethodArgs(c.InputArguments);
                 method.OutputArguments = MaterialiseMethodArgs(c.OutputArguments);
                 method.HasArguments = method.InputArguments.Length > 0 ||
                     method.OutputArguments.Length > 0;
+
+                if (!string.IsNullOrEmpty(c.MethodStateName))
+                {
+                    var methodStateIdentity = new XmlQualifiedName(
+                        c.MethodStateName,
+                        c.MethodStateNamespace ?? string.Empty);
+                    var methodState = new MethodDesign
+                    {
+                        SymbolicId = methodStateIdentity,
+                        SymbolicName = methodStateIdentity,
+                        BrowseName = c.MethodStateName,
+                        InputArguments = method.InputArguments,
+                        OutputArguments = method.OutputArguments,
+                        HasArguments = method.HasArguments,
+                        IsDeclaration = true
+                    };
+
+                    if (method.TypeDefinition != null)
+                    {
+                        method.MethodType = methodState;
+                    }
+                    else
+                    {
+                        method.MethodDeclarationNode = methodState;
+                    }
+                }
+                else
+                {
+                    // Legacy payloads flattened method arguments without
+                    // preserving the upstream method state identity.
+                    method.TypeDefinition = null;
+                }
+
+                if (!string.IsNullOrEmpty(c.MethodDeclarationName))
+                {
+                    var declarationIdentity = new XmlQualifiedName(
+                        c.MethodDeclarationName,
+                        c.MethodDeclarationNamespace ?? string.Empty);
+                    MethodDesign declaration =
+                        method.MethodDeclarationNode?.SymbolicId == declarationIdentity
+                            ? method.MethodDeclarationNode
+                            : new MethodDesign
+                            {
+                                SymbolicId = declarationIdentity,
+                                SymbolicName = declarationIdentity,
+                                BrowseName = c.MethodDeclarationName,
+                                InputArguments = method.InputArguments,
+                                OutputArguments = method.OutputArguments,
+                                HasArguments = method.HasArguments,
+                                IsDeclaration = true
+                            };
+                    if (method.TypeDefinition == null &&
+                        method.MethodDeclarationNode != null &&
+                        !ReferenceEquals(declaration, method.MethodDeclarationNode))
+                    {
+                        declaration.MethodDeclarationNode =
+                            method.MethodDeclarationNode;
+                    }
+                    if (c.MethodDeclarationNumericId != 0)
+                    {
+                        declaration.NumericId = c.MethodDeclarationNumericId;
+                        declaration.NumericIdSpecified = true;
+                    }
+                    if (!string.IsNullOrEmpty(c.MethodDeclarationStringId))
+                    {
+                        declaration.StringId = c.MethodDeclarationStringId;
+                    }
+                    method.MethodDeclarationNode = declaration;
+                }
             }
             // Mark as inherited-declaration so consumer code paths
             // that iterate children for emission can short-circuit.
@@ -6464,6 +6562,28 @@ namespace Opc.Ua.Schema.Model
                     {
                         variable.DataTypeNode = dtNode as DataTypeDesign;
                     }
+                    if (instance is MethodDesign method)
+                    {
+                        LinkDependencyMethodArguments(method.InputArguments);
+                        LinkDependencyMethodArguments(method.OutputArguments);
+                    }
+                }
+            }
+        }
+
+        private void LinkDependencyMethodArguments(Parameter[] arguments)
+        {
+            if (arguments == null)
+            {
+                return;
+            }
+            foreach (Parameter argument in arguments)
+            {
+                if (argument?.DataType != null &&
+                    argument.DataTypeNode == null &&
+                    m_nodes.TryGetValue(argument.DataType, out NodeDesign dataType))
+                {
+                    argument.DataTypeNode = dataType as DataTypeDesign;
                 }
             }
         }

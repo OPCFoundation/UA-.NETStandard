@@ -183,6 +183,53 @@ namespace Opc.Ua.SourceGeneration
         }
 
         [Test]
+        public void DeclarationBackedMethodIdentityCompilesAcrossAssemblies()
+        {
+            CSharpCompilation producer = GenerateModelCompilation(
+                "DeclarationBackedMethodProducer",
+                "DeclarationBackedMethod.NodeSet2.xml",
+                "DeclarationBackedMethod");
+            CSharpCompilation consumerBase =
+                CreateStackCompilation("DeclarationBackedMethodConsumer")
+                    .AddReferences(producer.ToMetadataReference());
+
+            (GeneratorRunResult result, Compilation output, ImmutableArray<Diagnostic> diagnostics) =
+                RunModelGenerator(
+                    consumerBase,
+                    "DeclarationBackedMethodConsumer.NodeSet2.xml",
+                    "DeclarationBackedMethodConsumer");
+
+            ImmutableArray<Diagnostic> outputDiagnostics = output.GetDiagnostics();
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    diagnostics.Where(diagnostic =>
+                        diagnostic.Severity == DiagnosticSeverity.Error),
+                    Is.Empty,
+                    string.Join(Environment.NewLine, diagnostics));
+                Assert.That(
+                    outputDiagnostics.Where(diagnostic =>
+                        diagnostic.Severity == DiagnosticSeverity.Error),
+                    Is.Empty,
+                    string.Join(Environment.NewLine, outputDiagnostics));
+            });
+
+            string generated = string.Join(
+                Environment.NewLine,
+                result.GeneratedSources.Select(source => source.SourceText.ToString()));
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    generated,
+                    Does.Contain(
+                        "global::DeclarationBackedMethod.AdjustDeclarationMethodState"));
+                Assert.That(
+                    generated,
+                    Does.Not.Contain("global::DeclarationBackedMethod.AdjustMethodState"));
+            });
+        }
+
+        [Test]
         public void OverrideResolutionSilentlySkipsLocalGeneration()
         {
             // Arrange: a producer assembly that already declares the DemoModel
@@ -597,6 +644,64 @@ namespace Opc.Ua.SourceGeneration
                 out Compilation outputCompilation,
                 out ImmutableArray<Diagnostic> diagnostics);
 
+            return (driver.GetRunResult().Results[0], outputCompilation, diagnostics);
+        }
+
+        private static CSharpCompilation GenerateModelCompilation(
+            string assemblyName,
+            string nodeSetResource,
+            string prefix)
+        {
+            CSharpCompilation compilation = CreateStackCompilation(assemblyName);
+            (GeneratorRunResult _, Compilation output, ImmutableArray<Diagnostic> diagnostics) =
+                RunModelGenerator(compilation, nodeSetResource, prefix);
+            ImmutableArray<Diagnostic> outputDiagnostics = output.GetDiagnostics();
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    diagnostics.Where(diagnostic =>
+                        diagnostic.Severity == DiagnosticSeverity.Error),
+                    Is.Empty,
+                    string.Join(Environment.NewLine, diagnostics));
+                Assert.That(
+                    outputDiagnostics.Where(diagnostic =>
+                        diagnostic.Severity == DiagnosticSeverity.Error),
+                    Is.Empty,
+                    string.Join(Environment.NewLine, outputDiagnostics));
+            });
+            return (CSharpCompilation)output;
+        }
+
+        private static (GeneratorRunResult Result, Compilation OutputCompilation,
+            ImmutableArray<Diagnostic> Diagnostics) RunModelGenerator(
+                CSharpCompilation compilation,
+                string nodeSetResource,
+                string prefix)
+        {
+            var options = new AnalyzerOptionsProvider(
+                new Dictionary<string, string>
+                {
+                    ["build_property.ModelSourceGeneratorStartId"] = "5000",
+                    ["build_property.ModelSourceGeneratorOmitFluentApi"] = "true"
+                });
+            options.TextOptions[nodeSetResource] = new Dictionary<string, string>
+            {
+                ["build_metadata.AdditionalFiles.ModelSourceGeneratorPrefix"] = prefix
+            };
+
+            var generator = new ModelSourceGenerator();
+            var host = new ModelSourceGeneratorHoist(generator);
+            GeneratorDriver driver = CSharpGeneratorDriver.Create(host)
+                .WithUpdatedParseOptions(new CSharpParseOptions()
+                    .WithKind(SourceCodeKind.Regular)
+                    .WithLanguageVersion(LanguageVersion.CSharp11))
+                .AddAdditionalTexts([EmbeddedText.From(nodeSetResource)])
+                .WithUpdatedAnalyzerConfigOptions(options);
+
+            driver = driver.RunGeneratorsAndUpdateCompilation(
+                compilation,
+                out Compilation outputCompilation,
+                out ImmutableArray<Diagnostic> diagnostics);
             return (driver.GetRunResult().Results[0], outputCompilation, diagnostics);
         }
 

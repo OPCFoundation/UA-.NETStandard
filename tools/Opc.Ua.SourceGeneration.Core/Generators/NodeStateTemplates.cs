@@ -1348,6 +1348,20 @@ namespace Opc.Ua.SourceGeneration
             """);
 
         /// <summary>
+        /// Template for a single method state creation call.
+        /// </summary>
+        public static readonly TemplateString AddMethod = TemplateString.Parse(
+            $$"""
+            // Add {{Tokens.SymbolicName}} predefined node
+            {
+                global::Opc.Ua.NodeState state =
+                    context.CreateInstanceOf{{Tokens.SymbolicId}}();
+                state.CreateAsPredefinedNode(context);
+                nodes.Add(state);
+            }
+            """);
+
+        /// <summary>
         /// Template for BaseObjectTypeState creation
         /// </summary>
         public static readonly TemplateString Create_ObjectType = TemplateString.Parse(

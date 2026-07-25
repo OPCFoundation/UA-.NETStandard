@@ -30,10 +30,13 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
+using System.Xml;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Schema.Model;
+using Opc.Ua.SourceGeneration.Dependency;
 
 namespace Opc.Ua.SourceGeneration.Generator.Tests
 {
@@ -263,6 +266,136 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
 
             string output = ReadOutput();
             Assert.That(output, Does.Contain("\"v\\\"1\\\"\""));
+        }
+
+        [Test]
+        public void EmitDeclarationBackedMethodSerializesEffectiveArguments()
+        {
+            Namespace target = ConfigureSelf();
+            const string opcUaNamespace = Types.Namespaces.OpcUa;
+            var declaration = new MethodDesign
+            {
+                SymbolicId = new XmlQualifiedName("ExecuteMethodType", TestUri),
+                SymbolicName = new XmlQualifiedName("ExecuteMethodType", TestUri),
+                NumericId = 42,
+                NumericIdSpecified = true,
+                InputArguments =
+                [
+                    new Parameter
+                    {
+                        Name = "Name",
+                        DataType = new XmlQualifiedName("String", opcUaNamespace),
+                        ValueRank = ValueRank.Scalar
+                    }
+                ],
+                OutputArguments =
+                [
+                    new Parameter
+                    {
+                        Name = "Status",
+                        DataType = new XmlQualifiedName("Int16", opcUaNamespace),
+                        ValueRank = ValueRank.Scalar
+                    }
+                ]
+            };
+            var method = new MethodDesign
+            {
+                BrowseName = "Execute",
+                SymbolicId = new XmlQualifiedName("ControllerType_Execute", TestUri),
+                SymbolicName = new XmlQualifiedName("Execute", TestUri),
+                MethodDeclarationNode = declaration,
+                InputArguments = [],
+                OutputArguments = []
+            };
+            var objectType = new ObjectTypeDesign
+            {
+                ClassName = "Controller",
+                SymbolicId = new XmlQualifiedName("ControllerType", TestUri),
+                SymbolicName = new XmlQualifiedName("ControllerType", TestUri),
+                HasChildren = true,
+                Children = new ListOfChildren { Items = [method] }
+            };
+            m_mockModelDesign.Setup(m => m.TargetNamespace).Returns(target);
+            m_mockModelDesign.Setup(m => m.Nodes).Returns([objectType]);
+
+            var generator = new ModelDependencyGenerator(BuildContext());
+            generator.Emit();
+
+            string output = ReadOutput();
+            int payloadEnd = output.IndexOf("\")]", StringComparison.Ordinal);
+            Assert.That(payloadEnd, Is.GreaterThanOrEqualTo(0));
+            int payloadStart = output.LastIndexOf('"', payloadEnd - 1);
+            Assert.That(payloadStart, Is.GreaterThanOrEqualTo(0));
+            string encodedPayload = output[(payloadStart + 1)..payloadEnd];
+            ModelDependencyV1 payload =
+                ModelDependencyV1.FromBase64Payload(encodedPayload);
+            Assert.That(payload, Is.Not.Null);
+            DependencyChild child = payload.Nodes
+                .Single(node => node.SymbolicName == "ControllerType")
+                .Children
+                .Single(candidate => candidate.SymbolicName == "Execute");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(child.InputArguments, Has.Count.EqualTo(1));
+                Assert.That(child.InputArguments[0].Name, Is.EqualTo("Name"));
+                Assert.That(child.InputArguments[0].DataTypeName, Is.EqualTo("String"));
+                Assert.That(child.OutputArguments, Has.Count.EqualTo(1));
+                Assert.That(child.OutputArguments[0].Name, Is.EqualTo("Status"));
+                Assert.That(child.OutputArguments[0].DataTypeName, Is.EqualTo("Int16"));
+                Assert.That(child.MethodStateName, Is.EqualTo("ExecuteMethodType"));
+                Assert.That(child.MethodStateNamespace, Is.EqualTo(TestUri));
+                Assert.That(child.MethodDeclarationName, Is.EqualTo("ExecuteMethodType"));
+                Assert.That(child.MethodDeclarationNamespace, Is.EqualTo(TestUri));
+                Assert.That(child.MethodDeclarationNumericId, Is.EqualTo(42));
+            });
+        }
+
+        [Test]
+        public void LegacyPayloadWithoutMethodIdentityRemainsReadable()
+        {
+            var payload = new ModelDependencyV1
+            {
+                ModelUri = TestUri,
+                FluentAccessorsEmitted = false
+            };
+            payload.Nodes.Add(new DependencyNode
+            {
+                SymbolicName = "ControllerType",
+                SymbolicNamespace = TestUri,
+                ClassName = "Controller",
+                Kind = DependencyNodeKind.ObjectType,
+                Children =
+                [
+                    new DependencyChild
+                    {
+                        BrowseName = "Execute",
+                        SymbolicName = "Execute",
+                        InstanceKind = 4,
+                        InputArguments =
+                        [
+                            new DependencyMethodArg(
+                                "Name",
+                                "String",
+                                Types.Namespaces.OpcUa,
+                                (int)ValueRank.Scalar)
+                        ]
+                    }
+                ]
+            });
+
+            ModelDependencyV1 decoded =
+                ModelDependencyV1.FromBase64Payload(payload.ToBase64Payload());
+
+            Assert.That(decoded, Is.Not.Null);
+            DependencyChild child = decoded.Nodes.Single().Children.Single();
+            Assert.Multiple(() =>
+            {
+                Assert.That(decoded.FluentAccessorsEmitted, Is.False);
+                Assert.That(child.InputArguments, Has.Count.EqualTo(1));
+                Assert.That(child.MethodStateName, Is.Empty);
+                Assert.That(child.MethodDeclarationName, Is.Empty);
+            });
         }
 
         private Namespace ConfigureSelf(

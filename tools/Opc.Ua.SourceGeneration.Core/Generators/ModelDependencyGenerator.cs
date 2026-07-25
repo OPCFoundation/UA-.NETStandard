@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Xml;
 using Opc.Ua.Schema.Model;
 using Opc.Ua.SourceGeneration.Dependency;
 
@@ -289,8 +290,66 @@ namespace Opc.Ua.SourceGeneration
                             }
                             else if (child is MethodDesign method)
                             {
-                                entryChild.InputArguments = DependencyMethodArgs(method.InputArguments);
-                                entryChild.OutputArguments = DependencyMethodArgs(method.OutputArguments);
+                                var effectiveMethod =
+                                    (MethodDesign)method.GetMergedInstance();
+                                entryChild.TypeDefinitionName =
+                                    effectiveMethod.TypeDefinition?.Name ?? string.Empty;
+                                entryChild.TypeDefinitionNamespace =
+                                    effectiveMethod.TypeDefinition?.Namespace ?? string.Empty;
+                                entryChild.InputArguments = DependencyMethodArgs(
+                                    MethodDesignArgumentResolver.ResolveMethodInputs(
+                                        effectiveMethod));
+                                entryChild.OutputArguments = DependencyMethodArgs(
+                                    MethodDesignArgumentResolver.ResolveMethodOutputs(
+                                        effectiveMethod));
+                                if (MethodDesignArgumentResolver.HasMethodArguments(
+                                    effectiveMethod))
+                                {
+                                    XmlQualifiedName methodStateIdentity =
+                                        MethodDesignArgumentResolver.ResolveMethodStateIdentity(
+                                            effectiveMethod);
+                                    if (methodStateIdentity != null)
+                                    {
+                                        entryChild.MethodStateName =
+                                            methodStateIdentity.Name ?? string.Empty;
+                                        entryChild.MethodStateNamespace =
+                                            methodStateIdentity.Namespace ?? string.Empty;
+                                    }
+
+                                    MethodDesign declaration =
+                                        effectiveMethod.MethodDeclarationNode ??
+                                        (MethodDesignArgumentResolver.HasDeclaredArguments(
+                                            effectiveMethod)
+                                            ? effectiveMethod
+                                            : null);
+                                    if (declaration != null)
+                                    {
+                                        XmlQualifiedName declarationIdentity =
+                                            declaration.SymbolicId ?? declaration.SymbolicName;
+                                        if (declarationIdentity != null)
+                                        {
+                                            entryChild.MethodDeclarationName =
+                                                declarationIdentity.Name ?? string.Empty;
+                                            entryChild.MethodDeclarationNamespace =
+                                                declarationIdentity.Namespace ?? string.Empty;
+                                        }
+                                        entryChild.MethodDeclarationNumericId =
+                                            declaration.NumericIdSpecified
+                                                ? declaration.NumericId
+                                                : declarationIdentity ==
+                                                    effectiveMethod.SymbolicId &&
+                                                    effectiveMethod.NumericIdSpecified
+                                                    ? effectiveMethod.NumericId
+                                                    : 0;
+                                        entryChild.MethodDeclarationStringId =
+                                            string.IsNullOrEmpty(declaration.StringId)
+                                                ? declarationIdentity ==
+                                                    effectiveMethod.SymbolicId
+                                                    ? effectiveMethod.StringId
+                                                    : null
+                                                : declaration.StringId;
+                                    }
+                                }
                             }
                             children.Add(entryChild);
                         }

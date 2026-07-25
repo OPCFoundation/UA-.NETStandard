@@ -472,14 +472,17 @@ namespace Opc.Ua.SourceGeneration
             string leafName = ResolveLeafName(root, relativePath, method);
             string parentKey = ResolveParentKey(root, relativePath, leafName);
             string className = ComposeWrapperClassName(leafName, suffix: "MethodBuilder");
+            MethodDesign effectiveMethod = method.IsOverridden()
+                ? (MethodDesign)method.GetMergedInstance()
+                : method;
             m_methodWrappers[key] = new MethodWrapper
             {
                 Key = key,
                 ClassName = className,
                 LeafName = leafName,
                 ParentKey = parentKey,
-                Inputs = MethodDesignArgumentResolver.ResolveMethodInputs(method),
-                Outputs = MethodDesignArgumentResolver.ResolveMethodOutputs(method)
+                Inputs = MethodDesignArgumentResolver.ResolveMethodInputs(effectiveMethod),
+                Outputs = MethodDesignArgumentResolver.ResolveMethodOutputs(effectiveMethod)
             };
         }
 

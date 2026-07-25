@@ -37,6 +37,7 @@ using System.Xml;
 using System.Xml.Serialization;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Export;
+using Opc.Ua.SourceGeneration;
 using Opc.Ua.Types;
 
 namespace Opc.Ua.Schema.Model
@@ -973,9 +974,17 @@ namespace Opc.Ua.Schema.Model
             {
                 XmlDecoder decoder = CreateDecoder(input, sourceNodeSetUri);
                 Variant value = decoder.ReadVariantValue(null, default);
+                bool decoded = value.TryGetValue(
+                    out ArrayOf<Argument> arguments,
+                    decoder.Context);
                 decoder.Close();
 
-                foreach (Argument argument in value.GetStructureArray<Argument>())
+                if (!decoded)
+                {
+                    return output;
+                }
+
+                foreach (Argument argument in arguments)
                 {
                     DataTypeDesign dataType = FindNode<DataTypeDesign>(argument.DataType) ??
                         throw new InvalidDataException(
@@ -1866,7 +1875,10 @@ namespace Opc.Ua.Schema.Model
             Dictionary<XmlQualifiedName, MethodDesign> methods = [];
             CollectMethodDefinitions(dictionary.TargetNamespace, methods);
 
-            items.AddRange(methods.Values);
+            items.AddRange(methods
+                .OrderBy(entry => entry.Key.Namespace, StringComparer.Ordinal)
+                .ThenBy(entry => entry.Key.Name, StringComparer.Ordinal)
+                .Select(entry => entry.Value));
 
             foreach (NodeDesign item in items)
             {
@@ -1916,45 +1928,129 @@ namespace Opc.Ua.Schema.Model
             string targetNamespace,
             Dictionary<XmlQualifiedName, MethodDesign> methods)
         {
-            foreach (NodeDesign node in m_settings.NodesById.Values)
+            MethodDesign[] candidates =
+            [
+                .. m_settings.NodesById.Values
+                    .OfType<MethodDesign>()
+                    .Where(method =>
+                        method.SymbolicId.Namespace == targetNamespace &&
+                        MethodDesignArgumentResolver.HasDeclaredArguments(method))
+                    .OrderBy(method => method.SymbolicId.Namespace, StringComparer.Ordinal)
+                    .ThenBy(method => method.SymbolicId.Name, StringComparer.Ordinal)
+            ];
+            var groupedCandidates =
+                new Dictionary<XmlQualifiedName, List<List<MethodDesign>>>();
+
+            foreach (MethodDesign method in candidates)
             {
-                if (node is MethodDesign method)
+                if (method.MethodDeclarationNode != null)
                 {
-                    if (node.SymbolicId.Namespace != targetNamespace)
+                    MethodDesign definition =
+                        MethodDesignArgumentResolver.ResolveMethodDefinition(
+                            method.MethodDeclarationNode);
+                    if (MethodDesignArgumentResolver.HaveSameDeclaredSignature(
+                        method,
+                        definition))
                     {
                         continue;
                     }
-                    if (method.HasArguments && method.MethodDeclarationNode == null)
+                }
+
+                var baseName = new XmlQualifiedName(
+                    method.SymbolicName.Name + "MethodType",
+                    method.SymbolicId.Namespace);
+                if (!groupedCandidates.TryGetValue(
+                    baseName,
+                    out List<List<MethodDesign>> signatureGroups))
+                {
+                    groupedCandidates.Add(baseName, signatureGroups = []);
+                }
+
+                List<MethodDesign> signatureGroup = signatureGroups.FirstOrDefault(
+                    group => MethodDesignArgumentResolver.HaveSameDeclaredSignature(
+                        group[0],
+                        method));
+                if (signatureGroup == null)
+                {
+                    signatureGroups.Add([method]);
+                }
+                else
+                {
+                    signatureGroup.Add(method);
+                }
+            }
+
+            var reservedNames = new HashSet<XmlQualifiedName>(
+                m_settings.NodesByQName.Keys);
+            foreach (KeyValuePair<XmlQualifiedName, List<List<MethodDesign>>> entry
+                in groupedCandidates
+                    .OrderBy(entry => entry.Key.Namespace, StringComparer.Ordinal)
+                    .ThenBy(entry => entry.Key.Name, StringComparer.Ordinal))
+            {
+                bool qualifyWithOwner = entry.Value.Count > 1 ||
+                    reservedNames.Contains(entry.Key);
+                foreach (List<MethodDesign> signatureGroup in entry.Value)
+                {
+                    MethodDesign representative = signatureGroup[0];
+                    string preferredName = qualifyWithOwner
+                        ? GetOwnerQualifiedMethodTypeName(representative)
+                        : entry.Key.Name;
+                    var name = new XmlQualifiedName(
+                        preferredName,
+                        representative.SymbolicId.Namespace);
+                    int suffix = 2;
+                    while (reservedNames.Contains(name) || methods.ContainsKey(name))
                     {
-                        var name = new XmlQualifiedName(
-                            node.SymbolicName.Name + "MethodType",
-                            node.SymbolicId.Namespace);
+                        string stem = preferredName.EndsWith(
+                            "MethodType",
+                            StringComparison.Ordinal)
+                                ? preferredName[..^"MethodType".Length]
+                                : preferredName;
+                        name = new XmlQualifiedName(
+                            stem +
+                                suffix.ToString(CultureInfo.InvariantCulture) +
+                                "MethodType",
+                            representative.SymbolicId.Namespace);
+                        suffix++;
+                    }
 
-                        if (methods.ContainsKey(name))
+                    var declaration = new MethodDesign
+                    {
+                        SymbolicId = name,
+                        SymbolicName = name,
+                        BrowseName = name.Name,
+                        DisplayName = new LocalizedText
                         {
-                            continue;
-                        }
+                            Value = name.Name,
+                            IsAutogenerated = true
+                        },
+                        InputArguments = representative.InputArguments,
+                        OutputArguments = representative.OutputArguments,
+                        HasArguments = true
+                    };
 
-                        var declaration = new MethodDesign
-                        {
-                            SymbolicId = name,
-                            SymbolicName = name,
-                            BrowseName = name.Name,
-                            DisplayName = new LocalizedText
-                            {
-                                Value = name.Name,
-                                IsAutogenerated = true
-                            },
-                            InputArguments = method.InputArguments,
-                            OutputArguments = method.OutputArguments,
-                            HasArguments = true
-                        };
-
-                        methods.Add(declaration.SymbolicName, declaration);
+                    methods.Add(declaration.SymbolicName, declaration);
+                    reservedNames.Add(declaration.SymbolicName);
+                    foreach (MethodDesign method in signatureGroup)
+                    {
                         method.MethodDeclarationNode = declaration;
+                        method.TypeDefinition = null;
+                        method.MethodType = null;
                     }
                 }
             }
+        }
+
+        private static string GetOwnerQualifiedMethodTypeName(MethodDesign method)
+        {
+            string ownerName = method.SymbolicId.Name;
+            string methodSuffix = "_" + method.SymbolicName.Name;
+            if (ownerName.EndsWith(methodSuffix, StringComparison.Ordinal))
+            {
+                ownerName = ownerName[..^methodSuffix.Length];
+            }
+            ownerName = ownerName.Replace("_", string.Empty, StringComparison.Ordinal);
+            return method.SymbolicName.Name + ownerName + "MethodType";
         }
 
         /// <summary>
@@ -1963,6 +2059,9 @@ namespace Opc.Ua.Schema.Model
         private XmlDecoder CreateDecoder(System.Xml.XmlElement source, string sourceNodeSetUri = null)
         {
             var messageContext = ServiceMessageContext.CreateEmpty(m_telemetry);
+            messageContext.Factory.Builder
+                .AddEncodeableType(typeof(Argument))
+                .Commit();
             messageContext.NamespaceUris = m_settings.NamespaceUris;
             messageContext.ServerUris = m_serverUris;
 

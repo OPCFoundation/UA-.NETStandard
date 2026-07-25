@@ -524,8 +524,13 @@ namespace Opc.Ua.SourceGeneration
             Namespace[] namespaces = m_context.ModelDesign.Namespaces;
 
             string methodName = method.SymbolicName.Name;
-            Parameter[] inputs = MethodDesignArgumentResolver.ResolveMethodInputs(method);
-            Parameter[] outputs = MethodDesignArgumentResolver.ResolveMethodOutputs(method);
+            MethodDesign effectiveMethod = method.IsOverridden()
+                ? (MethodDesign)method.GetMergedInstance()
+                : method;
+            Parameter[] inputs =
+                MethodDesignArgumentResolver.ResolveMethodInputs(effectiveMethod);
+            Parameter[] outputs =
+                MethodDesignArgumentResolver.ResolveMethodOutputs(effectiveMethod);
 
             string methodIdConstant = CoreUtils.Format(
                 "global::{0}.MethodIds.{1}",
