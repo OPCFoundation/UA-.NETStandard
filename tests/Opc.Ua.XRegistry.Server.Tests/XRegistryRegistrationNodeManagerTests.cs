@@ -88,7 +88,7 @@ namespace Opc.Ua.XRegistry.Server.Tests
                 new XRegistryServerOptions
                 {
                     MaxRegisteredResources = 2,
-                    ContentIdProvider = new FakeContentIdProvider()
+                    ContentIdProvider = new XRegistryServerTestHarness.FakeContentIdProvider()
                 });
 
             Assert.Multiple(() =>
@@ -109,7 +109,7 @@ namespace Opc.Ua.XRegistry.Server.Tests
                 new XRegistryServerOptions
                 {
                     MaxRegisteredResources = 1,
-                    ContentIdProvider = new FakeContentIdProvider()
+                    ContentIdProvider = new XRegistryServerTestHarness.FakeContentIdProvider()
                 });
 
             StatusCode first = Register(nm, 1, out ByteString firstContentId);
@@ -182,46 +182,9 @@ namespace Opc.Ua.XRegistry.Server.Tests
 
         private static XRegistryRegistrationNodeManager CreateNodeManager(XRegistryServerOptions options)
         {
-            Mock<IServerInternal> server = CreateServer(options.RegistryNamespaceUri);
+            Mock<IServerInternal> server =
+                XRegistryServerTestHarness.CreateServer(options.RegistryNamespaceUri);
             return new XRegistryRegistrationNodeManager(server.Object, null!, options);
-        }
-
-        private static Mock<IServerInternal> CreateServer(string namespaceUri)
-        {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var namespaceUris = new NamespaceTable();
-            namespaceUris.GetIndexOrAppend(namespaceUri);
-            var serverUris = new StringTable();
-            var server = new Mock<IServerInternal>();
-            var masterNodeManager = new Mock<IMasterNodeManager>();
-            server.Setup(s => s.NamespaceUris).Returns(namespaceUris);
-            server.Setup(s => s.ServerUris).Returns(serverUris);
-            server.Setup(s => s.TypeTree).Returns(CreateTypeTable(namespaceUris));
-            server.Setup(s => s.Factory).Returns(EncodeableFactory.Create());
-            server.Setup(s => s.Telemetry).Returns(telemetry);
-            server.Setup(s => s.NodeManager).Returns(masterNodeManager.Object);
-            server.Setup(s => s.DefaultSystemContext).Returns(new ServerSystemContext(server.Object));
-            return server;
-        }
-
-        /// <summary>
-        /// Seeds the standard base types the compiled xRegistry model derives from. A real server
-        /// loads these with the core NodeSet; the type table rejects a subtype whose supertype it
-        /// does not already know.
-        /// </summary>
-        private static TypeTable CreateTypeTable(NamespaceTable namespaceUris)
-        {
-            var typeTable = new TypeTable(namespaceUris);
-            typeTable.AddSubtype(Opc.Ua.ObjectTypeIds.BaseObjectType, NodeId.Null);
-            typeTable.AddSubtype(Opc.Ua.ObjectTypeIds.FolderType, Opc.Ua.ObjectTypeIds.BaseObjectType);
-            typeTable.AddSubtype(Opc.Ua.ObjectTypeIds.FileType, Opc.Ua.ObjectTypeIds.BaseObjectType);
-            typeTable.AddSubtype(Opc.Ua.VariableTypeIds.BaseVariableType, NodeId.Null);
-            typeTable.AddSubtype(
-                Opc.Ua.VariableTypeIds.BaseDataVariableType, Opc.Ua.VariableTypeIds.BaseVariableType);
-            typeTable.AddSubtype(Opc.Ua.VariableTypeIds.PropertyType, Opc.Ua.VariableTypeIds.BaseVariableType);
-            typeTable.AddSubtype(Opc.Ua.DataTypeIds.BaseDataType, NodeId.Null);
-            typeTable.AddSubtype(Opc.Ua.DataTypeIds.Structure, Opc.Ua.DataTypeIds.BaseDataType);
-            return typeTable;
         }
 
         private static StatusCode CreateResource(XRegistryRegistrationNodeManager nm, out uint handle)
@@ -292,19 +255,6 @@ namespace Opc.Ua.XRegistry.Server.Tests
                 new Variant[] { new(contentId) },
                 outputs);
             return result.StatusCode;
-        }
-
-        private sealed class FakeContentIdProvider : IResourceContentIdProvider
-        {
-            public ByteString ComputeContentId(string format, ReadOnlySpan<byte> document)
-            {
-                return ByteString.From(document.ToArray());
-            }
-
-            public string? GetAlgorithm(string format)
-            {
-                return "test";
-            }
         }
     }
 }
