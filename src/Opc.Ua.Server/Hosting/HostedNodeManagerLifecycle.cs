@@ -33,11 +33,19 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua.Server.Hosting
 {
+    /// <summary>
+    /// Forwards <see cref="INodeManagerLifecycle"/> calls from dependency injection to the
+    /// server instance that is currently running in the host. The provider is registered as a
+    /// singleton before a server exists, so it stays valid across host restarts and reports a
+    /// clear error while no server is attached.
+    /// </summary>
     internal sealed class HostedNodeManagerLifecycle : INodeManagerLifecycle
     {
+        /// <inheritdoc/>
         public ArrayOf<NodeManagerRegistration> Registrations
             => Current.Registrations;
 
+        /// <inheritdoc/>
         public ValueTask<NodeManagerRegistration> AddAsync(
             IAsyncNodeManagerFactory factory,
             CancellationToken ct = default)
@@ -45,6 +53,7 @@ namespace Opc.Ua.Server.Hosting
             return Current.AddAsync(factory, ct);
         }
 
+        /// <inheritdoc/>
         public ValueTask<NodeManagerRegistration> AddAsync(
             INodeManagerFactory factory,
             CancellationToken ct = default)
@@ -52,6 +61,7 @@ namespace Opc.Ua.Server.Hosting
             return Current.AddAsync(factory, ct);
         }
 
+        /// <inheritdoc/>
         public ValueTask<NodeManagerRegistration> ReloadAsync(
             NodeManagerRegistration registration,
             IAsyncNodeManagerFactory replacement,
@@ -60,6 +70,7 @@ namespace Opc.Ua.Server.Hosting
             return Current.ReloadAsync(registration, replacement, ct);
         }
 
+        /// <inheritdoc/>
         public ValueTask<NodeManagerRegistration> ReloadAsync(
             NodeManagerRegistration registration,
             INodeManagerFactory replacement,
@@ -68,6 +79,7 @@ namespace Opc.Ua.Server.Hosting
             return Current.ReloadAsync(registration, replacement, ct);
         }
 
+        /// <inheritdoc/>
         public ValueTask RemoveAsync(
             NodeManagerRegistration registration,
             CancellationToken ct = default)
@@ -75,6 +87,13 @@ namespace Opc.Ua.Server.Hosting
             return Current.RemoveAsync(registration, ct);
         }
 
+        /// <summary>
+        /// Attaches the lifecycle of the server that just started, so injected consumers are
+        /// routed to it.
+        /// </summary>
+        /// <param name="lifecycle">The lifecycle of the running server.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="lifecycle"/> is <c>null</c>.</exception>
+        /// <exception cref="InvalidOperationException">Another server is already attached.</exception>
         internal void Attach(INodeManagerLifecycle lifecycle)
         {
             if (lifecycle is null)
@@ -93,6 +112,12 @@ namespace Opc.Ua.Server.Hosting
             }
         }
 
+        /// <summary>
+        /// Detaches the lifecycle of a stopping server. Detaching a lifecycle that is no longer
+        /// attached is ignored, so shutdown stays idempotent.
+        /// </summary>
+        /// <param name="lifecycle">The lifecycle of the stopping server.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="lifecycle"/> is <c>null</c>.</exception>
         internal void Detach(INodeManagerLifecycle lifecycle)
         {
             if (lifecycle is null)
@@ -103,6 +128,10 @@ namespace Opc.Ua.Server.Hosting
             Interlocked.CompareExchange(ref m_current, null, lifecycle);
         }
 
+        /// <summary>
+        /// Gets the lifecycle of the attached server.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">No server is attached.</exception>
         private INodeManagerLifecycle Current
             => Volatile.Read(ref m_current)
                 ?? throw new InvalidOperationException(

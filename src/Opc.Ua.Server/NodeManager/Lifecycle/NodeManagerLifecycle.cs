@@ -974,7 +974,7 @@ namespace Opc.Ua.Server
             foreach (IMonitoredItem monitoredItem in items)
             {
                 ServiceResult result = await replacementLifecycle
-                    .ValidateMonitoredItemAsync(monitoredItem, ct)
+                    .CanAttachMonitoredItemAsync(monitoredItem, ct)
                     .ConfigureAwait(false);
                 if (ServiceResult.IsGood(result))
                 {
@@ -2094,7 +2094,7 @@ namespace Opc.Ua.Server
                     try
                     {
                         ServiceResult result = await m_current
-                            .RestoreMonitoredItemAsync(m_detachedItems[ii], ct)
+                            .RecoverMonitoredItemAsync(m_detachedItems[ii], ct)
                             .ConfigureAwait(false);
                         if (ServiceResult.IsBad(result))
                         {
@@ -2166,7 +2166,7 @@ namespace Opc.Ua.Server
                 return new ValueTask<IReadOnlyList<IMonitoredItem>>([]);
             }
 
-            public ValueTask<ServiceResult> ValidateMonitoredItemAsync(
+            public ValueTask<ServiceResult> CanAttachMonitoredItemAsync(
                 IMonitoredItem monitoredItem,
                 CancellationToken cancellationToken = default)
             {
@@ -2190,7 +2190,7 @@ namespace Opc.Ua.Server
                     new ServiceResult(StatusCodes.BadNotSupported));
             }
 
-            public ValueTask<ServiceResult> RestoreMonitoredItemAsync(
+            public ValueTask<ServiceResult> RecoverMonitoredItemAsync(
                 IMonitoredItem monitoredItem,
                 CancellationToken cancellationToken = default)
             {

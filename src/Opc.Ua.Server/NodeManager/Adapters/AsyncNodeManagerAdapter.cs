@@ -94,12 +94,12 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        ValueTask<ServiceResult> INodeManagerMonitoredItemLifecycle.ValidateMonitoredItemAsync(
+        ValueTask<ServiceResult> INodeManagerMonitoredItemLifecycle.CanAttachMonitoredItemAsync(
             IMonitoredItem monitoredItem,
             CancellationToken cancellationToken)
         {
             return SyncNodeManager is INodeManagerMonitoredItemLifecycle lifecycle
-                ? lifecycle.ValidateMonitoredItemAsync(monitoredItem, cancellationToken)
+                ? lifecycle.CanAttachMonitoredItemAsync(monitoredItem, cancellationToken)
                 : new ValueTask<ServiceResult>(
                     new ServiceResult(StatusCodes.BadNotSupported));
         }
@@ -127,12 +127,12 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        ValueTask<ServiceResult> INodeManagerMonitoredItemLifecycle.RestoreMonitoredItemAsync(
+        ValueTask<ServiceResult> INodeManagerMonitoredItemLifecycle.RecoverMonitoredItemAsync(
             IMonitoredItem monitoredItem,
             CancellationToken cancellationToken)
         {
             return SyncNodeManager is INodeManagerMonitoredItemLifecycle lifecycle
-                ? lifecycle.RestoreMonitoredItemAsync(monitoredItem, cancellationToken)
+                ? lifecycle.RecoverMonitoredItemAsync(monitoredItem, cancellationToken)
                 : new ValueTask<ServiceResult>(
                     new ServiceResult(StatusCodes.BadNotSupported));
         }

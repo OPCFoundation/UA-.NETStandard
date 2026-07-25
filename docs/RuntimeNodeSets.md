@@ -51,21 +51,9 @@ public sealed class ModelLoader(INodeManagerLifecycle lifecycle)
 }
 ```
 
-Each add returns an immutable `NodeManagerRegistration`. Reload returns the next generation and invalidates the previous handle. Only registrations created by the lifecycle provider can be reloaded or removed; startup, diagnostics, and core NodeManagers are protected.
+Each add returns an immutable `NodeManagerRegistration`, and reload returns the next generation while invalidating the previous handle.
 
-Active monitored items survive reload and removal. A compatible NodeId in a replacement generation keeps the same monitored item and subscription without a transient bad status. A removed or incompatible NodeId is detached and publishes one `BadNodeIdUnknown` data-change notification, as required by OPC UA Part 4 §5.8.4.1; adding a compatible Node with the same NodeId later revalidates and reattaches the item automatically. Event monitored items detach and recover their source binding without synthesizing a data-change status. The built-in NodeManager and Subscription implementations support these transitions; custom implementations fail closed with `NotSupportedException` before routing changes when the server cannot migrate their active items safely.
-
-Treat `INodeManagerLifecycle` as a host control-plane API. Do not invoke reload or removal from inside an OPC UA service or Method callback: teardown waits for requests that already captured the retired routing generation to complete before disposing it.
-
-The built-in runtime NodeSet manager implements `INodeManagerReloadParticipant`, which transfers inbound cross-manager references to retained NodeIds and removes counterparts for dropped nodes. A custom NodeManager can be added and removed through the lifecycle provider, but must implement this participant contract before it can be reloaded safely.
-
-Reload and removal invalidate saved Browse continuation points owned by the retired manager. A later `BrowseNext` with one of those tokens returns `BadContinuationPointInvalid` instead of invoking a disposed generation.
-
-Namespace indexes are append-only for the lifetime of a running server. Removing a model removes its nodes and routing but leaves its namespace URI in `NamespaceArray`; a later reload or add reuses the same index. When a live add appends a URI, the server updates `NamespaceArray` and `UrisVersion`.
-
-Runtime DataType registrations are also additive. Reload accepts an existing DataType only when its definition is structurally compatible, rejects incompatible changes, and retains removed stand-in encodeables so existing sessions and in-flight values remain decodable.
-
-Every committed lifecycle transaction emits one compressed model-change notification. Reload also emits a semantic-change notification when values of properties marked with the `SemanticChange` access-level bit changed.
+The rules that apply to every NodeManager registered at runtime -- what happens to MonitoredItems, Browse continuation points, namespace indexes, DataTypes, and change notifications, and which NodeManagers may be reloaded at all -- are described once in [Registering NodeManagers](NodeManagerRegistration.md). Runtime NodeSets follow those rules, and the built-in runtime NodeSet manager already implements the `INodeManagerReloadParticipant` contract that reload requires.
 
 ## Quick-start examples
 

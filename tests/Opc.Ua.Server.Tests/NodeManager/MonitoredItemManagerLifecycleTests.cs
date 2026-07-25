@@ -109,7 +109,7 @@ namespace Opc.Ua.Server.Tests
                         ServiceResult.Good));
 
                 ServiceResult restoreResult = await owner.Lifecycle
-                    .RestoreMonitoredItemAsync(item)
+                    .RecoverMonitoredItemAsync(item)
                     .ConfigureAwait(false);
                 IReadOnlyList<IMonitoredItem> restored = await owner.Lifecycle
                     .GetMonitoredItemsSnapshotAsync([node.NodeId])
@@ -1428,7 +1428,7 @@ namespace Opc.Ua.Server.Tests
                 return new ValueTask<IReadOnlyList<IMonitoredItem>>([]);
             }
 
-            public ValueTask<ServiceResult> ValidateMonitoredItemAsync(
+            public ValueTask<ServiceResult> CanAttachMonitoredItemAsync(
                 IMonitoredItem monitoredItem,
                 CancellationToken cancellationToken = default)
             {
@@ -1450,7 +1450,7 @@ namespace Opc.Ua.Server.Tests
                 return new ValueTask<ServiceResult>(AttachCallback(monitoredItem));
             }
 
-            public ValueTask<ServiceResult> RestoreMonitoredItemAsync(
+            public ValueTask<ServiceResult> RecoverMonitoredItemAsync(
                 IMonitoredItem monitoredItem,
                 CancellationToken cancellationToken = default)
             {
