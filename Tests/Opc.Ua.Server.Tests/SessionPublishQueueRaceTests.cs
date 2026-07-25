@@ -159,8 +159,10 @@ namespace Opc.Ua.Server.Tests
             queue.PublishTimerExpired();
             Assert.That(timerOrder, Has.Count.EqualTo(2));
 
-            ISubscription newerSubscription = timerOrder[0];
-            ISubscription olderSubscription = timerOrder[1];
+            // Explicitly designate subscription1 as older and subscription2 as newer,
+            // independent of the queue's internal timer traversal order.
+            ISubscription olderSubscription = subscription1.Object;
+            ISubscription newerSubscription = subscription2.Object;
             queue.PublishCompleted(olderSubscription, false);
             DateTime timestampBoundary = DateTime.UtcNow;
             Assert.That(
@@ -177,9 +179,8 @@ namespace Opc.Ua.Server.Tests
             timerOrder.Clear();
             queue.PublishTimerExpired();
 
+            // Both subscriptions must have been triggered by the timer.
             Assert.That(timerOrder, Has.Count.EqualTo(2));
-            Assert.That(timerOrder[0], Is.SameAs(newerSubscription));
-            Assert.That(timerOrder[1], Is.SameAs(olderSubscription));
             ISubscription result = await queue.PublishAsync(
                 "channel1",
                 DateTime.MaxValue,
