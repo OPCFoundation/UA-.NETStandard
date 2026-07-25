@@ -360,11 +360,7 @@ Client transport channel manager &mdash; defined in
 | `opc.ua.channel.refcount` | ObservableGauge&lt;long&gt; | &mdash; | `endpoint` | Reference count per channel entry. |
 | `opc.ua.channel.participants` | ObservableGauge&lt;long&gt; | &mdash; | `endpoint` | Participant count per channel entry. |
 
-Note: the `participant` tag carries the **kind prefix only**
-(`Session`, `Discovery`, etc.). The per-instance participant id is
-deliberately omitted to keep metric cardinality bounded; the full id
-is available on the related Activity tags and EventSource events for
-correlation.
+Note: the `participant` tag carries the **kind prefix only** (`Session`, `Discovery`, etc.). The per-instance participant id is deliberately omitted to keep metric cardinality bounded; the full id is available on the related Activity tags and on the structured logs emitted under the `Opc.Ua.ChannelManager` logger category for correlation (see [Sessions.md](Sessions.md#diagnostics-surface-contract--what-tags-and-structured-log-fields-carry)).
 
 Client request duration &mdash; defined in `ClientBase.cs`:
 
