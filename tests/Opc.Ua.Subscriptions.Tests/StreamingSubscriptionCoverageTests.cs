@@ -917,6 +917,11 @@ namespace Opc.Ua.Subscriptions.Tests
                 throw new NotSupportedException();
             }
 
+            public ValueTask RecreateAsync(CancellationToken ct = default)
+            {
+                throw new NotSupportedException();
+            }
+
             public ValueTask<TimeSpan> SetAsDurableAsync(
                 TimeSpan lifetime, CancellationToken ct = default)
             {

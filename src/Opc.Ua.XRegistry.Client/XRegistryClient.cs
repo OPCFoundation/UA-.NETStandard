@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client;
@@ -44,8 +43,6 @@ namespace Opc.Ua.XRegistry.Client
     /// </summary>
     public class XRegistryClient
     {
-        private readonly ushort m_namespaceIndex;
-
         /// <summary>
         /// Initializes a registry client bound to a connected <paramref name="session"/> and the
         /// registry's companion namespace.
@@ -72,14 +69,18 @@ namespace Opc.Ua.XRegistry.Client
                     registryNamespaceUri);
             }
 
-            m_namespaceIndex = (ushort)index;
+            NamespaceIndex = (ushort)index;
         }
 
-        /// <summary>Gets the session the client operates on.</summary>
+        /// <summary>
+        /// Gets the session the client operates on.
+        /// </summary>
         public ISession Session { get; }
 
-        /// <summary>Gets the resolved registry companion namespace index on the connected server.</summary>
-        public ushort NamespaceIndex => m_namespaceIndex;
+        /// <summary>
+        /// Gets the resolved registry companion namespace index on the connected server.
+        /// </summary>
+        public ushort NamespaceIndex { get; }
 
         /// <summary>
         /// Resolves a resource document from its content-derived id through the Opaque-NodeId fast
@@ -100,7 +101,7 @@ namespace Opc.Ua.XRegistry.Client
                 throw new ArgumentException("A resource id is required.", nameof(resourceId));
             }
 
-            var fastPathNodeId = new NodeId(resourceId, m_namespaceIndex);
+            var fastPathNodeId = new NodeId(resourceId, NamespaceIndex);
             try
             {
                 DataValue value = await Session.ReadValueAsync(fastPathNodeId, ct).ConfigureAwait(false);
@@ -113,8 +114,8 @@ namespace Opc.Ua.XRegistry.Client
                 return document;
             }
             catch (ServiceResultException sre) when (
-                sre.StatusCode == StatusCodes.BadNodeIdUnknown
-                || sre.StatusCode == StatusCodes.BadNodeIdInvalid)
+                sre.StatusCode == StatusCodes.BadNodeIdUnknown ||
+                sre.StatusCode == StatusCodes.BadNodeIdInvalid)
             {
                 return default;
             }

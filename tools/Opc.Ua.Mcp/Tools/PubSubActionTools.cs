@@ -53,7 +53,9 @@ namespace Opc.Ua.Mcp.Tools
         /// Invokes a PubSub Action target and awaits the correlated response.
         /// </summary>
         [McpServerTool(Name = "pubsub_invoke_action")]
-        [Description("Send a PubSub Action request and await the correlated response.")]
+        [Description("Send a PubSub Action request and await the correlated response. Returns a JSON-friendly " +
+            "summary (connectionName, dataSetWriterId, actionTargetId, actionName, requestId, correlationData, " +
+            "statusCode, actionState, outputFields); throws if no response arrives within timeoutMs.")]
         public static async Task<PubSubActionResponseSummary> InvokeActionAsync(
             PubSubRuntimeManager manager,
             [Description("DataSetWriterId that owns the Action target.")] ushort dataSetWriterId,
@@ -118,7 +120,9 @@ namespace Opc.Ua.Mcp.Tools
         /// Binds a PubSub Action responder to an OPC UA server method through an active session.
         /// </summary>
         [McpServerTool(Name = "pubsub_bind_action_method")]
-        [Description("Register a PubSub Action responder that calls an OPC UA server method.")]
+        [Description("Register a PubSub Action responder that calls an OPC UA server method through an active " +
+            "session (unlike pubsub_register_action_responder, which only echoes fields). Returns the responder " +
+            "registration details (target, handler description) for use with pubsub_list_action_responders.")]
         public static async Task<PubSubActionResponderRegistration> BindActionMethodAsync(
             PubSubRuntimeManager manager,
             OpcUaSessionManager sessionManager,
@@ -232,7 +236,7 @@ namespace Opc.Ua.Mcp.Tools
             };
         }
 
-        private static PubSubActionResponseSummary Summarize(PubSubActionResponse response)
+        internal static PubSubActionResponseSummary Summarize(PubSubActionResponse response)
         {
             return new PubSubActionResponseSummary(
                 response.Target.ConnectionName,
@@ -246,7 +250,7 @@ namespace Opc.Ua.Mcp.Tools
                 SummarizeFields(response.OutputFields));
         }
 
-        private static ArrayOf<DataSetField> ParseFields(string? fieldText)
+        internal static ArrayOf<DataSetField> ParseFields(string? fieldText)
         {
             if (string.IsNullOrWhiteSpace(fieldText))
             {
@@ -339,7 +343,7 @@ namespace Opc.Ua.Mcp.Tools
             };
         }
 
-        private static ArrayOf<DataSetField> CopyFields(ArrayOf<DataSetField> fields)
+        internal static ArrayOf<DataSetField> CopyFields(ArrayOf<DataSetField> fields)
         {
             if (fields.IsNull)
             {
@@ -365,7 +369,7 @@ namespace Opc.Ua.Mcp.Tools
             return [.. copy];
         }
 
-        private static ArrayOf<Variant> CreateInputArguments(ArrayOf<DataSetField> fields)
+        internal static ArrayOf<Variant> CreateInputArguments(ArrayOf<DataSetField> fields)
         {
             if (fields.IsNull)
             {
@@ -381,7 +385,7 @@ namespace Opc.Ua.Mcp.Tools
             return [.. inputArguments];
         }
 
-        private static ArrayOf<DataSetField> CreateOutputFields(ArrayOf<Variant> outputArguments)
+        internal static ArrayOf<DataSetField> CreateOutputFields(ArrayOf<Variant> outputArguments)
         {
             var outputFields = new List<DataSetField>();
             for (int i = 0; i < outputArguments.Count; i++)
@@ -396,7 +400,7 @@ namespace Opc.Ua.Mcp.Tools
             return [.. outputFields];
         }
 
-        private static ArrayOf<PubSubActionFieldValue> SummarizeFields(ArrayOf<DataSetField> fields)
+        internal static ArrayOf<PubSubActionFieldValue> SummarizeFields(ArrayOf<DataSetField> fields)
         {
             if (fields.IsNull)
             {

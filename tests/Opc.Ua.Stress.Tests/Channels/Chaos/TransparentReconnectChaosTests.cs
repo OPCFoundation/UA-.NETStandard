@@ -74,10 +74,10 @@ namespace Opc.Ua.Stress.Tests.Channels.Chaos
             TcpChaosProxy proxy = await TcpChaosProxy.StartAsync(ServerUrl, telemetry: Telemetry)
                 .ConfigureAwait(false);
             await using ConfiguredAsyncDisposable proxyAsyncDisposable = proxy.ConfigureAwait(false);
-            ClientChannelManager manager = CreateChannelManager(CreateTightReconnectPolicy());
+            using MetricsCollector collector = new();
+            ClientChannelManager manager = CreateChannelManager(CreateTightReconnectPolicy(), collector.Telemetry);
             await using ConfiguredAsyncDisposable managerAsyncDisposable = manager.ConfigureAwait(false);
             LeakCounters.Snapshot before = LeakCounters.Capture(manager);
-            using MetricsCollector collector = new();
 
             ConfiguredEndpoint endpoint = await GetProxyEndpointAsync(proxy.LocalUrl).ConfigureAwait(false);
             ManagedSessionType? session = null;
@@ -206,10 +206,10 @@ namespace Opc.Ua.Stress.Tests.Channels.Chaos
             TcpChaosProxy proxy = await TcpChaosProxy.StartAsync(ServerUrl, telemetry: Telemetry)
                 .ConfigureAwait(false);
             await using ConfiguredAsyncDisposable proxyAsyncDisposable = proxy.ConfigureAwait(false);
-            ClientChannelManager manager = CreateChannelManager(CreateTightReconnectPolicy());
+            using MetricsCollector collector = new();
+            ClientChannelManager manager = CreateChannelManager(CreateTightReconnectPolicy(), collector.Telemetry);
             await using ConfiguredAsyncDisposable managerAsyncDisposable = manager.ConfigureAwait(false);
             LeakCounters.Snapshot before = LeakCounters.Capture(manager);
-            using MetricsCollector collector = new();
 
             ConfiguredEndpoint endpoint = await GetProxyEndpointAsync(proxy.LocalUrl).ConfigureAwait(false);
             var sessions = new List<ManagedSessionType>(SharedSessionCount);

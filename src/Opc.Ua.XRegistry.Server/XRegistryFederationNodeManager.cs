@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using Opc.Ua.Server;
 
 namespace Opc.Ua.XRegistry.Server
@@ -45,16 +44,6 @@ namespace Opc.Ua.XRegistry.Server
     /// </summary>
     public class XRegistryFederationNodeManager : CustomNodeManager2
     {
-        private readonly string m_namespaceUri;
-        private readonly IResourceContentIdProvider? m_contentIdProvider;
-        private readonly bool m_publishProxy;
-        private readonly byte[]? m_federatedDocument;
-        private readonly string m_federatedFormat;
-        private readonly string m_remoteRegistryNamespaceUri;
-        private readonly string m_remoteEndpointUrl;
-        private readonly uint m_remoteServerIndex;
-        private readonly string m_proxyBrowseName;
-
         /// <summary>
         /// Initializes the federation node manager for the registry namespace.
         /// </summary>
@@ -84,6 +73,10 @@ namespace Opc.Ua.XRegistry.Server
         /// <c>ResourceUrl</c> and content-id metadata.
         /// </summary>
         /// <param name="externalReferences">External reference sink (unused).</param>
+        /// <exception cref="InvalidOperationException">
+        /// A federation proxy is published but no
+        /// <see cref="XRegistryServerOptions.ContentIdProvider"/> is configured.
+        /// </exception>
         public override void CreateAddressSpace(
             IDictionary<NodeId, IList<IReference>> externalReferences)
         {
@@ -150,5 +143,15 @@ namespace Opc.Ua.XRegistry.Server
 
             parent.AddChild(property);
         }
+
+        private readonly string m_namespaceUri;
+        private readonly IResourceContentIdProvider? m_contentIdProvider;
+        private readonly bool m_publishProxy;
+        private readonly byte[]? m_federatedDocument;
+        private readonly string m_federatedFormat;
+        private readonly string m_remoteRegistryNamespaceUri;
+        private readonly string m_remoteEndpointUrl;
+        private readonly uint m_remoteServerIndex;
+        private readonly string m_proxyBrowseName;
     }
 }

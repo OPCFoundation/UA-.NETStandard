@@ -100,8 +100,7 @@ namespace Opc.Ua.Client.Subscriptions
         /// <summary>
         /// <para>
         /// Optional callback invoked by <see cref="StateManagerAsync"/>
-        /// exactly once per partition lifetime, immediately after a
-        /// successful <see cref="CreateAsync"/> and before the first
+        /// after every successful <see cref="CreateAsync"/> and before the first
         /// <see cref="MonitoredItemManager.ApplyChangesAsync"/>
         /// in the same iteration of the state-manager loop. Used by
         /// <see cref="LogicalSubscription"/> to satisfy the OPC UA
@@ -114,11 +113,10 @@ namespace Opc.Ua.Client.Subscriptions
         /// <c>CreateMonitoredItems</c> request.
         /// </para>
         /// <para>
-        /// The state machine clears the property after invoking it so
-        /// modify cycles do not re-run the hook. The owning wrapper
-        /// re-installs the hook before the next Create pass (e.g.
-        /// after reconnect / recreate) when durable intent has been
-        /// recorded.
+        /// Modify cycles do not run the hook because it is reached only
+        /// after <see cref="CreateAsync"/>. Keeping the callback installed
+        /// ensures reconnect and automatic recovery paths preserve durable
+        /// intent even when they recreate a physical partition directly.
         /// </para>
         /// <para>
         /// Exceptions thrown by the hook are logged as a warning and
@@ -136,6 +134,8 @@ namespace Opc.Ua.Client.Subscriptions
 
         /// <inheritdoc/>
         public bool Created => Id != 0;
+
+        internal bool IsDispatchingCallback => IsDispatchingNotification;
 
         /// <inheritdoc/>
         public IMonitoredItemServiceSetClientMethods MonitoredItemServiceSet
@@ -404,24 +404,50 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <inheritdoc/>
-        public async ValueTask RecreateAsync(CancellationToken ct)
+        public ValueTask RecreateAsync(CancellationToken ct)
+        {
+            if (IsDispatchingNotification)
+            {
+                throw new InvalidOperationException(
+                    "A subscription cannot be recreated from one of its " +
+                    "notification callbacks. Schedule the recreate after the " +
+                    "callback returns.");
+            }
+            return RecreateWithPublishingQuiescedAsync(ct);
+        }
+
+        private async ValueTask RecreateWithPublishingQuiescedAsync(
+            CancellationToken ct)
+        {
+            ThrowIfDisposing();
+            await AckQueue.RunWithPublishingQuiescedAsync(
+                RecreateCoreAsync, ct).ConfigureAwait(false);
+        }
+
+        private async ValueTask RecreateCoreAsync(CancellationToken ct)
         {
             await m_stateLock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                LastSequenceNumberProcessed = 0;
-                LastNotificationTimestamp = 0;
-
-                Id = 0;
-                CurrentPublishingInterval = TimeSpan.Zero;
-                CurrentKeepAliveCount = 0;
-                CurrentPublishingEnabled = false;
-                CurrentPriority = 0;
-
-                // Recreate subscription
-                await CreateAsync(Options, ct).ConfigureAwait(false);
-
-                await m_monitoredItems.ApplyChangesAsync(true, true,
+                ThrowIfDisposing();
+                await ResetMessageGenerationAsync(
+                    async token =>
+                    {
+                        uint oldId = Id;
+                        if (oldId != 0)
+                        {
+                            await DeleteForRecreateAsync(oldId, token)
+                                .ConfigureAwait(false);
+                            AckQueue.DropPendingForSubscription(oldId);
+                        }
+                    },
+                    async token =>
+                    {
+                        await CreateAsync(Options, token).ConfigureAwait(false);
+                        await RunAfterCreateHookAsync(token).ConfigureAwait(false);
+                        await m_monitoredItems.ApplyChangesAsync(true, true,
+                            token).ConfigureAwait(false);
+                    },
                     ct).ConfigureAwait(false);
             }
             finally
@@ -555,24 +581,60 @@ namespace Opc.Ua.Client.Subscriptions
         /// <inheritdoc/>
         protected override async ValueTask DisposeAsync(bool disposing)
         {
-            if (disposing && !Disposed)
+            if (!disposing)
+            {
+                await base.DisposeAsync(false).ConfigureAwait(false);
+                return;
+            }
+            if (Interlocked.Exchange(ref m_disposeStarted, 1) != 0)
+            {
+                await m_disposeCompletion.Task.ConfigureAwait(false);
+                return;
+            }
+            try
             {
                 try
                 {
                     await m_cts.CancelAsync().ConfigureAwait(false);
                     await m_stateManagement.ConfigureAwait(false);
 
-                    await m_monitoredItems.DisposeAsync().ConfigureAwait(false);
+                    await m_stateLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+                    try
+                    {
+                        await m_monitoredItems.DisposeAsync().ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        m_stateLock.Release();
+                    }
                 }
                 finally
+                {
+                    await base.DisposeAsync(true).ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                try
                 {
                     m_publishTimer.Dispose();
                     m_changeTracking?.Dispose();
                     m_cts.Dispose();
                     m_stateLock.Dispose();
                 }
+                finally
+                {
+                    m_disposeCompletion.TrySetResult(true);
+                }
             }
-            await base.DisposeAsync(disposing).ConfigureAwait(false);
+        }
+
+        private void ThrowIfDisposing()
+        {
+            if (Volatile.Read(ref m_disposeStarted) != 0 || Disposed)
+            {
+                throw new ObjectDisposedException(nameof(Subscription));
+            }
         }
 
         /// <inheritdoc/>
@@ -742,14 +804,13 @@ namespace Opc.Ua.Client.Subscriptions
 
         /// <summary>
         /// Run an in-place recreate on the same session after an
-        /// unsolicited <c>Good_SubscriptionTransferred</c>. Drops
-        /// queued acknowledgements for the dead subscription id
-        /// before invoking <see cref="ResetToRecreateAsync"/> so the
-        /// state-manager loop sees a coherent reset and the ack
-        /// queue cannot leak <c>BadSubscriptionIdInvalid</c>s on
-        /// servers that re-use subscription identifiers. Idempotent:
-        /// concurrent dispatches collapse through
-        /// <see cref="m_recreateAfterTransferInProgress"/>.
+        /// unsolicited <c>Good_SubscriptionTransferred</c>. Uses
+        /// <see cref="RecreateAsync"/> so deletion, acknowledgement
+        /// cleanup, message-generation retirement, and monitored-item
+        /// recreation complete as one operation. Idempotent: concurrent
+        /// dispatches collapse through
+        /// <see cref="m_recreateAfterTransferInProgress"/> for the full
+        /// recreate lifetime.
         /// </summary>
         private async Task RecoverAfterUnsolicitedTransferAsync()
         {
@@ -758,28 +819,18 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 Logger.SubscriptionUnsolicitedGoodSubscriptionTransferredReceivedAuto(this);
 
-                if (deadId != 0)
-                {
-                    int dropped = AckQueue.DropPendingForSubscription(deadId);
-                    if (dropped > 0)
-                    {
-                        Logger.SubscriptionDroppedCountStaleAcknowledgementS(
-                            this,
-                            dropped);
-                    }
-                }
-
                 if (Disposed)
                 {
                     return;
                 }
 
-                await ResetToRecreateAsync(CancellationToken.None)
+                await RecreateWithPublishingQuiescedAsync(CancellationToken.None)
                     .ConfigureAwait(false);
 
-                Logger.SubscriptionRecreateSignalledAfterUnsolicitedGood(
+                Logger.SubscriptionRecreatedAfterUnsolicitedGood(
                     this,
-                    deadId);
+                    deadId,
+                    Id);
             }
             catch (Exception ex)
             {
@@ -876,29 +927,13 @@ namespace Opc.Ua.Client.Subscriptions
                                 // (e.g. SetSubscriptionDurable, which
                                 // per OPC UA Part 4 §5.13.9 must
                                 // precede any monitored-item
-                                // creation). Clear after invocation
-                                // so modify cycles do not re-run it;
-                                // the owning wrapper re-installs the
-                                // hook before the next Create pass.
-                                Func<CancellationToken, ValueTask>? hook
-                                    = Interlocked.Exchange(
-                                        ref m_onAfterCreateAsync, null);
-                                if (hook != null)
-                                {
-                                    try
-                                    {
-                                        await hook(ct).ConfigureAwait(false);
-                                    }
-                                    catch (Exception hookEx)
-                                    {
-                                        Logger.SubscriptionOnAfterCreateAsyncHookThrewPartitionContinues(
-                                            hookEx,
-                                            this);
-                                        OnSubscriptionStateChanged(
-                                            SubscriptionState.Modified);
-                                    }
-                                }
+                                // creation). Modify cycles do not reach
+                                // this branch, while later create passes
+                                // intentionally run the hook again.
+                                await RunAfterCreateHookAsync(ct)
+                                    .ConfigureAwait(false);
                             }
+
                             else
                             {
                                 await ModifyAsync(options, ct).ConfigureAwait(false);
@@ -984,8 +1019,39 @@ namespace Opc.Ua.Client.Subscriptions
             {
             }
 
-            // Delete subscription on server on dispose
-            await DeleteAsync(default).ConfigureAwait(false);
+            // Delete subscription on server on dispose. Serialize with an
+            // in-flight explicit recreate so shutdown cannot delete or reset
+            // the replacement concurrently.
+            await m_stateLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+            try
+            {
+                await DeleteAsync(default).ConfigureAwait(false);
+            }
+            finally
+            {
+                m_stateLock.Release();
+            }
+        }
+
+        private async ValueTask RunAfterCreateHookAsync(CancellationToken ct)
+        {
+            Func<CancellationToken, ValueTask>? hook =
+                Volatile.Read(ref m_onAfterCreateAsync);
+            if (hook == null)
+            {
+                return;
+            }
+            try
+            {
+                await hook(ct).ConfigureAwait(false);
+            }
+            catch (Exception hookEx)
+            {
+                Logger.SubscriptionOnAfterCreateAsyncHookThrewPartitionContinues(
+                    hookEx,
+                    this);
+                OnSubscriptionStateChanged(SubscriptionState.Modified);
+            }
         }
 
         /// <summary>
@@ -1023,6 +1089,29 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 Logger.DeletingSubscriptionServerFailed(e);
             }
+            OnSubscriptionDeleteCompleted();
+        }
+
+        private async ValueTask DeleteForRecreateAsync(uint subscriptionId,
+            CancellationToken ct)
+        {
+            ArrayOf<uint> subscriptionIds = new uint[] { subscriptionId };
+            DeleteSubscriptionsResponse response = await m_context.SubscriptionServiceSet
+                .DeleteSubscriptionsAsync(null, subscriptionIds, ct)
+                .ConfigureAwait(false);
+            ClientBase.ValidateResponse(response.Results, subscriptionIds);
+            ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos,
+                subscriptionIds);
+
+            StatusCode result = response.Results[0];
+            if (StatusCode.IsBad(result) &&
+                result != StatusCodes.BadSubscriptionIdInvalid)
+            {
+                throw new ServiceResultException(ClientBase.GetResult(
+                    result, 0, response.DiagnosticInfos,
+                    response.ResponseHeader));
+            }
+            StopKeepAliveTimer();
             OnSubscriptionDeleteCompleted();
         }
 
@@ -1357,9 +1446,12 @@ namespace Opc.Ua.Client.Subscriptions
         private Func<CancellationToken, ValueTask>? m_onAfterCreateAsync;
         private readonly AsyncAutoResetEvent m_stateControl = new();
         private readonly AsyncManualResetEvent m_createdEvent = new();
+        private readonly TaskCompletionSource<bool> m_disposeCompletion = new(
+            TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly CancellationTokenSource m_cts = new();
         private readonly Task m_stateManagement;
         private readonly SemaphoreSlim m_stateLock = new(1, 1);
+        private int m_disposeStarted;
         private readonly List<uint> m_deletedItems = [];
         private readonly ITimer m_publishTimer;
         private readonly IDisposable? m_changeTracking;
@@ -1388,12 +1480,13 @@ namespace Opc.Ua.Client.Subscriptions
             int count);
 
         [LoggerMessage(EventId = ClientEventIds.Subscription + 45, Level = LogLevel.Information,
-            Message = "{Subscription}: recreate signalled after unsolicited Good_SubscriptionTransferred (old" +
-                " SubscriptionId={OldId}).")]
-        public static partial void SubscriptionRecreateSignalledAfterUnsolicitedGood(
+            Message = "{Subscription}: recreated after unsolicited Good_SubscriptionTransferred (old" +
+                " SubscriptionId={OldId}, new SubscriptionId={NewId}).")]
+        public static partial void SubscriptionRecreatedAfterUnsolicitedGood(
             this ILogger logger,
             Subscription subscription,
-            uint oldId);
+            uint oldId,
+            uint newId);
 
         [LoggerMessage(EventId = ClientEventIds.Subscription + 46, Level = LogLevel.Warning,
             Message = "{Subscription}: recovery after unsolicited Good_SubscriptionTransferred failed (old" +

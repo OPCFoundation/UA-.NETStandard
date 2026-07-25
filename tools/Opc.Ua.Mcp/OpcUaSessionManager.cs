@@ -278,7 +278,7 @@ namespace Opc.Ua.Mcp
                     var endpoint = new ConfiguredEndpoint(null, selectedEndpoint, endpointConfiguration);
                     ManagedSessionBuilder builder = new ManagedSessionBuilder(configuration, Telemetry)
                         .UseEndpoint(endpoint)
-                        .WithSessionName(configuration.ApplicationName ?? kApplicationName)
+                        .WithSessionName(name)
                         .WithSessionTimeout(TimeSpan.FromMilliseconds(60_000))
                         .WithUserIdentity(identity);
 
