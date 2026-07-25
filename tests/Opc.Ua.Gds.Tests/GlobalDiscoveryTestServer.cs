@@ -386,9 +386,6 @@ namespace Opc.Ua.Gds.Tests
                 .SetRejectUnknownRevocationStatus(true)
                 .SetMinimumCertificateKeySize(1024)
                 .AddExtension(null, gdsConfig)
-                .SetDeleteOnLoad(true)
-                .SetOutputFilePath(Path.Combine(root, "Logs", "Opc.Ua.Gds.Tests.log.txt"))
-                .SetTraceMasks(519)
                 .CreateAsync()
                 .ConfigureAwait(false);
 #endif
