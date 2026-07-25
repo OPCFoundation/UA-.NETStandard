@@ -61,14 +61,14 @@ Times are the commits' recorded ISO timestamps.
 | Source commit | Time | What it means for this backport |
 | --- | --- | --- |
 | `64ca85fce304` | 2026-04-14 13:32:10 +02:00 | Added more tests around existing behavior. Relevant aggregate tests were inventoried. |
-| `14e995c1d061` | 2026-05-24 06:23:16 +02:00 | Moved tests between projects. This is mainly file organization, so tests are mapped to the older project layout. |
-| `c89bc92e7cdd` | 2026-05-26 10:45:32 +02:00 | Added a new general historian framework. That framework is intentionally not copied; only matching observable HistoryRead behavior is adapted to the old historian. |
+| `14e995c1d061` | 2026-05-24 06:23:16 +02:00 | Added aggregate history integration tests while reorganizing the test projects. The tests are mapped to the older project layout. |
+| `c89bc92e7cdd` | 2026-05-26 10:45:32 +02:00 | Added processed-history and annotation scenarios as part of a new historian framework. The framework is not copied; the observable behavior is adapted to the old historian. |
 | `b2b4dbb13f4f` | 2026-06-10 08:34:09 +02:00 | Added the main Part 13 aggregate correctness fixes and broad tests. This is the central calculator backport. |
 | `e1c734438458` | 2026-06-28 12:29:11 +02:00 | Changed general StatusCode equality rules. The broad API change is not copied; aggregate tests compare the intended code and aggregate bits explicitly. |
-| `ed090304986f` | 2026-07-06 08:48:56 +02:00 | Strengthened and stabilized tests. Relevant aggregate cases are retained. |
-| `b26be47a487a` | 2026-07-08 16:24:19 +02:00 | Added more server-library unit coverage, including aggregate edge paths. |
-| `d7cb170b86e4` | 2026-07-09 09:08:27 +02:00 | Added CTT historian/aggregate conformance behavior and server facets. Relevant behavior is implemented through the legacy NodeManager path. |
-| `7f409657ade9` | 2026-07-11 04:47:25 +02:00 | Included broad high-availability work. Only historian/aggregate tests found by the inventory are considered; unrelated HA code is excluded. |
-| `70f2e0557a88` | 2026-07-11 20:43:06 +02:00 | Added coverage and fixes discovered by tests, including aggregate boundary cases. |
-| `0da85b9d8988` | 2026-07-13 19:14:19 +02:00 | Added more CTT aggregate conformance cases and diagnostics checks. |
-| `84fa8e8906c7` | 2026-07-18 05:01:03 +02:00 | Added CTT follow-up fixes for history and model validation. Relevant historian aggregate cases are included. |
+| `ed090304986f` | 2026-07-06 08:48:56 +02:00 | Added calculator, manager, edge-case, and regression tests that exposed additional aggregate defects. |
+| `b26be47a487a` | 2026-07-08 16:24:19 +02:00 | Added tests for processed-historian branches and error paths. |
+| `d7cb170b86e4` | 2026-07-09 09:08:27 +02:00 | Added CTT facets, deterministic history nodes, configuration metadata, and continuation fixes. These are implemented through the legacy NodeManager path. |
+| `7f409657ade9` | 2026-07-11 04:47:25 +02:00 | Fixed which timestamp Min/Max aggregates return when the chosen value comes from a raw sample. |
+| `70f2e0557a88` | 2026-07-11 20:43:06 +02:00 | Added processed-read configuration coverage, including server-default resolution. |
+| `0da85b9d8988` | 2026-07-13 19:14:19 +02:00 | Fixed reverse reads, bounds, quality handling, status results, and aggregate configuration behavior. |
+| `84fa8e8906c7` | 2026-07-18 05:01:03 +02:00 | Fixed bound markers, transition counting, and aggregate behavior for nonnumeric values. |
