@@ -53,13 +53,6 @@ namespace Opc.Ua.Client.Subscriptions
             CancellationToken ct = default);
 
         /// <summary>
-        /// Recreate the subscription on a new session
-        /// </summary>
-        /// <param name="ct"></param>
-        /// <returns></returns>
-        ValueTask RecreateAsync(CancellationToken ct = default);
-
-        /// <summary>
         /// Notify subscription that the subscription manager has paused or
         /// resumed operations.
         /// </summary>

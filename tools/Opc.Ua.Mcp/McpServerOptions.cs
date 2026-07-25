@@ -34,15 +34,15 @@ namespace Opc.Ua.Mcp
     /// </summary>
     /// <remarks>
     /// Bound from the <c>McpServer</c> configuration section at host
-    /// startup and consumed by individual tool helpers via the
-    /// <c>IServiceProvider</c> that the MCP framework injects into
-    /// each tool invocation. Both properties are optional; when a
-    /// value is not configured the consuming tool falls back to the
-    /// per-tool environment variable (if any) and then to a per-user
-    /// default directory.
+    /// startup and consumed by the MCP host and individual tool helpers.
     /// </remarks>
     public sealed class McpServerOptions
     {
+        /// <summary>
+        /// Gets or sets the tool catalog exposed by the MCP server.
+        /// </summary>
+        public McpToolProfile ToolProfile { get; set; } = McpToolProfile.Full;
+
         /// <summary>
         /// Base directory under which the
         /// <see cref="Tools.NodeSetExportTools"/> is

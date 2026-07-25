@@ -174,6 +174,11 @@ share a single instance: concurrent calls are serialised by an internal
 corrupt" contract. `DisposeAsync` issues `FileType.Close` exactly once
 even when called concurrently.
 
+Server-issued file handles are opaque and bound to the Session that
+opened them. They cannot be used by another Session, and the server
+automatically closes all remaining handles when their owning Session
+closes.
+
 ## Error mapping
 
 OPC UA Bad status codes returned by the server are translated into the

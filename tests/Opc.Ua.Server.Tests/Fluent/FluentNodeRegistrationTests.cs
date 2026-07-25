@@ -29,8 +29,8 @@
 
 #pragma warning disable CA2000
 
-#nullable enable
-
+using System.Collections.Generic;
+using System.Linq;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
@@ -39,16 +39,15 @@ using Opc.Ua.Server.Fluent;
 namespace Opc.Ua.Server.Tests.Fluent
 {
     /// <summary>
-    /// Verifies that the fluent <c>WithProperty</c> create-if-missing path
-    /// registers the new property with a real
+    /// Verifies that fluent create-if-missing paths register new children with a real
     /// <see cref="AsyncCustomNodeManager"/> (the mock-backed tests exercise
     /// only the node-attachment path).
     /// </summary>
     [TestFixture]
     [Category("Fluent")]
-    public class PropertyCreateRegistrationTests
+    public class FluentNodeRegistrationTests
     {
-        private const string TestNamespaceUri = "http://test.org/UA/PropertyCreate/";
+        private const string TestNamespaceUri = "http://test.org/UA/FluentRegistration/";
 
         [Test]
         public void WithPropertyCreateRegistersNewPropertyWithManager()
@@ -86,6 +85,76 @@ namespace Opc.Ua.Server.Tests.Fluent
                 Is.EqualTo(AccessLevels.CurrentWrite));
         }
 
+        [Test]
+        public void WithUnitsCreatesAndRegistersReadableAnalogProperties()
+        {
+            using Harness h = CreateHarness();
+            var units = new EUInformation(
+                "Pa",
+                "Pascal",
+                "http://www.opcfoundation.org/UA/units/un/cefact");
+            IVariableBuilder<double> variable = h.Builder.Variable<double>(h.Analog.NodeId);
+
+            variable.WithUnits(units, min: 0, max: 1_000_000);
+
+            PropertyState<EUInformation> engineeringUnits = h.Analog.EngineeringUnits!;
+            PropertyState<Range> euRange = h.Analog.EURange!;
+            AssertRegisteredProperty(
+                h,
+                engineeringUnits,
+                BrowseNames.EngineeringUnits,
+                DataTypeIds.EUInformation);
+            AssertRegisteredProperty(
+                h,
+                euRange,
+                BrowseNames.EURange,
+                DataTypeIds.Range);
+            Assert.That(engineeringUnits.Value, Is.SameAs(units));
+            Assert.That(euRange.Value.Low, Is.Zero);
+            Assert.That(euRange.Value.High, Is.EqualTo(1_000_000));
+
+            int predefinedNodeCount = h.Manager.PredefinedNodes.Count;
+            var replacementUnits = new EUInformation("K", "Kelvin", "http://unit.test/");
+
+            variable.WithUnits(replacementUnits, min: 100, max: 200);
+
+            Assert.That(h.Analog.EngineeringUnits, Is.SameAs(engineeringUnits));
+            Assert.That(h.Analog.EURange, Is.SameAs(euRange));
+            Assert.That(h.Manager.PredefinedNodes, Has.Count.EqualTo(predefinedNodeCount));
+            Assert.That(engineeringUnits.Value, Is.SameAs(replacementUnits));
+            Assert.That(euRange.Value.Low, Is.EqualTo(100));
+            Assert.That(euRange.Value.High, Is.EqualTo(200));
+
+            var children = new List<BaseInstanceState>();
+            h.Analog.GetChildren(h.Manager.SystemContext, children);
+            Assert.That(
+                children
+                    .Where(child => child.BrowseName.Name == BrowseNames.EngineeringUnits)
+                    .ToList(),
+                Has.Count.EqualTo(1));
+            Assert.That(
+                children
+                    .Where(child => child.BrowseName.Name == BrowseNames.EURange)
+                    .ToList(),
+                Has.Count.EqualTo(1));
+        }
+
+        private static void AssertRegisteredProperty<TValue>(
+            Harness harness,
+            PropertyState<TValue> property,
+            string browseName,
+            NodeId dataType)
+        {
+            Assert.That(property.NodeClass, Is.EqualTo(NodeClass.Variable));
+            Assert.That(property.BrowseName, Is.EqualTo(new QualifiedName(browseName)));
+            Assert.That(property.TypeDefinitionId, Is.EqualTo(VariableTypeIds.PropertyType));
+            Assert.That(property.DataType, Is.EqualTo(dataType));
+            Assert.That(property.ValueRank, Is.EqualTo(ValueRanks.Scalar));
+            Assert.That(
+                harness.Manager.FindPredefinedNodePublic<PropertyState<TValue>>(property.NodeId),
+                Is.SameAs(property));
+        }
+
         private static Harness CreateHarness()
         {
             var mockServer = new Mock<IServerInternal>();
@@ -115,7 +184,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 ServerConfiguration = new ServerConfiguration()
             };
 
-            var manager = new PropertyCreateTestNodeManager(
+            var manager = new FluentRegistrationTestNodeManager(
                 mockServer.Object, configuration, mockLogger.Object, TestNamespaceUri);
 
             ushort ns = manager.NamespaceIndexes[0];
@@ -125,29 +194,48 @@ namespace Opc.Ua.Server.Tests.Fluent
                 BrowseName = new QualifiedName("Root", ns),
                 DisplayName = new LocalizedText("Root")
             };
+
+            var analog = AnalogItemState<double>.With<VariantBuilder>(root);
+            analog.NodeId = new NodeId("Root.Analog", ns);
+            analog.BrowseName = new QualifiedName("Analog", ns);
+            analog.DisplayName = new LocalizedText("Analog");
+            analog.DataType = DataTypeIds.Double;
+            analog.ValueRank = ValueRanks.Scalar;
+            root.AddChild(analog);
+
             manager.AddPredefinedNodeSynchronouslyPublic(root);
 
             var builder = new NodeManagerBuilder(
                 serverSystemContext,
                 nodeManager: manager,
                 defaultNamespaceIndex: ns,
-                rootResolver: q => q == root.BrowseName ? root : null!,
-                nodeIdResolver: id => id == root.NodeId ? root : null!,
+                rootResolver: q => manager.PredefinedNodes.Values
+                    .FirstOrDefault(node => node.BrowseName == q)!,
+                nodeIdResolver: id => manager.PredefinedNodes.TryGetValue(
+                    id,
+                    out NodeState node) ? node : null!,
                 typeIdResolver: _ => []);
 
-            return new Harness(manager, builder);
+            return new Harness(manager, builder, analog);
         }
 
         private sealed class Harness : System.IDisposable
         {
-            public PropertyCreateTestNodeManager Manager { get; }
-            public NodeManagerBuilder Builder { get; }
-
-            public Harness(PropertyCreateTestNodeManager manager, NodeManagerBuilder builder)
+            public Harness(
+                FluentRegistrationTestNodeManager manager,
+                NodeManagerBuilder builder,
+                AnalogItemState<double> analog)
             {
                 Manager = manager;
                 Builder = builder;
+                Analog = analog;
             }
+
+            public FluentRegistrationTestNodeManager Manager { get; }
+
+            public NodeManagerBuilder Builder { get; }
+
+            public AnalogItemState<double> Analog { get; }
 
             public void Dispose()
             {
@@ -155,9 +243,9 @@ namespace Opc.Ua.Server.Tests.Fluent
             }
         }
 
-        private sealed class PropertyCreateTestNodeManager : AsyncCustomNodeManager
+        private sealed class FluentRegistrationTestNodeManager : AsyncCustomNodeManager
         {
-            public PropertyCreateTestNodeManager(
+            public FluentRegistrationTestNodeManager(
                 IServerInternal server,
                 ApplicationConfiguration configuration,
                 ILogger logger,
@@ -171,6 +259,12 @@ namespace Opc.Ua.Server.Tests.Fluent
             public void AddPredefinedNodeSynchronouslyPublic(NodeState node)
             {
                 AddPredefinedNodeSynchronously(node);
+            }
+
+            public TNode FindPredefinedNodePublic<TNode>(NodeId nodeId)
+                where TNode : NodeState
+            {
+                return FindPredefinedNode<TNode>(nodeId)!;
             }
         }
     }

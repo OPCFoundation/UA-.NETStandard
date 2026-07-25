@@ -136,8 +136,8 @@ fluent API for node managers.
 All entry points live on `DiNodeManager`:
 
 ```csharp
-// Default DeviceState under the Device Integration DeviceSet folder (or whatever
-// ResolveDefaultDeviceParent() returns).
+// Default DeviceState organized by the Device Integration DeviceSet (or attached
+// below whatever ResolveDefaultDeviceParent() returns).
 ValueTask<IDeviceBuilder<DeviceState>> CreateDeviceAsync(
     QualifiedName browseName,
     NodeState? parent = null,
@@ -178,9 +178,11 @@ ITopologyElementBuilder<TElement> TopologyElementByBrowseName<TElement>(
 1. Resolves the parent (default: Device Integration `DeviceSet`; subclasses override
    `ResolveDefaultDeviceParent()` — e.g. machinery managers can return
    the `Machines` folder).
-2. Fails fast if a child with the same browse name already exists
+2. Uses `Organizes` for the well-known DI `DeviceSet`; explicit custom parents
+   retain `HasComponent`.
+3. Fails fast if a child with the same browse name already exists
    (`StatusCodes.BadBrowseNameDuplicated`).
-3. Materialises the instance through the source-generated
+4. Materialises the instance through the source-generated
    `CreateInstanceOf<Type>` factory (e.g. `CreateInstanceOfDeviceType`)
    so the device carries the type's **mandatory** children — for
    `DeviceType` the eight nameplate variables (`Manufacturer`, `Model`,
@@ -192,7 +194,7 @@ ITopologyElementBuilder<TElement> TopologyElementByBrowseName<TElement>(
    `Context.NodeIdFactory`, and walks the whole subtree assigning
    per-instance NodeIds so multiple instances of the same type never
    collide on the TYPE NodeIds emitted by the generator.
-4. Calls the real `AsyncCustomNodeManager.AddPredefinedNodeAsync` so
+5. Calls the real `AsyncCustomNodeManager.AddPredefinedNodeAsync` so
    subscription wiring, type-tree registration, and root-notifier
    propagation all happen exactly as for nodes loaded from a NodeSet2.
 

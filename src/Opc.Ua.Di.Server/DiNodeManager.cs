@@ -454,7 +454,13 @@ namespace Opc.Ua.Di.Server
             device.SymbolicName = browseName.Name ?? string.Empty;
             device.BrowseName = browseName;
             device.DisplayName = new LocalizedText(browseName.Name);
-            device.ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.HasComponent;
+            NodeId deviceSetId = NodeId.Create(
+                Opc.Ua.Di.Objects.DeviceSet,
+                DiNamespaceUri,
+                Server.NamespaceUris);
+            device.ReferenceTypeId = effectiveParent.NodeId == deviceSetId
+                ? Opc.Ua.Types.ReferenceTypeIds.Organizes
+                : Opc.Ua.Types.ReferenceTypeIds.HasComponent;
             device.NodeId = SystemContext.NodeIdFactory.New(SystemContext, device);
 
             effectiveParent.AddChild(device);

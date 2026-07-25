@@ -34,6 +34,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Kafka.Internal;
@@ -84,7 +85,40 @@ namespace Opc.Ua.PubSub.Kafka.Tests
                     KafkaProfiles.PubSubKafkaJsonTransport,
                     KafkaProfiles.PubSubKafkaUadpTransport
                 ]));
-            Assert.That(serviceProvider.GetRequiredService<IKafkaClientFactory>(), Is.Not.Null);
+            Assert.That(
+                serviceProvider.GetRequiredService<IKafkaClientFactory>(),
+                Is.InstanceOf<DekafKafkaClientFactory>());
+        }
+
+        [Test]
+        public void WithConfluentKafkaClientReplacesDefaultFactory()
+        {
+            var services = new ServiceCollection();
+            services.AddSingleton<IKafkaClientFactory, DekafKafkaClientFactory>();
+            var builder = new Mock<IPubSubBuilder>(MockBehavior.Strict);
+            builder.SetupGet(value => value.Services).Returns(services);
+
+            IPubSubBuilder result = builder.Object.WithConfluentKafkaClient();
+            ServiceDescriptor descriptor = services.Single(
+                service => service.ServiceType == typeof(IKafkaClientFactory));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result, Is.SameAs(builder.Object));
+                Assert.That(descriptor.ImplementationType, Is.EqualTo(typeof(ConfluentKafkaClientFactory)));
+                Assert.That(descriptor.Lifetime, Is.EqualTo(ServiceLifetime.Singleton));
+            });
+            builder.VerifyGet(value => value.Services, Times.Once);
+        }
+
+        [Test]
+        public void WithConfluentKafkaClientWithNullBuilderThrows()
+        {
+            IPubSubBuilder builder = null!;
+
+            Assert.That(
+                () => builder.WithConfluentKafkaClient(),
+                Throws.TypeOf<ArgumentNullException>());
         }
 
         [Test]
