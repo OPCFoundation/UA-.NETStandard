@@ -1078,6 +1078,7 @@ namespace Opc.Ua.Configuration
         }
 
         /// <inheritdoc/>
+        [Obsolete("Use ITelemetryContext and ILogger-based diagnostics instead.")]
         public IApplicationConfigurationBuilderTraceConfiguration SetOutputFilePath(
             string outputFilePath)
         {
@@ -1088,6 +1089,7 @@ namespace Opc.Ua.Configuration
         }
 
         /// <inheritdoc/>
+        [Obsolete("Use ITelemetryContext and ILogger-based diagnostics instead.")]
         public IApplicationConfigurationBuilderTraceConfiguration SetDeleteOnLoad(bool deleteOnLoad)
         {
 #pragma warning disable CS0618 // Type or member is obsolete
@@ -1097,6 +1099,7 @@ namespace Opc.Ua.Configuration
         }
 
         /// <inheritdoc/>
+        [Obsolete("Use ITelemetryContext and ILogger-based diagnostics instead.")]
         public IApplicationConfigurationBuilderTraceConfiguration SetTraceMasks(int traceMasks)
         {
 #pragma warning disable CS0618 // Type or member is obsolete
