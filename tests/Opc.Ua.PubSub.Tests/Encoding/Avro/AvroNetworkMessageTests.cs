@@ -596,6 +596,101 @@ namespace Opc.Ua.PubSub.Encoding.Tests
             Assert.That(actual.MetaDataVersion.MinorVersion, Is.EqualTo(expected.MetaDataVersion.MinorVersion));
         }
 
+        [Test]
+        public async Task EncoderReportsPerDataSetSchemaChangesAndDrivesLifecycleObserver()
+        {
+            PublisherId publisherId = PublisherId.FromString("publisher-avro-lifecycle");
+            Uuid dataSetClassId = new(new Guid("8c2f8f1c-c9a1-48b0-a90b-7d8f6e725033"));
+            DataSetMetaDataType metaData = CreateMetaData();
+            PubSubDiagnostics diagnostics = new(PubSubDiagnosticsLevel.High);
+            PubSubNetworkMessageContext context = CreateContext(
+                publisherId,
+                writerGroupId: 8,
+                dataSetClassId,
+                metaData,
+                dataSetWriterIds: SingleWriterId,
+                diagnostics);
+
+            AvroNetworkMessage first = new()
+            {
+                PublisherId = publisherId,
+                WriterGroupId = 8,
+                DataSetClassId = dataSetClassId,
+                DataSetMessages =
+                [
+                    new AvroDataSetMessage
+                    {
+                        DataSetWriterId = 201,
+                        SequenceNumber = 1,
+                        Timestamp = new DateTimeUtc(new DateTime(2026, 7, 25, 6, 0, 0, DateTimeKind.Utc)),
+                        Status = (StatusCode)StatusCodes.Good,
+                        MessageType = PubSubDataSetMessageType.KeyFrame,
+                        MetaDataVersion = new ConfigurationVersionDataType { MajorVersion = 1, MinorVersion = 2 },
+                        Fields = [CreateField("Enabled", new Variant(true), PubSubFieldEncoding.Variant)]
+                    }
+                ]
+            };
+
+            AvroNetworkMessageEncoder encoder = new();
+            _ = await encoder.EncodeAsync(first, context);
+
+            // The encoder surfaces exactly one per-DataSet schema change carrying the DataSet key
+            // and the produced SchemaId, so the publisher can drive the schema lifecycle.
+            Assert.That(encoder.LastSchemaChanges, Has.Count.EqualTo(1));
+            SchemaChangeNotification change = encoder.LastSchemaChanges[0];
+            Assert.That(change.SchemaId, Is.EqualTo(encoder.LastSchemaAnnouncement!.SchemaId));
+            Assert.That(change.Format, Is.EqualTo(SchemaCache.AvroFormat));
+            Assert.That(change.MetaDataKey.PublisherId, Is.EqualTo(publisherId));
+            Assert.That(change.MetaDataKey.WriterGroupId, Is.EqualTo((ushort)8));
+            Assert.That(change.MetaDataKey.DataSetWriterId, Is.EqualTo((ushort)201));
+            Assert.That(change.MetaDataKey.MajorVersion, Is.EqualTo(1u));
+
+            // Announce-once: re-encoding the same shape produces no new change.
+            _ = await encoder.EncodeAsync(first, context);
+            Assert.That(encoder.LastSchemaChanges, Is.Empty);
+
+            // Feed the changes to a real lifecycle observer: the first schema is the initial
+            // version (no advance); a grown schema advances the DataSet ConfigurationVersion.
+            var registry = new DataSetMetaDataRegistry();
+            var key = new DataSetMetaDataKey(publisherId, 8, 201, dataSetClassId, 1);
+            registry.Register(in key, new DataSetMetaDataType
+            {
+                ConfigurationVersion = new ConfigurationVersionDataType { MajorVersion = 1, MinorVersion = 2 }
+            });
+            var observer = new SchemaLifecycleObserver(registry);
+            await observer.OnSchemaProducedAsync(change);
+            Assert.That(registry.TryGet(in key, out DataSetMetaDataType? afterFirst), Is.EqualTo(MetaDataMatchResult.Match));
+            Assert.That(afterFirst!.ConfigurationVersion.MinorVersion, Is.EqualTo(2u),
+                "the initial schema does not advance the version");
+
+            AvroNetworkMessage grown = first with
+            {
+                DataSetMessages =
+                [
+                    new AvroDataSetMessage
+                    {
+                        DataSetWriterId = 201,
+                        SequenceNumber = 2,
+                        Timestamp = new DateTimeUtc(new DateTime(2026, 7, 25, 6, 0, 1, DateTimeKind.Utc)),
+                        Status = (StatusCode)StatusCodes.Good,
+                        MessageType = PubSubDataSetMessageType.KeyFrame,
+                        MetaDataVersion = new ConfigurationVersionDataType { MajorVersion = 1, MinorVersion = 3 },
+                        Fields = [CreateField("Enabled", new Variant(true), PubSubFieldEncoding.Variant)]
+                    }
+                ]
+            };
+            _ = await encoder.EncodeAsync(grown, context);
+            Assert.That(encoder.LastSchemaChanges, Has.Count.EqualTo(1), "a grown schema is a not-yet-announced SchemaId");
+            Assert.That(encoder.LastSchemaChanges[0].SchemaId, Is.Not.EqualTo(change.SchemaId));
+
+            await observer.OnSchemaProducedAsync(encoder.LastSchemaChanges[0]);
+            Assert.That(registry.TryGet(in key, out DataSetMetaDataType? afterGrowth), Is.EqualTo(MetaDataMatchResult.Match));
+            Assert.That(afterGrowth!.ConfigurationVersion.MajorVersion, Is.EqualTo(1u),
+                "MajorVersion is kept on an append-only growth");
+            Assert.That(afterGrowth.ConfigurationVersion.MinorVersion, Is.Not.EqualTo(2u),
+                "MinorVersion advances on schema growth");
+        }
+
         private static AvroNetworkMessage CreateMinimalMessage(
             PublisherId publisherId,
             ushort writerGroupId,

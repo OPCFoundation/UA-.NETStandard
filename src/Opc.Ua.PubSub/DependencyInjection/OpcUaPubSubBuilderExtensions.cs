@@ -107,6 +107,30 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         /// <summary>
+        /// Enables the schema lifecycle observer so that when a PubSub encoder produces a new
+        /// per-DataSet schema (a fingerprint change) the publisher advances that DataSet's
+        /// ConfigurationVersion and, when an <see cref="ISchemaRegistrationSink"/> is also
+        /// registered, registers the schema (Avro Part 6 §6.4 / Part 14 §8.4.5, §8.4.8). Opt-in:
+        /// without this call the ConfigurationVersion stays under explicit configuration control.
+        /// </summary>
+        /// <param name="builder">OPC UA root builder.</param>
+        /// <returns>The original <paramref name="builder"/>.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static IOpcUaBuilder AddSchemaLifecycleObserver(this IOpcUaBuilder builder)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            builder.Services.TryAddSingleton<ISchemaLifecycleObserver>(sp =>
+                new SchemaLifecycleObserver(
+                    sp.GetRequiredService<IDataSetMetaDataRegistry>(),
+                    sp.GetService<ISchemaRegistrationSink>(),
+                    sp.GetService<TimeProvider>()));
+            return builder;
+        }
+
+        /// <summary>
         /// Registers the PubSub application with options bound from
         /// the <c>OpcUa:PubSub</c> section of <paramref name="configuration"/>.
         /// </summary>
@@ -349,7 +373,8 @@ namespace Microsoft.Extensions.DependencyInjection
                     activationCoordinator:
                         sp.GetRequiredService<IPubSubActivationCoordinator>(),
                     writerCheckpointStore:
-                        sp.GetRequiredService<IPubSubWriterCheckpointStore>());
+                        sp.GetRequiredService<IPubSubWriterCheckpointStore>(),
+                    schemaObserver: sp.GetService<ISchemaLifecycleObserver>());
             });
 
             services.AddSingleton<IHostedService, PubSubApplicationHostedService>();

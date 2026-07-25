@@ -33,6 +33,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua;
+using Opc.Ua.PubSub.MetaData;
 
 namespace Opc.Ua.PubSub.Encoding
 {
@@ -40,7 +41,7 @@ namespace Opc.Ua.PubSub.Encoding
     /// Encodes PubSub network messages into the experimental Avro frame format.
     /// </summary>
     [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_Avro")]
-    public sealed class AvroNetworkMessageEncoder : INetworkMessageEncoder
+    public sealed class AvroNetworkMessageEncoder : INetworkMessageEncoder, INotifyingSchemaEncoder
     {
         private const string Magic = "OPC-UA-PubSub-Avro";
         private const ushort Version = 1;
@@ -81,6 +82,14 @@ namespace Opc.Ua.PubSub.Encoding
         public IReadOnlyList<AvroSchemaAnnouncement> LastSchemaAnnouncements { get; private set; }
             = Array.Empty<AvroSchemaAnnouncement>();
 
+        /// <summary>
+        /// Gets the per-DataSet schema changes produced by the most recent encode call (the DataSet
+        /// key + produced SchemaId for each not-yet-announced schema). Consumed by the publisher to
+        /// drive the schema lifecycle via <see cref="ISchemaLifecycleObserver"/>.
+        /// </summary>
+        public IReadOnlyList<SchemaChangeNotification> LastSchemaChanges { get; private set; }
+            = Array.Empty<SchemaChangeNotification>();
+
         /// <inheritdoc/>
         public async ValueTask<ReadOnlyMemory<byte>> EncodeAsync(
             PubSubNetworkMessage networkMessage,
@@ -110,6 +119,7 @@ namespace Opc.Ua.PubSub.Encoding
             // by its own per-DataSet SchemaId, so schema evolution is confined to the per-DataSet
             // schemas and the envelope keeps a stable, specification-defined layout.
             var newAnnouncements = new List<AvroSchemaAnnouncement>();
+            var schemaChanges = new List<SchemaChangeNotification>();
 
             using MemoryStream stream = new();
             using AvroEncoder encoder = new(stream, context.MessageContext, leaveOpen: true);
@@ -135,6 +145,17 @@ namespace Opc.Ua.PubSub.Encoding
                 if (SchemaCache.MarkAnnounced(DestinationId, announcement.SchemaId))
                 {
                     newAnnouncements.Add(announcement);
+                    var metaDataKey = new DataSetMetaDataKey(
+                        message.PublisherId,
+                        message.WriterGroupId ?? 0,
+                        dataSetMessage.DataSetWriterId,
+                        message.DataSetClassId,
+                        dataSetMessage.MetaDataVersion.MajorVersion);
+                    schemaChanges.Add(new SchemaChangeNotification(
+                        metaDataKey,
+                        announcement.SchemaId,
+                        SchemaCache.AvroFormat,
+                        DestinationId));
                 }
 
                 byte[] body = EncodeDataSetMessageBody(message, dataSetMessage, context);
@@ -144,6 +165,7 @@ namespace Opc.Ua.PubSub.Encoding
             encoder.Close();
 
             LastSchemaAnnouncements = newAnnouncements;
+            LastSchemaChanges = schemaChanges;
             LastSchemaAnnouncement = newAnnouncements.Count > 0
                 ? newAnnouncements[newAnnouncements.Count - 1]
                 : null;
