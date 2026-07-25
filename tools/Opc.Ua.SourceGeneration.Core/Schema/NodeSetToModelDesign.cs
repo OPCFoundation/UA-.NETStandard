@@ -1962,7 +1962,7 @@ namespace Opc.Ua.Schema.Model
         /// </summary>
         private XmlDecoder CreateDecoder(System.Xml.XmlElement source, string sourceNodeSetUri = null)
         {
-            var messageContext = ServiceMessageContext.CreateEmpty(m_telemetry);
+            var messageContext = new ServiceMessageContext(m_telemetry, s_valueDecodingFactory);
             messageContext.NamespaceUris = m_settings.NamespaceUris;
             messageContext.ServerUris = m_serverUris;
 
@@ -1999,6 +1999,13 @@ namespace Opc.Ua.Schema.Model
             decoder.SetMappingTables(namespaceUris, serverUris);
 
             return decoder;
+        }
+
+        private static IEncodeableFactory CreateValueDecodingFactory()
+        {
+            IEncodeableFactory factory = ServiceMessageContext.CreateEmpty(null).Factory;
+            factory.AddEncodeableType(typeof(Argument));
+            return factory;
         }
 
         private static AccessLevel ImportAccessLevel(uint input)
@@ -2427,6 +2434,15 @@ namespace Opc.Ua.Schema.Model
             "while",
             "string"
         ];
+
+        /// <summary>
+        /// Encodeable factory used to decode NodeSet2 <c>Value</c> elements. A NodeSet2 encodes a
+        /// Method's <c>InputArguments</c>/<c>OutputArguments</c> Property as a list of
+        /// <see cref="Argument"/> ExtensionObjects, so the decoder must be able to resolve that
+        /// encoding id; an empty factory silently yields zero arguments and every generated method
+        /// wrapper (NodeState handler and ObjectType proxy) would lose its parameters.
+        /// </summary>
+        private static readonly IEncodeableFactory s_valueDecodingFactory = CreateValueDecodingFactory();
 
         private readonly NodeSetReaderSettings m_settings;
         private readonly ITelemetryContext m_telemetry;
