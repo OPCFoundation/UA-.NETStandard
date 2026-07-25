@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -1097,7 +1096,6 @@ namespace Opc.Ua.Configuration
         }
 
         /// <inheritdoc/>
-        [Experimental("UA_NETStandard_1")]
         public IApplicationConfigurationBuilderExtension AddExtension<T>(
             XmlQualifiedName elementName,
             T value,

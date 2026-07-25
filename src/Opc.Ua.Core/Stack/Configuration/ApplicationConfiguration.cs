@@ -404,7 +404,7 @@ namespace Opc.Ua
         /// <param name="file">The file.</param>
         /// <param name="applicationType">Type of the application.</param>
         /// <param name="systemType">Type of the system.</param>
-        /// <param name="applyTraceSettings">if set to <c>true</c> apply trace settings after validation.</param>
+        /// <param name="applyTraceSettings">Retained for backward compatibility; ignored.</param>
         /// <param name="certificatePasswordProvider">The certificate password provider.</param>
         /// <returns>Application configuration</returns>
         [Obsolete("Use LoadAsync instead.")]
@@ -430,7 +430,7 @@ namespace Opc.Ua
         /// <param name="file">The file.</param>
         /// <param name="applicationType">Type of the application.</param>
         /// <param name="systemType">Type of the system.</param>
-        /// <param name="applyTraceSettings">if set to <c>true</c> apply trace settings after validation.</param>
+        /// <param name="applyTraceSettings">Retained for backward compatibility; ignored.</param>
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="certificatePasswordProvider">The certificate password provider.</param>
         /// <param name="ct">Cancellation token to cancel action</param>
@@ -479,7 +479,7 @@ namespace Opc.Ua
         /// <param name="stream">The stream.</param>
         /// <param name="applicationType">Type of the application.</param>
         /// <param name="systemType">Type of the system.</param>
-        /// <param name="applyTraceSettings">if set to <c>true</c> apply trace settings after validation.</param>
+        /// <param name="applyTraceSettings">Retained for backward compatibility; ignored.</param>
         /// <param name="certificatePasswordProvider">The certificate password provider.</param>
         /// <returns>Application configuration</returns>
         [Obsolete("Use LoadAsync instead.")]
@@ -505,7 +505,7 @@ namespace Opc.Ua
         /// <param name="stream">The stream.</param>
         /// <param name="applicationType">Type of the application.</param>
         /// <param name="systemType">Type of the system.</param>
-        /// <param name="applyTraceSettings">if set to <c>true</c> apply trace settings after validation.</param>
+        /// <param name="applyTraceSettings">Retained for backward compatibility; ignored.</param>
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="certificatePasswordProvider">The certificate password provider.</param>
         /// <param name="ct">Cancellation token to cancel action</param>
@@ -520,6 +520,8 @@ namespace Opc.Ua
             ICertificatePasswordProvider? certificatePasswordProvider = null,
             CancellationToken ct = default)
         {
+            // Retained for binary/source compatibility with 1.5.378 callers.
+            _ = applyTraceSettings;
             systemType ??= typeof(ApplicationConfiguration);
 
             ApplicationConfiguration configuration;

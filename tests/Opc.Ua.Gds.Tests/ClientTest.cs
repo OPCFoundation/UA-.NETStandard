@@ -1727,22 +1727,6 @@ namespace Opc.Ua.Gds.Tests
             }
         }
 
-#if DEVOPS_LOG
-        [Test, Order(9998)]
-        public void ClientLogResult()
-        {
-            var log = _gdsClient.ReadLogFile();
-            TestContext.Progress.WriteLine(log);
-        }
-
-        [Test, Order(9999)]
-        public void ServerLogResult()
-        {
-            var log = _server.ReadLogFile();
-            TestContext.Progress.WriteLine(log);
-        }
-#endif
-
         private async Task ConnectGDSAsync(
             bool admin,
             bool anonymous = false,

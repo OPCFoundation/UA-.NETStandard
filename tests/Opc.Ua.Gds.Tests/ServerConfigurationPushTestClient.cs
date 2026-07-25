@@ -182,18 +182,6 @@ namespace Opc.Ua.Gds.Tests
             }
         }
 
-        public string ReadLogFile()
-        {
-            string? outputFilePath = Config.TraceConfiguration?.OutputFilePath;
-            if (string.IsNullOrEmpty(outputFilePath))
-            {
-                return string.Empty;
-            }
-
-            return File.ReadAllText(
-                Utils.ReplaceSpecialFolderNames(outputFilePath));
-        }
-
         private bool AcceptCertificate(Certificate certificate, ServiceResult error)
         {
             if (error.StatusCode == StatusCodes.BadCertificateUntrusted)

@@ -275,18 +275,6 @@ namespace Opc.Ua.Gds.Tests
             }
         }
 
-        public string ReadLogFile()
-        {
-            string? outputFilePath = Configuration.TraceConfiguration?.OutputFilePath;
-            if (string.IsNullOrEmpty(outputFilePath))
-            {
-                return string.Empty;
-            }
-
-            return File.ReadAllText(
-                Utils.ReplaceSpecialFolderNames(outputFilePath));
-        }
-
         private async Task ApplyNewApplicationInstanceCertificateAsync(
             ByteString certificate,
             ByteString privateKey)

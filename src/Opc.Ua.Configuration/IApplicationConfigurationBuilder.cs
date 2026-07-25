@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
@@ -644,7 +643,6 @@ namespace Opc.Ua.Configuration
         /// <param name="elementName">The name of the extension, null to use the type name.</param>
         /// <param name="value">The object to add and encode.</param>
         /// <param name="encoderFunc">A function that writes the value to an <see cref="IEncoder"/>.</param>
-        [Experimental("UA_NETStandard_1")]
         IApplicationConfigurationBuilderExtension AddExtension<T>(
             XmlQualifiedName elementName,
             T value,
