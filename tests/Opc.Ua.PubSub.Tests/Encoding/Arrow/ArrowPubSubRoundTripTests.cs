@@ -566,6 +566,50 @@ namespace Opc.Ua.PubSub.Encoding.Tests
             Assert.That(await decoder.TryDecodeAsync(frame, context), Is.Null);
         }
 
+        [Test]
+        public async Task EncoderReportsPerDataSetSchemaChangeForLifecycleObserver()
+        {
+            PublisherId publisherId = PublisherId.FromString("publisher-arrow-lifecycle");
+            Uuid dataSetClassId = new(new Guid("95669f76-285a-41c6-ac2b-27793a3eac30"));
+            DataSetMetaDataType metaData = CreateMetaData();
+            PubSubNetworkMessageContext context = CreateContext(
+                publisherId, writerGroupId: 9, dataSetClassId, metaData, dataSetWriterId: 501);
+            ArrowNetworkMessage message = CreateNetworkMessage(publisherId, dataSetClassId, metaData);
+
+            ArrowNetworkMessageEncoder encoder = new() { Framing = ArrowIpcFraming.Stream };
+            _ = await encoder.EncodeAsync(message, context);
+
+            // An Arrow NetworkMessage carries one homogeneous DataSet schema, so the encoder reports a
+            // single per-DataSet schema change carrying the DataSet key + produced SchemaId + document.
+            Assert.That(encoder.LastSchemaChanges, Has.Count.EqualTo(1));
+            SchemaChangeNotification change = encoder.LastSchemaChanges[0];
+            Assert.That(change.SchemaId, Is.EqualTo(encoder.LastSchemaAnnouncement!.SchemaId));
+            Assert.That(change.Schema, Is.EqualTo(encoder.LastSchemaAnnouncement!.Schema));
+            Assert.That(change.Format, Is.EqualTo(SchemaCache.ArrowFormat));
+            Assert.That(change.MetaDataKey.PublisherId, Is.EqualTo(publisherId));
+            Assert.That(change.MetaDataKey.WriterGroupId, Is.EqualTo((ushort)9));
+            Assert.That(change.MetaDataKey.DataSetWriterId, Is.EqualTo((ushort)501));
+            Assert.That(change.MetaDataKey.MajorVersion, Is.EqualTo(metaData.ConfigurationVersion.MajorVersion));
+
+            // Announce-once: re-encoding the same shape produces no new change.
+            _ = await encoder.EncodeAsync(message, context);
+            Assert.That(encoder.LastSchemaChanges, Is.Empty);
+
+            // The change drives a real lifecycle observer without spuriously advancing the initial version.
+            var registry = new DataSetMetaDataRegistry();
+            var key = new DataSetMetaDataKey(
+                publisherId, 9, 501, dataSetClassId, metaData.ConfigurationVersion.MajorVersion);
+            registry.Register(in key, new DataSetMetaDataType
+            {
+                ConfigurationVersion = new ConfigurationVersionDataType { MajorVersion = 1, MinorVersion = 7 }
+            });
+            var observer = new SchemaLifecycleObserver(registry);
+            await observer.OnSchemaProducedAsync(change);
+            Assert.That(registry.TryGet(in key, out DataSetMetaDataType? updated), Is.EqualTo(MetaDataMatchResult.Match));
+            Assert.That(updated!.ConfigurationVersion.MinorVersion, Is.EqualTo(7u),
+                "the initial schema for a DataSet does not advance the version");
+        }
+
         private static DataSetField FieldByName(ArrowDataSetMessage message, string name)
         {
             for (int i = 0; i < message.Fields.Count; i++)

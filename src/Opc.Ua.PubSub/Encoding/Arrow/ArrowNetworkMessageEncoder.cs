@@ -28,6 +28,7 @@
  * ======================================================================*/
 #if NET8_0_OR_GREATER
 using Opc.Ua;
+using Opc.Ua.PubSub.MetaData;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -52,7 +53,7 @@ namespace Opc.Ua.PubSub.Encoding
     /// one-dimensional arrays of those types; other BuiltInTypes throw.
     /// </summary>
     [System.Diagnostics.CodeAnalysis.Experimental("UA_NETStandard_Arrow")]
-    public sealed class ArrowNetworkMessageEncoder : INetworkMessageEncoder
+    public sealed class ArrowNetworkMessageEncoder : INetworkMessageEncoder, INotifyingSchemaEncoder
     {
         private const string Magic = "OPC-UA-PubSub-Arrow";
         private const string Version = "1";
@@ -84,6 +85,16 @@ namespace Opc.Ua.PubSub.Encoding
         /// Gets the announcement produced by the most recent encode call, if one was needed.
         /// </summary>
         public ArrowSchemaAnnouncement? LastSchemaAnnouncement { get; private set; }
+
+        /// <summary>
+        /// Gets the per-DataSet schema changes produced by the most recent encode call. An Arrow
+        /// NetworkMessage carries one homogeneous DataSet schema (§5.2), so this holds a single
+        /// change when that schema was not yet announced to the destination, and is empty otherwise.
+        /// Consumed by the publisher to drive the schema lifecycle via
+        /// <see cref="ISchemaLifecycleObserver"/>.
+        /// </summary>
+        public IReadOnlyList<SchemaChangeNotification> LastSchemaChanges { get; private set; }
+            = System.Array.Empty<SchemaChangeNotification>();
 
         /// <summary>
         /// Gets or sets the IPC framing used for encoded payloads. <see cref="ArrowIpcFraming.Batch"/>
@@ -132,10 +143,36 @@ namespace Opc.Ua.PubSub.Encoding
             }
 
             ArrowSchemaAnnouncement announcement = SchemaExchangeMessages.CreateArrowAnnouncement(message, context);
-            LastSchemaAnnouncement = SchemaCache.MarkAnnounced(DestinationId, announcement.SchemaId)
-                ? announcement
-                : null;
             SchemaCache.Add(announcement);
+            if (SchemaCache.MarkAnnounced(DestinationId, announcement.SchemaId))
+            {
+                LastSchemaAnnouncement = announcement;
+                // An Arrow NetworkMessage carries one homogeneous DataSet schema (§5.2). Report the
+                // produced per-DataSet schema change so the publisher can drive the schema lifecycle
+                // (ConfigurationVersion advance + registry publish) via ISchemaLifecycleObserver.
+                ArrowDataSetMessage? representative = FirstArrowMessage(message);
+                LastSchemaChanges = representative is null
+                    ? System.Array.Empty<SchemaChangeNotification>()
+                    : new[]
+                    {
+                        new SchemaChangeNotification(
+                            new DataSetMetaDataKey(
+                                message.PublisherId,
+                                message.WriterGroupId ?? 0,
+                                representative.DataSetWriterId,
+                                message.DataSetClassId,
+                                representative.MetaDataVersion.MajorVersion),
+                            announcement.SchemaId,
+                            announcement.Schema,
+                            SchemaCache.ArrowFormat,
+                            DestinationId)
+                    };
+            }
+            else
+            {
+                LastSchemaAnnouncement = null;
+                LastSchemaChanges = System.Array.Empty<SchemaChangeNotification>();
+            }
 
             DataSetMetaDataType? metaData = ResolveBatchMetaData(message, context);
             FieldPlan[] fields = BuildFieldPlan(message, metaData);
