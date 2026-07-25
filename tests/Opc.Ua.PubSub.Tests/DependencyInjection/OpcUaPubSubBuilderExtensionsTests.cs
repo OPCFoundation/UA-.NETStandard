@@ -45,6 +45,7 @@ using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.MetaData;
 using Opc.Ua.PubSub.Scheduling;
+using Opc.Ua.PubSub.SchemaRegistry;
 using Opc.Ua.PubSub.Security;
 using Opc.Ua.PubSub.Security.Sks;
 using Opc.Ua.PubSub.Tests.Security;
@@ -66,6 +67,97 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
     [SetUICulture("en-us")]
     public class OpcUaPubSubBuilderExtensionsTests
     {
+        [Test]
+        public void AddSchemaLifecycleObserver_ResolvesObserverAndUsesRegisteredSink()
+        {
+            var services = new ServiceCollection();
+            services.AddSingleton(NUnitTelemetryContext.Create());
+            var sink = new CapturingRegistrationSink();
+            services.AddSingleton<ISchemaRegistrationSink>(sink);
+            IOpcUaBuilder builder = services.AddOpcUa();
+            builder.AddPubSub();
+            builder.AddSchemaLifecycleObserver();
+            using ServiceProvider sp = services.BuildServiceProvider();
+
+            var observer = sp.GetService<ISchemaLifecycleObserver>();
+            Assert.That(observer, Is.Not.Null, "the opt-in observer should be registered");
+
+            // The observer composed with the registered sink: a produced schema is forwarded for
+            // registry publish (the G2 registry-publish half of the schema-change protocol).
+            var key = new DataSetMetaDataKey(PublisherId.FromUInt16(1), 1, 1, default, 1);
+            observer!.OnSchemaProducedAsync(new SchemaChangeNotification(
+                key,
+                new ByteString(new byte[] { 0xAB }),
+                new ByteString(new byte[] { 0x7B, 0x7D }),
+                "avro",
+                "dest")).AsTask().GetAwaiter().GetResult();
+
+            Assert.That(sink.Registered, Has.Count.EqualTo(1));
+            Assert.That(sink.Registered[0].Format, Is.EqualTo("avro"));
+            Assert.That(sink.Registered[0].Schema.Span.Length, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void AddSchemaRegistrySink_RegistersSinkAndValidatesOptions()
+        {
+            var services = new ServiceCollection();
+            services.AddSingleton(NUnitTelemetryContext.Create());
+            IOpcUaBuilder builder = services.AddOpcUa();
+            builder.AddPubSub();
+            builder.AddSchemaRegistrySink(options =>
+            {
+                options.SchemaGroupObjectId = new NodeId(1000u);
+                options.CreateResourceMethodId = new NodeId(1001u);
+                options.WriteMethodId = new NodeId(1002u);
+                options.CloseMethodId = new NodeId(1003u);
+                options.ChunkSize = 2048;
+            });
+
+            Assert.That(
+                services.Any(d => d.ServiceType == typeof(ISchemaRegistrationSink)),
+                Is.True,
+                "AddSchemaRegistrySink should register the registration sink.");
+
+            using ServiceProvider sp = services.BuildServiceProvider();
+            SchemaRegistrySinkOptions options = sp
+                .GetRequiredService<IOptions<SchemaRegistrySinkOptions>>().Value;
+            Assert.That(options.IsComplete, Is.True);
+            Assert.That(options.ChunkSize, Is.EqualTo(2048));
+
+            // The sink itself is session-bound: resolving it without a registered
+            // SchemaRegistryClient fails, which keeps the live path strictly opt-in.
+            Assert.That(() => sp.GetRequiredService<ISchemaRegistrationSink>(), Throws.InvalidOperationException);
+        }
+
+        [Test]
+        public void AddSchemaRegistrySink_IncompleteOptions_FailsFast()
+        {
+            var services = new ServiceCollection();
+            services.AddSingleton(NUnitTelemetryContext.Create());
+            IOpcUaBuilder builder = services.AddOpcUa();
+            builder.AddPubSub();
+            builder.AddSchemaRegistrySink(options => options.SchemaGroupObjectId = new NodeId(1000u));
+            using ServiceProvider sp = services.BuildServiceProvider();
+
+            Assert.That(
+                () => sp.GetRequiredService<ISchemaRegistrationSink>(),
+                Throws.InvalidOperationException,
+                "an incomplete registry topology must fail rather than silently skip registration");
+        }
+
+        private sealed class CapturingRegistrationSink : ISchemaRegistrationSink
+        {
+            public List<SchemaChangeNotification> Registered { get; } = [];
+
+            public ValueTask RegisterAsync(
+                SchemaChangeNotification change,
+                CancellationToken cancellationToken = default)
+            {
+                Registered.Add(change);
+                return default;
+            }
+        }
+
         [Test]
         public void AddPubSub_RegistersCoreServices()
         {

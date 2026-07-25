@@ -131,6 +131,59 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         /// <summary>
+        /// Registers a <see cref="Opc.Ua.PubSub.SchemaRegistry.SchemaRegistrySink"/> so that a schema
+        /// produced by a PubSub encoder is also published into the Schema Registry, in addition to
+        /// being announced on the wire (Avro Part 14 §8.4.5). Combine with
+        /// <see cref="AddSchemaLifecycleObserver"/>, which resolves the sink and invokes it on every
+        /// schema change. Opt-in: without this call the encoder announcement remains the sole
+        /// publish channel.
+        /// </summary>
+        /// <remarks>
+        /// The registry client is session-bound, so the application supplies it — register a
+        /// <see cref="Opc.Ua.PubSub.SchemaRegistry.SchemaRegistryClient"/> built over the connected
+        /// session, and configure the SchemaGroup and CreateResource/Write/Close NodeIds resolved
+        /// once from that registry's topology.
+        /// </remarks>
+        /// <param name="builder">OPC UA root builder.</param>
+        /// <param name="configure">Callback that supplies the registry write-lifecycle NodeIds.</param>
+        /// <returns>The original <paramref name="builder"/>.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static IOpcUaBuilder AddSchemaRegistrySink(
+            this IOpcUaBuilder builder,
+            Action<Opc.Ua.PubSub.SchemaRegistry.SchemaRegistrySinkOptions> configure)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (configure is null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+            builder.Services.Configure(configure);
+            builder.Services.TryAddSingleton<ISchemaRegistrationSink>(sp =>
+            {
+                Opc.Ua.PubSub.SchemaRegistry.SchemaRegistrySinkOptions options = sp
+                    .GetRequiredService<IOptions<Opc.Ua.PubSub.SchemaRegistry.SchemaRegistrySinkOptions>>()
+                    .Value;
+                if (!options.IsComplete)
+                {
+                    throw new InvalidOperationException(
+                        "SchemaRegistrySinkOptions is incomplete: SchemaGroupObjectId, " +
+                        "CreateResourceMethodId, WriteMethodId and CloseMethodId are all required.");
+                }
+                return new Opc.Ua.PubSub.SchemaRegistry.SchemaRegistrySink(
+                    sp.GetRequiredService<Opc.Ua.PubSub.SchemaRegistry.SchemaRegistryClient>(),
+                    options.SchemaGroupObjectId!.Value,
+                    options.CreateResourceMethodId!.Value,
+                    options.WriteMethodId!.Value,
+                    options.CloseMethodId!.Value,
+                    options.ChunkSize);
+            });
+            return builder;
+        }
+
+        /// <summary>
         /// Registers the PubSub application with options bound from
         /// the <c>OpcUa:PubSub</c> section of <paramref name="configuration"/>.
         /// </summary>
