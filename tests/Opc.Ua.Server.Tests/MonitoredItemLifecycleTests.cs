@@ -381,6 +381,234 @@ namespace Opc.Ua.Server.Tests
             });
         }
 
+        [Test]
+        public void OrdinaryBadNodeIdUnknownSampleDoesNotBlockTheQueue()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using MonitoredItem item = CreateMonitoredItem(telemetry, queueSize: 1);
+            var recovered = new DataValue(new Variant(42), StatusCodes.Good);
+
+            item.QueueValue(default, new ServiceResult(StatusCodes.BadNodeIdUnknown));
+            item.QueueValue(recovered, ServiceResult.Good);
+
+            Queue<MonitoredItemNotification> notifications =
+                Publish(item, telemetry, 10, out bool more);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(((IMonitoredItemLifecycle)item).IsDeleted, Is.False);
+                Assert.That(notifications, Has.Count.EqualTo(1));
+                Assert.That(notifications.Peek().Value.WrappedValue, Is.EqualTo(new Variant(42)));
+                Assert.That(notifications.Peek().Value.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(more, Is.False);
+            });
+        }
+
+        [Test]
+        public void OrdinaryBadNodeIdUnknownValuesObeyTheConfiguredQueueSize()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queueFactory = new MonitoredItemQueueFactory(telemetry);
+            using DataChangeQueueHandler handler = CreateQueueHandler(
+                telemetry,
+                queueFactory,
+                queueSize: 3,
+                discardOldest: true);
+
+            for (int ii = 0; ii < 6; ii++)
+            {
+                if (ii % 2 == 0)
+                {
+                    handler.QueueValue(
+                        CreateBadNodeIdUnknownValue(),
+                        new ServiceResult(StatusCodes.BadNodeIdUnknown));
+                }
+                else
+                {
+                    handler.QueueValue(
+                        new DataValue(new Variant(ii), StatusCodes.Good),
+                        ServiceResult.Good);
+                }
+
+                Assert.That(handler.ItemsInQueue, Is.LessThanOrEqualTo(3));
+            }
+
+            List<DataValue> published = DrainHandler(handler);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(published, Has.Count.EqualTo(3));
+                Assert.That(published[0].WrappedValue, Is.EqualTo(new Variant(3)));
+                Assert.That(published[0].StatusCode.Overflow, Is.True);
+                Assert.That(
+                    published[1].StatusCode.Code,
+                    Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                Assert.That(published[2].WrappedValue, Is.EqualTo(new Variant(5)));
+            });
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public void ExhaustedOrdinaryBudgetDiscardsAQueuedValueAndReportsOverflow(bool discardOldest)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queueFactory = new MonitoredItemQueueFactory(telemetry);
+            using DataChangeQueueHandler handler = CreateQueueHandler(
+                telemetry,
+                queueFactory,
+                queueSize: 2,
+                discardOldest: discardOldest);
+            var marker = new DataValue(Variant.Null, StatusCodes.BadNodeIdUnknown);
+            var markerError = new ServiceResult(StatusCodes.BadNodeIdUnknown);
+
+            handler.QueueRequiredValue(marker, markerError);
+            handler.QueueValue(new DataValue(new Variant(1), StatusCodes.Good), ServiceResult.Good);
+            handler.QueueRequiredValue(marker, markerError);
+            handler.QueueValue(new DataValue(new Variant(2), StatusCodes.Good), ServiceResult.Good);
+
+            List<DataValue> published = DrainHandler(handler);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(published, Has.Count.EqualTo(3));
+                Assert.That(published[0].StatusCode.Code, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                Assert.That(published[1].StatusCode.Code, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                Assert.That(published[2].WrappedValue, Is.EqualTo(new Variant(2)));
+                Assert.That(published[2].StatusCode.Overflow, Is.True);
+            });
+        }
+
+        [Test]
+        public void ExhaustedOrdinaryBudgetWithOnlyMarkersKeepsMarkersAndDropsTheValue()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queueFactory = new MonitoredItemQueueFactory(telemetry);
+            using DataChangeQueueHandler handler = CreateQueueHandler(
+                telemetry,
+                queueFactory,
+                queueSize: 1,
+                discardOldest: true);
+
+            handler.QueueRequiredValue(
+                new DataValue(Variant.Null, StatusCodes.BadNodeIdUnknown),
+                new ServiceResult(StatusCodes.BadNodeIdUnknown));
+            bool overflow = handler.QueueValue(
+                new DataValue(new Variant(7), StatusCodes.Good),
+                ServiceResult.Good);
+
+            List<DataValue> published = DrainHandler(handler);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(overflow, Is.True);
+                Assert.That(published, Has.Count.EqualTo(1));
+                Assert.That(published[0].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+            });
+        }
+
+        [Test]
+        public void ResizingAQueueKeepsMarkersProtectedAndOrdinaryValuesDiscardable()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queueFactory = new MonitoredItemQueueFactory(telemetry);
+            using DataChangeQueueHandler handler = CreateQueueHandler(
+                telemetry,
+                queueFactory,
+                queueSize: 4,
+                discardOldest: true);
+
+            handler.QueueRequiredValue(
+                new DataValue(Variant.Null, StatusCodes.BadNodeIdUnknown),
+                new ServiceResult(StatusCodes.BadNodeIdUnknown));
+            handler.QueueValue(new DataValue(new Variant(1), StatusCodes.Good), ServiceResult.Good);
+            handler.QueueValue(
+                CreateBadNodeIdUnknownValue(),
+                new ServiceResult(StatusCodes.BadNodeIdUnknown));
+
+            handler.SetQueueSize(4, true, DiagnosticsMasks.None);
+            handler.QueueValue(new DataValue(new Variant(2), StatusCodes.Good), ServiceResult.Good);
+
+            List<DataValue> published = DrainHandler(handler);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(handler.HasRequiredValues, Is.False);
+                Assert.That(published, Has.Count.EqualTo(4));
+                Assert.That(published[0].StatusCode.Code, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                Assert.That(published[1].WrappedValue, Is.EqualTo(new Variant(1)));
+                Assert.That(published[2].StatusCode.Code, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                Assert.That(published[3].WrappedValue, Is.EqualTo(new Variant(2)));
+            });
+        }
+
+        [Test]
+        public void OrdinaryValueReplacesBadNodeIdUnknownAtQueueSizeOne()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queueFactory = new MonitoredItemQueueFactory(telemetry);
+            using DataChangeQueueHandler handler = CreateQueueHandler(
+                telemetry,
+                queueFactory,
+                queueSize: 1,
+                discardOldest: true);
+
+            handler.QueueValue(
+                CreateBadNodeIdUnknownValue(),
+                new ServiceResult(StatusCodes.BadNodeIdUnknown));
+            bool markerAfterBad = handler.HasRequiredValues;
+            handler.QueueValue(
+                new DataValue(new Variant(42), StatusCodes.Good),
+                ServiceResult.Good);
+
+            List<DataValue> published = DrainHandler(handler);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    markerAfterBad,
+                    Is.False,
+                    "an ordinary bad sample must not become a protected marker");
+                Assert.That(published, Has.Count.EqualTo(1));
+                Assert.That(published[0].WrappedValue, Is.EqualTo(new Variant(42)));
+            });
+        }
+        private static DataChangeQueueHandler CreateQueueHandler(
+            ITelemetryContext telemetry,
+            MonitoredItemQueueFactory queueFactory,
+            uint queueSize,
+            bool discardOldest)
+        {
+            IDataChangeMonitoredItemQueue queue = queueFactory.CreateDataChangeQueue(false, 1);
+            queue.ResetQueue(queueSize, false);
+            return new DataChangeQueueHandler(
+                queue,
+                queueSize,
+                discardOldest,
+                samplingInterval: 0,
+                DiagnosticsMasks.None,
+                telemetry,
+                discardedValueHandler: null);
+        }
+
+        private static DataValue CreateBadNodeIdUnknownValue()
+        {
+            DateTime utcNow = DateTime.UtcNow;
+            return new DataValue(
+                Variant.Null,
+                StatusCodes.BadNodeIdUnknown,
+                utcNow,
+                utcNow);
+        }
+
+        private static List<DataValue> DrainHandler(DataChangeQueueHandler handler)
+        {
+            var values = new List<DataValue>();
+            while (handler.PublishSingleValue(out DataValue value, out ServiceResult _))
+            {
+                values.Add(value);
+            }
+            return values;
+        }
         private static MonitoredItem CreateMonitoredItem(
             ITelemetryContext telemetry,
             uint queueSize = 1,
