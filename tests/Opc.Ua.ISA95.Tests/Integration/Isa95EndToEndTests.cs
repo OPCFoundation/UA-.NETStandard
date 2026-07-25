@@ -51,9 +51,6 @@ using Opc.Ua.Tests;
 using ClientSession = Opc.Ua.Client.ISession;
 using ClientSubscriptionManager =
     Opc.Ua.Client.Subscriptions.ISubscriptionManager;
-#pragma warning disable IDE0005 // Alias disambiguates core UA identifiers from generated ISA-95 identifiers.
-using Ua = Opc.Ua;
-#pragma warning restore IDE0005
 using V1 = Opc.Ua.ISA95.JobControl.V1;
 using V2 = Opc.Ua.ISA95.JobControl.V2;
 

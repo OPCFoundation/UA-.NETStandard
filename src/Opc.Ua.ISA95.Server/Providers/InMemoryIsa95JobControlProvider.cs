@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#pragma warning disable IDE0005 // Imports are required by target frameworks without matching implicit global usings.
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
@@ -35,7 +34,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using V1 = Opc.Ua.ISA95.JobControl.V1;
 using V2 = Opc.Ua.ISA95.JobControl.V2;
-#pragma warning restore IDE0005
 
 namespace Opc.Ua.ISA95.Server.Providers
 {

@@ -27,13 +27,11 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#pragma warning disable IDE0005 // Imports are required after source-generated ISA95 types are resolved.
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using Opc.Ua.ISA95.JobControl.V2;
 using Opc.Ua.ISA95.Server.Providers;
-#pragma warning restore IDE0005
 
 namespace MinimalIsa95Server
 {

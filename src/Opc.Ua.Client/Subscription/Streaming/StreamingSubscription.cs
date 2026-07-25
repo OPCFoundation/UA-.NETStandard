@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#pragma warning disable IDE0005 // Imports are required by target frameworks without matching implicit global usings.
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -38,7 +37,6 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
 using Opc.Ua.Client.Subscriptions.MonitoredItems;
-#pragma warning restore IDE0005
 
 namespace Opc.Ua.Client.Subscriptions.Streaming
 {

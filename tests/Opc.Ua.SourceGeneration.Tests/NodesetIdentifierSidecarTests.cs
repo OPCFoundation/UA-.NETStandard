@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#pragma warning disable IDE0005 // Imports are required by target frameworks without matching implicit global usings.
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
@@ -36,7 +35,6 @@ using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using NUnit.Framework;
-#pragma warning restore IDE0005
 
 namespace Opc.Ua.SourceGeneration
 {

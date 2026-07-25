@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#pragma warning disable IDE0005 // Imports are required after source-generated ISA95 types are resolved.
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -35,7 +34,6 @@ using MinimalIsa95Server;
 using Opc.Ua.ISA95;
 using Opc.Ua.ISA95.Server.Builders;
 using Opc.Ua.ISA95.Server.Providers;
-#pragma warning restore IDE0005
 
 HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
 builder.Logging.ClearProviders();

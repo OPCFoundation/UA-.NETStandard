@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#pragma warning disable IDE0005 // Imports are required by target frameworks without matching implicit global usings.
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -35,7 +34,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using Opc.Ua;
-#pragma warning restore IDE0005
 using Opc.Ua.Client;
 using Opc.Ua.ISA95.Client;
 using Opc.Ua.ISA95.Client.Hosting;
