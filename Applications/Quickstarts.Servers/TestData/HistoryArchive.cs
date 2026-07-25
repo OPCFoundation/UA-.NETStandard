@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Threading;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
@@ -76,17 +77,37 @@ namespace TestData
         }
 
         /// <summary>
+        /// Returns a stable request-local snapshot of annotation timestamps.
+        /// Annotations are deliberately kept outside RawData.
+        /// </summary>
+        public IReadOnlyList<DateTime> GetAnnotationTimestamps(NodeId nodeId)
+        {
+            lock (m_lock)
+            {
+                if (m_annotations == null ||
+                    !m_annotations.TryGetValue(nodeId, out List<DateTime> annotations))
+                {
+                    return Array.Empty<DateTime>();
+                }
+
+                return annotations.ToArray();
+            }
+        }
+
+        /// <summary>
         /// Creates a new record in the archive.
         /// </summary>
-        public void CreateRecord(NodeId nodeId, BuiltInType dataType)
+        public void CreateRecord(
+            NodeId nodeId,
+            BuiltInType dataType,
+            bool useDeterministicCttPattern = false)
         {
             lock (m_lock)
             {
                 var record = new HistoryRecord
                 {
                     RawData = [],
-                    Historizing = true,
-                    DataType = dataType
+                    Historizing = true
                 };
 
                 DateTime now = DateTime.UtcNow;
@@ -100,11 +121,22 @@ namespace TestData
                     entry.Value.SourceTimestamp = entry.Value.ServerTimestamp.AddMilliseconds(1234);
                     entry.IsModified = false;
 
-                    switch (dataType)
+                    if (useDeterministicCttPattern)
                     {
-                        case BuiltInType.Int32:
-                            entry.Value.Value = ii;
-                            break;
+                        int sampleIndex = 1000 - ii;
+                        entry.Value.Value = CreateScalarValue(dataType, sampleIndex, now);
+                        entry.Value.StatusCode = GetSeededStatusCode(sampleIndex);
+                    }
+                    else
+                    {
+                        // Preserve the original TestData Int32 fixture byte-for-byte
+                        // in meaning: oldest value 1000 through newest value 0.
+                        switch (dataType)
+                        {
+                            case BuiltInType.Int32:
+                                entry.Value.Value = ii;
+                                break;
+                        }
                     }
 
                     record.RawData.Add(entry);
@@ -113,6 +145,17 @@ namespace TestData
                 m_records ??= [];
 
                 m_records[nodeId] = record;
+
+                // Deterministic in-memory annotation sidecar. Two annotations
+                // intentionally share a timestamp to exercise multiplicity.
+                m_annotations ??= [];
+                m_annotations[nodeId] =
+                [
+                    now.AddSeconds(-7500),
+                    now.AddSeconds(-5000),
+                    now.AddSeconds(-5000),
+                    now.AddSeconds(-2500)
+                ];
 
                 m_updateTimer ??= new Timer(OnUpdate, null, 10000, 10000);
             }
@@ -144,13 +187,7 @@ namespace TestData
                             .AddMilliseconds(-4567);
                         entry.IsModified = false;
 
-                        switch (record.DataType)
-                        {
-                            case BuiltInType.Int32:
-                                int lastValue = (int)record.RawData[^1].Value.Value;
-                                entry.Value.Value = lastValue + 1;
-                                break;
-                        }
+                        entry.Value.Value = CreateNextScalarValue(record);
 
                         record.RawData.Add(entry);
                     }
@@ -162,9 +199,72 @@ namespace TestData
             }
         }
 
+        private static object CreateNextScalarValue(HistoryRecord record)
+        {
+            object lastValue = record.RawData[^1].Value.Value;
+            BuiltInType dataType = TypeInfo.Construct(lastValue).BuiltInType;
+            return dataType switch
+            {
+                BuiltInType.Boolean => !(bool)lastValue,
+                BuiltInType.SByte => (sbyte)((sbyte)lastValue + 1),
+                BuiltInType.Byte => (byte)((byte)lastValue + 1),
+                BuiltInType.Int16 => (short)((short)lastValue + 1),
+                BuiltInType.UInt16 => (ushort)((ushort)lastValue + 1),
+                BuiltInType.Int32 => (int)lastValue + 1,
+                BuiltInType.UInt32 => (uint)lastValue + 1,
+                BuiltInType.Int64 => (long)lastValue + 1,
+                BuiltInType.UInt64 => (ulong)lastValue + 1,
+                BuiltInType.Float => (float)lastValue + 1,
+                BuiltInType.Double => (double)lastValue + 1,
+                BuiltInType.String => ((int)record.RawData.Count).ToString(
+                    CultureInfo.InvariantCulture),
+                BuiltInType.DateTime => ((DateTime)lastValue).AddSeconds(1),
+                BuiltInType.Guid => Guid.NewGuid(),
+                BuiltInType.ByteString => BitConverter.GetBytes(record.RawData.Count),
+                _ => lastValue
+            };
+        }
+
+        private static object CreateScalarValue(
+            BuiltInType dataType,
+            int value,
+            DateTime now)
+        {
+            return dataType switch
+            {
+                BuiltInType.Boolean => (value & 1) == 0,
+                BuiltInType.SByte => (sbyte)(value % 100),
+                BuiltInType.Byte => (byte)(value % 200),
+                BuiltInType.Int16 => (short)value,
+                BuiltInType.UInt16 => (ushort)value,
+                BuiltInType.Int32 => value,
+                BuiltInType.UInt32 => (uint)value,
+                BuiltInType.Int64 => (long)value,
+                BuiltInType.UInt64 => (ulong)value,
+                BuiltInType.Float => (float)value,
+                BuiltInType.Double => (double)value,
+                BuiltInType.String => value.ToString(CultureInfo.InvariantCulture),
+                BuiltInType.DateTime => now.AddSeconds(value),
+                BuiltInType.Guid => new Guid(value, 0, 0, new byte[8]),
+                BuiltInType.ByteString => BitConverter.GetBytes(value),
+                _ => value
+            };
+        }
+
+        private static StatusCode GetSeededStatusCode(int sampleIndex)
+        {
+            return (sampleIndex % 10) switch
+            {
+                7 => StatusCodes.BadDataUnavailable,
+                9 => StatusCodes.UncertainSubstituteValue,
+                _ => StatusCodes.Good
+            };
+        }
+
         private readonly Lock m_lock = new();
         private Timer m_updateTimer;
         private Dictionary<NodeId, HistoryRecord> m_records;
+        private Dictionary<NodeId, List<DateTime>> m_annotations;
         private readonly ILogger m_logger;
     }
 
@@ -184,6 +284,5 @@ namespace TestData
     {
         public List<HistoryEntry> RawData;
         public bool Historizing;
-        public BuiltInType DataType;
     }
 }
