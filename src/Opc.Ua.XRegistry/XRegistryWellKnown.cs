@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Diagnostics.CodeAnalysis;
-
 namespace Opc.Ua.XRegistry
 {
     /// <summary>
@@ -39,34 +37,54 @@ namespace Opc.Ua.XRegistry
     /// </summary>
     public static class XRegistryWellKnown
     {
-        /// <summary>The abstract xRegistry base companion namespace URI.</summary>
+        /// <summary>
+        /// The abstract xRegistry base companion namespace URI.
+        /// </summary>
         public const string XRegistryNamespaceUri = "http://opcfoundation.org/UA/xRegistry/";
 
-        /// <summary>Provisional NodeId of the registration <c>SchemaGroup</c>/resource-group object.</summary>
+        /// <summary>
+        /// Provisional NodeId of the registration <c>SchemaGroup</c>/resource-group object.
+        /// </summary>
         public const uint ResourceGroupObject = 63001;
 
-        /// <summary>Provisional NodeId of the <c>CreateResource</c> method.</summary>
+        /// <summary>
+        /// Provisional NodeId of the <c>CreateResource</c> method.
+        /// </summary>
         public const uint CreateResourceMethod = 63002;
 
-        /// <summary>Provisional NodeId of the <c>Write</c> method.</summary>
+        /// <summary>
+        /// Provisional NodeId of the <c>Write</c> method.
+        /// </summary>
         public const uint WriteMethod = 63003;
 
-        /// <summary>Provisional NodeId of the <c>Close</c> method.</summary>
+        /// <summary>
+        /// Provisional NodeId of the <c>Close</c> method.
+        /// </summary>
         public const uint CloseMethod = 63004;
 
-        /// <summary>Provisional NodeId of the <c>Delete</c> method.</summary>
+        /// <summary>
+        /// Provisional NodeId of the <c>Delete</c> method.
+        /// </summary>
         public const uint DeleteMethod = 63005;
 
-        /// <summary>Provisional NodeId of the federated resource proxy object.</summary>
+        /// <summary>
+        /// Provisional NodeId of the federated resource proxy object.
+        /// </summary>
         public const uint FederationProxyObject = 64001;
 
-        /// <summary>Provisional NodeId of the proxy's <c>ExternalReference</c> Property.</summary>
+        /// <summary>
+        /// Provisional NodeId of the proxy's <c>ExternalReference</c> Property.
+        /// </summary>
         public const uint FederationExternalReferenceProperty = 64002;
 
-        /// <summary>Provisional NodeId of the proxy's <c>ResourceUrl</c> Property.</summary>
+        /// <summary>
+        /// Provisional NodeId of the proxy's <c>ResourceUrl</c> Property.
+        /// </summary>
         public const uint FederationResourceUrlProperty = 64003;
 
-        /// <summary>Provisional NodeId of the proxy's content-id (<c>SchemaId</c>) Property.</summary>
+        /// <summary>
+        /// Provisional NodeId of the proxy's content-id (<c>SchemaId</c>) Property.
+        /// </summary>
         public const uint FederationContentIdProperty = 64004;
     }
 }

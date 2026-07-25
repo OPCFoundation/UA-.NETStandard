@@ -27,9 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using Opc.Ua.Server;
 
@@ -46,22 +44,6 @@ namespace Opc.Ua.XRegistry.Server
     /// </summary>
     public class XRegistryRegistrationNodeManager : CustomNodeManager2
     {
-        private readonly Lock m_gate = new();
-        private readonly Dictionary<uint, List<byte>> m_buffers = [];
-        private readonly Dictionary<uint, string> m_versions = [];
-        private readonly string m_namespaceUri;
-        private readonly IResourceContentIdProvider? m_contentIdProvider;
-        private uint m_nextHandle;
-        private int m_registeredResourceCount;
-
-        // Bounds so a remote caller cannot exhaust memory or the address space
-        // via the registration Methods: the number of concurrently open upload
-        // handles, the cumulative bytes buffered per handle, and the number of
-        // permanently registered resource nodes. Configured via the options.
-        private readonly int m_maxConcurrentUploads;
-        private readonly int m_maxResourceBytes;
-        private readonly int m_maxRegisteredResources;
-
         /// <summary>
         /// Initializes the registration node manager for the registry namespace.
         /// </summary>
@@ -77,6 +59,10 @@ namespace Opc.Ua.XRegistry.Server
             XRegistryServerOptions opts = options ?? new XRegistryServerOptions();
             m_namespaceUri = opts.RegistryNamespaceUri;
             m_contentIdProvider = opts.ContentIdProvider;
+            // Bounds so a remote caller cannot exhaust memory or the address space
+            // via the registration Methods: the number of concurrently open upload
+            // handles, the cumulative bytes buffered per handle, and the number of
+            // permanently registered resource nodes. Configured via the options.
             m_maxConcurrentUploads = opts.MaxConcurrentUploads;
             m_maxResourceBytes = opts.MaxResourceBytes;
             m_maxRegisteredResources = opts.MaxRegisteredResources;
@@ -110,28 +96,10 @@ namespace Opc.Ua.XRegistry.Server
             AddPredefinedNode(SystemContext, group);
         }
 
-        private static void AddMethod(
-            BaseObjectState parent,
-            uint id,
-            ushort ns,
-            string name,
-            GenericMethodCalledEventHandler2 handler)
-        {
-            var method = new MethodState(parent)
-            {
-                NodeId = new NodeId(id, ns),
-                BrowseName = new QualifiedName(name, ns),
-                DisplayName = new LocalizedText(name),
-                ReferenceTypeId = ReferenceTypeIds.HasComponent,
-                Executable = true,
-                UserExecutable = true,
-                OnCallMethod2 = handler
-            };
-
-            parent.AddChild(method);
-        }
-
-        // CreateResource(ResourceId: String, VersionId: String) -> (FileHandle: UInt32, VersionId: String)
+        /// <summary>
+        /// Handles <c>CreateResource(ResourceId: String, VersionId: String)</c> and returns
+        /// <c>(FileHandle: UInt32, VersionId: String)</c>.
+        /// </summary>
         internal ServiceResult OnCreateResource(
             ISystemContext context,
             MethodState method,
@@ -163,7 +131,10 @@ namespace Opc.Ua.XRegistry.Server
             return ServiceResult.Good;
         }
 
-        // Write(FileHandle: UInt32, Data: ByteString) -> ()
+        /// <summary>
+        /// Handles <c>Write(FileHandle: UInt32, Data: ByteString)</c>, appending the chunk to the
+        /// buffer held by the upload handle.
+        /// </summary>
         internal ServiceResult OnWrite(
             ISystemContext context,
             MethodState method,
@@ -196,7 +167,10 @@ namespace Opc.Ua.XRegistry.Server
             return ServiceResult.Good;
         }
 
-        // Close(FileHandle: UInt32, Format: String) -> (ContentId: ByteString, Algorithm: String)
+        /// <summary>
+        /// Handles <c>Close(FileHandle: UInt32, Format: String)</c> and returns
+        /// <c>(ContentId: ByteString, Algorithm: String)</c>.
+        /// </summary>
         internal ServiceResult OnClose(
             ISystemContext context,
             MethodState method,
@@ -226,7 +200,7 @@ namespace Opc.Ua.XRegistry.Server
                 {
                     return StatusCodes.BadNotFound;
                 }
-                document = buffer.ToArray();
+                document = [.. buffer];
                 m_buffers.Remove(handle);
                 m_versions.Remove(handle);
             }
@@ -270,7 +244,10 @@ namespace Opc.Ua.XRegistry.Server
             return ServiceResult.Good;
         }
 
-        // Delete(ContentId: ByteString) -> ()  (epoch-match args optional per spec §5.2)
+        /// <summary>
+        /// Handles <c>Delete(ContentId: ByteString)</c>. The epoch-match arguments are optional per
+        /// the specification (§5.2) and are not required by the base lifecycle.
+        /// </summary>
         internal ServiceResult OnDelete(
             ISystemContext context,
             MethodState method,
@@ -292,5 +269,37 @@ namespace Opc.Ua.XRegistry.Server
             }
             return removed ? ServiceResult.Good : StatusCodes.BadNotFound;
         }
+
+        private static void AddMethod(
+            BaseObjectState parent,
+            uint id,
+            ushort ns,
+            string name,
+            GenericMethodCalledEventHandler2 handler)
+        {
+            var method = new MethodState(parent)
+            {
+                NodeId = new NodeId(id, ns),
+                BrowseName = new QualifiedName(name, ns),
+                DisplayName = new LocalizedText(name),
+                ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                Executable = true,
+                UserExecutable = true,
+                OnCallMethod2 = handler
+            };
+
+            parent.AddChild(method);
+        }
+
+        private readonly Lock m_gate = new();
+        private readonly Dictionary<uint, List<byte>> m_buffers = [];
+        private readonly Dictionary<uint, string> m_versions = [];
+        private readonly string m_namespaceUri;
+        private readonly IResourceContentIdProvider? m_contentIdProvider;
+        private readonly int m_maxConcurrentUploads;
+        private readonly int m_maxResourceBytes;
+        private readonly int m_maxRegisteredResources;
+        private uint m_nextHandle;
+        private int m_registeredResourceCount;
     }
 }

@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Diagnostics.CodeAnalysis;
-
 namespace Opc.Ua.XRegistry.Server
 {
     /// <summary>
@@ -51,37 +49,59 @@ namespace Opc.Ua.XRegistry.Server
         /// </summary>
         public IResourceContentIdProvider? ContentIdProvider { get; set; }
 
-        /// <summary>When <c>true</c>, the fast-path manager pre-publishes <see cref="SeedDocument"/>.</summary>
+        /// <summary>
+        /// When <c>true</c>, the fast-path manager pre-publishes <see cref="SeedDocument"/>.
+        /// </summary>
         public bool PublishSeedResource { get; set; }
 
-        /// <summary>The seed resource document published by the fast-path manager.</summary>
+        /// <summary>
+        /// The seed resource document published by the fast-path manager.
+        /// </summary>
         public byte[]? SeedDocument { get; set; }
 
-        /// <summary>The format of <see cref="SeedDocument"/>.</summary>
+        /// <summary>
+        /// The format of <see cref="SeedDocument"/>.
+        /// </summary>
         public string SeedFormat { get; set; } = "avro";
 
-        /// <summary>The BrowseName of the seeded fast-path resource node.</summary>
+        /// <summary>
+        /// The BrowseName of the seeded fast-path resource node.
+        /// </summary>
         public string SeedBrowseName { get; set; } = "FastPathResource";
 
-        /// <summary>When <c>true</c>, the federation manager publishes a federated resource proxy.</summary>
+        /// <summary>
+        /// When <c>true</c>, the federation manager publishes a federated resource proxy.
+        /// </summary>
         public bool PublishFederationProxy { get; set; }
 
-        /// <summary>The document hosted by the remote registry (federated locally as a proxy).</summary>
+        /// <summary>
+        /// The document hosted by the remote registry (federated locally as a proxy).
+        /// </summary>
         public byte[]? FederatedDocument { get; set; }
 
-        /// <summary>The format of <see cref="FederatedDocument"/>.</summary>
+        /// <summary>
+        /// The format of <see cref="FederatedDocument"/>.
+        /// </summary>
         public string FederatedFormat { get; set; } = "avro";
 
-        /// <summary>The remote registry's companion namespace URI carried by the proxy.</summary>
+        /// <summary>
+        /// The remote registry's companion namespace URI carried by the proxy.
+        /// </summary>
         public string RemoteRegistryNamespaceUri { get; set; } = XRegistryWellKnown.XRegistryNamespaceUri;
 
-        /// <summary>The remote registry endpoint carried by the proxy's <c>ResourceUrl</c>.</summary>
+        /// <summary>
+        /// The remote registry endpoint carried by the proxy's <c>ResourceUrl</c>.
+        /// </summary>
         public string RemoteEndpointUrl { get; set; } = string.Empty;
 
-        /// <summary>The remote server's index into the local <c>ServerArray</c>.</summary>
+        /// <summary>
+        /// The remote server's index into the local <c>ServerArray</c>.
+        /// </summary>
         public uint RemoteServerIndex { get; set; }
 
-        /// <summary>The BrowseName of the federated resource proxy object.</summary>
+        /// <summary>
+        /// The BrowseName of the federated resource proxy object.
+        /// </summary>
         public string FederationProxyBrowseName { get; set; } = "FederatedResourceProxy";
 
         /// <summary>

@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using Opc.Ua.Server;
 
 namespace Opc.Ua.XRegistry.Server
@@ -44,13 +43,6 @@ namespace Opc.Ua.XRegistry.Server
     /// </summary>
     public class XRegistryFastPathNodeManager : CustomNodeManager2
     {
-        private readonly string m_namespaceUri;
-        private readonly IResourceContentIdProvider? m_contentIdProvider;
-        private readonly bool m_publishSeed;
-        private readonly byte[]? m_seedDocument;
-        private readonly string m_seedFormat;
-        private readonly string m_seedBrowseName;
-
         /// <summary>
         /// Initializes the fast-path node manager for the registry namespace.
         /// </summary>
@@ -78,6 +70,10 @@ namespace Opc.Ua.XRegistry.Server
         /// on the wire can reach the resource document in one Read.
         /// </summary>
         /// <param name="externalReferences">External reference sink (unused).</param>
+        /// <exception cref="InvalidOperationException">
+        /// A seed resource is published but no <see cref="XRegistryServerOptions.ContentIdProvider"/>
+        /// is configured.
+        /// </exception>
         public override void CreateAddressSpace(
             IDictionary<NodeId, IList<IReference>> externalReferences)
         {
@@ -115,5 +111,12 @@ namespace Opc.Ua.XRegistry.Server
 
             AddPredefinedNode(SystemContext, resource);
         }
+
+        private readonly string m_namespaceUri;
+        private readonly IResourceContentIdProvider? m_contentIdProvider;
+        private readonly bool m_publishSeed;
+        private readonly byte[]? m_seedDocument;
+        private readonly string m_seedFormat;
+        private readonly string m_seedBrowseName;
     }
 }

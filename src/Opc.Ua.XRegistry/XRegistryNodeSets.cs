@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Diagnostics.CodeAnalysis;
 using System.IO;
 
 namespace Opc.Ua.XRegistry
@@ -54,16 +53,10 @@ namespace Opc.Ua.XRegistry
         /// <exception cref="InvalidOperationException">The embedded NodeSet was not found.</exception>
         public static Stream OpenBaseNodeSet()
         {
-            Stream? stream = typeof(XRegistryNodeSets).Assembly
-                .GetManifestResourceStream(BaseNodeSetResourceName);
-
-            if (stream is null)
-            {
-                throw new InvalidOperationException(
+            return typeof(XRegistryNodeSets).Assembly
+                .GetManifestResourceStream(BaseNodeSetResourceName)
+                ?? throw new InvalidOperationException(
                     $"Embedded xRegistry base NodeSet '{BaseNodeSetResourceName}' was not found.");
-            }
-
-            return stream;
         }
     }
 }

@@ -157,7 +157,7 @@ namespace Opc.Ua.XRegistry.Server.Tests
                 nm.SystemContext,
                 null!,
                 NodeId.Null,
-                new Variant[] { new Variant(string.Empty), new Variant(string.Empty) },
+                new Variant[] { new(string.Empty), new(string.Empty) },
                 outputs);
             handle = 0;
             if (outputs.Count > 0)
@@ -181,7 +181,7 @@ namespace Opc.Ua.XRegistry.Server.Tests
                 nm.SystemContext,
                 null!,
                 NodeId.Null,
-                new Variant[] { new Variant(handle), new Variant(ByteString.From(data)) },
+                new Variant[] { new(handle), new(ByteString.From(data)) },
                 outputs);
             return result.StatusCode;
         }
@@ -198,7 +198,7 @@ namespace Opc.Ua.XRegistry.Server.Tests
                 nm.SystemContext,
                 null!,
                 NodeId.Null,
-                new Variant[] { new Variant(handle), new Variant("avro") },
+                new Variant[] { new(handle), new("avro") },
                 outputs);
             contentId = default;
             if (outputs.Count > 0)
@@ -215,7 +215,7 @@ namespace Opc.Ua.XRegistry.Server.Tests
                 nm.SystemContext,
                 null!,
                 NodeId.Null,
-                new Variant[] { new Variant(contentId) },
+                new Variant[] { new(contentId) },
                 outputs);
             return result.StatusCode;
         }
