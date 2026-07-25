@@ -1020,6 +1020,133 @@ namespace Opc.Ua.Server.Tests
             Assert.That(references[0].NodeId, Is.EqualTo(new ExpandedNodeId(child.NodeId)));
         }
 
+        /// <summary>
+        /// Regression for issue #4061: when a node that has been cached (e.g.
+        /// because it was subscribed/registered) is deleted at runtime, it must
+        /// no longer be resolvable through the component cache, otherwise a
+        /// later Browse/Read/Call can be served the stale, removed node.
+        /// </summary>
+        [Test]
+        public async Task DeleteNodeAsync_EvictsDeletedNodeFromComponentCacheAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(manager is TestableAsyncCustomNodeManager, "Requires AsyncCustomNodeManager features");
+
+            ServerSystemContext context = manager.SystemContext;
+            ushort ns = manager.NamespaceIndexes[0];
+
+            var node = new BaseObjectState(null);
+            node.CreateAsPredefinedNode(context);
+            node.NodeId = new NodeId("CachedDeleteNode", ns);
+            node.BrowseName = new QualifiedName("CachedDeleteNode", ns);
+            await manager.AddNodeAsync(context, default, node).ConfigureAwait(false);
+
+            // simulate a subscription/registration that caches the node.
+            manager.AddNodeToComponentCachePublic(context, new NodeHandle(node.NodeId, node), node);
+            Assume.That(
+                manager.LookupNodeInComponentCachePublic(context, new NodeHandle { NodeId = node.NodeId }),
+                Is.Not.Null);
+
+            await manager.DeleteNodeAsync(context, node.NodeId).ConfigureAwait(false);
+
+            Assert.That(manager.Find(node.NodeId), Is.Null);
+            Assert.That(
+                manager.LookupNodeInComponentCachePublic(context, new NodeHandle { NodeId = node.NodeId }),
+                Is.Null,
+                "deleted node must not remain resolvable through the component cache");
+        }
+
+        /// <summary>
+        /// Regression for issue #4061: re-registering a node id with a new
+        /// instance at runtime must refresh any cached component view so a
+        /// later resolution returns the current instance rather than the stale
+        /// one captured when the node was first cached.
+        /// </summary>
+        [Test]
+        public async Task AddPredefinedNodeAsync_RefreshesReplacedInstanceInComponentCacheAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(manager is TestableAsyncCustomNodeManager, "Requires AsyncCustomNodeManager features");
+
+            ServerSystemContext context = manager.SystemContext;
+            ushort ns = manager.NamespaceIndexes[0];
+
+            var original = new BaseObjectState(null);
+            original.CreateAsPredefinedNode(context);
+            original.NodeId = new NodeId("SwapNode", ns);
+            original.BrowseName = new QualifiedName("SwapNode", ns);
+            await manager.AddNodeAsync(context, default, original).ConfigureAwait(false);
+
+            manager.AddNodeToComponentCachePublic(context, new NodeHandle(original.NodeId, original), original);
+
+            var replacement = new BaseObjectState(null);
+            replacement.CreateAsPredefinedNode(context);
+            replacement.NodeId = new NodeId("SwapNode", ns);
+            replacement.BrowseName = new QualifiedName("SwapNode", ns);
+            await manager.AddPredefinedNodeAsync(context, replacement).ConfigureAwait(false);
+
+            NodeState cached = manager.LookupNodeInComponentCachePublic(
+                context, new NodeHandle { NodeId = original.NodeId });
+            Assert.That(
+                cached,
+                Is.SameAs(replacement),
+                "component cache must resolve the current instance after re-registration");
+        }
+
+        /// <summary>
+        /// Regression for issue #4061: a Browse of a parent that was already
+        /// browsed/subscribed (and therefore cached) must reflect a child added
+        /// to it at runtime via CreateNodeAsync.
+        /// </summary>
+        [Test]
+        public async Task BrowseAsync_AfterRuntimeAddWithCachedParent_IncludesNewChildAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(manager is TestableAsyncCustomNodeManager, "Requires AsyncCustomNodeManager features");
+
+            ServerSystemContext context = manager.SystemContext;
+            ushort ns = manager.NamespaceIndexes[0];
+
+            var parent = new BaseObjectState(null);
+            parent.CreateAsPredefinedNode(context);
+            parent.NodeId = new NodeId("BrowseCachedParent", ns);
+            parent.BrowseName = new QualifiedName("BrowseCachedParent", ns);
+            await manager.AddNodeAsync(context, default, parent).ConfigureAwait(false);
+
+            // parent is subscribed/browsed -> cached.
+            manager.AddNodeToComponentCachePublic(context, new NodeHandle(parent.NodeId, parent), parent);
+
+            var child = new BaseObjectState(null);
+            NodeId childId = await manager.CreateNodeAsync(
+                context,
+                parent.NodeId,
+                ReferenceTypeIds.Organizes,
+                new QualifiedName("RuntimeChild", ns),
+                child).ConfigureAwait(false);
+
+            object handle = await manager.GetManagerHandleAsync(parent.NodeId).ConfigureAwait(false);
+            var continuationPoint = new ContinuationPoint
+            {
+                NodeToBrowse = handle,
+                Manager = manager,
+                View = new ViewDescription(),
+                BrowseDirection = BrowseDirection.Forward,
+                IncludeSubtypes = true,
+                ResultMask = BrowseResultMask.All
+            };
+
+            var references = new List<ReferenceDescription>();
+            await manager.BrowseAsync(
+                new OperationContext(new RequestHeader(), null, RequestType.Browse, RequestLifetime.None),
+                continuationPoint,
+                references).ConfigureAwait(false);
+
+            Assert.That(
+                references,
+                Has.Some.Property(nameof(ReferenceDescription.NodeId)).EqualTo(new ExpandedNodeId(childId)),
+                "runtime-added child must be visible when browsing an already-cached parent");
+        }
+
         [Test]
         public async Task WriteAsync_WritesValueToNodeAsync()
         {

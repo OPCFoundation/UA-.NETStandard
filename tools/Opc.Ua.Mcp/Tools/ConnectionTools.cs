@@ -50,7 +50,9 @@ namespace Opc.Ua.Mcp.Tools
         [McpServerTool(Name = "GetEndpoints")]
         [Description("Discover available endpoints of an OPC UA server, including security modes, " +
             "policies, and supported authentication methods. Does not require an active session. " +
-            "Call this before Connect to see what's available.")]
+            "Call this before Connect to see what's available. Returns JSON with an endpoints array " +
+            "(url, security mode/policy, supported user identity token types); on failure returns " +
+            "{error:true, statusCode, message}.")]
         public static async Task<string> GetEndpointsAsync(
             OpcUaSessionManager sessionManager,
             [Description("Server discovery URL, e.g. 'opc.tcp://localhost:62541/Quickstarts/ReferenceServer'")] string endpointUrl,
@@ -112,7 +114,9 @@ namespace Opc.Ua.Mcp.Tools
         [Description("Connect to an OPC UA server. For simplest usage, provide just the endpointUrl " +
             "and it will auto-select the most secure endpoint with anonymous authentication. " +
             "Use GetEndpoints first to discover available security configurations and auth methods, " +
-            "then specify securityMode/securityPolicy to select a specific endpoint.")]
+            "then specify securityMode/securityPolicy to select a specific endpoint. Returns a human-readable " +
+            "confirmation string with the resolved session name, security mode/policy, and session ID; on " +
+            "failure returns JSON {error:true, statusCode, message}.")]
         public static async Task<string> ConnectAsync(
             OpcUaSessionManager sessionManager,
             [Description("The OPC UA server endpoint URL")] string endpointUrl,
@@ -160,7 +164,8 @@ namespace Opc.Ua.Mcp.Tools
         /// Disconnect from the current OPC UA server.
         /// </summary>
         [McpServerTool(Name = "Disconnect")]
-        [Description("Disconnect from the current OPC UA server session.")]
+        [Description("Disconnect from the current OPC UA server session. Returns a human-readable confirmation " +
+            "string naming the session that was disconnected.")]
         public static Task<string> DisconnectAsync(
             OpcUaSessionManager sessionManager,
             [Description("Session name to disconnect (defaults to the only active session)")] string? name = null,
@@ -173,7 +178,9 @@ namespace Opc.Ua.Mcp.Tools
         /// Get the current connection status.
         /// </summary>
         [McpServerTool(Name = "GetConnectionStatus")]
-        [Description("Check if connected to an OPC UA server and return session information.")]
+        [Description("Get the connection status of one or all sessions: whether each is currently connected, and " +
+            "if so its endpoint URL, session name, session ID, and server URI. Does not open or change any " +
+            "connection. Returns a human-readable status string (one line per session, or 'Not connected.').")]
         public static string GetConnectionStatus(
             OpcUaSessionManager sessionManager,
             [Description("Session name to check (defaults to all sessions)")] string? name = null)

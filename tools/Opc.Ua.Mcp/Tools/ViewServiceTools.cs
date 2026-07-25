@@ -122,7 +122,10 @@ namespace Opc.Ua.Mcp.Tools
         /// Continue a browse operation using a continuation point.
         /// </summary>
         [McpServerTool(Name = "BrowseNext")]
-        [Description("Continue a previously started browse operation using the continuation point returned from Browse.")]
+        [Description("Continue a previously started browse operation using the continuation point returned from " +
+            "Browse (when more references remain than fit in one response). Returns JSON with responseHeader, " +
+            "statusCode, continuationPoint (non-null if more results remain), and references; on failure returns " +
+            "{error:true, statusCode, message}.")]
         public static async Task<string> BrowseNextAsync(
             OpcUaSessionManager sessionManager,
             [Description("The continuation point from a previous Browse or BrowseNext call (base64 string)")] string continuationPoint,
@@ -174,7 +177,9 @@ namespace Opc.Ua.Mcp.Tools
         /// Translate browse paths to node IDs.
         /// </summary>
         [McpServerTool(Name = "TranslateBrowsePaths")]
-        [Description("Translate browse paths (starting from a node) to NodeIds. Useful for finding nodes by path rather than NodeId.")]
+        [Description("Translate browse paths (starting from a node) to NodeIds. Useful for finding nodes by path " +
+            "rather than NodeId. Returns JSON with responseHeader, statusCode, and targets (array of targetId and " +
+            "remainingPathIndex); on failure returns {error:true, statusCode, message}.")]
         public static async Task<string> TranslateBrowsePathsAsync(
             OpcUaSessionManager sessionManager,
             [Description("Starting node ID, e.g. 'i=85' (Objects folder)")] string startingNodeId,
@@ -242,7 +247,7 @@ namespace Opc.Ua.Mcp.Tools
         [Description("Register nodes with the server for optimized repeated access. Returns registered node IDs that may be more efficient to use.")]
         public static async Task<string> RegisterNodesAsync(
             OpcUaSessionManager sessionManager,
-            [Description("Array of node IDs to register")] string[] nodeIds,
+            [Description("Array of node IDs to register, e.g. ['ns=2;s=MyVariable']")] string[] nodeIds,
             [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
@@ -279,10 +284,11 @@ namespace Opc.Ua.Mcp.Tools
         /// Unregister previously registered nodes.
         /// </summary>
         [McpServerTool(Name = "UnregisterNodes")]
-        [Description("Unregister nodes that were previously registered with RegisterNodes.")]
+        [Description("Unregister nodes that were previously registered with RegisterNodes, releasing the server-side " +
+            "optimization. Returns JSON with responseHeader only; on failure returns {error:true, statusCode, message}.")]
         public static async Task<string> UnregisterNodesAsync(
             OpcUaSessionManager sessionManager,
-            [Description("Array of registered node IDs to unregister")] string[] nodeIds,
+            [Description("Array of registered node IDs to unregister, e.g. ['ns=2;s=MyVariable']")] string[] nodeIds,
             [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
@@ -380,7 +386,9 @@ namespace Opc.Ua.Mcp.Tools
         /// Continue a query operation.
         /// </summary>
         [McpServerTool(Name = "QueryNext")]
-        [Description("Continue a previously started query using the continuation point from QueryFirst.")]
+        [Description("Continue a previously started query using the continuation point from QueryFirst. Returns " +
+            "JSON with responseHeader, queryDataSets, and revisedContinuationPoint (non-null if more results " +
+            "remain); on failure returns {error:true, statusCode, message}.")]
         public static async Task<string> QueryNextAsync(
             OpcUaSessionManager sessionManager,
             [Description("Continuation point from a previous QueryFirst or QueryNext call (base64 string)")] string continuationPoint,

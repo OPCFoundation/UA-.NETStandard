@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+
 namespace Opc.Ua.Configuration
 {
     /// <summary>
@@ -78,6 +80,17 @@ namespace Opc.Ua.Configuration
         /// </summary>
         public ushort? MinimumCertificateKeySize { get; set; }
 
+        /// <summary>
+        /// Configures advanced application security options after the default
+        /// certificates, stores, and first-class validation settings are applied.
+        /// </summary>
+        /// <remarks>
+        /// This code-only callback is the final security customization before
+        /// <c>CreateAsync</c>. It may override the first-class security
+        /// properties on this options instance.
+        /// </remarks>
+        public Action<IApplicationConfigurationBuilderSecurityOptions>? ConfigureSecurity { get; set; }
+
         internal OpcUaApplicationOptions Clone()
         {
             return new OpcUaApplicationOptions
@@ -89,7 +102,8 @@ namespace Opc.Ua.Configuration
                 PkiRoot = PkiRoot,
                 AutoAcceptUntrustedCertificates = AutoAcceptUntrustedCertificates,
                 RejectSHA1SignedCertificates = RejectSHA1SignedCertificates,
-                MinimumCertificateKeySize = MinimumCertificateKeySize
+                MinimumCertificateKeySize = MinimumCertificateKeySize,
+                ConfigureSecurity = ConfigureSecurity
             };
         }
     }

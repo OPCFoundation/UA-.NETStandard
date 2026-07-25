@@ -120,11 +120,13 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Client-side reverse-connect configuration. When non-null the
         /// DI container registers a singleton
-        /// <see cref="ReverseConnectManager"/> that binds the configured
-        /// listener endpoints on first resolution and surfaces inbound
-        /// reverse-hello messages via
-        /// <see cref="ReverseConnectManager.WaitForConnectionAsync"/>.
-        /// The values are also written into
+        /// <see cref="ReverseConnectManager"/> together with an internal
+        /// hosted service that opens the configured listener endpoints
+        /// asynchronously on host start (eager), while
+        /// <see cref="ReverseConnectManager.WaitForConnectionAsync"/>
+        /// starts it lazily on first use when no host is present. A missing
+        /// <see cref="Configuration"/> is surfaced during the async start
+        /// rather than at resolution. The values are also written into
         /// <see cref="ClientConfiguration.ReverseConnect"/> on
         /// <see cref="Configuration"/> so the same data is observable
         /// through the application-configuration surface.

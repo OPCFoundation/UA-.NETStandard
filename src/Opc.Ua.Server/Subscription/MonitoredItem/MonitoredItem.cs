@@ -413,21 +413,18 @@ namespace Opc.Ua.Server
                 // check if not ready to publish in case it doesn't ResendData
                 if (!m_readyToPublish)
                 {
-                    //ServerUtils.EventLog.MonitoredItemReady(Id, "FALSE");
                     return false;
                 }
 
                 // check if it has been triggered.
                 if (MonitoringMode != MonitoringMode.Disabled && m_triggered)
                 {
-                    //ServerUtils.EventLog.MonitoredItemReady(Id, "TRIGGERED");
                     return true;
                 }
 
                 // check if monitoring was turned off.
                 if (MonitoringMode != MonitoringMode.Reporting)
                 {
-                    //ServerUtils.EventLog.MonitoredItemReady(Id, "FALSE");
                     return false;
                 }
 
@@ -438,13 +435,9 @@ namespace Opc.Ua.Server
 
                     if (m_nextSamplingTime > now)
                     {
-                        //ServerUtils.EventLog.MonitoredItemReady(
-                        //    Id,
-                        //    Utils.Format("FALSE {0}ms", m_nextSamplingTime - now));
                         return false;
                     }
                 }
-                //ServerUtils.EventLog.MonitoredItemReady(Id, "NORMAL");
                 return true;
             }
         }
@@ -2102,6 +2095,15 @@ namespace Opc.Ua.Server
             Message = "MONITORED ITEM: Publish(QueueSize={QueueSize})")]
         public static partial void MONITOREDITEMPublishQueueSizeQueueSize(this ILogger logger, int queueSize);
 
+        [LoggerMessage(
+            EventId = ServerCompatibilityEventIds.MonitoredItemReady,
+            EventName = "MonitoredItemReady",
+            Level = LogLevel.Trace,
+            Message = "IsReadyToPublish[{Id}] {State}")]
+        public static partial void CompatibilityMonitoredItemReady(
+            this ILogger logger,
+            uint id,
+            string state);
 
         [LoggerMessage(EventId = ServerEventIds.MonitoredItem + 7, Level = LogLevel.Error,
             Message = "Failed to restore queue for monitored item with id {MonitoredItemId}")]

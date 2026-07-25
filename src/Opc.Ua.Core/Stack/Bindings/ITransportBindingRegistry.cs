@@ -77,6 +77,32 @@ namespace Opc.Ua.Bindings
         void RegisterChannelFactory(ITransportChannelFactory factory);
 
         /// <summary>
+        /// Removes the listener factory registered for the supplied
+        /// <paramref name="uriScheme"/>, if any. Lets an advanced consumer
+        /// unregister a seeded default transport (e.g. the mandatory
+        /// raw-socket <c>opc.tcp</c> listener) from an
+        /// <see cref="ITransportBindingConfigurator"/> without any dedicated
+        /// fluent extension.
+        /// </summary>
+        /// <param name="uriScheme">The URI scheme of the transport.</param>
+        /// <returns><c>true</c> when a listener factory was removed;
+        /// <c>false</c> when none was registered.</returns>
+        bool RemoveListenerFactory(string uriScheme);
+
+        /// <summary>
+        /// Removes the channel factory registered for the supplied
+        /// <paramref name="uriScheme"/>, if any. Lets an advanced consumer
+        /// unregister a seeded default transport (e.g. the mandatory
+        /// raw-socket <c>opc.tcp</c> channel) from an
+        /// <see cref="ITransportBindingConfigurator"/> without any dedicated
+        /// fluent extension.
+        /// </summary>
+        /// <param name="uriScheme">The URI scheme of the transport.</param>
+        /// <returns><c>true</c> when a channel factory was removed;
+        /// <c>false</c> when none was registered.</returns>
+        bool RemoveChannelFactory(string uriScheme);
+
+        /// <summary>
         /// Returns the listener factory registered for the supplied
         /// <paramref name="uriScheme"/>, or <c>null</c> if no factory is
         /// installed.

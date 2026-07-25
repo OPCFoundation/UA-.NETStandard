@@ -49,8 +49,8 @@ namespace Opc.Ua.Client
         /// per-kind cardinality (one series per "Session", "Client",
         /// …) instead of accumulating one permanent series per session
         /// instance. The full per-instance identifier is preserved on
-        /// distributed-trace Activity tags and EventSource events so
-        /// individual sessions remain correlatable in traces.
+        /// distributed-trace Activity tags and structured channel-manager
+        /// logs so individual sessions remain correlatable.
         /// </remarks>
         public string ParticipantId { get; } = "Session-" + Guid.NewGuid().ToString("N");
 

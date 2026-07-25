@@ -60,6 +60,8 @@ namespace Opc.Ua.Client
                 ?? throw new ArgumentNullException(nameof(context));
             m_logger = context.Telemetry
                 .CreateLogger<ClassicSubscriptionEngine>();
+            m_eventLogger = context.Telemetry
+                .CreateLogger(ClientEventIds.LegacyCategoryName);
             m_minPublishRequestCount = kDefaultPublishRequestCount;
             m_maxPublishRequestCount = kMaxPublishRequestCountMax;
             m_timeProvider = timeProvider ?? TimeProvider.System;
@@ -267,9 +269,7 @@ namespace Opc.Ua.Client
                     Utils.IncrementIdentifier(ref PublishCounter)
             };
 
-            m_logger.PUBLISHRequestHandleSENT(requestHeader.RequestHandle);
-            CoreClientUtils.EventLog.PublishStart(
-                (int)requestHeader.RequestHandle);
+            m_eventLogger.ClientEventPublishStart((int)requestHeader.RequestHandle);
 
             try
             {
@@ -318,9 +318,7 @@ namespace Opc.Ua.Client
                 requestHeader.RequestHandle,
                 DataTypes.PublishRequest);
 
-            m_logger.PUBLISHRequestHandleRECEIVED(requestHeader.RequestHandle);
-            CoreClientUtils.EventLog.PublishStop(
-                (int)requestHeader.RequestHandle);
+            m_eventLogger.ClientEventPublishStop((int)requestHeader.RequestHandle);
 
             // Bail out early if the session has been disposed.
             if (m_context.Disposed)
@@ -400,10 +398,7 @@ namespace Opc.Ua.Client
                     return;
                 }
 
-                m_logger.NOTIFICATIONRECEIVEDSubIdSubscriptionIdSeqNoSequenceNumber(
-                    subscriptionId,
-                    notificationMessage.SequenceNumber);
-                CoreClientUtils.EventLog.NotificationReceived(
+                m_eventLogger.ClientEventNotificationReceived(
                     (int)subscriptionId,
                     (int)notificationMessage.SequenceNumber);
 
@@ -1013,6 +1008,7 @@ namespace Opc.Ua.Client
         private const int kPublishRequestSequenceNumberOutdatedThreshold = 100;
         private readonly ISubscriptionEngineContext m_context;
         private readonly ILogger m_logger;
+        private readonly ILogger m_eventLogger;
         private readonly TimeProvider m_timeProvider;
         private readonly object m_acknowledgementsToSendLock = new();
         private List<SubscriptionAcknowledgement> m_acknowledgementsToSend = [];
@@ -1044,17 +1040,23 @@ namespace Opc.Ua.Client
             Message = "Publish skipped due to session lost connection. Last successful keepalive: {LastKeepAlive}")]
         public static partial void PublishSkippedSessionLostConnectionLast(this ILogger logger, DateTime lastKeepAlive);
 
-        [LoggerMessage(EventId = ClientEventIds.ClassicSubscriptionEngine + 4, Level = LogLevel.Trace,
+        [LoggerMessage(
+            EventId = ClientEventIds.LegacyPublishStartId,
+            EventName = "PublishStart",
+            Level = LogLevel.Trace,
             Message = "PUBLISH #{RequestHandle} SENT")]
-        public static partial void PUBLISHRequestHandleSENT(this ILogger logger, uint requestHandle);
+        public static partial void ClientEventPublishStart(this ILogger logger, int requestHandle);
 
         [LoggerMessage(EventId = ClientEventIds.ClassicSubscriptionEngine + 5, Level = LogLevel.Error,
             Message = "Unexpected error sending publish request.")]
         public static partial void UnexpectedErrorSendingPublishRequest(this ILogger logger, Exception? exception);
 
-        [LoggerMessage(EventId = ClientEventIds.ClassicSubscriptionEngine + 6, Level = LogLevel.Trace,
+        [LoggerMessage(
+            EventId = ClientEventIds.LegacyPublishStopId,
+            EventName = "PublishStop",
+            Level = LogLevel.Trace,
             Message = "PUBLISH #{RequestHandle} RECEIVED")]
-        public static partial void PUBLISHRequestHandleRECEIVED(this ILogger logger, uint requestHandle);
+        public static partial void ClientEventPublishStop(this ILogger logger, int requestHandle);
 
         [LoggerMessage(EventId = ClientEventIds.ClassicSubscriptionEngine + 7, Level = LogLevel.Warning,
             Message = "Publish response discarded because session id changed: Old {PreviousSessionId} != New" +
@@ -1064,12 +1066,15 @@ namespace Opc.Ua.Client
             NodeId? previousSessionId,
             NodeId? sessionId);
 
-        [LoggerMessage(EventId = ClientEventIds.ClassicSubscriptionEngine + 8, Level = LogLevel.Trace,
+        [LoggerMessage(
+            EventId = ClientEventIds.LegacyNotificationReceivedId,
+            EventName = "NotificationReceived",
+            Level = LogLevel.Trace,
             Message = "NOTIFICATION RECEIVED: SubId={SubscriptionId}, SeqNo={SequenceNumber}")]
-        public static partial void NOTIFICATIONRECEIVEDSubIdSubscriptionIdSeqNoSequenceNumber(
+        public static partial void ClientEventNotificationReceived(
             this ILogger logger,
-            uint subscriptionId,
-            uint sequenceNumber);
+            int subscriptionId,
+            int sequenceNumber);
 
         [LoggerMessage(EventId = ClientEventIds.ClassicSubscriptionEngine + 9, Level = LogLevel.Warning,
             Message = "No new publish sent because of reconnect in progress.")]

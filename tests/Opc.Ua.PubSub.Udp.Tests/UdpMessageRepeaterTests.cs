@@ -80,25 +80,33 @@ namespace Opc.Ua.PubSub.Udp.Tests
         }
 
         [Test]
+        [CancelAfter(kTestTimeoutMilliseconds)]
         public async Task ThreeRepeats_SendsFourTimes_FakeTimerAdvanced()
         {
-            var fake = new FakeTimeProvider();
-            var repeater = new UdpMessageRepeater(3, TimeSpan.FromMilliseconds(100), fake);
+            TimeSpan repeatDelay = TimeSpan.FromMilliseconds(100);
+            using var fake = new TrackingFakeTimeProvider(repeatDelay);
+            var repeater = new UdpMessageRepeater(3, repeatDelay, fake);
             int count = 0;
 
-            ValueTask sendTask = repeater.SendWithRepeatsAsync(_ =>
+            Task sendTask = repeater.SendWithRepeatsAsync(_ =>
             {
-                count++;
+                Interlocked.Increment(ref count);
                 return default;
-            });
+            }).AsTask();
 
-            for (int i = 0; i < 3 && !sendTask.IsCompleted; i++)
+            for (int i = 0; i < 3; i++)
             {
-                fake.Advance(TimeSpan.FromMilliseconds(100));
-                await Task.Yield();
+                await WaitForCompletionAsync(
+                    fake.WaitForTimerCreatedAsync(),
+                    $"Timed out waiting for repeat timer {i + 1}.")
+                    .ConfigureAwait(false);
+                fake.Advance(repeatDelay);
             }
 
-            await sendTask.ConfigureAwait(false);
+            await WaitForCompletionAsync(
+                sendTask,
+                "Timed out waiting for the repeated sends to complete.")
+                .ConfigureAwait(false);
 
             Assert.That(count, Is.EqualTo(4));
         }
@@ -181,39 +189,43 @@ namespace Opc.Ua.PubSub.Udp.Tests
         }
 
         [Test]
+        [CancelAfter(kTestTimeoutMilliseconds)]
         public async Task CancellationBetweenRepeats_StopsLoop()
         {
-            var fake = new FakeTimeProvider();
-            var repeater = new UdpMessageRepeater(5, TimeSpan.FromMilliseconds(50), fake);
+            TimeSpan repeatDelay = TimeSpan.FromMilliseconds(50);
+            using var fake = new TrackingFakeTimeProvider(repeatDelay);
+            var repeater = new UdpMessageRepeater(5, repeatDelay, fake);
             int count = 0;
             using var cts = new CancellationTokenSource();
 
-            ValueTask sendTask = repeater.SendWithRepeatsAsync(_ =>
+            Task sendTask = repeater.SendWithRepeatsAsync(_ =>
             {
-                count++;
-                if (count == 2)
+                int sendNumber = Interlocked.Increment(ref count);
+                if (sendNumber == 2)
                 {
                     cts.Cancel();
                 }
                 return default;
-            }, cts.Token);
+            }, cts.Token).AsTask();
 
-            for (int i = 0; i < 6 && !sendTask.IsCompleted; i++)
-            {
-                fake.Advance(TimeSpan.FromMilliseconds(50));
-                await Task.Yield();
-            }
+            await WaitForCompletionAsync(
+                fake.WaitForTimerCreatedAsync(),
+                "Timed out waiting for the first repeat timer.")
+                .ConfigureAwait(false);
+            fake.Advance(repeatDelay);
 
             try
             {
-                await sendTask.ConfigureAwait(false);
+                await WaitForCompletionAsync(
+                    sendTask,
+                    "Timed out waiting for cancellation to stop the repeater.")
+                    .ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
             }
 
-            Assert.That(count, Is.LessThan(6));
-            Assert.That(count, Is.GreaterThanOrEqualTo(2));
+            Assert.That(count, Is.EqualTo(2));
         }
 
         [Test]
@@ -241,5 +253,53 @@ namespace Opc.Ua.PubSub.Udp.Tests
 
             Assert.That(count, Is.EqualTo(3));
         }
+
+        private static async Task WaitForCompletionAsync(Task completion, string timeoutMessage)
+        {
+            Task completed = await Task.WhenAny(
+                completion,
+                Task.Delay(s_completionTimeout)).ConfigureAwait(false);
+            Assert.That(completed, Is.SameAs(completion), timeoutMessage);
+            await completion.ConfigureAwait(false);
+        }
+
+        private sealed class TrackingFakeTimeProvider : FakeTimeProvider, IDisposable
+        {
+            public TrackingFakeTimeProvider(TimeSpan repeatDelay)
+            {
+                m_repeatDelay = repeatDelay;
+            }
+
+            public Task WaitForTimerCreatedAsync()
+            {
+                return m_timerCreated.WaitAsync();
+            }
+
+            public override ITimer CreateTimer(
+                TimerCallback callback,
+                object? state,
+                TimeSpan dueTime,
+                TimeSpan period)
+            {
+                ITimer timer = base.CreateTimer(callback, state, dueTime, period);
+                if (dueTime == m_repeatDelay && period == Timeout.InfiniteTimeSpan)
+                {
+                    m_timerCreated.Release();
+                }
+                return timer;
+            }
+
+            public void Dispose()
+            {
+                m_timerCreated.Dispose();
+            }
+
+            private readonly TimeSpan m_repeatDelay;
+            private readonly SemaphoreSlim m_timerCreated = new(0);
+        }
+
+        private const int kTestTimeoutMilliseconds = 10000;
+        private static readonly TimeSpan s_completionTimeout =
+            TimeSpan.FromMilliseconds(kTestTimeoutMilliseconds / 2);
     }
 }

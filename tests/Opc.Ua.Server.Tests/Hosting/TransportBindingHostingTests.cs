@@ -169,6 +169,16 @@ namespace Opc.Ua.Server.Tests.Hosting
                 m_inner.RegisterChannelFactory(factory);
             }
 
+            public bool RemoveListenerFactory(string uriScheme)
+            {
+                return m_inner.RemoveListenerFactory(uriScheme);
+            }
+
+            public bool RemoveChannelFactory(string uriScheme)
+            {
+                return m_inner.RemoveChannelFactory(uriScheme);
+            }
+
             public ITransportListenerFactory? GetListenerFactory(string uriScheme)
             {
                 Queried = true;

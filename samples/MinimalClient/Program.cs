@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
@@ -67,10 +68,18 @@ try
         .AddOpcUa()
         .AddClient(options =>
         {
-            options.ApplicationName = "MinimalClient";
+            const string applicationName = "MinimalClient";
+            options.ApplicationName = applicationName;
             options.ApplicationUri = "urn:localhost:OPCFoundation:MinimalClient";
             options.ProductUri = "uri:opcfoundation.org:MinimalClient";
+            options.PkiRoot = Path.Combine(
+                Path.GetTempPath(),
+                "OPC Foundation",
+                applicationName,
+                "pki");
             options.AutoAcceptUntrustedCertificates = autoAccept;
+            options.RejectSHA1SignedCertificates = true;
+            options.MinimumCertificateKeySize = 2048;
             options.Session = new ManagedSessionOptions
             {
                 SessionName = "MinimalClient",

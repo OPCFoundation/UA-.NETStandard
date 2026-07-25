@@ -67,6 +67,10 @@ public class MyNodeManager : AsyncCustomNodeManager
 }
 ```
 
+> **Browse consistency.** `CreateNodeAsync`, `AddNodeAsync` and `DeleteNodeAsync` also keep the node manager's internal component cache in sync with the change.
+> A deleted node is evicted from the cache, and the parent's cached view is refreshed after a runtime add or remove, so a Browse, Read or Call issued afterwards reflects the committed child set instead of a stale, cached view.
+> Re-registering or replacing a node id (for example swapping a passive child for a typed proxy) refreshes the cached instance only when that node is already cached.
+
 If your node manager mutates the address space without going through
 `CreateNodeAsync` / `DeleteNodeAsync` (for example by editing an
 in-memory `NodeStateCollection`), you can either:

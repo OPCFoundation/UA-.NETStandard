@@ -29,6 +29,7 @@
 
 using System;
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -63,24 +64,25 @@ namespace Opc.Ua.Stress.Tests.Channels.Chaos
             int seed = TestRunSeed.Get();
             TestContext.Out.WriteLine(FormattableString.Invariant($"L3-A4 seed={seed}"));
 
-            TcpChaosProxy? proxy = null;
-            ClientChannelManager? manager = null;
             ManagedSessionType? session = null;
+
+            using MetricsCollector collector = new();
+            TcpChaosProxy proxy = await TcpChaosProxy
+                .StartAsync(ServerUrl, telemetry: Telemetry)
+                .ConfigureAwait(false);
+            await using ConfiguredAsyncDisposable proxyAsyncDisposable = proxy.ConfigureAwait(false);
+            ClientChannelManager manager = CreateChannelManager(
+                new ExponentialBackoffChannelReconnectPolicy
+                {
+                    MinDelay = TimeSpan.FromMilliseconds(500),
+                    MaxDelay = TimeSpan.FromSeconds(5),
+                    MaxAttempts = 10
+                },
+                collector.Telemetry);
+            await using ConfiguredAsyncDisposable managerAsyncDisposable = manager.ConfigureAwait(false);
 
             try
             {
-                proxy = await TcpChaosProxy
-                    .StartAsync(ServerUrl, telemetry: Telemetry)
-                    .ConfigureAwait(false);
-                manager = CreateChannelManager(
-                    new ExponentialBackoffChannelReconnectPolicy
-                    {
-                        MinDelay = TimeSpan.FromMilliseconds(500),
-                        MaxDelay = TimeSpan.FromSeconds(5),
-                        MaxAttempts = 10
-                    });
-                using MetricsCollector collector = new();
-
                 ConfiguredEndpoint endpoint = await GetEndpointAsync(SecurityPolicies.None, proxy.LocalUrl)
                     .ConfigureAwait(false);
                 endpoint.EndpointUrl = proxy.LocalUrl;
@@ -142,19 +144,9 @@ namespace Opc.Ua.Stress.Tests.Channels.Chaos
             }
             finally
             {
-                proxy?.StallForwarding = false;
+                proxy.StallForwarding = false;
 
                 await CloseAndDisposeAsync(session).ConfigureAwait(false);
-
-                if (manager != null)
-                {
-                    await manager.DisposeAsync().ConfigureAwait(false);
-                }
-
-                if (proxy != null)
-                {
-                    await proxy.DisposeAsync().ConfigureAwait(false);
-                }
             }
         }
 

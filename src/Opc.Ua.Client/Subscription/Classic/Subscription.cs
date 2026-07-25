@@ -83,6 +83,7 @@ namespace Opc.Ua.Client
             m_timeProvider = timeProvider ?? TimeProvider.System;
             Telemetry = telemetry ?? AmbientMessageContext.Telemetry;
             m_logger = Telemetry.CreateLogger<Subscription>();
+            m_eventLogger = Telemetry.CreateLogger(ClientEventIds.LegacyCategoryName);
             State = options ?? new SubscriptionOptions();
             DefaultItem = CreateMonitoredItem();
         }
@@ -102,6 +103,7 @@ namespace Opc.Ua.Client
             m_telemetry = template.m_telemetry;
             m_timeProvider = template.m_timeProvider;
             m_logger = template.m_logger;
+            m_eventLogger = template.m_eventLogger;
             State = template.State;
             Handle = template.Handle;
             DefaultItem = CreateMonitoredItem(template.DefaultItem.State);
@@ -740,6 +742,7 @@ namespace Opc.Ua.Client
             {
                 m_telemetry = value;
                 m_logger = value.CreateLogger<MonitoredItem>();
+                m_eventLogger = value.CreateLogger(ClientEventIds.LegacyCategoryName);
             }
         }
 
@@ -2324,17 +2327,7 @@ namespace Opc.Ua.Client
         /// </summary>
         internal void TraceState(string context)
         {
-            CoreClientUtils.EventLog.SubscriptionState(
-                context,
-                Id,
-                new DateTime(m_lastNotificationTime),
-                Session?.GoodPublishRequestCount ?? 0,
-                CurrentPublishingInterval,
-                CurrentKeepAliveCount,
-                CurrentPublishingEnabled,
-                MonitoredItemCount);
-
-            m_logger.SubscriptionContextIdSubscriptionIdLastNotificationTimeLastNotificationTime(
+            m_eventLogger.ClientEventSubscriptionState(
                 context,
                 Id,
                 new DateTime(m_lastNotificationTime),
@@ -3296,6 +3289,7 @@ namespace Opc.Ua.Client
         private LinkedList<IncomingMessage>? m_incomingMessages;
         private ITelemetryContext? m_telemetry;
         private ILogger m_logger;
+        private ILogger m_eventLogger;
 
         /// <summary>
         /// A message received from the server cached until is processed or discarded.
@@ -3716,21 +3710,23 @@ namespace Opc.Ua.Client
             uint subscriptionId,
             int? taskId);
 
-        [LoggerMessage(EventId = ClientEventIds.Subscription + 21, Level = LogLevel.Information,
-            Message = "Subscription {Context}, Id={SubscriptionId}," +
-                " LastNotificationTime={LastNotificationTime:HH:mm:ss}," +
-                " GoodPublishRequestCount={GoodPublishRequestCount}," +
-                " PublishingInterval={PublishingInterval}, KeepAliveCount={KeepAliveCount}," +
-                " PublishingEnabled={PublishingEnabled}, MonitoredItemCount={MonitoredItemCount}")]
-        public static partial void SubscriptionContextIdSubscriptionIdLastNotificationTimeLastNotificationTime(
+        [LoggerMessage(
+            EventId = ClientEventIds.LegacySubscriptionStateId,
+            EventName = "SubscriptionState",
+            Level = LogLevel.Trace,
+            Message = "Subscription {Context}, Id={Id}, LastNotificationTime={LastNotificationTime:HH:mm:ss}, " +
+                "GoodPublishRequestCount={GoodPublishRequestCount}, PublishingInterval={CurrentPublishingInterval}, " +
+                "KeepAliveCount={CurrentKeepAliveCount}, PublishingEnabled={CurrentPublishingEnabled}, " +
+                "MonitoredItemCount={MonitoredItemCount}")]
+        public static partial void ClientEventSubscriptionState(
             this ILogger logger,
             string context,
-            uint subscriptionId,
+            uint id,
             DateTime lastNotificationTime,
             int goodPublishRequestCount,
-            double publishingInterval,
-            uint keepAliveCount,
-            bool publishingEnabled,
+            double currentPublishingInterval,
+            uint currentKeepAliveCount,
+            bool currentPublishingEnabled,
             uint monitoredItemCount);
 
         [LoggerMessage(EventId = ClientEventIds.Subscription + 22, Level = LogLevel.Information,

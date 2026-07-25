@@ -152,6 +152,26 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         }
 
         [Test]
+        public async Task AddClientResolvesTransportRegistryWithoutExplicitTcpTransportAsync()
+        {
+            // Regression: AddOpcUa().AddClient(...) must resolve the transport
+            // binding registry (and the client channel manager) without an
+            // explicit AddOpcTcpTransport() call - AddOpcUa() seeds the
+            // mandatory opc.tcp transport.
+            var services = new ServiceCollection();
+            services.AddOpcUa().AddClient(options => options.Configuration = CreateConfig());
+
+            // ClientChannelManager is IAsyncDisposable-only, so dispose the
+            // provider asynchronously once it has been resolved.
+            await using ServiceProvider sp = services.BuildServiceProvider();
+
+            ITransportBindingRegistry registry = sp.GetRequiredService<ITransportBindingRegistry>();
+            Assert.That(registry, Is.InstanceOf<ITransportChannelBindings>());
+            Assert.That(registry.HasChannelFactory(Utils.UriSchemeOpcTcp), Is.True);
+            Assert.That(() => sp.GetRequiredService<IClientChannelManager>(), Throws.Nothing);
+        }
+
+        [Test]
         public void OptionsValidatorPassesWithConfigurationAndEndpoint()
         {
             var services = new ServiceCollection();
@@ -237,7 +257,10 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             var services = new ServiceCollection();
             services.AddOpcUa().AddClient(options => options.Configuration = CreateConfig());
 
-            using ServiceProvider sp = services.BuildServiceProvider();
+            // ClientChannelManager is IAsyncDisposable-only; once the connect
+            // attempt below instantiates it as a singleton the provider must be
+            // disposed asynchronously.
+            await using ServiceProvider sp = services.BuildServiceProvider();
             IManagedSessionFactory factory = sp.GetRequiredService<IManagedSessionFactory>();
             using var cts = new CancellationTokenSource();
             cts.Cancel();

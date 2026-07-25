@@ -65,19 +65,30 @@ namespace Opc.Ua.Di.Tests
 
                 ushort pumpsNamespaceIndex = (ushort)server.CurrentInstance.NamespaceUris.GetIndex(
                     global::Opc.Ua.Pumps.Namespaces.Pumps);
+                BaseObjectState deviceSet = manager.FindPredefinedNode<BaseObjectState>(
+                    NodeId.Create(
+                        global::Opc.Ua.Di.Objects.DeviceSet,
+                        global::Opc.Ua.Di.Namespaces.OpcUaDi,
+                        server.CurrentInstance.NamespaceUris));
+                PumpState pump1 = manager.FindPredefinedNode<PumpState>(
+                    new NodeId(
+                        "5001_Pump #1",
+                        manager.DiNamespaceIndex));
                 PumpState pump = await manager.CreatePumpAsync(
                     new QualifiedName("Pump #2", pumpsNamespaceIndex),
                     default).ConfigureAwait(false);
+                IReadOnlyList<ReferenceDescription> deviceSetReferences =
+                    await BrowseForwardAsync(manager, deviceSet.NodeId)
+                        .ConfigureAwait(false);
 
+                AssertPumpIsOrganizedByDeviceSet(manager, deviceSetReferences, pump1);
+                AssertPumpIsOrganizedByDeviceSet(manager, deviceSetReferences, pump);
                 Assert.That(
                     pump.TypeDefinitionId,
                     Is.EqualTo(NodeId.Create(
                         global::Opc.Ua.Pumps.ObjectTypes.PumpType,
                         global::Opc.Ua.Pumps.Namespaces.Pumps,
                         server.CurrentInstance.NamespaceUris)));
-                Assert.That(
-                    pump.ReferenceTypeId,
-                    Is.EqualTo(Opc.Ua.Types.ReferenceTypeIds.HasComponent));
                 Assert.That(pump.Identification, Is.Not.Null);
                 Assert.That(
                     pump.Identification!.TypeDefinitionId,
@@ -116,6 +127,64 @@ namespace Opc.Ua.Di.Tests
                 manager?.Dispose();
                 await fixture.StopAsync().ConfigureAwait(false);
             }
+        }
+
+        private static void AssertPumpIsOrganizedByDeviceSet(
+            PumpNodeManager manager,
+            IReadOnlyList<ReferenceDescription> deviceSetReferences,
+            PumpState pump)
+        {
+            Assert.That(
+                pump.ReferenceTypeId,
+                Is.EqualTo(Opc.Ua.Types.ReferenceTypeIds.Organizes));
+            Assert.That(
+                deviceSetReferences,
+                Has.Some.Matches<ReferenceDescription>(
+                    reference =>
+                        reference.NodeId == new ExpandedNodeId(pump.NodeId) &&
+                        ExpandedNodeId.ToNodeId(
+                            reference.ReferenceTypeId,
+                            manager.Server.NamespaceUris) ==
+                        Opc.Ua.Types.ReferenceTypeIds.Organizes));
+            Assert.That(
+                deviceSetReferences,
+                Has.None.Matches<ReferenceDescription>(
+                    reference =>
+                        reference.NodeId == new ExpandedNodeId(pump.NodeId) &&
+                        ExpandedNodeId.ToNodeId(
+                            reference.ReferenceTypeId,
+                            manager.Server.NamespaceUris) ==
+                        Opc.Ua.Types.ReferenceTypeIds.HasComponent));
+        }
+
+        private static async Task<IReadOnlyList<ReferenceDescription>> BrowseForwardAsync(
+            PumpNodeManager manager,
+            NodeId nodeId)
+        {
+            object handle = await manager.GetManagerHandleAsync(nodeId).ConfigureAwait(false);
+            using var continuationPoint = new ContinuationPoint
+            {
+                NodeToBrowse = handle,
+                Manager = manager,
+                View = new ViewDescription(),
+                BrowseDirection = BrowseDirection.Forward,
+                ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.HierarchicalReferences,
+                IncludeSubtypes = true,
+                ResultMask = BrowseResultMask.All
+            };
+            var references = new List<ReferenceDescription>();
+
+            ContinuationPoint? result = await manager.BrowseAsync(
+                new OperationContext(
+                    new RequestHeader(),
+                    null,
+                    RequestType.Browse,
+                    RequestLifetime.None),
+                continuationPoint,
+                references).ConfigureAwait(false);
+
+            Assert.That(result, Is.Null);
+            return references;
         }
     }
 }

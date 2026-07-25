@@ -64,6 +64,8 @@ namespace Opc.Ua.Server
             : base(telemetry)
         {
             TimeProvider = timeProvider ?? TimeProvider.System;
+            m_eventLogger = telemetry.CreateLogger(
+                ServerCompatibilityEventIds.CategoryName);
         }
 
         /// <summary>
@@ -3029,16 +3031,15 @@ namespace Opc.Ua.Server
             OperationContext context = await ServerInternal.SessionManager
                 .ValidateRequestAsync(requestHeader, secureChannelContext, requestType, requestLifetime).ConfigureAwait(false);
 
-            if (ServerUtils.EventLog.IsEnabled())
+            if (m_eventLogger.IsEventLogEnabled())
             {
                 string? requestTypeString = Enum.GetName(
 #if !NET8_0_OR_GREATER
                    typeof(RequestType),
 #endif
                    context.RequestType);
-                ServerUtils.EventLog.ServerCall(requestTypeString!, context.RequestId);
+                m_eventLogger.CompatibilityServerCall(requestTypeString!, context.RequestId);
             }
-            m_logger.ServerCallRequestTypeIdRequestId(context.RequestType, context.RequestId);
 
             // notify the request manager.
             ServerInternal.RequestManager.RequestReceived(context);
@@ -4519,6 +4520,7 @@ namespace Opc.Ua.Server
         private ServerRateLimitOptions? m_rateLimitOptions;
         private IServerRateLimiterProvider? m_rateLimiterProvider;
         private bool m_ownsRateLimiterProvider;
+        private readonly ILogger m_eventLogger;
 
         /// <summary>
         /// The interval at which the <see cref="ConfigurationNodeManager"/>
@@ -4643,11 +4645,14 @@ namespace Opc.Ua.Server
             Message = "Server - Enter {State} state.")]
         public static partial void ServerEnterStateState(this ILogger logger, ServerState state);
 
-        [LoggerMessage(EventId = ServerEventIds.StandardServer + 12, Level = LogLevel.Trace,
+        [LoggerMessage(
+            EventId = ServerCompatibilityEventIds.ServerCall,
+            EventName = "ServerCall",
+            Level = LogLevel.Information,
             Message = "Server Call={RequestType}, Id={RequestId}")]
-        public static partial void ServerCallRequestTypeIdRequestId(
+        public static partial void CompatibilityServerCall(
             this ILogger logger,
-            RequestType requestType,
+            string requestType,
             uint requestId);
 
         [LoggerMessage(EventId = ServerEventIds.StandardServer + 13, Level = LogLevel.Error,
