@@ -761,6 +761,19 @@ namespace Opc.Ua.Di.Server
                         }
                     }
                     return results;
+                },
+                dataTypeId =>
+                {
+                    var results = new List<NodeState>();
+                    foreach (NodeState node in PredefinedNodes.Values)
+                    {
+                        if (node is BaseVariableState variable &&
+                            variable.DataType == dataTypeId)
+                        {
+                            results.Add(node);
+                        }
+                    }
+                    return new ArrayOf<NodeState>(results.ToArray());
                 });
 
             AttachToBuilder(m_builder);
