@@ -180,8 +180,10 @@ namespace Opc.Ua.Gds.Tests
 
         public string ReadLogFile()
         {
+#pragma warning disable CS0618 // Type or member is obsolete
             return File.ReadAllText(
                 Utils.ReplaceSpecialFolderNames(Config.TraceConfiguration.OutputFilePath));
+#pragma warning restore CS0618 // Type or member is obsolete
         }
 
         private void CertificateValidator_CertificateValidation(

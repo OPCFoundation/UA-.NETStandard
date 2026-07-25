@@ -1081,21 +1081,27 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderTraceConfiguration SetOutputFilePath(
             string outputFilePath)
         {
+#pragma warning disable CS0618 // Type or member is obsolete
             ApplicationConfiguration.TraceConfiguration.OutputFilePath = outputFilePath;
+#pragma warning restore CS0618 // Type or member is obsolete
             return this;
         }
 
         /// <inheritdoc/>
         public IApplicationConfigurationBuilderTraceConfiguration SetDeleteOnLoad(bool deleteOnLoad)
         {
+#pragma warning disable CS0618 // Type or member is obsolete
             ApplicationConfiguration.TraceConfiguration.DeleteOnLoad = deleteOnLoad;
+#pragma warning restore CS0618 // Type or member is obsolete
             return this;
         }
 
         /// <inheritdoc/>
         public IApplicationConfigurationBuilderTraceConfiguration SetTraceMasks(int traceMasks)
         {
+#pragma warning disable CS0618 // Type or member is obsolete
             ApplicationConfiguration.TraceConfiguration.TraceMasks = traceMasks;
+#pragma warning restore CS0618 // Type or member is obsolete
             return this;
         }
 
