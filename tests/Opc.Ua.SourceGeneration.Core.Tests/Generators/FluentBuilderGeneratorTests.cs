@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -78,7 +77,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             string fb = GetFluentBuilders();
 
             Assert.That(fb, Does.Match(
-                @"internal\s+interface\s+I\w+NodeManagerBuilder\s*:\s*global::Opc\.Ua\.Server\.Fluent\.INodeManagerBuilder"),
+                @"internal\s+interface\s+I\w+NodeManagerBuilder\s*:\s*" +
+                @"global::Opc\.Ua\.Server\.Fluent\.INodeManagerBuilder"),
                 "A typed IBuilder interface extending INodeManagerBuilder must be emitted");
 
             Assert.That(fb, Does.Match(
@@ -149,7 +149,9 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 @"public\s+\w+MethodBuilder\s+OnCall\s*\(\s*global::System\.Action\s+handler\s*\)"),
                 "Method wrappers should expose a sync OnCall(Action) overload");
             Assert.That(fb, Does.Match(
-                @"public\s+\w+MethodBuilder\s+OnCall\s*\(\s*global::System\.Func<global::System\.Threading\.CancellationToken,\s*global::System\.Threading\.Tasks\.ValueTask>\s+handler\s*\)"),
+                @"public\s+\w+MethodBuilder\s+OnCall\s*\(\s*" +
+                @"global::System\.Func<global::System\.Threading\.CancellationToken,\s*" +
+                @"global::System\.Threading\.Tasks\.ValueTask>\s+handler\s*\)"),
                 "Method wrappers should expose an async OnCall(Func<CT,ValueTask>) overload");
         }
 
@@ -233,7 +235,10 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             // The async overload threads CancellationToken between the
             // unpacked inputs and the ValueTask<TResult> return type.
             Assert.That(fb, Does.Match(
-                @"public\s+ComputeMethodBuilder\s+OnCall\s*\(\s*global::System\.Func<int,\s*global::System\.Threading\.CancellationToken,\s*global::System\.Threading\.Tasks\.ValueTask<int>>\s+handler\s*\)"),
+                @"public\s+ComputeMethodBuilder\s+OnCall\s*\(\s*" +
+                @"global::System\.Func<int,\s*" +
+                @"global::System\.Threading\.CancellationToken,\s*" +
+                @"global::System\.Threading\.Tasks\.ValueTask<int>>\s+handler\s*\)"),
                 "Compute(Int32 -> Int32) should expose an async OnCall(Func<int,CT,ValueTask<int>>) overload");
         }
 
@@ -284,7 +289,10 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 @"public\s+AddMethodBuilder\s+OnCall\s*\(\s*global::System\.Func<int,\s*int,\s*int>\s+handler\s*\)"),
                 "Add(Int32,Int32 -> Int32) should expose a sync OnCall(Func<int,int,int>) overload");
             Assert.That(fb, Does.Match(
-                @"public\s+AddMethodBuilder\s+OnCall\s*\(\s*global::System\.Func<int,\s*int,\s*global::System\.Threading\.CancellationToken,\s*global::System\.Threading\.Tasks\.ValueTask<int>>\s+handler\s*\)"),
+                @"public\s+AddMethodBuilder\s+OnCall\s*\(\s*" +
+                @"global::System\.Func<int,\s*int,\s*" +
+                @"global::System\.Threading\.CancellationToken,\s*" +
+                @"global::System\.Threading\.Tasks\.ValueTask<int>>\s+handler\s*\)"),
                 "Add(Int32,Int32 -> Int32) should expose an async OnCall(Func<int,int,CT,ValueTask<int>>) overload");
             // Unpack arity: index 0 and index 1 must both be present.
             Assert.That(fb, Does.Match(
@@ -342,7 +350,11 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             string mgr = files.Single(kv => kv.Key.EndsWith(".NodeManager.g.cs", StringComparison.Ordinal)).Value;
 
             // Both partials must be declared so users can implement either.
-            Assert.That(mgr, Does.Contain("partial void Configure(global::Opc.Ua.Server.Fluent.INodeManagerBuilder builder);"),
+            Assert.That(
+                mgr,
+                Does.Contain(
+                    "partial void Configure(" +
+                    "global::Opc.Ua.Server.Fluent.INodeManagerBuilder builder);"),
                 "Plain Configure(INodeManagerBuilder) partial declaration must be emitted");
             Assert.That(mgr, Does.Match(@"partial\s+void\s+Configure\s*\(\s*I\w+NodeManagerBuilder\s+builder\s*\);"),
                 "Typed Configure(I{Manager}NodeManagerBuilder) partial declaration must be emitted");
@@ -370,17 +382,26 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 @"internal\s+sealed\s+class\s+NotifierObjectBuilder\b"),
                 "NotifierObject must produce a wrapper class");
             Assert.That(fb, Does.Match(
-                @"public\s+global::Opc\.Ua\.Server\.Fluent\.INodeBuilder<global::Opc\.Ua\.BaseObjectState>\s+Publish<TEvent>\(\s*global::System\.Collections\.Generic\.IAsyncEnumerable<TEvent>\s+source"),
+                @"public\s+global::Opc\.Ua\.Server\.Fluent\.INodeBuilder<" +
+                @"global::Opc\.Ua\.BaseObjectState>\s+Publish<TEvent>\(\s*" +
+                @"global::System\.Collections\.Generic\.IAsyncEnumerable<TEvent>\s+source"),
                 "NotifierObjectBuilder must expose Publish<TEvent>(IAsyncEnumerable<TEvent>, EventPublishOptions)");
             Assert.That(fb, Does.Match(
-                @"public\s+global::Opc\.Ua\.Server\.Fluent\.INodeBuilder<global::Opc\.Ua\.BaseObjectState>\s+Publish<TEvent>\(\s*global::System\.Func<global::Opc\.Ua\.BaseObjectState,\s*global::Opc\.Ua\.ISystemContext,\s*global::System\.Threading\.CancellationToken,\s*global::System\.Collections\.Generic\.IAsyncEnumerable<TEvent>>\s+factory"),
+                @"public\s+global::Opc\.Ua\.Server\.Fluent\.INodeBuilder<" +
+                @"global::Opc\.Ua\.BaseObjectState>\s+Publish<TEvent>\(\s*" +
+                @"global::System\.Func<global::Opc\.Ua\.BaseObjectState,\s*" +
+                @"global::Opc\.Ua\.ISystemContext,\s*" +
+                @"global::System\.Threading\.CancellationToken,\s*" +
+                @"global::System\.Collections\.Generic\.IAsyncEnumerable<TEvent>>\s+factory"),
                 "NotifierObjectBuilder must expose the factory-style Publish<TEvent> overload");
             Assert.That(fb, Does.Contain(
                 "where TEvent : global::Opc.Ua.BaseEventState"),
                 "Publish<TEvent> must be constrained to BaseEventState");
             Assert.That(fb, Does.Contain(
-                "global::Opc.Ua.Server.Fluent.EventNotifierBuilderExtensions.Publish<global::Opc.Ua.BaseObjectState, TEvent>(__node,"),
-                "Publish overload must forward to EventNotifierBuilderExtensions.Publish with the wrapper's state type as TNotifier");
+                "global::Opc.Ua.Server.Fluent.EventNotifierBuilderExtensions.Publish<" +
+                "global::Opc.Ua.BaseObjectState, TEvent>(__node,"),
+                "Publish overload must forward to EventNotifierBuilderExtensions.Publish " +
+                "with the wrapper's state type as TNotifier");
         }
 
         [Test]
@@ -408,7 +429,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             // typed Publish overload — the surface stays clean and only
             // notifier candidates become discoverable through intellisense.
             Assert.That(fb, Does.Not.Match(
-                @"(?ms)internal\s+sealed\s+class\s+TestObjectBuilder\b(?:(?!internal\s+sealed\s+class).)*?Publish<TEvent>"),
+                @"(?ms)internal\s+sealed\s+class\s+TestObjectBuilder\b" +
+                @"(?:(?!internal\s+sealed\s+class).)*?Publish<TEvent>"),
                 "TestObjectBuilder must not expose Publish<TEvent> — it's not a notifier");
         }
 
@@ -554,13 +576,13 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             string path = Path.Combine(resources, nodeSetFile);
 
             var nodesets = new NodesetFileCollection(
-                ImmutableArray.Create(
-                    (path, new NodesetFileOptions
+                [(path, new NodesetFileOptions
                     {
                         ModelUri = namespaceUri,
                         Name = "DeclarationBackedMethod",
                         Prefix = "DeclarationBackedMethod"
-                    })),
+                    })],
+                [],
                 fileSystem,
                 telemetry);
 
@@ -630,9 +652,9 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             var root = new ObjectDesign
             {
                 SymbolicName = new XmlQualifiedName("Device", namespaceUri),
-                SymbolicId = new XmlQualifiedName("Device", namespaceUri)
+                SymbolicId = new XmlQualifiedName("Device", namespaceUri),
+                Hierarchy = new Hierarchy()
             };
-            root.Hierarchy = new Hierarchy();
             root.Hierarchy.Nodes[string.Empty] = new HierarchyNode
             {
                 RelativePath = string.Empty,

@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/samples/">
+    <Project Path="samples/MinimalIsa95Server/MinimalIsa95Server.csproj" />
     <File Path="samples/UAReferenceServer.ctt.xml" />
     <Project Path="samples/ConsoleLdsServer/ConsoleLdsServer.csproj" />
     <Project Path="samples/ConsoleReferenceClient/ConsoleReferenceClient.csproj" />
@@ -69,6 +70,9 @@
     <Project Path="src/Opc.Ua.Gds.Client.Common/Opc.Ua.Gds.Client.Common.csproj" />
     <Project Path="src/Opc.Ua.Gds.Common/Opc.Ua.Gds.Common.csproj" />
     <Project Path="src/Opc.Ua.Gds.Server.Common/Opc.Ua.Gds.Server.Common.csproj" />
+    <Project Path="src/Opc.Ua.ISA95.Client/Opc.Ua.ISA95.Client.csproj" />
+    <Project Path="src/Opc.Ua.ISA95.Server/Opc.Ua.ISA95.Server.csproj" />
+    <Project Path="src/Opc.Ua.ISA95/Opc.Ua.ISA95.csproj" />
     <Project Path="src/Opc.Ua.Lds.Server/Opc.Ua.Lds.Server.csproj" />
     <Project Path="src/Opc.Ua.PubSub/Opc.Ua.PubSub.csproj" />
     <Project Path="src/Opc.Ua.Redundancy/Opc.Ua.Redundancy.csproj" />
@@ -230,6 +234,7 @@
     <Project Path="tests/Opc.Ua.Subscriptions.Classic.Tests/Opc.Ua.Subscriptions.Classic.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Subscriptions.Durable.Tests/Opc.Ua.Subscriptions.Durable.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Gds.Tests/Opc.Ua.Gds.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.ISA95.Tests/Opc.Ua.ISA95.Tests.csproj" />
     <Project Path="tests/Opc.Ua.PubSub.Tests/Opc.Ua.PubSub.Tests.csproj" />
     <Project Path="tests/Opc.Ua.PubSub.Adapter.Tests/Opc.Ua.PubSub.Adapter.Tests.csproj" />
     <Project Path="tests/Opc.Ua.PubSub.Udp.Tests/Opc.Ua.PubSub.Udp.Tests.csproj" />

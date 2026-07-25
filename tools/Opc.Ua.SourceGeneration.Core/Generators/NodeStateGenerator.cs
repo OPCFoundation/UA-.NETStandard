@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#pragma warning disable IDE0005 // Imports are required by target frameworks without matching implicit global usings.
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -36,6 +37,7 @@ using System.Xml;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Schema.Model;
 using Opc.Ua.Types;
+#pragma warning restore IDE0005
 
 namespace Opc.Ua.SourceGeneration
 {
@@ -758,40 +760,36 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
+            Parameter[] inputArguments = MethodDesignArgumentResolver.ResolveMethodInputs(method);
+            Parameter[] outputArguments = MethodDesignArgumentResolver.ResolveMethodOutputs(method);
             context.Out.WriteLine("global::Opc.Ua.ISystemContext _context,");
             context.Out.WriteLine("global::Opc.Ua.MethodState _method,");
             context.Out.Write("global::Opc.Ua.NodeId _objectId");
 
-            if (method.InputArguments != null)
+            for (int ii = 0; ii < inputArguments.Length; ii++)
             {
-                for (int ii = 0; ii < method.InputArguments.Length; ii++)
-                {
-                    Parameter argument = method.InputArguments[ii];
+                Parameter argument = inputArguments[ii];
 
-                    context.Out.WriteLine(",");
-                    context.Out.Write("{1} {0}", argument.GetChildFieldName()[2..],
-                        argument.DataTypeNode.GetMethodArgumentTypeAsCode(
-                            argument.ValueRank,
-                            m_context.ModelDesign.TargetNamespace.Value,
-                            m_context.ModelDesign.Namespaces,
-                            argument.IsOptional));
-                }
+                context.Out.WriteLine(",");
+                context.Out.Write("{1} {0}", argument.GetChildFieldName()[2..],
+                    argument.DataTypeNode.GetMethodArgumentTypeAsCode(
+                        argument.ValueRank,
+                        m_context.ModelDesign.TargetNamespace.Value,
+                        m_context.ModelDesign.Namespaces,
+                        argument.IsOptional));
             }
 
-            if (method.OutputArguments != null)
+            for (int ii = 0; ii < outputArguments.Length; ii++)
             {
-                for (int ii = 0; ii < method.OutputArguments.Length; ii++)
-                {
-                    Parameter argument = method.OutputArguments[ii];
+                Parameter argument = outputArguments[ii];
 
-                    context.Out.WriteLine(",");
-                    context.Out.Write("ref {1} {0}", argument.GetChildFieldName()[2..],
-                        argument.DataTypeNode.GetMethodArgumentTypeAsCode(
-                            argument.ValueRank,
-                            m_context.ModelDesign.TargetNamespace.Value,
-                            m_context.ModelDesign.Namespaces,
-                            argument.IsOptional));
-                }
+                context.Out.WriteLine(",");
+                context.Out.Write("ref {1} {0}", argument.GetChildFieldName()[2..],
+                    argument.DataTypeNode.GetMethodArgumentTypeAsCode(
+                        argument.ValueRank,
+                        m_context.ModelDesign.TargetNamespace.Value,
+                        m_context.ModelDesign.Namespaces,
+                        argument.IsOptional));
             }
 
             context.Out.WriteLine(");");
@@ -805,24 +803,22 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
+            Parameter[] inputArguments = MethodDesignArgumentResolver.ResolveMethodInputs(method);
             context.Out.WriteLine("global::Opc.Ua.ISystemContext _context,");
             context.Out.WriteLine("global::Opc.Ua.MethodState _method,");
             context.Out.Write("global::Opc.Ua.NodeId _objectId");
 
-            if (method.InputArguments != null)
+            for (int ii = 0; ii < inputArguments.Length; ii++)
             {
-                for (int ii = 0; ii < method.InputArguments.Length; ii++)
-                {
-                    Parameter argument = method.InputArguments[ii];
+                Parameter argument = inputArguments[ii];
 
-                    context.Out.WriteLine(",");
-                    context.Out.Write("{1} {0}", argument.GetChildFieldName()[2..],
-                        argument.DataTypeNode.GetMethodArgumentTypeAsCode(
-                            argument.ValueRank,
-                            m_context.ModelDesign.TargetNamespace.Value,
-                            m_context.ModelDesign.Namespaces,
-                            argument.IsOptional));
-                }
+                context.Out.WriteLine(",");
+                context.Out.Write("{1} {0}", argument.GetChildFieldName()[2..],
+                    argument.DataTypeNode.GetMethodArgumentTypeAsCode(
+                        argument.ValueRank,
+                        m_context.ModelDesign.TargetNamespace.Value,
+                        m_context.ModelDesign.Namespaces,
+                        argument.IsOptional));
             }
 
             context.Out.WriteLine(",");
@@ -889,27 +885,23 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
+            Parameter[] inputArguments = MethodDesignArgumentResolver.ResolveMethodInputs(method);
+            Parameter[] outputArguments = MethodDesignArgumentResolver.ResolveMethodOutputs(method);
             context.Out.WriteLine("_result = OnCall(");
             context.Out.WriteLine("    _context,");
             context.Out.WriteLine("    this,");
             context.Out.Write("    _objectId");
 
-            if (method.InputArguments != null)
+            for (int ii = 0; ii < inputArguments.Length; ii++)
             {
-                for (int ii = 0; ii < method.InputArguments.Length; ii++)
-                {
-                    context.Out.WriteLine(",");
-                    context.Out.Write("    {0}", method.InputArguments[ii].GetChildFieldName()[2..]);
-                }
+                context.Out.WriteLine(",");
+                context.Out.Write("    {0}", inputArguments[ii].GetChildFieldName()[2..]);
             }
 
-            if (method.OutputArguments != null)
+            for (int ii = 0; ii < outputArguments.Length; ii++)
             {
-                for (int ii = 0; ii < method.OutputArguments.Length; ii++)
-                {
-                    context.Out.WriteLine(",");
-                    context.Out.Write("    ref {0}", method.OutputArguments[ii].GetChildFieldName()[2..]);
-                }
+                context.Out.WriteLine(",");
+                context.Out.Write("    ref {0}", outputArguments[ii].GetChildFieldName()[2..]);
             }
 
             context.Out.WriteLine(");");
@@ -923,18 +915,16 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
+            Parameter[] inputArguments = MethodDesignArgumentResolver.ResolveMethodInputs(method);
             context.Out.WriteLine("_result = await OnCallAsync(");
             context.Out.WriteLine("    _context,");
             context.Out.WriteLine("    this,");
             context.Out.Write("    _objectId");
 
-            if (method.InputArguments != null)
+            for (int ii = 0; ii < inputArguments.Length; ii++)
             {
-                for (int ii = 0; ii < method.InputArguments.Length; ii++)
-                {
-                    context.Out.WriteLine(",");
-                    context.Out.Write("    {0}", method.InputArguments[ii].GetChildFieldName()[2..]);
-                }
+                context.Out.WriteLine(",");
+                context.Out.Write("    {0}", inputArguments[ii].GetChildFieldName()[2..]);
             }
 
             context.Out.WriteLine(",");
@@ -1711,8 +1701,11 @@ namespace Opc.Ua.SourceGeneration
             InstanceDesign instance,
             string forInstanceVariableValue)
         {
-            List<(NodeToGenerate Singleton, NodeToGenerate SingletonChild, string SingletonChildSymbolicId)> singletonChildren =
-                FindSingletonChildren(node);
+            List<
+                (
+                    NodeToGenerate Singleton,
+                    NodeToGenerate SingletonChild,
+                    string SingletonChildSymbolicId)> singletonChildren = FindSingletonChildren(node);
             if (singletonChildren.Count == 0)
             {
                 context.Out.WriteLine(
@@ -1847,6 +1840,26 @@ namespace Opc.Ua.SourceGeneration
                 Tokens.Description,
                 (parameter?.Description).GetLocalizedTextAsCode(true));
 
+            return context.Template.Render();
+        }
+
+        private bool WriteTemplate_MethodArguments(IWriteContext context)
+        {
+            if (context.Target is not MethodArgumentsToGenerate arguments)
+            {
+                return false;
+            }
+            context.Template.AddReplacement(
+                Tokens.PropertyName,
+                arguments.PropertyName);
+            context.Template.AddReplacement(
+                Tokens.BrowseName,
+                arguments.BrowseName);
+            context.Template.AddReplacement(
+                Tokens.ListOfValues,
+                NodeStateTemplates.ArgumentValue,
+                arguments.Arguments,
+                WriteTemplate_Argument);
             return context.Template.Render();
         }
 
@@ -2042,6 +2055,8 @@ namespace Opc.Ua.SourceGeneration
             IWriteContext context,
             MethodDesign method)
         {
+            Parameter[] inputArguments = MethodDesignArgumentResolver.ResolveMethodInputs(method);
+            Parameter[] outputArguments = MethodDesignArgumentResolver.ResolveMethodOutputs(method);
             string targetNamespace = m_context.ModelDesign.TargetNamespace.Value;
             string declaredClassName = method.GetNodeStateClassName(
                 targetNamespace,
@@ -2063,7 +2078,7 @@ namespace Opc.Ua.SourceGeneration
                 declaredClassName);
             context.Template.AddReplacement(
                 Tokens.ListOfInputArguments,
-                method.InputArguments,
+                inputArguments,
                 LoadTemplate_ListOfInputArguments);
             context.Template.AddReplacement(
                 Tokens.OnCallDeclaration,
@@ -2083,19 +2098,19 @@ namespace Opc.Ua.SourceGeneration
                 LoadTemplate_OnCallAsyncImplementation);
             context.Template.AddReplacement(
                 Tokens.ListOfOutputDeclarations,
-                method.OutputArguments,
+                outputArguments,
                 LoadTemplate_ListOfOutputDeclarations);
             context.Template.AddReplacement(
                 Tokens.ListOfOutputArgumentsFromResult,
-                method.OutputArguments,
+                outputArguments,
                 LoadTemplate_ListOfOutputArgumentsFromResult);
             context.Template.AddReplacement(
                 Tokens.ListOfOutputArguments,
-                method.OutputArguments,
+                outputArguments,
                 LoadTemplate_ListOfOutputArguments);
             context.Template.AddReplacement(
                 Tokens.ListOfResultProperties,
-                method.OutputArguments,
+                outputArguments,
                 LoadTemplate_ListOfResultProperties);
         }
 
@@ -2264,12 +2279,14 @@ namespace Opc.Ua.SourceGeneration
                     case "XmlSchema_TypeSystem":
                         context.Template.AddReplacement(
                             Tokens.ValueCode,
-                            "state.WrappedValue = global::Opc.Ua.Variant.From(global::Opc.Ua.ByteString.From(XmlSchemas.TypesXsd.ToArray()));");
+                            "state.WrappedValue = global::Opc.Ua.Variant.From(" +
+                            "global::Opc.Ua.ByteString.From(XmlSchemas.TypesXsd.ToArray()));");
                         return;
                     case "OPCBinarySchema_TypeSystem":
                         context.Template.AddReplacement(
                             Tokens.ValueCode,
-                            "state.WrappedValue = global::Opc.Ua.Variant.From(global::Opc.Ua.ByteString.From(XmlSchemas.TypesBsd.ToArray()));");
+                            "state.WrappedValue = global::Opc.Ua.Variant.From(" +
+                            "global::Opc.Ua.ByteString.From(XmlSchemas.TypesBsd.ToArray()));");
                         return;
                 }
                 // unknown type system
@@ -2432,10 +2449,39 @@ namespace Opc.Ua.SourceGeneration
                 node.MethodDeclarationNode != null
                     ? CoreUtils.Format(
                         "state.MethodDeclarationId = {0};",
-                        node.MethodDeclarationNode.GetNodeIdAsCode(
+                        (node.MethodDeclarationNode.DisplayName?.IsAutogenerated == true &&
+                            node.NumericIdSpecified
+                                ? node
+                                : node.MethodDeclarationNode).GetNodeIdAsCode(
                             m_context.ModelDesign.Namespaces,
                             kNamespaceTableContextVariable))
                     : null);
+            if (node.InputArguments?.Length > 0)
+            {
+                context.Template.AddReplacement(
+                    Tokens.ListOfInputArguments,
+                    NodeStateTemplates.Create_MethodArguments,
+                    [
+                        new MethodArgumentsToGenerate(
+                            "inputArguments",
+                            "InputArguments",
+                            node.InputArguments)
+                    ],
+                    WriteTemplate_MethodArguments);
+            }
+            if (node.OutputArguments?.Length > 0)
+            {
+                context.Template.AddReplacement(
+                    Tokens.ListOfOutputArguments,
+                    NodeStateTemplates.Create_MethodArguments,
+                    [
+                        new MethodArgumentsToGenerate(
+                            "outputArguments",
+                            "OutputArguments",
+                            node.OutputArguments)
+                    ],
+                    WriteTemplate_MethodArguments);
+            }
         }
 
         private static void AddViewStateFactoryReplacements(
@@ -2636,7 +2682,11 @@ namespace Opc.Ua.SourceGeneration
         private List<(NodeToGenerate Singleton, NodeToGenerate SingletonChild, string SingletonChildSymbolicId)>
             FindSingletonChildren(NodeToGenerate typeChild)
         {
-            var result = new List<(NodeToGenerate Singleton, NodeToGenerate SingletonChild, string SingletonChildSymbolicId)>();
+            var result = new List<
+                (
+                    NodeToGenerate Singleton,
+                    NodeToGenerate SingletonChild,
+                    string SingletonChildSymbolicId)>();
             if (typeChild == null || !typeChild.RootIsTypeDefinition)
             {
                 return result;
@@ -2733,7 +2783,11 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         private bool WriteTemplate_InstanceNodeIdOverride(IWriteContext context)
         {
-            if (context.Target is not List<(NodeToGenerate Singleton, NodeToGenerate SingletonChild, string SingletonChildSymbolicId)> branches)
+            if (context.Target is not List<
+                (
+                    NodeToGenerate Singleton,
+                    NodeToGenerate SingletonChild,
+                    string SingletonChildSymbolicId)> branches)
             {
                 return false;
             }
@@ -3767,6 +3821,11 @@ namespace Opc.Ua.SourceGeneration
             NodeDesign TargetNode,
             XmlQualifiedName ReferenceTypeId,
             bool IsInverse);
+
+        private sealed record MethodArgumentsToGenerate(
+            string PropertyName,
+            string BrowseName,
+            Parameter[] Arguments);
 
         private const string kNamespaceTableContextVariable = "context.NamespaceUris";
 

@@ -80,6 +80,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             var mockTelemetry = new Mock<ITelemetryContext>();
             var nodesets = new NodesetFileCollection(
                 [],
+                [],
                 mockFileSystem.Object,
                 mockTelemetry.Object);
 
@@ -106,6 +107,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             var mockTelemetry = new Mock<ITelemetryContext>();
             var nodesets = new NodesetFileCollection(
                 [],
+                [],
                 mockFileSystem.Object,
                 mockTelemetry.Object);
 
@@ -128,6 +130,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             var mockFileSystem = new Mock<IFileSystem>();
             var mockTelemetry = new Mock<ITelemetryContext>();
             var nodesets = new NodesetFileCollection(
+                [],
                 [],
                 mockFileSystem.Object,
                 mockTelemetry.Object);
@@ -152,6 +155,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             var mockTelemetry = new Mock<ITelemetryContext>();
             var nodesets = new NodesetFileCollection(
                 [],
+                [],
                 mockFileSystem.Object,
                 mockTelemetry.Object);
 
@@ -174,6 +178,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             var mockFileSystem = new Mock<IFileSystem>();
             var mockTelemetry = new Mock<ITelemetryContext>();
             var nodesets = new NodesetFileCollection(
+                [],
                 [],
                 mockFileSystem.Object,
                 mockTelemetry.Object);
@@ -198,6 +203,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             var mockTelemetry = new Mock<ITelemetryContext>();
             var nodesets = new NodesetFileCollection(
                 [],
+                [],
                 mockFileSystem.Object,
                 mockTelemetry.Object);
 
@@ -221,6 +227,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             var mockFileSystem = new Mock<IFileSystem>();
             var mockTelemetry = new Mock<ITelemetryContext>();
             var nodesets = new NodesetFileCollection(
+                [],
                 [],
                 mockFileSystem.Object,
                 mockTelemetry.Object);
@@ -247,6 +254,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             var mockTelemetry = new Mock<ITelemetryContext>();
             var nodesets = new NodesetFileCollection(
                 [],
+                [],
                 mockFileSystem.Object,
                 mockTelemetry.Object);
 
@@ -271,6 +279,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             var mockTelemetry = new Mock<ITelemetryContext>();
             var nodesets = new NodesetFileCollection(
                 [],
+                [],
                 mockFileSystem.Object,
                 mockTelemetry.Object);
 
@@ -293,6 +302,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             var mockFileSystem = new Mock<IFileSystem>();
             var mockTelemetry = new Mock<ITelemetryContext>();
             var nodesets = new NodesetFileCollection(
+                [],
                 [],
                 mockFileSystem.Object,
                 mockTelemetry.Object);
