@@ -139,15 +139,24 @@ dimension. Exceeding a bound fails the call rather than the server:
 
 ## Client-side usage
 
-`XRegistryClient` binds to a connected session and the registry's companion namespace, and resolves
-the namespace index up front (throwing `BadNodeIdUnknown` when the server does not expose it).
+The client layer is built entirely on the **source-generated ObjectType proxies** — no hand-rolled
+service calls. `XRegistryClient` is an **abstract** base carrying the xRegistry-level API;
+`GenericXRegistryClient` is the sealed implementation for callers that only need the base model,
+and a domain registry client derives from the same base:
+
+```text
+abstract XRegistryClient
+   ├── sealed GenericXRegistryClient   // any registry namespace
+   ├── SchemaRegistryClient  (domain)
+   └── WotRegistryClient     (domain)
+```
 
 Resolving a resource from an id received on the wire is a single call. It returns a **null**
 `ByteString` — check `IsNull` — when no fast-path node is registered, so the caller can fall back to a
 Browse or a registry-specific download:
 
 ```csharp
-var client = new XRegistryClient(session, "http://example.org/UA/MyRegistry/");
+var client = new GenericXRegistryClient(session, "http://example.org/UA/MyRegistry/", telemetry);
 
 ByteString document = await client.ResolveResourceAsync(contentId, ct).ConfigureAwait(false);
 if (document.IsNull)
@@ -156,21 +165,43 @@ if (document.IsNull)
 }
 ```
 
-Registering a document drives the whole lifecycle and returns the server-computed identity. The
-group and Method NodeIds are obtained by Browsing the registry's well-known object; a concrete
-registry typically wraps this in a domain-specific helper:
+Registering a document drives the model's own lifecycle: the group's `CreateResource` creates the
+version and opens it for writing, and the document is streamed through the `FileType` methods that
+`ResourceType` inherits.
 
 ```csharp
-(ByteString contentId, string? algorithm) = await client.RegisterResourceAsync(
-    resourceGroupObjectId,
-    createResourceMethodId,
-    writeMethodId,
-    closeMethodId,
-    documentBytes,
-    format: "avro",
-    chunkSize: 4096,
-    ct).ConfigureAwait(false);
+(NodeId resourceNodeId, string assignedVersionId) = await client.RegisterResourceAsync(
+    groupNodeId,
+    resourceId: "urn:my:resource",
+    document: documentBytes,
+    ct: ct).ConfigureAwait(false);
 ```
+
+The typed proxies are also available directly, which is what a domain client builds on:
+
+```csharp
+GroupTypeClient group = client.GetGroup(groupNodeId);
+(NodeId nodeId, string versionId, uint fileHandle) =
+    await group.GetOrCreateResourceAsync("urn:my:resource", string.Empty, true, ct)
+        .ConfigureAwait(false);
+
+ResourceTypeClient resource = client.GetResource(nodeId);
+await resource.WriteDocumentAsync(fileHandle, documentBytes, ct: ct).ConfigureAwait(false);
+```
+
+### Extending for a domain registry
+
+A domain model subtypes the xRegistry base types — the PubSub Schema Registry declares
+`SchemaFileType : ResourceType` — so the generator emits a proxy chain that mirrors the OPC UA
+hierarchy (`SchemaFileTypeClient : ResourceTypeClient : FileTypeClient`). Two things follow:
+
+* A **domain client** derives from `XRegistryClient` and inherits the whole lifecycle. Helpers
+  written as extension methods over a base proxy (such as `WriteDocumentAsync` on
+  `ResourceTypeClient`) are directly callable on the domain proxy, with no inheritance in the
+  client layer.
+* A **generic client** still drives a domain registry, because a domain instance *is* an instance
+  of the base type. Discovery must be subtype-aware (browse with `includeSubtypes`, test with
+  `IsTypeOf`) rather than comparing TypeDefinition NodeIds for equality.
 
 ## Well-known identifiers
 

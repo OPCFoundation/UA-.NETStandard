@@ -35,13 +35,26 @@ using Opc.Ua.Client;
 namespace Opc.Ua.XRegistry.Client
 {
     /// <summary>
-    /// Generic client for an in-server xRegistry registry. It resolves a resource from its
-    /// content-derived id through the Opaque-NodeId fast path (a single <c>Read</c> of the node whose
-    /// Identifier is the raw content-id bytes) and registers a resource through the
-    /// <c>CreateResource</c>/<c>Write</c>/<c>Close</c> lifecycle. Concrete registries (for example the
-    /// PubSub Schema Registry) derive from this type to add domain-specific naming and defaults.
+    /// Base client for an in-server xRegistry registry. Every wire interaction goes through the
+    /// source-generated <c>*TypeClient</c> ObjectType proxies, so a domain registry inherits the
+    /// whole lifecycle unchanged.
     /// </summary>
-    public class XRegistryClient
+    /// <remarks>
+    /// <para>
+    /// This type is the sanctioned extension point. A domain registry — the PubSub Schema Registry,
+    /// a WoT registry — derives from it and adds domain-specific naming and defaults;
+    /// <see cref="GenericXRegistryClient"/> is the plain, sealed implementation for callers that
+    /// only need the base model.
+    /// </para>
+    /// <para>
+    /// Because a domain model subtypes the xRegistry base types (for example
+    /// <c>SchemaFileType : ResourceType</c>), the generator emits a proxy chain that mirrors the
+    /// OPC UA type hierarchy (<c>SchemaFileTypeClient : ResourceTypeClient : FileTypeClient</c>).
+    /// A generic client therefore drives a domain registry through the base proxies, and a domain
+    /// client reuses every convenience method defined here.
+    /// </para>
+    /// </remarks>
+    public abstract class XRegistryClient
     {
         /// <summary>
         /// Initializes a registry client bound to a connected <paramref name="session"/> and the
@@ -49,12 +62,18 @@ namespace Opc.Ua.XRegistry.Client
         /// </summary>
         /// <param name="session">The connected session whose server hosts the registry.</param>
         /// <param name="registryNamespaceUri">The registry companion namespace URI.</param>
-        /// <exception cref="ArgumentNullException"><paramref name="session"/> is <c>null</c>.</exception>
+        /// <param name="telemetry">Telemetry context used by the generated proxies.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="session"/> or
+        /// <paramref name="telemetry"/> is <c>null</c>.</exception>
         /// <exception cref="ArgumentException"><paramref name="registryNamespaceUri"/> is null/empty.</exception>
         /// <exception cref="ServiceResultException">The server does not expose the registry namespace.</exception>
-        public XRegistryClient(ISession session, string registryNamespaceUri)
+        protected XRegistryClient(
+            ISession session,
+            string registryNamespaceUri,
+            ITelemetryContext telemetry)
         {
             Session = session ?? throw new ArgumentNullException(nameof(session));
+            Telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
             if (string.IsNullOrEmpty(registryNamespaceUri))
             {
                 throw new ArgumentException("A registry namespace URI is required.", nameof(registryNamespaceUri));
@@ -69,6 +88,7 @@ namespace Opc.Ua.XRegistry.Client
                     registryNamespaceUri);
             }
 
+            RegistryNamespaceUri = registryNamespaceUri;
             NamespaceIndex = (ushort)index;
         }
 
@@ -78,15 +98,72 @@ namespace Opc.Ua.XRegistry.Client
         public ISession Session { get; }
 
         /// <summary>
+        /// Gets the registry companion namespace URI the client is bound to.
+        /// </summary>
+        public string RegistryNamespaceUri { get; }
+
+        /// <summary>
         /// Gets the resolved registry companion namespace index on the connected server.
         /// </summary>
         public ushort NamespaceIndex { get; }
 
         /// <summary>
+        /// Gets the telemetry context handed to the generated proxies.
+        /// </summary>
+        protected ITelemetryContext Telemetry { get; }
+
+        /// <summary>
+        /// Returns the typed proxy for a registry root Object. The proxy also drives a domain
+        /// registry whose type is a subtype of <c>RegistryType</c>.
+        /// </summary>
+        /// <param name="registryNodeId">The NodeId of the registry Object.</param>
+        /// <returns>The registry proxy.</returns>
+        /// <exception cref="ArgumentException"><paramref name="registryNodeId"/> is null.</exception>
+        public RegistryTypeClient GetRegistry(NodeId registryNodeId)
+        {
+            if (registryNodeId.IsNull)
+            {
+                throw new ArgumentException("A registry NodeId is required.", nameof(registryNodeId));
+            }
+            return new RegistryTypeClient(Session, registryNodeId, Telemetry);
+        }
+
+        /// <summary>
+        /// Returns the typed proxy for a resource group Object.
+        /// </summary>
+        /// <param name="groupNodeId">The NodeId of the group Object.</param>
+        /// <returns>The group proxy.</returns>
+        /// <exception cref="ArgumentException"><paramref name="groupNodeId"/> is null.</exception>
+        public GroupTypeClient GetGroup(NodeId groupNodeId)
+        {
+            if (groupNodeId.IsNull)
+            {
+                throw new ArgumentException("A group NodeId is required.", nameof(groupNodeId));
+            }
+            return new GroupTypeClient(Session, groupNodeId, Telemetry);
+        }
+
+        /// <summary>
+        /// Returns the typed proxy for a resource Object. <c>ResourceType</c> is a
+        /// <c>FileType</c>, so the proxy also exposes the standard file transfer methods.
+        /// </summary>
+        /// <param name="resourceNodeId">The NodeId of the resource Object.</param>
+        /// <returns>The resource proxy.</returns>
+        /// <exception cref="ArgumentException"><paramref name="resourceNodeId"/> is null.</exception>
+        public ResourceTypeClient GetResource(NodeId resourceNodeId)
+        {
+            if (resourceNodeId.IsNull)
+            {
+                throw new ArgumentException("A resource NodeId is required.", nameof(resourceNodeId));
+            }
+            return new ResourceTypeClient(Session, resourceNodeId, Telemetry);
+        }
+
+        /// <summary>
         /// Resolves a resource document from its content-derived id through the Opaque-NodeId fast
         /// path: the Opaque NodeId is built deterministically from the raw content-id bytes and read
         /// in a single operation. Returns a null <see cref="ByteString"/> when no fast-path node is
-        /// registered (the caller then falls back to a Browse or a registry-specific download method).
+        /// registered, so the caller can fall back to a Browse or a registry-specific download.
         /// </summary>
         /// <param name="resourceId">The raw content-derived id bytes.</param>
         /// <param name="ct">The cancellation token.</param>
@@ -105,11 +182,6 @@ namespace Opc.Ua.XRegistry.Client
             try
             {
                 DataValue value = await Session.ReadValueAsync(fastPathNodeId, ct).ConfigureAwait(false);
-                if (StatusCode.IsBad(value.StatusCode))
-                {
-                    return default;
-                }
-
                 _ = value.WrappedValue.TryGetValue(out ByteString document);
                 return document;
             }
@@ -122,70 +194,51 @@ namespace Opc.Ua.XRegistry.Client
         }
 
         /// <summary>
-        /// Registers a resource document through the registry write lifecycle: the
-        /// <paramref name="createResourceMethodId"/> obtains a write handle on the
-        /// <paramref name="resourceGroupObjectId"/>, the document is streamed with one or more
-        /// <paramref name="writeMethodId"/> calls, and <paramref name="closeMethodId"/> finalizes it.
-        /// On close the server computes and returns the content-derived id and its algorithm and
-        /// publishes the Opaque fast-path node. A client obtains the group and method NodeIds by
-        /// Browsing the registry's well-known object.
+        /// Registers a resource document in a group through the model's own lifecycle: the group's
+        /// <c>CreateResource</c> creates the resource version and opens it for writing, the document
+        /// is streamed through the inherited <c>FileType</c> Write, and Close finalizes it. On close
+        /// the server bootstraps the resource's content-derived identity.
         /// </summary>
-        /// <param name="resourceGroupObjectId">The resource-group object NodeId.</param>
-        /// <param name="createResourceMethodId">The CreateResource method NodeId.</param>
-        /// <param name="writeMethodId">The Write method NodeId.</param>
-        /// <param name="closeMethodId">The Close method NodeId.</param>
+        /// <param name="groupNodeId">The NodeId of the group that owns the resource.</param>
+        /// <param name="resourceId">The resource id to create or version.</param>
         /// <param name="document">The resource document bytes.</param>
-        /// <param name="format">The resource format (for example <c>avro</c>).</param>
+        /// <param name="versionId">The version id; empty lets the server assign the next one.</param>
         /// <param name="chunkSize">The maximum Write chunk size in bytes.</param>
         /// <param name="ct">The cancellation token.</param>
-        /// <returns>The computed content-id and its algorithm name.</returns>
+        /// <returns>The created resource NodeId and the version id the server assigned.</returns>
+        /// <exception cref="ArgumentException"><paramref name="groupNodeId"/> or
+        /// <paramref name="resourceId"/> is null/empty.</exception>
         /// <exception cref="ArgumentOutOfRangeException"><paramref name="chunkSize"/> is not positive.</exception>
-        public async Task<(ByteString ContentId, string? Algorithm)> RegisterResourceAsync(
-            NodeId resourceGroupObjectId,
-            NodeId createResourceMethodId,
-            NodeId writeMethodId,
-            NodeId closeMethodId,
+        public async Task<(NodeId ResourceNodeId, string AssignedVersionId)> RegisterResourceAsync(
+            NodeId groupNodeId,
+            string resourceId,
             ReadOnlyMemory<byte> document,
-            string format = "avro",
-            int chunkSize = 4096,
+            string versionId = "",
+            int chunkSize = ResourceTypeClientExtensions.DefaultChunkSize,
             CancellationToken ct = default)
         {
+            if (groupNodeId.IsNull)
+            {
+                throw new ArgumentException("A group NodeId is required.", nameof(groupNodeId));
+            }
+            if (string.IsNullOrEmpty(resourceId))
+            {
+                throw new ArgumentException("A resource id is required.", nameof(resourceId));
+            }
             if (chunkSize <= 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(chunkSize));
             }
 
-            ArrayOf<Variant> createOutputs = await Session.CallAsync(
-                resourceGroupObjectId,
-                createResourceMethodId,
-                ct,
-                new Variant(string.Empty),
-                new Variant(string.Empty)).ConfigureAwait(false);
+            GroupTypeClient group = GetGroup(groupNodeId);
+            (NodeId resourceNodeId, string assignedVersionId, uint fileHandle) =
+                await group.CreateResourceAsync(resourceId, versionId ?? string.Empty, true, ct)
+                    .ConfigureAwait(false);
 
-            _ = createOutputs[0].TryGetValue(out uint handle);
+            ResourceTypeClient resource = GetResource(resourceNodeId);
+            await resource.WriteDocumentAsync(fileHandle, document, chunkSize, ct).ConfigureAwait(false);
 
-            for (int offset = 0; offset < document.Length; offset += chunkSize)
-            {
-                int length = Math.Min(chunkSize, document.Length - offset);
-                var chunk = ByteString.From(document.Slice(offset, length).ToArray());
-                _ = await Session.CallAsync(
-                    resourceGroupObjectId,
-                    writeMethodId,
-                    ct,
-                    new Variant(handle),
-                    new Variant(chunk)).ConfigureAwait(false);
-            }
-
-            ArrayOf<Variant> closeOutputs = await Session.CallAsync(
-                resourceGroupObjectId,
-                closeMethodId,
-                ct,
-                new Variant(handle),
-                new Variant(format)).ConfigureAwait(false);
-
-            _ = closeOutputs[0].TryGetValue(out ByteString contentId);
-            _ = closeOutputs[1].TryGetValue(out string? algorithm);
-            return (contentId, algorithm);
+            return (resourceNodeId, assignedVersionId);
         }
     }
 }
