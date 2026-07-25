@@ -66,8 +66,8 @@ namespace Opc.Ua.Aot.Tests
                 serviceProvider.GetService<IIsa95JobOrderReceiverV1>();
             IIsa95JobOrderReceiverV2 receiverV2 =
                 serviceProvider.GetService<IIsa95JobOrderReceiverV2>();
-            Func<Client.ISession, Isa95Client> clientFactory =
-                serviceProvider.GetService<Func<Client.ISession, Isa95Client>>();
+            IIsa95ClientFactory clientFactory =
+                serviceProvider.GetService<IIsa95ClientFactory>();
 
             await Assert.That(nodeManagerFactory).IsNotNull();
             await Assert.That(receiverV1).IsNotNull();

@@ -30,7 +30,6 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using Opc.Ua;
@@ -91,21 +90,8 @@ namespace Microsoft.Extensions.DependencyInjection
             services.TryAddSingleton<ITelemetryContext>(
                 static serviceProvider => new ServiceProviderTelemetryContext(serviceProvider));
 
-            services.TryAddSingleton<Func<ISession, Isa95Client>>(static serviceProvider =>
-            {
-                ITelemetryContext telemetry = serviceProvider.GetRequiredService<ITelemetryContext>();
-                return session => new Isa95Client(session, telemetry);
-            });
-
-            services.TryAddSingleton<Func<ManagedSession, Isa95Client>>(static serviceProvider =>
-            {
-                Func<ISession, Isa95Client> factory =
-                    serviceProvider.GetRequiredService<Func<ISession, Isa95Client>>();
-                return session => factory(session);
-            });
-
-            services.TryAddSingleton<Func<CancellationToken, Task<Isa95Client>>>(
-                static serviceProvider => new Isa95ClientAccessor(serviceProvider).ConnectAsync);
+            services.TryAddSingleton<IIsa95ClientFactory>(
+                static serviceProvider => new Isa95ClientFactory(serviceProvider));
 
             services.AddOpcUa();
         }
@@ -120,19 +106,27 @@ namespace Microsoft.Extensions.DependencyInjection
             public IServiceCollection Services { get; }
         }
 
-        private sealed class Isa95ClientAccessor
+        private sealed class Isa95ClientFactory : IIsa95ClientFactory
         {
-            public Isa95ClientAccessor(IServiceProvider serviceProvider)
+            public Isa95ClientFactory(IServiceProvider serviceProvider)
             {
                 m_serviceProvider = serviceProvider;
+                m_telemetry =
+                    serviceProvider.GetRequiredService<ITelemetryContext>();
             }
 
-            public Task<Isa95Client> ConnectAsync(CancellationToken ct)
+            public Isa95Client Create(ISession session)
+            {
+                return new Isa95Client(session, m_telemetry);
+            }
+
+            public ValueTask<Isa95Client> ConnectAsync(
+                CancellationToken cancellationToken = default)
             {
                 lock (m_gate)
                 {
-                    m_connectTask ??= ConnectCoreAsync(ct);
-                    return m_connectTask;
+                    m_connectTask ??= ConnectCoreAsync(cancellationToken);
+                    return new ValueTask<Isa95Client>(m_connectTask);
                 }
             }
 
@@ -143,8 +137,8 @@ namespace Microsoft.Extensions.DependencyInjection
                 if (!options.LazyConnect)
                 {
                     throw new InvalidOperationException(
-                        "Isa95ClientOptions.LazyConnect is false. Resolve Func<ISession, Isa95Client> " +
-                        "and supply an existing session.");
+                        "Isa95ClientOptions.LazyConnect is false. Call " +
+                        "IIsa95ClientFactory.Create with an existing session.");
                 }
 
                 Func<CancellationToken, Task<ManagedSession>> sessionFactory =
@@ -152,12 +146,11 @@ namespace Microsoft.Extensions.DependencyInjection
                     ?? throw new InvalidOperationException(
                         "AddIsa95Client requires AddClient to register a ManagedSession factory.");
                 ManagedSession session = await sessionFactory(ct).ConfigureAwait(false);
-                Func<ManagedSession, Isa95Client> factory =
-                    m_serviceProvider.GetRequiredService<Func<ManagedSession, Isa95Client>>();
-                return factory(session);
+                return Create(session);
             }
 
             private readonly IServiceProvider m_serviceProvider;
+            private readonly ITelemetryContext m_telemetry;
             private readonly Lock m_gate = new();
             private Task<Isa95Client>? m_connectTask;
         }

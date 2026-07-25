@@ -6,7 +6,6 @@ End-to-end developer guide for the `Opc.Ua.ISA95*` library trio: the OPC-10030 I
 
 - [Library layout](#library-layout)
 - [Models and namespaces](#models-and-namespaces)
-- [Normative NodeSet repairs](#normative-nodeset-repairs)
 - [Quick start — server](#quick-start--server)
 - [Quick start — client](#quick-start--client)
 - [Server hosting model](#server-hosting-model)
@@ -15,9 +14,8 @@ End-to-end developer guide for the `Opc.Ua.ISA95*` library trio: the OPC-10030 I
 - [GeoSpatialLocationType provider seam](#geospatiallocationtype-provider-seam)
 - [Client](#client)
 - [In-memory limitations and HA guidance](#in-memory-limitations-and-ha-guidance)
-- [Provenance](#provenance)
 - [Conformance matrix](#conformance-matrix)
-- [Validation commands and acceptance](#validation-commands-and-acceptance)
+- [Model sources, identifier mappings, and normative repairs](#model-sources-identifier-mappings-and-normative-repairs)
 
 ## Library layout
 
@@ -36,26 +34,6 @@ The running example is [`samples/MinimalIsa95Server`](../samples/MinimalIsa95Ser
 | Common Model | OPC-10030 | `http://www.OPCFoundation.org/UA/2013/01/ISA95` | 1.00 | 2013-11-06 | `Opc.Ua.ISA95` |
 | Job Control V1 | OPC-10031-4 | `http://opcfoundation.org/UA/ISA95-JOBCONTROL` | 1.0.0 | 2021-03-31 | `Opc.Ua.ISA95.JobControl.V1` |
 | Job Control V2 | OPC-10031-4 | `http://opcfoundation.org/UA/ISA95-JOBCONTROL_V2/` | 2.0.0 | 2024-01-31 | `Opc.Ua.ISA95.JobControl.V2` |
-
-All three NodeSet2 XML documents live under [`src/Opc.Ua.ISA95/Design`](../src/Opc.Ua.ISA95/Design) and are compiled by the repository's model source generator (`Opc.Ua.SourceGeneration`, `ModelSourceGeneratorVersion=v105`).
-
-Each NodeSet2 XML file has a hand-maintained identifier CSV sidecar (`*.NodeIds.csv`) that pins every symbolic name to its numeric NodeId and NodeClass.
-
-The V1 and V2 folders additionally carry an `*.Upstream.NodeIds.csv` copy of the identifiers as published by the OPC Foundation, kept side by side with the derived sidecar so the two can be diffed; the Common Model has no upstream copy because its sidecar also encodes the two normative repairs described below.
-
-`Tests/Opc.Ua.ISA95.Tests/ModelAssetTests.cs` validates, from the embedded NodeSet2/CSV assets, that: the `Model` element's `ModelUri`/`Version` and total node count match the values above; every CSV row has a matching NodeId of the correct NodeClass in the NodeSet and vice versa (no orphaned or missing rows); the two normative repairs are present with their links; the V1 methods and the V2 mandatory/optional methods carry the modelling rule published by the source spec; and the V2 status-event type and state-machine causes match the published shape.
-
-## Normative NodeSet repairs
-
-The published OPC-10030 v1.00 NodeSet2 XML has two normative gaps against the specification text itself, both corrected transparently in [`src/Opc.Ua.ISA95/Design/Common/Opc.ISA95.NodeSet2.xml`](../src/Opc.Ua.ISA95/Design/Common/Opc.ISA95.NodeSet2.xml) with an inline XML comment at each repair site.
-
-**`DefinedByMaterialClass` (assigned `ns=1;i=5300`).** OPC-10030 §9.6.2 and Table 76 require this ReferenceType so that `MaterialDefinitionType` can declare its `<MaterialClass>` reference, but the published NodeSet omits the ReferenceType declaration entirely, leaving that declaration orphaned (referencing a ReferenceType that does not exist in the NodeSet). NodeId 5300 is the unused identifier immediately preceding the published `DefinedByMaterialDefinition` (5301), so assigning it here does not collide with any published identifier.
-
-**`AssembledFromSublot` (assigned `ns=1;i=5333`).** OPC-10030 §9.6.8 and Table 77 require this ReferenceType so that `MaterialLotType` can declare its `<AssemblySublot>` reference, but the published NodeSet omits it in the same way. Identifier 5333 follows the published model's highest assigned identifier, so it is also collision-free.
-
-Both repairs restore the ReferenceType declaration (with the correct `HasSubtype` supertype, `InverseName`, and a `Documentation` link to the corresponding OPC-10030 clause) and wire the previously orphaned forward/inverse references on the affected instance declarations (`MaterialDefinitionType` at `ns=1;i=5219`; `MaterialLotType` at `ns=1;i=5232` and `ns=1;i=5259`) so the model round-trips without dangling ReferenceType references.
-
-`ModelAssetTests.CommonModelContainsNormativeMaterialReferenceRepairs` asserts both references exist with the expected source/target NodeIds; run it (see [Validation commands and acceptance](#validation-commands-and-acceptance)) to reproduce this claim yourself.
 
 ## Quick start — server
 
@@ -103,7 +81,9 @@ See [`samples/MinimalIsa95Server/Program.cs`](../samples/MinimalIsa95Server/Prog
 using Microsoft.Extensions.DependencyInjection;
 using Opc.Ua.ISA95.Client;
 
-Isa95Client client = await isa95ClientFactory(ct);
+IIsa95ClientFactory isa95ClientFactory = serviceProvider
+    .GetRequiredService<IIsa95ClientFactory>();
+Isa95Client client = await isa95ClientFactory.ConnectAsync(ct);
 
 Isa95JobControlDiscovery discovery =
     await client.DiscoverJobControlAsync(ct).ConfigureAwait(false);
@@ -123,7 +103,7 @@ ulong status = await jobControl.StoreAndStartAsync(
     ct: ct).ConfigureAwait(false);
 ```
 
-`isa95ClientFactory` above is the `Func<CancellationToken, Task<Isa95Client>>` registered by `AddIsa95Client`; resolve it via constructor injection, or construct `Isa95Client` directly from an existing `ISession`/`ManagedSession` and an `ITelemetryContext`.
+`IIsa95ClientFactory` is registered by `AddIsa95Client`; resolve it through constructor injection, call `ConnectAsync` to lazily acquire the registered `ManagedSession`, or call `Create` with an existing connected `ISession`.
 
 ## Server hosting model
 
@@ -206,7 +186,7 @@ OPC-10030's `GeoSpatialLocationType` models a location as a single value (in thi
 
 `IIsa95GeoSpatialLocationProvider` is intentionally a narrow seam: `GetCurrentAsync` returns an `Isa95GeoSpatialLocation` snapshot (value, `StatusCode`, source timestamp), and `SubscribeAsync` optionally returns an `IAsyncEnumerable` of subsequent updates (`null` when the provider only supports polling).
 
-**RSL/GPOS are explicitly out of scope at runtime.** This repository does not implement the OPC UA Part 210 (Relative Spatial Location, RSL) or Part 211 (Global Positioning, GPOS) information models. The legacy OPC-10030 `GeoSpatialLocationType` string seam is deliberately kept generic so that a future adapter — translating `GlobalPositionType`/`GlobalLocationType` structured data from a Part 211 GPOS source into the string literal (or vice versa) — could be layered on top of `IIsa95GeoSpatialLocationProvider` without any change to the ISA-95 NodeSet or the binder. No such adapter exists today.
+**RSL/GPOS follow-up.** Typed OPC UA Part 210 (Relative Spatial Location) and Part 211 (Global Positioning) support is tracked by [#4095](https://github.com/OPCFoundation/UA-.NETStandard/issues/4095). The planned work will source-generate the canonical spatial models, add typed client/server providers, and implement an adapter between structured `GlobalPositionType`/`GlobalLocationType` values and the legacy OPC-10030 `GeoSpatialLocationType` string without changing the ISA-95 NodeSet contract. This PR keeps the provider seam compatible with that follow-up while leaving structured coordinate data to the dedicated spatial implementation.
 
 ## Client
 
@@ -230,7 +210,7 @@ await foreach (ISA95JobOrderStatusEventTypeRecord record in
 }
 ```
 
-`AddIsa95Client` (on `IOpcUaBuilder` or `IOpcUaClientBuilder`) registers `ITelemetryContext`, `Func<ISession, Isa95Client>`, `Func<ManagedSession, Isa95Client>`, and — when `Isa95ClientOptions.LazyConnect` is true (the default) — a `Func<CancellationToken, Task<Isa95Client>>` that lazily acquires the `ManagedSession` registered by `AddClient` on first use and caches the resulting client.
+`AddIsa95Client` (on `IOpcUaBuilder` or `IOpcUaClientBuilder`) registers `ITelemetryContext` and the injectable `IIsa95ClientFactory`. `Create` wraps an existing session; when `Isa95ClientOptions.LazyConnect` is true (the default), `ConnectAsync` lazily acquires the `ManagedSession` registered by `AddClient` on first use and caches the resulting client.
 
 ## In-memory limitations and HA guidance
 
@@ -239,20 +219,6 @@ await foreach (ISA95JobOrderStatusEventTypeRecord record in
 For a highly-available or horizontally distributed server, implement the provider interfaces (`IIsa95JobOrderReceiverV1/V2`, `IIsa95JobResponseProviderV1/V2`, `IIsa95JobResponseReceiverV1/V2`, `IIsa95JobStatusSourceV2`, `IIsa95JobExecutionController`, `IIsa95JobOrderCatalog`, `IIsa95JobOrderCatalogChangeSource`) against one shared, durable backing store (for example a database or distributed cache reachable by every server instance) and register that cohesive set before calling `AddIsa95Server`. This mirrors the provider-model guidance in [Historical Access](HistoricalAccess.md) and the general redundancy guidance in [High Availability and OPC UA Redundancy](HighAvailability.md): state that must survive failover belongs behind a shared provider, not in server-local memory.
 
 `IIsa95JobStatusSourceV2.SubscribeAsync` and `IIsa95JobOrderCatalogChangeSource.SubscribeCatalogChangesAsync` each provide independent, post-subscription delivery streams. A durable/distributed implementation must preserve the exactly-once-per-committed-mutation contract (or document stronger replay/checkpoint semantics) so event and `JobOrderList` projections remain coherent across server instances.
-
-## Provenance
-
-The Common Model and both Job Control NodeSet2/CSV asset sets in this repository were derived from the following upstream source revisions:
-
-| Asset | Upstream source commit |
-|---|---|
-| Common Model (`Design/Common`) | `2a11da3...` |
-| Job Control V1 (`Design/JobControl/V1`) | `90d4ebe...` |
-| Job Control V2 (`Design/JobControl/V2`) | `e0b5d80...` |
-
-The derived `*.NodeIds.csv` sidecars used by the source generator coexist, for V1 and V2, with an unmodified `*.Upstream.NodeIds.csv` copy of the identifiers as published upstream, so the two can be diffed directly; the Common Model sidecar has no separate upstream copy because it already carries the two normative repairs documented above.
-
-`ModelAssetTests.CanonicalNodeSetHasExpectedIdentity` pins each NodeSet2's `ModelUri`, `Version`, and total node count (Common: 390, Job Control V1: 91, Job Control V2: 258) so accidental upstream drift or local edits are caught by CI.
 
 ## Conformance matrix
 
@@ -265,7 +231,7 @@ This matrix distinguishes **static NodeSet structure** (what the NodeSet2 XML de
 | Common Model primary types and concrete property types (Person/Equipment/PhysicalAsset/Material class+instance hierarchy) | ✅ | ✅ | [`Isa95ModelBuilder`](../src/Opc.Ua.ISA95.Server/Builders/Isa95ModelBuilder.cs) | `ModelAssetTests`; `Isa95ModelBuilderTests`; `Isa95EndToEndTests` |
 | `DefinedByMaterialClass` / `AssembledFromSublot` repairs | ✅ | ✅ | [`Opc.ISA95.NodeSet2.xml`](../src/Opc.Ua.ISA95/Design/Common/Opc.ISA95.NodeSet2.xml) | `ModelAssetTests.CommonModelContainsNormativeMaterialReferenceRepairs` |
 | `GeoSpatialLocationType` (as a string-provider seam) | ✅ | ✅ | [`Isa95GeoSpatialLocationBinder`](../src/Opc.Ua.ISA95.Server/Builders/Isa95GeoSpatialLocationBinder.cs) | `Isa95GeoSpatialLocationTests`; `Isa95EndToEndTests` |
-| GPOS/RSL (Part 210/211) coordinate model | N/A — not implemented | N/A | — | — |
+| GPOS/RSL (Part 210/211) coordinate model | Planned in [#4095](https://github.com/OPCFoundation/UA-.NETStandard/issues/4095) | Planned | — | — |
 | Job Control V1 `ReceiveJobOrder`/`RequestJobResponse`/`ReceiveJobResponse` (all mandatory, modelling rule `i=78`) | ✅ | ✅ | [`InMemoryIsa95JobControlProvider`](../src/Opc.Ua.ISA95.Server/Providers/InMemoryIsa95JobControlProvider.cs) | `ModelAssetTests.JobControlV1MethodsAreMandatory`; `InMemoryIsa95JobControlProviderV1Tests` |
 | Job Control V2 Job Order Receiver operations (Store/StoreAndStart/Start/Update/Stop/Pause/Resume/Abort/RevokeStart/Cancel/Clear — 🔲 optional, modelling rule `i=80`) | ✅ | ✅ | same | `ModelAssetTests.JobControlV2MethodRulesMatchPublishedModel`; `InMemoryIsa95JobControlProviderV2Tests` |
 | Job Control V2 response methods (`RequestJobResponseByJobOrderID`, `RequestJobResponseByJobOrderState`, `ReceiveJobResponse` — mandatory, modelling rule `i=78`) | ✅ | ✅ | same | same |
@@ -280,38 +246,32 @@ This matrix distinguishes **static NodeSet structure** (what the NodeSet2 XML de
 | Persistent NativeAOT roots | — | ✅ | [`Isa95AotTests`](../tests/Opc.Ua.Aot.Tests/Isa95AotTests.cs) | NativeAOT publish + source-generated test execution |
 | Durable/HA Job Control provider | ❌ not shipped (in-memory only; see [In-memory limitations and HA guidance](#in-memory-limitations-and-ha-guidance)) | — | — | — |
 
-## Validation commands and acceptance
+## Model sources, identifier mappings, and normative repairs
 
-The implementation was validated on Windows with the .NET 10 SDK:
+All three NodeSet2 XML documents live under [`src/Opc.Ua.ISA95/Design`](../src/Opc.Ua.ISA95/Design) and are compiled by the repository's model source generator (`Opc.Ua.SourceGeneration`, `ModelSourceGeneratorVersion=v105`).
 
-- `Opc.Ua.ISA95`, `Opc.Ua.ISA95.Client`, and `Opc.Ua.ISA95.Server` build for every configured library TFM with zero diagnostics.
-- `Opc.Ua.ISA95.Tests` passes **137/137** on both `net10.0` and `net48`.
-- Source-generator regression suites pass: model generator **81/81**, stack generator **90/90**, and core generator **3718 passed / 8 skipped**.
-- Cobertura line coverage is **88.08%** (`Opc.Ua.ISA95`), **90.04%** (`Opc.Ua.ISA95.Client`), and **91.19%** (`Opc.Ua.ISA95.Server`), above the required 80% for every new assembly.
-- `MinimalIsa95Server` publishes as self-contained `win-x64` NativeAOT with zero ISA-95 diagnostics. The published executable was started and a typed managed client successfully invoked V2 `Store` and decoded the resulting concrete status-event subtype.
-- `Opc.Ua.Aot.Tests` now references the model/client/server packages; its source-generated ISA-95 NativeAOT smoke test publishes and passes in the native executable.
-- OPC UA KB `validate_nodeset` reported zero errors for the exact three upstream revisions. The inherited official warning baseline is 292 warnings for Common, 52 for V1, and 178 for V2; the local Common asset adds the two documented normative repairs and is covered by XML/CSV parity tests.
-- Live interoperability against the NativeAOT executable confirmed all three namespaces, the representative Common Model graph, the WKT geospatial value, all V1/V2 facet objects, every V2 method node, and correct negative status codes. The generic MCP client could not marshal custom ExtensionObjects/`LocalizedText[]` or create event monitored items, so positive structured method/event behavior was closed by the typed end-to-end client test instead.
+Each NodeSet2 XML file has a hand-maintained identifier mapping CSV (`*.NodeIds.csv`) that pins every symbolic name to its numeric NodeId and NodeClass. The V1 and V2 folders also contain an unmodified `*.Upstream.NodeIds.csv` copy of the identifiers published by the OPC Foundation so the generated mapping can be compared directly with its source. The Common Model has no separate upstream mapping because its local mapping includes the two normative repairs described below.
 
-The V2 Job Order Receiver StateMachine describes metadata for structured job-order values rather than one live receiver state. As required by OPC-10031-4 §6.2.1.2, the inherited mandatory `CurrentState` therefore returns a Bad StatusCode; clients use each order's structured state in `JobOrderList` and status events instead.
+`Tests/Opc.Ua.ISA95.Tests/ModelAssetTests.cs` verifies that every mapping row resolves to the matching NodeId and NodeClass, every numeric NodeSet node is represented, model identity and node counts remain stable, mandatory and optional method rules match the specifications, and the V2 status-event and state-machine references retain their published shape.
 
-Run the ISA-95 asset, unit, and end-to-end suite with:
+### Provenance
 
-```powershell
-$env:CustomTestTarget = "net10.0"
-dotnet test Tests\Opc.Ua.ISA95.Tests\Opc.Ua.ISA95.Tests.csproj -c Release
-```
+The model assets were derived from these upstream source revisions:
 
-To additionally exercise the sample server end to end, run it and connect with any OPC UA client (or the [`ConsoleReferenceClient`](../samples/ConsoleReferenceClient/README.md)):
+| Asset | Upstream source commit |
+|---|---|
+| Common Model (`Design/Common`) | `2a11da3dee11e623ce552f956ece0a571cc6e571` |
+| Job Control V1 (`Design/JobControl/V1`) | `90d4ebe362b8cba3d745c7760fda187c35b4f9f4` |
+| Job Control V2 (`Design/JobControl/V2`) | `e0b5d80cfff698f0276393e28df138a7fbc4b541` |
 
-```powershell
-dotnet run --project samples\MinimalIsa95Server\MinimalIsa95Server.csproj
-```
+`ModelAssetTests.CanonicalNodeSetHasExpectedIdentity` pins each NodeSet2's `ModelUri`, `Version`, publication date, and total node count (Common: 390, Job Control V1: 91, Job Control V2: 258), preventing accidental upstream drift or unreviewed local edits.
 
-To rebuild the source-generated types and re-validate the NodeSet2/CSV identifier sidecars against the source generator itself, build the `Opc.Ua.ISA95` project (part of `UA.slnx`):
+### Normative Common Model repairs
 
-```powershell
-dotnet build src\Opc.Ua.ISA95\Opc.Ua.ISA95.csproj
-```
+The published OPC-10030 v1.00 NodeSet2 XML has two gaps against the specification text. Both are corrected transparently in [`src/Opc.Ua.ISA95/Design/Common/Opc.ISA95.NodeSet2.xml`](../src/Opc.Ua.ISA95/Design/Common/Opc.ISA95.NodeSet2.xml) with an inline XML comment at each repair site.
 
-The KB `check_compliance` operation is intended for exported implementation NodeSets, not for comparing a companion specification's own source NodeSet against itself; doing the latter reports false “missing mandatory node” findings. Runtime conformance is therefore tracked by the matrix above and the live-address-space interoperability tests rather than treating those self-comparison findings as implementation defects.
+**`DefinedByMaterialClass` (assigned `ns=1;i=5300`).** OPC-10030 §9.6.2 and Table 76 require this ReferenceType so that `MaterialDefinitionType` can declare its `<MaterialClass>` reference, but the published NodeSet omits the declaration and leaves that reference orphaned. NodeId 5300 is the unused identifier immediately preceding the published `DefinedByMaterialDefinition` (5301), so it does not collide with any published identifier.
+
+**`AssembledFromSublot` (assigned `ns=1;i=5333`).** OPC-10030 §9.6.8 and Table 77 require this ReferenceType so that `MaterialLotType` can declare its `<AssemblySublot>` reference, but the published NodeSet omits it in the same way. Identifier 5333 follows the published model's highest assigned identifier and is collision-free.
+
+The repairs restore each ReferenceType declaration with the correct `HasSubtype` supertype, `InverseName`, and specification link, and wire the previously orphaned forward/inverse references on `MaterialDefinitionType` (`ns=1;i=5219`) and `MaterialLotType` (`ns=1;i=5232`, `ns=1;i=5259`). `ModelAssetTests.CommonModelContainsNormativeMaterialReferenceRepairs` verifies the repaired source and target NodeIds.

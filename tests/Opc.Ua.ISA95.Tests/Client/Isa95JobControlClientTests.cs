@@ -142,16 +142,23 @@ namespace Opc.Ua.ISA95.Tests.Client
         }
 
         [Test]
-        public void AddIsa95ClientRegistersDirectAndLazyFactories()
+        public void AddIsa95ClientRegistersFactory()
         {
             IServiceCollection services = new ServiceCollection();
             services.AddOpcUa().AddIsa95Client(options => options.LazyConnect = false);
             using ServiceProvider serviceProvider = services.BuildServiceProvider();
 
-            Assert.That(serviceProvider.GetService<Func<ISession, Isa95Client>>(), Is.Not.Null);
-            Assert.That(
-                serviceProvider.GetService<Func<CancellationToken, Task<Isa95Client>>>(),
-                Is.Not.Null);
+            IIsa95ClientFactory factory =
+                serviceProvider.GetRequiredService<IIsa95ClientFactory>();
+            ITelemetryContext telemetry =
+                serviceProvider.GetRequiredService<ITelemetryContext>();
+            var session = new Mock<ISession>();
+            session.SetupGet(value => value.MessageContext).Returns(
+                ServiceMessageContext.Create(telemetry));
+
+            Isa95Client client = factory.Create(session.Object);
+
+            Assert.That(client.Session, Is.SameAs(session.Object));
         }
 
         [Test]
@@ -160,13 +167,14 @@ namespace Opc.Ua.ISA95.Tests.Client
             IServiceCollection services = new ServiceCollection();
             services.AddOpcUa().AddIsa95Client(options => options.LazyConnect = false);
             using ServiceProvider serviceProvider = services.BuildServiceProvider();
-            Func<CancellationToken, Task<Isa95Client>> factory =
-                serviceProvider.GetRequiredService<Func<CancellationToken, Task<Isa95Client>>>();
+            IIsa95ClientFactory factory =
+                serviceProvider.GetRequiredService<IIsa95ClientFactory>();
 
             bool threw = false;
             try
             {
-                await factory(CancellationToken.None).ConfigureAwait(false);
+                await factory.ConnectAsync(CancellationToken.None)
+                    .ConfigureAwait(false);
             }
             catch (InvalidOperationException)
             {

@@ -27,17 +27,31 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Opc.Ua.ISA95.Client.Hosting
+using System.Threading;
+using System.Threading.Tasks;
+using Opc.Ua.Client;
+
+namespace Opc.Ua.ISA95.Client
 {
     /// <summary>
-    /// Options for ISA-95 client DI registration.
+    /// Creates ISA-95 clients from existing sessions or the registered managed
+    /// session connection.
     /// </summary>
-    public sealed class Isa95ClientOptions
+    public interface IIsa95ClientFactory
     {
         /// <summary>
-        /// Gets or sets whether <see cref="IIsa95ClientFactory.ConnectAsync"/>
-        /// lazily acquires the registered ManagedSession. Defaults to true.
+        /// Creates an ISA-95 client over an existing session.
         /// </summary>
-        public bool LazyConnect { get; set; } = true;
+        /// <param name="session">The connected session.</param>
+        /// <returns>The created ISA-95 client.</returns>
+        Isa95Client Create(ISession session);
+
+        /// <summary>
+        /// Gets the lazily connected ISA-95 client.
+        /// </summary>
+        /// <param name="cancellationToken">A cancellation token.</param>
+        /// <returns>The connected ISA-95 client.</returns>
+        ValueTask<Isa95Client> ConnectAsync(
+            CancellationToken cancellationToken = default);
     }
 }
