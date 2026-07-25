@@ -106,22 +106,6 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public async Task BuildSetsDefaultTraceConfigurationAsync()
-        {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
-            await using (appInstance.ConfigureAwait(false))
-            {
-                appInstance.Build(ApplicationUri, ProductUri);
-
-                Assert.That(appInstance.ApplicationConfiguration.TraceConfiguration, Is.Not.Null);
-                Assert.That(
-                    appInstance.ApplicationConfiguration.TraceConfiguration.TraceMasks,
-                    Is.EqualTo(Utils.TraceMasks.None));
-            }
-        }
-
-        [Test]
         public async Task AsClientSetsClientConfigurationAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -1897,60 +1881,6 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public async Task TraceConfigurationSetOutputFilePathAsync()
-        {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
-            await using (appInstance.ConfigureAwait(false))
-            {
-                appInstance.Build(ApplicationUri, ProductUri)
-                    .AsClient()
-                    .AddSecurityConfiguration(SubjectName, m_pkiRoot)
-                    .SetOutputFilePath("trace.log");
-
-                Assert.That(
-                    appInstance.ApplicationConfiguration.TraceConfiguration.OutputFilePath,
-                    Is.EqualTo("trace.log"));
-            }
-        }
-
-        [Test]
-        public async Task TraceConfigurationSetDeleteOnLoadAsync()
-        {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
-            await using (appInstance.ConfigureAwait(false))
-            {
-                appInstance.Build(ApplicationUri, ProductUri)
-                    .AsClient()
-                    .AddSecurityConfiguration(SubjectName, m_pkiRoot)
-                    .SetDeleteOnLoad(true);
-
-                Assert.That(
-                    appInstance.ApplicationConfiguration.TraceConfiguration.DeleteOnLoad,
-                    Is.True);
-            }
-        }
-
-        [Test]
-        public async Task TraceConfigurationSetTraceMasksAsync()
-        {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
-            await using (appInstance.ConfigureAwait(false))
-            {
-                appInstance.Build(ApplicationUri, ProductUri)
-                    .AsClient()
-                    .AddSecurityConfiguration(SubjectName, m_pkiRoot)
-                    .SetTraceMasks(Utils.TraceMasks.Error | Utils.TraceMasks.Information);
-
-                Assert.That(
-                    appInstance.ApplicationConfiguration.TraceConfiguration.TraceMasks,
-                    Is.EqualTo(Utils.TraceMasks.Error | Utils.TraceMasks.Information));
-            }
-        }
-
-        [Test]
         public async Task CreateAsyncWithServerTypeAndNoServerConfigThrowsAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -2252,9 +2182,6 @@ namespace Opc.Ua.Configuration.Tests
                     .SetMaxRejectedCertificates(10)
                     .SetUseValidatedCertificates(true)
                     .SetHiResClockDisabled(false)
-                    .SetOutputFilePath("trace.log")
-                    .SetDeleteOnLoad(true)
-                    .SetTraceMasks(Utils.TraceMasks.Error)
                     .CreateAsync()
                     .ConfigureAwait(false);
 
