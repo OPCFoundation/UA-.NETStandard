@@ -44,8 +44,7 @@ namespace Opc.Ua.Configuration
     /// <remarks>
     /// This builder uses a fluent staged-interface pattern: callers progress through
     /// <see cref="ApplicationInstance.Build(string, string)"/> (which initializes
-    /// <see cref="ApplicationConfiguration.TransportQuotas"/> and
-    /// <see cref="ApplicationConfiguration.TraceConfiguration"/>),
+    /// <see cref="ApplicationConfiguration.TransportQuotas"/>),
     /// then through <see cref="AsClient"/>/<see cref="AsServer(string[], string[])"/>
     /// (which initialize <see cref="ApplicationConfiguration.ClientConfiguration"/>
     /// and <see cref="ApplicationConfiguration.ServerConfiguration"/> respectively),
@@ -364,11 +363,6 @@ namespace Opc.Ua.Configuration
             {
                 AddSecurityPolicies();
             }
-
-            // Legacy Utils trace pipeline; kept for 1.5.378 -> 2.0 migration.
-#pragma warning disable CS0618 // Type or member is obsolete
-            ApplicationConfiguration.TraceConfiguration?.ApplySettings();
-#pragma warning restore CS0618 // Type or member is obsolete
 
             await ApplicationConfiguration.ValidateAsync(ApplicationInstance.ApplicationType, ct)
                 .ConfigureAwait(false);
@@ -1099,28 +1093,6 @@ namespace Opc.Ua.Configuration
             OperationLimits operationLimits)
         {
             ApplicationConfiguration.ClientConfiguration!.OperationLimits = operationLimits;
-            return this;
-        }
-
-        /// <inheritdoc/>
-        public IApplicationConfigurationBuilderTraceConfiguration SetOutputFilePath(
-            string outputFilePath)
-        {
-            ApplicationConfiguration.TraceConfiguration!.OutputFilePath = outputFilePath;
-            return this;
-        }
-
-        /// <inheritdoc/>
-        public IApplicationConfigurationBuilderTraceConfiguration SetDeleteOnLoad(bool deleteOnLoad)
-        {
-            ApplicationConfiguration.TraceConfiguration!.DeleteOnLoad = deleteOnLoad;
-            return this;
-        }
-
-        /// <inheritdoc/>
-        public IApplicationConfigurationBuilderTraceConfiguration SetTraceMasks(int traceMasks)
-        {
-            ApplicationConfiguration.TraceConfiguration!.TraceMasks = traceMasks;
             return this;
         }
 

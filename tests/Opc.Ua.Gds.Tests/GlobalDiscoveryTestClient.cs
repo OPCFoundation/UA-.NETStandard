@@ -133,8 +133,6 @@ namespace Opc.Ua.Gds.Tests
                 .SetRejectUnknownRevocationStatus(true)
                 .SetMinimumCertificateKeySize(1024)
                 .AddExtension(null, clientConfig)
-                .SetOutputFilePath(Path.Combine(root, "Logs", "Opc.Ua.Gds.Tests.log.txt"))
-                .SetTraceMasks(519)
                 .CreateAsync()
                 .ConfigureAwait(false);
 #endif
@@ -279,8 +277,14 @@ namespace Opc.Ua.Gds.Tests
 
         public string ReadLogFile()
         {
+            string? outputFilePath = Configuration.TraceConfiguration?.OutputFilePath;
+            if (string.IsNullOrEmpty(outputFilePath))
+            {
+                return string.Empty;
+            }
+
             return File.ReadAllText(
-                Utils.ReplaceSpecialFolderNames(Configuration.TraceConfiguration.OutputFilePath));
+                Utils.ReplaceSpecialFolderNames(outputFilePath));
         }
 
         private async Task ApplyNewApplicationInstanceCertificateAsync(

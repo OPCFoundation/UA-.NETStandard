@@ -635,7 +635,7 @@ namespace Opc.Ua.Configuration
     /// <summary>
     /// Add extensions configuration.
     /// </summary>
-    public interface IApplicationConfigurationBuilderExtension : IApplicationConfigurationBuilderTraceConfiguration
+    public interface IApplicationConfigurationBuilderExtension : IApplicationConfigurationBuilderCreate
     {
         /// <summary>
         /// Add an extension to the configuration using an encoder function (AOT-safe).
@@ -665,8 +665,7 @@ namespace Opc.Ua.Configuration
     /// Add some global configuration settings.
     /// </summary>
     public interface IApplicationConfigurationBuilderGlobalConfiguration
-        : IApplicationConfigurationBuilderCreate,
-            IApplicationConfigurationBuilderTraceConfiguration
+        : IApplicationConfigurationBuilderCreate
     {
         /// <summary>
         /// Set the high resolution clock to disabled or enabled.
@@ -674,21 +673,6 @@ namespace Opc.Ua.Configuration
         /// <param name="hiResClockDisabled"><value><c>true</c> if high resolution clock is disabled; otherwise, <c>false</c>.</value></param>
         IApplicationConfigurationBuilderGlobalConfiguration SetHiResClockDisabled(
             bool hiResClockDisabled);
-    }
-
-    /// <summary>
-    /// Add the trace configuration.
-    /// </summary>
-    public interface IApplicationConfigurationBuilderTraceConfiguration : IApplicationConfigurationBuilderCreate
-    {
-        /// <inheritdoc cref="TraceConfiguration.OutputFilePath"/>
-        IApplicationConfigurationBuilderTraceConfiguration SetOutputFilePath(string outputFilePath);
-
-        /// <inheritdoc cref="TraceConfiguration.DeleteOnLoad"/>
-        IApplicationConfigurationBuilderTraceConfiguration SetDeleteOnLoad(bool deleteOnLoad);
-
-        /// <inheritdoc cref="TraceConfiguration.TraceMasks"/>
-        IApplicationConfigurationBuilderTraceConfiguration SetTraceMasks(int traceMasks);
     }
 
     /// <summary>

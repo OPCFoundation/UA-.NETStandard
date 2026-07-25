@@ -63,6 +63,8 @@ static `Utils.SetLogger` / `Utils.Trace*` model has been removed in
 [`migrate/2.0.x/telemetry.md`](migrate/2.0.x/telemetry.md) for OLD
 vs NEW snippets, the per-type constructor matrix, and the full
 inventory of removed / `[Obsolete]` `Utils` APIs.
+
+Configuration-level trace apply APIs were removed as well: `TraceConfiguration.ApplySettings()` and `ApplicationConfigurationBuilder` trace setters (`SetOutputFilePath`, `SetDeleteOnLoad`, `SetTraceMasks`). Configure logging through `ITelemetryContext` instead.
 ## Migrating from 1.04 to 1.05
 
 A few features are still missing to fully comply with 1.05, but
