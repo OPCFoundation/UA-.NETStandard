@@ -246,7 +246,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 WotInvokeResult result = await channel
                     .InvokeAsync([new(2.5f), new(3u)]).ConfigureAwait(false);
                 Assert.That(result.Success, Is.True,
-                    $"Invoking the real 'Methods_Add' method (resolved via uav:componentOf) must succeed: {result.Error}");
+                    "Invoking the real 'Methods_Add' method (resolved via uav:componentOf) " +
+                    $"must succeed: {result.Error}");
                 Assert.That(result.Outputs, Has.Count.EqualTo(1));
                 Assert.That(result.Outputs[0].WrappedValue.TryGetValue(out float sum), Is.True);
                 Assert.That(sum, Is.EqualTo(5.5f).Within(0.0001f),
@@ -295,11 +296,13 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                     Assert.That(eventIdValue.WrappedValue.TryGetValue(out ByteString eventId), Is.True);
                     Assert.That(eventId.Length, Is.GreaterThan(0), "EventId must be a non-empty identifier.");
 
-                    Assert.That(notification.EventFields.TryGetValue("EventType", out DataValue eventTypeValue), Is.True);
+                    Assert.That(
+                        notification.EventFields.TryGetValue("EventType", out DataValue eventTypeValue), Is.True);
                     Assert.That(eventTypeValue.WrappedValue.TryGetValue(out NodeId eventType), Is.True);
                     Assert.That(eventType, Is.EqualTo(Types.ObjectTypeIds.BaseEventType));
 
-                    Assert.That(notification.EventFields.TryGetValue("SourceNode", out DataValue sourceNodeValue), Is.True);
+                    Assert.That(
+                        notification.EventFields.TryGetValue("SourceNode", out DataValue sourceNodeValue), Is.True);
                     Assert.That(sourceNodeValue.WrappedValue.TryGetValue(out NodeId sourceNode), Is.True);
                     Assert.That(sourceNode, Is.EqualTo(triggerNodeId),
                         "SourceNode must be the trigger variable that raised the event.");

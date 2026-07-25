@@ -35,11 +35,10 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Export;
 using Opc.Ua.Server.TestFramework;
-using Opc.Ua.Tests;
+using Opc.Ua.WotCon;
 using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
-using Opc.Ua.WotCon;
 using Quickstarts.ReferenceServer;
 using WotConModel = Opc.Ua.WotCon;
 
@@ -142,7 +141,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         [Test]
         public async Task RefreshCompletedEventDeliversPopulatedSummaryFieldsThroughNotifierChain()
         {
-            NodeId registryNodeId = ExpandedNodeId.ToNodeId(
+            var registryNodeId = ExpandedNodeId.ToNodeId(
                 WotConModel.ObjectIds.WoTRegistry, m_server.CurrentInstance.NamespaceUris);
 
             var services = new ServerTestServices(m_server, m_secureChannelContext);
@@ -156,7 +155,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 .RefreshAsync(new WotRefreshRequest { RequestId = RequestId })
                 .ConfigureAwait(false);
 
-            NodeId refreshCompletedType = ExpandedNodeId.ToNodeId(
+            var refreshCompletedType = ExpandedNodeId.ToNodeId(
                 WotConModel.ObjectTypeIds.WoTRefreshCompletedEventType, m_server.CurrentInstance.NamespaceUris);
 
             EventFieldList? evt = await CollectEventAsync(
@@ -183,7 +182,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         [Test]
         public async Task ResourceEventDeliversPopulatedIdentityFieldsThroughNotifierChain()
         {
-            NodeId registryNodeId = ExpandedNodeId.ToNodeId(
+            var registryNodeId = ExpandedNodeId.ToNodeId(
                 WotConModel.ObjectIds.WoTRegistry, m_server.CurrentInstance.NamespaceUris);
 
             await m_registry.UpsertResourceAsync(new WotUpsertResourceRequest
@@ -200,7 +199,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
 
             await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
 
-            NodeId resourceType = ExpandedNodeId.ToNodeId(
+            var resourceType = ExpandedNodeId.ToNodeId(
                 WotConModel.ObjectTypeIds.WoTResourceEventType, m_server.CurrentInstance.NamespaceUris);
 
             EventFieldList? evt = await CollectEventAsync(
@@ -226,7 +225,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         [Test]
         public async Task ValidationFailureEventDeliversValidationOutcomeThroughNotifierChain()
         {
-            NodeId registryNodeId = ExpandedNodeId.ToNodeId(
+            var registryNodeId = ExpandedNodeId.ToNodeId(
                 WotConModel.ObjectIds.WoTRegistry, m_server.CurrentInstance.NamespaceUris);
 
             // The selective converter fails conversion for ids containing 'bad',
@@ -245,7 +244,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
 
             await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
 
-            NodeId validationFailureType = ExpandedNodeId.ToNodeId(
+            var validationFailureType = ExpandedNodeId.ToNodeId(
                 WotConModel.ObjectTypeIds.WoTValidationFailureEventType, m_server.CurrentInstance.NamespaceUris);
 
             EventFieldList? evt = await CollectEventAsync(
@@ -264,8 +263,6 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
 
             await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
         }
-
-        // ---- event filter select-clause ordering --------------------------
 
         private static class Field
         {
@@ -422,13 +419,19 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         }
 
         private static NodeId EventTypeOf(EventFieldList efl)
-            => efl.EventFields[Field.EventType].TryGetValue(out NodeId n) ? n : NodeId.Null;
+        {
+            return efl.EventFields[Field.EventType].TryGetValue(out NodeId n) ? n : NodeId.Null;
+        }
 
         private static string AsString(Variant variant)
-            => variant.TryGetValue(out string s) ? s : string.Empty;
+        {
+            return variant.TryGetValue(out string s) ? s : string.Empty;
+        }
 
         private static uint AsUInt32(Variant variant)
-            => variant.TryGetValue(out uint u) ? u : 0u;
+        {
+            return variant.TryGetValue(out uint u) ? u : 0u;
+        }
 
         private const uint ClientHandle = 77;
 
@@ -442,9 +445,15 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             private const string ModelUri = "urn:wot:events:model";
 
             public static byte[] ValidTd(string id)
-                => Encoding.UTF8.GetBytes(
+            {
+                return Encoding.UTF8.GetBytes(
                     "{\"@context\":\"https://www.w3.org/2022/wot/td/v1.1\"," +
-                    "\"@type\":\"uav:object\",\"id\":\"urn:" + id + "\",\"title\":\"" + id + "\"}");
+                    "\"@type\":\"uav:object\",\"id\":\"urn:" +
+                    id +
+                    "\",\"title\":\"" +
+                    id +
+                    "\"}");
+            }
 
             public WotConversionOutput Convert(
                 WotResource resource, ReadOnlyMemory<byte> content, WotRegistrySnapshot snapshot)

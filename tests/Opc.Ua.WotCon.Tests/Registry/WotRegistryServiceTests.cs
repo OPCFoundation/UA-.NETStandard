@@ -27,10 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua;
 using Opc.Ua.WotCon.Server.Registry;
 
 namespace Opc.Ua.WotCon.Tests.Registry
@@ -45,7 +43,8 @@ namespace Opc.Ua.WotCon.Tests.Registry
     {
         private static WotUpsertResourceRequest TdRequest(
             string resourceId, byte[] content, bool setDefault = true)
-            => new WotUpsertResourceRequest
+        {
+            return new WotUpsertResourceRequest
             {
                 GroupId = WotRegistryGroups.ThingDescriptions,
                 ResourceId = resourceId,
@@ -53,6 +52,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 Content = content,
                 SetAsDefault = setDefault
             };
+        }
 
         [Test]
         public async Task UpsertCreatesResourceAndBumpsGeneration()

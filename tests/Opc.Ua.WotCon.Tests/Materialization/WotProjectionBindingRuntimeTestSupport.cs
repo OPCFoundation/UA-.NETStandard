@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
@@ -225,7 +224,15 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             {
                 BaseDataType = Ua.DataTypeIds.Structure,
                 StructureType = StructureType.Structure,
-                Fields = [new StructureField { Name = "X", DataType = Ua.DataTypeIds.Int32, ValueRank = ValueRanks.Scalar }]
+                Fields =
+                [
+                    new StructureField
+                    {
+                        Name = "X",
+                        DataType = Ua.DataTypeIds.Int32,
+                        ValueRank = ValueRanks.Scalar
+                    }
+                ]
             };
         }
     }
@@ -354,8 +361,13 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 BaseDataType = Ua.DataTypeIds.Structure,
                 StructureType = StructureType.Structure,
                 Fields =
-                        [
-                            new StructureField { Name = "A", DataType = Ua.DataTypeIds.Int32, ValueRank = ValueRanks.Scalar },
+                [
+                    new StructureField
+                    {
+                        Name = "A",
+                        DataType = Ua.DataTypeIds.Int32,
+                        ValueRank = ValueRanks.Scalar
+                    },
                     new StructureField
                     {
                         Name = "Child",
@@ -368,7 +380,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                         DataType = Ua.DataTypeIds.Int32,
                         ValueRank = ValueRanks.OneDimension
                     }
-                        ]
+                ]
             };
         }
     }

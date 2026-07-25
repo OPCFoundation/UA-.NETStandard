@@ -28,7 +28,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.IO;
 using System.Linq;
 using System.Text.Json;
 using NUnit.Framework;

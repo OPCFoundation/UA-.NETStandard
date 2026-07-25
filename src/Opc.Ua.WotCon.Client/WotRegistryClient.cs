@@ -105,7 +105,9 @@ namespace Opc.Ua.WotCon.Client
         /// </remarks>
         /// <exception cref="ArgumentNullException"><paramref name="session"/> is null.</exception>
         /// <exception cref="ArgumentNullException"><paramref name="telemetry"/> is null.</exception>
-        /// <exception cref="ServiceResultException">The WoTRegistry entry point was not found on the connected server.</exception>
+        /// <exception cref="ServiceResultException">
+        /// The WoTRegistry entry point was not found on the connected server.
+        /// </exception>
         public static async ValueTask<WotRegistryClient> ForServerAsync(
             ISession session,
             ITelemetryContext telemetry,
@@ -414,7 +416,9 @@ namespace Opc.Ua.WotCon.Client
         /// group NodeId, discovering its Thing Description / Thing Model
         /// kind from the reported <c>TypeDefinition</c>.
         /// </summary>
-        /// <exception cref="ServiceResultException">The group's TypeDefinition could not be resolved or is not recognised.</exception>
+        /// <exception cref="ServiceResultException">
+        /// The group's TypeDefinition could not be resolved or is not recognised.
+        /// </exception>
         internal static async ValueTask<WotRegistryGroupClient> OpenGroupClientAsync(
             ISession session,
             NodeId groupNodeId,
@@ -662,7 +666,9 @@ namespace Opc.Ua.WotCon.Client
         /// Throws a <see cref="ServiceResultException"/> when
         /// <see cref="HasFailures"/> is true.
         /// </summary>
-        /// <exception cref="ServiceResultException">The refresh reported at least one failed or rejected outcome.</exception>
+        /// <exception cref="ServiceResultException">
+        /// The refresh reported at least one failed or rejected outcome.
+        /// </exception>
         public void EnsureSuccess()
         {
             if (!HasFailures)

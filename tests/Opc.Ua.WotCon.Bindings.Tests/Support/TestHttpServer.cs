@@ -234,7 +234,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests.Support
                 int offset = 0;
                 while (offset < contentLength)
                 {
-                    int read = await stream.ReadAsync(body.AsMemory(offset, contentLength - offset)).ConfigureAwait(false);
+                    int read = await stream
+                        .ReadAsync(body.AsMemory(offset, contentLength - offset))
+                        .ConfigureAwait(false);
                     if (read == 0)
                     {
                         break;
@@ -249,7 +251,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests.Support
         {
             byte[] body = response.Body ?? [];
             var builder = new StringBuilder();
-            builder.Append("HTTP/1.1 ").Append(response.Status).Append(' ').Append(Reason(response.Status)).Append("\r\n")
+            builder.Append("HTTP/1.1 ").Append(response.Status).Append(' ')
+                .Append(Reason(response.Status)).Append("\r\n")
                 .Append("Content-Type: ").Append(response.ContentType).Append("\r\n")
                 .Append("Content-Length: ").Append(body.Length).Append("\r\n");
             if (response.Headers is { Count: > 0 })

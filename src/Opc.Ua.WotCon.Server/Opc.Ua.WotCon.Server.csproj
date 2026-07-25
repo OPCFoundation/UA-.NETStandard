@@ -5,7 +5,6 @@
     <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
     <PackageId>$(PackagePrefix).Opc.Ua.WotCon.Server</PackageId>
     <RootNamespace>Opc.Ua.WotCon.Server</RootNamespace>
-    <NoWarn>$(NoWarn);CS1591</NoWarn>
     <Nullable>enable</Nullable>
     <Description>OPC UA WoT Connectivity 1.1 server class library — hosts the deprecated OPC 10100-1 v1.02 asset-management surface and the registry-first materialization runtime.</Description>
     <IsPackable>true</IsPackable>

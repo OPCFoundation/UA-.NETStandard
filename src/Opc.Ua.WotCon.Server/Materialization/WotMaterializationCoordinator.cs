@@ -543,8 +543,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     rootNodeId,
                     validation,
                     projectionWarning.Length == 0
-                        ? ImmutableArray<string>.Empty
-                        : ImmutableArray.Create(projectionWarning),
+                        ? []
+                        : [projectionWarning],
                     DateTime.UtcNow));
                 RaiseResource(member, generation, memberOutcome, WoTLoadStateEnum.Active);
             }

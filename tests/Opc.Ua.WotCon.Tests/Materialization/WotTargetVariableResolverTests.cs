@@ -139,7 +139,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             var resolver = new WotTargetVariableResolver();
 
             ServiceResultException ex = Assert.Throws<ServiceResultException>(() =>
-                resolver.Resolve(builder, new WotTargetMappingDescriptor(targetNodeId: $"ns={ns};s={obj.NodeId.IdentifierAsString}")));
+                resolver.Resolve(builder, new WotTargetMappingDescriptor(
+                    targetNodeId: $"ns={ns};s={obj.NodeId.IdentifierAsString}")));
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
         }

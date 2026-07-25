@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Immutable;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -74,7 +73,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(options.ConfigureAsync, Is.Not.Null,
                 "The host must install ConfigureAsync when a runtime factory is supplied.");
 
-            IAsyncDisposable? result = await options.ConfigureAsync!(harness.Builder, CancellationToken.None).ConfigureAwait(false);
+            IAsyncDisposable? result = await options.ConfigureAsync!(
+                harness.Builder, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(runtimeFactory.LastBuilder, Is.SameAs(harness.Builder));
             Assert.That(runtimeFactory.LastBindingPlans.Count, Is.EqualTo(1));

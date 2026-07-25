@@ -105,7 +105,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
 
             string[] segments = fieldPath.Split('/');
-            ImmutableArray<WotFieldPathSegment>.Builder intermediate = ImmutableArray.CreateBuilder<WotFieldPathSegment>();
+            ImmutableArray<WotFieldPathSegment>.Builder intermediate =
+                ImmutableArray.CreateBuilder<WotFieldPathSegment>();
             IEncodeableType currentType = rootType;
 
             for (int i = 0; i < segments.Length; i++)

@@ -998,7 +998,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         subscriptionId,
                         [monitoredItemId],
                         RequestLifetime.None).ConfigureAwait(false);
-                Assert.That(deleteResponse.Results, Is.EqualTo(new[] { StatusCodes.Good }));
+                Assert.That(deleteResponse.Results, Is.EqualTo([StatusCodes.Good]));
                 Assert.That(
                     subscription.GetMonitoredItemsSnapshot(added.NodeManager),
                     Is.Empty);
@@ -1068,7 +1068,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         DeleteTargetReferences = true
                     }],
                     RequestLifetime.None).ConfigureAwait(false);
-                Assert.That(deleteResponse.Results, Is.EqualTo(new[] { StatusCodes.Good }));
+                Assert.That(deleteResponse.Results, Is.EqualTo([StatusCodes.Good]));
 
                 (MonitoredItemNotification bad, acknowledgements) =
                     await PublishForDataChangeAsync(
@@ -3293,7 +3293,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 IServerInternal server = m_server.CurrentInstance;
 
-                // --- Add: registers a brand-new namespace URI. ---
+                // Add: registers a brand-new namespace URI.
                 int namespaceCountBeforeAdd = server.NamespaceUris.Count;
                 uint urisVersionBeforeAdd = await ReadUrisVersionAsync().ConfigureAwait(false);
 
@@ -3312,7 +3312,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 uint urisVersionAfterAdd = await ReadUrisVersionAsync().ConfigureAwait(false);
                 Assert.That(urisVersionAfterAdd, Is.Not.EqualTo(urisVersionBeforeAdd));
 
-                // --- Reload (same URI): must not change the namespace table. ---
+                // Reload (same URI): must not change the namespace table.
                 int namespaceCountBeforeReload = server.NamespaceUris.Count;
                 uint urisVersionBeforeReload = urisVersionAfterAdd;
 
@@ -3331,7 +3331,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 uint urisVersionAfterReload = await ReadUrisVersionAsync().ConfigureAwait(false);
                 Assert.That(urisVersionAfterReload, Is.EqualTo(urisVersionBeforeReload));
 
-                // --- Remove: must not change the namespace table either. ---
+                // Remove: must not change the namespace table either.
                 int namespaceCountBeforeRemove = server.NamespaceUris.Count;
                 uint urisVersionBeforeRemove = urisVersionAfterReload;
 

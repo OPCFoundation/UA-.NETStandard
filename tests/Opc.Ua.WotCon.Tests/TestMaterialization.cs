@@ -43,11 +43,11 @@ namespace Opc.Ua.WotCon.Tests
         public static byte[] Td(string id, string variant = "1", params string[] extendsHrefs)
         {
             var builder = new StringBuilder();
-            builder.Append("{\"@context\":\"https://www.w3.org/2022/wot/td/v1.1\",");
-            builder.Append("\"@type\":\"uav:object\",");
-            builder.Append("\"id\":\"").Append(id).Append("\",");
-            builder.Append("\"title\":\"").Append(id).Append('-').Append(variant).Append("\",");
-            builder.Append("\"properties\":{\"value\":{\"type\":\"number\",\"forms\":[{\"href\":\"x\"}]}}");
+            builder.Append("{\"@context\":\"https://www.w3.org/2022/wot/td/v1.1\",")
+                .Append("\"@type\":\"uav:object\",")
+                .Append("\"id\":\"").Append(id).Append("\",")
+                .Append("\"title\":\"").Append(id).Append('-').Append(variant).Append("\",")
+                .Append("\"properties\":{\"value\":{\"type\":\"number\",\"forms\":[{\"href\":\"x\"}]}}");
             AppendLinks(builder, extendsHrefs);
             builder.Append('}');
             return Encoding.UTF8.GetBytes(builder.ToString());
@@ -59,11 +59,11 @@ namespace Opc.Ua.WotCon.Tests
         public static byte[] Tm(string id, string variant = "1", params string[] extendsHrefs)
         {
             var builder = new StringBuilder();
-            builder.Append("{\"@context\":\"https://www.w3.org/2022/wot/td/v1.1\",");
-            builder.Append("\"@type\":\"tm:ThingModel\",");
-            builder.Append("\"id\":\"").Append(id).Append("\",");
-            builder.Append("\"title\":\"").Append(id).Append('-').Append(variant).Append("\",");
-            builder.Append("\"properties\":{\"value\":{\"type\":\"number\",\"forms\":[{\"href\":\"x\"}]}}");
+            builder.Append("{\"@context\":\"https://www.w3.org/2022/wot/td/v1.1\",")
+                .Append("\"@type\":\"tm:ThingModel\",")
+                .Append("\"id\":\"").Append(id).Append("\",")
+                .Append("\"title\":\"").Append(id).Append('-').Append(variant).Append("\",")
+                .Append("\"properties\":{\"value\":{\"type\":\"number\",\"forms\":[{\"href\":\"x\"}]}}");
             AppendLinks(builder, extendsHrefs);
             builder.Append('}');
             return Encoding.UTF8.GetBytes(builder.ToString());
@@ -72,7 +72,10 @@ namespace Opc.Ua.WotCon.Tests
         /// <summary>
         /// Builds a syntactically invalid JSON document.
         /// </summary>
-        public static byte[] InvalidJson() => Encoding.UTF8.GetBytes("{ not valid json ");
+        public static byte[] InvalidJson()
+        {
+            return Encoding.UTF8.GetBytes("{ not valid json ");
+        }
 
         private static void AppendLinks(StringBuilder builder, string[] extendsHrefs)
         {

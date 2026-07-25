@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -84,7 +83,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             return new WotProjectionHandle(
                 document.ClosureKey,
                 registration.Generation,
-                registration,
+                new NodeManagerProjectionRegistration(registration),
                 [],
                 0);
         }
@@ -95,7 +94,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             WotProjectionDocument document,
             CancellationToken cancellationToken = default)
         {
-            if (current?.Registration is not NodeManagerRegistration registration)
+            if (current?.Registration is not NodeManagerProjectionRegistration wrapper)
             {
                 // No live registration to reload; fall back to a fresh add.
                 return await AddAsync(document, cancellationToken).ConfigureAwait(false);
@@ -106,7 +105,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             try
             {
                 next = await m_lifecycle
-                    .ShadowReloadRuntimeNodeSetAsync(registration, options, cancellationToken)
+                    .ShadowReloadRuntimeNodeSetAsync(wrapper.Registration, options, cancellationToken)
                     .ConfigureAwait(false);
             }
             catch (NodeManagerReloadCommittedException ex)
@@ -118,8 +117,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             return new WotProjectionHandle(
                 document.ClosureKey,
                 next.Generation,
-                next,
-                ImmutableArray<NodeId>.Empty,
+                new NodeManagerProjectionRegistration(next),
+                [],
                 0,
                 warning);
         }
@@ -130,7 +129,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             WotProjectionDocument document,
             CancellationToken cancellationToken = default)
         {
-            if (current?.Registration is not NodeManagerRegistration registration)
+            if (current?.Registration is not NodeManagerProjectionRegistration wrapper)
             {
                 return await AddAsync(document, cancellationToken).ConfigureAwait(false);
             }
@@ -140,7 +139,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             try
             {
                 next = await m_lifecycle
-                    .ImmediateReloadRuntimeNodeSetAsync(registration, options, cancellationToken)
+                    .ImmediateReloadRuntimeNodeSetAsync(wrapper.Registration, options, cancellationToken)
                     .ConfigureAwait(false);
             }
             catch (NodeManagerReloadCommittedException ex)
@@ -152,8 +151,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             return new WotProjectionHandle(
                 document.ClosureKey,
                 next.Generation,
-                next,
-                ImmutableArray<NodeId>.Empty,
+                new NodeManagerProjectionRegistration(next),
+                [],
                 0,
                 warning);
         }
@@ -163,9 +162,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
             WotProjectionHandle handle,
             CancellationToken cancellationToken = default)
         {
-            if (handle?.Registration is NodeManagerRegistration registration)
+            if (handle?.Registration is NodeManagerProjectionRegistration wrapper)
             {
-                await m_lifecycle.RemoveAsync(registration, cancellationToken).ConfigureAwait(false);
+                await m_lifecycle
+                    .RemoveAsync(wrapper.Registration, cancellationToken)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -198,5 +199,21 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
         private readonly INodeManagerLifecycle m_lifecycle;
         private readonly IWotProjectionBindingRuntimeFactory? m_runtimeFactory;
+
+        /// <summary>
+        /// Carries the lifecycle registration owned by this host through the
+        /// host-agnostic <see cref="WotProjectionHandle"/>.
+        /// </summary>
+        private sealed class NodeManagerProjectionRegistration : IWotProjectionRegistration
+        {
+            public NodeManagerProjectionRegistration(NodeManagerRegistration registration)
+            {
+                Registration = registration;
+            }
+
+            public Guid Id => Registration.Id;
+
+            public NodeManagerRegistration Registration { get; }
+        }
     }
 }

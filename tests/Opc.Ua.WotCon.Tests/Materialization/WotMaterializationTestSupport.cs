@@ -103,11 +103,26 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             return new WotProjectionHandle(
                 document.ClosureKey,
                 gen,
-                new object(),
+                new FakeProjectionRegistration(),
                 ImmutableArray<NodeId>.Empty,
                 0,
                 warning);
         }
+
+        private sealed class FakeProjectionRegistration : IWotProjectionRegistration
+        {
+            public Guid Id { get; } = Guid.NewGuid();
+        }
+    }
+
+    /// <summary>
+    /// Stands in for a host-specific projection registration in tests that do
+    /// not exercise a real NodeManager lifecycle.
+    /// </summary>
+    internal sealed class FakeWotProjectionRegistration : IWotProjectionRegistration
+    {
+        /// <inheritdoc/>
+        public Guid Id { get; } = Guid.NewGuid();
     }
 
     internal sealed class HostOperation

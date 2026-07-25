@@ -92,7 +92,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             });
 
             WotProtocolBinderRegistry registry = OwnedRegistry(new HeaderQueryCredentialProvider());
-            IWotBindingChannel channel = await registry.OpenChannelAsync(ReadForm(registry, originServer.BaseUrl + "/p")).ConfigureAwait(false);
+            IWotBindingChannel channel = await registry.OpenChannelAsync(
+                ReadForm(registry, originServer.BaseUrl + "/p")).ConfigureAwait(false);
             await using (channel.ConfigureAwait(false))
             {
                 WotReadResult result = await channel.ReadAsync().ConfigureAwait(false);
@@ -126,7 +127,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             });
 
             WotProtocolBinderRegistry registry = OwnedRegistry(new HeaderQueryCredentialProvider());
-            IWotBindingChannel channel = await registry.OpenChannelAsync(ReadForm(registry, server.BaseUrl + "/a")).ConfigureAwait(false);
+            IWotBindingChannel channel = await registry.OpenChannelAsync(
+                ReadForm(registry, server.BaseUrl + "/a")).ConfigureAwait(false);
             await using (channel.ConfigureAwait(false))
             {
                 WotReadResult result = await channel.ReadAsync().ConfigureAwait(false);
@@ -148,7 +150,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                     : TestHttpResponse.Redirect("/a"));
 
             WotProtocolBinderRegistry registry = OwnedRegistry();
-            IWotBindingChannel channel = await registry.OpenChannelAsync(ReadFormNoSecurity(registry, server.BaseUrl + "/a")).ConfigureAwait(false);
+            IWotBindingChannel channel = await registry.OpenChannelAsync(
+                ReadFormNoSecurity(registry, server.BaseUrl + "/a")).ConfigureAwait(false);
             await using (channel.ConfigureAwait(false))
             {
                 WotReadResult result = await channel.ReadAsync().ConfigureAwait(false);
@@ -163,7 +166,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             using var server = new TestHttpServer(_ => TestHttpResponse.Redirect("ftp://evil.example.com/x"));
 
             WotProtocolBinderRegistry registry = OwnedRegistry();
-            IWotBindingChannel channel = await registry.OpenChannelAsync(ReadFormNoSecurity(registry, server.BaseUrl + "/p")).ConfigureAwait(false);
+            IWotBindingChannel channel = await registry.OpenChannelAsync(
+                ReadFormNoSecurity(registry, server.BaseUrl + "/p")).ConfigureAwait(false);
             await using (channel.ConfigureAwait(false))
             {
                 WotReadResult result = await channel.ReadAsync().ConfigureAwait(false);
@@ -181,7 +185,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
 
             WotProtocolBinderRegistry registry = OwnedRegistry(
                 options: new HttpWotBindingOptions { MaxAutomaticRedirects = 2 });
-            IWotBindingChannel channel = await registry.OpenChannelAsync(ReadFormNoSecurity(registry, server.BaseUrl + "/start")).ConfigureAwait(false);
+            IWotBindingChannel channel = await registry.OpenChannelAsync(
+                ReadFormNoSecurity(registry, server.BaseUrl + "/start")).ConfigureAwait(false);
             await using (channel.ConfigureAwait(false))
             {
                 WotReadResult result = await channel.ReadAsync().ConfigureAwait(false);
@@ -199,7 +204,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                     : TestHttpResponse.Json(200, "5"));
 
             WotProtocolBinderRegistry registry = OwnedRegistry();
-            IWotBindingChannel channel = await registry.OpenChannelAsync(ReadFormNoSecurity(registry, server.BaseUrl + "/a")).ConfigureAwait(false);
+            IWotBindingChannel channel = await registry.OpenChannelAsync(
+                ReadFormNoSecurity(registry, server.BaseUrl + "/a")).ConfigureAwait(false);
             await using (channel.ConfigureAwait(false))
             {
                 WotReadResult result = await channel.ReadAsync().ConfigureAwait(false);
@@ -243,7 +249,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 ],
                 credentials: new HeaderQueryCredentialProvider());
 
-            IWotBindingChannel channel = await registry.OpenChannelAsync(ReadForm(registry, server.BaseUrl + "/p")).ConfigureAwait(false);
+            IWotBindingChannel channel = await registry.OpenChannelAsync(
+                ReadForm(registry, server.BaseUrl + "/p")).ConfigureAwait(false);
             await using (channel.ConfigureAwait(false))
             {
                 WotReadResult result = await channel.ReadAsync().ConfigureAwait(false);

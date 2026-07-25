@@ -70,22 +70,26 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         private Task<WotRegistryMutationResult> RegisterTd(string resourceId, byte[] content)
-            => m_registry.UpsertResourceAsync(new WotUpsertResourceRequest
+        {
+            return m_registry.UpsertResourceAsync(new WotUpsertResourceRequest
             {
                 GroupId = WotRegistryGroups.ThingDescriptions,
                 ResourceId = resourceId,
                 Kind = WoTDocumentKindEnum.ThingDescription,
                 Content = content
             }).AsTask();
+        }
 
         private Task<WotRegistryMutationResult> RegisterTm(string resourceId, byte[] content)
-            => m_registry.UpsertResourceAsync(new WotUpsertResourceRequest
+        {
+            return m_registry.UpsertResourceAsync(new WotUpsertResourceRequest
             {
                 GroupId = WotRegistryGroups.ThingModels,
                 ResourceId = resourceId,
                 Kind = WoTDocumentKindEnum.ThingModel,
                 Content = content
             }).AsTask();
+        }
 
         [Test]
         public async Task TmBeforeTdCreatesSingleClosureTmOrderedFirst()

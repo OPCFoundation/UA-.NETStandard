@@ -45,7 +45,7 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             byte[] json = Encoding.UTF8.GetBytes(
                 /*lang=json,strict*/
-                                     "{\"@context\":[],\"title\":\"T\",\"vendor:unknown\":{\"b\":2,\"a\":1}}");
+                "{\"@context\":[],\"title\":\"T\",\"vendor:unknown\":{\"b\":2,\"a\":1}}");
 
             using var document = WotDocument.Parse(json);
             using var output = new System.IO.MemoryStream();
@@ -89,7 +89,7 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             byte[] json = Encoding.UTF8.GetBytes(
                 /*lang=json,strict*/
-                                     "{\"properties\":{\"speed\":{\"uav:unit~x\":\"rpm\",\"items\":[10,20]}}}");
+                "{\"properties\":{\"speed\":{\"uav:unit~x\":\"rpm\",\"items\":[10,20]}}}");
 
             using var document = WotDocument.Parse(json);
 
@@ -111,10 +111,10 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             byte[] first = Encoding.UTF8.GetBytes(
                 /*lang=json,strict*/
-                                     "{ \"b\": 2, \"a\": 1, \"nested\": { \"y\": 2, \"x\": 1 } }");
+                "{ \"b\": 2, \"a\": 1, \"nested\": { \"y\": 2, \"x\": 1 } }");
             byte[] second = Encoding.UTF8.GetBytes(
                 /*lang=json,strict*/
-                                     "{\"a\":1,\"nested\":{\"x\":1,\"y\":2},\"b\":2}");
+                "{\"a\":1,\"nested\":{\"x\":1,\"y\":2},\"b\":2}");
 
             using var firstDocument = WotDocument.Parse(first);
             using var secondDocument = WotDocument.Parse(second);

@@ -4,7 +4,6 @@
     <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
     <PackageId>$(PackagePrefix).Opc.Ua.WotCon.Bindings</PackageId>
     <RootNamespace>Opc.Ua.WotCon.Bindings</RootNamespace>
-    <NoWarn>$(NoWarn);CS1591</NoWarn>
     <Nullable>enable</Nullable>
     <Description>OPC UA WoT Connectivity protocol-binding abstractions, planners, and net8.0+ HTTP, Modbus TCP, and OPC UA executors</Description>
     <IsPackable>true</IsPackable>

@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -65,7 +65,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(readForm)]).ConfigureAwait(false);
 
             (ServiceResult result, DataValue value) = await h.ScalarVar.ReadAttributeAsync(
-                h.Builder.Context, Attributes.Value, default, QualifiedName.Null, new DataValue()).ConfigureAwait(false);
+                    h.Builder.Context, Attributes.Value, default, QualifiedName.Null, new DataValue())
+                .ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGoodOrUncertain(result), Is.True);
             Assert.That(value.WrappedValue.TryGetValue(out int read) && read == 42, Is.True);
@@ -94,7 +95,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             h.ChannelFactory.SetChannel(writeForm, channel);
 
             var factory = new WotProjectionBindingRuntimeFactory(h.ChannelFactory);
-            await factory.CreateAsync(h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(writeForm)]).ConfigureAwait(false);
+            await factory.CreateAsync(
+                h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(writeForm)]).ConfigureAwait(false);
 
             ServiceResult result = await h.ScalarVar.WriteAttributeAsync(
                 h.Builder.Context, Attributes.Value, default, new DataValue(new Variant(7))).ConfigureAwait(false);
@@ -112,7 +114,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 WoTBindingCapabilityEnum.ReadProperty, WotTargetMappingDescriptor.Empty);
 
             var factory = new WotProjectionBindingRuntimeFactory(h.ChannelFactory);
-            await factory.CreateAsync(h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(form)]).ConfigureAwait(false);
+            await factory.CreateAsync(
+                h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(form)]).ConfigureAwait(false);
 
             Assert.That(h.ScalarVar.OnReadValueAsync, Is.Null);
             Assert.That(h.ChannelFactory.OpenCount, Is.Zero);
@@ -128,7 +131,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 executable: false);
 
             var factory = new WotProjectionBindingRuntimeFactory(h.ChannelFactory);
-            await factory.CreateAsync(h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(form)]).ConfigureAwait(false);
+            await factory.CreateAsync(
+                h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(form)]).ConfigureAwait(false);
 
             Assert.That(h.ScalarVar.OnReadValueAsync, Is.Null);
             Assert.That(h.ChannelFactory.OpenCount, Is.Zero);
@@ -143,7 +147,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 new WotTargetMappingDescriptor(targetNodeId: h.ScalarNodeIdText));
 
             var factory = new WotProjectionBindingRuntimeFactory(h.ChannelFactory);
-            await factory.CreateAsync(h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(form)]).ConfigureAwait(false);
+            await factory.CreateAsync(
+                h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(form)]).ConfigureAwait(false);
 
             Assert.That(h.ScalarVar.OnReadValueAsync, Is.Null);
             Assert.That(h.ScalarVar.OnWriteValueAsync, Is.Null);
@@ -166,7 +171,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             var factory = new WotProjectionBindingRuntimeFactory(h.ChannelFactory);
 
             ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await factory.CreateAsync(h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(direct, field)]).ConfigureAwait(false));
+                await factory.CreateAsync(
+                    h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(direct, field)]).ConfigureAwait(false));
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
         }
 
@@ -186,7 +192,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             var factory = new WotProjectionBindingRuntimeFactory(h.ChannelFactory);
 
             ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await factory.CreateAsync(h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(read1, read2)]).ConfigureAwait(false));
+                await factory.CreateAsync(
+                    h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(read1, read2)]).ConfigureAwait(false));
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
         }
 
@@ -206,7 +213,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             var factory = new WotProjectionBindingRuntimeFactory(h.ChannelFactory);
 
             ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await factory.CreateAsync(h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(write1, write2)]).ConfigureAwait(false));
+                await factory.CreateAsync(
+                    h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(write1, write2)]).ConfigureAwait(false));
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
         }
 
@@ -221,7 +229,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             var factory = new WotProjectionBindingRuntimeFactory(h.ChannelFactory);
 
             ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await factory.CreateAsync(h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(invoke)]).ConfigureAwait(false));
+                await factory.CreateAsync(
+                    h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(invoke)]).ConfigureAwait(false));
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
         }
 
@@ -241,7 +250,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             });
 
             var factory = new WotProjectionBindingRuntimeFactory(h.ChannelFactory);
-            await factory.CreateAsync(h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(readForm)]).ConfigureAwait(false);
+            await factory.CreateAsync(
+                h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(readForm)]).ConfigureAwait(false);
 
             Task<(ServiceResult, DataValue)> read1 = h.ScalarVar.ReadAttributeAsync(
                 h.Builder.Context, Attributes.Value, default, QualifiedName.Null, new DataValue()).AsTask();
@@ -280,14 +290,17 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             });
 
             var factory = new WotProjectionBindingRuntimeFactory(h.ChannelFactory);
-            await factory.CreateAsync(h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(readForm)]).ConfigureAwait(false);
+            await factory.CreateAsync(
+                h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(readForm)]).ConfigureAwait(false);
 
             (ServiceResult firstResult, _) = await h.ScalarVar.ReadAttributeAsync(
-                h.Builder.Context, Attributes.Value, default, QualifiedName.Null, new DataValue()).ConfigureAwait(false);
+                    h.Builder.Context, Attributes.Value, default, QualifiedName.Null, new DataValue())
+                .ConfigureAwait(false);
             Assert.That(ServiceResult.IsBad(firstResult), Is.True, "The first (faulted) open must fail the read.");
 
             (ServiceResult secondResult, DataValue secondValue) = await h.ScalarVar.ReadAttributeAsync(
-                h.Builder.Context, Attributes.Value, default, QualifiedName.Null, new DataValue()).ConfigureAwait(false);
+                    h.Builder.Context, Attributes.Value, default, QualifiedName.Null, new DataValue())
+                .ConfigureAwait(false);
             Assert.That(ServiceResult.IsGood(secondResult), Is.True, "A retry after a faulted open must succeed.");
             Assert.That(secondValue.WrappedValue.TryGetValue(out int v) && v == 1, Is.True);
             Assert.That(attempt, Is.EqualTo(2), "The faulted open must be evicted so the retry opens again.");
@@ -319,7 +332,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
             // Open both channels.
             await h.ScalarVar.ReadAttributeAsync(
-                h.Builder.Context, Attributes.Value, default, QualifiedName.Null, new DataValue()).ConfigureAwait(false);
+                    h.Builder.Context, Attributes.Value, default, QualifiedName.Null, new DataValue())
+                .ConfigureAwait(false);
             await h.ScalarVar.WriteAttributeAsync(
                 h.Builder.Context, Attributes.Value, default, new DataValue(new Variant(1))).ConfigureAwait(false);
 
@@ -345,7 +359,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             IAsyncDisposable? runtime1 = await factory.CreateAsync(
                 h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(form1)]).ConfigureAwait(false);
             await h.ScalarVar.ReadAttributeAsync(
-                h.Builder.Context, Attributes.Value, default, QualifiedName.Null, new DataValue()).ConfigureAwait(false);
+                    h.Builder.Context, Attributes.Value, default, QualifiedName.Null, new DataValue())
+                .ConfigureAwait(false);
 
             // A second, independent generation with its own compiled form (and
             // hence its own channel) targeting the same variable.
@@ -359,7 +374,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             IAsyncDisposable? runtime2 = await factory2.CreateAsync(
                 h2.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(form2)]).ConfigureAwait(false);
             await h2.ScalarVar.ReadAttributeAsync(
-                h2.Builder.Context, Attributes.Value, default, QualifiedName.Null, new DataValue()).ConfigureAwait(false);
+                    h2.Builder.Context, Attributes.Value, default, QualifiedName.Null, new DataValue())
+                .ConfigureAwait(false);
 
             await runtime1!.DisposeAsync().ConfigureAwait(false);
 
@@ -387,10 +403,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             h.ChannelFactory.SetChannel(readA, channelA);
 
             var factory = new WotProjectionBindingRuntimeFactory(h.ChannelFactory);
-            await factory.CreateAsync(h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(readA)]).ConfigureAwait(false);
+            await factory.CreateAsync(
+                h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(readA)]).ConfigureAwait(false);
 
             (ServiceResult result, DataValue value) = await h.StructVar.ReadAttributeAsync(
-                h.Builder.Context, Attributes.Value, default, QualifiedName.Null, new DataValue()).ConfigureAwait(false);
+                    h.Builder.Context, Attributes.Value, default, QualifiedName.Null, new DataValue())
+                .ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(value.WrappedValue.TryGetValue(out ExtensionObject ext), Is.True);
@@ -417,7 +435,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             h.ChannelFactory.SetChannel(writeA, channelA);
 
             var factory = new WotProjectionBindingRuntimeFactory(h.ChannelFactory);
-            await factory.CreateAsync(h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(writeA)]).ConfigureAwait(false);
+            await factory.CreateAsync(
+                h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(writeA)]).ConfigureAwait(false);
 
             var incoming = new TestRootStructure { A = 55 };
             ServiceResult result = await h.StructVar.WriteAttributeAsync(
@@ -447,10 +466,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             h.ChannelFactory.SetChannel(readChildX, channel);
 
             var factory = new WotProjectionBindingRuntimeFactory(h.ChannelFactory);
-            await factory.CreateAsync(h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(readChildX)]).ConfigureAwait(false);
+            await factory.CreateAsync(
+                h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(readChildX)]).ConfigureAwait(false);
 
             (ServiceResult result, DataValue value) = await h.StructVar.ReadAttributeAsync(
-                h.Builder.Context, Attributes.Value, default, QualifiedName.Null, new DataValue()).ConfigureAwait(false);
+                    h.Builder.Context, Attributes.Value, default, QualifiedName.Null, new DataValue())
+                .ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(value.WrappedValue.TryGetValue(out ExtensionObject ext), Is.True);
@@ -480,7 +501,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             h.ChannelFactory.SetChannel(writeChildX, channel);
 
             var factory = new WotProjectionBindingRuntimeFactory(h.ChannelFactory);
-            await factory.CreateAsync(h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(writeChildX)]).ConfigureAwait(false);
+            await factory.CreateAsync(
+                h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(writeChildX)]).ConfigureAwait(false);
 
             var incomingChild = new TestChildStructure { X = 77 };
             var incoming = new TestRootStructure { ChildValue = new Variant(new ExtensionObject(incomingChild)) };
@@ -511,7 +533,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(runtime, Is.Not.Null, "Wiring must succeed; field-path validation is deferred.");
 
             (ServiceResult result, _) = await h.StructVar.ReadAttributeAsync(
-                h.Builder.Context, Attributes.Value, default, QualifiedName.Null, new DataValue()).ConfigureAwait(false);
+                    h.Builder.Context, Attributes.Value, default, QualifiedName.Null, new DataValue())
+                .ConfigureAwait(false);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
         }
@@ -530,7 +553,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(runtime, Is.Not.Null, "Wiring must succeed; field-path validation is deferred.");
 
             (ServiceResult result, _) = await h.StructVar.ReadAttributeAsync(
-                h.Builder.Context, Attributes.Value, default, QualifiedName.Null, new DataValue()).ConfigureAwait(false);
+                    h.Builder.Context, Attributes.Value, default, QualifiedName.Null, new DataValue())
+                .ConfigureAwait(false);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
         }
@@ -549,7 +573,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(runtime, Is.Not.Null, "Wiring must succeed; field-path validation is deferred.");
 
             (ServiceResult result, _) = await h.StructVar.ReadAttributeAsync(
-                h.Builder.Context, Attributes.Value, default, QualifiedName.Null, new DataValue()).ConfigureAwait(false);
+                    h.Builder.Context, Attributes.Value, default, QualifiedName.Null, new DataValue())
+                .ConfigureAwait(false);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
         }
@@ -583,7 +608,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 "Wiring must succeed even though the structure type is not registered yet.");
 
             (ServiceResult beforeResult, _) = await h.StructVar.ReadAttributeAsync(
-                h.Builder.Context, Attributes.Value, default, QualifiedName.Null, new DataValue()).ConfigureAwait(false);
+                    h.Builder.Context, Attributes.Value, default, QualifiedName.Null, new DataValue())
+                .ConfigureAwait(false);
             Assert.That(ServiceResult.IsBad(beforeResult), Is.True,
                 "A read before the type is registered must fail deterministically, not throw.");
             Assert.That(beforeResult.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
@@ -596,7 +622,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 .Commit();
 
             (ServiceResult afterResult, DataValue afterValue) = await h.StructVar.ReadAttributeAsync(
-                h.Builder.Context, Attributes.Value, default, QualifiedName.Null, new DataValue()).ConfigureAwait(false);
+                    h.Builder.Context, Attributes.Value, default, QualifiedName.Null, new DataValue())
+                .ConfigureAwait(false);
             Assert.That(ServiceResult.IsGood(afterResult), Is.True,
                 "A read after the type is registered must retry resolution and succeed.");
             Assert.That(afterValue.WrappedValue.TryGetValue(out ExtensionObject ext), Is.True);
@@ -622,7 +649,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             h.ChannelFactory.SetChannel(writeA, channelA);
 
             var factory = new WotProjectionBindingRuntimeFactory(h.ChannelFactory);
-            await factory.CreateAsync(h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(writeA)]).ConfigureAwait(false);
+            await factory.CreateAsync(
+                h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(writeA)]).ConfigureAwait(false);
 
             var incomingBefore = new TestRootStructure { A = 1 };
             ServiceResult beforeResult = await h.StructVar.WriteAttributeAsync(
@@ -680,7 +708,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(readA, readChildX)]).ConfigureAwait(false);
 
             (ServiceResult result, _) = await h.StructVar.ReadAttributeAsync(
-                h.Builder.Context, Attributes.Value, default, QualifiedName.Null, new DataValue()).ConfigureAwait(false);
+                    h.Builder.Context, Attributes.Value, default, QualifiedName.Null, new DataValue())
+                .ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsBad(result), Is.True,
                 "A single failing field must fail the whole structured read.");
@@ -720,7 +749,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(readA, readChildX)]).ConfigureAwait(false);
 
             (ServiceResult result, DataValue value) = await h.StructVar.ReadAttributeAsync(
-                h.Builder.Context, Attributes.Value, default, QualifiedName.Null, new DataValue()).ConfigureAwait(false);
+                    h.Builder.Context, Attributes.Value, default, QualifiedName.Null, new DataValue())
+                .ConfigureAwait(false);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotConnected));
             Assert.That(value.SourceTimestamp, Is.EqualTo(staleTimestamp));
@@ -759,7 +789,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(readA, readChildX)]).ConfigureAwait(false);
 
             (ServiceResult result, DataValue value) = await h.StructVar.ReadAttributeAsync(
-                h.Builder.Context, Attributes.Value, default, QualifiedName.Null, new DataValue()).ConfigureAwait(false);
+                    h.Builder.Context, Attributes.Value, default, QualifiedName.Null, new DataValue())
+                .ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.GoodClamped));
@@ -827,7 +858,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             var factory = new WotProjectionBindingRuntimeFactory(h.ChannelFactory);
 
             ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await factory.CreateAsync(h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(readA1, readA2)]).ConfigureAwait(false));
+                await factory.CreateAsync(
+                    h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(readA1, readA2)]).ConfigureAwait(false));
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
         }
     }

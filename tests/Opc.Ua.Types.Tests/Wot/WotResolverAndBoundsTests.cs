@@ -315,7 +315,8 @@ namespace Opc.Ua.Types.Tests.Wot
             string links = string.Join(
                 ",",
                 hrefs.Select(href =>
-                    "{\"rel\":\"ua:HasComponent\",\"href\":\"" + href +
+                    "{\"rel\":\"ua:HasComponent\",\"href\":\"" +
+                    href +
                     "\",\"uav:refId\":\"i=47\"}"));
             return
                 "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
@@ -339,7 +340,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             public WotResolverResult ResolveThing(string reference, WotResolutionContext context)
             {
-                return m_map.TryGetValue(reference, out var json)
+                return m_map.TryGetValue(reference, out string json)
                     ? WotResolverResult.FromBytes(Encoding.UTF8.GetBytes(json))
                     : WotResolverResult.NotFound;
             }

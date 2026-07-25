@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Immutable;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -76,13 +75,15 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         private static WotUpsertResourceRequest TdRequest(string resourceId, string id)
-            => new()
+        {
+            return new()
             {
                 GroupId = WotRegistryGroups.ThingDescriptions,
                 ResourceId = resourceId,
                 Kind = WoTDocumentKindEnum.ThingDescription,
                 Content = TestMaterialization.Td(id)
             };
+        }
 
         [Test]
         public async Task CommitFailureLeavesCurrentUnchangedAndRaisesNoEvent()
@@ -218,8 +219,8 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     TdRequest("a", "urn:a"));
                 activeVersionId = upsert.Resource!.DefaultVersionId!;
 
-                await service.ApplyProjectionResultsAsync(new[]
-                {
+                await service.ApplyProjectionResultsAsync(
+                [
                     new WotResourceProjection(
                         WotRegistryGroups.ThingDescriptions,
                         "a",
@@ -229,9 +230,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
                         materializedNodeCount: 5,
                         rootNodeId: new NodeId(5000, 1),
                         validation: null,
-                        diagnostics: ImmutableArray<string>.Empty,
+                        diagnostics: [],
                         lastRefreshTime: DateTime.UtcNow)
-                });
+                ]);
             }
 
             using var reloaded = new WotRegistryService(new FileWotRegistryStore(m_root));
@@ -291,7 +292,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
 
             public ValueTask<WotRegistrySnapshot> LoadAsync(
                 CancellationToken cancellationToken = default)
-                => m_inner.LoadAsync(cancellationToken);
+            {
+                return m_inner.LoadAsync(cancellationToken);
+            }
 
             public ValueTask CommitAsync(
                 WotRegistrySnapshot snapshot, CancellationToken cancellationToken = default)

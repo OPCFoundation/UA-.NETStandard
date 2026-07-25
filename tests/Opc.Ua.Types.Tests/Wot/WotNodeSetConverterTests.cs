@@ -79,7 +79,7 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             byte[] json = Encoding.UTF8.GetBytes(
                 /*lang=json,strict*/
-                                     "{\"@context\":[],\"title\":\"T\",\"vendor:unknown\":{\"b\":2,\"a\":1}}");
+                "{\"@context\":[],\"title\":\"T\",\"vendor:unknown\":{\"b\":2,\"a\":1}}");
 
             using var document = WotDocument.Parse(json);
             using var output = new MemoryStream();

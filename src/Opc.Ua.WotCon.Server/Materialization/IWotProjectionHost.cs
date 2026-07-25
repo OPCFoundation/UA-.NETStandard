@@ -141,6 +141,22 @@ namespace Opc.Ua.WotCon.Server.Materialization
     }
 
     /// <summary>
+    /// Marks the host-specific registration carried by a
+    /// <see cref="WotProjectionHandle"/>. Implementations are opaque to the
+    /// materialization pipeline; only the owning <see cref="IWotProjectionHost"/>
+    /// interprets them.
+    /// </summary>
+    public interface IWotProjectionRegistration
+    {
+        /// <summary>
+        /// Gets the stable identifier the host assigned to this registration. It
+        /// is shared by every generation produced from the same closure and is
+        /// only used for diagnostics.
+        /// </summary>
+        Guid Id { get; }
+    }
+
+    /// <summary>
     /// An opaque handle to a live projection generation held by the host. It
     /// wraps the underlying runtime NodeManager registration and records the
     /// materialized root NodeIds and node count.
@@ -153,7 +169,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         public WotProjectionHandle(
             string closureKey,
             long generation,
-            object? registration,
+            IWotProjectionRegistration? registration,
             ImmutableArray<NodeId> rootNodeIds,
             int materializedNodeCount,
             string warning = "")
@@ -179,7 +195,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <summary>
         /// Gets the underlying runtime registration (host-specific).
         /// </summary>
-        public object? Registration { get; }
+        public IWotProjectionRegistration? Registration { get; }
 
         /// <summary>
         /// Gets the materialized root NodeIds.

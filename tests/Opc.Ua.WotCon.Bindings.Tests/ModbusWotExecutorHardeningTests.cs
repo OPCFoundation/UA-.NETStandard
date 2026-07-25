@@ -108,7 +108,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 WoTBindingCapabilityEnum.ReadProperty, "readproperty",
                 new WotEndpointDescriptor("modbus+tcp", "127.0.0.1", 502, "modbus+tcp://127.0.0.1:502"),
                 addressing,
-                new WotOperationDescriptor(WoTBindingCapabilityEnum.ReadProperty, "readproperty", "readHoldingRegisters"),
+                new WotOperationDescriptor(
+                    WoTBindingCapabilityEnum.ReadProperty, "readproperty", "readHoldingRegisters"),
                 payload,
                 [], isExecutable: true);
 
@@ -136,7 +137,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 WoTBindingCapabilityEnum.ReadProperty, "readproperty",
                 new WotEndpointDescriptor("modbus+tcp", "127.0.0.1", 502, "modbus+tcp://127.0.0.1:502"),
                 addressing,
-                new WotOperationDescriptor(WoTBindingCapabilityEnum.ReadProperty, "readproperty", "readHoldingRegisters"),
+                new WotOperationDescriptor(
+                    WoTBindingCapabilityEnum.ReadProperty, "readproperty", "readHoldingRegisters"),
                 payload,
                 [], isExecutable: true);
 

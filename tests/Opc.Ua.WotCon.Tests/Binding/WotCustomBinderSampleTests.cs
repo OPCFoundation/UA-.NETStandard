@@ -49,8 +49,8 @@ namespace Opc.Ua.WotCon.Tests.Binding
         {
             var store = new MemoryWotStore();
             var registry = new WotProtocolBinderRegistry(
-                new IWotProtocolBinder[] { new MemoryWotBinder() },
-                new IWotBindingExecutor[] { new MemoryWotBindingExecutor(store) });
+                [new MemoryWotBinder()],
+                [new MemoryWotBindingExecutor(store)]);
 
             const string td = "{\"@context\":\"https://www.w3.org/2022/wot/td/v1.1\",\"title\":\"t\"," +
                 "\"properties\":{\"setpoint\":{\"type\":\"number\",\"forms\":[{\"href\":\"mem://store/setpoint\"}]}}}";
@@ -60,13 +60,15 @@ namespace Opc.Ua.WotCon.Tests.Binding
             Assert.That(plan.FullySupported, Is.True);
             Assert.That(plan.HasExecutableForms, Is.True);
 
-            WotCompiledForm write = plan.CompiledForms.First(f => f.Operation == WoTBindingCapabilityEnum.WriteProperty);
+            WotCompiledForm write = plan.CompiledForms.First(
+                f => f.Operation == WoTBindingCapabilityEnum.WriteProperty);
             WotCompiledForm read = plan.CompiledForms.First(f => f.Operation == WoTBindingCapabilityEnum.ReadProperty);
 
             IWotBindingChannel writeChannel = await registry.OpenChannelAsync(write).ConfigureAwait(false);
             await using (writeChannel.ConfigureAwait(false))
             {
-                WotWriteResult result = await writeChannel.WriteAsync(new DataValue(new Variant(42.5))).ConfigureAwait(false);
+                WotWriteResult result = await writeChannel.WriteAsync(
+                    new DataValue(new Variant(42.5))).ConfigureAwait(false);
                 Assert.That(result.Success, Is.True);
             }
 

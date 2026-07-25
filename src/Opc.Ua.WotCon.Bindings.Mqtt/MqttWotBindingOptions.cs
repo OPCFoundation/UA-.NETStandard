@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using MQTTnet;
 
 namespace Opc.Ua.WotCon.Bindings.Mqtt
 {
@@ -39,11 +40,8 @@ namespace Opc.Ua.WotCon.Bindings.Mqtt
         /// <summary>
         /// Gets or sets a factory that supplies an unconnected MQTT client. When
         /// <c>null</c> the executor creates one from the MQTTnet client factory.
-        /// The return type is <see cref="object"/> to keep the MQTTnet dependency
-        /// out of callers that only configure the executor; it must be an
-        /// <c>MQTTnet.IMqttClient</c>.
         /// </summary>
-        public Func<object>? ClientFactory { get; set; }
+        public Func<IMqttClient>? ClientFactory { get; set; }
 
         /// <summary>
         /// Gets or sets the client id prefix used for connections.

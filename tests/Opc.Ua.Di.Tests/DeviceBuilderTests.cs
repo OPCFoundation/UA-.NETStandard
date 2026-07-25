@@ -392,7 +392,7 @@ namespace Opc.Ua.Di.Tests
 
             a.ConnectsTo(b.Device.NodeId);
 
-            NodeId connectsToRefType = NodeId.Create(
+            var connectsToRefType = NodeId.Create(
 #pragma warning disable IDE0002 // fully qualify: net-TFM simplification analysis disagrees across targets here
                 global::Opc.Ua.Di.ReferenceTypes.ConnectsTo,
 #pragma warning restore IDE0002

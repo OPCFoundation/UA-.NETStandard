@@ -992,7 +992,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="error">The error.</param>
         /// <returns>
-        /// 	<c>true</c> if the error is one of the security errors, otherwise <c>false</c>.
+        /// <c>true</c> if the error is one of the security errors, otherwise <c>false</c>.
         /// </returns>
         protected bool IsSecurityError(StatusCode error)
         {

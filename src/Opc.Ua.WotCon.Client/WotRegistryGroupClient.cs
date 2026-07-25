@@ -118,7 +118,8 @@ namespace Opc.Ua.WotCon.Client
         /// whether it was newly created.
         /// </summary>
         /// <exception cref="ArgumentException"><paramref name="resourceId"/> is null or empty.</exception>
-        public async ValueTask<(WotRegistryResourceClient Resource, string VersionId, bool Created)> GetOrCreateResourceAsync(
+        public async ValueTask<(WotRegistryResourceClient Resource, string VersionId, bool Created)>
+            GetOrCreateResourceAsync(
             string resourceId,
             string versionId = "",
             CancellationToken ct = default)

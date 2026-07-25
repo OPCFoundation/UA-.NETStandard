@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -123,7 +123,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [Test]
         public void RejectsSelectionOfWrongElementType()
         {
-            var wrongSelection = new string[] { "not-a-selector" };
+            string[] wrongSelection = ["not-a-selector"];
             ArrayOf<Variant> input = Args(new Variant(wrongSelection));
 
             ServiceResult status = WotRefreshArguments.TryDecode(

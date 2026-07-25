@@ -140,8 +140,8 @@ namespace Opc.Ua.WotCon.Tests.Binding
         {
             var store = new MemoryWotStore();
             var registry = new WotProtocolBinderRegistry(
-                new IWotProtocolBinder[] { new MemoryWotBinder() },
-                new IWotBindingExecutor[] { new MemoryWotBindingExecutor(store) });
+                [new MemoryWotBinder()],
+                [new MemoryWotBindingExecutor(store)]);
 
             WotBindingPlan plan = registry.Prepare(Request("t", "mem://store/key"));
 
@@ -167,11 +167,11 @@ namespace Opc.Ua.WotCon.Tests.Binding
         [Test]
         public void RegistryMultipleVersionsCoexist()
         {
-            var registry = new WotProtocolBinderRegistry(new IWotProtocolBinder[]
-            {
+            var registry = new WotProtocolBinderRegistry(
+            [
                 new StubBinder("1.0"),
                 new StubBinder("2.0")
-            });
+            ]);
 
             Assert.That(registry.Binders, Has.Count.EqualTo(2));
             Assert.That(
@@ -183,11 +183,11 @@ namespace Opc.Ua.WotCon.Tests.Binding
         [Test]
         public void RegistryExplicitPinOverridesSchemeSelection()
         {
-            var registry = new WotProtocolBinderRegistry(new IWotProtocolBinder[]
-            {
+            var registry = new WotProtocolBinderRegistry(
+            [
                 new HttpBindingPlanner(),
                 new StubBinder("1.0")
-            });
+            ]);
 
             // A stub-scheme href with an explicit pin on the stub binder id.
             const string td = "{\"@context\":\"https://www.w3.org/2022/wot/td/v1.1\",\"title\":\"t\"," +

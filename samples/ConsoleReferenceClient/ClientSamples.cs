@@ -404,6 +404,10 @@ namespace Quickstarts
                 }
 
                 // Define Subscription parameters
+                // CA2000: ownership of the subscription transfers to the session in
+                // AddSubscription below; the analyzer cannot model that hand-off.
+                // TODO: Remove this suppression when CA2000 recognizes the transfer.
+#pragma warning disable CA2000
                 var subscription = new Subscription(session.DefaultSubscription)
                 {
                     DisplayName = "Console ReferenceClient Subscription",
@@ -413,6 +417,7 @@ namespace Quickstarts
                     MinLifetimeInterval = lifetime,
                     KeepAliveCount = 5
                 };
+#pragma warning restore CA2000
 
                 session.AddSubscription(subscription);
 
@@ -1284,6 +1289,10 @@ namespace Quickstarts
                 session.MinPublishRequestCount = 3;
 
                 // Define Subscription parameters
+                // CA2000: ownership of the subscription transfers to the session in
+                // AddSubscription below; the analyzer cannot model that hand-off.
+                // TODO: Remove this suppression when CA2000 recognizes the transfer.
+#pragma warning disable CA2000
                 var subscription = new Subscription(session.DefaultSubscription)
                 {
                     DisplayName = "Console ReferenceClient Subscription",
@@ -1299,6 +1308,7 @@ namespace Quickstarts
                     FastDataChangeCallback = FastDataChangeNotification,
                     FastKeepAliveCallback = FastKeepAliveNotification
                 };
+#pragma warning restore CA2000
                 session.AddSubscription(subscription);
 
                 // Create the subscription on Server side

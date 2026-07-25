@@ -73,7 +73,7 @@ namespace Opc.Ua.WotCon.Server
             Coordinator.StrictBindings = options.StrictBindings;
             Coordinator.RetirementPolicy = options.RetirementPolicy;
             Coordinator.ServerNamespaceUris = server.NamespaceUris;
-            m_projection = new WotRegistryProjection(this, Registry, m_options, m_logger);
+            m_projection = new WotRegistryProjection(this, Registry, m_options);
         }
 
         /// <summary>

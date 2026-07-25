@@ -600,10 +600,12 @@ namespace Opc.Ua.Server
                     throw new NotSupportedException(
                         "Durable subscriptions cannot be retired immediately.");
                 }
-                IMonitoredItem[] candidates = m_monitoredItems.Values
-                    .Select(monitoredItem => monitoredItem.Value)
-                    .Where(monitoredItem => IsOwnedBy(monitoredItem, nodeManager))
-                    .ToArray();
+                IMonitoredItem[] candidates =
+                [
+                    .. m_monitoredItems.Values
+                        .Select(monitoredItem => monitoredItem.Value)
+                        .Where(monitoredItem => IsOwnedBy(monitoredItem, nodeManager))
+                ];
                 if (candidates.Any(monitoredItem =>
                     monitoredItem.IsDurable ||
                     monitoredItem is not IRetirableMonitoredItem))
@@ -611,7 +613,7 @@ namespace Opc.Ua.Server
                     throw new NotSupportedException(
                         "Durable or unsupported monitored items cannot be retired immediately.");
                 }
-                ownedItems = candidates.Cast<IRetirableMonitoredItem>().ToArray();
+                ownedItems = [.. candidates.Cast<IRetirableMonitoredItem>()];
             }
 
             foreach (IRetirableMonitoredItem monitoredItem in ownedItems)
@@ -632,13 +634,15 @@ namespace Opc.Ua.Server
             IRetirableMonitoredItem[] retiredItems;
             lock (m_lock)
             {
-                retiredItems = m_monitoredItems.Values
-                    .Select(monitoredItem => monitoredItem.Value)
-                    .Where(monitoredItem =>
-                        IsRetired(monitoredItem) &&
-                        IsOwnedBy(monitoredItem, nodeManager))
-                    .Cast<IRetirableMonitoredItem>()
-                    .ToArray();
+                retiredItems =
+                [
+                    .. m_monitoredItems.Values
+                        .Select(monitoredItem => monitoredItem.Value)
+                        .Where(monitoredItem =>
+                            IsRetired(monitoredItem) &&
+                            IsOwnedBy(monitoredItem, nodeManager))
+                        .Cast<IRetirableMonitoredItem>()
+                ];
             }
 
             foreach (IRetirableMonitoredItem monitoredItem in retiredItems)
@@ -648,7 +652,9 @@ namespace Opc.Ua.Server
         }
 
         private static bool IsRetired(IMonitoredItem monitoredItem)
-            => monitoredItem is IRetirableMonitoredItem { IsRetired: true };
+        {
+            return monitoredItem is IRetirableMonitoredItem { IsRetired: true };
+        }
 
         private static bool IsOwnedBy(
             IMonitoredItem monitoredItem,
@@ -1071,8 +1077,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public NotificationMessage PublishTimeout()
         {
-            NotificationMessage? message = null;
-
+            NotificationMessage? message;
             lock (m_lock)
             {
                 m_expired = true;
@@ -1100,8 +1105,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public NotificationMessage SubscriptionTransferred()
         {
-            NotificationMessage? message = null;
-
+            NotificationMessage? message;
             lock (m_lock)
             {
                 message = (NotificationMessage)NotificationMessageActivator.Instance.CreateInstance();
@@ -1610,7 +1614,7 @@ namespace Opc.Ua.Server
 
                 if (!m_monitoredItems.TryGetValue(
                     triggeringItemId,
-                    out LinkedListNode<IMonitoredItem>? triggerNode))
+                    out _))
                 {
                     throw new ServiceResultException(StatusCodes.BadMonitoredItemIdInvalid);
                 }
@@ -2348,12 +2352,10 @@ namespace Opc.Ua.Server
                     // remove the item from the internal lists.
                     m_monitoredItems.Remove(monitoredItemIds[ii]);
                     m_itemsToTrigger.Remove(monitoredItemIds[ii]);
-
-                    //remove the links towards the deleted monitored item
-                    List<ITriggeredMonitoredItem>? triggeredItems = null;
                     foreach (KeyValuePair<uint, List<ITriggeredMonitoredItem>> item in m_itemsToTrigger)
                     {
-                        triggeredItems = item.Value;
+                        //remove the links towards the deleted monitored item
+                        List<ITriggeredMonitoredItem>? triggeredItems = item.Value;
                         for (int jj = 0; jj < triggeredItems.Count; jj++)
                         {
                             if (triggeredItems[jj].Id == monitoredItemIds[ii])
@@ -3051,17 +3053,23 @@ namespace Opc.Ua.Server
             }
 
             // save counters
-            Monitor.Enter(m_lock);
-
-            long sequenceNumber = m_messageQueue.NextSequenceNumber;
-            int itemsToCheck = m_itemsToCheck.Count;
-            int monitoredItems = m_monitoredItems.Count;
-            int itemsToPublish = m_itemsToPublish.Count;
-            int sentMessages = m_messageQueue.SentCount;
-            bool publishingEnabled = m_publishingEnabled;
-            bool waitingForPublish = m_waitingForPublish;
-
-            Monitor.Exit(m_lock);
+            long sequenceNumber;
+            int itemsToCheck;
+            int monitoredItems;
+            int itemsToPublish;
+            int sentMessages;
+            bool publishingEnabled;
+            bool waitingForPublish;
+            lock (m_lock)
+            {
+                sequenceNumber = m_messageQueue.NextSequenceNumber;
+                itemsToCheck = m_itemsToCheck.Count;
+                monitoredItems = m_monitoredItems.Count;
+                itemsToPublish = m_itemsToPublish.Count;
+                sentMessages = m_messageQueue.SentCount;
+                publishingEnabled = m_publishingEnabled;
+                waitingForPublish = m_waitingForPublish;
+            }
 
             switch (id)
             {
@@ -3121,7 +3129,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        private readonly object m_lock = new();
+        private readonly Lock m_lock = new();
         private readonly IServerInternal m_server;
         private readonly TimeProvider m_timeProvider;
         private IUserIdentity? m_savedOwnerIdentity;

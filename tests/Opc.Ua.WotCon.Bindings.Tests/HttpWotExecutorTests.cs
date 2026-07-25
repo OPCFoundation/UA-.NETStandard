@@ -116,7 +116,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             IWotBindingChannel writeChannel = await registry.OpenChannelAsync(write).ConfigureAwait(false);
             await using (writeChannel.ConfigureAwait(false))
             {
-                WotWriteResult result = await writeChannel.WriteAsync(new DataValue(new Variant(42L))).ConfigureAwait(false);
+                WotWriteResult result = await writeChannel.WriteAsync(
+                    new DataValue(new Variant(42L))).ConfigureAwait(false);
                 Assert.That(result.Success, Is.True);
             }
 
@@ -173,7 +174,10 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 await using (subscription.ConfigureAwait(false))
                 {
                     store["/prop"] = "99";
-                    Assert.That(await WaitForAsync(received, 99).ConfigureAwait(false), Is.True, "The observe channel must deliver the change.");
+                    Assert.That(
+                        await WaitForAsync(received, 99).ConfigureAwait(false),
+                        Is.True,
+                        "The observe channel must deliver the change.");
                 }
             }
         }

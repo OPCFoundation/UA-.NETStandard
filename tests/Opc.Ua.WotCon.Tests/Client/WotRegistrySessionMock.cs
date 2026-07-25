@@ -270,8 +270,6 @@ namespace Opc.Ua.WotCon.Tests.Client
             };
         }
 
-        // ---- registry-level methods ---------------------------------------
-
         private Variant[] OnCreateGroup(CallMethodRequest req)
         {
             req.InputArguments[0].TryGetValue(out string groupId);
@@ -304,8 +302,6 @@ namespace Opc.Ua.WotCon.Tests.Client
             }
             return group;
         }
-
-        // ---- group-level methods -------------------------------------------
 
         private Variant[] OnCreateResource(CallMethodRequest req)
         {
@@ -372,8 +368,6 @@ namespace Opc.Ua.WotCon.Tests.Client
             return [];
         }
 
-        // ---- resource-level methods -----------------------------------------
-
         private Variant[] OnDeleteResource(CallMethodRequest req)
         {
             (GroupState group, ResourceState resource) = FindResource(req.ObjectId);
@@ -424,8 +418,6 @@ namespace Opc.Ua.WotCon.Tests.Client
             }
             throw new InvalidOperationException("WotRegistrySessionMock: unknown resource object id.");
         }
-
-        // ---- FileType (Open/Write/Close/Read) -------------------------------
 
         private uint OpenWriteHandle(ResourceState resource)
         {
@@ -487,8 +479,6 @@ namespace Opc.Ua.WotCon.Tests.Client
             }
             return [];
         }
-
-        // ---- Refresh ---------------------------------------------------------
 
         private Variant[] OnRefresh(CallMethodRequest req)
         {

@@ -73,7 +73,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             factory.Builder.AddEncodeableType(TestRootType.EncodingId, new TestRootType()).Commit();
 
             WotStructuredGroupResolution second = state.EnsureResolved();
-            Assert.That(second.Success, Is.True, "The failed attempt must not have been cached; a retry must resolve now.");
+            Assert.That(
+                second.Success, Is.True, "The failed attempt must not have been cached; a retry must resolve now.");
             Assert.That(second.RootType, Is.Not.Null);
         }
 

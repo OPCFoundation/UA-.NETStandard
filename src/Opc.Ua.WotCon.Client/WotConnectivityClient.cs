@@ -92,7 +92,9 @@ namespace Opc.Ua.WotCon.Client
         /// </remarks>
         /// <exception cref="ArgumentNullException"><paramref name="session"/> is null.</exception>
         /// <exception cref="ArgumentNullException"><paramref name="telemetry"/> is null.</exception>
-        /// <exception cref="ServiceResultException">The WoTAssetConnectionManagement entry point was not found on the connected server.</exception>
+        /// <exception cref="ServiceResultException">
+        /// The WoTAssetConnectionManagement entry point was not found on the connected server.
+        /// </exception>
         public static async ValueTask<WotConnectivityClient> ForServerAsync(
             ISession session,
             ITelemetryContext telemetry,

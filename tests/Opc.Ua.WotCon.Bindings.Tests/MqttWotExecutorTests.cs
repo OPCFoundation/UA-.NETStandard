@@ -105,7 +105,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 IWotBindingChannel writeChannel = await registry.OpenChannelAsync(write).ConfigureAwait(false);
                 await using (writeChannel.ConfigureAwait(false))
                 {
-                    Assert.That((await writeChannel.WriteAsync(new DataValue(new Variant(42L))).ConfigureAwait(false)).Success, Is.True);
+                    Assert.That((await writeChannel.WriteAsync(
+                        new DataValue(new Variant(42L))).ConfigureAwait(false)).Success, Is.True);
                 }
 
                 IWotBindingChannel readChannel = await registry.OpenChannelAsync(read).ConfigureAwait(false);

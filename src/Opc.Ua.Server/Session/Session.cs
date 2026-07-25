@@ -150,7 +150,6 @@ namespace Opc.Ua.Server
             m_timeProvider = timeProvider
                 ?? (server as ITimeProviderProvider)?.TimeProvider
                 ?? TimeProvider.System;
-            m_logger = server.Telemetry.CreateLogger<Session>();
             m_eventLogger = server.Telemetry.CreateLogger(
                 ServerCompatibilityEventIds.CategoryName);
             ClientNonce = clientNonce;
@@ -1325,7 +1324,6 @@ namespace Opc.Ua.Server
         }
 
         private readonly Lock m_lock = new();
-        private readonly ILogger m_logger;
         private readonly ILogger m_eventLogger;
         private readonly IServerInternal m_server;
         private readonly TimeProvider m_timeProvider;

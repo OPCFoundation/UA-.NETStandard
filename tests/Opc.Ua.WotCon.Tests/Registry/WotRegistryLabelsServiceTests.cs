@@ -153,7 +153,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         public void AddResourceLabelKeyTooLongThrows()
         {
             using var service = new WotRegistryService();
-            string longKey = new string('k', service.Bounds.MaxLabelKeyLength + 1);
+            string longKey = new('k', service.Bounds.MaxLabelKeyLength + 1);
 
             ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
                 async () => await service.AddResourceLabelAsync("sensors", "a", longKey, "x"));
@@ -164,7 +164,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         public void AddResourceLabelValueTooLongThrows()
         {
             using var service = new WotRegistryService();
-            string longValue = new string('v', service.Bounds.MaxLabelValueLength + 1);
+            string longValue = new('v', service.Bounds.MaxLabelValueLength + 1);
 
             ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
                 async () => await service.AddResourceLabelAsync("sensors", "a", "k", longValue));

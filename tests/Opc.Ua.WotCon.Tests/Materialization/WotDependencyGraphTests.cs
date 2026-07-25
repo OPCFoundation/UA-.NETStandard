@@ -87,7 +87,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     TestMaterialization.Td("urn:td", extendsHrefs: "urn:tm")));
 
             ImmutableArray<WotDependencyClosure> closures =
-                WotDependencyGraph.BuildClosures(snapshot, snapshot.AllResources().ToList(), 64);
+                WotDependencyGraph.BuildClosures(snapshot, [.. snapshot.AllResources()], 64);
 
             Assert.That(closures, Has.Length.EqualTo(1));
             Assert.That(closures[0].IsProjectable, Is.True);
@@ -104,7 +104,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 (WoTDocumentKindEnum.ThingDescription, "b", TestMaterialization.Td("urn:b")));
 
             ImmutableArray<WotDependencyClosure> closures =
-                WotDependencyGraph.BuildClosures(snapshot, snapshot.AllResources().ToList(), 64);
+                WotDependencyGraph.BuildClosures(snapshot, [.. snapshot.AllResources()], 64);
 
             Assert.That(closures, Has.Length.EqualTo(2));
             Assert.That(closures.All(c => c.OrderedResources.Length == 1), Is.True);
@@ -118,7 +118,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     TestMaterialization.Td("urn:td", extendsHrefs: "urn:missing")));
 
             ImmutableArray<WotDependencyClosure> closures =
-                WotDependencyGraph.BuildClosures(snapshot, snapshot.AllResources().ToList(), 64);
+                WotDependencyGraph.BuildClosures(snapshot, [.. snapshot.AllResources()], 64);
 
             Assert.That(closures, Has.Length.EqualTo(1));
             Assert.That(closures[0].HasMissingDependency, Is.True);
@@ -135,7 +135,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     TestMaterialization.Tm("urn:b", extendsHrefs: "urn:a")));
 
             ImmutableArray<WotDependencyClosure> closures =
-                WotDependencyGraph.BuildClosures(snapshot, snapshot.AllResources().ToList(), 64);
+                WotDependencyGraph.BuildClosures(snapshot, [.. snapshot.AllResources()], 64);
 
             Assert.That(closures, Has.Length.EqualTo(1));
             Assert.That(closures[0].HasCycle, Is.True);

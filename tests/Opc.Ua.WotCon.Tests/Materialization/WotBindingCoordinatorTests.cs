@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -70,7 +69,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             return new();
         }
 
-        private static Task<WotRegistryMutationResult> Upsert(WotRegistryService registry, string resourceId, byte[] content)
+        private static Task<WotRegistryMutationResult> Upsert(
+            WotRegistryService registry, string resourceId, byte[] content)
         {
             return registry.UpsertResourceAsync(new WotUpsertResourceRequest
             {
@@ -133,7 +133,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             var binders = new WotProtocolBinderRegistry(WotBuiltInBinders.CreateAll());
             using var coordinator = new WotMaterializationCoordinator(
                 registry, host, binders, documentConverter: new FakeWotDocumentConverter());
-            await Upsert(registry, "td-a", Td("urn:td-a", "coap://d/temp", "\"cov:method\":\"GET\"")).ConfigureAwait(false);
+            await Upsert(
+                registry, "td-a", Td("urn:td-a", "coap://d/temp", "\"cov:method\":\"GET\"")).ConfigureAwait(false);
 
             WotRefreshResult result = await coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
 
@@ -149,8 +150,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             WotRegistryService registry = Registry();
             var host = new FakeWotProjectionHost();
             var binders = new WotProtocolBinderRegistry(
-                new IWotProtocolBinder[] { new MemoryWotBinder() },
-                new IWotBindingExecutor[] { new MemoryWotBindingExecutor(new MemoryWotStore()) });
+                [new MemoryWotBinder()],
+                [new MemoryWotBindingExecutor(new MemoryWotStore())]);
             using var coordinator = new WotMaterializationCoordinator(
                 registry, host, binders, documentConverter: new FakeWotDocumentConverter());
             await Upsert(registry, "td-a", Td("urn:td-a", "mem://store/value")).ConfigureAwait(false);
@@ -168,8 +169,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             WotRegistryService registry = Registry();
             var host = new FakeWotProjectionHost();
             var binders = new WotProtocolBinderRegistry(
-                new IWotProtocolBinder[] { new MemoryWotBinder() },
-                new IWotBindingExecutor[] { new MemoryWotBindingExecutor(new MemoryWotStore()) });
+                [new MemoryWotBinder()],
+                [new MemoryWotBindingExecutor(new MemoryWotStore())]);
             using var coordinator = new WotMaterializationCoordinator(
                 registry, host, binders, documentConverter: new FakeWotDocumentConverter());
             await Upsert(registry, "td-a", Td("urn:td-a", "mem://store/value")).ConfigureAwait(false);
@@ -314,7 +315,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             }
 
             public ValueTask<WotProjectionHandle> ShadowReloadAsync(
-                WotProjectionHandle current, WotProjectionDocument document, CancellationToken cancellationToken = default)
+                WotProjectionHandle current,
+                WotProjectionDocument document,
+                CancellationToken cancellationToken = default)
             {
                 if (FailShadowReload)
                 {
@@ -340,7 +343,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
             private static WotProjectionHandle Handle(WotProjectionDocument document)
             {
-                return new(document.ClosureKey, 1, new object(), [], 0);
+                return new(document.ClosureKey, 1, new FakeWotProjectionRegistration(), [], 0);
             }
 
             private readonly PlanRecorder m_recorder;
@@ -411,7 +414,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             }
 
             public ValueTask<WotProjectionHandle> ShadowReloadAsync(
-                WotProjectionHandle current, WotProjectionDocument document, CancellationToken cancellationToken = default)
+                WotProjectionHandle current,
+                WotProjectionDocument document,
+                CancellationToken cancellationToken = default)
             {
                 m_timeline.Add("shadow");
                 return new ValueTask<WotProjectionHandle>(Handle(document));
@@ -433,7 +438,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
             private static WotProjectionHandle Handle(WotProjectionDocument document)
             {
-                return new(document.ClosureKey, 1, new object(), [], 0);
+                return new(document.ClosureKey, 1, new FakeWotProjectionRegistration(), [], 0);
             }
 
             private readonly List<string> m_timeline;

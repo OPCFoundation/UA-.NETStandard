@@ -82,7 +82,7 @@ namespace Opc.Ua.WotCon.Bindings.Mqtt
             // fail-closed rejection throws before any client is created.
             MqttWotConnection.MqttWotConnectPlan plan = await MqttWotConnection
                 .PrepareAsync(form, context, m_options, clientId, cancellationToken).ConfigureAwait(false);
-            IMqttClient client = m_options.ClientFactory?.Invoke() as IMqttClient
+            IMqttClient client = m_options.ClientFactory?.Invoke()
                 ?? new MqttClientFactory().CreateMqttClient();
             try
             {

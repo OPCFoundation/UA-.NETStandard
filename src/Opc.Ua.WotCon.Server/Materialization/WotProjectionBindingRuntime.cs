@@ -483,7 +483,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
 
                 DateTimeUtc fieldTimestamp = result.Value.SourceTimestamp;
-                if (fieldTimestamp != DateTimeUtc.MinValue && (oldest == DateTimeUtc.MinValue || fieldTimestamp < oldest))
+                if (fieldTimestamp != DateTimeUtc.MinValue &&
+                    (oldest == DateTimeUtc.MinValue || fieldTimestamp < oldest))
                 {
                     oldest = fieldTimestamp;
                 }

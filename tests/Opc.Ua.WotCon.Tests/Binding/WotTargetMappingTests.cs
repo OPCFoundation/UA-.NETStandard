@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
 using NUnit.Framework;
@@ -75,9 +74,10 @@ namespace Opc.Ua.WotCon.Tests.Binding
         [Test]
         public void MapToNodeIdOnHttpPropertyIsAccepted()
         {
-            string document = WotBindingTestSupport.Property("temp",
-                                     /*lang=json,strict*/
-                                     "{\"href\":\"https://d.example.com/temp\",\"contentType\":\"application/json\"}",
+            string document = WotBindingTestSupport.Property(
+                "temp",
+                    /*lang=json,strict*/
+                    "{\"href\":\"https://d.example.com/temp\",\"contentType\":\"application/json\"}",
                 "\"uav:mapToNodeId\":\"ns=2;s=Temp\"");
 
             WotBindingPlan plan = Prepare(document);
@@ -89,9 +89,10 @@ namespace Opc.Ua.WotCon.Tests.Binding
         [Test]
         public void MapToNodeIdOnOpcUaPropertyIsAccepted()
         {
-            string document = WotBindingTestSupport.Property("t",
-                                     /*lang=json,strict*/
-                                     "{\"href\":\"opc.tcp://server:4840\",\"uav:id\":\"ns=2;i=5\"}",
+            string document = WotBindingTestSupport.Property(
+                "t",
+                    /*lang=json,strict*/
+                    "{\"href\":\"opc.tcp://server:4840\",\"uav:id\":\"ns=2;i=5\"}",
                 "\"uav:mapToNodeId\":\"ns=3;s=Mapped\"");
 
             WotBindingPlan plan = Prepare(document);
@@ -103,9 +104,10 @@ namespace Opc.Ua.WotCon.Tests.Binding
         [Test]
         public void MapToTypeWithFieldPathOnPropertyIsAccepted()
         {
-            string document = WotBindingTestSupport.Property("t",
-                                     /*lang=json,strict*/
-                                     "{\"href\":\"https://d/x\",\"contentType\":\"application/json\"}",
+            string document = WotBindingTestSupport.Property(
+                "t",
+                    /*lang=json,strict*/
+                    "{\"href\":\"https://d/x\",\"contentType\":\"application/json\"}",
                 "\"uav:mapToType\":\"ns=2;i=100\",\"uav:mapByFieldPath\":\"Value/SubField\"");
 
             WotBindingPlan plan = Prepare(document);
@@ -120,9 +122,10 @@ namespace Opc.Ua.WotCon.Tests.Binding
         [Test]
         public void MapByFieldPathWithoutMapToTypeIsRejected()
         {
-            string document = WotBindingTestSupport.Property("t",
-                                     /*lang=json,strict*/
-                                     "{\"href\":\"https://d/x\",\"contentType\":\"application/json\"}",
+            string document = WotBindingTestSupport.Property(
+                "t",
+                    /*lang=json,strict*/
+                    "{\"href\":\"https://d/x\",\"contentType\":\"application/json\"}",
                 "\"uav:mapByFieldPath\":\"Value/SubField\"");
 
             WotBindingPlan plan = Prepare(document);
@@ -136,9 +139,10 @@ namespace Opc.Ua.WotCon.Tests.Binding
         [Test]
         public void MapToNodeIdAndMapToTypeTogetherAreAccepted()
         {
-            string document = WotBindingTestSupport.Property("t",
-                                     /*lang=json,strict*/
-                                     "{\"href\":\"https://d/x\",\"contentType\":\"application/json\"}",
+            string document = WotBindingTestSupport.Property(
+                "t",
+                    /*lang=json,strict*/
+                    "{\"href\":\"https://d/x\",\"contentType\":\"application/json\"}",
                 "\"uav:mapToNodeId\":\"ns=2;s=Target\",\"uav:mapToType\":\"ns=2;i=100\"");
 
             WotBindingPlan plan = Prepare(document);
@@ -151,9 +155,10 @@ namespace Opc.Ua.WotCon.Tests.Binding
         [Test]
         public void MapToNodeIdOnActionIsRejected()
         {
-            string document = WotBindingTestSupport.Action("run",
-                                     /*lang=json,strict*/
-                                     "{\"href\":\"https://d/run\",\"htv:methodName\":\"POST\"}",
+            string document = WotBindingTestSupport.Action(
+                "run",
+                    /*lang=json,strict*/
+                    "{\"href\":\"https://d/run\",\"htv:methodName\":\"POST\"}",
                 "\"uav:mapToNodeId\":\"ns=2;s=X\"");
 
             WotBindingPlan plan = Prepare(document);
@@ -167,9 +172,10 @@ namespace Opc.Ua.WotCon.Tests.Binding
         [Test]
         public void MapToNodeIdOnEventIsRejected()
         {
-            string document = WotBindingTestSupport.Event("alarm",
-                                     /*lang=json,strict*/
-                                     "{\"href\":\"opc.tcp://server:4840\",\"uav:id\":\"ns=2;i=42\",\"op\":[\"subscribeevent\"]}",
+            string document = WotBindingTestSupport.Event(
+                "alarm",
+                    /*lang=json,strict*/
+                    "{\"href\":\"opc.tcp://server:4840\",\"uav:id\":\"ns=2;i=42\",\"op\":[\"subscribeevent\"]}",
                 "\"uav:mapToNodeId\":\"ns=2;s=X\"");
 
             WotBindingPlan plan = Prepare(document);
@@ -183,9 +189,10 @@ namespace Opc.Ua.WotCon.Tests.Binding
         [Test]
         public void MapByFieldPathOnActionReportsOnlyPropertyAffordanceError()
         {
-            string document = WotBindingTestSupport.Action("run",
-                                     /*lang=json,strict*/
-                                     "{\"href\":\"https://d/run\",\"htv:methodName\":\"POST\"}",
+            string document = WotBindingTestSupport.Action(
+                "run",
+                    /*lang=json,strict*/
+                    "{\"href\":\"https://d/run\",\"htv:methodName\":\"POST\"}",
                 "\"uav:mapByFieldPath\":\"Value\"");
 
             WotBindingPlan plan = Prepare(document);
@@ -206,9 +213,10 @@ namespace Opc.Ua.WotCon.Tests.Binding
         [Test]
         public void MapToNodeIdAuthoredOnFormIsRejected()
         {
-            string document = WotBindingTestSupport.Property("t",
-                                     /*lang=json,strict*/
-                                     "{\"href\":\"https://d/x\",\"contentType\":\"application/json\",\"uav:mapToNodeId\":\"ns=2;s=X\"}");
+            string document = WotBindingTestSupport.Property(
+                "t",
+                    /*lang=json,strict*/
+                    "{\"href\":\"https://d/x\",\"contentType\":\"application/json\",\"uav:mapToNodeId\":\"ns=2;s=X\"}");
 
             WotBindingPlan plan = Prepare(document);
 
@@ -221,9 +229,10 @@ namespace Opc.Ua.WotCon.Tests.Binding
         [Test]
         public void MapToTypeAuthoredOnFormIsRejected()
         {
-            string document = WotBindingTestSupport.Property("t",
-                                     /*lang=json,strict*/
-                                     "{\"href\":\"https://d/x\",\"contentType\":\"application/json\",\"uav:mapToType\":\"ns=2;i=1\"}");
+            string document = WotBindingTestSupport.Property(
+                "t",
+                    /*lang=json,strict*/
+                    "{\"href\":\"https://d/x\",\"contentType\":\"application/json\",\"uav:mapToType\":\"ns=2;i=1\"}");
 
             WotBindingPlan plan = Prepare(document);
 
@@ -236,9 +245,10 @@ namespace Opc.Ua.WotCon.Tests.Binding
         [Test]
         public void NonStringMapToNodeIdOnPropertyIsRejected()
         {
-            string document = WotBindingTestSupport.Property("t",
-                                     /*lang=json,strict*/
-                                     "{\"href\":\"https://d/x\",\"contentType\":\"application/json\"}",
+            string document = WotBindingTestSupport.Property(
+                "t",
+                    /*lang=json,strict*/
+                    "{\"href\":\"https://d/x\",\"contentType\":\"application/json\"}",
                 "\"uav:mapToNodeId\":42");
 
             WotBindingPlan plan = Prepare(document);
@@ -252,9 +262,10 @@ namespace Opc.Ua.WotCon.Tests.Binding
         [Test]
         public void NonStringMapToNodeIdOnFormIsRejectedAsFormMisuse()
         {
-            string document = WotBindingTestSupport.Property("t",
-                                     /*lang=json,strict*/
-                                     "{\"href\":\"https://d/x\",\"contentType\":\"application/json\",\"uav:mapToNodeId\":42}");
+            string document = WotBindingTestSupport.Property(
+                "t",
+                    /*lang=json,strict*/
+                    "{\"href\":\"https://d/x\",\"contentType\":\"application/json\",\"uav:mapToNodeId\":42}");
 
             WotBindingPlan plan = Prepare(document);
 
@@ -267,9 +278,10 @@ namespace Opc.Ua.WotCon.Tests.Binding
         [Test]
         public void MapToNodeIdEmptyIsRejected()
         {
-            string document = WotBindingTestSupport.Property("t",
-                                     /*lang=json,strict*/
-                                     "{\"href\":\"https://d/x\",\"contentType\":\"application/json\"}",
+            string document = WotBindingTestSupport.Property(
+                "t",
+                    /*lang=json,strict*/
+                    "{\"href\":\"https://d/x\",\"contentType\":\"application/json\"}",
                 "\"uav:mapToNodeId\":\"\"");
 
             WotBindingPlan plan = Prepare(document);
@@ -283,9 +295,10 @@ namespace Opc.Ua.WotCon.Tests.Binding
         [Test]
         public void MapToTypeEmptyIsRejected()
         {
-            string document = WotBindingTestSupport.Property("t",
-                                     /*lang=json,strict*/
-                                     "{\"href\":\"https://d/x\",\"contentType\":\"application/json\"}",
+            string document = WotBindingTestSupport.Property(
+                "t",
+                    /*lang=json,strict*/
+                    "{\"href\":\"https://d/x\",\"contentType\":\"application/json\"}",
                 "\"uav:mapToType\":\"\"");
 
             WotBindingPlan plan = Prepare(document);
@@ -299,9 +312,10 @@ namespace Opc.Ua.WotCon.Tests.Binding
         [Test]
         public void MapByFieldPathEmptyIsRejected()
         {
-            string document = WotBindingTestSupport.Property("t",
-                                     /*lang=json,strict*/
-                                     "{\"href\":\"https://d/x\",\"contentType\":\"application/json\"}",
+            string document = WotBindingTestSupport.Property(
+                "t",
+                    /*lang=json,strict*/
+                    "{\"href\":\"https://d/x\",\"contentType\":\"application/json\"}",
                 "\"uav:mapToType\":\"ns=2;i=1\",\"uav:mapByFieldPath\":\"\"");
 
             WotBindingPlan plan = Prepare(document);
@@ -330,9 +344,10 @@ namespace Opc.Ua.WotCon.Tests.Binding
         [Test]
         public void NoMappingTermsAuthoredCompiledEntriesCarryEmptyTargetMapping()
         {
-            string document = WotBindingTestSupport.Property("temp",
-                                     /*lang=json,strict*/
-                                     "{\"href\":\"https://d.example.com/temp\",\"contentType\":\"application/json\"}");
+            string document = WotBindingTestSupport.Property(
+                "temp",
+                    /*lang=json,strict*/
+                    "{\"href\":\"https://d.example.com/temp\",\"contentType\":\"application/json\"}");
 
             WotBindingPlan plan = Prepare(document);
 

@@ -5,7 +5,6 @@
     <TargetFrameworks Condition="'$(CustomTestTarget)' != ''">$(CustomTestTarget)</TargetFrameworks>
     <PackageId>$(PackagePrefix).Opc.Ua.WotCon.Bindings.Mqtt</PackageId>
     <RootNamespace>Opc.Ua.WotCon.Bindings.Mqtt</RootNamespace>
-    <NoWarn>$(NoWarn);CS1591</NoWarn>
     <Nullable>enable</Nullable>
     <Description>MQTT protocol executor for OPC UA WoT Connectivity binding forms</Description>
     <IsPackable>true</IsPackable>

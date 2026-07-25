@@ -908,9 +908,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                IReadOnlyList<IMonitoredItem> monitoredItems =
-                    lifecycle.GetRecoverableMonitoredItemsSnapshot(nodeIds);
-                foreach (IMonitoredItem monitoredItem in monitoredItems)
+                foreach (IMonitoredItem monitoredItem in lifecycle.GetRecoverableMonitoredItemsSnapshot(nodeIds))
                 {
                     var itemLifecycle = (IMonitoredItemLifecycle)monitoredItem;
                     if (!itemLifecycle.IsDetached)
@@ -946,7 +944,6 @@ namespace Opc.Ua.Server
                         failures.Add(new ServiceResultException(attachResult));
                     }
                 }
-
             }
 
             if (failures.Count > 0)
@@ -1077,14 +1074,6 @@ namespace Opc.Ua.Server
                 }
             }
             return null;
-        }
-
-        private static bool AreSameNodeManager(
-            IAsyncNodeManager first,
-            IAsyncNodeManager second)
-        {
-            return ReferenceEquals(first, second) ||
-                ReferenceEquals(first.SyncNodeManager, second.SyncNodeManager);
         }
 
         /// <inheritdoc/>
@@ -1808,15 +1797,15 @@ namespace Opc.Ua.Server
                 return permissionResult;
             }
 
-            NodeId targetNodeId = NodeId.Null;
-            object? targetHandle = null;
             IAsyncNodeManager? targetOwner = null;
             NodeMetadata? targetMetadata = null;
+
             if (TryGetExplicitLocalTargetNodeId(
                 item.TargetServerUri,
                 item.TargetNodeId,
-                out targetNodeId))
+                out NodeId targetNodeId))
             {
+                object? targetHandle;
                 (targetHandle, targetOwner) = await GetManagerHandleAsync(
                     targetNodeId,
                     cancellationToken).ConfigureAwait(false);
@@ -1981,7 +1970,6 @@ namespace Opc.Ua.Server
             }
 
             NodeId targetNodeId = NodeId.Null;
-            object? targetHandle = null;
             IAsyncNodeManager? targetOwner = null;
             NodeMetadata? targetMetadata = null;
             bool explicitlyLocalTarget =
@@ -1992,6 +1980,7 @@ namespace Opc.Ua.Server
                     out targetNodeId);
             if (explicitlyLocalTarget)
             {
+                object? targetHandle;
                 (targetHandle, targetOwner) = await GetManagerHandleAsync(
                     targetNodeId,
                     cancellationToken).ConfigureAwait(false);
@@ -5238,9 +5227,11 @@ namespace Opc.Ua.Server
         }
 
         private static ServiceResult? GetRetirementError(IMonitoredItem? monitoredItem)
-            => monitoredItem is IRetirableMonitoredItem { RetirementError: { } error }
+        {
+            return monitoredItem is IRetirableMonitoredItem { RetirementError: { } error }
                 ? error
                 : null;
+        }
 
         /// <summary>
         /// Dispatches an ownership-sensitive data monitored item operation to each item's
@@ -6471,6 +6462,7 @@ namespace Opc.Ua.Server
 
         private static readonly TimeSpan s_nodeManagementCompensationTimeout =
             TimeSpan.FromSeconds(5);
+
         private readonly ILogger m_logger;
         private readonly SemaphoreSlim m_dynamicMutationSemaphore = new(1, 1);
         private readonly SemaphoreSlim m_startupShutdownSemaphoreSlim = new(1, 1);

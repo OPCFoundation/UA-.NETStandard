@@ -73,8 +73,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         private static Task<MqttWotConnection.MqttWotConnectPlan> PrepareAsync(
             WotCompiledForm form, MqttWotBindingOptions options, IWotCredentialProvider credentials)
         {
-            return MqttWotConnection.PrepareAsync(form, Context(credentials), options, "client-id", CancellationToken.None)
-                        .AsTask();
+            return MqttWotConnection
+                .PrepareAsync(form, Context(credentials), options, "client-id", CancellationToken.None)
+                .AsTask();
         }
 
         [Test]
@@ -133,7 +134,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
 
             Assert.That(form.Security, Is.Not.Empty, "The form must declare a security scheme.");
             Assert.ThrowsAsync<InvalidOperationException>(
-                async () => await PrepareAsync(form, new MqttWotBindingOptions(), NullWotCredentialProvider.Instance).ConfigureAwait(false));
+                async () => await PrepareAsync(
+                    form, new MqttWotBindingOptions(), NullWotCredentialProvider.Instance).ConfigureAwait(false));
         }
 
         [Test]

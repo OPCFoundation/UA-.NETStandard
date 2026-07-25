@@ -792,7 +792,7 @@ namespace Opc.Ua
             /// </summary>
             /// <param name="nodeId">The node identifier.</param>
             /// <returns>
-            /// 	<c>true</c> if this node is type of the specified NodeId otherwise, <c>false</c>.
+            /// <c>true</c> if this node is type of the specified NodeId otherwise, <c>false</c>.
             /// </returns>
             public bool IsTypeOf(NodeId nodeId)
             {

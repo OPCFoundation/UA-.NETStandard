@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -419,10 +418,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             return files.Single(kv => kv.Key.EndsWith(".FluentBuilders.g.cs", StringComparison.Ordinal)).Value;
         }
 
-        // ============================================================
         // FB-3 phase 3: per-ObjectType IComponentAccessor/IPropertyAccessor
         // extensions emitted into the same FluentBuilders file.
-        // ============================================================
 
         [Test]
         public void EmittedFluentBuilders_HasPerObjectTypeComponentAccessorClass()
@@ -555,13 +552,14 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             string path = Path.Combine(resources, nodeSetFile);
 
             var nodesets = new NodesetFileCollection(
-                ImmutableArray.Create(
+                [
                     (path, new NodesetFileOptions
                     {
                         ModelUri = namespaceUri,
                         Name = "DeclarationBackedMethod",
                         Prefix = "DeclarationBackedMethod"
-                    })),
+                    })
+                ],
                 fileSystem,
                 telemetry);
 
@@ -631,9 +629,9 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             var root = new ObjectDesign
             {
                 SymbolicName = new XmlQualifiedName("Device", namespaceUri),
-                SymbolicId = new XmlQualifiedName("Device", namespaceUri)
+                SymbolicId = new XmlQualifiedName("Device", namespaceUri),
+                Hierarchy = new Hierarchy()
             };
-            root.Hierarchy = new Hierarchy();
             root.Hierarchy.Nodes[string.Empty] = new HierarchyNode
             {
                 RelativePath = string.Empty,

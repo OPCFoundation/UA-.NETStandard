@@ -33,7 +33,6 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 using Opc.Ua.WotCon.Server.Registry;
 using Opc.Ua.XRegistry;
 
@@ -55,13 +54,11 @@ namespace Opc.Ua.WotCon.Server
         public WotRegistryProjection(
             WotRegistryNodeManager manager,
             IWotRegistryService registry,
-            WotRegistryServerOptions options,
-            ILogger logger)
+            WotRegistryServerOptions options)
         {
             m_manager = manager ?? throw new ArgumentNullException(nameof(manager));
             m_registry = registry ?? throw new ArgumentNullException(nameof(registry));
             m_options = options ?? throw new ArgumentNullException(nameof(options));
-            m_logger = logger;
             m_modelNs = (ushort)manager.Server.NamespaceUris.GetIndex(Namespaces.WotCon);
         }
 
@@ -322,15 +319,15 @@ namespace Opc.Ua.WotCon.Server
                 .AddDescription(m_manager.SystemContext)
                 .AddCreatedAt(m_manager.SystemContext)
                 .AddModifiedAt(m_manager.SystemContext);
-            node.AddDesiredVersionId(m_manager.SystemContext);
-            node.AddActiveVersionId(m_manager.SystemContext);
-            node.AddIsDefault(m_manager.SystemContext);
-            node.AddContentDigest(m_manager.SystemContext);
-            node.AddValidationOutcome(m_manager.SystemContext);
-            node.AddMaterializedNodeCount(m_manager.SystemContext);
-            node.AddRootNodeId(m_manager.SystemContext);
-            node.AddRefreshGeneration(m_manager.SystemContext);
-            node.AddLastRefreshTime(m_manager.SystemContext);
+            node.AddDesiredVersionId(m_manager.SystemContext)
+                .AddActiveVersionId(m_manager.SystemContext)
+                .AddIsDefault(m_manager.SystemContext)
+                .AddContentDigest(m_manager.SystemContext)
+                .AddValidationOutcome(m_manager.SystemContext)
+                .AddMaterializedNodeCount(m_manager.SystemContext)
+                .AddRootNodeId(m_manager.SystemContext)
+                .AddRefreshGeneration(m_manager.SystemContext)
+                .AddLastRefreshTime(m_manager.SystemContext);
             node.AddDelete(m_manager.SystemContext);
             node.AddValidate(m_manager.SystemContext);
             node.AddSetEnabled(m_manager.SystemContext);
@@ -340,15 +337,15 @@ namespace Opc.Ua.WotCon.Server
 
             if (node is ThingDescriptionFileState td)
             {
-                td.AddThingId(m_manager.SystemContext);
-                td.AddThingTitle(m_manager.SystemContext);
-                td.AddBaseUri(m_manager.SystemContext);
+                td.AddThingId(m_manager.SystemContext)
+                    .AddThingTitle(m_manager.SystemContext)
+                    .AddBaseUri(m_manager.SystemContext);
             }
             else if (node is ThingModelFileState tmNode)
             {
-                tmNode.AddModelTitle(m_manager.SystemContext);
-                tmNode.AddModelVersion(m_manager.SystemContext);
-                tmNode.AddDerivedTypeNodeId(m_manager.SystemContext);
+                tmNode.AddModelTitle(m_manager.SystemContext)
+                    .AddModelVersion(m_manager.SystemContext)
+                    .AddDerivedTypeNodeId(m_manager.SystemContext);
             }
 
             string groupId = resource.GroupId;
@@ -372,7 +369,7 @@ namespace Opc.Ua.WotCon.Server
                 node,
                 m_options.Bounds.MaxOpenFileHandles,
                 m_options.Bounds.MaxDocumentBytes,
-                (context, operation) => m_manager.CheckManagementAccess(context, operation),
+                m_manager.CheckManagementAccess,
                 (bytes, session, token) => CommitDocumentAsync(groupId, resourceId, kind, bytes, token));
 
             ApplyResourceProperties(new ResourceEntry(node, file, groupId, resourceId, kind), resource);
@@ -730,8 +727,8 @@ namespace Opc.Ua.WotCon.Server
             {
                 return;
             }
-            labels.AddAddAttribute(m_manager.SystemContext);
-            labels.AddRemoveAttribute(m_manager.SystemContext);
+            labels.AddAddAttribute(m_manager.SystemContext)
+                .AddRemoveAttribute(m_manager.SystemContext);
             labels.AddAttribute?.OnCallMethod2Async = (c, m, o, i, ot, t) => onAdd(c, i, t);
             labels.RemoveAttribute?.OnCallMethod2Async = (c, m, o, i, ot, t) => onRemove(c, i, t);
         }
@@ -1134,7 +1131,6 @@ namespace Opc.Ua.WotCon.Server
         private readonly WotRegistryNodeManager m_manager;
         private readonly IWotRegistryService m_registry;
         private readonly WotRegistryServerOptions m_options;
-        private readonly ILogger m_logger;
         private readonly ushort m_modelNs;
         private readonly SemaphoreSlim m_gate = new(1, 1);
         private readonly Dictionary<string, GroupEntry> m_groups = new(StringComparer.Ordinal);

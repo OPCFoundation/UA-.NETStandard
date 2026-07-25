@@ -28,23 +28,19 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.Export;
-using Opc.Ua.Server.RuntimeNodeSet;
 using Opc.Ua.Server.TestFramework;
-using Opc.Ua.Tests;
+using Opc.Ua.WotCon;
 using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
-using Opc.Ua.WotCon;
 using Quickstarts.ReferenceServer;
 using WotConModel = Opc.Ua.WotCon;
 
@@ -82,11 +78,9 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         private ReferenceServer m_server = null!;
         private RequestHeader m_requestHeader = null!;
         private SecureChannelContext m_secureChannelContext = null!;
-        private ILogger m_logger = null!;
 
         private WotRegistryService m_registry = null!;
         private WotMaterializationCoordinator m_coordinator = null!;
-        private NodeManagerRegistration m_registryRegistration = null!;
         private WotRegistryServerOptions m_options = null!;
 
         [SetUp]
@@ -105,7 +99,6 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             };
 
             m_server = await m_fixture.StartAsync(m_pkiRoot).ConfigureAwait(false);
-            m_logger = NUnitTelemetryContext.Create().CreateLogger<WotRegistryLifecycleTests>();
 
             (m_requestHeader, m_secureChannelContext) = await m_server
                 .CreateAndActivateSessionAsync(TestContext.CurrentContext.Test.Name)
@@ -129,8 +122,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             m_coordinator = new WotMaterializationCoordinator(
                 m_registry, host, documentConverter: new SensorConverter());
             var factory = new WotRegistryNodeManagerFactory(m_options, m_registry, m_coordinator);
-            m_registryRegistration = await m_server.NodeManagerLifecycle
-                .AddAsync(factory).ConfigureAwait(false);
+            await m_server.NodeManagerLifecycle.AddAsync(factory).ConfigureAwait(false);
         }
 
         [TearDown]
@@ -367,7 +359,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         public async Task FileWriteRequiresConfiguredSecureChannelWhileReadMayUseNoneAsync()
         {
             IServerInternal server = m_server.CurrentInstance;
-            NodeId registryNodeId = ExpandedNodeId.ToNodeId(
+            var registryNodeId = ExpandedNodeId.ToNodeId(
                 WotConModel.ObjectIds.WoTRegistry,
                 server.NamespaceUris);
 
@@ -465,7 +457,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             var registryNodeId = ExpandedNodeId.ToNodeId(
                 WotConModel.ObjectIds.WoTRegistry, server.NamespaceUris);
 
-            // ---- registry-level Labels ------------------------------------
+            // Registry-level Labels.
             NodeId registryLabelsId = await FindChildAsync(registryNodeId, "Labels")
                 .ConfigureAwait(false);
             NodeId registryAddId = await FindChildAsync(registryLabelsId, "AddAttribute")
@@ -485,7 +477,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             Assert.That(envValue.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(envValue.GetValue<string>(null), Is.EqualTo("production"));
 
-            // ---- group-level Labels ----------------------------------------
+            // Group-level Labels.
             NodeId createGroupId = await FindChildAsync(registryNodeId, "CreateGroup")
                 .ConfigureAwait(false);
             CallMethodResult createGroup = await CallAsync(
@@ -534,7 +526,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 new Variant("a/b"), new Variant("x"), new Variant(0u)).ConfigureAwait(false);
             Assert.That(invalidKey.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
 
-            // ---- resource-level Labels --------------------------------------
+            // Resource-level Labels.
             NodeId getOrCreateResourceId = await FindChildAsync(groupNodeId, "GetOrCreateResource")
                 .ConfigureAwait(false);
             CallMethodResult createResource = await CallAsync(
@@ -579,7 +571,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 new Variant("missing"), new Variant(0u)).ConfigureAwait(false);
             Assert.That(removeUnknown.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
 
-            // ---- registry-level remove --------------------------------------
+            // Registry-level remove.
             CallMethodResult removeRegistry = await CallAsync(
                 registryLabelsId, registryRemoveId,
                 new Variant("environment"), new Variant(0u)).ConfigureAwait(false);
@@ -652,9 +644,9 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         }
 
         private static string GenChildBrowseName(int generation)
-            => "Gen" + generation.ToString(CultureInfo.InvariantCulture);
-
-        // ---- deterministic converter -------------------------------------
+        {
+            return "Gen" + generation.ToString(CultureInfo.InvariantCulture);
+        }
 
         /// <summary>
         /// Emits a NodeSet2 whose model namespace is fixed and whose value node
@@ -664,11 +656,16 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         private sealed class SensorConverter : IWotDocumentConverter
         {
             public static byte[] BuildContent(int generation)
-                => Encoding.UTF8.GetBytes(
+            {
+                return Encoding.UTF8.GetBytes(
                     "{\"@context\":\"https://www.w3.org/2022/wot/td/v1.1\"," +
-                    "\"@type\":\"uav:object\",\"id\":\"" + kModelNamespaceUri + "\"," +
+                    "\"@type\":\"uav:object\",\"id\":\"" +
+                    kModelNamespaceUri +
+                    "\"," +
                     "\"title\":\"sensor\",\"gen\":" +
-                    generation.ToString(CultureInfo.InvariantCulture) + "}");
+                    generation.ToString(CultureInfo.InvariantCulture) +
+                    "}");
+            }
 
             public WotConversionOutput Convert(
                 WotResource resource, ReadOnlyMemory<byte> content, WotRegistrySnapshot snapshot)
@@ -730,7 +727,8 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                     while (reader.Read())
                     {
                         if (reader.TokenType == System.Text.Json.JsonTokenType.PropertyName &&
-                            reader.GetString() == "gen" && reader.Read())
+                            reader.GetString() == "gen" &&
+                            reader.Read())
                         {
                             return reader.GetInt32();
                         }
@@ -743,8 +741,6 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 return 1;
             }
         }
-
-        // ---- client helpers (adapted from RuntimeNodeSetLifecycleTests) ----
 
         private async Task<DataValue> ReadValueAsync(NodeId nodeId, uint attributeId = Attributes.Value)
         {
@@ -873,7 +869,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 .PublishAsync(requestHeader, acknowledgements, timeoutCts.Token).ConfigureAwait(false);
             Assert.That(response.SubscriptionId, Is.EqualTo(subscriptionId),
                 "The subscription and its monitored item must stay alive across the shadow reload.");
-            ArrayOf<SubscriptionAcknowledgement> acks = response.AvailableSequenceNumbers.ToArrayOf(
+            var acks = response.AvailableSequenceNumbers.ToArrayOf(
                 sequenceNumber => new SubscriptionAcknowledgement
                 {
                     SubscriptionId = subscriptionId,
