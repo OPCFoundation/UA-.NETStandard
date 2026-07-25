@@ -154,6 +154,7 @@ namespace Opc.Ua.PubSub.Encoding
                     schemaChanges.Add(new SchemaChangeNotification(
                         metaDataKey,
                         announcement.SchemaId,
+                        ByteString.From(System.Text.Encoding.UTF8.GetBytes(announcement.SchemaJson)),
                         SchemaCache.AvroFormat,
                         DestinationId));
                 }

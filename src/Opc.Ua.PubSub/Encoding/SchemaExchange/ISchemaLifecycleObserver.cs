@@ -40,11 +40,13 @@ namespace Opc.Ua.PubSub.Encoding
     /// </summary>
     /// <param name="MetaDataKey">The DataSet the schema was produced for.</param>
     /// <param name="SchemaId">The produced schema's fingerprint (SchemaId).</param>
+    /// <param name="Schema">The produced schema document (for example the Avro schema JSON bytes) so a registration sink can publish it.</param>
     /// <param name="Format">The encoding format, for example <c>avro</c> or <c>arrow</c>.</param>
     /// <param name="DestinationId">The destination identity used for announce-once tracking.</param>
     public readonly record struct SchemaChangeNotification(
         DataSetMetaDataKey MetaDataKey,
         ByteString SchemaId,
+        ByteString Schema,
         string Format,
         string DestinationId);
 

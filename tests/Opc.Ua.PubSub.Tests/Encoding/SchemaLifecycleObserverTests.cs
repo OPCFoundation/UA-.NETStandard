@@ -74,6 +74,19 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 #pragma warning restore CS0067
         }
 
+        private sealed class RecordingSink : ISchemaRegistrationSink
+        {
+            public readonly List<SchemaChangeNotification> Registered = [];
+
+            public ValueTask RegisterAsync(
+                SchemaChangeNotification change,
+                CancellationToken cancellationToken = default)
+            {
+                Registered.Add(change);
+                return default;
+            }
+        }
+
         private static DataSetMetaDataKey Key(uint major = 100)
         {
             return new DataSetMetaDataKey(default, 1, 1, default, major);
@@ -82,6 +95,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         private static ByteString SchemaId(byte value)
         {
             return new ByteString(new byte[] { value });
+        }
+
+        private static ByteString Schema(byte value)
+        {
+            return new ByteString(new byte[] { value, 0x53, 0x63, 0x68 });
         }
 
         private static FakeMetaDataRegistry SeedRegistry(DataSetMetaDataKey key, uint major, uint minor)
@@ -106,7 +124,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var observer = new SchemaLifecycleObserver(registry);
 
             await observer.OnSchemaProducedAsync(
-                new SchemaChangeNotification(key, SchemaId(1), "avro", "dest"));
+                new SchemaChangeNotification(key, SchemaId(1), Schema(1), "avro", "dest"));
 
             Assert.That(registry.Store[key].ConfigurationVersion.MinorVersion, Is.EqualTo(5u));
             Assert.That(registry.Store[key].ConfigurationVersion.MajorVersion, Is.EqualTo(100u));
@@ -120,9 +138,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var observer = new SchemaLifecycleObserver(registry);
 
             await observer.OnSchemaProducedAsync(
-                new SchemaChangeNotification(key, SchemaId(1), "avro", "dest"));
+                new SchemaChangeNotification(key, SchemaId(1), Schema(1), "avro", "dest"));
             await observer.OnSchemaProducedAsync(
-                new SchemaChangeNotification(key, SchemaId(2), "avro", "dest"));
+                new SchemaChangeNotification(key, SchemaId(2), Schema(2), "avro", "dest"));
 
             ConfigurationVersionDataType version = registry.Store[key].ConfigurationVersion;
             Assert.That(version.MajorVersion, Is.EqualTo(100u), "MajorVersion must not change on an append-only growth");
@@ -137,11 +155,29 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var observer = new SchemaLifecycleObserver(registry);
 
             await observer.OnSchemaProducedAsync(
-                new SchemaChangeNotification(key, SchemaId(1), "avro", "dest"));
+                new SchemaChangeNotification(key, SchemaId(1), Schema(1), "avro", "dest"));
             await observer.OnSchemaProducedAsync(
-                new SchemaChangeNotification(key, SchemaId(1), "avro", "dest"));
+                new SchemaChangeNotification(key, SchemaId(1), Schema(1), "avro", "dest"));
 
             Assert.That(registry.Store[key].ConfigurationVersion.MinorVersion, Is.EqualTo(5u));
+        }
+
+        [Test]
+        public async Task RegistrationSinkReceivesProducedSchemaDocumentAsync()
+        {
+            DataSetMetaDataKey key = Key();
+            FakeMetaDataRegistry registry = SeedRegistry(key, 100, 5);
+            var sink = new RecordingSink();
+            var observer = new SchemaLifecycleObserver(registry, sink);
+
+            var change = new SchemaChangeNotification(key, SchemaId(7), Schema(7), "avro", "dest");
+            await observer.OnSchemaProducedAsync(change);
+
+            Assert.That(sink.Registered, Has.Count.EqualTo(1));
+            Assert.That(sink.Registered[0].SchemaId, Is.EqualTo(SchemaId(7)));
+            Assert.That(sink.Registered[0].Schema, Is.EqualTo(Schema(7)),
+                "the produced schema document is forwarded to the registration sink for registry publish");
+            Assert.That(sink.Registered[0].Format, Is.EqualTo("avro"));
         }
     }
 }
