@@ -12,3 +12,6 @@ OpenUSD connector or a viewer) work with robot cells:
   node from its TypeDefinition, for labelling a robot-cell twin.
 
 Pair it with **Opc.Ua.OpenUsd.Client** to render and live-update the cell.
+
+See the [Robotics developer guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Robotics.md)
+and the [OpenUSD binding guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/OpenUsd.md).

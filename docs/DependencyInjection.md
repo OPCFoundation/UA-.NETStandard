@@ -45,6 +45,9 @@ you need finer control.
 | `Opc.Ua.Server` (runtime NodeSet) | `builder.AddRuntimeNodeSet(…)`       | `IOpcUaServerBuilder`    | —       | —                        |
 | `Opc.Ua.Positioning.Server`    | `serverBuilder.AddPositioningServer()` / `AddPositioningFor<T>()` | `IPositioningServerBuilder` | yes (via `AddServer`) | — |
 | `Opc.Ua.Positioning.Client`    | `clientBuilder.AddPositioningClient()`   | `IOpcUaClientBuilder`    | —       | —                        |
+| `Opc.Ua.Robotics.Server`       | `serverBuilder.AddRobotics(opt => …)`    | `IOpcUaServerBuilder`    | yes (via `AddServer`) | — |
+| `Opc.Ua.Robotics.Server` (model) | `serverBuilder.AddRoboticsModel<T>()`  | `IOpcUaServerBuilder`    | —       | —                        |
+| `Opc.Ua.Robotics.Server` (build) | `serverBuilder.ConfigureRobotics(…)` / `ConfigureRoboticsFor<T>(…)` | `IOpcUaServerBuilder` | — | — |
 | `Opc.Ua.Gds.Client.Common`     | `builder.AddGdsClient(opt => …)`         | `IGdsClientBuilder`      | —       | `OpcUa:Gds:Client`       |
 | `Opc.Ua.Gds.Server.Common`     | `builder.AddGdsServer(opt => …)`         | `IGdsServerBuilder`      | yes     | `OpcUa:Gds:Server`       |
 | `Opc.Ua.Lds.Server`            | `builder.AddLdsServer(opt => …)`         | `ILdsServerBuilder`      | yes     | `OpcUa:Lds`              |
@@ -696,6 +699,37 @@ services.AddOpcUa()
 
 See [Relative Spatial Location and Global Positioning](Positioning.md).
 
+### Robotics
+
+`AddRobotics()` registers the stock `RoboticsNodeManager`, the built-in DI/IA/
+Robotics model provider, and the ordered Robotics configuration pipeline. It
+owns the DI namespace, so it cannot be combined with `AddOpcUaDi()`.
+
+```csharp
+services
+    .AddOpcUa()
+    .AddServer(options => { /* endpoint and application options */ })
+    .AddRobotics(options =>
+        options.InstanceNamespaceUri = "urn:example:robot-cell")
+    .AddRoboticsModel<MyExtraModelProvider>()
+    .ConfigureRobotics(async context =>
+    {
+        await context.AddMotionDeviceSystemAsync("RobotCell", system =>
+        {
+            // Add controllers, motion devices, axes, power trains, and
+            // safety states through the fluent Robotics builders.
+        }, context.CancellationToken);
+    });
+```
+
+Use `ConfigureRobotics<TConfigurator>()` for a dependency-injected class-based
+code-behind implementing `IRoboticsConfigurator`, and
+`ConfigureRoboticsFor<TNodeManager>(…)` when the application already owns a
+compatible `DiNodeManager`. Configurators run in registration order and share
+one `IRoboticsBuildContext` per manager startup.
+
+See the [Robotics developer guide](Robotics.md).
+
 ## Client feature
 
 `builder.AddClient(opt => …)` registers a lazy `ManagedSession` factory
@@ -1327,5 +1361,6 @@ services.AddOpcUa()
 - [Source Generated NodeManagers](SourceGeneratedNodeManagers.md) — `IAsyncNodeManagerFactory` from a model design XML.
 - [Native AOT](NativeAoT.md) — AOT testing setup.
 - [GDS Developer Guide](GDS.md) — GDS service interfaces and provider patterns.
+- [Robotics](Robotics.md) — OPC 40010 hosting, model providers, and topology builders.
 - [WoT Connectivity](WoTConnectivity.md) — OPC 10100-1 information model.
 - [Diagnostics](Diagnostics.md) — `ITelemetryContext` end-to-end.

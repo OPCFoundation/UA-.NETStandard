@@ -17,3 +17,5 @@ values, telemetry, and semantic relationships. Containment identifiers remain
 on owning instances, while `RoboticsRelationshipSnapshot` is the authoritative
 projection of semantic Robotics references. These contracts can be shared
 without taking a Server or Client dependency.
+
+See the [Robotics developer guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Robotics.md).

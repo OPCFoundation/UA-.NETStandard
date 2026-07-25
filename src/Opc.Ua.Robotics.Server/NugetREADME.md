@@ -98,3 +98,6 @@ Robotics instances in the configured instance namespace.
 `AddRobotics()` owns the DI namespace and cannot be combined with
 `AddOpcUaDi()`. Other companion-manager hosting extensions that load DI should
 use the shared `DiAddressSpaceOwnership` marker to enforce the same rule.
+
+See the [Robotics developer guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Robotics.md)
+and the [Dependency Injection guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/DependencyInjection.md).

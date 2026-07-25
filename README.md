@@ -35,7 +35,8 @@ across industrial control, manufacturing, energy, and IoT systems.
   (Historical Access), Part 13 (Aggregates), Part 16 (State Machines),
   Part 17 (Alias Names), Part 18 (Role Management), Part 20 (File
   Transfer), Part 100 (Device Integration), Parts 210/211 (Relative
-  Spatial Location and Global Positioning), OPC 10100-1 (WoT Connectivity).
+  Spatial Location and Global Positioning), OPC 10100-1 (WoT Connectivity),
+  OPC 40001-1 (Industrial Automation), OPC 40010-1 (Robotics).
 - **Modern developer surface** — first-class `Microsoft.Extensions.DependencyInjection`
   hosting (`services.AddOpcUa()`), fluent server + client builders,
   source-generated NodeManagers and DataTypes, and an MCP server so

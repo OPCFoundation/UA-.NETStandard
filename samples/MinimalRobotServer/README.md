@@ -6,7 +6,9 @@ Global Positioning** companion specifications bound to **OpenUSD** through the d
 [*OPC UA — OpenUSD Bindings*](../../../opcua-drafts/core-specs/openusd-binding/OPC-UA-OpenUSD-Bindings.md)
 companion model, so a **generic** connector renders a robot cell live with **no
 robot-specific code**. It is built on the `Opc.Ua.Robotics` and `Opc.Ua.OpenUsd`
-SDK libraries.
+SDK libraries. See [`docs/Robotics.md`](../../docs/Robotics.md) for the Robotics
+developer guide and [`docs/OpenUsd.md`](../../docs/OpenUsd.md) for the OpenUSD
+binding.
 
 It is the Robotics counterpart of `PumpDeviceIntegrationServer` and is validated
 end-to-end by `RobotOpenUsdE2eTests` (in `tests/Opc.Ua.Di.Tests`).
