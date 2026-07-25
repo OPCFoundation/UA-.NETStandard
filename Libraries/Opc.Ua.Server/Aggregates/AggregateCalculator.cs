@@ -115,7 +115,8 @@ namespace Opc.Ua.Server
             }
 
             // ignore placeholders in the stream.
-            if (value.StatusCode.CodeBits == StatusCodes.BadNoData)
+            if (value.StatusCode.CodeBits == StatusCodes.BadNoData ||
+                value.StatusCode.CodeBits == StatusCodes.BadBoundNotFound)
             {
                 return true;
             }
@@ -522,6 +523,11 @@ namespace Opc.Ua.Server
             public LinkedListNode<DataValue> EarlyBound { get; set; }
 
             /// <summary>
+            /// The latest non-bad value before the slice.
+            /// </summary>
+            internal LinkedListNode<DataValue> NonBadEarlyBound { get; set; }
+
+            /// <summary>
             /// The second early bound for the slice (always earlier than the first).
             /// </summary>
             public LinkedListNode<DataValue> SecondEarlyBound { get; set; }
@@ -638,6 +644,11 @@ namespace Opc.Ua.Server
                     // check if before the beginning of the slice.
                     if (CompareTimestamps(slice.StartTime, ii) >= 0)
                     {
+                        if (StatusCode.IsNotBad(ii.Value.StatusCode))
+                        {
+                            slice.NonBadEarlyBound = ii;
+                        }
+
                         if (IsGood(ii.Value))
                         {
                             slice.SecondEarlyBound = slice.EarlyBound;
@@ -674,6 +685,11 @@ namespace Opc.Ua.Server
                     // check if before the beginning of the slice.
                     if (CompareTimestamps(slice.StartTime, ii) > 0)
                     {
+                        if (StatusCode.IsNotBad(ii.Value.StatusCode))
+                        {
+                            slice.NonBadEarlyBound = ii;
+                        }
+
                         if (IsGood(ii.Value))
                         {
                             slice.SecondEarlyBound = slice.EarlyBound;
@@ -799,6 +815,26 @@ namespace Opc.Ua.Server
         /// <returns>The interpolated value.</returns>
         protected DataValue Interpolate(DateTime timestamp, TimeSlice reference)
         {
+            for (LinkedListNode<DataValue> ii = m_values.First; ii != null; ii = ii.Next)
+            {
+                int comparison = CompareTimestamps(timestamp, ii);
+
+                if (comparison == 0)
+                {
+                    if (StatusCode.IsNotBad(ii.Value.StatusCode))
+                    {
+                        return ii.Value;
+                    }
+
+                    break;
+                }
+
+                if (comparison < 0)
+                {
+                    break;
+                }
+            }
+
             var slice = new TimeSlice { StartTime = timestamp, EndTime = timestamp };
             UpdateSlice(slice);
 
