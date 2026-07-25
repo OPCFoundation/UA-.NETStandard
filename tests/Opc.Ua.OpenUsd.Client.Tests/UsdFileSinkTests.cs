@@ -58,7 +58,10 @@ namespace Opc.Ua.OpenUsd.Client.Tests
             }
         }
 
-        private string ReadLayer() => File.ReadAllText(m_path);
+        private string ReadLayer()
+        {
+            return File.ReadAllText(m_path);
+        }
 
         [Test]
         public void SetAttributeAuthorsTypedScalarProperty()
@@ -76,7 +79,7 @@ namespace Opc.Ua.OpenUsd.Client.Tests
         {
             var sink = new UsdFileSink(m_path);
             sink.SetAttribute("/Pump", "primvars:displayColor",
-                new Variant((ArrayOf<float>)new[] { 1f, 0f, 0f }));
+                new Variant((ArrayOf<float>)[1f, 0f, 0f]));
 
             string layer = ReadLayer();
             Assert.That(layer, Does.Contain("color3f[] primvars:displayColor = [(1.0000, 0.0000, 0.0000)]"));
@@ -87,7 +90,7 @@ namespace Opc.Ua.OpenUsd.Client.Tests
         {
             var sink = new UsdFileSink(m_path);
             sink.SetAttribute("/Pump", "inputs:emissiveColor",
-                new Variant((ArrayOf<float>)new[] { 0.1f, 1f, 0.2f }));
+                new Variant((ArrayOf<float>)[0.1f, 1f, 0.2f]));
 
             string layer = ReadLayer();
             Assert.That(layer, Does.Contain("color3f inputs:emissiveColor = (0.1000, 1.0000, 0.2000)"));
@@ -212,6 +215,48 @@ namespace Opc.Ua.OpenUsd.Client.Tests
             Assert.That(layer, Does.Contain("double radius.timeSamples = {"));
             Assert.That(layer, Does.Contain("1.000: 1.0000"));
             Assert.That(layer, Does.Contain("2.000: 2.0000"));
+        }
+
+        [Test]
+        public void SetAttributeVectorAuthorsDouble3Property()
+        {
+            var sink = new UsdFileSink(m_path);
+            sink.SetAttribute("/Pump", "xformOp:translate",
+                new Variant((ArrayOf<double>)[1.0, 2.0, 3.0]));
+
+            string layer = ReadLayer();
+            Assert.That(layer, Does.Contain("double3 xformOp:translate = (1.0000, 2.0000, 3.0000)"));
+        }
+
+        [Test]
+        public void SetAttributeVectorWithMoreThanThreeElementsUsesFirstThree()
+        {
+            var sink = new UsdFileSink(m_path);
+            sink.SetAttribute("/Pump", "xformOp:translate",
+                new Variant((ArrayOf<double>)[1.0, 2.0, 3.0, 4.0]));
+
+            string layer = ReadLayer();
+            Assert.That(layer, Does.Contain("double3 xformOp:translate = (1.0000, 2.0000, 3.0000)"));
+        }
+
+        [Test]
+        public void TimeSamplesAuthorDouble3FrameBlock()
+        {
+            var sink = new UsdFileSink(m_path);
+            var t0 = new DateTime(1970, 1, 1, 0, 0, 1, DateTimeKind.Utc);
+            var t1 = new DateTime(1970, 1, 1, 0, 0, 2, DateTimeKind.Utc);
+            using (sink.BeginBatch())
+            {
+                sink.SetTimeSample("/Pump", "xformOp:translate", t0,
+                    new Variant((ArrayOf<double>)[1.0, 2.0, 3.0]));
+                sink.SetTimeSample("/Pump", "xformOp:translate", t1,
+                    new Variant((ArrayOf<double>)[4.0, 5.0, 6.0]));
+            }
+
+            string layer = ReadLayer();
+            Assert.That(layer, Does.Contain("double3 xformOp:translate.timeSamples = {"));
+            Assert.That(layer, Does.Contain("1.000: (1.0000, 2.0000, 3.0000)"));
+            Assert.That(layer, Does.Contain("2.000: (4.0000, 5.0000, 6.0000)"));
         }
 
         [Test]

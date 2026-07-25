@@ -27,19 +27,18 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
-using Opc.Ua.Di;
 using Opc.Ua.Di.Server;
 using Opc.Ua.Di.Server.Hosting;
+using Opc.Ua.Gpos;
 using Opc.Ua.OpenUsd;
-using Opc.Ua.Robotics;
+using Opc.Ua.Positioning.Server.Hosting;
 using Opc.Ua.Robotics.Server;
+using Opc.Ua.Rsl;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Fluent;
 
@@ -56,6 +55,7 @@ namespace Robotics
     {
         internal const string RoboticsNamespaceUri = "http://opcfoundation.org/UA/Robotics/";
         internal const string IaNamespaceUri = "http://opcfoundation.org/UA/IA/";
+        private readonly IPositioningPostSetupRunner? m_positioningRunner;
 
         /// <summary>
         /// Initialises a new <see cref="RoboticsNodeManager"/> without DI-hosting
@@ -64,7 +64,11 @@ namespace Robotics
         public RoboticsNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration)
-            : this(server, configuration, postSetupRunner: null)
+            : this(
+                  server,
+                  configuration,
+                  postSetupRunner: null,
+                  positioningRunner: null)
         {
         }
 
@@ -76,14 +80,33 @@ namespace Robotics
             IServerInternal server,
             ApplicationConfiguration configuration,
             IDiPostSetupRunner? postSetupRunner)
+            : this(
+                  server,
+                  configuration,
+                  postSetupRunner,
+                  positioningRunner: null)
+        {
+        }
+
+        /// <summary>
+        /// Initialises a new manager with DI and Positioning post-setup runners.
+        /// </summary>
+        public RoboticsNodeManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            IDiPostSetupRunner? postSetupRunner,
+            IPositioningPostSetupRunner? positioningRunner)
             : base(
                   server,
                   configuration,
                   postSetupRunner,
                   RoboticsNamespaceUri,
                   IaNamespaceUri,
-                  Opc.Ua.OpenUsd.Namespaces.OpenUSD)
+                  Opc.Ua.OpenUsd.Namespaces.OpenUSD,
+                  Opc.Ua.Rsl.Namespaces.RSL,
+                  Opc.Ua.Gpos.Namespaces.GPOS)
         {
+            m_positioningRunner = positioningRunner;
             // Base class constructor sets SystemContext.NodeIdFactory to itself; our
             // New() override takes over.
             SystemContext.NodeIdFactory = this;
@@ -122,9 +145,10 @@ namespace Robotics
             var nodes = new NodeStateCollection();
             nodes.AddRoboticsTypeSystem(context);
             nodes.AddOpcUaOpenUsd(context);
+            nodes.AddOpcUaRsl(context);
+            nodes.AddOpcUaGpos(context);
             return new ValueTask<NodeStateCollection>(nodes);
         }
-
 
         /// <inheritdoc/>
         protected override async ValueTask OnAddressSpaceReadyAsync(
@@ -141,6 +165,12 @@ namespace Robotics
             CreateFluentBuilder(nsIndex)
                 .Configure(Configure)
                 .Seal();
+
+            if (m_positioningRunner != null)
+            {
+                await m_positioningRunner.RunAsync(this, cancellationToken)
+                    .ConfigureAwait(false);
+            }
 
             m_logger.RoboticsAddressSpaceReady(PredefinedNodes.Count);
         }
@@ -183,13 +213,6 @@ namespace Robotics
             }
         }
 
-        private List<BaseInstanceState> EnumerateChildren(NodeState parent)
-        {
-            var children = new List<BaseInstanceState>();
-            parent.GetChildren(SystemContext, children);
-            return children;
-        }
-
         /// <summary>
         /// Partial wired by the Configure.cs sibling.
         /// </summary>
@@ -205,12 +228,13 @@ namespace Robotics
     public sealed class RoboticsNodeManagerFactory : IAsyncNodeManagerFactory
     {
         private readonly IDiPostSetupRunner? m_runner;
+        private readonly IPositioningPostSetupRunner? m_positioningRunner;
 
         /// <summary>
         /// Creates a factory without DI-hosting integration.
         /// </summary>
         public RoboticsNodeManagerFactory()
-            : this(null)
+            : this(null, null)
         {
         }
 
@@ -219,8 +243,28 @@ namespace Robotics
         /// it produces.
         /// </summary>
         public RoboticsNodeManagerFactory(IDiPostSetupRunner? runner)
+            : this(runner, null)
+        {
+        }
+
+        /// <summary>
+        /// Creates a factory with Positioning post-setup support.
+        /// </summary>
+        public RoboticsNodeManagerFactory(
+            IPositioningPostSetupRunner positioningRunner)
+            : this(null, positioningRunner)
+        {
+        }
+
+        /// <summary>
+        /// Creates a factory with DI and Positioning post-setup runners.
+        /// </summary>
+        public RoboticsNodeManagerFactory(
+            IDiPostSetupRunner? runner,
+            IPositioningPostSetupRunner? positioningRunner)
         {
             m_runner = runner;
+            m_positioningRunner = positioningRunner;
         }
 
         /// <inheritdoc/>
@@ -229,7 +273,9 @@ namespace Robotics
             RoboticsNodeManager.RoboticsNamespaceUri,
             RoboticsNodeManager.IaNamespaceUri,
             Opc.Ua.Di.Namespaces.OpcUaDi,
-            Opc.Ua.OpenUsd.Namespaces.OpenUSD
+            Opc.Ua.OpenUsd.Namespaces.OpenUSD,
+            Opc.Ua.Rsl.Namespaces.RSL,
+            Opc.Ua.Gpos.Namespaces.GPOS
         };
 
         /// <inheritdoc/>
@@ -239,7 +285,11 @@ namespace Robotics
             CancellationToken cancellationToken = default)
         {
 #pragma warning disable CA2000 // ownership transferred to server
-            IAsyncNodeManager nm = new RoboticsNodeManager(server, configuration, m_runner);
+            IAsyncNodeManager nm = new RoboticsNodeManager(
+                server,
+                configuration,
+                m_runner,
+                m_positioningRunner);
 #pragma warning restore CA2000
             return new ValueTask<IAsyncNodeManager>(nm);
         }

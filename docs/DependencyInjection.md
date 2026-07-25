@@ -43,6 +43,8 @@ you need finer control.
 | `Opc.Ua.Server`                | `builder.AddServer(opt => …)`            | `IOpcUaServerBuilder`    | yes     | `OpcUa:Server`           |
 | `Opc.Ua.Server` (node manager)| `builder.AddNodeManager<T>()`            | `IOpcUaServerBuilder`    | —       | —                        |
 | `Opc.Ua.Server` (runtime NodeSet) | `builder.AddRuntimeNodeSet(…)`       | `IOpcUaServerBuilder`    | —       | —                        |
+| `Opc.Ua.Positioning.Server`    | `serverBuilder.AddPositioningServer()` / `AddPositioningFor<T>()` | `IPositioningServerBuilder` | yes (via `AddServer`) | — |
+| `Opc.Ua.Positioning.Client`    | `clientBuilder.AddPositioningClient()`   | `IOpcUaClientBuilder`    | —       | —                        |
 | `Opc.Ua.Gds.Client.Common`     | `builder.AddGdsClient(opt => …)`         | `IGdsClientBuilder`      | —       | `OpcUa:Gds:Client`       |
 | `Opc.Ua.Gds.Server.Common`     | `builder.AddGdsServer(opt => …)`         | `IGdsServerBuilder`      | yes     | `OpcUa:Gds:Server`       |
 | `Opc.Ua.Lds.Server`            | `builder.AddLdsServer(opt => …)`         | `ILdsServerBuilder`      | yes     | `OpcUa:Lds`              |
@@ -517,6 +519,38 @@ services.AddOpcUa()
 
 `AddHistorianFileStore(provider, path)` combines the historian provider registration with a Part 20
 file-system mount for demo and lab servers.
+
+### Positioning
+
+Use `AddPositioningServer()` when Positioning owns its node manager. Use
+`AddPositioningFor<TNodeManager>()` when an existing companion node manager
+loads and owns the RSL/GPOS models:
+
+```csharp
+IPositioningServerBuilder positioning = services
+    .AddOpcUa()
+    .AddServer(options => { /* endpoint and application options */ })
+    .AddPositioningServer();
+
+positioning
+    .AddGlobalPositionProvider<MyGlobalPositionProvider>()
+    .AddRelativeSpatialLocationProvider<MyRelativeLocationProvider>()
+    .ConfigurePositioningFor<PositioningNodeManager>(context =>
+    {
+        // Build and register RSL/GPOS instances through context.AddressSpace.
+        return default;
+    });
+```
+
+Client factories compose the generated proxies over the managed session:
+
+```csharp
+services.AddOpcUa()
+    .AddClient(options => { /* endpoint and application options */ })
+    .AddPositioningClient();
+```
+
+See [Relative Spatial Location and Global Positioning](Positioning.md).
 
 ## Client feature
 

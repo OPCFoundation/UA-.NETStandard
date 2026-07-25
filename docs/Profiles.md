@@ -101,6 +101,12 @@ canonical URI string before claiming a facet):
   `Opc.Ua.Di.Client` library trio, including the lock service and the
   software-update package store. See [Device Integration](DeviceIntegration.md)
   and [Software Update](SoftwareUpdate.md).
+- **Relative Spatial Location and Global Positioning** (Parts 210 and 211) —
+  `Opc.Ua.Positioning` / `Opc.Ua.Positioning.Server` /
+  `Opc.Ua.Positioning.Client` implement the released RSL and GPOS models,
+  including RSL spatial lists and model changes plus the GPOS GlobalPosition,
+  GlobalLocation, and Zones conformance units. See
+  [Positioning](Positioning.md).
 - **Role Management** (Part 18) — Server-side role administration plus a
   pluggable [identity-provider model](IdentityProviders.md) for anonymous,
   username, X.509, and token-issuer flows. The server automatically
@@ -536,6 +542,8 @@ for the variant selected by `--ctt`.
 - [GDS Developer Guide](GDS.md) (Part 12 full compliance)
 - [File System Client](FileSystemClient.md) (Part 20)
 - [Device Integration](DeviceIntegration.md) (Part 100)
+- [Relative Spatial Location and Global Positioning](Positioning.md)
+  (Parts 210 and 211)
 - [Software Update](SoftwareUpdate.md)
 - [WoT Connectivity](WoTConnectivity.md) (OPC 10100-1)
 - [Node Management](NodeManagement.md) (Part 4)
