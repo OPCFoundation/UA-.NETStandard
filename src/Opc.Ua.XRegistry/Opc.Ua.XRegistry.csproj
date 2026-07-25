@@ -34,8 +34,10 @@
     <ModelSourceGeneratorUseAllowSubtypes>true</ModelSourceGeneratorUseAllowSubtypes>
   </PropertyGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Opc.Ua.XRegistry.NodeSet2.xml" LogicalName="Opc.Ua.XRegistry.Opc.Ua.XRegistry.NodeSet2.xml" />
-    <AdditionalFiles Include="Opc.Ua.XRegistry.NodeSet2.xml" />
+    <AdditionalFiles Include="Opc.Ua.XRegistry.NodeSet2.xml">
+      <ModelSourceGeneratorModelUri>http://opcfoundation.org/UA/xRegistry/</ModelSourceGeneratorModelUri>
+      <ModelSourceGeneratorPrefix>Opc.Ua.XRegistry</ModelSourceGeneratorPrefix>
+    </AdditionalFiles>
   </ItemGroup>
   <Target Name="GetPackagingOutputs" />
   <ItemGroup>

@@ -15,9 +15,9 @@ Avro / Arrow / JSON DataSet schema documents.
 
 | Package | Depends on | Contains |
 | --- | --- | --- |
-| `OPCFoundation.NetStandard.Opc.Ua.XRegistry` | `Opc.Ua.Core` | The abstract base companion NodeSet, `XRegistryWellKnown`, `IResourceContentIdProvider` |
+| `OPCFoundation.NetStandard.Opc.Ua.XRegistry` | `Opc.Ua.Core` | The source-generated base companion model (types, NodeIds, `NodeState`s and `*TypeClient` proxies), `XRegistryWellKnown`, `IResourceContentIdProvider` |
 | `OPCFoundation.NetStandard.Opc.Ua.XRegistry.Client` | `Opc.Ua.XRegistry`, `Opc.Ua.Client` | `XRegistryClient` — fast-path resolve and lifecycle registration |
-| `OPCFoundation.NetStandard.Opc.Ua.XRegistry.Server` | `Opc.Ua.XRegistry`, `Opc.Ua.Server` | The three node managers, `XRegistryServerOptions`, `XRegistryServerNodeSets` |
+| `OPCFoundation.NetStandard.Opc.Ua.XRegistry.Server` | `Opc.Ua.XRegistry`, `Opc.Ua.Server` | The three node managers and `XRegistryServerOptions` |
 
 `Opc.Ua.XRegistry` has no dependency on either SDK, so a codec or a shared contracts assembly can
 reference the identity abstraction without pulling in the client or the server.
@@ -105,13 +105,26 @@ var fastPath = new XRegistryFastPathNodeManager(server, configuration, options);
 var federation = new XRegistryFederationNodeManager(server, configuration, options);
 ```
 
-The registry's companion NodeSet is imported through the runtime NodeSet pipeline (see
-[Runtime NodeSets](RuntimeNodeSets.md)). A concrete registry composes the abstract base source with
-its own companion NodeSet source, in dependency order:
+The registry's companion model is **compiled into the assembly** by the OPC UA model source
+generator: `Opc.Ua.XRegistry.NodeSet2.xml` is a generator input (`AdditionalFiles`), so the
+ObjectTypes, Methods, Variables, NodeId constants, `NodeState` classes and typed
+[ObjectType proxies](../tools/Opc.Ua.SourceGeneration/readme.md) are emitted at build time. No
+NodeSet2 XML is parsed at runtime — each node manager simply returns the generated model from
+`LoadPredefinedNodes`:
 
 ```csharp
-RuntimeNodeSetSource baseSource = XRegistryServerNodeSets.CreateBaseSource();
+protected override NodeStateCollection LoadPredefinedNodes(ISystemContext context)
+{
+    return new NodeStateCollection().AddOpcUaXRegistry(context);
+}
 ```
+
+A concrete registry composes its own companion model on top of the base model in dependency
+order, declaring `RequiredModel` on the xRegistry namespace in its NodeSet.
+
+> **Note:** the model occupies NodeIds 63000-63999 in the registry namespace. The instance
+> identifiers in `XRegistryWellKnown` live above that range so a materialized instance can never
+> collide with a model node.
 
 ### Resource-exhaustion bounds
 
@@ -182,6 +195,6 @@ namespace, so the client-side lookup logic is shared.
 
 ## Related documentation
 
-* [Runtime NodeSets](RuntimeNodeSets.md) — how the companion NodeSet is imported into a server.
+* [Source generation](../tools/Opc.Ua.SourceGeneration/readme.md) — how the companion model and its typed proxies are compiled into the assembly.
 * [Node management](NodeManagement.md) — the node manager model the three managers build on.
 * [PubSub (Part 14)](PubSub.md) — the PubSub Schema Registry specialization of this model.

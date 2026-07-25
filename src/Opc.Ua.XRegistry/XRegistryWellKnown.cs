@@ -30,10 +30,13 @@
 namespace Opc.Ua.XRegistry
 {
     /// <summary>
-    /// Well-known identifiers of the abstract xRegistry base model: the base companion namespace
-    /// and the provisional resource/method NodeIds a generic registry materializes. A concrete
-    /// registry (for example the PubSub Schema Registry) reuses these NodeIds in its own companion
-    /// namespace. Final NodeIds are assigned by the OPC Foundation.
+    /// Well-known identifiers of the abstract xRegistry base model that are <b>not</b> part of the
+    /// compiled companion model. The model itself (its ObjectTypes, Methods, Variables and their
+    /// NodeIds) is source-generated from <c>Opc.Ua.XRegistry.NodeSet2.xml</c> — use the generated
+    /// <c>ObjectTypeIds</c>, <c>MethodIds</c> and <c>VariableIds</c> classes for those. The
+    /// identifiers below address the <i>instances</i> a generic registry materializes at runtime,
+    /// and therefore live above the range the model occupies (63000-63999) so they can never
+    /// collide with a model node. Final NodeIds are assigned by the OPC Foundation.
     /// </summary>
     public static class XRegistryWellKnown
     {
@@ -43,48 +46,48 @@ namespace Opc.Ua.XRegistry
         public const string XRegistryNamespaceUri = "http://opcfoundation.org/UA/xRegistry/";
 
         /// <summary>
-        /// Provisional NodeId of the registration <c>SchemaGroup</c>/resource-group object.
+        /// Provisional NodeId of the registration resource-group object instance.
         /// </summary>
-        public const uint ResourceGroupObject = 63001;
+        public const uint ResourceGroupObject = 65001;
 
         /// <summary>
-        /// Provisional NodeId of the <c>CreateResource</c> method.
+        /// Provisional NodeId of the <c>CreateResource</c> method instance.
         /// </summary>
-        public const uint CreateResourceMethod = 63002;
+        public const uint CreateResourceMethod = 65002;
 
         /// <summary>
-        /// Provisional NodeId of the <c>Write</c> method.
+        /// Provisional NodeId of the <c>Write</c> method instance.
         /// </summary>
-        public const uint WriteMethod = 63003;
+        public const uint WriteMethod = 65003;
 
         /// <summary>
-        /// Provisional NodeId of the <c>Close</c> method.
+        /// Provisional NodeId of the <c>Close</c> method instance.
         /// </summary>
-        public const uint CloseMethod = 63004;
+        public const uint CloseMethod = 65004;
 
         /// <summary>
-        /// Provisional NodeId of the <c>Delete</c> method.
+        /// Provisional NodeId of the <c>Delete</c> method instance.
         /// </summary>
-        public const uint DeleteMethod = 63005;
+        public const uint DeleteMethod = 65005;
 
         /// <summary>
-        /// Provisional NodeId of the federated resource proxy object.
+        /// Provisional NodeId of the federated resource proxy object instance.
         /// </summary>
-        public const uint FederationProxyObject = 64001;
+        public const uint FederationProxyObject = 66001;
 
         /// <summary>
         /// Provisional NodeId of the proxy's <c>ExternalReference</c> Property.
         /// </summary>
-        public const uint FederationExternalReferenceProperty = 64002;
+        public const uint FederationExternalReferenceProperty = 66002;
 
         /// <summary>
         /// Provisional NodeId of the proxy's <c>ResourceUrl</c> Property.
         /// </summary>
-        public const uint FederationResourceUrlProperty = 64003;
+        public const uint FederationResourceUrlProperty = 66003;
 
         /// <summary>
         /// Provisional NodeId of the proxy's content-id (<c>SchemaId</c>) Property.
         /// </summary>
-        public const uint FederationContentIdProperty = 64004;
+        public const uint FederationContentIdProperty = 66004;
     }
 }

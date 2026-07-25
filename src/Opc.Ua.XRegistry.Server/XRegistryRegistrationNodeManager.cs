@@ -32,8 +32,7 @@ using System.Threading;
 using Opc.Ua.Server;
 
 namespace Opc.Ua.XRegistry.Server
-{
-    /// <summary>
+{    /// <summary>
     /// Serves the xRegistry registration lifecycle (§5.2) and auto-bootstrap (§10.1): a writer
     /// creates a resource, writes the document bytes, and closes it; on <c>Close</c> the server
     /// computes the content-derived id + algorithm from the document via the configured
@@ -69,6 +68,17 @@ namespace Opc.Ua.XRegistry.Server
         }
 
         /// <summary>
+        /// Loads the source-generated xRegistry companion model. The model is compiled into the
+        /// assembly by the OPC UA model source generator, so no NodeSet2 XML is parsed at runtime.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <returns>The predefined nodes of the xRegistry base model.</returns>
+        protected override NodeStateCollection LoadPredefinedNodes(ISystemContext context)
+        {
+            return new NodeStateCollection().AddOpcUaXRegistry(context);
+        }
+
+        /// <summary>
         /// Materializes the registration resource group and its <c>CreateResource</c>, <c>Write</c>,
         /// <c>Close</c> and <c>Delete</c> methods.
         /// </summary>
@@ -85,7 +95,7 @@ namespace Opc.Ua.XRegistry.Server
                 NodeId = new NodeId(XRegistryWellKnown.ResourceGroupObject, ns),
                 BrowseName = new QualifiedName("ResourceGroup", ns),
                 DisplayName = new LocalizedText("ResourceGroup"),
-                TypeDefinitionId = ObjectTypeIds.BaseObjectType
+                TypeDefinitionId = Opc.Ua.ObjectTypeIds.BaseObjectType
             };
 
             AddMethod(group, XRegistryWellKnown.CreateResourceMethod, ns, "CreateResource", OnCreateResource);
@@ -227,7 +237,7 @@ namespace Opc.Ua.XRegistry.Server
                     DisplayName = new LocalizedText("RegisteredResource"),
                     TypeDefinitionId = VariableTypeIds.BaseDataVariableType,
                     ReferenceTypeId = ReferenceTypeIds.HasComponent,
-                    DataType = DataTypeIds.ByteString,
+                    DataType = Opc.Ua.DataTypeIds.ByteString,
                     ValueRank = ValueRanks.Scalar,
                     AccessLevel = AccessLevels.CurrentRead,
                     UserAccessLevel = AccessLevels.CurrentRead,

@@ -69,6 +69,17 @@ namespace Opc.Ua.XRegistry.Server
         }
 
         /// <summary>
+        /// Loads the source-generated xRegistry companion model. The model is compiled into the
+        /// assembly by the OPC UA model source generator, so no NodeSet2 XML is parsed at runtime.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <returns>The predefined nodes of the xRegistry base model.</returns>
+        protected override NodeStateCollection LoadPredefinedNodes(ISystemContext context)
+        {
+            return new NodeStateCollection().AddOpcUaXRegistry(context);
+        }
+
+        /// <summary>
         /// Materializes the federated resource proxy with its <c>ExternalReference</c>,
         /// <c>ResourceUrl</c> and content-id metadata.
         /// </summary>
@@ -101,7 +112,7 @@ namespace Opc.Ua.XRegistry.Server
                 NodeId = new NodeId(XRegistryWellKnown.FederationProxyObject, ns),
                 BrowseName = new QualifiedName(m_proxyBrowseName, ns),
                 DisplayName = new LocalizedText(m_proxyBrowseName),
-                TypeDefinitionId = ObjectTypeIds.BaseObjectType
+                TypeDefinitionId = Opc.Ua.ObjectTypeIds.BaseObjectType
             };
 
             // The federation link: ServerIndex -> remote ServerUri (via ServerArray),
@@ -110,11 +121,11 @@ namespace Opc.Ua.XRegistry.Server
                 contentId, m_remoteRegistryNamespaceUri, m_remoteServerIndex);
 
             AddProperty(proxy, XRegistryWellKnown.FederationExternalReferenceProperty, ns,
-                "ExternalReference", DataTypeIds.ExpandedNodeId, new Variant(externalReference));
+                "ExternalReference", Opc.Ua.DataTypeIds.ExpandedNodeId, new Variant(externalReference));
             AddProperty(proxy, XRegistryWellKnown.FederationResourceUrlProperty, ns,
-                "ResourceUrl", DataTypeIds.String, new Variant(m_remoteEndpointUrl));
+                "ResourceUrl", Opc.Ua.DataTypeIds.String, new Variant(m_remoteEndpointUrl));
             AddProperty(proxy, XRegistryWellKnown.FederationContentIdProperty, ns,
-                "SchemaId", DataTypeIds.ByteString, new Variant(contentId));
+                "SchemaId", Opc.Ua.DataTypeIds.ByteString, new Variant(contentId));
 
             AddPredefinedNode(SystemContext, proxy);
         }

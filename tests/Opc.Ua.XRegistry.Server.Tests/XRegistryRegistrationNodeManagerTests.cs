@@ -126,6 +126,60 @@ namespace Opc.Ua.XRegistry.Server.Tests
             });
         }
 
+        /// <summary>
+        /// The companion model is compiled into the assembly by the OPC UA model source generator
+        /// rather than parsed from NodeSet2 XML at runtime, so creating the address space must
+        /// materialize the generated ObjectTypes.
+        /// </summary>
+        [Test]
+        public void CreateAddressSpaceMaterializesTheGeneratedCompanionModel()
+        {
+            using XRegistryRegistrationNodeManager nm = CreateNodeManager(new XRegistryServerOptions());
+
+            nm.CreateAddressSpace(new Dictionary<NodeId, IList<IReference>>());
+
+            NamespaceTable namespaceUris = nm.SystemContext.NamespaceUris;
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    nm.Find(ExpandedNodeId.ToNodeId(ObjectTypeIds.RegistryType, namespaceUris)),
+                    Is.Not.Null,
+                    "RegistryType must come from the source-generated model.");
+                Assert.That(
+                    nm.Find(ExpandedNodeId.ToNodeId(ObjectTypeIds.GroupType, namespaceUris)),
+                    Is.Not.Null,
+                    "GroupType must come from the source-generated model.");
+                Assert.That(
+                    nm.Find(ExpandedNodeId.ToNodeId(ObjectTypeIds.ResourceType, namespaceUris)),
+                    Is.Not.Null,
+                    "ResourceType must come from the source-generated model.");
+            });
+        }
+
+        /// <summary>
+        /// The instance NodeIds a generic registry materializes must not collide with the compiled
+        /// model, which occupies 63000-63999 in the same namespace.
+        /// </summary>
+        [Test]
+        public void RegistryInstanceIdentifiersDoNotCollideWithTheCompiledModel()
+        {
+            uint[] instanceIds =
+            [
+                XRegistryWellKnown.ResourceGroupObject,
+                XRegistryWellKnown.CreateResourceMethod,
+                XRegistryWellKnown.WriteMethod,
+                XRegistryWellKnown.CloseMethod,
+                XRegistryWellKnown.DeleteMethod,
+                XRegistryWellKnown.FederationProxyObject,
+                XRegistryWellKnown.FederationExternalReferenceProperty,
+                XRegistryWellKnown.FederationResourceUrlProperty,
+                XRegistryWellKnown.FederationContentIdProperty
+            ];
+
+            Assert.That(instanceIds, Is.Unique);
+            Assert.That(instanceIds, Has.All.GreaterThan(63999u));
+        }
+
         private static XRegistryRegistrationNodeManager CreateNodeManager(XRegistryServerOptions options)
         {
             Mock<IServerInternal> server = CreateServer(options.RegistryNamespaceUri);
@@ -142,12 +196,32 @@ namespace Opc.Ua.XRegistry.Server.Tests
             var masterNodeManager = new Mock<IMasterNodeManager>();
             server.Setup(s => s.NamespaceUris).Returns(namespaceUris);
             server.Setup(s => s.ServerUris).Returns(serverUris);
-            server.Setup(s => s.TypeTree).Returns(new TypeTable(namespaceUris));
+            server.Setup(s => s.TypeTree).Returns(CreateTypeTable(namespaceUris));
             server.Setup(s => s.Factory).Returns(EncodeableFactory.Create());
             server.Setup(s => s.Telemetry).Returns(telemetry);
             server.Setup(s => s.NodeManager).Returns(masterNodeManager.Object);
             server.Setup(s => s.DefaultSystemContext).Returns(new ServerSystemContext(server.Object));
             return server;
+        }
+
+        /// <summary>
+        /// Seeds the standard base types the compiled xRegistry model derives from. A real server
+        /// loads these with the core NodeSet; the type table rejects a subtype whose supertype it
+        /// does not already know.
+        /// </summary>
+        private static TypeTable CreateTypeTable(NamespaceTable namespaceUris)
+        {
+            var typeTable = new TypeTable(namespaceUris);
+            typeTable.AddSubtype(Opc.Ua.ObjectTypeIds.BaseObjectType, NodeId.Null);
+            typeTable.AddSubtype(Opc.Ua.ObjectTypeIds.FolderType, Opc.Ua.ObjectTypeIds.BaseObjectType);
+            typeTable.AddSubtype(Opc.Ua.ObjectTypeIds.FileType, Opc.Ua.ObjectTypeIds.BaseObjectType);
+            typeTable.AddSubtype(Opc.Ua.VariableTypeIds.BaseVariableType, NodeId.Null);
+            typeTable.AddSubtype(
+                Opc.Ua.VariableTypeIds.BaseDataVariableType, Opc.Ua.VariableTypeIds.BaseVariableType);
+            typeTable.AddSubtype(Opc.Ua.VariableTypeIds.PropertyType, Opc.Ua.VariableTypeIds.BaseVariableType);
+            typeTable.AddSubtype(Opc.Ua.DataTypeIds.BaseDataType, NodeId.Null);
+            typeTable.AddSubtype(Opc.Ua.DataTypeIds.Structure, Opc.Ua.DataTypeIds.BaseDataType);
+            return typeTable;
         }
 
         private static StatusCode CreateResource(XRegistryRegistrationNodeManager nm, out uint handle)
