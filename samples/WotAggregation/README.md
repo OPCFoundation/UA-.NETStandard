@@ -1,5 +1,259 @@
-# WoT aggregation documents
+# WoT aggregation sample
 
-This directory contains the dependency manifest and runtime-loaded DI, Machinery, Pumps, and Sample Pump WoT documents used by `WotAggregationClient` and `WotAggregationServer`.
+The WoT aggregation sample demonstrates a generic OPC UA server that loads DI, Machinery, Pumps, and Pump-instance shape from WoT Thing Models and a Thing Description, then binds the materialized Pump variables to values read from two independent OPC UA source servers.
 
-See the [WoT aggregation sample guide](../../docs/WoTAggregationSample.md) for document order, endpoint placeholder substitution, target mapping, registry upload, and Refresh behavior.
+The aggregation server contains no Pump-specific generated code and does not reference the DI, Machinery, or Pumps server/model assemblies. The complete DI/Machinery/Pumps/Pump instance shape is runtime-loaded from the files in [`samples/WotAggregationClient/Documents`](../WotAggregationClient/Documents) through the generic WoT-to-NodeSet converter, runtime NodeSet loader, and target-mapping binding runtime.
+
+The documents ship with the client because the client is what uploads them. The aggregation server has no build-time or run-time dependency on them: it receives whatever the client writes into the registry.
+
+## Topology
+
+There are three long-running server processes:
+
+```text
+WotFlatTagServer Source A ─┐
+                           ├─ OPC UA forms ─> WotAggregationServer
+WotFlatTagServer Source B ─┘                    │
+                                                └─ materialized Pump OPC UA address space
+```
+
+`WotAggregationClient` is a fourth, short-lived process. It connects to the aggregation server, uploads the checked-in documents, calls `Refresh`, browses the materialized Pump, reads ten values, prints the result, and exits.
+
+Source A and Source B expose deliberately flat variables. They do not expose a Pump companion-model hierarchy. The aggregation server creates that hierarchy from the WoT documents and routes each materialized variable to its selected upstream source.
+
+## Prerequisites
+
+Run commands from the repository root with the .NET 10 SDK. The samples accept unencrypted anonymous OPC UA connections for local demonstration and auto-accept untrusted certificates; do not copy those security settings into a production deployment.
+
+## Run the sample
+
+Start Source A in the first terminal:
+
+```powershell
+dotnet run --project samples\WotFlatTagServer\WotFlatTagServer.csproj -f net10.0 -- `
+  --port 62551 `
+  --instanceName SourceA `
+  --applicationName WotFlatTagServerSourceA `
+  --namespace urn:opcfoundation.org:UA:WotAggregation:SourceA `
+  --differentialPressure 111.25 `
+  --fluidTemperature 301.15 `
+  --massFlow 0.42 `
+  --level 4.25 `
+  --cavitation true
+```
+
+Start Source B in the second terminal:
+
+```powershell
+dotnet run --project samples\WotFlatTagServer\WotFlatTagServer.csproj -f net10.0 -- `
+  --port 62552 `
+  --instanceName SourceB `
+  --applicationName WotFlatTagServerSourceB `
+  --namespace urn:opcfoundation.org:UA:WotAggregation:SourceB `
+  --bearingTemperature 333.15 `
+  --pumpPowerInput 17.75 `
+  --pumpEfficiency 91.5 `
+  --numberOfStarts 23 `
+  --motorOverheat true
+```
+
+Start the generic aggregation server in the third terminal:
+
+```powershell
+dotnet run --project samples\WotAggregationServer\WotAggregationServer.csproj -f net10.0 -- `
+  --port 62550 `
+  --applicationName WotAggregationServer
+```
+
+Run the loader/client in a fourth terminal after all three servers are listening:
+
+```powershell
+dotnet run --project samples\WotAggregationClient\WotAggregationClient.csproj -f net10.0 -- `
+  --aggregationEndpoint opc.tcp://localhost:62550/WotAggregationServer `
+  --sourceAEndpoint opc.tcp://localhost:62551/SourceA `
+  --sourceBEndpoint opc.tcp://localhost:62552/SourceB `
+  --documentsDirectory .\samples\WotAggregationClient\Documents
+```
+
+The client should report four uploaded resources, a successful refresh generation, the recursively browsed Pump hierarchy, and ten Good values.
+
+## Command-line and programmatic options
+
+`WotFlatTagServer` reads the following command-line configuration keys:
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `endpoint` | unset | Complete endpoint URL; when set, overrides `host`, `port`, and the generated path. |
+| `host` | `localhost` | Endpoint host used when `endpoint` is unset. |
+| `port` | `62551` | Endpoint port used when `endpoint` is unset. |
+| `instanceName` | `SourceA` | Endpoint path and source instance name. |
+| `applicationName` | `WotFlatTagServer` | OPC UA application name. |
+| `namespace` | Source A namespace URI | Must be exactly the Source A or Source B namespace URI. |
+| `differentialPressure` | `2.75` | Flat source value. |
+| `fluidTemperature` | `315.65` | Flat source value. |
+| `massFlow` | `0.1825` | Flat source value. |
+| `level` | `6.75` | Flat source value. |
+| `cavitation` | `false` | Flat source value. |
+| `bearingTemperature` | `328.4` | Flat source value. |
+| `pumpPowerInput` | `12.5` | Flat source value. |
+| `pumpEfficiency` | `88.0` | Flat source value. |
+| `numberOfStarts` | `17` | Flat source value. |
+| `motorOverheat` | `false` | Flat source value. |
+
+`WotAggregationServer` reads `endpoint`, `host` (`localhost`), `port` (`62550`), `applicationName` (`WotAggregationServer`), and `maximumDocumentBytes` (`33554432`). Its reusable `WotAggregationServerOptions` additionally exposes `PkiRoot` for programmatic hosts.
+
+`WotAggregationClient` reads `aggregationEndpoint`, `sourceAEndpoint`, `sourceBEndpoint`, and `documentsDirectory`. Its reusable `WotAggregationClientOptions` additionally exposes `ApplicationName` and `PkiRoot` for programmatic and integration-test hosts.
+
+## Checked-in document set
+
+[`documents.json`](../WotAggregationClient/Documents/documents.json) declares the sample document set and the dependencies between its entries:
+
+1. `Opc.Ua.Di.tm.json` as `thingmodels/opc-ua-di`.
+2. `Opc.Ua.Machinery.tm.json` as `thingmodels/opc-ua-machinery`, depending on DI.
+3. `Opc.Ua.Pumps.tm.json` as `thingmodels/opc-ua-pumps`, depending on DI and Machinery.
+4. `SamplePump.td.json` as `thingdescriptions/sample-pump`, depending on all three Thing Models.
+
+### Upload order is not a server requirement
+
+The registry accepts documents in any order. Upload order affects only when the Pump becomes visible, never whether it can be materialized:
+
+* A dependency closure is projected only when it is complete. While a referenced Thing Model is still missing, `WotDependencyGraph` reports the closure as not projectable, `WotMaterializationCoordinator` marks its members failed in the `DependencyResolution` phase, and the previously active generation is retained. Nothing partial is published into the address space.
+* As soon as the last missing document arrives, the same closure becomes projectable and the Pump appears in one atomic generation switch.
+
+The dependency declarations in `documents.json` are therefore a description of the model, not an upload protocol. The manifest is still validated locally before upload, because a manifest that references a document it does not contain, or that contains a cycle, is an authoring error in the sample rather than a legitimate partial upload.
+
+`WotRegistryClient.LoadDocumentsAsync` additionally guarantees that Thing Models are processed before Thing Descriptions while preserving the caller's relative order within each document kind.
+
+### Progress while a closure is incomplete
+
+Both refresh models are valid, and the sample shows the second one:
+
+* **`AutoRefresh = true` (registry default).** Every upload triggers a refresh, so a client can watch the closure fill in. Members of an incomplete closure raise `WoTLoadFailureEventType` with `LoadState` and a `DependencyResolution` reason naming the unresolved reference, and each completed pass raises `WoTRefreshCompletedEventType` with its summary and generation. Subscribing to the registry object therefore yields per-document progress and status until the closure completes.
+* **`AutoRefresh = false`.** No intermediate projections and no intermediate events. The caller uploads everything and then triggers exactly one `Refresh`.
+
+## Endpoint placeholder substitution
+
+The checked-in Pump TD is portable and contains `${SOURCE_A_ENDPOINT}` and `${SOURCE_B_ENDPOINT}` placeholders. `WotAggregationClientRunner.LoadDocumentsAsync` substitutes the two endpoint options only in `SamplePump.td.json` immediately before upload. The checked-in file remains environment-independent, and no generated file is written back to the repository.
+
+Each property form also contains a portable upstream `uav:id` using the source server's `nsu=` namespace URI. The property affordance contains a separate `uav:mapToNodeId` using the materialized Pump-instance namespace. The form therefore describes where to read, while the affordance describes where the value belongs in the aggregate model.
+
+## Registry upload and Refresh
+
+The client creates a `WotRegistryClient` through `AddWotRegistryClient`, loads the four `WotRegistryDocument` values, and calls:
+
+```csharp
+WotRegistryBulkLoadResult loadResult = await client.LoadDocumentsAsync(
+    documents,
+    refresh: true,
+    requestId: Guid.NewGuid().ToString("N"),
+    ct: cancellationToken);
+```
+
+For each document, the registry client get-or-creates the correct Thing Model or Thing Description group, get-or-creates the resource, and uploads a new version through the inherited OPC UA `FileType` transfer. With `refresh: true`, it then calls `RefreshAllAsync`. The aggregation server validates dependencies, converts each document closure to NodeSet2, prepares its binding plans, imports the NodeSets, wires the OPC UA target mappings, and publishes the new generation.
+
+The sample aggregation server sets `AutoRefresh = false` so the four uploads do not cause four intermediate projections. The explicit final `Refresh` activates one complete dependency closure. A deployment that wants live progress instead leaves `AutoRefresh` at its default `true` and consumes the events described above.
+
+## Pump companion-model shape
+
+The materialized namespace is `urn:opcfoundation.org:UA:WotAggregation:PumpInstance`, with root `Pump1`. The end-to-end test verifies that the runtime-loaded hierarchy and type definitions comply with the checked-in companion models:
+
+* `Pump1` has the Pumps `PumpType` definition.
+* `Pump1.Identification` uses its DI type definition.
+* `Operational`, `Operational.Measurements`, `Events`, `Events.SupervisionProcessFluid`, and `Events.SupervisionPumpOperation` use their Pumps type definitions.
+* The hierarchy contains Identification, Operational, Events, and Maintenance groups.
+* Measurements contain DifferentialPressure, FluidTemperature, BearingTemperature, PumpPowerInput, MassFlow, PumpEfficiency, Level, and NumberOfStarts.
+* Event supervision groups contain Cavitation and MotorOverheat variables.
+
+These nodes are not compiled into `WotAggregationServer`. They are produced from the DI, Machinery, Pumps, and Sample Pump WoT documents at runtime.
+
+## Values from both sources
+
+The Pump TD routes five properties to each source:
+
+| Materialized Pump property | Upstream source |
+| --- | --- |
+| DifferentialPressure | Source A |
+| FluidTemperature | Source A |
+| MassFlow | Source A |
+| Level | Source A |
+| Cavitation | Source A |
+| BearingTemperature | Source B |
+| PumpPowerInput | Source B |
+| PumpEfficiency | Source B |
+| NumberOfStarts | Source B |
+| MotorOverheat | Source B |
+
+With the commands above, the output should include Source A values such as `DifferentialPressure = 111.25` and Source B values such as `BearingTemperature = 333.15`. Every value is read through the aggregation server's local Pump NodeId, not directly from the source server by the sample client.
+
+## Local monitored items
+
+The target-mapping runtime wires the materialized variables to async read handlers. Local OPC UA monitored items on the aggregation server sample those handlers, so creating a monitored item for `Pump1.Operational.Measurements.DifferentialPressure` reads Source A through the same compiled form and lazy OPC UA channel used by an ordinary Read.
+
+The runtime does not create a second upstream observation bridge for the form's `observeproperty` operation. This keeps local sampling under the aggregation server's subscription engine and avoids duplicate upstream subscriptions.
+
+The integration test creates a real subscription and monitored item with a 50 ms requested sampling interval, publishes the initial Source A differential-pressure value, and keeps that monitored item alive across a generation replacement.
+
+## Version replacement and shadow drain
+
+Uploading another version of `sample-pump` and calling `RefreshAllAsync` creates a shadow runtime NodeSet generation. The new generation becomes the target for new reads and monitored items without disconnecting clients. Existing monitored items remain attached to the old generation until they are deleted or otherwise drain.
+
+[`WotSampleEndToEndTests.cs`](../../tests/Opc.Ua.WotCon.Samples.Tests/WotSampleEndToEndTests.cs) demonstrates this by changing the DifferentialPressure mapping to read Source B's BearingTemperature, uploading the new Pump TD version, and refreshing. A normal read after the switch returns the Source B value from the new generation. The already-existing monitored item can still publish the Source A value from the retired generation. After that subscription is deleted and the retired generation drains, subsequent reads continue against the new Source B mapping.
+
+If conversion, mapping resolution, channel wiring, or shadow activation fails, the previous active generation remains in service and the failed refresh reports per-resource diagnostics.
+
+## Troubleshooting
+
+### The client cannot connect
+
+Verify that all three server processes are listening and that the client endpoint paths exactly match `/SourceA`, `/SourceB`, and `/WotAggregationServer`. The generic-host command-line syntax requires the `--` separator after `dotnet run` options.
+
+### The source namespace is rejected
+
+`WotFlatTagServer` accepts only `urn:opcfoundation.org:UA:WotAggregation:SourceA` or `urn:opcfoundation.org:UA:WotAggregation:SourceB`. Use the matching namespace and endpoint placeholder for each process.
+
+### The manifest fails before upload
+
+`documents.json contains a missing or cyclic dependency` means a `dependsOn` id is absent, duplicated, or cyclic. Keep resource ids unique and preserve the DI → Machinery → Pumps → Pump TD dependency graph.
+
+### Refresh reports a document failure
+
+Inspect the printed resource phase, outcome, and message. Invalid JSON fails format validation. A malformed or unresolved `uav:mapToNodeId` fails activation. A missing upstream server normally allows upload and projection but causes a mapped Read to fail when its lazy channel first connects.
+
+### Reads return `BadNodeIdUnknown` or `BadNodeIdInvalid`
+
+Check both NodeIds in the Pump TD. The form's `uav:id` must use the correct Source A or Source B namespace URI and source variable id. The affordance's `uav:mapToNodeId` must use the Pump-instance namespace and a node created by the runtime-loaded documents. Prefer `nsu=` to numeric namespace indexes.
+
+### Values appear to come from the wrong source
+
+Check the endpoint placeholder assignment first, then inspect the property form's upstream `uav:id`. The five Source A and five Source B assignments are listed above. The aggregation client prints stable materialized property names, so a wrong value usually indicates a TD form mapping rather than a browse problem.
+
+### A replaced value is still observed
+
+An existing monitored item intentionally remains on the retired generation until it drains. Create a new monitored item or delete the old subscription to observe the replacement generation immediately. Ordinary reads after the successful shadow switch use the new generation.
+
+## Run the integration tests
+
+The real sample tests launch all three servers in process with isolated ports and PKI roots:
+
+```powershell
+dotnet test Tests\Opc.Ua.WotCon.Samples.Tests\Opc.Ua.WotCon.Samples.Tests.csproj -f net10.0 --filter "Category=Samples"
+```
+
+The suite covers successful upload and refresh, companion-model hierarchy, values from both sources, local monitored items, version replacement and shadow drain, invalid documents, missing manifest dependencies, invalid target mappings, and unavailable upstream endpoints.
+
+## NativeAOT publishing
+
+All three server/client sample projects set `PublishAot` for `net10.0`. Publish each process for the target runtime identifier; for Windows x64:
+
+```powershell
+dotnet publish samples\WotFlatTagServer\WotFlatTagServer.csproj -c Release -f net10.0 -r win-x64 --self-contained true
+dotnet publish samples\WotAggregationServer\WotAggregationServer.csproj -c Release -f net10.0 -r win-x64 --self-contained true
+dotnet publish samples\WotAggregationClient\WotAggregationClient.csproj -c Release -f net10.0 -r win-x64 --self-contained true
+```
+
+Use the published `WotFlatTagServer.exe` twice with the Source A and Source B arguments above. The client project includes the checked-in `Documents` tree in its publish output, so omit `--documentsDirectory` to use `<publish-directory>\Documents` or pass an explicit external copy.
+
+## Related documentation
+
+* [WoT protocol bindings](../../docs/WotBindings.md)
+* [WoT Connectivity model, server, registry, and client](../../docs/WoTConnectivity.md)

@@ -311,7 +311,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
                     string documents = Path.Combine(
                         directory.FullName,
                         "samples",
-                        "WotAggregation",
+                        "WotAggregationClient",
                         "Documents");
                     if (Directory.Exists(documents))
                     {
@@ -321,7 +321,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 directory = directory.Parent;
             }
             throw new DirectoryNotFoundException(
-                "The checked-in samples\\WotAggregation\\Documents directory was not found.");
+                "The checked-in samples\\WotAggregationClient\\Documents directory was not found.");
         }
     }
 

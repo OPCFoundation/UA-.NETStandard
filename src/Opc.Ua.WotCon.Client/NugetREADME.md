@@ -20,4 +20,4 @@ See the [main repository README](https://github.com/OPCFoundation/UA-.NETStandar
 and the
 [WoT Connectivity guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/WoTConnectivity.md).
 
-The runnable [WoT aggregation sample](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/WoTAggregationSample.md) demonstrates `LoadDocumentsAsync`, dependency ordering, endpoint substitution, registry upload, `Refresh`, browsing, and reads from a runtime-materialized Pump.
+The runnable [WoT aggregation sample](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/samples/WotAggregation/README.md) demonstrates `LoadDocumentsAsync`, dependency ordering, endpoint substitution, registry upload, `Refresh`, browsing, and reads from a runtime-materialized Pump.

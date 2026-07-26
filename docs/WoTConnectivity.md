@@ -14,7 +14,7 @@ This repository implements the OPC UA **WoT Connectivity** companion specificati
 The model namespace URI is `http://opcfoundation.org/UA/WoT-Con/`,
 target version `1.02.0`, publication 2025-12-05.
 
-For current protocol-runtime architecture see [WoT Connectivity protocol bindings](WoTProtocolBindings.md). Contributors implementing a protocol should use [Developing WoT protocol bindings](WoTBindingDevelopment.md), and the runnable end-to-end topology is documented in [WoT aggregation sample](WoTAggregationSample.md).
+For current protocol-runtime architecture and the contributor guide for adding a protocol see [WoT protocol bindings](WotBindings.md), and the runnable end-to-end topology is documented in the [WoT aggregation sample](../samples/WotAggregation/README.md).
 
 ---
 
@@ -531,9 +531,9 @@ The legacy `WotConnectivityNodeManager`, its generated 1.02 namespace/NodeIds/me
 
 ### 11.6 Protocol and projection scope
 
-The implemented data plane covers executable HTTP, Modbus TCP, MQTT, and OPC UA binding forms according to the operation coverage documented in [WoT Connectivity protocol bindings](WoTProtocolBindings.md). CoAP, BACnet, PROFINET, and LoRaWAN currently ship as planner-only binders: their forms are validated and represented in plans, but a non-strict closure is degraded until an executor is registered.
+The implemented data plane covers executable HTTP, Modbus TCP, MQTT, and OPC UA binding forms according to the operation coverage documented in [WoT protocol bindings](WotBindings.md). CoAP, BACnet, PROFINET, and LoRaWAN currently ship as planner-only binders: their forms are validated and represented in plans, but a non-strict closure is degraded until an executor is registered.
 
-OPC 10101 target mapping is authored on property affordances, not forms. `uav:mapByFieldPath` requires `uav:mapToType`, portable `nsu=` NodeIds are resolved against the runtime generation's namespace table, and the mapping is protocol-neutral as illustrated by [OPC 10101 §8.2](https://reference.opcfoundation.org/specs/OPC-10101/8.2). See [OPC 10101 §6.5.4](https://reference.opcfoundation.org/specs/OPC-10101/6.5.4) and the [binding-authoring guide](WoTBindingDevelopment.md) for the exact validation and runtime semantics.
+OPC 10101 target mapping is authored on property affordances, not forms. `uav:mapByFieldPath` requires `uav:mapToType`, portable `nsu=` NodeIds are resolved against the runtime generation's namespace table, and the mapping is protocol-neutral as illustrated by [OPC 10101 §8.2](https://reference.opcfoundation.org/specs/OPC-10101/8.2). See [OPC 10101 §6.5.4](https://reference.opcfoundation.org/specs/OPC-10101/6.5.4) and the [binding-authoring guide](WotBindings.md#part-2---adding-your-own-binding) for the exact validation and runtime semantics.
 
 ### 11.7 Browseable registry projection and management Methods
 

@@ -14,4 +14,4 @@ Register it with `builder.AddMqttWotBinding(...)`.
 
 The package targets `net8.0`, `net9.0`, and `net10.0`. The MQTT planner and common binding contracts are supplied by `OPCFoundation.NetStandard.Opc.Ua.WotCon.Bindings`.
 
-See the [protocol binding overview](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/WoTProtocolBindings.md) and [binding-authoring guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/WoTBindingDevelopment.md).
+See the [WoT protocol bindings guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/WotBindings.md).
