@@ -2884,10 +2884,9 @@ namespace Opc.Ua.Server
                     ct: cancellationToken).ConfigureAwait(false);
 
                 // update trace configuration.
+#pragma warning disable CS0618 // Type or member is obsolete
                 Configuration.TraceConfiguration = configuration.TraceConfiguration ??
                     new TraceConfiguration();
-
-#pragma warning disable CS0618 // Type or member is obsolete
                 Configuration.TraceConfiguration.ApplySettings();
 #pragma warning restore CS0618 // Type or member is obsolete
             }

@@ -518,12 +518,12 @@ namespace Opc.Ua
             if (configuration != null)
             {
                 // should not be here but need to preserve old behavior.
+#pragma warning disable CS0618 // Type or member is obsolete
                 if (applyTraceSettings && configuration.TraceConfiguration != null)
                 {
-#pragma warning disable CS0618 // Type or member is obsolete
                     configuration.TraceConfiguration.ApplySettings();
-#pragma warning restore CS0618 // Type or member is obsolete
                 }
+#pragma warning restore CS0618 // Type or member is obsolete
 
                 configuration.SecurityConfiguration.CertificatePasswordProvider
                     = certificatePasswordProvider;
