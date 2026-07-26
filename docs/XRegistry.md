@@ -1,15 +1,15 @@
 # xRegistry — abstract registry base model
 
 The **xRegistry** libraries implement the generic, registry-agnostic *abstract registry base model*
-(Annex B) for OPC UA. They provide the substrate a concrete registry builds on: a **content-addressed
+for OPC UA. They provide the substrate a concrete registry builds on: a **content-addressed
 resource identity**, an **Opaque-NodeId fast path** that resolves a resource in a single `Read`, a
-**`CreateResource`/`Write`/`Close` registration lifecycle** with auto-bootstrap, and a **federation**
-model for resources hosted by another registry.
+**model-driven registration lifecycle** with auto-bootstrap, and a **federation** model for resources
+hosted by another registry.
 
 The libraries are deliberately domain-neutral: they know nothing about what a *resource* contains.
 A concrete registry supplies its own companion namespace and a fingerprinting strategy, and reuses
 everything else. The PubSub Schema Registry is the first such specialization, where the resources are
-Avro / Arrow / JSON DataSet schema documents.
+schema documents.
 
 ## Packages
 
@@ -51,7 +51,10 @@ no Browse and no fingerprint recomputation — one `Read` of that node's `Value`
 
 ```csharp
 var fastPathNodeId = new NodeId(contentId, registryNamespaceIndex);
-DataValue value = await session.ReadValueAsync(fastPathNodeId, ct).ConfigureAwait(false);
+
+// Use the ranged read extension rather than a plain ReadValue: a document larger than the
+// session's MaxByteStringLength is fetched in slices instead of failing.
+ByteString document = await session.ReadBytesAsync(fastPathNodeId, 0, ct).ConfigureAwait(false);
 ```
 
 `XRegistryFastPathNodeManager` serves these nodes and can optionally **pre-publish a seed resource**
@@ -83,16 +86,121 @@ content-id, so the existing fast-path node is reused rather than duplicated.
 
 ### Resource storage
 
-Document bytes live behind an injectable `IXRegistryResourceStore`. The default keeps them in the
-server process; a high-availability deployment substitutes a shared store so documents survive a
-failover, without touching the node managers.
+Document bytes live behind an injectable `IXRegistryResourceStore`. Because a resource is a
+`ResourceType`, which *is* a `FileType`, the store mirrors the file access model: reads and writes are
+**offset and length based**, so a document never has to be materialized as a whole.
 
 ```csharp
 var options = new XRegistryServerOptions
 {
-    ResourceStore = new MySharedResourceStore()
+    // Keeps the documents in the server process (the default).
+    ResourceStore = new InMemoryXRegistryResourceStore()
+};
+
+// Or back them with files so they outlive the process and a shared volume can serve a cluster.
+options.ResourceStore = new FileSystemXRegistryResourceStore("/var/lib/xregistry");
+```
+
+`FileSystemXRegistryResourceStore` is built on the `IFileSystem` abstraction, so a deployment can
+substitute its own — and a test can run it against a `VirtualFileSystem` without touching disk:
+
+```csharp
+using var fileSystem = new VirtualFileSystem();
+using var store = new FileSystemXRegistryResourceStore("resources", fileSystem);
+```
+
+#### Implementing a store
+
+A store has four operations. The example below is a complete, if naive, implementation that keeps each
+document in a dictionary — enough to show what each contract clause means:
+
+```csharp
+public sealed class MyResourceStore : IXRegistryResourceStore
+{
+    public ValueTask<ByteString> ReadAsync(
+        string resourceKey, long offset, int count, CancellationToken ct = default)
+    {
+        // Argument faults throw; an unknown key is a *null* ByteString so the caller can tell
+        // "no such resource" from "resource is empty".
+        if (!m_documents.TryGetValue(resourceKey, out byte[]? document))
+        {
+            return new ValueTask<ByteString>(default(ByteString));
+        }
+
+        // Return fewer bytes than asked for at the end of the document; never throw for that.
+        if (offset >= document.Length || count == 0)
+        {
+            return new ValueTask<ByteString>(ByteString.From([]));
+        }
+        int take = (int)Math.Min(count, document.Length - offset);
+        return new ValueTask<ByteString>(
+            ByteString.From(document.AsSpan((int)offset, take).ToArray()));
+    }
+
+    public ValueTask WriteAsync(
+        string resourceKey, long offset, ReadOnlyMemory<byte> data, CancellationToken ct = default)
+    {
+        // Random access: the chunk may land anywhere. Writing past the end grows the document and
+        // the gap reads back as zeros; writing at 0 does *not* truncate what follows.
+        m_documents.TryGetValue(resourceKey, out byte[]? existing);
+        existing ??= [];
+        var merged = new byte[Math.Max(existing.Length, offset + data.Length)];
+        existing.CopyTo(merged.AsSpan());
+        data.Span.CopyTo(merged.AsSpan((int)offset));
+        m_documents[resourceKey] = merged;
+        return default;
+    }
+
+    public ValueTask<long> GetLengthAsync(string resourceKey, CancellationToken ct = default)
+    {
+        // -1 signals an unknown key rather than throwing.
+        return new ValueTask<long>(
+            m_documents.TryGetValue(resourceKey, out byte[]? d) ? d.Length : -1);
+    }
+
+    public ValueTask<bool> DeleteAsync(string resourceKey, CancellationToken ct = default)
+    {
+        // Deleting an absent key is a no-op, not a fault.
+        return new ValueTask<bool>(m_documents.Remove(resourceKey));
+    }
+
+    private readonly Dictionary<string, byte[]> m_documents = [];
+}
+```
+
+Two rules make a store substitutable:
+
+* **Error reporting.** Argument faults throw — `ArgumentException` for a null or empty key,
+  `ArgumentOutOfRangeException` for a negative offset or count. Everything a caller is expected to
+  handle is a return value instead: a null `ByteString`, a `-1` length, a `false` delete. Genuine
+  infrastructure failures (an unreachable share, a permission fault) should throw a
+  `ServiceResultException` with an appropriate status code, which the node manager surfaces as the
+  Method's result rather than faulting the server.
+* **Concurrency.** Implementations must be safe for concurrent calls.
+
+The contract is exercised by `XRegistryResourceStoreContractTests`; deriving a fixture from it is the
+quickest way to validate a new implementation.
+
+### Transport security
+
+Registry **writes always require a `SignAndEncrypt` secure channel**. A document and its
+content-derived identity are integrity-critical, so `CreateGroup`, `GetOrCreateGroup`,
+`CreateResource`, `GetOrCreateResource`, `Delete`, `AddAttribute`, `RemoveAttribute`, opening a file
+for writing, `Write` and `Close` are all rejected with `BadSecurityModeInsufficient` on a channel that
+is merely signed or unprotected. This is not configurable.
+
+Reads are permitted on any secure channel by default, because a registry is usually a public
+catalogue. Set `RequireEncryptionForReads` when the documents themselves are confidential:
+
+```csharp
+var options = new XRegistryServerOptions
+{
+    RequireEncryptionForReads = true
 };
 ```
+
+An in-process call carries no channel at all — the server's own bootstrap, or a test — and is always
+allowed.
 
 ### Federation
 
@@ -181,14 +289,15 @@ abstract XRegistryClient
    └── WotRegistryClient     (domain)
 ```
 
-Resolving a resource from an id received on the wire is a single call. It returns a **null**
-`ByteString` — check `IsNull` — when no fast-path node is registered, so the caller can fall back to a
-Browse or a registry-specific download:
+Resolving a resource from an id received on the wire is a single call. It reads through
+`ReadBytesAsync`, so a document larger than the session's `MaxByteStringLength` is fetched with
+range-based reads rather than failing. It returns a **null** `ByteString` — check `IsNull` — when no
+fast-path node is registered, so the caller can fall back to a Browse or a registry-specific download:
 
 ```csharp
 var client = new GenericXRegistryClient(session, "http://example.org/UA/MyRegistry/", telemetry);
 
-ByteString document = await client.ResolveResourceAsync(contentId, ct).ConfigureAwait(false);
+ByteString document = await client.ResolveResourceAsync(contentId, ct: ct).ConfigureAwait(false);
 if (document.IsNull)
 {
     // Not registered on this server — fall back.
@@ -236,7 +345,7 @@ await resource.WriteDocumentAsync(fileHandle, documentBytes, ct: ct).ConfigureAw
 
 ### Extending for a domain registry
 
-A domain model subtypes the xRegistry base types — the PubSub Schema Registry declares
+A domain model subtypes the xRegistry base types — for example a schema registry declares
 `SchemaFileType : ResourceType` — so the generator emits a proxy chain that mirrors the OPC UA
 hierarchy (`SchemaFileTypeClient : ResourceTypeClient : FileTypeClient`). Two things follow:
 

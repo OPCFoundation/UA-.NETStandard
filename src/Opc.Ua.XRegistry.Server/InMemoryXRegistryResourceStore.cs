@@ -42,47 +42,92 @@ namespace Opc.Ua.XRegistry.Server
     public sealed class InMemoryXRegistryResourceStore : IXRegistryResourceStore
     {
         /// <inheritdoc/>
-        public ValueTask<ByteString> ReadAsync(string resourceKey, CancellationToken ct = default)
+        public ValueTask<ByteString> ReadAsync(
+            string resourceKey,
+            long offset,
+            int count,
+            CancellationToken ct = default)
         {
-            if (string.IsNullOrEmpty(resourceKey))
-            {
-                throw new ArgumentException("A resource key is required.", nameof(resourceKey));
-            }
+            ValidateKey(resourceKey);
+            ValidateRange(offset, count);
 
             lock (m_lock)
             {
-                return m_documents.TryGetValue(resourceKey, out byte[]? document)
-                    ? new ValueTask<ByteString>(ByteString.From(document))
-                    : new ValueTask<ByteString>(default(ByteString));
+                if (!m_documents.TryGetValue(resourceKey, out List<byte>? document))
+                {
+                    return new ValueTask<ByteString>(default(ByteString));
+                }
+
+                if (offset >= document.Count || count == 0)
+                {
+                    return new ValueTask<ByteString>(ByteString.From([]));
+                }
+
+                int take = (int)Math.Min(count, document.Count - offset);
+                var chunk = new byte[take];
+                document.CopyTo((int)offset, chunk, 0, take);
+                return new ValueTask<ByteString>(ByteString.From(chunk));
             }
         }
 
         /// <inheritdoc/>
         public ValueTask WriteAsync(
             string resourceKey,
-            ReadOnlyMemory<byte> document,
+            long offset,
+            ReadOnlyMemory<byte> data,
             CancellationToken ct = default)
         {
-            if (string.IsNullOrEmpty(resourceKey))
+            ValidateKey(resourceKey);
+            if (offset < 0)
             {
-                throw new ArgumentException("A resource key is required.", nameof(resourceKey));
+                throw new ArgumentOutOfRangeException(nameof(offset));
             }
 
-            byte[] copy = document.ToArray();
             lock (m_lock)
             {
-                m_documents[resourceKey] = copy;
+                if (!m_documents.TryGetValue(resourceKey, out List<byte>? document))
+                {
+                    document = [];
+                    m_documents[resourceKey] = document;
+                }
+
+                // Writing past the end grows the document; the gap reads back as zero bytes.
+                while (document.Count < offset)
+                {
+                    document.Add(0);
+                }
+
+                ReadOnlySpan<byte> span = data.Span;
+                int at = (int)offset;
+                int overwrite = Math.Min(span.Length, document.Count - at);
+                for (int i = 0; i < overwrite; i++)
+                {
+                    document[at + i] = span[i];
+                }
+                for (int i = overwrite; i < span.Length; i++)
+                {
+                    document.Add(span[i]);
+                }
             }
             return default;
         }
 
         /// <inheritdoc/>
+        public ValueTask<long> GetLengthAsync(string resourceKey, CancellationToken ct = default)
+        {
+            ValidateKey(resourceKey);
+
+            lock (m_lock)
+            {
+                return new ValueTask<long>(
+                    m_documents.TryGetValue(resourceKey, out List<byte>? document) ? document.Count : -1);
+            }
+        }
+
+        /// <inheritdoc/>
         public ValueTask<bool> DeleteAsync(string resourceKey, CancellationToken ct = default)
         {
-            if (string.IsNullOrEmpty(resourceKey))
-            {
-                throw new ArgumentException("A resource key is required.", nameof(resourceKey));
-            }
+            ValidateKey(resourceKey);
 
             lock (m_lock)
             {
@@ -90,7 +135,27 @@ namespace Opc.Ua.XRegistry.Server
             }
         }
 
+        private static void ValidateKey(string resourceKey)
+        {
+            if (string.IsNullOrEmpty(resourceKey))
+            {
+                throw new ArgumentException("A resource key is required.", nameof(resourceKey));
+            }
+        }
+
+        private static void ValidateRange(long offset, int count)
+        {
+            if (offset < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(offset));
+            }
+            if (count < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(count));
+            }
+        }
+
         private readonly Lock m_lock = new();
-        private readonly Dictionary<string, byte[]> m_documents = [];
+        private readonly Dictionary<string, List<byte>> m_documents = [];
     }
 }

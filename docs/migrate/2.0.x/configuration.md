@@ -24,6 +24,12 @@ All configuration DTO classes (`ApplicationConfiguration`, `ServerConfiguration`
 - Custom configuration extension types must implement `IEncodeable` (the `[DataType]` source generator handles this automatically for `partial` classes).
 - Code using reflection to inspect `[DataContract]`/`[DataMember]` attributes must switch to `[DataType]`/`[DataTypeField]`.
 
+### TraceConfiguration apply APIs removed
+
+The legacy `TraceConfiguration` application path (`TraceConfiguration.ApplySettings()` and the fluent builder methods `SetOutputFilePath(...)`, `SetDeleteOnLoad(...)`, `SetTraceMasks(...)`) has been removed. Logging/tracing setup must now be done via `ITelemetryContext` and `ILoggerFactory`.
+
+If your startup code used these APIs, remove those calls and configure logging providers directly on your telemetry context instead.
+
 ### Newtonsoft.Json removed from Opc.Ua.Core
 
 `Newtonsoft.Json` is no longer a dependency of `Opc.Ua.Core`. Projects relying on its transitive availability must add an explicit reference:

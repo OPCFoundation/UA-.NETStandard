@@ -71,6 +71,7 @@ namespace Opc.Ua.XRegistry.Server
             m_maxConcurrentUploads = opts.MaxConcurrentUploads;
             m_maxResourceBytes = opts.MaxResourceBytes;
             m_maxRegisteredResources = opts.MaxRegisteredResources;
+            m_requireEncryptionForReads = opts.RequireEncryptionForReads;
         }
 
         /// <summary>
@@ -158,6 +159,14 @@ namespace Opc.Ua.XRegistry.Server
             string groupId,
             CancellationToken cancellationToken)
         {
+            if (!IsWriteChannelSecure(context))
+            {
+                return new ValueTask<CreateGroupMethodStateResult>(
+                    new CreateGroupMethodStateResult
+                    {
+                        ServiceResult = StatusCodes.BadSecurityModeInsufficient
+                    });
+            }
             if (string.IsNullOrEmpty(groupId))
             {
                 return new ValueTask<CreateGroupMethodStateResult>(
@@ -199,6 +208,14 @@ namespace Opc.Ua.XRegistry.Server
             string groupId,
             CancellationToken cancellationToken)
         {
+            if (!IsWriteChannelSecure(context))
+            {
+                return new ValueTask<GetOrCreateGroupMethodStateResult>(
+                    new GetOrCreateGroupMethodStateResult
+                    {
+                        ServiceResult = StatusCodes.BadSecurityModeInsufficient
+                    });
+            }
             if (string.IsNullOrEmpty(groupId))
             {
                 return new ValueTask<GetOrCreateGroupMethodStateResult>(
@@ -282,7 +299,9 @@ namespace Opc.Ua.XRegistry.Server
             m_groupsByNodeId[group.NodeId] = group;
             if (group.Delete != null)
             {
-                group.Delete.OnCallAsync = (ctx, m, id, epoch, ct) => OnDeleteGroupAsync(group, epoch);
+                group.Delete.OnCallAsync = (ctx, m, id, epoch, ct) => IsWriteChannelSecure(ctx)
+                    ? OnDeleteGroupAsync(group, epoch)
+                    : InsecureDelete();
             }
             return group;
         }
@@ -301,6 +320,14 @@ namespace Opc.Ua.XRegistry.Server
             bool requestFileOpen,
             CancellationToken cancellationToken)
         {
+            if (!IsWriteChannelSecure(context))
+            {
+                return new CreateResourceMethodStateResult
+                {
+                    ServiceResult = StatusCodes.BadSecurityModeInsufficient
+                };
+            }
+
             (ServiceResult result, ResourceState? resource, uint fileHandle, string assigned, bool _) =
                 await CreateResourceCoreAsync(objectId, resourceId, versionId, requestFileOpen, false)
                     .ConfigureAwait(false);
@@ -327,6 +354,14 @@ namespace Opc.Ua.XRegistry.Server
             bool requestFileOpen,
             CancellationToken cancellationToken)
         {
+            if (!IsWriteChannelSecure(context))
+            {
+                return new GetOrCreateResourceMethodStateResult
+                {
+                    ServiceResult = StatusCodes.BadSecurityModeInsufficient
+                };
+            }
+
             (ServiceResult result, ResourceState? resource, uint fileHandle, string assigned, bool created) =
                 await CreateResourceCoreAsync(objectId, resourceId, versionId, requestFileOpen, true)
                     .ConfigureAwait(false);
@@ -442,8 +477,9 @@ namespace Opc.Ua.XRegistry.Server
             BindFileMethods(resource);
             if (resource.Delete != null)
             {
-                resource.Delete.OnCallAsync = (ctx, m, id, epoch, ct) =>
-                    OnDeleteResourceAsync(resource, epoch);
+                resource.Delete.OnCallAsync = (ctx, m, id, epoch, ct) => IsWriteChannelSecure(ctx)
+                    ? OnDeleteResourceAsync(resource, epoch)
+                    : InsecureDelete();
             }
 
             group.AddChild(resource);
@@ -552,27 +588,58 @@ namespace Opc.Ua.XRegistry.Server
         {
             if (resource.Open != null)
             {
-                resource.Open.OnCallAsync = (ctx, m, id, mode, ct) => OnFileOpenAsync(resource, mode);
+                resource.Open.OnCallAsync = (ctx, m, id, mode, ct) =>
+                    OnFileOpenAsync(resource, mode, ctx);
             }
             if (resource.Write != null)
             {
-                resource.Write.OnCallAsync = (ctx, m, id, handle, data, ct) => OnFileWriteAsync(handle, data);
+                resource.Write.OnCallAsync = (ctx, m, id, handle, data, ct) => IsWriteChannelSecure(ctx)
+                    ? OnFileWriteAsync(handle, data)
+                    : new ValueTask<WriteMethodStateResult>(new WriteMethodStateResult
+                    {
+                        ServiceResult = StatusCodes.BadSecurityModeInsufficient
+                    });
             }
             if (resource.Read != null)
             {
-                resource.Read.OnCallAsync = (ctx, m, id, handle, length, ct) => OnFileReadAsync(handle, length);
+                resource.Read.OnCallAsync = (ctx, m, id, handle, length, ct) => IsReadChannelSecure(ctx)
+                    ? OnFileReadAsync(handle, length)
+                    : new ValueTask<ReadMethodStateResult>(new ReadMethodStateResult
+                    {
+                        ServiceResult = StatusCodes.BadSecurityModeInsufficient
+                    });
             }
             if (resource.Close != null)
             {
-                resource.Close.OnCallAsync = (ctx, m, id, handle, ct) => OnFileCloseAsync(resource, handle);
+                resource.Close.OnCallAsync = (ctx, m, id, handle, ct) => IsWriteChannelSecure(ctx)
+                    ? OnFileCloseAsync(resource, handle)
+                    : new ValueTask<CloseMethodStateResult>(new CloseMethodStateResult
+                    {
+                        ServiceResult = StatusCodes.BadSecurityModeInsufficient
+                    });
             }
         }
 
-        private ValueTask<OpenMethodStateResult> OnFileOpenAsync(ResourceState resource, byte mode)
+        /// <summary>
+        /// Opens the resource's document. Opening for writing is a mutation, so it needs a
+        /// <c>SignAndEncrypt</c> channel; opening for reading follows
+        /// <see cref="XRegistryServerOptions.RequireEncryptionForReads"/>.
+        /// </summary>
+        private ValueTask<OpenMethodStateResult> OnFileOpenAsync(
+            ResourceState resource,
+            byte mode,
+            ISystemContext context)
         {
             lock (m_gate)
             {
                 bool writing = (mode & kWriteMode) != 0;
+                if (writing ? !IsWriteChannelSecure(context) : !IsReadChannelSecure(context))
+                {
+                    return new ValueTask<OpenMethodStateResult>(new OpenMethodStateResult
+                    {
+                        ServiceResult = StatusCodes.BadSecurityModeInsufficient
+                    });
+                }
                 if (writing && m_fileHandles.Count >= m_maxConcurrentUploads)
                 {
                     return new ValueTask<OpenMethodStateResult>(new OpenMethodStateResult
@@ -630,18 +697,25 @@ namespace Opc.Ua.XRegistry.Server
                 {
                     return new ReadMethodStateResult { ServiceResult = StatusCodes.BadInvalidState };
                 }
+                if (length <= 0)
+                {
+                    return new ReadMethodStateResult
+                    {
+                        ServiceResult = ServiceResult.Good,
+                        Data = ByteString.From([])
+                    };
+                }
             }
 
-            if (entry.Content.IsNull)
-            {
-                entry.Content = await m_resourceStore.ReadAsync(entry.StoreKey).ConfigureAwait(false);
-            }
+            // Read the slice the caller asked for straight out of the store rather than
+            // materializing the whole document, which is what the FileType access model implies.
+            ByteString chunk = await m_resourceStore
+                .ReadAsync(entry.StoreKey, entry.Position, length)
+                .ConfigureAwait(false);
 
             lock (m_gate)
             {
-                ReadOnlySpan<byte> all = entry.Content.IsNull ? default : entry.Content.Span;
-                int remaining = all.Length - entry.Position;
-                if (remaining <= 0 || length <= 0)
+                if (chunk.IsNull)
                 {
                     return new ReadMethodStateResult
                     {
@@ -650,13 +724,11 @@ namespace Opc.Ua.XRegistry.Server
                     };
                 }
 
-                int take = Math.Min(length, remaining);
-                byte[] chunk = all.Slice(entry.Position, take).ToArray();
-                entry.Position += take;
+                entry.Position += chunk.Length;
                 return new ReadMethodStateResult
                 {
                     ServiceResult = ServiceResult.Good,
-                    Data = ByteString.From(chunk)
+                    Data = chunk
                 };
             }
         }
@@ -694,7 +766,7 @@ namespace Opc.Ua.XRegistry.Server
             string format = resource.Format?.Value ?? kDefaultFormat;
             ByteString contentId = m_contentIdProvider.ComputeContentId(format, document);
 
-            await m_resourceStore.WriteAsync(entry.StoreKey, document).ConfigureAwait(false);
+            await m_resourceStore.WriteAsync(entry.StoreKey, 0, document).ConfigureAwait(false);
 
             lock (m_gate)
             {
@@ -787,6 +859,48 @@ namespace Opc.Ua.XRegistry.Server
             public int Position { get; set; }
         }
 
+        /// <summary>
+        /// Tests whether the caller's secure channel is good enough to mutate the registry. A
+        /// resource document and its content-derived identity are integrity-critical, so a write is
+        /// only accepted over a <c>SignAndEncrypt</c> channel. A context that carries no channel at
+        /// all is an in-process call (the server's own bootstrap or a test) and is allowed.
+        /// </summary>
+        /// <param name="context">The system context of the call.</param>
+        internal static bool IsWriteChannelSecure(ISystemContext context)
+        {
+            return SecurityModeOf(context) is not MessageSecurityMode mode ||
+                mode == MessageSecurityMode.SignAndEncrypt;
+        }
+
+        /// <summary>
+        /// Tests whether the caller's secure channel is good enough to read a resource. Reads are
+        /// allowed on any channel unless
+        /// <see cref="XRegistryServerOptions.RequireEncryptionForReads"/> is set.
+        /// </summary>
+        /// <param name="context">The system context of the call.</param>
+        internal bool IsReadChannelSecure(ISystemContext context)
+        {
+            return !m_requireEncryptionForReads || IsWriteChannelSecure(context);
+        }
+
+        private static MessageSecurityMode? SecurityModeOf(ISystemContext context)
+        {
+            if (context is SessionSystemContext { OperationContext: OperationContext op } &&
+                op.ChannelContext?.EndpointDescription is EndpointDescription endpoint)
+            {
+                return endpoint.SecurityMode;
+            }
+            return null;
+        }
+
+        private static ValueTask<DeleteMethodStateResult> InsecureDelete()
+        {
+            return new ValueTask<DeleteMethodStateResult>(new DeleteMethodStateResult
+            {
+                ServiceResult = StatusCodes.BadSecurityModeInsufficient
+            });
+        }
+
         private static void SetValue<T>(PropertyState<T>? property, T value)
         {
             if (property != null)
@@ -814,12 +928,24 @@ namespace Opc.Ua.XRegistry.Server
             if (labels.AddAttribute != null)
             {
                 labels.AddAttribute.OnCallAsync = (ctx, m, id, key, value, expectedEpoch, ct) =>
-                    OnAddAttributeAsync(labels, epoch(), key, value, expectedEpoch);
+                    IsWriteChannelSecure(ctx)
+                        ? OnAddAttributeAsync(labels, epoch(), key, value, expectedEpoch)
+                        : new ValueTask<AddAttributeMethodStateResult>(
+                            new AddAttributeMethodStateResult
+                            {
+                                ServiceResult = StatusCodes.BadSecurityModeInsufficient
+                            });
             }
             if (labels.RemoveAttribute != null)
             {
                 labels.RemoveAttribute.OnCallAsync = (ctx, m, id, key, expectedEpoch, ct) =>
-                    OnRemoveAttributeAsync(labels, epoch(), key, expectedEpoch);
+                    IsWriteChannelSecure(ctx)
+                        ? OnRemoveAttributeAsync(labels, epoch(), key, expectedEpoch)
+                        : new ValueTask<RemoveAttributeMethodStateResult>(
+                            new RemoveAttributeMethodStateResult
+                            {
+                                ServiceResult = StatusCodes.BadSecurityModeInsufficient
+                            });
             }
         }
 
@@ -935,6 +1061,7 @@ namespace Opc.Ua.XRegistry.Server
         private readonly int m_maxConcurrentUploads;
         private readonly int m_maxResourceBytes;
         private readonly int m_maxRegisteredResources;
+        private readonly bool m_requireEncryptionForReads;
         private RegistryState? m_registry;
         private uint m_nextInstanceId = XRegistryWellKnown.FirstDynamicInstance;
         private uint m_nextFileHandle;

@@ -32,8 +32,9 @@ using System.Collections.Generic;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server;
+using Opc.Ua.XRegistry.Server;
 
-namespace Opc.Ua.XRegistry.Server.Tests
+namespace Opc.Ua.XRegistry.Tests
 {
     /// <summary>
     /// Verifies the Opaque content-id fast path: a seeded resource is addressable by an Opaque

@@ -162,15 +162,21 @@ namespace Opc.Ua.XRegistry.Client
         /// <summary>
         /// Resolves a resource document from its content-derived id through the Opaque-NodeId fast
         /// path: the Opaque NodeId is built deterministically from the raw content-id bytes and read
-        /// in a single operation. Returns a null <see cref="ByteString"/> when no fast-path node is
+        /// directly. The read goes through <see cref="SessionClientExtensions.ReadBytesAsync"/>, so a
+        /// document larger than the session's <c>MaxByteStringLength</c> is fetched with range-based
+        /// reads instead of failing. Returns a null <see cref="ByteString"/> when no fast-path node is
         /// registered, so the caller can fall back to a Browse or a registry-specific download.
         /// </summary>
         /// <param name="resourceId">The raw content-derived id bytes.</param>
+        /// <param name="maxByteStringLength">
+        /// The chunk size for the range-based reads; 0 uses the session's own limit.
+        /// </param>
         /// <param name="ct">The cancellation token.</param>
         /// <returns>The resource document bytes, or a null ByteString when not registered.</returns>
         /// <exception cref="ArgumentException"><paramref name="resourceId"/> is null/empty.</exception>
         public async Task<ByteString> ResolveResourceAsync(
             ByteString resourceId,
+            int maxByteStringLength = 0,
             CancellationToken ct = default)
         {
             if (resourceId.IsNull || resourceId.Length == 0)
@@ -181,9 +187,8 @@ namespace Opc.Ua.XRegistry.Client
             var fastPathNodeId = new NodeId(resourceId, NamespaceIndex);
             try
             {
-                DataValue value = await Session.ReadValueAsync(fastPathNodeId, ct).ConfigureAwait(false);
-                _ = value.WrappedValue.TryGetValue(out ByteString document);
-                return document;
+                return await Session.ReadBytesAsync(fastPathNodeId, maxByteStringLength, ct)
+                    .ConfigureAwait(false);
             }
             catch (ServiceResultException sre) when (
                 sre.StatusCode == StatusCodes.BadNodeIdUnknown ||

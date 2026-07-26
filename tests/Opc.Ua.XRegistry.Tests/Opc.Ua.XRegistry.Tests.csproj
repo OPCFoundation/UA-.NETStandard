@@ -2,7 +2,7 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFrameworks>$(TestsTargetFrameworks)</TargetFrameworks>
-    <RootNamespace>Opc.Ua.XRegistry.Server.Tests</RootNamespace>
+    <RootNamespace>Opc.Ua.XRegistry.Tests</RootNamespace>
     <GenerateProgramFile>false</GenerateProgramFile>
     <Nullable>enable</Nullable>
   </PropertyGroup>
@@ -27,8 +27,10 @@
     <Compile Include="..\Common\Main.cs" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\src\Opc.Ua.Client\Opc.Ua.Client.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Server\Opc.Ua.Server.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.XRegistry\Opc.Ua.XRegistry.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.XRegistry.Client\Opc.Ua.XRegistry.Client.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.XRegistry.Server\Opc.Ua.XRegistry.Server.csproj" />
     <ProjectReference Include="..\Opc.Ua.Test.Common\Opc.Ua.Test.Common.csproj" />
   </ItemGroup>

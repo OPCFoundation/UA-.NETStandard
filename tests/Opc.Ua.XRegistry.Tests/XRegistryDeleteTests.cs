@@ -33,8 +33,9 @@ using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server;
+using Opc.Ua.XRegistry.Server;
 
-namespace Opc.Ua.XRegistry.Server.Tests
+namespace Opc.Ua.XRegistry.Tests
 {
     /// <summary>
     /// Verifies deletion, which the model expresses as <c>Delete(ExpectedEpoch)</c> on both
@@ -120,7 +121,7 @@ namespace Opc.Ua.XRegistry.Server.Tests
             Assert.That(nm.Find(fastPathNodeId), Is.Not.Null, "Precondition: the fast path exists.");
 
             await nm.OnDeleteResourceAsync(resource, resource.Epoch!.Value).ConfigureAwait(false);
-            ByteString stored = await store.ReadAsync(storeKey).ConfigureAwait(false);
+            ByteString stored = await store.ReadAsync(storeKey, 0, int.MaxValue).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
