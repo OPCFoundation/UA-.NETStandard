@@ -97,11 +97,20 @@ var options = new XRegistryServerOptions
 ### Federation
 
 `XRegistryFederationNodeManager` publishes a **proxy** for a resource hosted by another registry. The
-proxy carries an `ExternalReference` — an `ExpandedNodeId` whose `ServerIndex` names the remote server
-through the local `ServerArray`, and whose `NamespaceUri` and `Identifier` are the remote resource
-node's identity — and/or a plain `ResourceUrl`, alongside the resource's content-id. Since the
-content-id is stable across registries, the same resource federated from several endpoints keeps
-**one** identity and can be de-duplicated by consumers.
+proxy is itself a `ResourceType` instance, so a generic xRegistry client drives it through exactly the
+same generated proxy as a locally hosted resource. It carries an `ExternalReference` — an
+`ExpandedNodeId` whose `ServerIndex` names the remote server through the local `ServerArray`, and whose
+`NamespaceUri` and `Identifier` are the remote resource node's identity — and/or a plain `ResourceUrl`,
+with the content-id in `Xid`. Since the content-id is stable across registries, the same resource
+federated from several endpoints keeps **one** identity and can be de-duplicated by consumers.
+
+### Labels
+
+`RegistryType`, `GroupType` and `ResourceType` each expose a `Labels` Object of type `AttributesType`
+with `AddAttribute(Key, Value, ExpectedEpoch)` and `RemoveAttribute(Key, ExpectedEpoch)`. Labels are
+published as addressable `String` Properties in the registry namespace, so a client can read them with
+a plain Read. Both mutations take the owning node's epoch and advance it on success, which makes a
+concurrent update visible instead of silently lost.
 
 ## Server-side usage
 
@@ -198,8 +207,23 @@ version and opens it for writing, and the document is streamed through the `File
     ct: ct).ConfigureAwait(false);
 ```
 
-The typed proxies are also available directly, which is what a domain client builds on:
+Groups, idempotent registration and deletion are covered by the same convenience layer. Delete takes
+the node's `ExpectedEpoch`, so a caller working from a stale read is rejected rather than clobbering a
+concurrent change:
 
+```csharp
+(NodeId groupNodeId, bool groupCreated) =
+    await client.GetOrCreateGroupAsync("schemas", ct: ct).ConfigureAwait(false);
+
+// Only streams the document when it actually created the version.
+(NodeId nodeId, string versionId, bool created) = await client.GetOrRegisterResourceAsync(
+    groupNodeId, "urn:my:resource", documentBytes, ct: ct).ConfigureAwait(false);
+
+await client.DeleteResourceAsync(nodeId, expectedEpoch, ct).ConfigureAwait(false);
+await client.DeleteGroupAsync(groupNodeId, groupEpoch, ct).ConfigureAwait(false);
+```
+
+The typed proxies are also available directly, which is what a domain client builds on:
 ```csharp
 GroupTypeClient group = client.GetGroup(groupNodeId);
 (NodeId nodeId, string versionId, uint fileHandle) =
@@ -235,15 +259,13 @@ namespace, so the client-side lookup logic is shared.
 | Member | Value | Meaning |
 | --- | --- | --- |
 | `XRegistryNamespaceUri` | `http://opcfoundation.org/UA/xRegistry/` | Abstract base companion namespace |
-| `ResourceGroupObject` | 63001 | The registration resource-group object |
-| `CreateResourceMethod` | 63002 | Obtain an upload handle |
-| `WriteMethod` | 63003 | Append document bytes |
-| `CloseMethod` | 63004 | Finalize, fingerprint and publish |
-| `DeleteMethod` | 63005 | Remove a registered resource |
-| `FederationProxyObject` | 64001 | Federated resource proxy |
-| `FederationExternalReferenceProperty` | 64002 | Proxy's `ExternalReference` |
-| `FederationResourceUrlProperty` | 64003 | Proxy's `ResourceUrl` |
-| `FederationContentIdProperty` | 64004 | Proxy's content-id |
+| `RegistryObject` | 65000 | The registry root, a `RegistryType` instance |
+| `FederationProxyObject` | 66001 | Federated resource proxy, a `ResourceType` instance |
+| `FirstDynamicInstance` | 100000 | Start of the range allocated to runtime groups and resources |
+
+Everything else — the ObjectTypes, their Methods and their Variables — comes from the compiled model
+via the generated `ObjectTypeIds`, `MethodIds` and `VariableIds` classes. The model occupies
+63000–63999, so the instance identifiers above can never collide with it.
 
 ## Related documentation
 

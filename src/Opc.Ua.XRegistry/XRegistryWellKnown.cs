@@ -58,23 +58,9 @@ namespace Opc.Ua.XRegistry
         public const uint FirstDynamicInstance = 100000;
 
         /// <summary>
-        /// Provisional NodeId of the federated resource proxy object instance.
+        /// Provisional NodeId of the federated resource proxy, a <c>ResourceType</c> instance whose
+        /// <c>ExternalReference</c> and <c>ResourceUrl</c> carry the federation link.
         /// </summary>
         public const uint FederationProxyObject = 66001;
-
-        /// <summary>
-        /// Provisional NodeId of the proxy's <c>ExternalReference</c> Property.
-        /// </summary>
-        public const uint FederationExternalReferenceProperty = 66002;
-
-        /// <summary>
-        /// Provisional NodeId of the proxy's <c>ResourceUrl</c> Property.
-        /// </summary>
-        public const uint FederationResourceUrlProperty = 66003;
-
-        /// <summary>
-        /// Provisional NodeId of the proxy's content-id (<c>SchemaId</c>) Property.
-        /// </summary>
-        public const uint FederationContentIdProperty = 66004;
     }
 }

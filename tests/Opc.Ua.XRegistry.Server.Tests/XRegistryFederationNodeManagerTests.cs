@@ -90,7 +90,7 @@ namespace Opc.Ua.XRegistry.Server.Tests
         }
 
         [Test]
-        public void ProxyCarriesTheExternalReferenceResourceUrlAndContentId()
+        public void ProxyIsAResourceTypeInstanceCarryingTheFederationLink()
         {
             const string remoteEndpoint = "opc.tcp://remote.example.org:4840";
             const string remoteNamespace = "http://example.org/UA/RemoteRegistry/";
@@ -102,40 +102,53 @@ namespace Opc.Ua.XRegistry.Server.Tests
                 RemoteRegistryNamespaceUri = remoteNamespace,
                 RemoteServerIndex = 3,
                 FederationProxyBrowseName = "RemoteResource",
+                FederatedFormat = "application/json",
                 ContentIdProvider = new XRegistryServerTestHarness.FakeContentIdProvider()
             });
 
             nm.CreateAddressSpace(new Dictionary<NodeId, IList<IReference>>());
 
-            NodeState? node = nm.Find(ProxyNodeId(nm));
-            Assert.That(node, Is.Not.Null);
-            Assert.That(node!.BrowseName.Name, Is.EqualTo("RemoteResource"));
-
-            ushort ns = RegistryNamespaceIndex(nm);
-            var external = (PropertyState?)nm.Find(
-                new NodeId(XRegistryWellKnown.FederationExternalReferenceProperty, ns));
-            var resourceUrl = (PropertyState?)nm.Find(
-                new NodeId(XRegistryWellKnown.FederationResourceUrlProperty, ns));
-            var contentIdProperty = (PropertyState?)nm.Find(
-                new NodeId(XRegistryWellKnown.FederationContentIdProperty, ns));
-
+            // The proxy has to be a real ResourceType instance so a generic xRegistry client drives
+            // it through the same generated proxy as a locally hosted resource.
+            var proxy = (ResourceState?)nm.Find(ProxyNodeId(nm));
+            Assert.That(proxy, Is.Not.Null);
             Assert.Multiple(() =>
             {
-                Assert.That(external, Is.Not.Null);
-                Assert.That(resourceUrl, Is.Not.Null);
-                Assert.That(contentIdProperty, Is.Not.Null);
+                Assert.That(proxy!.BrowseName.Name, Is.EqualTo("RemoteResource"));
+                Assert.That(
+                    ExpandedNodeId.ToNodeId(ObjectTypeIds.ResourceType, nm.SystemContext.NamespaceUris),
+                    Is.EqualTo(proxy.TypeDefinitionId));
 
-                Assert.That(external!.WrappedValue.TryGetValue(out ExpandedNodeId reference), Is.True);
+                Assert.That(proxy.ExternalReference, Is.Not.Null);
+                ExpandedNodeId reference = proxy.ExternalReference!.Value;
                 Assert.That(reference.NamespaceUri, Is.EqualTo(remoteNamespace));
                 Assert.That(reference.ServerIndex, Is.EqualTo(3u));
 
-                Assert.That(resourceUrl!.WrappedValue.TryGetValue(out string? url), Is.True);
-                Assert.That(url, Is.EqualTo(remoteEndpoint));
-
-                Assert.That(contentIdProperty!.WrappedValue.TryGetValue(out ByteString contentId), Is.True);
-                Assert.That(contentId.Span.ToArray(), Is.EqualTo(s_federatedDocument),
-                    "The content id is derived from the federated document itself.");
+                Assert.That(proxy.ResourceUrl!.Value, Is.EqualTo(remoteEndpoint));
+                Assert.That(proxy.Format!.Value, Is.EqualTo("application/json"));
+                Assert.That(proxy.Xid!.Value, Is.EqualTo(proxy.ResourceId!.Value),
+                    "The identity of a federated resource is its content id.");
+                Assert.That(proxy.Epoch!.Value, Is.EqualTo(1u));
             });
+        }
+
+        [Test]
+        public void ProxyIdentityIsTheContentIdOfTheFederatedDocument()
+        {
+            using XRegistryFederationNodeManager nm = CreateNodeManager(new XRegistryServerOptions
+            {
+                PublishFederationProxy = true,
+                FederatedDocument = s_federatedDocument,
+                ContentIdProvider = new XRegistryServerTestHarness.FakeContentIdProvider()
+            });
+
+            nm.CreateAddressSpace(new Dictionary<NodeId, IList<IReference>>());
+
+            var proxy = (ResourceState?)nm.Find(ProxyNodeId(nm));
+            Assert.That(
+                proxy!.Xid!.Value,
+                Is.EqualTo(ByteString.From(s_federatedDocument).ToHexString()),
+                "The content id is derived from the federated document itself.");
         }
 
         [Test]
