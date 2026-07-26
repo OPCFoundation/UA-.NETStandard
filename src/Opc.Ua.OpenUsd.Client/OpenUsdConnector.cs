@@ -605,9 +605,8 @@ namespace Opc.Ua.OpenUsd.Client
             {
                 return false;
             }
-            object? v = response.Results[0].WrappedValue.AsBoxedObject();
-            return v != null && System.Convert.ToInt32(
-                v, System.Globalization.CultureInfo.InvariantCulture) == (int)NodeClass.Variable;
+            return VariantConversions.TryGetInt64(response.Results[0].WrappedValue, out long v) &&
+                v == (long)NodeClass.Variable;
         }
 
         public async Task StartAsync(CancellationToken ct)
@@ -1393,13 +1392,12 @@ namespace Opc.Ua.OpenUsd.Client
                 // The target does not expose its effective right: fail closed.
                 return false;
             }
-            object? level = response.Results[0].WrappedValue.AsBoxedObject();
-            if (level == null)
+            if (!VariantConversions.TryGetInt64(
+                    response.Results[0].WrappedValue, out long level))
             {
                 return false;
             }
-            byte accessLevel = System.Convert.ToByte(
-                level, System.Globalization.CultureInfo.InvariantCulture);
+            var accessLevel = unchecked((byte)level);
             if ((accessLevel & AccessLevels.CurrentWrite) == 0)
             {
                 return false;
@@ -1434,10 +1432,9 @@ namespace Opc.Ua.OpenUsd.Client
             {
                 return false;
             }
-            object? executable = response.Results[0].WrappedValue.AsBoxedObject();
-            if (executable == null ||
-                !System.Convert.ToBoolean(
-                    executable, System.Globalization.CultureInfo.InvariantCulture))
+            if (!VariantConversions.TryGetBoolean(
+                    response.Results[0].WrappedValue, out bool executable) ||
+                !executable)
             {
                 return false;
             }
@@ -1456,15 +1453,14 @@ namespace Opc.Ua.OpenUsd.Client
             {
                 return true;
             }
-            if (dv.WrappedValue.AsBoxedObject() is not ExtensionObject[] permissions ||
-                permissions.Length == 0)
+            if (!dv.WrappedValue.TryGetStructure(out ArrayOf<RolePermissionType> permissions) ||
+                permissions.Count == 0)
             {
                 return true;
             }
-            foreach (ExtensionObject eo in permissions)
+            for (int i = 0; i < permissions.Count; i++)
             {
-                if (ExtensionObject.ToEncodeable(eo) is RolePermissionType rp &&
-                    ((PermissionType)rp.Permissions & required) == required)
+                if (((PermissionType)permissions[i].Permissions & required) == required)
                 {
                     return true;
                 }
@@ -1776,14 +1772,14 @@ namespace Opc.Ua.OpenUsd.Client
                 return Guid.Empty;
             }
             DataValue dv = await ReadAsync(id, ct).ConfigureAwait(false);
-            object? v = dv.WrappedValue.AsBoxedObject();
-            return v switch
+            if (dv.WrappedValue.TryGetValue(out Uuid uuid))
             {
-                Guid g => g,
-                Uuid u => (Guid)u,
-                string s when Guid.TryParse(s, out Guid parsed) => parsed,
-                _ => Guid.Empty
-            };
+                return (Guid)uuid;
+            }
+            return dv.WrappedValue.TryGetValue(out string text) &&
+                Guid.TryParse(text, out Guid parsed)
+                ? parsed
+                : Guid.Empty;
         }
 
         private async Task<RelativePath?> ReadRelativePathAsync(

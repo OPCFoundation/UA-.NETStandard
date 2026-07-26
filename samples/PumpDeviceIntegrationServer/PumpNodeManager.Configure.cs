@@ -286,7 +286,7 @@ namespace Pumps
             {
                 return;
             }
-            bool current = v.Value.AsBoxedObject() is bool b && b;
+            bool current = v.Value.TryGetValue(out bool b) && b;
             if (current != active)
             {
                 v.Value = active;
