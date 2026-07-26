@@ -46,9 +46,21 @@ namespace Opc.Ua.XRegistry
         public const string XRegistryNamespaceUri = "http://opcfoundation.org/UA/xRegistry/";
 
         /// <summary>
+        /// Provisional NodeId of the registry root Object instance.
+        /// </summary>
+        public const uint RegistryObject = 65000;
+
+        /// <summary>
         /// Provisional NodeId of the registration resource-group object instance.
         /// </summary>
         public const uint ResourceGroupObject = 65001;
+
+        /// <summary>
+        /// First NodeId of the range the registry allocates to the groups and resources it creates
+        /// at runtime. Everything below it is either the compiled model (63000-63999) or a fixed
+        /// instance identifier.
+        /// </summary>
+        public const uint FirstDynamicInstance = 100000;
 
         /// <summary>
         /// Provisional NodeId of the <c>CreateResource</c> method instance.

@@ -56,6 +56,21 @@ namespace Opc.Ua.XRegistry.Server
         public IXRegistryResourceStore ResourceStore { get; set; } = new InMemoryXRegistryResourceStore();
 
         /// <summary>
+        /// The BrowseName of the registry root Object the registration manager materializes.
+        /// </summary>
+        public string RegistryBrowseName { get; set; } = "Registry";
+
+        /// <summary>
+        /// The <c>RegistryId</c> published by the registry root Object.
+        /// </summary>
+        public string RegistryId { get; set; } = "urn:opcfoundation:xregistry";
+
+        /// <summary>
+        /// The <c>SpecVersion</c> published by the registry root Object.
+        /// </summary>
+        public string SpecVersion { get; set; } = "0.1.0";
+
+        /// <summary>
         /// When <c>true</c>, the fast-path manager pre-publishes <see cref="SeedDocument"/>.
         /// </summary>
         public bool PublishSeedResource { get; set; }

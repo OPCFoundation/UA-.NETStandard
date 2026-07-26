@@ -29,6 +29,7 @@
 
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
 using Opc.Ua.Server;
 
 namespace Opc.Ua.XRegistry.Server
@@ -58,6 +59,9 @@ namespace Opc.Ua.XRegistry.Server
             XRegistryServerOptions opts = options ?? new XRegistryServerOptions();
             m_namespaceUri = opts.RegistryNamespaceUri;
             m_contentIdProvider = opts.ContentIdProvider;
+            m_registryBrowseName = opts.RegistryBrowseName;
+            m_registryId = opts.RegistryId;
+            m_specVersion = opts.SpecVersion;
             // Bounds so a remote caller cannot exhaust memory or the address space
             // via the registration Methods: the number of concurrently open upload
             // handles, the cumulative bytes buffered per handle, and the number of
@@ -79,8 +83,8 @@ namespace Opc.Ua.XRegistry.Server
         }
 
         /// <summary>
-        /// Materializes the registration resource group and its <c>CreateResource</c>, <c>Write</c>,
-        /// <c>Close</c> and <c>Delete</c> methods.
+        /// Materializes the registry root from the compiled model and the legacy registration
+        /// resource group.
         /// </summary>
         /// <param name="externalReferences">External reference sink (unused).</param>
         public override void CreateAddressSpace(
@@ -89,6 +93,8 @@ namespace Opc.Ua.XRegistry.Server
             base.CreateAddressSpace(externalReferences);
 
             ushort ns = (ushort)Server.NamespaceUris.GetIndex(m_namespaceUri);
+
+            CreateRegistryRoot(ns);
 
             var group = new BaseObjectState(null)
             {
@@ -104,6 +110,184 @@ namespace Opc.Ua.XRegistry.Server
             AddMethod(group, XRegistryWellKnown.DeleteMethod, ns, "Delete", OnDelete);
 
             AddPredefinedNode(SystemContext, group);
+        }
+
+        /// <summary>
+        /// Materializes the registry root through the source-generated <c>RegistryType</c> factory
+        /// so the instance carries the type's mandatory children — a bare
+        /// <c>new RegistryState(parent)</c> would omit them and leave the model's group lifecycle
+        /// Methods unbound.
+        /// </summary>
+        /// <param name="ns">The registry namespace index.</param>
+        private void CreateRegistryRoot(ushort ns)
+        {
+            RegistryState registry = SystemContext.CreateInstanceOfRegistryType(
+                parent: null!,
+                new QualifiedName(m_registryBrowseName, ns));
+
+            registry.NodeId = new NodeId(XRegistryWellKnown.RegistryObject, ns);
+            registry.DisplayName = new LocalizedText(m_registryBrowseName);
+
+            // Everything except RegistryId is Optional on the type, so the factory does not
+            // materialize it — including the group lifecycle Methods this manager binds.
+            registry.AddSpecVersion(SystemContext);
+            registry.AddXid(SystemContext);
+            registry.AddEpoch(SystemContext);
+            registry.AddCreatedAt(SystemContext);
+            registry.AddModifiedAt(SystemContext);
+            registry.AddCreateGroup(SystemContext);
+            registry.AddGetOrCreateGroup(SystemContext);
+
+            SetValue(registry.RegistryId, m_registryId);
+            SetValue(registry.SpecVersion, m_specVersion);
+            SetValue(registry.Xid, m_registryId);
+            SetValue(registry.Epoch, 1u);
+            SetValue(registry.CreatedAt, DateTimeUtc.Now);
+            SetValue(registry.ModifiedAt, DateTimeUtc.Now);
+
+            if (registry.CreateGroup != null)
+            {
+                registry.CreateGroup.OnCallAsync = OnCreateGroupAsync;
+            }
+            if (registry.GetOrCreateGroup != null)
+            {
+                registry.GetOrCreateGroup.OnCallAsync = OnGetOrCreateGroupAsync;
+            }
+
+            AddPredefinedNode(SystemContext, registry);
+            m_registry = registry;
+        }
+
+        /// <summary>
+        /// Handles <c>RegistryType.CreateGroup(GroupId) → GroupNodeId</c>. Fails with
+        /// <see cref="StatusCodes.BadNodeIdExists"/> when the group id is already taken.
+        /// </summary>
+        internal ValueTask<CreateGroupMethodStateResult> OnCreateGroupAsync(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            string groupId,
+            CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrEmpty(groupId))
+            {
+                return new ValueTask<CreateGroupMethodStateResult>(
+                    new CreateGroupMethodStateResult
+                    {
+                        ServiceResult = StatusCodes.BadInvalidArgument
+                    });
+            }
+
+            lock (m_gate)
+            {
+                if (m_groups.ContainsKey(groupId))
+                {
+                    return new ValueTask<CreateGroupMethodStateResult>(
+                        new CreateGroupMethodStateResult
+                        {
+                            ServiceResult = StatusCodes.BadNodeIdExists
+                        });
+                }
+
+                GroupState group = CreateGroupNode(groupId);
+                return new ValueTask<CreateGroupMethodStateResult>(
+                    new CreateGroupMethodStateResult
+                    {
+                        ServiceResult = ServiceResult.Good,
+                        GroupNodeId = group.NodeId
+                    });
+            }
+        }
+
+        /// <summary>
+        /// Handles <c>RegistryType.GetOrCreateGroup(GroupId) → (GroupNodeId, Created)</c>, the
+        /// idempotent counterpart of <c>CreateGroup</c>.
+        /// </summary>
+        internal ValueTask<GetOrCreateGroupMethodStateResult> OnGetOrCreateGroupAsync(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            string groupId,
+            CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrEmpty(groupId))
+            {
+                return new ValueTask<GetOrCreateGroupMethodStateResult>(
+                    new GetOrCreateGroupMethodStateResult
+                    {
+                        ServiceResult = StatusCodes.BadInvalidArgument
+                    });
+            }
+
+            lock (m_gate)
+            {
+                if (m_groups.TryGetValue(groupId, out GroupState? existing))
+                {
+                    return new ValueTask<GetOrCreateGroupMethodStateResult>(
+                        new GetOrCreateGroupMethodStateResult
+                        {
+                            ServiceResult = ServiceResult.Good,
+                            GroupNodeId = existing.NodeId,
+                            Created = false
+                        });
+                }
+
+                GroupState group = CreateGroupNode(groupId);
+                return new ValueTask<GetOrCreateGroupMethodStateResult>(
+                    new GetOrCreateGroupMethodStateResult
+                    {
+                        ServiceResult = ServiceResult.Good,
+                        GroupNodeId = group.NodeId,
+                        Created = true
+                    });
+            }
+        }
+
+        /// <summary>
+        /// Creates and publishes a <c>GroupType</c> instance under the registry root. The caller
+        /// holds <see cref="m_gate"/>.
+        /// </summary>
+        /// <param name="groupId">The group id.</param>
+        /// <returns>The created group.</returns>
+        private GroupState CreateGroupNode(string groupId)
+        {
+            ushort ns = (ushort)Server.NamespaceUris.GetIndex(m_namespaceUri);
+            GroupState group = SystemContext.CreateInstanceOfGroupType(
+                m_registry!,
+                new QualifiedName(groupId, ns));
+
+            group.NodeId = new NodeId(m_nextInstanceId++, ns);
+            group.DisplayName = new LocalizedText(groupId);
+            group.ReferenceTypeId = Opc.Ua.ReferenceTypeIds.Organizes;
+
+            // The resource lifecycle Methods and the metadata below are Optional on the type, so
+            // they have to be materialized explicitly.
+            group.AddXid(SystemContext);
+            group.AddEpoch(SystemContext);
+            group.AddCreatedAt(SystemContext);
+            group.AddModifiedAt(SystemContext);
+            group.AddCreateResource(SystemContext);
+            group.AddGetOrCreateResource(SystemContext);
+            group.AddDelete(SystemContext);
+
+            SetValue(group.GroupId, groupId);
+            SetValue(group.Xid, groupId);
+            SetValue(group.Epoch, 1u);
+            SetValue(group.CreatedAt, DateTimeUtc.Now);
+            SetValue(group.ModifiedAt, DateTimeUtc.Now);
+
+            m_registry?.AddChild(group);
+            AddPredefinedNode(SystemContext, group);
+            m_groups[groupId] = group;
+            return group;
+        }
+
+        private static void SetValue<T>(PropertyState<T>? property, T value)
+        {
+            if (property != null)
+            {
+                property.Value = value;
+            }
         }
 
         /// <summary>
@@ -304,11 +488,17 @@ namespace Opc.Ua.XRegistry.Server
         private readonly Lock m_gate = new();
         private readonly Dictionary<uint, List<byte>> m_buffers = [];
         private readonly Dictionary<uint, string> m_versions = [];
+        private readonly Dictionary<string, GroupState> m_groups = [];
         private readonly string m_namespaceUri;
+        private readonly string m_registryBrowseName;
+        private readonly string m_registryId;
+        private readonly string m_specVersion;
         private readonly IResourceContentIdProvider? m_contentIdProvider;
         private readonly int m_maxConcurrentUploads;
         private readonly int m_maxResourceBytes;
         private readonly int m_maxRegisteredResources;
+        private RegistryState? m_registry;
+        private uint m_nextInstanceId = XRegistryWellKnown.FirstDynamicInstance;
         private uint m_nextHandle;
         private int m_registeredResourceCount;
     }
