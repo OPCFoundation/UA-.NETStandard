@@ -82,7 +82,7 @@ namespace Opc.Ua.Types.Tests.Wot
             // Remove the last node from the right side.
             if (modified.Items is { Length: > 1 })
             {
-                modified.Items = modified.Items[..^1];
+                modified.Items = modified.Items.Take(modified.Items.Length - 1).ToArray();
             }
 
             NodeSetComparisonResult result = NodeSetComparer.Compare(original, modified);
@@ -165,7 +165,7 @@ namespace Opc.Ua.Types.Tests.Wot
             // is the only one and StripPreamble removes exactly it.
             byte[] xmlOnly = serialized.Length >= 3
                 && serialized[0] == 0xEF && serialized[1] == 0xBB && serialized[2] == 0xBF
-                ? serialized[3..]
+                ? serialized.Skip(3).ToArray()
                 : serialized;
             byte[] withBom = [0xEF, 0xBB, 0xBF, .. xmlOnly];
 

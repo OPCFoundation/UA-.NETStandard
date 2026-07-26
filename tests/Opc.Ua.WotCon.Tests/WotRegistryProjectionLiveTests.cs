@@ -286,6 +286,44 @@ namespace Opc.Ua.WotCon.Tests
         }
 
         /// <summary>
+        /// Records whether the session namespace table and the transport
+        /// channel's message-context namespace table are the same instance, and
+        /// whether both actually contain the application-level xRegistry
+        /// namespace after <c>FetchNamespaceTablesAsync</c>.
+        /// <see cref="ObjectTypeClient.ResolveChildNodeIdAsync"/> resolves child
+        /// browse names through <c>Session.MessageContext.NamespaceUris</c>, so
+        /// this is the invariant the source-generated typed child accessors
+        /// depend on.
+        /// </summary>
+        [Test]
+        public void SessionAndMessageContextShareTheNamespaceTable()
+        {
+            NamespaceTable sessionTable = m_session.NamespaceUris;
+            NamespaceTable channelTable = m_session.MessageContext.NamespaceUris;
+
+            int sessionIndex = sessionTable.GetIndex(XRegistry.Namespaces.XRegistry);
+            int channelIndex = channelTable.GetIndex(XRegistry.Namespaces.XRegistry);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    ReferenceEquals(sessionTable, channelTable),
+                    Is.True,
+                    "Session.NamespaceUris and Session.MessageContext.NamespaceUris must be the " +
+                    "same table, otherwise FetchNamespaceTablesAsync updates only one of them and " +
+                    "ObjectTypeClient.ResolveChildNodeIdAsync cannot resolve application namespaces.");
+                Assert.That(
+                    sessionIndex,
+                    Is.GreaterThanOrEqualTo(0),
+                    "the session namespace table must contain the xRegistry namespace");
+                Assert.That(
+                    channelIndex,
+                    Is.EqualTo(sessionIndex),
+                    "both tables must resolve the xRegistry namespace to the same index");
+            });
+        }
+
+        /// <summary>
         /// Covers <c>OnAddResourceLabelAsync</c> success path and the
         /// <c>ToServiceResult(Success)</c> arm. Uses direct session Call so that
         /// the xRegistry namespace index is resolved from the session namespace table

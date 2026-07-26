@@ -247,9 +247,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 string insertionJson =
                     ",\"extensions\":[\"<not xml at all>\"]";
                 patchedText = string.Concat(
-                    projectionText.AsSpan(0, ot + objectTypePattern.Length),
-                    insertionJson.AsSpan(),
-                    projectionText.AsSpan(ot + objectTypePattern.Length));
+                    projectionText.Substring(0, ot + objectTypePattern.Length),
+                    insertionJson,
+                    projectionText.Substring(ot + objectTypePattern.Length));
             }
             else
             {

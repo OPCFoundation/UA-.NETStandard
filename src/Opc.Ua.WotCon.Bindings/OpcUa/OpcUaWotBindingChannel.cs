@@ -396,6 +396,11 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
                     havePrimary = true;
                 }
             }
+            // Defensive: BuildEventFilter always adds the Message select clause
+            // and is the only filter BuildEventNotification is ever called with,
+            // so a primary value is always found. The fallback keeps the
+            // notification meaningful if that filter ever stops selecting
+            // Message.
             if (!havePrimary && count > 0)
             {
                 primary = values[0];

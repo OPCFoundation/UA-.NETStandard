@@ -213,7 +213,7 @@ namespace Opc.Ua.Wot
                         .Add(portableTarget!);
                     typedComponentLinks.Add((
                         portableTarget!,
-                        ToReferenceTypeModelName(reference.ReferenceType, index)
+                        ToReferenceTypeModelName(reference.ReferenceType)
                             ?? "ua:HasOrderedComponent",
                         subtypeNodeId,
                         ComponentRefName(reference.Value, index)));
@@ -338,9 +338,15 @@ namespace Opc.Ua.Wot
             return rawTarget;
         }
 
-        private static string? ToReferenceTypeModelName(
-            string? referenceType,
-            Dictionary<string, UANode> index)
+        /// <summary>
+        /// Maps a HasComponent-subtype reference onto its compact model name.
+        /// Only reference types accepted by
+        /// <see cref="WotVocabulary.TryGetHasComponentSubtype"/> reach this
+        /// method, and every one of those is a well-known reference type, so the
+        /// standard vocabulary lookup always resolves. Null is returned if that
+        /// invariant is ever broken; the caller substitutes a default relation.
+        /// </summary>
+        private static string? ToReferenceTypeModelName(string? referenceType)
         {
             if (WotVocabulary.TryGetReferenceTypeBrowseName(
                 referenceType,
@@ -348,57 +354,7 @@ namespace Opc.Ua.Wot
             {
                 return "ua:" + browseName;
             }
-            if (referenceType is not null &&
-                index.TryGetValue(referenceType, out UANode? node) &&
-                node is UAReferenceType referenceTypeNode)
-            {
-                return ToCompactModelName(referenceTypeNode.BrowseName);
-            }
-            return ToCompactModelName(referenceType);
-        }
-
-        private static string? ToCompactModelName(string? qualifiedBrowseName)
-        {
-            if (string.IsNullOrEmpty(qualifiedBrowseName))
-            {
-                return null;
-            }
-            int separator = -1;
-            for (int ii = 0; ii < qualifiedBrowseName!.Length; ii++)
-            {
-                if (qualifiedBrowseName[ii] == ':')
-                {
-                    separator = ii;
-                    break;
-                }
-            }
-            if (separator <= 0 || separator + 1 >= qualifiedBrowseName.Length)
-            {
-                return null;
-            }
-            int namespaceIndex = 0;
-            for (int ii = 0; ii < separator; ii++)
-            {
-                char character = qualifiedBrowseName[ii];
-                if (!char.IsDigit(character) ||
-                    namespaceIndex > (int.MaxValue - (character - '0')) / 10)
-                {
-                    return null;
-                }
-                namespaceIndex = (namespaceIndex * 10) + (character - '0');
-            }
-            string prefix = namespaceIndex == 0
-                ? "ua"
-                : "ns" + namespaceIndex.ToString(
-                    System.Globalization.CultureInfo.InvariantCulture);
-            var builder = new System.Text.StringBuilder(
-                prefix.Length + qualifiedBrowseName.Length - separator);
-            builder.Append(prefix);
-            builder.Append(
-                qualifiedBrowseName,
-                separator,
-                qualifiedBrowseName.Length - separator);
-            return builder.ToString();
+            return null;
         }
 
         private static void WriteVariableAffordance(

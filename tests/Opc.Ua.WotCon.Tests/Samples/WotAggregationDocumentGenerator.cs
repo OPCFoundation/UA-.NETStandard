@@ -90,8 +90,8 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 "DifferentialPressure",
                 "number",
                 "Pa",
-                0,
-                1_000_000,
+                "0",
+                "1000000",
                 "SOURCE_A_ENDPOINT",
                 "Operational.Measurements.DifferentialPressure");
             AddProperty(
@@ -99,8 +99,8 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 "FluidTemperature",
                 "number",
                 "K",
-                233.15,
-                473.15,
+                "233.15",
+                "473.15",
                 "SOURCE_A_ENDPOINT",
                 "Operational.Measurements.FluidTemperature");
             AddProperty(
@@ -108,8 +108,8 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 "BearingTemperature",
                 "number",
                 "K",
-                233.15,
-                473.15,
+                "233.15",
+                "473.15",
                 "SOURCE_B_ENDPOINT",
                 "Operational.Measurements.BearingTemperature");
             AddProperty(
@@ -117,8 +117,8 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 "PumpPowerInput",
                 "number",
                 "W",
-                0,
-                50_000,
+                "0",
+                "50000",
                 "SOURCE_B_ENDPOINT",
                 "Operational.Measurements.PumpPowerInput");
             AddProperty(
@@ -126,8 +126,8 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 "MassFlow",
                 "number",
                 "kg/s",
-                0,
-                1,
+                "0",
+                "1",
                 "SOURCE_A_ENDPOINT",
                 "Operational.Measurements.MassFlow");
             AddProperty(
@@ -135,8 +135,8 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 "PumpEfficiency",
                 "number",
                 "%",
-                0,
-                100,
+                "0",
+                "100",
                 "SOURCE_B_ENDPOINT",
                 "Operational.Measurements.PumpEfficiency");
             AddProperty(
@@ -144,8 +144,8 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 "Level",
                 "number",
                 "m",
-                0,
-                10,
+                "0",
+                "10",
                 "SOURCE_A_ENDPOINT",
                 "Operational.Measurements.Level");
             AddProperty(
@@ -153,8 +153,8 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 "NumberOfStarts",
                 "integer",
                 null,
-                0,
-                uint.MaxValue,
+                "0",
+                "4294967295",
                 "SOURCE_B_ENDPOINT",
                 "Operational.Measurements.NumberOfStarts");
             AddProperty(
@@ -183,8 +183,8 @@ namespace Opc.Ua.WotCon.Tests.Samples
             string name,
             string type,
             string? unit,
-            double? minimum,
-            double? maximum,
+            string? minimum,
+            string? maximum,
             string source,
             string path)
         {
@@ -214,16 +214,34 @@ namespace Opc.Ua.WotCon.Tests.Samples
             {
                 property["unit"] = unit;
             }
-            if (minimum.HasValue)
+            if (minimum is not null)
             {
-                property["minimum"] = minimum.Value;
+                property["minimum"] = ParseNumber(minimum);
             }
-            if (maximum.HasValue)
+            if (maximum is not null)
             {
-                property["maximum"] = maximum.Value;
+                property["maximum"] = ParseNumber(maximum);
             }
 
             properties[name] = property;
+        }
+
+        /// <summary>
+        /// Materializes a JSON number from its canonical text. The bounds are
+        /// expressed as text rather than as <see cref="double"/> because
+        /// <c>System.Text.Json</c> does not format doubles identically on every
+        /// target framework: .NET Framework has no shortest-round-trippable
+        /// double formatting and falls back to <c>G17</c>, which would render
+        /// <c>473.15</c> as <c>473.14999999999998</c> and make the regenerated
+        /// document differ from the checked-in canonical bytes. A node parsed
+        /// from text keeps its raw representation and therefore serializes
+        /// identically everywhere.
+        /// </summary>
+        private static JsonNode ParseNumber(string canonicalJsonNumber)
+        {
+            return JsonNode.Parse(canonicalJsonNumber)
+                ?? throw new InvalidOperationException(
+                    $"'{canonicalJsonNumber}' is not a JSON number.");
         }
     }
 }

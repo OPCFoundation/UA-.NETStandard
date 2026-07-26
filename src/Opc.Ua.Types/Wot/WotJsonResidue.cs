@@ -725,6 +725,11 @@ namespace Opc.Ua.Wot
             List<WotDiagnostic> diagnostics)
         {
             string[] tokens = ParsePointer(pointer);
+            // Defensive: every caller validates the pointer with IsJsonPointer
+            // first, which rejects null, empty and anything not starting with
+            // '/', and string.Split never yields an empty array, so this cannot
+            // currently be entered. The guard keeps the root from being
+            // overwritten if pointer parsing ever changes.
             if (tokens.Length == 0)
             {
                 diagnostics.Add(new WotDiagnostic(

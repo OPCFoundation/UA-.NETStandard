@@ -908,7 +908,13 @@ namespace Opc.Ua.Types.Tests.Wot
 
         private static string ComputeSha256Hex(byte[] data)
         {
+#if NETFRAMEWORK
+            // SHA256.HashData is not available on .NET Framework.
+            using var sha = SHA256.Create();
+            byte[] hash = sha.ComputeHash(data);
+#else
             byte[] hash = SHA256.HashData(data);
+#endif
             return string.Concat(
                 Array.ConvertAll(hash, b => b.ToString("x2", CultureInfo.InvariantCulture)));
         }

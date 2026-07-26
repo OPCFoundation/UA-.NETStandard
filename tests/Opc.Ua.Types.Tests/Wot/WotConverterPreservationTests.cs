@@ -410,8 +410,17 @@ namespace Opc.Ua.Types.Tests.Wot
             using var ms = new MemoryStream();
             nodeSet.Write(ms);
             byte[] nodeSetBytes = ms.ToArray();
+#if NETFRAMEWORK
+            // SHA256.HashData is not available on .NET Framework.
+            using var sha = SHA256.Create();
+            byte[] hash = sha.ComputeHash(nodeSetBytes);
+#else
             byte[] hash = SHA256.HashData(nodeSetBytes);
-            string hashHex = Convert.ToHexString(hash).ToLowerInvariant();
+#endif
+            string hashHex = string.Concat(
+                Array.ConvertAll(
+                    hash,
+                    b => b.ToString("x2", System.Globalization.CultureInfo.InvariantCulture)));
             string base64 = Convert.ToBase64String(nodeSetBytes);
 
             string json =
