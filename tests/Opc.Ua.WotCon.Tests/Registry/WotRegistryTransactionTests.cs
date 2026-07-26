@@ -38,12 +38,10 @@ namespace Opc.Ua.WotCon.Tests.Registry
 {
     /// <summary>
     /// Fault-injection tests for the registry's transactional store commit
-    /// contract. A mutation must be made durable atomically <em>before</em> the
-    /// new snapshot is published (<see cref="IWotRegistryService.Current"/>) or a
-    /// <see cref="IWotRegistryService.Changed"/> event is raised. When a commit
-    /// fails: the current snapshot stays the previous generation, no change event
-    /// is raised, a retry re-attempts persistence, and a restart never observes
-    /// the partially-applied mutation.
+    /// contract. Ordinary pre-commit failures and confirmed not-committed outcomes
+    /// leave the previous snapshot published. A validated committed-but-uncertain
+    /// outcome is published and rethrown, while an indeterminate outcome blocks
+    /// mutation until reload.
     /// </summary>
     [TestFixture]
     public sealed class WotRegistryTransactionTests
@@ -274,6 +272,111 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 Is.Null);
         }
 
+        [Test]
+        public async Task ExternalStoreNotCommittedOutcomeLeavesServiceRetryable()
+        {
+            var store = new OutcomeInjectingWotRegistryStore
+            {
+                NextOutcome = CommitOutcome.NotCommitted
+            };
+            using var service = new WotRegistryService(store);
+            await service.InitializeAsync();
+            int changedCount = 0;
+            service.Changed += (_, _) => changedCount++;
+
+            WotRegistryCommitNotCommittedException error =
+                Assert.ThrowsAsync<WotRegistryCommitNotCommittedException>(
+                    async () => await service.UpsertResourceAsync(
+                        TdRequest("a", "urn:a")));
+
+            Assert.That(error.IntendedGeneration, Is.EqualTo(1));
+            Assert.That(service.Current, Is.SameAs(WotRegistrySnapshot.Empty));
+            Assert.That(changedCount, Is.Zero);
+
+            WotRegistryMutationResult retry = await service.UpsertResourceAsync(
+                TdRequest("a", "urn:a"));
+            Assert.That(retry.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
+            Assert.That(changedCount, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void PostSwitchOutcomeConstructorsArePublicForExternalStores()
+        {
+            Assert.That(
+                typeof(WotRegistryCommitNotCommittedException).GetConstructor(
+                [
+                    typeof(WotRegistrySnapshot),
+                    typeof(Exception),
+                    typeof(string)
+                ]),
+                Is.Not.Null);
+            Assert.That(
+                typeof(WotRegistryCommitDurabilityUncertainException).GetConstructor(
+                [
+                    typeof(WotRegistrySnapshot),
+                    typeof(Exception)
+                ]),
+                Is.Not.Null);
+            Assert.That(
+                typeof(WotRegistryCommitIndeterminateException).GetConstructor(
+                [
+                    typeof(WotRegistrySnapshot),
+                    typeof(Exception),
+                    typeof(Exception)
+                ]),
+                Is.Not.Null);
+        }
+
+        [Test]
+        public async Task ExternalStoreCommittedUncertainOutcomeIsPublishedAndRethrown()
+        {
+            var store = new OutcomeInjectingWotRegistryStore
+            {
+                NextOutcome = CommitOutcome.CommittedUncertain
+            };
+            using var service = new WotRegistryService(store);
+            await service.InitializeAsync();
+            int changedCount = 0;
+            service.Changed += (_, _) => changedCount++;
+
+            WotRegistryCommitDurabilityUncertainException error =
+                Assert.ThrowsAsync<WotRegistryCommitDurabilityUncertainException>(
+                    async () => await service.UpsertResourceAsync(
+                        TdRequest("a", "urn:a")));
+
+            Assert.That(service.Current, Is.SameAs(error.CommittedSnapshot));
+            Assert.That(service.Current, Is.SameAs(store.Persisted));
+            Assert.That(changedCount, Is.EqualTo(1));
+        }
+
+        [Test]
+        public async Task ExternalStoreIndeterminateOutcomeBlocksUntilReload()
+        {
+            var store = new OutcomeInjectingWotRegistryStore
+            {
+                NextOutcome = CommitOutcome.Indeterminate
+            };
+            using var service = new WotRegistryService(store);
+            await service.InitializeAsync();
+
+            WotRegistryCommitIndeterminateException error =
+                Assert.ThrowsAsync<WotRegistryCommitIndeterminateException>(
+                    async () => await service.UpsertResourceAsync(
+                        TdRequest("a", "urn:a")));
+
+            Assert.That(error.IntendedGeneration, Is.EqualTo(1));
+            Assert.That(service.Current, Is.SameAs(WotRegistrySnapshot.Empty));
+            Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await service.UpsertResourceAsync(
+                    TdRequest("b", "urn:b")));
+
+            await service.InitializeAsync();
+            Assert.That(service.Current, Is.SameAs(store.Persisted));
+            Assert.That(
+                service.Current.FindResource(WotRegistryGroups.ThingDescriptions, "a"),
+                Is.Not.Null);
+        }
+
         /// <summary>
         /// An <see cref="IWotRegistryStore"/> decorator that can be armed to throw
         /// on the next <see cref="CommitAsync"/> (before delegating to the inner
@@ -308,6 +411,60 @@ namespace Opc.Ua.WotCon.Tests.Registry
             }
 
             private readonly IWotRegistryStore m_inner;
+        }
+
+        private sealed class OutcomeInjectingWotRegistryStore : IWotRegistryStore
+        {
+            public CommitOutcome NextOutcome { get; set; }
+
+            public WotRegistrySnapshot Persisted { get; private set; } =
+                WotRegistrySnapshot.Empty;
+
+            public ValueTask<WotRegistrySnapshot> LoadAsync(
+                CancellationToken cancellationToken = default)
+            {
+                return new ValueTask<WotRegistrySnapshot>(Persisted);
+            }
+
+            public ValueTask CommitAsync(
+                WotRegistrySnapshot snapshot,
+                CancellationToken cancellationToken = default)
+            {
+                CommitOutcome outcome = NextOutcome;
+                NextOutcome = CommitOutcome.Success;
+                var failure = new IOException($"Injected external {outcome} outcome.");
+                switch (outcome)
+                {
+                    case CommitOutcome.NotCommitted:
+                        throw new WotRegistryCommitNotCommittedException(
+                            snapshot,
+                            failure,
+                            "external-recovery-manifest");
+                    case CommitOutcome.CommittedUncertain:
+                        Persisted = snapshot;
+                        throw new WotRegistryCommitDurabilityUncertainException(
+                            snapshot,
+                            failure);
+                    case CommitOutcome.Indeterminate:
+                        Persisted = snapshot;
+                        throw new WotRegistryCommitIndeterminateException(
+                            snapshot,
+                            failure,
+                            new InvalidDataException(
+                                "Injected external validation uncertainty."));
+                    default:
+                        Persisted = snapshot;
+                        return default;
+                }
+            }
+        }
+
+        private enum CommitOutcome
+        {
+            Success,
+            NotCommitted,
+            CommittedUncertain,
+            Indeterminate
         }
     }
 }
