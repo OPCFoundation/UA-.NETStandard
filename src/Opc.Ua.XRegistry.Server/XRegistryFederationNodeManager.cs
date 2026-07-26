@@ -69,6 +69,17 @@ namespace Opc.Ua.XRegistry.Server
         }
 
         /// <summary>
+        /// Loads the source-generated xRegistry companion model. The model is compiled into the
+        /// assembly by the OPC UA model source generator, so no NodeSet2 XML is parsed at runtime.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <returns>The predefined nodes of the xRegistry base model.</returns>
+        protected override NodeStateCollection LoadPredefinedNodes(ISystemContext context)
+        {
+            return new NodeStateCollection().AddOpcUaXRegistry(context);
+        }
+
+        /// <summary>
         /// Materializes the federated resource proxy with its <c>ExternalReference</c>,
         /// <c>ResourceUrl</c> and content-id metadata.
         /// </summary>
@@ -96,52 +107,29 @@ namespace Opc.Ua.XRegistry.Server
             ushort ns = (ushort)Server.NamespaceUris.GetIndex(m_namespaceUri);
             ByteString contentId = m_contentIdProvider.ComputeContentId(m_federatedFormat, m_federatedDocument);
 
-            var proxy = new BaseObjectState(null)
-            {
-                NodeId = new NodeId(XRegistryWellKnown.FederationProxyObject, ns),
-                BrowseName = new QualifiedName(m_proxyBrowseName, ns),
-                DisplayName = new LocalizedText(m_proxyBrowseName),
-                TypeDefinitionId = ObjectTypeIds.BaseObjectType
-            };
+            // The proxy is a real ResourceType instance, so a generic xRegistry client drives it
+            // through exactly the same proxy as a locally hosted resource.
+            ResourceState proxy = SystemContext.CreateInstanceOfResourceType(
+                parent: null!, new QualifiedName(m_proxyBrowseName, ns));
+            proxy.NodeId = new NodeId(XRegistryWellKnown.FederationProxyObject, ns);
+            proxy.DisplayName = new LocalizedText(m_proxyBrowseName);
+            proxy.AddExternalReference(SystemContext);
+            proxy.AddResourceUrl(SystemContext);
+            proxy.AddXid(SystemContext);
+            proxy.AddFormat(SystemContext);
+            proxy.AddEpoch(SystemContext);
 
             // The federation link: ServerIndex -> remote ServerUri (via ServerArray),
             // NamespaceUri + Identifier -> the remote resource node (content-addressed by content-id).
-            var externalReference = new ExpandedNodeId(
+            proxy.ExternalReference!.Value = new ExpandedNodeId(
                 contentId, m_remoteRegistryNamespaceUri, m_remoteServerIndex);
-
-            AddProperty(proxy, XRegistryWellKnown.FederationExternalReferenceProperty, ns,
-                "ExternalReference", DataTypeIds.ExpandedNodeId, new Variant(externalReference));
-            AddProperty(proxy, XRegistryWellKnown.FederationResourceUrlProperty, ns,
-                "ResourceUrl", DataTypeIds.String, new Variant(m_remoteEndpointUrl));
-            AddProperty(proxy, XRegistryWellKnown.FederationContentIdProperty, ns,
-                "SchemaId", DataTypeIds.ByteString, new Variant(contentId));
+            proxy.ResourceUrl!.Value = m_remoteEndpointUrl;
+            proxy.ResourceId!.Value = contentId.ToHexString();
+            proxy.Xid!.Value = contentId.ToHexString();
+            proxy.Format!.Value = m_federatedFormat;
+            proxy.Epoch!.Value = 1;
 
             AddPredefinedNode(SystemContext, proxy);
-        }
-
-        private static void AddProperty(
-            BaseObjectState parent,
-            uint id,
-            ushort ns,
-            string name,
-            NodeId dataType,
-            Variant value)
-        {
-            var property = new PropertyState(parent)
-            {
-                NodeId = new NodeId(id, ns),
-                BrowseName = new QualifiedName(name, ns),
-                DisplayName = new LocalizedText(name),
-                ReferenceTypeId = ReferenceTypeIds.HasProperty,
-                TypeDefinitionId = VariableTypeIds.PropertyType,
-                DataType = dataType,
-                ValueRank = ValueRanks.Scalar,
-                AccessLevel = AccessLevels.CurrentRead,
-                UserAccessLevel = AccessLevels.CurrentRead,
-                Value = value
-            };
-
-            parent.AddChild(property);
         }
 
         private readonly string m_namespaceUri;

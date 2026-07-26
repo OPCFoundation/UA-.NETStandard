@@ -27,36 +27,43 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.IO;
+using Opc.Ua.Client;
 
-namespace Opc.Ua.XRegistry
+namespace Opc.Ua.XRegistry.Client
 {
     /// <summary>
-    /// Provides the abstract xRegistry base companion NodeSet2 document, embedded in the
-    /// <c>Opc.Ua.XRegistry</c> assembly. This type is intentionally free of any dependency on the
-    /// OPC UA server SDK; the server-side runtime NodeSet wrapping is done in
-    /// <c>Opc.Ua.XRegistry.Server</c>.
+    /// The plain xRegistry client. It binds to any registry companion namespace and drives it
+    /// purely through the base-model ObjectType proxies, so it also works against a domain registry
+    /// whose types are subtypes of the xRegistry base types.
     /// </summary>
-    public static class XRegistryNodeSets
+    /// <remarks>
+    /// Domain registries do not wrap this class — they derive from <see cref="XRegistryClient"/>
+    /// and add their own naming and defaults.
+    /// </remarks>
+    public sealed class GenericXRegistryClient : XRegistryClient
     {
         /// <summary>
-        /// The embedded-resource name of the xRegistry base companion NodeSet2 document.
+        /// Initializes a generic registry client.
         /// </summary>
-        public const string BaseNodeSetResourceName =
-            "Opc.Ua.XRegistry.Opc.Ua.XRegistry.NodeSet2.xml";
+        /// <param name="session">The connected session whose server hosts the registry.</param>
+        /// <param name="registryNamespaceUri">The registry companion namespace URI.</param>
+        /// <param name="telemetry">Telemetry context used by the generated proxies.</param>
+        public GenericXRegistryClient(
+            ISession session,
+            string registryNamespaceUri,
+            ITelemetryContext telemetry)
+            : base(session, registryNamespaceUri, telemetry)
+        {
+        }
 
         /// <summary>
-        /// Opens a fresh read stream over the embedded xRegistry base companion NodeSet2 document.
+        /// Initializes a generic client bound to the abstract xRegistry base namespace.
         /// </summary>
-        /// <returns>A readable stream positioned at the start of the NodeSet2 XML.</returns>
-        /// <exception cref="InvalidOperationException">The embedded NodeSet was not found.</exception>
-        public static Stream OpenBaseNodeSet()
+        /// <param name="session">The connected session whose server hosts the registry.</param>
+        /// <param name="telemetry">Telemetry context used by the generated proxies.</param>
+        public GenericXRegistryClient(ISession session, ITelemetryContext telemetry)
+            : base(session, XRegistryWellKnown.XRegistryNamespaceUri, telemetry)
         {
-            return typeof(XRegistryNodeSets).Assembly
-                .GetManifestResourceStream(BaseNodeSetResourceName)
-                ?? throw new InvalidOperationException(
-                    $"Embedded xRegistry base NodeSet '{BaseNodeSetResourceName}' was not found.");
         }
     }
 }

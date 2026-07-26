@@ -27,30 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.IO;
-using System.Threading.Tasks;
-using Opc.Ua.Server.RuntimeNodeSet;
+using System;
 
-namespace Opc.Ua.XRegistry.Server
-{
-    /// <summary>
-    /// Bridges the embedded xRegistry base companion NodeSet (from <c>Opc.Ua.XRegistry</c>) into the
-    /// server runtime NodeSet import path. A concrete registry composes this base source with its own
-    /// companion NodeSet source in dependency order.
-    /// </summary>
-    public static class XRegistryServerNodeSets
-    {
-        /// <summary>
-        /// Creates a runtime NodeSet source for the abstract xRegistry base companion NodeSet, owning
-        /// the xRegistry base namespace.
-        /// </summary>
-        /// <returns>The base xRegistry NodeSet source.</returns>
-        public static RuntimeNodeSetSource CreateBaseSource()
-        {
-            return RuntimeNodeSetSource.FromStream(
-                "xRegistry",
-                _ => new ValueTask<Stream>(XRegistryNodeSets.OpenBaseNodeSet()),
-                [XRegistryWellKnown.XRegistryNamespaceUri]);
-        }
-    }
-}
+[assembly: CLSCompliant(false)]

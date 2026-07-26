@@ -15,9 +15,9 @@ Avro / Arrow / JSON DataSet schema documents.
 
 | Package | Depends on | Contains |
 | --- | --- | --- |
-| `OPCFoundation.NetStandard.Opc.Ua.XRegistry` | `Opc.Ua.Core` | The abstract base companion NodeSet, `XRegistryWellKnown`, `IResourceContentIdProvider` |
+| `OPCFoundation.NetStandard.Opc.Ua.XRegistry` | `Opc.Ua.Core` | The source-generated base companion model (types, NodeIds, `NodeState`s and `*TypeClient` proxies), `XRegistryWellKnown`, `IResourceContentIdProvider` |
 | `OPCFoundation.NetStandard.Opc.Ua.XRegistry.Client` | `Opc.Ua.XRegistry`, `Opc.Ua.Client` | `XRegistryClient` — fast-path resolve and lifecycle registration |
-| `OPCFoundation.NetStandard.Opc.Ua.XRegistry.Server` | `Opc.Ua.XRegistry`, `Opc.Ua.Server` | The three node managers, `XRegistryServerOptions`, `XRegistryServerNodeSets` |
+| `OPCFoundation.NetStandard.Opc.Ua.XRegistry.Server` | `Opc.Ua.XRegistry`, `Opc.Ua.Server` | The three node managers and `XRegistryServerOptions` |
 
 `Opc.Ua.XRegistry` has no dependency on either SDK, so a codec or a shared contracts assembly can
 reference the identity abstraction without pulling in the client or the server.
@@ -60,27 +60,57 @@ has happened.
 
 ### Registration lifecycle and auto-bootstrap
 
-`XRegistryRegistrationNodeManager` exposes the write lifecycle on the resource-group object:
+The registry serves the model's own Methods. A registry root (`RegistryType`) is materialized from
+the compiled model, and groups and resource versions are created beneath it at runtime:
 
-1. **`CreateResource`** returns an upload handle.
-2. **`Write`** appends a chunk of the document to that handle, one or more times.
-3. **`Close`** finalizes the upload. The server computes the content-id and algorithm from the
-   accumulated bytes through the configured `IResourceContentIdProvider` and — this is the
-   *auto-bootstrap* — creates the Opaque fast-path node **at runtime**, then returns
-   `(ContentId, Algorithm)` to the caller.
-4. **`Delete`** removes a registered resource by its content-id.
+1. **`RegistryType.CreateGroup(GroupId)`** returns the new group's NodeId; `GetOrCreateGroup`
+   is the idempotent form and also reports `Created`.
+2. **`GroupType.CreateResource(ResourceId, VersionId, RequestFileOpen)`** creates a resource
+   version and returns `(ResourceNodeId, AssignedVersionId, FileHandle)`. An empty `VersionId`
+   lets the server assign the next one; `GetOrCreateResource` additionally reports `Created`.
+3. Because `ResourceType` **is a `FileType`**, the document is streamed with the standard
+   `Write`/`Read` file Methods against the handle — there is no registry-specific transfer.
+4. **`Close`** finalizes the upload. The server computes the content-id from the accumulated bytes
+   through the configured `IResourceContentIdProvider`, commits the document to the
+   [resource store](#resource-storage), bumps the resource's `Epoch`, and — this is the
+   *auto-bootstrap* — publishes the Opaque fast-path node.
+5. **`Delete(ExpectedEpoch)`** on a resource or a group removes it. The epoch is an
+   optimistic-concurrency check: a caller holding a stale epoch is rejected with
+   `Bad_InvalidState` rather than deleting a newer version.
 
 Registration is idempotent by construction: re-registering identical bytes produces the same
 content-id, so the existing fast-path node is reused rather than duplicated.
 
+### Resource storage
+
+Document bytes live behind an injectable `IXRegistryResourceStore`. The default keeps them in the
+server process; a high-availability deployment substitutes a shared store so documents survive a
+failover, without touching the node managers.
+
+```csharp
+var options = new XRegistryServerOptions
+{
+    ResourceStore = new MySharedResourceStore()
+};
+```
+
 ### Federation
 
 `XRegistryFederationNodeManager` publishes a **proxy** for a resource hosted by another registry. The
-proxy carries an `ExternalReference` — an `ExpandedNodeId` whose `ServerIndex` names the remote server
-through the local `ServerArray`, and whose `NamespaceUri` and `Identifier` are the remote resource
-node's identity — and/or a plain `ResourceUrl`, alongside the resource's content-id. Since the
-content-id is stable across registries, the same resource federated from several endpoints keeps
-**one** identity and can be de-duplicated by consumers.
+proxy is itself a `ResourceType` instance, so a generic xRegistry client drives it through exactly the
+same generated proxy as a locally hosted resource. It carries an `ExternalReference` — an
+`ExpandedNodeId` whose `ServerIndex` names the remote server through the local `ServerArray`, and whose
+`NamespaceUri` and `Identifier` are the remote resource node's identity — and/or a plain `ResourceUrl`,
+with the content-id in `Xid`. Since the content-id is stable across registries, the same resource
+federated from several endpoints keeps **one** identity and can be de-duplicated by consumers.
+
+### Labels
+
+`RegistryType`, `GroupType` and `ResourceType` each expose a `Labels` Object of type `AttributesType`
+with `AddAttribute(Key, Value, ExpectedEpoch)` and `RemoveAttribute(Key, ExpectedEpoch)`. Labels are
+published as addressable `String` Properties in the registry namespace, so a client can read them with
+a plain Read. Both mutations take the owning node's epoch and advance it on success, which makes a
+concurrent update visible instead of silently lost.
 
 ## Server-side usage
 
@@ -105,13 +135,26 @@ var fastPath = new XRegistryFastPathNodeManager(server, configuration, options);
 var federation = new XRegistryFederationNodeManager(server, configuration, options);
 ```
 
-The registry's companion NodeSet is imported through the runtime NodeSet pipeline (see
-[Runtime NodeSets](RuntimeNodeSets.md)). A concrete registry composes the abstract base source with
-its own companion NodeSet source, in dependency order:
+The registry's companion model is **compiled into the assembly** by the OPC UA model source
+generator: `Opc.Ua.XRegistry.NodeSet2.xml` is a generator input (`AdditionalFiles`), so the
+ObjectTypes, Methods, Variables, NodeId constants, `NodeState` classes and typed
+[ObjectType proxies](../tools/Opc.Ua.SourceGeneration/readme.md) are emitted at build time. No
+NodeSet2 XML is parsed at runtime — each node manager simply returns the generated model from
+`LoadPredefinedNodes`:
 
 ```csharp
-RuntimeNodeSetSource baseSource = XRegistryServerNodeSets.CreateBaseSource();
+protected override NodeStateCollection LoadPredefinedNodes(ISystemContext context)
+{
+    return new NodeStateCollection().AddOpcUaXRegistry(context);
+}
 ```
+
+A concrete registry composes its own companion model on top of the base model in dependency
+order, declaring `RequiredModel` on the xRegistry namespace in its NodeSet.
+
+> **Note:** the model occupies NodeIds 63000-63999 in the registry namespace. The instance
+> identifiers in `XRegistryWellKnown` live above that range so a materialized instance can never
+> collide with a model node.
 
 ### Resource-exhaustion bounds
 
@@ -120,21 +163,30 @@ dimension. Exceeding a bound fails the call rather than the server:
 
 | Option | Default | Enforced on | Status code |
 | --- | --- | --- | --- |
-| `MaxConcurrentUploads` | 64 | `CreateResource` | `BadTooManyOperations` |
-| `MaxResourceBytes` | 16 MiB | `Write` | `BadRequestTooLarge` |
-| `MaxRegisteredResources` | 4096 | `Close` | `BadTooManyOperations` |
+| `MaxConcurrentUploads` | 64 | `CreateResource` / file `Open` | `BadTooManyOperations` |
+| `MaxResourceBytes` | 16 MiB | file `Write` | `BadRequestTooLarge` |
+| `MaxRegisteredResources` | 4096 | `CreateResource` | `BadTooManyOperations` |
 
 ## Client-side usage
 
-`XRegistryClient` binds to a connected session and the registry's companion namespace, and resolves
-the namespace index up front (throwing `BadNodeIdUnknown` when the server does not expose it).
+The client layer is built entirely on the **source-generated ObjectType proxies** — no hand-rolled
+service calls. `XRegistryClient` is an **abstract** base carrying the xRegistry-level API;
+`GenericXRegistryClient` is the sealed implementation for callers that only need the base model,
+and a domain registry client derives from the same base:
+
+```text
+abstract XRegistryClient
+   ├── sealed GenericXRegistryClient   // any registry namespace
+   ├── SchemaRegistryClient  (domain)
+   └── WotRegistryClient     (domain)
+```
 
 Resolving a resource from an id received on the wire is a single call. It returns a **null**
 `ByteString` — check `IsNull` — when no fast-path node is registered, so the caller can fall back to a
 Browse or a registry-specific download:
 
 ```csharp
-var client = new XRegistryClient(session, "http://example.org/UA/MyRegistry/");
+var client = new GenericXRegistryClient(session, "http://example.org/UA/MyRegistry/", telemetry);
 
 ByteString document = await client.ResolveResourceAsync(contentId, ct).ConfigureAwait(false);
 if (document.IsNull)
@@ -143,21 +195,58 @@ if (document.IsNull)
 }
 ```
 
-Registering a document drives the whole lifecycle and returns the server-computed identity. The
-group and Method NodeIds are obtained by Browsing the registry's well-known object; a concrete
-registry typically wraps this in a domain-specific helper:
+Registering a document drives the model's own lifecycle: the group's `CreateResource` creates the
+version and opens it for writing, and the document is streamed through the `FileType` methods that
+`ResourceType` inherits.
 
 ```csharp
-(ByteString contentId, string? algorithm) = await client.RegisterResourceAsync(
-    resourceGroupObjectId,
-    createResourceMethodId,
-    writeMethodId,
-    closeMethodId,
-    documentBytes,
-    format: "avro",
-    chunkSize: 4096,
-    ct).ConfigureAwait(false);
+(NodeId resourceNodeId, string assignedVersionId) = await client.RegisterResourceAsync(
+    groupNodeId,
+    resourceId: "urn:my:resource",
+    document: documentBytes,
+    ct: ct).ConfigureAwait(false);
 ```
+
+Groups, idempotent registration and deletion are covered by the same convenience layer. Delete takes
+the node's `ExpectedEpoch`, so a caller working from a stale read is rejected rather than clobbering a
+concurrent change:
+
+```csharp
+(NodeId groupNodeId, bool groupCreated) =
+    await client.GetOrCreateGroupAsync("schemas", ct: ct).ConfigureAwait(false);
+
+// Only streams the document when it actually created the version.
+(NodeId nodeId, string versionId, bool created) = await client.GetOrRegisterResourceAsync(
+    groupNodeId, "urn:my:resource", documentBytes, ct: ct).ConfigureAwait(false);
+
+await client.DeleteResourceAsync(nodeId, expectedEpoch, ct).ConfigureAwait(false);
+await client.DeleteGroupAsync(groupNodeId, groupEpoch, ct).ConfigureAwait(false);
+```
+
+The typed proxies are also available directly, which is what a domain client builds on:
+```csharp
+GroupTypeClient group = client.GetGroup(groupNodeId);
+(NodeId nodeId, string versionId, uint fileHandle) =
+    await group.GetOrCreateResourceAsync("urn:my:resource", string.Empty, true, ct)
+        .ConfigureAwait(false);
+
+ResourceTypeClient resource = client.GetResource(nodeId);
+await resource.WriteDocumentAsync(fileHandle, documentBytes, ct: ct).ConfigureAwait(false);
+```
+
+### Extending for a domain registry
+
+A domain model subtypes the xRegistry base types — the PubSub Schema Registry declares
+`SchemaFileType : ResourceType` — so the generator emits a proxy chain that mirrors the OPC UA
+hierarchy (`SchemaFileTypeClient : ResourceTypeClient : FileTypeClient`). Two things follow:
+
+* A **domain client** derives from `XRegistryClient` and inherits the whole lifecycle. Helpers
+  written as extension methods over a base proxy (such as `WriteDocumentAsync` on
+  `ResourceTypeClient`) are directly callable on the domain proxy, with no inheritance in the
+  client layer.
+* A **generic client** still drives a domain registry, because a domain instance *is* an instance
+  of the base type. Discovery must be subtype-aware (browse with `includeSubtypes`, test with
+  `IsTypeOf`) rather than comparing TypeDefinition NodeIds for equality.
 
 ## Well-known identifiers
 
@@ -170,18 +259,16 @@ namespace, so the client-side lookup logic is shared.
 | Member | Value | Meaning |
 | --- | --- | --- |
 | `XRegistryNamespaceUri` | `http://opcfoundation.org/UA/xRegistry/` | Abstract base companion namespace |
-| `ResourceGroupObject` | 63001 | The registration resource-group object |
-| `CreateResourceMethod` | 63002 | Obtain an upload handle |
-| `WriteMethod` | 63003 | Append document bytes |
-| `CloseMethod` | 63004 | Finalize, fingerprint and publish |
-| `DeleteMethod` | 63005 | Remove a registered resource |
-| `FederationProxyObject` | 64001 | Federated resource proxy |
-| `FederationExternalReferenceProperty` | 64002 | Proxy's `ExternalReference` |
-| `FederationResourceUrlProperty` | 64003 | Proxy's `ResourceUrl` |
-| `FederationContentIdProperty` | 64004 | Proxy's content-id |
+| `RegistryObject` | 65000 | The registry root, a `RegistryType` instance |
+| `FederationProxyObject` | 66001 | Federated resource proxy, a `ResourceType` instance |
+| `FirstDynamicInstance` | 100000 | Start of the range allocated to runtime groups and resources |
+
+Everything else — the ObjectTypes, their Methods and their Variables — comes from the compiled model
+via the generated `ObjectTypeIds`, `MethodIds` and `VariableIds` classes. The model occupies
+63000–63999, so the instance identifiers above can never collide with it.
 
 ## Related documentation
 
-* [Runtime NodeSets](RuntimeNodeSets.md) — how the companion NodeSet is imported into a server.
+* [Source generation](../tools/Opc.Ua.SourceGeneration/readme.md) — how the companion model and its typed proxies are compiled into the assembly.
 * [Node management](NodeManagement.md) — the node manager model the three managers build on.
 * [PubSub (Part 14)](PubSub.md) — the PubSub Schema Registry specialization of this model.

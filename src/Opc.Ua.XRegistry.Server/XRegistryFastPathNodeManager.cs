@@ -65,6 +65,17 @@ namespace Opc.Ua.XRegistry.Server
         }
 
         /// <summary>
+        /// Loads the source-generated xRegistry companion model. The model is compiled into the
+        /// assembly by the OPC UA model source generator, so no NodeSet2 XML is parsed at runtime.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <returns>The predefined nodes of the xRegistry base model.</returns>
+        protected override NodeStateCollection LoadPredefinedNodes(ISystemContext context)
+        {
+            return new NodeStateCollection().AddOpcUaXRegistry(context);
+        }
+
+        /// <summary>
         /// Materializes the content-addressed Opaque content-id node. Its NodeId is constructed
         /// deterministically from the raw content-id bytes (§6.4) so a decoder that received the id
         /// on the wire can reach the resource document in one Read.
@@ -101,7 +112,7 @@ namespace Opc.Ua.XRegistry.Server
                 DisplayName = new LocalizedText(m_seedBrowseName),
                 TypeDefinitionId = VariableTypeIds.BaseDataVariableType,
                 ReferenceTypeId = ReferenceTypeIds.HasComponent,
-                DataType = DataTypeIds.ByteString,
+                DataType = Opc.Ua.DataTypeIds.ByteString,
                 ValueRank = ValueRanks.Scalar,
                 AccessLevel = AccessLevels.CurrentRead,
                 UserAccessLevel = AccessLevels.CurrentRead,
