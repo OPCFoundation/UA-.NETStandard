@@ -1685,8 +1685,7 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(context));
             }
             EnsureSessionNotClosing(context);
-            if (m_server.SubscriptionManager is ISubscriptionDeletionRegistry deletionRegistry &&
-                deletionRegistry.IsDeleting(Id))
+            if (m_server.SubscriptionManager?.IsDeleting(Id) == true)
             {
                 throw new ServiceResultException(
                     StatusCodes.BadSubscriptionIdInvalid);
@@ -1727,9 +1726,7 @@ namespace Opc.Ua.Server
                 IsDurable,
                 cancellationToken).ConfigureAwait(false);
 
-            if (m_server.SubscriptionManager is
-                ISubscriptionDeletionRegistry currentDeletionRegistry &&
-                currentDeletionRegistry.IsDeleting(Id))
+            if (m_server.SubscriptionManager?.IsDeleting(Id) == true)
             {
                 var cleanupErrors = new List<ServiceResult>(errors.Count);
                 for (int ii = 0; ii < errors.Count; ii++)
@@ -1957,8 +1954,7 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(context));
             }
             EnsureSessionNotClosing(context);
-            if (m_server.SubscriptionManager is ISubscriptionDeletionRegistry deletionRegistry &&
-                deletionRegistry.IsDeleting(Id))
+            if (m_server.SubscriptionManager?.IsDeleting(Id) == true)
             {
                 throw new ServiceResultException(
                     StatusCodes.BadSubscriptionIdInvalid);
@@ -2375,8 +2371,7 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(context));
             }
             EnsureSessionNotClosing(context);
-            if (m_server.SubscriptionManager is ISubscriptionDeletionRegistry deletionRegistry &&
-                deletionRegistry.IsDeleting(Id))
+            if (m_server.SubscriptionManager?.IsDeleting(Id) == true)
             {
                 throw new ServiceResultException(
                     StatusCodes.BadSubscriptionIdInvalid);

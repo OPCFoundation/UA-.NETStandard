@@ -41,9 +41,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// A generic session manager object for a server.
     /// </summary>
-    public class SubscriptionManager :
-        ISubscriptionManager,
-        ISubscriptionDeletionRegistry
+    public class SubscriptionManager : ISubscriptionManager
     {
         /// <summary>
         /// Initializes the manager with its configuration.
@@ -216,7 +214,8 @@ namespace Opc.Ua.Server
             return m_subscriptions.TryGetValue(id, out subscription);
         }
 
-        bool ISubscriptionDeletionRegistry.IsDeleting(uint subscriptionId)
+        /// <inheritdoc/>
+        public bool IsDeleting(uint subscriptionId)
         {
             return m_deletingSubscriptions.ContainsKey(subscriptionId);
         }
