@@ -56,22 +56,23 @@ namespace Microsoft.Extensions.DependencyInjection
             builder.ThrowIfNull(nameof(builder));
 
             builder.AddOpcUaDi();
+            builder.Services.TryAddSingleton<RoboticsClientFactory>(sp =>
+            {
+               Func<CancellationToken, Task<ManagedSession>> sessionFactory =
+                   sp.GetService<Func<CancellationToken, Task<ManagedSession>>>() ??
+                   throw new InvalidOperationException(
+                       "AddRoboticsClient requires AddClient to be called first.");
+               ITelemetryContext telemetry =
+                   sp.GetRequiredService<ITelemetryContext>();
+               return new RoboticsClientFactory(sessionFactory, telemetry);
+            });
 
             builder.Services.TryAddSingleton<
-                Func<CancellationToken, Task<RoboticsClient>>>(sp =>
+               Func<CancellationToken, Task<RoboticsClient>>>(sp =>
             {
-                Func<CancellationToken, Task<ManagedSession>> sessionFactory =
-                    sp.GetService<Func<CancellationToken, Task<ManagedSession>>>() ??
-                    throw new InvalidOperationException(
-                        "AddRoboticsClient requires AddClient to be called first.");
-                ITelemetryContext telemetry =
-                    sp.GetRequiredService<ITelemetryContext>();
-                return async cancellationToken =>
-                {
-                    ManagedSession session = await sessionFactory(cancellationToken)
-                        .ConfigureAwait(false);
-                    return new RoboticsClient(session, telemetry);
-                };
+               RoboticsClientFactory factory =
+                   sp.GetRequiredService<RoboticsClientFactory>();
+               return factory.CreateAsync;
             });
 
             return builder;

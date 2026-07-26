@@ -52,7 +52,7 @@ namespace Opc.Ua.Robotics.Client
     /// <c>AcmeMotionDeviceType</c> derived from <c>MotionDeviceType</c>) is
     /// discovered and classified as the closest standard Robotics type.
     /// </remarks>
-    public sealed class RoboticsClient
+    public sealed partial class RoboticsClient
     {
         /// <summary>
         /// Creates a Robotics client over a connected session.
