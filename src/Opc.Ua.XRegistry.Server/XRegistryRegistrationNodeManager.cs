@@ -124,6 +124,8 @@ namespace Opc.Ua.XRegistry.Server
             registry.AddModifiedAt(SystemContext);
             registry.AddCreateGroup(SystemContext);
             registry.AddGetOrCreateGroup(SystemContext);
+            registry.AddLabels(SystemContext);
+            BindAttributeMethods(registry.Labels, () => registry.Epoch);
 
             SetValue(registry.RegistryId, m_registryId);
             SetValue(registry.SpecVersion, m_specVersion);
@@ -256,6 +258,8 @@ namespace Opc.Ua.XRegistry.Server
             group.AddCreateResource(SystemContext);
             group.AddGetOrCreateResource(SystemContext);
             group.AddDelete(SystemContext);
+            group.AddLabels(SystemContext);
+            BindAttributeMethods(group.Labels, () => group.Epoch);
 
             SetValue(group.GroupId, groupId);
             SetValue(group.Xid, groupId);
@@ -426,6 +430,8 @@ namespace Opc.Ua.XRegistry.Server
             resource.AddCreatedAt(SystemContext);
             resource.AddModifiedAt(SystemContext);
             resource.AddDelete(SystemContext);
+            resource.AddLabels(SystemContext);
+            BindAttributeMethods(resource.Labels, () => resource.Epoch);
 
             SetValue(resource.ResourceId, resourceId);
             SetValue(resource.VersionId, versionId);
@@ -786,6 +792,130 @@ namespace Opc.Ua.XRegistry.Server
             if (property != null)
             {
                 property.Value = value;
+            }
+        }
+
+        /// <summary>
+        /// Binds the <c>AttributesType</c> Methods on a <c>Labels</c> Object. Both mutate the owning
+        /// node, so both take the owner's epoch as an optimistic-concurrency check.
+        /// </summary>
+        /// <param name="labels">The Labels Object, when the owner exposes one.</param>
+        /// <param name="epoch">Accessor for the owning node's epoch.</param>
+        private void BindAttributeMethods(AttributesState? labels, Func<PropertyState<uint>?> epoch)
+        {
+            if (labels == null)
+            {
+                return;
+            }
+
+            labels.AddAddAttribute(SystemContext);
+            labels.AddRemoveAttribute(SystemContext);
+
+            if (labels.AddAttribute != null)
+            {
+                labels.AddAttribute.OnCallAsync = (ctx, m, id, key, value, expectedEpoch, ct) =>
+                    OnAddAttributeAsync(labels, epoch(), key, value, expectedEpoch);
+            }
+            if (labels.RemoveAttribute != null)
+            {
+                labels.RemoveAttribute.OnCallAsync = (ctx, m, id, key, expectedEpoch, ct) =>
+                    OnRemoveAttributeAsync(labels, epoch(), key, expectedEpoch);
+            }
+        }
+
+        /// <summary>
+        /// Handles <c>AttributesType.AddAttribute(Key, Value, ExpectedEpoch)</c>, adding or
+        /// replacing a label on the owning node.
+        /// </summary>
+        internal ValueTask<AddAttributeMethodStateResult> OnAddAttributeAsync(
+            AttributesState labels,
+            PropertyState<uint>? epoch,
+            string key,
+            string value,
+            uint expectedEpoch)
+        {
+            if (string.IsNullOrEmpty(key))
+            {
+                return new ValueTask<AddAttributeMethodStateResult>(
+                    new AddAttributeMethodStateResult { ServiceResult = StatusCodes.BadInvalidArgument });
+            }
+
+            lock (m_gate)
+            {
+                if (epoch != null && epoch.Value != expectedEpoch)
+                {
+                    return new ValueTask<AddAttributeMethodStateResult>(
+                        new AddAttributeMethodStateResult { ServiceResult = StatusCodes.BadInvalidState });
+                }
+
+                ushort ns = (ushort)Server.NamespaceUris.GetIndex(m_namespaceUri);
+                var browseName = new QualifiedName(key, ns);
+                if (labels.FindChild(SystemContext, browseName) is PropertyState<string> existing)
+                {
+                    existing.Value = value;
+                }
+                else
+                {
+                    PropertyState<string> attribute = PropertyState<string>.With<VariantBuilder>(labels, value);
+                    attribute.NodeId = new NodeId(m_nextInstanceId++, ns);
+                    attribute.BrowseName = browseName;
+                    attribute.DisplayName = new LocalizedText(key);
+                    attribute.ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasProperty;
+                    attribute.TypeDefinitionId = Opc.Ua.VariableTypeIds.PropertyType;
+                    attribute.DataType = Opc.Ua.DataTypeIds.String;
+                    attribute.ValueRank = ValueRanks.Scalar;
+                    attribute.AccessLevel = AccessLevels.CurrentRead;
+                    attribute.UserAccessLevel = AccessLevels.CurrentRead;
+                    labels.AddChild(attribute);
+                    AddPredefinedNode(SystemContext, attribute);
+                }
+
+                BumpEpoch(epoch);
+                return new ValueTask<AddAttributeMethodStateResult>(
+                    new AddAttributeMethodStateResult { ServiceResult = ServiceResult.Good });
+            }
+        }
+
+        /// <summary>
+        /// Handles <c>AttributesType.RemoveAttribute(Key, ExpectedEpoch)</c>.
+        /// </summary>
+        internal ValueTask<RemoveAttributeMethodStateResult> OnRemoveAttributeAsync(
+            AttributesState labels,
+            PropertyState<uint>? epoch,
+            string key,
+            uint expectedEpoch)
+        {
+            lock (m_gate)
+            {
+                if (epoch != null && epoch.Value != expectedEpoch)
+                {
+                    return new ValueTask<RemoveAttributeMethodStateResult>(
+                        new RemoveAttributeMethodStateResult
+                        {
+                            ServiceResult = StatusCodes.BadInvalidState
+                        });
+                }
+
+                ushort ns = (ushort)Server.NamespaceUris.GetIndex(m_namespaceUri);
+                if (labels.FindChild(SystemContext, new QualifiedName(key, ns)) is not BaseInstanceState attribute)
+                {
+                    return new ValueTask<RemoveAttributeMethodStateResult>(
+                        new RemoveAttributeMethodStateResult { ServiceResult = StatusCodes.BadNotFound });
+                }
+
+                labels.RemoveChild(attribute);
+                DeleteNode(SystemContext, attribute.NodeId);
+                BumpEpoch(epoch);
+                return new ValueTask<RemoveAttributeMethodStateResult>(
+                    new RemoveAttributeMethodStateResult { ServiceResult = ServiceResult.Good });
+            }
+        }
+
+        private static void BumpEpoch(PropertyState<uint>? epoch)
+        {
+            if (epoch != null)
+            {
+                epoch.Value++;
             }
         }
 
