@@ -33,6 +33,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
@@ -150,7 +151,7 @@ namespace Opc.Ua.PubSub.Server.Tests.SchemaRegistry
         [Order(100)]
         public void ClientResolvesSchemaRegistryNamespace()
         {
-            var client = new SchemaRegistryClient(m_session);
+            var client = new SchemaRegistryClient(m_session, m_telemetry);
             Assert.That(
                 client.NamespaceIndex,
                 Is.EqualTo(m_session.NamespaceUris.GetIndex(
@@ -166,7 +167,7 @@ namespace Opc.Ua.PubSub.Server.Tests.SchemaRegistry
         [Order(200)]
         public async Task ClientResolvesSeedSchemaByOpaqueSchemaIdAsync()
         {
-            var client = new SchemaRegistryClient(m_session);
+            var client = new SchemaRegistryClient(m_session, m_telemetry);
 
             ByteString resolved = await client
                 .ResolveSchemaAsync(s_seedSchemaId)
@@ -184,7 +185,7 @@ namespace Opc.Ua.PubSub.Server.Tests.SchemaRegistry
         [Order(300)]
         public async Task ClientReportsNullForUnregisteredSchemaIdAsync()
         {
-            var client = new SchemaRegistryClient(m_session);
+            var client = new SchemaRegistryClient(m_session, m_telemetry);
             var unknown = ByteString.From(new byte[] { 0xDE, 0xAD, 0xBE, 0xEF, 0x00, 0x11, 0x22, 0x33 });
 
             ByteString resolved = await client.ResolveSchemaAsync(unknown).ConfigureAwait(false);
@@ -194,64 +195,89 @@ namespace Opc.Ua.PubSub.Server.Tests.SchemaRegistry
         }
 
         /// <summary>
-        /// End-to-end round-trip: a schema is registered on the server (CreateResource/Write/Close,
-        /// which auto-bootstraps the content-addressed fast-path node), and the client then resolves
-        /// that freshly registered document over the wire by the SchemaId the server returned.
+        /// End-to-end round-trip: a schema is registered on the server through the new registry
+        /// root → group → resource client model, and the client then resolves that freshly
+        /// registered document over the wire by the server-computed SchemaId.
         /// </summary>
         [Test]
         [Order(400)]
         public async Task ClientResolvesRuntimeRegisteredSchemaAsync()
         {
-            IServerInternal server = m_server.CurrentInstance;
-            ushort ns = (ushort)server.NamespaceUris.GetIndex(
-                SchemaRegistryTestServer.SchemaRegistryNamespaceUri);
-
-            MethodState createResource = await FindMethodAsync(
-                server, XRegistryWellKnown.CreateResourceMethod, ns).ConfigureAwait(false);
-            MethodState write = await FindMethodAsync(
-                server, XRegistryWellKnown.WriteMethod, ns).ConfigureAwait(false);
-            MethodState close = await FindMethodAsync(
-                server, XRegistryWellKnown.CloseMethod, ns).ConfigureAwait(false);
-
-            var groupId = new NodeId(XRegistryWellKnown.ResourceGroupObject, ns);
-            ISystemContext ctx = server.DefaultSystemContext;
-
             byte[] document = System.Text.Encoding.UTF8.GetBytes(
                 "{\"type\":\"record\",\"name\":\"ClientResolved\",\"fields\":[]}");
+            (NodeId resourceNodeId, string versionId, ByteString registeredSchemaId) =
+                await RegisterSchemaOnServerAsync(
+                    m_server.CurrentInstance,
+                    "client-runtime",
+                    "urn:schema:client-resolved",
+                    document).ConfigureAwait(false);
 
-            var createOutputs = new List<Variant>();
-            createResource.OnCallMethod2(ctx, createResource, groupId,
-                [new Variant("urn:schema:client-resolved"), new Variant(string.Empty)], createOutputs);
-            createOutputs[0].TryGetValue(out uint handle);
-
-            write.OnCallMethod2(ctx, write, groupId,
-                [new Variant(handle), new Variant(ByteString.From(document))], new List<Variant>());
-
-            var closeOutputs = new List<Variant>();
-            close.OnCallMethod2(ctx, close, groupId,
-                [new Variant(handle), new Variant("avro")], closeOutputs);
-            closeOutputs[0].TryGetValue(out ByteString registeredSchemaId);
-
-            // The client resolves the freshly registered document over the wire by its SchemaId.
-            var client = new SchemaRegistryClient(m_session);
+            var client = new SchemaRegistryClient(m_session, m_telemetry);
             ByteString resolved = await client
                 .ResolveSchemaAsync(registeredSchemaId)
                 .ConfigureAwait(false);
 
-            Assert.That(resolved, Is.EqualTo(ByteString.From(document)),
-                "The client resolves the runtime-registered schema by its content-derived SchemaId.");
+            Assert.Multiple(() =>
+            {
+                Assert.That(resourceNodeId.IsNull, Is.False);
+                Assert.That(versionId, Is.Not.Empty);
+                Assert.That(resolved, Is.EqualTo(ByteString.From(document)),
+                    "The client resolves the runtime-registered schema by its content-derived SchemaId.");
+            });
         }
 
-        private static async Task<MethodState> FindMethodAsync(
-            IServerInternal server, uint id, ushort ns)
+        private static async Task<(NodeId ResourceNodeId, string VersionId, ByteString SchemaId)>
+            RegisterSchemaOnServerAsync(
+                IServerInternal server,
+                string groupId,
+                string resourceId,
+                byte[] document)
         {
-            NodeState node = await server.NodeManager
-                .FindNodeInAddressSpaceAsync(new NodeId(id, ns))
+            ISystemContext ctx = server.DefaultSystemContext;
+            ushort ns = (ushort)server.NamespaceUris.GetIndex(
+                SchemaRegistryTestServer.SchemaRegistryNamespaceUri);
+            NodeState registryNode = await server.NodeManager
+                .FindNodeInAddressSpaceAsync(new NodeId(XRegistryWellKnown.RegistryObject, ns))
                 .ConfigureAwait(false);
+            var registry = registryNode as RegistryState;
+            Assert.That(registry, Is.Not.Null);
 
-            var method = node as MethodState;
-            Assert.That(method, Is.Not.Null, $"Registration method {id} should be a MethodState.");
-            return method!;
+            GetOrCreateGroupMethodStateResult groupResult = await registry!.GetOrCreateGroup!.OnCallAsync!(
+                ctx, registry.GetOrCreateGroup, registry.NodeId, groupId, CancellationToken.None)
+                .ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(groupResult.ServiceResult), Is.True);
+
+            NodeState groupNode = await server.NodeManager
+                .FindNodeInAddressSpaceAsync(groupResult.GroupNodeId)
+                .ConfigureAwait(false);
+            var group = groupNode as GroupState;
+            Assert.That(group, Is.Not.Null);
+
+            CreateResourceMethodStateResult created = await group!.CreateResource!.OnCallAsync!(
+                ctx, group.CreateResource, group.NodeId, resourceId, string.Empty, true,
+                CancellationToken.None).ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(created.ServiceResult), Is.True);
+
+            NodeState resourceNode = await server.NodeManager
+                .FindNodeInAddressSpaceAsync(created.ResourceNodeId)
+                .ConfigureAwait(false);
+            var resource = resourceNode as ResourceState;
+            Assert.That(resource, Is.Not.Null);
+
+            WriteMethodStateResult written = await resource!.Write!.OnCallAsync!(
+                ctx, resource.Write, resource.NodeId, created.FileHandle, ByteString.From(document),
+                CancellationToken.None).ConfigureAwait(false);
+            CloseMethodStateResult closed = await resource.Close!.OnCallAsync!(
+                ctx, resource.Close, resource.NodeId, created.FileHandle, CancellationToken.None)
+                .ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(written.ServiceResult), Is.True);
+                Assert.That(ServiceResult.IsGood(closed.ServiceResult), Is.True);
+            });
+
+            ByteString schemaId = SchemaContentIdProvider.Instance.ComputeContentId("avro", document);
+            return (created.ResourceNodeId, created.AssignedVersionId, schemaId);
         }
     }
 }

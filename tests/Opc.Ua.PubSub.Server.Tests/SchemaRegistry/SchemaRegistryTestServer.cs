@@ -38,12 +38,11 @@ namespace Opc.Ua.PubSub.Server.Tests.SchemaRegistry
 {
     /// <summary>
     /// A <see cref="ReferenceServer"/> that enables the optional in-server PubSub Schema Registry
-    /// feature: it loads the abstract xRegistry base companion NodeSet (from <c>Opc.Ua.XRegistry</c>)
-    /// and the Schema Registry companion NodeSet (from <c>Opc.Ua.PubSub</c>) through the
-    /// <see cref="RuntimeNodeSetNodeManagerFactory"/> import path and attaches the fast-path,
-    /// registration and federation node managers from <c>Opc.Ua.PubSub.Server</c>. This proves the
-    /// in-server Schema Registry AddressSpace model materializes in a real server exactly as the
-    /// generated companion NodeSets describe.
+    /// feature: it loads the Schema Registry companion NodeSet (from <c>Opc.Ua.PubSub</c>) through
+    /// the <see cref="RuntimeNodeSetNodeManagerFactory"/> import path and attaches the fast-path,
+    /// registration and federation node managers from <c>Opc.Ua.PubSub.Server</c>. The xRegistry
+    /// node managers also load the compiled xRegistry base model as predefined nodes; this harness
+    /// supplies the base NodeSet to the runtime importer so it can resolve Schema Registry supertypes.
     /// </summary>
     internal sealed class SchemaRegistryTestServer : ReferenceServer
     {
@@ -68,9 +67,8 @@ namespace Opc.Ua.PubSub.Server.Tests.SchemaRegistry
             SchemaRegistryWellKnown.SchemaRegistryGetSchemaMethod;
 
         /// <summary>
-        /// Initializes the server and registers the runtime NodeSet factory that loads the
-        /// xRegistry base and Schema Registry companion NodeSets in dependency order, plus the
-        /// Schema Registry node managers.
+        /// Initializes the server and registers the runtime NodeSet factory for the Schema Registry
+        /// companion NodeSet, plus the Schema Registry node managers.
         /// </summary>
         /// <param name="telemetry">Telemetry context forwarded to the base server.</param>
         public SchemaRegistryTestServer(ITelemetryContext telemetry)
@@ -83,10 +81,10 @@ namespace Opc.Ua.PubSub.Server.Tests.SchemaRegistry
                 Sources = SchemaRegistryServerNodeSets.CreateSources(options)
             };
 
-            AddNodeManager(new RuntimeNodeSetNodeManagerFactory(nodeSetOptions));
             AddNodeManager(new FastPathNodeManagerFactory(options));
             AddNodeManager(new SchemaRegistrationNodeManagerFactory(options));
             AddNodeManager(new FederationNodeManagerFactory(options));
+            AddNodeManager(new RuntimeNodeSetNodeManagerFactory(nodeSetOptions));
         }
     }
 }

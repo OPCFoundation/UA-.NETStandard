@@ -76,6 +76,23 @@ namespace Opc.Ua.PubSub.Server.SchemaRegistry
         public bool PublishFederationProxy { get; set; } = true;
 
         /// <summary>
+        /// The BrowseName of the Schema Registry root Object materialized from the compiled model.
+        /// </summary>
+        public string SchemaRegistryBrowseName { get; set; } = "SchemaRegistry";
+
+        /// <summary>
+        /// The registry identity (<c>RegistryId</c>/<c>Xid</c>) published on the registry root.
+        /// </summary>
+        public string SchemaRegistryId { get; set; } = "urn:opcfoundation:schemaregistry";
+
+        /// <summary>
+        /// The store that holds the registered schema documents. Defaults to an in-memory store; a
+        /// distributed deployment injects a shared implementation so every node sees the same
+        /// schemas.
+        /// </summary>
+        public IXRegistryResourceStore ResourceStore { get; set; } = new InMemoryXRegistryResourceStore();
+
+        /// <summary>
         /// Builds the generic <see cref="XRegistryServerOptions"/> that drive the xRegistry node
         /// managers with the Schema Registry namespace, content-id provider and seed documents.
         /// </summary>
@@ -86,6 +103,9 @@ namespace Opc.Ua.PubSub.Server.SchemaRegistry
             {
                 RegistryNamespaceUri = SchemaRegistryNamespaceUri,
                 ContentIdProvider = SchemaContentIdProvider.Instance,
+                ResourceStore = ResourceStore,
+                RegistryBrowseName = SchemaRegistryBrowseName,
+                RegistryId = SchemaRegistryId,
                 PublishSeedResource = PublishSeedSchema,
                 SeedDocument = SeedSchemaDocument,
                 SeedFormat = "avro",

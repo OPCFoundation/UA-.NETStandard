@@ -54,16 +54,21 @@ namespace Opc.Ua.PubSub.SchemaRegistry
         /// Initializes a Schema Registry client bound to a connected <paramref name="session"/>.
         /// </summary>
         /// <param name="session">The connected session whose server hosts the Schema Registry.</param>
+        /// <param name="telemetry">Telemetry context used by the generated proxies.</param>
         /// <param name="schemaRegistryNamespaceUri">
         /// The Schema Registry companion namespace URI. Defaults to
         /// <see cref="SchemaRegistryNamespaceUri"/>.
         /// </param>
-        public SchemaRegistryClient(ISession session, string? schemaRegistryNamespaceUri = null)
+        public SchemaRegistryClient(
+            ISession session,
+            ITelemetryContext telemetry,
+            string? schemaRegistryNamespaceUri = null)
             : base(
                 session,
                 string.IsNullOrEmpty(schemaRegistryNamespaceUri)
                     ? SchemaRegistryNamespaceUri
-                    : schemaRegistryNamespaceUri!)
+                    : schemaRegistryNamespaceUri!,
+                telemetry)
         {
         }
 
@@ -81,38 +86,69 @@ namespace Opc.Ua.PubSub.SchemaRegistry
         }
 
         /// <summary>
-        /// Registers a schema document through the Schema Registry write lifecycle (§5.2). On close
-        /// the server computes and returns the content-derived <c>SchemaId</c> and its
-        /// <c>SchemaIdAlg</c> and publishes the Opaque fast-path node (§10.1).
+        /// Gets the SchemaGroup that owns the schemas of a DataSet, creating it when the registry
+        /// does not host it yet.
         /// </summary>
-        /// <param name="schemaGroupObjectId">The SchemaGroup object NodeId.</param>
-        /// <param name="createResourceMethodId">The CreateResource method NodeId.</param>
-        /// <param name="writeMethodId">The Write method NodeId.</param>
-        /// <param name="closeMethodId">The Close method NodeId.</param>
-        /// <param name="document">The schema document bytes.</param>
-        /// <param name="format">The schema format (for example <c>avro</c>).</param>
-        /// <param name="chunkSize">The maximum Write chunk size in bytes.</param>
+        /// <param name="registryNodeId">The Schema Registry root NodeId.</param>
+        /// <param name="schemaGroupId">The SchemaGroup id.</param>
         /// <param name="ct">The cancellation token.</param>
-        /// <returns>The computed SchemaId and its SchemaIdAlg name.</returns>
-        public Task<(ByteString SchemaId, string? SchemaIdAlg)> RegisterSchemaAsync(
-            NodeId schemaGroupObjectId,
-            NodeId createResourceMethodId,
-            NodeId writeMethodId,
-            NodeId closeMethodId,
-            ReadOnlyMemory<byte> document,
-            string format = "avro",
-            int chunkSize = 4096,
+        /// <returns>The SchemaGroup NodeId and whether this call created it.</returns>
+        public Task<(NodeId GroupNodeId, bool Created)> GetOrCreateSchemaGroupAsync(
+            NodeId registryNodeId,
+            string schemaGroupId,
             CancellationToken ct = default)
         {
-            return RegisterResourceAsync(
-                schemaGroupObjectId,
-                createResourceMethodId,
-                writeMethodId,
-                closeMethodId,
-                document,
-                format,
-                chunkSize,
-                ct);
+            return GetOrCreateGroupAsync(registryNodeId, schemaGroupId, ct);
+        }
+
+        /// <summary>
+        /// Registers a schema document in a SchemaGroup through the model's own lifecycle: the
+        /// group's <c>CreateResource</c> creates the schema version and opens it for writing, and the
+        /// document is streamed through the inherited <c>FileType</c> Write. On close the server
+        /// bootstraps the schema's content-derived <c>SchemaId</c> and publishes the Opaque fast-path
+        /// node (§10.1), so the schema becomes resolvable by the SchemaId carried on the wire.
+        /// </summary>
+        /// <param name="schemaGroupNodeId">The SchemaGroup NodeId that owns the schema.</param>
+        /// <param name="schemaId">The schema resource id — the stable identity of the DataSet schema across its versions.</param>
+        /// <param name="document">The schema document bytes.</param>
+        /// <param name="versionId">The version id; empty lets the server assign the next one.</param>
+        /// <param name="chunkSize">The maximum Write chunk size in bytes.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>The created schema NodeId and the version id the server assigned.</returns>
+        public Task<(NodeId ResourceNodeId, string AssignedVersionId)> RegisterSchemaAsync(
+            NodeId schemaGroupNodeId,
+            string schemaId,
+            ReadOnlyMemory<byte> document,
+            string versionId = "",
+            int chunkSize = ResourceTypeClientExtensions.DefaultChunkSize,
+            CancellationToken ct = default)
+        {
+            return RegisterResourceAsync(schemaGroupNodeId, schemaId, document, versionId, chunkSize, ct);
+        }
+
+        /// <summary>
+        /// Registers a schema document idempotently: an existing version with the same
+        /// <paramref name="schemaId"/> and <paramref name="versionId"/> is reused rather than
+        /// rejected, and the document is only streamed when this call created the version. This is
+        /// the call a publisher uses when it re-announces a schema it may already have registered.
+        /// </summary>
+        /// <param name="schemaGroupNodeId">The SchemaGroup NodeId that owns the schema.</param>
+        /// <param name="schemaId">The schema resource id — the stable identity of the DataSet schema across its versions.</param>
+        /// <param name="document">The schema document bytes.</param>
+        /// <param name="versionId">The version id; empty lets the server assign the next one.</param>
+        /// <param name="chunkSize">The maximum Write chunk size in bytes.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>The schema NodeId, the assigned version id, and whether it was created.</returns>
+        public Task<(NodeId ResourceNodeId, string AssignedVersionId, bool Created)> GetOrRegisterSchemaAsync(
+            NodeId schemaGroupNodeId,
+            string schemaId,
+            ReadOnlyMemory<byte> document,
+            string versionId = "",
+            int chunkSize = ResourceTypeClientExtensions.DefaultChunkSize,
+            CancellationToken ct = default)
+        {
+            return GetOrRegisterResourceAsync(
+                schemaGroupNodeId, schemaId, document, versionId, chunkSize, ct);
         }
     }
 }

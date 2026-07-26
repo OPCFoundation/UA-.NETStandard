@@ -34,12 +34,18 @@ using System.IO;
 namespace Opc.Ua.PubSub.SchemaRegistry
 {
     /// <summary>
-    /// Provides the Schema Registry companion NodeSet2 document, embedded in the
-    /// <c>Opc.Ua.PubSub</c> assembly. The document declares a <c>RequiredModel</c> on the abstract
-    /// xRegistry base model, so it must be imported after the base NodeSet (see the
-    /// <c>Opc.Ua.PubSub.Server</c> NodeSets loader). This type has no dependency on the OPC UA server
-    /// SDK; the server-side runtime NodeSet wrapping is done in <c>Opc.Ua.PubSub.Server</c>.
+    /// Provides the NodeSet2 documents the in-server Schema Registry imports at runtime: the Schema
+    /// Registry companion NodeSet and the abstract xRegistry base model it declares a
+    /// <c>RequiredModel</c> on. Both are embedded in the <c>Opc.Ua.PubSub</c> assembly. This type
+    /// has no dependency on the OPC UA server SDK; the server-side runtime NodeSet wrapping is done
+    /// in <c>Opc.Ua.PubSub.Server</c>.
     /// </summary>
+    /// <remarks>
+    /// <c>Opc.Ua.XRegistry</c> compiles its companion model into the assembly with the OPC UA model
+    /// source generator and therefore no longer exposes it as a runtime NodeSet. The base document
+    /// is embedded here so the Schema Registry import path stays self-contained and can resolve the
+    /// supertypes the Schema Registry model derives from.
+    /// </remarks>
     public static class SchemaRegistryNodeSets
     {
         /// <summary>
@@ -49,22 +55,43 @@ namespace Opc.Ua.PubSub.SchemaRegistry
             "Opc.Ua.PubSub.SchemaRegistry.Opc.Ua.SchemaRegistry.NodeSet2.xml";
 
         /// <summary>
+        /// The embedded-resource name of the abstract xRegistry base companion NodeSet2 document.
+        /// </summary>
+        public const string BaseNodeSetResourceName =
+            "Opc.Ua.PubSub.SchemaRegistry.Opc.Ua.XRegistry.NodeSet2.xml";
+
+        /// <summary>
         /// Opens a fresh read stream over the embedded Schema Registry companion NodeSet2 document.
         /// </summary>
         /// <returns>A readable stream positioned at the start of the NodeSet2 XML.</returns>
         /// <exception cref="InvalidOperationException">The embedded NodeSet was not found.</exception>
         public static Stream OpenNodeSet()
         {
-            Stream? stream = typeof(SchemaRegistryNodeSets).Assembly
-                .GetManifestResourceStream(NodeSetResourceName);
+            return OpenEmbeddedNodeSet(NodeSetResourceName);
+        }
 
-            if (stream is null)
-            {
-                throw new InvalidOperationException(
-                    $"Embedded Schema Registry NodeSet '{NodeSetResourceName}' was not found.");
-            }
+        /// <summary>
+        /// Opens a fresh read stream over the embedded abstract xRegistry base companion NodeSet2
+        /// document, which the Schema Registry model requires.
+        /// </summary>
+        /// <returns>A readable stream positioned at the start of the NodeSet2 XML.</returns>
+        /// <exception cref="InvalidOperationException">The embedded NodeSet was not found.</exception>
+        public static Stream OpenBaseNodeSet()
+        {
+            return OpenEmbeddedNodeSet(BaseNodeSetResourceName);
+        }
 
-            return stream;
+        /// <summary>
+        /// Opens an embedded NodeSet2 document by its manifest-resource name.
+        /// </summary>
+        /// <param name="resourceName">The manifest-resource name.</param>
+        /// <returns>A readable stream positioned at the start of the NodeSet2 XML.</returns>
+        /// <exception cref="InvalidOperationException">The embedded NodeSet was not found.</exception>
+        private static Stream OpenEmbeddedNodeSet(string resourceName)
+        {
+            return typeof(SchemaRegistryNodeSets).Assembly.GetManifestResourceStream(resourceName)
+                ?? throw new InvalidOperationException(
+                    $"Embedded Schema Registry NodeSet '{resourceName}' was not found.");
         }
     }
 }

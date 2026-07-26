@@ -141,11 +141,10 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <remarks>
         /// The registry client is session-bound, so the application supplies it — register a
         /// <see cref="Opc.Ua.PubSub.SchemaRegistry.SchemaRegistryClient"/> built over the connected
-        /// session, and configure the SchemaGroup and CreateResource/Write/Close NodeIds resolved
-        /// once from that registry's topology.
+        /// session, and configure the SchemaGroup NodeId resolved once from that registry's topology.
         /// </remarks>
         /// <param name="builder">OPC UA root builder.</param>
-        /// <param name="configure">Callback that supplies the registry write-lifecycle NodeIds.</param>
+        /// <param name="configure">Callback that supplies the SchemaGroup NodeId.</param>
         /// <returns>The original <paramref name="builder"/>.</returns>
         /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaBuilder AddSchemaRegistrySink(
@@ -169,15 +168,12 @@ namespace Microsoft.Extensions.DependencyInjection
                 if (!options.IsComplete)
                 {
                     throw new InvalidOperationException(
-                        "SchemaRegistrySinkOptions is incomplete: SchemaGroupObjectId, " +
-                        "CreateResourceMethodId, WriteMethodId and CloseMethodId are all required.");
+                        "SchemaRegistrySinkOptions is incomplete: a SchemaGroupNodeId and a " +
+                        "positive ChunkSize are required.");
                 }
                 return new Opc.Ua.PubSub.SchemaRegistry.SchemaRegistrySink(
                     sp.GetRequiredService<Opc.Ua.PubSub.SchemaRegistry.SchemaRegistryClient>(),
-                    options.SchemaGroupObjectId!.Value,
-                    options.CreateResourceMethodId!.Value,
-                    options.WriteMethodId!.Value,
-                    options.CloseMethodId!.Value,
+                    options.SchemaGroupNodeId,
                     options.ChunkSize);
             });
             return builder;

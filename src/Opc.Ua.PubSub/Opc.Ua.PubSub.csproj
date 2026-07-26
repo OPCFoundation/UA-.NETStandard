@@ -51,6 +51,10 @@
   <ItemGroup>
     <EmbeddedResource Include="SchemaRegistry\Opc.Ua.SchemaRegistry.NodeSet2.xml" LogicalName="Opc.Ua.PubSub.SchemaRegistry.Opc.Ua.SchemaRegistry.NodeSet2.xml" />
     <AdditionalFiles Include="SchemaRegistry\Opc.Ua.SchemaRegistry.NodeSet2.xml" />
+    <!-- The Schema Registry NodeSet declares a RequiredModel on the abstract xRegistry base model.
+         Opc.Ua.XRegistry compiles that model into its assembly and no longer ships it as a runtime
+         NodeSet, so embed the base document here to keep the runtime import path self-contained. -->
+    <EmbeddedResource Include="..\Opc.Ua.XRegistry\Opc.Ua.XRegistry.NodeSet2.xml" LogicalName="Opc.Ua.PubSub.SchemaRegistry.Opc.Ua.XRegistry.NodeSet2.xml" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />

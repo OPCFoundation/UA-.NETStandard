@@ -28,9 +28,12 @@
  * ======================================================================*/
 
 using System;
+using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.PubSub.Encoding;
+using Opc.Ua.PubSub.MetaData;
+using Opc.Ua.XRegistry.Client;
 
 namespace Opc.Ua.PubSub.SchemaRegistry
 {
@@ -39,40 +42,44 @@ namespace Opc.Ua.PubSub.SchemaRegistry
     /// Registry through a <see cref="SchemaRegistryClient"/> — the registry-publish half of the
     /// schema-change protocol (Avro Part 14 §8.4.5). The schema-lifecycle observer invokes this when
     /// an encoder produces a new per-DataSet schema, so the schema document is registered in addition
-    /// to being announced on the wire. The SchemaGroup object and CreateResource/Write/Close method
-    /// NodeIds are supplied by the caller (resolved once from the connected registry topology).
+    /// to being announced on the wire.
     /// </summary>
+    /// <remarks>
+    /// The sink registers each DataSet's schema as one registry <i>resource</i> whose id is the
+    /// DataSet identity, so successive schema growths of the same DataSet become successive
+    /// <i>versions</i> of that resource rather than unrelated entries. Registration is idempotent:
+    /// re-announcing a schema the registry already holds reuses the existing version instead of
+    /// failing. The owning SchemaGroup NodeId is supplied by the caller, resolved once from the
+    /// connected registry topology.
+    /// </remarks>
     public sealed class SchemaRegistrySink : ISchemaRegistrationSink
     {
-        private readonly SchemaRegistryClient m_client;
-        private readonly NodeId m_schemaGroupObjectId;
-        private readonly NodeId m_createResourceMethodId;
-        private readonly NodeId m_writeMethodId;
-        private readonly NodeId m_closeMethodId;
-        private readonly int m_chunkSize;
-
         /// <summary>
         /// Initializes a new <see cref="SchemaRegistrySink"/>.
         /// </summary>
         /// <param name="client">The connected Schema Registry client.</param>
-        /// <param name="schemaGroupObjectId">The SchemaGroup object NodeId.</param>
-        /// <param name="createResourceMethodId">The CreateResource method NodeId.</param>
-        /// <param name="writeMethodId">The Write method NodeId.</param>
-        /// <param name="closeMethodId">The Close method NodeId.</param>
+        /// <param name="schemaGroupNodeId">The SchemaGroup NodeId that owns the registered schemas.</param>
         /// <param name="chunkSize">The maximum Write chunk size in bytes.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="client"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException"><paramref name="schemaGroupNodeId"/> is null.</exception>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="chunkSize"/> is not positive.</exception>
         public SchemaRegistrySink(
             SchemaRegistryClient client,
-            NodeId schemaGroupObjectId,
-            NodeId createResourceMethodId,
-            NodeId writeMethodId,
-            NodeId closeMethodId,
-            int chunkSize = 4096)
+            NodeId schemaGroupNodeId,
+            int chunkSize = ResourceTypeClientExtensions.DefaultChunkSize)
         {
             m_client = client ?? throw new ArgumentNullException(nameof(client));
-            m_schemaGroupObjectId = schemaGroupObjectId;
-            m_createResourceMethodId = createResourceMethodId;
-            m_writeMethodId = writeMethodId;
-            m_closeMethodId = closeMethodId;
+            if (schemaGroupNodeId.IsNull)
+            {
+                throw new ArgumentException(
+                    "A SchemaGroup NodeId is required.", nameof(schemaGroupNodeId));
+            }
+            if (chunkSize <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(chunkSize));
+            }
+
+            m_schemaGroupNodeId = schemaGroupNodeId;
             m_chunkSize = chunkSize;
         }
 
@@ -86,15 +93,31 @@ namespace Opc.Ua.PubSub.SchemaRegistry
                 // No document to register (identity-only notification); nothing to publish.
                 return;
             }
-            _ = await m_client.RegisterSchemaAsync(
-                m_schemaGroupObjectId,
-                m_createResourceMethodId,
-                m_writeMethodId,
-                m_closeMethodId,
+
+            _ = await m_client.GetOrRegisterSchemaAsync(
+                m_schemaGroupNodeId,
+                BuildSchemaResourceId(change.MetaDataKey),
                 change.Schema.Span.ToArray(),
-                string.IsNullOrEmpty(change.Format) ? "avro" : change.Format,
+                change.MetaDataKey.MajorVersion.ToString(CultureInfo.InvariantCulture),
                 m_chunkSize,
                 cancellationToken).ConfigureAwait(false);
         }
+
+        /// <summary>
+        /// Builds the resource id that identifies a DataSet's schema across its versions. The
+        /// MajorVersion is deliberately excluded — it is carried as the resource <i>version</i> id,
+        /// so a schema growth versions the same resource instead of creating a new one.
+        /// </summary>
+        /// <param name="key">The DataSet the schema was produced for.</param>
+        /// <returns>The stable schema resource id.</returns>
+        private static string BuildSchemaResourceId(DataSetMetaDataKey key)
+        {
+            return FormattableString.Invariant(
+                $"{key.PublisherId}.{key.WriterGroupId}.{key.DataSetWriterId}");
+        }
+
+        private readonly SchemaRegistryClient m_client;
+        private readonly NodeId m_schemaGroupNodeId;
+        private readonly int m_chunkSize;
     }
 }

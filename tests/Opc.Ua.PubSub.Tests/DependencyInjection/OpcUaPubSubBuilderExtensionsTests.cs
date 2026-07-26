@@ -98,7 +98,7 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
         }
 
         [Test]
-        public void AddSchemaRegistrySink_RegistersSinkAndValidatesOptions()
+        public void AddSchemaRegistrySinkRegistersSinkAndValidatesOptions()
         {
             var services = new ServiceCollection();
             services.AddSingleton(NUnitTelemetryContext.Create());
@@ -106,10 +106,7 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
             builder.AddPubSub();
             builder.AddSchemaRegistrySink(options =>
             {
-                options.SchemaGroupObjectId = new NodeId(1000u);
-                options.CreateResourceMethodId = new NodeId(1001u);
-                options.WriteMethodId = new NodeId(1002u);
-                options.CloseMethodId = new NodeId(1003u);
+                options.SchemaGroupNodeId = new NodeId(1000u);
                 options.ChunkSize = 2048;
             });
 
@@ -130,13 +127,15 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
         }
 
         [Test]
-        public void AddSchemaRegistrySink_IncompleteOptions_FailsFast()
+        public void AddSchemaRegistrySinkIncompleteOptionsFailsFast()
         {
             var services = new ServiceCollection();
             services.AddSingleton(NUnitTelemetryContext.Create());
             IOpcUaBuilder builder = services.AddOpcUa();
             builder.AddPubSub();
-            builder.AddSchemaRegistrySink(options => options.SchemaGroupObjectId = new NodeId(1000u));
+
+            // No SchemaGroupNodeId: the sink has no group to publish into.
+            builder.AddSchemaRegistrySink(options => options.ChunkSize = 2048);
             using ServiceProvider sp = services.BuildServiceProvider();
 
             Assert.That(

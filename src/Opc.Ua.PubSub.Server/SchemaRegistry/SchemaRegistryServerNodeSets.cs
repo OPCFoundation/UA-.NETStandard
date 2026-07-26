@@ -32,16 +32,21 @@ using System.IO;
 using System.Threading.Tasks;
 using Opc.Ua.PubSub.SchemaRegistry;
 using Opc.Ua.Server.RuntimeNodeSet;
-using Opc.Ua.XRegistry.Server;
 
 namespace Opc.Ua.PubSub.Server.SchemaRegistry
 {
     /// <summary>
     /// Composes the ordered runtime NodeSet sources that back the in-server Schema Registry: the
-    /// abstract xRegistry base companion NodeSet (from <c>Opc.Ua.XRegistry</c>) followed by the
-    /// Schema Registry companion NodeSet (from <c>Opc.Ua.PubSub</c>), whose <c>RequiredModel</c>
-    /// depends on the base.
+    /// abstract xRegistry base companion NodeSet followed by the Schema Registry companion NodeSet,
+    /// whose <c>RequiredModel</c> depends on the base. Both documents are embedded in
+    /// <c>Opc.Ua.PubSub</c>.
     /// </summary>
+    /// <remarks>
+    /// <c>Opc.Ua.XRegistry</c> compiles its companion model into the assembly and loads it as
+    /// predefined nodes through the xRegistry node managers, so it no longer publishes a runtime
+    /// NodeSet source of its own. The base document is still imported here because the runtime
+    /// importer must resolve the supertypes the Schema Registry model derives from.
+    /// </remarks>
     public static class SchemaRegistryServerNodeSets
     {
         /// <summary>
@@ -54,7 +59,10 @@ namespace Opc.Ua.PubSub.Server.SchemaRegistry
             options ??= new SchemaRegistryOptions();
             return
             [
-                XRegistryServerNodeSets.CreateBaseSource(),
+                RuntimeNodeSetSource.FromStream(
+                    "xRegistry",
+                    _ => new ValueTask<Stream>(SchemaRegistryNodeSets.OpenBaseNodeSet()),
+                    [options.XRegistryNamespaceUri]),
                 RuntimeNodeSetSource.FromStream(
                     "SchemaRegistry",
                     _ => new ValueTask<Stream>(SchemaRegistryNodeSets.OpenNodeSet()),
