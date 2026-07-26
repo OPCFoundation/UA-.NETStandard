@@ -85,8 +85,8 @@ namespace Opc.Ua.XRegistry.Server
         }
 
         /// <summary>
-        /// Materializes the registry root from the compiled model and the legacy registration
-        /// resource group.
+        /// Materializes the registry root from the compiled model. Groups and resource versions are
+        /// then created at runtime through the model's own lifecycle Methods.
         /// </summary>
         /// <param name="externalReferences">External reference sink (unused).</param>
         public override void CreateAddressSpace(
@@ -97,21 +97,6 @@ namespace Opc.Ua.XRegistry.Server
             ushort ns = (ushort)Server.NamespaceUris.GetIndex(m_namespaceUri);
 
             CreateRegistryRoot(ns);
-
-            var group = new BaseObjectState(null)
-            {
-                NodeId = new NodeId(XRegistryWellKnown.ResourceGroupObject, ns),
-                BrowseName = new QualifiedName("ResourceGroup", ns),
-                DisplayName = new LocalizedText("ResourceGroup"),
-                TypeDefinitionId = Opc.Ua.ObjectTypeIds.BaseObjectType
-            };
-
-            AddMethod(group, XRegistryWellKnown.CreateResourceMethod, ns, "CreateResource", OnCreateResource);
-            AddMethod(group, XRegistryWellKnown.WriteMethod, ns, "Write", OnWrite);
-            AddMethod(group, XRegistryWellKnown.CloseMethod, ns, "Close", OnClose);
-            AddMethod(group, XRegistryWellKnown.DeleteMethod, ns, "Delete", OnDelete);
-
-            AddPredefinedNode(SystemContext, group);
         }
 
         /// <summary>
@@ -291,6 +276,10 @@ namespace Opc.Ua.XRegistry.Server
                 group.GetOrCreateResource.OnCallAsync = OnGetOrCreateResourceAsync;
             }
             m_groupsByNodeId[group.NodeId] = group;
+            if (group.Delete != null)
+            {
+                group.Delete.OnCallAsync = (ctx, m, id, epoch, ct) => OnDeleteGroupAsync(group, epoch);
+            }
             return group;
         }
 
@@ -445,10 +434,108 @@ namespace Opc.Ua.XRegistry.Server
             SetValue(resource.ModifiedAt, DateTimeUtc.Now);
 
             BindFileMethods(resource);
+            if (resource.Delete != null)
+            {
+                resource.Delete.OnCallAsync = (ctx, m, id, epoch, ct) =>
+                    OnDeleteResourceAsync(resource, epoch);
+            }
 
             group.AddChild(resource);
             AddPredefinedNode(SystemContext, resource);
             return resource;
+        }
+
+        /// <summary>
+        /// Handles <c>ResourceType.Delete(ExpectedEpoch)</c>. The epoch is an optimistic-concurrency
+        /// check: a caller that read the resource at an older epoch is rejected rather than silently
+        /// deleting someone else's newer version.
+        /// </summary>
+        internal async ValueTask<DeleteMethodStateResult> OnDeleteResourceAsync(
+            ResourceState resource,
+            uint expectedEpoch)
+        {
+            string storeKey;
+            lock (m_gate)
+            {
+                if (resource.Epoch != null && resource.Epoch.Value != expectedEpoch)
+                {
+                    return new DeleteMethodStateResult { ServiceResult = StatusCodes.BadInvalidState };
+                }
+
+                storeKey = StoreKeyOf(resource);
+                RemoveResourceLocked(resource);
+            }
+
+            _ = await m_resourceStore.DeleteAsync(storeKey).ConfigureAwait(false);
+            return new DeleteMethodStateResult { ServiceResult = ServiceResult.Good };
+        }
+
+        /// <summary>
+        /// Handles <c>GroupType.Delete(ExpectedEpoch)</c>, removing the group and every resource
+        /// version it owns.
+        /// </summary>
+        internal async ValueTask<DeleteMethodStateResult> OnDeleteGroupAsync(
+            GroupState group,
+            uint expectedEpoch)
+        {
+            var storeKeys = new List<string>();
+            lock (m_gate)
+            {
+                if (group.Epoch != null && group.Epoch.Value != expectedEpoch)
+                {
+                    return new DeleteMethodStateResult { ServiceResult = StatusCodes.BadInvalidState };
+                }
+
+                foreach (KeyValuePair<ResourceKey, ResourceState> entry in new List<KeyValuePair<ResourceKey, ResourceState>>(m_resources))
+                {
+                    if (entry.Key.GroupNodeId == group.NodeId)
+                    {
+                        storeKeys.Add(StoreKeyOf(entry.Value));
+                        RemoveResourceLocked(entry.Value);
+                    }
+                }
+
+                if (group.GroupId?.Value is string groupId)
+                {
+                    m_groups.Remove(groupId);
+                }
+                m_groupsByNodeId.Remove(group.NodeId);
+                DeleteNode(SystemContext, group.NodeId);
+            }
+
+            foreach (string storeKey in storeKeys)
+            {
+                _ = await m_resourceStore.DeleteAsync(storeKey).ConfigureAwait(false);
+            }
+            return new DeleteMethodStateResult { ServiceResult = ServiceResult.Good };
+        }
+
+        /// <summary>
+        /// Removes a resource, its content-addressed fast-path node and its registration slot. The
+        /// caller holds <see cref="m_gate"/>.
+        /// </summary>
+        private void RemoveResourceLocked(ResourceState resource)
+        {
+            ushort ns = (ushort)Server.NamespaceUris.GetIndex(m_namespaceUri);
+            if (resource.Xid?.Value is string xid && xid.Length > 0)
+            {
+                var contentId = ByteString.FromHexString(xid);
+                if (!contentId.IsNull)
+                {
+                    DeleteNode(SystemContext, new NodeId(contentId, ns));
+                }
+            }
+
+            foreach (KeyValuePair<ResourceKey, ResourceState> entry in new List<KeyValuePair<ResourceKey, ResourceState>>(m_resources))
+            {
+                if (ReferenceEquals(entry.Value, resource))
+                {
+                    m_resources.Remove(entry.Key);
+                }
+            }
+
+            DeleteNode(SystemContext, resource.NodeId);
+            Interlocked.Decrement(ref m_registeredResourceCount);
         }
 
         /// <summary>
@@ -702,204 +789,8 @@ namespace Opc.Ua.XRegistry.Server
             }
         }
 
-        /// <summary>
-        /// Handles <c>CreateResource(ResourceId: String, VersionId: String)</c> and returns
-        /// <c>(FileHandle: UInt32, VersionId: String)</c>.
-        /// </summary>
-        internal ServiceResult OnCreateResource(
-            ISystemContext context,
-            MethodState method,
-            NodeId objectId,
-            ArrayOf<Variant> inputs,
-            List<Variant> outputs)
-        {
-            _ = inputs[0].TryGetValue(out string? _); // ResourceId (unused by the base lifecycle)
-            _ = inputs[1].TryGetValue(out string? versionId);
-            if (string.IsNullOrEmpty(versionId))
-            {
-                versionId = "1";
-            }
-
-            uint handle;
-            lock (m_gate)
-            {
-                if (m_buffers.Count >= m_maxConcurrentUploads)
-                {
-                    return StatusCodes.BadTooManyOperations;
-                }
-                handle = ++m_nextHandle;
-                m_buffers[handle] = [];
-                m_versions[handle] = versionId;
-            }
-
-            outputs.Add(new Variant(handle));
-            outputs.Add(new Variant(versionId));
-            return ServiceResult.Good;
-        }
-
-        /// <summary>
-        /// Handles <c>Write(FileHandle: UInt32, Data: ByteString)</c>, appending the chunk to the
-        /// buffer held by the upload handle.
-        /// </summary>
-        internal ServiceResult OnWrite(
-            ISystemContext context,
-            MethodState method,
-            NodeId objectId,
-            ArrayOf<Variant> inputs,
-            List<Variant> outputs)
-        {
-            if (!inputs[0].TryGetValue(out uint handle))
-            {
-                return StatusCodes.BadInvalidArgument;
-            }
-
-            _ = inputs[1].TryGetValue(out ByteString data);
-            lock (m_gate)
-            {
-                if (!m_buffers.TryGetValue(handle, out List<byte>? buffer))
-                {
-                    return StatusCodes.BadNotFound;
-                }
-                if (!data.IsNull && data.Span.Length > 0)
-                {
-                    if (buffer.Count + data.Span.Length > m_maxResourceBytes)
-                    {
-                        return StatusCodes.BadRequestTooLarge;
-                    }
-                    buffer.AddRange(data.Span.ToArray());
-                }
-            }
-
-            return ServiceResult.Good;
-        }
-
-        /// <summary>
-        /// Handles <c>Close(FileHandle: UInt32, Format: String)</c> and returns
-        /// <c>(ContentId: ByteString, Algorithm: String)</c>.
-        /// </summary>
-        internal ServiceResult OnClose(
-            ISystemContext context,
-            MethodState method,
-            NodeId objectId,
-            ArrayOf<Variant> inputs,
-            List<Variant> outputs)
-        {
-            if (!inputs[0].TryGetValue(out uint handle))
-            {
-                return StatusCodes.BadInvalidArgument;
-            }
-
-            if (!inputs[1].TryGetValue(out string? format) || string.IsNullOrEmpty(format))
-            {
-                format = "avro";
-            }
-
-            if (m_contentIdProvider is null)
-            {
-                return StatusCodes.BadNotSupported;
-            }
-
-            byte[] document;
-            lock (m_gate)
-            {
-                if (!m_buffers.TryGetValue(handle, out List<byte>? buffer))
-                {
-                    return StatusCodes.BadNotFound;
-                }
-                document = [.. buffer];
-                m_buffers.Remove(handle);
-                m_versions.Remove(handle);
-            }
-
-            // Auto-bootstrap (§10.1 + §6.6): compute the content-id + algorithm from the document.
-            ByteString contentId = m_contentIdProvider.ComputeContentId(format, document);
-            string algorithm = m_contentIdProvider.GetAlgorithm(format) ?? string.Empty;
-
-            // Make the document reachable by its Opaque content-id NodeId (§6.4), created at runtime.
-            ushort ns = (ushort)Server.NamespaceUris.GetIndex(m_namespaceUri);
-            var fastPathNodeId = new NodeId(contentId, ns);
-
-            if (Find(fastPathNodeId) is null)
-            {
-                if (Volatile.Read(ref m_registeredResourceCount) >= m_maxRegisteredResources)
-                {
-                    return StatusCodes.BadTooManyOperations;
-                }
-
-                var node = new BaseDataVariableState(null)
-                {
-                    NodeId = fastPathNodeId,
-                    BrowseName = new QualifiedName("RegisteredResource", ns),
-                    DisplayName = new LocalizedText("RegisteredResource"),
-                    TypeDefinitionId = VariableTypeIds.BaseDataVariableType,
-                    ReferenceTypeId = ReferenceTypeIds.HasComponent,
-                    DataType = Opc.Ua.DataTypeIds.ByteString,
-                    ValueRank = ValueRanks.Scalar,
-                    AccessLevel = AccessLevels.CurrentRead,
-                    UserAccessLevel = AccessLevels.CurrentRead,
-                    Historizing = false,
-                    Value = new Variant(ByteString.From(document))
-                };
-
-                AddPredefinedNode(SystemContext, node);
-                Interlocked.Increment(ref m_registeredResourceCount);
-            }
-
-            outputs.Add(new Variant(contentId));
-            outputs.Add(new Variant(algorithm));
-            return ServiceResult.Good;
-        }
-
-        /// <summary>
-        /// Handles <c>Delete(ContentId: ByteString)</c>. The epoch-match arguments are optional per
-        /// the specification (§5.2) and are not required by the base lifecycle.
-        /// </summary>
-        internal ServiceResult OnDelete(
-            ISystemContext context,
-            MethodState method,
-            NodeId objectId,
-            ArrayOf<Variant> inputs,
-            List<Variant> outputs)
-        {
-            if (!inputs[0].TryGetValue(out ByteString contentId))
-            {
-                return StatusCodes.BadInvalidArgument;
-            }
-
-            ushort ns = (ushort)Server.NamespaceUris.GetIndex(m_namespaceUri);
-
-            bool removed = DeleteNode(SystemContext, new NodeId(contentId, ns));
-            if (removed)
-            {
-                Interlocked.Decrement(ref m_registeredResourceCount);
-            }
-            return removed ? ServiceResult.Good : StatusCodes.BadNotFound;
-        }
-
-        private static void AddMethod(
-            BaseObjectState parent,
-            uint id,
-            ushort ns,
-            string name,
-            GenericMethodCalledEventHandler2 handler)
-        {
-            var method = new MethodState(parent)
-            {
-                NodeId = new NodeId(id, ns),
-                BrowseName = new QualifiedName(name, ns),
-                DisplayName = new LocalizedText(name),
-                ReferenceTypeId = ReferenceTypeIds.HasComponent,
-                Executable = true,
-                UserExecutable = true,
-                OnCallMethod2 = handler
-            };
-
-            parent.AddChild(method);
-        }
 
         private readonly Lock m_gate = new();
-        private readonly Dictionary<uint, List<byte>> m_buffers = [];
-        private readonly Dictionary<uint, string> m_versions = [];
         private readonly Dictionary<string, GroupState> m_groups = [];
         private readonly Dictionary<NodeId, GroupState> m_groupsByNodeId = [];
         private readonly Dictionary<ResourceKey, ResourceState> m_resources = [];
@@ -916,7 +807,6 @@ namespace Opc.Ua.XRegistry.Server
         private readonly int m_maxRegisteredResources;
         private RegistryState? m_registry;
         private uint m_nextInstanceId = XRegistryWellKnown.FirstDynamicInstance;
-        private uint m_nextHandle;
         private uint m_nextFileHandle;
         private int m_registeredResourceCount;
         private const byte kWriteMode = 2;

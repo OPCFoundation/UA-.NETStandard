@@ -60,18 +60,39 @@ has happened.
 
 ### Registration lifecycle and auto-bootstrap
 
-`XRegistryRegistrationNodeManager` exposes the write lifecycle on the resource-group object:
+The registry serves the model's own Methods. A registry root (`RegistryType`) is materialized from
+the compiled model, and groups and resource versions are created beneath it at runtime:
 
-1. **`CreateResource`** returns an upload handle.
-2. **`Write`** appends a chunk of the document to that handle, one or more times.
-3. **`Close`** finalizes the upload. The server computes the content-id and algorithm from the
-   accumulated bytes through the configured `IResourceContentIdProvider` and — this is the
-   *auto-bootstrap* — creates the Opaque fast-path node **at runtime**, then returns
-   `(ContentId, Algorithm)` to the caller.
-4. **`Delete`** removes a registered resource by its content-id.
+1. **`RegistryType.CreateGroup(GroupId)`** returns the new group's NodeId; `GetOrCreateGroup`
+   is the idempotent form and also reports `Created`.
+2. **`GroupType.CreateResource(ResourceId, VersionId, RequestFileOpen)`** creates a resource
+   version and returns `(ResourceNodeId, AssignedVersionId, FileHandle)`. An empty `VersionId`
+   lets the server assign the next one; `GetOrCreateResource` additionally reports `Created`.
+3. Because `ResourceType` **is a `FileType`**, the document is streamed with the standard
+   `Write`/`Read` file Methods against the handle — there is no registry-specific transfer.
+4. **`Close`** finalizes the upload. The server computes the content-id from the accumulated bytes
+   through the configured `IResourceContentIdProvider`, commits the document to the
+   [resource store](#resource-storage), bumps the resource's `Epoch`, and — this is the
+   *auto-bootstrap* — publishes the Opaque fast-path node.
+5. **`Delete(ExpectedEpoch)`** on a resource or a group removes it. The epoch is an
+   optimistic-concurrency check: a caller holding a stale epoch is rejected with
+   `Bad_InvalidState` rather than deleting a newer version.
 
 Registration is idempotent by construction: re-registering identical bytes produces the same
 content-id, so the existing fast-path node is reused rather than duplicated.
+
+### Resource storage
+
+Document bytes live behind an injectable `IXRegistryResourceStore`. The default keeps them in the
+server process; a high-availability deployment substitutes a shared store so documents survive a
+failover, without touching the node managers.
+
+```csharp
+var options = new XRegistryServerOptions
+{
+    ResourceStore = new MySharedResourceStore()
+};
+```
 
 ### Federation
 
@@ -133,9 +154,9 @@ dimension. Exceeding a bound fails the call rather than the server:
 
 | Option | Default | Enforced on | Status code |
 | --- | --- | --- | --- |
-| `MaxConcurrentUploads` | 64 | `CreateResource` | `BadTooManyOperations` |
-| `MaxResourceBytes` | 16 MiB | `Write` | `BadRequestTooLarge` |
-| `MaxRegisteredResources` | 4096 | `Close` | `BadTooManyOperations` |
+| `MaxConcurrentUploads` | 64 | `CreateResource` / file `Open` | `BadTooManyOperations` |
+| `MaxResourceBytes` | 16 MiB | file `Write` | `BadRequestTooLarge` |
+| `MaxRegisteredResources` | 4096 | `CreateResource` | `BadTooManyOperations` |
 
 ## Client-side usage
 
