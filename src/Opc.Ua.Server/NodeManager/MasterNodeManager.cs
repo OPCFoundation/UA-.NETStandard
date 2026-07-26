@@ -5005,6 +5005,7 @@ namespace Opc.Ua.Server
             IList<ServiceResult> errors,
             CancellationToken cancellationToken = default)
         {
+            bool retiredGenerationDrained = false;
             for (int ii = 0; ii < monitoredItems.Count; ii++)
             {
                 if (processedItems[ii])
@@ -5019,6 +5020,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
+                IAsyncNodeManager owningNodeManager = monitoredItem.NodeManager;
                 processedItems[ii] = true;
 
                 // unsubscribe to all node managers.
@@ -5038,7 +5040,7 @@ namespace Opc.Ua.Server
                 // only unsubscribe to the node manager that owns the node.
                 else
                 {
-                    await monitoredItem.NodeManager.SubscribeToEventsAsync(
+                    await owningNodeManager.SubscribeToEventsAsync(
                         context,
                         monitoredItem.ManagerHandle,
                         subscriptionId,
@@ -5049,9 +5051,15 @@ namespace Opc.Ua.Server
 
                 // delete the item.
                 Server.EventManager.DeleteMonitoredItem(monitoredItem.Id);
+                retiredGenerationDrained |= !m_nodeManagers.Contains(owningNodeManager);
 
                 // success.
                 errors[ii] = StatusCodes.Good;
+            }
+
+            if (retiredGenerationDrained)
+            {
+                m_retiredGenerationDrainObserver?.Invoke();
             }
         }
 

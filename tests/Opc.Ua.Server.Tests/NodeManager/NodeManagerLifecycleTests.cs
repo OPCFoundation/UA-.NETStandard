@@ -1478,6 +1478,57 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// Deleting the final event monitored item owned by a shadow-retired generation must
+        /// promptly dispose that generation without requiring another lifecycle operation.
+        /// </summary>
+        [Test]
+        public async Task ShadowReloadedEventMonitoredItemDeletionDrainsRetiredGenerationAsync()
+        {
+            NodeManagerRegistration original = await m_server.NodeManagerLifecycle
+                .AddRuntimeNodeSetAsync(CreateEventGenerationOptions(generation: 1))
+                .ConfigureAwait(false);
+
+            IServerInternal server = m_server.CurrentInstance;
+            ushort ns = (ushort)server.NamespaceUris.GetIndex(kModelNamespaceUri);
+            var rootNodeId = new NodeId(kRootNodeId, ns);
+            var originalManager = (AsyncCustomNodeManager)original.NodeManager;
+            var services = new ServerTestServices(m_server, m_secureChannelContext);
+            (uint subscriptionId, uint monitoredItemId) =
+                await CreateSubscriptionAndEventMonitoredItemAsync(services, rootNodeId)
+                    .ConfigureAwait(false);
+
+            NodeManagerRegistration reloaded = await m_server.NodeManagerLifecycle
+                .ShadowReloadRuntimeNodeSetAsync(
+                    original,
+                    CreateEventGenerationOptions(generation: 2))
+                .ConfigureAwait(false);
+
+            ISubscription subscription = server.SubscriptionManager
+                .GetSubscriptions()
+                .Single(s => s.Id == subscriptionId);
+            var tracker = (INodeManagerMonitoredItemTracker)subscription;
+            Assert.That(subscription.MonitoredItemCount, Is.EqualTo(1));
+            Assert.That(tracker.HasMonitoredItems(original.NodeManager), Is.True);
+            Assert.That(tracker.HasMonitoredItems(reloaded.NodeManager), Is.False);
+            Assert.That(originalManager.Find(rootNodeId), Is.Not.Null);
+
+            RequestHeader header = m_requestHeader;
+            header.Timestamp = DateTimeUtc.Now;
+            DeleteMonitoredItemsResponse deleteResponse = await services
+                .DeleteMonitoredItemsAsync(header, subscriptionId, [monitoredItemId])
+                .ConfigureAwait(false);
+            Assert.That(deleteResponse.Results.Count, Is.EqualTo(1));
+            Assert.That(deleteResponse.Results[0], Is.EqualTo(StatusCodes.Good));
+            Assert.That(subscription.MonitoredItemCount, Is.Zero);
+            Assert.That(tracker.HasMonitoredItems(original.NodeManager), Is.False);
+
+            await AssertRetiredGenerationDisposedAsync(originalManager, rootNodeId)
+                .ConfigureAwait(false);
+
+            await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// After a ShadowReload, a subscription that still owns a data monitored item created
         /// on the retired generation must transfer to another session with that item routed to
         /// the retired generation. The item remains owned by the retired generation after the
@@ -3402,6 +3453,59 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// Creates a subscription with one reporting event monitored item on the supplied
+        /// event notifier and returns both server-assigned identifiers.
+        /// </summary>
+        private async Task<(uint SubscriptionId, uint MonitoredItemId)>
+            CreateSubscriptionAndEventMonitoredItemAsync(
+                ServerTestServices services,
+                NodeId nodeId)
+        {
+            RequestHeader requestHeader = m_requestHeader;
+            requestHeader.Timestamp = DateTimeUtc.Now;
+            CreateSubscriptionResponse subscriptionResponse = await services
+                .CreateSubscriptionAsync(requestHeader, 100, 100, 10, 0, true, 0)
+                .ConfigureAwait(false);
+            uint subscriptionId = subscriptionResponse.SubscriptionId;
+
+            var eventFilter = new EventFilter();
+            eventFilter.AddSelectClause(
+                ObjectTypeIds.BaseEventType,
+                QualifiedName.From(BrowseNames.EventType));
+            ArrayOf<MonitoredItemCreateRequest> monitoredItems =
+            [
+                new MonitoredItemCreateRequest
+                {
+                    ItemToMonitor = new ReadValueId
+                    {
+                        NodeId = nodeId,
+                        AttributeId = Attributes.EventNotifier
+                    },
+                    MonitoringMode = MonitoringMode.Reporting,
+                    RequestedParameters = new MonitoringParameters
+                    {
+                        ClientHandle = 1,
+                        SamplingInterval = 0,
+                        Filter = new ExtensionObject(eventFilter),
+                        QueueSize = 1,
+                        DiscardOldest = true
+                    }
+                }
+            ];
+
+            requestHeader = m_requestHeader;
+            requestHeader.Timestamp = DateTimeUtc.Now;
+            CreateMonitoredItemsResponse createItemsResponse = await services
+                .CreateMonitoredItemsAsync(requestHeader, subscriptionId, TimestampsToReturn.Both, monitoredItems)
+                .ConfigureAwait(false);
+
+            Assert.That(createItemsResponse.Results.Count, Is.EqualTo(1));
+            Assert.That(createItemsResponse.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+
+            return (subscriptionId, createItemsResponse.Results[0].MonitoredItemId);
+        }
+
+        /// <summary>
         /// Pushes a fresh value directly onto a retired generation's own node, simulating an
         /// internal (device-driven) update so tests can prove the retired generation still
         /// services its existing monitored items after a ShadowReload switch.
@@ -3430,12 +3534,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// </summary>
         private static async Task AssertRetiredGenerationDisposedAsync(
             AsyncCustomNodeManager retiredManager,
-            NodeId valueNodeId)
+            NodeId nodeId)
         {
             const int MaxAttempts = 50;
             for (int attempt = 0; attempt < MaxAttempts; attempt++)
             {
-                if (retiredManager.Find(valueNodeId) is null)
+                if (retiredManager.Find(nodeId) is null)
                 {
                     return;
                 }
@@ -3443,7 +3547,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
 
             Assert.That(
-                retiredManager.Find(valueNodeId),
+                retiredManager.Find(nodeId),
                 Is.Null,
                 "The shadow-retired generation must be disposed promptly once its last monitored " +
                 "item drains, without any further lifecycle operation.");
@@ -3744,9 +3848,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// should be reported/fixed separately.
         /// </para>
         /// </remarks>
-        private static RuntimeNodeSetOptions CreateOptions(string namespaceUri, int value)
+        private static RuntimeNodeSetOptions CreateOptions(
+            string namespaceUri,
+            int value,
+            bool subscribeToEvents = false)
         {
-            string xml = BuildNodeSetXml(namespaceUri);
+            string xml = BuildNodeSetXml(namespaceUri, subscribeToEvents);
 
             return new RuntimeNodeSetOptions
             {
@@ -3777,6 +3884,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
             return CreateOptions(
                 kModelNamespaceUri,
                 generation == 1 ? kGeneration1Value : kGeneration2Value);
+        }
+
+        private static RuntimeNodeSetOptions CreateEventGenerationOptions(int generation)
+        {
+            return CreateOptions(
+                kModelNamespaceUri,
+                generation == 1 ? kGeneration1Value : kGeneration2Value,
+                subscribeToEvents: true);
         }
 
         private static RuntimeNodeSetOptions CreateDroppedGenerationOptions()
@@ -3820,8 +3935,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// for why its concrete value is instead wired through the fluent
         /// <c>Configure</c> callback.
         /// </summary>
-        private static string BuildNodeSetXml(string namespaceUri)
+        private static string BuildNodeSetXml(
+            string namespaceUri,
+            bool subscribeToEvents = false)
         {
+            string eventNotifier = subscribeToEvents ? " EventNotifier=\"1\"" : string.Empty;
             return $"""
                 <?xml version="1.0" encoding="utf-8"?>
                 <UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"
@@ -3832,7 +3950,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                   <Models>
                     <Model ModelUri="{namespaceUri}" />
                   </Models>
-                  <UAObject NodeId="ns=1;i={kRootNodeId}" BrowseName="1:{kRootBrowseName}">
+                  <UAObject NodeId="ns=1;i={kRootNodeId}" BrowseName="1:{kRootBrowseName}"{eventNotifier}>
                     <DisplayName>{kRootBrowseName}</DisplayName>
                     <References>
                       <Reference ReferenceType="i=40">i=58</Reference>
