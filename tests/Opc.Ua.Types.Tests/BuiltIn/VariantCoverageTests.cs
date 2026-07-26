@@ -1017,6 +1017,30 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 Throws.ArgumentNullException.With.Property("ParamName").EqualTo("context"));
         }
 
+        [Test]
+        public void TryGetStructureArrayReturnsFalseWhenVariantHoldsNoArray()
+        {
+            IServiceMessageContext context = CreateMessageContext();
+            var variant = new Variant(42);
+
+            bool success = variant.TryGetStructure(context, out ArrayOf<Argument> actual);
+
+            Assert.That(success, Is.False);
+            Assert.That(actual.IsNull, Is.True);
+        }
+
+        [Test]
+        public void TryGetStructureArrayReturnsFalseWhenVariantHoldsStringArray()
+        {
+            IServiceMessageContext context = CreateMessageContext();
+            var variant = new Variant(ArrayOf.Wrapped("a", "b"));
+
+            bool success = variant.TryGetStructure(context, out ArrayOf<Argument> actual);
+
+            Assert.That(success, Is.False);
+            Assert.That(actual.IsNull, Is.True);
+        }
+
         private static ServiceMessageContext CreateMessageContext()
         {
             return ServiceMessageContext.Create(NUnitTelemetryContext.Create());
