@@ -3531,6 +3531,7 @@ namespace Opc.Ua.Schema.Model
                 }
 
                 method.OutputArguments = parameters;
+                method.AssignMethodArgumentCodeNames();
             }
         }
 
@@ -4270,6 +4271,7 @@ namespace Opc.Ua.Schema.Model
 
                 ValidateParameters(method, method.InputArguments);
                 ValidateParameters(method, method.OutputArguments);
+                method.AssignMethodArgumentCodeNames();
 
                 if (method.Parent != null)
                 {

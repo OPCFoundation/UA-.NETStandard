@@ -35,6 +35,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
@@ -554,6 +555,238 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                         "context.NamespaceUris)"));
                 Assert.That(factory, Does.Not.Contain("Variant.FromXml"));
             });
+        }
+
+        [Test]
+        public void SameNamedMethodArgumentsUseDistinctSymbolsAndPreserveRuntimeNames()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
+
+            Dictionary<string, string> files = GenerateFromNodeSet(
+                "SameNamedMethodArguments.NodeSet2.xml",
+                telemetry);
+            Dictionary<string, string> repeatedFiles = GenerateFromNodeSet(
+                "SameNamedMethodArguments.NodeSet2.xml",
+                telemetry);
+
+            string nodeStates = files.Single(
+                kv => kv.Key.EndsWith(".NodeStates.ex.g.cs", StringComparison.Ordinal)).Value;
+            string nodeStateClasses = files.Single(
+                kv => kv.Key.EndsWith(".NodeStates.g.cs", StringComparison.Ordinal)).Value;
+            string proxies = files.Single(
+                kv => kv.Key.EndsWith(".TypeProxies.g.cs", StringComparison.Ordinal)).Value;
+            string generatedCode = string.Join("\n", files.Values);
+            string inputArgumentsFactory = ExtractMethodBody(
+                nodeStates,
+                "CreateRoundTripMethodType_InputArguments");
+            string outputArgumentsFactory = ExtractMethodBody(
+                nodeStates,
+                "CreateRoundTripMethodType_OutputArguments");
+            string localCollisionInputFactory = ExtractMethodBody(
+                nodeStates,
+                "CreateLocalCollisionMethodType_InputArguments");
+            string localCollisionOutputFactory = ExtractMethodBody(
+                nodeStates,
+                "CreateLocalCollisionMethodType_OutputArguments");
+            string[] inputRuntimeNames = ExtractStringLiteralValues(inputArgumentsFactory);
+            string[] outputRuntimeNames = ExtractStringLiteralValues(outputArgumentsFactory);
+            string[] localCollisionInputNames =
+                ExtractStringLiteralValues(localCollisionInputFactory);
+            string[] localCollisionOutputNames =
+                ExtractStringLiteralValues(localCollisionOutputFactory);
+            string[] proxyRuntimeStrings = ExtractStringLiteralValues(proxies);
+            string[] expectedInputNames =
+            [
+                "Foo",
+                "foo",
+                "Class",
+                "VersionId",
+                "Await",
+                "Ct",
+                "cT",
+                "CancellationToken",
+                "Context",
+                "ObjectId",
+                "Method",
+                "InputArguments",
+                "Results",
+                "_result",
+                "_foo",
+                "_",
+                "Nameof",
+                "__arglist",
+                "__makeref",
+                "__reftype",
+                "__refvalue"
+            ];
+            string[] expectedOutputNames =
+            [
+                "VersionId",
+                "class",
+                "Changed",
+                "OutputArguments",
+                "ServiceResult",
+                "Quote\"Name",
+                "Back\\Slash",
+                "Line\nBreak",
+                "Δelta雪",
+                "Foo",
+                "RoundTripMethodStateResult",
+                "Next\u0085Line",
+                "Line\u2028Separator",
+                "Paragraph\u2029Separator"
+            ];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(generatedCode, Does.Contain("string foo,"));
+                Assert.That(generatedCode, Does.Contain("string foo2,"));
+                Assert.That(generatedCode, Does.Contain("string @class,"));
+                Assert.That(generatedCode, Does.Contain("string versionId,"));
+                Assert.That(generatedCode, Does.Contain("string await2,"));
+                Assert.That(generatedCode, Does.Contain("string ct2,"));
+                Assert.That(generatedCode, Does.Contain("string cT3,"));
+                Assert.That(generatedCode, Does.Contain("string cancellationToken2,"));
+                Assert.That(generatedCode, Does.Contain("string context2,"));
+                Assert.That(generatedCode, Does.Contain("string objectId2,"));
+                Assert.That(generatedCode, Does.Contain("string method2,"));
+                Assert.That(generatedCode, Does.Contain("string inputArguments2,"));
+                Assert.That(generatedCode, Does.Contain("string results2,"));
+                Assert.That(nodeStateClasses, Does.Contain("string _result2,"));
+                Assert.That(nodeStateClasses, Does.Contain("string _foo,"));
+                Assert.That(nodeStateClasses, Does.Contain("string _2,"));
+                Assert.That(nodeStateClasses, Does.Contain("string nameof,"));
+                Assert.That(nodeStateClasses, Does.Contain("string @__arglist,"));
+                Assert.That(nodeStateClasses, Does.Contain("string @__makeref,"));
+                Assert.That(nodeStateClasses, Does.Contain("string @__reftype,"));
+                Assert.That(nodeStateClasses, Does.Contain("string @__refvalue,"));
+                Assert.That(generatedCode, Does.Contain("ref string versionIdOut"));
+                Assert.That(generatedCode, Does.Contain("ref string classOut"));
+                Assert.That(generatedCode, Does.Contain("ref string outputArgumentsOut"));
+                Assert.That(generatedCode, Does.Contain("ref string serviceResultOut"));
+                Assert.That(nodeStateClasses, Does.Contain("ref string fooOut"));
+                Assert.That(nodeStateClasses,
+                    Does.Contain("ref string roundTripMethodStateResultOut"));
+                Assert.That(generatedCode, Does.Contain(
+                    "public string VersionIdOut { get; set; }"));
+                Assert.That(generatedCode, Does.Contain(
+                    "public string ClassOut { get; set; }"));
+                Assert.That(generatedCode, Does.Contain(
+                    "public string OutputArgumentsOut { get; set; }"));
+                Assert.That(generatedCode, Does.Contain(
+                    "public string ServiceResultOut { get; set; }"));
+                Assert.That(nodeStateClasses, Does.Contain(
+                    "public string RoundTripMethodStateResultOut { get; set; }"));
+                Assert.That(generatedCode, Does.Contain("\\u0085"));
+                Assert.That(generatedCode, Does.Contain("\\u2028"));
+                Assert.That(generatedCode, Does.Contain("\\u2029"));
+                Assert.That(generatedCode, Does.Not.Contain("string await,"));
+                Assert.That(generatedCode, Does.Not.Contain("string cancellationToken,"));
+                Assert.That(inputArgumentsFactory,
+                    Does.Not.Contain("Name = \"foo2\""));
+                Assert.That(inputArgumentsFactory,
+                    Does.Not.Contain("Name = \"@class\""));
+                Assert.That(outputArgumentsFactory,
+                    Does.Not.Contain("Name = \"VersionIdOut\""));
+                Assert.That(outputArgumentsFactory,
+                    Does.Not.Contain("Name = \"classOut\""));
+                foreach (string expectedName in expectedInputNames)
+                {
+                    Assert.That(inputRuntimeNames, Does.Contain(expectedName));
+                }
+                foreach (string expectedName in expectedOutputNames)
+                {
+                    Assert.That(outputRuntimeNames, Does.Contain(expectedName));
+                }
+                Assert.That(localCollisionInputNames, Does.Contain("_foo"));
+                Assert.That(localCollisionOutputNames, Does.Contain("Foo"));
+
+                Assert.That(proxies, Does.Contain("ValueTask<("));
+                Assert.That(proxies, Does.Contain(
+                    "ValueTask<string> LocalCollisionAsync("));
+                Assert.That(proxies, Does.Contain(
+                    "TryGetValue(out string _fooOut)"));
+                Assert.That(proxies, Does.Contain("return _fooOut;"));
+                Assert.That(proxies, Does.Contain("string versionIdOut"));
+                Assert.That(proxies, Does.Contain("string classOut"));
+                Assert.That(proxies, Does.Contain("bool changed"));
+                Assert.That(proxies, Does.Contain("string outputArgumentsOut"));
+                Assert.That(proxies, Does.Contain("string serviceResultOut"));
+                Assert.That(proxies, Does.Contain("string quote_Name"));
+                Assert.That(proxies, Does.Contain("string back_Slash"));
+                Assert.That(proxies, Does.Contain("string lineBreak"));
+                Assert.That(proxies, Does.Contain("string δelta雪"));
+                Assert.That(proxies, Does.Contain("string fooOut"));
+                Assert.That(proxies,
+                    Does.Contain("string roundTripMethodStateResult"));
+                Assert.That(proxies, Does.Contain("string nextLine"));
+                Assert.That(proxies, Does.Contain("string lineSeparator"));
+                Assert.That(proxies, Does.Contain("string paragraphSeparator"));
+                Assert.That(proxies, Does.Contain("string foo,"));
+                Assert.That(proxies, Does.Contain("string foo2,"));
+                Assert.That(proxies, Does.Contain("string @class,"));
+                Assert.That(proxies, Does.Contain("string versionId,"));
+                Assert.That(proxies, Does.Contain("string await2,"));
+                Assert.That(proxies, Does.Contain("string ct2,"));
+                Assert.That(proxies, Does.Contain("string cT3,"));
+                Assert.That(proxies, Does.Contain("string cancellationToken2,"));
+                Assert.That(proxies, Does.Contain("string context2,"));
+                Assert.That(proxies, Does.Contain("string objectId2,"));
+                Assert.That(proxies, Does.Contain("string method2,"));
+                Assert.That(proxies, Does.Contain("string inputArguments2,"));
+                Assert.That(proxies, Does.Contain("string results2,"));
+                Assert.That(proxies, Does.Contain("string _result,"));
+                Assert.That(proxies, Does.Contain("string _foo,"));
+                Assert.That(proxies, Does.Contain("string _2,"));
+                Assert.That(proxies, Does.Contain("string nameof2,"));
+                Assert.That(proxies, Does.Contain("string @__arglist,"));
+                Assert.That(proxies, Does.Contain("string @__makeref,"));
+                Assert.That(proxies, Does.Contain("string @__reftype,"));
+                Assert.That(proxies, Does.Contain("string @__refvalue,"));
+                Assert.That(proxies, Does.Contain("<param name=\"class\">"));
+                Assert.That(proxies, Does.Not.Contain("<param name=\"@class\">"));
+                Assert.That(proxies, Does.Contain("output 'VersionId'."));
+                Assert.That(proxies, Does.Contain("output 'class'."));
+                foreach (string expectedName in expectedOutputNames)
+                {
+                    Assert.That(
+                        proxyRuntimeStrings,
+                        Does.Contain(
+                            $"Method 'RoundTrip' returned an unexpected value " +
+                            $"for output '{expectedName}'."));
+                }
+
+                Assert.That(repeatedFiles.Keys, Is.EquivalentTo(files.Keys));
+                foreach (string key in files.Keys)
+                {
+                    Assert.That(repeatedFiles[key], Is.EqualTo(files[key]), key);
+                }
+            });
+
+            using var peStream = new MemoryStream();
+            bool success = OptimizationLevel.Debug
+                .CreateCompilation()
+                .AddCode(
+                    files.WithOpcUaGeneratedStack(),
+                    LanguageVersion.Latest)
+                .Emit(peStream)
+                .Check(TestContext.Out, out int errorCount, out int warnCount);
+
+            Assert.That(success, Is.True,
+                $"Generated code should compile. Errors: {errorCount}, Warnings: {warnCount}");
+        }
+
+        private static string[] ExtractStringLiteralValues(string source)
+        {
+            return
+            [
+                .. CSharpSyntaxTree.ParseText(source)
+                    .GetRoot()
+                    .DescendantNodes()
+                    .OfType<LiteralExpressionSyntax>()
+                    .Where(literal => literal.IsKind(SyntaxKind.StringLiteralExpression))
+                    .Select(literal => literal.Token.ValueText)
+            ];
         }
 
         private static Dictionary<string, string> GenerateFromNodeSet(

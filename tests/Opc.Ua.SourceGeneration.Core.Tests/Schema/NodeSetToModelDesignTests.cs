@@ -34,6 +34,7 @@ using System.Linq;
 using System.Text;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
+using Opc.Ua.SourceGeneration;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.Schema.Model.Tests
@@ -53,7 +54,11 @@ namespace Opc.Ua.Schema.Model.Tests
     {
         private const string OpcUaNamespaceUri = "http://opcfoundation.org/UA/";
         private const string CrossModelNamespaceUri = "http://test.org/UA/CrossModel/Types";
+        private const string SameNamedArgumentsNamespaceUri =
+            "http://test.org/UA/SameNamedMethodArguments/";
         private const string NodeSetResource = "CrossModelTypes.NodeSet2.xml";
+        private const string SameNamedArgumentsResource =
+            "SameNamedMethodArguments.NodeSet2.xml";
         private const string DesignResource = "TestDataDesign.xml";
 
         private VirtualFileSystem m_fileSystem;
@@ -201,6 +206,86 @@ namespace Opc.Ua.Schema.Model.Tests
             InvalidDataException ex = Assert.Throws<InvalidDataException>(
                 () => importer.Import("Test", "CrossModel"));
             Assert.That(ex.Message, Does.Contain("WidgetType"));
+        }
+
+        [Test]
+        public void ImportPreservesSameNamedInputAndOutputArgumentNames()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            string path = ResourcePath(SameNamedArgumentsResource);
+            var nodesets = new NodesetFileCollection(
+                [(path, new NodesetFileOptions())],
+                m_fileSystem,
+                telemetry);
+            List<string> designFiles = nodesets.GetDesignFileListForModel(
+                SameNamedArgumentsNamespaceUri,
+                out _);
+            Assert.That(designFiles, Is.Not.Null);
+
+            IFileSystem fileSystem = typeof(Generators).Assembly
+                .AsFileSystem("Opc.Ua.SourceGeneration.Design")
+                .WithFallback(m_fileSystem);
+            IModelDesign model = fileSystem.OpenModelDesign(
+                new DesignFileCollection { Targets = designFiles },
+                [],
+                telemetry,
+                useAllowSubtypes: false);
+            MethodDesign method = model.GetNodeDesigns()
+                .OfType<MethodDesign>()
+                .Single(x => x.SymbolicName?.Name == "RoundTripMethodType");
+            string[] expectedInputNames =
+            [
+                "Foo",
+                "foo",
+                "Class",
+                "VersionId",
+                "Await",
+                "Ct",
+                "cT",
+                "CancellationToken",
+                "Context",
+                "ObjectId",
+                "Method",
+                "InputArguments",
+                "Results",
+                "_result",
+                "_foo",
+                "_",
+                "Nameof",
+                "__arglist",
+                "__makeref",
+                "__reftype",
+                "__refvalue"
+            ];
+            string[] expectedOutputNames =
+            [
+                "VersionId",
+                "class",
+                "Changed",
+                "OutputArguments",
+                "ServiceResult",
+                "Quote\"Name",
+                "Back\\Slash",
+                "Line\nBreak",
+                "Δelta雪",
+                "Foo",
+                "RoundTripMethodStateResult",
+                "Next\u0085Line",
+                "Line\u2028Separator",
+                "Paragraph\u2029Separator"
+            ];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(method.InputArguments, Has.Length.EqualTo(expectedInputNames.Length));
+                Assert.That(
+                    method.InputArguments.Select(argument => argument.Name),
+                    Is.EqualTo(expectedInputNames));
+                Assert.That(method.OutputArguments, Has.Length.EqualTo(expectedOutputNames.Length));
+                Assert.That(
+                    method.OutputArguments.Select(argument => argument.Name),
+                    Is.EqualTo(expectedOutputNames));
+            });
         }
 
         private static ITelemetryContext CreateTelemetry()

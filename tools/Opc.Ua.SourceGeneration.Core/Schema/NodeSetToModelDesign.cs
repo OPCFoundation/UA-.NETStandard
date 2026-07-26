@@ -1087,47 +1087,7 @@ namespace Opc.Ua.Schema.Model
                 }
             }
 
-            DisambiguateArgumentFieldNames(output);
-        }
-
-        /// <summary>
-        /// A method may declare an output argument whose name matches one of its
-        /// input arguments (for example an xRegistry method that accepts a
-        /// desired <c>VersionId</c> and returns the effective <c>VersionId</c>).
-        /// The generated typed handler emits the input arguments and the
-        /// by-reference output arguments as parameters/locals in the same scope,
-        /// so a shared name produces a duplicate C# identifier. Suffix the
-        /// generated field name of the colliding output arguments; the runtime
-        /// argument names (read positionally from the NodeSet value) are
-        /// unaffected.
-        /// </summary>
-        private static void DisambiguateArgumentFieldNames(MethodDesign output)
-        {
-            if (output.InputArguments == null ||
-                output.InputArguments.Length == 0 ||
-                output.OutputArguments == null ||
-                output.OutputArguments.Length == 0)
-            {
-                return;
-            }
-
-            var inputFieldNames = new HashSet<string>(StringComparer.Ordinal);
-            foreach (Parameter input in output.InputArguments)
-            {
-                if (!string.IsNullOrEmpty(input?.Name))
-                {
-                    inputFieldNames.Add(input.GetChildFieldName());
-                }
-            }
-
-            foreach (Parameter arg in output.OutputArguments)
-            {
-                if (!string.IsNullOrEmpty(arg?.Name) &&
-                    inputFieldNames.Contains(arg.GetChildFieldName()))
-                {
-                    arg.Name += "Out";
-                }
-            }
+            output.AssignMethodArgumentCodeNames();
         }
 
         private void LinkChildToParent(UAInstance input)
