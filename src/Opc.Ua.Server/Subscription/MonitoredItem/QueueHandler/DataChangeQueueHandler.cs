@@ -631,6 +631,9 @@ namespace Opc.Ua.Server
             var spinWait = new SpinWait();
             // Durable queues may temporarily return false while restoring a persisted batch.
             // Drain the captured item count exactly so a resize cannot drop a partially restored batch.
+            // The retry is bounded, because a queue that permanently stops handing back the values it
+            // reports as queued would otherwise spin a server thread forever.
+            int failedAttempts = 0;
             while (values.Count < itemCount)
             {
                 if (m_dataValueQueue.Dequeue(out DataValue value, out ServiceResult error))
@@ -638,11 +641,17 @@ namespace Opc.Ua.Server
                     values.Add(
                         new QueuedValue(value, error, DequeueRequiredFlag(value, error)));
                     spinWait.Reset();
+                    failedAttempts = 0;
+                    continue;
                 }
-                else
+
+                if (++failedAttempts > kMaxDrainAttempts)
                 {
-                    spinWait.SpinOnce();
+                    throw new ServiceResultException(
+                        StatusCodes.BadInternalError,
+                        "The monitored item queue did not return the values it reported as queued.");
                 }
+                spinWait.SpinOnce();
             }
             return values;
         }
@@ -780,6 +789,13 @@ namespace Opc.Ua.Server
                 m_dataValueQueue?.Dispose();
             }
         }
+
+        /// <summary>
+        /// The number of consecutive failed dequeue attempts tolerated while draining, before the
+        /// queue is treated as broken. A durable queue only fails transiently while it restores a
+        /// persisted batch, so exceeding this means it will not recover.
+        /// </summary>
+        private const int kMaxDrainAttempts = 10000;
 
         private readonly IDataChangeMonitoredItemQueue m_dataValueQueue;
         private readonly ILogger m_logger;

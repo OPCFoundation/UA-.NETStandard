@@ -148,6 +148,7 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(nodeManager));
             }
 
+            List<ContinuationPoint>? removed = null;
             lock (m_lock)
             {
                 if (m_browse == null)
@@ -167,12 +168,26 @@ namespace Opc.Ua.Server
                     }
 
                     m_browse.RemoveAt(ii);
-                    m_store?.RemoveContinuationPoint(
-                        Id,
-                        ContinuationPointKind.Browse,
-                        continuationPoint.Id);
-                    continuationPoint.Dispose();
+                    removed ??= [];
+                    removed.Add(continuationPoint);
                 }
+            }
+
+            if (removed == null)
+            {
+                return;
+            }
+
+            // Persisting and disposing runs outside the lock, because a continuation point belongs
+            // to the NodeManager being retired and its disposal must not block unrelated Browse
+            // operations, or re-enter this session while the lock is held.
+            foreach (ContinuationPoint continuationPoint in removed)
+            {
+                m_store?.RemoveContinuationPoint(
+                    Id,
+                    ContinuationPointKind.Browse,
+                    continuationPoint.Id);
+                continuationPoint.Dispose();
             }
         }
 

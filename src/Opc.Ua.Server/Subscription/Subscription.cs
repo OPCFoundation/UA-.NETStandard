@@ -1734,7 +1734,7 @@ namespace Opc.Ua.Server
                     cleanupErrors.Add(
                         ServiceResult.IsBad(errors[ii])
                             ? errors[ii]
-                            : null!);
+                            : ServiceResult.Good);
                 }
                 try
                 {
