@@ -325,6 +325,139 @@ namespace Opc.Ua.XRegistry.Client.Tests
             });
         }
 
+        /// <summary>
+        /// The group lifecycle the model declares on RegistryType is reachable from the client
+        /// through the generated registry proxy.
+        /// </summary>
+        [Test]
+        public async Task CreateGroupDrivesTheRegistryProxyAsync()
+        {
+            Mock<ISession> session = CreateSession();
+            var calls = new List<CallMethodRequest>();
+            SetupCall(session, calls);
+
+            GenericXRegistryClient client = CreateClient(session);
+            NodeId groupNodeId = await client
+                .CreateGroupAsync(new NodeId(5u, 1), "schemas").ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(groupNodeId, Is.EqualTo(s_createdGroupNodeId));
+                Assert.That(calls, Has.Count.EqualTo(1));
+                Assert.That(calls[0].InputArguments[0].TryGetValue(out string? groupId), Is.True);
+                Assert.That(groupId, Is.EqualTo("schemas"));
+            });
+        }
+
+        [Test]
+        public async Task GetOrCreateGroupReportsWhetherItCreatedTheGroupAsync()
+        {
+            Mock<ISession> session = CreateSession();
+            var calls = new List<CallMethodRequest>();
+            SetupCall(session, calls);
+
+            GenericXRegistryClient client = CreateClient(session);
+            (NodeId groupNodeId, bool created) = await client
+                .GetOrCreateGroupAsync(new NodeId(5u, 1), "schemas").ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(groupNodeId, Is.EqualTo(s_createdGroupNodeId));
+                Assert.That(created, Is.True);
+            });
+        }
+
+        [Test]
+        public void GroupHelpersValidateTheirArguments()
+        {
+            GenericXRegistryClient client = CreateClient(CreateSession());
+            var registry = new NodeId(5u, 1);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(() => client.CreateGroupAsync(registry, string.Empty), Throws.ArgumentException);
+                Assert.That(
+                    () => client.GetOrCreateGroupAsync(registry, string.Empty), Throws.ArgumentException);
+                Assert.That(
+                    () => client.GetOrRegisterResourceAsync(NodeId.Null, "id", new byte[1]),
+                    Throws.ArgumentException);
+                Assert.That(
+                    () => client.GetOrRegisterResourceAsync(new NodeId(1u, 1), string.Empty, new byte[1]),
+                    Throws.ArgumentException);
+                Assert.That(
+                    () => client.GetOrRegisterResourceAsync(
+                        new NodeId(1u, 1), "id", new byte[1], chunkSize: 0),
+                    Throws.InstanceOf<ArgumentOutOfRangeException>());
+            });
+        }
+
+        /// <summary>
+        /// The idempotent registration only streams the document when it actually created the
+        /// version, so re-registering an existing version is cheap.
+        /// </summary>
+        [Test]
+        public async Task GetOrRegisterResourceSkipsTheUploadWhenTheVersionExistsAsync()
+        {
+            Mock<ISession> session = CreateSession();
+            var calls = new List<CallMethodRequest>();
+            SetupCall(session, calls, resourceCreated: false);
+
+            GenericXRegistryClient client = CreateClient(session);
+            (NodeId resourceNodeId, string assignedVersionId, bool created) = await client
+                .GetOrRegisterResourceAsync(new NodeId(1u, 1), "urn:doc", new byte[8])
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(created, Is.False);
+                Assert.That(resourceNodeId, Is.EqualTo(s_createdResourceNodeId));
+                Assert.That(assignedVersionId, Is.EqualTo("7"));
+                Assert.That(CountCalls(calls, Opc.Ua.MethodIds.FileType_Write), Is.Zero,
+                    "An existing version is not re-uploaded.");
+            });
+        }
+
+        [Test]
+        public async Task GetOrRegisterResourceUploadsWhenItCreatedTheVersionAsync()
+        {
+            Mock<ISession> session = CreateSession();
+            var calls = new List<CallMethodRequest>();
+            SetupCall(session, calls, resourceCreated: true);
+
+            GenericXRegistryClient client = CreateClient(session);
+            (_, _, bool created) = await client
+                .GetOrRegisterResourceAsync(new NodeId(1u, 1), "urn:doc", new byte[8], chunkSize: 4)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(created, Is.True);
+                Assert.That(CountCalls(calls, Opc.Ua.MethodIds.FileType_Write), Is.EqualTo(2));
+                Assert.That(CountCalls(calls, Opc.Ua.MethodIds.FileType_Close), Is.EqualTo(1));
+            });
+        }
+
+        [Test]
+        public async Task DeleteHelpersPassTheExpectedEpochAsync()
+        {
+            Mock<ISession> session = CreateSession();
+            var calls = new List<CallMethodRequest>();
+            SetupCall(session, calls);
+
+            GenericXRegistryClient client = CreateClient(session);
+            await client.DeleteResourceAsync(new NodeId(9u, 1), 3).ConfigureAwait(false);
+            await client.DeleteGroupAsync(new NodeId(8u, 1), 4).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(calls, Has.Count.EqualTo(2));
+                Assert.That(calls[0].InputArguments[0].TryGetValue(out uint resourceEpoch), Is.True);
+                Assert.That(resourceEpoch, Is.EqualTo(3u));
+                Assert.That(calls[1].InputArguments[0].TryGetValue(out uint groupEpoch), Is.True);
+                Assert.That(groupEpoch, Is.EqualTo(4u));
+            });
+        }
+
         private static Task<ByteString> ResolveWithReadFaultAsync(StatusCode statusCode)
         {
             Mock<ISession> session = CreateSession();
@@ -414,7 +547,10 @@ namespace Opc.Ua.XRegistry.Client.Tests
         /// Answers every Call with outputs shaped for the method being invoked, and records the
         /// requests so a test can assert the lifecycle the client drove.
         /// </summary>
-        private static void SetupCall(Mock<ISession> session, List<CallMethodRequest> calls)
+        private static void SetupCall(
+            Mock<ISession> session,
+            List<CallMethodRequest> calls,
+            bool resourceCreated = true)
         {
             session
                 .Setup(s => s.CallAsync(
@@ -433,7 +569,7 @@ namespace Opc.Ua.XRegistry.Client.Tests
                                 new()
                                 {
                                     StatusCode = StatusCodes.Good,
-                                    OutputArguments = OutputsFor(request)
+                                    OutputArguments = OutputsFor(request, resourceCreated)
                                 }
                             },
                             DiagnosticInfos = [],
@@ -442,21 +578,28 @@ namespace Opc.Ua.XRegistry.Client.Tests
                     });
         }
 
-        private static ArrayOf<Variant> OutputsFor(CallMethodRequest request)
+        private static ArrayOf<Variant> OutputsFor(CallMethodRequest request, bool resourceCreated)
         {
-            // CreateResource(ResourceId, VersionId, RequestFileOpen) returns
-            // (ResourceNodeId, AssignedVersionId, FileHandle).
+            // CreateResource/GetOrCreateResource(ResourceId, VersionId, RequestFileOpen) return
+            // (ResourceNodeId, AssignedVersionId, FileHandle[, Created]).
             if (request.InputArguments.Count == 3)
             {
                 return new Variant[]
                 {
                     new(s_createdResourceNodeId),
                     new("7"),
-                    new(99u)
+                    new(99u),
+                    new(resourceCreated)
                 };
             }
 
-            // FileType Open(mode) returns a handle; Read(handle, length) returns the chunk.
+            // CreateGroup/GetOrCreateGroup(GroupId) return (GroupNodeId[, Created]); the file
+            // methods and Delete(ExpectedEpoch) take one argument and return nothing meaningful.
+            if (request.InputArguments.Count == 1 &&
+                request.InputArguments[0].TryGetValue(out string? _))
+            {
+                return new Variant[] { new(s_createdGroupNodeId), new(true) };
+            }
             if (request.InputArguments.Count == 1)
             {
                 return new Variant[] { new(99u) };
@@ -508,6 +651,7 @@ namespace Opc.Ua.XRegistry.Client.Tests
 
         private const string TestNamespaceUri = XRegistryWellKnown.XRegistryNamespaceUri;
         private static readonly NodeId s_createdResourceNodeId = new(4711u, 1);
+        private static readonly NodeId s_createdGroupNodeId = new(4712u, 1);
         private static readonly byte[] s_readChunk = [0x0A, 0x0B];
     }
 }

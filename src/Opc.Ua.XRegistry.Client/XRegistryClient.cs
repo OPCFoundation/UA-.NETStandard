@@ -240,5 +240,132 @@ namespace Opc.Ua.XRegistry.Client
 
             return (resourceNodeId, assignedVersionId);
         }
+
+        /// <summary>
+        /// Creates a resource group under a registry root.
+        /// </summary>
+        /// <param name="registryNodeId">The registry root NodeId.</param>
+        /// <param name="groupId">The group id to create.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>The NodeId of the created group.</returns>
+        /// <exception cref="ArgumentException"><paramref name="groupId"/> is null/empty.</exception>
+        public async Task<NodeId> CreateGroupAsync(
+            NodeId registryNodeId,
+            string groupId,
+            CancellationToken ct = default)
+        {
+            if (string.IsNullOrEmpty(groupId))
+            {
+                throw new ArgumentException("A group id is required.", nameof(groupId));
+            }
+
+            RegistryTypeClient registry = GetRegistry(registryNodeId);
+            return await registry.CreateGroupAsync(groupId, ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Gets a resource group, creating it when it does not exist yet.
+        /// </summary>
+        /// <param name="registryNodeId">The registry root NodeId.</param>
+        /// <param name="groupId">The group id.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>The group NodeId and whether this call created it.</returns>
+        /// <exception cref="ArgumentException"><paramref name="groupId"/> is null/empty.</exception>
+        public async Task<(NodeId GroupNodeId, bool Created)> GetOrCreateGroupAsync(
+            NodeId registryNodeId,
+            string groupId,
+            CancellationToken ct = default)
+        {
+            if (string.IsNullOrEmpty(groupId))
+            {
+                throw new ArgumentException("A group id is required.", nameof(groupId));
+            }
+
+            RegistryTypeClient registry = GetRegistry(registryNodeId);
+            return await registry.GetOrCreateGroupAsync(groupId, ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Registers a resource document idempotently: an existing version with the same
+        /// <paramref name="resourceId"/> and <paramref name="versionId"/> is reused rather than
+        /// rejected, and the document is only streamed when this call created the version.
+        /// </summary>
+        /// <param name="groupNodeId">The NodeId of the group that owns the resource.</param>
+        /// <param name="resourceId">The resource id to create or version.</param>
+        /// <param name="document">The resource document bytes.</param>
+        /// <param name="versionId">The version id; empty lets the server assign the next one.</param>
+        /// <param name="chunkSize">The maximum Write chunk size in bytes.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>The resource NodeId, the assigned version id, and whether it was created.</returns>
+        /// <exception cref="ArgumentException"><paramref name="groupNodeId"/> or
+        /// <paramref name="resourceId"/> is null/empty.</exception>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="chunkSize"/> is not positive.</exception>
+        public async Task<(NodeId ResourceNodeId, string AssignedVersionId, bool Created)>
+            GetOrRegisterResourceAsync(
+                NodeId groupNodeId,
+                string resourceId,
+                ReadOnlyMemory<byte> document,
+                string versionId = "",
+                int chunkSize = ResourceTypeClientExtensions.DefaultChunkSize,
+                CancellationToken ct = default)
+        {
+            if (groupNodeId.IsNull)
+            {
+                throw new ArgumentException("A group NodeId is required.", nameof(groupNodeId));
+            }
+            if (string.IsNullOrEmpty(resourceId))
+            {
+                throw new ArgumentException("A resource id is required.", nameof(resourceId));
+            }
+            if (chunkSize <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(chunkSize));
+            }
+
+            GroupTypeClient group = GetGroup(groupNodeId);
+            (NodeId resourceNodeId, string assignedVersionId, uint fileHandle, bool created) =
+                await group.GetOrCreateResourceAsync(resourceId, versionId ?? string.Empty, true, ct)
+                    .ConfigureAwait(false);
+
+            if (created)
+            {
+                ResourceTypeClient resource = GetResource(resourceNodeId);
+                await resource.WriteDocumentAsync(fileHandle, document, chunkSize, ct)
+                    .ConfigureAwait(false);
+            }
+
+            return (resourceNodeId, assignedVersionId, created);
+        }
+
+        /// <summary>
+        /// Deletes a resource version. The <paramref name="expectedEpoch"/> is the model's
+        /// optimistic-concurrency check — the server rejects the call when the resource has moved on.
+        /// </summary>
+        /// <param name="resourceNodeId">The resource NodeId.</param>
+        /// <param name="expectedEpoch">The epoch the caller last observed.</param>
+        /// <param name="ct">The cancellation token.</param>
+        public async Task DeleteResourceAsync(
+            NodeId resourceNodeId,
+            uint expectedEpoch,
+            CancellationToken ct = default)
+        {
+            ResourceTypeClient resource = GetResource(resourceNodeId);
+            await resource.DeleteAsync(expectedEpoch, ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Deletes a resource group and every version it owns.
+        /// </summary>
+        /// <param name="groupNodeId">The group NodeId.</param>
+        /// <param name="expectedEpoch">The epoch the caller last observed.</param>
+        /// <param name="ct">The cancellation token.</param>
+        public async Task DeleteGroupAsync(
+            NodeId groupNodeId,
+            uint expectedEpoch,
+            CancellationToken ct = default)
+        {
+            GroupTypeClient group = GetGroup(groupNodeId);
+            await group.DeleteAsync(expectedEpoch, ct).ConfigureAwait(false);
+        }
     }
 }
