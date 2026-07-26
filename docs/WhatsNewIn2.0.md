@@ -185,6 +185,14 @@ server- and client-side implementations:
   frame-chain resolution, WGS84/ENU conversion, and rigid/similarity/affine
   Zone fitting. The robot/OpenUSD sample publishes independently configurable
   mobile robot poses. See [Positioning](Positioning.md).
+- **OPC 40010-1 — Robotics** (over **OPC 40001-1 — Industrial Automation**):
+  the `Opc.Ua.Robotics` / `Opc.Ua.Robotics.Server` / `Opc.Ua.Robotics.Client`
+  library trio over Device Integration, with source-generated Robotics 1.02
+  and IA models, `AddRobotics` / `ConfigureRobotics` hosting, ordered model
+  providers, and validated fluent topology builders that assemble motion
+  device systems, controllers, motion devices, axes, power trains, motors,
+  gears, drives, safety states, and task controls with the correct
+  companion-spec references. See [Robotics](Robotics.md).
 - **OPC 10100-1 — WoT Connectivity**: model, server, and client libraries
   for surfacing OPC UA servers as Web of Things Thing Descriptions, with
   the `WoTAssetConnectionManagement` server methods gated by a

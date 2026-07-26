@@ -212,6 +212,7 @@ namespace Opc.Ua.SourceGeneration
                 // NodeSetToModelDesign) emit references like
                 // `global::Opc.Ua.DI.X` instead of `global::Opc.Ua.Di.X`.
                 OverrideDependencyPrefixes(modelDesign, referencedModels);
+                EnsureUniqueTargetNamespaceName(modelDesign);
 
                 DesignFileOptions effectiveOptions = ApplyNodeManagerBinding(
                     model,
@@ -322,6 +323,65 @@ namespace Opc.Ua.SourceGeneration
                     ns.Name = dep.Name;
                 }
             }
+        }
+
+        internal static void EnsureUniqueTargetNamespaceName(IModelDesign modelDesign)
+        {
+            Namespace target = modelDesign?.TargetNamespace;
+            if (target == null ||
+                string.IsNullOrEmpty(target.Value) ||
+                string.IsNullOrEmpty(target.Name) ||
+                modelDesign.Namespaces == null)
+            {
+                return;
+            }
+
+            bool duplicate = modelDesign.Namespaces.Any(ns =>
+                ns != null &&
+                !string.Equals(ns.Value, target.Value, StringComparison.Ordinal) &&
+                string.Equals(ns.Name, target.Name, StringComparison.Ordinal));
+            if (!duplicate)
+            {
+                return;
+            }
+
+            string candidate = CreateNamespaceConstantName(target.Prefix);
+            if (string.IsNullOrEmpty(candidate) ||
+                string.Equals(candidate, target.Name, StringComparison.Ordinal))
+            {
+                candidate = target.Name + "Namespace";
+            }
+
+            HashSet<string> usedNames = [.. modelDesign.Namespaces
+                .Where(ns => ns != null &&
+                    !string.Equals(ns.Value, target.Value, StringComparison.Ordinal) &&
+                    !string.IsNullOrEmpty(ns.Name))
+                .Select(ns => ns.Name)];
+            string uniqueName = candidate;
+            int suffix = 2;
+            while (usedNames.Contains(uniqueName))
+            {
+                uniqueName = candidate + suffix.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                suffix++;
+            }
+            target.Name = uniqueName;
+            foreach (Namespace ns in modelDesign.Namespaces.Where(ns =>
+                ns != null &&
+                string.Equals(ns.Value, target.Value, StringComparison.Ordinal)))
+            {
+                ns.Name = uniqueName;
+            }
+        }
+
+        private static string CreateNamespaceConstantName(string prefix)
+        {
+            if (string.IsNullOrEmpty(prefix))
+            {
+                return null;
+            }
+
+            string[] parts = prefix.Split(['.', '-', '_', '/', ':'], StringSplitOptions.RemoveEmptyEntries);
+            return string.Concat(parts.Select(part => part.ToSafeSymbolName().ToUpperCamelCase()));
         }
 
         private static bool ValidateFluentAccessorsOnlyTarget(
@@ -795,6 +855,7 @@ namespace Opc.Ua.SourceGeneration
                 // generated type references resolve against the referenced
                 // assembly's actual prefix (not the auto-generated one).
                 OverrideDependencyPrefixes(modelDesign, referencedModels);
+                EnsureUniqueTargetNamespaceName(modelDesign);
 
                 DesignFileOptions effectiveOptions = ApplyNodeManagerBinding(
                     model,

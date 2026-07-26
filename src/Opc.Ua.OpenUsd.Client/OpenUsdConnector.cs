@@ -661,23 +661,8 @@ namespace Opc.Ua.OpenUsd.Client
 
         private static double ToDouble(Variant v)
         {
-            if (v.TryGetValue(out double d))
-            {
-                return d;
-            }
-            // Coerce any other numeric source (int/float/short/…) to double. AsBoxedObject
-            // is the sanctioned way to obtain the boxed value for coercion.
-            try
-            {
-                object? boxed = v.AsBoxedObject();
-                return boxed == null
-                    ? 0.0
-                    : System.Convert.ToDouble(boxed, System.Globalization.CultureInfo.InvariantCulture);
-            }
-            catch (Exception)
-            {
-                return 0.0;
-            }
+            // Widen any numeric source (int/float/short/…) without boxing.
+            return VariantConversions.TryGetDouble(v, out double result) ? result : 0.0;
         }
 
         /// <summary>
@@ -944,7 +929,9 @@ namespace Opc.Ua.OpenUsd.Client
             };
             ReadResponse response = await m_session.ReadAsync(
                 null, 0, TimestampsToReturn.Neither, toRead, ct).ConfigureAwait(false);
-            return response.Results[0].WrappedValue.AsBoxedObject() is QualifiedName qn ? qn.Name ?? string.Empty : string.Empty;
+            return response.Results[0].WrappedValue.TryGetValue(out QualifiedName qn)
+                ? qn.Name ?? string.Empty
+                : string.Empty;
         }
 
         private async Task<List<ReferenceDescription>> BrowseAsync(NodeId node, CancellationToken ct)
@@ -1018,7 +1005,7 @@ namespace Opc.Ua.OpenUsd.Client
                 return null;
             }
             DataValue dv = await ReadAsync(id, ct).ConfigureAwait(false);
-            return dv.WrappedValue.AsBoxedObject() as string;
+            return dv.WrappedValue.TryGetValue(out string s) ? s : null;
         }
 
         private async Task<NodeId> ReadNodeIdAsync(
@@ -1029,7 +1016,7 @@ namespace Opc.Ua.OpenUsd.Client
                 return NodeId.Null;
             }
             DataValue dv = await ReadAsync(id, ct).ConfigureAwait(false);
-            return dv.WrappedValue.AsBoxedObject() is NodeId n ? n : NodeId.Null;
+            return dv.WrappedValue.TryGetValue(out NodeId n) ? n : NodeId.Null;
         }
 
         private async Task<int> ReadInt32Async(
@@ -1040,9 +1027,9 @@ namespace Opc.Ua.OpenUsd.Client
                 return 0;
             }
             DataValue dv = await ReadAsync(id, ct).ConfigureAwait(false);
-            object? v = dv.WrappedValue.AsBoxedObject();
-            return v == null ? 0
-                : System.Convert.ToInt32(v, System.Globalization.CultureInfo.InvariantCulture);
+            return VariantConversions.TryGetInt64(dv.WrappedValue, out long v)
+                ? unchecked((int)v)
+                : 0;
         }
 
         private async Task<double> ReadDoubleAsync(
@@ -1053,9 +1040,7 @@ namespace Opc.Ua.OpenUsd.Client
                 return fallback;
             }
             DataValue dv = await ReadAsync(id, ct).ConfigureAwait(false);
-            object? v = dv.WrappedValue.AsBoxedObject();
-            return v == null ? fallback
-                : System.Convert.ToDouble(v, System.Globalization.CultureInfo.InvariantCulture);
+            return VariantConversions.TryGetDouble(dv.WrappedValue, out double v) ? v : fallback;
         }
 
         private async Task<bool> ReadBoolAsync(
@@ -1066,9 +1051,7 @@ namespace Opc.Ua.OpenUsd.Client
                 return false;
             }
             DataValue dv = await ReadAsync(id, ct).ConfigureAwait(false);
-            object? v = dv.WrappedValue.AsBoxedObject();
-            return v != null &&
-                System.Convert.ToBoolean(v, System.Globalization.CultureInfo.InvariantCulture);
+            return VariantConversions.TryGetBoolean(dv.WrappedValue, out bool v) && v;
         }
 
         private async Task<ByteString> ReadByteStringAsync(

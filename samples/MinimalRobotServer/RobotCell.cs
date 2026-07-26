@@ -127,7 +127,7 @@ namespace Robotics
 
         private NodeId RoboticsType(uint id)
         {
-            return NodeId.Create(id, RoboticsNamespaceUri, Server.NamespaceUris);
+            return NodeId.Create(id, Opc.Ua.Robotics.Namespaces.Robotics, Server.NamespaceUris);
         }
 
         private async ValueTask MaterialiseRobotCellAsync(CancellationToken cancellationToken)
@@ -138,7 +138,8 @@ namespace Robotics
             }
             try
             {
-                ushort ns = (ushort)Server.NamespaceUris.GetIndex(RoboticsNamespaceUri);
+                ushort ns = (ushort)Server.NamespaceUris.GetIndex(
+                    Opc.Ua.Robotics.Namespaces.Robotics);
                 ushort usdNs = (ushort)Server.NamespaceUris.GetIndex(Opc.Ua.OpenUsd.Namespaces.OpenUSD);
 
                 NodeState? deviceSet = PredefinedNodes.FindById(NodeId.Create(
@@ -153,9 +154,10 @@ namespace Robotics
                 // MotionDeviceSystemType instance (MotionDeviceSystemState), NOT a bare
                 // BaseObjectState carrying only a type-definition reference, so the instance
                 // has the real companion-type structure (MotionDevices / Controllers /
-                // SafetyStates). The generator's CreateInstanceOf factory stamps TYPE NodeIds
-                // on the materialised children; the single AssignChildNodeIds(cell) walk below
-                // re-stamps per-instance NodeIds before registration.
+                // SafetyStates). CreateInstanceOf... already assigns per-instance NodeIds
+                // across the subtree it materialises; the AssignChildNodeIds(cell) walk
+                // below covers only the nodes added afterwards through the generator's
+                // CreateOrReplace... helpers, which still stamp TYPE NodeIds.
                 MotionDeviceSystemState cell = SystemContext.CreateInstanceOfMotionDeviceSystemType(
                     deviceSet, new QualifiedName("RobotCell", ns));
                 cell.ReferenceTypeId = ReferenceTypeIds.HasComponent;

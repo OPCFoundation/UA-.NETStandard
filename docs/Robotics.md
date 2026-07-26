@@ -15,7 +15,7 @@ dependency order.
 |---|---|
 | `OPCFoundation.NetStandard.Opc.Ua.Robotics` | Source-generated Robotics and IA models plus `ArrayOf<T>`-based common contracts shared by client and server. |
 | `OPCFoundation.NetStandard.Opc.Ua.Robotics.Server` | Stock node manager, model providers, hosting extensions, and validated fluent topology builders. |
-| `OPCFoundation.NetStandard.Opc.Ua.Robotics.Client` | Continuation-safe discovery of `MotionDeviceSystem` instances and Robotics type classification. |
+| `OPCFoundation.NetStandard.Opc.Ua.Robotics.Client` | Continuation-safe, subtype-aware discovery of Robotics instances over the DI client, plus Robotics type classification. |
 
 Generated model types stay in the specification namespaces `Opc.Ua.Robotics` and
 `Opc.Ua.IA`; hand-written APIs compose the generated NodeStates, factories,
@@ -289,7 +289,21 @@ output-side revolution and is a `BaseDataVariableType` without EngineeringUnits.
 
 ## Custom node managers and non-DI hosting
 
-An application that already owns a `DiNodeManager` can host Robotics in it:
+The stock `RoboticsNodeManager` owns the DI address space and exactly one
+application instance namespace. Use it — through `AddRobotics()` — whenever
+Robotics is the only companion model the server adds. Reach for a custom node
+manager instead when any of the following applies:
+
+* the server composes **additional models into the same manager** (for example
+  the OpenUSD binding, or RSL/GPOS positioning, alongside Robotics), so a single
+  `LoadPredefinedNodesAsync` must return all of them in dependency order;
+* the server needs its own `INodeIdFactory` scheme (deterministic string
+  NodeIds, an external asset registry, a sharded allocator);
+* the server already owns a `DiNodeManager` for its device model and Robotics is
+  one facet of it.
+
+An application that already owns a `DiNodeManager` keeps it and still gets the
+validated fluent builders:
 
 ```csharp
 builder.ConfigureRoboticsFor<MyDeviceNodeManager>(async context =>
@@ -299,7 +313,8 @@ builder.ConfigureRoboticsFor<MyDeviceNodeManager>(async context =>
 });
 ```
 
-Outside the hosting pipeline, load the models and create the context directly:
+Outside the hosting pipeline entirely, load the models and create the context
+directly:
 
 ```csharp
 // Inside a DiNodeManager: load DI + IA + Robotics in dependency order.
@@ -319,6 +334,54 @@ model, and the configured instance namespace before returning. The manager's
 must be thread-safe, must reserve unique NodeIds for unregistered nodes, and must
 allocate Robotics instances in the configured instance namespace.
 
+[`MinimalRobotServer`](../samples/MinimalRobotServer) is the worked example of
+the custom-manager route: it composes Robotics, IA, DI, the draft OpenUSD
+binding, and RSL/GPOS in one `DiNodeManager` subclass.
+
+## Vendor extensions
+
+The Robotics packages are a base for robot vendors, not a closed set. A vendor
+ships their own package that references `Opc.Ua.Robotics` (and
+`Opc.Ua.Robotics.Server` when it needs fluent accessors), adds its own
+NodeSet2.xml declaring ObjectTypes **derived from** the companion types (for
+example an `AcmeMotionDeviceType` under `MotionDeviceType`), and runs the model
+source generator with default options:
+
+```xml
+<AdditionalFiles Include="Model\Acme.Robots.NodeSet2.xml">
+  <ModelSourceGeneratorPrefix>Acme.Robots</ModelSourceGeneratorPrefix>
+</AdditionalFiles>
+```
+
+The `ModelDependencyAttribute` emitted by `Opc.Ua.Robotics` makes the generator
+resolve the base state types from that assembly instead of re-emitting them, so
+`AcmeMotionDeviceState` derives from the shipped `MotionDeviceState`. The
+`ModelFluentAccessorProviderAttribute` on `Opc.Ua.Robotics.Server` does the same
+for the fluent accessors: the vendor assembly emits accessors only for its new
+types and inherits the Robotics ones. See
+[Model Dependencies](ModelDependencies.md).
+
+On the client side every discovery and classification call is subtype aware, so
+vendor specialisations are found and labelled without any client change.
+
+## Layering
+
+The three packages follow the same layering as the Device Integration and
+Positioning trios:
+
+| Package | References | Generation |
+|---|---|---|
+| `Opc.Ua.Robotics` | `Opc.Ua.Di` | Robotics + IA models with `ModelSourceGeneratorOmitFluentApi=true` |
+| `Opc.Ua.Robotics.Server` | `Opc.Ua.Robotics`, `Opc.Ua.Di.Server`, `Opc.Ua.Server` | fluent accessors only, with `ModelSourceGeneratorFluentAccessorsOnly=true` |
+| `Opc.Ua.Robotics.Client` | `Opc.Ua.Robotics`, `Opc.Ua.Di.Client`, `Opc.Ua.Client` | — |
+
+The model package stays free of any server dependency because the generated
+fluent-accessor method bodies call into the `Opc.Ua.Server` fluent builders.
+Emitting them from the model package would force `Opc.Ua.Robotics` — and
+therefore `Opc.Ua.Robotics.Client` — to reference `Opc.Ua.Server`. The
+accessors are therefore generated once, in the server package, against the state
+types the model package already ships.
+
 ## Common contracts
 
 `Opc.Ua.Robotics` ships immutable `ArrayOf<T>`-based records that project a robot
@@ -336,26 +399,97 @@ the authoritative projection of the semantic Robotics references listed above.
 
 ## Client
 
-`RoboticsClient` lets a generic client — a viewer, an OpenUSD connector, or a
-fleet manager — find and label robot cells without hard-coded NodeIds:
+`Opc.Ua.Robotics.Client` extends the Device Integration client: Robotics types
+derive from IA, which derives from OPC 10000-100, so `RoboticsClient` composes
+`DiTopologyClient` rather than reimplementing device navigation. It lets a
+generic client — a viewer, an OpenUSD connector, or a fleet manager — find,
+label, and drive robot cells without hard-coded NodeIds.
+
+### Registration
+
+```csharp
+services.AddOpcUa()
+    .AddClient(options => { /* endpoint and application options */ })
+    .AddRoboticsClient();
+```
+
+`AddRoboticsClient()` also calls `AddOpcUaDi()`, and registers a
+`Func<CancellationToken, Task<RoboticsClient>>` factory bound to the managed
+session. The direct constructor
+`new RoboticsClient(session, telemetry)` remains available as the non-DI
+fallback.
+
+### API
+
+| Member | Purpose |
+|---|---|
+| `RoboticsClient(ISession, ITelemetryContext)` | Creates the client over a connected session. |
+| `Session` / `Telemetry` | The session and telemetry context the client was created with. |
+| `Topology` | The `DiTopologyClient` this client extends — use it to walk the DI device topology (`DeviceSetId`, `NetworkSetId`, `DeviceTopologyId`). |
+| `DiscoverMotionDeviceSystemsAsync(ct)` | Discovers every MotionDeviceSystem below the DI `DeviceSet`. |
+| `DiscoverMotionDeviceSystemsAsync(root, ct)` | Same, below an explicit root (for example the Objects folder). |
+| `DiscoverMotionDevicesAsync(root, ct)` | Discovers MotionDevices, typically below a system's `MotionDevices` folder. |
+| `DiscoverControllersAsync(root, ct)` | Discovers Controllers, typically below a system's `Controllers` folder. |
+| `DiscoverAxesAsync(root, ct)` | Discovers Axes, typically below a motion device's `Axes` folder. |
+| `GetRoboticsTypeNameAsync(typeDefinition, ct)` | Classifies a TypeDefinition against the server's type hierarchy, so vendor subtypes resolve to their closest standard Robotics type. Returns `null` when the node is not a Robotics type. |
+| `RoboticsClient.DiscoverMotionDeviceSystemsAsync(session, root, ct)` (static) | Session-only discovery for callers that do not hold a client instance. |
+| `RoboticsClient.TryGetRoboticsTypeName(typeDefinition, namespaceUris, out name)` (static) | Offline exact-match classification with no server round-trip. |
+
+Every discovery method returns `ArrayOf<NodeId>` and uses `ManagedBrowseAsync`,
+so a server that caps references per node cannot silently truncate the result.
+When the server does not expose the Robotics namespace, discovery returns an
+empty `ArrayOf<NodeId>` and classification returns `null` / `false` instead of
+throwing.
+
+### Walking a cell
 
 ```csharp
 using Opc.Ua.Robotics.Client;
 
-ArrayOf<NodeId> systems = await RoboticsClient.DiscoverMotionDeviceSystemsAsync(
-    session, ObjectIds.ObjectsFolder, cancellationToken);
+var robots = new RoboticsClient(session, telemetry);
 
+foreach (NodeId system in await robots.DiscoverMotionDeviceSystemsAsync(ct))
+{
+    foreach (NodeId device in await robots.DiscoverMotionDevicesAsync(system, ct))
+    {
+        foreach (NodeId axis in await robots.DiscoverAxesAsync(device, ct))
+        {
+            // Read ParameterSet/ActualPosition, subscribe, drive a twin, …
+        }
+    }
+}
+```
+
+### Classifying a discovered node
+
+```csharp
+// Exact match, no server round-trip — use when you already resolved the
+// namespace table and only care about the standard types.
 if (RoboticsClient.TryGetRoboticsTypeName(
         typeDefinition, session.NamespaceUris, out string? typeName))
 {
     // typeName is MotionDeviceSystem, MotionDevice, Axis, or Controller.
 }
+
+// Subtype aware — an AcmeMotionDeviceType instance is reported as MotionDevice.
+string? kind = await robots.GetRoboticsTypeNameAsync(typeDefinition, ct);
 ```
 
-Discovery uses `ManagedBrowseAsync`, so a server that caps references per node
-cannot silently truncate the result. When the server does not expose the
-Robotics namespace, discovery returns an empty `ArrayOf<NodeId>` and
-`TryGetRoboticsTypeName` returns `false` instead of throwing.
+### Invoking robot operations
+
+The Robotics methods themselves (task-control and system state-machine
+operations) are exposed through the **source-generated ObjectType clients** in
+`Opc.Ua.Robotics`, which give a typed result carrying a `ServiceResult` plus the
+declared outputs — for example `LoadByName(string name)` returning a `Status`
+Int32. The generated state-machine identifiers live in
+`SystemOperationStateMachineTypeIds` and `TaskControlStateMachineTypeIds`.
+
+> A higher-level verb façade over these generated proxies (a
+> `robot.MoveAsync(...)` / `robot.StopAsync(...)` style operations namespace,
+> which is what the URML gesture mapping in
+> [issue #3827](https://github.com/OPCFoundation/UA-.NETStandard/issues/3827)
+> needs) is still being implemented on this branch and is not part of the API
+> documented above yet.
 
 ## Sample
 

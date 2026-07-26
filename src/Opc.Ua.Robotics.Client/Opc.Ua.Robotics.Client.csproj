@@ -18,6 +18,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Opc.Ua.Robotics\Opc.Ua.Robotics.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Di.Client\Opc.Ua.Di.Client.csproj" />
     <ProjectReference Include="..\Opc.Ua.Client\Opc.Ua.Client.csproj" />
   </ItemGroup>
   <ItemGroup>

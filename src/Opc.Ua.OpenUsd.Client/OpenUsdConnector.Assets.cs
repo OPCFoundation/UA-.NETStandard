@@ -157,7 +157,11 @@ namespace Opc.Ua.OpenUsd.Client
                 {
                     throw new InvalidOperationException("Served asset Open returned no file handle.");
                 }
-                uint handle = System.Convert.ToUInt32(openOut[0].AsBoxedObject(), CultureInfo.InvariantCulture);
+                if (!VariantConversions.TryGetInt64(openOut[0], out long fileHandle))
+                {
+                    throw new InvalidOperationException("Served asset Open returned no file handle.");
+                }
+                var handle = unchecked((uint)fileHandle);
 
                 var buffer = new List<byte>();
                 try
@@ -167,7 +171,10 @@ namespace Opc.Ua.OpenUsd.Client
                     {
                         ArrayOf<Variant> readOut = await m_session.CallAsync(
                             fileNodeId, readId, ct, new Variant(handle), new Variant(chunkSize)).ConfigureAwait(false);
-                        byte[] chunk = ToBytes(readOut.Count > 0 ? readOut[0].AsBoxedObject() : null);
+                        byte[] chunk = readOut.Count > 0 &&
+                            VariantConversions.TryGetBytes(readOut[0], out ByteString bytes)
+                            ? bytes.ToArray()
+                            : Array.Empty<byte>();
                         if (chunk.Length > 0)
                     {
                             if (buffer.Count + (long)chunk.Length > m_options.MaxAssetBytes)
@@ -191,13 +198,6 @@ namespace Opc.Ua.OpenUsd.Client
             }
             return buffer.ToArray();
         }
-
-        private static byte[] ToBytes(object? v) => v switch
-        {
-            byte[] ba => ba,
-            ByteString bs => bs.ToArray(),
-            _ => Array.Empty<byte>()
-        };
 
         private static bool VerifyBytesDigest(byte[] bytes, ByteString digest, OpenUsdDigestAlgorithm alg)
         {

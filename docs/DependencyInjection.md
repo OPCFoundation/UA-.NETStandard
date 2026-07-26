@@ -48,6 +48,7 @@ you need finer control.
 | `Opc.Ua.Robotics.Server`       | `serverBuilder.AddRobotics(opt => …)`    | `IOpcUaServerBuilder`    | yes (via `AddServer`) | — |
 | `Opc.Ua.Robotics.Server` (model) | `serverBuilder.AddRoboticsModel<T>()`  | `IOpcUaServerBuilder`    | —       | —                        |
 | `Opc.Ua.Robotics.Server` (build) | `serverBuilder.ConfigureRobotics(…)` / `ConfigureRoboticsFor<T>(…)` | `IOpcUaServerBuilder` | — | — |
+| `Opc.Ua.Robotics.Client`       | `clientBuilder.AddRoboticsClient()`      | `IOpcUaClientBuilder`    | —       | —                        |
 | `Opc.Ua.Gds.Client.Common`     | `builder.AddGdsClient(opt => …)`         | `IGdsClientBuilder`      | —       | `OpcUa:Gds:Client`       |
 | `Opc.Ua.Gds.Server.Common`     | `builder.AddGdsServer(opt => …)`         | `IGdsServerBuilder`      | yes     | `OpcUa:Gds:Server`       |
 | `Opc.Ua.Lds.Server`            | `builder.AddLdsServer(opt => …)`         | `ILdsServerBuilder`      | yes     | `OpcUa:Lds`              |
@@ -729,6 +730,16 @@ compatible `DiNodeManager`. Configurators run in registration order and share
 one `IRoboticsBuildContext` per manager startup.
 
 See the [Robotics developer guide](Robotics.md).
+
+Client factories compose the Robotics client over the managed session.
+`AddRoboticsClient()` also registers the DI client services because the Robotics
+client extends `DiTopologyClient`:
+
+```csharp
+services.AddOpcUa()
+    .AddClient(options => { /* endpoint and application options */ })
+    .AddRoboticsClient();
+```
 
 ## Client feature
 

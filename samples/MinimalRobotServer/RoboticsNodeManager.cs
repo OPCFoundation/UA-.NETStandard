@@ -53,8 +53,6 @@ namespace Robotics
     /// </summary>
     public partial class RoboticsNodeManager : DiNodeManager
     {
-        internal const string RoboticsNamespaceUri = "http://opcfoundation.org/UA/Robotics/";
-        internal const string IaNamespaceUri = "http://opcfoundation.org/UA/IA/";
         private readonly IPositioningPostSetupRunner? m_positioningRunner;
 
         /// <summary>
@@ -100,8 +98,8 @@ namespace Robotics
                   server,
                   configuration,
                   postSetupRunner,
-                  RoboticsNamespaceUri,
-                  IaNamespaceUri,
+                  Opc.Ua.Robotics.Namespaces.Robotics,
+                  Opc.Ua.IA.Namespaces.IA,
                   Opc.Ua.OpenUsd.Namespaces.OpenUSD,
                   Opc.Ua.Rsl.Namespaces.RSL,
                   Opc.Ua.Gpos.Namespaces.GPOS)
@@ -139,9 +137,8 @@ namespace Robotics
             //     order).
             //   - Opc.Ua.OpenUsd: the source-generated OpenUSD companion loader
             //     (from the referenced Opc.Ua.OpenUsd library).
-            // This server builds instances from BaseObjectState + the numeric type
-            // NodeIds in RoboticsModel, so it does not depend on the generated
-            // Robotics/IA typed classes (the loaders populate the address space).
+            //   - Opc.Ua.Rsl + Opc.Ua.Gpos: the OPC 10000-210 / OPC 10000-211
+            //     positioning models that place and geo-reference the cell.
             var nodes = new NodeStateCollection();
             nodes.AddRoboticsTypeSystem(context);
             nodes.AddOpcUaOpenUsd(context);
@@ -161,7 +158,8 @@ namespace Robotics
 
             // Configuration phase 2 (sync): wire fluent callbacks (the simulation tick
             // that animates the axes and toggles the emergency-stop).
-            ushort nsIndex = (ushort)Server.NamespaceUris.GetIndex(RoboticsNamespaceUri);
+            ushort nsIndex = (ushort)Server.NamespaceUris.GetIndex(
+                Opc.Ua.Robotics.Namespaces.Robotics);
             CreateFluentBuilder(nsIndex)
                 .Configure(Configure)
                 .Seal();
@@ -197,10 +195,18 @@ namespace Robotics
         /// <summary>
         /// Recursively walks the children of <paramref name="parent"/> and assigns
         /// per-instance NodeIds via the active <see cref="ISystemContext.NodeIdFactory"/>.
-        /// Required after calling generator-emitted <c>CreateInstanceOf…</c> factories
-        /// or <c>AddXxx(context)</c> helpers which stamp the TYPE NodeId on every new
-        /// child.
         /// </summary>
+        /// <remarks>
+        /// The generator-emitted <c>CreateInstanceOf…</c> factories already assign
+        /// per-instance NodeIds across the subtree they materialise, so this walk is
+        /// only required for the nodes this sample adds afterwards through the
+        /// generator-emitted <c>CreateOrReplace…</c> helpers, which still stamp the
+        /// TYPE NodeId on the child they create. Tracked by
+        /// <see href="https://github.com/OPCFoundation/UA-.NETStandard/issues/4099"/>;
+        /// once <c>CreateOrReplace…</c> assigns instance NodeIds this method can go
+        /// away. Servers built on the <c>Opc.Ua.Robotics.Server</c> fluent topology
+        /// builders never need it — the build scope verifies instance NodeIds instead.
+        /// </remarks>
         private void AssignChildNodeIds(NodeState parent)
         {
             var children = new List<BaseInstanceState>();
@@ -270,8 +276,8 @@ namespace Robotics
         /// <inheritdoc/>
         public ArrayOf<string> NamespacesUris => new string[]
         {
-            RoboticsNodeManager.RoboticsNamespaceUri,
-            RoboticsNodeManager.IaNamespaceUri,
+            Opc.Ua.Robotics.Namespaces.Robotics,
+            Opc.Ua.IA.Namespaces.IA,
             Opc.Ua.Di.Namespaces.OpcUaDi,
             Opc.Ua.OpenUsd.Namespaces.OpenUSD,
             Opc.Ua.Rsl.Namespaces.RSL,
