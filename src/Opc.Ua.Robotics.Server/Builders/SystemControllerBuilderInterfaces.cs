@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using Opc.Ua.Di;
 using Opc.Ua.Di.Server.Builders;
 
@@ -112,6 +114,29 @@ namespace Opc.Ua.Robotics.Server.Builders
         /// </summary>
         IControllerBuilder WithComponentName(LocalizedText componentName);
 
+
+        /// <summary>
+        /// Adds the optional standard SystemOperation facet.
+        /// </summary>
+        ISystemOperationBuilder AddSystemOperation(
+            Action<ISystemOperationBuilder>? configure = null);
+
+        /// <summary>
+        /// Adds the optional standard Programs directory and backs it with a
+        /// file-system provider. The directory is a Part 5
+        /// <c>FileDirectoryType</c>, so a client reads and writes the
+        /// controller's programs with the standard file services.
+        /// </summary>
+        /// <param name="configure">
+        /// Selects the provider and the binding options.
+        /// </param>
+        IProgramsBuilder AddPrograms(Action<IProgramsBuilder> configure);
+
+        /// <summary>
+        /// Configures the mandatory CurrentUser child.
+        /// </summary>
+        IControllerBuilder WithCurrentUser(Action<IRoboticsUserBuilder> configure);
+
         /// <summary>
         /// Adds software to the mandatory Software folder.
         /// </summary>
@@ -184,6 +209,76 @@ namespace Opc.Ua.Robotics.Server.Builders
         /// <typeparam name="TState">The generated target state type.</typeparam>
         IControllerBuilder IsConnectedTo<TState>(IRoboticsNodeBuilder<TState> other)
             where TState : NodeState;
+    }
+
+
+    /// <summary>
+    /// Builds a standard Robotics user descriptor.
+    /// </summary>
+    public interface IRoboticsUserBuilder : IRoboticsNodeBuilder<UserState>
+    {
+        /// <summary>
+        /// Sets the mandatory user level.
+        /// </summary>
+        IRoboticsUserBuilder WithLevel(string level);
+
+        /// <summary>
+        /// Sets the optional user name.
+        /// </summary>
+        IRoboticsUserBuilder WithName(string name);
+    }
+
+    /// <summary>
+    /// Builds the standard ControllerType SystemOperation facet.
+    /// </summary>
+    public interface ISystemOperationBuilder : IRoboticsNodeBuilder<SystemOperationState>
+    {
+        /// <summary>
+        /// Sets the initial operation state.
+        /// </summary>
+        ISystemOperationBuilder WithInitialState(RoboticsOperationState state);
+
+        /// <summary>
+        /// Registers the optional GetReady method handler.
+        /// </summary>
+        ISystemOperationBuilder OnGetReady(
+            Func<RoboticsOperationContext, CancellationToken, ValueTask<ServiceResult>> handler);
+
+        /// <summary>
+        /// Registers the optional Start method handler.
+        /// </summary>
+        ISystemOperationBuilder OnStart(
+            Func<RoboticsOperationContext, CancellationToken, ValueTask<ServiceResult>> handler);
+
+        /// <summary>
+        /// Registers the optional Stop method handler.
+        /// </summary>
+        ISystemOperationBuilder OnStop(
+            Func<RoboticsStopRequest, CancellationToken, ValueTask<ServiceResult>> handler);
+
+        /// <summary>
+        /// Registers the optional StandDown method handler.
+        /// </summary>
+        ISystemOperationBuilder OnStandDown(
+            Func<RoboticsOperationContext, CancellationToken, ValueTask<ServiceResult>> handler);
+
+        /// <summary>
+        /// Sets possible and default stop modes.
+        /// </summary>
+        ISystemOperationBuilder WithStopModes(
+            ArrayOf<RoboticsStopMode> modes,
+            RoboticsStopMode defaultMode);
+
+        /// <summary>
+        /// Registers a transition notification handler.
+        /// </summary>
+        ISystemOperationBuilder OnTransition(
+            Func<RoboticsOperationTransition, CancellationToken, ValueTask> handler);
+
+        /// <summary>
+        /// Sets the LastTransitionReason value written on every move.
+        /// </summary>
+        ISystemOperationBuilder WithTransitionReason(short reason);
     }
 
     /// <summary>

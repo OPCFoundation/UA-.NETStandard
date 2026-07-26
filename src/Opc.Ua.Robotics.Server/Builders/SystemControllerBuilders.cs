@@ -168,6 +168,10 @@ namespace Opc.Ua.Robotics.Server.Builders
 
         internal List<TaskControlBuilder> TaskControls { get; } = [];
 
+        internal SystemOperationBuilder? SystemOperation { get; private set; }
+
+        internal ProgramsBuilder? Programs { get; private set; }
+
         public IControllerBuilder WithIdentification(
             Action<Di.Server.Builders.DeviceIdentificationData> configure)
         {
@@ -188,6 +192,54 @@ namespace Opc.Ua.Robotics.Server.Builders
         {
             Scope.EnsureMutable();
             RoboticsBuilderUtilities.SetComponentName(State, Scope.Context, componentName);
+            return this;
+        }
+
+        public ISystemOperationBuilder AddSystemOperation(
+            Action<ISystemOperationBuilder>? configure = null)
+        {
+            Scope.EnsureMutable();
+            State.AddSystemOperation(Scope.Context);
+            SystemOperation ??= new SystemOperationBuilder(Scope, State.SystemOperation!);
+            configure?.Invoke(SystemOperation);
+            return SystemOperation;
+        }
+
+        public IProgramsBuilder AddPrograms(Action<IProgramsBuilder> configure)
+        {
+            if (configure == null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+
+            Scope.EnsureMutable();
+            State.AddPrograms(Scope.Context);
+            Programs ??= new ProgramsBuilder(
+                Scope,
+                State.Programs ??
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadConfigurationError,
+                        "Generated Programs directory is missing below controller '{0}'.",
+                        State.BrowseName));
+            configure(Programs);
+            Programs.Schedule();
+            return Programs;
+        }
+
+        public IControllerBuilder WithCurrentUser(Action<IRoboticsUserBuilder> configure)
+        {
+            if (configure == null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+
+            Scope.EnsureMutable();
+            UserState currentUser = State.CurrentUser ??
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConfigurationError,
+                    "Generated mandatory CurrentUser is missing below controller '{0}'.",
+                    State.BrowseName);
+            configure(new RoboticsUserBuilder(Scope, currentUser));
             return this;
         }
 

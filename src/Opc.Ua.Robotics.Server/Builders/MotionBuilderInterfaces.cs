@@ -153,10 +153,6 @@ namespace Opc.Ua.Robotics.Server.Builders
         /// <summary>
         /// Adds the standard Controls relationship from a task control.
         /// </summary>
-        /// <remarks>
-        /// TaskControlReference remains absent until a later standard-operation
-        /// phase materializes the TaskControlOperationType instance it targets.
-        /// </remarks>
         IMotionDeviceBuilder UsesTaskControl(ITaskControlBuilder taskControl);
 
         /// <summary>

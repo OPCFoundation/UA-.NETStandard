@@ -42,6 +42,8 @@ namespace Opc.Ua.Robotics.Server.Builders
         {
         }
 
+        internal TaskControlOperationBuilder? TaskControlOperation { get; private set; }
+
         public ITaskControlBuilder WithComponentName(string componentName)
         {
             return WithComponentName(new LocalizedText(componentName));
@@ -131,6 +133,18 @@ namespace Opc.Ua.Robotics.Server.Builders
             return AddTaskModule(
                 RoboticsBuilderUtilities.NormalizeBrowseName(BuildContext, browseName),
                 configure);
+        }
+
+        public ITaskControlOperationBuilder AddTaskControlOperation(
+            Action<ITaskControlOperationBuilder>? configure = null)
+        {
+            Scope.EnsureMutable();
+            State.AddTaskControlOperation(Scope.Context);
+            TaskControlOperation ??= new TaskControlOperationBuilder(
+                Scope,
+                State.TaskControlOperation!);
+            configure?.Invoke(TaskControlOperation);
+            return TaskControlOperation;
         }
 
         public ITaskModuleBuilder AddTaskModule(

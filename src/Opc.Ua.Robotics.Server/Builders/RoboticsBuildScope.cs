@@ -108,6 +108,19 @@ namespace Opc.Ua.Robotics.Server.Builders
 
         internal List<TaskModuleBuilder> TaskModules { get; } = [];
 
+        /// <summary>
+        /// Asynchronous work that must run after the completed tree has been
+        /// registered with the node manager, for example binding a Controller
+        /// Programs directory to a file-system provider.
+        /// </summary>
+        internal List<Func<CancellationToken, ValueTask>> PostRegistrationActions { get; } = [];
+
+        /// <summary>
+        /// Resources created during registration that must be released when the
+        /// build is rolled back.
+        /// </summary>
+        internal List<IAsyncDisposable> RegisteredResources { get; } = [];
+
         internal bool IsRegistered { get; private set; }
 
         internal void Abort()
@@ -202,6 +215,12 @@ namespace Opc.Ua.Robotics.Server.Builders
                     .ConfigureAwait(false);
 
                 CacheNodeBuilders();
+
+                for (int ii = 0; ii < PostRegistrationActions.Count; ii++)
+                {
+                    await PostRegistrationActions[ii](cancellationToken).ConfigureAwait(false);
+                }
+
                 IsRegistered = true;
             }
             catch
@@ -245,6 +264,11 @@ namespace Opc.Ua.Robotics.Server.Builders
                 {
                     errors.Add(
                         $"Controller '{NameOf(controller)}' must contain at least one task control.");
+                }
+                if (controller.State.CurrentUser == null)
+                {
+                    errors.Add(
+                        $"Controller '{NameOf(controller)}' must define mandatory CurrentUser.");
                 }
             }
 
@@ -436,6 +460,20 @@ namespace Opc.Ua.Robotics.Server.Builders
 
         private async ValueTask RollbackRegistrationAsync()
         {
+            for (int ii = RegisteredResources.Count - 1; ii >= 0; ii--)
+            {
+                try
+                {
+                    await RegisteredResources[ii].DisposeAsync().ConfigureAwait(false);
+                }
+                catch (Exception)
+                {
+                    // A resource that fails to release must not mask the original
+                    // build failure that triggered the rollback.
+                }
+            }
+            RegisteredResources.Clear();
+
             try
             {
                 if (!Root.NodeId.IsNull &&
@@ -469,6 +507,14 @@ namespace Opc.Ua.Robotics.Server.Builders
                 if (!target.ReferenceExists(referenceTypeId, true, source.NodeId))
                 {
                     target.AddReference(referenceTypeId, true, source.NodeId);
+                }
+
+                if (relation.Reference == RoboticsSemanticReference.Controls &&
+                    relation.Source is TaskControlBuilder taskControl &&
+                    relation.Target is MotionDeviceBuilder motionDevice &&
+                    taskControl.TaskControlOperation != null)
+                {
+                    motionDevice.SetTaskControlReference(taskControl.TaskControlOperation.State);
                 }
             }
         }

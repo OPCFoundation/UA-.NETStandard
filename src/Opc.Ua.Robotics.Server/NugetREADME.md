@@ -69,9 +69,9 @@ Each controller must contain at least one `SoftwareType` instance and one
 children. The `Controls` and `IsDrivenBy` relationships are optional.
 
 `ITaskControlBuilder.Controls` and `IMotionDeviceBuilder.UsesTaskControl` add
-the standard `Controls` relation only. `TaskControlReference` remains absent
-until the standard-operation phase creates the `TaskControlOperationType`
-instance that the property targets.
+the standard `Controls` relation. When a task control also has a
+`TaskControlOperationType`, the controlled motion device receives the matching
+`TaskControlReference`.
 
 `IGearBuilder.WithPitch` accepts millimetres of linear travel per output-side
 revolution. Pitch is a `BaseDataVariableType`; the builder does not add

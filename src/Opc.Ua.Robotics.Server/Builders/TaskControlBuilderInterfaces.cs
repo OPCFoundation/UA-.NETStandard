@@ -90,12 +90,20 @@ namespace Opc.Ua.Robotics.Server.Builders
         ITaskControlBuilder BindTaskProgramName(
             Func<CancellationToken, ValueTask<DataValue>> read);
 
+
+        /// <summary>
+        /// Adds the optional standard TaskControlOperation facet.
+        /// </summary>
+        ITaskControlOperationBuilder AddTaskControlOperation(
+            Action<ITaskControlOperationBuilder>? configure = null);
+
         /// <summary>
         /// Adds a task module to the optional TaskModules folder.
         /// </summary>
         ITaskModuleBuilder AddTaskModule(
             string browseName,
             Action<ITaskModuleBuilder>? configure = null);
+
 
         /// <summary>
         /// Adds a task module to the optional TaskModules folder.
@@ -107,11 +115,74 @@ namespace Opc.Ua.Robotics.Server.Builders
         /// <summary>
         /// Adds the standard Controls relationship to a motion device.
         /// </summary>
-        /// <remarks>
-        /// TaskControlReference remains absent until a later standard-operation
-        /// phase materializes the TaskControlOperationType instance it targets.
-        /// </remarks>
         ITaskControlBuilder Controls(IMotionDeviceBuilder motionDevice);
+    }
+
+
+    /// <summary>
+    /// Builds the standard TaskControlType TaskControlOperation facet.
+    /// </summary>
+    public interface ITaskControlOperationBuilder : IRoboticsNodeBuilder<TaskControlOperationState>
+    {
+        /// <summary>
+        /// Registers the optional Start method handler.
+        /// </summary>
+        ITaskControlOperationBuilder OnStart(
+            Func<RoboticsOperationContext, CancellationToken, ValueTask<ServiceResult>> handler);
+
+        /// <summary>
+        /// Registers the optional Stop method handler.
+        /// </summary>
+        ITaskControlOperationBuilder OnStop(
+            Func<RoboticsStopRequest, CancellationToken, ValueTask<ServiceResult>> handler);
+
+        /// <summary>
+        /// Registers the optional LoadByName method handler.
+        /// </summary>
+        ITaskControlOperationBuilder OnLoadByName(
+            Func<string, CancellationToken, ValueTask<RoboticsProgramResult>> handler);
+
+        /// <summary>
+        /// Registers the optional LoadByNodeId method handler.
+        /// </summary>
+        ITaskControlOperationBuilder OnLoadByNodeId(
+            Func<NodeId, CancellationToken, ValueTask<RoboticsProgramResult>> handler);
+
+        /// <summary>
+        /// Registers the optional UnloadByName method handler.
+        /// </summary>
+        ITaskControlOperationBuilder OnUnloadByName(
+            Func<string, CancellationToken, ValueTask<RoboticsProgramResult>> handler);
+
+        /// <summary>
+        /// Registers the optional UnloadByNodeId method handler.
+        /// </summary>
+        ITaskControlOperationBuilder OnUnloadByNodeId(
+            Func<NodeId, CancellationToken, ValueTask<RoboticsProgramResult>> handler);
+
+        /// <summary>
+        /// Registers the optional UnloadProgram method handler.
+        /// </summary>
+        ITaskControlOperationBuilder OnUnloadProgram(
+            Func<CancellationToken, ValueTask<RoboticsProgramResult>> handler);
+
+        /// <summary>
+        /// Registers the optional ResetToProgramStart method handler.
+        /// </summary>
+        ITaskControlOperationBuilder OnResetToProgramStart(
+            Func<CancellationToken, ValueTask<RoboticsProgramResult>> handler);
+
+        /// <summary>
+        /// Sets the optional MotionDevicesUnderControl property.
+        /// </summary>
+        ITaskControlOperationBuilder WithMotionDevicesUnderControl(
+            ArrayOf<NodeId> motionDevices);
+
+        /// <summary>
+        /// Registers a transition notification handler.
+        /// </summary>
+        ITaskControlOperationBuilder OnTransition(
+            Func<RoboticsOperationTransition, CancellationToken, ValueTask> handler);
     }
 
     /// <summary>
