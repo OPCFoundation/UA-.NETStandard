@@ -303,6 +303,214 @@ namespace Opc.Ua.XRegistry.Server.Tests
             });
         }
 
+        [Test]
+        public async Task OpeningBeyondTheConcurrentUploadLimitIsRejectedAsync()
+        {
+            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(
+                out _, o => o.MaxConcurrentUploads = 1);
+            NodeId group = await CreateGroupAsync(nm).ConfigureAwait(false);
+
+            // The first create takes the only upload slot by asking for an open write handle.
+            CreateResourceMethodStateResult first = await nm.OnCreateResourceAsync(
+                nm.SystemContext, null!, group, "a", "1", true, CancellationToken.None)
+                .ConfigureAwait(false);
+            CreateResourceMethodStateResult second = await nm.OnCreateResourceAsync(
+                nm.SystemContext, null!, group, "b", "1", true, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(first.ServiceResult), Is.True);
+                Assert.That(second.ServiceResult.StatusCode.Code,
+                    Is.EqualTo(StatusCodes.BadTooManyOperations),
+                    "A second concurrent upload exceeds MaxConcurrentUploads.");
+            });
+        }
+
+        [Test]
+        public async Task OpenBeyondTheConcurrentUploadLimitIsRejectedAsync()
+        {
+            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(
+                out _, o => o.MaxConcurrentUploads = 1);
+            NodeId group = await CreateGroupAsync(nm).ConfigureAwait(false);
+            CreateResourceMethodStateResult created = await nm.OnCreateResourceAsync(
+                nm.SystemContext, null!, group, "a", "1", true, CancellationToken.None)
+                .ConfigureAwait(false);
+            var resource = (ResourceState)nm.Find(created.ResourceNodeId)!;
+
+            OpenMethodStateResult opened = await resource.Open!.OnCallAsync!(
+                nm.SystemContext, resource.Open, created.ResourceNodeId, kWriteMode,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(opened.ServiceResult.StatusCode.Code,
+                Is.EqualTo(StatusCodes.BadTooManyOperations));
+        }
+
+        [Test]
+        public async Task ReadWithAnUnknownHandleIsRejectedAsync()
+        {
+            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(out _);
+            (ResourceState resource, CreateResourceMethodStateResult created) =
+                await CreateOpenResourceAsync(nm).ConfigureAwait(false);
+
+            ReadMethodStateResult read = await resource.Read!.OnCallAsync!(
+                nm.SystemContext, resource.Read, created.ResourceNodeId, created.FileHandle + 999, 16,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(read.ServiceResult.StatusCode.Code, Is.EqualTo(StatusCodes.BadInvalidState));
+        }
+
+        [Test]
+        public async Task ReadOnAWriteHandleIsRejectedAsync()
+        {
+            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(out _);
+            (ResourceState resource, CreateResourceMethodStateResult created) =
+                await CreateOpenResourceAsync(nm).ConfigureAwait(false);
+
+            ReadMethodStateResult read = await resource.Read!.OnCallAsync!(
+                nm.SystemContext, resource.Read, created.ResourceNodeId, created.FileHandle, 16,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(read.ServiceResult.StatusCode.Code, Is.EqualTo(StatusCodes.BadInvalidState),
+                "A handle opened for writing cannot be read from.");
+        }
+
+        [Test]
+        public async Task ReadPastTheEndOfTheDocumentReturnsAnEmptyChunkAsync()
+        {
+            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(out _);
+            (ResourceState resource, uint handle) =
+                await WriteAndReopenForReadAsync(nm, s_document).ConfigureAwait(false);
+
+            ReadMethodStateResult all = await ReadAsync(nm, resource, handle, s_document.Length)
+                .ConfigureAwait(false);
+            ReadMethodStateResult past = await ReadAsync(nm, resource, handle, 16)
+                .ConfigureAwait(false);
+            ReadMethodStateResult zero = await ReadAsync(nm, resource, handle, 0)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(all.Data.Span.ToArray(), Is.EqualTo(s_document));
+                Assert.That(ServiceResult.IsGood(past.ServiceResult), Is.True);
+                Assert.That(past.Data.Span.Length, Is.Zero, "Reading at EOF yields an empty chunk.");
+                Assert.That(zero.Data.Span.Length, Is.Zero, "A zero-length read yields nothing.");
+            });
+        }
+
+        [Test]
+        public async Task CloseWithAnUnknownHandleIsRejectedAsync()
+        {
+            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(out _);
+            (ResourceState resource, CreateResourceMethodStateResult created) =
+                await CreateOpenResourceAsync(nm).ConfigureAwait(false);
+
+            CloseMethodStateResult closed = await resource.Close!.OnCallAsync!(
+                nm.SystemContext, resource.Close, created.ResourceNodeId, created.FileHandle + 999,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(closed.ServiceResult.StatusCode.Code, Is.EqualTo(StatusCodes.BadInvalidState));
+        }
+
+        [Test]
+        public async Task ClosingAReadHandleDoesNotRepublishTheDocumentAsync()
+        {
+            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(out _);
+            (ResourceState resource, uint handle) =
+                await WriteAndReopenForReadAsync(nm, s_document).ConfigureAwait(false);
+
+            CloseMethodStateResult closed = await resource.Close!.OnCallAsync!(
+                nm.SystemContext, resource.Close, resource.NodeId, handle, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(closed.ServiceResult), Is.True,
+                "Closing a read handle just releases it; only a write handle commits.");
+        }
+
+        [Test]
+        public async Task IdenticalDocumentsReuseTheSameFastPathNodeAsync()
+        {
+            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(out _);
+            NodeId group = await CreateGroupAsync(nm).ConfigureAwait(false);
+
+            NodeId firstFastPath = await RegisterAsync(nm, group, "a", s_document).ConfigureAwait(false);
+            NodeId secondFastPath = await RegisterAsync(nm, group, "b", s_document).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(firstFastPath.IsNull, Is.False);
+                Assert.That(secondFastPath, Is.EqualTo(firstFastPath),
+                    "Identity is derived from the bytes, so identical documents share one node.");
+                Assert.That(nm.Find(firstFastPath), Is.Not.Null);
+            });
+        }
+
+        private static async Task<NodeId> RegisterAsync(
+            XRegistryRegistrationNodeManager nm,
+            NodeId group,
+            string resourceId,
+            byte[] document)
+        {
+            CreateResourceMethodStateResult created = await nm.OnCreateResourceAsync(
+                nm.SystemContext, null!, group, resourceId, "1", true, CancellationToken.None)
+                .ConfigureAwait(false);
+            var resource = (ResourceState)nm.Find(created.ResourceNodeId)!;
+            await WriteAsync(nm, resource, created, document).ConfigureAwait(false);
+            await resource.Close!.OnCallAsync!(
+                nm.SystemContext, resource.Close, created.ResourceNodeId, created.FileHandle,
+                CancellationToken.None).ConfigureAwait(false);
+            return new NodeId(
+                new XRegistryServerTestHarness.FakeContentIdProvider()
+                    .ComputeContentId("application/octet-stream", document),
+                NamespaceIndex(nm));
+        }
+
+        private static ValueTask<ReadMethodStateResult> ReadAsync(
+            XRegistryRegistrationNodeManager nm,
+            ResourceState resource,
+            uint handle,
+            int length)
+        {
+            return resource.Read!.OnCallAsync!(
+                nm.SystemContext, resource.Read, resource.NodeId, handle, length,
+                CancellationToken.None);
+        }
+
+        /// <summary>
+        /// Creates a resource, streams <paramref name="document"/> into it, commits it and reopens
+        /// it for reading, returning the read handle.
+        /// </summary>
+        private static async Task<(ResourceState Resource, uint Handle)> WriteAndReopenForReadAsync(
+            XRegistryRegistrationNodeManager nm,
+            byte[] document)
+        {
+            NodeId group = await CreateGroupAsync(nm).ConfigureAwait(false);
+            CreateResourceMethodStateResult created = await nm.OnCreateResourceAsync(
+                nm.SystemContext, null!, group, "urn:doc", "1", true, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            var resource = (ResourceState)nm.Find(created.ResourceNodeId)!;
+            await WriteAsync(nm, resource, created, document).ConfigureAwait(false);
+            await resource.Close!.OnCallAsync!(
+                nm.SystemContext, resource.Close, created.ResourceNodeId, created.FileHandle,
+                CancellationToken.None).ConfigureAwait(false);
+
+            OpenMethodStateResult opened = await resource.Open!.OnCallAsync!(
+                nm.SystemContext, resource.Open, created.ResourceNodeId, kReadMode,
+                CancellationToken.None).ConfigureAwait(false);
+            return (resource, opened.FileHandle);
+        }
+
+        private static async Task<(ResourceState, CreateResourceMethodStateResult)>
+            CreateOpenResourceAsync(XRegistryRegistrationNodeManager nm)
+        {
+            NodeId group = await CreateGroupAsync(nm).ConfigureAwait(false);
+            CreateResourceMethodStateResult created = await nm.OnCreateResourceAsync(
+                nm.SystemContext, null!, group, "urn:doc", "1", true, CancellationToken.None)
+                .ConfigureAwait(false);
+            return ((ResourceState)nm.Find(created.ResourceNodeId)!, created);
+        }
+
         private static ValueTask<WriteMethodStateResult> WriteAsync(
             XRegistryRegistrationNodeManager nm,
             ResourceState resource,
@@ -355,5 +563,9 @@ namespace Opc.Ua.XRegistry.Server.Tests
             nm.CreateAddressSpace(new Dictionary<NodeId, IList<IReference>>());
             return nm;
         }
+
+        private const byte kWriteMode = 2;
+        private const byte kReadMode = 1;
+        private static readonly byte[] s_document = [0x01, 0x02, 0x03, 0x04];
     }
 }
