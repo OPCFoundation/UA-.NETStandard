@@ -33,8 +33,9 @@ using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server;
+using Opc.Ua.XRegistry.Server;
 
-namespace Opc.Ua.XRegistry.Server.Tests
+namespace Opc.Ua.XRegistry.Tests
 {
     /// <summary>
     /// Verifies the registry root the server materializes from the compiled model, and the group

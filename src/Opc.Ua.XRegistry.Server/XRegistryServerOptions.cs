@@ -143,5 +143,18 @@ namespace Opc.Ua.XRegistry.Server
         /// address-space exhaustion; Close is rejected with <c>BadTooManyOperations</c> at the limit.
         /// </summary>
         public int MaxRegisteredResources { get; set; } = 4096;
+
+        /// <summary>
+        /// Whether reading a resource also requires a <c>SignAndEncrypt</c> secure channel.
+        /// </summary>
+        /// <remarks>
+        /// Registry <b>writes</b> always require <c>SignAndEncrypt</c> and this option cannot relax
+        /// that: a resource document and its content-derived identity are integrity-critical, so a
+        /// mutation over a channel that is only signed — or not protected at all — is rejected with
+        /// <c>BadSecurityModeInsufficient</c>. Reads are permitted on any secure channel by default,
+        /// because a registry is usually a public catalogue; set this to <c>true</c> when the
+        /// documents themselves are confidential.
+        /// </remarks>
+        public bool RequireEncryptionForReads { get; set; }
     }
 }

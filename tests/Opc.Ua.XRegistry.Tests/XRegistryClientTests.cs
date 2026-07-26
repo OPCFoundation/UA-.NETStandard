@@ -35,8 +35,9 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Tests;
+using Opc.Ua.XRegistry.Client;
 
-namespace Opc.Ua.XRegistry.Client.Tests
+namespace Opc.Ua.XRegistry.Tests
 {
     /// <summary>
     /// Verifies the xRegistry client surface. Every wire interaction is driven through the
@@ -172,6 +173,57 @@ namespace Opc.Ua.XRegistry.Client.Tests
                 Assert.That(requested, Is.Not.Null);
                 Assert.That(requested!.NodeId, Is.EqualTo(new NodeId(contentId, 1)),
                     "The fast path addresses the resource by an Opaque NodeId built from the content id.");
+                Assert.That(requested.IndexRange, Is.Not.Null.And.Not.Empty,
+                    "The read is range-based, so a document larger than MaxByteStringLength is " +
+                    "fetched in slices instead of failing.");
+            });
+        }
+
+        [Test]
+        public async Task ResolveResourceReadsALargeDocumentInSlicesAsync()
+        {
+            ByteString contentId = ByteString.From([0xAA, 0xBB]);
+            Mock<ISession> session = CreateSession();
+            var ranges = new List<string?>();
+            var chunks = new Queue<byte[]>();
+            chunks.Enqueue([1, 2, 3, 4]);
+            chunks.Enqueue([5, 6]);
+
+            session
+                .Setup(s => s.ReadAsync(
+                    It.IsAny<RequestHeader?>(),
+                    It.IsAny<double>(),
+                    It.IsAny<TimestampsToReturn>(),
+                    It.IsAny<ArrayOf<ReadValueId>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns<RequestHeader?, double, TimestampsToReturn, ArrayOf<ReadValueId>, CancellationToken>(
+                    (_, _, _, items, _) =>
+                    {
+                        ranges.Add(items[0].IndexRange);
+                        byte[] chunk = chunks.Count > 0 ? chunks.Dequeue() : [];
+                        return new ValueTask<ReadResponse>(new ReadResponse
+                        {
+                            Results = new DataValue[]
+                            {
+                                new(new Variant(ByteString.From(chunk)))
+                            },
+                            DiagnosticInfos = [],
+                            ResponseHeader = new ResponseHeader()
+                        });
+                    });
+
+            // A tiny chunk size forces the sliced path: the first full-size chunk cannot be the last.
+            GenericXRegistryClient client = CreateClient(session);
+            ByteString resolved = await client.ResolveResourceAsync(contentId, 4).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(resolved.Span.ToArray(), Is.EqualTo(new byte[] { 1, 2, 3, 4, 5, 6 }),
+                    "The slices are stitched back into the whole document.");
+                Assert.That(ranges, Has.Count.GreaterThan(1),
+                    "More than one ranged Read is issued when the document exceeds the chunk size.");
+                Assert.That(ranges[0], Is.EqualTo("0:3"));
+                Assert.That(ranges[1], Is.EqualTo("4:7"));
             });
         }
 
@@ -494,6 +546,8 @@ namespace Opc.Ua.XRegistry.Client.Tests
             var messageContext = new Mock<IServiceMessageContext>();
             messageContext.SetupGet(c => c.NamespaceUris).Returns(namespaceUris);
             messageContext.SetupGet(c => c.Factory).Returns(EncodeableFactory.Create());
+            // ResolveResourceAsync reads through ReadBytesAsync, which chunks on this limit.
+            messageContext.SetupGet(c => c.MaxByteStringLength).Returns(65536);
             session.SetupGet(s => s.MessageContext).Returns(messageContext.Object);
             return session;
         }

@@ -31,8 +31,9 @@ using System;
 using Moq;
 using Opc.Ua.Server;
 using Opc.Ua.Tests;
+using Opc.Ua.XRegistry.Server;
 
-namespace Opc.Ua.XRegistry.Server.Tests
+namespace Opc.Ua.XRegistry.Tests
 {
     /// <summary>
     /// Builds the mocked <see cref="IServerInternal"/> the xRegistry node managers are exercised

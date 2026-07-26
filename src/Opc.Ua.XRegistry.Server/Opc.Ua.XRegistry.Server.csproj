@@ -12,7 +12,7 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <InternalsVisibleTo Include="Opc.Ua.XRegistry.Server.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.XRegistry.Tests" />
   </ItemGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>

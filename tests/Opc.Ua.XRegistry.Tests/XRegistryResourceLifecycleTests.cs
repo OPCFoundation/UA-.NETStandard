@@ -33,8 +33,9 @@ using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server;
+using Opc.Ua.XRegistry.Server;
 
-namespace Opc.Ua.XRegistry.Server.Tests
+namespace Opc.Ua.XRegistry.Tests
 {
     /// <summary>
     /// Verifies the resource lifecycle the model declares on <c>GroupType</c>: a resource version
@@ -175,7 +176,8 @@ namespace Opc.Ua.XRegistry.Server.Tests
             // The fake provider makes the content id the document itself.
             var fastPathNodeId = new NodeId(ByteString.From(document), NamespaceIndex(nm));
             var fastPath = (BaseDataVariableState?)nm.Find(fastPathNodeId);
-            ByteString stored = await store.ReadAsync(created.ResourceNodeId.ToString()!)
+            ByteString stored = await store
+                .ReadAsync(created.ResourceNodeId.ToString()!, 0, int.MaxValue)
                 .ConfigureAwait(false);
 
             Assert.Multiple(() =>
