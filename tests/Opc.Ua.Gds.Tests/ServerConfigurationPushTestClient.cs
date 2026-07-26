@@ -126,8 +126,6 @@ namespace Opc.Ua.Gds.Tests
                 .SetRejectUnknownRevocationStatus(true)
                 .SetMinimumCertificateKeySize(1024)
                 .AddExtension(null, clientConfig)
-                .SetOutputFilePath(Path.Combine(root, "Logs", "Opc.Ua.Gds.Tests.log.txt"))
-                .SetTraceMasks(Utils.TraceMasks.Error)
                 .CreateAsync()
                 .ConfigureAwait(false);
 #endif
@@ -182,12 +180,6 @@ namespace Opc.Ua.Gds.Tests
                     await pushClient.DisposeAsync().ConfigureAwait(false);
                 }
             }
-        }
-
-        public string ReadLogFile()
-        {
-            return File.ReadAllText(
-                Utils.ReplaceSpecialFolderNames(Config.TraceConfiguration.OutputFilePath));
         }
 
         private bool AcceptCertificate(Certificate certificate, ServiceResult error)
