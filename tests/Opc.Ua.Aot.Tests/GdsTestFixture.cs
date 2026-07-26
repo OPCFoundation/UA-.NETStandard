@@ -388,7 +388,6 @@ namespace Opc.Ua.Aot.Tests
                 .SetMinimumCertificateKeySize(1024)
                 .AddExtension(
                     null, gdsConfig)
-                .SetDeleteOnLoad(true)
                 .CreateAsync()
                 .ConfigureAwait(false);
 
