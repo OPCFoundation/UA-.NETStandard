@@ -52,10 +52,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             return new WotProtocolBinderRegistry(
                         [new HttpBindingPlanner()],
                         [ new HttpWotBindingExecutor(options ??
-                            new HttpWotBindingOptions
-                                {
-                                    ClientFactory = () => new HttpClient()
-                                }) ]);
+                            new HttpWotBindingOptions()) ]);
         }
 
         private static WotBindingPlan Plan(WotProtocolBinderRegistry registry, string td)
@@ -153,7 +150,6 @@ namespace Opc.Ua.WotCon.Bindings.Tests
 
             WotProtocolBinderRegistry registry = Registry(new HttpWotBindingOptions
             {
-                ClientFactory = () => new HttpClient(),
                 ObserveInterval = TimeSpan.FromMilliseconds(100)
             });
             WotBindingPlan plan = Plan(registry, td);
