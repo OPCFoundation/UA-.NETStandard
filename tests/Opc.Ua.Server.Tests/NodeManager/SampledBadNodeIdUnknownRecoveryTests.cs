@@ -95,7 +95,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         goodValue.WrappedValue,
                         Is.EqualTo(new Variant(42)),
                         "the recovered read must return the node value");
-                    Assert.That(((IMonitoredItemLifecycle)item).IsDeleted, Is.False);
+                    Assert.That(((IDetachableMonitoredItem)item).IsDeleted, Is.False);
                     Assert.That(notifications, Has.Count.EqualTo(1));
                     Assert.That(
                         notifications.Peek().Value.StatusCode.Code,

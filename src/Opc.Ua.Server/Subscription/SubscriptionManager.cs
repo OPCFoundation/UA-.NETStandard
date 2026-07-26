@@ -540,7 +540,7 @@ namespace Opc.Ua.Server
             ClosedSessionWork? closeWork;
 
             // close the publish queue for the session.
-            if (m_server.NodeManager is INodeManagerMutationCoordinator coordinator)
+            if (m_server.NodeManager is IDynamicNodeManagerHost coordinator)
             {
                 closeWork =
                     await coordinator.ExecuteMonitoredItemMutationAsync(
@@ -943,7 +943,7 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken)
         {
             SubscriptionDeletionClaim? claim;
-            if (m_server.NodeManager is INodeManagerMutationCoordinator coordinator)
+            if (m_server.NodeManager is IDynamicNodeManagerHost coordinator)
             {
                 claim = await coordinator.ExecuteMonitoredItemMutationAsync(
                     () => ClaimSubscriptionDeletionAsync(
@@ -974,7 +974,7 @@ namespace Opc.Ua.Server
                     await subscription.DeleteAsync(context, cancellationToken).ConfigureAwait(false);
                     bool removed;
                     if (m_server.NodeManager is
-                        INodeManagerMutationCoordinator completionCoordinator)
+                        IDynamicNodeManagerHost completionCoordinator)
                     {
                         removed = await completionCoordinator.ExecuteMonitoredItemMutationAsync(
                             () => new ValueTask<bool>(
@@ -993,7 +993,7 @@ namespace Opc.Ua.Server
                 catch
                 {
                     if (m_server.NodeManager is
-                        INodeManagerMutationCoordinator restorationCoordinator)
+                        IDynamicNodeManagerHost restorationCoordinator)
                     {
                         await restorationCoordinator.ExecuteMonitoredItemMutationAsync(
                             () => new ValueTask<bool>(
@@ -1212,7 +1212,7 @@ namespace Opc.Ua.Server
             byte priority,
             CancellationToken cancellationToken = default)
         {
-            if (m_server.NodeManager is INodeManagerMutationCoordinator coordinator)
+            if (m_server.NodeManager is IDynamicNodeManagerHost coordinator)
             {
                 return coordinator.ExecuteMonitoredItemMutationAsync(
                     () => CreateSubscriptionCoreAsync(
@@ -1263,8 +1263,7 @@ namespace Opc.Ua.Server
 
             // get session from context.
             ISession session = context.Session;
-            if (m_server is ISessionClosingRegistry closingRegistry &&
-                closingRegistry.IsSessionClosing(session.Id))
+            if (m_server.IsSessionClosing(session.Id))
             {
                 throw new ServiceResultException(StatusCodes.BadSessionClosed);
             }
@@ -1804,7 +1803,7 @@ namespace Opc.Ua.Server
             bool sendInitialValues,
             CancellationToken cancellationToken = default)
         {
-            if (m_server.NodeManager is INodeManagerMutationCoordinator coordinator)
+            if (m_server.NodeManager is IDynamicNodeManagerHost coordinator)
             {
                 return coordinator.ExecuteMonitoredItemMutationAsync(
                     () => TransferSubscriptionsCoreAsync(
@@ -1829,8 +1828,7 @@ namespace Opc.Ua.Server
                 bool sendInitialValues,
                 CancellationToken cancellationToken)
         {
-            if (m_server is ISessionClosingRegistry closingRegistry &&
-                closingRegistry.IsSessionClosing(context.Session.Id))
+            if (m_server.IsSessionClosing(context.Session.Id))
             {
                 throw new ServiceResultException(StatusCodes.BadSessionClosed);
             }
@@ -1879,8 +1877,7 @@ namespace Opc.Ua.Server
                     // check if new and old sessions are different
                     ISession ownerSession = subscription.Session;
                     if (ownerSession != null &&
-                        m_server is ISessionClosingRegistry ownerClosingRegistry &&
-                        ownerClosingRegistry.IsSessionClosing(ownerSession.Id))
+                        m_server.IsSessionClosing(ownerSession.Id))
                     {
                         result.StatusCode = StatusCodes.BadSessionClosed;
                         results.Add(result);

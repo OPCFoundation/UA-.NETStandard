@@ -54,7 +54,7 @@ namespace Opc.Ua.Server
 
         public static void Detach(
             IServerInternal server,
-            IMonitoredItemLifecycle monitoredItem)
+            IDetachableMonitoredItem monitoredItem)
         {
             if (monitoredItem is null)
             {

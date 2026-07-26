@@ -42,7 +42,7 @@ namespace Opc.Ua.Server
         IEventMonitoredItem,
         ISampledDataChangeMonitoredItem,
         ITriggeredMonitoredItem,
-        IMonitoredItemLifecycle
+        IDetachableMonitoredItem
     {
         /// <summary>
         /// Initializes the object with its node type.
@@ -418,7 +418,7 @@ namespace Opc.Ua.Server
         public IAsyncNodeManager NodeManager { get; private set; }
 
         /// <inheritdoc/>
-        bool IMonitoredItemLifecycle.IsDetached
+        bool IDetachableMonitoredItem.IsDetached
         {
             get
             {
@@ -430,7 +430,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        bool IMonitoredItemLifecycle.IsDeleted
+        bool IDetachableMonitoredItem.IsDeleted
         {
             get
             {
@@ -592,7 +592,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        void IMonitoredItemLifecycle.MarkNodeDeleted()
+        void IDetachableMonitoredItem.MarkNodeDeleted()
         {
             lock (m_lock)
             {
@@ -602,7 +602,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        void IMonitoredItemLifecycle.BeginDetach()
+        void IDetachableMonitoredItem.BeginDetach()
         {
             lock (m_lock)
             {
@@ -611,7 +611,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        void IMonitoredItemLifecycle.Detach(
+        void IDetachableMonitoredItem.Detach(
             IAsyncNodeManager nodeManager,
             object managerHandle)
         {
@@ -624,7 +624,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        void IMonitoredItemLifecycle.QueueNodeIdUnknown()
+        void IDetachableMonitoredItem.QueueNodeIdUnknown()
         {
             lock (m_lock)
             {
@@ -638,7 +638,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        void IMonitoredItemLifecycle.Rebind(IAsyncNodeManager nodeManager, object managerHandle)
+        void IDetachableMonitoredItem.Rebind(IAsyncNodeManager nodeManager, object managerHandle)
         {
             lock (m_lock)
             {

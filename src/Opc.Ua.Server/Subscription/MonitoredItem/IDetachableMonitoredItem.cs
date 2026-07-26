@@ -30,13 +30,43 @@
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Reports whether a subscription owns monitored items created by a NodeManager.
+    /// Provides the internal lifecycle contract used when a monitored node is deleted or rebound.
     /// </summary>
-    public interface INodeManagerMonitoredItemTracker
+    internal interface IDetachableMonitoredItem
     {
         /// <summary>
-        /// Returns whether the subscription has monitored items owned by the NodeManager.
+        /// Gets whether the monitored item is detached from its node manager dispatch path.
         /// </summary>
-        bool HasMonitoredItems(IAsyncNodeManager nodeManager);
+        bool IsDetached { get; }
+
+        /// <summary>
+        /// Gets whether the monitored node is currently deleted.
+        /// </summary>
+        bool IsDeleted { get; }
+
+        /// <summary>
+        /// Marks the monitored node as deleted and schedules the required status notification.
+        /// </summary>
+        void MarkNodeDeleted();
+
+        /// <summary>
+        /// Enters the manager-detach transition while preserving rollback ownership.
+        /// </summary>
+        void BeginDetach();
+
+        /// <summary>
+        /// Marks the monitored item as detached and replaces manager-owned references.
+        /// </summary>
+        void Detach(IAsyncNodeManager nodeManager, object managerHandle);
+
+        /// <summary>
+        /// Ensures that the missing-node status is scheduled for publication.
+        /// </summary>
+        void QueueNodeIdUnknown();
+
+        /// <summary>
+        /// Rebinds the monitored item to a compatible node manager and handle.
+        /// </summary>
+        void Rebind(IAsyncNodeManager nodeManager, object managerHandle);
     }
 }

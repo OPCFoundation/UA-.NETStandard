@@ -42,8 +42,7 @@ namespace Opc.Ua.Server
         IDisposable,
         IMasterNodeManager,
         IDynamicNodeManagerHost,
-        INodeManagerMutationCoordinator,
-        INodeManagerMonitoredItemRecovery
+        ISyncNodeManagerMonitoredItemRecovery
     {
         /// <summary>
         /// Initializes the object with default values.
@@ -853,7 +852,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        async ValueTask<T> INodeManagerMutationCoordinator
+        async ValueTask<T> IDynamicNodeManagerHost
             .ExecuteMonitoredItemMutationAsync<T>(
                 Func<ValueTask<T>> mutation,
                 CancellationToken ct)
@@ -875,7 +874,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        void INodeManagerMonitoredItemRecovery.RecoverDetachedMonitoredItems(
+        void ISyncNodeManagerMonitoredItemRecovery.RecoverDetachedMonitoredItems(
             IAsyncNodeManager nodeManager,
             IReadOnlyCollection<NodeId> nodeIds)
         {
@@ -902,7 +901,7 @@ namespace Opc.Ua.Server
                     lifecycle.GetRecoverableMonitoredItemsSnapshot(nodeIds);
                 foreach (IMonitoredItem monitoredItem in monitoredItems)
                 {
-                    var itemLifecycle = (IMonitoredItemLifecycle)monitoredItem;
+                    var itemLifecycle = (IDetachableMonitoredItem)monitoredItem;
                     if (!itemLifecycle.IsDetached)
                     {
                         if (monitoredItem.NodeManager is not
@@ -948,7 +947,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        async ValueTask INodeManagerMonitoredItemRecovery.RecoverDetachedMonitoredItemsAsync(
+        async ValueTask IDynamicNodeManagerHost.RecoverDetachedMonitoredItemsAsync(
             IAsyncNodeManager nodeManager,
             IReadOnlyCollection<NodeId>? nodeIds,
             CancellationToken cancellationToken)
@@ -992,7 +991,7 @@ namespace Opc.Ua.Server
             foreach (IMonitoredItem monitoredItem in monitoredItems)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var itemLifecycle = (IMonitoredItemLifecycle)monitoredItem;
+                var itemLifecycle = (IDetachableMonitoredItem)monitoredItem;
                 if (!itemLifecycle.IsDetached)
                 {
                     if (monitoredItem.NodeManager is not
@@ -4455,7 +4454,7 @@ namespace Opc.Ua.Server
                     DetachedMonitoredItemOwnership.GetOwner(Server),
                     DetachedMonitoredItemOwnership.Handle,
                     storedItem);
-                var lifecycle = (IMonitoredItemLifecycle)monitoredItem;
+                var lifecycle = (IDetachableMonitoredItem)monitoredItem;
                 DetachedMonitoredItemOwnership.Detach(Server, lifecycle);
                 lifecycle.MarkNodeDeleted();
                 storedItem.IsRestored = true;
@@ -4659,7 +4658,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                if (monitoredItems[ii] is IMonitoredItemLifecycle
+                if (monitoredItems[ii] is IDetachableMonitoredItem
                     {
                         IsDetached: true
                     })
@@ -4865,7 +4864,7 @@ namespace Opc.Ua.Server
             for (int ii = 0; ii < monitoredItems.Count; ii++)
             {
                 IMonitoredItem? monitoredItem = monitoredItems[ii];
-                bool isDetached = monitoredItem is IMonitoredItemLifecycle
+                bool isDetached = monitoredItem is IDetachableMonitoredItem
                 {
                     IsDetached: true
                 };
@@ -4875,7 +4874,7 @@ namespace Opc.Ua.Server
                     : new ServiceResult(StatusCodes.BadMonitoredItemIdInvalid);
                 if (isDetached && sendInitialValues && monitoredItem is not null)
                 {
-                    ((IMonitoredItemLifecycle)monitoredItem).QueueNodeIdUnknown();
+                    ((IDetachableMonitoredItem)monitoredItem).QueueNodeIdUnknown();
                 }
             }
 
@@ -4939,7 +4938,7 @@ namespace Opc.Ua.Server
             for (int ii = 0; ii < itemsToDelete.Count; ii++)
             {
                 IMonitoredItem? monitoredItem = itemsToDelete[ii];
-                bool isDetached = monitoredItem is IMonitoredItemLifecycle
+                bool isDetached = monitoredItem is IDetachableMonitoredItem
                 {
                     IsDetached: true
                 };
@@ -5079,7 +5078,7 @@ namespace Opc.Ua.Server
             for (int ii = 0; ii < itemsToModify.Count; ii++)
             {
                 IMonitoredItem? monitoredItem = itemsToModify[ii];
-                bool isDetached = monitoredItem is IMonitoredItemLifecycle
+                bool isDetached = monitoredItem is IDetachableMonitoredItem
                 {
                     IsDetached: true
                 };
@@ -5094,7 +5093,7 @@ namespace Opc.Ua.Server
                     if (monitoringMode == MonitoringMode.Reporting &&
                         previousMode != MonitoringMode.Reporting)
                     {
-                        ((IMonitoredItemLifecycle)monitoredItem).QueueNodeIdUnknown();
+                        ((IDetachableMonitoredItem)monitoredItem).QueueNodeIdUnknown();
                     }
                     errors[ii] = ServiceResult.Good;
                 }
@@ -5414,7 +5413,7 @@ namespace Opc.Ua.Server
                 {
                     continue;
                 }
-                if (subscription is not INodeManagerMonitoredItemTracker tracker)
+                if (subscription is not ISubscriptionMonitoredItemLifecycle tracker)
                 {
                     throw new NotSupportedException(
                         "The configured subscription cannot verify NodeManager ownership.");

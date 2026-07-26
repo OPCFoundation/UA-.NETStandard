@@ -49,7 +49,7 @@ namespace Opc.Ua.Server.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using MonitoredItem item = CreateMonitoredItem(telemetry);
-            var lifecycle = (IMonitoredItemLifecycle)item;
+            var lifecycle = (IDetachableMonitoredItem)item;
 
             lifecycle.MarkNodeDeleted();
             lifecycle.MarkNodeDeleted();
@@ -73,7 +73,7 @@ namespace Opc.Ua.Server.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using MonitoredItem item = CreateMonitoredItem(telemetry, queueSize: 1);
-            var lifecycle = (IMonitoredItemLifecycle)item;
+            var lifecycle = (IDetachableMonitoredItem)item;
             var beforeDeletion = new DataValue(new Variant(7), StatusCodes.Good);
             var recovered = new DataValue(new Variant(42), StatusCodes.Good);
 
@@ -109,7 +109,7 @@ namespace Opc.Ua.Server.Tests
                 telemetry,
                 queueSize: 3,
                 discardOldest: discardOldest);
-            var lifecycle = (IMonitoredItemLifecycle)item;
+            var lifecycle = (IDetachableMonitoredItem)item;
 
             lifecycle.MarkNodeDeleted();
             item.QueueValue(new DataValue(new Variant(1), StatusCodes.Good), ServiceResult.Good);
@@ -146,7 +146,7 @@ namespace Opc.Ua.Server.Tests
                 telemetry,
                 queueSize: 4,
                 filter: filter);
-            var lifecycle = (IMonitoredItemLifecycle)item;
+            var lifecycle = (IDetachableMonitoredItem)item;
 
             item.QueueValue(
                 new DataValue(new Variant(1), StatusCodes.Good),
@@ -190,7 +190,7 @@ namespace Opc.Ua.Server.Tests
                 telemetry,
                 nodeManager: originalManager.Object,
                 managerHandle: originalHandle);
-            var lifecycle = (IMonitoredItemLifecycle)item;
+            var lifecycle = (IDetachableMonitoredItem)item;
 
             lifecycle.MarkNodeDeleted();
             lifecycle.Rebind(reboundManager.Object, reboundHandle);
@@ -215,7 +215,7 @@ namespace Opc.Ua.Server.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var reboundManager = new Mock<IAsyncNodeManager>();
             using MonitoredItem item = CreateMonitoredItem(telemetry, queueSize: 2);
-            var lifecycle = (IMonitoredItemLifecycle)item;
+            var lifecycle = (IDetachableMonitoredItem)item;
 
             lifecycle.MarkNodeDeleted();
             item.QueueValue(new DataValue(new Variant(1), StatusCodes.Good), ServiceResult.Good);
@@ -243,7 +243,7 @@ namespace Opc.Ua.Server.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var reboundManager = new Mock<IAsyncNodeManager>();
             using MonitoredItem item = CreateMonitoredItem(telemetry, queueSize: 4);
-            var lifecycle = (IMonitoredItemLifecycle)item;
+            var lifecycle = (IDetachableMonitoredItem)item;
 
             lifecycle.MarkNodeDeleted();
             item.QueueValue(
@@ -282,7 +282,7 @@ namespace Opc.Ua.Server.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using MonitoredItem source = CreateMonitoredItem(telemetry, queueSize: 2);
-            ((IMonitoredItemLifecycle)source).MarkNodeDeleted();
+            ((IDetachableMonitoredItem)source).MarkNodeDeleted();
             IStoredMonitoredItem stored = source.ToStorableMonitoredItem();
             DateTimeUtc timestamp = stored.LastValue.SourceTimestamp;
             using var queueFactory = new MonitoredItemQueueFactory(telemetry);
@@ -318,7 +318,7 @@ namespace Opc.Ua.Server.Tests
             using MonitoredItem item = CreateMonitoredItem(
                 telemetry,
                 monitoringMode: MonitoringMode.Disabled);
-            var lifecycle = (IMonitoredItemLifecycle)item;
+            var lifecycle = (IDetachableMonitoredItem)item;
 
             lifecycle.MarkNodeDeleted();
             Queue<MonitoredItemNotification> disabled = Publish(item, telemetry, 1, out _);
@@ -396,7 +396,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That(((IMonitoredItemLifecycle)item).IsDeleted, Is.False);
+                Assert.That(((IDetachableMonitoredItem)item).IsDeleted, Is.False);
                 Assert.That(notifications, Has.Count.EqualTo(1));
                 Assert.That(notifications.Peek().Value.WrappedValue, Is.EqualTo(new Variant(42)));
                 Assert.That(notifications.Peek().Value.StatusCode, Is.EqualTo(StatusCodes.Good));

@@ -42,7 +42,6 @@ namespace Opc.Ua.Server
     /// </summary>
     public class Subscription :
         ISubscription,
-        INodeManagerMonitoredItemTracker,
         ISubscriptionMonitoredItemLifecycle
     {
         /// <summary>
@@ -471,7 +470,7 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 return m_monitoredItems.Values.Any(monitoredItem =>
-                    monitoredItem.Value is not IMonitoredItemLifecycle
+                    monitoredItem.Value is not IDetachableMonitoredItem
                     {
                         IsDetached: true
                     } &&
@@ -491,7 +490,7 @@ namespace Opc.Ua.Server
                     .. m_monitoredItems.Values
                         .Select(entry => entry.Value)
                         .Where(monitoredItem =>
-                            monitoredItem is not IMonitoredItemLifecycle
+                            monitoredItem is not IDetachableMonitoredItem
                             {
                                 IsDetached: true
                             } &&
@@ -514,7 +513,7 @@ namespace Opc.Ua.Server
                         .. m_monitoredItems.Values
                             .Select(entry => entry.Value)
                             .Where(monitoredItem =>
-                                monitoredItem is IMonitoredItemLifecycle lifecycle &&
+                                monitoredItem is IDetachableMonitoredItem lifecycle &&
                                 (lifecycle.IsDetached || lifecycle.IsDeleted))
                     ];
                 }
@@ -532,7 +531,7 @@ namespace Opc.Ua.Server
                     .. m_monitoredItems.Values
                         .Select(entry => entry.Value)
                         .Where(monitoredItem =>
-                        monitoredItem is IMonitoredItemLifecycle lifecycle &&
+                        monitoredItem is IDetachableMonitoredItem lifecycle &&
                         (lifecycle.IsDetached || lifecycle.IsDeleted) &&
                         requestedNodeIds.Contains(monitoredItem.NodeId))
                 ];
@@ -1656,7 +1655,7 @@ namespace Opc.Ua.Server
             ArrayOf<MonitoredItemCreateRequest> itemsToCreate,
             CancellationToken cancellationToken = default)
         {
-            if (m_server.NodeManager is INodeManagerMutationCoordinator coordinator)
+            if (m_server.NodeManager is IDynamicNodeManagerHost coordinator)
             {
                 return coordinator.ExecuteMonitoredItemMutationAsync(
                     () => CreateMonitoredItemsCoreAsync(
@@ -1928,7 +1927,7 @@ namespace Opc.Ua.Server
             ArrayOf<MonitoredItemModifyRequest> itemsToModify,
             CancellationToken cancellationToken = default)
         {
-            if (m_server.NodeManager is INodeManagerMutationCoordinator coordinator)
+            if (m_server.NodeManager is IDynamicNodeManagerHost coordinator)
             {
                 return coordinator.ExecuteMonitoredItemMutationAsync(
                     () => ModifyMonitoredItemsCoreAsync(
@@ -2143,7 +2142,7 @@ namespace Opc.Ua.Server
             bool doNotCheckSession,
             CancellationToken cancellationToken = default)
         {
-            if (m_server.NodeManager is INodeManagerMutationCoordinator coordinator)
+            if (m_server.NodeManager is IDynamicNodeManagerHost coordinator)
             {
                 return coordinator.ExecuteMonitoredItemMutationAsync(
                     () => DeleteMonitoredItemsCoreAsync(
@@ -2345,7 +2344,7 @@ namespace Opc.Ua.Server
             ArrayOf<uint> monitoredItemIds,
             CancellationToken cancellationToken = default)
         {
-            if (m_server.NodeManager is INodeManagerMutationCoordinator coordinator)
+            if (m_server.NodeManager is IDynamicNodeManagerHost coordinator)
             {
                 return coordinator.ExecuteMonitoredItemMutationAsync(
                     () => SetMonitoringModeCoreAsync(
@@ -2910,8 +2909,7 @@ namespace Opc.Ua.Server
         private void EnsureSessionNotClosing(OperationContext context)
         {
             if (context.Session is not null &&
-                m_server is ISessionClosingRegistry closingRegistry &&
-                closingRegistry.IsSessionClosing(context.Session.Id))
+                m_server.IsSessionClosing(context.Session.Id))
             {
                 throw new ServiceResultException(StatusCodes.BadSessionClosed);
             }

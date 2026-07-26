@@ -1028,7 +1028,7 @@ namespace Opc.Ua.Server
                 {
                     continue;
                 }
-                if (subscription is not INodeManagerMonitoredItemTracker tracker)
+                if (subscription is not ISubscriptionMonitoredItemLifecycle tracker)
                 {
                     throw new NotSupportedException(
                         "The configured subscription cannot verify NodeManager ownership.");
@@ -1061,7 +1061,7 @@ namespace Opc.Ua.Server
             var ownedManagerItems = managerItems
                 .Where(item =>
                     (item.MonitoredItemType & MonitoredItemTypeMask.AllEvents) == 0 &&
-                    item is not IMonitoredItemLifecycle
+                    item is not IDetachableMonitoredItem
                     {
                         IsDetached: true
                     } &&
@@ -1091,7 +1091,7 @@ namespace Opc.Ua.Server
             IAsyncNodeManager nodeManager,
             CancellationToken ct)
         {
-            return server.NodeManager is INodeManagerMonitoredItemRecovery recovery
+            return server.NodeManager is IDynamicNodeManagerHost recovery
                 ? recovery.RecoverDetachedMonitoredItemsAsync(
                     nodeManager,
                     cancellationToken: ct)
@@ -1108,7 +1108,7 @@ namespace Opc.Ua.Server
                 {
                     continue;
                 }
-                if (subscription is not INodeManagerMonitoredItemTracker tracker)
+                if (subscription is not ISubscriptionMonitoredItemLifecycle tracker)
                 {
                     throw new NotSupportedException(
                         "The configured subscription cannot verify NodeManager ownership.");
@@ -1478,8 +1478,7 @@ namespace Opc.Ua.Server
             IServerInternal server,
             ISession session)
         {
-            return server is ISessionClosingRegistry registry &&
-                registry.IsSessionClosing(session.Id);
+            return server.IsSessionClosing(session.Id);
         }
 
         private static async ValueTask<bool> SubscribeToAllEventsAsync(
@@ -2053,7 +2052,7 @@ namespace Opc.Ua.Server
                 {
                     if (IsOwnedBySubscription(monitoredItem))
                     {
-                        var lifecycle = (IMonitoredItemLifecycle)monitoredItem;
+                        var lifecycle = (IDetachableMonitoredItem)monitoredItem;
                         DetachedMonitoredItemOwnership.Detach(m_server, lifecycle);
                         lifecycle.MarkNodeDeleted();
                     }
@@ -2119,7 +2118,7 @@ namespace Opc.Ua.Server
 
             private void MarkAttachFailure(IMonitoredItem monitoredItem)
             {
-                var lifecycle = (IMonitoredItemLifecycle)monitoredItem;
+                var lifecycle = (IDetachableMonitoredItem)monitoredItem;
                 DetachedMonitoredItemOwnership.Detach(m_server, lifecycle);
                 lifecycle.MarkNodeDeleted();
                 m_failedItems.Add(monitoredItem);

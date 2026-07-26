@@ -425,7 +425,7 @@ namespace Opc.Ua.Server
                 {
                     DetachedMonitoredItemOwnership.Detach(
                         Server,
-                        (IMonitoredItemLifecycle)monitoredItem);
+                        (IDetachableMonitoredItem)monitoredItem);
                 }
                 return result;
             }
@@ -621,7 +621,7 @@ namespace Opc.Ua.Server
                             {
                                 DetachedMonitoredItemOwnership.Detach(
                                     Server,
-                                    (IMonitoredItemLifecycle)monitoredItem);
+                                    (IDetachableMonitoredItem)monitoredItem);
                             }
                             catch (Exception compensationException) when (
                                 compensationException is not OutOfMemoryException)
@@ -914,7 +914,7 @@ namespace Opc.Ua.Server
                 {
                     foreach (IMonitoredItem monitoredItem in detachedItems)
                     {
-                        ((IMonitoredItemLifecycle)monitoredItem).MarkNodeDeleted();
+                        ((IDetachableMonitoredItem)monitoredItem).MarkNodeDeleted();
                     }
                 }
                 throw;
@@ -922,7 +922,7 @@ namespace Opc.Ua.Server
 
             foreach (IMonitoredItem monitoredItem in detachedItems)
             {
-                ((IMonitoredItemLifecycle)monitoredItem).MarkNodeDeleted();
+                ((IDetachableMonitoredItem)monitoredItem).MarkNodeDeleted();
             }
 
             if (ModelChangeEmissionEnabled)
@@ -1152,7 +1152,7 @@ namespace Opc.Ua.Server
                 AddPredefinedNode(context, children[ii]);
             }
 
-            if (Server.NodeManager is INodeManagerMonitoredItemRecovery recovery)
+            if (Server.NodeManager is ISyncNodeManagerMonitoredItemRecovery recovery)
             {
                 recovery.RecoverDetachedMonitoredItems(
                     this.ToAsyncNodeManager(),

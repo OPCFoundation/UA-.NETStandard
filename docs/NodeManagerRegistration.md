@@ -82,9 +82,17 @@ required by OPC UA Part 4 §5.8.4.1; adding a compatible Node with the same Node
 and reattaches the item automatically. Event MonitoredItems detach and recover their source binding
 without synthesizing a data-change status.
 
-The built-in NodeManager and Subscription implementations support these transitions. Custom
-implementations fail closed with `NotSupportedException` before routing changes, when the server
-cannot migrate their active items safely.
+The built-in NodeManager and Subscription implementations support these transitions. A custom
+implementation that the server cannot migrate safely fails with `NotSupportedException` before any
+routing changes, so the operation is rejected rather than half applied.
+
+To make a custom NodeManager participate, derive from `CustomNodeManager2` or
+`AsyncCustomNodeManager`, which already implement the MonitoredItem transition contract, or
+implement `INodeManagerMonitoredItemLifecycle` directly. That interface needs four operations: report
+whether an existing MonitoredItem could attach, detach one without disposing it, attach a detached
+one to the matching Node, and give a detached one back when a lifecycle operation is rolled back. A
+custom Subscription implementation needs the equivalent snapshots from
+`ISubscriptionMonitoredItemLifecycle`.
 
 ### Continuation points
 
@@ -112,10 +120,21 @@ access-level bit changed.
 
 ## Requirements on a reloadable NodeManager
 
-A NodeManager can be added and removed through the lifecycle provider without extra work. To be
-reloaded safely it must implement `INodeManagerReloadParticipant`, which transfers inbound
-cross-manager references to retained NodeIds and removes the counterparts of dropped Nodes. The
-built-in runtime NodeSet manager implements this contract.
+A NodeManager can be added and removed through the lifecycle provider without extra work.
+
+Reload needs more, because the references other NodeManagers hold into the retired address space
+have to be carried over. A NodeManager can only be reloaded when it implements
+`INodeManagerReloadParticipant`, which re-adds the references it contributed to Nodes owned by
+other NodeManagers to the replacement and reports the inbound references whose target the
+replacement no longer contains, so the server can remove their counterparts. Reloading a NodeManager
+that does not implement it fails with `NotSupportedException` before anything changes.
+
+Today `RuntimeNodeSetNodeManager` is the only built-in NodeManager that implements the contract, so
+runtime NodeSets can be reloaded out of the box. A NodeManager derived from `CustomNodeManager2` or
+`AsyncCustomNodeManager` can be added and removed live, and becomes reloadable by implementing
+`INodeManagerReloadParticipant`: return the references your NodeManager added to Nodes it does not
+own, hand them to the replacement, and report the ones whose target NodeId the replacement no longer
+has.
 
 ## Related documentation
 

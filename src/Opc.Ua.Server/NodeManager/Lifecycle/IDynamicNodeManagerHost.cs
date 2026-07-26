@@ -142,6 +142,30 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="nodeManager">The NodeManager to release.</param>
         void Release(IAsyncNodeManager nodeManager);
+
+        /// <summary>
+        /// Runs a MonitoredItem mutation under the host lock that lifecycle operations also take,
+        /// so creating, modifying, or deleting MonitoredItems cannot interleave with the commit
+        /// of a lifecycle operation.
+        /// </summary>
+        /// <typeparam name="T">The result of the mutation.</typeparam>
+        /// <param name="mutation">The mutation to run.</param>
+        /// <param name="ct">The token used to cancel waiting for the lock.</param>
+        ValueTask<T> ExecuteMonitoredItemMutationAsync<T>(
+            Func<ValueTask<T>> mutation,
+            CancellationToken ct = default);
+
+        /// <summary>
+        /// Reattaches MonitoredItems that were detached because their Node disappeared, once a
+        /// compatible Node with the same NodeId is visible again.
+        /// </summary>
+        /// <param name="nodeManager">The NodeManager that gained the Nodes.</param>
+        /// <param name="nodeIds">The Nodes that became available, or <c>null</c> for all.</param>
+        /// <param name="cancellationToken">The token used to cancel the operation.</param>
+        ValueTask RecoverDetachedMonitoredItemsAsync(
+            IAsyncNodeManager nodeManager,
+            IReadOnlyCollection<NodeId>? nodeIds = null,
+            CancellationToken cancellationToken = default);
     }
 
     /// <summary>

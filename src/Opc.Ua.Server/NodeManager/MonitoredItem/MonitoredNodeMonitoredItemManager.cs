@@ -248,7 +248,7 @@ namespace Opc.Ua.Server
                 handle,
                 storedMonitoredItem);
 
-            ((IMonitoredItemLifecycle)datachangeItem).Rebind(m_nodeManager, handle);
+            ((IDetachableMonitoredItem)datachangeItem).Rebind(m_nodeManager, handle);
 
             // update monitored item list.
             monitoredItem = datachangeItem;
@@ -383,7 +383,7 @@ namespace Opc.Ua.Server
             ISampledDataChangeMonitoredItem monitoredItem,
             Action<ISystemContext, NodeHandle> removeNodeFromComponentCache)
         {
-            if (monitoredItem is not IMonitoredItemLifecycle lifecycle)
+            if (monitoredItem is not IDetachableMonitoredItem lifecycle)
             {
                 return (StatusCodes.BadNotSupported, false);
             }
@@ -457,7 +457,7 @@ namespace Opc.Ua.Server
             Func<ISystemContext, NodeHandle, NodeState, NodeState> addNodeToComponentCache,
             Action<ISystemContext, NodeHandle> removeNodeFromComponentCache)
         {
-            if (monitoredItem is not IMonitoredItemLifecycle lifecycle)
+            if (monitoredItem is not IDetachableMonitoredItem lifecycle)
             {
                 return (StatusCodes.BadNotSupported, false);
             }

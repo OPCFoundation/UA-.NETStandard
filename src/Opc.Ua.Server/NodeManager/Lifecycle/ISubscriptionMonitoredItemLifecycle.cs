@@ -52,5 +52,10 @@ namespace Opc.Ua.Server
         /// Returns whether the monitored item is still owned by the subscription.
         /// </summary>
         bool ContainsMonitoredItem(IMonitoredItem monitoredItem);
+
+        /// <summary>
+        /// Returns whether the subscription has monitored items owned by the NodeManager.
+        /// </summary>
+        bool HasMonitoredItems(IAsyncNodeManager nodeManager);
     }
 }
