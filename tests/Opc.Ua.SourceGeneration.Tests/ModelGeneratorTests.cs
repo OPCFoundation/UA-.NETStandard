@@ -254,6 +254,32 @@ namespace Opc.Ua.SourceGeneration
         }
 
         [Test]
+        public void IgnoredOptedInPlainJsonLdProducesNoDiagnosticsOrSourcesTest()
+        {
+            var options = DefaultWotOptions();
+            options.TextOptions["Ignored.jsonld"] = new Dictionary<string, string>
+            {
+                ["build_metadata.AdditionalFiles.ModelSourceGeneratorWot"] = "true",
+                ["build_metadata.AdditionalFiles.ModelSourceGeneratorIgnore"] = "true"
+            };
+
+            (ImmutableArray<Diagnostic> diagnostics, GeneratorDriverRunResult runResult) =
+                RunGeneratorLeniently(
+                    options,
+                    [EmbeddedText.FromContent("Ignored.jsonld", "{ invalid json")]);
+
+            Assert.That(runResult.Results[0].Exception, Is.Null);
+            Assert.That(
+                diagnostics,
+                Is.Empty,
+                "an ignored, explicitly opted-in .jsonld file must be excluded before parsing");
+            Assert.That(
+                runResult.Results[0].GeneratedSources,
+                Is.Empty,
+                "an ignored, explicitly opted-in .jsonld file must emit no sources");
+        }
+
+        [Test]
         public void NodeSetAndEnvelopeWotProduceEquivalentGeneratedOutputTest()
         {
             const LanguageVersion languageVersion = LanguageVersion.CSharp13;
@@ -324,6 +350,31 @@ namespace Opc.Ua.SourceGeneration
             // of the compilation: DI does not depend on it and should still
             // be generated.
             Assert.That(runResult.Results[0].GeneratedSources, Is.Not.Empty);
+        }
+
+        [Test]
+        public void IgnoredMalformedWotJsonProducesNoDiagnosticsOrSourcesTest()
+        {
+            var options = DefaultWotOptions();
+            options.TextOptions["Malformed.tm.json"] = new Dictionary<string, string>
+            {
+                ["build_metadata.AdditionalFiles.ModelSourceGeneratorIgnore"] = "true"
+            };
+
+            (ImmutableArray<Diagnostic> diagnostics, GeneratorDriverRunResult runResult) =
+                RunGeneratorLeniently(
+                    options,
+                    [EmbeddedText.FromContent("Malformed.tm.json", "{ this is not valid json")]);
+
+            Assert.That(runResult.Results[0].Exception, Is.Null);
+            Assert.That(
+                diagnostics,
+                Is.Empty,
+                "an ignored WoT file must be excluded before parsing and diagnostic forwarding");
+            Assert.That(
+                runResult.Results[0].GeneratedSources,
+                Is.Empty,
+                "an ignored WoT file must emit no sources");
         }
 
         [Test]
@@ -431,6 +482,38 @@ namespace Opc.Ua.SourceGeneration
         }
 
         [Test]
+        public void IgnoredWotInputDoesNotOwnCollisionPathAgainstActiveWotTest()
+        {
+            string nodeSetXml = EmbeddedText.From("DemoModel.NodeSet2.xml").GetText()!.ToString();
+            string wotJson = BuildDemoModelWotEnvelopeJson(nodeSetXml);
+            var options = DefaultWotOptions();
+            options.TextOptions["DemoModel.tm.json"] = new Dictionary<string, string>
+            {
+                ["build_metadata.AdditionalFiles.ModelSourceGeneratorIgnore"] = "true"
+            };
+
+            (ImmutableArray<Diagnostic> diagnostics, GeneratorDriverRunResult runResult) =
+                RunGeneratorLeniently(
+                    options,
+                    [
+                        EmbeddedText.FromContent("DemoModel.tm.json", wotJson),
+                        EmbeddedText.FromContent("DemoModel.td.json", wotJson),
+                        EmbeddedText.From("Opc.Ua.Di.NodeSet2.xml")
+                    ]);
+
+            Assert.That(runResult.Results[0].Exception, Is.Null);
+            Assert.That(
+                diagnostics,
+                Is.Empty,
+                "an ignored WoT input must not reserve its synthesized NodeSet2 path");
+            Assert.That(
+                runResult.Results[0].GeneratedSources
+                    .Count(s => s.HintName == "DemoModel.Constants.g.cs"),
+                Is.EqualTo(1),
+                "the active WoT input should generate normally when its colliding peer is ignored");
+        }
+
+        [Test]
         public void WotInputCollidingWithExplicitNodeSet2FileProducesDiagnosticTest()
         {
             string nodeSetXml = EmbeddedText.From("DemoModel.NodeSet2.xml").GetText()!.ToString();
@@ -455,6 +538,38 @@ namespace Opc.Ua.SourceGeneration
                     .Count(s => s.HintName == "DemoModel.Constants.g.cs"),
                 Is.EqualTo(1),
                 "the explicit NodeSet2 input should win; the WoT input should be dropped, not duplicated");
+        }
+
+        [Test]
+        public void IgnoredWotInputDoesNotCollideWithActiveNodeSet2Test()
+        {
+            string nodeSetXml = EmbeddedText.From("DemoModel.NodeSet2.xml").GetText()!.ToString();
+            string wotJson = BuildDemoModelWotEnvelopeJson(nodeSetXml);
+            var options = DefaultWotOptions();
+            options.TextOptions["DemoModel.tm.json"] = new Dictionary<string, string>
+            {
+                ["build_metadata.AdditionalFiles.ModelSourceGeneratorIgnore"] = "true"
+            };
+
+            (ImmutableArray<Diagnostic> diagnostics, GeneratorDriverRunResult runResult) =
+                RunGeneratorLeniently(
+                    options,
+                    [
+                        EmbeddedText.FromContent("DemoModel.tm.json", wotJson),
+                        EmbeddedText.FromContent("DemoModel.NodeSet2.xml", nodeSetXml),
+                        EmbeddedText.From("Opc.Ua.Di.NodeSet2.xml")
+                    ]);
+
+            Assert.That(runResult.Results[0].Exception, Is.Null);
+            Assert.That(
+                diagnostics,
+                Is.Empty,
+                "an ignored WoT input must not report a collision with an active NodeSet2 input");
+            Assert.That(
+                runResult.Results[0].GeneratedSources
+                    .Count(s => s.HintName == "DemoModel.Constants.g.cs"),
+                Is.EqualTo(1),
+                "the active NodeSet2 input should generate normally when the colliding WoT input is ignored");
         }
 
         [Test]

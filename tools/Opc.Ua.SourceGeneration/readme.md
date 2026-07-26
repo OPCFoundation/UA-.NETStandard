@@ -88,7 +88,7 @@ A plain `.jsonld` file is **not** treated as a WoT input by default — arbitrar
 </ItemGroup>
 ```
 
-The same per-file metadata described above (`ModelSourceGeneratorModelUri`, `ModelSourceGeneratorName`, `ModelSourceGeneratorPrefix`, as well as `ModelSourceGeneratorVersion` and `ModelSourceGeneratorIgnore`) is honored on a WoT input exactly as it is on a `NodeSet2`/`ModelDesign` input, and is preserved after the WoT document is wrapped as an in-memory NodeSet2 file.
+The same per-file model metadata described above (`ModelSourceGeneratorModelUri`, `ModelSourceGeneratorName`, `ModelSourceGeneratorPrefix`, and `ModelSourceGeneratorVersion`) is preserved after a WoT document is wrapped as an in-memory NodeSet2 file. `ModelSourceGeneratorIgnore=true` is applied earlier: the WoT file is excluded before its contents are read or converted, so it emits no WoT diagnostics or sources and does not participate in dependency or synthesized-path collision resolution.
 
 A malformed or unsupported WoT document never crashes the generator. Instead it is reported through one of these diagnostics, and the affected input is excluded from generation while every other input continues to be processed:
 
