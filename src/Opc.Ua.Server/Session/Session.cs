@@ -150,6 +150,7 @@ namespace Opc.Ua.Server
             m_timeProvider = timeProvider
                 ?? (server as ITimeProviderProvider)?.TimeProvider
                 ?? TimeProvider.System;
+            m_logger = server.Telemetry.CreateLogger<Session>();
             m_eventLogger = server.Telemetry.CreateLogger(
                 ServerCompatibilityEventIds.CategoryName);
             ClientNonce = clientNonce;
