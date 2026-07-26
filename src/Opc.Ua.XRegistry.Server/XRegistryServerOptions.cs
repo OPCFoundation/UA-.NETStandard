@@ -50,6 +50,12 @@ namespace Opc.Ua.XRegistry.Server
         public IResourceContentIdProvider? ContentIdProvider { get; set; }
 
         /// <summary>
+        /// The store that holds resource document bytes. Defaults to an in-process store; a
+        /// high-availability deployment substitutes a shared one so documents survive a failover.
+        /// </summary>
+        public IXRegistryResourceStore ResourceStore { get; set; } = new InMemoryXRegistryResourceStore();
+
+        /// <summary>
         /// When <c>true</c>, the fast-path manager pre-publishes <see cref="SeedDocument"/>.
         /// </summary>
         public bool PublishSeedResource { get; set; }
