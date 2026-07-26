@@ -56,5 +56,10 @@ namespace Opc.Ua.OpenUsd.Client
         [LoggerMessage(EventId = OpenUsdEventIds.Connector + 4, Level = LogLevel.Warning,
             Message = "Closing connector-owned remote session failed.")]
         public static partial void RemoteSessionCloseFailed(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = OpenUsdEventIds.Connector + 5, Level = LogLevel.Warning,
+            Message = "Refusing OpenUSD command: the session does not hold the write/Call " +
+                "authorization required by {TargetNodeId}.")]
+        public static partial void CommandRefusedUnauthorized(this ILogger logger, string targetNodeId);
     }
 }

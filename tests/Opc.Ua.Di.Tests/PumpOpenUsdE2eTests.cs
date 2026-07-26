@@ -58,7 +58,47 @@ namespace Opc.Ua.Di.Tests
         private ITelemetryContext m_telemetry = null!;
         private IHost? m_host;
         private ISession? m_session;
+        private ISession? m_privilegedSession;
         private ApplicationConfiguration m_clientConfig = null!;
+
+        /// <summary>
+        /// §9: the sample withholds the command target's write right by default, so the
+        /// positive command test must present a real (non-anonymous) credential. This
+        /// authenticator accepts a single well-known operator credential; the Part 18
+        /// role manager then maps it to the AuthenticatedUser role.
+        /// </summary>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1812",
+            Justification = "Instantiated by the server's dependency injection via AddIdentityAuthenticator.")]
+        internal sealed class OperatorAuthenticator : Opc.Ua.Identity.IUserTokenAuthenticator
+        {
+            internal const string UserName = "usd-operator";
+            internal const string Password = "usd-operator-secret";
+
+            public UserTokenType TokenType => UserTokenType.UserName;
+
+            public string? IssuedTokenProfileUri => null;
+
+            public ValueTask<Opc.Ua.Identity.AuthenticationResult> AuthenticateAsync(
+                Opc.Ua.Identity.AuthenticationContext context,
+                CancellationToken ct = default)
+            {
+                if (context.TokenHandler is not UserNameIdentityTokenHandler handler)
+                {
+                    return new ValueTask<Opc.Ua.Identity.AuthenticationResult>(
+                        Opc.Ua.Identity.AuthenticationResult.NotHandled);
+                }
+                byte[]? password = handler.DecryptedPassword;
+                if (handler.UserName != UserName || password == null ||
+                    System.Text.Encoding.UTF8.GetString(password) != Password)
+                {
+                    return new ValueTask<Opc.Ua.Identity.AuthenticationResult>(
+                        Opc.Ua.Identity.AuthenticationResult.Reject(
+                            new ServiceResult(StatusCodes.BadUserAccessDenied)));
+                }
+                return new ValueTask<Opc.Ua.Identity.AuthenticationResult>(
+                    Opc.Ua.Identity.AuthenticationResult.Accept(new UserIdentity(handler)));
+            }
+        }
 
         private static int GetFreeTcpPort()
         {
@@ -88,7 +128,19 @@ namespace Opc.Ua.Di.Tests
                     o.ApplicationUri = "urn:localhost:OPCFoundation:PumpOpenUsdE2eServer";
                     o.AutoAcceptUntrustedCertificates = true;
                     o.EndpointUrls.Add(serverUrl);
+                    // §9: the pump withholds the command target's write right from
+                    // anonymous sessions, so the endpoint must also offer a real
+                    // credential a connector can present.
+                    o.UserTokenPolicies.Add(new Opc.Ua.Server.Hosting.OpcUaUserTokenPolicy
+                    {
+                        TokenType = UserTokenType.Anonymous
+                    });
+                    o.UserTokenPolicies.Add(new Opc.Ua.Server.Hosting.OpcUaUserTokenPolicy
+                    {
+                        TokenType = UserTokenType.UserName
+                    });
                 })
+                .AddIdentityAuthenticator<OperatorAuthenticator>()
                 .AddNodeManager<global::Pumps.PumpNodeManagerFactory>();
             m_host = hostBuilder.Build();
             await m_host.StartAsync().ConfigureAwait(false);
@@ -168,6 +220,16 @@ namespace Opc.Ua.Di.Tests
                 sessionName: "PumpOpenUsdE2e", sessionTimeout: 60000,
                 identity: new UserIdentity(new AnonymousIdentityToken()),
                 preferredLocales: default, ct: CancellationToken.None).ConfigureAwait(false);
+            // A second, authenticated session: §9 requires a connector to hold the
+            // authorization the command target demands, and the sample withholds it
+            // from anonymous sessions.
+            m_privilegedSession = await sessionFactory.CreateAsync(
+                m_clientConfig, endpoint, updateBeforeConnect: false,
+                sessionName: "PumpOpenUsdE2ePrivileged", sessionTimeout: 60000,
+                identity: new UserIdentity(
+                    OperatorAuthenticator.UserName,
+                    System.Text.Encoding.UTF8.GetBytes(OperatorAuthenticator.Password)),
+                preferredLocales: default, ct: CancellationToken.None).ConfigureAwait(false);
         }
 
         [OneTimeTearDown]
@@ -178,6 +240,12 @@ namespace Opc.Ua.Di.Tests
                 await m_session.CloseAsync(CancellationToken.None).ConfigureAwait(false);
                 await m_session.DisposeAsync().ConfigureAwait(false);
                 m_session = null;
+            }
+            if (m_privilegedSession != null)
+            {
+                await m_privilegedSession.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+                await m_privilegedSession.DisposeAsync().ConfigureAwait(false);
+                m_privilegedSession = null;
             }
             if (m_clientConfig?.CertificateManager is IDisposable manager)
             {
@@ -199,7 +267,11 @@ namespace Opc.Ua.Di.Tests
             Assert.That(ns, Is.GreaterThan(0), "OpenUSD namespace not advertised by the server.");
 
             // ... and serves the companion type nodes (proves the NodeSet loaded).
-            var repType = new NodeId(1003u, (ushort)ns);
+            // Resolved from the generated symbolic constant (an ExpandedNodeId carrying
+            // the namespace URI) rather than a numeric literal, so a model renumbering
+            // can never silently invalidate this assertion.
+            NodeId repType = ExpandedNodeId.ToNodeId(
+                Opc.Ua.OpenUsd.ObjectTypeIds.OpenUsdRepresentationType, m_session!.NamespaceUris);
             var connector = new OpenUsdConnector(m_session!, new MockUsdSink());
             string bn = connector.ReadBrowseNameAsync(repType, CancellationToken.None)
                 .GetAwaiter().GetResult();
@@ -319,16 +391,31 @@ namespace Opc.Ua.Di.Tests
             OpenUsdConnector.RepresentationInfo? rep = await PumpRepAsync(connector).ConfigureAwait(false);
             Assert.That(rep, Is.Not.Null);
 
-            Assert.Multiple(() =>
-            {
-                // Twin-BOM integrity: the stage advertises a content digest ...
-                Assert.That(rep!.DigestAlgorithm, Is.EqualTo(OpenUsdDigestAlgorithm.Sha256));
-                Assert.That(rep!.RootLayerDigest.IsNull, Is.False);
-                Assert.That(rep!.RootLayerDigest.Length, Is.EqualTo(32));
-                // ... and it verifies against the resolved root-layer identity.
-                Assert.That(connector.VerifyStageDigest(rep!), Is.True,
-                    "RootLayerDigest failed verification.");
-            });
+            // §5.2: the digest is computed over the resolved root-layer *content*, not
+            // over the identifier string, and a connector shall refuse to open a layer
+            // whose digest does not match.
+            Assert.That(rep!.DigestAlgorithm, Is.EqualTo(OpenUsdDigestAlgorithm.Sha256));
+            Assert.That(rep!.RootLayerDigest.IsNull, Is.False);
+            Assert.That(rep!.RootLayerDigest.Length, Is.EqualTo(32));
+            bool verified = await connector
+                .VerifyStageDigestAsync(rep!, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(verified, Is.True, "RootLayerDigest failed verification.");
+        }
+
+        [Test]
+        public async Task StageRootLayerDigestRefusesCorruptedContentAsync()
+        {
+            // §5.2 negative: a connector shall refuse to open a layer whose digest does
+            // not match the resolved content. Flipping a single byte of the served root
+            // layer must be detected — which is only possible because the digest covers
+            // the content and not the (unchanged) identifier string.
+            var connector = new OpenUsdConnector(m_session!, new MockUsdSink());
+            OpenUsdConnector.RepresentationInfo? rep = await PumpRepAsync(connector).ConfigureAwait(false);
+            Assert.That(rep, Is.Not.Null);
+
+            byte[] corrupted = System.Text.Encoding.UTF8.GetBytes("#usda 1.0\n(tampered)\n");
+            Assert.That(OpenUsdConnector.VerifyStageDigest(rep!, corrupted), Is.False,
+                "Connector accepted a root layer whose content does not match the digest.");
         }
 
         [Test]
@@ -358,7 +445,8 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public async Task CommandBindingWritesServerVariableWhenEnabledAsync()
         {
-            var connector = new OpenUsdConnector(m_session!, new MockUsdSink(), enableCommands: true);
+            var connector = new OpenUsdConnector(
+                m_privilegedSession!, new MockUsdSink(), enableCommands: true);
             OpenUsdConnector.RepresentationInfo? rep = await PumpRepAsync(connector).ConfigureAwait(false);
             NodeId target = NodeId.Null;
             foreach (OpenUsdConnector.BindingInfo b in rep!.Bindings)
@@ -379,7 +467,7 @@ namespace Opc.Ua.Di.Tests
             {
                 new ReadValueId { NodeId = target, AttributeId = Attributes.Value }
             };
-            ReadResponse rr = await m_session!.ReadAsync(
+            ReadResponse rr = await m_privilegedSession!.ReadAsync(
                 null!, 0, TimestampsToReturn.Neither, toRead, CancellationToken.None)
                 .ConfigureAwait(false);
             double actual = System.Convert.ToDouble(
@@ -387,6 +475,50 @@ namespace Opc.Ua.Di.Tests
                 System.Globalization.CultureInfo.InvariantCulture);
             Assert.That(actual, Is.EqualTo(setpoint).Within(1e-9),
                 "Server SpeedSetpoint was not updated by the command binding.");
+        }
+
+        [Test]
+        public async Task CommandIsRefusedForUnauthorizedSessionAsync()
+        {
+            // §5.10/§9: the connector shall hold the write authorization the target
+            // requires, which the Server withholds by default. The anonymous session
+            // does not hold it, so the connector refuses *before* issuing the Write —
+            // it must not rely on the Server's error, and the value must not change.
+            var connector = new OpenUsdConnector(m_session!, new MockUsdSink(), enableCommands: true);
+            OpenUsdConnector.RepresentationInfo? rep = await PumpRepAsync(connector).ConfigureAwait(false);
+            NodeId target = NodeId.Null;
+            foreach (OpenUsdConnector.BindingInfo b in rep!.Bindings)
+            {
+                if (b.Intent == OpenUsdIntentProfile.UsdToUaCommand)
+                {
+                    target = b.CommandTargetNodeId;
+                }
+            }
+            Assert.That(target.IsNull, Is.False, "Command target NodeId missing.");
+
+            var toRead = new ReadValueId[]
+            {
+                new ReadValueId { NodeId = target, AttributeId = Attributes.Value }
+            };
+            ReadResponse before = await m_session!.ReadAsync(
+                null!, 0, TimestampsToReturn.Neither, toRead, CancellationToken.None)
+                .ConfigureAwait(false);
+            double previous = System.Convert.ToDouble(
+                before.Results[0].WrappedValue.AsBoxedObject(),
+                System.Globalization.CultureInfo.InvariantCulture);
+
+            bool ok = await connector.IssueCommandAsync(previous + 7.0, CancellationToken.None)
+                .ConfigureAwait(false);
+            Assert.That(ok, Is.False, "Command was issued without the required authorization.");
+
+            ReadResponse after = await m_session!.ReadAsync(
+                null!, 0, TimestampsToReturn.Neither, toRead, CancellationToken.None)
+                .ConfigureAwait(false);
+            double actual = System.Convert.ToDouble(
+                after.Results[0].WrappedValue.AsBoxedObject(),
+                System.Globalization.CultureInfo.InvariantCulture);
+            Assert.That(actual, Is.EqualTo(previous).Within(1e-9),
+                "Unauthorized command changed the server value.");
         }
 
         [Test]

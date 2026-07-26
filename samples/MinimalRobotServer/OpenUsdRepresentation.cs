@@ -74,16 +74,17 @@ namespace Robotics
                 m_cellStage.CreateOrReplaceRootLayerIdentifier(SystemContext, null!)
                     .Value = CellRootLayerIdentifier;
 
-                // 0.2 Twin-BOM content integrity: publish a deterministic digest of the
-                // resolved root layer identity so a connector can verify the stage
-                // before composing it. A production server digests the actual resolved
-                // bytes; here we digest the identifier as a testable stand-in.
+                // §5.2 Twin-BOM content integrity: the digest is computed over the
+                // *resolved root-layer content*, never over the identifier string, so a
+                // connector can detect tampering of the bytes it actually composes.
+                List<ServedAsset> servedAssets = LoadServedAssets();
+                byte[] rootLayerBytes = servedAssets
+                    .Find(a => a.Kind == OpenUsdAssetKindEnum.RootLayer)!.Bytes;
                 byte[] digest;
 #pragma warning disable CA1850 // Prefer static HashData (net48/netstandard2.0 compatibility)
                 using (var sha = System.Security.Cryptography.SHA256.Create())
                 {
-                    digest = sha.ComputeHash(
-                        System.Text.Encoding.UTF8.GetBytes(CellRootLayerIdentifier));
+                    digest = sha.ComputeHash(rootLayerBytes);
                 }
 #pragma warning restore CA1850
                 m_cellStage.CreateOrReplaceRootLayerDigest(
@@ -105,7 +106,7 @@ namespace Robotics
                 // §5.15 asset content delivery (OU-AssetDelivery): serve this stage's
                 // artist-authored USD layer closure so a connector can render the twin
                 // with no external asset resolver.
-                UsdAssetDelivery.AttachStageAssets(SystemContext, m_cellStage, ns, LoadServedAssets());
+                UsdAssetDelivery.AttachStageAssets(SystemContext, m_cellStage, ns, servedAssets);
 
                 AssignChildNodeIds(root);
                 await AddPredefinedNodeAsync(SystemContext, root, cancellationToken)

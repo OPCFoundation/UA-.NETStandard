@@ -53,6 +53,12 @@ namespace Opc.Ua.OpenUsd.Client
 
         private async Task ComposeComponentAsync(RepresentationInfo rep, ComponentInfo c, CancellationToken ct)
         {
+            // §5.4/§5.12 tombstone: Enabled = false suppresses an (inherited) component
+            // binding entirely — it is neither composed nor reconciled.
+            if (!c.Enabled)
+            {
+                return;
+            }
             if (string.IsNullOrEmpty(c.TargetPrimPath))
             {
                 return;
@@ -109,15 +115,23 @@ namespace Opc.Ua.OpenUsd.Client
             }
 
             // Dynamic reconciliation (§5.13): deactivate previously-composed instance
-            // prims under this component's scope that no longer resolve.
-            if (c.Dynamic && c.Cardinality == OpenUsdCardinality.Many)
+            // prims under this component's scope that no longer resolve. A One-cardinality
+            // component has exactly one instance prim (the resolved target), so a
+            // resolution that now yields zero matches must author active = false on it —
+            // otherwise a removed 1:1 component (e.g. a detached tool) could never be
+            // deactivated.
+            if (c.Dynamic)
             {
-                string prefix = ResolveTarget(rep, c) + "/";
+                string target = ResolveTarget(rep, c);
+                string prefix = target + "/";
                 List<string> stale;
                 lock (m_composeGate)
                 {
                     stale = m_composedInstancePrims
-                        .Where(p => p.StartsWith(prefix, StringComparison.Ordinal) && !live.Contains(p))
+                        .Where(p => !live.Contains(p) &&
+                            (c.Cardinality == OpenUsdCardinality.Many
+                                ? p.StartsWith(prefix, StringComparison.Ordinal)
+                                : string.Equals(p, target, StringComparison.Ordinal)))
                         .ToList();
                     foreach (string p in stale)
                     {
@@ -202,13 +216,26 @@ namespace Opc.Ua.OpenUsd.Client
 
         private static string ResolveTarget(RepresentationInfo rep, ComponentInfo c)
         {
-            string t = c.TargetPrimPath!;
-            if (t.StartsWith('/'))
+            return JoinPrimPath(rep.PrimPath, c.TargetPrimPath!);
+        }
+
+        /// <summary>
+        /// §5.7: an absolute target prim path is used as-is; a relative path <b>shall</b>
+        /// be joined to the representation's <c>PrimPath</c>, never authored at the layer
+        /// root. An empty target resolves to the representation's own prim.
+        /// </summary>
+        internal static string JoinPrimPath(string? basePrimPath, string target)
+        {
+            string basePath = (basePrimPath ?? string.Empty).TrimEnd('/');
+            if (string.IsNullOrEmpty(target))
             {
-                return t.TrimEnd('/');
+                return basePath;
             }
-            string basePath = (rep.PrimPath ?? string.Empty).TrimEnd('/');
-            return basePath + "/" + t.Trim('/');
+            if (target[0] == '/')
+            {
+                return target.TrimEnd('/');
+            }
+            return basePath + "/" + target.Trim('/');
         }
 
         private static string ComponentPrimPath(RepresentationInfo rep, ComponentInfo c, string name)

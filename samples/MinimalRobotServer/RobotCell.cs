@@ -184,6 +184,12 @@ namespace Robotics
                 FolderState ctrlParams = EnsureFolder(controller, "ParameterSet", ns);
                 m_speedOverrideVar = EnsureVariable(ctrlParams, "SpeedOverride", Opc.Ua.DataTypeIds.Double,
                     new Variant(100.0), writable: true, ns);
+                // §5.10/§9 authorization posture: the command target is *capable* of being
+                // written (AccessLevel), but the write right is withheld by default and
+                // granted only to an authenticated (non-anonymous) session — a Server
+                // "withholds by default" the RolePermissions a connector must hold before
+                // issuing any command.
+                m_speedOverrideVar.OnReadUserAccessLevel = OnReadCommandTargetUserAccessLevel;
 
                 // Robots are generated MotionDeviceType instances in the mandatory
                 // MotionDevices folder (each with its own representation, axes, bindings).
@@ -381,11 +387,47 @@ namespace Robotics
         }
 
         /// <summary>
+        /// §5.10/§9: the write right a command target requires is <b>withheld by
+        /// default</b> — an anonymous session sees a read-only UserAccessLevel and its
+        /// write is rejected. Only a session that authenticated (and therefore holds a
+        /// Role beyond <c>Anonymous</c>) sees CurrentWrite.
+        /// </summary>
+        private static ServiceResult OnReadCommandTargetUserAccessLevel(
+            ISystemContext context, NodeState node, ref byte value)
+        {
+            value = IsAuthenticatedSession(context)
+                ? AccessLevels.CurrentReadOrWrite
+                : AccessLevels.CurrentRead;
+            return ServiceResult.Good;
+        }
+
+        private static bool IsAuthenticatedSession(ISystemContext context)
+        {
+            IUserIdentity? identity = (context as ISessionSystemContext)?.UserIdentity;
+            if (identity == null || identity.TokenType == UserTokenType.Anonymous)
+            {
+                return false;
+            }
+            ArrayOf<NodeId> roles = identity.GrantedRoleIds;
+            for (int i = 0; i < roles.Count; i++)
+            {
+                if (roles[i] != Opc.Ua.ObjectIds.WellKnownRole_Anonymous)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
         /// Dynamic composition (§5.13): mount the gripper tool on R1's flange shortly
-        /// after startup. The CreateNode emits a GeneralModelChangeEvent, so a connector
-        /// already watching reconciles the tool prim (recompose path), and a connector
-        /// attaching later composes it from the now-present MountedTool (initial path).
-        /// The tool then stays mounted, so the composed stage renders it deterministically.
+        /// after startup, then cycle mount/detach. The CreateNode emits a
+        /// GeneralModelChangeEvent, so a connector already watching reconciles the tool
+        /// prim (recompose path), and a connector attaching later composes it from the
+        /// now-present MountedTool (initial path). The DeleteNode emits the same event
+        /// class, and §5.13 requires a removed component to be authored
+        /// <c>active = false</c> on its instance prim — which the cycle exercises for a
+        /// <c>Cardinality = One</c> component (the robotics worked example).
         /// </summary>
         /// <param name="ns"></param>
         /// <param name="usdNs"></param>
@@ -399,8 +441,19 @@ namespace Robotics
                     return;
                 }
                 await Task.Delay(3000).ConfigureAwait(false);
-                _ = await AddMountedToolAsync(ns, usdNs).ConfigureAwait(false);
-                m_logger.GripperToolMounted();
+                while (!m_r1NodeId.IsNull)
+                {
+                    NodeId toolId = await AddMountedToolAsync(ns, usdNs).ConfigureAwait(false);
+                    if (toolId.IsNull)
+                    {
+                        return;
+                    }
+                    m_logger.GripperToolMounted();
+                    await Task.Delay(12000).ConfigureAwait(false);
+                    _ = await DeleteNodeAsync(SystemContext, toolId).ConfigureAwait(false);
+                    m_logger.DetachedGripperTool(toolId);
+                    await Task.Delay(6000).ConfigureAwait(false);
+                }
             }
             catch (Exception ex)
             {
@@ -764,5 +817,10 @@ namespace Robotics
         public static partial void DynamicToolFailed(
             this ILogger logger,
             Exception exception);
+
+        [LoggerMessage(EventId = MinimalRobotServerEventIds.RobotCell + 8,
+            Level = LogLevel.Information,
+            Message = "Dynamic composition: detached gripper tool (NodeId={NodeId}); model-change emitted.")]
+        public static partial void DetachedGripperTool(this ILogger logger, NodeId nodeId);
     }
 }

@@ -113,16 +113,10 @@ namespace Opc.Ua.OpenUsd.Client
                             $"Served asset closure exceeds the maximum total size of {m_options.MaxTotalAssetBytes} bytes.");
                     }
 
-                    bool verified = true;
-                    if (digest is { IsNull: false, Length: > 0 })
-                    {
-                        verified = VerifyBytesDigest(bytes, digest, (OpenUsdDigestAlgorithm)alg);
-                        if (!verified)
-                        {
-                            throw new InvalidOperationException(
-                                $"Served asset '{identifier}' failed digest verification — refusing to cache.");
-                        }
-                    }
+                    // §5.15: the connector verifies each digest and shall not silently mix
+                    // unverified delivered bytes into the stage.
+                    bool verified = VerifyDeliveredAsset(
+                        identifier!, bytes, digest, (OpenUsdDigestAlgorithm)alg, m_options.RequireAssetDigests);
 
                     string localPath = WriteAssetToCache(cacheDir, identifier!, bytes);
                     result.Add(new FetchedAsset
@@ -136,6 +130,40 @@ namespace Opc.Ua.OpenUsd.Client
                 }
             }
             return result;
+        }
+
+        /// <summary>
+        /// §5.15: "the connector … verif[ies] each digest" and "shall not silently mix
+        /// unverified delivered bytes into the stage." Verification therefore starts
+        /// <c>false</c>: an asset delivered <b>without</b> a digest is unverifiable and is
+        /// never reported as verified — it is refused outright when
+        /// <see cref="OpenUsdConnectorOptions.RequireAssetDigests"/> is set (the default),
+        /// and otherwise surfaced with <c>DigestVerified = false</c> so it cannot be
+        /// silently composed. A digest that is present but does not match always throws.
+        /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
+        internal static bool VerifyDeliveredAsset(
+            string identifier,
+            byte[] bytes,
+            ByteString digest,
+            OpenUsdDigestAlgorithm algorithm,
+            bool requireDigests)
+        {
+            if (digest is { IsNull: false, Length: > 0 })
+            {
+                if (!VerifyBytesDigest(bytes, digest, algorithm))
+                {
+                    throw new InvalidOperationException(
+                        $"Served asset '{identifier}' failed digest verification — refusing to cache.");
+                }
+                return true;
+            }
+            if (requireDigests)
+            {
+                throw new InvalidOperationException(
+                    $"Served asset '{identifier}' was delivered without a digest — refusing to cache.");
+            }
+            return false;
         }
 
         // Streams a served layer's bytes through the Part 5 FileType (Open read → Read
@@ -197,6 +225,59 @@ namespace Opc.Ua.OpenUsd.Client
                 await m_session.CallAsync(fileNodeId, closeId, ct, new Variant(handle)).ConfigureAwait(false);
             }
             return buffer.ToArray();
+        }
+
+        /// <summary>
+        /// Streams the served root-layer bytes of a stage (the <c>Assets</c> member whose
+        /// <c>AssetKind</c> is <see cref="OpenUsdAssetKind.RootLayer"/>, else the member
+        /// whose <c>AssetIdentifier</c> matches the stage's <c>RootLayerIdentifier</c>).
+        /// Returns <c>null</c> when the stage does not serve its content, in which case
+        /// §5.2 verification cannot be performed and the stage stays unverified.
+        /// </summary>
+        internal async Task<byte[]?> TryReadRootLayerBytesAsync(
+            RepresentationInfo rep, CancellationToken ct)
+        {
+            if (rep.StageNodeId.IsNull)
+            {
+                return null;
+            }
+            Dictionary<string, NodeId> stageChildren;
+            try
+            {
+                stageChildren = await ChildrenByNameAsync(rep.StageNodeId, ct).ConfigureAwait(false);
+            }
+            catch (ServiceResultException)
+            {
+                return null;
+            }
+            if (!stageChildren.TryGetValue("Assets", out NodeId assetsFolder))
+            {
+                return null;
+            }
+            NodeId fallback = NodeId.Null;
+            foreach ((NodeId assetId, NodeId typeDef) in
+                await ChildrenWithTypeAsync(assetsFolder, ct).ConfigureAwait(false))
+            {
+                if (assetId.IsNull || typeDef != m_assetTypeId)
+                {
+                    continue;
+                }
+                Dictionary<string, NodeId> ap = await ChildrenByNameAsync(assetId, ct).ConfigureAwait(false);
+                var kind = (OpenUsdAssetKind)await ReadInt32Async(ap, "AssetKind", ct).ConfigureAwait(false);
+                if (kind == OpenUsdAssetKind.RootLayer)
+                {
+                    return await ReadServedFileAsync(assetId, ct).ConfigureAwait(false);
+                }
+                string? identifier = await ReadStringAsync(ap, "AssetIdentifier", ct).ConfigureAwait(false);
+                if (!string.IsNullOrEmpty(identifier) &&
+                    string.Equals(identifier, rep.RootLayerIdentifier, StringComparison.Ordinal))
+                {
+                    fallback = assetId;
+                }
+            }
+            return fallback.IsNull
+                ? null
+                : await ReadServedFileAsync(fallback, ct).ConfigureAwait(false);
         }
 
         private static bool VerifyBytesDigest(byte[] bytes, ByteString digest, OpenUsdDigestAlgorithm alg)

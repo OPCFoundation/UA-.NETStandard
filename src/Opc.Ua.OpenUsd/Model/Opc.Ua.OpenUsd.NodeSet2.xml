@@ -5,7 +5,7 @@
     <Uri>http://opcfoundation.org/UA/OpenUSD/</Uri>
   </NamespaceUris>
   <Models>
-    <Model ModelUri="http://opcfoundation.org/UA/OpenUSD/" Version="0.2.0" PublicationDate="2026-07-13T00:00:00Z">
+    <Model ModelUri="http://opcfoundation.org/UA/OpenUSD/" Version="0.3.0" PublicationDate="2026-07-25T00:00:00Z">
       <RequiredModel ModelUri="http://opcfoundation.org/UA/" Version="1.05.04" PublicationDate="2023-12-15T00:00:00Z" />
     </Model>
   </Models>
@@ -40,16 +40,16 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=3902</Reference>
     </References>
-    <Definition Name="OpenUsdRenderTargetKindEnum"><Field Name="Translation" Value="0"/><Field Name="Rotation" Value="1"/><Field Name="Scale" Value="2"/><Field Name="Transform" Value="3"/><Field Name="Visibility" Value="4"/><Field Name="DisplayColor" Value="5"/><Field Name="EmissiveColor" Value="6"/><Field Name="Opacity" Value="7"/><Field Name="Custom" Value="8"/></Definition>
+    <Definition Name="OpenUsdRenderTargetKindEnum"><Field Name="Translation" Value="0"/><Field Name="Rotation" Value="1"/><Field Name="Scale" Value="2"/><Field Name="Transform" Value="3"/><Field Name="Visibility" Value="4"/><Field Name="DisplayColor" Value="5"/><Field Name="EmissiveColor" Value="6"/><Field Name="Opacity" Value="7"/><Field Name="Custom" Value="8"/><Field Name="Georeference" Value="9"><Description>A geodetic anchor coordinate (latitude/longitude/height) on a USD georeference or globe-anchor schema; see the geospatial rule (Bindings spec §5.8) and Annex D.</Description></Field></Definition>
   </UADataType>
-  <UAVariable NodeId="ns=1;i=3902" BrowseName="1:EnumStrings" ParentNodeId="ns=1;i=3002" DataType="LocalizedText" ValueRank="1" ArrayDimensions="9">
+  <UAVariable NodeId="ns=1;i=3902" BrowseName="1:EnumStrings" ParentNodeId="ns=1;i=3002" DataType="LocalizedText" ValueRank="1" ArrayDimensions="10">
     <DisplayName>EnumStrings</DisplayName>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=3002</Reference>
     </References>
-    <Value><uax:ListOfLocalizedText xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"><uax:LocalizedText><uax:Text>Translation</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Rotation</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Scale</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Transform</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Visibility</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>DisplayColor</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>EmissiveColor</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Opacity</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Custom</uax:Text></uax:LocalizedText></uax:ListOfLocalizedText></Value>
+    <Value><uax:ListOfLocalizedText xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"><uax:LocalizedText><uax:Text>Translation</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Rotation</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Scale</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Transform</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Visibility</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>DisplayColor</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>EmissiveColor</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Opacity</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Custom</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Georeference</uax:Text></uax:LocalizedText></uax:ListOfLocalizedText></Value>
   </UAVariable>
   <UADataType NodeId="ns=1;i=3003" BrowseName="1:OpenUsdBadQualityActionEnum">
     <DisplayName>OpenUsdBadQualityActionEnum</DisplayName>
@@ -116,6 +116,7 @@
       <Reference ReferenceType="HasProperty">ns=1;i=6019</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=6031</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=6032</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6067</Reference>
     </References>
   </UAObjectType>
   <UAVariable NodeId="ns=1;i=6001" BrowseName="1:BindingDefinitionId" ParentNodeId="ns=1;i=1004" DataType="Guid" ValueRank="-1">
@@ -165,7 +166,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=1;i=6006" BrowseName="1:TargetStage" ParentNodeId="ns=1;i=1004" DataType="NodeId" ValueRank="-1">
     <DisplayName>TargetStage</DisplayName>
-    <Description>NodeId of the OpenUsdStageType instance holding the target prim.</Description>
+    <Description>NodeId of the stage holding the target prim: an OpenUsdStageType instance, or a materialized Part 2 UsdStageType instance when the target is an in-server materialized scene.</Description>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -949,6 +950,15 @@
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1005</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6067" BrowseName="1:TargetNodeId" ParentNodeId="ns=1;i=1004" DataType="NodeId" ValueRank="-1">
+    <DisplayName>TargetNodeId</DisplayName>
+    <Description>Optional direct NodeId of the target when it is an in-server materialized Variable (a Part 2 UsdAttributeType). When present it takes precedence over the TargetPrimPath/TargetPropertyName pair, which remain the portable descriptors.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1004</Reference>
     </References>
   </UAVariable>
 </UANodeSet>

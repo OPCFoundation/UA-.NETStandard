@@ -70,7 +70,46 @@ namespace Opc.Ua.Di.Tests
         private ITelemetryContext m_telemetry = null!;
         private IHost? m_host;
         private ISession? m_session;
+        private ISession? m_privilegedSession;
         private ApplicationConfiguration m_clientConfig = null!;
+
+        /// <summary>
+        /// §9: the robot sample withholds the command target's write right from
+        /// anonymous sessions, so the positive command test must present a real
+        /// credential. The Part 18 role manager then maps it to AuthenticatedUser.
+        /// </summary>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1812",
+            Justification = "Instantiated by the server's dependency injection via AddIdentityAuthenticator.")]
+        internal sealed class OperatorAuthenticator : Opc.Ua.Identity.IUserTokenAuthenticator
+        {
+            internal const string UserName = "usd-operator";
+            internal const string Password = "usd-operator-secret";
+
+            public UserTokenType TokenType => UserTokenType.UserName;
+
+            public string? IssuedTokenProfileUri => null;
+
+            public ValueTask<Opc.Ua.Identity.AuthenticationResult> AuthenticateAsync(
+                Opc.Ua.Identity.AuthenticationContext context,
+                CancellationToken ct = default)
+            {
+                if (context.TokenHandler is not UserNameIdentityTokenHandler handler)
+                {
+                    return new ValueTask<Opc.Ua.Identity.AuthenticationResult>(
+                        Opc.Ua.Identity.AuthenticationResult.NotHandled);
+                }
+                byte[]? password = handler.DecryptedPassword;
+                if (handler.UserName != UserName || password == null ||
+                    System.Text.Encoding.UTF8.GetString(password) != Password)
+                {
+                    return new ValueTask<Opc.Ua.Identity.AuthenticationResult>(
+                        Opc.Ua.Identity.AuthenticationResult.Reject(
+                            new ServiceResult(StatusCodes.BadUserAccessDenied)));
+                }
+                return new ValueTask<Opc.Ua.Identity.AuthenticationResult>(
+                    Opc.Ua.Identity.AuthenticationResult.Accept(new UserIdentity(handler)));
+            }
+        }
 
         private const string CellPrim = "/Cell";
         private const string R1Prim = "/Cell/Robots/R1";
@@ -107,7 +146,18 @@ namespace Opc.Ua.Di.Tests
                     o.ApplicationUri = "urn:localhost:OPCFoundation:RobotOpenUsdE2eServer";
                     o.AutoAcceptUntrustedCertificates = true;
                     o.EndpointUrls.Add(serverUrl);
+                    // §9: the robot withholds the command target's write right from
+                    // anonymous sessions, so the endpoint must also offer a credential.
+                    o.UserTokenPolicies.Add(new Opc.Ua.Server.Hosting.OpcUaUserTokenPolicy
+                    {
+                        TokenType = UserTokenType.Anonymous
+                    });
+                    o.UserTokenPolicies.Add(new Opc.Ua.Server.Hosting.OpcUaUserTokenPolicy
+                    {
+                        TokenType = UserTokenType.UserName
+                    });
                 })
+                .AddIdentityAuthenticator<OperatorAuthenticator>()
                 .AddNodeManager<global::Robotics.RoboticsNodeManagerFactory>()
                 .AddPositioningFor<global::Robotics.RoboticsNodeManager>();
             positioning
@@ -192,6 +242,15 @@ namespace Opc.Ua.Di.Tests
                 sessionName: "RobotOpenUsdE2e", sessionTimeout: 60000,
                 identity: new UserIdentity(new AnonymousIdentityToken()),
                 preferredLocales: default, ct: CancellationToken.None).ConfigureAwait(false);
+            // A second, authenticated session: §9 requires the connector to hold the
+            // authorization the command target demands.
+            m_privilegedSession = await sessionFactory.CreateAsync(
+                m_clientConfig, endpoint, updateBeforeConnect: false,
+                sessionName: "RobotOpenUsdE2ePrivileged", sessionTimeout: 60000,
+                identity: new UserIdentity(
+                    OperatorAuthenticator.UserName,
+                    System.Text.Encoding.UTF8.GetBytes(OperatorAuthenticator.Password)),
+                preferredLocales: default, ct: CancellationToken.None).ConfigureAwait(false);
         }
 
         [OneTimeTearDown]
@@ -202,6 +261,12 @@ namespace Opc.Ua.Di.Tests
                 await m_session.CloseAsync(CancellationToken.None).ConfigureAwait(false);
                 await m_session.DisposeAsync().ConfigureAwait(false);
                 m_session = null;
+            }
+            if (m_privilegedSession != null)
+            {
+                await m_privilegedSession.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+                await m_privilegedSession.DisposeAsync().ConfigureAwait(false);
+                m_privilegedSession = null;
             }
             if (m_clientConfig?.CertificateManager is IDisposable manager)
             {
@@ -419,8 +484,13 @@ namespace Opc.Ua.Di.Tests
                 Assert.That(roboNs, Is.GreaterThan(0), "Robotics namespace not advertised.");
             });
 
+            // Resolved from the generated symbolic constant (an ExpandedNodeId carrying
+            // the namespace URI) rather than a numeric literal, so a model renumbering
+            // can never silently invalidate this assertion.
+            NodeId repType = ExpandedNodeId.ToNodeId(
+                Opc.Ua.OpenUsd.ObjectTypeIds.OpenUsdRepresentationType, m_session!.NamespaceUris);
             var connector = new OpenUsdConnector(m_session!, new MockUsdSink());
-            string bn = connector.ReadBrowseNameAsync(new NodeId(1003u, (ushort)usdNs), CancellationToken.None)
+            string bn = connector.ReadBrowseNameAsync(repType, CancellationToken.None)
                 .GetAwaiter().GetResult();
             Assert.That(bn, Is.EqualTo("OpenUsdRepresentationType"));
         }
@@ -1018,6 +1088,32 @@ namespace Opc.Ua.Di.Tests
         }
 
         [Test]
+        public async Task DynamicToolIsDeactivatedWhenDetachedAsync()
+        {
+            // §5.13: "a removed component -> author active = false on its instance prim."
+            // The gripper is a One + Reference + dynamic component, so the deactivation
+            // path must also run for Cardinality = One (the robotics worked example).
+            // The sample cycles mount -> detach on R1's flange; the detach emits a model
+            // change, the connector recomposes, resolves zero matches and must author
+            // active = false on the tool prim instead of leaving it active forever.
+            var sink = new MockUsdSink();
+            var connector = new OpenUsdConnector(m_session!, sink);
+            await connector.StartAsync(CancellationToken.None).ConfigureAwait(false);
+            try
+            {
+                bool deactivated = await PollAsync(
+                    () => sink.WasPrimComposed(ToolPrim) && !sink.IsPrimActive(ToolPrim),
+                    TimeSpan.FromSeconds(60)).ConfigureAwait(false);
+                Assert.That(deactivated, Is.True,
+                    "Detached One-cardinality component was never deactivated (active = false).");
+            }
+            finally
+            {
+                await connector.StopAsync().ConfigureAwait(false);
+            }
+        }
+
+        [Test]
         public void SpeedOverrideCommandIsFailClosedByDefault()
         {
             var connector = new OpenUsdConnector(m_session!, new MockUsdSink());
@@ -1029,7 +1125,8 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public async Task SpeedOverrideCommandWritesServerVariableWhenEnabledAsync()
         {
-            var connector = new OpenUsdConnector(m_session!, new MockUsdSink(), enableCommands: true);
+            var connector = new OpenUsdConnector(
+                m_privilegedSession!, new MockUsdSink(), enableCommands: true);
             List<OpenUsdConnector.RepresentationInfo> reps = await AllRepsAsync(connector).ConfigureAwait(false);
             NodeId target = NodeId.Null;
             foreach (OpenUsdConnector.RepresentationInfo rep in reps)
@@ -1053,7 +1150,7 @@ namespace Opc.Ua.Di.Tests
             {
                 new ReadValueId { NodeId = target, AttributeId = Attributes.Value }
             };
-            ReadResponse rr = await m_session!.ReadAsync(
+            ReadResponse rr = await m_privilegedSession!.ReadAsync(
                 null, 0, TimestampsToReturn.Neither, toRead, CancellationToken.None)
                 .ConfigureAwait(false);
             double actual = Convert.ToDouble(
@@ -1071,14 +1168,19 @@ namespace Opc.Ua.Di.Tests
             OpenUsdConnector.RepresentationInfo? cell = reps.Find(r => r.PrimPath == CellPrim);
             Assert.That(cell, Is.Not.Null);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(cell!.DigestAlgorithm, Is.EqualTo(OpenUsdDigestAlgorithm.Sha256));
-                Assert.That(cell!.RootLayerDigest.IsNull, Is.False);
-                Assert.That(cell!.RootLayerDigest.Length, Is.EqualTo(32));
-                Assert.That(connector.VerifyStageDigest(cell!), Is.True,
-                    "RootLayerDigest failed verification.");
-            });
+            // §5.2: the digest covers the *resolved root-layer content*, not the
+            // identifier string, and a connector shall refuse a layer whose digest
+            // does not match.
+            Assert.That(cell!.DigestAlgorithm, Is.EqualTo(OpenUsdDigestAlgorithm.Sha256));
+            Assert.That(cell!.RootLayerDigest.IsNull, Is.False);
+            Assert.That(cell!.RootLayerDigest.Length, Is.EqualTo(32));
+            bool verified = await connector
+                .VerifyStageDigestAsync(cell!, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(verified, Is.True, "RootLayerDigest failed verification.");
+
+            byte[] corrupted = System.Text.Encoding.UTF8.GetBytes("#usda 1.0\n(tampered)\n");
+            Assert.That(OpenUsdConnector.VerifyStageDigest(cell!, corrupted), Is.False,
+                "Connector accepted a root layer whose content does not match the digest.");
         }
 
         [Test]

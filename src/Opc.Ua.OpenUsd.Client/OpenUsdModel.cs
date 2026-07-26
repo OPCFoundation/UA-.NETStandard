@@ -87,7 +87,8 @@ namespace Opc.Ua.OpenUsd.Client
         DisplayColor = 5,
         EmissiveColor = 6,
         Opacity = 7,
-        Custom = 8
+        Custom = 8,
+        Georeference = 9
     }
 
     /// <summary>Binding intent/direction — a connector-internal runtime discriminator

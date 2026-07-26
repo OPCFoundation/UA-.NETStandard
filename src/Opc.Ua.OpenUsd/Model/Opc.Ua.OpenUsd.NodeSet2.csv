@@ -93,3 +93,4 @@ OpenUsdAssetType_Digest,6063,Variable
 OpenUsdAssetType_DigestAlgorithm,6064,Variable
 OpenUsdStageType_Assets,6065,Object
 OpenUsdComponentBindingType_ComponentAssetNode,6066,Variable
+OpenUsdLiveBindingType_TargetNodeId,6067,Variable

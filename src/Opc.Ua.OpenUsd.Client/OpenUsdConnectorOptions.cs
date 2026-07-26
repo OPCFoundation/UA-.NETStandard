@@ -69,5 +69,14 @@ namespace Opc.Ua.OpenUsd.Client
         /// 256 MiB.
         /// </summary>
         public long MaxTotalAssetBytes { get; set; } = 256L * 1024 * 1024;
+
+        /// <summary>
+        /// §5.15 requires the connector to verify each delivered asset's digest and to
+        /// never silently mix unverified bytes into the stage. When <c>true</c> (the
+        /// default) an asset delivered without a digest is refused; when <c>false</c> it
+        /// is cached but reported with <c>DigestVerified = false</c> and is never
+        /// composed. Fail-closed by default.
+        /// </summary>
+        public bool RequireAssetDigests { get; set; } = true;
     }
 }

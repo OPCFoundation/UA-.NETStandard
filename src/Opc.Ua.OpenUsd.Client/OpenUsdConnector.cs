@@ -61,6 +61,7 @@ namespace Opc.Ua.OpenUsd.Client
         private readonly OpenUsdConnectorOptions m_options;
         private readonly ITelemetryContext? m_telemetry;
         private readonly ILogger m_logger;
+        private NodeId m_openUsdRootId = NodeId.Null;
 
         /// <summary>
         /// Creates a connector with default options and no telemetry.
@@ -142,6 +143,27 @@ namespace Opc.Ua.OpenUsd.Client
             public bool TimeSampled { get; set; }
             public NodeId CommandTargetNodeId { get; set; }
             public string? CommandTriggerPropertyName { get; set; }
+
+            /// <summary>
+            /// §5.4 <c>Enabled</c>: <c>false</c> is a tombstone that suppresses an
+            /// inherited binding. Absent means enabled, so the default is true.
+            /// </summary>
+            public bool Enabled { get; set; } = true;
+
+            /// <summary>§5.3/§5.4 declaration identity — half of the effective binding key.</summary>
+            public Guid BindingDefinitionId { get; set; }
+
+            /// <summary>§5.7 instance-portable source path from the represented Object.</summary>
+            public RelativePath? SourceBrowsePath { get; set; }
+
+            /// <summary>§5.10 optional Method to Call instead of writing the target Variable.</summary>
+            public NodeId CommandMethodId { get; set; }
+
+            /// <summary>§5.8 step (1) unit assertion of the source value.</summary>
+            public EUInformation? SourceEngineeringUnits { get; set; }
+
+            /// <summary>§5.8 step (1) unit requested for the target value.</summary>
+            public EUInformation? TargetEngineeringUnits { get; set; }
         }
 
         public sealed class ComponentInfo
@@ -159,6 +181,15 @@ namespace Opc.Ua.OpenUsd.Client
             public NodeId ChangeEventSource { get; set; }
             public string? ComponentServerUri { get; set; }
             public string? ComponentEndpointUrl { get; set; }
+
+            /// <summary>
+            /// §5.12 <c>Enabled</c>: <c>false</c> is a tombstone that suppresses an
+            /// inherited component binding. Absent means enabled, so the default is true.
+            /// </summary>
+            public bool Enabled { get; set; } = true;
+
+            /// <summary>§5.12 declaration identity — half of the effective binding key.</summary>
+            public Guid BindingDefinitionId { get; set; }
         }
 
         public sealed class RepresentationInfo
@@ -174,6 +205,36 @@ namespace Opc.Ua.OpenUsd.Client
         }
 
         /// <summary>
+        /// §4.2 fixes the BrowseName (<c>1:OpenUSD</c>) and the parent (the Server
+        /// Object) of the OpenUSD facility, never its NodeId — §4.3 leaves instance
+        /// NodeIds server-assigned. Discovery therefore browses the Server Object and
+        /// matches the BrowseName; the conventional <c>ns=1;s=OpenUSD</c> identifier is
+        /// only a fallback for servers that do not expose the Organizes reference.
+        /// </summary>
+        private async Task<NodeId> FindOpenUsdRootAsync(CancellationToken ct)
+        {
+            if (!m_openUsdRootId.IsNull)
+            {
+                return m_openUsdRootId;
+            }
+            var browseName = new QualifiedName("OpenUSD", m_ns);
+            foreach (ReferenceDescription r in await BrowseAsync(ObjectIds.Server, ct)
+                .ConfigureAwait(false))
+            {
+                if (r.BrowseName == browseName)
+                {
+                    var id = ExpandedNodeId.ToNodeId(r.NodeId, m_session.NamespaceUris);
+                    if (!id.IsNull)
+                    {
+                        m_openUsdRootId = id;
+                        return id;
+                    }
+                }
+            }
+            return new NodeId("OpenUSD", m_ns);
+        }
+
+        /// <summary>
         /// Part 1 discovery: the well-known OpenUSD facility exposes a
         /// Representations registry (Organizes) that lists every
         /// OpenUsdRepresentation in the address space, independent of the
@@ -183,7 +244,7 @@ namespace Opc.Ua.OpenUsd.Client
         /// <returns></returns>
         private async Task<NodeId> FindFirstRepresentationAsync(CancellationToken ct)
         {
-            var rootId = new NodeId("OpenUSD", m_ns);
+            NodeId rootId = await FindOpenUsdRootAsync(ct).ConfigureAwait(false);
             Dictionary<string, NodeId> rootChildren =
                 await ChildrenByNameAsync(rootId, ct).ConfigureAwait(false);
             if (!rootChildren.TryGetValue("Representations", out NodeId registry))
@@ -211,7 +272,7 @@ namespace Opc.Ua.OpenUsd.Client
         private async Task<List<NodeId>> FindAllRepresentationsAsync(CancellationToken ct)
         {
             var result = new List<NodeId>();
-            var rootId = new NodeId("OpenUSD", m_ns);
+            NodeId rootId = await FindOpenUsdRootAsync(ct).ConfigureAwait(false);
             Dictionary<string, NodeId> rootChildren =
                 await ChildrenByNameAsync(rootId, ct).ConfigureAwait(false);
             if (!rootChildren.TryGetValue("Representations", out NodeId registry))
@@ -300,17 +361,31 @@ namespace Opc.Ua.OpenUsd.Client
                         CommandTargetNodeId = await ReadNodeIdAsync(bp, "CommandTargetNodeId", ct)
                             .ConfigureAwait(false),
                         CommandTriggerPropertyName = await ReadStringAsync(bp, "CommandTriggerPropertyName", ct)
-                            .ConfigureAwait(false)
+                            .ConfigureAwait(false),
+                        // §5.4: Enabled = false is a tombstone; an absent property means enabled.
+                        Enabled = await ReadBoolAsync(bp, "Enabled", true, ct).ConfigureAwait(false),
+                        BindingDefinitionId = await ReadGuidAsync(bp, "BindingDefinitionId", ct)
+                            .ConfigureAwait(false),
+                        SourceBrowsePath = await ReadRelativePathAsync(bp, "SourceBrowsePath", ct)
+                            .ConfigureAwait(false),
+                        CommandMethodId = await ReadNodeIdAsync(bp, "CommandMethodId", ct)
+                            .ConfigureAwait(false),
+                        SourceEngineeringUnits = await ReadEuInformationAsync(
+                            bp, "SourceEngineeringUnits", ct).ConfigureAwait(false),
+                        TargetEngineeringUnits = await ReadEuInformationAsync(
+                            bp, "TargetEngineeringUnits", ct).ConfigureAwait(false)
                     };
                     if (bp.ContainsKey("AlarmAspect"))
                     {
                         b.AlarmAspect = (OpenUsdAlarmAspect)await ReadInt32Async(bp, "AlarmAspect", ct)
                             .ConfigureAwait(false);
                     }
-                    if (string.IsNullOrEmpty(b.PrimPath))
-                    {
-                        b.PrimPath = info.PrimPath;
-                    }
+                    // §5.7: an absolute TargetPrimPath is used as-is; a relative one is
+                    // joined to the representation's PrimPath, never authored at the
+                    // layer root; an empty one resolves to the representation's own prim.
+                    b.PrimPath = JoinPrimPath(info.PrimPath, b.PrimPath ?? string.Empty);
+                    // §5.7 source resolution precedence.
+                    await ResolveBindingSourceAsync(info, b, ct).ConfigureAwait(false);
                     info.Bindings.Add(b);
                 }
                 else if (typeDef == m_componentTypeId)
@@ -341,12 +416,198 @@ namespace Opc.Ua.OpenUsd.Client
                         ComponentServerUri = await ReadStringAsync(cp, "ComponentServerUri", ct)
                             .ConfigureAwait(false),
                         ComponentEndpointUrl = await ReadStringAsync(cp, "ComponentEndpointUrl", ct)
+                            .ConfigureAwait(false),
+                        // §5.4/§5.12: Enabled = false is a tombstone; absent means enabled.
+                        Enabled = await ReadBoolAsync(cp, "Enabled", true, ct).ConfigureAwait(false),
+                        BindingDefinitionId = await ReadGuidAsync(cp, "BindingDefinitionId", ct)
                             .ConfigureAwait(false)
                     };
                     info.Components.Add(c);
                 }
             }
             return info;
+        }
+
+        /// <summary>
+        /// §5.7 source resolution precedence: if <c>SourceNodeId</c> is present use it;
+        /// else if <c>SourceSemanticId</c> is present resolve it against the represented
+        /// Object's subtree by matching the source Variable's semantic annotation
+        /// (<c>HasDictionaryEntry</c> target); else resolve <c>SourceBrowsePath</c> from
+        /// the represented Object. Zero matches leaves the binding unresolved (no update,
+        /// no exception); more than one match raises <c>Bad_TooManyMatches</c>.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private async Task ResolveBindingSourceAsync(
+            RepresentationInfo info, BindingInfo b, CancellationToken ct)
+        {
+            if (!b.SourceNodeId.IsNull)
+            {
+                return;
+            }
+            if (string.IsNullOrEmpty(b.SourceSemanticId) && b.SourceBrowsePath == null)
+            {
+                return;
+            }
+            NodeId representedObject = await ParentAsync(info.NodeId, ct).ConfigureAwait(false);
+            if (representedObject.IsNull)
+            {
+                return;
+            }
+            List<NodeId> matches = !string.IsNullOrEmpty(b.SourceSemanticId)
+                ? await ResolveBySemanticIdAsync(representedObject, b.SourceSemanticId!, ct)
+                    .ConfigureAwait(false)
+                : await ResolveByBrowsePathAsync(representedObject, b.SourceBrowsePath!, ct)
+                    .ConfigureAwait(false);
+            if (matches.Count == 0)
+            {
+                // Unresolved: the binding simply does not update. Not an error (§5.7).
+                return;
+            }
+            if (matches.Count > 1)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadTooManyMatches,
+                    "OpenUSD binding source resolved to more than one Variable.");
+            }
+            b.SourceNodeId = matches[0];
+        }
+
+        /// <summary>
+        /// Resolves a binding source by matching the semantic annotation
+        /// (HasDictionaryEntry target IRDI or equivalent) of the Variables in the
+        /// represented Object's subtree.
+        /// </summary>
+        private async Task<List<NodeId>> ResolveBySemanticIdAsync(
+            NodeId representedObject, string semanticId, CancellationToken ct)
+        {
+            var matches = new List<NodeId>();
+            foreach (NodeId candidate in await VariablesInSubtreeAsync(representedObject, ct)
+                .ConfigureAwait(false))
+            {
+                (ArrayOf<ArrayOf<ReferenceDescription>> results, _) = await m_session.ManagedBrowseAsync(
+                    null, null, [candidate], 0, BrowseDirection.Forward,
+                    ReferenceTypeIds.HasDictionaryEntry, includeSubtypes: true, 0, ct)
+                    .ConfigureAwait(false);
+                if (results.Count == 0)
+                {
+                    continue;
+                }
+                ArrayOf<ReferenceDescription> refs = results[0];
+                for (int i = 0; i < refs.Count; i++)
+                {
+                    string? name = refs[i].BrowseName.Name;
+                    string target = ExpandedNodeId.ToNodeId(refs[i].NodeId, m_session.NamespaceUris)
+                        .ToString() ?? string.Empty;
+                    if (string.Equals(name, semanticId, StringComparison.Ordinal) ||
+                        string.Equals(target, semanticId, StringComparison.Ordinal) ||
+                        string.Equals(refs[i].NodeId.ToString(), semanticId, StringComparison.Ordinal))
+                    {
+                        matches.Add(candidate);
+                        break;
+                    }
+                }
+            }
+            return matches;
+        }
+
+        /// <summary>
+        /// Resolves an instance-portable <c>SourceBrowsePath</c> from the represented
+        /// Object using TranslateBrowsePathsToNodeIds, keeping only Variable targets.
+        /// </summary>
+        private async Task<List<NodeId>> ResolveByBrowsePathAsync(
+            NodeId representedObject, RelativePath path, CancellationToken ct)
+        {
+            var matches = new List<NodeId>();
+            var toTranslate = new BrowsePath[]
+            {
+                new() { StartingNode = representedObject, RelativePath = path }
+            };
+            TranslateBrowsePathsToNodeIdsResponse resp;
+            try
+            {
+                resp = await m_session.TranslateBrowsePathsToNodeIdsAsync(null, toTranslate, ct)
+                    .ConfigureAwait(false);
+            }
+            catch (ServiceResultException)
+            {
+                return matches;
+            }
+            if (resp.Results.Count == 0 || StatusCode.IsNotGood(resp.Results[0].StatusCode))
+            {
+                return matches;
+            }
+            ArrayOf<BrowsePathTarget> targets = resp.Results[0].Targets;
+            for (int i = 0; i < targets.Count; i++)
+            {
+                BrowsePathTarget t = targets[i];
+                // A remaining path index other than uint.MaxValue means the server could
+                // not complete the translation locally: not a usable match.
+                if (t.RemainingPathIndex != uint.MaxValue)
+                {
+                    continue;
+                }
+                var id = ExpandedNodeId.ToNodeId(t.TargetId, m_session.NamespaceUris);
+                if (!id.IsNull && await IsVariableAsync(id, ct).ConfigureAwait(false))
+                {
+                    matches.Add(id);
+                }
+            }
+            return matches;
+        }
+
+        private async Task<List<NodeId>> VariablesInSubtreeAsync(NodeId root, CancellationToken ct)
+        {
+            var found = new List<NodeId>();
+            var seen = new HashSet<NodeId>();
+            var queue = new Queue<NodeId>();
+            queue.Enqueue(root);
+            seen.Add(root);
+            // The represented Object's subtree is bounded; two levels of nesting cover the
+            // Object -> (Folder) -> Variable shapes the binding model uses.
+            int depth = 0;
+            while (queue.Count > 0 && depth < 4)
+            {
+                int level = queue.Count;
+                for (int i = 0; i < level; i++)
+                {
+                    NodeId node = queue.Dequeue();
+                    foreach (ReferenceDescription r in await BrowseAsync(node, ct).ConfigureAwait(false))
+                    {
+                        var id = ExpandedNodeId.ToNodeId(r.NodeId, m_session.NamespaceUris);
+                        if (id.IsNull || !seen.Add(id))
+                        {
+                            continue;
+                        }
+                        if (r.NodeClass == NodeClass.Variable)
+                        {
+                            found.Add(id);
+                        }
+                        else if (r.NodeClass == NodeClass.Object)
+                        {
+                            queue.Enqueue(id);
+                        }
+                    }
+                }
+                depth++;
+            }
+            return found;
+        }
+
+        private async Task<bool> IsVariableAsync(NodeId nodeId, CancellationToken ct)
+        {
+            var toRead = new ReadValueId[]
+            {
+                new() { NodeId = nodeId, AttributeId = Attributes.NodeClass }
+            };
+            ReadResponse response = await m_session.ReadAsync(
+                null, 0, TimestampsToReturn.Neither, toRead, ct).ConfigureAwait(false);
+            if (response.Results.Count == 0 || StatusCode.IsNotGood(response.Results[0].StatusCode))
+            {
+                return false;
+            }
+            object? v = response.Results[0].WrappedValue.AsBoxedObject();
+            return v != null && System.Convert.ToInt32(
+                v, System.Globalization.CultureInfo.InvariantCulture) == (int)NodeClass.Variable;
         }
 
         public async Task StartAsync(CancellationToken ct)
@@ -358,13 +619,15 @@ namespace Opc.Ua.OpenUsd.Client
             }
             m_allReps = reps;
 
-            // Twin-BOM integrity (0.2): if a stage advertises a content digest, verify it
-            // before authoring any opinions into it. A mismatch is fail-closed.
+            // Twin-BOM integrity (§5.2): if a stage advertises a content digest, verify it
+            // against the resolved root-layer content before authoring any opinions into
+            // it. A mismatch — or content that cannot be obtained to verify — is
+            // fail-closed.
             foreach (RepresentationInfo rep in reps)
             {
                 if (rep.RootLayerDigest is { IsNull: false, Length: > 0 } &&
                     rep.DigestAlgorithm != OpenUsdDigestAlgorithm.None &&
-                    !VerifyStageDigest(rep))
+                    !await VerifyStageDigestAsync(rep, ct).ConfigureAwait(false))
                 {
                     throw new InvalidOperationException(
                         "OpenUSD stage RootLayerDigest verification failed — refusing to compose.");
@@ -390,7 +653,10 @@ namespace Opc.Ua.OpenUsd.Client
                     // Command bindings are actuated on demand (IssueCommandAsync), and
                     // history bindings are replayed via ReplayHistoryAsync — neither is a
                     // live MonitoredItem. Telemetry and alarm bindings subscribe here.
-                    if (b.SourceNodeId.IsNull
+                    // §5.4: Enabled = false is a tombstone — a suppressed binding is not
+                    // subscribed at all.
+                    if (!b.Enabled
+                        || b.SourceNodeId.IsNull
                         || b.Intent == OpenUsdIntentProfile.UsdToUaCommand
                         || b.Intent == OpenUsdIntentProfile.UaHistoryToUsd)
                     {
@@ -525,6 +791,11 @@ namespace Opc.Ua.OpenUsd.Client
                     continue;
                 }
                 Variant usdValue = Convert(b, dv.WrappedValue);
+                // §5.8 fail-closed: Convert returns a null Variant whenever it cannot
+                // faithfully produce the target value (unsupported RenderTargetKind,
+                // undecodable source, unhonourable unit/CRS/datum). The target is then
+                // left *unresolved* — no opinion is authored at all — instead of
+                // fabricating a substitute such as Offset.
                 if (!usdValue.IsNull)
                 {
                     m_sink.SetAttribute(b.PrimPath!, b.PropertyName!, usdValue);
@@ -537,9 +808,19 @@ namespace Opc.Ua.OpenUsd.Client
         /// raw source value, returning the USD-side value as a <see cref="Variant"/>
         /// (a <c>double</c> for scalars, a three-element <c>double</c> array for a
         /// structured Translation/Rotation source, a three-element <c>float</c> array
-        /// for colours, a token <c>string</c> for visibility). Returns a null
-        /// <see cref="Variant"/> (see <see cref="Variant.IsNull"/>) when the source
-        /// value is null.
+        /// for colours, a token <c>string</c> for visibility).
+        /// <para>
+        /// Conversion follows the §5.8 fixed order: (1) engineering-unit conversion,
+        /// (2) <c>Scale</c> then <c>Offset</c>, (3) the transform/geospatial profile.
+        /// </para>
+        /// <para>
+        /// Returns a null <see cref="Variant"/> (see <see cref="Variant.IsNull"/>)
+        /// whenever the target value cannot be produced faithfully — a null source, an
+        /// unrecognised or unimplemented <see cref="OpenUsdRenderTargetKind"/>, a source
+        /// whose value cannot be decoded, or a declared engineering unit the connector
+        /// cannot honour. §5.8 requires such a target to be left *unresolved* (no update)
+        /// rather than authored with an unconverted or fabricated value.
+        /// </para>
         /// </summary>
         public static Variant Convert(BindingInfo b, Variant raw)
         {
@@ -547,47 +828,188 @@ namespace Opc.Ua.OpenUsd.Client
             {
                 return default;
             }
-            if (b.Kind == OpenUsdRenderTargetKind.Translation &&
-                TryGetTranslation(raw, out double x, out double y, out double z))
-            {
-                return new Variant(
-                [
-                    (x * b.Scale) + b.Offset,
-                    (y * b.Scale) + b.Offset,
-                    (z * b.Scale) + b.Offset
-                ]);
-            }
-            if (b.Kind == OpenUsdRenderTargetKind.Rotation &&
-                TryGetRotation(raw, out double a, out double bAngle, out double c))
-            {
-                return new Variant(
-                [
-                    (a * b.Scale) + b.Offset,
-                    (bAngle * b.Scale) + b.Offset,
-                    (c * b.Scale) + b.Offset
-                ]);
-            }
-            double d = ToDouble(raw);
             switch (b.Kind)
             {
-                case OpenUsdRenderTargetKind.Rotation:
                 case OpenUsdRenderTargetKind.Translation:
+                    return ConvertTranslation(b, raw);
+                case OpenUsdRenderTargetKind.Rotation:
+                    return ConvertRotation(b, raw);
+                case OpenUsdRenderTargetKind.Georeference:
+                    return ConvertGeoreference(b, raw);
                 case OpenUsdRenderTargetKind.Scale:
                 case OpenUsdRenderTargetKind.Opacity:
-                    return new Variant((d * b.Scale) + b.Offset);
+                case OpenUsdRenderTargetKind.Custom:
+                    return TryScalar(b, raw, out double s) ? new Variant(s) : default;
                 case OpenUsdRenderTargetKind.DisplayColor:
+                    if (!TryScalar(b, raw, out double dc))
+                    {
+                        return default;
+                    }
                     // Temperature: blue (cool) -> red (hot).
-                    double t = Math.Max(0.0, Math.Min(1.0, (d - 20.0) / 80.0));
+                    double t = Math.Max(0.0, Math.Min(1.0, (dc - 20.0) / 80.0));
                     return new Variant([(float)t, 0f, (float)(1.0 - t)]);
                 case OpenUsdRenderTargetKind.EmissiveColor:
+                    if (!TryScalar(b, raw, out double ec))
+                    {
+                        return default;
+                    }
                     // Pressure: dark -> bright green-white glow.
-                    double e = Math.Max(0.0, Math.Min(1.0, d / 6.0));
+                    double e = Math.Max(0.0, Math.Min(1.0, ec / 6.0));
                     return new Variant([(float)(0.1 * e), (float)e, (float)(0.2 * e)]);
                 case OpenUsdRenderTargetKind.Visibility:
-                    return new Variant(d != 0.0 ? "inherited" : "invisible");
+                    return TryToDouble(raw, out double v)
+                        ? new Variant(v != 0.0 ? "inherited" : "invisible")
+                        : default;
+                case OpenUsdRenderTargetKind.Transform:
+                // A matrix4d/quaternion target requires the full §5.8 matrix profile
+                // (row-major, row-vector, translation in the 4th row; quaternions
+                // reordered (x,y,z,w) -> (w,x,y,z) and normalised). That profile is not
+                // implemented here, so the target is left unresolved rather than
+                // authored with a scalar stand-in.
                 default:
-                    return new Variant((d * b.Scale) + b.Offset);
+                    // An unrecognised RenderTargetKind (a kind added by a later revision
+                    // of the companion specification) is never guessed at.
+                    return default;
             }
+        }
+
+        /// <summary>
+        /// §5.8 transform profile — translation. Accepts a structured 3D source or a
+        /// scalar driving a single component. Fails closed on anything else.
+        /// </summary>
+        private static Variant ConvertTranslation(BindingInfo b, Variant raw)
+        {
+            double factor = LengthFactor(b);
+            if (double.IsNaN(factor))
+            {
+                return default;
+            }
+            if (TryGetTranslation(raw, out double x, out double y, out double z))
+            {
+                return new Variant(
+                [
+                    (x * factor * b.Scale) + b.Offset,
+                    (y * factor * b.Scale) + b.Offset,
+                    (z * factor * b.Scale) + b.Offset
+                ]);
+            }
+            return TryToDouble(raw, out double d)
+                ? new Variant((d * factor * b.Scale) + b.Offset)
+                : default;
+        }
+
+        /// <summary>
+        /// §5.8 transform profile — rotation. USD rotation ops are in degrees, so a
+        /// declared source <c>AngleUnit</c> is converted to degrees as step (1), before
+        /// <c>Scale</c>/<c>Offset</c>. An undeclared unit is left untouched; a declared
+        /// unit the connector cannot honour fails closed.
+        /// </summary>
+        private static Variant ConvertRotation(BindingInfo b, Variant raw)
+        {
+            double factor = AngleFactorToDegrees(b);
+            if (double.IsNaN(factor))
+            {
+                return default;
+            }
+            if (TryGetRotation(raw, out double a, out double bAngle, out double c))
+            {
+                return new Variant(
+                [
+                    (a * factor * b.Scale) + b.Offset,
+                    (bAngle * factor * b.Scale) + b.Offset,
+                    (c * factor * b.Scale) + b.Offset
+                ]);
+            }
+            return TryToDouble(raw, out double d)
+                ? new Variant((d * factor * b.Scale) + b.Offset)
+                : default;
+        }
+
+        /// <summary>
+        /// §5.8 geospatial profile. The target is a georeference origin or globe-anchor
+        /// attribute, so latitude/longitude are authored as decimal degrees and
+        /// elevation/height in metres — never as a raw <c>xformOp</c>. The
+        /// domain-agnostic connector handles the component (scalar) form, selecting the
+        /// component from the target attribute name; a structured GPOS
+        /// <c>GlobalPositionType</c> value carries a CRS and an elevation datum this
+        /// connector cannot interpret, so it is left unresolved per §5.8 ("an unmapped or
+        /// unsupported CRS shall leave the target unresolved … rather than author an
+        /// unprojected value" / "a connector that cannot honour the stated datum shall
+        /// treat the height as unresolved").
+        /// </summary>
+        private static Variant ConvertGeoreference(BindingInfo b, Variant raw)
+        {
+            GeoComponent component = GeoComponentOf(b.PropertyName);
+            if (component == GeoComponent.Unknown)
+            {
+                return default;
+            }
+            double factor = component == GeoComponent.Height
+                ? LengthFactor(b)
+                : AngleFactorToDegrees(b);
+            if (double.IsNaN(factor))
+            {
+                return default;
+            }
+            // Only the plain scalar component form is interpretable without a CRS and
+            // elevation-datum model; a structured source is unresolved (fail closed).
+            return TryToDouble(raw, out double d)
+                ? new Variant((d * factor * b.Scale) + b.Offset)
+                : default;
+        }
+
+        private enum GeoComponent
+        {
+            Unknown,
+            Angular,
+            Height
+        }
+
+        /// <summary>
+        /// Selects the georeference component driven by a binding from its target
+        /// attribute name (e.g. <c>cesium:anchor:latitude</c>, <c>anchor:height</c>).
+        /// </summary>
+        private static GeoComponent GeoComponentOf(string? propertyName)
+        {
+            if (string.IsNullOrEmpty(propertyName))
+            {
+                return GeoComponent.Unknown;
+            }
+            string name = propertyName!;
+            int sep = name.LastIndexOfAny([':', '.', '/']);
+            string leaf = (sep >= 0 ? name.Substring(sep + 1) : name).ToLowerInvariant();
+            switch (leaf)
+            {
+                case "latitude":
+                case "longitude":
+                case "lat":
+                case "lon":
+                case "long":
+                    return GeoComponent.Angular;
+                case "height":
+                case "elevation":
+                case "altitude":
+                case "alt":
+                    return GeoComponent.Height;
+                default:
+                    return GeoComponent.Unknown;
+            }
+        }
+
+        /// <summary>
+        /// Applies §5.8 steps (1) and (2) to a scalar source, returning false when the
+        /// source cannot be decoded or a declared unit cannot be honoured.
+        /// </summary>
+        private static bool TryScalar(BindingInfo b, Variant raw, out double result)
+        {
+            result = 0.0;
+            double factor = UnitFactor(b);
+            if (double.IsNaN(factor) || !TryToDouble(raw, out double d))
+            {
+                return false;
+            }
+            result = (d * factor * b.Scale) + b.Offset;
+            return true;
         }
 
         /// <summary>
@@ -659,35 +1081,188 @@ namespace Opc.Ua.OpenUsd.Client
             return false;
         }
 
-        private static double ToDouble(Variant v)
+        /// <summary>
+        /// Coerces a source <see cref="Variant"/> to a <c>double</c>, returning false
+        /// (rather than a fabricated 0.0) when the value cannot be decoded — for example
+        /// a structured value that carries no scalar meaning. §5.8 requires such a source
+        /// to leave the target unresolved.
+        /// </summary>
+        private static bool TryToDouble(Variant v, out double result)
         {
-            // Widen any numeric source (int/float/short/…) without boxing.
-            return VariantConversions.TryGetDouble(v, out double result) ? result : 0.0;
+            // Widen any numeric source (int/float/short/…) without boxing. A structured,
+            // array or otherwise non-numeric source degrades to false.
+            return VariantConversions.TryGetDouble(v, out result);
+        }
+
+        // UNECE common codes used by the §5.8 unit profiles.
+        private const string kUneceRadian = "C81";
+        private const string kUneceDegree = "DD";
+
+        /// <summary>
+        /// §5.8 step (1) for a target whose USD unit is degrees (rotation ops, and the
+        /// angular components of a georeference). Returns 1.0 when no source unit is
+        /// declared (no conversion — the declared value is taken at face value), the
+        /// conversion factor when the declared unit is a recognised angle unit, and
+        /// <see cref="double.NaN"/> when the declared unit cannot be honoured.
+        /// </summary>
+        private static double AngleFactorToDegrees(BindingInfo b)
+        {
+            double source = AngleToDegrees(b.SourceEngineeringUnits);
+            double target = AngleToDegrees(b.TargetEngineeringUnits);
+            if (double.IsNaN(source) || double.IsNaN(target))
+            {
+                return double.NaN;
+            }
+            // The USD attribute is authored in degrees, so a declared TargetEngineeringUnits
+            // that is not degrees would require authoring in a non-USD unit: fail closed.
+            return target == 1.0 ? source : double.NaN;
         }
 
         /// <summary>
-        /// Verifies the stage's advertised RootLayerDigest (Twin-BOM integrity).
-        /// The demo server digests the RootLayerIdentifier as a deterministic
-        /// stand-in; a production connector digests the resolved root-layer bytes.
+        /// Factor converting the declared angle unit to degrees. 1.0 when nothing is
+        /// declared or degrees are declared, 180/pi for radians, NaN for anything else.
         /// </summary>
-        public bool VerifyStageDigest(RepresentationInfo rep)
+        private static double AngleToDegrees(EUInformation? units)
+        {
+            string code = UnitCode(units);
+            if (code.Length == 0)
+            {
+                return 1.0;
+            }
+            switch (code)
+            {
+                case kUneceDegree:
+                case "deg":
+                case "°":
+                    return 1.0;
+                case kUneceRadian:
+                case "rad":
+                    return 180.0 / Math.PI;
+                default:
+                    return double.NaN;
+            }
+        }
+
+        /// <summary>
+        /// §5.8 step (1) for a length-valued target (translation components, georeference
+        /// height). Only a source/target pair that is either undeclared or identical is
+        /// honoured without a conversion table; a declared mismatch fails closed.
+        /// </summary>
+        private static double LengthFactor(BindingInfo b)
+        {
+            return UnitFactor(b);
+        }
+
+        /// <summary>
+        /// §5.8 step (1) for a scalar target. When neither side declares a unit, or both
+        /// declare the same unit, no conversion is applied. A declared mismatch the
+        /// connector has no factor for fails closed (NaN) rather than authoring an
+        /// unconverted value.
+        /// </summary>
+        private static double UnitFactor(BindingInfo b)
+        {
+            string source = UnitCode(b.SourceEngineeringUnits);
+            string target = UnitCode(b.TargetEngineeringUnits);
+            if (source.Length == 0 || target.Length == 0 ||
+                string.Equals(source, target, StringComparison.Ordinal))
+            {
+                return 1.0;
+            }
+            if (source == kUneceRadian && target == kUneceDegree)
+            {
+                return 180.0 / Math.PI;
+            }
+            if (source == kUneceDegree && target == kUneceRadian)
+            {
+                return Math.PI / 180.0;
+            }
+            return double.NaN;
+        }
+
+        /// <summary>
+        /// Decodes the UNECE common code carried by an <see cref="EUInformation"/>
+        /// <c>UnitId</c> (the code's ASCII characters packed big-endian, e.g. 4404273 -&gt;
+        /// "C81", 17476 -&gt; "DD"). Falls back to the display name when no UnitId is set.
+        /// </summary>
+        internal static string UnitCode(EUInformation? units)
+        {
+            if (units == null)
+            {
+                return string.Empty;
+            }
+            int id = units.UnitId;
+            if (id > 0)
+            {
+                var chars = new char[4];
+                int n = 0;
+                for (int shift = 24; shift >= 0; shift -= 8)
+                {
+                    int ch = (id >> shift) & 0xFF;
+                    if (ch != 0)
+                    {
+                        chars[n++] = (char)ch;
+                    }
+                }
+                if (n > 0)
+                {
+                    return new string(chars, 0, n);
+                }
+            }
+            string display = units.DisplayName.Text ?? string.Empty;
+            return display;
+        }
+
+        /// <summary>
+        /// Verifies the stage's advertised <c>RootLayerDigest</c> (Twin-BOM integrity).
+        /// §5.2 requires the digest to be computed over the <b>resolved root-layer
+        /// content</b>, not over the identifier string, and a connector <b>shall refuse to
+        /// open</b> a layer whose digest does not match. The bytes are therefore obtained
+        /// from the stage's served <c>Assets</c> closure (§5.15). When a digest is
+        /// advertised but the content cannot be obtained the stage is <b>unverified</b>
+        /// and this returns <c>false</c> — fail closed rather than falling back to a
+        /// cryptographically vacuous digest of the identifier.
+        /// </summary>
+        public async Task<bool> VerifyStageDigestAsync(RepresentationInfo rep, CancellationToken ct)
         {
             if (rep.RootLayerDigest.IsNull ||
                 rep.RootLayerDigest.Length == 0 ||
-                rep.DigestAlgorithm == OpenUsdDigestAlgorithm.None ||
-                string.IsNullOrEmpty(rep.RootLayerIdentifier))
+                rep.DigestAlgorithm == OpenUsdDigestAlgorithm.None)
             {
                 return false;
             }
-            byte[] computed = ComputeDigest(rep.DigestAlgorithm, rep.RootLayerIdentifier!);
-            return FixedTimeEquals(computed, rep.RootLayerDigest.Span);
+            byte[]? bytes = await TryReadRootLayerBytesAsync(rep, ct).ConfigureAwait(false);
+            return bytes != null && VerifyBytesDigest(bytes, rep.RootLayerDigest, rep.DigestAlgorithm);
         }
 
         /// <summary>
-        /// Actuates the single opt-in UsdToUaCommand binding by writing the supplied
-        /// value to its CommandTargetNodeId. Fail-closed: throws when commands were
-        /// not explicitly enabled. Single-writer: uses the first controllable command
-        /// binding found. Returns true when the UA write succeeds.
+        /// Verifies a stage's advertised digest against root-layer bytes the caller
+        /// already holds (§5.2). Exposed so a host that resolves the root layer itself
+        /// can apply the same fail-closed rule.
+        /// </summary>
+        public static bool VerifyStageDigest(RepresentationInfo rep, byte[] rootLayerBytes)
+        {
+            if (rootLayerBytes == null ||
+                rep.RootLayerDigest.IsNull ||
+                rep.RootLayerDigest.Length == 0 ||
+                rep.DigestAlgorithm == OpenUsdDigestAlgorithm.None)
+            {
+                return false;
+            }
+            return VerifyBytesDigest(rootLayerBytes, rep.RootLayerDigest, rep.DigestAlgorithm);
+        }
+
+        /// <summary>
+        /// Actuates the single opt-in UsdToUaCommand binding with the supplied USD-side
+        /// trigger value. Per §5.10 the value is converted back through the inverse of
+        /// §5.8 (<c>Offset</c>/<c>Scale</c>, units); when <c>CommandMethodId</c> is present
+        /// the connector <c>Call</c>s that Method with the converted value, otherwise it
+        /// <c>Write</c>s the converted value to <c>CommandTargetNodeId</c>.
+        /// Fail-closed: throws when commands were not explicitly enabled, refuses a
+        /// binding whose <c>Enabled</c> tombstone suppresses it, and refuses to issue
+        /// unless the session actually holds the write/Call authorization the target
+        /// requires (§5.10/§9 — a Server withholds those rights by default).
+        /// Single-writer: uses the first controllable command binding found.
+        /// Returns true when the UA write/Call succeeds.
         /// </summary>
         /// <exception cref="InvalidOperationException"></exception>
         public async Task<bool> IssueCommandAsync(double value, CancellationToken ct)
@@ -697,31 +1272,204 @@ namespace Opc.Ua.OpenUsd.Client
                 throw new InvalidOperationException(
                     "Command bindings are disabled. Construct the connector with enableCommands: true.");
             }
-            BindingInfo? cmd = null;
-            foreach (RepresentationInfo r in await DiscoverAllRepresentationsAsync(ct).ConfigureAwait(false))
-            {
-                foreach (BindingInfo b in r.Bindings)
-                {
-                    if (b.Intent == OpenUsdIntentProfile.UsdToUaCommand
-                        && b.SignalRole == OpenUsdSignalRole.Controllable
-                        && !b.CommandTargetNodeId.IsNull)
-                    {
-                        cmd = b;
-                        break;
-                    }
-                }
-                if (cmd != null)
-                {
-                    break;
-                }
-            }
-            if (cmd == null || cmd.CommandTargetNodeId.IsNull)
+            BindingInfo? cmd = SelectCommandBinding(
+                await DiscoverAllRepresentationsAsync(ct).ConfigureAwait(false));
+            if (cmd == null)
             {
                 return false;
             }
-            StatusCode sc = await WriteAsync(cmd.CommandTargetNodeId, value, ct)
+            // §5.8 inverse: undo Offset, then Scale, then the unit conversion.
+            if (!TryInvertConversion(cmd, value, out double uaValue))
+            {
+                return false;
+            }
+            if (!cmd.CommandMethodId.IsNull)
+            {
+                // §5.10: when CommandMethodId is present the connector Calls that Method.
+                NodeId methodOwner = cmd.CommandTargetNodeId.IsNull
+                    ? await ParentAsync(cmd.CommandMethodId, ct).ConfigureAwait(false)
+                    : cmd.CommandTargetNodeId;
+                if (!await IsCallAuthorizedAsync(cmd.CommandMethodId, ct).ConfigureAwait(false))
+                {
+                    m_logger.CommandRefusedUnauthorized(cmd.CommandMethodId.ToString() ?? string.Empty);
+                    return false;
+                }
+                try
+                {
+                    await m_session.CallAsync(methodOwner, cmd.CommandMethodId, ct,
+                        new Variant(uaValue)).ConfigureAwait(false);
+                    return true;
+                }
+                catch (ServiceResultException)
+                {
+                    return false;
+                }
+            }
+            if (cmd.CommandTargetNodeId.IsNull)
+            {
+                return false;
+            }
+            if (!await IsWriteAuthorizedAsync(cmd.CommandTargetNodeId, ct).ConfigureAwait(false))
+            {
+                m_logger.CommandRefusedUnauthorized(cmd.CommandTargetNodeId.ToString() ?? string.Empty);
+                return false;
+            }
+            StatusCode sc = await WriteAsync(cmd.CommandTargetNodeId, uaValue, ct)
                 .ConfigureAwait(false);
             return StatusCode.IsGood(sc);
+        }
+
+        /// <summary>
+        /// §5.10 single-writer selection of the command binding to actuate, and §5.4
+        /// tombstone enforcement: a binding whose <c>Enabled</c> property is
+        /// <c>false</c> is suppressed and is never actuated. A binding must also be
+        /// <c>Controllable</c> (§5.9) and name a write target or a Method to Call.
+        /// </summary>
+        internal static BindingInfo? SelectCommandBinding(IEnumerable<RepresentationInfo> reps)
+        {
+            foreach (RepresentationInfo r in reps)
+            {
+                foreach (BindingInfo b in r.Bindings)
+                {
+                    if (b.Enabled
+                        && b.Intent == OpenUsdIntentProfile.UsdToUaCommand
+                        && b.SignalRole == OpenUsdSignalRole.Controllable
+                        && (!b.CommandTargetNodeId.IsNull || !b.CommandMethodId.IsNull))
+                    {
+                        return b;
+                    }
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// §5.10: converts a USD-side trigger value back through the inverse of the §5.8
+        /// conversion — <c>(value - Offset) / Scale</c> followed by the inverse unit
+        /// factor. Returns false (no command is issued) when the conversion cannot be
+        /// inverted faithfully: a zero <c>Scale</c>, or a declared unit the connector
+        /// cannot honour.
+        /// </summary>
+        internal static bool TryInvertConversion(BindingInfo b, double usdValue, out double uaValue)
+        {
+            uaValue = 0.0;
+            double factor = b.Kind == OpenUsdRenderTargetKind.Rotation
+                ? AngleFactorToDegrees(b)
+                : UnitFactor(b);
+            if (double.IsNaN(factor) || factor == 0.0 || b.Scale == 0.0)
+            {
+                return false;
+            }
+            uaValue = (usdValue - b.Offset) / b.Scale / factor;
+            return true;
+        }
+
+        /// <summary>
+        /// §5.10/§9: the connector shall hold the write authorization the target requires
+        /// before issuing a command. The effective right is read from the target's
+        /// <c>UserAccessLevel</c> (and, when exposed, <c>UserRolePermissions</c>), and the
+        /// command is refused when the right is absent — the connector does not rely on
+        /// the Server's error to fail closed.
+        /// </summary>
+        private async Task<bool> IsWriteAuthorizedAsync(NodeId nodeId, CancellationToken ct)
+        {
+            var toRead = new ReadValueId[]
+            {
+                new() { NodeId = nodeId, AttributeId = Attributes.UserAccessLevel },
+                new() { NodeId = nodeId, AttributeId = Attributes.UserRolePermissions }
+            };
+            ReadResponse response;
+            try
+            {
+                response = await m_session.ReadAsync(
+                    null, 0, TimestampsToReturn.Neither, toRead, ct).ConfigureAwait(false);
+            }
+            catch (ServiceResultException)
+            {
+                return false;
+            }
+            if (response.Results.Count == 0 || StatusCode.IsNotGood(response.Results[0].StatusCode))
+            {
+                // The target does not expose its effective right: fail closed.
+                return false;
+            }
+            object? level = response.Results[0].WrappedValue.AsBoxedObject();
+            if (level == null)
+            {
+                return false;
+            }
+            byte accessLevel = System.Convert.ToByte(
+                level, System.Globalization.CultureInfo.InvariantCulture);
+            if ((accessLevel & AccessLevels.CurrentWrite) == 0)
+            {
+                return false;
+            }
+            return response.Results.Count < 2 ||
+                HasPermission(response.Results[1], PermissionType.Write);
+        }
+
+        /// <summary>
+        /// §5.10/§9 counterpart of <see cref="IsWriteAuthorizedAsync"/> for a
+        /// <c>CommandMethodId</c>: the Method's <c>UserExecutable</c> attribute (and
+        /// <c>UserRolePermissions</c> when exposed) must grant the Call.
+        /// </summary>
+        private async Task<bool> IsCallAuthorizedAsync(NodeId methodId, CancellationToken ct)
+        {
+            var toRead = new ReadValueId[]
+            {
+                new() { NodeId = methodId, AttributeId = Attributes.UserExecutable },
+                new() { NodeId = methodId, AttributeId = Attributes.UserRolePermissions }
+            };
+            ReadResponse response;
+            try
+            {
+                response = await m_session.ReadAsync(
+                    null, 0, TimestampsToReturn.Neither, toRead, ct).ConfigureAwait(false);
+            }
+            catch (ServiceResultException)
+            {
+                return false;
+            }
+            if (response.Results.Count == 0 || StatusCode.IsNotGood(response.Results[0].StatusCode))
+            {
+                return false;
+            }
+            object? executable = response.Results[0].WrappedValue.AsBoxedObject();
+            if (executable == null ||
+                !System.Convert.ToBoolean(
+                    executable, System.Globalization.CultureInfo.InvariantCulture))
+            {
+                return false;
+            }
+            return response.Results.Count < 2 ||
+                HasPermission(response.Results[1], PermissionType.Call);
+        }
+
+        /// <summary>
+        /// When a node exposes UserRolePermissions, the required permission must be
+        /// granted by at least one of the session's effective Roles. A node that does not
+        /// expose the attribute at all falls back to the access-level/executable check.
+        /// </summary>
+        private static bool HasPermission(DataValue dv, PermissionType required)
+        {
+            if (StatusCode.IsNotGood(dv.StatusCode) || dv.WrappedValue.IsNull)
+            {
+                return true;
+            }
+            if (dv.WrappedValue.AsBoxedObject() is not ExtensionObject[] permissions ||
+                permissions.Length == 0)
+            {
+                return true;
+            }
+            foreach (ExtensionObject eo in permissions)
+            {
+                if (ExtensionObject.ToEncodeable(eo) is RolePermissionType rp &&
+                    ((PermissionType)rp.Permissions & required) == required)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>
@@ -740,7 +1488,10 @@ namespace Opc.Ua.OpenUsd.Client
             {
                 foreach (BindingInfo b in rep.Bindings)
                 {
-                    if (b.Intent != OpenUsdIntentProfile.UaHistoryToUsd
+                    // §5.4: Enabled = false is a tombstone — a suppressed history binding
+                    // is not replayed.
+                    if (!b.Enabled
+                        || b.Intent != OpenUsdIntentProfile.UaHistoryToUsd
                         || b.SourceNodeId.IsNull
                         || !b.TimeSampled)
                     {
@@ -860,49 +1611,6 @@ namespace Opc.Ua.OpenUsd.Client
             {
                 // Best-effort release; ignore failures.
             }
-        }
-
-        private static byte[] ComputeDigest(OpenUsdDigestAlgorithm algorithm, string identifier)
-        {
-            byte[] bytes = System.Text.Encoding.UTF8.GetBytes(identifier);
-            // ComputeHash (not the static HashData) is used for netstandard2.0/net48
-            // compatibility where the static overloads do not exist.
-#pragma warning disable CA1850 // Prefer static HashData
-            switch (algorithm)
-            {
-                case OpenUsdDigestAlgorithm.Sha256:
-                    using (var h = System.Security.Cryptography.SHA256.Create())
-                    {
-                        return h.ComputeHash(bytes);
-                    }
-                case OpenUsdDigestAlgorithm.Sha384:
-                    using (var h = System.Security.Cryptography.SHA384.Create())
-                    {
-                        return h.ComputeHash(bytes);
-                    }
-                case OpenUsdDigestAlgorithm.Sha512:
-                    using (var h = System.Security.Cryptography.SHA512.Create())
-                    {
-                        return h.ComputeHash(bytes);
-                    }
-                default:
-                    return [];
-            }
-#pragma warning restore CA1850
-        }
-
-        private static bool FixedTimeEquals(ReadOnlySpan<byte> a, ReadOnlySpan<byte> b)
-        {
-            if (a.Length != b.Length)
-            {
-                return false;
-            }
-            int diff = 0;
-            for (int i = 0; i < a.Length; i++)
-            {
-                diff |= a[i] ^ b[i];
-            }
-            return diff == 0;
         }
 
         private async Task<StatusCode> WriteAsync(NodeId nodeId, double value, CancellationToken ct)
@@ -1043,15 +1751,67 @@ namespace Opc.Ua.OpenUsd.Client
             return VariantConversions.TryGetDouble(dv.WrappedValue, out double v) ? v : fallback;
         }
 
+        private Task<bool> ReadBoolAsync(
+            Dictionary<string, NodeId> props, string name, CancellationToken ct)
+        {
+            return ReadBoolAsync(props, name, false, ct);
+        }
+
         private async Task<bool> ReadBoolAsync(
+            Dictionary<string, NodeId> props, string name, bool fallback, CancellationToken ct)
+        {
+            if (!props.TryGetValue(name, out NodeId id))
+            {
+                return fallback;
+            }
+            DataValue dv = await ReadAsync(id, ct).ConfigureAwait(false);
+            return VariantConversions.TryGetBoolean(dv.WrappedValue, out bool v) ? v : fallback;
+        }
+
+        private async Task<Guid> ReadGuidAsync(
             Dictionary<string, NodeId> props, string name, CancellationToken ct)
         {
             if (!props.TryGetValue(name, out NodeId id))
             {
-                return false;
+                return Guid.Empty;
             }
             DataValue dv = await ReadAsync(id, ct).ConfigureAwait(false);
-            return VariantConversions.TryGetBoolean(dv.WrappedValue, out bool v) && v;
+            object? v = dv.WrappedValue.AsBoxedObject();
+            return v switch
+            {
+                Guid g => g,
+                Uuid u => (Guid)u,
+                string s when Guid.TryParse(s, out Guid parsed) => parsed,
+                _ => Guid.Empty
+            };
+        }
+
+        private async Task<RelativePath?> ReadRelativePathAsync(
+            Dictionary<string, NodeId> props, string name, CancellationToken ct)
+        {
+            if (!props.TryGetValue(name, out NodeId id))
+            {
+                return null;
+            }
+            DataValue dv = await ReadAsync(id, ct).ConfigureAwait(false);
+#pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type
+            return dv.WrappedValue.TryGetStructure(out RelativePath path) && path.Elements.Count > 0
+                ? path
+                : null;
+#pragma warning restore CS8600
+        }
+
+        private async Task<EUInformation?> ReadEuInformationAsync(
+            Dictionary<string, NodeId> props, string name, CancellationToken ct)
+        {
+            if (!props.TryGetValue(name, out NodeId id))
+            {
+                return null;
+            }
+            DataValue dv = await ReadAsync(id, ct).ConfigureAwait(false);
+#pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type
+            return dv.WrappedValue.TryGetStructure(out EUInformation eu) ? eu : null;
+#pragma warning restore CS8600
         }
 
         private async Task<ByteString> ReadByteStringAsync(
