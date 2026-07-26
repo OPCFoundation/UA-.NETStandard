@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -36,6 +36,7 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.OpenUsd;
 using Opc.Ua.OpenUsd.Server;
+using Opc.Ua.Server;
 
 namespace Robotics
 {
@@ -45,7 +46,7 @@ namespace Robotics
     /// a RobotCellStage descriptor, and the generic representation/binding helpers
     /// used by RobotCell.cs.
     /// </summary>
-    public partial class RoboticsNodeManager
+    public sealed partial class RobotCell
     {
         private OpenUsdRootState? m_openUsdRoot;
         private OpenUsdStageState? m_cellStage;
@@ -108,11 +109,12 @@ namespace Robotics
                 // with no external asset resolver.
                 UsdAssetDelivery.AttachStageAssets(SystemContext, m_cellStage, ns, servedAssets);
 
-                AssignChildNodeIds(root);
-                await AddPredefinedNodeAsync(SystemContext, root, cancellationToken)
+                SystemContext.AssignInstanceChildNodeIds(root);
+                await Manager.AddPredefinedNodeAsync(root, cancellationToken)
                     .ConfigureAwait(false);
 
                 m_openUsdRoot = root;
+                await LinkOpenUsdRootToServerAsync(cancellationToken).ConfigureAwait(false);
                 m_logger.MaterialisedOpenUsdFacility(root.NodeId, m_cellStage.NodeId);
             }
             catch (Exception ex)
@@ -139,7 +141,7 @@ namespace Robotics
 
         private static byte[] ReadEmbeddedAsset(string resourceName)
         {
-            using Stream? s = typeof(RoboticsNodeManager).Assembly.GetManifestResourceStream(resourceName);
+            using Stream? s = typeof(RobotCell).Assembly.GetManifestResourceStream(resourceName);
             if (s == null)
             {
                 return [];
@@ -149,35 +151,25 @@ namespace Robotics
             return ms.ToArray();
         }
 
-        /// <inheritdoc/>
-        public override async ValueTask CreateAddressSpaceAsync(
-            IDictionary<NodeId, IList<IReference>> externalReferences,
-            CancellationToken cancellationToken = default)
-        {
-            // base.CreateAddressSpaceAsync loads predefined nodes and runs
-            // OnAddressSpaceReadyAsync, which materialises the OpenUSD facility.
-            await base.CreateAddressSpaceAsync(externalReferences, cancellationToken)
-                .ConfigureAwait(false);
-
-            // Now that the root exists, add the forward HasComponent reference from the
-            // Server Object (i=2253, owned by the core node manager) to it.
-            LinkOpenUsdRootToServer(externalReferences);
-        }
-
-        private void LinkOpenUsdRootToServer(
-            IDictionary<NodeId, IList<IReference>> externalReferences)
+        private async ValueTask LinkOpenUsdRootToServerAsync(
+            CancellationToken cancellationToken)
         {
             if (m_openUsdRoot == null)
             {
                 return;
             }
-            if (!externalReferences.TryGetValue(Opc.Ua.ObjectIds.Server, out IList<IReference>? references) ||
-                references == null)
+
+            var references = new IReference[]
             {
-                externalReferences[Opc.Ua.ObjectIds.Server] = references = [];
-            }
-            references.Add(new NodeStateReference(
-                ReferenceTypeIds.HasComponent, false, m_openUsdRoot.NodeId));
+                new NodeStateReference(
+                    ReferenceTypeIds.HasComponent,
+                    false,
+                    m_openUsdRoot.NodeId)
+            };
+            await Server.NodeManager.AddReferencesAsync(
+                Opc.Ua.ObjectIds.Server,
+                references,
+                cancellationToken).ConfigureAwait(false);
             m_logger.LinkedOpenUsdFacility();
         }
 
@@ -203,6 +195,7 @@ namespace Robotics
             rep.NodeId = SystemContext.NodeIdFactory.New(SystemContext, rep);
             rep.CreateOrReplaceStage(SystemContext, null!).Value = m_cellStage!.NodeId;
             rep.CreateOrReplacePrimPath(SystemContext, null!).Value = primPath;
+            AssignInstanceSubtree(rep, owner);
             return rep;
         }
 
@@ -220,63 +213,6 @@ namespace Robotics
             }
             registry.AddReference(ReferenceTypeIds.Organizes, false, rep.NodeId);
             rep.AddReference(ReferenceTypeIds.Organizes, true, registry.NodeId);
-        }
-
-        /// <summary>
-        /// Creates a simple Variable child on any Object, assigning a per-instance
-        /// NodeId immediately (callers assign parent NodeIds first).
-        /// </summary>
-        /// <param name="parent"></param>
-        /// <param name="name"></param>
-        /// <param name="dataType"></param>
-        /// <param name="initialValue"></param>
-        /// <param name="writable"></param>
-        /// <param name="ns"></param>
-        /// <returns></returns>
-        private BaseDataVariableState CreateVariable(
-            NodeState parent, string name, NodeId dataType, Variant initialValue, bool writable, ushort ns)
-        {
-            byte access = writable
-                ? AccessLevels.CurrentReadOrWrite
-                : AccessLevels.CurrentRead;
-            var v = new BaseDataVariableState(parent)
-            {
-                SymbolicName = name,
-                BrowseName = new QualifiedName(name, ns),
-                DisplayName = new LocalizedText(name),
-                ReferenceTypeId = ReferenceTypeIds.HasComponent,
-                TypeDefinitionId = VariableTypeIds.BaseDataVariableType,
-                DataType = dataType,
-                ValueRank = ValueRanks.Scalar,
-                AccessLevel = access,
-                UserAccessLevel = access,
-                Value = initialValue
-            };
-            parent.AddChild(v);
-            v.NodeId = SystemContext.NodeIdFactory.New(SystemContext, v);
-            return v;
-        }
-
-        /// <summary>
-        /// Creates a FolderState child on any Object.
-        /// </summary>
-        /// <param name="parent"></param>
-        /// <param name="name"></param>
-        /// <param name="ns"></param>
-        /// <returns></returns>
-        private FolderState CreateFolder(NodeState parent, string name, ushort ns)
-        {
-            var folder = new FolderState(parent)
-            {
-                SymbolicName = name,
-                BrowseName = new QualifiedName(name, ns),
-                DisplayName = new LocalizedText(name),
-                ReferenceTypeId = ReferenceTypeIds.HasComponent,
-                TypeDefinitionId = Opc.Ua.ObjectTypeIds.FolderType
-            };
-            parent.AddChild(folder);
-            folder.NodeId = SystemContext.NodeIdFactory.New(SystemContext, folder);
-            return folder;
         }
 
         /// <summary>
@@ -315,11 +251,13 @@ namespace Robotics
             NodeId commandTargetNodeId = default,
             string? commandTriggerPropertyName = null)
         {
-            return rep.AddLiveBinding(
+            OpenUsdLiveBindingState binding = rep.AddLiveBinding(
                 SystemContext, ns, m_cellStage!.NodeId, name, bindingDefinitionId, sourceNodeId,
                 targetPrimPath, targetPropertyName, targetUsdTypeName, kind, scale,
                 bindingTypeId, signalRole, sourceSemanticId, alarmAspect,
                 commandTargetNodeId, commandTriggerPropertyName);
+            AssignInstanceSubtree(binding, rep);
+            return binding;
         }
 
         /// <summary>
@@ -348,10 +286,11 @@ namespace Robotics
             bool dynamic = false, NodeId changeEventSource = default,
             NodeId componentTypeDefinition = default)
         {
-            _ = rep.AddComponentBinding(
+            OpenUsdComponentBindingState binding = rep.AddComponentBinding(
                 SystemContext, ns, name, bindingDefinitionId, cardinality, arc, targetPrimPath,
                 componentRepresentation, assetReference, dynamic, changeEventSource,
                 componentTypeDefinition: componentTypeDefinition);
+            AssignInstanceSubtree(binding, rep);
         }
     }
 

@@ -42,6 +42,5 @@ namespace Robotics
     {
         public const int RobotCell = 0;
         public const int OpenUsdRepresentation = 10;
-        public const int RoboticsNodeManager = 20;
     }
 }

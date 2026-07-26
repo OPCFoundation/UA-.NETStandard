@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -40,7 +40,7 @@ namespace Robotics
     /// live and independently) and briefly asserts the cell emergency-stop so the
     /// safety beacon and per-robot warnings blink.
     /// </summary>
-    public partial class RoboticsNodeManager
+    public sealed partial class RobotCell
     {
         private long m_simulationTicks;
 

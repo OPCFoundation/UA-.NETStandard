@@ -38,27 +38,27 @@ A `MotionDeviceSystem` **"RobotCell"** (prim `/Cell`) composed recursively of:
 All 15 representations (1 system + 2 robots + 12 axes) are discoverable through the
 well-known `Server/OpenUSD/Representations` registry.
 
-## Design note — source-generated typed instances
+## Design note — stock Robotics hosting
 
-The OPC 40010 Robotics model and its OPC 40001-1 `IA` dependency are **source-generated** from their `NodeSet2.xml` (over the source-generated OPC UA DI base model) and loaded through `Opc.Ua.Robotics.Server.AddRoboticsTypeSystem` (`AddOpcUaDi` + `AddOpcUaIA` + `AddOpcUaRobotics`); the draft `OpenUsdBinding` model is source-generated the same way.
+The server uses the stock `Opc.Ua.Robotics.Server` hosting pipeline:
 
-The server builds its robot-cell instances with the generated `CreateInstanceOf<Type>` factories (`CreateInstanceOfMotionDeviceSystemType`, `…MotionDeviceType`, `…AxisType`, `…ControllerType`), so each instance carries the full companion-type structure — the mandatory `MotionDevices` / `Controllers` / `Axes` containers — rather than only a type-definition reference on a bare `BaseObjectState`. Those factories already assign per-instance NodeIds across the subtree they materialise. The single recursive `AssignChildNodeIds` walk before `AddPredefinedNodeAsync` therefore only covers the nodes this sample adds afterwards through the generator's `CreateOrReplace…` helpers, which still stamp the **type** NodeId; that gap is tracked by [issue #4099](https://github.com/OPCFoundation/UA-.NETStandard/issues/4099).
+- `AddRobotics()` registers the sealed stock `RoboticsNodeManager`, DI/IA/Robotics
+  model provider, and the shared Robotics configurator pipeline.
+- `AddRoboticsModel<OpenUsdModelProvider>()`,
+  `AddRoboticsModel<RslModelProvider>()`, and
+  `AddRoboticsModel<GposModelProvider>()` contribute the additional compiled
+  OpenUSD, RSL, and GPOS companion models to the same manager.
+- `ConfigureRobotics<RobotCell>()` builds the cell with the validated fluent
+  topology builders (`AddMotionDeviceSystemAsync`, `AddMotionDevice`,
+  `AddAxis`, safety, controller, task-control, and operation builders).
+- `AddPositioningFor<RoboticsNodeManager>()` and
+  `ConfigurePositioningFor<RoboticsNodeManager>(...)` add the RSL/GPOS spatial
+  objects, frames, attach point, zone, and live global-location bindings after
+  the Robotics topology exists.
 
-## Why a hand-written node manager?
-
-This sample deliberately does **not** use the `Opc.Ua.Robotics.Server` hosting
-integration (`AddRobotics` / `ConfigureRobotics`). It composes five models in a
-single node manager — Robotics, IA, DI, the draft OpenUSD binding, and RSL/GPOS
-— and owns its own `New()` NodeId scheme, its own OpenUSD representation
-registry, and a simulation loop. The stock `RoboticsNodeManager` owns exactly
-one instance namespace and the DI address space, so a server that has to add
-non-Robotics models to the *same* manager subclasses `DiNodeManager` directly and
-calls `nodes.AddRoboticsTypeSystem(context)` to load the Robotics type system.
-
-Use the stock DI hosting (see [`docs/Robotics.md`](../../docs/Robotics.md)) when
-Robotics is the only companion model you add, or use
-`ConfigureRoboticsFor<TNodeManager>` to keep this manager and still get the
-validated fluent topology builders.
+The OpenUSD facility still lives under the standard `Server/OpenUSD` entry point,
+but it is now authored by the `RobotCell` configurator against the stock manager
+instead of by subclassing a custom node manager.
 
 ## Run it
 

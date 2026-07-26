@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -43,6 +43,7 @@ using Opc.Ua.OpenUsd.Client;
 using Opc.Ua.Positioning;
 using Opc.Ua.Positioning.Client;
 using Opc.Ua.Positioning.Server.Hosting;
+using Opc.Ua.Robotics.Server;
 using StreamingMonitoredItemOptions =
     Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
 
@@ -158,12 +159,19 @@ namespace Opc.Ua.Di.Tests
                     });
                 })
                 .AddIdentityAuthenticator<OperatorAuthenticator>()
-                .AddNodeManager<global::Robotics.RoboticsNodeManagerFactory>()
-                .AddPositioningFor<global::Robotics.RoboticsNodeManager>();
+                .AddRobotics()
+                .AddRoboticsModel<global::Robotics.OpenUsdModelProvider>()
+                .AddRoboticsModel<global::Robotics.RslModelProvider>()
+                .AddRoboticsModel<global::Robotics.GposModelProvider>()
+                .ConfigureRobotics<global::Robotics.RobotCell>()
+                .ConfigureRobotics(async context =>
+                    await context.GetRequiredService<IPositioningPostSetupRunner>()
+                        .RunAsync(context.Manager, context.CancellationToken).ConfigureAwait(false))
+                .AddPositioningFor<RoboticsNodeManager>();
             positioning
                 .AddGlobalPositionProvider<global::Robotics.MobileRobotPositionProvider>()
-                .ConfigurePositioningFor<global::Robotics.RoboticsNodeManager>(
-                    context => ((global::Robotics.RoboticsNodeManager)context.Manager)
+                .ConfigurePositioningFor<RoboticsNodeManager>(
+                    context => global::Robotics.RobotCell.GetForManager(context.Manager)
                         .ConfigurePositioningAsync(context));
             m_host = hostBuilder.Build();
             await m_host.StartAsync().ConfigureAwait(false);
@@ -471,7 +479,7 @@ namespace Opc.Ua.Di.Tests
         }
 
         [Test]
-        public void OpenUsdCompanionModelIsDeployedAndServed()
+        public async Task OpenUsdCompanionModelIsDeployedAndServedAsync()
         {
             // The running server advertises the Robotics + OpenUSD namespaces (proving
             // the runtime-imported Robotics NodeSet and the source-generated OpenUSD
@@ -490,8 +498,8 @@ namespace Opc.Ua.Di.Tests
             NodeId repType = ExpandedNodeId.ToNodeId(
                 Opc.Ua.OpenUsd.ObjectTypeIds.OpenUsdRepresentationType, m_session!.NamespaceUris);
             var connector = new OpenUsdConnector(m_session!, new MockUsdSink());
-            string bn = connector.ReadBrowseNameAsync(repType, CancellationToken.None)
-                .GetAwaiter().GetResult();
+            string bn = await connector.ReadBrowseNameAsync(repType, CancellationToken.None)
+                .ConfigureAwait(false);
             Assert.That(bn, Is.EqualTo("OpenUsdRepresentationType"));
         }
 
@@ -503,7 +511,9 @@ namespace Opc.Ua.Di.Tests
 
             OpenUsdConnector.RepresentationInfo? cell = reps.Find(r => r.PrimPath == CellPrim);
             OpenUsdConnector.RepresentationInfo? r1 = reps.Find(r => r.PrimPath == R1Prim);
-            int axisReps = reps.FindAll(r => r.PrimPath != null && r.PrimPath.Contains("/Base/J", StringComparison.Ordinal)).Count;
+            int axisReps = reps.FindAll(r =>
+                r.PrimPath != null &&
+                r.PrimPath.Contains("/Base/J", StringComparison.Ordinal)).Count;
 
             Assert.Multiple(() =>
             {
@@ -1153,9 +1163,9 @@ namespace Opc.Ua.Di.Tests
             ReadResponse rr = await m_privilegedSession!.ReadAsync(
                 null, 0, TimestampsToReturn.Neither, toRead, CancellationToken.None)
                 .ConfigureAwait(false);
-            double actual = Convert.ToDouble(
-                rr.Results[0].WrappedValue.AsBoxedObject(),
-                System.Globalization.CultureInfo.InvariantCulture);
+            Assert.That(
+                rr.Results[0].WrappedValue.TryGetValue(out double actual), Is.True,
+                "Server SpeedOverride did not read back as a Double.");
             Assert.That(actual, Is.EqualTo(setpoint).Within(1e-9),
                 "Server SpeedOverride was not updated by the command binding.");
         }

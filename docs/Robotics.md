@@ -199,7 +199,10 @@ fluent `INodeBuilder<TState>` view after registration.
 | Builder | Adds |
 |---|---|
 | `IMotionDeviceSystemBuilder` | `AddController`, `AddMotionDevice`, `AddSafetyState`. |
-| `IControllerBuilder` | `AddSoftware`, `AddTaskControl`, `AddAuxiliaryComponent`, `AddDrive`, `Controls`, `UsesSafetyState`. |
+| `IControllerBuilder` | `AddSoftware`, `AddTaskControl`, `AddSystemOperation`, `AddPrograms`, `WithCurrentUser`, `AddAuxiliaryComponent`, `AddDrive`, `Controls`, `UsesSafetyState`. |
+| `ISystemOperationBuilder` | `WithInitialState`, `OnGetReady`, `OnStart`, `OnStop`, `OnStandDown`, `WithStopModes`, `OnTransition`. |
+| `IProgramsBuilder` | `UseFileSystem(provider)` / `UseFileSystem<TProvider>()`, `WithOptions`. |
+| `IRoboticsUserBuilder` | The mandatory Controller `CurrentUser` child. |
 | `IRoboticsSoftwareBuilder` | Software identification (manufacturer, model, revision). |
 | `IMotionDeviceBuilder` | `AddAxis`, `AddPowerTrain`, `AddDrive`, `AddAuxiliaryComponent`, `WithFlangeLoad`, `WithMotionDeviceCategory`, speed-override binding, `UsesTaskControl`. |
 | `IAxisBuilder` | `WithMotionProfile`, `AsVirtual`, actual position/speed/acceleration, `WithAdditionalLoad`, `Requires`. |
@@ -209,7 +212,8 @@ fluent `INodeBuilder<TState>` view after registration.
 | `IDriveBuilder` / `IAuxiliaryComponentBuilder` | Product code, asset id, component name. |
 | `ILoadBuilder` | `WithMass`, `WithCenterOfMass`, `WithInertia`. |
 | `ISafetyStateBuilder` | `AddEmergencyStop`, `AddProtectiveStop`, emergency-stop / operational-mode / protective-stop values and bindings. |
-| `ITaskControlBuilder` | `AddTaskModule`, execution mode, task-program name and loaded flag, `Controls`. |
+| `ITaskControlBuilder` | `AddTaskModule`, `AddTaskControlOperation`, execution mode, task-program name and loaded flag, `Controls`. |
+| `ITaskControlOperationBuilder` | `OnStart`, `OnStop`, `OnLoadByName`, `OnLoadByNodeId`, `OnUnloadByName`, `OnUnloadByNodeId`, `OnUnloadProgram`, `OnResetToProgramStart`, `WithMotionDevicesUnderControl`. |
 | `ITaskModuleBuilder` | `WithName`, `WithVersion`, `WithIsReferenced`. |
 
 Instances are always materialised through the generated
@@ -255,8 +259,55 @@ semantics:
 | `builder.IsConnectedTo(other)` | `IsConnectedTo`, between any two Robotics nodes. |
 
 `ITaskControlBuilder.Controls` and `IMotionDeviceBuilder.UsesTaskControl` add the
-standard `Controls` relation only. The `TaskControlReference` property remains
-absent until a `TaskControlOperationType` instance exists for it to target.
+standard `Controls` relation. When the task control also has a
+`TaskControlOperation` (via `AddTaskControlOperation`), the motion device's
+`TaskControlReference` property is populated to point at that operation node.
+
+### Standard operations and programs
+
+`ControllerType.SystemOperation` and `TaskControlType.TaskControlOperation` are
+optional facets carrying the two Part 16 state machines. The builders wire the
+methods to application handlers and move the machine only when a handler
+succeeds:
+
+```csharp
+IControllerBuilder controller = system.AddController("Controller1");
+
+controller.WithCurrentUser(user => user.WithName("operator"));
+
+controller.AddSystemOperation(operation => operation
+    .WithInitialState(RoboticsOperationState.Idle)
+    .WithStopModes([RoboticsStopMode.Normal, RoboticsStopMode.Emergency],
+        RoboticsStopMode.Normal)
+    .OnGetReady((context, ct) => backend.GetReadyAsync(ct))
+    .OnStart((context, ct) => backend.StartAsync(ct))
+    .OnStop((request, ct) => backend.StopAsync(request.StopMode, ct))
+    .OnStandDown((context, ct) => backend.StandDownAsync(ct)));
+
+controller.AddPrograms(programs => programs
+    .UseFileSystem<IRobotProgramStore>()
+    .WithOptions(o => o.AllowDelete = false));
+
+ITaskControlBuilder task = controller.AddTaskControl("Main");
+task.AddTaskControlOperation(operation => operation
+    .OnLoadByName((name, ct) => backend.LoadProgramAsync(name, ct))
+    .OnStart((context, ct) => backend.RunAsync(ct))
+    .OnStop((request, ct) => backend.HaltAsync(request.StopMode, ct))
+    .WithMotionDevicesUnderControl([robot.State.NodeId]));
+```
+
+Causes follow the spec transitions: `GetReady` Idle→Ready, `Start`
+Ready→Executing, `Stop` Executing→Ready, `StandDown` and the unload verbs
+Ready→Idle, the load verbs Idle→Ready. A cause that is illegal from the current
+state returns `BadInvalidState` without invoking the handler.
+`LastTransition`, `LastTransitionReason`, `PossibleStopModes`, and
+`ConfiguredDefaultStopMode` are maintained automatically.
+
+`AddPrograms` binds the optional `Programs` `FileDirectoryType` to the stack's
+existing `IFileSystemProvider` model through the shared
+`Opc.Ua.Server.FileSystem.IFileDirectoryBinder`, so any node manager — not just
+the dedicated file-system manager — can serve a Part 5 directory. Binding runs
+after the Robotics tree is registered, and is disposed if the build rolls back.
 
 ### Validation
 
@@ -268,6 +319,7 @@ companion specification:
   one safety state;
 * a controller without at least one `SoftwareType` and one `TaskControlType`
   instance — both are mandatory placeholders;
+* a controller without its mandatory `CurrentUser` child;
 * a motion device without at least one axis and one power train;
 * a non-virtual axis without a `Requires` link — mark an axis with `AsVirtual()`
   when it has no power train;
@@ -375,6 +427,9 @@ Positioning trios:
 | `Opc.Ua.Robotics.Server` | `Opc.Ua.Robotics`, `Opc.Ua.Di.Server`, `Opc.Ua.Server` | fluent accessors only, with `ModelSourceGeneratorFluentAccessorsOnly=true` |
 | `Opc.Ua.Robotics.Client` | `Opc.Ua.Robotics`, `Opc.Ua.Di.Client`, `Opc.Ua.Client` | — |
 
+The `Opc.Ua.Robotics.Operations` contracts ship in the model package so a client
+and a server can share them without either taking a dependency on the other.
+
 The model package stays free of any server dependency because the generated
 fluent-accessor method bodies call into the `Opc.Ua.Server` fluent builders.
 Emitting them from the model package would force `Opc.Ua.Robotics` — and
@@ -424,13 +479,22 @@ fallback.
 | Member | Purpose |
 |---|---|
 | `RoboticsClient(ISession, ITelemetryContext)` | Creates the client over a connected session. |
+| `session.Robotics(telemetry)` | Extension shorthand for the constructor. |
 | `Session` / `Telemetry` | The session and telemetry context the client was created with. |
 | `Topology` | The `DiTopologyClient` this client extends — use it to walk the DI device topology (`DeviceSetId`, `NetworkSetId`, `DeviceTopologyId`). |
 | `DiscoverMotionDeviceSystemsAsync(ct)` | Discovers every MotionDeviceSystem below the DI `DeviceSet`. |
 | `DiscoverMotionDeviceSystemsAsync(root, ct)` | Same, below an explicit root (for example the Objects folder). |
+| `EnumerateMotionDeviceSystemsAsync(ct)` | Streams systems as they are discovered. |
 | `DiscoverMotionDevicesAsync(root, ct)` | Discovers MotionDevices, typically below a system's `MotionDevices` folder. |
 | `DiscoverControllersAsync(root, ct)` | Discovers Controllers, typically below a system's `Controllers` folder. |
 | `DiscoverAxesAsync(root, ct)` | Discovers Axes, typically below a motion device's `Axes` folder. |
+| `ReadSystemAsync(system, ct)` | Reads a complete `RoboticsTopologySnapshot`, including the semantic `RoboticsRelationshipSnapshot`. |
+| `ReadControllerAsync` / `ReadMotionDeviceAsync` / `ReadAxisAsync` / `ReadSafetyStateAsync` / `ReadTaskControlAsync` | Per-node typed snapshots. |
+| `SystemOperation(controller)` | The standard SystemOperation state-machine client. |
+| `TaskControl(taskControl)` | The standard TaskControl state-machine client. |
+| `ProgramsAsync(controller, ct)` | A `FileSystemClient` rooted at the Controller `Programs` directory. |
+| `OperationsAsync(motionDevice, ct)` | The non-normative operation convention client. |
+| `ObserveAxisAsync` / `ObserveSafetyAsync` | Streaming telemetry over the subscription API. |
 | `GetRoboticsTypeNameAsync(typeDefinition, ct)` | Classifies a TypeDefinition against the server's type hierarchy, so vendor subtypes resolve to their closest standard Robotics type. Returns `null` when the node is not a Robotics type. |
 | `RoboticsClient.DiscoverMotionDeviceSystemsAsync(session, root, ct)` (static) | Session-only discovery for callers that do not hold a client instance. |
 | `RoboticsClient.TryGetRoboticsTypeName(typeDefinition, namespaceUris, out name)` (static) | Offline exact-match classification with no server round-trip. |
@@ -484,12 +548,105 @@ declared outputs — for example `LoadByName(string name)` returning a `Status`
 Int32. The generated state-machine identifiers live in
 `SystemOperationStateMachineTypeIds` and `TaskControlStateMachineTypeIds`.
 
-> A higher-level verb façade over these generated proxies (a
-> `robot.MoveAsync(...)` / `robot.StopAsync(...)` style operations namespace,
-> which is what the URML gesture mapping in
-> [issue #3827](https://github.com/OPCFoundation/UA-.NETStandard/issues/3827)
-> needs) is still being implemented on this branch and is not part of the API
-> documented above yet.
+> A higher-level verb façade over these generated proxies is documented under
+> [Operation conventions](#operation-conventions) below. The standard state
+> machines are reached through `SystemOperation(...)` and `TaskControl(...)`.
+
+### Standard operations
+
+`RoboticsClient` exposes the two OPC 40010 state machines directly:
+
+```csharp
+SystemOperationClient system = robots.SystemOperation(controllerNodeId);
+await system.GetReadyAsync(ct);       // Idle    -> Ready
+await system.StartAsync(ct);          // Ready   -> Executing
+await system.StopAsync(RoboticsStopMode.Normal, ct);   // Executing -> Ready
+await system.StandDownAsync(ct);      // Ready   -> Idle
+
+RoboticsOperationState state = await system.ReadStateAsync(ct);
+await foreach (RoboticsOperationState s in system.ObserveStateAsync(ct))
+{
+    // Idle / Ready / Executing
+}
+```
+
+```csharp
+TaskControlClient task = robots.TaskControl(taskControlNodeId);
+await task.LoadByNameAsync("weld-seam-3", ct);
+await task.StartAsync(ct);
+await task.StopAsync(RoboticsStopMode.Normal, ct);
+await task.ResetToProgramStartAsync(ct);
+await task.UnloadProgramAsync(ct);
+```
+
+A verb that is illegal from the current state is rejected with `BadInvalidState`
+before the server-side handler runs, and a handler that returns a bad
+`ServiceResult` leaves the state machine where it was.
+
+### Programs
+
+When the Controller exposes the optional `Programs` directory, it is a standard
+Part 5 `FileDirectoryType`, so it is read and written with the ordinary file
+services:
+
+```csharp
+FileSystemClient programs = await robots.ProgramsAsync(controllerNodeId, ct);
+await foreach (var entry in programs.EnumerateAsync("/", ct))
+{
+    // program files exposed by the controller
+}
+```
+
+### Observing telemetry
+
+```csharp
+await foreach (AxisStateSnapshot axis in robots.ObserveAxisAsync(axisNodeId, ct))
+{
+    // ActualPosition / ActualSpeed / ActualAcceleration as they change
+}
+```
+
+## Operation conventions
+
+OPC 40010 defines **no motion verbs**. Its only actuation surface is the two
+state machines above. Applications that need `MoveTo` / `Grasp` / `Release`
+style verbs — the shape the
+[URML](https://github.com/URML-MARS/URML) robot-intent language expects from an
+OPC UA substrate — opt into the **non-normative** convention layer in the
+`Opc.Ua.Robotics.Operations` namespace.
+
+These are **not** part of OPC 40010 and are never created in the Robotics
+namespace. `AddOperations` requires an application-owned namespace and rejects
+the OPC UA, DI, IA, and Robotics namespaces with `BadConfigurationError`.
+
+```csharp
+robot.AddOperations("Operations", applicationNamespaceIndex, ops => ops
+    .OnMoveTo((request, ct) => backend.MoveToAsync(request, ct))
+    .OnMoveJ((request, ct) => backend.MoveJointsAsync(request, ct))
+    .OnGrasp((request, ct) => gripper.GraspAsync(request, ct))
+    .OnRelease((request, ct) => gripper.ReleaseAsync(request, ct))
+    .WithUserExecutable(session => session.IsOperator));
+```
+
+Only the verbs whose handler was registered are materialised, each with full
+`InputArguments` / `OutputArguments` metadata so a generic client can
+introspect them. Anything outside the industrial subset uses the generic
+extension point:
+
+```csharp
+ops.AddOperation<ScanRequest, ScanResult>("Scan", (request, ct) => …);
+```
+
+The client side resolves the methods by BrowseName, never by hard-coded NodeId:
+
+```csharp
+RoboticsOperationsClient ops = await robots.OperationsAsync(motionDeviceNodeId, ct);
+await ops.MoveToAsync(new MoveToRequest { … }, ct);
+await ops.InvokeAsync<ScanRequest, ScanResult>("Scan", request, ct);
+```
+
+`CallProgram` exists for completeness, but the standard Programs plus
+TaskControl route is preferred and is what the SDK documents first.
 
 ## Sample
 

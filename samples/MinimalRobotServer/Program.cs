@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -31,6 +31,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Positioning.Server.Hosting;
+using Opc.Ua.Robotics.Server;
 using Robotics;
 
 // Self-contained OPC UA server exposing an OPC 40010 Robotics MotionDeviceSystem
@@ -64,13 +65,20 @@ IPositioningServerBuilder positioning = builder.Services
         o.AutoAcceptUntrustedCertificates = true;
         o.EndpointUrls.Add($"opc.tcp://{host}:{port}/MinimalRobotServer");
     })
-    .AddNodeManager<RoboticsNodeManagerFactory>()
-    .AddPositioningFor<RoboticsNodeManager>();
+    .AddRobotics()
+    .AddRoboticsModel<OpenUsdModelProvider>()
+    .AddRoboticsModel<RslModelProvider>()
+    .AddRoboticsModel<GposModelProvider>()
+    .ConfigureRobotics<RobotCell>()
+    .ConfigureRobotics(async context =>
+        await context.GetRequiredService<IPositioningPostSetupRunner>()
+            .RunAsync(context.Manager, context.CancellationToken).ConfigureAwait(false))
+    .AddPositioningFor<Opc.Ua.Robotics.Server.RoboticsNodeManager>();
 
 positioning
     .AddGlobalPositionProvider<MobileRobotPositionProvider>()
-    .ConfigurePositioningFor<RoboticsNodeManager>(
-        context => ((RoboticsNodeManager)context.Manager)
+    .ConfigurePositioningFor<Opc.Ua.Robotics.Server.RoboticsNodeManager>(
+        context => RobotCell.GetForManager(context.Manager)
             .ConfigurePositioningAsync(context));
 
 using IHost app = builder.Build();
