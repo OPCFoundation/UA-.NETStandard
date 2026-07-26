@@ -28,12 +28,15 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.WotCon.Bindings.Modbus;
+using Opc.Ua.WotCon.Bindings.Tests.Support;
 
 namespace Opc.Ua.WotCon.Bindings.Tests
 {
@@ -115,6 +118,116 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 .ReadHoldingRegistersAsync(1, 0, 1, CancellationToken.None).ConfigureAwait(false);
             Assert.That(registers, Has.Length.EqualTo(1));
             Assert.That(registers[0], Is.EqualTo((ushort)0x1234));
+        }
+
+        [Test]
+        public async Task WriteMultipleCoilsAcceptsProtocolMaximum()
+        {
+            using var server = new TestModbusServer();
+            bool[] values = new bool[1968];
+            values[0] = true;
+            values[7] = true;
+            values[8] = true;
+            values[^1] = true;
+
+            using var client = new ModbusTcpClient(
+                "127.0.0.1", server.Port, TimeSpan.FromSeconds(2));
+            await client.ConnectAsync(CancellationToken.None).ConfigureAwait(false);
+            await client
+                .WriteMultipleCoilsAsync(1, 0, values, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(server.LastFunctionCode, Is.EqualTo(0x0F));
+            Assert.That(server.Coils.Take(values.Length), Is.EqualTo(values));
+        }
+
+        [Test]
+        public void WriteMultipleCoilsRejectsQuantityAboveProtocolMaximum()
+        {
+            using var client = new ModbusTcpClient(
+                "127.0.0.1", 502, TimeSpan.FromSeconds(2));
+
+            ArgumentOutOfRangeException? exception = Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+                async () => await client
+                    .WriteMultipleCoilsAsync(1, 0, new bool[1969], CancellationToken.None)
+                    .ConfigureAwait(false));
+            Assert.That(exception!.Message, Does.Contain("1968"));
+        }
+
+        [TestCaseSource(nameof(InvalidSingleCoilAcknowledgements))]
+        public async Task WriteSingleCoilRejectsInvalidAcknowledgement(
+            byte[] acknowledgement,
+            string expectedError)
+        {
+            using var server = new ScriptedModbusServer((_, pdu) =>
+                pdu[0] == 0x05 ? acknowledgement : null);
+            using var client = new ModbusTcpClient(
+                "127.0.0.1", server.Port, TimeSpan.FromSeconds(2));
+            await client.ConnectAsync(CancellationToken.None).ConfigureAwait(false);
+
+            ModbusException? exception = Assert.ThrowsAsync<ModbusException>(
+                async () => await client
+                    .WriteSingleCoilAsync(1, 0, true, CancellationToken.None)
+                    .ConfigureAwait(false));
+            Assert.That(exception!.Message, Does.Contain(expectedError));
+        }
+
+        [TestCaseSource(nameof(InvalidMultipleCoilAcknowledgements))]
+        public async Task WriteMultipleCoilsRejectsInvalidAcknowledgement(
+            byte[] acknowledgement,
+            string expectedError)
+        {
+            using var server = new ScriptedModbusServer((_, pdu) =>
+                pdu[0] == 0x0F ? acknowledgement : null);
+            using var client = new ModbusTcpClient(
+                "127.0.0.1", server.Port, TimeSpan.FromSeconds(2));
+            await client.ConnectAsync(CancellationToken.None).ConfigureAwait(false);
+
+            ModbusException? exception = Assert.ThrowsAsync<ModbusException>(
+                async () => await client
+                    .WriteMultipleCoilsAsync(1, 0, [true, false], CancellationToken.None)
+                    .ConfigureAwait(false));
+            Assert.That(exception!.Message, Does.Contain(expectedError));
+        }
+
+        private static IEnumerable<TestCaseData> InvalidSingleCoilAcknowledgements()
+        {
+            yield return new TestCaseData(
+                new byte[] { 0x05, 0x00, 0x00, 0xFF },
+                "exactly 5 bytes")
+                .SetName("WriteSingleCoilRejectsTruncatedAcknowledgement");
+            yield return new TestCaseData(
+                new byte[] { 0x05, 0x00, 0x00, 0xFF, 0x00, 0x00 },
+                "exactly 5 bytes")
+                .SetName("WriteSingleCoilRejectsOversizedAcknowledgement");
+            yield return new TestCaseData(
+                new byte[] { 0x05, 0x00, 0x01, 0xFF, 0x00 },
+                "requested address")
+                .SetName("WriteSingleCoilRejectsMismatchedAddress");
+            yield return new TestCaseData(
+                new byte[] { 0x05, 0x00, 0x00, 0x00, 0x00 },
+                "requested value")
+                .SetName("WriteSingleCoilRejectsMismatchedValue");
+        }
+
+        private static IEnumerable<TestCaseData> InvalidMultipleCoilAcknowledgements()
+        {
+            yield return new TestCaseData(
+                new byte[] { 0x0F, 0x00, 0x00, 0x00 },
+                "exactly 5 bytes")
+                .SetName("WriteMultipleCoilsRejectsTruncatedAcknowledgement");
+            yield return new TestCaseData(
+                new byte[] { 0x0F, 0x00, 0x00, 0x00, 0x02, 0x00 },
+                "exactly 5 bytes")
+                .SetName("WriteMultipleCoilsRejectsOversizedAcknowledgement");
+            yield return new TestCaseData(
+                new byte[] { 0x0F, 0x00, 0x01, 0x00, 0x02 },
+                "requested address")
+                .SetName("WriteMultipleCoilsRejectsMismatchedAddress");
+            yield return new TestCaseData(
+                new byte[] { 0x0F, 0x00, 0x00, 0x00, 0x03 },
+                "requested value or quantity")
+                .SetName("WriteMultipleCoilsRejectsMismatchedQuantity");
         }
 
         /// <summary>

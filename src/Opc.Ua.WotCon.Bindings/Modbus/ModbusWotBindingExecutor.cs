@@ -77,7 +77,7 @@ namespace Opc.Ua.WotCon.Bindings.Modbus
             // Re-validate the addressing (and perform the ushort / byte casts) before
             // opening the socket so a hand-built or tampered compiled form fails fast
             // and never leaks a half-open connection.
-            var addressing = ModbusAddressing.FromForm(form);
+            var addressing = ModbusAddressing.FromForm(form, context.Bounds);
             string host = string.IsNullOrEmpty(form.Endpoint.Host) ? "127.0.0.1" : form.Endpoint.Host!;
             int port = form.Endpoint.Port > 0 ? form.Endpoint.Port : 502;
             var client = new ModbusTcpClient(host, port, context.Bounds.DefaultTimeout);

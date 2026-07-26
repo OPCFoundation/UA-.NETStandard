@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -54,7 +53,7 @@ namespace Opc.Ua.WotCon.Bindings.Modbus
             Form = form;
             m_options = options;
 
-            m_entity = addressing.Entity;
+            m_operation = addressing.Operation;
             m_address = addressing.Address;
             m_quantity = addressing.Quantity;
             m_unitId = addressing.UnitId;
@@ -70,31 +69,39 @@ namespace Opc.Ua.WotCon.Bindings.Modbus
             try
             {
                 Variant value;
-                if (IsCoil())
+                if (m_operation == ModbusOperation.ReadCoils)
                 {
                     bool[] bits = await m_client
-                        .ReadCoilsAsync(m_unitId, m_address, 1, cancellationToken).ConfigureAwait(false);
-                    value = new Variant(bits.Length > 0 && bits[0]);
+                        .ReadCoilsAsync(m_unitId, m_address, m_quantity, cancellationToken).ConfigureAwait(false);
+                    value = ToBitVariant(bits);
                 }
-                else if (IsDiscreteInput())
+                else if (m_operation == ModbusOperation.ReadDiscreteInputs)
                 {
                     bool[] bits = await m_client
-                        .ReadDiscreteInputsAsync(m_unitId, m_address, 1, cancellationToken).ConfigureAwait(false);
-                    value = new Variant(bits.Length > 0 && bits[0]);
+                        .ReadDiscreteInputsAsync(m_unitId, m_address, m_quantity, cancellationToken)
+                        .ConfigureAwait(false);
+                    value = ToBitVariant(bits);
                 }
-                else if (IsInputRegister())
+                else if (m_operation == ModbusOperation.ReadInputRegisters)
                 {
                     ushort[] regs = await m_client
                         .ReadInputRegistersAsync(m_unitId, m_address, m_quantity, cancellationToken)
                         .ConfigureAwait(false);
                     value = ModbusDataConverter.ToVariant(regs, m_type, m_msbFirst, m_mswFirst);
                 }
-                else
+                else if (m_operation == ModbusOperation.ReadHoldingRegisters)
                 {
                     ushort[] regs = await m_client
                         .ReadHoldingRegistersAsync(m_unitId, m_address, m_quantity, cancellationToken)
                         .ConfigureAwait(false);
                     value = ModbusDataConverter.ToVariant(regs, m_type, m_msbFirst, m_mswFirst);
+                }
+                else
+                {
+                    return new WotReadResult(
+                        StatusCodes.BadNotSupported,
+                        DataValue.FromStatusCode(StatusCodes.BadNotSupported),
+                        $"The Modbus operation '{m_operation}' is not readable.");
                 }
                 return new WotReadResult(
                     StatusCodes.Good, new DataValue(value, StatusCodes.Good, DateTimeUtc.Now, DateTimeUtc.Now));
@@ -122,31 +129,89 @@ namespace Opc.Ua.WotCon.Bindings.Modbus
         public async ValueTask<WotWriteResult> WriteAsync(
             DataValue value, CancellationToken cancellationToken = default)
         {
-            if (IsDiscreteInput() || IsInputRegister())
+            if (m_operation is
+                ModbusOperation.ReadCoils or
+                ModbusOperation.ReadDiscreteInputs or
+                ModbusOperation.ReadHoldingRegisters or
+                ModbusOperation.ReadInputRegisters)
             {
-                return new WotWriteResult(StatusCodes.BadNotWritable, "The Modbus entity is read-only.");
+                return new WotWriteResult(StatusCodes.BadNotWritable, "The Modbus operation is read-only.");
             }
             try
             {
-                if (IsCoil())
+                if (m_operation == ModbusOperation.WriteSingleCoil)
                 {
-                    bool on = Convert.ToBoolean(
-                        value.WrappedValue.AsBoxedObject() ?? false, CultureInfo.InvariantCulture);
+                    if (!value.WrappedValue.TryGetValue(out bool on))
+                    {
+                        return new WotWriteResult(
+                            StatusCodes.BadTypeMismatch,
+                            "The Modbus single-coil write requires a Boolean scalar.");
+                    }
                     await m_client.WriteSingleCoilAsync(m_unitId, m_address, on, cancellationToken)
                         .ConfigureAwait(false);
                 }
-                else
+                else if (m_operation == ModbusOperation.WriteMultipleCoils)
+                {
+                    bool[] coilValues;
+                    if (m_quantity == 1)
+                    {
+                        if (!value.WrappedValue.TryGetValue(out bool on))
+                        {
+                            return new WotWriteResult(
+                                StatusCodes.BadTypeMismatch,
+                                "The Modbus multiple-coil write with quantity 1 requires a Boolean scalar.");
+                        }
+                        coilValues = [on];
+                    }
+                    else if (value.WrappedValue.TryGetValue(out ArrayOf<bool> bits))
+                    {
+                        if (bits.Count != m_quantity)
+                        {
+                            return new WotWriteResult(
+                                StatusCodes.BadInvalidArgument,
+                                $"The Modbus multiple-coil write requires exactly {m_quantity} Boolean values; " +
+                                $"the payload contains {bits.Count}.");
+                        }
+                        coilValues = bits.Memory.ToArray();
+                    }
+                    else
+                    {
+                        return new WotWriteResult(
+                            StatusCodes.BadTypeMismatch,
+                            $"The Modbus multiple-coil write requires an array of {m_quantity} Boolean values.");
+                    }
+                    await m_client
+                        .WriteMultipleCoilsAsync(
+                            m_unitId, m_address, coilValues, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                else if (m_operation is
+                    ModbusOperation.WriteSingleHoldingRegister or
+                    ModbusOperation.WriteMultipleHoldingRegisters)
                 {
                     ushort[] registers = ModbusDataConverter.ToRegisters(
                         value.WrappedValue, m_type, m_msbFirst, m_mswFirst);
-                    if (registers.Length == 1)
+                    if (m_operation == ModbusOperation.WriteSingleHoldingRegister)
                     {
+                        if (registers.Length != 1)
+                        {
+                            return new WotWriteResult(
+                                StatusCodes.BadTypeMismatch,
+                                "The Modbus single-register write requires a value encoded in one register.");
+                        }
                         await m_client
                             .WriteSingleRegisterAsync(m_unitId, m_address, registers[0], cancellationToken)
                             .ConfigureAwait(false);
                     }
                     else
                     {
+                        if (registers.Length != m_quantity)
+                        {
+                            return new WotWriteResult(
+                                StatusCodes.BadInvalidArgument,
+                                $"The Modbus multiple-register write requires exactly {m_quantity} registers; " +
+                                $"the payload encodes {registers.Length}.");
+                        }
                         await m_client
                             .WriteMultipleRegistersAsync(m_unitId, m_address, registers, cancellationToken)
                             .ConfigureAwait(false);
@@ -165,6 +230,11 @@ namespace Opc.Ua.WotCon.Bindings.Modbus
             catch (System.IO.IOException ex)
             {
                 return new WotWriteResult(StatusCodes.BadCommunicationError, ex.Message);
+            }
+            catch (Exception ex) when (
+                ex is FormatException or InvalidCastException or OverflowException)
+            {
+                return new WotWriteResult(StatusCodes.BadTypeMismatch, ex.Message);
             }
         }
 
@@ -215,24 +285,16 @@ namespace Opc.Ua.WotCon.Bindings.Modbus
             return default;
         }
 
-        private bool IsCoil()
+        private Variant ToBitVariant(bool[] bits)
         {
-            return string.Equals(m_entity, "coil", StringComparison.OrdinalIgnoreCase);
-        }
-
-        private bool IsDiscreteInput()
-        {
-            return string.Equals(m_entity, "discreteInput", StringComparison.OrdinalIgnoreCase);
-        }
-
-        private bool IsInputRegister()
-        {
-            return string.Equals(m_entity, "inputRegister", StringComparison.OrdinalIgnoreCase);
+            return m_quantity == 1
+                ? new Variant(bits[0])
+                : new Variant((ArrayOf<bool>)bits);
         }
 
         private readonly ModbusTcpClient m_client;
         private readonly ModbusWotBindingOptions m_options;
-        private readonly string m_entity;
+        private readonly ModbusOperation m_operation;
         private readonly ushort m_address;
         private readonly ushort m_quantity;
         private readonly byte m_unitId;
