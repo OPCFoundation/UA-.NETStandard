@@ -468,7 +468,7 @@ namespace Opc.Ua.Server
             get
             {
                 if (MonitoringMode == MonitoringMode.Reporting &&
-                    m_dataChangeQueueHandler?.HasLifecycleValues == true)
+                    m_dataChangeQueueHandler?.HasRequiredValues == true)
                 {
                     return true;
                 }
@@ -1669,23 +1669,9 @@ namespace Opc.Ua.Server
                         notificationCount < maxNotificationsPerPublish &&
                         m_dataChangeQueueHandler.PublishSingleValue(
                             out DataValue value,
-                            out ServiceResult error,
-                            out bool required))
+                            out ServiceResult error))
                     {
-                        if (required)
-                        {
-                            Publish(
-                                context,
-                                notifications,
-                                diagnostics,
-                                value,
-                                error,
-                                applyChangeBits: false);
-                        }
-                        else
-                        {
-                            Publish(context, notifications, diagnostics, value, error);
-                        }
+                        Publish(context, notifications, diagnostics, value, error);
 
                         notificationCount++;
 
@@ -1722,25 +1708,6 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Publishes a single data change notifications.
-        /// </summary>
-        protected virtual bool Publish(
-            OperationContext context,
-            Queue<MonitoredItemNotification> notifications,
-            Queue<DiagnosticInfo> diagnostics,
-            DataValue value,
-            ServiceResult error)
-        {
-            return Publish(
-                context,
-                notifications,
-                diagnostics,
-                value,
-                error,
-                applyChangeBits: true);
-        }
-
-        /// <summary>
         /// Publishes a single data change notification.
         /// </summary>
         /// <param name="context">The context of the Publish request.</param>
@@ -1748,21 +1715,15 @@ namespace Opc.Ua.Server
         /// <param name="diagnostics">The queue the diagnostic info is added to.</param>
         /// <param name="value">The value to publish.</param>
         /// <param name="error">The error that belongs to the value.</param>
-        /// <param name="applyChangeBits">
-        /// <c>false</c> for a protected missing Node notification, whose StatusCode has to reach
-        /// the Client exactly as it was queued, so the pending semantics and structure changed
-        /// bits are neither applied to it nor consumed by it.
-        /// </param>
-        private bool Publish(
+        protected virtual bool Publish(
             OperationContext context,
             Queue<MonitoredItemNotification> notifications,
             Queue<DiagnosticInfo> diagnostics,
             DataValue value,
-            ServiceResult error,
-            bool applyChangeBits)
+            ServiceResult error)
         {
             // set semantics changed bit.
-            if (applyChangeBits && m_semanticsChanged)
+            if (m_semanticsChanged)
             {
                 value = value.WithStatus(value.StatusCode.SetSemanticsChanged(true));
 
@@ -1780,7 +1741,7 @@ namespace Opc.Ua.Server
             }
 
             // set structure changed bit.
-            if (applyChangeBits && m_structureChanged)
+            if (m_structureChanged)
             {
                 value = value.WithStatus(value.StatusCode.SetStructureChanged(true));
 

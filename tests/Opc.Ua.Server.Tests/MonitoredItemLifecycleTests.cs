@@ -79,8 +79,9 @@ namespace Opc.Ua.Server.Tests
 
             item.QueueValue(beforeDeletion, ServiceResult.Good);
             lifecycle.MarkNodeDeleted();
-            item.QueueValue(recovered, ServiceResult.Good);
 
+            // The marker is queued in addition to the configured queue size, so the value that
+            // was sampled before the deletion is still delivered, followed by the marker.
             Queue<MonitoredItemNotification> first = Publish(item, telemetry, 1, out bool more);
             Queue<MonitoredItemNotification> second = Publish(item, telemetry, 1, out bool moreAfter);
             item.QueueValue(recovered, ServiceResult.Good);
@@ -105,31 +106,32 @@ namespace Opc.Ua.Server.Tests
         public void LifecycleValuesObeyQueueDiscardPolicyWithoutDiscardingBad(bool discardOldest)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            using MonitoredItem item = CreateMonitoredItem(
+            using var queueFactory = new MonitoredItemQueueFactory(telemetry);
+            using DataChangeQueueHandler handler = CreateQueueHandler(
                 telemetry,
-                queueSize: 3,
+                queueFactory,
+                queueSize: 2,
                 discardOldest: discardOldest);
-            var lifecycle = (IDetachableMonitoredItem)item;
 
-            lifecycle.MarkNodeDeleted();
-            item.QueueValue(new DataValue(new Variant(1), StatusCodes.Good), ServiceResult.Good);
-            item.QueueValue(new DataValue(new Variant(2), StatusCodes.Good), ServiceResult.Good);
-            item.QueueValue(new DataValue(new Variant(3), StatusCodes.Good), ServiceResult.Good);
+            handler.QueueRequiredValue(
+                new DataValue(Variant.Null, StatusCodes.BadNodeIdUnknown),
+                new ServiceResult(StatusCodes.BadNodeIdUnknown));
+            handler.QueueValue(new DataValue(new Variant(1), StatusCodes.Good), ServiceResult.Good);
+            handler.QueueValue(new DataValue(new Variant(2), StatusCodes.Good), ServiceResult.Good);
+            handler.QueueValue(new DataValue(new Variant(3), StatusCodes.Good), ServiceResult.Good);
 
-            Queue<MonitoredItemNotification> first = Publish(item, telemetry, 1, out bool more);
-            Queue<MonitoredItemNotification> second = Publish(item, telemetry, 10, out bool moreAfter);
+            List<DataValue> published = DrainHandler(handler);
 
             Assert.Multiple(() =>
             {
-                Assert.That(first, Has.Count.EqualTo(1));
-                Assert.That(first.Peek().Value.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
-                Assert.That(more, Is.True);
-                Assert.That(second, Has.Count.EqualTo(2));
+                // The marker is queued in addition to the configured size and is never discarded,
+                // so the discard policy applies to the ordinary values alone.
+                Assert.That(published, Has.Count.EqualTo(3));
+                Assert.That(published[0].StatusCode.Code, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
                 Assert.That(
-                    second.Dequeue().Value.WrappedValue,
+                    published[1].WrappedValue,
                     Is.EqualTo(new Variant(discardOldest ? 2 : 1)));
-                Assert.That(second.Dequeue().Value.WrappedValue, Is.EqualTo(new Variant(3)));
-                Assert.That(moreAfter, Is.False);
+                Assert.That(published[2].WrappedValue, Is.EqualTo(new Variant(3)));
             });
         }
 
@@ -364,10 +366,7 @@ namespace Opc.Ua.Server.Tests
                 new ServiceResult(StatusCodes.BadNodeIdUnknown));
 
             var values = new List<DataValue>();
-            while (handler.PublishSingleValue(
-                out DataValue value,
-                out _,
-                out _))
+            while (handler.PublishSingleValue(out DataValue value, out _))
             {
                 values.Add(value);
             }
@@ -479,8 +478,11 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void ExhaustedOrdinaryBudgetWithOnlyMarkersKeepsMarkersAndDropsTheValue()
+        public void QueueSizeOneKeepsTheMarkerAndTheNewestOrdinaryValue()
         {
+            // Part 4 5.13.1.5 makes a queue of size one a buffer that holds the newest
+            // Notification, so the value sampled before the deletion gives way to the newer one.
+            // The marker is exempt from that, because the Client has to learn the Node is gone.
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using var queueFactory = new MonitoredItemQueueFactory(telemetry);
             using DataChangeQueueHandler handler = CreateQueueHandler(
@@ -489,20 +491,23 @@ namespace Opc.Ua.Server.Tests
                 queueSize: 1,
                 discardOldest: true);
 
+            handler.QueueValue(
+                new DataValue(new Variant(7), StatusCodes.Good),
+                ServiceResult.Good);
             handler.QueueRequiredValue(
                 new DataValue(Variant.Null, StatusCodes.BadNodeIdUnknown),
                 new ServiceResult(StatusCodes.BadNodeIdUnknown));
-            bool overflow = handler.QueueValue(
-                new DataValue(new Variant(7), StatusCodes.Good),
+            handler.QueueValue(
+                new DataValue(new Variant(42), StatusCodes.Good),
                 ServiceResult.Good);
 
             List<DataValue> published = DrainHandler(handler);
 
             Assert.Multiple(() =>
             {
-                Assert.That(overflow, Is.True);
-                Assert.That(published, Has.Count.EqualTo(1));
+                Assert.That(published, Has.Count.EqualTo(2));
                 Assert.That(published[0].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                Assert.That(published[1].WrappedValue, Is.EqualTo(new Variant(42)));
             });
         }
 

@@ -354,7 +354,7 @@ namespace Opc.Ua.Server
             try
             {
                 Task completion = requestDrain.Completion;
-                Task expiry = Task.Delay(budget, m_timeProvider, ct);
+                Task expiry = m_timeProvider.Delay(budget, ct);
                 if (await Task.WhenAny(completion, expiry).ConfigureAwait(false) != completion)
                 {
                     ct.ThrowIfCancellationRequested();
