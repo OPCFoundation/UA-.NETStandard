@@ -2001,10 +2001,29 @@ namespace Opc.Ua.Schema.Model
             return decoder;
         }
 
+        /// <summary>
+        /// Builds the factory used to decode Variable values and Method arguments out of a NodeSet2.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <see cref="ServiceMessageContext.CreateEmpty(ITelemetryContext)"/> hands back a factory with
+        /// <b>no</b> registered types, which silently loses every ExtensionObject in the NodeSet — most
+        /// visibly a Method's <c>InputArguments</c> / <c>OutputArguments</c>, which are encoded as a
+        /// list of <see cref="Argument"/>. That produced argument-less MethodStates and ObjectType
+        /// proxies for every NodeSet2-sourced model.
+        /// </para>
+        /// <para>
+        /// Rather than hand-picking the types we happen to know about, every encodeable type exported
+        /// from the assembly that defines the OPC UA built-ins is registered, so a NodeSet carrying any
+        /// other standard structure decodes as well. The full set of known types lives in
+        /// <c>Opc.Ua.Core.Types</c>, which the generator deliberately does not reference; a model that
+        /// needs a type from there declares it in its own NodeSet and the generator emits it.
+        /// </para>
+        /// </remarks>
         private static IEncodeableFactory CreateValueDecodingFactory()
         {
             IEncodeableFactory factory = ServiceMessageContext.CreateEmpty(null).Factory;
-            factory.AddEncodeableType(typeof(Argument));
+            factory.AddEncodeableTypes(typeof(Argument).Assembly);
             return factory;
         }
 

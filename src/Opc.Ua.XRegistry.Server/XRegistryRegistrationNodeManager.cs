@@ -404,6 +404,13 @@ namespace Opc.Ua.XRegistry.Server
                     : versionId;
                 var key = new ResourceKey(group.NodeId, resourceId, assigned);
 
+                // The upload bound applies to every path that hands out a write handle, not just to
+                // the one that creates a resource.
+                if (requestFileOpen && m_fileHandles.Count >= m_maxConcurrentUploads)
+                {
+                    return Failed(StatusCodes.BadTooManyOperations);
+                }
+
                 if (m_resources.TryGetValue(key, out ResourceState? existing))
                 {
                     if (!getOrCreate)
@@ -417,10 +424,6 @@ namespace Opc.Ua.XRegistry.Server
                 }
 
                 if (Volatile.Read(ref m_registeredResourceCount) >= m_maxRegisteredResources)
-                {
-                    return Failed(StatusCodes.BadTooManyOperations);
-                }
-                if (requestFileOpen && m_fileHandles.Count >= m_maxConcurrentUploads)
                 {
                     return Failed(StatusCodes.BadTooManyOperations);
                 }
@@ -558,14 +561,11 @@ namespace Opc.Ua.XRegistry.Server
         /// </summary>
         private void RemoveResourceLocked(ResourceState resource)
         {
-            ushort ns = (ushort)Server.NamespaceUris.GetIndex(m_namespaceUri);
             if (resource.Xid?.Value is string xid && xid.Length > 0)
             {
-                var contentId = ByteString.FromHexString(xid);
-                if (!contentId.IsNull)
-                {
-                    DeleteNode(SystemContext, new NodeId(contentId, ns));
-                }
+                // The fast-path node is shared by every resource with the same bytes, so only drop
+                // it once the last of them is gone.
+                ReleaseFastPathNode(xid);
             }
 
             foreach (KeyValuePair<ResourceKey, ResourceState> entry in new List<KeyValuePair<ResourceKey, ResourceState>>(m_resources))
@@ -691,6 +691,7 @@ namespace Opc.Ua.XRegistry.Server
         private async ValueTask<ReadMethodStateResult> OnFileReadAsync(uint fileHandle, int length)
         {
             ResourceFileHandle? entry;
+            int position;
             lock (m_gate)
             {
                 if (!m_fileHandles.TryGetValue(fileHandle, out entry) || entry.Writing)
@@ -705,16 +706,32 @@ namespace Opc.Ua.XRegistry.Server
                         Data = ByteString.From([])
                     };
                 }
+
+                // Take the cursor and reserve the range under the lock. Reading Position outside it
+                // would let two concurrent Reads on one handle both start at the same offset, so
+                // both would return the same bytes and the cursor would then skip a slice.
+                position = entry.Position;
+                entry.Position = position + length;
             }
 
             // Read the slice the caller asked for straight out of the store rather than
             // materializing the whole document, which is what the FileType access model implies.
+            // StoreKey and Writing are immutable for the life of the handle, so they are safe here.
             ByteString chunk = await m_resourceStore
-                .ReadAsync(entry.StoreKey, entry.Position, length)
+                .ReadAsync(entry.StoreKey, position, length)
                 .ConfigureAwait(false);
 
             lock (m_gate)
             {
+                int read = chunk.IsNull ? 0 : chunk.Length;
+
+                // The reservation was optimistic: a short read at the end of the document has to
+                // pull the cursor back to the real end, unless another Read has moved past it since.
+                if (entry.Position == position + length)
+                {
+                    entry.Position = position + read;
+                }
+
                 if (chunk.IsNull)
                 {
                     return new ReadMethodStateResult
@@ -724,7 +741,6 @@ namespace Opc.Ua.XRegistry.Server
                     };
                 }
 
-                entry.Position += chunk.Length;
                 return new ReadMethodStateResult
                 {
                     ServiceResult = ServiceResult.Good,
@@ -766,18 +782,33 @@ namespace Opc.Ua.XRegistry.Server
             string format = resource.Format?.Value ?? kDefaultFormat;
             ByteString contentId = m_contentIdProvider.ComputeContentId(format, document);
 
+            // Replace the stored document wholesale. A plain write at offset 0 leaves any trailing
+            // bytes of a larger previous version in place, which would corrupt the resource.
+            _ = await m_resourceStore.DeleteAsync(entry.StoreKey).ConfigureAwait(false);
             await m_resourceStore.WriteAsync(entry.StoreKey, 0, document).ConfigureAwait(false);
 
             lock (m_gate)
             {
-                SetValue(resource.Xid, contentId.ToHexString());
+                string xid = contentId.ToHexString();
+                string previousXid = resource.Xid?.Value ?? string.Empty;
+                if (!string.Equals(previousXid, xid, StringComparison.Ordinal))
+                {
+                    // The document changed, so this resource no longer resolves to its previous
+                    // content id; drop that reference before taking one on the new id.
+                    if (previousXid.Length > 0)
+                    {
+                        ReleaseFastPathNode(previousXid);
+                    }
+                    PublishFastPathNode(contentId, xid, document);
+                }
+
+                SetValue(resource.Xid, xid);
                 SetValue(resource.Format, format);
                 SetValue(resource.ModifiedAt, DateTimeUtc.Now);
                 if (resource.Epoch != null)
                 {
                     resource.Epoch.Value++;
                 }
-                PublishFastPathNode(contentId, document);
             }
 
             return new CloseMethodStateResult { ServiceResult = ServiceResult.Good };
@@ -785,14 +816,25 @@ namespace Opc.Ua.XRegistry.Server
 
         /// <summary>
         /// Publishes the Opaque content-id node so a decoder that received the id on the wire
-        /// reaches the document in a single Read. The caller holds <see cref="m_gate"/>.
+        /// reaches the document in a single Read, and takes a reference on it. The node is
+        /// content-addressed and therefore <b>shared</b> by every resource whose document has the
+        /// same bytes, so its lifetime is refcounted rather than tied to any one resource. The
+        /// caller holds <see cref="m_gate"/>.
         /// </summary>
-        private void PublishFastPathNode(ByteString contentId, byte[] document)
+        /// <param name="contentId">The content-derived id.</param>
+        /// <param name="xid">The hex form of <paramref name="contentId"/>, used as the ref key.</param>
+        /// <param name="document">The document bytes published as the node's value.</param>
+        private void PublishFastPathNode(ByteString contentId, string xid, byte[] document)
         {
+            m_fastPathReferences.TryGetValue(xid, out int references);
+            m_fastPathReferences[xid] = references + 1;
+
             ushort ns = (ushort)Server.NamespaceUris.GetIndex(m_namespaceUri);
             var fastPathNodeId = new NodeId(contentId, ns);
             if (Find(fastPathNodeId) != null)
             {
+                // Another resource already published the identical document; this call only added
+                // a reference. De-duplication is the point of a content-derived identity.
                 return;
             }
 
@@ -812,6 +854,33 @@ namespace Opc.Ua.XRegistry.Server
             };
 
             AddPredefinedNode(SystemContext, node);
+        }
+
+        /// <summary>
+        /// Drops one reference on a content-addressed fast-path node, unpublishing it only once the
+        /// last resource that resolves to those bytes has let it go. The caller holds
+        /// <see cref="m_gate"/>.
+        /// </summary>
+        /// <param name="xid">The hex content id whose reference is released.</param>
+        private void ReleaseFastPathNode(string xid)
+        {
+            if (!m_fastPathReferences.TryGetValue(xid, out int references))
+            {
+                return;
+            }
+            if (references > 1)
+            {
+                m_fastPathReferences[xid] = references - 1;
+                return;
+            }
+
+            m_fastPathReferences.Remove(xid);
+            var contentId = ByteString.FromHexString(xid);
+            if (!contentId.IsNull)
+            {
+                ushort ns = (ushort)Server.NamespaceUris.GetIndex(m_namespaceUri);
+                DeleteNode(SystemContext, new NodeId(contentId, ns));
+            }
         }
 
         private uint OpenWriteHandle(ResourceState resource)
@@ -1052,6 +1121,7 @@ namespace Opc.Ua.XRegistry.Server
         private readonly Dictionary<ResourceKey, ResourceState> m_resources = [];
         private readonly Dictionary<uint, ResourceFileHandle> m_fileHandles = [];
         private readonly Dictionary<string, uint> m_versionCounters = [];
+        private readonly Dictionary<string, int> m_fastPathReferences = [];
         private readonly string m_namespaceUri;
         private readonly string m_registryBrowseName;
         private readonly string m_registryId;

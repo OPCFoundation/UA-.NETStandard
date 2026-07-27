@@ -341,11 +341,18 @@ namespace Opc.Ua.XRegistry.Client
                 await group.GetOrCreateResourceAsync(resourceId, versionId ?? string.Empty, true, ct)
                     .ConfigureAwait(false);
 
+            ResourceTypeClient resource = GetResource(resourceNodeId);
             if (created)
             {
-                ResourceTypeClient resource = GetResource(resourceNodeId);
                 await resource.WriteDocumentAsync(fileHandle, document, chunkSize, ct)
                     .ConfigureAwait(false);
+            }
+            else
+            {
+                // The server opened a write handle for us either way. Nothing is written to an
+                // existing version, but the handle still has to be released or it leaks and
+                // eventually exhausts the server's upload budget.
+                await resource.CloseAsync(fileHandle, CancellationToken.None).ConfigureAwait(false);
             }
 
             return new ResourceRegistrationResult(resourceNodeId, assignedVersionId, created);

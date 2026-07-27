@@ -513,6 +513,100 @@ namespace Opc.Ua.XRegistry.Tests
             return ((ResourceState)nm.Find(created.ResourceNodeId)!, created);
         }
 
+        [Test]
+        public async Task RewritingWithAShorterDocumentTruncatesTheStoredBytesAsync()
+        {
+            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(out IXRegistryResourceStore store);
+            NodeId group = await CreateGroupAsync(nm).ConfigureAwait(false);
+            CreateResourceMethodStateResult created = await nm.OnCreateResourceAsync(
+                nm.SystemContext, null!, group, "urn:doc", "1", true, CancellationToken.None)
+                .ConfigureAwait(false);
+            var resource = (ResourceState)nm.Find(created.ResourceNodeId)!;
+
+            byte[] longDocument = [1, 2, 3, 4, 5, 6, 7, 8];
+            await WriteAsync(nm, resource, created, longDocument).ConfigureAwait(false);
+            await resource.Close!.OnCallAsync!(
+                nm.SystemContext, resource.Close, resource.NodeId, created.FileHandle,
+                CancellationToken.None).ConfigureAwait(false);
+
+            byte[] shortDocument = [9, 9];
+            OpenMethodStateResult reopened = await resource.Open!.OnCallAsync!(
+                nm.SystemContext, resource.Open, resource.NodeId, kWriteMode, CancellationToken.None)
+                .ConfigureAwait(false);
+            await resource.Write!.OnCallAsync!(
+                nm.SystemContext, resource.Write, resource.NodeId, reopened.FileHandle,
+                ByteString.From(shortDocument), CancellationToken.None).ConfigureAwait(false);
+            await resource.Close.OnCallAsync!(
+                nm.SystemContext, resource.Close, resource.NodeId, reopened.FileHandle,
+                CancellationToken.None).ConfigureAwait(false);
+
+            string storeKey = created.ResourceNodeId.ToString()!;
+            ByteString stored = await store.ReadAsync(storeKey, 0, int.MaxValue).ConfigureAwait(false);
+
+            Assert.Multiple(async () =>
+            {
+                Assert.That(stored.Span.ToArray(), Is.EqualTo(shortDocument),
+                    "A shorter replacement must not leave the tail of the previous version behind.");
+                Assert.That(await store.GetLengthAsync(storeKey).ConfigureAwait(false),
+                    Is.EqualTo(shortDocument.Length));
+            });
+        }
+
+        [Test]
+        public async Task GetOrCreateResourceHonoursTheConcurrentUploadLimitOnAnExistingResourceAsync()
+        {
+            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(
+                out _, o => o.MaxConcurrentUploads = 1);
+            NodeId group = await CreateGroupAsync(nm).ConfigureAwait(false);
+
+            // Creates the resource and takes the only upload slot.
+            GetOrCreateResourceMethodStateResult first = await nm.OnGetOrCreateResourceAsync(
+                nm.SystemContext, null!, group, "urn:doc", "1", true, CancellationToken.None)
+                .ConfigureAwait(false);
+            // Re-registers the *existing* resource, which also hands out a write handle.
+            GetOrCreateResourceMethodStateResult second = await nm.OnGetOrCreateResourceAsync(
+                nm.SystemContext, null!, group, "urn:doc", "1", true, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(first.ServiceResult), Is.True);
+                Assert.That(first.Created, Is.True);
+                Assert.That(second.ServiceResult.StatusCode.Code,
+                    Is.EqualTo(StatusCodes.BadTooManyOperations),
+                    "The existing-resource path hands out a write handle too, so the upload bound " +
+                    "has to apply there as well.");
+            });
+        }
+
+        [Test]
+        public async Task ClosingTheHandleFromAnExistingResourceFreesTheUploadSlotAsync()
+        {
+            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(
+                out _, o => o.MaxConcurrentUploads = 1);
+            NodeId group = await CreateGroupAsync(nm).ConfigureAwait(false);
+
+            GetOrCreateResourceMethodStateResult first = await nm.OnGetOrCreateResourceAsync(
+                nm.SystemContext, null!, group, "urn:doc", "1", true, CancellationToken.None)
+                .ConfigureAwait(false);
+            var resource = (ResourceState)nm.Find(first.ResourceNodeId)!;
+            await resource.Close!.OnCallAsync!(
+                nm.SystemContext, resource.Close, resource.NodeId, first.FileHandle,
+                CancellationToken.None).ConfigureAwait(false);
+
+            GetOrCreateResourceMethodStateResult second = await nm.OnGetOrCreateResourceAsync(
+                nm.SystemContext, null!, group, "urn:doc", "1", true, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(second.ServiceResult), Is.True,
+                    "Releasing the handle returns the slot, so an idempotent re-registration " +
+                    "does not exhaust the budget over time.");
+                Assert.That(second.Created, Is.False);
+            });
+        }
+
         private static ValueTask<WriteMethodStateResult> WriteAsync(
             XRegistryRegistrationNodeManager nm,
             ResourceState resource,
