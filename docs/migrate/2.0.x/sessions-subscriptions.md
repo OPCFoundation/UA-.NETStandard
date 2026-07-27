@@ -364,8 +364,7 @@ instead; throwing from it rejects the request and completes it.
 `IsClosing` reports that the Session is being torn down, so work that would create new state for it
 is rejected instead of started. It is one way: a Session that started closing never serves new work
 again, even if the close itself fails. `InvalidateContinuationPoints` drops the saved Browse and
-history continuation points that would otherwise keep a retired NodeManager reachable; it replaces
-the separate `INodeManagerContinuationPointTracker` interface, which has been removed.
+history continuation points that would otherwise keep a retired NodeManager reachable.
 
 Custom implementations must add both. Returning `false` from `IsClosing` and doing nothing in
 `InvalidateContinuationPoints` preserves the previous behaviour; the built-in `Session` already

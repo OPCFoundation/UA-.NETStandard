@@ -343,14 +343,8 @@ namespace Opc.Ua.Server
 
             RestoreQueue();
 
-            // A restored item that was deleted already carries BadNodeIdUnknown as its last
-            // value, or in its restored queue, so there is nothing to re-queue here.
-            if ((MonitoredItemType & MonitoredItemTypeMask.DataChange) != 0 &&
-                IsBadNodeIdUnknown(m_lastValue, m_lastError))
-            {
-                m_isDeleted = true;
-                m_isDetached = true;
-            }
+            m_isDeleted = storedMonitoredItem.IsDeleted;
+            m_isDetached = storedMonitoredItem.IsDetached;
         }
 
         /// <summary>
@@ -1814,6 +1808,8 @@ namespace Opc.Ua.Server
                     DiagnosticsMasks = DiagnosticsMasks,
                     DiscardOldest = m_discardOldest,
                     IsDurable = IsDurable,
+                    IsDeleted = m_isDeleted,
+                    IsDetached = m_isDetached,
                     Encoding = DataEncoding,
                     FilterToUse = m_filterToUse!,
                     Id = Id,

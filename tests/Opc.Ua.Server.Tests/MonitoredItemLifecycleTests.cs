@@ -238,6 +238,65 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public void StoringAndRestoringADeletedItemCarriesTheDeletedAndDetachedFlags()
+        {
+            // The flags are persisted explicitly rather than inferred from the last value, so a
+            // restored item cannot silently disagree with the item it was stored from.
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using MonitoredItem source = CreateMonitoredItem(telemetry, queueSize: 2);
+            var sourceLifecycle = (IDetachableMonitoredItem)source;
+            sourceLifecycle.MarkNodeDeleted();
+            sourceLifecycle.BeginDetach();
+
+            IStoredMonitoredItem stored = source.ToStorableMonitoredItem();
+
+            using var queueFactory = new MonitoredItemQueueFactory(telemetry);
+            Mock<IServerInternal> server = CreateServerMock(telemetry, queueFactory);
+            using var restored = new MonitoredItem(
+                server.Object,
+                new Mock<IAsyncNodeManager>().Object,
+                new object(),
+                stored);
+            var restoredLifecycle = (IDetachableMonitoredItem)restored;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(stored.IsDeleted, Is.True);
+                Assert.That(stored.IsDetached, Is.True);
+                Assert.That(restoredLifecycle.IsDeleted, Is.True);
+                Assert.That(restoredLifecycle.IsDetached, Is.True);
+            });
+        }
+
+        [Test]
+        public void StoringAndRestoringALiveItemLeavesTheFlagsClear()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using MonitoredItem source = CreateMonitoredItem(telemetry, queueSize: 2);
+            source.QueueValue(
+                new DataValue(new Variant(1), StatusCodes.Good),
+                ServiceResult.Good);
+
+            IStoredMonitoredItem stored = source.ToStorableMonitoredItem();
+
+            using var queueFactory = new MonitoredItemQueueFactory(telemetry);
+            Mock<IServerInternal> server = CreateServerMock(telemetry, queueFactory);
+            using var restored = new MonitoredItem(
+                server.Object,
+                new Mock<IAsyncNodeManager>().Object,
+                new object(),
+                stored);
+            var restoredLifecycle = (IDetachableMonitoredItem)restored;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(stored.IsDeleted, Is.False);
+                Assert.That(stored.IsDetached, Is.False);
+                Assert.That(restoredLifecycle.IsDeleted, Is.False);
+                Assert.That(restoredLifecycle.IsDetached, Is.False);
+            });
+        }
+        [Test]
         public void MultiplePendingDeletionEpochsCollapseIntoOneMarker()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
