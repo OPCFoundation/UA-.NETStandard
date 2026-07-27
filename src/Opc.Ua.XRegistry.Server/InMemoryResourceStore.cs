@@ -74,7 +74,7 @@ namespace Opc.Ua.XRegistry.Server
         public ValueTask WriteAsync(
             string resourceKey,
             long offset,
-            ReadOnlyMemory<byte> data,
+            ByteString data,
             CancellationToken ct = default)
         {
             ValidateKey(resourceKey);

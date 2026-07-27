@@ -44,6 +44,10 @@ namespace Opc.Ua.XRegistry.Server
     /// machinery is exercised elsewhere in the stack; this manager focuses on the registry-specific
     /// auto-bootstrap on close and the dynamic runtime creation of the content-addressed fast-path node.
     /// </summary>
+    /// <remarks>
+    /// Deliberately left unsealed: subclassing is the server-side extension seam a domain registry
+    /// uses to serve its own companion model on top of the base one.
+    /// </remarks>
     public class XRegistryRegistrationNodeManager : CustomNodeManager2
     {
         /// <summary>
@@ -974,7 +978,8 @@ namespace Opc.Ua.XRegistry.Server
             // Replace the stored document wholesale. A plain write at offset 0 leaves any trailing
             // bytes of a larger previous version in place, which would corrupt the resource.
             _ = await m_resourceStore.DeleteAsync(entry.StoreKey).ConfigureAwait(false);
-            await m_resourceStore.WriteAsync(entry.StoreKey, 0, document).ConfigureAwait(false);
+            await m_resourceStore.WriteAsync(entry.StoreKey, 0, ByteString.From(document))
+                .ConfigureAwait(false);
 
             lock (m_gate)
             {

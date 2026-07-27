@@ -110,7 +110,7 @@ namespace Opc.Ua.XRegistry.Server
         ValueTask WriteAsync(
             string resourceKey,
             long offset,
-            ReadOnlyMemory<byte> data,
+            ByteString data,
             CancellationToken ct = default);
 
         /// <summary>

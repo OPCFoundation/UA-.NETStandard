@@ -71,7 +71,7 @@ namespace Opc.Ua.XRegistry.Tests
         {
             IXRegistryResourceStore store = CreateStore();
 
-            await store.WriteAsync("a", 0, s_document).ConfigureAwait(false);
+            await store.WriteAsync("a", 0, ByteString.From(s_document)).ConfigureAwait(false);
             ByteString document = await store.ReadAsync("a", 0, s_document.Length).ConfigureAwait(false);
 
             Assert.Multiple(async () =>
@@ -86,7 +86,7 @@ namespace Opc.Ua.XRegistry.Tests
         public async Task ReadReturnsTheRequestedSliceAsync()
         {
             IXRegistryResourceStore store = CreateStore();
-            await store.WriteAsync("a", 0, s_document).ConfigureAwait(false);
+            await store.WriteAsync("a", 0, ByteString.From(s_document)).ConfigureAwait(false);
 
             ByteString slice = await store.ReadAsync("a", 1, 2).ConfigureAwait(false);
 
@@ -97,7 +97,7 @@ namespace Opc.Ua.XRegistry.Tests
         public async Task ReadIsClampedToTheEndOfTheDocumentAsync()
         {
             IXRegistryResourceStore store = CreateStore();
-            await store.WriteAsync("a", 0, s_document).ConfigureAwait(false);
+            await store.WriteAsync("a", 0, ByteString.From(s_document)).ConfigureAwait(false);
 
             ByteString tail = await store.ReadAsync("a", 2, 100).ConfigureAwait(false);
             ByteString past = await store.ReadAsync("a", 100, 4).ConfigureAwait(false);
@@ -116,9 +116,9 @@ namespace Opc.Ua.XRegistry.Tests
         public async Task WriteAtAnOffsetOverwritesInPlaceAsync()
         {
             IXRegistryResourceStore store = CreateStore();
-            await store.WriteAsync("a", 0, s_document).ConfigureAwait(false);
+            await store.WriteAsync("a", 0, ByteString.From(s_document)).ConfigureAwait(false);
 
-            await store.WriteAsync("a", 1, new byte[] { 0xAA, 0xBB }).ConfigureAwait(false);
+            await store.WriteAsync("a", 1, ByteString.From(new byte[] { 0xAA, 0xBB })).ConfigureAwait(false);
             ByteString document = await store.ReadAsync("a", 0, 16).ConfigureAwait(false);
 
             Assert.Multiple(async () =>
@@ -134,9 +134,9 @@ namespace Opc.Ua.XRegistry.Tests
         public async Task WritePastTheEndGrowsTheDocumentAsync()
         {
             IXRegistryResourceStore store = CreateStore();
-            await store.WriteAsync("a", 0, new byte[] { 0x01, 0x02 }).ConfigureAwait(false);
+            await store.WriteAsync("a", 0, ByteString.From(new byte[] { 0x01, 0x02 })).ConfigureAwait(false);
 
-            await store.WriteAsync("a", 4, new byte[] { 0x05 }).ConfigureAwait(false);
+            await store.WriteAsync("a", 4, ByteString.From(new byte[] { 0x05 })).ConfigureAwait(false);
             ByteString document = await store.ReadAsync("a", 0, 16).ConfigureAwait(false);
 
             Assert.That(document.Span.ToArray(),
@@ -149,8 +149,8 @@ namespace Opc.Ua.XRegistry.Tests
         {
             IXRegistryResourceStore store = CreateStore();
 
-            await store.WriteAsync("a", 0, new byte[] { 0x01, 0x02 }).ConfigureAwait(false);
-            await store.WriteAsync("a", 2, new byte[] { 0x03, 0x04 }).ConfigureAwait(false);
+            await store.WriteAsync("a", 0, ByteString.From(new byte[] { 0x01, 0x02 })).ConfigureAwait(false);
+            await store.WriteAsync("a", 2, ByteString.From(new byte[] { 0x03, 0x04 })).ConfigureAwait(false);
 
             ByteString document = await store.ReadAsync("a", 0, 16).ConfigureAwait(false);
             Assert.That(document.Span.ToArray(), Is.EqualTo(s_document));
@@ -160,7 +160,7 @@ namespace Opc.Ua.XRegistry.Tests
         public async Task DeleteRemovesTheDocumentAsync()
         {
             IXRegistryResourceStore store = CreateStore();
-            await store.WriteAsync("a", 0, s_document).ConfigureAwait(false);
+            await store.WriteAsync("a", 0, ByteString.From(s_document)).ConfigureAwait(false);
 
             bool removed = await store.DeleteAsync("a").ConfigureAwait(false);
             bool again = await store.DeleteAsync("a").ConfigureAwait(false);
@@ -179,8 +179,8 @@ namespace Opc.Ua.XRegistry.Tests
         {
             IXRegistryResourceStore store = CreateStore();
 
-            await store.WriteAsync("a", 0, new byte[] { 0x01 }).ConfigureAwait(false);
-            await store.WriteAsync("b", 0, new byte[] { 0x02 }).ConfigureAwait(false);
+            await store.WriteAsync("a", 0, ByteString.From(new byte[] { 0x01 })).ConfigureAwait(false);
+            await store.WriteAsync("b", 0, ByteString.From(new byte[] { 0x02 })).ConfigureAwait(false);
 
             Assert.Multiple(async () =>
             {
@@ -202,7 +202,7 @@ namespace Opc.Ua.XRegistry.Tests
             {
                 Assert.That(() => store.ReadAsync(string.Empty, 0, 1).AsTask(),
                     Throws.TypeOf<ArgumentException>());
-                Assert.That(() => store.WriteAsync(string.Empty, 0, s_document).AsTask(),
+                Assert.That(() => store.WriteAsync(string.Empty, 0, ByteString.From(s_document)).AsTask(),
                     Throws.TypeOf<ArgumentException>());
                 Assert.That(() => store.GetLengthAsync(string.Empty).AsTask(),
                     Throws.TypeOf<ArgumentException>());
@@ -222,7 +222,7 @@ namespace Opc.Ua.XRegistry.Tests
                     Throws.TypeOf<ArgumentOutOfRangeException>());
                 Assert.That(() => store.ReadAsync("a", 0, -1).AsTask(),
                     Throws.TypeOf<ArgumentOutOfRangeException>());
-                Assert.That(() => store.WriteAsync("a", -1, s_document).AsTask(),
+                Assert.That(() => store.WriteAsync("a", -1, ByteString.From(s_document)).AsTask(),
                     Throws.TypeOf<ArgumentOutOfRangeException>());
             });
         }

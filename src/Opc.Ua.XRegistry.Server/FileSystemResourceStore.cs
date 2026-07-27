@@ -118,7 +118,7 @@ namespace Opc.Ua.XRegistry.Server
         public async ValueTask WriteAsync(
             string resourceKey,
             long offset,
-            ReadOnlyMemory<byte> data,
+            ByteString data,
             CancellationToken ct = default)
         {
             string path = PathFor(resourceKey);

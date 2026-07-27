@@ -85,6 +85,28 @@ the compiled model, and groups and resource versions are created beneath it at r
 Registration is idempotent by construction: re-registering identical bytes produces the same
 content-id, so the existing fast-path node is reused rather than duplicated.
 
+### File open modes
+
+The handle returned by `CreateResource` / `GetOrCreateResource` is opened with **EraseExisting**
+semantics — a newly created version starts empty. `GetOrCreateResource` returns a write handle for an
+*existing* version too, so a caller can replace its document in the same call; a caller that only
+wanted to look the version up closes that handle without writing, which releases it and leaves the
+resource untouched.
+
+Reopening a version with the inherited `Open` uses the standard `FileType` mode bits (OPC 10000-5 §C:
+Read = 1, Write = 2, EraseExisting = 4, Append = 8):
+
+| Mode | Behaviour |
+| --- | --- |
+| `Read` | Read the committed document. |
+| `Write \| EraseExisting` | Replace the document wholesale. |
+| `Write \| Append` | Start from the stored bytes with the cursor at the end. |
+| `Write` | Start from the stored bytes with the cursor at 0 — writes replace only the range they cover and **do not** truncate the remainder. |
+
+A mode requesting neither read nor write, both together, or `EraseExisting`/`Append` without `Write`
+is rejected with `Bad_InvalidArgument`. A handle is valid only on the resource *and* the session that
+opened it, and a session's handles are released when it closes.
+
 ### Resource storage
 
 Document bytes live behind an injectable `IXRegistryResourceStore`. Because a resource is a
@@ -109,6 +131,19 @@ substitute its own — and a test can run it against a `VirtualFileSystem` witho
 using var fileSystem = new VirtualFileSystem();
 using var store = new FileSystemResourceStore("resources", fileSystem);
 ```
+
+The server pieces are also wired for dependency injection, with direct construction still supported:
+
+```csharp
+services
+    .AddXRegistryContentIdProvider<MyContentIdProvider>()
+    .AddXRegistryFileSystemResourceStore("/var/lib/xregistry")
+    .AddXRegistryServer(options => options.RequireEncryptionForReads = true);
+```
+
+`XRegistryServerOptions` is sealed. The three node managers are deliberately **not** sealed:
+subclassing them is the server-side extension seam a domain registry uses to serve its own companion
+model on top of the base one, mirroring how a domain client derives from `XRegistryClient`.
 
 #### Implementing a store
 
