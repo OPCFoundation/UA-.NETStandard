@@ -40,7 +40,7 @@ using Opc.Ua.Robotics.Server;
 using Opc.Ua.Server.Fluent;
 using Opc.Ua.Server.Hosting;
 
-namespace Opc.Ua.Di.Tests
+namespace Opc.Ua.Robotics.Server.Tests
 {
     [TestFixture]
     [Category("Robotics")]

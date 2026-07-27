@@ -34,7 +34,7 @@ using Opc.Ua.Robotics.Server;
 using Opc.Ua.Server;
 using Opc.Ua.Server.TestFramework;
 
-namespace Opc.Ua.Di.Tests
+namespace Opc.Ua.Robotics.Server.Tests
 {
     /// <summary>
     /// Boots the stock Robotics node manager and exposes a direct build context.

@@ -657,6 +657,36 @@ combines Robotics with OPC 10000-210 RSL frames and OPC 10000-211 GPOS locations
 and binds the whole cell to an OpenUSD stage, so a generic connector renders it
 live with no robot-specific code.
 
+## URML primitive mapping
+
+The [URML](https://github.com/URML-MARS/URML) robot-intent language names OPC UA
+Robotics as its canonical non-ROS substrate, and its Layer-2 v0.1.0 vocabulary
+of 27 primitives is the motivating use case for
+[issue #3827](https://github.com/OPCFoundation/UA-.NETStandard/issues/3827).
+Every primitive has a route through this SDK:
+
+| URML primitive | Route |
+|---|---|
+| `move_to`, `grasp`, `release` | convention verbs `MoveTo`, `Grasp`, `Release` |
+| `pick_from`, `place_at`, `swap_tool` (industrial profile) | convention verbs `PickFrom`, `PlaceAt`, `SwapTool` |
+| `set_output` | convention verb `SetOutput` |
+| `call_program` | **normative**: `TaskControl(...).LoadByNameAsync` + `StartAsync`, with programs listed through `ProgramsAsync(controller)`. `CallProgram` is the fallback. |
+| `measure` | `ReadAxisAsync` and the other snapshot readers |
+| `wait_for` | `ObserveAxisAsync` / `ObserveSafetyAsync` / `ObserveStateAsync` |
+| `report` | plain session write |
+| `wait` | client-side delay; no server surface needed |
+| `bimanual` | address the specific `MotionDevice`; `DiscoverMotionDevicesAsync` enumerates them |
+| `dock`, `hover`, `detect`, `scan`, `capture`, `speak`, `listen`, `take_off`, `land`, `return_to_home`, `plan_path`, `follow_trajectory`, `drive`, `turn` | generic `AddOperation<TRequest, TResponse>` / `InvokeAsync<TRequest, TResponse>` |
+
+URML's Layer-1 capability manifest is derived live from
+`ReadSystemAsync`, rather than hand-declared: motion devices give arm count,
+`AxisSnapshot.Limits` and `AxisEngineeringOptions` give joint limits and
+velocities, `MotionDeviceCategory` gives mobility, `SafetyStateSnapshot` gives
+the safety envelope, `ProgramsAsync` gives the declared programs, and
+`RoboticsRelationshipSnapshot` gives the kinematic structure. Because verbs are
+resolved by BrowseName under the operations object, no per-deployment NodeId
+mapping file is required.
+
 ## See also
 
 * [Device Integration (DI) developer guide](DeviceIntegration.md) — the base

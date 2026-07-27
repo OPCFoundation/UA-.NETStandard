@@ -33,6 +33,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
+using Opc.Ua.Di;
 using Opc.Ua.Di.Server;
 using Opc.Ua.Di.Server.Hosting;
 using Opc.Ua.Robotics;
@@ -41,7 +42,7 @@ using Opc.Ua.Robotics.Server.Builders;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Fluent;
 
-namespace Opc.Ua.Di.Tests
+namespace Opc.Ua.Robotics.Server.Tests
 {
     [TestFixture]
     [NonParallelizable]

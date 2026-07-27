@@ -37,7 +37,7 @@ using Opc.Ua.Robotics.Operations;
 using Opc.Ua.Robotics.Server;
 using Opc.Ua.Robotics.Server.Builders;
 
-namespace Opc.Ua.Di.Tests
+namespace Opc.Ua.Robotics.Server.Tests
 {
     [TestFixture]
     [NonParallelizable]

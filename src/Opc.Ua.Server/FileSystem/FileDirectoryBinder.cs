@@ -113,7 +113,10 @@ namespace Opc.Ua.Server.FileSystem
         /// </summary>
         public FileDirectoryBinder(ITelemetryContext telemetry)
         {
-            ArgumentNullException.ThrowIfNull(telemetry);
+            if (telemetry == null)
+            {
+                throw new ArgumentNullException(nameof(telemetry));
+            }
         }
 
         /// <inheritdoc/>
@@ -125,9 +128,18 @@ namespace Opc.Ua.Server.FileSystem
             Func<NodeState, CancellationToken, ValueTask>? registerNode = null,
             CancellationToken cancellationToken = default)
         {
-            ArgumentNullException.ThrowIfNull(directory);
-            ArgumentNullException.ThrowIfNull(provider);
-            ArgumentNullException.ThrowIfNull(context);
+            if (directory == null)
+            {
+                throw new ArgumentNullException(nameof(directory));
+            }
+            if (provider == null)
+            {
+                throw new ArgumentNullException(nameof(provider));
+            }
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
 
             var binding = new FileDirectoryBinding(directory, provider, context,
                 options ?? new FileDirectoryBindingOptions(), registerNode);

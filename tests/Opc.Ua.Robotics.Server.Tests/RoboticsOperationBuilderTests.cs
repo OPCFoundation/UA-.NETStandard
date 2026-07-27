@@ -33,7 +33,7 @@ using NUnit.Framework;
 using Opc.Ua.Robotics;
 using Opc.Ua.Robotics.Server.Builders;
 
-namespace Opc.Ua.Di.Tests
+namespace Opc.Ua.Robotics.Server.Tests
 {
     [TestFixture]
     [NonParallelizable]
@@ -95,9 +95,11 @@ namespace Opc.Ua.Di.Tests
                                 .WithTaskProgramLoaded(false)
                                 .WithTaskProgramName(string.Empty)
                                 .Controls(motion);
-                            taskOperation = (TaskControlOperationBuilder)task.AddTaskControlOperation(operation => operation
+                            taskOperation = (TaskControlOperationBuilder)task.AddTaskControlOperation(
+                        operation => operation
                                 .WithMotionDevicesUnderControl([motion.State.NodeId])
-                                .OnLoadByName((_, _) => new ValueTask<RoboticsProgramResult>(new RoboticsProgramResult()))
+                                    .OnLoadByName((_, _) =>
+                                new ValueTask<RoboticsProgramResult>(new RoboticsProgramResult()))
                                 .OnStart(GoodOperation)
                                 .OnStop(GoodStop));
                         });
