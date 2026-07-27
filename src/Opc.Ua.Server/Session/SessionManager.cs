@@ -271,7 +271,7 @@ namespace Opc.Ua.Server
                 }
 
                 // create server nonce.
-                tempNonce = Nonce.CreateNonce(32);
+                tempNonce = Nonce.CreateNonce(kSessionNonceLength);
                 serverNonceObject = tempNonce;
 
                 // assign client name.
@@ -535,7 +535,7 @@ namespace Opc.Ua.Server
                     {
                         // Session nonces are application nonces, independent of
                         // SecureChannel policy nonce or ephemeral-key sizes.
-                        serverNonceObject = Nonce.CreateNonce(32);
+                        serverNonceObject = Nonce.CreateNonce(kSessionNonceLength);
 
                         (newIdentity, userTokenPolicy) = await session
                             .ValidateBeforeActivateAsync(
@@ -1536,6 +1536,21 @@ namespace Opc.Ua.Server
         /// <see cref="EnsureRoleManagerSubscription"/>.
         /// </summary>
         private IRoleManager? m_subscribedRoleManager;
+
+        /// <summary>
+        /// The length of the Session nonces this Server issues in the
+        /// CreateSession and ActivateSession responses.
+        /// </summary>
+        /// <remarks>
+        /// OPC 10000-4 5.7.2.2 (Table 15) requires this nonce to be between 32 and
+        /// 128 bytes for every SecurityPolicy, so it is deliberately independent of
+        /// the SecureChannel policy nonce length. Deriving it from the policy would
+        /// emit a 16 byte nonce for the legacy Basic128Rsa15 policy, which is below
+        /// the range a conformant Client accepts, and would needlessly generate an
+        /// ephemeral key pair for the ECC policies. The ECC ephemeral key is a
+        /// separate value carried in the AdditionalParameters ECDHKey entry.
+        /// </remarks>
+        private const int kSessionNonceLength = 32;
 
         private sealed class SessionActivationState
         {

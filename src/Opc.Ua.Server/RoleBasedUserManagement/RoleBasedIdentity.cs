@@ -238,9 +238,12 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The inner identity that this role-based identity wraps.
         /// </summary>
-        protected IUserIdentity InnerIdentity { get; }
-
-        internal IUserIdentity AuthenticatedIdentity => InnerIdentity;
+        /// <remarks>
+        /// Visible inside the assembly so that server code which has to reach the
+        /// authenticated identity behind one or more role wrappers does not need a
+        /// parallel accessor.
+        /// </remarks>
+        protected internal IUserIdentity InnerIdentity { get; }
 
         /// <inheritdoc/>
         public string DisplayName => InnerIdentity.DisplayName;

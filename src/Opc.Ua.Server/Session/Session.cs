@@ -188,7 +188,9 @@ namespace Opc.Ua.Server
                 ClientLastContactTime = now
             };
 
-            // initialize security diagnostics.
+            // initialize security diagnostics. The Session has no authenticated
+            // user until it is activated, so ClientUserIdHistory stays empty until
+            // ActivateSession records the first ClientUserId (OPC 10000-5).
             m_securityDiagnostics = new SessionSecurityDiagnosticsDataType
             {
                 SessionId = Id,
@@ -196,8 +198,6 @@ namespace Opc.Ua.Server
                 AuthenticationMechanism = Identity.TokenType.ToString(),
                 Encoding = context.ChannelContext.MessageEncoding.ToString()
             };
-            m_securityDiagnostics.ClientUserIdHistory =
-                m_securityDiagnostics.ClientUserIdHistory.AddItem(null!);
 
             EndpointDescription? description = context.ChannelContext.EndpointDescription;
 

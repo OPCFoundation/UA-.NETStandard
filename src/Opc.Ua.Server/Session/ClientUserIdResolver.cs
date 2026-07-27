@@ -280,7 +280,7 @@ namespace Opc.Ua.Server
         {
             while (authenticatedIdentity is RoleBasedIdentity roleBasedIdentity)
             {
-                authenticatedIdentity = roleBasedIdentity.AuthenticatedIdentity;
+                authenticatedIdentity = roleBasedIdentity.InnerIdentity;
             }
 
             if (authenticatedIdentity is IIdentityClaims claims &&
