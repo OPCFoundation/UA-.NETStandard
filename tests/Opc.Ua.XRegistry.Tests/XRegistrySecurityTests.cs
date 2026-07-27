@@ -193,6 +193,12 @@ namespace Opc.Ua.XRegistry.Tests
             WriteMethodStateResult written = await resource.Write!.OnCallAsync!(
                 signedOnly, resource.Write, resource.NodeId, created.FileHandle,
                 ByteString.From([1, 2]), CancellationToken.None).ConfigureAwait(false);
+
+            // Make the handle carry a document over a channel that is allowed to, so the Close
+            // below is a real commit rather than a no-op release.
+            await resource.Write.OnCallAsync!(
+                nm.SystemContext, resource.Write, resource.NodeId, created.FileHandle,
+                ByteString.From([1, 2]), CancellationToken.None).ConfigureAwait(false);
             CloseMethodStateResult closed = await resource.Close!.OnCallAsync!(
                 signedOnly, resource.Close, resource.NodeId, created.FileHandle,
                 CancellationToken.None).ConfigureAwait(false);
@@ -207,10 +213,33 @@ namespace Opc.Ua.XRegistry.Tests
                 Assert.That(written.ServiceResult.StatusCode.Code,
                     Is.EqualTo(StatusCodes.BadSecurityModeInsufficient));
                 Assert.That(closed.ServiceResult.StatusCode.Code,
-                    Is.EqualTo(StatusCodes.BadSecurityModeInsufficient));
+                    Is.EqualTo(StatusCodes.BadSecurityModeInsufficient),
+                    "A Close that commits a document is a mutation.");
                 Assert.That(deleted.ServiceResult.StatusCode.Code,
                     Is.EqualTo(StatusCodes.BadSecurityModeInsufficient));
             });
+        }
+
+        [Test]
+        public async Task ClosingAHandleThatWroteNothingIsAllowedOnAnyChannelAsync()
+        {
+            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(out Mock<IServerInternal> server);
+            CreateGroupMethodStateResult group = await nm.OnCreateGroupAsync(
+                nm.SystemContext, null!, NodeId.Null, "schemas", CancellationToken.None)
+                .ConfigureAwait(false);
+            CreateResourceMethodStateResult created = await nm.OnCreateResourceAsync(
+                nm.SystemContext, null!, group.GroupNodeId, "r1", "1", true, CancellationToken.None)
+                .ConfigureAwait(false);
+            var resource = (ResourceState)nm.Find(created.ResourceNodeId)!;
+
+            // Releasing a handle changes nothing, so it must not be gated on the write policy —
+            // otherwise a handle opened on a permitted channel could never be closed and would
+            // hold the upload budget forever.
+            CloseMethodStateResult closed = await resource.Close!.OnCallAsync!(
+                ContextWith(server, MessageSecurityMode.Sign), resource.Close, resource.NodeId,
+                created.FileHandle, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(closed.ServiceResult), Is.True);
         }
 
         [Test]
