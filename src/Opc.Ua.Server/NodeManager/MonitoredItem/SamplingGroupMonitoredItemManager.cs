@@ -565,7 +565,7 @@ namespace Opc.Ua.Server
                     }
 
                     MonitoredItems.TryRemove(monitoredItem.Id, out _);
-                    DetachedMonitoredItemOwnership.Detach(m_server, lifecycle);
+                    lifecycle.Detach(m_server);
                 }
             }
         }

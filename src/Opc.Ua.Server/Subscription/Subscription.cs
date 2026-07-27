@@ -1774,17 +1774,6 @@ namespace Opc.Ua.Server
             ArrayOf<MonitoredItemCreateRequest> itemsToCreate,
             CancellationToken cancellationToken = default)
         {
-            if (m_server.NodeManager is IDynamicNodeManagerHost coordinator)
-            {
-                return coordinator.ExecuteMonitoredItemMutationAsync(
-                    () => CreateMonitoredItemsCoreAsync(
-                        context,
-                        timestampsToReturn,
-                        itemsToCreate,
-                        cancellationToken),
-                    cancellationToken);
-            }
-
             return CreateMonitoredItemsCoreAsync(
                 context,
                 timestampsToReturn,
@@ -2043,17 +2032,6 @@ namespace Opc.Ua.Server
             ArrayOf<MonitoredItemModifyRequest> itemsToModify,
             CancellationToken cancellationToken = default)
         {
-            if (m_server.NodeManager is IDynamicNodeManagerHost coordinator)
-            {
-                return coordinator.ExecuteMonitoredItemMutationAsync(
-                    () => ModifyMonitoredItemsCoreAsync(
-                        context,
-                        timestampsToReturn,
-                        itemsToModify,
-                        cancellationToken),
-                    cancellationToken);
-            }
-
             return ModifyMonitoredItemsCoreAsync(
                 context,
                 timestampsToReturn,
@@ -2257,17 +2235,6 @@ namespace Opc.Ua.Server
             bool doNotCheckSession,
             CancellationToken cancellationToken = default)
         {
-            if (m_server.NodeManager is IDynamicNodeManagerHost coordinator)
-            {
-                return coordinator.ExecuteMonitoredItemMutationAsync(
-                    () => DeleteMonitoredItemsCoreAsync(
-                        context,
-                        monitoredItemIds,
-                        doNotCheckSession,
-                        cancellationToken),
-                    cancellationToken);
-            }
-
             return DeleteMonitoredItemsCoreAsync(
                 context,
                 monitoredItemIds,
@@ -2457,17 +2424,6 @@ namespace Opc.Ua.Server
             ArrayOf<uint> monitoredItemIds,
             CancellationToken cancellationToken = default)
         {
-            if (m_server.NodeManager is IDynamicNodeManagerHost coordinator)
-            {
-                return coordinator.ExecuteMonitoredItemMutationAsync(
-                    () => SetMonitoringModeCoreAsync(
-                        context,
-                        monitoringMode,
-                        monitoredItemIds,
-                        cancellationToken),
-                    cancellationToken);
-            }
-
             return SetMonitoringModeCoreAsync(
                 context,
                 monitoringMode,

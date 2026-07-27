@@ -60,6 +60,14 @@ namespace Opc.Ua.Server
         void Detach(IAsyncNodeManager nodeManager, object managerHandle);
 
         /// <summary>
+        /// Detaches the MonitoredItem from the NodeManager that owns it and parks it on the
+        /// server's long lived CoreNodeManager, which outlives every NodeManager that can be
+        /// retired, so the item keeps its identity and queue while it has no real owner.
+        /// </summary>
+        /// <param name="server">The server whose CoreNodeManager takes the item over.</param>
+        void Detach(IServerInternal server);
+
+        /// <summary>
         /// Ensures that the missing-node status is scheduled for publication.
         /// </summary>
         void QueueNodeIdUnknown();

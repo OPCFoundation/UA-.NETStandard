@@ -539,22 +539,9 @@ namespace Opc.Ua.Server
             ClosedSessionWork? closeWork;
 
             // close the publish queue for the session.
-            if (m_server.NodeManager is IDynamicNodeManagerHost coordinator)
-            {
-                closeWork =
-                    await coordinator.ExecuteMonitoredItemMutationAsync(
-                        () => new ValueTask<ClosedSessionWork?>(
-                            ClosePublishQueue(
-                                sessionId,
-                                deleteSubscriptions)),
-                        cancellationToken).ConfigureAwait(false);
-            }
-            else
-            {
-                closeWork = ClosePublishQueue(
-                    sessionId,
-                    deleteSubscriptions);
-            }
+            closeWork = ClosePublishQueue(
+                sessionId,
+                deleteSubscriptions);
 
             // remove the expired subscription status change notifications for this session
             lock (m_statusMessagesLock)
@@ -942,22 +929,10 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken)
         {
             SubscriptionDeletionClaim? claim;
-            if (m_server.NodeManager is IDynamicNodeManagerHost coordinator)
-            {
-                claim = await coordinator.ExecuteMonitoredItemMutationAsync(
-                    () => ClaimSubscriptionDeletionAsync(
-                        context,
-                        subscriptionId,
-                        cancellationToken),
-                    cancellationToken).ConfigureAwait(false);
-            }
-            else
-            {
-                claim = await ClaimSubscriptionDeletionAsync(
-                    context,
-                    subscriptionId,
-                    cancellationToken).ConfigureAwait(false);
-            }
+            claim = await ClaimSubscriptionDeletionAsync(
+                context,
+                subscriptionId,
+                cancellationToken).ConfigureAwait(false);
 
             if (claim != null)
             {
@@ -971,19 +946,7 @@ namespace Opc.Ua.Server
                 {
                     // delete subscription.
                     await subscription.DeleteAsync(context, cancellationToken).ConfigureAwait(false);
-                    bool removed;
-                    if (m_server.NodeManager is
-                        IDynamicNodeManagerHost completionCoordinator)
-                    {
-                        removed = await completionCoordinator.ExecuteMonitoredItemMutationAsync(
-                            () => new ValueTask<bool>(
-                                CompleteSubscriptionDeletion(claim)),
-                            CancellationToken.None).ConfigureAwait(false);
-                    }
-                    else
-                    {
-                        removed = CompleteSubscriptionDeletion(claim);
-                    }
+                    bool removed = CompleteSubscriptionDeletion(claim);
                     if (!removed)
                     {
                         return StatusCodes.BadSubscriptionIdInvalid;
@@ -991,18 +954,7 @@ namespace Opc.Ua.Server
                 }
                 catch
                 {
-                    if (m_server.NodeManager is
-                        IDynamicNodeManagerHost restorationCoordinator)
-                    {
-                        await restorationCoordinator.ExecuteMonitoredItemMutationAsync(
-                            () => new ValueTask<bool>(
-                                RestoreSubscriptionDeletion(claim)),
-                            CancellationToken.None).ConfigureAwait(false);
-                    }
-                    else
-                    {
-                        RestoreSubscriptionDeletion(claim);
-                    }
+                    RestoreSubscriptionDeletion(claim);
                     throw;
                 }
 
@@ -1211,21 +1163,6 @@ namespace Opc.Ua.Server
             byte priority,
             CancellationToken cancellationToken = default)
         {
-            if (m_server.NodeManager is IDynamicNodeManagerHost coordinator)
-            {
-                return coordinator.ExecuteMonitoredItemMutationAsync(
-                    () => CreateSubscriptionCoreAsync(
-                        context,
-                        requestedPublishingInterval,
-                        requestedLifetimeCount,
-                        requestedMaxKeepAliveCount,
-                        maxNotificationsPerPublish,
-                        publishingEnabled,
-                        priority,
-                        cancellationToken),
-                    cancellationToken);
-            }
-
             return CreateSubscriptionCoreAsync(
                 context,
                 requestedPublishingInterval,
@@ -1686,26 +1623,6 @@ namespace Opc.Ua.Server
             uint lifetimeInHours,
             out uint revisedLifetimeInHours)
         {
-            if (m_server.NodeManager is IDynamicNodeManagerHost coordinator)
-            {
-                (ServiceResult Result, uint Revised) outcome = coordinator
-                    .ExecuteMonitoredItemMutationAsync<(ServiceResult Result, uint Revised)>(
-                        () =>
-                        {
-                            ServiceResult result = SetSubscriptionDurableCore(
-                                context,
-                                subscriptionId,
-                                lifetimeInHours,
-                                out uint revised);
-                            return new ValueTask<(ServiceResult Result, uint Revised)>(
-                                (result, revised));
-                        },
-                        CancellationToken.None)
-                    .AsTask().GetAwaiter().GetResult();
-                revisedLifetimeInHours = outcome.Revised;
-                return outcome.Result;
-            }
-
             return SetSubscriptionDurableCore(
                 context,
                 subscriptionId,
@@ -1835,17 +1752,6 @@ namespace Opc.Ua.Server
             bool sendInitialValues,
             CancellationToken cancellationToken = default)
         {
-            if (m_server.NodeManager is IDynamicNodeManagerHost coordinator)
-            {
-                return coordinator.ExecuteMonitoredItemMutationAsync(
-                    () => TransferSubscriptionsCoreAsync(
-                        context,
-                        subscriptionIds,
-                        sendInitialValues,
-                        cancellationToken),
-                    cancellationToken);
-            }
-
             return TransferSubscriptionsCoreAsync(
                 context,
                 subscriptionIds,

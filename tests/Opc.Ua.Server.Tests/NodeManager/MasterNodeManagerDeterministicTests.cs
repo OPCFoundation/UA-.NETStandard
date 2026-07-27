@@ -1268,9 +1268,7 @@ namespace Opc.Ua.Server.Tests
                 queueSize: 1,
                 discardOldest: true,
                 sourceSamplingInterval: 1000);
-            DetachedMonitoredItemOwnership.Detach(
-                m_server.CurrentInstance,
-                (IDetachableMonitoredItem)monitoredItem);
+            ((IDetachableMonitoredItem)monitoredItem).Detach(m_server.CurrentInstance);
             return monitoredItem;
         }
 
