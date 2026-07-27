@@ -182,25 +182,33 @@ namespace Opc.Ua.XRegistry.Tests
                 nm.SystemContext, null!, NodeId.Null, "schemas", CancellationToken.None)
                 .ConfigureAwait(false);
             CreateResourceMethodStateResult created = await nm.OnCreateResourceAsync(
-                nm.SystemContext, null!, group.GroupNodeId, "r1", "1", true, CancellationToken.None)
+                nm.SystemContext, null!, group.GroupNodeId, "r1", "1", false, CancellationToken.None)
                 .ConfigureAwait(false);
             var resource = (ResourceState)nm.Find(created.ResourceNodeId)!;
-            ServerSystemContext signedOnly = ContextWith(server, MessageSecurityMode.Sign);
 
-            OpenMethodStateResult opened = await resource.Open!.OnCallAsync!(
-                signedOnly, resource.Open, resource.NodeId, kWriteMode, CancellationToken.None)
-                .ConfigureAwait(false);
+            // One session, two channels. Holding the session constant isolates the security policy
+            // from the separate rule that a handle belongs to the session that opened it.
+            var sessionId = new NodeId(7001u);
+            ServerSystemContext encrypted =
+                ContextWith(server, MessageSecurityMode.SignAndEncrypt, sessionId);
+            ServerSystemContext signedOnly = ContextWith(server, MessageSecurityMode.Sign, sessionId);
+
+            OpenMethodStateResult refused = await resource.Open!.OnCallAsync!(
+                signedOnly, resource.Open, resource.NodeId, kWriteMode | kEraseExistingMode,
+                CancellationToken.None).ConfigureAwait(false);
+
+            // Open and write over the encrypted channel so the Close below is a real commit.
+            OpenMethodStateResult opened = await resource.Open.OnCallAsync!(
+                encrypted, resource.Open, resource.NodeId, kWriteMode | kEraseExistingMode,
+                CancellationToken.None).ConfigureAwait(false);
             WriteMethodStateResult written = await resource.Write!.OnCallAsync!(
-                signedOnly, resource.Write, resource.NodeId, created.FileHandle,
+                signedOnly, resource.Write, resource.NodeId, opened.FileHandle,
                 ByteString.From([1, 2]), CancellationToken.None).ConfigureAwait(false);
-
-            // Make the handle carry a document over a channel that is allowed to, so the Close
-            // below is a real commit rather than a no-op release.
             await resource.Write.OnCallAsync!(
-                nm.SystemContext, resource.Write, resource.NodeId, created.FileHandle,
+                encrypted, resource.Write, resource.NodeId, opened.FileHandle,
                 ByteString.From([1, 2]), CancellationToken.None).ConfigureAwait(false);
             CloseMethodStateResult closed = await resource.Close!.OnCallAsync!(
-                signedOnly, resource.Close, resource.NodeId, created.FileHandle,
+                signedOnly, resource.Close, resource.NodeId, opened.FileHandle,
                 CancellationToken.None).ConfigureAwait(false);
             DeleteMethodStateResult deleted = await resource.Delete!.OnCallAsync!(
                 signedOnly, resource.Delete, resource.NodeId, resource.Epoch!.Value,
@@ -208,7 +216,7 @@ namespace Opc.Ua.XRegistry.Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That(opened.ServiceResult.StatusCode.Code,
+                Assert.That(refused.ServiceResult.StatusCode.Code,
                     Is.EqualTo(StatusCodes.BadSecurityModeInsufficient), "Open for writing.");
                 Assert.That(written.ServiceResult.StatusCode.Code,
                     Is.EqualTo(StatusCodes.BadSecurityModeInsufficient));
@@ -228,16 +236,22 @@ namespace Opc.Ua.XRegistry.Tests
                 nm.SystemContext, null!, NodeId.Null, "schemas", CancellationToken.None)
                 .ConfigureAwait(false);
             CreateResourceMethodStateResult created = await nm.OnCreateResourceAsync(
-                nm.SystemContext, null!, group.GroupNodeId, "r1", "1", true, CancellationToken.None)
+                nm.SystemContext, null!, group.GroupNodeId, "r1", "1", false, CancellationToken.None)
                 .ConfigureAwait(false);
             var resource = (ResourceState)nm.Find(created.ResourceNodeId)!;
+
+            var sessionId = new NodeId(7002u);
+            OpenMethodStateResult opened = await resource.Open!.OnCallAsync!(
+                ContextWith(server, MessageSecurityMode.SignAndEncrypt, sessionId), resource.Open,
+                resource.NodeId, kWriteMode | kEraseExistingMode, CancellationToken.None)
+                .ConfigureAwait(false);
 
             // Releasing a handle changes nothing, so it must not be gated on the write policy —
             // otherwise a handle opened on a permitted channel could never be closed and would
             // hold the upload budget forever.
             CloseMethodStateResult closed = await resource.Close!.OnCallAsync!(
-                ContextWith(server, MessageSecurityMode.Sign), resource.Close, resource.NodeId,
-                created.FileHandle, CancellationToken.None).ConfigureAwait(false);
+                ContextWith(server, MessageSecurityMode.Sign, sessionId), resource.Close,
+                resource.NodeId, opened.FileHandle, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(closed.ServiceResult), Is.True);
         }
@@ -304,13 +318,84 @@ namespace Opc.Ua.XRegistry.Tests
             });
         }
 
+        [Test]
+        public async Task AHandleCannotBeUsedFromAnotherSessionAsync()
+        {
+            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(out Mock<IServerInternal> server);
+            CreateGroupMethodStateResult group = await nm.OnCreateGroupAsync(
+                nm.SystemContext, null!, NodeId.Null, "schemas", CancellationToken.None)
+                .ConfigureAwait(false);
+            CreateResourceMethodStateResult created = await nm.OnCreateResourceAsync(
+                nm.SystemContext, null!, group.GroupNodeId, "r1", "1", false, CancellationToken.None)
+                .ConfigureAwait(false);
+            var resource = (ResourceState)nm.Find(created.ResourceNodeId)!;
+
+            ServerSystemContext sessionA = ContextWith(server, MessageSecurityMode.SignAndEncrypt);
+            ServerSystemContext sessionB = ContextWith(server, MessageSecurityMode.SignAndEncrypt);
+            OpenMethodStateResult opened = await resource.Open!.OnCallAsync!(
+                sessionA, resource.Open, resource.NodeId, kWriteMode | kEraseExistingMode,
+                CancellationToken.None).ConfigureAwait(false);
+
+            // Session B tries to drive session A's handle.
+            WriteMethodStateResult written = await resource.Write!.OnCallAsync!(
+                sessionB, resource.Write, resource.NodeId, opened.FileHandle,
+                ByteString.From([1, 2]), CancellationToken.None).ConfigureAwait(false);
+            CloseMethodStateResult closed = await resource.Close!.OnCallAsync!(
+                sessionB, resource.Close, resource.NodeId, opened.FileHandle,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(opened.ServiceResult), Is.True);
+                Assert.That(written.ServiceResult.StatusCode.Code,
+                    Is.EqualTo(StatusCodes.BadInvalidState),
+                    "A handle belongs to the session that opened it.");
+                Assert.That(closed.ServiceResult.StatusCode.Code,
+                    Is.EqualTo(StatusCodes.BadInvalidState));
+            });
+        }
+
+        [Test]
+        public async Task ClosingASessionReleasesItsHandlesAsync()
+        {
+            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(
+                out Mock<IServerInternal> server, o => o.MaxConcurrentUploads = 1);
+            CreateGroupMethodStateResult group = await nm.OnCreateGroupAsync(
+                nm.SystemContext, null!, NodeId.Null, "schemas", CancellationToken.None)
+                .ConfigureAwait(false);
+            CreateResourceMethodStateResult created = await nm.OnCreateResourceAsync(
+                nm.SystemContext, null!, group.GroupNodeId, "r1", "1", false, CancellationToken.None)
+                .ConfigureAwait(false);
+            var resource = (ResourceState)nm.Find(created.ResourceNodeId)!;
+
+            var sessionId = new NodeId(4242u);
+            ServerSystemContext session = ContextWith(
+                server, MessageSecurityMode.SignAndEncrypt, sessionId);
+            OpenMethodStateResult opened = await resource.Open!.OnCallAsync!(
+                session, resource.Open, resource.NodeId, kWriteMode | kEraseExistingMode,
+                CancellationToken.None).ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(opened.ServiceResult), Is.True, "Precondition.");
+
+            // The session goes away without closing the handle; the budget must come back.
+            nm.SessionClosing(session.OperationContext!, sessionId, deleteSubscriptions: true);
+
+            OpenMethodStateResult next = await resource.Open.OnCallAsync!(
+                ContextWith(server, MessageSecurityMode.SignAndEncrypt), resource.Open,
+                resource.NodeId, kWriteMode | kEraseExistingMode, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(next.ServiceResult), Is.True,
+                "An abandoned session must not hold the upload budget forever.");
+        }
+
         /// <summary>
         /// Builds a system context that looks like a call arriving over a channel with the given
         /// security mode.
         /// </summary>
         private static ServerSystemContext ContextWith(
             Mock<IServerInternal> server,
-            MessageSecurityMode mode)
+            MessageSecurityMode mode,
+            NodeId? sessionId = null)
         {
             var channel = new SecureChannelContext(
                 "test",
@@ -319,9 +404,17 @@ namespace Opc.Ua.XRegistry.Tests
                 clientChannelCertificate: null,
                 serverChannelCertificate: null,
                 channelThumbprint: null);
+
+            // OperationContext derives the SessionId from its session, so a mocked session is what
+            // makes two contexts look like two distinct clients.
+            var session = new Mock<ISession>();
+            session.SetupGet(s => s.Id).Returns(
+                sessionId ?? new NodeId(Utils.IncrementIdentifier(ref s_sessionCounter)));
+            session.SetupGet(s => s.EffectiveIdentity).Returns(new UserIdentity());
+            session.SetupGet(s => s.PreferredLocales).Returns([]);
+
             var operation = new OperationContext(
-                new RequestHeader(), channel, RequestType.Call, RequestLifetime.None,
-                new UserIdentity());
+                new RequestHeader(), channel, RequestType.Call, RequestLifetime.None, session.Object);
             return new ServerSystemContext(server.Object, operation);
         }
 
@@ -343,5 +436,7 @@ namespace Opc.Ua.XRegistry.Tests
 
         private const byte kWriteMode = 2;
         private const byte kReadMode = 1;
+        private const byte kEraseExistingMode = 4;
+        private static uint s_sessionCounter;
     }
 }
