@@ -1678,11 +1678,6 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(context));
             }
             EnsureSessionNotClosing(context);
-            if (IsDeleting)
-            {
-                throw new ServiceResultException(
-                    StatusCodes.BadSubscriptionIdInvalid);
-            }
 
             int count = itemsToCreate.Count;
 
@@ -1718,36 +1713,6 @@ namespace Opc.Ua.Server
                 monitoredItems,
                 IsDurable,
                 cancellationToken).ConfigureAwait(false);
-
-            if (IsDeleting)
-            {
-                var cleanupErrors = new List<ServiceResult>(errors.Count);
-                for (int ii = 0; ii < errors.Count; ii++)
-                {
-                    cleanupErrors.Add(
-                        ServiceResult.IsBad(errors[ii])
-                            ? errors[ii]
-                            : ServiceResult.Good);
-                }
-                try
-                {
-                    await m_server.NodeManager.DeleteMonitoredItemsAsync(
-                        context,
-                        Id,
-                        monitoredItems,
-                        cleanupErrors,
-                        CancellationToken.None).ConfigureAwait(false);
-                }
-                finally
-                {
-                    foreach (IMonitoredItem monitoredItem in monitoredItems)
-                    {
-                        monitoredItem?.Dispose();
-                    }
-                }
-                throw new ServiceResultException(
-                    StatusCodes.BadSubscriptionIdInvalid);
-            }
 
             // allocate results.
             bool diagnosticsExist = false;
@@ -1936,11 +1901,6 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(context));
             }
             EnsureSessionNotClosing(context);
-            if (IsDeleting)
-            {
-                throw new ServiceResultException(
-                    StatusCodes.BadSubscriptionIdInvalid);
-            }
 
             int count = itemsToModify.Count;
 
@@ -2331,11 +2291,6 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(context));
             }
             EnsureSessionNotClosing(context);
-            if (IsDeleting)
-            {
-                throw new ServiceResultException(
-                    StatusCodes.BadSubscriptionIdInvalid);
-            }
 
             int count = monitoredItemIds.Count;
 
@@ -2861,13 +2816,6 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <inheritdoc/>
-        public bool IsDeleting
-        {
-            get => Volatile.Read(ref m_isDeleting) != 0;
-            set => Volatile.Write(ref m_isDeleting, value ? 1 : 0);
-        }
-
         private void EnsureSessionNotClosing(OperationContext context)
         {
             if (context.Session is { IsClosing: true })
@@ -2976,7 +2924,6 @@ namespace Opc.Ua.Server
         }
 
         private readonly Lock m_lock = new();
-        private int m_isDeleting;
         private readonly IServerInternal m_server;
         private readonly TimeProvider m_timeProvider;
         private IUserIdentity? m_savedOwnerIdentity;

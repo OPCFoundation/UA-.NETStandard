@@ -356,22 +356,20 @@ after calling `base` left it registered forever, because the caller never receiv
 nothing disposed it. Override `protected virtual ValueTask OnRequestValidatedAsync(OperationContext)`
 instead; throwing from it rejects the request and completes it.
 
-### `ISession.IsClosing`, `ISession.InvalidateContinuationPoints` and `ISubscription.IsDeleting`
+### `ISession.IsClosing` and `ISession.InvalidateContinuationPoints`
 
 **Source-breaking for custom implementations.** `ISession` gains `bool IsClosing` and
-`void InvalidateContinuationPoints(IAsyncNodeManager)`, and `ISubscription` gains
-`bool IsDeleting { get; set; }`.
+`void InvalidateContinuationPoints(IAsyncNodeManager)`.
 
-`IsClosing` and `IsDeleting` report that the object is being torn down, so work that would create new
-state for it is rejected instead of started. Closing is one way: a Session that started closing never
-serves new work again, even if the close itself fails. `InvalidateContinuationPoints` drops the saved
-Browse and history continuation points that would otherwise keep a retired NodeManager reachable; it
-replaces the separate `INodeManagerContinuationPointTracker` interface, which has been removed.
+`IsClosing` reports that the Session is being torn down, so work that would create new state for it
+is rejected instead of started. It is one way: a Session that started closing never serves new work
+again, even if the close itself fails. `InvalidateContinuationPoints` drops the saved Browse and
+history continuation points that would otherwise keep a retired NodeManager reachable; it replaces
+the separate `INodeManagerContinuationPointTracker` interface, which has been removed.
 
-Custom implementations must add all three. Returning `false` from the two flags and doing nothing in
-`InvalidateContinuationPoints` preserves the previous behaviour. The built-in `Session` and
-`Subscription` already implement them, and `SubscriptionManager` keeps `IsDeleting` in step with its
-deletion claim.
+Custom implementations must add both. Returning `false` from `IsClosing` and doing nothing in
+`InvalidateContinuationPoints` preserves the previous behaviour; the built-in `Session` already
+implements them.
 
 ### PubSub
 
