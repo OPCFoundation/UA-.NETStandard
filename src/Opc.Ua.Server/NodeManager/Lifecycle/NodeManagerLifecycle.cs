@@ -1127,10 +1127,7 @@ namespace Opc.Ua.Server
         {
             foreach (ISession session in server.SessionManager.GetSessions())
             {
-                if (session is INodeManagerContinuationPointTracker tracker)
-                {
-                    tracker.InvalidateContinuationPoints(nodeManager);
-                }
+                session.InvalidateContinuationPoints(nodeManager);
             }
         }
 

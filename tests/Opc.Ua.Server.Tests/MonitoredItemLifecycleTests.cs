@@ -69,7 +69,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void QueueSizeOnePublishesPreDeletionValueAndRequiredBad()
+        public void QueueSizeOnePublishesRequiredBadInsteadOfThePreDeletionValue()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using MonitoredItem item = CreateMonitoredItem(telemetry, queueSize: 1);
@@ -80,24 +80,20 @@ namespace Opc.Ua.Server.Tests
             item.QueueValue(beforeDeletion, ServiceResult.Good);
             lifecycle.MarkNodeDeleted();
 
-            // The marker is queued in addition to the configured queue size, so the value that
-            // was sampled before the deletion is still delivered, followed by the marker.
+            // Part 4 5.13.1.5 makes a queue of size one a buffer holding the newest Notification,
+            // so the marker takes the single slot and the value sampled before the deletion goes.
             Queue<MonitoredItemNotification> first = Publish(item, telemetry, 1, out bool more);
-            Queue<MonitoredItemNotification> second = Publish(item, telemetry, 1, out bool moreAfter);
             item.QueueValue(recovered, ServiceResult.Good);
-            Queue<MonitoredItemNotification> third = Publish(item, telemetry, 1, out bool moreFinally);
+            Queue<MonitoredItemNotification> second = Publish(item, telemetry, 1, out bool moreAfter);
 
             Assert.Multiple(() =>
             {
                 Assert.That(first, Has.Count.EqualTo(1));
-                Assert.That(first.Peek().Value, Is.EqualTo(beforeDeletion));
-                Assert.That(more, Is.True);
+                Assert.That(first.Peek().Value.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                Assert.That(more, Is.False);
                 Assert.That(second, Has.Count.EqualTo(1));
-                Assert.That(second.Peek().Value.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                Assert.That(second.Peek().Value, Is.EqualTo(recovered));
                 Assert.That(moreAfter, Is.False);
-                Assert.That(third, Has.Count.EqualTo(1));
-                Assert.That(third.Peek().Value, Is.EqualTo(recovered));
-                Assert.That(moreFinally, Is.False);
             });
         }
 
@@ -124,14 +120,13 @@ namespace Opc.Ua.Server.Tests
 
             Assert.Multiple(() =>
             {
-                // The marker is queued in addition to the configured size and is never discarded,
-                // so the discard policy applies to the ordinary values alone.
-                Assert.That(published, Has.Count.EqualTo(3));
+                // The marker occupies an ordinary slot but is never the value that gets
+                // discarded, so the incoming value is dropped instead once the queue is full.
+                Assert.That(published, Has.Count.EqualTo(2));
                 Assert.That(published[0].StatusCode.Code, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
                 Assert.That(
                     published[1].WrappedValue,
-                    Is.EqualTo(new Variant(discardOldest ? 2 : 1)));
-                Assert.That(published[2].WrappedValue, Is.EqualTo(new Variant(3)));
+                    Is.EqualTo(new Variant(discardOldest ? 1 : 3)));
             });
         }
 
@@ -147,7 +142,8 @@ namespace Opc.Ua.Server.Tests
             using MonitoredItem item = CreateMonitoredItem(
                 telemetry,
                 queueSize: 4,
-                filter: filter);
+                filter: filter,
+                samplingInterval: 0);
             var lifecycle = (IDetachableMonitoredItem)item;
 
             item.QueueValue(
@@ -166,6 +162,8 @@ namespace Opc.Ua.Server.Tests
 
             Assert.Multiple(() =>
             {
+                // The status-only filter lets the value after the marker through and filters
+                // the one that follows it, because its status is unchanged.
                 Assert.That(notifications, Has.Count.EqualTo(3));
                 Assert.That(
                     notifications.Dequeue().Value.WrappedValue,
@@ -240,11 +238,14 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void MultiplePendingDeletionEpochsPreserveChronologicalOrder()
+        public void MultiplePendingDeletionEpochsCollapseIntoOneMarker()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var reboundManager = new Mock<IAsyncNodeManager>();
-            using MonitoredItem item = CreateMonitoredItem(telemetry, queueSize: 4);
+            using MonitoredItem item = CreateMonitoredItem(
+                telemetry,
+                queueSize: 4,
+                samplingInterval: 0);
             var lifecycle = (IDetachableMonitoredItem)item;
 
             lifecycle.MarkNodeDeleted();
@@ -262,16 +263,15 @@ namespace Opc.Ua.Server.Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That(notifications, Has.Count.EqualTo(4));
+                // A remove, re-add, remove sequence before a Publish says the same thing once,
+                // so the second marker is collapsed into the one that is still pending.
+                Assert.That(notifications, Has.Count.EqualTo(3));
                 Assert.That(
                     notifications.Dequeue().Value.StatusCode,
                     Is.EqualTo(StatusCodes.BadNodeIdUnknown));
                 Assert.That(
                     notifications.Dequeue().Value.WrappedValue,
                     Is.EqualTo(new Variant(1)));
-                Assert.That(
-                    notifications.Dequeue().Value.StatusCode,
-                    Is.EqualTo(StatusCodes.BadNodeIdUnknown));
                 Assert.That(
                     notifications.Dequeue().Value.WrappedValue,
                     Is.EqualTo(new Variant(2)));
@@ -336,7 +336,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void RequiredQueueResizeRetriesTransientDurableDequeue()
+        public void DiscardRetriesTransientDurableDequeue()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var queue = new TransientDequeueQueue(
@@ -373,10 +373,12 @@ namespace Opc.Ua.Server.Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That(values, Has.Count.EqualTo(3));
-                Assert.That(values[0].WrappedValue, Is.EqualTo(new Variant(1)));
-                Assert.That(values[1].WrappedValue, Is.EqualTo(new Variant(2)));
-                Assert.That(values[2].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                // The queue was full, so the marker displaced the oldest value even though the
+                // durable queue transiently reported no value to hand back.
+                Assert.That(values, Has.Count.EqualTo(2));
+                Assert.That(values[0].WrappedValue, Is.EqualTo(new Variant(2)));
+                Assert.That(values[0].StatusCode.Overflow, Is.True);
+                Assert.That(values[1].StatusCode.Code, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
             });
         }
 
@@ -448,7 +450,7 @@ namespace Opc.Ua.Server.Tests
 
         [TestCase(true)]
         [TestCase(false)]
-        public void ExhaustedOrdinaryBudgetDiscardsAQueuedValueAndReportsOverflow(bool discardOldest)
+        public void SecondMarkerCollapsesIntoThePendingOneAndTheMarkerReportsOverflow(bool discardOldest)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using var queueFactory = new MonitoredItemQueueFactory(telemetry);
@@ -469,20 +471,29 @@ namespace Opc.Ua.Server.Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That(published, Has.Count.EqualTo(3));
+                // The second marker says the same thing as the pending one, so it is collapsed
+                // into it rather than displacing a real value.
+                Assert.That(published, Has.Count.EqualTo(2));
                 Assert.That(published[0].StatusCode.Code, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
-                Assert.That(published[1].StatusCode.Code, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
-                Assert.That(published[2].WrappedValue, Is.EqualTo(new Variant(2)));
-                Assert.That(published[2].StatusCode.Overflow, Is.True);
+                if (discardOldest)
+                {
+                    // The incoming value was dropped to keep the marker, which reports the loss.
+                    Assert.That(published[0].StatusCode.Overflow, Is.True);
+                    Assert.That(published[1].WrappedValue, Is.EqualTo(new Variant(1)));
+                }
+                else
+                {
+                    Assert.That(published[1].WrappedValue, Is.EqualTo(new Variant(2)));
+                    Assert.That(published[1].StatusCode.Overflow, Is.True);
+                }
             });
         }
 
         [Test]
-        public void QueueSizeOneKeepsTheMarkerAndTheNewestOrdinaryValue()
+        public void QueueSizeOneDropsIncomingValuesWhileTheMarkerIsPending()
         {
-            // Part 4 5.13.1.5 makes a queue of size one a buffer that holds the newest
-            // Notification, so the value sampled before the deletion gives way to the newer one.
-            // The marker is exempt from that, because the Client has to learn the Node is gone.
+            // The marker takes the single slot and is never discarded, so values sampled after
+            // the deletion are dropped until it has been published.
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using var queueFactory = new MonitoredItemQueueFactory(telemetry);
             using DataChangeQueueHandler handler = CreateQueueHandler(
@@ -503,11 +514,18 @@ namespace Opc.Ua.Server.Tests
 
             List<DataValue> published = DrainHandler(handler);
 
+            // Once the marker has been published the queue accepts values again.
+            handler.QueueValue(
+                new DataValue(new Variant(42), StatusCodes.Good),
+                ServiceResult.Good);
+            List<DataValue> afterPublication = DrainHandler(handler);
+
             Assert.Multiple(() =>
             {
-                Assert.That(published, Has.Count.EqualTo(2));
-                Assert.That(published[0].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
-                Assert.That(published[1].WrappedValue, Is.EqualTo(new Variant(42)));
+                Assert.That(published, Has.Count.EqualTo(1));
+                Assert.That(published[0].StatusCode.Code, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                Assert.That(afterPublication, Has.Count.EqualTo(1));
+                Assert.That(afterPublication[0].WrappedValue, Is.EqualTo(new Variant(42)));
             });
         }
 
@@ -621,7 +639,8 @@ namespace Opc.Ua.Server.Tests
             MonitoringMode monitoringMode = MonitoringMode.Reporting,
             IAsyncNodeManager nodeManager = null,
             object managerHandle = null,
-            MonitoringFilter filter = null)
+            MonitoringFilter filter = null,
+            double samplingInterval = 1000)
         {
             using var queueFactory = new MonitoredItemQueueFactory(telemetry);
             Mock<IServerInternal> server = CreateServerMock(telemetry, queueFactory);
@@ -644,7 +663,7 @@ namespace Opc.Ua.Server.Tests
                 originalFilter: filter,
                 filterToUse: filter,
                 range: null,
-                samplingInterval: 1000,
+                samplingInterval,
                 queueSize,
                 discardOldest,
                 sourceSamplingInterval: 1000);

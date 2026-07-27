@@ -29,6 +29,7 @@
 
 using System;
 using System.Linq;
+using System.Threading;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
@@ -215,6 +216,40 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(data.SessionManager, Is.SameAs(mockSessionManager.Object));
             Assert.That(data.SubscriptionManager, Is.SameAs(mockSubscriptionManager.Object));
+        }
+
+        [Test]
+        [Category("NodeManagerLifecycle")]
+        public void CloseSessionAsyncRemovesTheSessionEvenWhenTeardownThrows()
+        {
+            // Closing is marked on the Session and never cleared, so a Session that started
+            // closing must not be left registered and serving when teardown fails.
+            using ServerInternalData data = CreateServerInternalData();
+            var sessionId = new NodeId(Guid.NewGuid());
+            var mockSessionManager = new Mock<ISessionManager>();
+            var mockSubscriptionManager = new Mock<ISubscriptionManager>();
+            mockSessionManager.Setup(manager => manager.GetSessions()).Returns([]);
+            data.SetSessionManager(mockSessionManager.Object, mockSubscriptionManager.Object);
+
+            var mockNodeManager = new Mock<IMasterNodeManager>();
+            mockNodeManager
+                .Setup(manager => manager.SessionClosingAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<NodeId>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new InvalidOperationException("teardown failed"));
+            data.SetNodeManager(mockNodeManager.Object);
+
+            Assert.That(
+                async () => await data
+                    .CloseSessionAsync(null!, sessionId, deleteSubscriptions: true)
+                    .ConfigureAwait(false),
+                Throws.InvalidOperationException);
+
+            mockSessionManager.Verify(
+                manager => manager.CloseSessionAsync(sessionId, It.IsAny<CancellationToken>()),
+                Times.Once);
         }
 
         [Test]
