@@ -1265,7 +1265,17 @@ namespace Opc.Ua.Server
                 {
                     if (retiredDrainClaimed)
                     {
-                        retired.DrainPending = false;
+                        try
+                        {
+                            RestoreRetiredNotificationsForActiveItems(
+                                server,
+                                host,
+                                retired);
+                        }
+                        finally
+                        {
+                            retired.DrainPending = false;
+                        }
                     }
                 }
 
@@ -3402,10 +3412,62 @@ namespace Opc.Ua.Server
                 {
                     foreach (RetiredNodeManager retiredNodeManager in claimed)
                     {
-                        retiredNodeManager.DrainPending = false;
+                        try
+                        {
+                            RestoreRetiredNotificationsForActiveItems(
+                                server,
+                                host,
+                                retiredNodeManager);
+                        }
+                        finally
+                        {
+                            retiredNodeManager.DrainPending = false;
+                        }
                     }
                 }
             }
+        }
+
+        private void RestoreRetiredNotificationsForActiveItems(
+            IServerInternal server,
+            IDynamicNodeManagerHost host,
+            RetiredNodeManager retired)
+        {
+            if (!retired.AllowActiveMonitoredItems ||
+                !retired.NotificationsSuspended ||
+                m_shuttingDown ||
+                m_disposed)
+            {
+                return;
+            }
+
+            if (!TryGetRunningServer(
+                    out IServerInternal currentServer,
+                    out IDynamicNodeManagerHost currentHost) ||
+                !ReferenceEquals(currentServer, server) ||
+                !ReferenceEquals(currentHost, host))
+            {
+                return;
+            }
+
+            lock (m_registrationLock)
+            {
+                if (!m_retiredNodeManagers.Contains(retired))
+                {
+                    return;
+                }
+            }
+
+            if (!HasActiveMonitoredItems(server, retired.NodeManager))
+            {
+                return;
+            }
+
+            host.SetRetiredGenerationNotifications(
+                retired.NodeManager,
+                enabled: true);
+            retired.NotificationsSuspended = false;
+            retired.RequestsDrained = false;
         }
 
         /// <summary>

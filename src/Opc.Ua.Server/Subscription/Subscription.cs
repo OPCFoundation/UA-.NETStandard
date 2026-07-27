@@ -1080,7 +1080,8 @@ namespace Opc.Ua.Server
         /// </summary>
         public NotificationMessage PublishTimeout()
         {
-            NotificationMessage? message;
+            NotificationMessage? message = null;
+
             lock (m_lock)
             {
                 m_expired = true;
@@ -1108,7 +1109,8 @@ namespace Opc.Ua.Server
         /// </summary>
         public NotificationMessage SubscriptionTransferred()
         {
-            NotificationMessage? message;
+            NotificationMessage? message = null;
+
             lock (m_lock)
             {
                 message = (NotificationMessage)NotificationMessageActivator.Instance.CreateInstance();
@@ -1617,7 +1619,7 @@ namespace Opc.Ua.Server
 
                 if (!m_monitoredItems.TryGetValue(
                     triggeringItemId,
-                    out _))
+                    out LinkedListNode<IMonitoredItem>? triggerNode))
                 {
                     throw new ServiceResultException(StatusCodes.BadMonitoredItemIdInvalid);
                 }
@@ -1793,11 +1795,6 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(context));
             }
             EnsureSessionNotClosing(context);
-            if (IsDeleting)
-            {
-                throw new ServiceResultException(
-                    StatusCodes.BadSubscriptionIdInvalid);
-            }
 
             int count = itemsToCreate.Count;
 
@@ -1833,36 +1830,6 @@ namespace Opc.Ua.Server
                 monitoredItems,
                 IsDurable,
                 cancellationToken).ConfigureAwait(false);
-
-            if (IsDeleting)
-            {
-                var cleanupErrors = new List<ServiceResult>(errors.Count);
-                for (int ii = 0; ii < errors.Count; ii++)
-                {
-                    cleanupErrors.Add(
-                        ServiceResult.IsBad(errors[ii])
-                            ? errors[ii]
-                            : ServiceResult.Good);
-                }
-                try
-                {
-                    await m_server.NodeManager.DeleteMonitoredItemsAsync(
-                        context,
-                        Id,
-                        monitoredItems,
-                        cleanupErrors,
-                        CancellationToken.None).ConfigureAwait(false);
-                }
-                finally
-                {
-                    foreach (IMonitoredItem monitoredItem in monitoredItems)
-                    {
-                        monitoredItem?.Dispose();
-                    }
-                }
-                throw new ServiceResultException(
-                    StatusCodes.BadSubscriptionIdInvalid);
-            }
 
             // allocate results.
             bool diagnosticsExist = false;
@@ -2051,11 +2018,6 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(context));
             }
             EnsureSessionNotClosing(context);
-            if (IsDeleting)
-            {
-                throw new ServiceResultException(
-                    StatusCodes.BadSubscriptionIdInvalid);
-            }
 
             int count = itemsToModify.Count;
 
@@ -2318,10 +2280,12 @@ namespace Opc.Ua.Server
                     // remove the item from the internal lists.
                     m_monitoredItems.Remove(monitoredItemIds[ii]);
                     m_itemsToTrigger.Remove(monitoredItemIds[ii]);
+
+                    //remove the links towards the deleted monitored item
+                    List<ITriggeredMonitoredItem>? triggeredItems = null;
                     foreach (KeyValuePair<uint, List<ITriggeredMonitoredItem>> item in m_itemsToTrigger)
                     {
-                        //remove the links towards the deleted monitored item
-                        List<ITriggeredMonitoredItem>? triggeredItems = item.Value;
+                        triggeredItems = item.Value;
                         for (int jj = 0; jj < triggeredItems.Count; jj++)
                         {
                             if (triggeredItems[jj].Id == monitoredItemIds[ii])
@@ -2444,11 +2408,6 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(context));
             }
             EnsureSessionNotClosing(context);
-            if (IsDeleting)
-            {
-                throw new ServiceResultException(
-                    StatusCodes.BadSubscriptionIdInvalid);
-            }
 
             int count = monitoredItemIds.Count;
 
@@ -2974,13 +2933,6 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <inheritdoc/>
-        public bool IsDeleting
-        {
-            get => Volatile.Read(ref m_isDeleting) != 0;
-            set => Volatile.Write(ref m_isDeleting, value ? 1 : 0);
-        }
-
         private void EnsureSessionNotClosing(OperationContext context)
         {
             if (context.Session is { IsClosing: true })
@@ -3089,7 +3041,6 @@ namespace Opc.Ua.Server
         }
 
         private readonly Lock m_lock = new();
-        private int m_isDeleting;
         private readonly IServerInternal m_server;
         private readonly TimeProvider m_timeProvider;
         private IUserIdentity? m_savedOwnerIdentity;
@@ -3138,4 +3089,5 @@ namespace Opc.Ua.Server
             this ILogger logger,
             uint subscriptionId);
     }
+
 }

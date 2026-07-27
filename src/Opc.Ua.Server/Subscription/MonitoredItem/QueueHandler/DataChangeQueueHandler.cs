@@ -134,38 +134,11 @@ namespace Opc.Ua.Server
             ITelemetryContext telemetry,
             Action? discardedValueHandler = null,
             TimeProvider? timeProvider = null)
-            : this(
-                dataValueQueue,
-                dataValueQueue.QueueSize,
-                discardOldest,
-                samplingInterval,
-                DiagnosticsMasks.None,
-                telemetry,
-                discardedValueHandler,
-                timeProvider)
-        {
-        }
-
-        /// <summary>
-        /// Creates a queue handler from an existing queue with an explicit queue size and
-        /// diagnostics mask.
-        /// </summary>
-        internal DataChangeQueueHandler(
-            IDataChangeMonitoredItemQueue dataValueQueue,
-            uint queueSize,
-            bool discardOldest,
-            double samplingInterval,
-            DiagnosticsMasks diagnosticsMasks,
-            ITelemetryContext telemetry,
-            Action? discardedValueHandler,
-            TimeProvider? timeProvider = null)
         {
             m_logger = telemetry.CreateLogger<DataChangeQueueHandler>();
 
             m_dataValueQueue = dataValueQueue;
             m_monitoredItemId = dataValueQueue.MonitoredItemId;
-            m_queueSize = Math.Max(queueSize, 1);
-            m_queueErrors = (diagnosticsMasks & DiagnosticsMasks.OperationAll) != 0;
             m_discardOldest = discardOldest;
             m_discardedValueHandler = discardedValueHandler!;
             m_nextSampleTime = 0;
@@ -186,21 +159,47 @@ namespace Opc.Ua.Server
             bool discardOldest,
             DiagnosticsMasks diagnosticsMasks)
         {
-            m_queueSize = Math.Max(queueSize, 1);
-            m_queueErrors = (diagnosticsMasks & DiagnosticsMasks.OperationAll) != 0;
+            bool queueErrors = (diagnosticsMasks & DiagnosticsMasks.OperationAll) != 0;
+
             m_discardOldest = discardOldest;
 
-            List<QueuedValue> existingValues = DrainQueue();
-            m_dataValueQueue.ResetQueue(m_queueSize, m_queueErrors);
+            // copy existing values.
+            List<DataValue>? existingValues = null;
+            List<ServiceResult>? existingErrors = null;
+
+            if (ItemsInQueue > 0)
+            {
+                existingValues = new List<DataValue>((int)queueSize);
+                existingErrors = new List<ServiceResult>((int)queueSize);
+
+                while (PublishSingleValue(out DataValue value, out ServiceResult error, true))
+                {
+                    existingValues.Add(value);
+                    existingErrors.Add(error);
+                }
+            }
+
+            // The marker keeps its identity across the resize, so draining it here must not clear
+            // the flag that protects it from being discarded once it is put back.
+            DataValue required = m_required;
+            bool requiredPending = m_requiredPending;
+
+            m_dataValueQueue.ResetQueue(queueSize, queueErrors);
+
             m_overflow = default;
             m_overflowPending = false;
 
-            // The marker keeps its identity across the resize, so the rule that protects it from
-            // being discarded applies while the values are put back.
-            foreach (QueuedValue queuedValue in existingValues)
+            // requeue the data.
+            if (existingValues != null)
             {
-                Enqueue(queuedValue.Value, queuedValue.Error);
+                for (int ii = 0; ii < existingValues.Count; ii++)
+                {
+                    Enqueue(existingValues[ii], existingErrors![ii]);
+                }
             }
+
+            m_required = required;
+            m_requiredPending = requiredPending;
         }
 
         /// <summary>
@@ -352,7 +351,6 @@ namespace Opc.Ua.Server
             {
                 m_logger.ENQUEUEVALUEValueValue(value.WrappedValue);
 
-                EnsurePhysicalCapacity(1);
                 m_dataValueQueue.Enqueue(value, error);
 
                 return false;
@@ -369,7 +367,7 @@ namespace Opc.Ua.Server
             }
 
             // check if queue is full.
-            if (m_dataValueQueue.ItemsInQueue >= m_queueSize)
+            if (m_dataValueQueue.ItemsInQueue == m_dataValueQueue.QueueSize)
             {
                 if (!m_discardOldest)
                 {
@@ -424,7 +422,6 @@ namespace Opc.Ua.Server
                     m_overflowPending = true;
                 }
 
-                EnsurePhysicalCapacity((uint)m_dataValueQueue.ItemsInQueue + 1);
                 m_dataValueQueue.Enqueue(value, error);
 
                 return true;
@@ -432,7 +429,6 @@ namespace Opc.Ua.Server
 
             m_logger.ENQUEUEVALUEValueValue(value.WrappedValue);
 
-            EnsurePhysicalCapacity((uint)m_dataValueQueue.ItemsInQueue + 1);
             m_dataValueQueue.Enqueue(value, error);
 
             return false;
@@ -521,60 +517,6 @@ namespace Opc.Ua.Server
             return false;
         }
 
-        private void EnsurePhysicalCapacity(uint requiredCapacity)
-        {
-            if (m_dataValueQueue.QueueSize >= requiredCapacity)
-            {
-                return;
-            }
-
-            List<QueuedValue> values = DrainQueue();
-            m_dataValueQueue.ResetQueue(requiredCapacity, m_queueErrors);
-            RefillPhysicalQueue(values);
-        }
-
-        private List<QueuedValue> DrainQueue()
-        {
-            int itemCount = m_dataValueQueue.ItemsInQueue;
-            var values = new List<QueuedValue>(itemCount);
-            var spinWait = new SpinWait();
-            // Durable queues may temporarily return false while restoring a persisted batch.
-            // Drain the captured item count exactly so a resize cannot drop a partially restored batch.
-            // The retry is bounded, because a queue that permanently stops handing back the values it
-            // reports as queued would otherwise spin a server thread forever.
-            int failedAttempts = 0;
-            while (values.Count < itemCount)
-            {
-                if (m_dataValueQueue.Dequeue(out DataValue value, out ServiceResult error))
-                {
-                    values.Add(new QueuedValue(value, error));
-                    spinWait.Reset();
-                    failedAttempts = 0;
-                    continue;
-                }
-
-                if (++failedAttempts > kMaxDrainAttempts)
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadInternalError,
-                        "The monitored item queue did not return the values it reported as queued.");
-                }
-                spinWait.SpinOnce();
-            }
-            return values;
-        }
-
-        /// <summary>
-        /// Refills the physical queue from the drained values.
-        /// </summary>
-        /// <param name="values">The values to put back.</param>
-        private void RefillPhysicalQueue(List<QueuedValue> values)
-        {
-            foreach (QueuedValue queuedValue in values)
-            {
-                m_dataValueQueue.Enqueue(queuedValue.Value, queuedValue.Error);
-            }
-        }
 
         /// <summary>
         /// Sets the overflow bit in the value and error.
@@ -626,8 +568,6 @@ namespace Opc.Ua.Server
         private readonly ILogger m_logger;
         private readonly TimeProvider m_timeProvider;
         private readonly uint m_monitoredItemId;
-        private uint m_queueSize;
-        private bool m_queueErrors;
         private bool m_discardOldest;
         private long m_nextSampleTime;
         private long m_samplingInterval;
@@ -636,8 +576,6 @@ namespace Opc.Ua.Server
         private bool m_overflowPending;
         private DataValue m_required;
         private bool m_requiredPending;
-
-        private readonly record struct QueuedValue(DataValue Value, ServiceResult Error);
     }
 
     /// <summary>

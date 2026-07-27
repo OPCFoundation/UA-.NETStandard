@@ -1264,7 +1264,11 @@ namespace Opc.Ua.Server.Tests
                     telemetry,
                     queueSize: 4))
                 {
-                    ((IDetachableMonitoredItem)source).MarkNodeDeleted();
+                    // Production deletes a monitored node by detaching the item and marking
+                    // it deleted, so establish both flags here as well.
+                    var sourceLifecycle = (IDetachableMonitoredItem)source;
+                    sourceLifecycle.MarkNodeDeleted();
+                    sourceLifecycle.BeginDetach();
                     var notifications = new Queue<MonitoredItemNotification>();
                     var diagnostics = new Queue<DiagnosticInfo>();
                     source.Publish(

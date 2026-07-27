@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
@@ -2296,6 +2297,123 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await m_server.NodeManagerLifecycle
                 .RemoveAsync(reloaded)
                 .ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// If prompt cleanup suspends a graceful retiree and its request drain fails, a
+        /// monitored item that appears during the drain keeps the retiree alive. Its session
+        /// and retained all-events notifications must be restored until the item drains.
+        /// </summary>
+        [Test]
+        public async Task FailedRetiredDrainRestoresNotificationsForLateMonitoredItemAsync()
+        {
+            TrackingLifecycleNodeManager retiredManager = null;
+            NodeManagerRegistration original = await m_server.NodeManagerLifecycle
+                .AddAsync(CreateTrackingNodeManagementFactory(
+                    kGeneration1Value,
+                    manager => retiredManager = manager))
+                .ConfigureAwait(false);
+
+            IServerInternal server = m_server.CurrentInstance;
+            var master = (MasterNodeManager)server.NodeManager;
+            ushort ns = (ushort)server.NamespaceUris.GetIndex(kModelNamespaceUri);
+            var valueNodeId = new NodeId(kValueNodeId, ns);
+            var services = new ServerTestServices(m_server, m_secureChannelContext);
+            (uint dataSubscriptionId, uint dataMonitoredItemId) =
+                await CreateSubscriptionAndMonitoredItemAsync(
+                    services,
+                    valueNodeId,
+                    clientHandle: 1).ConfigureAwait(false);
+            (uint eventSubscriptionId, uint eventMonitoredItemId) =
+                await CreateSubscriptionAndEventMonitoredItemAsync(
+                    services,
+                    ObjectIds.Server).ConfigureAwait(false);
+            Assert.That(retiredManager.AllEventsSubscribeCount, Is.EqualTo(1));
+
+            NodeManagerRegistration replacement = await m_server.NodeManagerLifecycle
+                .ShadowReloadAsync(
+                    original,
+                    CreateNodeManagementFactory(
+                        kGeneration2Value,
+                        includeEuRange: false))
+                .ConfigureAwait(false);
+
+            ISubscription dataSubscription = server.SubscriptionManager
+                .GetSubscriptions()
+                .Single(subscription => subscription.Id == dataSubscriptionId);
+            var lateItem = new Mock<IMonitoredItem>();
+            lateItem.SetupGet(item => item.Id).Returns(uint.MaxValue - 1);
+            lateItem.SetupGet(item => item.NodeManager).Returns(original.NodeManager);
+            lateItem.SetupGet(item => item.IsDurable).Returns(false);
+
+            var requestEntered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseRequest = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            Task heldRequest = HoldRequestAsync(server, requestEntered, releaseRequest);
+            await requestEntered.Task.ConfigureAwait(false);
+
+            TimeSpan originalDrainTimeout = server.RequestManager.RequestDrainTimeout;
+            bool lateItemAdded = false;
+            try
+            {
+                server.RequestManager.RequestDrainTimeout = TimeSpan.FromSeconds(2);
+                await DeleteMonitoredItemAsync(
+                    services,
+                    dataSubscriptionId,
+                    dataMonitoredItemId).ConfigureAwait(false);
+
+                ISession session = server.SessionManager
+                    .GetSession(m_requestHeader.AuthenticationToken);
+                await WaitForRetiredNotificationsSuspendedAsync(
+                    master,
+                    retiredManager,
+                    session).ConfigureAwait(false);
+
+                AddSyntheticMonitoredItem(
+                    (Subscription)dataSubscription,
+                    lateItem.Object);
+                lateItemAdded = true;
+
+                await WaitForRetiredNotificationsResumedAsync(
+                    master,
+                    retiredManager,
+                    session).ConfigureAwait(false);
+
+                int unsubscribeCount = retiredManager.AllEventsUnsubscribeCount;
+                await DeleteMonitoredItemAsync(
+                    services,
+                    eventSubscriptionId,
+                    eventMonitoredItemId).ConfigureAwait(false);
+                Assert.That(
+                    retiredManager.AllEventsUnsubscribeCount,
+                    Is.EqualTo(unsubscribeCount + 1),
+                    "The retained all-events snapshot must resume deletion fan-out.");
+            }
+            finally
+            {
+                if (lateItemAdded)
+                {
+                    RemoveSyntheticMonitoredItem(
+                        (Subscription)dataSubscription,
+                        lateItem.Object);
+                }
+                server.RequestManager.RequestDrainTimeout = originalDrainTimeout;
+                releaseRequest.TrySetResult(true);
+                await heldRequest.ConfigureAwait(false);
+            }
+
+            await DeleteSubscriptionAsync(services, dataSubscriptionId).ConfigureAwait(false);
+            await DeleteSubscriptionAsync(services, eventSubscriptionId).ConfigureAwait(false);
+            await m_server.NodeManagerLifecycle.RemoveAsync(replacement).ConfigureAwait(false);
+
+            await AssertRetiredGenerationDisposedAsync(
+                retiredManager,
+                valueNodeId).ConfigureAwait(false);
+            Assert.That(
+                retiredManager.AllEventsUnsubscribeCount,
+                Is.EqualTo(1),
+                "Successful final retirement must not unsubscribe the deleted item twice.");
         }
 
         /// <summary>
@@ -7103,6 +7221,75 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             Assert.Fail(
                 "The direct retired-generation cleanup did not suspend notifications.");
+        }
+
+        private static async Task WaitForRetiredNotificationsResumedAsync(
+            MasterNodeManager master,
+            TrackingLifecycleNodeManager retiredManager,
+            ISession session)
+        {
+            int activationCount = retiredManager.SessionActivatedCount;
+            const int MaxAttempts = 200;
+            for (int attempt = 0; attempt < MaxAttempts; attempt++)
+            {
+                await master
+                    .SessionActivatedAsync(
+                        new OperationContext(session, DiagnosticsMasks.None),
+                        session.Id,
+                        CancellationToken.None)
+                    .ConfigureAwait(false);
+                if (retiredManager.SessionActivatedCount > activationCount)
+                {
+                    return;
+                }
+                await Task.Delay(TimeSpan.FromMilliseconds(25)).ConfigureAwait(false);
+            }
+
+            Assert.Fail(
+                "The failed retired-generation drain did not restore notifications.");
+        }
+
+        private static void AddSyntheticMonitoredItem(
+            Subscription subscription,
+            IMonitoredItem monitoredItem)
+        {
+            Lock subscriptionLock = GetSubscriptionLock(subscription);
+            lock (subscriptionLock)
+            {
+                GetSubscriptionMonitoredItems(subscription).Add(
+                    monitoredItem.Id,
+                    new LinkedListNode<IMonitoredItem>(monitoredItem));
+            }
+        }
+
+        private static void RemoveSyntheticMonitoredItem(
+            Subscription subscription,
+            IMonitoredItem monitoredItem)
+        {
+            Lock subscriptionLock = GetSubscriptionLock(subscription);
+            lock (subscriptionLock)
+            {
+                GetSubscriptionMonitoredItems(subscription).Remove(monitoredItem.Id);
+            }
+        }
+
+        private static Dictionary<uint, LinkedListNode<IMonitoredItem>>
+            GetSubscriptionMonitoredItems(Subscription subscription)
+        {
+            FieldInfo field = typeof(Subscription).GetField(
+                "m_monitoredItems",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null);
+            return (Dictionary<uint, LinkedListNode<IMonitoredItem>>)field.GetValue(subscription);
+        }
+
+        private static Lock GetSubscriptionLock(Subscription subscription)
+        {
+            FieldInfo field = typeof(Subscription).GetField(
+                "m_lock",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null);
+            return (Lock)field.GetValue(subscription);
         }
 
         private static async Task WaitForConditionRefreshCountAsync(

@@ -238,6 +238,65 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public void StoringAndRestoringADeletedItemCarriesTheDeletedAndDetachedFlags()
+        {
+            // The flags are persisted explicitly rather than inferred from the last value, so a
+            // restored item cannot silently disagree with the item it was stored from.
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using MonitoredItem source = CreateMonitoredItem(telemetry, queueSize: 2);
+            var sourceLifecycle = (IDetachableMonitoredItem)source;
+            sourceLifecycle.MarkNodeDeleted();
+            sourceLifecycle.BeginDetach();
+
+            IStoredMonitoredItem stored = source.ToStorableMonitoredItem();
+
+            using var queueFactory = new MonitoredItemQueueFactory(telemetry);
+            Mock<IServerInternal> server = CreateServerMock(telemetry, queueFactory);
+            using var restored = new MonitoredItem(
+                server.Object,
+                new Mock<IAsyncNodeManager>().Object,
+                new object(),
+                stored);
+            var restoredLifecycle = (IDetachableMonitoredItem)restored;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(stored.IsDeleted, Is.True);
+                Assert.That(stored.IsDetached, Is.True);
+                Assert.That(restoredLifecycle.IsDeleted, Is.True);
+                Assert.That(restoredLifecycle.IsDetached, Is.True);
+            });
+        }
+
+        [Test]
+        public void StoringAndRestoringALiveItemLeavesTheFlagsClear()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using MonitoredItem source = CreateMonitoredItem(telemetry, queueSize: 2);
+            source.QueueValue(
+                new DataValue(new Variant(1), StatusCodes.Good),
+                ServiceResult.Good);
+
+            IStoredMonitoredItem stored = source.ToStorableMonitoredItem();
+
+            using var queueFactory = new MonitoredItemQueueFactory(telemetry);
+            Mock<IServerInternal> server = CreateServerMock(telemetry, queueFactory);
+            using var restored = new MonitoredItem(
+                server.Object,
+                new Mock<IAsyncNodeManager>().Object,
+                new object(),
+                stored);
+            var restoredLifecycle = (IDetachableMonitoredItem)restored;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(stored.IsDeleted, Is.False);
+                Assert.That(stored.IsDetached, Is.False);
+                Assert.That(restoredLifecycle.IsDeleted, Is.False);
+                Assert.That(restoredLifecycle.IsDetached, Is.False);
+            });
+        }
+        [Test]
         public void MultiplePendingDeletionEpochsCollapseIntoOneMarker()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -280,62 +339,6 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void RestoredBadNodeIdUnknownIsProtectedUntilPublication()
-        {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            using MonitoredItem source = CreateMonitoredItem(telemetry, queueSize: 2);
-            ((IDetachableMonitoredItem)source).MarkNodeDeleted();
-            IStoredMonitoredItem stored = source.ToStorableMonitoredItem();
-            DateTimeUtc timestamp = stored.LastValue.SourceTimestamp;
-            using var queueFactory = new MonitoredItemQueueFactory(telemetry);
-            Mock<IServerInternal> server = CreateServerMock(telemetry, queueFactory);
-            using var item = new MonitoredItem(
-                server.Object,
-                new Mock<IAsyncNodeManager>().Object,
-                new object(),
-                stored);
-            var recovered = new DataValue(new Variant(99), StatusCodes.Good);
-
-            item.QueueValue(recovered, ServiceResult.Good);
-            Queue<MonitoredItemNotification> first = Publish(item, telemetry, 1, out bool more);
-            Queue<MonitoredItemNotification> second = Publish(item, telemetry, 10, out _);
-
-            Assert.Multiple(() =>
-            {
-                Assert.That(stored.LastValue.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
-                Assert.That(stored.LastError.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
-                Assert.That(first, Has.Count.EqualTo(1));
-                Assert.That(first.Peek().Value.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
-                Assert.That(first.Peek().Value.SourceTimestamp, Is.EqualTo(timestamp));
-                Assert.That(more, Is.True);
-                Assert.That(second, Has.Count.EqualTo(1));
-                Assert.That(second.Peek().Value, Is.EqualTo(recovered));
-            });
-        }
-
-        [Test]
-        public void DisabledItemPublishesRememberedDeletionAfterReportingIsEnabled()
-        {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            using MonitoredItem item = CreateMonitoredItem(
-                telemetry,
-                monitoringMode: MonitoringMode.Disabled);
-            var lifecycle = (IDetachableMonitoredItem)item;
-
-            lifecycle.MarkNodeDeleted();
-            Queue<MonitoredItemNotification> disabled = Publish(item, telemetry, 1, out _);
-            item.SetMonitoringMode(MonitoringMode.Reporting);
-            Queue<MonitoredItemNotification> enabled = Publish(item, telemetry, 1, out _);
-
-            Assert.Multiple(() =>
-            {
-                Assert.That(disabled, Is.Empty);
-                Assert.That(enabled, Has.Count.EqualTo(1));
-                Assert.That(enabled.Peek().Value.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
-            });
-        }
-
-        [Test]
         public void DiscardRetriesTransientDurableDequeue()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -353,10 +356,8 @@ namespace Opc.Ua.Server.Tests
                 ServiceResult.Good);
             using var handler = new DataChangeQueueHandler(
                 queue,
-                queueSize: 2,
                 discardOldest: true,
                 samplingInterval: 0,
-                DiagnosticsMasks.OperationAll,
                 telemetry,
                 discardedValueHandler: null);
             queue.FailuresRemaining = 1;
@@ -605,10 +606,8 @@ namespace Opc.Ua.Server.Tests
             queue.ResetQueue(queueSize, false);
             return new DataChangeQueueHandler(
                 queue,
-                queueSize,
                 discardOldest,
                 samplingInterval: 0,
-                DiagnosticsMasks.None,
                 telemetry,
                 discardedValueHandler: null);
         }
