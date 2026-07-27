@@ -62,10 +62,10 @@ namespace Opc.Ua.PubSub.Server.Tests.SchemaRegistry
     public sealed class SchemaRegistryIntegrationTests
     {
         // The seed schema published by the fast-path manager, and its content-derived SchemaId.
-        private static readonly ByteString s_seedDocument =
-            ByteString.From(SchemaRegistryOptions.SeedSchemaDocument);
+        private static readonly ByteString s_seedDocument = SchemaRegistryOptions.SeedSchemaDocument;
         private static readonly ByteString s_seedSchemaId =
-            SchemaContentIdProvider.Instance.ComputeContentId("avro", SchemaRegistryOptions.SeedSchemaDocument);
+            SchemaContentIdProvider.Instance.ComputeContentId(
+                "avro", SchemaRegistryOptions.SeedSchemaDocument.Span);
         private static readonly string s_seedSchemaIdAlg =
             SchemaContentIdProvider.Instance.GetAlgorithm("avro")!;
 
@@ -538,7 +538,7 @@ namespace Opc.Ua.PubSub.Server.Tests.SchemaRegistry
             // would compute for the same document (§4.3, Annex B step 4).
             byte[] expected;
             expected = SchemaIdProviders.ComputeSchemaId(
-                "avro", SchemaRegistryOptions.FederatedSchemaDocument);
+                "avro", SchemaRegistryOptions.FederatedSchemaDocument.Span);
 
             Assert.Multiple(() =>
             {

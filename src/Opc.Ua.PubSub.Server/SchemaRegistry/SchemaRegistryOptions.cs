@@ -42,12 +42,14 @@ namespace Opc.Ua.PubSub.Server.SchemaRegistry
     public sealed class SchemaRegistryOptions
     {
         /// <summary>The seed schema published by the fast-path manager when enabled.</summary>
-        internal static readonly byte[] SeedSchemaDocument = System.Text.Encoding.UTF8.GetBytes(
-            "{\"type\":\"record\",\"name\":\"FastPath\",\"fields\":[]}");
+        internal static readonly ByteString SeedSchemaDocument = ByteString.From(
+            System.Text.Encoding.UTF8.GetBytes(
+                "{\"type\":\"record\",\"name\":\"FastPath\",\"fields\":[]}"));
 
         /// <summary>The document federated from a remote registry when enabled.</summary>
-        internal static readonly byte[] FederatedSchemaDocument = System.Text.Encoding.UTF8.GetBytes(
-            "{\"type\":\"record\",\"name\":\"Federated\",\"fields\":[]}");
+        internal static readonly ByteString FederatedSchemaDocument = ByteString.From(
+            System.Text.Encoding.UTF8.GetBytes(
+                "{\"type\":\"record\",\"name\":\"Federated\",\"fields\":[]}"));
 
         /// <summary>The remote registry endpoint carried by the federation proxy's <c>ResourceUrl</c>.</summary>
         internal const string RemoteEndpointUrl = "opc.tcp://remote-registry.example:4840";
@@ -90,7 +92,7 @@ namespace Opc.Ua.PubSub.Server.SchemaRegistry
         /// distributed deployment injects a shared implementation so every node sees the same
         /// schemas.
         /// </summary>
-        public IXRegistryResourceStore ResourceStore { get; set; } = new InMemoryXRegistryResourceStore();
+        public IXRegistryResourceStore ResourceStore { get; set; } = new InMemoryResourceStore();
 
         /// <summary>
         /// Builds the generic <see cref="XRegistryServerOptions"/> that drive the xRegistry node

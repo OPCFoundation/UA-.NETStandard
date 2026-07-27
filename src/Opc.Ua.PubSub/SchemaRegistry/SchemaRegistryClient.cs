@@ -78,11 +78,17 @@ namespace Opc.Ua.PubSub.SchemaRegistry
         /// node is registered for the SchemaId.
         /// </summary>
         /// <param name="schemaId">The raw on-wire SchemaId bytes.</param>
+        /// <param name="maxByteStringLength">
+        /// The chunk size for the range-based reads; 0 uses the session's own limit.
+        /// </param>
         /// <param name="ct">The cancellation token.</param>
         /// <returns>The schema document bytes, or a null ByteString when not registered.</returns>
-        public Task<ByteString> ResolveSchemaAsync(ByteString schemaId, CancellationToken ct = default)
+        public Task<ByteString> ResolveSchemaAsync(
+            ByteString schemaId,
+            int maxByteStringLength = 0,
+            CancellationToken ct = default)
         {
-            return ResolveResourceAsync(schemaId, ct);
+            return ResolveResourceAsync(schemaId, maxByteStringLength, ct);
         }
 
         /// <summary>
@@ -93,7 +99,7 @@ namespace Opc.Ua.PubSub.SchemaRegistry
         /// <param name="schemaGroupId">The SchemaGroup id.</param>
         /// <param name="ct">The cancellation token.</param>
         /// <returns>The SchemaGroup NodeId and whether this call created it.</returns>
-        public Task<(NodeId GroupNodeId, bool Created)> GetOrCreateSchemaGroupAsync(
+        public Task<GroupRegistrationResult> GetOrCreateSchemaGroupAsync(
             NodeId registryNodeId,
             string schemaGroupId,
             CancellationToken ct = default)
@@ -115,7 +121,7 @@ namespace Opc.Ua.PubSub.SchemaRegistry
         /// <param name="chunkSize">The maximum Write chunk size in bytes.</param>
         /// <param name="ct">The cancellation token.</param>
         /// <returns>The created schema NodeId and the version id the server assigned.</returns>
-        public Task<(NodeId ResourceNodeId, string AssignedVersionId)> RegisterSchemaAsync(
+        public Task<ResourceRegistrationResult> RegisterSchemaAsync(
             NodeId schemaGroupNodeId,
             string schemaId,
             ReadOnlyMemory<byte> document,
@@ -139,7 +145,7 @@ namespace Opc.Ua.PubSub.SchemaRegistry
         /// <param name="chunkSize">The maximum Write chunk size in bytes.</param>
         /// <param name="ct">The cancellation token.</param>
         /// <returns>The schema NodeId, the assigned version id, and whether it was created.</returns>
-        public Task<(NodeId ResourceNodeId, string AssignedVersionId, bool Created)> GetOrRegisterSchemaAsync(
+        public Task<ResourceRegistrationResult> GetOrRegisterSchemaAsync(
             NodeId schemaGroupNodeId,
             string schemaId,
             ReadOnlyMemory<byte> document,

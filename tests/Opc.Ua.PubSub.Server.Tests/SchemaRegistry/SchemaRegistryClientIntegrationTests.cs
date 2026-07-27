@@ -65,10 +65,10 @@ namespace Opc.Ua.PubSub.Server.Tests.SchemaRegistry
     public sealed class SchemaRegistryClientIntegrationTests
     {
         // The seed schema published by the fast-path manager, and its content-derived SchemaId.
-        private static readonly ByteString s_seedDocument =
-            ByteString.From(SchemaRegistryOptions.SeedSchemaDocument);
+        private static readonly ByteString s_seedDocument = SchemaRegistryOptions.SeedSchemaDocument;
         private static readonly ByteString s_seedSchemaId =
-            SchemaContentIdProvider.Instance.ComputeContentId("avro", SchemaRegistryOptions.SeedSchemaDocument);
+            SchemaContentIdProvider.Instance.ComputeContentId(
+                "avro", SchemaRegistryOptions.SeedSchemaDocument.Span);
 
         private ITelemetryContext m_telemetry;
         private ServerFixture<SchemaRegistryTestServer> m_serverFixture;
