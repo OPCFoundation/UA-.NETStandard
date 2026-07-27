@@ -28,7 +28,9 @@
  * ======================================================================*/
 
 using System;
+#if NET9_0_OR_GREATER
 using System.Diagnostics.CodeAnalysis;
+#endif
 using System.IO;
 using System.Reflection;
 #if NET8_0_OR_GREATER
@@ -59,7 +61,13 @@ namespace Opc.Ua.OpenUsd.Connector
         /// <param name="host">The loaded host, or <c>null</c> when unavailable.</param>
         /// <param name="reason">A user-facing explanation when <paramref name="host"/> is <c>null</c>.</param>
         /// <returns><c>true</c> when a host was loaded.</returns>
-#if NET8_0_OR_GREATER
+        // The trim/AOT annotations are omitted on net8.0. The netstandard2.1 build
+        // variant pairs a net8.0 app with netstandard2.1 libraries, and those carry
+        // public RequiresUnreferencedCode/RequiresDynamicCode polyfills that collide
+        // with net8.0's own BCL definitions (CS0433). net8.0 is only ever an app
+        // target in that variant, and this tool is not trim- or AOT-published, so
+        // the annotations stay where they carry weight: net9.0 and later.
+#if NET9_0_OR_GREATER
         [RequiresUnreferencedCode(
             "The viewport is discovered by assembly and type name, so trimming cannot see it.")]
         [RequiresDynamicCode(
@@ -135,8 +143,10 @@ namespace Opc.Ua.OpenUsd.Connector
         /// viewport is installed side by side rather than referenced, so it is absent from
         /// the connector's dependency manifest and plain assembly binding cannot find it.
         /// </summary>
+#if NET9_0_OR_GREATER
         [RequiresUnreferencedCode(
             "The viewport and its dependencies are resolved by path, so trimming cannot see them.")]
+#endif
         private static Assembly LoadViewerAssembly()
         {
             string path = Path.Combine(
