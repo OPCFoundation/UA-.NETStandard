@@ -34,6 +34,10 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 
+// Test code exercises RequestManager.RequestCompleted, which is obsolete for callers
+// because requests are completed by disposing the OperationContext.
+#pragma warning disable CS0618
+
 namespace Opc.Ua.Server.Tests
 {
     [TestFixture]
@@ -445,15 +449,10 @@ namespace Opc.Ua.Server.Tests
             Assert.That(outerLifetime.TryCancel(StatusCodes.BadTimeout), Is.False);
         }
 
-        [Test]
-        public void PromoteValidatedRequestThrowsArgumentNullExceptionWhenContextNull()
-        {
-            Assert.That(() => m_requestManager.PromoteValidatedRequest(null), Throws.ArgumentNullException);
-        }
 
         [Test]
         [Category("NodeManagerLifecycle")]
-        public async Task EnterValidationScopeCompletesRegisteredRequestsOnDisposeAsync()
+        public async Task DrainWaitsForBothTheValidationScopeAndTheRequestAsync()
         {
             using var requestLifetime = new RequestLifetime();
             OperationContext context = CreateOperationContext(70, requestLifetime);
@@ -468,14 +467,15 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(waiter.IsCompleted, Is.False);
             }
 
-            // Disposing the validation scope completes every request it registered
-            // and unblocks waiters that were tracking the active validation scope.
+            // The validation scope no longer owns the request, so closing it is not enough.
+            Assert.That(waiter.IsCompleted, Is.False);
+
+            m_requestManager.RequestCompleted(context);
             await AssertCompletesWithinTimeoutAsync(waiter).ConfigureAwait(false);
-            Assert.That(requestLifetime.TryCancel(StatusCodes.BadTimeout), Is.False);
         }
 
         [Test]
-        public void PromoteValidatedRequestExcludesContextFromValidationScopeAutoCompletion()
+        public void ValidationScopeDoesNotCompleteRequestsRegisteredWhileItIsOpen()
         {
             using var requestLifetime = new RequestLifetime();
             OperationContext context = CreateOperationContext(71, requestLifetime);
@@ -483,7 +483,6 @@ namespace Opc.Ua.Server.Tests
             using (m_requestManager.EnterValidationScope())
             {
                 m_requestManager.RequestReceived(context);
-                m_requestManager.PromoteValidatedRequest(context);
             }
 
             // The promoted request was handed off to ordinary request-scope ownership,
@@ -499,7 +498,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void NestedValidationScopesOnlyCompleteRequestsRegisteredWithinThem()
+        public void NestedValidationScopesLeaveRegisteredRequestsToTheirOwnScope()
         {
             using var outerLifetime = new RequestLifetime();
             using var innerLifetime = new RequestLifetime();
@@ -515,12 +514,21 @@ namespace Opc.Ua.Server.Tests
                     m_requestManager.RequestReceived(innerContext);
                 }
 
-                // The inner scope disposed and completed only innerContext.
-                Assert.That(innerLifetime.TryCancel(StatusCodes.BadTimeout), Is.False);
+                // A validation scope only covers the validation window, so closing it leaves both
+                // requests executing until their own scope completes them.
+                Assert.That(m_requestManager.IsExecutingRequest, Is.True);
             }
 
-            // The outer scope disposal then completes outerContext too.
-            Assert.That(outerLifetime.TryCancel(StatusCodes.BadTimeout), Is.False);
+            m_requestManager.CancelRequests(outerContext.SessionId, 80, out uint outerCancelled);
+            m_requestManager.CancelRequests(innerContext.SessionId, 81, out uint innerCancelled);
+            Assert.Multiple(() =>
+            {
+                Assert.That(outerCancelled, Is.EqualTo(1));
+                Assert.That(innerCancelled, Is.EqualTo(1));
+            });
+
+            m_requestManager.RequestCompleted(outerContext);
+            m_requestManager.RequestCompleted(innerContext);
         }
 
         private static OperationContext CreateOperationContext(

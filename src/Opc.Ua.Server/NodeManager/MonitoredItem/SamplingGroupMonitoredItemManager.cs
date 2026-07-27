@@ -529,7 +529,11 @@ namespace Opc.Ua.Server
                 else
                 {
                     m_samplingGroupManager.StartMonitoring(
+                        // Either borrowed from the caller or created for the sampling group, which
+                        // keeps using it, so it is not disposed here. It tracks no request.
+#pragma warning disable CA2000
                         context.OperationContext ?? new OperationContext(monitoredItem),
+#pragma warning restore CA2000
                         monitoredItem,
                         monitoredItem.EffectiveIdentity);
                     monitoringStarted = true;

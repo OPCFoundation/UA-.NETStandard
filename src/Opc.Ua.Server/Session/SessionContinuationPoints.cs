@@ -192,6 +192,76 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Drops and disposes the history continuation points that belong to a NodeManager which
+        /// is being retired, so its state is released with it instead of lingering until the
+        /// Session closes or the history limit evicts it.
+        /// </summary>
+        /// <param name="nodeManager">The NodeManager being retired.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="nodeManager"/> is <c>null</c>.</exception>
+        public void RemoveHistoryForManager(IAsyncNodeManager nodeManager)
+        {
+            if (nodeManager is null)
+            {
+                throw new ArgumentNullException(nameof(nodeManager));
+            }
+
+            List<HistoryContinuationPoint>? removed = null;
+            lock (m_lock)
+            {
+                if (m_history == null)
+                {
+                    return;
+                }
+
+                for (int ii = m_history.Count - 1; ii >= 0; ii--)
+                {
+                    HistoryContinuationPoint continuationPoint = m_history[ii];
+                    if (!IsOwnedBy(continuationPoint.Value, nodeManager))
+                    {
+                        continue;
+                    }
+
+                    m_history.RemoveAt(ii);
+                    removed ??= [];
+                    removed.Add(continuationPoint);
+                }
+            }
+
+            if (removed == null)
+            {
+                return;
+            }
+
+            // Persisting and disposing runs outside the lock, for the same reason as the Browse
+            // continuation points: the state belongs to the NodeManager being retired.
+            foreach (HistoryContinuationPoint continuationPoint in removed)
+            {
+                m_store?.RemoveContinuationPoint(
+                    Id,
+                    ContinuationPointKind.History,
+                    continuationPoint.Id);
+                (continuationPoint.Value as IDisposable)?.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Reports whether a history continuation point was produced by the given NodeManager.
+        /// Only the built-in historian state records its provider, so a continuation point from a
+        /// custom implementation is left alone rather than dropped on a guess.
+        /// </summary>
+        private static bool IsOwnedBy(object? continuationPoint, IAsyncNodeManager nodeManager)
+        {
+            if (continuationPoint is not Historian.HistorianContinuationState state)
+            {
+                return false;
+            }
+
+            object provider = state.Provider;
+            return ReferenceEquals(provider, nodeManager) ||
+                ReferenceEquals(provider, nodeManager.SyncNodeManager);
+        }
+
+        /// <summary>
         /// Saves a history continuation point, dropping the oldest when the limit is reached. A point that implements
         /// <see cref="IDisposable"/> is disposed when it is dropped or the session is cleared.
         /// </summary>

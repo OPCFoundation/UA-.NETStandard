@@ -584,7 +584,11 @@ namespace Opc.Ua.Server
                     {
                         ReturnDiagnostics = (int)DiagnosticsMasks.OperationSymbolicIdAndText
                     };
+                    // Passed on to DeleteMonitoredItemsAsync below; it tracks no request, so there
+                    // is nothing to release when this scope ends.
+#pragma warning disable CA2000
                     context = new OperationContext(requestHeader, null, RequestType.Unknown, RequestLifetime.None);
+#pragma warning restore CA2000
                 }
 
                 await DeleteMonitoredItemsAsync(
@@ -2683,7 +2687,7 @@ namespace Opc.Ua.Server
             {
                 m_refreshInProgress = true;
 
-                var operationContext = new OperationContext(Session, DiagnosticsMasks.None);
+                using var operationContext = new OperationContext(Session, DiagnosticsMasks.None);
                 await m_server.NodeManager.ConditionRefreshAsync(operationContext, monitoredItems, cancellationToken)
                     .ConfigureAwait(false);
             }

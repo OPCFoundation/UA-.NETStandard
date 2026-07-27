@@ -64,7 +64,7 @@ namespace Opc.Ua.Server.Tests
 
             public ValueTask<OperationContext> ValidateRequestInScopePublicAsync()
             {
-                return ValidateRequestInScopeAsync(
+                return ValidateRequestAsync(
                     null!,
                     new RequestHeader(),
                     RequestType.Read,

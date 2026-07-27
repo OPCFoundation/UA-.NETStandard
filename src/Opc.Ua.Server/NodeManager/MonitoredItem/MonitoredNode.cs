@@ -688,7 +688,11 @@ namespace Opc.Ua.Server
                 }
                 else
                 {
+                    // Handed to the callback and cached with the context, so it may outlive this
+                    // call and is not disposed here. It tracks no request, so nothing is released.
+#pragma warning disable CA2000
                     operationContext = new OperationContext(monitoredItem);
+#pragma warning restore CA2000
                     contextToUse = snapshot.Context;
                 }
 

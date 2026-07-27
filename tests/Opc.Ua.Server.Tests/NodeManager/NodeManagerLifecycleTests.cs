@@ -43,6 +43,10 @@ using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
 using Quickstarts.ReferenceServer;
 
+// Test code exercises RequestManager.RequestCompleted, which is obsolete for callers
+// because requests are completed by disposing the OperationContext.
+#pragma warning disable CS0618
+
 namespace Opc.Ua.Server.Tests.NodeManager
 {
     /// <summary>
