@@ -158,7 +158,14 @@ namespace Opc.Ua.Sessions.Tests
                 Assert.That(
                     mirrored!.SecurityStateVersion,
                     Is.EqualTo(SharedSessionEntry.CurrentSecurityStateVersion));
-                Assert.That(mirrored.ClientUserId, Is.EqualTo("user1"));
+
+                // The mirrored identity is the encoded continuity key rather than
+                // the human readable ClientUserId diagnostic, so a different token
+                // type or a different issuer/subject split cannot be restored into
+                // this Session. The exact encoding is covered by unit tests.
+                Assert.That(mirrored.ClientUserId, Is.Not.Null);
+                Assert.That(mirrored.ClientUserId, Does.Contain("user1"));
+                Assert.That(mirrored.ClientUserId, Is.Not.EqualTo("user1"));
                 Assert.That(
                     mirrored.ClientUserTokenType,
                     Is.EqualTo(UserTokenType.UserName));
