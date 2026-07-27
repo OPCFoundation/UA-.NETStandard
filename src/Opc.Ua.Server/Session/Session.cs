@@ -777,6 +777,7 @@ namespace Opc.Ua.Server
         public void InvalidateContinuationPoints(IAsyncNodeManager nodeManager)
         {
             m_continuationPoints.RemoveBrowseForManager(nodeManager);
+            m_continuationPoints.RemoveHistoryForManager(nodeManager);
         }
 
         /// <summary>

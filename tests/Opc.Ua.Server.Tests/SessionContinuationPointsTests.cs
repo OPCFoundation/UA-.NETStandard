@@ -455,6 +455,39 @@ namespace Opc.Ua.Server.Tests
             Assert.DoesNotThrow(holder.Clear);
         }
 
+        [Test]
+        public void RemoveHistoryForManagerThrowsOnNullNodeManager()
+        {
+            SessionContinuationPoints holder = NewHolder();
+
+            ArgumentNullException ex = Assert.Throws<ArgumentNullException>(
+                () => holder.RemoveHistoryForManager(null!))!;
+            Assert.That(ex.ParamName, Is.EqualTo("nodeManager"));
+        }
+
+        [Test]
+        public void RemoveHistoryForManagerIsNoOpWhenNoHistoryPointsSaved()
+        {
+            SessionContinuationPoints holder = NewHolder();
+
+            Assert.DoesNotThrow(
+                () => holder.RemoveHistoryForManager(NewNodeManager(Mock.Of<INodeManager>())));
+        }
+
+        [Test]
+        public void RemoveHistoryForManagerLeavesPointsOfOtherOwners()
+        {
+            SessionContinuationPoints holder = NewHolder();
+            Guid id = Guid.NewGuid();
+
+            // A continuation point that does not record a provider cannot be attributed to a
+            // NodeManager, so it is left alone rather than dropped on a guess.
+            holder.SaveHistory(id, new object());
+
+            holder.RemoveHistoryForManager(NewNodeManager(Mock.Of<INodeManager>()));
+
+            Assert.That(holder.RestoreHistory(ToByteString(id)), Is.Not.Null);
+        }
         private static SessionContinuationPoints NewHolder(
             int maxBrowse = 10,
             int maxHistory = 10,

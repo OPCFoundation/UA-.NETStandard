@@ -4550,8 +4550,9 @@ namespace Opc.Ua.Server
                         {
                             try
                             {
+                                using var eventContext = new OperationContext(monitoredItem);
                                 await manager.SubscribeToAllEventsAsync(
-                                        new OperationContext(monitoredItem),
+                                        eventContext,
                                         monitoredItem.SubscriptionId,
                                         monitoredItem,
                                         false,
@@ -4567,8 +4568,9 @@ namespace Opc.Ua.Server
                     // only subscribe to the node manager that owns the node.
                     else
                     {
+                        using var eventContext = new OperationContext(monitoredItem);
                         ServiceResult error = await nodeManager!.SubscribeToEventsAsync(
-                                new OperationContext(monitoredItem),
+                                eventContext,
                                 handle,
                                 monitoredItem.SubscriptionId,
                                 monitoredItem,

@@ -5227,7 +5227,7 @@ namespace Opc.Ua.Server
                 sourceNodeId = baseEventState.SourceNode?.Value ?? default;
             }
 
-            var operationContext = new OperationContext(monitoredItem);
+            using var operationContext = new OperationContext(monitoredItem);
 
             return ValidateEventReceivePermissions(operationContext, eventTypeId, sourceNodeId);
         }

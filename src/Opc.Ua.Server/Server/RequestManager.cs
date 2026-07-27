@@ -159,7 +159,6 @@ namespace Opc.Ua.Server
                         $"A different request with id {context.RequestId} is already active.");
                 }
                 m_requests.Add(context.RequestId, context);
-                m_currentValidationScope.Value?.Register(context);
 
                 if (context.OperationDeadline < DateTime.MaxValue && m_requestTimer == null)
                 {
@@ -176,7 +175,17 @@ namespace Opc.Ua.Server
         /// Called when a request completes (normally or abnormally).
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        [Obsolete("Requests are completed by disposing the OperationContext, which owns the request scope.")]
         public void RequestCompleted(OperationContext context)
+        {
+            CompleteRequest(context);
+        }
+
+        /// <summary>
+        /// Reports a request as completed and releases any drain waiting for it.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        private void CompleteRequest(OperationContext context)
         {
             if (context == null)
             {
@@ -243,16 +252,8 @@ namespace Opc.Ua.Server
             }
 
             uint? previousRequestId = m_currentRequestId.Value;
-            RequestValidationScope? previousValidationScope =
-                m_currentValidationScope.Value;
             m_currentRequestId.Value = uint.MaxValue;
-            var scope = new RequestValidationScope(
-                this,
-                validationId,
-                previousRequestId,
-                previousValidationScope);
-            m_currentValidationScope.Value = scope;
-            return scope;
+            return new RequestValidationScope(this, validationId, previousRequestId);
         }
 
         /// <summary>
@@ -279,20 +280,6 @@ namespace Opc.Ua.Server
                 previousRequestId);
         }
 
-        /// <summary>
-        /// Hands a successfully validated request from its validation scope to the request scope
-        /// that will execute it, so the request is tracked continuously and is not completed twice.
-        /// </summary>
-        /// <param name="context">The context of the validated request.</param>
-        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
-        internal void PromoteValidatedRequest(OperationContext context)
-        {
-            if (context is null)
-            {
-                throw new ArgumentNullException(nameof(context));
-            }
-            m_currentValidationScope.Value?.Promote(context);
-        }
 
         /// <summary>
         /// Waits until every request that is currently executing or being validated has finished.
@@ -462,8 +449,6 @@ namespace Opc.Ua.Server
         private readonly TimeProvider m_timeProvider;
         private readonly AsyncLocal<uint?> m_currentRequestId = new();
 
-        private readonly AsyncLocal<RequestValidationScope?>
-            m_currentValidationScope = new();
 
         private readonly Dictionary<uint, OperationContext> m_requests;
         private readonly List<RequestDrain> m_requestDrains = [];
@@ -578,7 +563,7 @@ namespace Opc.Ua.Server
                 if (!m_disposed)
                 {
                     m_disposed = true;
-                    m_requestManager.RequestCompleted(m_context);
+                    m_requestManager.CompleteRequest(m_context);
                     m_requestManager.m_currentRequestId.Value =
                         m_previousRequestId;
                 }
@@ -591,9 +576,15 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Tracks the validation of a request so that a lifecycle operation cannot retire a
-        /// NodeManager between the moment a request is validated and the moment it starts
-        /// executing.
+        /// Tracks the window in which a request is being validated, so that a lifecycle operation
+        /// cannot retire a NodeManager between the moment validation starts and the moment the
+        /// validated request starts executing.
+        /// <para>
+        /// The scope carries an id of its own rather than the request id, because it opens before
+        /// the <see cref="OperationContext"/> exists and therefore before a request id has been
+        /// assigned. It tracks no contexts: a validated request is handed over explicitly, by
+        /// attaching its execution scope to the context that <c>ValidateRequestAsync</c> returns.
+        /// </para>
         /// </summary>
         private sealed class RequestValidationScope : IDisposable
         {
@@ -603,54 +594,25 @@ namespace Opc.Ua.Server
             /// <param name="requestManager">The owning request manager.</param>
             /// <param name="validationId">The id the drain waits for.</param>
             /// <param name="previousRequestId">The request id to restore on dispose.</param>
-            /// <param name="previousValidationScope">The scope to restore on dispose.</param>
             public RequestValidationScope(
                 RequestManager requestManager,
                 long validationId,
-                uint? previousRequestId,
-                RequestValidationScope? previousValidationScope)
+                uint? previousRequestId)
             {
                 m_requestManager = requestManager;
                 m_validationId = validationId;
                 m_previousRequestId = previousRequestId;
-                m_previousValidationScope = previousValidationScope;
             }
 
             /// <summary>
-            /// Remembers a request that was created during validation, so it is completed again
-            /// if validation does not hand it on to a request scope.
-            /// </summary>
-            /// <param name="context">The context created during validation.</param>
-            public void Register(OperationContext context)
-            {
-                if (!m_registeredContexts.Contains(context))
-                {
-                    m_registeredContexts.Add(context);
-                }
-            }
-
-            /// <summary>
-            /// Releases a validated request to its request scope, which now owns completing it.
-            /// </summary>
-            /// <param name="context">The context that was validated.</param>
-            public void Promote(OperationContext context)
-            {
-                m_registeredContexts.Remove(context);
-            }
-
-            /// <summary>
-            /// Completes any request that was never promoted, releases the drain that waits for
-            /// this scope, and restores the ambient state of the calling flow.
+            /// Releases the drain that waits for this scope and restores the ambient state of the
+            /// calling flow.
             /// </summary>
             public void Dispose()
             {
                 if (!m_disposed)
                 {
                     m_disposed = true;
-                    foreach (OperationContext context in m_registeredContexts)
-                    {
-                        m_requestManager.RequestCompleted(context);
-                    }
                     lock (m_requestManager.m_requestsLock)
                     {
                         m_requestManager.m_activeValidationScopes.Remove(
@@ -669,16 +631,12 @@ namespace Opc.Ua.Server
                     }
                     m_requestManager.m_currentRequestId.Value =
                         m_previousRequestId;
-                    m_requestManager.m_currentValidationScope.Value =
-                        m_previousValidationScope;
                 }
             }
 
             private readonly RequestManager m_requestManager;
             private readonly long m_validationId;
             private readonly uint? m_previousRequestId;
-            private readonly RequestValidationScope? m_previousValidationScope;
-            private readonly List<OperationContext> m_registeredContexts = [];
             private bool m_disposed;
         }
     }

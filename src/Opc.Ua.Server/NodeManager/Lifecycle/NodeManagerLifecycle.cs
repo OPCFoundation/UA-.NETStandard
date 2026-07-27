@@ -1586,11 +1586,12 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
+                using var sessionContext = new OperationContext(
+                    binding.Value.Session,
+                    DiagnosticsMasks.None);
                 await nodeManager
                     .SessionClosingAsync(
-                        new OperationContext(
-                            binding.Value.Session,
-                            DiagnosticsMasks.None),
+                        sessionContext,
                         binding.Key,
                         deleteSubscriptions: false,
                         ct)
@@ -1639,9 +1640,10 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
+                using var eventContext = new OperationContext(binding.Value);
                 await nodeManager
                     .SubscribeToAllEventsAsync(
-                        new OperationContext(binding.Value),
+                        eventContext,
                         binding.Value.SubscriptionId,
                         binding.Value,
                         true,
@@ -1681,9 +1683,10 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
+                using var eventContext = new OperationContext(monitoredItem);
                 await nodeManager
                     .SubscribeToAllEventsAsync(
-                        new OperationContext(monitoredItem),
+                        eventContext,
                         monitoredItem.SubscriptionId,
                         monitoredItem,
                         true,
@@ -1693,7 +1696,7 @@ namespace Opc.Ua.Server
 
             foreach (ISession session in server.SessionManager.GetSessions())
             {
-                var context = new OperationContext(session, DiagnosticsMasks.None);
+                using var context = new OperationContext(session, DiagnosticsMasks.None);
                 await nodeManager
                     .SessionClosingAsync(
                         context,
@@ -1712,9 +1715,10 @@ namespace Opc.Ua.Server
             foreach (IEventMonitoredItem monitoredItem in
                 bindings.EventMonitoredItems.Values)
             {
+                using var eventContext = new OperationContext(monitoredItem);
                 await nodeManager
                     .SubscribeToAllEventsAsync(
-                        new OperationContext(monitoredItem),
+                        eventContext,
                         monitoredItem.SubscriptionId,
                         monitoredItem,
                         true,
@@ -1725,11 +1729,12 @@ namespace Opc.Ua.Server
             foreach (KeyValuePair<NodeId, SessionBinding> binding in
                 bindings.Sessions)
             {
+                using var sessionContext = new OperationContext(
+                    binding.Value.Session,
+                    DiagnosticsMasks.None);
                 await nodeManager
                     .SessionClosingAsync(
-                        new OperationContext(
-                            binding.Value.Session,
-                            DiagnosticsMasks.None),
+                        sessionContext,
                         binding.Key,
                         deleteSubscriptions: false,
                         ct)
@@ -1745,7 +1750,7 @@ namespace Opc.Ua.Server
         {
             while (true)
             {
-                var context = new OperationContext(session, DiagnosticsMasks.None);
+                using var context = new OperationContext(session, DiagnosticsMasks.None);
                 IUserIdentity identity = context.UserIdentity;
                 try
                 {
@@ -1814,7 +1819,7 @@ namespace Opc.Ua.Server
             IEventMonitoredItem monitoredItem,
             CancellationToken ct)
         {
-            var context = new OperationContext(monitoredItem);
+            using var context = new OperationContext(monitoredItem);
             try
             {
                 await nodeManager
@@ -1857,9 +1862,10 @@ namespace Opc.Ua.Server
                 return true;
             }
 
+            using var eventContext = new OperationContext(monitoredItem);
             await nodeManager
                 .SubscribeToAllEventsAsync(
-                    new OperationContext(monitoredItem),
+                    eventContext,
                     monitoredItem.SubscriptionId,
                     monitoredItem,
                     true,

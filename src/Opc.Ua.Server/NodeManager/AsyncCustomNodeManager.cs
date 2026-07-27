@@ -6485,7 +6485,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Validates if the specified event monitored item has enough permissions to receive the specified event
         /// </summary>
-        public ValueTask<ServiceResult> ValidateEventRolePermissionsAsync(
+        public async ValueTask<ServiceResult> ValidateEventRolePermissionsAsync(
             IEventMonitoredItem monitoredItem,
             IFilterTarget filterTarget,
             CancellationToken cancellationToken = default)
@@ -6506,13 +6506,13 @@ namespace Opc.Ua.Server
                 sourceNodeId = baseEventState.SourceNode?.Value ?? default;
             }
 
-            var operationContext = new OperationContext(monitoredItem);
+            using var operationContext = new OperationContext(monitoredItem);
 
-            return ValidateEventReceivePermissionsAsync(
+            return await ValidateEventReceivePermissionsAsync(
                 operationContext,
                 eventTypeId,
                 sourceNodeId,
-                cancellationToken);
+                cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
