@@ -91,13 +91,16 @@ and reattaches the item automatically. Event MonitoredItems detach and recover t
 without synthesizing a data-change status.
 
 That notification is queued in its natural position, because Part 4 §5.13.1.5 requires a Server to
-return notifications in the order they are in the queue. It is queued in addition to the configured
-`queueSize` and is exempt from overflow discard, mirroring the rule the same section defines for
-`EventQueueOverflowEventType`, so a full queue cannot swallow it. The specification does not state
-this explicitly for data-change notifications; issue
-[#4102](https://github.com/OPCFoundation/UA-.NETStandard/issues/4102) records the ambiguity and
-where to change the behaviour if it turns out to be non-compliant. Only one such notification is
-pending at a time, and a pending one is not preserved across a durable subscription restart.
+return notifications in the order they are in the queue. It occupies an ordinary queue slot, but it
+is the one value that is never discarded: once the queue is full, an incoming value is dropped
+instead of the notification, so a full queue cannot swallow it. At the default `queueSize` of 1 that
+means the notification replaces the value sampled before the deletion, and values sampled afterwards
+are dropped until it has been published. The specification does not state how a mandatory
+data-change notification survives a full queue — the protected, over-capacity slot it defines applies
+to `EventQueueOverflowEventType` only — so issue
+[#4102](https://github.com/OPCFoundation/UA-.NETStandard/issues/4102) records the ambiguity and where
+to change the behaviour. Only one such notification is pending at a time, and a pending one is not
+preserved across a durable subscription restart.
 
 The built-in NodeManager and Subscription implementations support these transitions. A custom
 implementation that the server cannot migrate safely fails with `NotSupportedException` before any

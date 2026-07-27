@@ -40,7 +40,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// A generic session manager object for a server.
     /// </summary>
-    public class Session : ISession, INodeManagerContinuationPointTracker
+    public class Session : ISession
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="Session"/> class.
@@ -405,47 +405,19 @@ namespace Opc.Ua.Server
         public bool Activated { get; private set; }
 
         /// <summary>
-        /// Whether the session is being closed.
+        /// Whether the session is being closed. Closing is entered once and never left, so a
+        /// Session that started closing never serves new work again.
         /// </summary>
-        public bool IsClosing => Volatile.Read(ref m_closingCount) > 0;
+        public bool IsClosing => Volatile.Read(ref m_closing) != 0;
 
         /// <summary>
-        /// Marks the session as being closed until the returned scope is disposed. Closing can be
-        /// entered more than once, so the marks are counted rather than replaced.
+        /// Marks the session as being closed. The mark is one way: once a close has started the
+        /// Session is on its way out, so nothing that would create new state for it is accepted
+        /// again, even if the close itself fails.
         /// </summary>
-        /// <returns>The scope that clears the mark.</returns>
-        internal IDisposable MarkClosing()
+        internal void MarkClosing()
         {
-            Interlocked.Increment(ref m_closingCount);
-            return new ClosingScope(this);
-        }
-
-        /// <summary>
-        /// Clears one closing mark taken by <see cref="MarkClosing"/>.
-        /// </summary>
-        private sealed class ClosingScope : IDisposable
-        {
-            /// <summary>
-            /// Initializes a new instance of the <see cref="ClosingScope"/> class.
-            /// </summary>
-            /// <param name="session">The session that is being closed.</param>
-            public ClosingScope(Session session)
-            {
-                m_session = session;
-            }
-
-            /// <inheritdoc/>
-            public void Dispose()
-            {
-                if (!m_disposed)
-                {
-                    m_disposed = true;
-                    Interlocked.Decrement(ref m_session.m_closingCount);
-                }
-            }
-
-            private readonly Session m_session;
-            private bool m_disposed;
+            Volatile.Write(ref m_closing, 1);
         }
 
         /// <summary>
@@ -1369,7 +1341,7 @@ namespace Opc.Ua.Server
         }
 
         private readonly Lock m_lock = new();
-        private int m_closingCount;
+        private int m_closing;
         private readonly ILogger m_logger;
         private readonly ILogger m_eventLogger;
         private readonly IServerInternal m_server;

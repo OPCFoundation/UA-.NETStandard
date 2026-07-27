@@ -1305,20 +1305,7 @@ namespace Opc.Ua.Server
         /// </summary>
         private void AddValueToQueue(DataValue value, ServiceResult error)
         {
-            bool queued = true;
-            bool overflow = m_dataChangeQueueHandler?.QueueValue(
-                value,
-                error,
-                out queued) ?? false;
-            if (!queued)
-            {
-                m_logger.QUEUEVALUEMonitoredItemIdValueValueCODECode(
-                    Id,
-                    value.WrappedValue,
-                    value.StatusCode.Code,
-                    overflow);
-                return;
-            }
+            bool overflow = m_dataChangeQueueHandler?.QueueValue(value, error) ?? false;
 
             if (!m_lastValue.IsNull)
             {

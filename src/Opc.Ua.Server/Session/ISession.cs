@@ -47,9 +47,17 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Whether the session is being closed. Requests that would create new server state for
         /// the session are rejected once this is set, because that state would be torn down again
-        /// immediately.
+        /// immediately. Closing is entered once and never left.
         /// </summary>
         bool IsClosing { get; }
+
+        /// <summary>
+        /// Removes and disposes the saved continuation points that retain the NodeManager, so it
+        /// can be torn down without a Client being able to resume a Browse or a history read into
+        /// it.
+        /// </summary>
+        /// <param name="nodeManager">The NodeManager being retired.</param>
+        void InvalidateContinuationPoints(IAsyncNodeManager nodeManager);
 
         /// <summary>
         /// The server application instance certificate used by this session.
