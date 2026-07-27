@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Server;
@@ -502,13 +503,18 @@ namespace Opc.Ua.XRegistry.Server
             string storeKey;
             lock (m_gate)
             {
-                if (resource.Epoch != null && resource.Epoch.Value != expectedEpoch)
+                if (!IsEpochCurrent(resource.Epoch, expectedEpoch))
                 {
                     return new DeleteMethodStateResult { ServiceResult = StatusCodes.BadInvalidState };
                 }
 
                 storeKey = StoreKeyOf(resource);
-                RemoveResourceLocked(resource);
+                if (!RemoveResourceLocked(resource))
+                {
+                    // A concurrent Delete already removed it; nothing left to do and nothing to
+                    // release a second time.
+                    return new DeleteMethodStateResult { ServiceResult = ServiceResult.Good };
+                }
             }
 
             _ = await m_resourceStore.DeleteAsync(storeKey).ConfigureAwait(false);
@@ -526,7 +532,7 @@ namespace Opc.Ua.XRegistry.Server
             var storeKeys = new List<string>();
             lock (m_gate)
             {
-                if (group.Epoch != null && group.Epoch.Value != expectedEpoch)
+                if (!IsEpochCurrent(group.Epoch, expectedEpoch))
                 {
                     return new DeleteMethodStateResult { ServiceResult = StatusCodes.BadInvalidState };
                 }
@@ -556,11 +562,35 @@ namespace Opc.Ua.XRegistry.Server
         }
 
         /// <summary>
-        /// Removes a resource, its content-addressed fast-path node and its registration slot. The
-        /// caller holds <see cref="m_gate"/>.
+        /// Removes a resource, its content-addressed fast-path node, any file handles still open on
+        /// it and its registration slot. Idempotent: a resource that is already gone is left alone,
+        /// so a repeated or racing Delete cannot double-release the shared fast-path reference or
+        /// drift the registration count. The caller holds <see cref="m_gate"/>.
         /// </summary>
-        private void RemoveResourceLocked(ResourceState resource)
+        /// <param name="resource">The resource to remove.</param>
+        /// <returns><c>true</c> when this call removed the resource.</returns>
+        private bool RemoveResourceLocked(ResourceState resource)
         {
+            var keys = new List<ResourceKey>();
+            foreach (KeyValuePair<ResourceKey, ResourceState> entry in m_resources)
+            {
+                if (ReferenceEquals(entry.Value, resource))
+                {
+                    keys.Add(entry.Key);
+                }
+            }
+
+            if (keys.Count == 0)
+            {
+                // Already removed by a concurrent Delete, or by its group's Delete.
+                return false;
+            }
+
+            foreach (ResourceKey key in keys)
+            {
+                m_resources.Remove(key);
+            }
+
             if (resource.Xid?.Value is string xid && xid.Length > 0)
             {
                 // The fast-path node is shared by every resource with the same bytes, so only drop
@@ -568,16 +598,24 @@ namespace Opc.Ua.XRegistry.Server
                 ReleaseFastPathNode(xid);
             }
 
-            foreach (KeyValuePair<ResourceKey, ResourceState> entry in new List<KeyValuePair<ResourceKey, ResourceState>>(m_resources))
+            // Handles outlive the node otherwise, holding the upload budget forever and letting a
+            // caller keep driving a document that no longer has a resource.
+            var orphaned = new List<uint>();
+            foreach (KeyValuePair<uint, ResourceFileHandle> handle in m_fileHandles)
             {
-                if (ReferenceEquals(entry.Value, resource))
+                if (handle.Value.ResourceNodeId == resource.NodeId)
                 {
-                    m_resources.Remove(entry.Key);
+                    orphaned.Add(handle.Key);
                 }
+            }
+            foreach (uint handle in orphaned)
+            {
+                m_fileHandles.Remove(handle);
             }
 
             DeleteNode(SystemContext, resource.NodeId);
             Interlocked.Decrement(ref m_registeredResourceCount);
+            return true;
         }
 
         /// <summary>
@@ -594,7 +632,7 @@ namespace Opc.Ua.XRegistry.Server
             if (resource.Write != null)
             {
                 resource.Write.OnCallAsync = (ctx, m, id, handle, data, ct) => IsWriteChannelSecure(ctx)
-                    ? OnFileWriteAsync(handle, data)
+                    ? OnFileWriteAsync(resource, handle, data)
                     : new ValueTask<WriteMethodStateResult>(new WriteMethodStateResult
                     {
                         ServiceResult = StatusCodes.BadSecurityModeInsufficient
@@ -603,7 +641,7 @@ namespace Opc.Ua.XRegistry.Server
             if (resource.Read != null)
             {
                 resource.Read.OnCallAsync = (ctx, m, id, handle, length, ct) => IsReadChannelSecure(ctx)
-                    ? OnFileReadAsync(handle, length)
+                    ? OnFileReadAsync(resource, handle, length)
                     : new ValueTask<ReadMethodStateResult>(new ReadMethodStateResult
                     {
                         ServiceResult = StatusCodes.BadSecurityModeInsufficient
@@ -611,12 +649,11 @@ namespace Opc.Ua.XRegistry.Server
             }
             if (resource.Close != null)
             {
-                resource.Close.OnCallAsync = (ctx, m, id, handle, ct) => IsWriteChannelSecure(ctx)
-                    ? OnFileCloseAsync(resource, handle)
-                    : new ValueTask<CloseMethodStateResult>(new CloseMethodStateResult
-                    {
-                        ServiceResult = StatusCodes.BadSecurityModeInsufficient
-                    });
+                // Close is gated on the mode of the handle being closed, not unconditionally on the
+                // write requirement: a read handle opened on a channel the read policy allows has
+                // to be closable on that same channel, or it leaks and consumes the handle budget.
+                resource.Close.OnCallAsync = (ctx, m, id, handle, ct) =>
+                    OnFileCloseAsync(resource, handle, ctx);
             }
         }
 
@@ -659,17 +696,24 @@ namespace Opc.Ua.XRegistry.Server
             }
         }
 
-        private ValueTask<WriteMethodStateResult> OnFileWriteAsync(uint fileHandle, ByteString data)
+        private ValueTask<WriteMethodStateResult> OnFileWriteAsync(
+            ResourceState resource,
+            uint fileHandle,
+            ByteString data)
         {
             lock (m_gate)
             {
-                if (!m_fileHandles.TryGetValue(fileHandle, out ResourceFileHandle? entry) || !entry.Writing)
+                if (!TryGetHandle(resource, fileHandle, out ResourceFileHandle? entry) || !entry.Writing)
                 {
                     return new ValueTask<WriteMethodStateResult>(new WriteMethodStateResult
                     {
                         ServiceResult = StatusCodes.BadInvalidState
                     });
                 }
+
+                // Any Write — even an empty one — marks the handle as carrying a document, so Close
+                // commits it. A handle that was never written to must leave the resource alone.
+                entry.Dirty = true;
                 if (!data.IsNull && data.Span.Length > 0)
                 {
                     if (entry.Buffer.Count + data.Span.Length > m_maxResourceBytes)
@@ -688,13 +732,16 @@ namespace Opc.Ua.XRegistry.Server
             }
         }
 
-        private async ValueTask<ReadMethodStateResult> OnFileReadAsync(uint fileHandle, int length)
+        private async ValueTask<ReadMethodStateResult> OnFileReadAsync(
+            ResourceState resource,
+            uint fileHandle,
+            int length)
         {
             ResourceFileHandle? entry;
             int position;
             lock (m_gate)
             {
-                if (!m_fileHandles.TryGetValue(fileHandle, out entry) || entry.Writing)
+                if (!TryGetHandle(resource, fileHandle, out entry) || entry.Writing)
                 {
                     return new ReadMethodStateResult { ServiceResult = StatusCodes.BadInvalidState };
                 }
@@ -750,25 +797,50 @@ namespace Opc.Ua.XRegistry.Server
         }
 
         /// <summary>
-        /// Closes a file handle. Closing a write handle finalizes the upload: the content-derived
-        /// id is computed from the accumulated document (§6.6), the document is committed to the
-        /// resource store, and the Opaque content-id fast-path node is published (§10.1).
+        /// Closes a file handle. Closing a write handle that was written to finalizes the upload:
+        /// the content-derived id is computed from the accumulated document (§6.6), the document is
+        /// committed to the resource store, and the Opaque content-id fast-path node is published
+        /// (§10.1). Closing a read handle, or a write handle nothing was written through, only
+        /// releases the handle.
         /// </summary>
+        /// <param name="resource">The resource the Method was invoked on.</param>
+        /// <param name="fileHandle">The handle to close.</param>
+        /// <param name="context">The system context, used to apply the channel-security policy.</param>
         private async ValueTask<CloseMethodStateResult> OnFileCloseAsync(
             ResourceState resource,
-            uint fileHandle)
+            uint fileHandle,
+            ISystemContext context)
         {
             ResourceFileHandle? entry;
             lock (m_gate)
             {
-                if (!m_fileHandles.TryGetValue(fileHandle, out entry))
+                if (!TryGetHandle(resource, fileHandle, out entry))
                 {
                     return new CloseMethodStateResult { ServiceResult = StatusCodes.BadInvalidState };
                 }
+
+                // Committing a document is a mutation and needs an encrypted channel; releasing a
+                // read handle only needs whatever the read policy demands, otherwise a read handle
+                // opened on a permitted channel could never be closed and would leak.
+                bool permitted = entry.Writing && entry.Dirty
+                    ? IsWriteChannelSecure(context)
+                    : IsReadChannelSecure(context);
+                if (!permitted)
+                {
+                    return new CloseMethodStateResult
+                    {
+                        ServiceResult = StatusCodes.BadSecurityModeInsufficient
+                    };
+                }
+
                 m_fileHandles.Remove(fileHandle);
             }
 
-            if (!entry.Writing)
+            // A write handle nothing was written through must leave the resource exactly as it was.
+            // GetOrCreateResource hands out a write handle even when it returned an existing
+            // version, and the caller releases it without writing; committing here would erase that
+            // version's document, its content id and its fast-path node.
+            if (!entry.Writing || !entry.Dirty)
             {
                 return new CloseMethodStateResult { ServiceResult = ServiceResult.Good };
             }
@@ -789,6 +861,14 @@ namespace Opc.Ua.XRegistry.Server
 
             lock (m_gate)
             {
+                // The resource can have been deleted while the store call was in flight. Its
+                // fast-path reference is already released, so publishing here would strand a node
+                // that nothing can ever release and re-create a document the delete removed.
+                if (!IsRegisteredLocked(resource))
+                {
+                    return new CloseMethodStateResult { ServiceResult = StatusCodes.BadInvalidState };
+                }
+
                 string xid = contentId.ToHexString();
                 string previousXid = resource.Xid?.Value ?? string.Empty;
                 if (!string.Equals(previousXid, xid, StringComparison.Ordinal))
@@ -812,6 +892,22 @@ namespace Opc.Ua.XRegistry.Server
             }
 
             return new CloseMethodStateResult { ServiceResult = ServiceResult.Good };
+        }
+
+        /// <summary>
+        /// Tests whether a resource is still registered. The caller holds <see cref="m_gate"/>.
+        /// </summary>
+        /// <param name="resource">The resource to test.</param>
+        private bool IsRegisteredLocked(ResourceState resource)
+        {
+            foreach (ResourceState registered in m_resources.Values)
+            {
+                if (ReferenceEquals(registered, resource))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>
@@ -886,15 +982,43 @@ namespace Opc.Ua.XRegistry.Server
         private uint OpenWriteHandle(ResourceState resource)
         {
             uint handle = ++m_nextFileHandle;
-            m_fileHandles[handle] = new ResourceFileHandle(StoreKeyOf(resource), true);
+            m_fileHandles[handle] = new ResourceFileHandle(
+                StoreKeyOf(resource), resource.NodeId, writing: true);
             return handle;
         }
 
         private uint OpenReadHandle(ResourceState resource)
         {
             uint handle = ++m_nextFileHandle;
-            m_fileHandles[handle] = new ResourceFileHandle(StoreKeyOf(resource), false);
+            m_fileHandles[handle] = new ResourceFileHandle(
+                StoreKeyOf(resource), resource.NodeId, writing: false);
             return handle;
+        }
+
+        /// <summary>
+        /// Resolves a file handle for a call made on <paramref name="resource"/>. The handle has to
+        /// belong to that resource: handles are server-wide and sequential, so without this check a
+        /// caller could drive another resource's document — or another caller's in-flight upload —
+        /// through its own resource's Methods. The caller holds <see cref="m_gate"/>.
+        /// </summary>
+        /// <param name="resource">The resource whose Method was invoked.</param>
+        /// <param name="fileHandle">The handle supplied by the caller.</param>
+        /// <param name="entry">The resolved handle when it is valid for this resource.</param>
+        private bool TryGetHandle(
+            ResourceState resource,
+            uint fileHandle,
+            [NotNullWhen(true)] out ResourceFileHandle? entry)
+        {
+            if (!m_fileHandles.TryGetValue(fileHandle, out entry))
+            {
+                return false;
+            }
+            if (entry.ResourceNodeId != resource.NodeId)
+            {
+                entry = null;
+                return false;
+            }
+            return true;
         }
 
         private static string StoreKeyOf(ResourceState resource)
@@ -919,10 +1043,24 @@ namespace Opc.Ua.XRegistry.Server
         /// An open file handle on a resource: a bounded upload buffer for a write handle, or a
         /// cursor over the stored document for a read handle.
         /// </summary>
-        private sealed class ResourceFileHandle(string storeKey, bool writing)
+        private sealed class ResourceFileHandle(string storeKey, NodeId resourceNodeId, bool writing)
         {
             public string StoreKey { get; } = storeKey;
+
+            /// <summary>
+            /// The resource the handle was opened on. A handle is only valid on that resource, so a
+            /// caller cannot drive one resource's document through another resource's Methods.
+            /// </summary>
+            public NodeId ResourceNodeId { get; } = resourceNodeId;
+
             public bool Writing { get; } = writing;
+
+            /// <summary>
+            /// Whether anything was actually written through this handle. Closing a write handle
+            /// that was never written to must not commit an empty document over the existing one.
+            /// </summary>
+            public bool Dirty { get; set; }
+
             public List<byte> Buffer { get; } = [];
             public ByteString Content { get; set; }
             public int Position { get; set; }
@@ -968,6 +1106,19 @@ namespace Opc.Ua.XRegistry.Server
             {
                 ServiceResult = StatusCodes.BadSecurityModeInsufficient
             });
+        }
+
+        /// <summary>
+        /// Applies the model's optimistic-concurrency check (§6.6). A non-zero
+        /// <paramref name="expectedEpoch"/> that does not equal the entity's current epoch fails the
+        /// call and makes no change; <c>0</c> disables the check, which is how a caller deliberately
+        /// forces the operation without having read the entity first.
+        /// </summary>
+        /// <param name="epoch">The entity's epoch, when it exposes one.</param>
+        /// <param name="expectedEpoch">The epoch the caller last observed, or 0 to force.</param>
+        private static bool IsEpochCurrent(PropertyState<uint>? epoch, uint expectedEpoch)
+        {
+            return expectedEpoch == 0 || epoch == null || epoch.Value == expectedEpoch;
         }
 
         private static void SetValue<T>(PropertyState<T>? property, T value)
@@ -1037,7 +1188,7 @@ namespace Opc.Ua.XRegistry.Server
 
             lock (m_gate)
             {
-                if (epoch != null && epoch.Value != expectedEpoch)
+                if (!IsEpochCurrent(epoch, expectedEpoch))
                 {
                     return new ValueTask<AddAttributeMethodStateResult>(
                         new AddAttributeMethodStateResult { ServiceResult = StatusCodes.BadInvalidState });
@@ -1082,7 +1233,7 @@ namespace Opc.Ua.XRegistry.Server
         {
             lock (m_gate)
             {
-                if (epoch != null && epoch.Value != expectedEpoch)
+                if (!IsEpochCurrent(epoch, expectedEpoch))
                 {
                     return new ValueTask<RemoveAttributeMethodStateResult>(
                         new RemoveAttributeMethodStateResult

@@ -278,6 +278,9 @@ namespace Opc.Ua.XRegistry.Tests
                 .ConfigureAwait(false);
             var resource = (ResourceState)nm.Find(created.ResourceNodeId)!;
 
+            // Close only commits a handle that was written to, so write first to reach the
+            // fingerprinting step that needs the provider.
+            await WriteAsync(nm, resource, created, [1, 2]).ConfigureAwait(false);
             CloseMethodStateResult closed = await resource.Close!.OnCallAsync!(
                 nm.SystemContext, resource.Close, created.ResourceNodeId, created.FileHandle,
                 CancellationToken.None).ConfigureAwait(false);
@@ -605,6 +608,108 @@ namespace Opc.Ua.XRegistry.Tests
                     "does not exhaust the budget over time.");
                 Assert.That(second.Created, Is.False);
             });
+        }
+
+        [Test]
+        public async Task GetOrCreateResourceThenCloseKeepsTheExistingDocumentAsync()
+        {
+            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(out IXRegistryResourceStore store);
+            NodeId group = await CreateGroupAsync(nm).ConfigureAwait(false);
+
+            // Register a document.
+            GetOrCreateResourceMethodStateResult first = await nm.OnGetOrCreateResourceAsync(
+                nm.SystemContext, null!, group, "urn:doc", "1", true, CancellationToken.None)
+                .ConfigureAwait(false);
+            var resource = (ResourceState)nm.Find(first.ResourceNodeId)!;
+            byte[] document = [1, 2, 3, 4];
+            await resource.Write!.OnCallAsync!(
+                nm.SystemContext, resource.Write, resource.NodeId, first.FileHandle,
+                ByteString.From(document), CancellationToken.None).ConfigureAwait(false);
+            await resource.Close!.OnCallAsync!(
+                nm.SystemContext, resource.Close, resource.NodeId, first.FileHandle,
+                CancellationToken.None).ConfigureAwait(false);
+
+            string xidAfterRegister = resource.Xid!.Value;
+            NodeId fastPath = new(ByteString.From(document), NamespaceIndex(nm));
+            Assert.That(nm.Find(fastPath), Is.Not.Null, "Precondition: the fast path exists.");
+
+            // Re-register idempotently. The server hands out a write handle even though the version
+            // already existed, and the client releases it without writing.
+            GetOrCreateResourceMethodStateResult second = await nm.OnGetOrCreateResourceAsync(
+                nm.SystemContext, null!, group, "urn:doc", "1", true, CancellationToken.None)
+                .ConfigureAwait(false);
+            await resource.Close.OnCallAsync!(
+                nm.SystemContext, resource.Close, resource.NodeId, second.FileHandle,
+                CancellationToken.None).ConfigureAwait(false);
+
+            string storeKey = first.ResourceNodeId.ToString()!;
+            ByteString stored = await store.ReadAsync(storeKey, 0, int.MaxValue).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(second.Created, Is.False);
+                Assert.That(stored.Span.ToArray(), Is.EqualTo(document),
+                    "Releasing a handle nothing was written through must not erase the document.");
+                Assert.That(resource.Xid!.Value, Is.EqualTo(xidAfterRegister),
+                    "…nor re-fingerprint the resource as empty.");
+                Assert.That(nm.Find(fastPath), Is.Not.Null,
+                    "…nor drop the fast-path node the content id resolves to.");
+            });
+        }
+
+        [Test]
+        public async Task AHandleCannotBeUsedThroughADifferentResourceAsync()
+        {
+            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(out _);
+            NodeId group = await CreateGroupAsync(nm).ConfigureAwait(false);
+
+            CreateResourceMethodStateResult a = await nm.OnCreateResourceAsync(
+                nm.SystemContext, null!, group, "a", "1", true, CancellationToken.None)
+                .ConfigureAwait(false);
+            CreateResourceMethodStateResult b = await nm.OnCreateResourceAsync(
+                nm.SystemContext, null!, group, "b", "1", true, CancellationToken.None)
+                .ConfigureAwait(false);
+            var resourceB = (ResourceState)nm.Find(b.ResourceNodeId)!;
+
+            // Drive resource A's handle through resource B's Methods.
+            WriteMethodStateResult written = await resourceB.Write!.OnCallAsync!(
+                nm.SystemContext, resourceB.Write, resourceB.NodeId, a.FileHandle,
+                ByteString.From([9, 9]), CancellationToken.None).ConfigureAwait(false);
+            CloseMethodStateResult closed = await resourceB.Close!.OnCallAsync!(
+                nm.SystemContext, resourceB.Close, resourceB.NodeId, a.FileHandle,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(written.ServiceResult.StatusCode.Code,
+                    Is.EqualTo(StatusCodes.BadInvalidState),
+                    "A handle is only valid on the resource it was opened on.");
+                Assert.That(closed.ServiceResult.StatusCode.Code,
+                    Is.EqualTo(StatusCodes.BadInvalidState));
+            });
+        }
+
+        [Test]
+        public async Task DeletingAResourceReleasesItsOpenHandlesAsync()
+        {
+            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(
+                out _, o => o.MaxConcurrentUploads = 1);
+            NodeId group = await CreateGroupAsync(nm).ConfigureAwait(false);
+
+            CreateResourceMethodStateResult created = await nm.OnCreateResourceAsync(
+                nm.SystemContext, null!, group, "a", "1", true, CancellationToken.None)
+                .ConfigureAwait(false);
+            var resource = (ResourceState)nm.Find(created.ResourceNodeId)!;
+
+            // Delete without closing; the handle must not keep holding the upload budget.
+            await nm.OnDeleteResourceAsync(resource, resource.Epoch!.Value).ConfigureAwait(false);
+
+            CreateResourceMethodStateResult next = await nm.OnCreateResourceAsync(
+                nm.SystemContext, null!, group, "b", "1", true, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(next.ServiceResult), Is.True,
+                "An unclosed handle on a deleted resource must not exhaust the budget.");
         }
 
         private static ValueTask<WriteMethodStateResult> WriteAsync(

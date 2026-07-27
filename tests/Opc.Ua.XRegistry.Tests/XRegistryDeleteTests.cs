@@ -155,6 +155,44 @@ namespace Opc.Ua.XRegistry.Tests
         }
 
         [Test]
+        public async Task DeleteResourceWithEpochZeroForcesTheDeleteAsync()
+        {
+            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(out _);
+            NodeId group = await CreateGroupAsync(nm).ConfigureAwait(false);
+            CreateResourceMethodStateResult created = await CreateResourceAsync(nm, group, "a")
+                .ConfigureAwait(false);
+            var resource = (ResourceState)nm.Find(created.ResourceNodeId)!;
+
+            // Epoch starts at 1 and only ever increments, so a naive equality check would make 0
+            // permanently unusable. The model defines 0 as "do not check".
+            DeleteMethodStateResult result = await nm
+                .OnDeleteResourceAsync(resource, 0).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(result.ServiceResult), Is.True);
+                Assert.That(nm.Find(created.ResourceNodeId), Is.Null);
+            });
+        }
+
+        [Test]
+        public async Task DeleteGroupWithEpochZeroForcesTheDeleteAsync()
+        {
+            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(out _);
+            NodeId group = await CreateGroupAsync(nm).ConfigureAwait(false);
+            var groupState = (GroupState)nm.Find(group)!;
+
+            DeleteMethodStateResult result = await nm
+                .OnDeleteGroupAsync(groupState, 0).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(result.ServiceResult), Is.True);
+                Assert.That(nm.Find(group), Is.Null);
+            });
+        }
+
+        [Test]
         public async Task DeleteGroupRejectsAStaleEpochAsync()
         {
             using XRegistryRegistrationNodeManager nm = CreateAddressSpace(out _);

@@ -79,7 +79,8 @@ the compiled model, and groups and resource versions are created beneath it at r
    *auto-bootstrap* — publishes the Opaque fast-path node.
 5. **`Delete(ExpectedEpoch)`** on a resource or a group removes it. The epoch is an
    optimistic-concurrency check: a caller holding a stale epoch is rejected with
-   `Bad_InvalidState` rather than deleting a newer version.
+   `Bad_InvalidState` rather than deleting a newer version. Passing `0` disables the check, which
+   is how a caller deliberately forces the operation without having read the entity first.
 
 Registration is idempotent by construction: re-registering identical bytes produces the same
 content-id, so the existing fast-path node is reused rather than duplicated.
@@ -218,7 +219,7 @@ federated from several endpoints keeps **one** identity and can be de-duplicated
 with `AddAttribute(Key, Value, ExpectedEpoch)` and `RemoveAttribute(Key, ExpectedEpoch)`. Labels are
 published as addressable `String` Properties in the registry namespace, so a client can read them with
 a plain Read. Both mutations take the owning node's epoch and advance it on success, which makes a
-concurrent update visible instead of silently lost.
+concurrent update visible instead of silently lost; `0` disables the check.
 
 ## Server-side usage
 
