@@ -97,7 +97,7 @@ namespace Opc.Ua.PubSub.SchemaRegistry
             _ = await m_client.GetOrRegisterSchemaAsync(
                 m_schemaGroupNodeId,
                 BuildSchemaResourceId(change.MetaDataKey),
-                change.Schema.Span.ToArray(),
+                change.Schema,
                 change.MetaDataKey.MajorVersion.ToString(CultureInfo.InvariantCulture),
                 m_chunkSize,
                 cancellationToken).ConfigureAwait(false);

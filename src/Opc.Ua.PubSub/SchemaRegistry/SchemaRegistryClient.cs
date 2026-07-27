@@ -124,7 +124,7 @@ namespace Opc.Ua.PubSub.SchemaRegistry
         public Task<ResourceRegistrationResult> RegisterSchemaAsync(
             NodeId schemaGroupNodeId,
             string schemaId,
-            ReadOnlyMemory<byte> document,
+            ByteString document,
             string versionId = "",
             int chunkSize = ResourceTypeClientExtensions.DefaultChunkSize,
             CancellationToken ct = default)
@@ -148,7 +148,7 @@ namespace Opc.Ua.PubSub.SchemaRegistry
         public Task<ResourceRegistrationResult> GetOrRegisterSchemaAsync(
             NodeId schemaGroupNodeId,
             string schemaId,
-            ReadOnlyMemory<byte> document,
+            ByteString document,
             string versionId = "",
             int chunkSize = ResourceTypeClientExtensions.DefaultChunkSize,
             CancellationToken ct = default)
