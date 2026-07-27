@@ -28,29 +28,31 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Recovers detached monitored items after compatible nodes become visible.
+    /// Reattaches detached MonitoredItems from a synchronous NodeManager callback.
+    /// <para>
+    /// `CustomNodeManager2.AddPredefinedNode` is synchronous and cannot await, so this entry
+    /// point is kept separate from the asynchronous
+    /// <see cref="IDynamicNodeManagerHost.RecoverDetachedMonitoredItemsAsync"/> that every other
+    /// caller uses. The implementation still routes through the asynchronous
+    /// <see cref="INodeManagerMonitoredItemLifecycle"/> that `AsyncNodeManagerAdapter` exposes
+    /// for synchronous NodeManagers, and requires those operations to complete in memory rather
+    /// than blocking on them.
+    /// </para>
     /// </summary>
-    internal interface INodeManagerMonitoredItemRecovery
+    internal interface ISyncNodeManagerMonitoredItemRecovery
     {
         /// <summary>
-        /// Recovers detached items for a synchronous built-in NodeManager.
+        /// Reattaches MonitoredItems that were detached because their Node disappeared, once a
+        /// compatible Node with the same NodeId is visible again.
         /// </summary>
+        /// <param name="nodeManager">The NodeManager that gained the Nodes.</param>
+        /// <param name="nodeIds">The Nodes that became available.</param>
         void RecoverDetachedMonitoredItems(
             IAsyncNodeManager nodeManager,
             IReadOnlyCollection<NodeId> nodeIds);
-
-        /// <summary>
-        /// Recovers detached items for an asynchronous built-in NodeManager.
-        /// </summary>
-        ValueTask RecoverDetachedMonitoredItemsAsync(
-            IAsyncNodeManager nodeManager,
-            IReadOnlyCollection<NodeId>? nodeIds = null,
-            CancellationToken cancellationToken = default);
     }
 }

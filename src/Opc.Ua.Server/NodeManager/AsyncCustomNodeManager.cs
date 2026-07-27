@@ -344,7 +344,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        ValueTask<ServiceResult> INodeManagerMonitoredItemLifecycle.ValidateMonitoredItemAsync(
+        ValueTask<ServiceResult> INodeManagerMonitoredItemLifecycle.CanAttachMonitoredItemAsync(
             IMonitoredItem monitoredItem,
             CancellationToken cancellationToken)
         {
@@ -387,7 +387,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        ValueTask<ServiceResult> INodeManagerMonitoredItemLifecycle.RestoreMonitoredItemAsync(
+        ValueTask<ServiceResult> INodeManagerMonitoredItemLifecycle.RecoverMonitoredItemAsync(
             IMonitoredItem monitoredItem,
             CancellationToken cancellationToken)
         {
@@ -552,7 +552,7 @@ namespace Opc.Ua.Server
             }
             if (ServiceResult.IsGood(result) && changed)
             {
-                DetachedMonitoredItemOwnership.Detach(Server, (IMonitoredItemLifecycle)monitoredItem);
+                DetachedMonitoredItemOwnership.Detach(Server, (IDetachableMonitoredItem)monitoredItem);
             }
             return result;
         }
@@ -686,7 +686,7 @@ namespace Opc.Ua.Server
                             {
                                 DetachedMonitoredItemOwnership.Detach(
                                     Server,
-                                    (IMonitoredItemLifecycle)monitoredItem);
+                                    (IDetachableMonitoredItem)monitoredItem);
                             }
                             catch (Exception compensationException) when (
                                 compensationException is not OutOfMemoryException)
@@ -1048,7 +1048,7 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(node));
             }
 
-            if (Server.NodeManager is INodeManagerMutationCoordinator coordinator)
+            if (Server.NodeManager is IDynamicNodeManagerHost coordinator)
             {
                 return AddPredefinedNodeCoordinatedAsync(
                     coordinator,
@@ -1060,7 +1060,7 @@ namespace Opc.Ua.Server
         }
 
         private async ValueTask AddPredefinedNodeCoordinatedAsync(
-            INodeManagerMutationCoordinator coordinator,
+            IDynamicNodeManagerHost coordinator,
             NodeState node,
             CancellationToken cancellationToken)
         {
@@ -1295,7 +1295,7 @@ namespace Opc.Ua.Server
             NodeId nodeId,
             CancellationToken cancellationToken = default)
         {
-            if (Server.NodeManager is INodeManagerMutationCoordinator coordinator)
+            if (Server.NodeManager is IDynamicNodeManagerHost coordinator)
             {
                 return coordinator.ExecuteMonitoredItemMutationAsync(
                     () => DeleteNodeCoreAsync(context, nodeId, cancellationToken),
@@ -1367,7 +1367,7 @@ namespace Opc.Ua.Server
                 {
                     foreach (IMonitoredItem monitoredItem in detachedItems)
                     {
-                        ((IMonitoredItemLifecycle)monitoredItem).MarkNodeDeleted();
+                        ((IDetachableMonitoredItem)monitoredItem).MarkNodeDeleted();
                     }
                 }
                 throw;
@@ -1375,7 +1375,7 @@ namespace Opc.Ua.Server
 
             foreach (IMonitoredItem monitoredItem in detachedItems)
             {
-                ((IMonitoredItemLifecycle)monitoredItem).MarkNodeDeleted();
+                ((IDetachableMonitoredItem)monitoredItem).MarkNodeDeleted();
             }
 
             if (ModelChangeEmissionEnabled)
@@ -1635,7 +1635,7 @@ namespace Opc.Ua.Server
                 {
                     foreach (IMonitoredItem monitoredItem in detachedItems)
                     {
-                        ((IMonitoredItemLifecycle)monitoredItem).MarkNodeDeleted();
+                        ((IDetachableMonitoredItem)monitoredItem).MarkNodeDeleted();
                     }
                 }
                 throw;
@@ -1643,7 +1643,7 @@ namespace Opc.Ua.Server
 
             foreach (IMonitoredItem monitoredItem in detachedItems)
             {
-                ((IMonitoredItemLifecycle)monitoredItem).MarkNodeDeleted();
+                ((IDetachableMonitoredItem)monitoredItem).MarkNodeDeleted();
             }
 
             if (ModelChangeEmissionEnabled)
@@ -2079,7 +2079,7 @@ namespace Opc.Ua.Server
                 await AddPredefinedNodeAsync(context, children[ii], cancellationToken).ConfigureAwait(false);
             }
 
-            if (Server.NodeManager is INodeManagerMonitoredItemRecovery recovery)
+            if (Server.NodeManager is IDynamicNodeManagerHost recovery)
             {
                 await recovery.RecoverDetachedMonitoredItemsAsync(
                     this,

@@ -34,22 +34,68 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua.Server
 {
+    /// <summary>
+    /// Hosts NodeManagers that are added, replaced, or retired while the server is running.
+    /// <para>
+    /// A lifecycle operation runs in stages so that a failure never leaves a partially visible
+    /// address space. A NodeManager is first prepared, which builds its address space without
+    /// making it reachable. It is then published or swapped in for the NodeManager it replaces,
+    /// and finally committed, which is the point at which Clients observe the change. Every stage
+    /// that fails is undone by the matching rollback, and only a committed NodeManager is
+    /// destroyed.
+    /// </para>
+    /// </summary>
     internal interface IDynamicNodeManagerHost
     {
+        /// <summary>
+        /// Builds the address space of <paramref name="nodeManager"/> without making it reachable,
+        /// and collects the references it wants to add to Nodes owned by other NodeManagers.
+        /// </summary>
+        /// <param name="nodeManager">The NodeManager to prepare.</param>
+        /// <param name="ct">The token used to cancel the operation.</param>
+        /// <returns>The prepared NodeManager, which is the input to every later stage.</returns>
         ValueTask<PreparedNodeManager> PrepareAsync(
             IAsyncNodeManager nodeManager,
             CancellationToken ct = default);
 
+        /// <summary>
+        /// Adds a prepared NodeManager to the routing table without making it visible, so its
+        /// Nodes can be resolved by the lifecycle operation but not yet by Clients.
+        /// </summary>
+        /// <param name="prepared">The prepared NodeManager.</param>
+        /// <param name="ct">The token used to cancel the operation.</param>
         ValueTask PublishAsync(
             PreparedNodeManager prepared,
             CancellationToken ct = default);
 
+        /// <summary>
+        /// Stages <paramref name="replacement"/> in place of <paramref name="current"/> so that
+        /// the replaced NodeManager can be restored if a later stage fails.
+        /// </summary>
+        /// <param name="current">The NodeManager that is being replaced.</param>
+        /// <param name="replacement">The prepared replacement.</param>
+        /// <param name="allowActiveMonitoredItems">
+        /// <c>true</c> to allow the replacement even when the current generation still owns
+        /// active monitored items, as a shadow or immediate reload does; <c>false</c> to fail
+        /// closed before any routing change, as an ordinary reload does.
+        /// </param>
+        /// <param name="ct">The token used to cancel the operation.</param>
         ValueTask ReplaceAsync(
             IAsyncNodeManager current,
             PreparedNodeManager replacement,
             bool allowActiveMonitoredItems = false,
             CancellationToken ct = default);
 
+        /// <summary>
+        /// Makes a published NodeManager visible to Clients. The callbacks run inside the commit
+        /// so that work which must not be observed in a half applied state, such as detaching and
+        /// reattaching MonitoredItems, is ordered around the visibility boundary.
+        /// </summary>
+        /// <param name="prepared">The prepared NodeManager to commit.</param>
+        /// <param name="beforeCommit">Runs while the change is still invisible to Clients.</param>
+        /// <param name="afterCommit">Runs once the change is visible to Clients.</param>
+        /// <param name="rollbackCommit">Undoes <paramref name="beforeCommit"/> when the commit fails.</param>
+        /// <param name="ct">The token used to cancel the operation.</param>
         ValueTask CommitAsync(
             PreparedNodeManager prepared,
             Func<ValueTask>? beforeCommit = null,
@@ -57,21 +103,50 @@ namespace Opc.Ua.Server
             Func<ValueTask>? rollbackCommit = null,
             CancellationToken ct = default);
 
+        /// <summary>
+        /// Hides a committed NodeManager from Clients while keeping it registered, so that it can
+        /// be made visible again if the removal cannot be completed.
+        /// </summary>
+        /// <param name="nodeManager">The NodeManager to hide.</param>
+        /// <param name="beforeUnpublish">Runs while the NodeManager is still visible.</param>
+        /// <param name="rollbackUnpublish">Undoes <paramref name="beforeUnpublish"/> on failure.</param>
+        /// <param name="ct">The token used to cancel the operation.</param>
         ValueTask UnpublishAsync(
             IAsyncNodeManager nodeManager,
             Func<ValueTask>? beforeUnpublish = null,
             Func<ValueTask>? rollbackUnpublish = null,
             CancellationToken ct = default);
 
+        /// <summary>
+        /// Tears down a NodeManager that is no longer reachable and disposes it. This is the only
+        /// stage that cannot be undone, so it runs after all Clients have stopped using it.
+        /// </summary>
+        /// <param name="nodeManager">The NodeManager to tear down.</param>
+        /// <param name="removeExternalReferences">
+        /// <c>true</c> to also remove the references this NodeManager added to Nodes owned by
+        /// other NodeManagers. A reload keeps them, because the replacement re-adds them.
+        /// </param>
+        /// <param name="ct">The token used to cancel the operation.</param>
         ValueTask DestroyAsync(
             IAsyncNodeManager nodeManager,
             bool removeExternalReferences,
             CancellationToken ct = default);
 
+        /// <summary>
+        /// Undoes a prepared, published, or staged NodeManager after a failed lifecycle operation
+        /// and returns the address space to the state it had before the operation started.
+        /// </summary>
+        /// <param name="prepared">The prepared NodeManager to undo.</param>
+        /// <param name="ct">The token used to cancel the operation.</param>
         ValueTask RollbackAsync(
             PreparedNodeManager prepared,
             CancellationToken ct = default);
 
+        /// <summary>
+        /// Drops the host bookkeeping for a NodeManager that the caller has taken over, without
+        /// tearing its address space down.
+        /// </summary>
+        /// <param name="nodeManager">The NodeManager to release.</param>
         void Release(IAsyncNodeManager nodeManager);
 
         /// <summary>
@@ -81,10 +156,45 @@ namespace Opc.Ua.Server
         /// it schedules cleanup off the request path.
         /// </summary>
         void SetRetiredGenerationDrainObserver(Action? observer);
+
+        /// <summary>
+        /// Runs a MonitoredItem mutation under the host lock that lifecycle operations also take,
+        /// so creating, modifying, or deleting MonitoredItems cannot interleave with the commit
+        /// of a lifecycle operation.
+        /// </summary>
+        /// <typeparam name="T">The result of the mutation.</typeparam>
+        /// <param name="mutation">The mutation to run.</param>
+        /// <param name="ct">The token used to cancel waiting for the lock.</param>
+        ValueTask<T> ExecuteMonitoredItemMutationAsync<T>(
+            Func<ValueTask<T>> mutation,
+            CancellationToken ct = default);
+
+        /// <summary>
+        /// Reattaches MonitoredItems that were detached because their Node disappeared, once a
+        /// compatible Node with the same NodeId is visible again.
+        /// </summary>
+        /// <param name="nodeManager">The NodeManager that gained the Nodes.</param>
+        /// <param name="nodeIds">The Nodes that became available, or <c>null</c> for all.</param>
+        /// <param name="cancellationToken">The token used to cancel the operation.</param>
+        ValueTask RecoverDetachedMonitoredItemsAsync(
+            IAsyncNodeManager nodeManager,
+            IReadOnlyCollection<NodeId>? nodeIds = null,
+            CancellationToken cancellationToken = default);
     }
 
+    /// <summary>
+    /// Carries a NodeManager and the bookkeeping a lifecycle operation needs to move it through
+    /// the prepare, publish, commit, and rollback stages of <see cref="IDynamicNodeManagerHost"/>.
+    /// </summary>
     internal sealed class PreparedNodeManager
     {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="PreparedNodeManager"/> class.
+        /// </summary>
+        /// <param name="nodeManager">The NodeManager that was prepared.</param>
+        /// <param name="externalReferences">
+        /// The references the NodeManager adds to Nodes owned by other NodeManagers.
+        /// </param>
         public PreparedNodeManager(
             IAsyncNodeManager nodeManager,
             Dictionary<NodeId, IList<IReference>> externalReferences)
@@ -93,16 +203,37 @@ namespace Opc.Ua.Server
             ExternalReferences = externalReferences;
         }
 
+        /// <summary>
+        /// Gets the NodeManager that was prepared.
+        /// </summary>
         public IAsyncNodeManager NodeManager { get; }
 
+        /// <summary>
+        /// Gets the references the NodeManager adds to Nodes owned by other NodeManagers.
+        /// </summary>
         public Dictionary<NodeId, IList<IReference>> ExternalReferences { get; }
 
+        /// <summary>
+        /// Gets or sets whether the NodeManager was added to the routing table and therefore has
+        /// to be removed again by a rollback.
+        /// </summary>
         public bool Published { get; set; }
 
+        /// <summary>
+        /// Gets or sets whether the NodeManager was staged in place of another one and therefore
+        /// has to be swapped back by a rollback.
+        /// </summary>
         public bool Staged { get; set; }
 
+        /// <summary>
+        /// Gets or sets the NodeManager this one replaces, which a rollback restores.
+        /// </summary>
         public IAsyncNodeManager? ReplacedNodeManager { get; set; }
 
+        /// <summary>
+        /// Gets or sets the external references of the replaced NodeManager, which a rollback
+        /// restores together with it.
+        /// </summary>
         public Dictionary<NodeId, IList<IReference>>? ReplacedExternalReferences { get; set; }
 
         /// <summary>

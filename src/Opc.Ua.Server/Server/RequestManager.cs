@@ -209,8 +209,30 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Gets whether the calling flow is serving a Client request. A NodeManager lifecycle
+        /// operation started from inside a request would wait for its own request to drain, so
+        /// the lifecycle API uses this to reject such calls instead of deadlocking.
+        /// </summary>
         internal bool IsExecutingRequest => m_currentRequestId.Value.HasValue;
 
+        /// <summary>
+        /// Enters a validation scope, which covers the window in which a request is being
+        /// validated but is not yet tracked as an executing request.
+        /// <para>
+        /// Validation creates the <see cref="OperationContext"/>, resolves the Session, and only
+        /// then hands the request to <see cref="EnterRequestScope"/>. Without this scope a request
+        /// that finished validating could start touching a NodeManager after
+        /// <see cref="WaitForCurrentRequestsAsync"/> had already reported that nothing is in
+        /// flight, and a NodeManager could be retired while that request was using it. The scope
+        /// registers a token that the drain waits for, so the gap is covered from end to end.
+        /// </para>
+        /// <para>
+        /// Disposing the scope completes any context that was registered but never promoted,
+        /// which is what happens when validation fails.
+        /// </para>
+        /// </summary>
+        /// <returns>The scope to dispose once validation has finished.</returns>
         internal IDisposable EnterValidationScope()
         {
             long validationId = Interlocked.Increment(
@@ -233,6 +255,14 @@ namespace Opc.Ua.Server
             return scope;
         }
 
+        /// <summary>
+        /// Enters a request scope, which tracks a validated request for as long as it executes.
+        /// Disposing the scope reports the request as completed, which releases any lifecycle
+        /// operation waiting in <see cref="WaitForCurrentRequestsAsync"/>.
+        /// </summary>
+        /// <param name="context">The context of the request being executed.</param>
+        /// <returns>The scope to dispose once the request has finished.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         internal IDisposable EnterRequestScope(OperationContext context)
         {
             if (context is null)
@@ -249,6 +279,12 @@ namespace Opc.Ua.Server
                 previousRequestId);
         }
 
+        /// <summary>
+        /// Hands a successfully validated request from its validation scope to the request scope
+        /// that will execute it, so the request is tracked continuously and is not completed twice.
+        /// </summary>
+        /// <param name="context">The context of the validated request.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         internal void PromoteValidatedRequest(OperationContext context)
         {
             if (context is null)
@@ -258,6 +294,16 @@ namespace Opc.Ua.Server
             m_currentValidationScope.Value?.Promote(context);
         }
 
+        /// <summary>
+        /// Waits until every request that is currently executing or being validated has finished.
+        /// A lifecycle operation calls this before it retires a NodeManager, so that no request
+        /// can still be dispatching to it once it is torn down.
+        /// <para>
+        /// Only the requests present when the call starts are awaited. Requests that arrive later
+        /// already observe the new routing table, so they never reach the retired NodeManager.
+        /// </para>
+        /// </summary>
+        /// <param name="ct">The token used to stop waiting.</param>
         internal async ValueTask WaitForCurrentRequestsAsync(
             CancellationToken ct = default)
         {
@@ -427,8 +473,17 @@ namespace Opc.Ua.Server
         private ITimer? m_requestTimer;
         private event RequestCancelledEventHandler? m_RequestCancelled;
 
+        /// <summary>
+        /// Waits for a fixed set of executing requests and validation scopes to finish. The set is
+        /// captured when the drain is created, so requests that start afterwards do not extend it.
+        /// </summary>
         private sealed class RequestDrain
         {
+            /// <summary>
+            /// Initializes a new instance of the <see cref="RequestDrain"/> class.
+            /// </summary>
+            /// <param name="requestIds">The requests executing when the drain started.</param>
+            /// <param name="validationIds">The validation scopes open when the drain started.</param>
             public RequestDrain(
                 IEnumerable<uint> requestIds,
                 IEnumerable<long> validationIds)
@@ -437,20 +492,36 @@ namespace Opc.Ua.Server
                 m_validationIds = [.. validationIds];
             }
 
+            /// <summary>
+            /// Gets the task that completes once everything the drain waits for has finished.
+            /// </summary>
             public Task Completion => m_completion.Task;
 
+            /// <summary>
+            /// Reports that a request finished.
+            /// </summary>
+            /// <param name="requestId">The request that finished.</param>
+            /// <returns><c>true</c> when nothing is left to wait for.</returns>
             public bool Complete(uint requestId)
             {
                 m_requestIds.Remove(requestId);
                 return TryComplete();
             }
 
+            /// <summary>
+            /// Reports that a validation scope closed.
+            /// </summary>
+            /// <param name="validationId">The validation scope that closed.</param>
+            /// <returns><c>true</c> when nothing is left to wait for.</returns>
             public bool CompleteValidation(long validationId)
             {
                 m_validationIds.Remove(validationId);
                 return TryComplete();
             }
 
+            /// <summary>
+            /// Stops the drain because the caller cancelled the wait.
+            /// </summary>
             public void Cancel()
             {
                 m_completion.TrySetCanceled();
@@ -462,6 +533,9 @@ namespace Opc.Ua.Server
             private readonly TaskCompletionSource<bool> m_completion = new(
                 TaskCreationOptions.RunContinuationsAsynchronously);
 
+            /// <summary>
+            /// Completes the drain once no request and no validation scope is left.
+            /// </summary>
             private bool TryComplete()
             {
                 if (m_requestIds.Count == 0 &&
@@ -474,8 +548,18 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Tracks one executing request and restores the ambient request id of the calling flow
+        /// when it is disposed.
+        /// </summary>
         private sealed class RequestExecutionScope : IDisposable
         {
+            /// <summary>
+            /// Initializes a new instance of the <see cref="RequestExecutionScope"/> class.
+            /// </summary>
+            /// <param name="requestManager">The owning request manager.</param>
+            /// <param name="context">The context of the request being executed.</param>
+            /// <param name="previousRequestId">The request id to restore on dispose.</param>
             public RequestExecutionScope(
                 RequestManager requestManager,
                 OperationContext context,
@@ -486,6 +570,9 @@ namespace Opc.Ua.Server
                 m_previousRequestId = previousRequestId;
             }
 
+            /// <summary>
+            /// Reports the request as completed and restores the previous ambient request id.
+            /// </summary>
             public void Dispose()
             {
                 if (!m_disposed)
@@ -503,8 +590,20 @@ namespace Opc.Ua.Server
             private bool m_disposed;
         }
 
+        /// <summary>
+        /// Tracks the validation of a request so that a lifecycle operation cannot retire a
+        /// NodeManager between the moment a request is validated and the moment it starts
+        /// executing.
+        /// </summary>
         private sealed class RequestValidationScope : IDisposable
         {
+            /// <summary>
+            /// Initializes a new instance of the <see cref="RequestValidationScope"/> class.
+            /// </summary>
+            /// <param name="requestManager">The owning request manager.</param>
+            /// <param name="validationId">The id the drain waits for.</param>
+            /// <param name="previousRequestId">The request id to restore on dispose.</param>
+            /// <param name="previousValidationScope">The scope to restore on dispose.</param>
             public RequestValidationScope(
                 RequestManager requestManager,
                 long validationId,
@@ -517,6 +616,11 @@ namespace Opc.Ua.Server
                 m_previousValidationScope = previousValidationScope;
             }
 
+            /// <summary>
+            /// Remembers a request that was created during validation, so it is completed again
+            /// if validation does not hand it on to a request scope.
+            /// </summary>
+            /// <param name="context">The context created during validation.</param>
             public void Register(OperationContext context)
             {
                 if (!m_registeredContexts.Contains(context))
@@ -525,11 +629,19 @@ namespace Opc.Ua.Server
                 }
             }
 
+            /// <summary>
+            /// Releases a validated request to its request scope, which now owns completing it.
+            /// </summary>
+            /// <param name="context">The context that was validated.</param>
             public void Promote(OperationContext context)
             {
                 m_registeredContexts.Remove(context);
             }
 
+            /// <summary>
+            /// Completes any request that was never promoted, releases the drain that waits for
+            /// this scope, and restores the ambient state of the calling flow.
+            /// </summary>
             public void Dispose()
             {
                 if (!m_disposed)

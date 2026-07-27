@@ -29,8 +29,29 @@
 
 namespace Opc.Ua.Server
 {
-    internal interface ISessionClosingRegistry
+    /// <summary>
+    /// Invalidates monitored items owned by a NodeManager before an immediate
+    /// generation retirement. Implemented by the subscription so that an
+    /// immediate reload can make every affected item publishable with a
+    /// terminal status and then release the retired NodeManager, without
+    /// deleting the client's subscription.
+    /// </summary>
+    internal interface INodeManagerMonitoredItemRetirementTracker
     {
-        bool IsSessionClosing(NodeId sessionId);
+        /// <summary>
+        /// Returns whether every monitored item owned by the NodeManager supports
+        /// immediate retirement.
+        /// </summary>
+        bool CanRetireMonitoredItems(IAsyncNodeManager nodeManager);
+
+        /// <summary>
+        /// Invalidates all monitored items owned by the NodeManager.
+        /// </summary>
+        void RetireMonitoredItems(IAsyncNodeManager nodeManager, ServiceResult error);
+
+        /// <summary>
+        /// Releases owner references from retired monitored items.
+        /// </summary>
+        void DetachRetiredMonitoredItems(IAsyncNodeManager nodeManager);
     }
 }

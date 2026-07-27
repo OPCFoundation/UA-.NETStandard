@@ -1270,7 +1270,7 @@ namespace Opc.Ua.Server.Tests
                 sourceSamplingInterval: 1000);
             DetachedMonitoredItemOwnership.Detach(
                 m_server.CurrentInstance,
-                (IMonitoredItemLifecycle)monitoredItem);
+                (IDetachableMonitoredItem)monitoredItem);
             return monitoredItem;
         }
 

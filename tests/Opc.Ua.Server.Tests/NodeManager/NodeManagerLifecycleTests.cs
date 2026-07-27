@@ -810,7 +810,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             (uint subscriptionId, _) = await CreateSubscriptionWithMonitoredItemAsync(
                 services,
                 new NodeId(kValueNodeId, ns)).ConfigureAwait(false);
-            var coordinator = (INodeManagerMutationCoordinator)server.NodeManager;
+            var coordinator = (IDynamicNodeManagerHost)server.NodeManager;
             var mutationStarted = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
             var releaseMutation = new TaskCompletionSource<bool>(
@@ -1200,7 +1200,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 ISubscription subscription = server.SubscriptionManager
                     .GetSubscriptions()
                     .Single(s => s.Id == subscriptionId);
-                var tracker = (INodeManagerMonitoredItemTracker)subscription;
+                var tracker = (ISubscriptionMonitoredItemLifecycle)subscription;
                 Assert.That(tracker.HasMonitoredItems(original.NodeManager), Is.True);
                 Assert.That(tracker.HasMonitoredItems(reloaded.NodeManager), Is.False);
 
@@ -1330,7 +1330,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 ISubscription subscription = server.SubscriptionManager
                     .GetSubscriptions()
                     .Single(s => s.Id == subscriptionId);
-                var tracker = (INodeManagerMonitoredItemTracker)subscription;
+                var tracker = (ISubscriptionMonitoredItemLifecycle)subscription;
                 Assert.That(tracker.HasMonitoredItems(original.NodeManager), Is.False);
                 Assert.That(originalManager.Find(valueNodeId), Is.Null,
                     "The prior generation must be disposed before immediate reload returns.");
@@ -1443,7 +1443,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             ISubscription subscription = server.SubscriptionManager
                 .GetSubscriptions()
                 .Single(s => s.Id == subscriptionId);
-            var tracker = (INodeManagerMonitoredItemTracker)subscription;
+            var tracker = (ISubscriptionMonitoredItemLifecycle)subscription;
             Assert.That(tracker.HasMonitoredItems(original.NodeManager), Is.True);
             Assert.That(tracker.HasMonitoredItems(reloaded.NodeManager), Is.False);
 
@@ -1576,7 +1576,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             ISubscription subscription = server.SubscriptionManager
                 .GetSubscriptions()
                 .Single(s => s.Id == subscriptionId);
-            var tracker = (INodeManagerMonitoredItemTracker)subscription;
+            var tracker = (ISubscriptionMonitoredItemLifecycle)subscription;
             Assert.That(tracker.HasMonitoredItems(original.NodeManager), Is.True);
 
             // Session B activates on a secured channel so the subscription (owned by an
@@ -2768,7 +2768,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 queueSize: 1,
                 discardOldest: true,
                 sourceSamplingInterval: 1000);
-            var itemLifecycle = (IMonitoredItemLifecycle)monitoredItem;
+            var itemLifecycle = (IDetachableMonitoredItem)monitoredItem;
             int repairCalls = 0;
             int rollbackCalls = 0;
 
@@ -2942,7 +2942,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             var host = (IDynamicNodeManagerHost)m_server.CurrentInstance.NodeManager;
             var coordinator =
-                (INodeManagerMutationCoordinator)m_server.CurrentInstance.NodeManager;
+                (IDynamicNodeManagerHost)m_server.CurrentInstance.NodeManager;
             Mock<IAsyncNodeManager> candidate = CreateLifecycleNodeManager(
                 "urn:opcfoundation.org:Tests:NodeManagerLifecycle:HostGuards");
             var prepared = new PreparedNodeManager(
@@ -3138,7 +3138,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             IServerInternal server = m_server.CurrentInstance;
             var master = (MasterNodeManager)server.NodeManager;
-            var coordinator = (INodeManagerMutationCoordinator)master;
+            var coordinator = (IDynamicNodeManagerHost)master;
             var mutationStarted = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
             var releaseMutation = new TaskCompletionSource<bool>(

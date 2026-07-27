@@ -32,7 +32,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// Provides the internal lifecycle contract used when a monitored node is deleted or rebound.
     /// </summary>
-    internal interface IMonitoredItemLifecycle
+    internal interface IDetachableMonitoredItem
     {
         /// <summary>
         /// Gets whether the monitored item is detached from its node manager dispatch path.

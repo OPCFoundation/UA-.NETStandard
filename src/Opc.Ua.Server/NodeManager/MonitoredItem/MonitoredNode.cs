@@ -406,14 +406,14 @@ namespace Opc.Ua.Server
                 foreach (IDataChangeMonitoredItem2 monitoredItem in
                     DataChangeMonitoredItems.Values)
                 {
-                    if (monitoredItem is IMonitoredItemLifecycle lifecycle)
+                    if (monitoredItem is IDetachableMonitoredItem lifecycle)
                     {
                         lifecycle.MarkNodeDeleted();
                     }
                 }
                 foreach (IEventMonitoredItem monitoredItem in EventMonitoredItems.Values)
                 {
-                    if (monitoredItem is IMonitoredItemLifecycle lifecycle)
+                    if (monitoredItem is IDetachableMonitoredItem lifecycle)
                     {
                         lifecycle.MarkNodeDeleted();
                     }

@@ -246,6 +246,14 @@ namespace Opc.Ua.Server
         /// Refreshes the conditions for the specified subscription and monitored item.
         /// </summary>
         void ConditionRefresh2(OperationContext context, uint subscriptionId, uint monitoredItemId);
+
+        /// <summary>
+        /// Returns whether the Subscription is being deleted. Work that belongs to a Subscription
+        /// which is going away is rejected instead of being started, so a NodeManager cannot be
+        /// retired while a Subscription is still tearing its MonitoredItems down.
+        /// </summary>
+        /// <param name="subscriptionId">The identifier of the Subscription.</param>
+        bool IsDeleting(uint subscriptionId);
     }
 
     /// <summary>

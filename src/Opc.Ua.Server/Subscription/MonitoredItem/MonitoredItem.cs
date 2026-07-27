@@ -42,7 +42,7 @@ namespace Opc.Ua.Server
         IEventMonitoredItem,
         ISampledDataChangeMonitoredItem,
         ITriggeredMonitoredItem,
-        IMonitoredItemLifecycle,
+        IDetachableMonitoredItem,
         IRetirableMonitoredItem
     {
         /// <summary>
@@ -419,7 +419,7 @@ namespace Opc.Ua.Server
         public IAsyncNodeManager NodeManager { get; private set; }
 
         /// <inheritdoc/>
-        bool IMonitoredItemLifecycle.IsDetached
+        bool IDetachableMonitoredItem.IsDetached
         {
             get
             {
@@ -431,7 +431,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        bool IMonitoredItemLifecycle.IsDeleted
+        bool IDetachableMonitoredItem.IsDeleted
         {
             get
             {
@@ -595,7 +595,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        void IMonitoredItemLifecycle.MarkNodeDeleted()
+        void IDetachableMonitoredItem.MarkNodeDeleted()
         {
             lock (m_lock)
             {
@@ -605,7 +605,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        void IMonitoredItemLifecycle.BeginDetach()
+        void IDetachableMonitoredItem.BeginDetach()
         {
             lock (m_lock)
             {
@@ -614,7 +614,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        void IMonitoredItemLifecycle.Detach(
+        void IDetachableMonitoredItem.Detach(
             IAsyncNodeManager nodeManager,
             object managerHandle)
         {
@@ -627,7 +627,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        void IMonitoredItemLifecycle.QueueNodeIdUnknown()
+        void IDetachableMonitoredItem.QueueNodeIdUnknown()
         {
             lock (m_lock)
             {
@@ -641,7 +641,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        void IMonitoredItemLifecycle.Rebind(IAsyncNodeManager nodeManager, object managerHandle)
+        void IDetachableMonitoredItem.Rebind(IAsyncNodeManager nodeManager, object managerHandle)
         {
             lock (m_lock)
             {
@@ -1716,12 +1716,13 @@ namespace Opc.Ua.Server
                     {
                         if (required)
                         {
-                            PublishNodeIdUnknown(
+                            Publish(
                                 context,
                                 notifications,
                                 diagnostics,
                                 value,
-                                error);
+                                error,
+                                applyChangeBits: false);
                         }
                         else
                         {
@@ -1773,8 +1774,38 @@ namespace Opc.Ua.Server
             DataValue value,
             ServiceResult error)
         {
+            return Publish(
+                context,
+                notifications,
+                diagnostics,
+                value,
+                error,
+                applyChangeBits: true);
+        }
+
+        /// <summary>
+        /// Publishes a single data change notification.
+        /// </summary>
+        /// <param name="context">The context of the Publish request.</param>
+        /// <param name="notifications">The queue the notification is added to.</param>
+        /// <param name="diagnostics">The queue the diagnostic info is added to.</param>
+        /// <param name="value">The value to publish.</param>
+        /// <param name="error">The error that belongs to the value.</param>
+        /// <param name="applyChangeBits">
+        /// <c>false</c> for a protected missing Node notification, whose StatusCode has to reach
+        /// the Client exactly as it was queued, so the pending semantics and structure changed
+        /// bits are neither applied to it nor consumed by it.
+        /// </param>
+        private bool Publish(
+            OperationContext context,
+            Queue<MonitoredItemNotification> notifications,
+            Queue<DiagnosticInfo> diagnostics,
+            DataValue value,
+            ServiceResult error,
+            bool applyChangeBits)
+        {
             // set semantics changed bit.
-            if (m_semanticsChanged)
+            if (applyChangeBits && m_semanticsChanged)
             {
                 value = value.WithStatus(value.StatusCode.SetSemanticsChanged(true));
 
@@ -1792,7 +1823,7 @@ namespace Opc.Ua.Server
             }
 
             // set structure changed bit.
-            if (m_structureChanged)
+            if (applyChangeBits && m_structureChanged)
             {
                 value = value.WithStatus(value.StatusCode.SetStructureChanged(true));
 
@@ -1841,41 +1872,6 @@ namespace Opc.Ua.Server
             return false;
         }
 
-        /// <summary>
-        /// Publishes the protected missing-node notification without applying change bits.
-        /// </summary>
-        private void PublishNodeIdUnknown(
-            OperationContext context,
-            Queue<MonitoredItemNotification> notifications,
-            Queue<DiagnosticInfo> diagnostics,
-            DataValue value,
-            ServiceResult error)
-        {
-            var item = (MonitoredItemNotification)MonitoredItemNotificationActivator.Instance.CreateInstance();
-            item.ClientHandle = ClientHandle;
-            item.Value = value;
-
-            if (m_timestampsToReturn is not TimestampsToReturn.Server and not TimestampsToReturn.Both)
-            {
-                item.Value = item.Value.WithServerTimestamp(DateTimeUtc.MinValue);
-            }
-
-            if (m_timestampsToReturn is not TimestampsToReturn.Source and not TimestampsToReturn.Both)
-            {
-                item.Value = item.Value.WithSourceTimestamp(DateTimeUtc.MinValue);
-            }
-
-            ServerUtils.ReportPublishValue(NodeId, Id, item.Value);
-            notifications.Enqueue(item);
-
-            DiagnosticInfo? diagnosticInfo = null;
-            if ((DiagnosticsMasks & DiagnosticsMasks.OperationAll) != 0)
-            {
-                diagnosticInfo = ServerUtils.CreateDiagnosticInfo(m_server, context, error, m_logger);
-            }
-
-            diagnostics.Enqueue(diagnosticInfo!);
-        }
 
         /// <summary>
         /// The object to call when item is ready to publish.

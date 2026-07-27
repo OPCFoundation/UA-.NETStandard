@@ -1262,7 +1262,7 @@ namespace Opc.Ua.Server.Tests
                     telemetry,
                     queueSize: 8))
                 {
-                    var lifecycle = (IMonitoredItemLifecycle)source;
+                    var lifecycle = (IDetachableMonitoredItem)source;
                     source.QueueValue(
                         new DataValue(new Variant(10), StatusCodes.Good),
                         ServiceResult.Good);
@@ -1296,7 +1296,7 @@ namespace Opc.Ua.Server.Tests
                     new Mock<IAsyncNodeManager>().Object,
                     new object(),
                     stored);
-                var restoredLifecycle = (IMonitoredItemLifecycle)restored;
+                var restoredLifecycle = (IDetachableMonitoredItem)restored;
                 var notifications = new Queue<MonitoredItemNotification>();
                 var diagnostics = new Queue<DiagnosticInfo>();
 
@@ -1361,7 +1361,7 @@ namespace Opc.Ua.Server.Tests
                     telemetry,
                     queueSize: 4))
                 {
-                    ((IMonitoredItemLifecycle)source).MarkNodeDeleted();
+                    ((IDetachableMonitoredItem)source).MarkNodeDeleted();
                     var notifications = new Queue<MonitoredItemNotification>();
                     var diagnostics = new Queue<DiagnosticInfo>();
                     source.Publish(
@@ -1400,7 +1400,7 @@ namespace Opc.Ua.Server.Tests
                     new Mock<IAsyncNodeManager>().Object,
                     new object(),
                     stored);
-                var restoredLifecycle = (IMonitoredItemLifecycle)restored;
+                var restoredLifecycle = (IDetachableMonitoredItem)restored;
                 var restoredNotifications = new Queue<MonitoredItemNotification>();
                 if (disabledBeforeStore)
                 {

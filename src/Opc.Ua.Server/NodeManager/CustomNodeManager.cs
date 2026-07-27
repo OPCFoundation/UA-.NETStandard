@@ -322,7 +322,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        ValueTask<ServiceResult> INodeManagerMonitoredItemLifecycle.ValidateMonitoredItemAsync(
+        ValueTask<ServiceResult> INodeManagerMonitoredItemLifecycle.CanAttachMonitoredItemAsync(
             IMonitoredItem monitoredItem,
             CancellationToken cancellationToken)
         {
@@ -425,7 +425,7 @@ namespace Opc.Ua.Server
                 {
                     DetachedMonitoredItemOwnership.Detach(
                         Server,
-                        (IMonitoredItemLifecycle)monitoredItem);
+                        (IDetachableMonitoredItem)monitoredItem);
                 }
                 return result;
             }
@@ -442,7 +442,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        ValueTask<ServiceResult> INodeManagerMonitoredItemLifecycle.RestoreMonitoredItemAsync(
+        ValueTask<ServiceResult> INodeManagerMonitoredItemLifecycle.RecoverMonitoredItemAsync(
             IMonitoredItem monitoredItem,
             CancellationToken cancellationToken)
         {
@@ -451,15 +451,6 @@ namespace Opc.Ua.Server
                 AttachMonitoredItemForLifecycle(monitoredItem));
         }
 
-        internal ServiceResult AttachDetachedMonitoredItem(IMonitoredItem monitoredItem)
-        {
-            return AttachMonitoredItemForLifecycle(monitoredItem);
-        }
-
-        internal ServiceResult DetachDetachedMonitoredItem(IMonitoredItem monitoredItem)
-        {
-            return DetachMonitoredItemForLifecycle(monitoredItem);
-        }
 
         private ServiceResult ValidateMonitoredItemForLifecycle(IMonitoredItem monitoredItem)
         {
@@ -630,7 +621,7 @@ namespace Opc.Ua.Server
                             {
                                 DetachedMonitoredItemOwnership.Detach(
                                     Server,
-                                    (IMonitoredItemLifecycle)monitoredItem);
+                                    (IDetachableMonitoredItem)monitoredItem);
                             }
                             catch (Exception compensationException) when (
                                 compensationException is not OutOfMemoryException)
@@ -923,7 +914,7 @@ namespace Opc.Ua.Server
                 {
                     foreach (IMonitoredItem monitoredItem in detachedItems)
                     {
-                        ((IMonitoredItemLifecycle)monitoredItem).MarkNodeDeleted();
+                        ((IDetachableMonitoredItem)monitoredItem).MarkNodeDeleted();
                     }
                 }
                 throw;
@@ -931,7 +922,7 @@ namespace Opc.Ua.Server
 
             foreach (IMonitoredItem monitoredItem in detachedItems)
             {
-                ((IMonitoredItemLifecycle)monitoredItem).MarkNodeDeleted();
+                ((IDetachableMonitoredItem)monitoredItem).MarkNodeDeleted();
             }
 
             if (ModelChangeEmissionEnabled)
@@ -1161,7 +1152,7 @@ namespace Opc.Ua.Server
                 AddPredefinedNode(context, children[ii]);
             }
 
-            if (Server.NodeManager is INodeManagerMonitoredItemRecovery recovery)
+            if (Server.NodeManager is ISyncNodeManagerMonitoredItemRecovery recovery)
             {
                 recovery.RecoverDetachedMonitoredItems(
                     this.ToAsyncNodeManager(),

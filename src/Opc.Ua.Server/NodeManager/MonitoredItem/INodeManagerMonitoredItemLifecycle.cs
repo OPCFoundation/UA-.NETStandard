@@ -34,42 +34,70 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Provides optional monitored-item detach and reattach operations for built-in node managers.
+    /// Moves existing MonitoredItems between NodeManager generations while the server is running.
+    /// <para>
+    /// When a NodeManager is reloaded, its MonitoredItems are detached from the outgoing
+    /// generation and attached to the incoming one, so a Client keeps the same MonitoredItem and
+    /// does not observe a transient bad status for Nodes that still exist. This is unrelated to
+    /// restoring durable Subscriptions at server startup, which is handled by the synchronous
+    /// <see cref="IMonitoredItemManager.RestoreMonitoredItem"/> path.
+    /// </para>
     /// </summary>
     internal interface INodeManagerMonitoredItemLifecycle
     {
         /// <summary>
-        /// Returns a stable snapshot of monitored items owned by the node manager.
+        /// Returns a stable snapshot of the MonitoredItems owned by this NodeManager, optionally
+        /// limited to the given Nodes.
         /// </summary>
+        /// <param name="nodeIds">The Nodes to report, or <c>null</c> for all of them.</param>
+        /// <param name="cancellationToken">The token used to cancel the operation.</param>
         ValueTask<IReadOnlyList<IMonitoredItem>> GetMonitoredItemsSnapshotAsync(
             IReadOnlyCollection<NodeId>? nodeIds = null,
             CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Validates whether an existing monitored item can attach to this manager.
+        /// Reports whether an existing MonitoredItem could attach to this NodeManager, which is
+        /// checked before anything is detached so that an incompatible reload is rejected while it
+        /// can still be rolled back.
         /// </summary>
-        ValueTask<ServiceResult> ValidateMonitoredItemAsync(
+        /// <param name="monitoredItem">The MonitoredItem to test.</param>
+        /// <param name="cancellationToken">The token used to cancel the operation.</param>
+        /// <returns>
+        /// A good result when the MonitoredItem can attach, otherwise the reason why it cannot.
+        /// </returns>
+        ValueTask<ServiceResult> CanAttachMonitoredItemAsync(
             IMonitoredItem monitoredItem,
             CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Detaches an existing monitored item without disposing it.
+        /// Detaches a MonitoredItem from this NodeManager without disposing it, so it keeps its
+        /// identity and queue while it has no owner.
         /// </summary>
+        /// <param name="monitoredItem">The MonitoredItem to detach.</param>
+        /// <param name="cancellationToken">The token used to cancel the operation.</param>
         ValueTask<ServiceResult> DetachMonitoredItemAsync(
             IMonitoredItem monitoredItem,
             CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Attaches an existing monitored item to a compatible node in this manager.
+        /// Attaches a detached MonitoredItem to the matching Node in this NodeManager, which is
+        /// how it is handed to the incoming generation once a reload is committed.
         /// </summary>
+        /// <param name="monitoredItem">The MonitoredItem to attach.</param>
+        /// <param name="cancellationToken">The token used to cancel the operation.</param>
         ValueTask<ServiceResult> AttachMonitoredItemAsync(
             IMonitoredItem monitoredItem,
             CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Restores an existing monitored item to this manager during rollback.
+        /// Gives a detached MonitoredItem back to the NodeManager it came from after a lifecycle
+        /// operation failed. Rolling back means the operation is undone and the outgoing
+        /// generation stays in service, so the MonitoredItem has to keep working as if the reload
+        /// had never been started.
         /// </summary>
-        ValueTask<ServiceResult> RestoreMonitoredItemAsync(
+        /// <param name="monitoredItem">The MonitoredItem to recover.</param>
+        /// <param name="cancellationToken">The token used to cancel the operation.</param>
+        ValueTask<ServiceResult> RecoverMonitoredItemAsync(
             IMonitoredItem monitoredItem,
             CancellationToken cancellationToken = default);
     }

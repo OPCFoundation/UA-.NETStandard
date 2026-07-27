@@ -66,7 +66,7 @@ namespace Opc.Ua.Server
         Historian.IHistorianRegistryProvider,
         ITransportListenerRegistryProvider,
         IServerEndpointRegistryProvider,
-        ISessionClosingRegistry,
+
         ITimeProviderProvider
     {
         /// <summary>
@@ -716,7 +716,8 @@ namespace Opc.Ua.Server
             }
         }
 
-        bool ISessionClosingRegistry.IsSessionClosing(NodeId sessionId)
+        /// <inheritdoc/>
+        public bool IsSessionClosing(NodeId sessionId)
         {
             return m_closingSessions.ContainsKey(sessionId);
         }
