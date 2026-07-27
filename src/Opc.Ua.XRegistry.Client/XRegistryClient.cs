@@ -108,6 +108,13 @@ namespace Opc.Ua.XRegistry.Client
         public ushort NamespaceIndex { get; }
 
         /// <summary>
+        /// Gets the NodeId of the registry root Object, which a server publishes at a well-known
+        /// identifier in its registry namespace. This is the starting point for the group lifecycle,
+        /// so a caller does not have to Browse for it.
+        /// </summary>
+        public NodeId RegistryNodeId => new(XRegistryWellKnown.RegistryObject, NamespaceIndex);
+
+        /// <summary>
         /// Gets the telemetry context handed to the generated proxies.
         /// </summary>
         protected ITelemetryContext Telemetry { get; }

@@ -101,6 +101,41 @@ namespace Opc.Ua.XRegistry.Tests
         }
 
         [Test]
+        public void RegistryNodeIdAddressesTheWellKnownRoot()
+        {
+            GenericXRegistryClient client = CreateClient(CreateSession());
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(client.RegistryNodeId.IsNull, Is.False);
+                Assert.That(client.RegistryNodeId,
+                    Is.EqualTo(new NodeId(XRegistryWellKnown.RegistryObject, 1)),
+                    "The root sits at a well-known identifier in the registry namespace, so a " +
+                    "caller reaches the group lifecycle without Browsing for it.");
+            });
+        }
+
+        [Test]
+        public async Task RegistryNodeIdDrivesTheGroupLifecycleAsync()
+        {
+            Mock<ISession> session = CreateSession();
+            var calls = new List<CallMethodRequest>();
+            SetupCall(session, calls);
+
+            GenericXRegistryClient client = CreateClient(session);
+            NodeId group = await client.CreateGroupAsync(client.RegistryNodeId, "schemas")
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(group, Is.EqualTo(s_createdGroupNodeId));
+                Assert.That(calls, Has.Count.EqualTo(1));
+                Assert.That(calls[0].ObjectId, Is.EqualTo(client.RegistryNodeId),
+                    "CreateGroup is invoked on the registry root itself.");
+            });
+        }
+
+        [Test]
         public void DefaultConstructorBindsTheBaseRegistryNamespace()
         {
             var client = new GenericXRegistryClient(CreateSession().Object, CreateTelemetry());
@@ -272,6 +307,36 @@ namespace Opc.Ua.XRegistry.Tests
                     () => client.RegisterResourceAsync(group, "id", new byte[1], chunkSize: 0),
                     Throws.InstanceOf<ArgumentOutOfRangeException>());
             });
+        }
+
+        [Test]
+        public async Task RegisterResourceStreamsTheCorrectBytesPerChunkAsync()
+        {
+            byte[] document = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+            Mock<ISession> session = CreateSession();
+            var calls = new List<CallMethodRequest>();
+            SetupCall(session, calls);
+
+            GenericXRegistryClient client = CreateClient(session);
+            await client
+                .RegisterResourceAsync(new NodeId(1u, 1), "urn:resource", document, chunkSize: 4)
+                .ConfigureAwait(false);
+
+            // Each chunk wraps a slice of the caller's buffer rather than copying it, so verify the
+            // slices reassemble into exactly the original document.
+            var streamed = new List<byte>();
+            foreach (CallMethodRequest call in calls)
+            {
+                if (call.MethodId != ExpandedNodeId.ToNodeId(
+                        Opc.Ua.MethodIds.FileType_Write, session.Object.NamespaceUris))
+                {
+                    continue;
+                }
+                Assert.That(call.InputArguments[1].TryGetValue(out ByteString chunk), Is.True);
+                streamed.AddRange(chunk.Span.ToArray());
+            }
+
+            Assert.That(streamed, Is.EqualTo(document));
         }
 
         [TestCase(4, 4, 1)]

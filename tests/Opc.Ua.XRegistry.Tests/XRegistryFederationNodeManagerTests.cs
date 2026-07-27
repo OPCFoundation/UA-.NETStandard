@@ -53,7 +53,7 @@ namespace Opc.Ua.XRegistry.Tests
         {
             using XRegistryFederationNodeManager nm = CreateNodeManager(new XRegistryServerOptions
             {
-                FederatedDocument = s_federatedDocument,
+                FederatedDocument = ByteString.From(s_federatedDocument),
                 ContentIdProvider = new XRegistryServerTestHarness.FakeContentIdProvider()
             });
 
@@ -82,7 +82,7 @@ namespace Opc.Ua.XRegistry.Tests
             using XRegistryFederationNodeManager nm = CreateNodeManager(new XRegistryServerOptions
             {
                 PublishFederationProxy = true,
-                FederatedDocument = s_federatedDocument
+                FederatedDocument = ByteString.From(s_federatedDocument)
             });
 
             InvalidOperationException ex = Assert.Throws<InvalidOperationException>(
@@ -98,7 +98,7 @@ namespace Opc.Ua.XRegistry.Tests
             using XRegistryFederationNodeManager nm = CreateNodeManager(new XRegistryServerOptions
             {
                 PublishFederationProxy = true,
-                FederatedDocument = s_federatedDocument,
+                FederatedDocument = ByteString.From(s_federatedDocument),
                 RemoteEndpointUrl = remoteEndpoint,
                 RemoteRegistryNamespaceUri = remoteNamespace,
                 RemoteServerIndex = 3,
@@ -139,7 +139,7 @@ namespace Opc.Ua.XRegistry.Tests
             using XRegistryFederationNodeManager nm = CreateNodeManager(new XRegistryServerOptions
             {
                 PublishFederationProxy = true,
-                FederatedDocument = s_federatedDocument,
+                FederatedDocument = ByteString.From(s_federatedDocument),
                 ContentIdProvider = new XRegistryServerTestHarness.FakeContentIdProvider()
             });
 

@@ -321,8 +321,11 @@ the node's `ExpectedEpoch`, so a caller working from a stale read is rejected ra
 concurrent change:
 
 ```csharp
-(NodeId groupNodeId, bool groupCreated) =
-    await client.GetOrCreateGroupAsync("schemas", ct: ct).ConfigureAwait(false);
+// The registry root sits at a well-known identifier in the registry namespace, so there is no
+// need to Browse for it.
+(NodeId groupNodeId, bool groupCreated) = await client
+    .GetOrCreateGroupAsync(client.RegistryNodeId, "schemas", ct)
+    .ConfigureAwait(false);
 
 // Only streams the document when it actually created the version.
 (NodeId nodeId, string versionId, bool created) = await client.GetOrRegisterResourceAsync(
