@@ -1998,11 +1998,23 @@ namespace Opc.Ua.Server
             {
                 foreach (IMonitoredItem monitoredItem in m_compatibleItems.Concat(m_deletedItems))
                 {
+                    // A Subscription being deleted, a Session being closed or a Client deleting the
+                    // item can remove it while the transition runs. There is then nothing to move,
+                    // so the item is skipped instead of failing the lifecycle operation.
+                    if (!IsOwnedBySubscription(monitoredItem))
+                    {
+                        continue;
+                    }
+
                     ServiceResult result = await m_current
                         .DetachMonitoredItemAsync(monitoredItem, ct)
                         .ConfigureAwait(false);
                     if (ServiceResult.IsBad(result))
                     {
+                        if (!IsOwnedBySubscription(monitoredItem))
+                        {
+                            continue;
+                        }
                         throw new ServiceResultException(result);
                     }
                     m_detachedItems.Add(monitoredItem);
@@ -2059,7 +2071,7 @@ namespace Opc.Ua.Server
                     if (IsOwnedBySubscription(monitoredItem))
                     {
                         var lifecycle = (IDetachableMonitoredItem)monitoredItem;
-                        DetachedMonitoredItemOwnership.Detach(m_server, lifecycle);
+                        lifecycle.Detach(m_server);
                         lifecycle.MarkNodeDeleted();
                     }
                 }
@@ -2125,7 +2137,7 @@ namespace Opc.Ua.Server
             private void MarkAttachFailure(IMonitoredItem monitoredItem)
             {
                 var lifecycle = (IDetachableMonitoredItem)monitoredItem;
-                DetachedMonitoredItemOwnership.Detach(m_server, lifecycle);
+                lifecycle.Detach(m_server);
                 lifecycle.MarkNodeDeleted();
                 m_failedItems.Add(monitoredItem);
             }

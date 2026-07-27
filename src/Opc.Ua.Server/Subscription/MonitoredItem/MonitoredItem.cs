@@ -624,6 +624,49 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
+        void IDetachableMonitoredItem.Detach(IServerInternal server)
+        {
+            if (server is null)
+            {
+                throw new ArgumentNullException(nameof(server));
+            }
+
+            IAsyncNodeManager owner = GetDetachedOwner(server);
+
+            lock (m_lock)
+            {
+                NodeManager = owner;
+                ManagerHandle = DetachedHandle;
+                m_isDetached = true;
+            }
+        }
+
+        /// <summary>
+        /// Returns the long lived NodeManager that a detached MonitoredItem is parked on. The
+        /// CoreNodeManager is used because it outlives every NodeManager that can be retired.
+        /// </summary>
+        /// <param name="server">The server that owns the NodeManagers.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="server"/> is <c>null</c>.</exception>
+        /// <exception cref="InvalidOperationException">The server has no CoreNodeManager.</exception>
+        internal static IAsyncNodeManager GetDetachedOwner(IServerInternal server)
+        {
+            if (server is null)
+            {
+                throw new ArgumentNullException(nameof(server));
+            }
+
+            return server.NodeManager?.CoreNodeManager ??
+                server.CoreNodeManager ??
+                throw new InvalidOperationException(
+                    "The server does not have a long lived CoreNodeManager for detached monitored items.");
+        }
+
+        /// <summary>
+        /// Gets the handle a detached MonitoredItem is parked on.
+        /// </summary>
+        internal static object DetachedHandle => s_detachedHandle;
+
+        /// <inheritdoc/>
         void IDetachableMonitoredItem.QueueNodeIdUnknown()
         {
             lock (m_lock)
@@ -2322,6 +2365,12 @@ namespace Opc.Ua.Server
         private bool m_resendData;
         private HashSet<string>? m_filteredRetainConditionIds;
         private bool m_isDetached;
+
+        /// <summary>
+        /// The handle a detached MonitoredItem is parked on. It is a shared sentinel, because a
+        /// detached item has no real Node behind it until it is attached again.
+        /// </summary>
+        private static readonly object s_detachedHandle = new();
         private bool m_isDeleted;
         private bool m_deletionNotificationQueuedForEpoch;
         private bool m_restoredDataChangeQueueAvailable;

@@ -552,7 +552,7 @@ namespace Opc.Ua.Server
             }
             if (ServiceResult.IsGood(result) && changed)
             {
-                DetachedMonitoredItemOwnership.Detach(Server, (IDetachableMonitoredItem)monitoredItem);
+                ((IDetachableMonitoredItem)monitoredItem).Detach(Server);
             }
             return result;
         }
@@ -684,9 +684,7 @@ namespace Opc.Ua.Server
                         {
                             try
                             {
-                                DetachedMonitoredItemOwnership.Detach(
-                                    Server,
-                                    (IDetachableMonitoredItem)monitoredItem);
+                                ((IDetachableMonitoredItem)monitoredItem).Detach(Server);
                             }
                             catch (Exception compensationException) when (
                                 compensationException is not OutOfMemoryException)
@@ -1048,30 +1046,7 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(node));
             }
 
-            if (Server.NodeManager is IDynamicNodeManagerHost coordinator)
-            {
-                return AddPredefinedNodeCoordinatedAsync(
-                    coordinator,
-                    node,
-                    cancellationToken);
-            }
-
             return AddPredefinedNodeAsync(SystemContext, node, cancellationToken);
-        }
-
-        private async ValueTask AddPredefinedNodeCoordinatedAsync(
-            IDynamicNodeManagerHost coordinator,
-            NodeState node,
-            CancellationToken cancellationToken)
-        {
-            await coordinator.ExecuteMonitoredItemMutationAsync(
-                async () =>
-                {
-                    await AddPredefinedNodeAsync(SystemContext, node, cancellationToken)
-                        .ConfigureAwait(false);
-                    return true;
-                },
-                cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -1295,13 +1270,6 @@ namespace Opc.Ua.Server
             NodeId nodeId,
             CancellationToken cancellationToken = default)
         {
-            if (Server.NodeManager is IDynamicNodeManagerHost coordinator)
-            {
-                return coordinator.ExecuteMonitoredItemMutationAsync(
-                    () => DeleteNodeCoreAsync(context, nodeId, cancellationToken),
-                    cancellationToken);
-            }
-
             return DeleteNodeCoreAsync(context, nodeId, cancellationToken);
         }
 

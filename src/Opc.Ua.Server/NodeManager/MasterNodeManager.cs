@@ -852,26 +852,6 @@ namespace Opc.Ua.Server
             }
         }
 
-        async ValueTask<T> IDynamicNodeManagerHost
-            .ExecuteMonitoredItemMutationAsync<T>(
-                Func<ValueTask<T>> mutation,
-                CancellationToken ct)
-        {
-            if (mutation is null)
-            {
-                throw new ArgumentNullException(nameof(mutation));
-            }
-
-            await m_dynamicMutationSemaphore.WaitAsync(ct).ConfigureAwait(false);
-            try
-            {
-                return await mutation().ConfigureAwait(false);
-            }
-            finally
-            {
-                m_dynamicMutationSemaphore.Release();
-            }
-        }
 
         /// <inheritdoc/>
         void ISyncNodeManagerMonitoredItemRecovery.RecoverDetachedMonitoredItems(
@@ -928,7 +908,7 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
-                    DetachedMonitoredItemOwnership.Detach(Server, itemLifecycle);
+                    itemLifecycle.Detach(Server);
                     itemLifecycle.MarkNodeDeleted();
                     if (!IsExpectedRecoveryFailure(attachResult))
                     {
@@ -1020,7 +1000,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                DetachedMonitoredItemOwnership.Detach(Server, itemLifecycle);
+                itemLifecycle.Detach(Server);
                 itemLifecycle.MarkNodeDeleted();
                 if (!IsExpectedRecoveryFailure(attachResult))
                 {
@@ -4451,11 +4431,11 @@ namespace Opc.Ua.Server
 
                 var monitoredItem = new MonitoredItem(
                     Server,
-                    DetachedMonitoredItemOwnership.GetOwner(Server),
-                    DetachedMonitoredItemOwnership.Handle,
+                    MonitoredItem.GetDetachedOwner(Server),
+                    MonitoredItem.DetachedHandle,
                     storedItem);
                 var lifecycle = (IDetachableMonitoredItem)monitoredItem;
-                DetachedMonitoredItemOwnership.Detach(Server, lifecycle);
+                lifecycle.Detach(Server);
                 lifecycle.MarkNodeDeleted();
                 storedItem.IsRestored = true;
                 monitoredItems[ii] = monitoredItem;

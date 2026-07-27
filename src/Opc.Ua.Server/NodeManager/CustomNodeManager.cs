@@ -423,9 +423,7 @@ namespace Opc.Ua.Server
                 }
                 if (ServiceResult.IsGood(result) && changed)
                 {
-                    DetachedMonitoredItemOwnership.Detach(
-                        Server,
-                        (IDetachableMonitoredItem)monitoredItem);
+                    ((IDetachableMonitoredItem)monitoredItem).Detach(Server);
                 }
                 return result;
             }
@@ -619,9 +617,7 @@ namespace Opc.Ua.Server
                         {
                             try
                             {
-                                DetachedMonitoredItemOwnership.Detach(
-                                    Server,
-                                    (IDetachableMonitoredItem)monitoredItem);
+                                ((IDetachableMonitoredItem)monitoredItem).Detach(Server);
                             }
                             catch (Exception compensationException) when (
                                 compensationException is not OutOfMemoryException)
