@@ -1776,6 +1776,23 @@ namespace Opc.Ua.SourceGeneration
             """);
 
         /// <summary>
+        /// Overrides the value of an existing MethodState InputArguments or
+        /// OutputArguments property while leaving the identity of the property
+        /// node created by its own child factory untouched.
+        /// </summary>
+        public static readonly TemplateString Assign_MethodArgumentValues = TemplateString.Parse(
+            $$"""
+            global::Opc.Ua.PropertyState<global::Opc.Ua.ArrayOf<global::Opc.Ua.Argument>> {{Tokens.PropertyName}} =
+                state.CreateOrReplace{{Tokens.BrowseName}}(context, null);
+            {{Tokens.PropertyName}}.Value = global::Opc.Ua.ArrayOf.ToArrayOf(
+                new global::Opc.Ua.Argument[]
+                {
+                    {{Tokens.ListOfValues}}
+                });
+
+            """);
+
+        /// <summary>
         /// Template for object type instance creation (instantiate an object type)
         /// </summary>
         public static readonly TemplateString Create_InstanceOfObjectType = TemplateString.Parse(
@@ -2033,8 +2050,6 @@ namespace Opc.Ua.SourceGeneration
                 state.ReferenceTypeId = {{Tokens.ReferenceTypeId}};
                 state.Executable = {{Tokens.ExecutableValue}};
                 state.UserExecutable = {{Tokens.ExecutableValue}};
-                {{Tokens.ListOfInputArguments}}
-                {{Tokens.ListOfOutputArguments}}
                 {{Tokens.ReleaseStatusValue}}
                 {{Tokens.CategoriesValue}}
                 {{Tokens.SpecificationValue}}
@@ -2045,6 +2060,8 @@ namespace Opc.Ua.SourceGeneration
                 }
                 {{Tokens.ListOfReferences}}
                 {{Tokens.ListOfChildNodeStates}}
+                {{Tokens.ListOfInputArguments}}
+                {{Tokens.ListOfOutputArguments}}
                 if (!forInstance)
                 {
                     {{Tokens.ModellingRuleId}}
@@ -2221,8 +2238,6 @@ namespace Opc.Ua.SourceGeneration
                 state.Executable = {{Tokens.ExecutableValue}};
                 state.UserExecutable = {{Tokens.ExecutableValue}};
                 {{Tokens.MethodDeclarationId}}
-                {{Tokens.ListOfInputArguments}}
-                {{Tokens.ListOfOutputArguments}}
                 {{Tokens.ReleaseStatusValue}}
                 {{Tokens.CategoriesValue}}
                 {{Tokens.SpecificationValue}}
@@ -2230,6 +2245,8 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ListOfRolePermissions}}
                 {{Tokens.ListOfReferences}}
                 {{Tokens.ListOfChildNodeStates}}
+                {{Tokens.ListOfInputArguments}}
+                {{Tokens.ListOfOutputArguments}}
                 if (!forInstance)
                 {
                     {{Tokens.ModellingRuleId}}
