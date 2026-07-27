@@ -39,7 +39,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
     /// <summary>
     /// Supplemental tests for <see cref="FileWotRegistryStore"/> covering
     /// error paths: corrupt manifest, missing blob, empty snapshot round-trip,
-    /// label persistence, and blob pruning.
+    /// and label persistence.
     /// </summary>
     [TestFixture]
     [Category("WotCon")]
@@ -88,16 +88,21 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public async Task LoadReturnsEmptyWhenManifestContainsInvalidJson()
+        public void LoadRejectsInvalidManifestWithoutChangingIt()
         {
             string root = MakeRoot();
             try
             {
-                File.WriteAllText(Path.Combine(root, "manifest.json"), "{ not valid json }");
+                string manifestPath = Path.Combine(root, "manifest.json");
+                const string invalidManifest = "{ not valid json }";
+                File.WriteAllText(manifestPath, invalidManifest);
                 var store = new FileWotRegistryStore(root);
-                WotRegistrySnapshot snapshot = await store.LoadAsync();
 
-                Assert.That(snapshot.AllResources(), Is.Empty);
+                InvalidDataException error = Assert.ThrowsAsync<InvalidDataException>(
+                    async () => await store.LoadAsync());
+
+                Assert.That(error.Message, Does.Contain("corrupt"));
+                Assert.That(File.ReadAllText(manifestPath), Is.EqualTo(invalidManifest));
             }
             finally
             {
@@ -112,10 +117,16 @@ namespace Opc.Ua.WotCon.Tests.Registry
             try
             {
                 var store = new FileWotRegistryStore(root);
-                await store.CommitAsync(WotRegistrySnapshot.Empty);
+                WotRegistrySnapshot initial = await store.LoadAsync();
+                await store.CommitAsync(
+                    new WotRegistrySnapshot(
+                        initial.Generation + 1,
+                        initial.Groups,
+                        initial.Labels));
                 WotRegistrySnapshot loaded = await store.LoadAsync();
 
                 Assert.That(loaded.Groups, Is.Empty);
+                Assert.That(loaded.Generation, Is.EqualTo(1));
             }
             finally
             {
