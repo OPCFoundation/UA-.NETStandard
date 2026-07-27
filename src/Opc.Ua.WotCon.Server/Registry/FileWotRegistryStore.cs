@@ -56,6 +56,8 @@ namespace Opc.Ua.WotCon.Server.Registry
     /// synchronizes the blobs and root directory entries before atomically switching
     /// <c>manifest.json</c>, then synchronizes the storage root again. A stale store
     /// instance is rejected before it can stage blobs or replace the primary manifest.
+    /// A confirmed pre-switch failure on a proven-pristine store rolls back only the
+    /// artifacts created by that attempt and durably synchronizes their removal.
     /// Every lock acquisition also resynchronizes the root path component parents so
     /// a partially completed multi-level root creation is retry-safe.
     /// A reported manifest-replacement failure is classified only after validating
@@ -182,6 +184,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                     "registry store can commit.");
             }
 
+            PristineCommitArtifacts? pristineArtifacts = null;
             LoadedGeneration? current = await ReadGenerationAsync(cancellationToken)
                 .ConfigureAwait(false);
             if (current is null && !expected.Exists)
@@ -200,6 +203,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                             "primary manifest state is indeterminate."),
                         validationFailure);
                 }
+                pristineArtifacts = new PristineCommitArtifacts();
             }
             ManifestStamp actual = current?.Stamp ?? ManifestStamp.Absent;
             if (!expected.Equals(actual))
@@ -214,23 +218,38 @@ namespace Opc.Ua.WotCon.Server.Registry
                     $"WoT registry snapshot generation {snapshot.Generation} must be " +
                     $"strictly greater than the loaded generation {expectedGeneration}.");
             }
-            Directory.CreateDirectory(m_blobsFolder);
-
-            // 1. Stage every referenced version blob durably before the manifest
-            // that points at it is switched in. Blobs are content-addressed, so an
-            // unchanged document is written at most once and shared across
-            // versions/resources.
-            foreach (KeyValuePair<string, byte[]> blob in intended.Blobs)
+            try
             {
-                await EnsureBlobAsync(
-                        BlobPath(blob.Key),
-                        blob.Value,
-                        blob.Key,
-                        cancellationToken)
-                    .ConfigureAwait(false);
+                pristineArtifacts?.ClaimBlobsDirectory();
+                Directory.CreateDirectory(m_blobsFolder);
+
+                // 1. Stage every referenced version blob durably before the manifest
+                // that points at it is switched in. Blobs are content-addressed, so an
+                // unchanged document is written at most once and shared across
+                // versions/resources.
+                foreach (KeyValuePair<string, byte[]> blob in intended.Blobs)
+                {
+                    await EnsureBlobAsync(
+                            BlobPath(blob.Key),
+                            blob.Value,
+                            blob.Key,
+                            pristineArtifacts,
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                SyncDirectory(m_blobsFolder, DirectorySyncPhase.BlobsBeforeManifest);
+                SyncDirectory(m_root, DirectorySyncPhase.RootBeforeManifest);
             }
-            SyncDirectory(m_blobsFolder, DirectorySyncPhase.BlobsBeforeManifest);
-            SyncDirectory(m_root, DirectorySyncPhase.RootBeforeManifest);
+            catch (Exception failure)
+                when (IsConfirmedPreSwitchFailure(failure))
+            {
+                await RollbackPristinePreSwitchFailureAsync(
+                        snapshot,
+                        pristineArtifacts,
+                        failure)
+                    .ConfigureAwait(false);
+                throw;
+            }
 
             // 2. Durably switch the prevalidated manifest only after blob directory
             // entries are on stable storage.
@@ -240,6 +259,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                     intended.Stamp,
                     expected,
                     expectedGeneration,
+                    pristineArtifacts,
                     cancellationToken)
                 .ConfigureAwait(false);
 
@@ -1036,10 +1056,244 @@ namespace Opc.Ua.WotCon.Server.Registry
             }
         }
 
+        private async ValueTask RollbackPristinePreSwitchFailureAsync(
+            WotRegistrySnapshot intendedSnapshot,
+            PristineCommitArtifacts? artifacts,
+            Exception persistenceFailure)
+        {
+            if (artifacts is null)
+            {
+                return;
+            }
+
+            try
+            {
+                await RollbackPristinePreSwitchArtifactsAsync(artifacts)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception cleanupFailure)
+                when (IsConfirmedPreSwitchFailure(cleanupFailure))
+            {
+                throw CreatePristineRollbackIndeterminate(
+                    intendedSnapshot,
+                    persistenceFailure,
+                    cleanupFailure);
+            }
+        }
+
+        private async ValueTask RollbackPristinePreSwitchArtifactsAsync(
+            PristineCommitArtifacts artifacts)
+        {
+            if (!ValidatePristinePreSwitchArtifacts(artifacts))
+            {
+                return;
+            }
+
+            string rollbackMarker = Path.Combine(
+                m_root,
+                ManifestFile + ".rollback-" + Guid.NewGuid().ToString("N"));
+            byte[] markerBytes = Array.Empty<byte>();
+            await WriteThroughAsync(
+                    rollbackMarker,
+                    markerBytes,
+                    CancellationToken.None,
+                    artifacts.TrackFile)
+                .ConfigureAwait(false);
+            SyncDirectory(
+                m_root,
+                DirectorySyncPhase.RootAfterPristineRollbackMarker);
+
+            foreach (string path in artifacts.Files
+                .Where(path => !PathsEqual(path, rollbackMarker))
+                .OrderBy(path => path, s_fileSystemPathComparer))
+            {
+                if (Directory.Exists(path))
+                {
+                    throw new InvalidDataException(
+                        $"Pristine WoT registry rollback artifact '{path}' changed " +
+                        "from a file to a directory.");
+                }
+                if (File.Exists(path))
+                {
+                    File.Delete(path);
+                }
+            }
+
+            if (Directory.Exists(m_blobsFolder))
+            {
+                string[] remaining = Directory.GetFileSystemEntries(m_blobsFolder);
+                if (remaining.Length != 0)
+                {
+                    throw new InvalidDataException(
+                        "The pristine WoT registry blob directory acquired unknown " +
+                        $"artifacts during rollback: {string.Join(", ", remaining)}.");
+                }
+                SyncDirectory(
+                    m_blobsFolder,
+                    DirectorySyncPhase.BlobsAfterPristineRollback);
+                Directory.Delete(m_blobsFolder);
+            }
+            SyncDirectory(
+                m_root,
+                DirectorySyncPhase.RootAfterPristineRollback);
+
+            await RemovePristineRollbackMarkerAsync(rollbackMarker, markerBytes)
+                .ConfigureAwait(false);
+        }
+
+        private bool ValidatePristinePreSwitchArtifacts(
+            PristineCommitArtifacts artifacts)
+        {
+            bool foundArtifacts = false;
+            foreach (string path in FindRecoveryArtifacts())
+            {
+                if (PathsEqual(path, m_blobsFolder))
+                {
+                    if (!artifacts.OwnsBlobsDirectory || !Directory.Exists(path))
+                    {
+                        throw new InvalidDataException(
+                            $"Unexpected WoT registry artifact '{path}' prevents " +
+                            "a proven pristine rollback.");
+                    }
+                    foundArtifacts = true;
+                    continue;
+                }
+                if (!artifacts.OwnsFile(path))
+                {
+                    throw new InvalidDataException(
+                        $"Unknown WoT registry artifact '{path}' prevents a proven " +
+                        "pristine rollback.");
+                }
+                ValidateOwnedRollbackFile(path);
+                foundArtifacts = true;
+            }
+
+            if (Directory.Exists(m_blobsFolder))
+            {
+                foreach (string path in Directory.GetFileSystemEntries(m_blobsFolder))
+                {
+                    if (!artifacts.OwnsFile(path))
+                    {
+                        throw new InvalidDataException(
+                            $"Unknown WoT registry blob artifact '{path}' prevents a " +
+                            "proven pristine rollback.");
+                    }
+                    ValidateOwnedRollbackFile(path);
+                }
+            }
+            return foundArtifacts;
+        }
+
+        private static void ValidateOwnedRollbackFile(string path)
+        {
+            FileAttributes attributes = File.GetAttributes(path);
+            if ((attributes & (FileAttributes.Directory | FileAttributes.ReparsePoint)) != 0)
+            {
+                throw new InvalidDataException(
+                    $"Pristine WoT registry rollback artifact '{path}' is not a " +
+                    "regular file.");
+            }
+        }
+
+        private async ValueTask RemovePristineRollbackMarkerAsync(
+            string rollbackMarker,
+            byte[] markerBytes)
+        {
+            try
+            {
+                File.Delete(rollbackMarker);
+                SyncDirectory(
+                    m_root,
+                    DirectorySyncPhase.RootAfterPristineRollbackMarkerRemoval);
+            }
+            catch (Exception cleanupFailure)
+                when (IsConfirmedPreSwitchFailure(cleanupFailure))
+            {
+                throw await PreservePristineRollbackMarkerAsync(
+                        rollbackMarker,
+                        markerBytes,
+                        cleanupFailure)
+                    .ConfigureAwait(false);
+            }
+        }
+
+        private async ValueTask<IOException> PreservePristineRollbackMarkerAsync(
+            string rollbackMarker,
+            byte[] markerBytes,
+            Exception cleanupFailure)
+        {
+            try
+            {
+                if (!File.Exists(rollbackMarker))
+                {
+                    await WriteThroughAsync(
+                            rollbackMarker,
+                            markerBytes,
+                            CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
+                SyncDirectory(
+                    m_root,
+                    DirectorySyncPhase.RootAfterPristineRollbackMarker);
+                return new IOException(
+                    "The pristine WoT registry rollback marker could not be " +
+                    "durably removed and was retained.",
+                    cleanupFailure);
+            }
+            catch (Exception retentionFailure)
+                when (IsConfirmedPreSwitchFailure(retentionFailure))
+            {
+                return CreateRollbackMarkerRetentionFailure(
+                    cleanupFailure,
+                    retentionFailure);
+            }
+        }
+
+        private static IOException CreateRollbackMarkerRetentionFailure(
+            Exception cleanupFailure,
+            Exception retentionFailure)
+        {
+            return new IOException(
+                "The pristine WoT registry rollback marker could neither be " +
+                "durably removed nor retained.",
+                new AggregateException(cleanupFailure, retentionFailure));
+        }
+
+        private WotRegistryCommitIndeterminateException
+            CreatePristineRollbackIndeterminate(
+                WotRegistrySnapshot intendedSnapshot,
+                Exception persistenceFailure,
+                Exception cleanupFailure)
+        {
+            m_expectedManifest = null;
+            m_expectedGeneration = null;
+            return new WotRegistryCommitIndeterminateException(
+                intendedSnapshot,
+                persistenceFailure,
+                new IOException(
+                    "The confirmed pre-switch failure occurred on a pristine WoT " +
+                    "registry, but rollback could not be proven durable. Any remaining " +
+                    "store-owned artifacts were retained for fail-closed recovery. " +
+                    $"Cleanup failure: {cleanupFailure.Message}",
+                    cleanupFailure));
+        }
+
+        private static bool PathsEqual(string left, string right)
+        {
+            return s_fileSystemPathComparer.Equals(left, right);
+        }
+
+        private static bool IsConfirmedPreSwitchFailure(Exception exception)
+        {
+            return exception is OperationCanceledException or
+                UnauthorizedAccessException or InvalidDataException or IOException;
+        }
+
         private static async ValueTask EnsureBlobAsync(
             string path,
             byte[] content,
             string expectedDigest,
+            PristineCommitArtifacts? pristineArtifacts,
             CancellationToken cancellationToken)
         {
             try
@@ -1080,12 +1334,18 @@ namespace Opc.Ua.WotCon.Server.Registry
                     ex);
             }
 
-            await DurableWriteAsync(path, content, cancellationToken).ConfigureAwait(false);
+            await DurableWriteAsync(
+                    path,
+                    content,
+                    pristineArtifacts,
+                    cancellationToken)
+                .ConfigureAwait(false);
         }
 
         private static async ValueTask DurableWriteAsync(
             string path,
             byte[] bytes,
+            PristineCommitArtifacts? pristineArtifacts,
             CancellationToken cancellationToken)
         {
             string directory = Path.GetDirectoryName(path)!;
@@ -1094,8 +1354,16 @@ namespace Opc.Ua.WotCon.Server.Registry
             bool moved = false;
             try
             {
-                await WriteThroughAsync(tmp, bytes, cancellationToken).ConfigureAwait(false);
+                await WriteThroughAsync(
+                        tmp,
+                        bytes,
+                        cancellationToken,
+                        pristineArtifacts is null
+                            ? null
+                            : pristineArtifacts.TrackFile)
+                    .ConfigureAwait(false);
                 File.Move(tmp, path);
+                pristineArtifacts?.TrackFile(path);
                 moved = true;
             }
             finally
@@ -1113,6 +1381,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             ManifestStamp intendedStamp,
             ManifestStamp expectedStamp,
             long expectedGeneration,
+            PristineCommitArtifacts? pristineArtifacts,
             CancellationToken cancellationToken)
         {
             string path = Path.Combine(m_root, ManifestFile);
@@ -1123,10 +1392,32 @@ namespace Opc.Ua.WotCon.Server.Registry
             bool preserveTemporary = false;
             try
             {
-                await WriteThroughAsync(tmp, bytes, cancellationToken).ConfigureAwait(false);
-                SyncDirectory(
-                    m_root,
-                    DirectorySyncPhase.RootAfterManifestStaging);
+                try
+                {
+                    await WriteThroughAsync(
+                            tmp,
+                            bytes,
+                            cancellationToken,
+                            pristineArtifacts is null
+                                ? null
+                                : pristineArtifacts.TrackFile)
+                        .ConfigureAwait(false);
+                    SyncDirectory(
+                        m_root,
+                        DirectorySyncPhase.RootAfterManifestStaging);
+                }
+                catch (Exception failure)
+                    when (pristineArtifacts is not null &&
+                        IsConfirmedPreSwitchFailure(failure))
+                {
+                    preserveTemporary = true;
+                    await RollbackPristinePreSwitchFailureAsync(
+                            intendedSnapshot,
+                            pristineArtifacts,
+                            failure)
+                        .ConfigureAwait(false);
+                    throw;
+                }
                 if (expectedStamp.Exists)
                 {
                     replaceBackupPath =
@@ -1283,7 +1574,8 @@ namespace Opc.Ua.WotCon.Server.Registry
         private static async ValueTask WriteThroughAsync(
             string path,
             byte[] bytes,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            Action<string>? fileCreated = null)
         {
             // FileOptions.WriteThrough bypasses the OS write cache so the bytes
             // reach stable storage before the handle closes; this preserves the
@@ -1295,6 +1587,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 FileShare.None,
                 bufferSize: 4096,
                 FileOptions.WriteThrough | FileOptions.Asynchronous);
+            fileCreated?.Invoke(path);
 #if NETSTANDARD2_1_OR_GREATER || NET
             await stream.WriteAsync(bytes.AsMemory(), cancellationToken).ConfigureAwait(false);
 #else
@@ -1478,7 +1771,38 @@ namespace Opc.Ua.WotCon.Server.Registry
             BlobsBeforeManifest,
             RootBeforeManifest,
             RootAfterManifestStaging,
-            RootAfterManifest
+            RootAfterManifest,
+            RootAfterPristineRollbackMarker,
+            BlobsAfterPristineRollback,
+            RootAfterPristineRollback,
+            RootAfterPristineRollbackMarkerRemoval
+        }
+
+        private sealed class PristineCommitArtifacts
+        {
+            public PristineCommitArtifacts()
+            {
+                Files = new HashSet<string>(s_fileSystemPathComparer);
+            }
+
+            public bool OwnsBlobsDirectory { get; private set; }
+
+            public HashSet<string> Files { get; }
+
+            public void ClaimBlobsDirectory()
+            {
+                OwnsBlobsDirectory = true;
+            }
+
+            public bool OwnsFile(string path)
+            {
+                return Files.Contains(path);
+            }
+
+            public void TrackFile(string path)
+            {
+                Files.Add(path);
+            }
         }
 
         private sealed class StorageLock : IDisposable
@@ -1668,6 +1992,10 @@ namespace Opc.Ua.WotCon.Server.Registry
         private const uint OpenExisting = 3;
         private const uint FileFlagBackupSemantics = 0x02000000;
         private static readonly TimeSpan s_lockRetryDelay = TimeSpan.FromMilliseconds(25);
+        private static readonly StringComparer s_fileSystemPathComparer =
+            RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+                ? StringComparer.OrdinalIgnoreCase
+                : StringComparer.Ordinal;
 
         private readonly string m_root;
         private readonly string m_blobsFolder;

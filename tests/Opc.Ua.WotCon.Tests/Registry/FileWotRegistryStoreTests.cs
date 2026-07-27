@@ -206,6 +206,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
 
         [TestCase("manifest.json.tmp-test", false)]
         [TestCase("manifest.json.replace-backup-test", false)]
+        [TestCase("manifest.json.rollback-test", false)]
         [TestCase("blobs", true)]
         public void AbsentPrimaryWithPendingArtifactFailsClosed(
             string artifactName,
@@ -921,6 +922,165 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
+        public async Task PristineCancellationBeforeManifestRollsBackAndRetrySucceeds()
+        {
+            bool injectFailure = true;
+            using var cancellation = new CancellationTokenSource();
+            var store = new FileWotRegistryStore(
+                m_root,
+                phase =>
+                {
+                    if (injectFailure &&
+                        phase == FileWotRegistryStore.DirectorySyncPhase.BlobsBeforeManifest)
+                    {
+                        injectFailure = false;
+                        cancellation.Cancel();
+                        cancellation.Token.ThrowIfCancellationRequested();
+                    }
+                });
+            using var service = new WotRegistryService(store);
+            await service.InitializeAsync();
+
+            OperationCanceledException error =
+                Assert.ThrowsAsync<OperationCanceledException>(
+                    async () => await service.UpsertResourceAsync(
+                        TdRequest("a", "urn:a"),
+                        cancellation.Token));
+
+            Assert.That(error.CancellationToken, Is.EqualTo(cancellation.Token));
+            Assert.That(File.Exists(ManifestPath), Is.False);
+            Assert.That(Directory.Exists(BlobsPath), Is.False);
+            Assert.That(TemporaryManifestPaths, Is.Empty);
+            Assert.That(RollbackMarkerPaths, Is.Empty);
+
+            WotRegistryMutationResult retry = await service.UpsertResourceAsync(
+                TdRequest("a", "urn:a"));
+
+            Assert.That(retry.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
+            Assert.That(File.Exists(ManifestPath), Is.True);
+            Assert.That(Directory.GetFiles(BlobsPath, "*.bin"), Has.Length.EqualTo(1));
+        }
+
+        [Test]
+        public async Task PristineManifestStagingFailureRollsBackAndRetrySucceeds()
+        {
+            bool injectFailure = true;
+            var store = new FileWotRegistryStore(
+                m_root,
+                phase =>
+                {
+                    if (injectFailure &&
+                        phase ==
+                        FileWotRegistryStore.DirectorySyncPhase.RootAfterManifestStaging)
+                    {
+                        injectFailure = false;
+                        throw new IOException(
+                            "Injected manifest staging directory sync failure.");
+                    }
+                });
+            using var service = new WotRegistryService(store);
+            await service.InitializeAsync();
+
+            IOException error = Assert.ThrowsAsync<IOException>(
+                async () => await service.UpsertResourceAsync(
+                    TdRequest("a", "urn:a")));
+
+            Assert.That(error.Message, Does.Contain("manifest staging"));
+            Assert.That(File.Exists(ManifestPath), Is.False);
+            Assert.That(Directory.Exists(BlobsPath), Is.False);
+            Assert.That(TemporaryManifestPaths, Is.Empty);
+            Assert.That(RollbackMarkerPaths, Is.Empty);
+
+            WotRegistryMutationResult retry = await service.UpsertResourceAsync(
+                TdRequest("a", "urn:a"));
+
+            Assert.That(retry.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
+            Assert.That(File.Exists(ManifestPath), Is.True);
+            Assert.That(Directory.GetFiles(BlobsPath, "*.bin"), Has.Length.EqualTo(1));
+        }
+
+        [Test]
+        public async Task AmbiguousPristineArtifactsRemainFailClosed()
+        {
+            string unknownArtifact = Path.Combine(BlobsPath, "unknown.bin");
+            bool injectFailure = true;
+            var store = new FileWotRegistryStore(
+                m_root,
+                phase =>
+                {
+                    if (injectFailure &&
+                        phase == FileWotRegistryStore.DirectorySyncPhase.RootBeforeManifest)
+                    {
+                        injectFailure = false;
+                        File.WriteAllText(unknownArtifact, "ambiguous external artifact");
+                        throw new IOException(
+                            "Injected pre-switch failure with an ambiguous artifact.");
+                    }
+                });
+            using var service = new WotRegistryService(store);
+            await service.InitializeAsync();
+
+            WotRegistryCommitIndeterminateException error =
+                Assert.ThrowsAsync<WotRegistryCommitIndeterminateException>(
+                    async () => await service.UpsertResourceAsync(
+                        TdRequest("a", "urn:a")));
+            Dictionary<string, byte[]> retained = CaptureDataFiles();
+
+            Assert.That(error.PersistenceFailure.Message, Does.Contain("ambiguous artifact"));
+            Assert.That(error.ValidationFailure.Message, Does.Contain("rollback"));
+            Assert.That(error.ValidationFailure.Message, Does.Contain("Unknown"));
+            Assert.That(File.Exists(unknownArtifact), Is.True);
+            Assert.That(File.Exists(ManifestPath), Is.False);
+            Assert.That(Directory.GetFiles(BlobsPath), Has.Length.EqualTo(2));
+            Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await service.UpsertResourceAsync(
+                    TdRequest("b", "urn:b")));
+            Assert.ThrowsAsync<InvalidDataException>(
+                async () => await new FileWotRegistryStore(m_root).LoadAsync());
+            AssertDataFilesEqual(retained);
+        }
+
+        [Test]
+        public async Task FailedPristineRollbackRetainsMarkerAndFailsClosed()
+        {
+            bool injectCommitFailure = true;
+            var store = new FileWotRegistryStore(
+                m_root,
+                phase =>
+                {
+                    if (injectCommitFailure &&
+                        phase == FileWotRegistryStore.DirectorySyncPhase.RootBeforeManifest)
+                    {
+                        injectCommitFailure = false;
+                        throw new IOException("Injected pre-switch failure.");
+                    }
+                    if (phase ==
+                        FileWotRegistryStore.DirectorySyncPhase.BlobsAfterPristineRollback)
+                    {
+                        throw new IOException("Injected rollback directory sync failure.");
+                    }
+                });
+            using var service = new WotRegistryService(store);
+            await service.InitializeAsync();
+
+            WotRegistryCommitIndeterminateException error =
+                Assert.ThrowsAsync<WotRegistryCommitIndeterminateException>(
+                    async () => await service.UpsertResourceAsync(
+                        TdRequest("a", "urn:a")));
+            Dictionary<string, byte[]> retained = CaptureDataFiles();
+
+            Assert.That(error.PersistenceFailure.Message, Does.Contain("pre-switch"));
+            Assert.That(error.ValidationFailure.Message, Does.Contain("rollback"));
+            Assert.That(RollbackMarkerPaths, Has.Length.EqualTo(1));
+            Assert.That(Directory.Exists(BlobsPath), Is.True);
+            Assert.That(Directory.GetFileSystemEntries(BlobsPath), Is.Empty);
+            Assert.That(File.Exists(ManifestPath), Is.False);
+            Assert.ThrowsAsync<InvalidDataException>(
+                async () => await new FileWotRegistryStore(m_root).LoadAsync());
+            AssertDataFilesEqual(retained);
+        }
+
+        [Test]
         public Task BlobDirectorySyncFailureLeavesPrimaryGenerationReadable()
         {
             return AssertPreManifestDirectorySyncFailure(
@@ -1440,6 +1600,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
 
         private string[] TemporaryManifestPaths =>
             Directory.GetFiles(m_root, "manifest.json.tmp-*");
+
+        private string[] RollbackMarkerPaths =>
+            Directory.GetFiles(m_root, "manifest.json.rollback-*");
 
         private string BlobsPath => Path.Combine(m_root, "blobs");
 
