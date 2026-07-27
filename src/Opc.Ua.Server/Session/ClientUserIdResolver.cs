@@ -29,6 +29,7 @@
 
 using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using Opc.Ua.Identity;
@@ -37,21 +38,37 @@ using Opc.Ua.Security.Certificates;
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Resolves the OPC UA ClientUserId used to compare authenticated Session owners.
+    /// Resolves the OPC UA ClientUserId of an authenticated Session owner.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// The resolver uses the token-specific identity defined by OPC 10000-4:
     /// the username, X.509 subject, or stable issued-token issuer and subject.
+    /// </para>
+    /// <para>
+    /// The value has two distinct roles that must not share one representation.
+    /// <see cref="Resolve"/> produces the human readable identifier that
+    /// OPC 10000-5 exposes through SessionSecurityDiagnostics, while
+    /// <see cref="ResolveContinuityKey"/> produces the key used for the identity
+    /// continuity checks required by OPC 10000-4 5.7.3.1. The continuity key
+    /// encodes the token type and the issuer length so that two different
+    /// identities can never resolve to the same key.
+    /// </para>
     /// </remarks>
     internal static class ClientUserIdResolver
     {
         /// <summary>
-        /// Resolves the ClientUserId represented by a validated identity token.
+        /// Resolves the human readable ClientUserId reported in the Session
+        /// security diagnostics (OPC 10000-5).
         /// </summary>
+        /// <remarks>
+        /// The result is intended for diagnostics only. Use
+        /// <see cref="ResolveContinuityKey"/> to compare Session owners.
+        /// </remarks>
         /// <param name="identityToken">The validated identity token handler.</param>
         /// <param name="authenticatedIdentity">The authenticated identity produced for the token.</param>
         /// <returns>
-        /// The stable ClientUserId, or <c>null</c> for an anonymous identity.
+        /// The ClientUserId, or <c>null</c> for an anonymous identity.
         /// </returns>
         /// <exception cref="ArgumentNullException">
         /// <paramref name="identityToken"/> or <paramref name="authenticatedIdentity"/> is <c>null</c>.
@@ -63,29 +80,22 @@ namespace Opc.Ua.Server
             IUserIdentityTokenHandler identityToken,
             IUserIdentity authenticatedIdentity)
         {
-            if (identityToken == null)
+            ResolveParts(
+                identityToken,
+                authenticatedIdentity,
+                out _,
+                out string? issuer,
+                out string? subject);
+            if (subject == null)
             {
-                throw new ArgumentNullException(nameof(identityToken));
+                return null;
             }
-            if (authenticatedIdentity == null)
-            {
-                throw new ArgumentNullException(nameof(authenticatedIdentity));
-            }
-
-            return identityToken.Token switch
-            {
-                AnonymousIdentityToken => null,
-                UserNameIdentityToken userNameToken => userNameToken.UserName,
-                X509IdentityToken x509Token => GetX509Subject(x509Token),
-                IssuedIdentityToken => GetIssuedTokenOwner(identityToken, authenticatedIdentity),
-                _ => throw new ServiceResultException(
-                    StatusCodes.BadIdentityTokenInvalid,
-                    "The UserIdentityToken type does not define a ClientUserId.")
-            };
+            return issuer == null ? subject : string.Concat(issuer, subject);
         }
 
         /// <summary>
-        /// Attempts to resolve the ClientUserId represented by a validated identity token.
+        /// Attempts to resolve the human readable ClientUserId reported in the
+        /// Session security diagnostics.
         /// </summary>
         /// <param name="identityToken">The validated identity token handler.</param>
         /// <param name="authenticatedIdentity">The authenticated identity produced for the token.</param>
@@ -114,6 +124,137 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Resolves the key used to verify that a Session keeps the same
+        /// ClientUserId across a SecureChannel or Subscription transfer
+        /// (OPC 10000-4 5.7.3.1).
+        /// </summary>
+        /// <remarks>
+        /// The key encodes the user token type and the length of the issuer so
+        /// that neither a different token type carrying the same identifier nor a
+        /// different issuer and subject split can produce an equal key.
+        /// </remarks>
+        /// <param name="identityToken">The validated identity token handler.</param>
+        /// <param name="authenticatedIdentity">The authenticated identity produced for the token.</param>
+        /// <returns>
+        /// The continuity key, or <c>null</c> for an anonymous identity.
+        /// </returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="identityToken"/> or <paramref name="authenticatedIdentity"/> is <c>null</c>.
+        /// </exception>
+        /// <exception cref="ServiceResultException">
+        /// The token type does not expose a valid ClientUserId.
+        /// </exception>
+        public static string? ResolveContinuityKey(
+            IUserIdentityTokenHandler identityToken,
+            IUserIdentity authenticatedIdentity)
+        {
+            ResolveParts(
+                identityToken,
+                authenticatedIdentity,
+                out UserTokenType tokenType,
+                out string? issuer,
+                out string? subject);
+            if (subject == null)
+            {
+                return null;
+            }
+
+            return string.Concat(
+                ((int)tokenType).ToString(CultureInfo.InvariantCulture),
+                ":",
+                (issuer?.Length ?? -1).ToString(CultureInfo.InvariantCulture),
+                ":",
+                issuer,
+                subject);
+        }
+
+        /// <summary>
+        /// Attempts to resolve the identity continuity key of a validated
+        /// identity token.
+        /// </summary>
+        /// <param name="identityToken">The validated identity token handler.</param>
+        /// <param name="authenticatedIdentity">The authenticated identity produced for the token.</param>
+        /// <param name="continuityKey">
+        /// The resolved continuity key, or <c>null</c> for anonymous and invalid identities.
+        /// </param>
+        /// <returns>
+        /// <c>true</c> when the token type defines a ClientUserId; otherwise, <c>false</c>.
+        /// </returns>
+        public static bool TryResolveContinuityKey(
+            IUserIdentityTokenHandler identityToken,
+            IUserIdentity authenticatedIdentity,
+            out string? continuityKey)
+        {
+            try
+            {
+                continuityKey = ResolveContinuityKey(identityToken, authenticatedIdentity);
+                return true;
+            }
+            catch (ServiceResultException exception)
+                when (exception.StatusCode == StatusCodes.BadIdentityTokenInvalid)
+            {
+                continuityKey = null;
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Resolves the token type and the issuer and subject components that
+        /// identify the authenticated owner. A <c>null</c> subject denotes an
+        /// anonymous identity.
+        /// </summary>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="identityToken"/> or <paramref name="authenticatedIdentity"/> is <c>null</c>.
+        /// </exception>
+        /// <exception cref="ServiceResultException">
+        /// The token type does not expose a valid ClientUserId.
+        /// </exception>
+        private static void ResolveParts(
+            IUserIdentityTokenHandler identityToken,
+            IUserIdentity authenticatedIdentity,
+            out UserTokenType tokenType,
+            out string? issuer,
+            out string? subject)
+        {
+            if (identityToken == null)
+            {
+                throw new ArgumentNullException(nameof(identityToken));
+            }
+            if (authenticatedIdentity == null)
+            {
+                throw new ArgumentNullException(nameof(authenticatedIdentity));
+            }
+
+            issuer = null;
+            switch (identityToken.Token)
+            {
+                case AnonymousIdentityToken:
+                    tokenType = UserTokenType.Anonymous;
+                    subject = null;
+                    return;
+                case UserNameIdentityToken userNameToken:
+                    tokenType = UserTokenType.UserName;
+                    subject = userNameToken.UserName;
+                    return;
+                case X509IdentityToken x509Token:
+                    tokenType = UserTokenType.Certificate;
+                    subject = GetX509Subject(x509Token);
+                    return;
+                case IssuedIdentityToken:
+                    tokenType = UserTokenType.IssuedToken;
+                    subject = GetIssuedTokenOwner(
+                        identityToken,
+                        authenticatedIdentity,
+                        out issuer);
+                    return;
+                default:
+                    throw new ServiceResultException(
+                        StatusCodes.BadIdentityTokenInvalid,
+                        "The UserIdentityToken type does not define a ClientUserId.");
+            }
+        }
+
+        /// <summary>
         /// Resolves the certificate subject used as the X.509 ClientUserId.
         /// </summary>
         private static string GetX509Subject(X509IdentityToken token)
@@ -128,11 +269,14 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Resolves a stable issued-token owner from authenticated claims or validated JWT data.
+        /// Resolves a stable issued-token owner from authenticated claims or
+        /// validated JWT data, returning the issuer and subject separately so the
+        /// caller can encode them without ambiguity.
         /// </summary>
         private static string GetIssuedTokenOwner(
             IUserIdentityTokenHandler identityToken,
-            IUserIdentity authenticatedIdentity)
+            IUserIdentity authenticatedIdentity,
+            out string? issuer)
         {
             while (authenticatedIdentity is RoleBasedIdentity roleBasedIdentity)
             {
@@ -140,16 +284,16 @@ namespace Opc.Ua.Server
             }
 
             if (authenticatedIdentity is IIdentityClaims claims &&
-                TryGetClaimsOwner(claims, out string? issuer, out string? subject))
+                TryGetClaimsOwner(claims, out issuer, out string? subject))
             {
-                return GetIssuedTokenOwner(issuer, subject);
+                return subject;
             }
 
             if (identityToken is IssuedIdentityTokenHandler issuedToken &&
                 issuedToken.IssuedTokenType == IssuedTokenType.JWT &&
                 TryGetJwtOwner(issuedToken, out issuer, out subject))
             {
-                return GetIssuedTokenOwner(issuer, subject);
+                return subject;
             }
 
             throw new ServiceResultException(
@@ -277,14 +421,6 @@ namespace Opc.Ua.Server
                     Array.Clear(payloadData, 0, payloadData.Length);
                 }
             }
-        }
-
-        /// <summary>
-        /// Combines the issued-token issuer and subject into the ClientUserId.
-        /// </summary>
-        private static string GetIssuedTokenOwner(string? issuer, string subject)
-        {
-            return issuer == null ? subject : string.Concat(issuer, subject);
         }
 
         /// <summary>

@@ -387,6 +387,7 @@ namespace Opc.Ua.Server
             ServiceResult activationStatus = ServiceResult.Good;
             string? clientUserId = null;
             UserTokenType clientUserTokenType = UserTokenType.Anonymous;
+            long activationSequence = 0;
             bool contextChanged = false;
 
             // fast path no lock
@@ -619,7 +620,11 @@ namespace Opc.Ua.Server
                         throw new ServiceResultException(error!);
                     }
 
-                    clientUserId = ClientUserIdResolver.Resolve(
+                    // Compare the continuity key rather than the diagnostic
+                    // ClientUserId so neither a different issuer/subject split nor
+                    // a different token type carrying the same identifier can be
+                    // mistaken for the original owner (OPC 10000-4 5.7.3.1).
+                    clientUserId = ClientUserIdResolver.ResolveContinuityKey(
                         newIdentity!,
                         identity);
                     clientUserTokenType = newIdentity!.TokenType;
@@ -669,6 +674,10 @@ namespace Opc.Ua.Server
                     activationState.HasClientUserId = true;
                     activationState.RequiresNewChannelChecks = false;
 
+                    // Stamp the activation while the gate is still held so a
+                    // listener that persists activation state can discard a write
+                    // that a newer concurrent activation has already superseded.
+                    activationSequence = ++activationState.ActivationSequence;
                 }
                 finally
                 {
@@ -682,6 +691,7 @@ namespace Opc.Ua.Server
                     serverNonce,
                     clientUserTokenType,
                     clientUserId,
+                    activationSequence,
                     cancellationToken).ConfigureAwait(false);
 
                 // External callbacks run after the activation transaction has
@@ -837,12 +847,28 @@ namespace Opc.Ua.Server
         /// Called after activation state has committed and the per-Session
         /// activation gate has been released.
         /// </summary>
+        /// <param name="authenticationToken">The Session authentication token.</param>
+        /// <param name="session">The activated Session.</param>
+        /// <param name="serverNonce">The nonce issued by this activation.</param>
+        /// <param name="clientUserTokenType">The activated user token type.</param>
+        /// <param name="clientUserId">
+        /// The identity continuity key of the activated owner, or <c>null</c> when
+        /// the Session is anonymous.
+        /// </param>
+        /// <param name="activationSequence">
+        /// A per-Session sequence number that increases with every successful
+        /// activation. Implementations that persist activation state outside the
+        /// activation gate use it to discard writes that a newer concurrent
+        /// activation has already superseded.
+        /// </param>
+        /// <param name="cancellationToken">The cancellation token.</param>
         protected virtual ValueTask OnSessionActivatedAsync(
             NodeId authenticationToken,
             ISession session,
             ByteString serverNonce,
             UserTokenType clientUserTokenType,
             string? clientUserId,
+            long activationSequence,
             CancellationToken cancellationToken)
         {
             return default;
@@ -1538,6 +1564,8 @@ namespace Opc.Ua.Server
             public bool HasClientUserId { get; set; }
 
             public bool RequiresNewChannelChecks { get; set; }
+
+            public long ActivationSequence { get; set; }
         }
 
         /// <inheritdoc/>

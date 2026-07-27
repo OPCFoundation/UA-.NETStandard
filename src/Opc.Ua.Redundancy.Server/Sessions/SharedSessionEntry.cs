@@ -131,9 +131,14 @@ namespace Opc.Ua.Redundancy.Server
         public ByteString OriginalClientChannelCertificate { get; init; }
 
         /// <summary>
-        /// The OPC ClientUserId associated with the activated Session. This is
-        /// <c>null</c> for an anonymous identity.
+        /// The identity continuity key of the activated Session owner, used to
+        /// verify that a restored Session keeps the same ClientUserId
+        /// (OPC 10000-4 5.7.3.1). This is <c>null</c> for an anonymous identity.
         /// </summary>
+        /// <remarks>
+        /// This is the key produced by the Server's ClientUserId resolver, not the
+        /// human readable ClientUserId reported through SessionSecurityDiagnostics.
+        /// </remarks>
         public string? ClientUserId { get; init; }
 
         /// <summary>
@@ -155,6 +160,12 @@ namespace Opc.Ua.Redundancy.Server
         /// <summary>
         /// The current persisted Session security state version.
         /// </summary>
-        public const uint CurrentSecurityStateVersion = 2;
+        /// <remarks>
+        /// Version 3 stores the identity continuity key in <see cref="ClientUserId"/>.
+        /// Entries written by an earlier version carry a differently derived value,
+        /// so they are treated as missing security state and fail closed rather
+        /// than being compared against a key computed by this version.
+        /// </remarks>
+        public const uint CurrentSecurityStateVersion = 3;
     }
 }

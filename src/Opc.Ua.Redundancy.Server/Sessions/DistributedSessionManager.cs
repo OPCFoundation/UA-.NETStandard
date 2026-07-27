@@ -162,12 +162,34 @@ namespace Opc.Ua.Redundancy.Server
         }
 
         /// <inheritdoc/>
-        protected override async ValueTask OnSessionActivatedAsync(
+        protected override ValueTask OnSessionActivatedAsync(
             NodeId authenticationToken,
             ISession session,
             ByteString serverNonce,
             UserTokenType clientUserTokenType,
             string? clientUserId,
+            long activationSequence,
+            CancellationToken cancellationToken)
+        {
+            return MirrorActivationIfCurrentAsync(
+                authenticationToken,
+                serverNonce,
+                clientUserTokenType,
+                clientUserId,
+                activationSequence,
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Mirrors an activation unless a newer activation of the same Session has
+        /// already been mirrored.
+        /// </summary>
+        internal async ValueTask MirrorActivationIfCurrentAsync(
+            NodeId authenticationToken,
+            ByteString serverNonce,
+            UserTokenType clientUserTokenType,
+            string? clientUserId,
+            long activationSequence,
             CancellationToken cancellationToken)
         {
             SemaphoreSlim mirrorLock = m_mirrorLocks.GetOrAdd(
@@ -176,6 +198,17 @@ namespace Opc.Ua.Redundancy.Server
             await mirrorLock.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                // Activations release the per-Session gate before this callback
+                // runs, so two overlapping activations can arrive out of order.
+                // Mirroring the older nonce last would leave a standby validating
+                // the client's next signature against a superseded nonce, so the
+                // stale write is dropped instead.
+                if (m_mirroredSequences.TryGetValue(authenticationToken, out long mirrored) &&
+                    mirrored >= activationSequence)
+                {
+                    return;
+                }
+
                 // Mirror the freshly issued serverNonce so a standby validates the
                 // client's next activation against it (and consumes it single-use).
                 await MirrorActivationAsync(
@@ -185,6 +218,7 @@ namespace Opc.Ua.Redundancy.Server
                     clientUserId,
                     cancellationToken)
                     .ConfigureAwait(false);
+                m_mirroredSequences[authenticationToken] = activationSequence;
             }
             catch (OperationCanceledException)
             {
@@ -225,6 +259,7 @@ namespace Opc.Ua.Redundancy.Server
             if (!token.IsNull)
             {
                 m_mirrorLocks.TryRemove(token, out _);
+                m_mirroredSequences.TryRemove(token, out _);
             }
         }
 
@@ -609,6 +644,7 @@ namespace Opc.Ua.Redundancy.Server
         private readonly TimeProvider m_restoreTimeProvider;
         private readonly ConcurrentDictionary<NodeId, NodeId> m_tokensBySession = new();
         private readonly ConcurrentDictionary<NodeId, SemaphoreSlim> m_mirrorLocks = new();
+        private readonly ConcurrentDictionary<NodeId, long> m_mirroredSequences = new();
     }
 
     /// <summary>

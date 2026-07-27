@@ -239,6 +239,116 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         [Test]
+        public async Task MirrorKeepsTheNewestNonceWhenActivationsCompleteOutOfOrderAsync()
+        {
+            using var sessionKv = new InMemorySharedKeyValueStore();
+            var sessionStore = new SharedKeyValueSessionStore(
+                sessionKv,
+                ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()));
+            using var registryKv = new InMemorySharedKeyValueStore();
+            var registry = new SharedSingleUseNonceRegistry(registryKv);
+            using DistributedSessionManager manager = CreateManager(registry, sessionStore);
+
+            SharedSessionEntry entry = EntryWithNonce(CreateBytes(32, 21));
+            await sessionStore.PutAsync(entry).ConfigureAwait(false);
+
+            ByteString newerNonce = ByteString.From(CreateBytes(32, 22));
+            ByteString olderNonce = ByteString.From(CreateBytes(32, 23));
+
+            // The activation gate is released before the mirror callback runs, so
+            // a slower earlier activation can arrive last. Its nonce is stale and
+            // must not replace the nonce of the newer activation.
+            await manager.MirrorActivationIfCurrentAsync(
+                entry.AuthenticationToken,
+                newerNonce,
+                UserTokenType.Anonymous,
+                null,
+                activationSequence: 2,
+                CancellationToken.None).ConfigureAwait(false);
+            await manager.MirrorActivationIfCurrentAsync(
+                entry.AuthenticationToken,
+                olderNonce,
+                UserTokenType.Anonymous,
+                null,
+                activationSequence: 1,
+                CancellationToken.None).ConfigureAwait(false);
+
+            SharedSessionEntry? stored = await sessionStore
+                .TryGetAsync(entry.AuthenticationToken)
+                .ConfigureAwait(false);
+
+            Assert.That(stored, Is.Not.Null);
+            Assert.That(stored!.ServerNonce, Is.EqualTo(newerNonce));
+        }
+
+        [Test]
+        public async Task MirrorPersistsTheNonceOfAnAdvancingActivationAsync()
+        {
+            using var sessionKv = new InMemorySharedKeyValueStore();
+            var sessionStore = new SharedKeyValueSessionStore(
+                sessionKv,
+                ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()));
+            using var registryKv = new InMemorySharedKeyValueStore();
+            var registry = new SharedSingleUseNonceRegistry(registryKv);
+            using DistributedSessionManager manager = CreateManager(registry, sessionStore);
+
+            SharedSessionEntry entry = EntryWithNonce(CreateBytes(32, 24));
+            await sessionStore.PutAsync(entry).ConfigureAwait(false);
+            ByteString firstNonce = ByteString.From(CreateBytes(32, 25));
+            ByteString secondNonce = ByteString.From(CreateBytes(32, 26));
+
+            await manager.MirrorActivationIfCurrentAsync(
+                entry.AuthenticationToken,
+                firstNonce,
+                UserTokenType.Anonymous,
+                null,
+                activationSequence: 1,
+                CancellationToken.None).ConfigureAwait(false);
+            await manager.MirrorActivationIfCurrentAsync(
+                entry.AuthenticationToken,
+                secondNonce,
+                UserTokenType.Anonymous,
+                null,
+                activationSequence: 2,
+                CancellationToken.None).ConfigureAwait(false);
+
+            SharedSessionEntry? stored = await sessionStore
+                .TryGetAsync(entry.AuthenticationToken)
+                .ConfigureAwait(false);
+
+            Assert.That(stored, Is.Not.Null);
+            Assert.That(stored!.ServerNonce, Is.EqualTo(secondNonce));
+            Assert.That(stored.HasActivatedUserIdentity, Is.True);
+        }
+
+        [Test]
+        public async Task AuthorizeRejectsPreviousSecurityStateVersionAsync()
+        {
+            using var registryKv = new InMemorySharedKeyValueStore();
+            var registry = new SharedSingleUseNonceRegistry(registryKv);
+            using DistributedSessionManager manager = CreateManager(registry);
+
+            // Version 2 stored a differently derived ClientUserId, so an entry a
+            // peer replica wrote before the upgrade must fail closed instead of
+            // being compared against a key this version computes.
+            SharedSessionEntry entry = EntryWithNonce(CreateBytes(32, 11)) with
+            {
+                SecurityStateVersion = 2
+            };
+
+            DistributedSessionManager.RestoreDecision decision =
+                await manager.AuthorizeAndConsumeAsync(
+                    entry,
+                    PolicyA,
+                    MessageSecurityMode.SignAndEncrypt,
+                    s_clientChannelCertificate).ConfigureAwait(false);
+
+            Assert.That(
+                decision,
+                Is.EqualTo(DistributedSessionManager.RestoreDecision.SecurityStateMissing));
+        }
+
+        [Test]
         public async Task AuthorizeRejectsMissingClientUserIdAsync()
         {
             using var registryKv = new InMemorySharedKeyValueStore();

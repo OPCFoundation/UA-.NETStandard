@@ -34,6 +34,7 @@ using System.Collections.Generic;
 using System.Text;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Server.Tests
 {
@@ -255,6 +256,142 @@ namespace Opc.Ua.Server.Tests
         {
             return Encoding.UTF8.GetBytes(
                 $"{Base64UrlEncode("{}")}.{payloadSegment}.signature");
+        }
+
+        [Test]
+        public void ContinuityKeyIsNullForAnonymousIdentities()
+        {
+            Assert.That(
+                ClientUserIdResolver.ResolveContinuityKey(
+                    new AnonymousIdentityTokenHandler(),
+                    new UserIdentity()),
+                Is.Null);
+        }
+
+        [Test]
+        public void ContinuityKeySeparatesIssuerFromSubject()
+        {
+            // "ab" + "c" and "a" + "bc" both describe the same fused diagnostic
+            // ClientUserId, so the continuity key has to keep them apart.
+            string? first = ResolveIssuedTokenContinuityKey("ab", "c");
+            string? second = ResolveIssuedTokenContinuityKey("a", "bc");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(first, Is.Not.Null);
+                Assert.That(second, Is.Not.Null);
+                Assert.That(first, Is.Not.EqualTo(second));
+            });
+        }
+
+        [Test]
+        public void ContinuityKeySeparatesAnAbsentIssuerFromAnEmptyIssuer()
+        {
+            string? absent = ResolveIssuedTokenContinuityKey(null, "abc");
+            string? empty = ResolveIssuedTokenContinuityKey(string.Empty, "abc");
+
+            Assert.That(absent, Is.Not.EqualTo(empty));
+        }
+
+        [Test]
+        public void ContinuityKeySeparatesTokenTypesSharingAnIdentifier()
+        {
+            // A user name may be spelled exactly like a certificate subject; the
+            // two are different principals and must not transfer to each other.
+            const string identifier = "CN=ClientUserIdResolverTests";
+            var userNameToken = new UserNameIdentityTokenHandler(identifier, [1, 2, 3]);
+            using Certificate certificate = DefaultCertificateFactory.Instance
+                .CreateCertificate(identifier)
+                .SetRSAKeySize(CertificateFactory.DefaultKeySize)
+                .CreateForRSA();
+            var x509Token = new X509IdentityTokenHandler(new X509IdentityToken
+            {
+                CertificateData = certificate.RawData.ToByteString()
+            });
+
+            string? userNameKey = ClientUserIdResolver.ResolveContinuityKey(
+                userNameToken,
+                new UserIdentity(userNameToken));
+            string? certificateKey = ClientUserIdResolver.ResolveContinuityKey(
+                x509Token,
+                new UserIdentity(x509Token));
+
+            Assert.Multiple(() =>
+            {
+                // The diagnostic ClientUserId is identical for both identities.
+                Assert.That(
+                    ClientUserIdResolver.Resolve(userNameToken, new UserIdentity(userNameToken)),
+                    Is.EqualTo(ClientUserIdResolver.Resolve(x509Token, new UserIdentity(x509Token))));
+                Assert.That(userNameKey, Is.Not.EqualTo(certificateKey));
+            });
+        }
+
+        [Test]
+        public void ResolveKeepsTheHumanReadableDiagnosticClientUserId()
+        {
+            // OPC 10000-5 reports ClientUserId for diagnostics, so it must stay
+            // readable even though the continuity key is an encoded form.
+            var userNameToken = new UserNameIdentityTokenHandler("alice", [1, 2, 3]);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    ClientUserIdResolver.Resolve(userNameToken, new UserIdentity(userNameToken)),
+                    Is.EqualTo("alice"));
+                Assert.That(
+                    ResolveIssuedTokenDiagnosticId("https://issuer.example/", "subject-42"),
+                    Is.EqualTo("https://issuer.example/subject-42"));
+            });
+        }
+
+        [Test]
+        public void TryResolveContinuityKeyReportsFailureForUnsupportedTokens()
+        {
+            var handler = new Mock<IUserIdentityTokenHandler>();
+            handler.SetupGet(h => h.Token).Returns(new UserIdentityToken());
+
+            bool resolved = ClientUserIdResolver.TryResolveContinuityKey(
+                handler.Object,
+                new UserIdentity(),
+                out string? continuityKey);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(resolved, Is.False);
+                Assert.That(continuityKey, Is.Null);
+            });
+        }
+
+        private static string? ResolveIssuedTokenContinuityKey(string? issuer, string subject)
+        {
+            (IssuedIdentityTokenHandler token, JwtUserIdentity identity) =
+                CreateIssuedIdentity(issuer, subject);
+            return ClientUserIdResolver.ResolveContinuityKey(token, identity);
+        }
+
+        private static string? ResolveIssuedTokenDiagnosticId(string? issuer, string subject)
+        {
+            (IssuedIdentityTokenHandler token, JwtUserIdentity identity) =
+                CreateIssuedIdentity(issuer, subject);
+            return ClientUserIdResolver.Resolve(token, identity);
+        }
+
+        private static (IssuedIdentityTokenHandler Token, JwtUserIdentity Identity) CreateIssuedIdentity(
+            string? issuer,
+            string subject)
+        {
+            var token = new IssuedIdentityTokenHandler(new IssuedIdentityToken
+            {
+                PolicyId = Profiles.JwtUserToken
+            });
+            var identity = new JwtUserIdentity(
+                token,
+                new Dictionary<string, object?>(),
+                [],
+                [],
+                issuer,
+                subject);
+            return (token, identity);
         }
 
         private static string Base64UrlEncode(string value)

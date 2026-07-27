@@ -540,6 +540,44 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task ActivationSequenceIncreasesWithEveryActivationAsync()
+        {
+            EndpointDescription endpoint = CreateEndpoint(MessageSecurityMode.SignAndEncrypt);
+            using SecuritySessionManager manager = CreateManager();
+            CreatedSession created = await CreateAndActivateAsync(
+                manager,
+                endpoint,
+                "channel-1",
+                m_clientCertificate,
+                default).ConfigureAwait(false);
+            long firstSequence = manager.ObservedActivationSequence;
+
+            SignatureData signature = CreateClientSignature(
+                created.Context,
+                created.ClientNonce,
+                created.ServerNonce,
+                m_clientCertificate);
+            await manager.ActivateSessionAsync(
+                created.Context,
+                created.Result.AuthenticationToken,
+                signature,
+                default,
+                null,
+                [],
+                default).ConfigureAwait(false);
+
+            // Listeners persist activation state after the gate is released, so
+            // they need a monotonic stamp to discard superseded writes.
+            Assert.Multiple(() =>
+            {
+                Assert.That(firstSequence, Is.GreaterThan(0));
+                Assert.That(
+                    manager.ObservedActivationSequence,
+                    Is.GreaterThan(firstSequence));
+            });
+        }
+
+        [Test]
         public async Task RestoredTransferSecurityStateRejectsInconsistentArgumentsAsync()
         {
             EndpointDescription endpoint = CreateEndpoint(MessageSecurityMode.SignAndEncrypt);
@@ -1351,6 +1389,8 @@ namespace Opc.Ua.Server.Tests
 
             public bool CallbackObservedReleasedGate { get; private set; }
 
+            public long ObservedActivationSequence { get; private set; }
+
             public Task PendingCallbackOperation { get; private set; } =
                 Task.CompletedTask;
 
@@ -1427,8 +1467,10 @@ namespace Opc.Ua.Server.Tests
                 ByteString serverNonce,
                 UserTokenType clientUserTokenType,
                 string? clientUserId,
+                long activationSequence,
                 CancellationToken cancellationToken)
             {
+                ObservedActivationSequence = activationSequence;
                 if (Interlocked.Exchange(ref m_probeGateOnNextActivation, 0) == 1)
                 {
                     ValueTask closeOperation = CloseSessionAsync(

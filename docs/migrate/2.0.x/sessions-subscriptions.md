@@ -335,6 +335,10 @@ This iteration uses single-instance options (no named/keyed registrations); the 
 
 `ISubscription` now exposes `IsTransferIdentityCompatible(ISession targetSession)`. Custom server subscription implementations must compare the authenticated owner of the target Session with the identity that owns the subscription and return `false` when the transfer would cross ClientUserIds.
 
+Identity continuity across a SecureChannel transfer or a Subscription transfer is compared using an encoded continuity key rather than the human-readable ClientUserId that OPC 10000-5 reports through `SessionSecurityDiagnostics`. The key includes the `UserTokenType` and delimits the issuer from the subject, so a `UserNameIdentityToken` whose user name equals an X.509 certificate subject — or two issued tokens whose issuer and subject concatenate to the same string — are no longer treated as the same owner. Transfers that previously succeeded only because of such a collision are now rejected with `Bad_IdentityChangeNotSupported` (activation) or `Bad_UserAccessDenied` (subscription transfer). The reported `ClientUserIdOfSession` diagnostic value is unchanged.
+
+`SessionManager.OnSessionActivatedAsync` takes an additional `long activationSequence` parameter. The value increases with every successful activation of a Session and is stamped while the per-Session activation gate is still held. Because the callback itself runs after that gate is released, implementations that persist activation state outside the gate must use the sequence to discard writes that a newer concurrent activation has already superseded.
+
 ## Subscriptions and Transports
 
 ### Durable subscriptions and reshaped Subscription tree

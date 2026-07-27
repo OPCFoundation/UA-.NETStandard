@@ -256,7 +256,7 @@ namespace Opc.Ua.Server
             m_ownerUserTokenType = m_savedOwnerIdentity?.TokenType ?? UserTokenType.Anonymous;
             if (m_savedOwnerIdentity != null)
             {
-                ClientUserIdResolver.TryResolve(
+                ClientUserIdResolver.TryResolveContinuityKey(
                     m_savedOwnerIdentity.TokenHandler,
                     m_savedOwnerIdentity,
                     out m_ownerClientUserId);
@@ -719,7 +719,7 @@ namespace Opc.Ua.Server
             }
 
             return m_ownerClientUserId != null &&
-                ClientUserIdResolver.TryResolve(
+                ClientUserIdResolver.TryResolveContinuityKey(
                     targetSession.IdentityToken,
                     targetSession.Identity,
                     out string? targetClientUserId) &&
@@ -796,7 +796,7 @@ namespace Opc.Ua.Server
         private void UpdateOwnerIdentity(ISession session)
         {
             m_ownerUserTokenType = session.IdentityToken.TokenType;
-            ClientUserIdResolver.TryResolve(
+            ClientUserIdResolver.TryResolveContinuityKey(
                 session.IdentityToken,
                 session.Identity,
                 out m_ownerClientUserId);
