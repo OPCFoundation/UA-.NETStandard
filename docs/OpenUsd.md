@@ -21,6 +21,7 @@ attribute Variable — but neither requires the other.
 | `OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Client` | The generic, domain-agnostic `OpenUsdConnector`, the `IUsdSink` abstraction, and the file/mock sinks. |
 | `OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Server` | Server-side authoring helpers (`UsdAssetDelivery`, representation authoring). |
 | `OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Connector` | A ready-to-run console connector tool built on the client library. |
+| `OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Connector.Viewer` | Optional viewport for the connector's `--view` option. Renders the composed stage and exposes it as an `IUsdSink`. |
 
 ## The connector
 
@@ -154,3 +155,63 @@ created `OpenUsdAssetState` nodes as an `ArrayOf<OpenUsdAssetState>`.
 `Opc.Ua.OpenUsd.Connector` is a console application that connects to any server implementing the draft binding,
 discovers `Server/OpenUSD/Representations`, subscribes, optionally fetches the served asset closure, and authors a live
 `live.usda` override layer. It is the end-to-end reference for the client library.
+
+```
+dotnet run --project tools/Opc.Ua.OpenUsd.Connector -- \
+    --server opc.tcp://localhost:62830/MinimalRobotServer \
+    --fetch-assets ./stage --insecure --seconds 30
+```
+
+| Option | Meaning |
+| --- | --- |
+| `--server <url>` | Endpoint to connect to. |
+| `--out <live.usda>` | Override layer to author. Defaults to `live.usda` in the working directory. |
+| `--seconds N` | Stop after `N` seconds instead of waiting for Ctrl+C. |
+| `--fetch-assets <dir>` | Download the served USD layer closure (§5.15) and compose a self-contained `stage.usda`. |
+| `--insecure` | Demo only: unsecured endpoint and blanket certificate acceptance. |
+| `--enable-commands` | Opt in to actuating `UsdToUaCommand` bindings (fail-closed by default). |
+| `--command-value <double>` | Setpoint written once at start when commands are enabled. |
+| `--view` | Render the composed stage and stream the same live values into it. |
+| `--renderer <Auto\|Storm\|D3D12\|Vulkan>` | Renderer preference for `--view`. |
+| `--stage <stage.usda>` | Render an existing local stage instead of a fetched one. |
+| `--plugins <dir>` | Directory holding the staged USD plugin tree, when it is not beside the connector. |
+
+### Rendering the twin live
+
+`--view` opens a viewport on the composed stage and fans every subscribed value into **both** the override layer and
+the stage being rendered, so the twin animates in one process:
+
+```
+dotnet run --project tools/Opc.Ua.OpenUsd.Connector -- \
+    --server opc.tcp://localhost:62830/MinimalRobotServer \
+    --insecure --view
+```
+
+Without `--fetch-assets` or `--stage`, `--view` fetches the asset closure into a temporary directory, because a
+renderer needs geometry it can resolve. Closing the window stops the session; `--seconds` closes it automatically.
+
+The renderer itself lives in a separate, optional assembly, `Opc.Ua.OpenUsd.Connector.Viewer`
+(`OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Connector.Viewer`), which the connector loads on demand from its own
+directory. That keeps the connector package free of a UI framework and a native OpenUSD payload, and lets it keep
+targeting .NET Framework. When the assembly is absent, `--view` explains how to install it and every other option
+keeps working.
+
+Internally the viewport supplies a sink that authors into the scheduler-owned stage the renderer already owns — the
+connector never opens the stage a second time. `CompositeUsdSink` fans values out to that sink and to `UsdFileSink`,
+so the on-disk artefact and the picture never diverge.
+
+> The viewport requires .NET 10 on `win-x64` and the OpenUSD packages
+> (`OpenUsd`, `OpenUsd.Viewer`, `OpenUsd.Runtime.Imaging.win-x64`). Until those are published to nuget.org, build
+> them from the [openusd repository](https://github.com/marcschier/openusd-dotnet) with `eng/pack-packages.ps1` and
+> point restore at the resulting folder feed by setting `OPENUSD_LOCAL_FEED`. For the same reason
+> `tools/Opc.Ua.OpenUsd.Connector.Viewer` is not listed in `UA.slnx` and is built explicitly:
+>
+> ```
+> $env:OPENUSD_LOCAL_FEED = "<openusd>/artifacts/localfeed"
+> dotnet publish tools/Opc.Ua.OpenUsd.Connector -c Release -f net10.0 -r win-x64 --self-contained false -o out
+> dotnet publish tools/Opc.Ua.OpenUsd.Connector.Viewer -c Release -r win-x64 --self-contained false -o out
+> ```
+>
+> Publishing both into the same directory is what puts the optional assembly, its dependencies, and the native
+> plugin tree where the connector looks for them.
+

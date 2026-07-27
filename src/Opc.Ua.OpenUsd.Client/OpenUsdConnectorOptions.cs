@@ -78,5 +78,19 @@ namespace Opc.Ua.OpenUsd.Client
         /// composed. Fail-closed by default.
         /// </summary>
         public bool RequireAssetDigests { get; set; } = true;
+
+        /// <summary>
+        /// Publishing interval of the live subscription, in milliseconds. This is the
+        /// upper bound on how often the twin can move, so it is chosen for animation
+        /// rather than for the usual telemetry cadence. Default 50 ms (20 Hz).
+        /// </summary>
+        public int PublishingIntervalMilliseconds { get; set; } = 50;
+
+        /// <summary>
+        /// Sampling interval requested for each live monitored item, in milliseconds.
+        /// Sampling faster than the publishing interval only fills the queue, so this
+        /// normally matches it. Default 50 ms (20 Hz).
+        /// </summary>
+        public int SamplingIntervalMilliseconds { get; set; } = 50;
     }
 }

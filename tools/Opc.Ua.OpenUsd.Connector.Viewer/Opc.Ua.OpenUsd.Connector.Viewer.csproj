@@ -1,0 +1,49 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- The OpenUSD rendering stack ships net10.0 assemblies and a per-RID native
+         payload, so this optional assembly is deliberately narrower than the
+         connector that loads it. The connector keeps targeting net48 through
+         net10.0 and reports a clear diagnostic when the view option is
+         unavailable. -->
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Library</OutputType>
+    <AssemblyName>Opc.Ua.OpenUsd.Connector.Viewer</AssemblyName>
+    <PackageId>$(PackagePrefix).Opc.Ua.OpenUsd.Connector.Viewer</PackageId>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <Description>Optional viewport for the OPC UA - OpenUSD connector. Renders the composed stage with the OpenUSD Avalonia viewer and exposes it as an IUsdSink, so the connector's --view option streams live OPC UA values into the picture on screen. Install alongside Opc.Ua.OpenUsd.Connector; the connector loads it on demand and works without it.</Description>
+    <RootNamespace>Opc.Ua.OpenUsd.Connector.Viewer</RootNamespace>
+    <Nullable>enable</Nullable>
+    <IsPackable>true</IsPackable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- Avalonia and the OpenUSD interop layer are not trim/AOT clean, and the
+         connector reaches this assembly reflectively, so AOT is not offered here. -->
+    <IsAotCompatible>false</IsAotCompatible>
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <!-- Until the OpenUSD packages are published to nuget.org, restore needs a local
+       folder feed produced from the openusd repository. Set OPENUSD_LOCAL_FEED or
+       pass -p:OpenUsdLocalFeed=path; when neither is set the normal feeds apply. -->
+  <PropertyGroup>
+    <OpenUsdLocalFeed Condition="'$(OpenUsdLocalFeed)' == ''">$(OPENUSD_LOCAL_FEED)</OpenUsdLocalFeed>
+    <RestoreAdditionalProjectSources Condition="'$(OpenUsdLocalFeed)' != ''">$(RestoreAdditionalProjectSources);$(OpenUsdLocalFeed)</RestoreAdditionalProjectSources>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Opc.Ua.OpenUsd.Client\Opc.Ua.OpenUsd.Client.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="OpenUsd" />
+    <PackageReference Include="OpenUsd.Viewer" />
+    <PackageReference Include="Avalonia" />
+    <!-- Brings the native OpenUSD payload and, transitively, the Core runtime. The
+         rendering path is win-x64 only today; when other RIDs are staged this becomes a
+         RID-conditional reference. -->
+    <PackageReference Include="OpenUsd.Runtime.Imaging.win-x64" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>

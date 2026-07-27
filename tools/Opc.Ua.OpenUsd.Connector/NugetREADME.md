@@ -100,6 +100,26 @@ trust required, per spec §9). `--insecure` opts into an unsecured endpoint and 
 acceptance — appropriate only for this localhost demo, whose server uses a self-signed certificate.
 Omit `--insecure` and place the server certificate in the bridge's trusted store for a secured run.
 
+### Rendering the twin in the same process
+
+Steps 5 onward assume an external viewer. Install the optional
+`OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Connector.Viewer` package alongside the connector and
+`--view` renders the composed stage itself, streaming the same subscribed values into the picture on
+screen as well as into `live.usda`:
+
+```bash
+dotnet run --project tools/Opc.Ua.OpenUsd.Connector -c Release -f net10.0 -- \
+  --server opc.tcp://localhost:62830/MinimalRobotServer --insecure --view
+```
+
+Without `--fetch-assets` or `--stage`, `--view` fetches the server's asset closure into a temporary
+directory first, because a renderer needs geometry it can resolve. `--renderer` selects the backend
+and `--plugins` points at the USD plugin tree when it is not beside the connector. Closing the window
+stops the session; `--seconds` closes it automatically. The connector loads the viewport assembly on
+demand, so the package stays small and every other option keeps working without it. The viewport
+requires .NET 10 on `win-x64`.
+
+
 Command bindings are **disabled by default** (fail-closed). Add `--enable-commands` and
 `--command-value <double>` to actuate the single `OpenUsdCommandBindingType` binding once at start, e.g.
 `--enable-commands --command-value 1450` writes `1450` into the server's `SpeedSetpoint`

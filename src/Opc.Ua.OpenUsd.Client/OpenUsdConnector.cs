@@ -636,7 +636,7 @@ namespace Opc.Ua.OpenUsd.Client
             var subscription = new Subscription(m_session.DefaultSubscription)
             {
                 DisplayName = "OpenUsdConnector",
-                PublishingInterval = 250,
+                PublishingInterval = m_options.PublishingIntervalMilliseconds,
                 KeepAliveCount = 10,
                 LifetimeCount = 100,
                 PublishingEnabled = true
@@ -666,7 +666,7 @@ namespace Opc.Ua.OpenUsd.Client
                         DisplayName = b.PropertyName ?? "binding",
                         StartNodeId = b.SourceNodeId,
                         AttributeId = Attributes.Value,
-                        SamplingInterval = 250,
+                        SamplingInterval = m_options.SamplingIntervalMilliseconds,
                         QueueSize = 5,
                         Handle = b
                     };
@@ -783,6 +783,9 @@ namespace Opc.Ua.OpenUsd.Client
             {
                 return;
             }
+            // One batch per notification: a queued item can deliver several values, and a
+            // file-backed sink would otherwise rewrite its whole layer once per value.
+            using IDisposable batch = m_sink.BeginBatch();
             foreach (DataValue dv in item.DequeueValues())
             {
                 if (StatusCode.IsNotGood(dv.StatusCode))

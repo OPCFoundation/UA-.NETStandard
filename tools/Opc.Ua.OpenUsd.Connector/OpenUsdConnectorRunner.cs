@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -42,10 +43,13 @@ namespace Opc.Ua.OpenUsd.Connector
 {
     /// <summary>
     /// Runs the generic <see cref="OpenUsdConnector"/>: connects to a running OPC UA
-    /// server (e.g. PumpDeviceIntegrationServer), discovers the OpenUSD representation
-    /// and bindings via <c>Server/OpenUSD/Representations</c>, and streams live values
-    /// into a <see cref="UsdFileSink"/> (an override <c>live.usda</c>). Invoked as
-    /// <c>Opc.Ua.OpenUsd.Connector [--server &lt;url&gt;] [--out &lt;live.usda&gt;] [--seconds N]</c>.
+    /// server (e.g. MinimalRobotServer or PumpDeviceIntegrationServer), discovers the
+    /// OpenUSD representation and bindings via <c>Server/OpenUSD/Representations</c>, and
+    /// streams live values into a <see cref="UsdFileSink"/> (an override <c>live.usda</c>).
+    /// With <c>--view</c> it additionally opens a viewport on the composed stage and fans
+    /// the same values into it, so the twin animates on screen in the same process.
+    /// Invoked as <c>Opc.Ua.OpenUsd.Connector [--server &lt;url&gt;] [--out &lt;live.usda&gt;]
+    /// [--seconds N] [--view] [--renderer &lt;Auto|Storm|D3D12|Vulkan&gt;]</c>.
     /// </summary>
     public static class OpenUsdConnectorRunner
     {
@@ -56,12 +60,28 @@ namespace Opc.Ua.OpenUsd.Connector
             string outPath = GetOption(args, "--out") ?? Path.Combine(Environment.CurrentDirectory, "live.usda");
             int seconds = int.TryParse(GetOption(args, "--seconds"), out int s) ? s : 0;
 
+            // Opens a viewport on the composed stage and streams the same values into it.
+            // The renderer lives in the optional Opc.Ua.OpenUsd.Connector.Viewer assembly,
+            // so the connector itself stays free of Avalonia and the native USD payload.
+            bool view = HasFlag(args, "--view");
+            string? renderer = GetOption(args, "--renderer");
+            string? stageOption = GetOption(args, "--stage");
+            string? pluginPath = GetOption(args, "--plugins");
+            string? cameraPath = GetOption(args, "--camera");
+
             // §5.15 asset content delivery (OU-AssetDelivery): when set, the connector
             // downloads the server's served USD layer closure into this cache directory
             // (verifying each digest) and writes a self-contained stage.usda there, so a
             // viewer renders the twin with no external asset resolver. live.usda is
             // written into the same directory.
             string? cacheDir = GetOption(args, "--fetch-assets");
+            if (view && string.IsNullOrEmpty(cacheDir) && string.IsNullOrEmpty(stageOption))
+            {
+                // Rendering needs a resolvable asset closure. Without an explicit stage the
+                // connector fetches one rather than opening an empty viewport.
+                cacheDir = Path.Combine(
+                    Path.GetTempPath(), "Opc.Ua.OpenUsd.Connector", "stage");
+            }
             if (!string.IsNullOrEmpty(cacheDir))
             {
                 Directory.CreateDirectory(cacheDir!);
@@ -160,20 +180,33 @@ namespace Opc.Ua.OpenUsd.Connector
                 identity: new UserIdentity(new AnonymousIdentityToken()),
                 preferredLocales: default, ct: CancellationToken.None).ConfigureAwait(false);
 
-            var sink = new UsdFileSink(outPath);
-            var connector = new OpenUsdConnector(session, sink, enableCommands);
-            try
+            var fileSink = new UsdFileSink(outPath);
+            string? stagePath = stageOption;
+            IUsdViewHost? viewHost = null;
+            if (view && !UsdViewHostLoader.TryLoad(out viewHost, out string unavailable))
             {
-                if (!string.IsNullOrEmpty(cacheDir))
+                Console.Error.WriteLine($"ERROR: the view option is unavailable. {unavailable}");
+                await CloseAsync(session, config).ConfigureAwait(false);
+                return 3;
+            }
+
+            // The asset closure is fetched before anything renders, because the viewport
+            // needs a stage it can resolve. Fetching does not use a sink, so a throwaway
+            // connector keeps the live sink entirely out of that path.
+            if (!string.IsNullOrEmpty(cacheDir))
+            {
+                var fetcher = new OpenUsdConnector(session, new MockUsdSink(), enableCommands: false);
+                try
                 {
                     List<OpenUsdConnector.FetchedAsset> fetched =
-                        await connector.FetchServedAssetsAsync(cacheDir!, CancellationToken.None).ConfigureAwait(false);
+                        await fetcher.FetchServedAssetsAsync(cacheDir!, CancellationToken.None).ConfigureAwait(false);
                     if (fetched.Count > 0)
                     {
                         WriteStageUsda(cacheDir!, fetched);
+                        stagePath ??= Path.Combine(cacheDir!, "stage.usda");
                         Console.WriteLine(
                             $"Fetched {fetched.Count} server-delivered USD layer(s) into {cacheDir}; " +
-                            "wrote a self-contained stage.usda (open it in usdview).");
+                            "wrote a self-contained stage.usda.");
                     }
                     else
                     {
@@ -181,20 +214,44 @@ namespace Opc.Ua.OpenUsd.Connector
                             "Server does not advertise served assets (OU-AssetDelivery); using the external base asset.");
                     }
                 }
+                finally
+                {
+                    await fetcher.DisposeAsync().ConfigureAwait(false);
+                }
+            }
 
+            int exit = view
+                ? await RunViewportAsync(
+                    viewHost!, stagePath, renderer, pluginPath, cameraPath, session, fileSink,
+                    enableCommands, commandValueOpt, seconds, outPath).ConfigureAwait(false)
+                : await RunHeadlessAsync(
+                    session, fileSink, enableCommands, commandValueOpt, seconds, outPath)
+                    .ConfigureAwait(false);
+
+            await CloseAsync(session, config).ConfigureAwait(false);
+            Console.WriteLine($"Stopped. Final override layer: {outPath}");
+            return exit;
+        }
+
+        /// <summary>
+        /// Streams into the override layer only, until Ctrl+C or the requested duration.
+        /// </summary>
+        private static async Task<int> RunHeadlessAsync(
+            ISession session,
+            IUsdSink sink,
+            bool enableCommands,
+            string? commandValueOpt,
+            int seconds,
+            string outPath)
+        {
+            var connector = new OpenUsdConnector(session, sink, enableCommands);
+            try
+            {
                 await connector.StartAsync(CancellationToken.None).ConfigureAwait(false);
                 Console.WriteLine($"Streaming live OPC UA values into {outPath}. Press Ctrl+C to stop.");
-
-                if (enableCommands && commandValueOpt != null
-                    && double.TryParse(commandValueOpt, System.Globalization.NumberStyles.Float,
-                        System.Globalization.CultureInfo.InvariantCulture, out double commandValue))
-                {
-                    bool ok = await connector.IssueCommandAsync(commandValue, CancellationToken.None)
-                        .ConfigureAwait(false);
-                    Console.WriteLine(ok
-                        ? $"Command issued: setpoint <- {commandValue}."
-                        : "Command binding not found or write rejected.");
-                }
+                await IssueCommandIfRequestedAsync(
+                    connector, enableCommands, commandValueOpt, CancellationToken.None)
+                    .ConfigureAwait(false);
 
                 using var stop = new SemaphoreSlim(0, 1);
                 ConsoleCancelEventHandler handler = (_, e) => { e.Cancel = true; stop.Release(); };
@@ -221,11 +278,159 @@ namespace Opc.Ua.OpenUsd.Connector
             {
                 await connector.DisposeAsync().ConfigureAwait(false);
             }
+            return 0;
+        }
+
+        /// <summary>
+        /// Opens the viewport on a dedicated UI thread and streams into both the override
+        /// layer and the rendered stage. Completes when the window closes.
+        /// </summary>
+        /// <remarks>
+        /// The viewport owns whichever thread runs it, and on Windows that thread must be
+        /// single-threaded-apartment. Running it on a thread of its own rather than on the
+        /// process main thread keeps this method genuinely asynchronous, so no caller ever
+        /// blocks waiting on the window.
+        /// </remarks>
+        private static Task<int> RunViewportAsync(
+            IUsdViewHost host,
+            string? stagePath,
+            string? renderer,
+            string? pluginPath,
+            string? cameraPath,
+            ISession session,
+            IUsdSink fileSink,
+            bool enableCommands,
+            string? commandValueOpt,
+            int seconds,
+            string outPath)
+        {
+            if (string.IsNullOrEmpty(stagePath) || !File.Exists(stagePath))
+            {
+                Console.Error.WriteLine(
+                    "ERROR: there is no stage to render. The server does not deliver its USD " +
+                    "assets, so pass --stage with a locally composed stage instead.");
+                return Task.FromResult(4);
+            }
+
+            var options = new UsdViewOptions
+            {
+                StagePath = stagePath!,
+                PluginPath = pluginPath,
+                Renderer = renderer,
+                CameraPath = cameraPath,
+                Title = $"OPC UA - OpenUSD Connector - {Path.GetFileName(stagePath)}"
+            };
+
+            var completion = new TaskCompletionSource<int>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+
+            var uiThread = new Thread(() =>
+            {
+                using var lifetime = new CancellationTokenSource();
+                if (seconds > 0)
+                {
+                    lifetime.CancelAfter(TimeSpan.FromSeconds(seconds));
+                }
+                try
+                {
+                    host.RunViewport(
+                        options,
+                        (stageSink, cancellationToken) => StreamAsync(
+                            session, fileSink, stageSink, enableCommands,
+                            commandValueOpt, outPath, cancellationToken),
+                        lifetime.Token);
+                    completion.TrySetResult(0);
+                }
+#pragma warning disable CA1031 // Surfaced to the caller through the completion source.
+                catch (Exception exception)
+#pragma warning restore CA1031
+                {
+                    Console.Error.WriteLine($"ERROR: the viewport failed: {exception.Message}");
+                    completion.TrySetResult(5);
+                }
+            })
+            {
+                IsBackground = false,
+                Name = "OpenUSD viewport"
+            };
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                uiThread.SetApartmentState(ApartmentState.STA);
+            }
+            uiThread.Start();
+            return completion.Task;
+        }
+
+        /// <summary>
+        /// Runs the connector against both sinks until the viewport shuts down.
+        /// </summary>
+        private static async Task StreamAsync(
+            ISession session,
+            IUsdSink fileSink,
+            IUsdSink stageSink,
+            bool enableCommands,
+            string? commandValueOpt,
+            string outPath,
+            CancellationToken cancellationToken)
+        {
+            var sink = new CompositeUsdSink(fileSink, stageSink);
+            var connector = new OpenUsdConnector(session, sink, enableCommands);
+            try
+            {
+                await connector.StartAsync(cancellationToken).ConfigureAwait(false);
+                Console.WriteLine(
+                    $"Streaming live OPC UA values into {outPath} and the viewport. " +
+                    "Close the window to stop.");
+                await IssueCommandIfRequestedAsync(
+                    connector, enableCommands, commandValueOpt, cancellationToken)
+                    .ConfigureAwait(false);
+                await WaitForShutdownAsync(cancellationToken).ConfigureAwait(false);
+                // Shutdown runs after the token has already fired, so stopping cleanly
+                // must not itself be cancelled.
+                await connector.StopAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+            finally
+            {
+                await connector.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        private static async Task WaitForShutdownAsync(CancellationToken cancellationToken)
+        {
+            try
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                // The window closed or the duration elapsed; both are ordinary shutdowns.
+            }
+        }
+
+        private static async Task IssueCommandIfRequestedAsync(
+            OpenUsdConnector connector,
+            bool enableCommands,
+            string? commandValueOpt,
+            CancellationToken cancellationToken)
+        {
+            if (!enableCommands || commandValueOpt == null
+                || !double.TryParse(commandValueOpt, System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out double commandValue))
+            {
+                return;
+            }
+            bool ok = await connector.IssueCommandAsync(commandValue, cancellationToken)
+                .ConfigureAwait(false);
+            Console.WriteLine(ok
+                ? $"Command issued: setpoint <- {commandValue}."
+                : "Command binding not found or write rejected.");
+        }
+
+        private static async Task CloseAsync(ISession session, ApplicationConfiguration config)
+        {
             await session.CloseAsync(CancellationToken.None).ConfigureAwait(false);
             await session.DisposeAsync().ConfigureAwait(false);
             (config.CertificateManager as IDisposable)?.Dispose();
-            Console.WriteLine($"Stopped. Final override layer: {outPath}");
-            return 0;
         }
 
         // Writes a self-contained stage.usda that composes the connector's live override
@@ -240,6 +445,17 @@ namespace Opc.Ua.OpenUsd.Connector
             sb.Append("    subLayers = [\n        @./live.usda@,\n        @./").Append(rootName).Append("@\n    ]\n");
             sb.Append(")\n");
             File.WriteAllText(Path.Combine(cacheDir, "stage.usda"), sb.ToString());
+
+            // The override layer is only written once the first values arrive, so seed an
+            // empty one now. Without it a viewer that opens the stage first reports the
+            // sublayer as missing before the connector has had anything to say.
+            string livePath = Path.Combine(cacheDir, "live.usda");
+            if (!File.Exists(livePath))
+            {
+                File.WriteAllText(
+                    livePath,
+                    "#usda 1.0\n(\n    doc = \"OPC UA -> OpenUSD live bindings (override layer)\"\n)\n");
+            }
         }
 
         private static string? GetOption(string[] args, string name)
