@@ -252,6 +252,7 @@ namespace Opc.Ua.WotCon.Bindings.Planners
             string dataType = bitEntity
                 ? (bitArrayPayload ? "boolean[]" : "boolean")
                 : (form.TryGetString("modv:type", out string type) ? type : "uint16");
+            int encodedRegisterCount = bitEntity ? 0 : ModbusDataTypes.RegisterCount(dataType);
             bool msbFirst = !form.TryGetBoolean("modv:mostSignificantByte", out bool msb) || msb;
             bool mswFirst = !form.TryGetBoolean("modv:mostSignificantWord", out bool msw) || msw;
 
@@ -326,6 +327,15 @@ namespace Opc.Ua.WotCon.Bindings.Planners
                         (function.Value.IsWrite ? "write" : "read") +
                         $" function and cannot serve the '{op}' operation; the operation was dropped.",
                         form.Pointer("modv:function"), "modv:function"));
+                    continue;
+                }
+                if (isWriteOp && !bitEntity && quantity != encodedRegisterCount)
+                {
+                    diagnostics.Add(WotBindingDiagnostic.Warning(
+                        WotBindingDiagnosticCode.ConflictingFields,
+                        $"modv:quantity {quantity} does not match the {encodedRegisterCount}-register " +
+                        $"encoded width of modv:type '{dataType}'; the write operation was dropped.",
+                        form.Pointer("modv:quantity"), "modv:quantity"));
                     continue;
                 }
                 string method = function is not null

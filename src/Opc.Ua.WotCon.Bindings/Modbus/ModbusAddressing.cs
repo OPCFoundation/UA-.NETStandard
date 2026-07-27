@@ -150,6 +150,19 @@ namespace Opc.Ua.WotCon.Bindings.Modbus
             string type = GetString(form.Payload.Metadata, "type", "uint16");
             bool msbFirst = GetBool(form.Payload.Metadata, "mostSignificantByte", true);
             bool mswFirst = GetBool(form.Payload.Metadata, "mostSignificantWord", true);
+            if (operation is
+                ModbusOperation.WriteSingleHoldingRegister or
+                ModbusOperation.WriteMultipleHoldingRegisters)
+            {
+                int encodedRegisterCount = ModbusDataTypes.RegisterCount(type);
+                if (quantity != encodedRegisterCount)
+                {
+                    throw new ArgumentException(
+                        $"The compiled Modbus type '{type}' encodes {encodedRegisterCount} register(s), " +
+                        $"which does not match quantity {quantity} for '{CanonicalMethod(operation)}'.",
+                        nameof(form));
+                }
+            }
 
             return new ModbusAddressing(
                 operation,

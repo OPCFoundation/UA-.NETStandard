@@ -181,6 +181,57 @@ namespace Opc.Ua.WotCon.Tests.Binding
             Assert.That(read.OperationInfo.Method, Is.EqualTo("readHoldingRegisters"));
         }
 
+        [TestCase(3, "uint64")]
+        [TestCase(2, null)]
+        public void ModbusRegisterWriteWidthMismatchIsRejected(int quantity, string? type)
+        {
+            var planner = new ModbusBindingPlanner();
+            string typeField = type is null ? string.Empty : ",\"modv:type\":\"" + type + "\"";
+            WotAffordanceForm form = WotBindingTestSupport.Form(
+                WotBindingTestSupport.Property("level",
+                    "{\"href\":\"modbus+tcp://plc:502/1\",\"modv:entity\":\"holdingRegister\"," +
+                    "\"modv:address\":100,\"modv:quantity\":" +
+                    quantity.ToString(System.Globalization.CultureInfo.InvariantCulture) +
+                    typeField +
+                    ",\"op\":[\"writeproperty\"]}"),
+                "level");
+
+            WotBindingCompilation result = planner.Compile(form, WotBindingTestSupport.Context());
+
+            Assert.That(result.IsSupported, Is.False);
+            WotBindingDiagnostic diagnostic = result.Diagnostics.Single(d =>
+                d.Code == WotBindingDiagnosticCode.ConflictingFields &&
+                d.Term == "modv:quantity");
+            Assert.That(diagnostic.Message, Does.Contain("encoded width"));
+            Assert.That(diagnostic.Message, Does.Contain($"modv:type '{type ?? "uint16"}'"));
+        }
+
+        [TestCase(1, "uint16", "writeSingleHoldingRegister")]
+        [TestCase(2, "uint32", "writeMultipleHoldingRegisters")]
+        [TestCase(4, "uint64", "writeMultipleHoldingRegisters")]
+        public void ModbusRegisterWriteMatchingScalarWidthCompiles(
+            int quantity,
+            string type,
+            string expectedMethod)
+        {
+            var planner = new ModbusBindingPlanner();
+            WotAffordanceForm form = WotBindingTestSupport.Form(
+                WotBindingTestSupport.Property("level",
+                    "{\"href\":\"modbus+tcp://plc:502/1\",\"modv:entity\":\"holdingRegister\"," +
+                    "\"modv:address\":100,\"modv:quantity\":" +
+                    quantity.ToString(System.Globalization.CultureInfo.InvariantCulture) +
+                    ",\"modv:type\":\"" +
+                    type +
+                    "\",\"op\":[\"writeproperty\"]}"),
+                "level");
+
+            WotBindingCompilation result = planner.Compile(form, WotBindingTestSupport.Context());
+
+            Assert.That(result.IsSupported, Is.True);
+            WotCompiledForm write = result.Entries.Single();
+            Assert.That(write.OperationInfo.Method, Is.EqualTo(expectedMethod));
+        }
+
         [Test]
         public void ModbusQuantityBeyondBoundsIsRejected()
         {
@@ -351,7 +402,6 @@ namespace Opc.Ua.WotCon.Tests.Binding
         [TestCase(1, 2001, false)]
         [TestCase(15, 1968, true)]
         [TestCase(15, 1969, false)]
-        [TestCase(16, 123, true)]
         [TestCase(16, 124, false)]
         public void ModbusFunctionProtocolMaximumIsEnforced(int function, int quantity, bool supported)
         {

@@ -292,6 +292,99 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                     .ConfigureAwait(false));
         }
 
+        [TestCase(3, "uint64")]
+        [TestCase(2, null)]
+        public void ModbusExecutorRejectsRegisterWriteWidthMismatch(int quantity, string? type)
+        {
+            WotCompiledForm form = RegisterWriteForm(quantity, type, 502);
+
+            var executor = new ModbusWotBindingExecutor();
+            ArgumentException? exception = Assert.ThrowsAsync<ArgumentException>(
+                async () => await executor
+                    .ActivateAsync(form, new WotExecutorContext())
+                    .ConfigureAwait(false));
+            Assert.That(exception!.Message, Does.Contain("does not match quantity"));
+            Assert.That(exception.Message, Does.Contain($"type '{type ?? "uint16"}'"));
+        }
+
+        [TestCase(1, "uint16")]
+        [TestCase(2, "uint32")]
+        [TestCase(4, "uint64")]
+        public async Task ModbusExecutorAcceptsMatchingRegisterWriteWidth(int quantity, string type)
+        {
+            using var server = new TestModbusServer();
+            WotCompiledForm form = RegisterWriteForm(quantity, type, server.Port);
+
+            var executor = new ModbusWotBindingExecutor();
+            IWotBindingChannel channel = await executor
+                .ActivateAsync(form, new WotExecutorContext())
+                .ConfigureAwait(false);
+            await using (channel.ConfigureAwait(false))
+            {
+                Variant value = quantity switch
+                {
+                    1 => new Variant((ushort)0x1234),
+                    2 => new Variant(0x12345678u),
+                    _ => new Variant(0x0123456789ABCDEFul)
+                };
+                WotWriteResult result = await channel
+                    .WriteAsync(new DataValue(value))
+                    .ConfigureAwait(false);
+                Assert.That(result.Success, Is.True, result.Error);
+            }
+            ushort[] expected = quantity switch
+            {
+                1 => [0x1234],
+                2 => [0x1234, 0x5678],
+                _ => [0x0123, 0x4567, 0x89AB, 0xCDEF]
+            };
+            Assert.That(server.HoldingRegisters.Take(quantity), Is.EqualTo(expected));
+        }
+
+        private static WotCompiledForm RegisterWriteForm(int quantity, string? type, int port)
+        {
+            ImmutableDictionary<string, string> payloadMetadata =
+                ImmutableDictionary<string, string>.Empty;
+            if (type is not null)
+            {
+                payloadMetadata = payloadMetadata.Add("type", type);
+            }
+            var addressing = new WotAddressingDescriptor(
+                $"holdingRegister:0:{quantity}@1",
+                ImmutableDictionary<string, string>.Empty
+                    .Add("entity", "holdingRegister")
+                    .Add("address", "0")
+                    .Add("quantity", quantity.ToString(CultureInfo.InvariantCulture))
+                    .Add("unitId", "1"));
+            var payload = new WotPayloadDescriptor(
+                "application/octet-stream",
+                OctetStreamWotPayloadCodec.Instance.Id,
+                payloadMetadata);
+            string method = quantity == 1
+                ? "writeSingleHoldingRegister"
+                : "writeMultipleHoldingRegisters";
+            return new WotCompiledForm(
+                new WotBindingIdentity("w3c.modbus", "1.0-ed", ModbusBindingPlanner.BindingUri),
+                WotAffordanceKind.Property,
+                "p",
+                "/properties/p/forms/0",
+                WoTBindingCapabilityEnum.WriteProperty,
+                "writeproperty",
+                new WotEndpointDescriptor(
+                    "modbus+tcp",
+                    "127.0.0.1",
+                    port,
+                    $"modbus+tcp://127.0.0.1:{port}"),
+                addressing,
+                new WotOperationDescriptor(
+                    WoTBindingCapabilityEnum.WriteProperty,
+                    "writeproperty",
+                    method),
+                payload,
+                [],
+                isExecutable: true);
+        }
+
         private static WotCompiledForm BitForm(
             int quantity,
             WoTBindingCapabilityEnum operation,
