@@ -93,7 +93,7 @@ namespace Opc.Ua.XRegistry.Server
         {
             base.CreateAddressSpace(externalReferences);
 
-            if (!m_publishProxy || m_federatedDocument is null)
+            if (!m_publishProxy || m_federatedDocument.IsNull)
             {
                 return;
             }
@@ -105,7 +105,8 @@ namespace Opc.Ua.XRegistry.Server
             }
 
             ushort ns = (ushort)Server.NamespaceUris.GetIndex(m_namespaceUri);
-            ByteString contentId = m_contentIdProvider.ComputeContentId(m_federatedFormat, m_federatedDocument);
+            ByteString contentId = m_contentIdProvider.ComputeContentId(
+                m_federatedFormat, m_federatedDocument.Span);
 
             // The proxy is a real ResourceType instance, so a generic xRegistry client drives it
             // through exactly the same proxy as a locally hosted resource.
@@ -135,7 +136,7 @@ namespace Opc.Ua.XRegistry.Server
         private readonly string m_namespaceUri;
         private readonly IResourceContentIdProvider? m_contentIdProvider;
         private readonly bool m_publishProxy;
-        private readonly byte[]? m_federatedDocument;
+        private readonly ByteString m_federatedDocument;
         private readonly string m_federatedFormat;
         private readonly string m_remoteRegistryNamespaceUri;
         private readonly string m_remoteEndpointUrl;

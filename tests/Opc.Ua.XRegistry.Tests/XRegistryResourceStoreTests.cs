@@ -237,12 +237,12 @@ namespace Opc.Ua.XRegistry.Tests
     [Category("XRegistry")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
-    public sealed class InMemoryXRegistryResourceStoreTests : XRegistryResourceStoreContractTests
+    public sealed class InMemoryResourceStoreTests : XRegistryResourceStoreContractTests
     {
         /// <inheritdoc/>
         protected override IXRegistryResourceStore CreateStore()
         {
-            return new InMemoryXRegistryResourceStore();
+            return new InMemoryResourceStore();
         }
     }
 
@@ -254,7 +254,7 @@ namespace Opc.Ua.XRegistry.Tests
     [Category("XRegistry")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
-    public sealed class FileSystemXRegistryResourceStoreTests : XRegistryResourceStoreContractTests
+    public sealed class FileSystemResourceStoreTests : XRegistryResourceStoreContractTests
     {
         [SetUp]
         public void SetUp()
@@ -277,14 +277,14 @@ namespace Opc.Ua.XRegistry.Tests
         public void ARootPathIsRequired()
         {
             Assert.That(
-                () => new FileSystemXRegistryResourceStore(string.Empty),
+                () => new FileSystemResourceStore(string.Empty),
                 Throws.TypeOf<ArgumentException>());
         }
 
         /// <inheritdoc/>
         protected override IXRegistryResourceStore CreateStore()
         {
-            var store = new FileSystemXRegistryResourceStore("resources", m_fileSystem);
+            var store = new FileSystemResourceStore("resources", m_fileSystem);
             m_stores.Add(store);
             return store;
         }

@@ -101,6 +101,41 @@ namespace Opc.Ua.XRegistry.Tests
         }
 
         [Test]
+        public void RegistryNodeIdAddressesTheWellKnownRoot()
+        {
+            GenericXRegistryClient client = CreateClient(CreateSession());
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(client.RegistryNodeId.IsNull, Is.False);
+                Assert.That(client.RegistryNodeId,
+                    Is.EqualTo(new NodeId(XRegistryWellKnown.RegistryObject, 1)),
+                    "The root sits at a well-known identifier in the registry namespace, so a " +
+                    "caller reaches the group lifecycle without Browsing for it.");
+            });
+        }
+
+        [Test]
+        public async Task RegistryNodeIdDrivesTheGroupLifecycleAsync()
+        {
+            Mock<ISession> session = CreateSession();
+            var calls = new List<CallMethodRequest>();
+            SetupCall(session, calls);
+
+            GenericXRegistryClient client = CreateClient(session);
+            NodeId group = await client.CreateGroupAsync(client.RegistryNodeId, "schemas")
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(group, Is.EqualTo(s_createdGroupNodeId));
+                Assert.That(calls, Has.Count.EqualTo(1));
+                Assert.That(calls[0].ObjectId, Is.EqualTo(client.RegistryNodeId),
+                    "CreateGroup is invoked on the registry root itself.");
+            });
+        }
+
+        [Test]
         public void DefaultConstructorBindsTheBaseRegistryNamespace()
         {
             var client = new GenericXRegistryClient(CreateSession().Object, CreateTelemetry());
@@ -274,6 +309,88 @@ namespace Opc.Ua.XRegistry.Tests
             });
         }
 
+        [Test]
+        public async Task RegisterResourceStreamsTheCorrectBytesPerChunkAsync()
+        {
+            byte[] document = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+            Mock<ISession> session = CreateSession();
+            var calls = new List<CallMethodRequest>();
+            SetupCall(session, calls);
+
+            GenericXRegistryClient client = CreateClient(session);
+            await client
+                .RegisterResourceAsync(new NodeId(1u, 1), "urn:resource", document, chunkSize: 4)
+                .ConfigureAwait(false);
+
+            // Each chunk wraps a slice of the caller's buffer rather than copying it, so verify the
+            // slices reassemble into exactly the original document.
+            var streamed = new List<byte>();
+            foreach (CallMethodRequest call in calls)
+            {
+                if (call.MethodId != ExpandedNodeId.ToNodeId(
+                        Opc.Ua.MethodIds.FileType_Write, session.Object.NamespaceUris))
+                {
+                    continue;
+                }
+                Assert.That(call.InputArguments[1].TryGetValue(out ByteString chunk), Is.True);
+                streamed.AddRange(chunk.Span.ToArray());
+            }
+
+            Assert.That(streamed, Is.EqualTo(document));
+        }
+
+        [Test]
+        public async Task RegistrationResultsExposeNamedMembersAndValueEqualityAsync()
+        {
+            Mock<ISession> session = CreateSession();
+            var calls = new List<CallMethodRequest>();
+            SetupCall(session, calls);
+
+            GenericXRegistryClient client = CreateClient(session);
+            ResourceRegistrationResult resource = await client
+                .GetOrRegisterResourceAsync(new NodeId(1u, 1), "urn:doc", new byte[4])
+                .ConfigureAwait(false);
+            GroupRegistrationResult group = await client
+                .GetOrCreateGroupAsync(client.RegistryNodeId, "schemas").ConfigureAwait(false);
+
+            (NodeId nodeId, string versionId, bool created) = resource;
+            Assert.Multiple(() =>
+            {
+                Assert.That(resource.ResourceNodeId, Is.EqualTo(s_createdResourceNodeId));
+                Assert.That(resource.AssignedVersionId, Is.EqualTo("7"));
+                Assert.That(resource.Created, Is.True);
+                Assert.That(group.GroupNodeId, Is.EqualTo(s_createdGroupNodeId));
+                Assert.That(group.Created, Is.True);
+
+                // The results still deconstruct where that reads better than named members.
+                Assert.That(nodeId, Is.EqualTo(resource.ResourceNodeId));
+                Assert.That(versionId, Is.EqualTo(resource.AssignedVersionId));
+                Assert.That(created, Is.EqualTo(resource.Created));
+
+                // A record struct gives value equality, which a caller can rely on.
+                Assert.That(
+                    resource,
+                    Is.EqualTo(new ResourceRegistrationResult(s_createdResourceNodeId, "7", true)));
+                Assert.That(group, Is.EqualTo(new GroupRegistrationResult(s_createdGroupNodeId, true)));
+            });
+        }
+
+        [Test]
+        public async Task RegisterResourceReportsTheVersionAsCreatedAsync()
+        {
+            Mock<ISession> session = CreateSession();
+            var calls = new List<CallMethodRequest>();
+            SetupCall(session, calls);
+
+            GenericXRegistryClient client = CreateClient(session);
+            ResourceRegistrationResult result = await client
+                .RegisterResourceAsync(new NodeId(1u, 1), "urn:doc", new byte[4])
+                .ConfigureAwait(false);
+
+            Assert.That(result.Created, Is.True,
+                "A strict registration only returns when it created the version.");
+        }
+
         [TestCase(4, 4, 1)]
         [TestCase(8, 4, 2)]
         [TestCase(9, 4, 3)]
@@ -286,7 +403,7 @@ namespace Opc.Ua.XRegistry.Tests
             SetupCall(session, calls);
 
             GenericXRegistryClient client = CreateClient(session);
-            (NodeId resourceNodeId, string assignedVersionId) = await client
+            (NodeId resourceNodeId, string assignedVersionId, _) = await client
                 .RegisterResourceAsync(
                     new NodeId(1u, 1), "urn:resource", new byte[documentLength], chunkSize: chunkSize)
                 .ConfigureAwait(false);
@@ -314,7 +431,7 @@ namespace Opc.Ua.XRegistry.Tests
             SetupCall(session, calls);
 
             var domain = new TestDomainRegistryClient(session.Object, CreateTelemetry());
-            (NodeId resourceNodeId, string assignedVersionId) = await domain
+            (NodeId resourceNodeId, string assignedVersionId, _) = await domain
                 .RegisterDomainResourceAsync(new NodeId(1u, 1), new byte[4]).ConfigureAwait(false);
 
             Assert.Multiple(() =>
@@ -694,7 +811,7 @@ namespace Opc.Ua.XRegistry.Tests
 
             public bool DomainPrefixApplied { get; private set; }
 
-            public Task<(NodeId ResourceNodeId, string AssignedVersionId)> RegisterDomainResourceAsync(
+            public Task<ResourceRegistrationResult> RegisterDomainResourceAsync(
                 NodeId groupNodeId,
                 ReadOnlyMemory<byte> document)
             {

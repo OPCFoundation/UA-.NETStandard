@@ -80,7 +80,7 @@ namespace Opc.Ua.XRegistry.Tests
             using XRegistryFastPathNodeManager nm = CreateNodeManager(new XRegistryServerOptions
             {
                 PublishSeedResource = true,
-                SeedDocument = s_seedDocument
+                SeedDocument = ByteString.From(s_seedDocument)
             });
 
             InvalidOperationException ex = Assert.Throws<InvalidOperationException>(
@@ -94,7 +94,7 @@ namespace Opc.Ua.XRegistry.Tests
             using XRegistryFastPathNodeManager nm = CreateNodeManager(new XRegistryServerOptions
             {
                 PublishSeedResource = true,
-                SeedDocument = s_seedDocument,
+                SeedDocument = ByteString.From(s_seedDocument),
                 SeedBrowseName = "SeededResource",
                 ContentIdProvider = new XRegistryServerTestHarness.FakeContentIdProvider()
             });

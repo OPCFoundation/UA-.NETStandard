@@ -84,7 +84,7 @@ namespace Opc.Ua.XRegistry.Client
                 for (int offset = 0; offset < document.Length; offset += chunkSize)
                 {
                     int length = Math.Min(chunkSize, document.Length - offset);
-                    ByteString chunk = ByteString.From(document.Slice(offset, length).ToArray());
+                    ByteString chunk = new(document.Slice(offset, length));
                     await resource.WriteAsync(fileHandle, chunk, ct).ConfigureAwait(false);
                 }
             }

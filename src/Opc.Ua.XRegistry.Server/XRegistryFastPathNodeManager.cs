@@ -90,7 +90,7 @@ namespace Opc.Ua.XRegistry.Server
         {
             base.CreateAddressSpace(externalReferences);
 
-            if (!m_publishSeed || m_seedDocument is null)
+            if (!m_publishSeed || m_seedDocument.IsNull)
             {
                 return;
             }
@@ -102,7 +102,7 @@ namespace Opc.Ua.XRegistry.Server
             }
 
             ushort ns = (ushort)Server.NamespaceUris.GetIndex(m_namespaceUri);
-            ByteString contentId = m_contentIdProvider.ComputeContentId(m_seedFormat, m_seedDocument);
+            ByteString contentId = m_contentIdProvider.ComputeContentId(m_seedFormat, m_seedDocument.Span);
 
             var resource = new BaseDataVariableState(null)
             {
@@ -117,7 +117,7 @@ namespace Opc.Ua.XRegistry.Server
                 AccessLevel = AccessLevels.CurrentRead,
                 UserAccessLevel = AccessLevels.CurrentRead,
                 Historizing = false,
-                Value = new Variant(ByteString.From(m_seedDocument))
+                Value = new Variant(m_seedDocument)
             };
 
             AddPredefinedNode(SystemContext, resource);
@@ -126,7 +126,7 @@ namespace Opc.Ua.XRegistry.Server
         private readonly string m_namespaceUri;
         private readonly IResourceContentIdProvider? m_contentIdProvider;
         private readonly bool m_publishSeed;
-        private readonly byte[]? m_seedDocument;
+        private readonly ByteString m_seedDocument;
         private readonly string m_seedFormat;
         private readonly string m_seedBrowseName;
     }

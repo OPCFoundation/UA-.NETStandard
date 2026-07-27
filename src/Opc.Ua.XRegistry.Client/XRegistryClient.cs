@@ -108,6 +108,13 @@ namespace Opc.Ua.XRegistry.Client
         public ushort NamespaceIndex { get; }
 
         /// <summary>
+        /// Gets the NodeId of the registry root Object, which a server publishes at a well-known
+        /// identifier in its registry namespace. This is the starting point for the group lifecycle,
+        /// so a caller does not have to Browse for it.
+        /// </summary>
+        public NodeId RegistryNodeId => new(XRegistryWellKnown.RegistryObject, NamespaceIndex);
+
+        /// <summary>
         /// Gets the telemetry context handed to the generated proxies.
         /// </summary>
         protected ITelemetryContext Telemetry { get; }
@@ -210,11 +217,11 @@ namespace Opc.Ua.XRegistry.Client
         /// <param name="versionId">The version id; empty lets the server assign the next one.</param>
         /// <param name="chunkSize">The maximum Write chunk size in bytes.</param>
         /// <param name="ct">The cancellation token.</param>
-        /// <returns>The created resource NodeId and the version id the server assigned.</returns>
+        /// <returns>The created resource version.</returns>
         /// <exception cref="ArgumentException"><paramref name="groupNodeId"/> or
         /// <paramref name="resourceId"/> is null/empty.</exception>
         /// <exception cref="ArgumentOutOfRangeException"><paramref name="chunkSize"/> is not positive.</exception>
-        public async Task<(NodeId ResourceNodeId, string AssignedVersionId)> RegisterResourceAsync(
+        public async Task<ResourceRegistrationResult> RegisterResourceAsync(
             NodeId groupNodeId,
             string resourceId,
             ReadOnlyMemory<byte> document,
@@ -243,7 +250,7 @@ namespace Opc.Ua.XRegistry.Client
             ResourceTypeClient resource = GetResource(resourceNodeId);
             await resource.WriteDocumentAsync(fileHandle, document, chunkSize, ct).ConfigureAwait(false);
 
-            return (resourceNodeId, assignedVersionId);
+            return new ResourceRegistrationResult(resourceNodeId, assignedVersionId, Created: true);
         }
 
         /// <summary>
@@ -276,7 +283,7 @@ namespace Opc.Ua.XRegistry.Client
         /// <param name="ct">The cancellation token.</param>
         /// <returns>The group NodeId and whether this call created it.</returns>
         /// <exception cref="ArgumentException"><paramref name="groupId"/> is null/empty.</exception>
-        public async Task<(NodeId GroupNodeId, bool Created)> GetOrCreateGroupAsync(
+        public async Task<GroupRegistrationResult> GetOrCreateGroupAsync(
             NodeId registryNodeId,
             string groupId,
             CancellationToken ct = default)
@@ -287,7 +294,10 @@ namespace Opc.Ua.XRegistry.Client
             }
 
             RegistryTypeClient registry = GetRegistry(registryNodeId);
-            return await registry.GetOrCreateGroupAsync(groupId, ct).ConfigureAwait(false);
+            (NodeId groupNodeId, bool created) = await registry
+                .GetOrCreateGroupAsync(groupId, ct)
+                .ConfigureAwait(false);
+            return new GroupRegistrationResult(groupNodeId, created);
         }
 
         /// <summary>
@@ -301,18 +311,17 @@ namespace Opc.Ua.XRegistry.Client
         /// <param name="versionId">The version id; empty lets the server assign the next one.</param>
         /// <param name="chunkSize">The maximum Write chunk size in bytes.</param>
         /// <param name="ct">The cancellation token.</param>
-        /// <returns>The resource NodeId, the assigned version id, and whether it was created.</returns>
+        /// <returns>The resource version and whether this call created it.</returns>
         /// <exception cref="ArgumentException"><paramref name="groupNodeId"/> or
         /// <paramref name="resourceId"/> is null/empty.</exception>
         /// <exception cref="ArgumentOutOfRangeException"><paramref name="chunkSize"/> is not positive.</exception>
-        public async Task<(NodeId ResourceNodeId, string AssignedVersionId, bool Created)>
-            GetOrRegisterResourceAsync(
-                NodeId groupNodeId,
-                string resourceId,
-                ReadOnlyMemory<byte> document,
-                string versionId = "",
-                int chunkSize = ResourceTypeClientExtensions.DefaultChunkSize,
-                CancellationToken ct = default)
+        public async Task<ResourceRegistrationResult> GetOrRegisterResourceAsync(
+            NodeId groupNodeId,
+            string resourceId,
+            ReadOnlyMemory<byte> document,
+            string versionId = "",
+            int chunkSize = ResourceTypeClientExtensions.DefaultChunkSize,
+            CancellationToken ct = default)
         {
             if (groupNodeId.IsNull)
             {
@@ -339,7 +348,7 @@ namespace Opc.Ua.XRegistry.Client
                     .ConfigureAwait(false);
             }
 
-            return (resourceNodeId, assignedVersionId, created);
+            return new ResourceRegistrationResult(resourceNodeId, assignedVersionId, created);
         }
 
         /// <summary>

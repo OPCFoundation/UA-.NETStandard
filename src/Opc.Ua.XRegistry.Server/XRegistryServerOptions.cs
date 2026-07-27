@@ -53,7 +53,7 @@ namespace Opc.Ua.XRegistry.Server
         /// The store that holds resource document bytes. Defaults to an in-process store; a
         /// high-availability deployment substitutes a shared one so documents survive a failover.
         /// </summary>
-        public IXRegistryResourceStore ResourceStore { get; set; } = new InMemoryXRegistryResourceStore();
+        public IXRegistryResourceStore ResourceStore { get; set; } = new InMemoryResourceStore();
 
         /// <summary>
         /// The BrowseName of the registry root Object the registration manager materializes.
@@ -78,7 +78,7 @@ namespace Opc.Ua.XRegistry.Server
         /// <summary>
         /// The seed resource document published by the fast-path manager.
         /// </summary>
-        public byte[]? SeedDocument { get; set; }
+        public ByteString SeedDocument { get; set; }
 
         /// <summary>
         /// The format of <see cref="SeedDocument"/>.
@@ -98,7 +98,7 @@ namespace Opc.Ua.XRegistry.Server
         /// <summary>
         /// The document hosted by the remote registry (federated locally as a proxy).
         /// </summary>
-        public byte[]? FederatedDocument { get; set; }
+        public ByteString FederatedDocument { get; set; }
 
         /// <summary>
         /// The format of <see cref="FederatedDocument"/>.
