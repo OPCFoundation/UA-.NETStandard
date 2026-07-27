@@ -215,7 +215,7 @@ namespace Opc.Ua.XRegistry.Tests
             public ValueTask WriteAsync(
                 string resourceKey,
                 long offset,
-                ReadOnlyMemory<byte> data,
+                ByteString data,
                 CancellationToken ct = default)
             {
                 return m_inner.WriteAsync(resourceKey, offset, data, ct);

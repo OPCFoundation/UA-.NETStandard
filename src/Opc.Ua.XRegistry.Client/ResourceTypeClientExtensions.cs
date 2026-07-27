@@ -66,7 +66,7 @@ namespace Opc.Ua.XRegistry.Client
         public static async ValueTask WriteDocumentAsync(
             this ResourceTypeClient resource,
             uint fileHandle,
-            ReadOnlyMemory<byte> document,
+            ByteString document,
             int chunkSize = DefaultChunkSize,
             CancellationToken ct = default)
         {

@@ -534,7 +534,8 @@ namespace Opc.Ua.XRegistry.Tests
 
             byte[] shortDocument = [9, 9];
             OpenMethodStateResult reopened = await resource.Open!.OnCallAsync!(
-                nm.SystemContext, resource.Open, resource.NodeId, kWriteMode, CancellationToken.None)
+                nm.SystemContext, resource.Open, resource.NodeId,
+                kWriteMode | kEraseExistingMode, CancellationToken.None)
                 .ConfigureAwait(false);
             await resource.Write!.OnCallAsync!(
                 nm.SystemContext, resource.Write, resource.NodeId, reopened.FileHandle,
@@ -766,6 +767,7 @@ namespace Opc.Ua.XRegistry.Tests
         }
 
         private const byte kWriteMode = 2;
+        private const byte kEraseExistingMode = 4;
         private const byte kReadMode = 1;
         private static readonly byte[] s_document = [0x01, 0x02, 0x03, 0x04];
     }

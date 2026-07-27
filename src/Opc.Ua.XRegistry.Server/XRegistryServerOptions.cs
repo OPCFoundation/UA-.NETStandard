@@ -35,7 +35,7 @@ namespace Opc.Ua.XRegistry.Server
     /// resources. A concrete registry (for example the PubSub Schema Registry) populates these with
     /// its own namespace, provider and seed documents.
     /// </summary>
-    public class XRegistryServerOptions
+    public sealed class XRegistryServerOptions
     {
         /// <summary>
         /// The registry companion namespace URI the node managers claim. Defaults to the abstract

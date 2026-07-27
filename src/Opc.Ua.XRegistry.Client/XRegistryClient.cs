@@ -224,7 +224,7 @@ namespace Opc.Ua.XRegistry.Client
         public async Task<ResourceRegistrationResult> RegisterResourceAsync(
             NodeId groupNodeId,
             string resourceId,
-            ReadOnlyMemory<byte> document,
+            ByteString document,
             string versionId = "",
             int chunkSize = ResourceTypeClientExtensions.DefaultChunkSize,
             CancellationToken ct = default)
@@ -318,7 +318,7 @@ namespace Opc.Ua.XRegistry.Client
         public async Task<ResourceRegistrationResult> GetOrRegisterResourceAsync(
             NodeId groupNodeId,
             string resourceId,
-            ReadOnlyMemory<byte> document,
+            ByteString document,
             string versionId = "",
             int chunkSize = ResourceTypeClientExtensions.DefaultChunkSize,
             CancellationToken ct = default)

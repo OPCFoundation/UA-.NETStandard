@@ -298,13 +298,13 @@ namespace Opc.Ua.XRegistry.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(
-                    () => client.RegisterResourceAsync(NodeId.Null, "id", new byte[1]),
+                    () => client.RegisterResourceAsync(NodeId.Null, "id", ByteString.From(new byte[1])),
                     Throws.ArgumentException);
                 Assert.That(
-                    () => client.RegisterResourceAsync(group, string.Empty, new byte[1]),
+                    () => client.RegisterResourceAsync(group, string.Empty, ByteString.From(new byte[1])),
                     Throws.ArgumentException);
                 Assert.That(
-                    () => client.RegisterResourceAsync(group, "id", new byte[1], chunkSize: 0),
+                    () => client.RegisterResourceAsync(group, "id", ByteString.From(new byte[1]), chunkSize: 0),
                     Throws.InstanceOf<ArgumentOutOfRangeException>());
             });
         }
@@ -319,7 +319,7 @@ namespace Opc.Ua.XRegistry.Tests
 
             GenericXRegistryClient client = CreateClient(session);
             await client
-                .RegisterResourceAsync(new NodeId(1u, 1), "urn:resource", document, chunkSize: 4)
+                .RegisterResourceAsync(new NodeId(1u, 1), "urn:resource", ByteString.From(document), chunkSize: 4)
                 .ConfigureAwait(false);
 
             // Each chunk wraps a slice of the caller's buffer rather than copying it, so verify the
@@ -348,7 +348,7 @@ namespace Opc.Ua.XRegistry.Tests
 
             GenericXRegistryClient client = CreateClient(session);
             ResourceRegistrationResult resource = await client
-                .GetOrRegisterResourceAsync(new NodeId(1u, 1), "urn:doc", new byte[4])
+                .GetOrRegisterResourceAsync(new NodeId(1u, 1), "urn:doc", ByteString.From(new byte[4]))
                 .ConfigureAwait(false);
             GroupRegistrationResult group = await client
                 .GetOrCreateGroupAsync(client.RegistryNodeId, "schemas").ConfigureAwait(false);
@@ -384,7 +384,7 @@ namespace Opc.Ua.XRegistry.Tests
 
             GenericXRegistryClient client = CreateClient(session);
             ResourceRegistrationResult result = await client
-                .RegisterResourceAsync(new NodeId(1u, 1), "urn:doc", new byte[4])
+                .RegisterResourceAsync(new NodeId(1u, 1), "urn:doc", ByteString.From(new byte[4]))
                 .ConfigureAwait(false);
 
             Assert.That(result.Created, Is.True,
@@ -405,7 +405,7 @@ namespace Opc.Ua.XRegistry.Tests
             GenericXRegistryClient client = CreateClient(session);
             (NodeId resourceNodeId, string assignedVersionId, _) = await client
                 .RegisterResourceAsync(
-                    new NodeId(1u, 1), "urn:resource", new byte[documentLength], chunkSize: chunkSize)
+                    new NodeId(1u, 1), "urn:resource", ByteString.From(new byte[documentLength]), chunkSize: chunkSize)
                 .ConfigureAwait(false);
 
             Assert.Multiple(() =>
@@ -432,7 +432,7 @@ namespace Opc.Ua.XRegistry.Tests
 
             var domain = new TestDomainRegistryClient(session.Object, CreateTelemetry());
             (NodeId resourceNodeId, string assignedVersionId, _) = await domain
-                .RegisterDomainResourceAsync(new NodeId(1u, 1), new byte[4]).ConfigureAwait(false);
+                .RegisterDomainResourceAsync(new NodeId(1u, 1), ByteString.From(new byte[4])).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -480,13 +480,13 @@ namespace Opc.Ua.XRegistry.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(
-                    () => resource.WriteDocumentAsync(1, new byte[1], chunkSize: 0).AsTask(),
+                    () => resource.WriteDocumentAsync(1, ByteString.From(new byte[1]), chunkSize: 0).AsTask(),
                     Throws.InstanceOf<ArgumentOutOfRangeException>());
                 Assert.That(
                     () => resource.ReadDocumentAsync(chunkSize: 0).AsTask(),
                     Throws.InstanceOf<ArgumentOutOfRangeException>());
                 Assert.That(
-                    () => ((ResourceTypeClient)null!).WriteDocumentAsync(1, new byte[1]).AsTask(),
+                    () => ((ResourceTypeClient)null!).WriteDocumentAsync(1, ByteString.From(new byte[1])).AsTask(),
                     Throws.ArgumentNullException);
                 Assert.That(
                     () => ((ResourceTypeClient)null!).ReadDocumentAsync().AsTask(),
@@ -548,14 +548,14 @@ namespace Opc.Ua.XRegistry.Tests
                 Assert.That(
                     () => client.GetOrCreateGroupAsync(registry, string.Empty), Throws.ArgumentException);
                 Assert.That(
-                    () => client.GetOrRegisterResourceAsync(NodeId.Null, "id", new byte[1]),
+                    () => client.GetOrRegisterResourceAsync(NodeId.Null, "id", ByteString.From(new byte[1])),
                     Throws.ArgumentException);
                 Assert.That(
-                    () => client.GetOrRegisterResourceAsync(new NodeId(1u, 1), string.Empty, new byte[1]),
+                    () => client.GetOrRegisterResourceAsync(new NodeId(1u, 1), string.Empty, ByteString.From(new byte[1])),
                     Throws.ArgumentException);
                 Assert.That(
                     () => client.GetOrRegisterResourceAsync(
-                        new NodeId(1u, 1), "id", new byte[1], chunkSize: 0),
+                        new NodeId(1u, 1), "id", ByteString.From(new byte[1]), chunkSize: 0),
                     Throws.InstanceOf<ArgumentOutOfRangeException>());
             });
         }
@@ -573,7 +573,7 @@ namespace Opc.Ua.XRegistry.Tests
 
             GenericXRegistryClient client = CreateClient(session);
             (NodeId resourceNodeId, string assignedVersionId, bool created) = await client
-                .GetOrRegisterResourceAsync(new NodeId(1u, 1), "urn:doc", new byte[8])
+                .GetOrRegisterResourceAsync(new NodeId(1u, 1), "urn:doc", ByteString.From(new byte[8]))
                 .ConfigureAwait(false);
 
             Assert.Multiple(() =>
@@ -595,7 +595,7 @@ namespace Opc.Ua.XRegistry.Tests
 
             GenericXRegistryClient client = CreateClient(session);
             (_, _, bool created) = await client
-                .GetOrRegisterResourceAsync(new NodeId(1u, 1), "urn:doc", new byte[8], chunkSize: 4)
+                .GetOrRegisterResourceAsync(new NodeId(1u, 1), "urn:doc", ByteString.From(new byte[8]), chunkSize: 4)
                 .ConfigureAwait(false);
 
             Assert.Multiple(() =>
@@ -813,7 +813,7 @@ namespace Opc.Ua.XRegistry.Tests
 
             public Task<ResourceRegistrationResult> RegisterDomainResourceAsync(
                 NodeId groupNodeId,
-                ReadOnlyMemory<byte> document)
+                ByteString document)
             {
                 DomainPrefixApplied = true;
                 return RegisterResourceAsync(groupNodeId, "urn:domain:resource", document);

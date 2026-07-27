@@ -44,6 +44,10 @@ namespace Opc.Ua.XRegistry.Server
     /// machinery is exercised elsewhere in the stack; this manager focuses on the registry-specific
     /// auto-bootstrap on close and the dynamic runtime creation of the content-addressed fast-path node.
     /// </summary>
+    /// <remarks>
+    /// Deliberately left unsealed: subclassing is the server-side extension seam a domain registry
+    /// uses to serve its own companion model on top of the base one.
+    /// </remarks>
     public class XRegistryRegistrationNodeManager : CustomNodeManager2
     {
         /// <summary>
@@ -401,7 +405,7 @@ namespace Opc.Ua.XRegistry.Server
                 }
 
                 string assigned = string.IsNullOrEmpty(versionId)
-                    ? NextVersionId(resourceId)
+                    ? NextVersionId(group.NodeId, resourceId)
                     : versionId;
                 var key = new ResourceKey(group.NodeId, resourceId, assigned);
 
@@ -589,6 +593,25 @@ namespace Opc.Ua.XRegistry.Server
             foreach (ResourceKey key in keys)
             {
                 m_resources.Remove(key);
+
+                // Drop the version counter once the last version of a resource is gone, otherwise a
+                // create/delete loop with fresh ids grows the map without bound —
+                // MaxRegisteredResources does not bound it because a delete frees the slot.
+                var counterKey = new VersionCounterKey(key.GroupNodeId, key.ResourceId);
+                bool anyLeft = false;
+                foreach (ResourceKey remaining in m_resources.Keys)
+                {
+                    if (remaining.GroupNodeId == key.GroupNodeId &&
+                        string.Equals(remaining.ResourceId, key.ResourceId, StringComparison.Ordinal))
+                    {
+                        anyLeft = true;
+                        break;
+                    }
+                }
+                if (!anyLeft)
+                {
+                    m_versionCounters.Remove(counterKey);
+                }
             }
 
             if (resource.Xid?.Value is string xid && xid.Length > 0)
@@ -632,7 +655,7 @@ namespace Opc.Ua.XRegistry.Server
             if (resource.Write != null)
             {
                 resource.Write.OnCallAsync = (ctx, m, id, handle, data, ct) => IsWriteChannelSecure(ctx)
-                    ? OnFileWriteAsync(resource, handle, data)
+                    ? OnFileWriteAsync(resource, handle, data, ctx)
                     : new ValueTask<WriteMethodStateResult>(new WriteMethodStateResult
                     {
                         ServiceResult = StatusCodes.BadSecurityModeInsufficient
@@ -641,7 +664,7 @@ namespace Opc.Ua.XRegistry.Server
             if (resource.Read != null)
             {
                 resource.Read.OnCallAsync = (ctx, m, id, handle, length, ct) => IsReadChannelSecure(ctx)
-                    ? OnFileReadAsync(resource, handle, length)
+                    ? OnFileReadAsync(resource, handle, length, ctx)
                     : new ValueTask<ReadMethodStateResult>(new ReadMethodStateResult
                     {
                         ServiceResult = StatusCodes.BadSecurityModeInsufficient
@@ -660,50 +683,132 @@ namespace Opc.Ua.XRegistry.Server
         /// <summary>
         /// Opens the resource's document. Opening for writing is a mutation, so it needs a
         /// <c>SignAndEncrypt</c> channel; opening for reading follows
-        /// <see cref="XRegistryServerOptions.RequireEncryptionForReads"/>.
+        /// <see cref="XRegistryServerOptions.RequireEncryptionForReads"/>. The mode bits are the
+        /// standard <c>FileType</c> ones (OPC 10000-5 §C): Read = 1, Write = 2, EraseExisting = 4,
+        /// Append = 8. A write that does not erase starts from the document already stored, so a
+        /// partial rewrite does not silently truncate the rest of it.
         /// </summary>
-        private ValueTask<OpenMethodStateResult> OnFileOpenAsync(
+        /// <param name="resource">The resource whose file is opened.</param>
+        /// <param name="mode">The FileType open mode bits.</param>
+        /// <param name="context">The system context, used to apply the channel-security policy.</param>
+        private async ValueTask<OpenMethodStateResult> OnFileOpenAsync(
             ResourceState resource,
             byte mode,
             ISystemContext context)
         {
+            bool wantsRead = (mode & kReadMode) != 0;
+            bool wantsWrite = (mode & kWriteMode) != 0;
+            bool erase = (mode & kEraseExistingMode) != 0;
+            bool append = (mode & kAppendMode) != 0;
+
+            if (!wantsRead && !wantsWrite)
+            {
+                return Failed(StatusCodes.BadInvalidArgument);
+            }
+            if (wantsRead && wantsWrite)
+            {
+                // FileType does not define a simultaneous read+write handle.
+                return Failed(StatusCodes.BadInvalidArgument);
+            }
+            if (!wantsWrite && (erase || append))
+            {
+                // EraseExisting and Append only qualify a write.
+                return Failed(StatusCodes.BadInvalidArgument);
+            }
+            if (erase && append)
+            {
+                return Failed(StatusCodes.BadInvalidArgument);
+            }
+
+            uint handle;
+            ResourceFileHandle entry;
             lock (m_gate)
             {
-                bool writing = (mode & kWriteMode) != 0;
-                if (writing ? !IsWriteChannelSecure(context) : !IsReadChannelSecure(context))
+                if (wantsWrite ? !IsWriteChannelSecure(context) : !IsReadChannelSecure(context))
                 {
-                    return new ValueTask<OpenMethodStateResult>(new OpenMethodStateResult
-                    {
-                        ServiceResult = StatusCodes.BadSecurityModeInsufficient
-                    });
+                    return Failed(StatusCodes.BadSecurityModeInsufficient);
                 }
-                if (writing && m_fileHandles.Count >= m_maxConcurrentUploads)
+                if (wantsWrite && m_fileHandles.Count >= m_maxConcurrentUploads)
                 {
-                    return new ValueTask<OpenMethodStateResult>(new OpenMethodStateResult
-                    {
-                        ServiceResult = StatusCodes.BadTooManyOperations
-                    });
+                    return Failed(StatusCodes.BadTooManyOperations);
                 }
 
-                uint handle = writing
-                    ? OpenWriteHandle(resource)
-                    : OpenReadHandle(resource);
-                return new ValueTask<OpenMethodStateResult>(new OpenMethodStateResult
+                // Take the slot under the lock so the bound is honoured atomically, then seed the
+                // buffer outside it. The caller cannot use the handle before Open returns, so the
+                // window in which it is not yet seeded is not observable.
+                handle = wantsWrite
+                    ? OpenWriteHandle(resource, context)
+                    : OpenReadHandle(resource, context);
+                entry = m_fileHandles[handle];
+                entry.Ready = !wantsWrite || erase;
+            }
+
+            if (!entry.Ready)
+            {
+                ByteString existing = await m_resourceStore
+                    .ReadAsync(entry.StoreKey, 0, int.MaxValue)
+                    .ConfigureAwait(false);
+
+                lock (m_gate)
                 {
-                    ServiceResult = ServiceResult.Good,
-                    FileHandle = handle
-                });
+                    if (!m_fileHandles.ContainsKey(handle))
+                    {
+                        // The resource was deleted while the store call was in flight.
+                        return Failed(StatusCodes.BadInvalidState);
+                    }
+                    if (!existing.IsNull)
+                    {
+                        entry.Buffer.AddRange(existing.Span.ToArray());
+                    }
+                    entry.Position = append ? entry.Buffer.Count : 0;
+                    entry.Ready = true;
+                }
+            }
+
+            UpdateFileProperties(resource);
+            return new OpenMethodStateResult
+            {
+                ServiceResult = ServiceResult.Good,
+                FileHandle = handle
+            };
+
+            static OpenMethodStateResult Failed(StatusCode code)
+            {
+                return new OpenMethodStateResult { ServiceResult = new ServiceResult(code) };
+            }
+        }
+
+        /// <summary>
+        /// Keeps the inherited <c>FileType</c> <c>Size</c> and <c>OpenCount</c> Properties current,
+        /// so a client that reads them before opening sees the real values.
+        /// </summary>
+        /// <param name="resource">The resource whose file Properties are refreshed.</param>
+        private void UpdateFileProperties(ResourceState resource)
+        {
+            lock (m_gate)
+            {
+                ushort open = 0;
+                foreach (ResourceFileHandle handle in m_fileHandles.Values)
+                {
+                    if (handle.ResourceNodeId == resource.NodeId)
+                    {
+                        open++;
+                    }
+                }
+                SetValue(resource.OpenCount, open);
             }
         }
 
         private ValueTask<WriteMethodStateResult> OnFileWriteAsync(
             ResourceState resource,
             uint fileHandle,
-            ByteString data)
+            ByteString data,
+            ISystemContext context)
         {
             lock (m_gate)
             {
-                if (!TryGetHandle(resource, fileHandle, out ResourceFileHandle? entry) || !entry.Writing)
+                if (!TryGetHandle(resource, fileHandle, context, out ResourceFileHandle? entry) ||
+                    !entry.Writing || !entry.Ready)
                 {
                     return new ValueTask<WriteMethodStateResult>(new WriteMethodStateResult
                     {
@@ -716,14 +821,27 @@ namespace Opc.Ua.XRegistry.Server
                 entry.Dirty = true;
                 if (!data.IsNull && data.Span.Length > 0)
                 {
-                    if (entry.Buffer.Count + data.Span.Length > m_maxResourceBytes)
+                    ReadOnlySpan<byte> span = data.Span;
+                    if (entry.Position + span.Length > m_maxResourceBytes)
                     {
                         return new ValueTask<WriteMethodStateResult>(new WriteMethodStateResult
                         {
                             ServiceResult = StatusCodes.BadRequestTooLarge
                         });
                     }
-                    entry.Buffer.AddRange(data.Span.ToArray());
+
+                    // Overwrite at the cursor and extend past the end, so a write-open that did not
+                    // erase replaces only the bytes it covers instead of truncating the document.
+                    int overwrite = Math.Min(span.Length, entry.Buffer.Count - entry.Position);
+                    for (int i = 0; i < overwrite; i++)
+                    {
+                        entry.Buffer[entry.Position + i] = span[i];
+                    }
+                    for (int i = overwrite; i < span.Length; i++)
+                    {
+                        entry.Buffer.Add(span[i]);
+                    }
+                    entry.Position += span.Length;
                 }
                 return new ValueTask<WriteMethodStateResult>(new WriteMethodStateResult
                 {
@@ -735,13 +853,14 @@ namespace Opc.Ua.XRegistry.Server
         private async ValueTask<ReadMethodStateResult> OnFileReadAsync(
             ResourceState resource,
             uint fileHandle,
-            int length)
+            int length,
+            ISystemContext context)
         {
             ResourceFileHandle? entry;
             int position;
             lock (m_gate)
             {
-                if (!TryGetHandle(resource, fileHandle, out entry) || entry.Writing)
+                if (!TryGetHandle(resource, fileHandle, context, out entry) || entry.Writing)
                 {
                     return new ReadMethodStateResult { ServiceResult = StatusCodes.BadInvalidState };
                 }
@@ -814,7 +933,7 @@ namespace Opc.Ua.XRegistry.Server
             ResourceFileHandle? entry;
             lock (m_gate)
             {
-                if (!TryGetHandle(resource, fileHandle, out entry))
+                if (!TryGetHandle(resource, fileHandle, context, out entry))
                 {
                     return new CloseMethodStateResult { ServiceResult = StatusCodes.BadInvalidState };
                 }
@@ -842,11 +961,13 @@ namespace Opc.Ua.XRegistry.Server
             // version's document, its content id and its fast-path node.
             if (!entry.Writing || !entry.Dirty)
             {
+                UpdateFileProperties(resource);
                 return new CloseMethodStateResult { ServiceResult = ServiceResult.Good };
             }
 
             if (m_contentIdProvider == null)
             {
+                UpdateFileProperties(resource);
                 return new CloseMethodStateResult { ServiceResult = StatusCodes.BadNotSupported };
             }
 
@@ -857,7 +978,8 @@ namespace Opc.Ua.XRegistry.Server
             // Replace the stored document wholesale. A plain write at offset 0 leaves any trailing
             // bytes of a larger previous version in place, which would corrupt the resource.
             _ = await m_resourceStore.DeleteAsync(entry.StoreKey).ConfigureAwait(false);
-            await m_resourceStore.WriteAsync(entry.StoreKey, 0, document).ConfigureAwait(false);
+            await m_resourceStore.WriteAsync(entry.StoreKey, 0, ByteString.From(document))
+                .ConfigureAwait(false);
 
             lock (m_gate)
             {
@@ -885,13 +1007,46 @@ namespace Opc.Ua.XRegistry.Server
                 SetValue(resource.Xid, xid);
                 SetValue(resource.Format, format);
                 SetValue(resource.ModifiedAt, DateTimeUtc.Now);
+                SetValue(resource.Size, (ulong)document.Length);
                 if (resource.Epoch != null)
                 {
                     resource.Epoch.Value++;
                 }
             }
 
+            UpdateFileProperties(resource);
             return new CloseMethodStateResult { ServiceResult = ServiceResult.Good };
+        }
+
+        /// <summary>
+        /// Releases every file handle a closing session still holds. Without this an abandoned
+        /// session's handles keep consuming the upload budget for the lifetime of the server.
+        /// </summary>
+        /// <param name="context">The operation context.</param>
+        /// <param name="sessionId">The session that is closing.</param>
+        /// <param name="deleteSubscriptions">Whether the session's subscriptions are deleted.</param>
+        public override void SessionClosing(
+            OperationContext context,
+            NodeId sessionId,
+            bool deleteSubscriptions)
+        {
+            lock (m_gate)
+            {
+                var orphaned = new List<uint>();
+                foreach (KeyValuePair<uint, ResourceFileHandle> handle in m_fileHandles)
+                {
+                    if (handle.Value.SessionId == sessionId)
+                    {
+                        orphaned.Add(handle.Key);
+                    }
+                }
+                foreach (uint handle in orphaned)
+                {
+                    m_fileHandles.Remove(handle);
+                }
+            }
+
+            base.SessionClosing(context, sessionId, deleteSubscriptions);
         }
 
         /// <summary>
@@ -979,20 +1134,39 @@ namespace Opc.Ua.XRegistry.Server
             }
         }
 
-        private uint OpenWriteHandle(ResourceState resource)
+        private uint OpenWriteHandle(ResourceState resource, ISystemContext? context = null)
         {
             uint handle = ++m_nextFileHandle;
             m_fileHandles[handle] = new ResourceFileHandle(
-                StoreKeyOf(resource), resource.NodeId, writing: true);
+                StoreKeyOf(resource), resource.NodeId, writing: true)
+            {
+                SessionId = SessionIdOf(context),
+                Ready = true
+            };
             return handle;
         }
 
-        private uint OpenReadHandle(ResourceState resource)
+        private uint OpenReadHandle(ResourceState resource, ISystemContext? context = null)
         {
             uint handle = ++m_nextFileHandle;
             m_fileHandles[handle] = new ResourceFileHandle(
-                StoreKeyOf(resource), resource.NodeId, writing: false);
+                StoreKeyOf(resource), resource.NodeId, writing: false)
+            {
+                SessionId = SessionIdOf(context),
+                Ready = true
+            };
             return handle;
+        }
+
+        /// <summary>
+        /// Gets the session a call arrived on, or a null NodeId for an in-process call.
+        /// </summary>
+        /// <param name="context">The system context of the call.</param>
+        private static NodeId SessionIdOf(ISystemContext? context)
+        {
+            return context is ISessionSystemContext { SessionId: { IsNull: false } sessionId }
+                ? sessionId
+                : NodeId.Null;
         }
 
         /// <summary>
@@ -1003,17 +1177,19 @@ namespace Opc.Ua.XRegistry.Server
         /// </summary>
         /// <param name="resource">The resource whose Method was invoked.</param>
         /// <param name="fileHandle">The handle supplied by the caller.</param>
+        /// <param name="context">The system context, used to check the owning session.</param>
         /// <param name="entry">The resolved handle when it is valid for this resource.</param>
         private bool TryGetHandle(
             ResourceState resource,
             uint fileHandle,
+            ISystemContext context,
             [NotNullWhen(true)] out ResourceFileHandle? entry)
         {
             if (!m_fileHandles.TryGetValue(fileHandle, out entry))
             {
                 return false;
             }
-            if (entry.ResourceNodeId != resource.NodeId)
+            if (entry.ResourceNodeId != resource.NodeId || entry.SessionId != SessionIdOf(context))
             {
                 entry = null;
                 return false;
@@ -1026,13 +1202,37 @@ namespace Opc.Ua.XRegistry.Server
             return resource.NodeId.ToString() ?? string.Empty;
         }
 
-        private string NextVersionId(string resourceId)
+        /// <summary>
+        /// Assigns the next free version identifier for a resource. The counter is scoped to the
+        /// owning group, and the candidate is advanced past any version the caller created
+        /// explicitly, so an auto-assigned id can never collide with an existing one. The caller
+        /// holds <see cref="m_gate"/>.
+        /// </summary>
+        /// <param name="groupNodeId">The group that owns the resource.</param>
+        /// <param name="resourceId">The resource whose next version is assigned.</param>
+        private string NextVersionId(NodeId groupNodeId, string resourceId)
         {
-            m_versionCounters.TryGetValue(resourceId, out uint current);
-            current++;
-            m_versionCounters[resourceId] = current;
-            return current.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            var counterKey = new VersionCounterKey(groupNodeId, resourceId);
+            m_versionCounters.TryGetValue(counterKey, out uint current);
+
+            string candidate;
+            do
+            {
+                current++;
+                candidate = current.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            }
+            while (m_resources.ContainsKey(new ResourceKey(groupNodeId, resourceId, candidate)));
+
+            m_versionCounters[counterKey] = current;
+            return candidate;
         }
+
+        /// <summary>
+        /// Identity of a version counter: the counter is per resource within a group, not global.
+        /// </summary>
+        /// <param name="GroupNodeId">The group that owns the resource.</param>
+        /// <param name="ResourceId">The resource id.</param>
+        private readonly record struct VersionCounterKey(NodeId GroupNodeId, string ResourceId);
 
         /// <summary>
         /// Identity of a resource version within a group.
@@ -1053,7 +1253,19 @@ namespace Opc.Ua.XRegistry.Server
             /// </summary>
             public NodeId ResourceNodeId { get; } = resourceNodeId;
 
+            /// <summary>
+            /// The session that opened the handle, or a null NodeId for an in-process call (the
+            /// server's own bootstrap). A handle is only valid to the session that owns it.
+            /// </summary>
+            public NodeId SessionId { get; set; }
+
             public bool Writing { get; } = writing;
+
+            /// <summary>
+            /// Whether the handle has finished being seeded from the store. A write handle that does
+            /// not erase starts from the stored document, which is read outside the lock.
+            /// </summary>
+            public bool Ready { get; set; }
 
             /// <summary>
             /// Whether anything was actually written through this handle. Closing a write handle
@@ -1271,7 +1483,7 @@ namespace Opc.Ua.XRegistry.Server
         private readonly Dictionary<NodeId, GroupState> m_groupsByNodeId = [];
         private readonly Dictionary<ResourceKey, ResourceState> m_resources = [];
         private readonly Dictionary<uint, ResourceFileHandle> m_fileHandles = [];
-        private readonly Dictionary<string, uint> m_versionCounters = [];
+        private readonly Dictionary<VersionCounterKey, uint> m_versionCounters = [];
         private readonly Dictionary<string, int> m_fastPathReferences = [];
         private readonly string m_namespaceUri;
         private readonly string m_registryBrowseName;
@@ -1287,7 +1499,10 @@ namespace Opc.Ua.XRegistry.Server
         private uint m_nextInstanceId = XRegistryWellKnown.FirstDynamicInstance;
         private uint m_nextFileHandle;
         private int m_registeredResourceCount;
+        private const byte kReadMode = 1;
         private const byte kWriteMode = 2;
+        private const byte kEraseExistingMode = 4;
+        private const byte kAppendMode = 8;
         private const string kDefaultFormat = "avro";
     }
 }
