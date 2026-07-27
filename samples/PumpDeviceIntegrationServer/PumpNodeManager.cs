@@ -273,6 +273,13 @@ namespace Pumps
             await AddPredefinedNodeAsync(SystemContext, pump, cancellationToken)
                 .ConfigureAwait(false);
 
+            // Variables hand-built onto the pump (rather than materialised by the
+            // generated factory) are reachable by browse and read, but a monitored
+            // item never samples them unless they are registered in their own
+            // right -- register them explicitly so the OpenUSD bindings that use
+            // them are live.
+            await RegisterOpenUsdSignalsAsync(cancellationToken).ConfigureAwait(false);
+
             m_logger.MaterialisedPump(pumpBrowseName.Name, pump.NodeId);
             return pump;
         }

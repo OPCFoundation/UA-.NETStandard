@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
@@ -56,6 +57,12 @@ namespace Pumps
         private long m_numberOfStarts;
 
         /// <summary>
+        /// Simulation tick period in milliseconds. Time-based fault injection is
+        /// expressed in ticks, so changing this rescales the fault cadence.
+        /// </summary>
+        private const double SimulationTickMilliseconds = 250;
+
+        /// <summary>
         /// ── Latest simulated values, updated by the simulation tick. ──
         /// </summary>
         private double m_currentPressure;
@@ -67,6 +74,38 @@ namespace Pumps
         private double m_currentLevel = 2.5;
         private bool m_cavitation;
         private bool m_motorOverheat;
+        private double m_shaftAngle;
+
+        /// <summary>
+        /// Nominal speed of a 2-pole 50 Hz pump set, in revolutions per minute.
+        /// </summary>
+        private const double NominalRpm = 2900.0;
+
+        /// <summary>
+        /// Mass flow at the nominal duty point, in kilograms per second. The
+        /// shaft turns in proportion to how close the pump is to this point.
+        /// </summary>
+        private const double NominalFlow = 0.05;
+
+        /// <summary>
+        /// Measurement variables captured as the address space is built, paired
+        /// with the getter that yields their latest simulated value. The
+        /// simulation tick pushes each one so subscribing clients observe the
+        /// change; the <c>OnRead</c> handler alone only serves polled reads.
+        /// </summary>
+        private readonly List<(BaseVariableState Variable, Func<double> Getter)> m_liveMeasurements = [];
+
+        /// <summary>
+        /// The supervision alarm state the OpenUSD status-light binding follows.
+        /// </summary>
+        private bool AlarmActive => m_cavitation || m_motorOverheat;
+
+        /// <summary>
+        /// Shaft angular position in degrees, integrated from the running speed.
+        /// Unbounded on purpose: wrapping at 360 would make a client that
+        /// interpolates between samples spin the shaft backwards across the wrap.
+        /// </summary>
+        private double ShaftAngleDegrees => Volatile.Read(ref m_shaftAngle);
 
         partial void Configure(INodeManagerBuilder builder)
         {
@@ -80,7 +119,7 @@ namespace Pumps
             // Single manager-owned simulation tick advances all live
             // measurements at 250 ms intervals; lets time-based fault
             // injection work cleanly.
-            builder.Simulation(TimeSpan.FromMilliseconds(250))
+            builder.Simulation(TimeSpan.FromMilliseconds(SimulationTickMilliseconds))
                 .OnTick((ctx, elapsed) => AdvanceSimulation());
         }
 
@@ -232,7 +271,7 @@ namespace Pumps
         /// <param name="units"></param>
         /// <param name="min"></param>
         /// <param name="max"></param>
-        private static void AddMeasurement(
+        private void AddMeasurement(
             INodeManagerBuilder builder,
             string browsePath,
             Func<double> getter,
@@ -240,10 +279,12 @@ namespace Pumps
             double min,
             double max)
         {
-            builder.Variable<double>(browsePath)
+            IVariableBuilder<double> measurement = builder.Variable<double>(browsePath)
                 .OnRead(getter)
                 .WithEngineeringUnits(units)
                 .WithEURange(min, max);
+
+            m_liveMeasurements.Add((measurement.Node, getter));
         }
 
         /// <summary>
@@ -261,14 +302,23 @@ namespace Pumps
             m_currentEfficiency = 75.0 + (10.0 * Math.Sin(t * 0.015));
             m_currentLevel = 2.5 + (0.5 * Math.Sin(t * 0.02));
 
-            // Fault injection — supervision flags transition true/false.
+            // Integrate the shaft position from the running speed so the twin
+            // shows the pump actually turning. Speed follows flow, so the
+            // impeller visibly slows and picks up with the duty point.
+            double rpm = NominalRpm * (m_currentFlow / NominalFlow);
+            double seconds = SimulationTickMilliseconds / 1000.0;
+            Volatile.Write(ref m_shaftAngle, m_shaftAngle + (rpm * 6.0 * seconds));
+
+            // Fault injection - supervision flags transition true/false. The
+            // OpenUSD status-light binding follows them via PublishMeasurements.
             m_cavitation = (t % 120) > 100;
             m_motorOverheat = (t % 200) > 190;
 
-            // Drive the 0.2 OpenUSD alarm-active demo signal from the supervision
-            // flags so a connector's UaAlarmToUsd binding toggles StatusLight
-            // visibility live. Subscriptions see each transition.
-            UpdateAlarmActive(m_cavitation || m_motorOverheat);
+            // Push every live signal onto its Variable so subscribing clients
+            // observe the change. The OnRead handlers only serve polled reads --
+            // without this a monitored item never reports a data change and an
+            // OpenUSD twin driven from a subscription renders frozen.
+            PublishMeasurements();
 
             // Periodic restart simulation — every 3600 ticks (~15 min at 250ms).
             if (t % 3600 == 0)
@@ -277,21 +327,34 @@ namespace Pumps
             }
         }
 
-        // Toggles the AlarmActive demo Variable bound to the OpenUSD status-light
-        // visibility (UaAlarmToUsd). ClearChangeMasks lets subscriptions observe it.
-        private void UpdateAlarmActive(bool active)
+        // Publishes the latest simulated value of every measurement Variable.
+        // ClearChangeMasks is what turns a value update into a data-change
+        // notification for monitored items.
+        /// <summary>
+        /// Adds a Variable to the set the simulation tick publishes.
+        /// </summary>
+        private void TrackSignal(BaseVariableState variable, Func<double> getter)
         {
-            BaseDataVariableState? v = m_alarmActiveVar;
-            if (v == null)
+            m_liveMeasurements.Add((variable, getter));
+        }
+
+        private void PublishMeasurements()
+        {
+            DateTime now = DateTime.UtcNow;
+            foreach ((BaseVariableState variable, Func<double> getter) in m_liveMeasurements)
             {
-                return;
+                variable.Value = getter();
+                variable.Timestamp = now;
+                variable.ClearChangeMasks(SystemContext, includeChildren: false);
             }
-            bool current = v.Value.TryGetValue(out bool b) && b;
-            if (current != active)
+            // The alarm flag rides the same path. Publishing it every tick rather
+            // than only on transition is what makes a monitored item observe it.
+            BaseDataVariableState? alarm = m_alarmActiveVar;
+            if (alarm != null)
             {
-                v.Value = active;
-                v.Timestamp = DateTime.UtcNow;
-                v.ClearChangeMasks(SystemContext, includeChildren: false);
+                alarm.Value = AlarmActive;
+                alarm.Timestamp = now;
+                alarm.ClearChangeMasks(SystemContext, includeChildren: false);
             }
         }
     }

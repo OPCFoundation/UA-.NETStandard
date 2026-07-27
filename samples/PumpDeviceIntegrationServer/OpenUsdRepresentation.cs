@@ -52,6 +52,43 @@ namespace Pumps
         private OpenUsdStageState? m_plantStage;
         private BaseDataVariableState? m_alarmActiveVar;
         private BaseDataVariableState? m_speedSetpointVar;
+        private BaseDataVariableState? m_shaftAngleVar;
+
+        /// <summary>
+        /// Rate at which the server samples the hand-built OpenUSD signals, in
+        /// milliseconds. Matches the simulation tick so every change is observed.
+        /// </summary>
+        private const double SignalSamplingIntervalMilliseconds = 250;
+
+        /// <summary>
+        /// Registers the Variables that are hand-built onto the pump rather than
+        /// materialised by the generated factory. A generated instance state only
+        /// reports its declared members, so these children are never picked up by
+        /// the walk that <c>AddPredefinedNodeAsync(pump)</c> performs: they browse
+        /// and read correctly but are never sampled, which leaves any binding that
+        /// uses them frozen at its start-up value.
+        /// </summary>
+        private async ValueTask RegisterOpenUsdSignalsAsync(CancellationToken cancellationToken)
+        {
+            foreach (BaseDataVariableState? signal in new[]
+            {
+                m_alarmActiveVar, m_shaftAngleVar, m_speedSetpointVar
+            })
+            {
+                if (signal != null)
+                {
+                    await AddPredefinedNodeAsync(SystemContext, signal, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+            }
+            // Push the shaft angle from the same loop that drives the generated
+            // measurement Variables, so it uses the one path proven to raise
+            // data-change notifications.
+            if (m_shaftAngleVar != null)
+            {
+                TrackSignal(m_shaftAngleVar, () => ShaftAngleDegrees);
+            }
+        }
 
         private const string PlantRootLayerIdentifier = "asset-repo/Plant.usd";
         private const string PumpPrimPath = "/Plant/Pumps/P101";
@@ -209,29 +246,65 @@ namespace Pumps
             rep.CreateOrReplacePrimPath(SystemContext, null!).Value = PumpPrimPath;
 
             MeasurementsState? m = pump.Operational?.Measurements;
-            NodeId massFlow = m?.MassFlow?.NodeId ?? NodeId.Null;
             NodeId bearingTemp = m?.BearingTemperature?.NodeId ?? NodeId.Null;
             NodeId diffPressure = m?.DifferentialPressure?.NodeId ?? NodeId.Null;
-
-            CreateBinding(rep, ns, "MassFlowSpin",
-                new Guid("6e63cf2c-f2de-4f78-a8f8-f0ccdbb7647a"),
-                massFlow, "/Plant/Pumps/P101/Impeller", "xformOp:rotateZ", "double",
-                OpenUsdRenderTargetKindEnum.Rotation, 1.0,
-                sourceSemanticId: MassFlowSemanticId);
-            CreateBinding(rep, ns, "BearingTempColor",
-                new Guid("b1a1f6f0-5c2b-5a1e-9f3a-2b7c4d8e0011"),
-                bearingTemp, "/Plant/Pumps/P101/Body", "primvars:displayColor", "color3f",
-                OpenUsdRenderTargetKindEnum.DisplayColor, 1.0);
-            CreateBinding(rep, ns, "DiffPressureEmissive",
-                new Guid("c2b2a7e1-6d3c-5b2f-a04b-3c8d5e9f1122"),
-                diffPressure, "/Plant/Pumps/P101/StatusLight/Mat/Surface", "inputs:emissiveColor", "color3f",
-                OpenUsdRenderTargetKindEnum.EmissiveColor, 1.0);
 
             // 0.2 UaAlarmToUsd: a supervision alarm active-state drives the status
             // light visibility. A dedicated Boolean variable exposes the alarm
             // aspect the simulation toggles (see AdvanceSimulation).
             m_alarmActiveVar = CreatePumpVariable(
                 pump, "AlarmActive", Opc.Ua.DataTypeIds.Boolean, new Variant(false), writable: false);
+            // Serve the live flag from the simulation. The Variable is registered
+            // in its own right by RegisterOpenUsdSignalsAsync, which is what lets
+            // a monitored item sample it.
+            m_alarmActiveVar.MinimumSamplingInterval = SignalSamplingIntervalMilliseconds;
+            m_alarmActiveVar.OnSimpleReadValue =
+                (ISystemContext context, NodeState node, ref Variant value) =>
+                {
+                    value = new Variant(AlarmActive);
+                    return ServiceResult.Good;
+                };
+
+            // Shaft angular position. This is what makes the twin *look* like it
+            // is running: MassFlow is a rate, so binding it straight to a rotation
+            // op only ever produces a fixed fraction of a degree. Integrating it
+            // into an angle gives the impeller and coupling a continuous spin.
+            m_shaftAngleVar = CreatePumpVariable(
+                pump, "ShaftAngle", Opc.Ua.DataTypeIds.Double, new Variant(0.0), writable: false);
+            m_shaftAngleVar.MinimumSamplingInterval = SignalSamplingIntervalMilliseconds;
+            m_shaftAngleVar.OnSimpleReadValue =
+                (ISystemContext context, NodeState node, ref Variant value) =>
+                {
+                    value = new Variant(ShaftAngleDegrees);
+                    return ServiceResult.Good;
+                };
+
+            // Shaft position -> impeller rotation. MassFlow is a *rate*, so binding
+            // it straight to a rotation op pins the shaft at a fraction of a degree;
+            // the simulation integrates it into an angle instead. The scale slows
+            // the render to a legible ~45 degrees per second - a real 2900 rpm shaft
+            // would alias into a stroboscopic blur at any practical sampling rate.
+            CreateBinding(rep, ns, "ShaftSpin",
+                new Guid("6e63cf2c-f2de-4f78-a8f8-f0ccdbb7647a"),
+                m_shaftAngleVar.NodeId, "/Plant/Pumps/P101/Impeller", "xformOp:rotateZ", "double",
+                OpenUsdRenderTargetKindEnum.Rotation, 0.0025,
+                sourceSemanticId: MassFlowSemanticId);
+            // BearingTemperature is published in Kelvin (OPC 40223), but the
+            // DisplayColor render target ramps blue -> red over 20..100 degrees
+            // Celsius, so the binding declares the -273.15 shift.
+            CreateBinding(rep, ns, "BearingTempColor",
+                new Guid("b1a1f6f0-5c2b-5a1e-9f3a-2b7c4d8e0011"),
+                bearingTemp, "/Plant/Pumps/P101/Body/Mat/Surface", "inputs:diffuseColor", "color3f",
+                OpenUsdRenderTargetKindEnum.DisplayColor, 1.0,
+                offset: -273.15);
+
+            // DifferentialPressure is published in Pascal; the EmissiveColor
+            // render target brightens over 0..6 bar, so scale Pa -> bar.
+            CreateBinding(rep, ns, "DiffPressureEmissive",
+                new Guid("c2b2a7e1-6d3c-5b2f-a04b-3c8d5e9f1122"),
+                diffPressure, "/Plant/Pumps/P101/StatusLight/Mat/Surface", "inputs:emissiveColor", "color3f",
+                OpenUsdRenderTargetKindEnum.EmissiveColor, 0.00001);
+
             CreateBinding(rep, ns, "AlarmActiveVisibility",
                 new Guid("d3c3b8f2-7e4d-5c30-b15c-4d9e6a0b2233"),
                 m_alarmActiveVar.NodeId, "/Plant/Pumps/P101/StatusLight", "visibility", "token",
@@ -370,13 +443,25 @@ namespace Pumps
             string? sourceSemanticId = null,
             OpenUsdAlarmAspectEnum? alarmAspect = null,
             NodeId commandTargetNodeId = default,
-            string? commandTriggerPropertyName = null)
+            string? commandTriggerPropertyName = null,
+            double offset = 0.0)
         {
-            _ = rep.AddLiveBinding(
+            OpenUsdLiveBindingState binding = rep.AddLiveBinding(
                 SystemContext, ns, m_plantStage!.NodeId, name, bindingDefinitionId, sourceNodeId,
                 targetPrimPath, targetPropertyName, targetUsdTypeName, kind, scale,
                 bindingTypeId, signalRole, sourceSemanticId, alarmAspect,
                 commandTargetNodeId, commandTriggerPropertyName);
+
+            // 5.8 applies Scale then Offset. AddLiveBinding only sets Scale, so an
+            // additive term (such as the Kelvin -> Celsius shift the DisplayColor
+            // render target expects) has to be authored here.
+            if (offset != 0.0)
+            {
+                binding.CreateOrReplaceOffset(
+                    SystemContext,
+                    SystemContext.CreateOpenUsdLiveBindingType_Offset(binding, forInstance: true))
+                    .Value = offset;
+            }
         }
     }
 
