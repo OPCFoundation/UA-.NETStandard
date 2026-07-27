@@ -58,7 +58,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 [new HttpBindingPlanner()],
                 [new HttpWotBindingExecutor(options ?? new HttpWotBindingOptions
                 {
-                    ClientFactory = () => new HttpClient()
+                    ClientFactory = () => new HttpClient(),
+                    CallerClientHandlesRedirectSafety = true
                 })],
                 bounds: bounds);
         }
@@ -285,6 +286,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 options: new HttpWotBindingOptions
                 {
                     ClientFactory = () => new HttpClient(),
+                    CallerClientHandlesRedirectSafety = true,
                     ObserveInterval = TimeSpan.FromMilliseconds(100)
                 });
 
@@ -325,6 +327,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 options: new HttpWotBindingOptions
                 {
                     ClientFactory = () => new HttpClient(),
+                    CallerClientHandlesRedirectSafety = true,
                     ObserveInterval = TimeSpan.FromMilliseconds(100)
                 });
 
