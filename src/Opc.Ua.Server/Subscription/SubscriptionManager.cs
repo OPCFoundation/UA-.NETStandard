@@ -1404,17 +1404,6 @@ namespace Opc.Ua.Server
 
                     // check if new and old sessions are different
                     ISession ownerSession = subscription.Session;
-                    if (ownerSession is { IsClosing: true })
-                    {
-                        result.StatusCode = StatusCodes.BadSessionClosed;
-                        results.Add(result);
-                        if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
-                        {
-                            diagnosticInfos.Add(null!);
-                        }
-                        continue;
-                    }
-
                     if (ownerSession != null &&
                         !ownerSession.Id.IsNull &&
                         ownerSession.Id == context.Session.Id)

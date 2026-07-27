@@ -1185,7 +1185,6 @@ namespace Opc.Ua.Server
             m_lastValue = value;
             m_lastError = error;
             m_readyToPublish = true;
-            m_readyToTrigger = true;
 
             m_logger.QUEUEVALUEMonitoredItemIdValueValueCODECode(
                 Id,
