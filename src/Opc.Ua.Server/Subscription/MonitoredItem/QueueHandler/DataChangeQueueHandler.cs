@@ -195,7 +195,6 @@ namespace Opc.Ua.Server
             m_overflow = default;
             m_overflowPending = false;
             m_timeProvider = timeProvider ?? TimeProvider.System;
-            RestoreQueueState();
             SetSamplingInterval(samplingInterval);
         }
 
@@ -219,10 +218,14 @@ namespace Opc.Ua.Server
             m_dataValueQueue.ResetQueue(physicalQueueSize, m_queueErrors);
             m_overflow = default;
             m_overflowPending = false;
-            ResetQueueState();
+
+            DataValue required = m_required;
+            bool requiredPending = m_requiredPending;
+            m_required = default;
+            m_requiredPending = false;
             foreach (QueuedValue queuedValue in existingValues)
             {
-                if (queuedValue.Required)
+                if (requiredPending && required == queuedValue.Value)
                 {
                     EnqueueRequired(queuedValue.Value, queuedValue.Error);
                 }
@@ -282,11 +285,6 @@ namespace Opc.Ua.Server
             ServiceResult error,
             out bool queued)
         {
-            if (m_lifecycleBoundaryQueued)
-            {
-                return Enqueue(value, error, out queued);
-            }
-
             long now = m_timeProvider.GetTimestampMilliseconds();
 
             if (m_dataValueQueue.ItemsInQueue > 0)
@@ -295,7 +293,10 @@ namespace Opc.Ua.Server
                 if (now < m_nextSampleTime)
                 {
                     m_dataValueQueue.TryPeekLastValue(out DataValue overwrittenValue);
-                    if (m_lastEnqueuedRequired)
+
+                    // The missing-node marker has to reach the Client, so it is never replaced
+                    // by a newer sample.
+                    if (IsRequiredMarker(overwrittenValue))
                     {
                         return Enqueue(value, error, out queued);
                     }
@@ -346,13 +347,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets whether a required missing-node marker is pending.
         /// </summary>
-        internal bool HasRequiredValues => m_requiredValueCount > 0;
-
-        /// <summary>
-        /// Gets whether values remain in an active lifecycle publication sequence.
-        /// </summary>
-        internal bool HasLifecycleValues =>
-            m_lifecycleBoundaryQueued && m_dataValueQueue.ItemsInQueue > 0;
+        internal bool HasRequiredValues => m_requiredPending;
 
         /// <summary>
         /// Deques the last item
@@ -362,39 +357,12 @@ namespace Opc.Ua.Server
             out ServiceResult error,
             bool noEventLog = false)
         {
-            return PublishSingleValue(out value, out error, out _, noEventLog);
-        }
-
-        /// <summary>
-        /// Dequeues the oldest item and reports whether it is a protected lifecycle marker.
-        /// </summary>
-        internal bool PublishSingleValue(
-            out DataValue value,
-            out ServiceResult error,
-            out bool required,
-            bool noEventLog = false)
-        {
             if (m_dataValueQueue.Dequeue(out value, out error))
             {
-                required = DequeueRequiredFlag(value, error);
-                if (required)
+                if (IsRequiredMarker(value))
                 {
-                    m_requiredValueCount--;
-                }
-                else if (m_lifecycleBoundaryQueued)
-                {
-                    if (m_ordinaryValuesBeforeLifecycle > 0)
-                    {
-                        m_ordinaryValuesBeforeLifecycle--;
-                    }
-                    else
-                    {
-                        m_lifecycleOrdinaryValueCount--;
-                    }
-                }
-                else
-                {
-                    m_ordinaryValuesBeforeLifecycle--;
+                    m_required = default;
+                    m_requiredPending = false;
                 }
 
                 if (m_overflowPending && m_overflow == value)
@@ -412,14 +380,9 @@ namespace Opc.Ua.Server
                         value.StatusCode.Overflow);
                 }
 
-                if (m_dataValueQueue.ItemsInQueue == 0)
-                {
-                    ResetQueueState();
-                }
-
                 return true;
             }
-            required = false;
+
             return false;
         }
 
@@ -432,12 +395,10 @@ namespace Opc.Ua.Server
             ServiceResult error,
             out bool queued)
         {
-            int ordinaryValueCount = m_lifecycleBoundaryQueued
-                ? m_lifecycleOrdinaryValueCount
-                : m_ordinaryValuesBeforeLifecycle;
-            uint ordinaryValueLimit = m_lifecycleBoundaryQueued
-                ? GetLifecycleOrdinaryValueLimit(m_requiredValueCount)
-                : m_queueSize;
+            // A pending missing-node marker sits in the queue in addition to the configured
+            // size, so it does not count towards the limit.
+            int ordinaryValueCount = m_dataValueQueue.ItemsInQueue - (m_requiredPending ? 1 : 0);
+            uint ordinaryValueLimit = m_queueSize;
 
             // check for empty queue.
             if (m_dataValueQueue.ItemsInQueue == 0)
@@ -446,8 +407,6 @@ namespace Opc.Ua.Server
 
                 EnsurePhysicalCapacity(1);
                 m_dataValueQueue.Enqueue(value, error);
-                AppendRequiredFlag(false);
-                IncrementOrdinaryValueCount();
 
                 queued = true;
                 return false;
@@ -500,56 +459,51 @@ namespace Opc.Ua.Server
 
             EnsurePhysicalCapacity((uint)m_dataValueQueue.ItemsInQueue + 1);
             m_dataValueQueue.Enqueue(value, error);
-            AppendRequiredFlag(false);
-            IncrementOrdinaryValueCount();
 
             queued = true;
             return (uint)ordinaryValueCount >= ordinaryValueLimit;
         }
 
+        /// <summary>
+        /// Queues the marker that tells the Client the monitored Node is gone. Part 4 5.13.1.5
+        /// requires the Server to return Notifications in the order they are in the queue, so the
+        /// marker keeps its natural position. It is queued in addition to the configured queue
+        /// size and is exempt from overflow discard, so a full queue cannot swallow it.
+        /// <para>
+        /// The specification defines a protected over-capacity queue entry only for Events
+        /// (EventQueueOverflowEventType), and separately says a size-one queue always holds the
+        /// newest Notification. Issue #4102 tracks the clarification and records where to change
+        /// this if the behaviour chosen here turns out to be non-compliant.
+        /// </para>
+        /// </summary>
+        /// <param name="value">The marker value.</param>
+        /// <param name="error">The marker error.</param>
         private void EnqueueRequired(DataValue value, ServiceResult error)
         {
-            if (!m_lifecycleBoundaryQueued)
-            {
-                m_lifecycleBoundaryQueued = true;
-            }
-
             EnsurePhysicalCapacity((uint)m_dataValueQueue.ItemsInQueue + 1);
             m_dataValueQueue.Enqueue(value, error);
-            AppendRequiredFlag(true);
-            m_requiredValueCount++;
+            m_required = value;
+            m_requiredPending = true;
         }
 
-        private uint GetLifecycleOrdinaryValueLimit(int requiredValueCount)
+        /// <summary>
+        /// Gets whether the queued value is the pending missing-node marker.
+        /// </summary>
+        /// <param name="value">The queued value.</param>
+        private bool IsRequiredMarker(in DataValue value)
         {
-            return (uint)requiredValueCount >= m_queueSize
-                ? 0
-                : m_queueSize - (uint)requiredValueCount;
-        }
-
-        private void IncrementOrdinaryValueCount()
-        {
-            if (m_lifecycleBoundaryQueued)
-            {
-                m_lifecycleOrdinaryValueCount++;
-            }
-            else
-            {
-                m_ordinaryValuesBeforeLifecycle++;
-            }
+            return m_requiredPending && m_required == value;
         }
 
         private bool RemoveOrdinaryValue(bool fromEnd, out DataValue discardedValue)
         {
             List<QueuedValue> values = DrainQueue();
-            int firstRequired = values.FindIndex(queuedValue => queuedValue.Required);
             int index = -1;
             if (fromEnd)
             {
                 for (int ii = values.Count - 1; ii >= 0; ii--)
                 {
-                    if (!values[ii].Required &&
-                        (!m_lifecycleBoundaryQueued || ii > firstRequired))
+                    if (!IsRequiredMarker(values[ii].Value))
                     {
                         index = ii;
                         break;
@@ -560,8 +514,7 @@ namespace Opc.Ua.Server
             {
                 for (int ii = 0; ii < values.Count; ii++)
                 {
-                    if (!values[ii].Required &&
-                        (!m_lifecycleBoundaryQueued || ii > firstRequired))
+                    if (!IsRequiredMarker(values[ii].Value))
                     {
                         index = ii;
                         break;
@@ -579,26 +532,16 @@ namespace Opc.Ua.Server
             discardedValue = values[index].Value;
             values.RemoveAt(index);
             RestorePhysicalQueue(values);
-            if (m_lifecycleBoundaryQueued)
-            {
-                m_lifecycleOrdinaryValueCount--;
-            }
-            else
-            {
-                m_ordinaryValuesBeforeLifecycle--;
-            }
             return true;
         }
 
         private bool SetOverflowOnOldestOrdinaryValue()
         {
             List<QueuedValue> values = DrainQueue();
-            int firstRequired = values.FindIndex(queuedValue => queuedValue.Required);
             bool overflowSet = false;
             for (int ii = 0; ii < values.Count; ii++)
             {
-                if (!values[ii].Required &&
-                    (!m_lifecycleBoundaryQueued || ii > firstRequired))
+                if (!IsRequiredMarker(values[ii].Value))
                 {
                     DataValue value = values[ii].Value;
                     ServiceResult error = values[ii].Error;
@@ -638,8 +581,7 @@ namespace Opc.Ua.Server
             {
                 if (m_dataValueQueue.Dequeue(out DataValue value, out ServiceResult error))
                 {
-                    values.Add(
-                        new QueuedValue(value, error, DequeueRequiredFlag(value, error)));
+                    values.Add(new QueuedValue(value, error));
                     spinWait.Reset();
                     failedAttempts = 0;
                     continue;
@@ -665,90 +607,16 @@ namespace Opc.Ua.Server
             RefillPhysicalQueue(values);
         }
 
-        private void RestoreQueueState()
-        {
-            List<QueuedValue> values = DrainQueue();
-            bool lifecycleBoundaryFound = false;
-            for (int ii = 0; ii < values.Count; ii++)
-            {
-                // A restored durable queue carries no marker flags, so the status code is the
-                // only signal available here. This best-effort classification is deliberately
-                // limited to restore: live values are classified by QueueRequiredValue alone.
-                bool required = IsRequiredMarker(values[ii].Value, values[ii].Error);
-                values[ii] = values[ii] with { Required = required };
-
-                if (required)
-                {
-                    lifecycleBoundaryFound = true;
-                    m_lifecycleBoundaryQueued = true;
-                    m_requiredValueCount++;
-                }
-                else if (lifecycleBoundaryFound)
-                {
-                    m_lifecycleOrdinaryValueCount++;
-                }
-                else
-                {
-                    m_ordinaryValuesBeforeLifecycle++;
-                }
-            }
-
-            RefillPhysicalQueue(values);
-        }
-
-        private void ResetQueueState()
-        {
-            m_lifecycleBoundaryQueued = false;
-            m_ordinaryValuesBeforeLifecycle = 0;
-            m_lifecycleOrdinaryValueCount = 0;
-            m_requiredValueCount = 0;
-            m_requiredFlags.Clear();
-            m_lastEnqueuedRequired = false;
-        }
-
         /// <summary>
-        /// Records whether the value appended to the physical queue is a protected
-        /// lifecycle marker.
+        /// Refills the physical queue from the drained values.
         /// </summary>
-        private void AppendRequiredFlag(bool required)
-        {
-            m_requiredFlags.Enqueue(required);
-            m_lastEnqueuedRequired = required;
-        }
-
-        /// <summary>
-        /// Consumes the marker flag of the value removed from the front of the queue.
-        /// </summary>
-        private bool DequeueRequiredFlag(in DataValue value, ServiceResult? error)
-        {
-            if (m_requiredFlags.Count > 0)
-            {
-                return m_requiredFlags.Dequeue();
-            }
-
-            // The physical queue was populated without the handler, so fall back to the
-            // best-effort status code classification used for restored durable queues.
-            return IsRequiredMarker(value, error);
-        }
-
-        /// <summary>
-        /// Refills the physical queue and rebuilds the marker flags from the drained values.
-        /// </summary>
+        /// <param name="values">The values to put back.</param>
         private void RefillPhysicalQueue(List<QueuedValue> values)
         {
-            m_requiredFlags.Clear();
-            m_lastEnqueuedRequired = false;
             foreach (QueuedValue queuedValue in values)
             {
                 m_dataValueQueue.Enqueue(queuedValue.Value, queuedValue.Error);
-                AppendRequiredFlag(queuedValue.Required);
             }
-        }
-
-        private static bool IsRequiredMarker(in DataValue value, ServiceResult? error)
-        {
-            return error?.StatusCode.Code == StatusCodes.BadNodeIdUnknown.Code ||
-                (!value.IsNull && value.StatusCode.Code == StatusCodes.BadNodeIdUnknown.Code);
         }
 
         /// <summary>
@@ -809,17 +677,10 @@ namespace Opc.Ua.Server
         private readonly Action m_discardedValueHandler;
         private DataValue m_overflow;
         private bool m_overflowPending;
-        private bool m_lifecycleBoundaryQueued;
-        private int m_ordinaryValuesBeforeLifecycle;
-        private int m_lifecycleOrdinaryValueCount;
-        private int m_requiredValueCount;
-        private readonly Queue<bool> m_requiredFlags = [];
-        private bool m_lastEnqueuedRequired;
+        private DataValue m_required;
+        private bool m_requiredPending;
 
-        private readonly record struct QueuedValue(
-            DataValue Value,
-            ServiceResult Error,
-            bool Required);
+        private readonly record struct QueuedValue(DataValue Value, ServiceResult Error);
     }
 
     /// <summary>
