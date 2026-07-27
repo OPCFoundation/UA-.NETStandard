@@ -65,7 +65,15 @@ reloaded or removed; startup, diagnostics, and core NodeManagers are protected.
 `INodeManagerLifecycle` is a host control-plane API. Do not invoke reload or removal from inside an
 OPC UA service or Method callback: teardown waits for the requests that already captured the retired
 routing generation to complete before disposing it, so a lifecycle call made from within such a
-request would wait for itself.
+request would wait for itself. The server detects this and throws `InvalidOperationException` rather
+than deadlocking. Detection relies on the request being dispatched through the server's service
+pipeline, so as a second line of defence the wait is bounded: it lasts at most as long as the
+longest deadline still outstanding plus `RequestManager.RequestDrainTimeout`, after which the
+lifecycle operation fails with a `TimeoutException` instead of blocking indefinitely.
+
+A server that rejects requests of its own by overriding `StandardServer.OnRequestValidatedAsync`
+does not interfere with this: a rejected request is completed before the exception leaves the
+server, so it never holds a lifecycle operation up.
 
 A lifecycle operation is transactional. The replacement address space is built and validated before
 anything becomes visible to Clients, and any failure is rolled back, so Clients never observe a
@@ -81,6 +89,15 @@ incompatible NodeId is detached and publishes one `BadNodeIdUnknown` data-change
 required by OPC UA Part 4 §5.8.4.1; adding a compatible Node with the same NodeId later revalidates
 and reattaches the item automatically. Event MonitoredItems detach and recover their source binding
 without synthesizing a data-change status.
+
+That notification is queued in its natural position, because Part 4 §5.13.1.5 requires a Server to
+return notifications in the order they are in the queue. It is queued in addition to the configured
+`queueSize` and is exempt from overflow discard, mirroring the rule the same section defines for
+`EventQueueOverflowEventType`, so a full queue cannot swallow it. The specification does not state
+this explicitly for data-change notifications; issue
+[#4102](https://github.com/OPCFoundation/UA-.NETStandard/issues/4102) records the ambiguity and
+where to change the behaviour if it turns out to be non-compliant. Only one such notification is
+pending at a time, and a pending one is not preserved across a durable subscription restart.
 
 The built-in NodeManager and Subscription implementations support these transitions. A custom
 implementation that the server cannot migrate safely fails with `NotSupportedException` before any
