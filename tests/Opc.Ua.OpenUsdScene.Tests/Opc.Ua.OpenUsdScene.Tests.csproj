@@ -32,4 +32,14 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
+  <!-- The layers above are a frozen reader/materializer fixture and must not be
+       re-synchronised with the sample. The shipped MinimalRobotServer assets are linked
+       in separately so RobotAssetContractTests can assert the live OPC UA binding
+       contract against the files the server actually serves. -->
+  <ItemGroup>
+    <None Include="..\..\samples\MinimalRobotServer\Assets\*.usda"
+          Link="Assets\Sample\%(Filename)%(Extension)">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
 </Project>

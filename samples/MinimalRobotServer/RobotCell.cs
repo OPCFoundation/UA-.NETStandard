@@ -61,6 +61,10 @@ namespace Robotics
         private const uint MotionDeviceTypeId = 1004;
         private const uint AxisTypeId = 16601;
 
+        // Axis table of the reference robot, a KUKA KR 16-2. The limits are the published
+        // software limits; the home values are a plausible ready pose and match the
+        // defaults authored into robot.usda so the asset looks right when opened on its
+        // own. LinkPrimPath and RotateOp are the binding contract with the USD asset.
         private static readonly (
             string Name,
             string LinkPrimPath,
@@ -69,12 +73,12 @@ namespace Robotics
             double Min,
             double Max)[] s_axisTemplate =
         [
-            ("A1", "Base/J1", "xformOp:rotateZ", 0.0, -170.0, 170.0),
-            ("A2", "Base/J1/J2", "xformOp:rotateY", -30.0, -120.0, 120.0),
-            ("A3", "Base/J1/J2/J3", "xformOp:rotateY", 45.0, -120.0, 120.0),
-            ("A4", "Base/J1/J2/J3/J4", "xformOp:rotateX", 0.0, -180.0, 180.0),
-            ("A5", "Base/J1/J2/J3/J4/J5", "xformOp:rotateY", 60.0, -120.0, 120.0),
-            ("A6", "Base/J1/J2/J3/J4/J5/J6", "xformOp:rotateX", 0.0, -360.0, 360.0)
+            ("A1", "Base/J1", "xformOp:rotateZ", 0.0, -185.0, 185.0),
+            ("A2", "Base/J1/J2", "xformOp:rotateY", -60.0, -155.0, 35.0),
+            ("A3", "Base/J1/J2/J3", "xformOp:rotateY", 75.0, -130.0, 154.0),
+            ("A4", "Base/J1/J2/J3/J4", "xformOp:rotateX", 0.0, -350.0, 350.0),
+            ("A5", "Base/J1/J2/J3/J4/J5", "xformOp:rotateY", 45.0, -130.0, 130.0),
+            ("A6", "Base/J1/J2/J3/J4/J5/J6", "xformOp:rotateX", 0.0, -350.0, 350.0)
         ];
 
         private static readonly (string BrowseName, string PrimPath, bool HasTool, double PhaseSeconds)[] s_robots =
