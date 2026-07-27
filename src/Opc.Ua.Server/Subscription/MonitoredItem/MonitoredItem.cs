@@ -595,6 +595,39 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
+        bool IDetachableMonitoredItem.TryBeginAttach()
+        {
+            lock (m_lock)
+            {
+                if (m_isDisposed)
+                {
+                    return false;
+                }
+
+                m_isAttaching = true;
+                return true;
+            }
+        }
+
+        /// <inheritdoc/>
+        bool IDetachableMonitoredItem.EndAttach()
+        {
+            lock (m_lock)
+            {
+                m_isAttaching = false;
+                if (!m_isDisposed)
+                {
+                    return true;
+                }
+            }
+
+            // The item was deleted and disposed while it was being handed to the replacement, so
+            // the teardown that Dispose deferred runs now and the caller has to undo the attach.
+            DisposeQueueHandlers();
+            return false;
+        }
+
+        /// <inheritdoc/>
         void IDetachableMonitoredItem.MarkNodeDeleted()
         {
             lock (m_lock)
@@ -609,19 +642,6 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                m_isDetached = true;
-            }
-        }
-
-        /// <inheritdoc/>
-        void IDetachableMonitoredItem.Detach(
-            IAsyncNodeManager nodeManager,
-            object managerHandle)
-        {
-            lock (m_lock)
-            {
-                NodeManager = nodeManager ?? throw new ArgumentNullException(nameof(nodeManager));
-                ManagerHandle = managerHandle;
                 m_isDetached = true;
             }
         }
@@ -2431,15 +2451,53 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual void Dispose(bool disposing)
         {
-            if (disposing)
+            if (!disposing)
             {
-                m_dataChangeQueueHandler?.Dispose();
-                m_eventQueueHandler?.Dispose();
+                return;
             }
+
+            lock (m_lock)
+            {
+                if (m_isDisposed)
+                {
+                    return;
+                }
+
+                m_isDisposed = true;
+
+                // A NodeManager reload may be handing this item to its replacement right now.
+                // Tearing the queues down underneath it would leave the replacement sampling a
+                // disposed item, so the teardown waits for the attach to report back.
+                if (m_isAttaching)
+                {
+                    return;
+                }
+            }
+
+            DisposeQueueHandlers();
+        }
+
+        /// <summary>
+        /// Releases the queues once no attach is in flight.
+        /// </summary>
+        private void DisposeQueueHandlers()
+        {
+            DataChangeQueueHandler? dataChangeQueueHandler;
+            EventQueueHandler? eventQueueHandler;
+            lock (m_lock)
+            {
+                dataChangeQueueHandler = m_dataChangeQueueHandler;
+                eventQueueHandler = m_eventQueueHandler;
+            }
+
+            dataChangeQueueHandler?.Dispose();
+            eventQueueHandler?.Dispose();
         }
 
         private readonly Lock m_lock = new();
         private readonly ILogger m_logger;
+        private bool m_isDisposed;
+        private bool m_isAttaching;
         private readonly TimeProvider m_timeProvider;
         private IServerInternal m_server;
         private string? m_indexRange;

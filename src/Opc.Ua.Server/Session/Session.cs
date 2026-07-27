@@ -405,6 +405,50 @@ namespace Opc.Ua.Server
         public bool Activated { get; private set; }
 
         /// <summary>
+        /// Whether the session is being closed.
+        /// </summary>
+        public bool IsClosing => Volatile.Read(ref m_closingCount) > 0;
+
+        /// <summary>
+        /// Marks the session as being closed until the returned scope is disposed. Closing can be
+        /// entered more than once, so the marks are counted rather than replaced.
+        /// </summary>
+        /// <returns>The scope that clears the mark.</returns>
+        internal IDisposable MarkClosing()
+        {
+            Interlocked.Increment(ref m_closingCount);
+            return new ClosingScope(this);
+        }
+
+        /// <summary>
+        /// Clears one closing mark taken by <see cref="MarkClosing"/>.
+        /// </summary>
+        private sealed class ClosingScope : IDisposable
+        {
+            /// <summary>
+            /// Initializes a new instance of the <see cref="ClosingScope"/> class.
+            /// </summary>
+            /// <param name="session">The session that is being closed.</param>
+            public ClosingScope(Session session)
+            {
+                m_session = session;
+            }
+
+            /// <inheritdoc/>
+            public void Dispose()
+            {
+                if (!m_disposed)
+                {
+                    m_disposed = true;
+                    Interlocked.Decrement(ref m_session.m_closingCount);
+                }
+            }
+
+            private readonly Session m_session;
+            private bool m_disposed;
+        }
+
+        /// <summary>
         /// Set the ECC security policy URI
         /// </summary>
         public virtual void SetUserTokenSecurityPolicy(string securityPolicyUri)
@@ -1325,6 +1369,8 @@ namespace Opc.Ua.Server
         }
 
         private readonly Lock m_lock = new();
+        private int m_closingCount;
+        private readonly ILogger m_logger;
         private readonly ILogger m_eventLogger;
         private readonly IServerInternal m_server;
         private readonly TimeProvider m_timeProvider;

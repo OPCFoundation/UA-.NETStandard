@@ -1793,7 +1793,7 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(context));
             }
             EnsureSessionNotClosing(context);
-            if (m_server.SubscriptionManager?.IsDeleting(Id) == true)
+            if (IsDeleting)
             {
                 throw new ServiceResultException(
                     StatusCodes.BadSubscriptionIdInvalid);
@@ -1834,7 +1834,7 @@ namespace Opc.Ua.Server
                 IsDurable,
                 cancellationToken).ConfigureAwait(false);
 
-            if (m_server.SubscriptionManager?.IsDeleting(Id) == true)
+            if (IsDeleting)
             {
                 var cleanupErrors = new List<ServiceResult>(errors.Count);
                 for (int ii = 0; ii < errors.Count; ii++)
@@ -2051,7 +2051,7 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(context));
             }
             EnsureSessionNotClosing(context);
-            if (m_server.SubscriptionManager?.IsDeleting(Id) == true)
+            if (IsDeleting)
             {
                 throw new ServiceResultException(
                     StatusCodes.BadSubscriptionIdInvalid);
@@ -2444,7 +2444,7 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(context));
             }
             EnsureSessionNotClosing(context);
-            if (m_server.SubscriptionManager?.IsDeleting(Id) == true)
+            if (IsDeleting)
             {
                 throw new ServiceResultException(
                     StatusCodes.BadSubscriptionIdInvalid);
@@ -2974,10 +2974,16 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <inheritdoc/>
+        public bool IsDeleting
+        {
+            get => Volatile.Read(ref m_isDeleting) != 0;
+            set => Volatile.Write(ref m_isDeleting, value ? 1 : 0);
+        }
+
         private void EnsureSessionNotClosing(OperationContext context)
         {
-            if (context.Session is not null &&
-                m_server.IsSessionClosing(context.Session.Id))
+            if (context.Session is { IsClosing: true })
             {
                 throw new ServiceResultException(StatusCodes.BadSessionClosed);
             }
@@ -3083,6 +3089,7 @@ namespace Opc.Ua.Server
         }
 
         private readonly Lock m_lock = new();
+        private int m_isDeleting;
         private readonly IServerInternal m_server;
         private readonly TimeProvider m_timeProvider;
         private IUserIdentity? m_savedOwnerIdentity;

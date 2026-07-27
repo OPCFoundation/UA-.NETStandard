@@ -45,6 +45,13 @@ namespace Opc.Ua.Server
         bool Activated { get; }
 
         /// <summary>
+        /// Whether the session is being closed. Requests that would create new server state for
+        /// the session are rejected once this is set, because that state would be torn down again
+        /// immediately.
+        /// </summary>
+        bool IsClosing { get; }
+
+        /// <summary>
         /// The server application instance certificate used by this session.
         /// </summary>
         Certificate ServerCertificate { get; }

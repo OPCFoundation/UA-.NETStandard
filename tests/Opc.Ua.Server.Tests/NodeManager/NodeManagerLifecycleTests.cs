@@ -427,38 +427,26 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
-        public void AddAsyncFromRequestScopeRejectsWithoutInvokingFactory()
+        public void AddAsyncFromServiceDispatchScopeRejectsWithoutInvokingFactory()
         {
             IServerInternal server = m_server.CurrentInstance;
             var factory = new Mock<IAsyncNodeManagerFactory>(MockBehavior.Strict);
-            var context = new OperationContext(
-                new RequestHeader(),
-                secureChannelContext: null,
-                RequestType.Read,
-                RequestLifetime.None);
 
-            try
-            {
-                using IDisposable requestScope =
-                    server.RequestManager.EnterRequestScope(context);
+            using IDisposable dispatchScope =
+                server.RequestManager.EnterServiceDispatchScope();
 
-                Assert.That(
-                    async () => await m_server.NodeManagerLifecycle
-                        .AddAsync(factory.Object)
-                        .ConfigureAwait(false),
-                    Throws.InvalidOperationException.With.Message.Contains(
-                        "cannot run from an OPC UA request callback"));
-                factory.Verify(
-                    candidate => candidate.CreateAsync(
-                        It.IsAny<IServerInternal>(),
-                        It.IsAny<ApplicationConfiguration>(),
-                        It.IsAny<CancellationToken>()),
-                    Times.Never);
-            }
-            finally
-            {
-                server.RequestManager.RequestCompleted(context);
-            }
+            Assert.That(
+                async () => await m_server.NodeManagerLifecycle
+                    .AddAsync(factory.Object)
+                    .ConfigureAwait(false),
+                Throws.InvalidOperationException.With.Message.Contains(
+                    "cannot run from an OPC UA request callback"));
+            factory.Verify(
+                candidate => candidate.CreateAsync(
+                    It.IsAny<IServerInternal>(),
+                    It.IsAny<ApplicationConfiguration>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
         }
 
         [Test]

@@ -2947,6 +2947,35 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Dispatches an incoming request and marks the calling flow as serving that request.
+        /// <para>
+        /// The mark has to be applied here rather than while the request is being validated. An
+        /// <see cref="AsyncLocal{T}"/> written inside an <c>async</c> method is visible only to
+        /// that method and to the methods it calls, never to the caller that awaited it, so a mark
+        /// applied by <see cref="ValidateRequestAsync"/> would never reach the service handler.
+        /// Applied here it covers the handler and every NodeManager callback beneath it, which is
+        /// what lets the lifecycle API reject a re-entrant call instead of deadlocking on its own
+        /// request.
+        /// </para>
+        /// </summary>
+        /// <param name="request">The request.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        protected override async Task ProcessRequestAsync(
+            IEndpointIncomingRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            ServerInternalData? serverInternal = m_serverInternal;
+            if (serverInternal == null)
+            {
+                await base.ProcessRequestAsync(request, cancellationToken).ConfigureAwait(false);
+                return;
+            }
+
+            using IDisposable dispatchScope = serverInternal.RequestManager.EnterServiceDispatchScope();
+            await base.ProcessRequestAsync(request, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// Updates the server state.
         /// </summary>
         /// <param name="state">The state.</param>
@@ -3021,13 +3050,21 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// Verifies that the request header is valid.
+        /// <para>
+        /// This is not virtual, because a subclass that rejected a request after the request had
+        /// been registered would leave it registered forever: the caller never receives the
+        /// context, so nothing ever disposes it, and every NodeManager lifecycle operation would
+        /// then wait for a request that has already failed. Override
+        /// <see cref="OnRequestValidatedAsync"/> instead, which is invoked with the registered
+        /// request and whose failures are cleaned up here.
+        /// </para>
         /// </summary>
         /// <param name="secureChannelContext">The secure channel context.</param>
         /// <param name="requestHeader">The request header.</param>
         /// <param name="requestType">Type of the request.</param>
         /// <param name="requestLifetime">The request lifetime.</param>
         /// <exception cref="ServiceResultException"></exception>
-        protected virtual async ValueTask<OperationContext> ValidateRequestAsync(
+        protected async ValueTask<OperationContext> ValidateRequestAsync(
             SecureChannelContext secureChannelContext,
             [NotNull] RequestHeader? requestHeader,
             RequestType requestType,
@@ -3061,10 +3098,31 @@ namespace Opc.Ua.Server
             }
 
             // Hand the validated request over to its execution scope. The context owns the scope
-            // from here, so disposing the context completes the request. This is the last step, so
-            // a failure during validation cannot leave a registered request behind.
+            // from here, so disposing the context completes the request.
             context.AttachRequestScope(requestManager.EnterRequestScope(context));
+
+            try
+            {
+                await OnRequestValidatedAsync(context).ConfigureAwait(false);
+            }
+            catch
+            {
+                context.Dispose();
+                throw;
+            }
+
             return context;
+        }
+
+        /// <summary>
+        /// Called once a request has been validated and registered, so that a subclass can apply
+        /// its own admission rules. Throwing rejects the request and completes it.
+        /// </summary>
+        /// <param name="context">The context of the request that was validated.</param>
+        /// <exception cref="ServiceResultException">The request is rejected.</exception>
+        protected virtual ValueTask OnRequestValidatedAsync(OperationContext context)
+        {
+            return default;
         }
 
 
