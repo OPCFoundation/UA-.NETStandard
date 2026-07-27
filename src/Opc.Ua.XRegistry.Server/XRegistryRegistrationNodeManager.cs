@@ -502,7 +502,7 @@ namespace Opc.Ua.XRegistry.Server
             string storeKey;
             lock (m_gate)
             {
-                if (resource.Epoch != null && resource.Epoch.Value != expectedEpoch)
+                if (!IsEpochCurrent(resource.Epoch, expectedEpoch))
                 {
                     return new DeleteMethodStateResult { ServiceResult = StatusCodes.BadInvalidState };
                 }
@@ -526,7 +526,7 @@ namespace Opc.Ua.XRegistry.Server
             var storeKeys = new List<string>();
             lock (m_gate)
             {
-                if (group.Epoch != null && group.Epoch.Value != expectedEpoch)
+                if (!IsEpochCurrent(group.Epoch, expectedEpoch))
                 {
                     return new DeleteMethodStateResult { ServiceResult = StatusCodes.BadInvalidState };
                 }
@@ -970,6 +970,19 @@ namespace Opc.Ua.XRegistry.Server
             });
         }
 
+        /// <summary>
+        /// Applies the model's optimistic-concurrency check (§6.6). A non-zero
+        /// <paramref name="expectedEpoch"/> that does not equal the entity's current epoch fails the
+        /// call and makes no change; <c>0</c> disables the check, which is how a caller deliberately
+        /// forces the operation without having read the entity first.
+        /// </summary>
+        /// <param name="epoch">The entity's epoch, when it exposes one.</param>
+        /// <param name="expectedEpoch">The epoch the caller last observed, or 0 to force.</param>
+        private static bool IsEpochCurrent(PropertyState<uint>? epoch, uint expectedEpoch)
+        {
+            return expectedEpoch == 0 || epoch == null || epoch.Value == expectedEpoch;
+        }
+
         private static void SetValue<T>(PropertyState<T>? property, T value)
         {
             if (property != null)
@@ -1037,7 +1050,7 @@ namespace Opc.Ua.XRegistry.Server
 
             lock (m_gate)
             {
-                if (epoch != null && epoch.Value != expectedEpoch)
+                if (!IsEpochCurrent(epoch, expectedEpoch))
                 {
                     return new ValueTask<AddAttributeMethodStateResult>(
                         new AddAttributeMethodStateResult { ServiceResult = StatusCodes.BadInvalidState });
@@ -1082,7 +1095,7 @@ namespace Opc.Ua.XRegistry.Server
         {
             lock (m_gate)
             {
-                if (epoch != null && epoch.Value != expectedEpoch)
+                if (!IsEpochCurrent(epoch, expectedEpoch))
                 {
                     return new ValueTask<RemoveAttributeMethodStateResult>(
                         new RemoveAttributeMethodStateResult

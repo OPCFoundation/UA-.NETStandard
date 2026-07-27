@@ -201,6 +201,41 @@ namespace Opc.Ua.XRegistry.Tests
             });
         }
 
+        [Test]
+        public async Task AddAttributeWithEpochZeroForcesTheChangeAsync()
+        {
+            using XRegistryRegistrationNodeManager nm = CreateAddressSpace();
+            RegistryState registry = Registry(nm);
+
+            // Epoch starts at 1 and only ever increments, so a naive equality check would make 0
+            // permanently unusable. The model defines 0 as "do not check".
+            AddAttributeMethodStateResult result =
+                await AddAsync(nm, registry, "owner", "plant-1", 0).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(result.ServiceResult), Is.True);
+                Assert.That(FindLabel(nm, registry, "owner")!.Value, Is.EqualTo("plant-1"));
+            });
+        }
+
+        [Test]
+        public async Task RemoveAttributeWithEpochZeroForcesTheChangeAsync()
+        {
+            using XRegistryRegistrationNodeManager nm = CreateAddressSpace();
+            RegistryState registry = Registry(nm);
+            await AddAsync(nm, registry, "owner", "plant-1", registry.Epoch!.Value).ConfigureAwait(false);
+
+            RemoveAttributeMethodStateResult result =
+                await RemoveAsync(nm, registry, "owner", 0).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(result.ServiceResult), Is.True);
+                Assert.That(FindLabel(nm, registry, "owner"), Is.Null);
+            });
+        }
+
         private static ValueTask<AddAttributeMethodStateResult> AddAsync(
             XRegistryRegistrationNodeManager nm,
             RegistryState registry,
