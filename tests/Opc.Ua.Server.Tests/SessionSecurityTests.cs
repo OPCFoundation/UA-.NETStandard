@@ -311,6 +311,298 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task ActivateSessionRejectsAnonymousWhenEndpointOmitsAnonymousPolicyAsync()
+        {
+            var endpoint = new EndpointDescription
+            {
+                EndpointUrl = "opc.tcp://localhost:4840/SessionSecurity",
+                SecurityMode = MessageSecurityMode.SignAndEncrypt,
+                SecurityPolicyUri = SecurityPolicies.Basic256Sha256,
+                UserIdentityTokens = new[]
+                {
+                    new UserTokenPolicy
+                    {
+                        PolicyId = UserNamePolicyId,
+                        TokenType = UserTokenType.UserName,
+                        SecurityPolicyUri = SecurityPolicies.None
+                    }
+                }.ToArrayOf()
+            };
+            using SecuritySessionManager manager = CreateManager();
+            CreatedSession created = await CreateSessionAsync(
+                manager,
+                endpoint,
+                "channel-1",
+                m_clientCertificate).ConfigureAwait(false);
+            SignatureData signature = CreateClientSignature(
+                created.Context,
+                created.ClientNonce,
+                created.ServerNonce,
+                m_clientCertificate);
+
+            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await manager.ActivateSessionAsync(
+                    created.Context,
+                    created.Result.AuthenticationToken,
+                    signature,
+                    default,
+                    null,
+                    [],
+                    default).ConfigureAwait(false))!;
+
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenRejected));
+        }
+
+        [Test]
+        public async Task ActivationValidationRejectsMissingSecureChannelContextAsync()
+        {
+            EndpointDescription endpoint = CreateEndpoint(MessageSecurityMode.SignAndEncrypt);
+            using SecuritySessionManager manager = CreateManager();
+            CreatedSession created = await CreateSessionAsync(
+                manager,
+                endpoint,
+                "channel-1",
+                m_clientCertificate).ConfigureAwait(false);
+            var contextWithoutChannel = new OperationContext(
+                new RequestHeader(),
+                null,
+                RequestType.ActivateSession,
+                RequestLifetime.None);
+
+            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await created.Result.Session.ValidateBeforeActivateAsync(
+                    contextWithoutChannel,
+                    new SignatureData(),
+                    default,
+                    null!,
+                    default).ConfigureAwait(false))!;
+
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelIdInvalid));
+        }
+
+        [Test]
+        public async Task SynchronousActivationValidationRequiresAsyncPathForSecureEndpointsAsync()
+        {
+            EndpointDescription endpoint = CreateEndpoint(
+                MessageSecurityMode.SignAndEncrypt,
+                includeUserName: true);
+            using SecuritySessionManager manager = CreateManager();
+            CreatedSession created = await CreateSessionAsync(
+                manager,
+                endpoint,
+                "channel-1",
+                m_clientCertificate).ConfigureAwait(false);
+            SignatureData signature = CreateClientSignature(
+                created.Context,
+                created.ClientNonce,
+                created.ServerNonce,
+                m_clientCertificate);
+            var session = (Opc.Ua.Server.Session)created.Result.Session;
+
+            // The retained synchronous contract cannot verify a user token that
+            // requires decryption, so it fails closed and directs callers to
+            // ValidateBeforeActivateAsync instead of validating with less rigour.
+            ServiceResultException exception = Assert.Throws<ServiceResultException>(
+                () => session.ValidateBeforeActivate(
+                    created.Context,
+                    signature,
+                    CreateUserNameToken("alice"),
+                    null!,
+                    out _,
+                    out _))!;
+
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
+        }
+
+        [Test]
+        public async Task ActivationValidationDecodesBinaryEncodedUserIdentityTokenAsync()
+        {
+            EndpointDescription endpoint = CreateEndpoint(
+                MessageSecurityMode.None,
+                includeUserName: true,
+                securityPolicyUri: SecurityPolicies.None);
+            using SecuritySessionManager manager = CreateManager();
+            CreatedSession created = await CreateSessionAsync(
+                manager,
+                endpoint,
+                "channel-1",
+                m_clientCertificate).ConfigureAwait(false);
+            SignatureData signature = CreateClientSignature(
+                created.Context,
+                created.ClientNonce,
+                created.ServerNonce,
+                m_clientCertificate);
+
+            // Clients may send the UserIdentityToken as a raw binary body; the
+            // Server has to decode it against the matching UserTokenPolicy.
+            ExtensionObject binaryToken = EncodeAsBinaryBody(new UserNameIdentityToken
+            {
+                PolicyId = UserNamePolicyId,
+                UserName = "alice",
+                Password = ByteString.From([1, 2, 3])
+            });
+
+            (IUserIdentityTokenHandler identityToken, UserTokenPolicy? policy) =
+                await created.Result.Session.ValidateBeforeActivateAsync(
+                    created.Context,
+                    signature,
+                    binaryToken,
+                    null!,
+                    default).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(identityToken, Is.TypeOf<UserNameIdentityTokenHandler>());
+                Assert.That(
+                    ((UserNameIdentityToken)identityToken.Token).UserName,
+                    Is.EqualTo("alice"));
+                Assert.That(policy!.PolicyId, Is.EqualTo(UserNamePolicyId));
+            });
+        }
+
+        [Test]
+        public async Task ActivationValidationRejectsBinaryTokenWithUnknownPolicyAsync()
+        {
+            EndpointDescription endpoint = CreateEndpoint(
+                MessageSecurityMode.None,
+                includeUserName: true,
+                securityPolicyUri: SecurityPolicies.None);
+            using SecuritySessionManager manager = CreateManager();
+            CreatedSession created = await CreateSessionAsync(
+                manager,
+                endpoint,
+                "channel-1",
+                m_clientCertificate).ConfigureAwait(false);
+            SignatureData signature = CreateClientSignature(
+                created.Context,
+                created.ClientNonce,
+                created.ServerNonce,
+                m_clientCertificate);
+            ExtensionObject binaryToken = EncodeAsBinaryBody(new UserNameIdentityToken
+            {
+                PolicyId = "policy-that-does-not-exist",
+                UserName = "alice",
+                Password = ByteString.From([1, 2, 3])
+            });
+
+            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await created.Result.Session.ValidateBeforeActivateAsync(
+                    created.Context,
+                    signature,
+                    binaryToken,
+                    null!,
+                    default).ConfigureAwait(false))!;
+
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+        }
+
+        [Test]
+        public async Task ActivateSessionWrapsUnexpectedAuthenticationFailuresAsync()
+        {
+            EndpointDescription endpoint = CreateEndpoint(
+                MessageSecurityMode.SignAndEncrypt,
+                includeUserName: true);
+            using SecuritySessionManager manager = CreateManager();
+            CreatedSession created = await CreateSessionAsync(
+                manager,
+                endpoint,
+                "channel-1",
+                m_clientCertificate).ConfigureAwait(false);
+            SignatureData signature = CreateClientSignature(
+                created.Context,
+                created.ClientNonce,
+                created.ServerNonce,
+                m_clientCertificate);
+            manager.FailNextAuthentication(
+                new InvalidOperationException("identity store unavailable"));
+
+            // A non-ServiceResultException from an identity provider must surface
+            // as Bad_IdentityTokenInvalid rather than escaping as an internal fault.
+            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await manager.ActivateSessionAsync(
+                    created.Context,
+                    created.Result.AuthenticationToken,
+                    signature,
+                    CreateUserNameToken("alice"),
+                    null,
+                    [],
+                    default).ConfigureAwait(false))!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    exception.StatusCode,
+                    Is.EqualTo(StatusCodes.BadIdentityTokenInvalid));
+                Assert.That(
+                    exception.InnerException,
+                    Is.TypeOf<InvalidOperationException>());
+            });
+        }
+
+        [Test]
+        public async Task RestoredTransferSecurityStateRejectsInconsistentArgumentsAsync()
+        {
+            EndpointDescription endpoint = CreateEndpoint(MessageSecurityMode.SignAndEncrypt);
+            using SecuritySessionManager manager = CreateManager();
+            CreatedSession created = await CreateSessionAsync(
+                manager,
+                endpoint,
+                "channel-1",
+                m_clientCertificate).ConfigureAwait(false);
+            ISession session = created.Result.Session;
+            ByteString channelCertificate = ByteString.From(m_clientCertificate.RawData);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    () => manager.ApplyRestoredTransferSecurityState(
+                        null!,
+                        channelCertificate,
+                        SecurityPolicies.Basic256Sha256,
+                        MessageSecurityMode.SignAndEncrypt,
+                        UserTokenType.Anonymous,
+                        null),
+                    Throws.TypeOf<ArgumentNullException>());
+                Assert.That(
+                    () => manager.ApplyRestoredTransferSecurityState(
+                        session,
+                        channelCertificate,
+                        string.Empty,
+                        MessageSecurityMode.SignAndEncrypt,
+                        UserTokenType.Anonymous,
+                        null),
+                    Throws.TypeOf<ArgumentException>());
+                Assert.That(
+                    () => manager.ApplyRestoredTransferSecurityState(
+                        session,
+                        channelCertificate,
+                        SecurityPolicies.Basic256Sha256,
+                        MessageSecurityMode.SignAndEncrypt,
+                        (UserTokenType)42,
+                        "user1"),
+                    Throws.TypeOf<ArgumentOutOfRangeException>());
+                Assert.That(
+                    () => manager.ApplyRestoredTransferSecurityState(
+                        session,
+                        channelCertificate,
+                        SecurityPolicies.Basic256Sha256,
+                        MessageSecurityMode.SignAndEncrypt,
+                        UserTokenType.Anonymous,
+                        "user1"),
+                    Throws.TypeOf<ArgumentException>());
+                Assert.That(
+                    () => manager.ApplyRestoredTransferSecurityState(
+                        session,
+                        channelCertificate,
+                        SecurityPolicies.Basic256Sha256,
+                        MessageSecurityMode.SignAndEncrypt,
+                        UserTokenType.UserName,
+                        null),
+                    Throws.TypeOf<ArgumentException>());
+            });
+        }
+
+        [Test]
         public async Task NewChannelWithChangedSecurityModeIsRejectedAsync()
         {
             EndpointDescription endpoint = CreateEndpoint(MessageSecurityMode.SignAndEncrypt);
@@ -927,6 +1219,20 @@ namespace Opc.Ua.Server.Tests
             });
         }
 
+        /// <summary>
+        /// Wraps an identity token as an <see cref="ExtensionObject"/> that carries
+        /// the binary encoded body instead of the decoded instance.
+        /// </summary>
+        private ExtensionObject EncodeAsBinaryBody(UserIdentityToken token)
+        {
+            using var encoder = new BinaryEncoder(m_server.Object.MessageContext);
+            token.Encode(encoder);
+            byte[]? body = encoder.CloseAndReturnBuffer();
+            return new ExtensionObject(
+                token.BinaryEncodingId,
+                body is null ? ByteString.Empty : ByteString.From(body));
+        }
+
         private static Certificate CreateCertificate(string subject)
         {
             return s_certificateFactory
@@ -1037,6 +1343,12 @@ namespace Opc.Ua.Server.Tests
                     throw new ArgumentNullException(nameof(exception));
             }
 
+            public void FailNextAuthentication(Exception exception)
+            {
+                m_authenticationFailure = exception ??
+                    throw new ArgumentNullException(nameof(exception));
+            }
+
             public bool CallbackObservedReleasedGate { get; private set; }
 
             public Task PendingCallbackOperation { get; private set; } =
@@ -1045,6 +1357,27 @@ namespace Opc.Ua.Server.Tests
             public void ProbeGateOnNextActivation()
             {
                 Volatile.Write(ref m_probeGateOnNextActivation, 1);
+            }
+
+            /// <summary>
+            /// Exposes the protected restore hook so its argument validation can
+            /// be exercised without a full distributed Session restore.
+            /// </summary>
+            public void ApplyRestoredTransferSecurityState(
+                ISession session,
+                ByteString originalClientChannelCertificate,
+                string securityPolicyUri,
+                MessageSecurityMode securityMode,
+                UserTokenType clientUserTokenType,
+                string? clientUserId)
+            {
+                SetRestoredSessionTransferSecurityState(
+                    session,
+                    originalClientChannelCertificate,
+                    securityPolicyUri,
+                    securityMode,
+                    clientUserTokenType,
+                    clientUserId);
             }
 
             protected override async ValueTask<(
@@ -1063,6 +1396,14 @@ namespace Opc.Ua.Server.Tests
                 if (cancellation != null)
                 {
                     throw cancellation;
+                }
+
+                Exception? failure = Interlocked.Exchange(
+                    ref m_authenticationFailure,
+                    null);
+                if (failure != null)
+                {
+                    throw failure;
                 }
 
                 if (Interlocked.Exchange(ref m_pauseNextAuthentication, 0) == 1)
@@ -1103,6 +1444,7 @@ namespace Opc.Ua.Server.Tests
             private TaskCompletionSource<bool>? m_authenticationEntered;
             private TaskCompletionSource<bool>? m_releaseAuthentication;
             private OperationCanceledException? m_cancellationException;
+            private Exception? m_authenticationFailure;
             private int m_pauseNextAuthentication;
             private int m_probeGateOnNextActivation;
         }
