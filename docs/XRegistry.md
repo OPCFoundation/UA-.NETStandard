@@ -94,19 +94,19 @@ Document bytes live behind an injectable `IXRegistryResourceStore`. Because a re
 var options = new XRegistryServerOptions
 {
     // Keeps the documents in the server process (the default).
-    ResourceStore = new InMemoryXRegistryResourceStore()
+    ResourceStore = new InMemoryResourceStore()
 };
 
 // Or back them with files so they outlive the process and a shared volume can serve a cluster.
-options.ResourceStore = new FileSystemXRegistryResourceStore("/var/lib/xregistry");
+options.ResourceStore = new FileSystemResourceStore("/var/lib/xregistry");
 ```
 
-`FileSystemXRegistryResourceStore` is built on the `IFileSystem` abstraction, so a deployment can
+`FileSystemResourceStore` is built on the `IFileSystem` abstraction, so a deployment can
 substitute its own — and a test can run it against a `VirtualFileSystem` without touching disk:
 
 ```csharp
 using var fileSystem = new VirtualFileSystem();
-using var store = new FileSystemXRegistryResourceStore("resources", fileSystem);
+using var store = new FileSystemResourceStore("resources", fileSystem);
 ```
 
 #### Implementing a store
@@ -309,11 +309,14 @@ version and opens it for writing, and the document is streamed through the `File
 `ResourceType` inherits.
 
 ```csharp
-(NodeId resourceNodeId, string assignedVersionId) = await client.RegisterResourceAsync(
+ResourceRegistrationResult registered = await client.RegisterResourceAsync(
     groupNodeId,
     resourceId: "urn:my:resource",
     document: documentBytes,
     ct: ct).ConfigureAwait(false);
+
+NodeId resourceNodeId = registered.ResourceNodeId;
+string assignedVersionId = registered.AssignedVersionId;
 ```
 
 Groups, idempotent registration and deletion are covered by the same convenience layer. Delete takes
@@ -323,16 +326,28 @@ concurrent change:
 ```csharp
 // The registry root sits at a well-known identifier in the registry namespace, so there is no
 // need to Browse for it.
-(NodeId groupNodeId, bool groupCreated) = await client
+GroupRegistrationResult group = await client
     .GetOrCreateGroupAsync(client.RegistryNodeId, "schemas", ct)
     .ConfigureAwait(false);
 
 // Only streams the document when it actually created the version.
-(NodeId nodeId, string versionId, bool created) = await client.GetOrRegisterResourceAsync(
-    groupNodeId, "urn:my:resource", documentBytes, ct: ct).ConfigureAwait(false);
+ResourceRegistrationResult resource = await client.GetOrRegisterResourceAsync(
+    group.GroupNodeId, "urn:my:resource", documentBytes, ct: ct).ConfigureAwait(false);
 
-await client.DeleteResourceAsync(nodeId, expectedEpoch, ct).ConfigureAwait(false);
-await client.DeleteGroupAsync(groupNodeId, groupEpoch, ct).ConfigureAwait(false);
+if (resource.Created)
+{
+    // The version is new on this server.
+}
+
+await client.DeleteResourceAsync(resource.ResourceNodeId, expectedEpoch, ct).ConfigureAwait(false);
+await client.DeleteGroupAsync(group.GroupNodeId, groupEpoch, ct).ConfigureAwait(false);
+```
+
+Both results are `readonly record struct`s, so they carry named members instead of positional tuple
+elements and still deconstruct when that reads better:
+
+```csharp
+(NodeId nodeId, string versionId, bool created) = resource;
 ```
 
 The typed proxies are also available directly, which is what a domain client builds on:

@@ -42,7 +42,7 @@ namespace Opc.Ua.XRegistry.Server
     /// Built on the <see cref="IFileSystem"/> abstraction, which makes the store testable against a
     /// virtual file system and lets a deployment substitute its own.
     /// </summary>
-    public sealed class FileSystemXRegistryResourceStore : IXRegistryResourceStore, IDisposable
+    public sealed class FileSystemResourceStore : IXRegistryResourceStore, IDisposable
     {
         /// <summary>
         /// Initializes the store over a directory of a file system.
@@ -50,7 +50,7 @@ namespace Opc.Ua.XRegistry.Server
         /// <param name="rootPath">The directory that holds the resource documents.</param>
         /// <param name="fileSystem">The file system to use; defaults to the local one.</param>
         /// <exception cref="ArgumentException"><paramref name="rootPath"/> is null or empty.</exception>
-        public FileSystemXRegistryResourceStore(string rootPath, IFileSystem? fileSystem = null)
+        public FileSystemResourceStore(string rootPath, IFileSystem? fileSystem = null)
         {
             if (string.IsNullOrEmpty(rootPath))
             {

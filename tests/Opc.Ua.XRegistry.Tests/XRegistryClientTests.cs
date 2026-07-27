@@ -339,6 +339,58 @@ namespace Opc.Ua.XRegistry.Tests
             Assert.That(streamed, Is.EqualTo(document));
         }
 
+        [Test]
+        public async Task RegistrationResultsExposeNamedMembersAndValueEqualityAsync()
+        {
+            Mock<ISession> session = CreateSession();
+            var calls = new List<CallMethodRequest>();
+            SetupCall(session, calls);
+
+            GenericXRegistryClient client = CreateClient(session);
+            ResourceRegistrationResult resource = await client
+                .GetOrRegisterResourceAsync(new NodeId(1u, 1), "urn:doc", new byte[4])
+                .ConfigureAwait(false);
+            GroupRegistrationResult group = await client
+                .GetOrCreateGroupAsync(client.RegistryNodeId, "schemas").ConfigureAwait(false);
+
+            (NodeId nodeId, string versionId, bool created) = resource;
+            Assert.Multiple(() =>
+            {
+                Assert.That(resource.ResourceNodeId, Is.EqualTo(s_createdResourceNodeId));
+                Assert.That(resource.AssignedVersionId, Is.EqualTo("7"));
+                Assert.That(resource.Created, Is.True);
+                Assert.That(group.GroupNodeId, Is.EqualTo(s_createdGroupNodeId));
+                Assert.That(group.Created, Is.True);
+
+                // The results still deconstruct where that reads better than named members.
+                Assert.That(nodeId, Is.EqualTo(resource.ResourceNodeId));
+                Assert.That(versionId, Is.EqualTo(resource.AssignedVersionId));
+                Assert.That(created, Is.EqualTo(resource.Created));
+
+                // A record struct gives value equality, which a caller can rely on.
+                Assert.That(
+                    resource,
+                    Is.EqualTo(new ResourceRegistrationResult(s_createdResourceNodeId, "7", true)));
+                Assert.That(group, Is.EqualTo(new GroupRegistrationResult(s_createdGroupNodeId, true)));
+            });
+        }
+
+        [Test]
+        public async Task RegisterResourceReportsTheVersionAsCreatedAsync()
+        {
+            Mock<ISession> session = CreateSession();
+            var calls = new List<CallMethodRequest>();
+            SetupCall(session, calls);
+
+            GenericXRegistryClient client = CreateClient(session);
+            ResourceRegistrationResult result = await client
+                .RegisterResourceAsync(new NodeId(1u, 1), "urn:doc", new byte[4])
+                .ConfigureAwait(false);
+
+            Assert.That(result.Created, Is.True,
+                "A strict registration only returns when it created the version.");
+        }
+
         [TestCase(4, 4, 1)]
         [TestCase(8, 4, 2)]
         [TestCase(9, 4, 3)]
@@ -351,7 +403,7 @@ namespace Opc.Ua.XRegistry.Tests
             SetupCall(session, calls);
 
             GenericXRegistryClient client = CreateClient(session);
-            (NodeId resourceNodeId, string assignedVersionId) = await client
+            (NodeId resourceNodeId, string assignedVersionId, _) = await client
                 .RegisterResourceAsync(
                     new NodeId(1u, 1), "urn:resource", new byte[documentLength], chunkSize: chunkSize)
                 .ConfigureAwait(false);
@@ -379,7 +431,7 @@ namespace Opc.Ua.XRegistry.Tests
             SetupCall(session, calls);
 
             var domain = new TestDomainRegistryClient(session.Object, CreateTelemetry());
-            (NodeId resourceNodeId, string assignedVersionId) = await domain
+            (NodeId resourceNodeId, string assignedVersionId, _) = await domain
                 .RegisterDomainResourceAsync(new NodeId(1u, 1), new byte[4]).ConfigureAwait(false);
 
             Assert.Multiple(() =>
@@ -759,7 +811,7 @@ namespace Opc.Ua.XRegistry.Tests
 
             public bool DomainPrefixApplied { get; private set; }
 
-            public Task<(NodeId ResourceNodeId, string AssignedVersionId)> RegisterDomainResourceAsync(
+            public Task<ResourceRegistrationResult> RegisterDomainResourceAsync(
                 NodeId groupNodeId,
                 ReadOnlyMemory<byte> document)
             {

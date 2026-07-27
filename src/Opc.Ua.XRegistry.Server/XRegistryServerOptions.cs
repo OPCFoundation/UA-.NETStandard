@@ -53,7 +53,7 @@ namespace Opc.Ua.XRegistry.Server
         /// The store that holds resource document bytes. Defaults to an in-process store; a
         /// high-availability deployment substitutes a shared one so documents survive a failover.
         /// </summary>
-        public IXRegistryResourceStore ResourceStore { get; set; } = new InMemoryXRegistryResourceStore();
+        public IXRegistryResourceStore ResourceStore { get; set; } = new InMemoryResourceStore();
 
         /// <summary>
         /// The BrowseName of the registry root Object the registration manager materializes.

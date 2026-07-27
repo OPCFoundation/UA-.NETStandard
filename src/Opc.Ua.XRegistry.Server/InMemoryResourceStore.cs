@@ -39,7 +39,7 @@ namespace Opc.Ua.XRegistry.Server
     /// process. Suitable for a single-server registry; a high-availability deployment substitutes a
     /// shared store so the documents outlive one process.
     /// </summary>
-    public sealed class InMemoryXRegistryResourceStore : IXRegistryResourceStore
+    public sealed class InMemoryResourceStore : IXRegistryResourceStore
     {
         /// <inheritdoc/>
         public ValueTask<ByteString> ReadAsync(
