@@ -436,13 +436,5 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="action">Action to perform on the server status object.</param>
         void UpdateServerStatus(Action<ServerStatusValue> action);
-
-        /// <summary>
-        /// Returns whether the Session is being closed. Work that belongs to a Session which is
-        /// going away is rejected instead of being started, so a NodeManager cannot be retired
-        /// while a closing Session is still tearing its Subscriptions down.
-        /// </summary>
-        /// <param name="sessionId">The identifier of the Session.</param>
-        bool IsSessionClosing(NodeId sessionId);
     }
 }

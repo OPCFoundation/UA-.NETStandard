@@ -1175,7 +1175,7 @@ namespace Opc.Ua.Server
                 foreach (ISession session in server.SessionManager.GetSessions())
                 {
                     if (!session.Activated ||
-                        IsSessionClosing(server, session))
+                        session.IsClosing)
                     {
                         continue;
                     }
@@ -1242,7 +1242,7 @@ namespace Opc.Ua.Server
                     .GetSessions()
                     .Where(session =>
                         session.Activated &&
-                        !IsSessionClosing(server, session))
+                        !session.IsClosing)
             ];
             Dictionary<NodeId, ISession> currentSessionsById =
                 currentSessions.ToDictionary(session => session.Id);
@@ -1455,14 +1455,14 @@ namespace Opc.Ua.Server
                 }
                 if (ReferenceEquals(identity, session.EffectiveIdentity) &&
                     session.Activated &&
-                    !IsSessionClosing(server, session) &&
+                    !session.IsClosing &&
                     server.SessionManager.GetSessions().Any(current =>
                         ReferenceEquals(current, session)))
                 {
                     return new SessionBinding(session, identity);
                 }
                 if (!session.Activated ||
-                    IsSessionClosing(server, session) ||
+                    session.IsClosing ||
                     !server.SessionManager.GetSessions().Any(current =>
                         ReferenceEquals(current, session)))
                 {
@@ -1477,13 +1477,6 @@ namespace Opc.Ua.Server
                 }
                 ct.ThrowIfCancellationRequested();
             }
-        }
-
-        private static bool IsSessionClosing(
-            IServerInternal server,
-            ISession session)
-        {
-            return server.IsSessionClosing(session.Id);
         }
 
         private static async ValueTask<bool> SubscribeToAllEventsAsync(
@@ -2037,6 +2030,17 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
+                    // Every MonitoredItem the server creates is detachable. A test double or
+                    // a foreign implementation that is not cannot take part in the reservation, so
+                    // it is handed over without one.
+                    var detachable = monitoredItem as IDetachableMonitoredItem;
+                    if (detachable?.TryBeginAttach() == false)
+                    {
+                        // The item was deleted and disposed before the hand-over started.
+                        continue;
+                    }
+
+                    bool attached = false;
                     try
                     {
                         ServiceResult result = await m_replacement
@@ -2044,14 +2048,16 @@ namespace Opc.Ua.Server
                             .ConfigureAwait(false);
                         if (ServiceResult.IsGood(result))
                         {
+                            attached = true;
                             m_attachedItems.Add(monitoredItem);
-                            continue;
                         }
-
-                        MarkAttachFailure(monitoredItem);
-                        if (!IsExpectedMonitoredItemIncompatibility(result))
+                        else
                         {
-                            failures.Add(new ServiceResultException(result));
+                            MarkAttachFailure(monitoredItem);
+                            if (!IsExpectedMonitoredItemIncompatibility(result))
+                            {
+                                failures.Add(new ServiceResultException(result));
+                            }
                         }
                     }
                     catch (Exception ex) when (ex is not OutOfMemoryException)
@@ -2059,6 +2065,27 @@ namespace Opc.Ua.Server
                         MarkAttachFailure(monitoredItem);
                         failures.Add(ex);
                     }
+
+                    if (detachable is null || detachable.EndAttach() || !attached)
+                    {
+                        continue;
+                    }
+
+                    // The item was deleted and disposed while it was being handed over, so the
+                    // replacement must not be left sampling it.
+                    m_attachedItems.Remove(monitoredItem);
+                    try
+                    {
+                        await m_replacement
+                            .DetachMonitoredItemAsync(monitoredItem, ct)
+                            .ConfigureAwait(false);
+                    }
+                    catch (Exception ex) when (ex is not OutOfMemoryException)
+                    {
+                        failures.Add(ex);
+                    }
+
+                    detachable.Detach(m_server);
                 }
 
                 return failures;

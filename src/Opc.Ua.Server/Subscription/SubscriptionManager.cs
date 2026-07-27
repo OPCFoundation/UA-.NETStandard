@@ -214,10 +214,47 @@ namespace Opc.Ua.Server
             return m_subscriptions.TryGetValue(id, out subscription);
         }
 
-        /// <inheritdoc/>
-        public bool IsDeleting(uint subscriptionId)
+        /// <summary>
+        /// Claims the right to delete a Subscription and marks the Subscription itself, so that
+        /// anything it is asked to do while it is going away can be rejected without having to ask
+        /// the manager.
+        /// </summary>
+        /// <param name="subscription">The Subscription being deleted.</param>
+        /// <returns><c>false</c> when another caller already holds the claim.</returns>
+        private bool ClaimSubscriptionDeletion(ISubscription subscription)
         {
-            return m_deletingSubscriptions.ContainsKey(subscriptionId);
+            if (!m_deletingSubscriptions.TryAdd(subscription.Id, 0))
+            {
+                return false;
+            }
+
+            subscription.IsDeleting = true;
+            return true;
+        }
+
+        /// <summary>
+        /// Releases a claim taken by <see cref="ClaimSubscriptionDeletion"/>.
+        /// </summary>
+        /// <param name="subscription">The Subscription that is no longer being deleted.</param>
+        private void ReleaseSubscriptionDeletionClaim(ISubscription subscription)
+        {
+            if (m_deletingSubscriptions.TryRemove(subscription.Id, out _))
+            {
+                subscription.IsDeleting = false;
+            }
+        }
+
+        /// <summary>
+        /// Releases a claim for a Subscription that may no longer be known to the manager.
+        /// </summary>
+        /// <param name="subscriptionId">The Subscription that is no longer being deleted.</param>
+        private void ReleaseSubscriptionDeletionClaim(uint subscriptionId)
+        {
+            if (m_deletingSubscriptions.TryRemove(subscriptionId, out _) &&
+                m_subscriptions.TryGetValue(subscriptionId, out ISubscription? subscription))
+            {
+                subscription.IsDeleting = false;
+            }
         }
 
         /// <summary>
@@ -574,9 +611,7 @@ namespace Opc.Ua.Server
                             if (!subscription.SessionId.IsNull &&
                                 subscription.SessionId != sessionId)
                             {
-                                m_deletingSubscriptions.TryRemove(
-                                    subscription.Id,
-                                    out _);
+                                ReleaseSubscriptionDeletionClaim(subscription);
                                 closeWork.ClaimedSubscriptionIds.Remove(
                                     subscription.Id);
                                 RemoveClosedSessionSubscription(subscription.Id);
@@ -630,9 +665,7 @@ namespace Opc.Ua.Server
                             }
                             finally
                             {
-                                m_deletingSubscriptions.TryRemove(
-                                    subscription.Id,
-                                    out _);
+                                ReleaseSubscriptionDeletionClaim(subscription);
                                 closeWork.ClaimedSubscriptionIds.Remove(
                                     subscription.Id);
                             }
@@ -658,9 +691,7 @@ namespace Opc.Ua.Server
                     foreach (uint subscriptionId in
                         closeWork.ClaimedSubscriptionIds)
                     {
-                        m_deletingSubscriptions.TryRemove(
-                            subscriptionId,
-                            out _);
+                        ReleaseSubscriptionDeletionClaim(subscriptionId);
                     }
                     closeWork.ClaimedSubscriptionIds.Clear();
                 }
@@ -759,9 +790,7 @@ namespace Opc.Ua.Server
                 {
                     foreach (ISubscription subscription in subscriptions)
                     {
-                        if (m_deletingSubscriptions.TryAdd(
-                            subscription.Id,
-                            0))
+                        if (ClaimSubscriptionDeletion(subscription))
                         {
                             claimedSubscriptionIds.Add(subscription.Id);
                         }
@@ -991,7 +1020,7 @@ namespace Opc.Ua.Server
                 claim.Subscription.Id,
                 out _);
             RemoveClosedSessionSubscription(claim.Subscription.Id);
-            m_deletingSubscriptions.TryRemove(claim.Subscription.Id, out _);
+            ReleaseSubscriptionDeletionClaim(claim.Subscription);
             return removed;
         }
 
@@ -1043,9 +1072,7 @@ namespace Opc.Ua.Server
             }
             finally
             {
-                m_deletingSubscriptions.TryRemove(
-                    claim.Subscription.Id,
-                    out _);
+                ReleaseSubscriptionDeletionClaim(claim.Subscription);
             }
         }
 
@@ -1073,7 +1100,7 @@ namespace Opc.Ua.Server
                     throw new ServiceResultException(
                         StatusCodes.BadSubscriptionIdInvalid);
                 }
-                if (!m_deletingSubscriptions.TryAdd(subscriptionId, 0))
+                if (!ClaimSubscriptionDeletion(subscription))
                 {
                     return null;
                 }
@@ -1199,7 +1226,7 @@ namespace Opc.Ua.Server
 
             // get session from context.
             ISession session = context.Session;
-            if (m_server.IsSessionClosing(session.Id))
+            if (session.IsClosing)
             {
                 throw new ServiceResultException(StatusCodes.BadSessionClosed);
             }
@@ -1753,7 +1780,7 @@ namespace Opc.Ua.Server
                 bool sendInitialValues,
                 CancellationToken cancellationToken)
         {
-            if (m_server.IsSessionClosing(context.Session.Id))
+            if (context.Session.IsClosing)
             {
                 throw new ServiceResultException(StatusCodes.BadSessionClosed);
             }
@@ -1801,8 +1828,7 @@ namespace Opc.Ua.Server
 
                     // check if new and old sessions are different
                     ISession ownerSession = subscription.Session;
-                    if (ownerSession != null &&
-                        m_server.IsSessionClosing(ownerSession.Id))
+                    if (ownerSession is { IsClosing: true })
                     {
                         result.StatusCode = StatusCodes.BadSessionClosed;
                         results.Add(result);

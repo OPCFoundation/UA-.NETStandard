@@ -54,6 +54,13 @@ namespace Opc.Ua.Server
         uint Id { get; }
 
         /// <summary>
+        /// Whether the Subscription is being deleted. Work that would create new state for a
+        /// Subscription that is going away is rejected instead of being started, because that
+        /// state would be torn down again immediately.
+        /// </summary>
+        bool IsDeleting { get; set; }
+
+        /// <summary>
         /// The identifier for the session that owns the subscription.
         /// </summary>
         NodeId SessionId { get; }

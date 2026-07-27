@@ -1678,7 +1678,7 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(context));
             }
             EnsureSessionNotClosing(context);
-            if (m_server.SubscriptionManager?.IsDeleting(Id) == true)
+            if (IsDeleting)
             {
                 throw new ServiceResultException(
                     StatusCodes.BadSubscriptionIdInvalid);
@@ -1719,7 +1719,7 @@ namespace Opc.Ua.Server
                 IsDurable,
                 cancellationToken).ConfigureAwait(false);
 
-            if (m_server.SubscriptionManager?.IsDeleting(Id) == true)
+            if (IsDeleting)
             {
                 var cleanupErrors = new List<ServiceResult>(errors.Count);
                 for (int ii = 0; ii < errors.Count; ii++)
@@ -1936,7 +1936,7 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(context));
             }
             EnsureSessionNotClosing(context);
-            if (m_server.SubscriptionManager?.IsDeleting(Id) == true)
+            if (IsDeleting)
             {
                 throw new ServiceResultException(
                     StatusCodes.BadSubscriptionIdInvalid);
@@ -2331,7 +2331,7 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(context));
             }
             EnsureSessionNotClosing(context);
-            if (m_server.SubscriptionManager?.IsDeleting(Id) == true)
+            if (IsDeleting)
             {
                 throw new ServiceResultException(
                     StatusCodes.BadSubscriptionIdInvalid);
@@ -2861,10 +2861,16 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <inheritdoc/>
+        public bool IsDeleting
+        {
+            get => Volatile.Read(ref m_isDeleting) != 0;
+            set => Volatile.Write(ref m_isDeleting, value ? 1 : 0);
+        }
+
         private void EnsureSessionNotClosing(OperationContext context)
         {
-            if (context.Session is not null &&
-                m_server.IsSessionClosing(context.Session.Id))
+            if (context.Session is { IsClosing: true })
             {
                 throw new ServiceResultException(StatusCodes.BadSessionClosed);
             }
@@ -2893,17 +2899,23 @@ namespace Opc.Ua.Server
             }
 
             // save counters
-            Monitor.Enter(m_lock);
-
-            long sequenceNumber = m_messageQueue.NextSequenceNumber;
-            int itemsToCheck = m_itemsToCheck.Count;
-            int monitoredItems = m_monitoredItems.Count;
-            int itemsToPublish = m_itemsToPublish.Count;
-            int sentMessages = m_messageQueue.SentCount;
-            bool publishingEnabled = m_publishingEnabled;
-            bool waitingForPublish = m_waitingForPublish;
-
-            Monitor.Exit(m_lock);
+            long sequenceNumber;
+            int itemsToCheck;
+            int monitoredItems;
+            int itemsToPublish;
+            int sentMessages;
+            bool publishingEnabled;
+            bool waitingForPublish;
+            lock (m_lock)
+            {
+                sequenceNumber = m_messageQueue.NextSequenceNumber;
+                itemsToCheck = m_itemsToCheck.Count;
+                monitoredItems = m_monitoredItems.Count;
+                itemsToPublish = m_itemsToPublish.Count;
+                sentMessages = m_messageQueue.SentCount;
+                publishingEnabled = m_publishingEnabled;
+                waitingForPublish = m_waitingForPublish;
+            }
 
             switch (id)
             {
@@ -2963,7 +2975,8 @@ namespace Opc.Ua.Server
             }
         }
 
-        private readonly object m_lock = new();
+        private readonly Lock m_lock = new();
+        private int m_isDeleting;
         private readonly IServerInternal m_server;
         private readonly TimeProvider m_timeProvider;
         private IUserIdentity? m_savedOwnerIdentity;

@@ -126,11 +126,7 @@ namespace Opc.Ua.Server.Tests
         public void CreateMonitoredItemsRejectsClosingSession()
         {
             using ServerInternalData server = CreateServerInternalData();
-            ConcurrentDictionary<NodeId, int> closingSessions =
-                GetPrivateField<ConcurrentDictionary<NodeId, int>>(
-                    server,
-                    "m_closingSessions");
-            closingSessions.TryAdd(m_sessionMock.Object.Id, 1);
+            m_sessionMock.SetupGet(session => session.IsClosing).Returns(true);
             using var subscription = new Subscription(
                 server,
                 m_sessionMock.Object,
