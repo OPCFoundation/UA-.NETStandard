@@ -691,6 +691,7 @@ namespace Opc.Ua.XRegistry.Server
         private async ValueTask<ReadMethodStateResult> OnFileReadAsync(uint fileHandle, int length)
         {
             ResourceFileHandle? entry;
+            int position;
             lock (m_gate)
             {
                 if (!m_fileHandles.TryGetValue(fileHandle, out entry) || entry.Writing)
@@ -705,16 +706,32 @@ namespace Opc.Ua.XRegistry.Server
                         Data = ByteString.From([])
                     };
                 }
+
+                // Take the cursor and reserve the range under the lock. Reading Position outside it
+                // would let two concurrent Reads on one handle both start at the same offset, so
+                // both would return the same bytes and the cursor would then skip a slice.
+                position = entry.Position;
+                entry.Position = position + length;
             }
 
             // Read the slice the caller asked for straight out of the store rather than
             // materializing the whole document, which is what the FileType access model implies.
+            // StoreKey and Writing are immutable for the life of the handle, so they are safe here.
             ByteString chunk = await m_resourceStore
-                .ReadAsync(entry.StoreKey, entry.Position, length)
+                .ReadAsync(entry.StoreKey, position, length)
                 .ConfigureAwait(false);
 
             lock (m_gate)
             {
+                int read = chunk.IsNull ? 0 : chunk.Length;
+
+                // The reservation was optimistic: a short read at the end of the document has to
+                // pull the cursor back to the real end, unless another Read has moved past it since.
+                if (entry.Position == position + length)
+                {
+                    entry.Position = position + read;
+                }
+
                 if (chunk.IsNull)
                 {
                     return new ReadMethodStateResult
@@ -724,7 +741,6 @@ namespace Opc.Ua.XRegistry.Server
                     };
                 }
 
-                entry.Position += chunk.Length;
                 return new ReadMethodStateResult
                 {
                     ServiceResult = ServiceResult.Good,
