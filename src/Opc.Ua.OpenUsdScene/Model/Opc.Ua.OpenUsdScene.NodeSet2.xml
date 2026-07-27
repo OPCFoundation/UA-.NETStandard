@@ -1,0 +1,1231 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- OPC UA - OpenUSD Scene Materialization companion model. PROVISIONAL NodeIds and namespace (final IDs assigned by the OPC Foundation / working group). -->
+<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+  <NamespaceUris>
+    <Uri>http://opcfoundation.org/UA/OpenUSD/Scene/</Uri>
+  </NamespaceUris>
+  <Models>
+    <Model ModelUri="http://opcfoundation.org/UA/OpenUSD/Scene/" Version="0.2.0" PublicationDate="2026-07-25T00:00:00Z">
+      <RequiredModel ModelUri="http://opcfoundation.org/UA/" Version="1.05.04" PublicationDate="2023-12-15T00:00:00Z" />
+    </Model>
+  </Models>
+  <Aliases>
+    <Alias Alias="Boolean">i=1</Alias>
+    <Alias Alias="SByte">i=2</Alias>
+    <Alias Alias="Int32">i=6</Alias>
+    <Alias Alias="UInt32">i=7</Alias>
+    <Alias Alias="Int64">i=8</Alias>
+    <Alias Alias="Float">i=10</Alias>
+    <Alias Alias="Double">i=11</Alias>
+    <Alias Alias="String">i=12</Alias>
+    <Alias Alias="ByteString">i=15</Alias>
+    <Alias Alias="NodeId">i=17</Alias>
+    <Alias Alias="QualifiedName">i=20</Alias>
+    <Alias Alias="LocalizedText">i=21</Alias>
+    <Alias Alias="Duration">i=290</Alias>
+    <Alias Alias="BaseDataType">i=24</Alias>
+    <Alias Alias="HasComponent">i=47</Alias>
+    <Alias Alias="HasProperty">i=46</Alias>
+    <Alias Alias="HasSubtype">i=45</Alias>
+    <Alias Alias="Organizes">i=35</Alias>
+    <Alias Alias="HasTypeDefinition">i=40</Alias>
+    <Alias Alias="HasModellingRule">i=37</Alias>
+    <Alias Alias="HasAddIn">i=17604</Alias>
+    <Alias Alias="Aggregates">i=44</Alias>
+    <Alias Alias="NonHierarchicalReferences">i=32</Alias>
+    <Alias Alias="HasInterface">i=17603</Alias>
+    <Alias Alias="Mandatory">i=78</Alias>
+    <Alias Alias="Optional">i=80</Alias>
+    <Alias Alias="OptionalPlaceholder">i=11508</Alias>
+  </Aliases>
+  <UADataType NodeId="ns=1;i=3001" BrowseName="1:UsdSpecifierEnum">
+    <DisplayName>UsdSpecifierEnum</DisplayName>
+    <Description>USD prim specifier kind.</Description>
+    <Category>OpenUSD Scene DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=3901</Reference>
+    </References>
+    <Definition Name="UsdSpecifierEnum"><Field Name="Def" Value="0"/><Field Name="Over" Value="1"/><Field Name="Class" Value="2"/></Definition>
+  </UADataType>
+  <UAVariable NodeId="ns=1;i=3901" BrowseName="1:EnumStrings" ParentNodeId="ns=1;i=3001" DataType="LocalizedText" ValueRank="1" ArrayDimensions="3">
+    <DisplayName>EnumStrings</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=3001</Reference>
+    </References>
+    <Value><uax:ListOfLocalizedText xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"><uax:LocalizedText><uax:Text>Def</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Over</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Class</uax:Text></uax:LocalizedText></uax:ListOfLocalizedText></Value>
+  </UAVariable>
+  <UADataType NodeId="ns=1;i=3002" BrowseName="1:UsdVariabilityEnum">
+    <DisplayName>UsdVariabilityEnum</DisplayName>
+    <Description>USD attribute variability.</Description>
+    <Category>OpenUSD Scene DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=3902</Reference>
+    </References>
+    <Definition Name="UsdVariabilityEnum"><Field Name="Varying" Value="0"/><Field Name="Uniform" Value="1"/></Definition>
+  </UADataType>
+  <UAVariable NodeId="ns=1;i=3902" BrowseName="1:EnumStrings" ParentNodeId="ns=1;i=3002" DataType="LocalizedText" ValueRank="1" ArrayDimensions="2">
+    <DisplayName>EnumStrings</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=3002</Reference>
+    </References>
+    <Value><uax:ListOfLocalizedText xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"><uax:LocalizedText><uax:Text>Varying</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Uniform</uax:Text></uax:LocalizedText></uax:ListOfLocalizedText></Value>
+  </UAVariable>
+  <UADataType NodeId="ns=1;i=3003" BrowseName="1:UsdPrimKindEnum">
+    <DisplayName>UsdPrimKindEnum</DisplayName>
+    <Description>USD model kind metadata.</Description>
+    <Category>OpenUSD Scene DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=3903</Reference>
+    </References>
+    <Definition Name="UsdPrimKindEnum"><Field Name="Unspecified" Value="0"/><Field Name="Model" Value="1"/><Field Name="Group" Value="2"/><Field Name="Assembly" Value="3"/><Field Name="Component" Value="4"/><Field Name="Subcomponent" Value="5"/></Definition>
+  </UADataType>
+  <UAVariable NodeId="ns=1;i=3903" BrowseName="1:EnumStrings" ParentNodeId="ns=1;i=3003" DataType="LocalizedText" ValueRank="1" ArrayDimensions="6">
+    <DisplayName>EnumStrings</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=3003</Reference>
+    </References>
+    <Value><uax:ListOfLocalizedText xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"><uax:LocalizedText><uax:Text>Unspecified</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Model</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Group</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Assembly</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Component</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Subcomponent</uax:Text></uax:LocalizedText></uax:ListOfLocalizedText></Value>
+  </UAVariable>
+  <UADataType NodeId="ns=1;i=3004" BrowseName="1:UsdListOpTypeEnum">
+    <DisplayName>UsdListOpTypeEnum</DisplayName>
+    <Description>USD list operation position/type.</Description>
+    <Category>OpenUSD Scene DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=3904</Reference>
+    </References>
+    <Definition Name="UsdListOpTypeEnum"><Field Name="Explicit" Value="0"/><Field Name="Prepend" Value="1"/><Field Name="Append" Value="2"/><Field Name="Delete" Value="3"/><Field Name="Ordered" Value="4"/></Definition>
+  </UADataType>
+  <UAVariable NodeId="ns=1;i=3904" BrowseName="1:EnumStrings" ParentNodeId="ns=1;i=3004" DataType="LocalizedText" ValueRank="1" ArrayDimensions="5">
+    <DisplayName>EnumStrings</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=3004</Reference>
+    </References>
+    <Value><uax:ListOfLocalizedText xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"><uax:LocalizedText><uax:Text>Explicit</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Prepend</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Append</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Delete</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Ordered</uax:Text></uax:LocalizedText></uax:ListOfLocalizedText></Value>
+  </UAVariable>
+  <UADataType NodeId="ns=1;i=3005" BrowseName="1:UsdArcKindEnum">
+    <DisplayName>UsdArcKindEnum</DisplayName>
+    <Description>USD composition arc kind.</Description>
+    <Category>OpenUSD Scene DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=3905</Reference>
+    </References>
+    <Definition Name="UsdArcKindEnum"><Field Name="Reference" Value="0"/><Field Name="Payload" Value="1"/><Field Name="Inherit" Value="2"/><Field Name="Specialize" Value="3"/><Field Name="VariantSet" Value="4"/><Field Name="Sublayer" Value="5"/><Field Name="Instance" Value="6"/></Definition>
+  </UADataType>
+  <UAVariable NodeId="ns=1;i=3905" BrowseName="1:EnumStrings" ParentNodeId="ns=1;i=3005" DataType="LocalizedText" ValueRank="1" ArrayDimensions="7">
+    <DisplayName>EnumStrings</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=3005</Reference>
+    </References>
+    <Value><uax:ListOfLocalizedText xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"><uax:LocalizedText><uax:Text>Reference</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Payload</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Inherit</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Specialize</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>VariantSet</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Sublayer</uax:Text></uax:LocalizedText><uax:LocalizedText><uax:Text>Instance</uax:Text></uax:LocalizedText></uax:ListOfLocalizedText></Value>
+  </UAVariable>
+  <UADataType NodeId="ns=1;i=3006" BrowseName="1:UsdToken">
+    <DisplayName>UsdToken</DisplayName>
+    <Description>USD token value represented as a UA String subtype.</Description>
+    <Category>OpenUSD Scene DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=12</Reference>
+    </References>
+  </UADataType>
+  <UADataType NodeId="ns=1;i=3007" BrowseName="1:UsdAssetPath">
+    <DisplayName>UsdAssetPath</DisplayName>
+    <Description>USD asset path represented as a UA String subtype.</Description>
+    <Category>OpenUSD Scene DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=12</Reference>
+    </References>
+  </UADataType>
+  <UADataType NodeId="ns=1;i=3008" BrowseName="1:UsdTimeCode">
+    <DisplayName>UsdTimeCode</DisplayName>
+    <Description>USD time code represented as a UA Double subtype.</Description>
+    <Category>OpenUSD Scene DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=11</Reference>
+    </References>
+  </UADataType>
+  <UADataType NodeId="ns=1;i=3013" BrowseName="1:UsdColor3f">
+    <DisplayName>UsdColor3f</DisplayName>
+    <Description>USD color3f value (RGB float triple); UA Float subtype carried as a 3-element Float array.</Description>
+    <Category>OpenUSD Scene DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=10</Reference>
+    </References>
+  </UADataType>
+  <UADataType NodeId="ns=1;i=3014" BrowseName="1:UsdNormal3f">
+    <DisplayName>UsdNormal3f</DisplayName>
+    <Description>USD normal3f value (float triple); UA Float subtype carried as a 3-element Float array.</Description>
+    <Category>OpenUSD Scene DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=10</Reference>
+    </References>
+  </UADataType>
+  <UADataType NodeId="ns=1;i=3015" BrowseName="1:UsdPoint3f">
+    <DisplayName>UsdPoint3f</DisplayName>
+    <Description>USD point3f value (float triple); UA Float subtype carried as a 3-element Float array.</Description>
+    <Category>OpenUSD Scene DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=10</Reference>
+    </References>
+  </UADataType>
+  <UADataType NodeId="ns=1;i=3016" BrowseName="1:UsdVector3f">
+    <DisplayName>UsdVector3f</DisplayName>
+    <Description>USD vector3f value (float triple); UA Float subtype carried as a 3-element Float array.</Description>
+    <Category>OpenUSD Scene DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=10</Reference>
+    </References>
+  </UADataType>
+  <UADataType NodeId="ns=1;i=3017" BrowseName="1:UsdTexCoord2f">
+    <DisplayName>UsdTexCoord2f</DisplayName>
+    <Description>USD texCoord2f value (float pair); UA Float subtype carried as a 2-element Float array.</Description>
+    <Category>OpenUSD Scene DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=10</Reference>
+    </References>
+  </UADataType>
+  <UADataType NodeId="ns=1;i=3018" BrowseName="1:UsdQuatf">
+    <DisplayName>UsdQuatf</DisplayName>
+    <Description>USD quatf value (float quaternion); UA Float subtype carried as a 4-element Float array.</Description>
+    <Category>OpenUSD Scene DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=10</Reference>
+    </References>
+  </UADataType>
+  <UADataType NodeId="ns=1;i=3019" BrowseName="1:UsdQuatd">
+    <DisplayName>UsdQuatd</DisplayName>
+    <Description>USD quatd value (double quaternion); UA Double subtype carried as a 4-element Double array.</Description>
+    <Category>OpenUSD Scene DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=11</Reference>
+    </References>
+  </UADataType>
+  <UADataType NodeId="ns=1;i=3020" BrowseName="1:UsdMatrix4d">
+    <DisplayName>UsdMatrix4d</DisplayName>
+    <Description>USD matrix4d value (row-major); UA Double subtype carried as a 16-element Double array.</Description>
+    <Category>OpenUSD Scene DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=11</Reference>
+    </References>
+  </UADataType>
+  <UADataType NodeId="ns=1;i=3010" BrowseName="1:UsdLayerOffset">
+    <DisplayName>UsdLayerOffset</DisplayName>
+    <Description>USD layer offset and scale.</Description>
+    <Category>OpenUSD Scene DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+    </References>
+    <Definition Name="UsdLayerOffset"><Field Name="Offset" DataType="i=11"/><Field Name="Scale" DataType="i=11"/></Definition>
+  </UADataType>
+  <UADataType NodeId="ns=1;i=3011" BrowseName="1:UsdReferenceSpec">
+    <DisplayName>UsdReferenceSpec</DisplayName>
+    <Description>USD reference specification.</Description>
+    <Category>OpenUSD Scene DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+    </References>
+    <Definition Name="UsdReferenceSpec"><Field Name="AssetPath" DataType="ns=1;i=3007"/><Field Name="PrimPath" DataType="i=12"/><Field Name="Offset" DataType="i=11"/><Field Name="Scale" DataType="i=11"/></Definition>
+  </UADataType>
+  <UADataType NodeId="ns=1;i=3012" BrowseName="1:UsdVariantSelection">
+    <DisplayName>UsdVariantSelection</DisplayName>
+    <Description>USD variant set selection.</Description>
+    <Category>OpenUSD Scene DataTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+    </References>
+    <Definition Name="UsdVariantSelection"><Field Name="SetName" DataType="i=12"/><Field Name="VariantName" DataType="i=12"/></Definition>
+  </UADataType>
+  <UAReferenceType NodeId="ns=1;i=4001" BrowseName="1:UsdRelationshipTarget">
+    <DisplayName>UsdRelationshipTarget</DisplayName>
+    <InverseName>UsdRelationshipTargetOf</InverseName>
+    <Description>Browsable relationship edge from a prim or relationship to its target prim.</Description>
+    <Category>OpenUSD Scene ReferenceTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=32</Reference>
+    </References>
+  </UAReferenceType>
+  <UAReferenceType NodeId="ns=1;i=4002" BrowseName="1:UsdConnection">
+    <DisplayName>UsdConnection</DisplayName>
+    <InverseName>UsdConnectionOf</InverseName>
+    <Description>Browsable USD attribute-connection edge.</Description>
+    <Category>OpenUSD Scene ReferenceTypes</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=32</Reference>
+    </References>
+  </UAReferenceType>
+  <UAVariableType NodeId="ns=1;i=2001" BrowseName="1:UsdAttributeType" DataType="BaseDataType" ValueRank="-2">
+    <DisplayName>UsdAttributeType</DisplayName>
+    <Description>USD attribute value variable. The runtime DataType and ValueRank reflect the composed Sdf value type.</Description>
+    <Category>OpenUSD Scene Materialization</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=63</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6001</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6002</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6003</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6004</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6005</Reference>
+    </References>
+  </UAVariableType>
+  <UAVariable NodeId="ns=1;i=6001" BrowseName="1:UsdTypeName" ParentNodeId="ns=1;i=2001" DataType="ns=1;i=3006" ValueRank="-1">
+    <DisplayName>UsdTypeName</DisplayName>
+    <Description>Exact SdfValueTypeName, e.g. 'float3', 'token', 'asset', or 'color3f[]'.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=2001</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6002" BrowseName="1:Variability" ParentNodeId="ns=1;i=2001" DataType="ns=1;i=3002" ValueRank="-1">
+    <DisplayName>Variability</DisplayName>
+    <Description>USD attribute variability.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=2001</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6003" BrowseName="1:Custom" ParentNodeId="ns=1;i=2001" DataType="Boolean" ValueRank="-1">
+    <DisplayName>Custom</DisplayName>
+    <Description>True if the attribute is a custom USD attribute.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=2001</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6004" BrowseName="1:Namespace" ParentNodeId="ns=1;i=2001" DataType="ns=1;i=3006" ValueRank="-1">
+    <DisplayName>Namespace</DisplayName>
+    <Description>Attribute namespace, e.g. 'primvars' or 'xformOp'.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=2001</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6005" BrowseName="1:Interpolation" ParentNodeId="ns=1;i=2001" DataType="ns=1;i=3006" ValueRank="-1">
+    <DisplayName>Interpolation</DisplayName>
+    <Description>Interpolation metadata for primvars and similar authored values.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=2001</Reference>
+    </References>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1001" BrowseName="1:UsdStageType">
+    <DisplayName>UsdStageType</DisplayName>
+    <Description>A materialized composed OpenUSD stage.</Description>
+    <Category>OpenUSD Scene Materialization</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6006</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6007</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6008</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6009</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6010</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6011</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6012</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6013</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6014</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6021</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=6006" BrowseName="1:DefaultPrim" ParentNodeId="ns=1;i=1001" DataType="ns=1;i=3006" ValueRank="-1">
+    <DisplayName>DefaultPrim</DisplayName>
+    <Description>Default prim token.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1001</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6007" BrowseName="1:UpAxis" ParentNodeId="ns=1;i=1001" DataType="ns=1;i=3006" ValueRank="-1">
+    <DisplayName>UpAxis</DisplayName>
+    <Description>Stage up axis token.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1001</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6008" BrowseName="1:MetersPerUnit" ParentNodeId="ns=1;i=1001" DataType="Double" ValueRank="-1">
+    <DisplayName>MetersPerUnit</DisplayName>
+    <Description>Stage meters-per-unit metadata.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1001</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6009" BrowseName="1:KilogramsPerUnit" ParentNodeId="ns=1;i=1001" DataType="Double" ValueRank="-1">
+    <DisplayName>KilogramsPerUnit</DisplayName>
+    <Description>Stage kilograms-per-unit metadata.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1001</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6010" BrowseName="1:TimeCodesPerSecond" ParentNodeId="ns=1;i=1001" DataType="Double" ValueRank="-1">
+    <DisplayName>TimeCodesPerSecond</DisplayName>
+    <Description>Stage time-codes-per-second metadata.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1001</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6011" BrowseName="1:StartTimeCode" ParentNodeId="ns=1;i=1001" DataType="ns=1;i=3008" ValueRank="-1">
+    <DisplayName>StartTimeCode</DisplayName>
+    <Description>Stage start time code.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1001</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6012" BrowseName="1:EndTimeCode" ParentNodeId="ns=1;i=1001" DataType="ns=1;i=3008" ValueRank="-1">
+    <DisplayName>EndTimeCode</DisplayName>
+    <Description>Stage end time code.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1001</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6013" BrowseName="1:RootLayerIdentifier" ParentNodeId="ns=1;i=1001" DataType="String" ValueRank="-1">
+    <DisplayName>RootLayerIdentifier</DisplayName>
+    <Description>Root layer identifier.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1001</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6014" BrowseName="1:Documentation" ParentNodeId="ns=1;i=1001" DataType="String" ValueRank="-1">
+    <DisplayName>Documentation</DisplayName>
+    <Description>Stage documentation metadata.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1001</Reference>
+    </References>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1002" BrowseName="1:UsdPrimType">
+    <DisplayName>UsdPrimType</DisplayName>
+    <Description>A materialized composed USD prim (untyped/over base).</Description>
+    <Category>OpenUSD Scene Materialization</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6015</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6016</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6017</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6018</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6019</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6020</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6022</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6023</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6024</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6025</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6026</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6027</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6028</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=6015" BrowseName="1:Specifier" ParentNodeId="ns=1;i=1002" DataType="ns=1;i=3001" ValueRank="-1">
+    <DisplayName>Specifier</DisplayName>
+    <Description>Prim specifier.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6016" BrowseName="1:TypeName" ParentNodeId="ns=1;i=1002" DataType="ns=1;i=3006" ValueRank="-1">
+    <DisplayName>TypeName</DisplayName>
+    <Description>Composed USD type name token.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6017" BrowseName="1:Kind" ParentNodeId="ns=1;i=1002" DataType="ns=1;i=3003" ValueRank="-1">
+    <DisplayName>Kind</DisplayName>
+    <Description>Model kind metadata.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6018" BrowseName="1:Active" ParentNodeId="ns=1;i=1002" DataType="Boolean" ValueRank="-1">
+    <DisplayName>Active</DisplayName>
+    <Description>Whether the prim is active.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6019" BrowseName="1:Instanceable" ParentNodeId="ns=1;i=1002" DataType="Boolean" ValueRank="-1">
+    <DisplayName>Instanceable</DisplayName>
+    <Description>Whether the prim is instanceable.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6020" BrowseName="1:Documentation" ParentNodeId="ns=1;i=1002" DataType="String" ValueRank="-1">
+    <DisplayName>Documentation</DisplayName>
+    <Description>Prim documentation metadata.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=6021" BrowseName="1:&lt;UsdPrim&gt;" ParentNodeId="ns=1;i=1001">
+    <DisplayName>&lt;UsdPrim&gt;</DisplayName>
+    <Description>Composed root prims of the materialized stage.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=11508</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=1002</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1001</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=6022" BrowseName="1:&lt;UsdPrim&gt;" ParentNodeId="ns=1;i=1002">
+    <DisplayName>&lt;UsdPrim&gt;</DisplayName>
+    <Description>Child prims of this composed prim.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=11508</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=1002</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6023" BrowseName="1:&lt;UsdAttribute&gt;" ParentNodeId="ns=1;i=1002" DataType="BaseDataType" ValueRank="-2">
+    <DisplayName>&lt;UsdAttribute&gt;</DisplayName>
+    <Description>USD attributes authored on this prim.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=11508</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=2001</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=6024" BrowseName="1:&lt;UsdRelationship&gt;" ParentNodeId="ns=1;i=1002">
+    <DisplayName>&lt;UsdRelationship&gt;</DisplayName>
+    <Description>USD relationships authored on this prim.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=11508</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=1017</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=6025" BrowseName="1:AppliedSchemas" ParentNodeId="ns=1;i=1002">
+    <DisplayName>AppliedSchemas</DisplayName>
+    <Description>Applied API schema AddIns for this prim.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=61</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1002</Reference>
+      <Reference ReferenceType="HasAddIn">ns=1;i=6074</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=6026" BrowseName="1:Composition" ParentNodeId="ns=1;i=1002">
+    <DisplayName>Composition</DisplayName>
+    <Description>Composition arcs contributing to this prim.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=61</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1002</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6075</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=6027" BrowseName="1:VariantSets" ParentNodeId="ns=1;i=1002">
+    <DisplayName>VariantSets</DisplayName>
+    <Description>Variant sets authored or composed for this prim.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=61</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1002</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6076</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=6028" BrowseName="1:Metadata" ParentNodeId="ns=1;i=1002">
+    <DisplayName>Metadata</DisplayName>
+    <Description>Arbitrary metadata Property variables for this prim.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=61</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1002</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6077</Reference>
+    </References>
+  </UAObject>
+  <UAObjectType NodeId="ns=1;i=1003" BrowseName="1:UsdTypedType" IsAbstract="true">
+    <DisplayName>UsdTypedType</DisplayName>
+    <Description>Typed (IsA-schema) prim base.</Description>
+    <Category>OpenUSD Scene Materialization</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=1002</Reference>
+    </References>
+  </UAObjectType>
+  <UAObjectType NodeId="ns=1;i=1004" BrowseName="1:UsdGeomImageableType" IsAbstract="true">
+    <DisplayName>UsdGeomImageableType</DisplayName>
+    <Description>Abstract USD imageable prim base.</Description>
+    <Category>OpenUSD Scene Materialization</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=1003</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6029</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6030</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=6029" BrowseName="1:Visibility" ParentNodeId="ns=1;i=1004" DataType="ns=1;i=3006" ValueRank="-1">
+    <DisplayName>Visibility</DisplayName>
+    <Description>Visibility token.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1004</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6030" BrowseName="1:Purpose" ParentNodeId="ns=1;i=1004" DataType="ns=1;i=3006" ValueRank="-1">
+    <DisplayName>Purpose</DisplayName>
+    <Description>Purpose token.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1004</Reference>
+    </References>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1005" BrowseName="1:UsdGeomXformableType" IsAbstract="true">
+    <DisplayName>UsdGeomXformableType</DisplayName>
+    <Description>Abstract USD xformable prim base.</Description>
+    <Category>OpenUSD Scene Materialization</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=1004</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6031</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=6031" BrowseName="1:XformOpOrder" ParentNodeId="ns=1;i=1005" DataType="ns=1;i=3006" ValueRank="1">
+    <DisplayName>XformOpOrder</DisplayName>
+    <Description>Ordered xformOp token array.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1005</Reference>
+    </References>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1006" BrowseName="1:UsdGeomXformType">
+    <DisplayName>UsdGeomXformType</DisplayName>
+    <Description>USD Xform prim.</Description>
+    <Category>OpenUSD Scene Materialization</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=1005</Reference>
+    </References>
+  </UAObjectType>
+  <UAObjectType NodeId="ns=1;i=1007" BrowseName="1:UsdGeomScopeType">
+    <DisplayName>UsdGeomScopeType</DisplayName>
+    <Description>USD Scope prim.</Description>
+    <Category>OpenUSD Scene Materialization</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=1004</Reference>
+    </References>
+  </UAObjectType>
+  <UAObjectType NodeId="ns=1;i=1008" BrowseName="1:UsdGeomGprimType" IsAbstract="true">
+    <DisplayName>UsdGeomGprimType</DisplayName>
+    <Description>Abstract USD geometric prim base.</Description>
+    <Category>OpenUSD Scene Materialization</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=1005</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6032</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6033</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6034</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=6032" BrowseName="1:DisplayColor" ParentNodeId="ns=1;i=1008" DataType="Float" ValueRank="2">
+    <DisplayName>DisplayColor</DisplayName>
+    <Description>Display color array (color3f[]).</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1008</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6033" BrowseName="1:DisplayOpacity" ParentNodeId="ns=1;i=1008" DataType="Float" ValueRank="1">
+    <DisplayName>DisplayOpacity</DisplayName>
+    <Description>Display opacity array.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1008</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6034" BrowseName="1:DoubleSided" ParentNodeId="ns=1;i=1008" DataType="Boolean" ValueRank="-1">
+    <DisplayName>DoubleSided</DisplayName>
+    <Description>Double-sided rendering hint.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1008</Reference>
+    </References>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1009" BrowseName="1:UsdGeomMeshType">
+    <DisplayName>UsdGeomMeshType</DisplayName>
+    <Description>USD Mesh prim.</Description>
+    <Category>OpenUSD Scene Materialization</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=1008</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6035</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6036</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6037</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=6035" BrowseName="1:Points" ParentNodeId="ns=1;i=1009" DataType="Float" ValueRank="2">
+    <DisplayName>Points</DisplayName>
+    <Description>Mesh points array.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1009</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6036" BrowseName="1:FaceVertexCounts" ParentNodeId="ns=1;i=1009" DataType="Int32" ValueRank="1">
+    <DisplayName>FaceVertexCounts</DisplayName>
+    <Description>Mesh face vertex counts.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1009</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6037" BrowseName="1:FaceVertexIndices" ParentNodeId="ns=1;i=1009" DataType="Int32" ValueRank="1">
+    <DisplayName>FaceVertexIndices</DisplayName>
+    <Description>Mesh face vertex indices.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1009</Reference>
+    </References>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1010" BrowseName="1:UsdGeomCylinderType">
+    <DisplayName>UsdGeomCylinderType</DisplayName>
+    <Description>USD Cylinder prim.</Description>
+    <Category>OpenUSD Scene Materialization</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=1008</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6038</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6039</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6040</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=6038" BrowseName="1:Height" ParentNodeId="ns=1;i=1010" DataType="Double" ValueRank="-1">
+    <DisplayName>Height</DisplayName>
+    <Description>Cylinder height.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1010</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6039" BrowseName="1:Radius" ParentNodeId="ns=1;i=1010" DataType="Double" ValueRank="-1">
+    <DisplayName>Radius</DisplayName>
+    <Description>Cylinder radius.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1010</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6040" BrowseName="1:Axis" ParentNodeId="ns=1;i=1010" DataType="ns=1;i=3006" ValueRank="-1">
+    <DisplayName>Axis</DisplayName>
+    <Description>Cylinder axis token.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1010</Reference>
+    </References>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1011" BrowseName="1:UsdGeomSphereType">
+    <DisplayName>UsdGeomSphereType</DisplayName>
+    <Description>USD Sphere prim.</Description>
+    <Category>OpenUSD Scene Materialization</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=1008</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6041</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=6041" BrowseName="1:Radius" ParentNodeId="ns=1;i=1011" DataType="Double" ValueRank="-1">
+    <DisplayName>Radius</DisplayName>
+    <Description>Sphere radius.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1011</Reference>
+    </References>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1012" BrowseName="1:UsdGeomCubeType">
+    <DisplayName>UsdGeomCubeType</DisplayName>
+    <Description>USD Cube prim.</Description>
+    <Category>OpenUSD Scene Materialization</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=1008</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6042</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=6042" BrowseName="1:Size" ParentNodeId="ns=1;i=1012" DataType="Double" ValueRank="-1">
+    <DisplayName>Size</DisplayName>
+    <Description>Cube size.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1012</Reference>
+    </References>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1013" BrowseName="1:UsdGeomConeType">
+    <DisplayName>UsdGeomConeType</DisplayName>
+    <Description>USD Cone prim.</Description>
+    <Category>OpenUSD Scene Materialization</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=1008</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6043</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6044</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6045</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=6043" BrowseName="1:Height" ParentNodeId="ns=1;i=1013" DataType="Double" ValueRank="-1">
+    <DisplayName>Height</DisplayName>
+    <Description>Cone height.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1013</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6044" BrowseName="1:Radius" ParentNodeId="ns=1;i=1013" DataType="Double" ValueRank="-1">
+    <DisplayName>Radius</DisplayName>
+    <Description>Cone radius.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1013</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6045" BrowseName="1:Axis" ParentNodeId="ns=1;i=1013" DataType="ns=1;i=3006" ValueRank="-1">
+    <DisplayName>Axis</DisplayName>
+    <Description>Cone axis token.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1013</Reference>
+    </References>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1014" BrowseName="1:UsdGeomCapsuleType">
+    <DisplayName>UsdGeomCapsuleType</DisplayName>
+    <Description>USD Capsule prim.</Description>
+    <Category>OpenUSD Scene Materialization</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=1008</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6046</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6047</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6048</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=6046" BrowseName="1:Height" ParentNodeId="ns=1;i=1014" DataType="Double" ValueRank="-1">
+    <DisplayName>Height</DisplayName>
+    <Description>Capsule height.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1014</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6047" BrowseName="1:Radius" ParentNodeId="ns=1;i=1014" DataType="Double" ValueRank="-1">
+    <DisplayName>Radius</DisplayName>
+    <Description>Capsule radius.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1014</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6048" BrowseName="1:Axis" ParentNodeId="ns=1;i=1014" DataType="ns=1;i=3006" ValueRank="-1">
+    <DisplayName>Axis</DisplayName>
+    <Description>Capsule axis token.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1014</Reference>
+    </References>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1015" BrowseName="1:UsdShadeMaterialType">
+    <DisplayName>UsdShadeMaterialType</DisplayName>
+    <Description>USD Shade material prim hook.</Description>
+    <Category>OpenUSD Scene Materialization</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=1003</Reference>
+    </References>
+  </UAObjectType>
+  <UAObjectType NodeId="ns=1;i=1016" BrowseName="1:UsdShadeShaderType">
+    <DisplayName>UsdShadeShaderType</DisplayName>
+    <Description>USD Shade shader prim hook.</Description>
+    <Category>OpenUSD Scene Materialization</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=1003</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6049</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=6049" BrowseName="1:Info_Id" ParentNodeId="ns=1;i=1016" DataType="ns=1;i=3006" ValueRank="-1">
+    <DisplayName>Info_Id</DisplayName>
+    <Description>Shader implementation identifier token.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1016</Reference>
+    </References>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1017" BrowseName="1:UsdRelationshipType">
+    <DisplayName>UsdRelationshipType</DisplayName>
+    <Description>USD relationship object.</Description>
+    <Category>OpenUSD Scene Materialization</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6050</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6051</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6052</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=6050" BrowseName="1:Custom" ParentNodeId="ns=1;i=1017" DataType="Boolean" ValueRank="-1">
+    <DisplayName>Custom</DisplayName>
+    <Description>True if this is a custom relationship.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1017</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6051" BrowseName="1:Targets" ParentNodeId="ns=1;i=1017" DataType="NodeId" ValueRank="1">
+    <DisplayName>Targets</DisplayName>
+    <Description>Ordered target NodeId list.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1017</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6052" BrowseName="1:TargetPaths" ParentNodeId="ns=1;i=1017" DataType="String" ValueRank="1">
+    <DisplayName>TargetPaths</DisplayName>
+    <Description>Ordered SdfPath target strings for fidelity.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1017</Reference>
+    </References>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1018" BrowseName="1:UsdVariantSetType">
+    <DisplayName>UsdVariantSetType</DisplayName>
+    <Description>USD variant set materialization.</Description>
+    <Category>OpenUSD Scene Materialization</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6053</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6054</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6055</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=6053" BrowseName="1:SetName" ParentNodeId="ns=1;i=1018" DataType="String" ValueRank="-1">
+    <DisplayName>SetName</DisplayName>
+    <Description>Variant set name.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1018</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6054" BrowseName="1:Selection" ParentNodeId="ns=1;i=1018" DataType="ns=1;i=3006" ValueRank="-1">
+    <DisplayName>Selection</DisplayName>
+    <Description>Selected variant token.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1018</Reference>
+    </References>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=6055" BrowseName="1:&lt;Variant&gt;" ParentNodeId="ns=1;i=1018">
+    <DisplayName>&lt;Variant&gt;</DisplayName>
+    <Description>Variant branch holding prim overrides.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=11508</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=1002</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1018</Reference>
+    </References>
+  </UAObject>
+  <UAObjectType NodeId="ns=1;i=1019" BrowseName="1:UsdCompositionArcType">
+    <DisplayName>UsdCompositionArcType</DisplayName>
+    <Description>USD composition arc materialization.</Description>
+    <Category>OpenUSD Scene Materialization</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6056</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6057</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6058</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6059</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6060</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6061</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=6056" BrowseName="1:ArcKind" ParentNodeId="ns=1;i=1019" DataType="ns=1;i=3005" ValueRank="-1">
+    <DisplayName>ArcKind</DisplayName>
+    <Description>Composition arc kind.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1019</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6057" BrowseName="1:AssetPath" ParentNodeId="ns=1;i=1019" DataType="ns=1;i=3007" ValueRank="-1">
+    <DisplayName>AssetPath</DisplayName>
+    <Description>Referenced or payload asset path.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1019</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6058" BrowseName="1:PrimPath" ParentNodeId="ns=1;i=1019" DataType="String" ValueRank="-1">
+    <DisplayName>PrimPath</DisplayName>
+    <Description>Target prim path.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1019</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6059" BrowseName="1:ListPosition" ParentNodeId="ns=1;i=1019" DataType="ns=1;i=3004" ValueRank="-1">
+    <DisplayName>ListPosition</DisplayName>
+    <Description>List operation position/type.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1019</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6060" BrowseName="1:VariantSet" ParentNodeId="ns=1;i=1019" DataType="String" ValueRank="-1">
+    <DisplayName>VariantSet</DisplayName>
+    <Description>Variant set name for variant arcs.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1019</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6061" BrowseName="1:VariantSelection" ParentNodeId="ns=1;i=1019" DataType="String" ValueRank="-1">
+    <DisplayName>VariantSelection</DisplayName>
+    <Description>Variant selection name.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1019</Reference>
+    </References>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1020" BrowseName="1:UsdApiSchemaType">
+    <DisplayName>UsdApiSchemaType</DisplayName>
+    <Description>Base for applied USD API schema AddIns. Concrete, because §8.4 requires an unknown applied schema to degrade to a UsdApiSchemaType AddIn carrying its SchemaName rather than being dropped; vendors still subtype it (§8.2).</Description>
+    <Category>OpenUSD Scene Materialization</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6062</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=6062" BrowseName="1:SchemaName" ParentNodeId="ns=1;i=1020" DataType="ns=1;i=3006" ValueRank="-1">
+    <DisplayName>SchemaName</DisplayName>
+    <Description>Applied API schema name.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1020</Reference>
+    </References>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1021" BrowseName="1:UsdCollectionAPIType">
+    <DisplayName>UsdCollectionAPIType</DisplayName>
+    <Description>USD CollectionAPI applied API schema.</Description>
+    <Category>OpenUSD Scene Materialization</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=1020</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6063</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6064</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6065</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=6063" BrowseName="1:ExpansionRule" ParentNodeId="ns=1;i=1021" DataType="ns=1;i=3006" ValueRank="-1">
+    <DisplayName>ExpansionRule</DisplayName>
+    <Description>Collection expansion rule token.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1021</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6064" BrowseName="1:IncludesTargets" ParentNodeId="ns=1;i=1021" DataType="NodeId" ValueRank="1">
+    <DisplayName>IncludesTargets</DisplayName>
+    <Description>Included target NodeIds.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1021</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6065" BrowseName="1:ExcludesTargets" ParentNodeId="ns=1;i=1021" DataType="NodeId" ValueRank="1">
+    <DisplayName>ExcludesTargets</DisplayName>
+    <Description>Excluded target NodeIds.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1021</Reference>
+    </References>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1022" BrowseName="1:UsdGeoreferenceApiType">
+    <DisplayName>UsdGeoreferenceApiType</DisplayName>
+    <Description>Portable stage georeference applied API schema: the geodetic origin that anchors the stage's local Cartesian frame to the globe. Vendor-neutral materialization of Cesium CesiumGeoreferencePrim / NVIDIA WGS84ReferencePositionAPI; maps to OPC UA GPOS (OPC 10000-211) GlobalPosition + GroundControlPoints (Annex B).</Description>
+    <Category>OpenUSD Scene Materialization</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=1020</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6066</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6067</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6068</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6069</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6070</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=6066" BrowseName="1:Latitude" ParentNodeId="ns=1;i=1022" DataType="Double" ValueRank="-1">
+    <DisplayName>Latitude</DisplayName>
+    <Description>Origin latitude in decimal degrees (WGS84 unless EpsgCode indicates otherwise).</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1022</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6067" BrowseName="1:Longitude" ParentNodeId="ns=1;i=1022" DataType="Double" ValueRank="-1">
+    <DisplayName>Longitude</DisplayName>
+    <Description>Origin longitude in decimal degrees.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1022</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6068" BrowseName="1:Height" ParentNodeId="ns=1;i=1022" DataType="Double" ValueRank="-1">
+    <DisplayName>Height</DisplayName>
+    <Description>Origin height above the ellipsoid in metres.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1022</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6069" BrowseName="1:EpsgCode" ParentNodeId="ns=1;i=1022" DataType="UInt32" ValueRank="-1">
+    <DisplayName>EpsgCode</DisplayName>
+    <Description>EPSG coordinate reference system code (0 = local, 4326 = WGS84/GPS).</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1022</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6070" BrowseName="1:TangentPlane" ParentNodeId="ns=1;i=1022" DataType="ns=1;i=3006" ValueRank="-1">
+    <DisplayName>TangentPlane</DisplayName>
+    <Description>Local tangent-plane convention token (e.g. ENU or NED).</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1022</Reference>
+    </References>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1023" BrowseName="1:UsdGlobeAnchorApiType">
+    <DisplayName>UsdGlobeAnchorApiType</DisplayName>
+    <Description>Portable per-prim globe anchor applied API schema: the geodetic position of an individual prim, resolved against the stage UsdGeoreferenceApiType. Vendor-neutral materialization of Cesium CesiumGlobeAnchorAPI / NVIDIA WGS84LocalPositionAPI; maps to a per-asset OPC UA GPOS GlobalPosition.</Description>
+    <Category>OpenUSD Scene Materialization</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=1020</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6071</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6072</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6073</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=6071" BrowseName="1:Latitude" ParentNodeId="ns=1;i=1023" DataType="Double" ValueRank="-1">
+    <DisplayName>Latitude</DisplayName>
+    <Description>Prim latitude in decimal degrees.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1023</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6072" BrowseName="1:Longitude" ParentNodeId="ns=1;i=1023" DataType="Double" ValueRank="-1">
+    <DisplayName>Longitude</DisplayName>
+    <Description>Prim longitude in decimal degrees.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1023</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6073" BrowseName="1:Height" ParentNodeId="ns=1;i=1023" DataType="Double" ValueRank="-1">
+    <DisplayName>Height</DisplayName>
+    <Description>Prim height above the ellipsoid in metres.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1023</Reference>
+    </References>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=6074" BrowseName="1:&lt;UsdApiSchema&gt;" ParentNodeId="ns=1;i=6025">
+    <DisplayName>&lt;UsdApiSchema&gt;</DisplayName>
+    <Description>Applied API schema AddIn instances.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=11508</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=1020</Reference>
+      <Reference ReferenceType="HasAddIn" IsForward="false">ns=1;i=6025</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=6075" BrowseName="1:&lt;UsdCompositionArc&gt;" ParentNodeId="ns=1;i=6026">
+    <DisplayName>&lt;UsdCompositionArc&gt;</DisplayName>
+    <Description>Composition arcs contributing opinions.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=11508</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=1019</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=6026</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=6076" BrowseName="1:&lt;UsdVariantSet&gt;" ParentNodeId="ns=1;i=6027">
+    <DisplayName>&lt;UsdVariantSet&gt;</DisplayName>
+    <Description>Variant sets available on this prim.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=11508</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=1018</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=6027</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6077" BrowseName="1:&lt;Metadata&gt;" ParentNodeId="ns=1;i=6028" DataType="BaseDataType" ValueRank="-1">
+    <DisplayName>&lt;Metadata&gt;</DisplayName>
+    <Description>Arbitrary metadata properties.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=11508</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=6028</Reference>
+    </References>
+  </UAVariable>
+</UANodeSet>

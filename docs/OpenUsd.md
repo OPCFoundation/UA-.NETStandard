@@ -4,6 +4,11 @@ This guide covers the client- and server-side libraries that bridge an OPC UA ad
 [OpenUSD](https://openusd.org/) stage. For the OPC 40010 Robotics companion SDK used to label and drive robot-cell
 twins, see [Robotics](Robotics.md).
 
+This is **Part 1** of the OpenUSD work, which keeps the USD scene *outside* OPC UA and binds process values to it. Its
+counterpart, [OpenUSD scene materialization](OpenUsdScene.md) (Part 2), materializes the scene *inside* the address
+space so the prim tree becomes the node hierarchy. The two interoperate — a Part 1 binding may target a Part 2
+attribute Variable — but neither requires the other.
+
 > The OPC UA — OpenUSD Bindings companion model is a **draft** (experimental) model. The type NodeIds and the
 > `Server/OpenUSD/Representations` registry described here are subject to change until the companion specification is
 > ratified.
