@@ -203,15 +203,21 @@ namespace Opc.Ua.OpenUsdScene.Server
                 Opc.Ua.OpenUsdScene.ReferenceTypeIds.UsdConnection, context.NamespaceUris);
             foreach ((UsdAttributeState node, UsdAttribute source) in pending)
             {
+                // ConnectionPaths is the connection counterpart of UsdRelationshipType's
+                // TargetPaths (§5.4/§5.5): it carries every authored SdfPath in order, so a
+                // connection whose target lies outside the materialized subtree — and therefore
+                // has no browsable edge — still survives an export, and authored order and
+                // multiplicity are preserved on the node itself rather than out of band.
+                var authored = new string[source.Connections.Count];
+                source.Connections.CopyTo(authored, 0);
+                node.CreateOrReplaceConnectionPaths(context, null!).Value = authored;
+
                 // Materialized attributes deliberately share the model's placeholder NodeId
                 // (xUsdAttribute_, i=6023), so two connections authored on one attribute can
                 // resolve to the same target NodeId. A forward reference is keyed by
                 // (type, isInverse, target), so adding that target twice would throw; dedupe the
-                // browsable edges by target NodeId. The authored multiplicity and order are kept
-                // losslessly on the materialization result by RecordConnections, which the
-                // exporter replays — these edges exist only for §5.4 browsability, and because the
-                // shared placeholder NodeId makes them inherently ambiguous, they are never relied
-                // on for a lossless export.
+                // browsable edges by target NodeId. These edges exist only for §5.4
+                // browsability — ConnectionPaths above is what an export relies on.
                 var linked = new HashSet<NodeId>();
                 foreach (string path in source.Connections)
                 {

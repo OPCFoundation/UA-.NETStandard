@@ -277,6 +277,7 @@
       <Reference ReferenceType="HasProperty">ns=1;i=6003</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=6004</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=6005</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6078</Reference>
     </References>
   </UAVariableType>
   <UAVariable NodeId="ns=1;i=6001" BrowseName="1:UsdTypeName" ParentNodeId="ns=1;i=2001" DataType="ns=1;i=3006" ValueRank="-1">
@@ -1226,6 +1227,15 @@
       <Reference ReferenceType="HasModellingRule">i=11508</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=6028</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6078" BrowseName="1:ConnectionPaths" ParentNodeId="ns=1;i=2001" DataType="String" ValueRank="1">
+    <DisplayName>ConnectionPaths</DisplayName>
+    <Description>Ordered SdfPath strings of the attribute's authored connections, the connection counterpart of UsdRelationshipType.TargetPaths: a connection whose target lies outside the materialized subtree has no browsable UsdConnection edge, and without this member it could not be exported.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=2001</Reference>
     </References>
   </UAVariable>
 </UANodeSet>

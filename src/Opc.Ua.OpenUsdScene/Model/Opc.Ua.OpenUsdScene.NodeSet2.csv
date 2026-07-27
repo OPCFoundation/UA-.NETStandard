@@ -125,3 +125,4 @@ UsdPrimType_AppliedSchemas_UsdApiSchema,6074,Object
 UsdPrimType_Composition_UsdCompositionArc,6075,Object
 UsdPrimType_VariantSets_UsdVariantSet,6076,Object
 UsdPrimType_Metadata_Metadata,6077,Variable
+UsdAttributeType_ConnectionPaths,6078,Variable

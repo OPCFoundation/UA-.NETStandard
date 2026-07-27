@@ -73,12 +73,12 @@ namespace Opc.Ua.OpenUsdScene.Server
         /// materialized attributes deliberately share the model's placeholder NodeId (§7.2).
         /// </param>
         /// <remarks>
-        /// This overload has no connection side channel, so connections are rebuilt from the
-        /// browsable <c>UsdConnection</c> edges only. Because materialized attributes deliberately
-        /// share the model's placeholder NodeId (xUsdAttribute_, i=6023), those edges are ambiguous
-        /// and cannot recover authored order (M-2), a target outside the materialized subtree (M-5),
-        /// nor multiple connections on one attribute. Prefer <see cref="ExportUsdStage(ISystemContext,
-        /// UsdMaterializationResult)"/> for a lossless connection round trip.
+        /// Connections are recovered from each attribute's <c>ConnectionPaths</c> member, which the
+        /// materializer authors on the node itself, so this overload is now lossless for
+        /// connections too: authored order, multiplicity, and targets outside the materialized
+        /// subtree all survive. The browsable <c>UsdConnection</c> edges are used only as a
+        /// fallback for a stage that was not materialized by this library, where they cannot
+        /// recover authored order or an out-of-subtree target.
         /// </remarks>
         /// <returns>The reconstructed composed scene.</returns>
         public static UsdStage ExportUsdStage(
@@ -241,11 +241,22 @@ namespace Opc.Ua.OpenUsdScene.Server
             var references = new List<IReference>();
             foreach ((UsdAttribute attribute, UsdAttributeState node) in pending)
             {
-                // Preferred path: the materializer recorded the authored connection order
-                // verbatim (M-2), including any target that lies outside the materialized
-                // subtree and therefore has no browsable UsdConnection edge (M-5). Replaying it
-                // reproduces the exact authored sequence with full fidelity — the connection
-                // counterpart of a relationship's TargetPaths (§5.4, §7.4).
+                // Authoritative: ConnectionPaths is authored on the node itself and carries every
+                // connection in order, including a target outside the materialized subtree that
+                // has no browsable edge. It is the connection counterpart of a relationship's
+                // TargetPaths (§5.4, §5.5, §7.4), so — unlike the side channel below — it works
+                // for a bare stage node too.
+                if (node.ConnectionPaths?.Value is { } declared && declared.Count > 0)
+                {
+                    foreach (string path in declared)
+                    {
+                        attribute.Connections.Add(path);
+                    }
+                    continue;
+                }
+
+                // Compatibility: a materialization result may still carry the recorded order for
+                // a stage materialized before ConnectionPaths existed.
                 if (connectionPaths != null &&
                     connectionPaths.TryGetValue(node, out IReadOnlyList<string>? authored))
                 {
