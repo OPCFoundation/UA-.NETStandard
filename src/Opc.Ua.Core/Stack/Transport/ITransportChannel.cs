@@ -198,6 +198,20 @@ namespace Opc.Ua
         /// <summary>
         /// The channel supports Reverse connect.
         /// </summary>
-        ReverseConnect = 0x0040
+        ReverseConnect = 0x0040,
+
+        /// <summary>
+        /// The channel can multiplex OPC UA data channels onto the
+        /// SecureChannel. Experimental.
+        /// </summary>
+        DataChannels = 0x0080,
+
+        /// <summary>
+        /// The transport under the channel provides independently
+        /// ordered and independently flow controlled streams, so a data
+        /// channel is bound to one of them rather than interleaved
+        /// inline. Experimental.
+        /// </summary>
+        MultiplexedStreams = 0x0100
     }
 }

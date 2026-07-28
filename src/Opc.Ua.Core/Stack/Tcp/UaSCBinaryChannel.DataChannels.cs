@@ -1,0 +1,312 @@
+/* ========================================================================
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace Opc.Ua.Bindings
+{
+    /// <summary>
+    /// Inline data channel framing over the UASC binary channel: a frame
+    /// is one STR MessageChunk, written to the connection exactly as a
+    /// MSG chunk is.
+    /// </summary>
+    public partial class UaSCUaBinaryChannel
+    {
+        /// <summary>
+        /// The data channels multiplexed onto this SecureChannel, or null
+        /// when the feature is not enabled.
+        /// </summary>
+        /// <remarks>
+        /// Experimental. Until <see cref="EnableDataChannels"/> is called
+        /// the STR dispatch is inert and an incoming frame closes the
+        /// SecureChannel, which is what the interoperability rule of the
+        /// Part 6 errata 5.16 requires of a peer that does not implement
+        /// this specification.
+        /// </remarks>
+        public DataChannelManager? DataChannels => m_dataChannels;
+
+        /// <summary>
+        /// Enables the data channel feature on this SecureChannel.
+        /// </summary>
+        /// <param name="isServer">True on the server side, which
+        /// allocates ChannelIds.</param>
+        /// <param name="telemetry">Telemetry context.</param>
+        /// <param name="maxDataChannels">The most channels kept open at
+        /// once on this SecureChannel.</param>
+        /// <param name="maxCreditPerChannel">The largest window granted
+        /// to one channel.</param>
+        public DataChannelManager EnableDataChannels(
+            bool isServer,
+            ITelemetryContext telemetry,
+            ushort maxDataChannels = 16,
+            uint maxCreditPerChannel = 1024 * 1024)
+        {
+            DataChannelManager? existing = m_dataChannels;
+
+            if (existing != null)
+            {
+                return existing;
+            }
+
+            var transport = new UaSCDataChannelTransport(this);
+            var manager = new DataChannelManager(
+                transport,
+                isServer,
+                telemetry,
+                maxDataChannels,
+                maxCreditPerChannel);
+
+            DataChannelManager? raced = Interlocked.CompareExchange(
+                ref m_dataChannels,
+                manager,
+                null);
+
+            if (raced != null)
+            {
+                _ = manager.DisposeAsync().AsTask();
+                return raced;
+            }
+
+            m_isDataChannelSource = isServer;
+            return manager;
+        }
+
+        /// <summary>
+        /// Processes an incoming STR chunk.
+        /// </summary>
+        /// <param name="messageType">The message type and chunk type.</param>
+        /// <param name="messageChunk">The chunk.</param>
+        /// <param name="isRequest">True when the chunk was sent by the
+        /// client, which selects the key set used to verify it.</param>
+        /// <returns>False, because this method never takes ownership of
+        /// the buffer.</returns>
+        protected bool ProcessStreamMessage(
+            uint messageType,
+            ArraySegment<byte> messageChunk,
+            bool isRequest)
+        {
+            DataChannelManager? manager = m_dataChannels;
+
+            if (manager == null)
+            {
+                // A peer shall not transmit a STR frame until an
+                // OpenDataChannel on this SecureChannel has completed, so
+                // a frame arriving here is either an unsolicited probe or
+                // a corrupted stream. It is never silently dropped.
+                m_logger.DataChannelFeatureDisabled();
+                OnDataChannelProtocolFault(DataChannelFrameError.InvalidControlChannelFrame);
+                return false;
+            }
+
+            ArraySegment<byte> body;
+            uint requestId;
+
+            try
+            {
+                body = ReadSymmetricMessage(
+                    messageChunk,
+                    isRequest,
+                    out ChannelToken _,
+                    out requestId,
+                    out uint sequenceNumber);
+
+                if (!VerifySequenceNumber(sequenceNumber, nameof(ProcessStreamMessage)))
+                {
+                    OnDataChannelProtocolFault(DataChannelFrameError.MalformedHeader);
+                    return false;
+                }
+            }
+            catch (ServiceResultException)
+            {
+                OnDataChannelProtocolFault(DataChannelFrameError.MalformedHeader);
+                return false;
+            }
+
+            if (!DataChannelFrameCodec.TryValidateChunkHeaders(
+                messageType,
+                requestId,
+                out DataChannelFrameError headerError))
+            {
+                OnDataChannelProtocolFault(headerError);
+                return false;
+            }
+
+            if (!DataChannelFrameCodec.TryDecode(
+                new ReadOnlyMemory<byte>(body.GetArray(), body.Offset, body.Count),
+                ReceiveBufferSize,
+                out DataChannelFrame frame,
+                out DataChannelFrameError error))
+            {
+                if (error.IsFatal())
+                {
+                    OnDataChannelProtocolFault(error);
+                    return false;
+                }
+
+                if (manager.TryGetChannel(frame.ChannelId, out DataChannel? faulted) &&
+                    faulted != null)
+                {
+                    faulted.QueueReset(error.ToStatusCode());
+                }
+
+                return false;
+            }
+
+            manager.HandleFrame(frame);
+            return false;
+        }
+
+        /// <summary>
+        /// Writes one data channel frame as a STR chunk.
+        /// </summary>
+        /// <param name="frame">The frame.</param>
+        /// <param name="ct">Cancellation token.</param>
+        internal async ValueTask SendDataChannelFrameAsync(
+            DataChannelFrame frame,
+            CancellationToken ct)
+        {
+            ChannelToken token = CurrentToken
+                ?? throw ServiceResultException.Create(
+                    StatusCodes.BadSecureChannelClosed,
+                    "The SecureChannel has no active token.");
+
+            int size = frame.EncodedSize;
+            byte[] body = BufferManager.TakeBuffer(size, nameof(SendDataChannelFrameAsync), ct);
+
+            BufferCollection? chunks = null;
+
+            try
+            {
+                int written = DataChannelFrameCodec.Encode(body.AsSpan(0, size), frame);
+
+                chunks = WriteSymmetricMessage(
+                    TcpMessageType.Stream,
+                    DataChannelConstants.FrameRequestId,
+                    token,
+                    new ArraySegment<byte>(body, 0, written),
+                    m_isDataChannelSource ? false : true,
+                    out bool limitsExceeded);
+
+                if (limitsExceeded)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDataChannelLimitsExceeded,
+                        "The data channel frame exceeds the negotiated buffer size.");
+                }
+
+                IUaSCByteTransport transport = GetDataChannelTransport();
+                await transport.SendChunkAsync(chunks, ct).ConfigureAwait(false);
+            }
+            finally
+            {
+                chunks?.Release(BufferManager, nameof(SendDataChannelFrameAsync));
+                BufferManager.ReturnBuffer(body, nameof(SendDataChannelFrameAsync));
+            }
+        }
+
+        /// <summary>
+        /// Reports a fault whose blast radius is the whole SecureChannel.
+        /// The default closes the connection; the listener and client
+        /// channels override it with their own fault machinery.
+        /// </summary>
+        /// <param name="error">Why the frame was rejected.</param>
+        protected virtual void OnDataChannelProtocolFault(DataChannelFrameError error)
+        {
+            OnTransportError(ServiceResult.Create(
+                StatusCodes.BadTcpMessageTypeInvalid,
+                "A data channel frame violated the framing rules: {0}.",
+                error));
+        }
+
+        /// <summary>
+        /// The largest secured body a data channel frame may occupy on
+        /// this SecureChannel.
+        /// </summary>
+        internal int MaxDataChannelBodySize
+            => DataChannelFrameCodec.MaxPayload(
+                DataChannelFramingMode.Inline,
+                SendBufferSize,
+                SymmetricSignatureSize + 2,
+                withDeadline: true);
+
+        private IUaSCByteTransport GetDataChannelTransport()
+        {
+            IUaSCByteTransport? transport = m_transport;
+
+            return transport ?? throw ServiceResultException.Create(
+                StatusCodes.BadConnectionClosed,
+                "The transport was closed by the remote application.");
+        }
+
+        /// <summary>
+        /// Adapts the UASC binary channel to the data channel engine.
+        /// </summary>
+        private sealed class UaSCDataChannelTransport : IDataChannelTransport
+        {
+            public UaSCDataChannelTransport(UaSCUaBinaryChannel owner)
+            {
+                m_owner = owner;
+            }
+
+            /// <inheritdoc/>
+            public DataChannelFramingMode FramingMode => DataChannelFramingMode.Inline;
+
+            /// <inheritdoc/>
+            public int MaxFrameBodySize => m_owner.MaxDataChannelBodySize;
+
+            /// <inheritdoc/>
+            public bool HasTransportFlowControl => false;
+
+            /// <inheritdoc/>
+            public BufferManager BufferManager => m_owner.BufferManager;
+
+            /// <inheritdoc/>
+            public TimeProvider TimeProvider => m_owner.TimeProvider;
+
+            /// <inheritdoc/>
+            public ValueTask SendFrameAsync(DataChannelFrame frame, CancellationToken ct)
+            {
+                return m_owner.SendDataChannelFrameAsync(frame, ct);
+            }
+
+            /// <inheritdoc/>
+            public void OnProtocolFault(DataChannelFrameError error)
+            {
+                m_owner.OnDataChannelProtocolFault(error);
+            }
+
+            private readonly UaSCUaBinaryChannel m_owner;
+        }
+
+        private DataChannelManager? m_dataChannels;
+        private bool m_isDataChannelSource;
+    }
+}

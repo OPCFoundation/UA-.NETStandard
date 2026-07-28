@@ -886,6 +886,14 @@ namespace Opc.Ua.Bindings
                 return ProcessResponseMessage(messageType, messageChunk);
             }
 
+            // process a data channel frame. The dispatch is inert until
+            // the feature is enabled, in which case the frame closes the
+            // SecureChannel as an unrecognized MessageType would.
+            if (TcpMessageType.IsType(messageType, TcpMessageType.Stream))
+            {
+                return ProcessStreamMessage(messageType, messageChunk, false);
+            }
+
             lock (DataLock)
             {
                 // check for acknowledge.
