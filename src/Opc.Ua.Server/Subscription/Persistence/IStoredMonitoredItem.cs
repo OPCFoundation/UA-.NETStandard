@@ -40,6 +40,18 @@ namespace Opc.Ua.Server
         bool IsRestored { get; set; }
 
         /// <summary>
+        /// Whether the monitored node was deleted while the item was monitoring it. A restored
+        /// item keeps reporting the node as missing until a compatible node is added again.
+        /// </summary>
+        bool IsDeleted { get; set; }
+
+        /// <summary>
+        /// Whether the item is detached from the NodeManager that used to own it, which is the
+        /// state it is left in when its node manager is retired or its node is deleted.
+        /// </summary>
+        bool IsDetached { get; set; }
+
+        /// <summary>
         /// Alwasys report Updates
         /// </summary>
         bool AlwaysReportUpdates { get; set; }

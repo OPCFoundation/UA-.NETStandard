@@ -320,20 +320,6 @@ namespace Opc.Ua.Server
             m_lastValue = storedMonitoredItem.LastValue;
             MonitoredItemType = storedMonitoredItem.TypeMask;
 
-            bool storedRequiredNotification =
-                (MonitoredItemType & MonitoredItemTypeMask.DataChange) != 0 &&
-                IsBadNodeIdUnknown(m_lastValue, m_lastError);
-            DataValue storedRequiredValue = default;
-            ServiceResult? storedRequiredError = null;
-            if (storedRequiredNotification)
-            {
-                storedRequiredValue = m_lastValue.IsNull
-                    ? CreateNodeIdUnknownValue()
-                    : m_lastValue.WithStatus(StatusCodes.BadNodeIdUnknown);
-                storedRequiredError = m_lastError ??
-                    new ServiceResult(StatusCodes.BadNodeIdUnknown);
-            }
-
             // create aggregate calculator.
             if (storedMonitoredItem.FilterToUse is ServerAggregateFilter aggregateFilter)
             {
@@ -357,30 +343,9 @@ namespace Opc.Ua.Server
                 MonitoringMode);
 
             RestoreQueue();
-            if (storedRequiredNotification)
-            {
-                DataChangeQueueHandler queueHandler = EnsureDataChangeQueueHandler();
-                if (!queueHandler.HasRequiredValues &&
-                    !m_restoredDataChangeQueueAvailable)
-                {
-                    queueHandler.QueueRequiredValue(
-                        storedRequiredValue,
-                        storedRequiredError!);
-                }
-            }
-            if (m_dataChangeQueueHandler?.HasRequiredValues == true)
-            {
-                m_deletionNotificationQueuedForEpoch = true;
-                m_isDeleted = true;
-                m_isDetached = true;
-            }
-            else if (storedRequiredNotification &&
-                m_restoredDataChangeQueueAvailable)
-            {
-                m_deletionNotificationQueuedForEpoch = true;
-                m_isDeleted = true;
-                m_isDetached = true;
-            }
+
+            m_isDeleted = storedMonitoredItem.IsDeleted;
+            m_isDetached = storedMonitoredItem.IsDetached;
         }
 
         /// <summary>
@@ -468,9 +433,7 @@ namespace Opc.Ua.Server
         {
             get
             {
-                if (m_retirementNotificationPending ||
-                    (MonitoringMode == MonitoringMode.Reporting &&
-                        m_dataChangeQueueHandler?.HasLifecycleValues == true))
+                if (m_retirementNotificationPending)
                 {
                     return true;
                 }
@@ -595,6 +558,39 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
+        bool IDetachableMonitoredItem.TryBeginAttach()
+        {
+            lock (m_lock)
+            {
+                if (m_isDisposed)
+                {
+                    return false;
+                }
+
+                m_isAttaching = true;
+                return true;
+            }
+        }
+
+        /// <inheritdoc/>
+        bool IDetachableMonitoredItem.EndAttach()
+        {
+            lock (m_lock)
+            {
+                m_isAttaching = false;
+                if (!m_isDisposed)
+                {
+                    return true;
+                }
+            }
+
+            // The item was deleted and disposed while it was being handed to the replacement, so
+            // the teardown that Dispose deferred runs now and the caller has to undo the attach.
+            DisposeQueueHandlers();
+            return false;
+        }
+
+        /// <inheritdoc/>
         void IDetachableMonitoredItem.MarkNodeDeleted()
         {
             lock (m_lock)
@@ -614,17 +610,47 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        void IDetachableMonitoredItem.Detach(
-            IAsyncNodeManager nodeManager,
-            object managerHandle)
+        void IDetachableMonitoredItem.Detach(IServerInternal server)
         {
+            if (server is null)
+            {
+                throw new ArgumentNullException(nameof(server));
+            }
+
+            IAsyncNodeManager owner = GetDetachedOwner(server);
+
             lock (m_lock)
             {
-                NodeManager = nodeManager ?? throw new ArgumentNullException(nameof(nodeManager));
-                ManagerHandle = managerHandle;
+                NodeManager = owner;
+                ManagerHandle = DetachedHandle;
                 m_isDetached = true;
             }
         }
+
+        /// <summary>
+        /// Returns the long lived NodeManager that a detached MonitoredItem is parked on. The
+        /// CoreNodeManager is used because it outlives every NodeManager that can be retired.
+        /// </summary>
+        /// <param name="server">The server that owns the NodeManagers.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="server"/> is <c>null</c>.</exception>
+        /// <exception cref="InvalidOperationException">The server has no CoreNodeManager.</exception>
+        internal static IAsyncNodeManager GetDetachedOwner(IServerInternal server)
+        {
+            if (server is null)
+            {
+                throw new ArgumentNullException(nameof(server));
+            }
+
+            return server.NodeManager?.CoreNodeManager ??
+                server.CoreNodeManager ??
+                throw new InvalidOperationException(
+                    "The server does not have a long lived CoreNodeManager for detached monitored items.");
+        }
+
+        /// <summary>
+        /// Gets the handle a detached MonitoredItem is parked on.
+        /// </summary>
+        internal static object DetachedHandle => s_detachedHandle;
 
         /// <inheritdoc/>
         void IDetachableMonitoredItem.QueueNodeIdUnknown()
@@ -649,8 +675,7 @@ namespace Opc.Ua.Server
                 ManagerHandle = managerHandle;
                 m_isDetached = false;
                 m_isDeleted = false;
-                m_deletionNotificationQueuedForEpoch = false;
-            }
+                }
         }
 
         /// <summary>
@@ -1242,19 +1267,10 @@ namespace Opc.Ua.Server
         /// </summary>
         private void AddValueToQueue(DataValue value, ServiceResult error)
         {
-            bool queued = true;
-            bool overflow = m_dataChangeQueueHandler?.QueueValue(
-                value,
-                error,
-                out queued) ?? false;
-            if (!queued)
+            bool overflow = false;
+            if (QueueSize > 1)
             {
-                m_logger.QUEUEVALUEMonitoredItemIdValueValueCODECode(
-                    Id,
-                    value.WrappedValue,
-                    value.StatusCode.Code,
-                    overflow);
-                return;
+                overflow = m_dataChangeQueueHandler!.QueueValue(value, error);
             }
 
             if (!m_lastValue.IsNull)
@@ -1266,7 +1282,6 @@ namespace Opc.Ua.Server
             m_lastValue = value;
             m_lastError = error;
             m_readyToPublish = true;
-            m_readyToTrigger = true;
 
             m_logger.QUEUEVALUEMonitoredItemIdValueValueCODECode(
                 Id,
@@ -1673,15 +1688,14 @@ namespace Opc.Ua.Server
                     return false;
                 }
 
-                bool isReadyToPublish = IsReadyToPublish;
-                if (!isReadyToPublish)
+                if (!IsReadyToPublish)
                 {
                     if (!m_resendData)
                     {
                         return false;
                     }
                 }
-                else if (m_readyToPublish)
+                else
                 {
                     // pull any unprocessed data.
                     if (!m_retirementNotificationPending &&
@@ -1702,32 +1716,18 @@ namespace Opc.Ua.Server
                     IncrementSampleTime();
                 }
 
-                uint notificationCount = 0;
-
+                // check if queueing enabled.
                 if (m_dataChangeQueueHandler != null &&
                     (!m_resendData || m_dataChangeQueueHandler.ItemsInQueue != 0))
                 {
+                    uint notificationCount = 0;
                     while (
                         notificationCount < maxNotificationsPerPublish &&
                         m_dataChangeQueueHandler.PublishSingleValue(
                             out DataValue value,
-                            out ServiceResult error,
-                            out bool required))
+                            out ServiceResult error))
                     {
-                        if (required)
-                        {
-                            Publish(
-                                context,
-                                notifications,
-                                diagnostics,
-                                value,
-                                error,
-                                applyChangeBits: false);
-                        }
-                        else
-                        {
-                            Publish(context, notifications, diagnostics, value, error);
-                        }
+                        Publish(context, notifications, diagnostics, value, error);
 
                         notificationCount++;
 
@@ -1737,18 +1737,14 @@ namespace Opc.Ua.Server
                         }
                     }
                 }
-                // publish last value if no queuing or no items are queued.
-                else if (notificationCount < maxNotificationsPerPublish &&
-                    (m_readyToPublish ||
-                        m_resendData))
+                // publish last value if no queuing or no items are queued
+                else
                 {
                     m_logger.DequeueValue(
                         m_lastValue.WrappedValue,
                         m_lastValue.StatusCode.Code,
                         m_lastValue.StatusCode.Overflow);
                     Publish(context, notifications, diagnostics, m_lastValue, m_lastError!);
-                    notificationCount++;
-                    m_readyToPublish = false;
                 }
 
                 bool moreValuesToPublish = m_dataChangeQueueHandler?.ItemsInQueue > 0;
@@ -1765,25 +1761,6 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Publishes a single data change notifications.
-        /// </summary>
-        protected virtual bool Publish(
-            OperationContext context,
-            Queue<MonitoredItemNotification> notifications,
-            Queue<DiagnosticInfo> diagnostics,
-            DataValue value,
-            ServiceResult error)
-        {
-            return Publish(
-                context,
-                notifications,
-                diagnostics,
-                value,
-                error,
-                applyChangeBits: true);
-        }
-
-        /// <summary>
         /// Publishes a single data change notification.
         /// </summary>
         /// <param name="context">The context of the Publish request.</param>
@@ -1791,21 +1768,15 @@ namespace Opc.Ua.Server
         /// <param name="diagnostics">The queue the diagnostic info is added to.</param>
         /// <param name="value">The value to publish.</param>
         /// <param name="error">The error that belongs to the value.</param>
-        /// <param name="applyChangeBits">
-        /// <c>false</c> for a protected missing Node notification, whose StatusCode has to reach
-        /// the Client exactly as it was queued, so the pending semantics and structure changed
-        /// bits are neither applied to it nor consumed by it.
-        /// </param>
-        private bool Publish(
+        protected virtual bool Publish(
             OperationContext context,
             Queue<MonitoredItemNotification> notifications,
             Queue<DiagnosticInfo> diagnostics,
             DataValue value,
-            ServiceResult error,
-            bool applyChangeBits)
+            ServiceResult error)
         {
             // set semantics changed bit.
-            if (applyChangeBits && m_semanticsChanged)
+            if (m_semanticsChanged)
             {
                 value = value.WithStatus(value.StatusCode.SetSemanticsChanged(true));
 
@@ -1823,7 +1794,7 @@ namespace Opc.Ua.Server
             }
 
             // set structure changed bit.
-            if (applyChangeBits && m_structureChanged)
+            if (m_structureChanged)
             {
                 value = value.WithStatus(value.StatusCode.SetStructureChanged(true));
 
@@ -1946,6 +1917,8 @@ namespace Opc.Ua.Server
                     DiagnosticsMasks = DiagnosticsMasks,
                     DiscardOldest = m_discardOldest,
                     IsDurable = IsDurable,
+                    IsDeleted = m_isDeleted,
+                    IsDetached = m_isDetached,
                     Encoding = DataEncoding,
                     FilterToUse = m_filterToUse!,
                     Id = Id,
@@ -1965,18 +1938,24 @@ namespace Opc.Ua.Server
 
         private void QueueNodeIdUnknown()
         {
-            if ((MonitoredItemType & MonitoredItemTypeMask.DataChange) == 0 ||
-                m_deletionNotificationQueuedForEpoch)
+            if ((MonitoredItemType & MonitoredItemTypeMask.DataChange) == 0)
             {
                 return;
             }
 
             DataValue value = CreateNodeIdUnknownValue();
             var error = new ServiceResult(StatusCodes.BadNodeIdUnknown);
-            EnsureDataChangeQueueHandler().QueueRequiredValue(value, error);
+
+            // With queueing disabled the last value is what the Client is served, so there is
+            // nothing to protect and the notification simply becomes that value.
+            if (QueueSize > 1)
+            {
+                m_dataChangeQueueHandler?.QueueRequiredValue(value, error);
+            }
+
             m_lastValue = value;
             m_lastError = error;
-            m_deletionNotificationQueuedForEpoch = true;
+            m_readyToPublish = true;
             m_readyToTrigger = true;
         }
 
@@ -2152,6 +2131,13 @@ namespace Opc.Ua.Server
                     // create data queue.
                     if (MonitoredItemType == MonitoredItemTypeMask.DataChange)
                     {
+                        if (QueueSize <= 1)
+                        {
+                            m_dataChangeQueueHandler?.Dispose();
+                            m_dataChangeQueueHandler = null;
+                            break; // queueing is disabled
+                        }
+
                         bool queueLastValue = false;
 
                         if (m_dataChangeQueueHandler == null)
@@ -2189,11 +2175,8 @@ namespace Opc.Ua.Server
                 case MonitoringMode.Disabled:
                     m_eventQueueHandler?.Dispose();
                     m_eventQueueHandler = null;
-                    if (m_dataChangeQueueHandler?.HasRequiredValues != true)
-                    {
-                        m_dataChangeQueueHandler?.Dispose();
-                        m_dataChangeQueueHandler = null;
-                    }
+                    m_dataChangeQueueHandler?.Dispose();
+                    m_dataChangeQueueHandler = null;
                     break;
                 default:
                     throw ServiceResultException.Unexpected(
@@ -2228,8 +2211,12 @@ namespace Opc.Ua.Server
                     // create data queue.
                     if (MonitoredItemType == MonitoredItemTypeMask.DataChange)
                     {
+                        if (QueueSize <= 1)
+                        {
+                            break; // queueing is disabled
+                        }
                         IDataChangeMonitoredItemQueue? restoredQueue = m_restoredDataChangeQueue;
-                        if (restoredQueue == null && (QueueSize > 1 || IsDurable))
+                        if (restoredQueue == null)
                         {
                             try
                             {
@@ -2244,14 +2231,11 @@ namespace Opc.Ua.Server
 
                         if (restoredQueue != null)
                         {
-                            m_restoredDataChangeQueueAvailable = true;
                             // initialize with existing queue
                             m_dataChangeQueueHandler = new DataChangeQueueHandler(
                                 restoredQueue,
-                                QueueSize,
                                 m_discardOldest,
                                 m_samplingInterval,
-                                DiagnosticsMasks,
                                 m_server.Telemetry,
                                 QueueOverflowHandler);
                         }
@@ -2307,65 +2291,11 @@ namespace Opc.Ua.Server
                     }
                     break;
                 case MonitoringMode.Disabled:
-                    if (MonitoredItemType == MonitoredItemTypeMask.DataChange &&
-                        IsDurable)
-                    {
-                        IDataChangeMonitoredItemQueue? restoredQueue =
-                            m_restoredDataChangeQueue;
-                        if (restoredQueue == null)
-                        {
-                            try
-                            {
-                                restoredQueue = m_subscriptionStore
-                                    .RestoreDataChangeMonitoredItemQueue(Id);
-                            }
-                            catch (Exception ex)
-                            {
-                                m_logger.FailedToRestoreQueueForMonitoredItem(ex, Id);
-                            }
-                        }
-
-                        if (restoredQueue != null)
-                        {
-                            m_restoredDataChangeQueueAvailable = true;
-                            m_dataChangeQueueHandler = new DataChangeQueueHandler(
-                                restoredQueue,
-                                QueueSize,
-                                m_discardOldest,
-                                m_samplingInterval,
-                                DiagnosticsMasks,
-                                m_server.Telemetry,
-                                QueueOverflowHandler);
-                        }
-                        else
-                        {
-                            EnsureDataChangeQueueHandler();
-                        }
-                    }
                     break;
                 default:
                     throw ServiceResultException.Unexpected(
                         $"Unexpected MonitoringMode {MonitoringMode}");
             }
-        }
-
-        private DataChangeQueueHandler EnsureDataChangeQueueHandler()
-        {
-            if (m_dataChangeQueueHandler == null)
-            {
-                m_dataChangeQueueHandler = new DataChangeQueueHandler(
-                    Id,
-                    IsDurable,
-                    m_monitoredItemQueueFactory,
-                    m_server.Telemetry,
-                    QueueOverflowHandler);
-                m_dataChangeQueueHandler.SetQueueSize(
-                    Math.Max(QueueSize, 1),
-                    m_discardOldest,
-                    DiagnosticsMasks);
-                m_dataChangeQueueHandler.SetSamplingInterval(m_samplingInterval);
-            }
-            return m_dataChangeQueueHandler;
         }
 
         /// <summary>
@@ -2388,15 +2318,53 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual void Dispose(bool disposing)
         {
-            if (disposing)
+            if (!disposing)
             {
-                m_dataChangeQueueHandler?.Dispose();
-                m_eventQueueHandler?.Dispose();
+                return;
             }
+
+            lock (m_lock)
+            {
+                if (m_isDisposed)
+                {
+                    return;
+                }
+
+                m_isDisposed = true;
+
+                // A NodeManager reload may be handing this item to its replacement right now.
+                // Tearing the queues down underneath it would leave the replacement sampling a
+                // disposed item, so the teardown waits for the attach to report back.
+                if (m_isAttaching)
+                {
+                    return;
+                }
+            }
+
+            DisposeQueueHandlers();
+        }
+
+        /// <summary>
+        /// Releases the queues once no attach is in flight.
+        /// </summary>
+        private void DisposeQueueHandlers()
+        {
+            DataChangeQueueHandler? dataChangeQueueHandler;
+            EventQueueHandler? eventQueueHandler;
+            lock (m_lock)
+            {
+                dataChangeQueueHandler = m_dataChangeQueueHandler;
+                eventQueueHandler = m_eventQueueHandler;
+            }
+
+            dataChangeQueueHandler?.Dispose();
+            eventQueueHandler?.Dispose();
         }
 
         private readonly Lock m_lock = new();
         private readonly ILogger m_logger;
+        private bool m_isDisposed;
+        private bool m_isAttaching;
         private readonly TimeProvider m_timeProvider;
         private IServerInternal m_server;
         private string? m_indexRange;
@@ -2430,9 +2398,13 @@ namespace Opc.Ua.Server
         private bool m_resendData;
         private HashSet<string>? m_filteredRetainConditionIds;
         private bool m_isDetached;
+
+        /// <summary>
+        /// The handle a detached MonitoredItem is parked on. It is a shared sentinel, because a
+        /// detached item has no real Node behind it until it is attached again.
+        /// </summary>
+        private static readonly object s_detachedHandle = new();
         private bool m_isDeleted;
-        private bool m_deletionNotificationQueuedForEpoch;
-        private bool m_restoredDataChangeQueueAvailable;
     }
 
     /// <summary>

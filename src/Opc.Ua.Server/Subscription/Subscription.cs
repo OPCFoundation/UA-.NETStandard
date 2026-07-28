@@ -701,7 +701,11 @@ namespace Opc.Ua.Server
                     {
                         ReturnDiagnostics = (int)DiagnosticsMasks.OperationSymbolicIdAndText
                     };
+                    // Passed on to DeleteMonitoredItemsAsync below; it tracks no request, so there
+                    // is nothing to release when this scope ends.
+#pragma warning disable CA2000
                     context = new OperationContext(requestHeader, null, RequestType.Unknown, RequestLifetime.None);
+#pragma warning restore CA2000
                 }
 
                 await DeleteMonitoredItemsAsync(
@@ -872,10 +876,14 @@ namespace Opc.Ua.Server
         /// <param name="cancellationToken">The cancellation token.</param>
         public async ValueTask TransferSessionAsync(OperationContext context, bool sendInitialValues, CancellationToken cancellationToken = default)
         {
-            // locked by caller
-            Session = context.Session;
-
-            var monitoredItems = m_monitoredItems.Select(v => v.Value.Value).ToList();
+            ISession destinationSession = context.Session;
+            ISession? sourceSession;
+            List<IMonitoredItem> monitoredItems;
+            lock (m_lock)
+            {
+                sourceSession = Session;
+                monitoredItems = m_monitoredItems.Select(v => v.Value.Value).ToList();
+            }
             var errors = new List<ServiceResult>(monitoredItems.Count);
             for (int ii = 0; ii < monitoredItems.Count; ii++)
             {
@@ -900,10 +908,48 @@ namespace Opc.Ua.Server
                 m_logger.FailedToTransferCountMonitoredItems(badTransfers);
             }
 
+            lock (m_lock)
+            {
+                if (!ReferenceEquals(Session, sourceSession))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadSubscriptionIdInvalid,
+                        "Subscription ownership changed during transfer.");
+                }
+                Session = destinationSession;
+            }
+
             lock (DiagnosticsWriteLock)
             {
-                Diagnostics.SessionId = Session.Id;
+                Diagnostics.SessionId = destinationSession.Id;
             }
+        }
+
+        /// <summary>
+        /// Restores ownership if a transfer failed after assigning its destination.
+        /// </summary>
+        internal bool TryRestoreSessionAfterFailedTransfer(
+            ISession destinationSession,
+            ISession? sourceSession)
+        {
+            lock (m_lock)
+            {
+                if (ReferenceEquals(Session, sourceSession))
+                {
+                    return true;
+                }
+                if (!ReferenceEquals(Session, destinationSession))
+                {
+                    return false;
+                }
+                Session = sourceSession!;
+            }
+
+            lock (DiagnosticsWriteLock)
+            {
+                Diagnostics.SessionId = sourceSession?.Id ?? default;
+            }
+            return true;
         }
 
         /// <summary>
@@ -928,19 +974,39 @@ namespace Opc.Ua.Server
         /// </summary>
         public void SessionClosed()
         {
+            ISession session;
             lock (m_lock)
             {
-                if (Session != null)
+                session = Session;
+            }
+
+            if (session != null)
+            {
+                SessionClosed(session);
+            }
+        }
+
+        /// <summary>
+        /// Clears the session only if the closing session still owns the subscription.
+        /// </summary>
+        internal bool SessionClosed(ISession closingSession)
+        {
+            lock (m_lock)
+            {
+                if (!ReferenceEquals(Session, closingSession))
                 {
-                    m_savedOwnerIdentity = Session.EffectiveIdentity;
-                    Session = null!;
+                    return false;
                 }
+
+                m_savedOwnerIdentity = closingSession.EffectiveIdentity;
+                Session = null!;
             }
 
             lock (DiagnosticsWriteLock)
             {
                 Diagnostics.SessionId = default;
             }
+            return true;
         }
 
         /// <summary>
@@ -1770,17 +1836,6 @@ namespace Opc.Ua.Server
             ArrayOf<MonitoredItemCreateRequest> itemsToCreate,
             CancellationToken cancellationToken = default)
         {
-            if (m_server.NodeManager is IDynamicNodeManagerHost coordinator)
-            {
-                return coordinator.ExecuteMonitoredItemMutationAsync(
-                    () => CreateMonitoredItemsCoreAsync(
-                        context,
-                        timestampsToReturn,
-                        itemsToCreate,
-                        cancellationToken),
-                    cancellationToken);
-            }
-
             return CreateMonitoredItemsCoreAsync(
                 context,
                 timestampsToReturn,
@@ -1800,11 +1855,6 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(context));
             }
             EnsureSessionNotClosing(context);
-            if (m_server.SubscriptionManager?.IsDeleting(Id) == true)
-            {
-                throw new ServiceResultException(
-                    StatusCodes.BadSubscriptionIdInvalid);
-            }
 
             int count = itemsToCreate.Count;
 
@@ -1840,36 +1890,6 @@ namespace Opc.Ua.Server
                 monitoredItems,
                 IsDurable,
                 cancellationToken).ConfigureAwait(false);
-
-            if (m_server.SubscriptionManager?.IsDeleting(Id) == true)
-            {
-                var cleanupErrors = new List<ServiceResult>(errors.Count);
-                for (int ii = 0; ii < errors.Count; ii++)
-                {
-                    cleanupErrors.Add(
-                        ServiceResult.IsBad(errors[ii])
-                            ? errors[ii]
-                            : ServiceResult.Good);
-                }
-                try
-                {
-                    await m_server.NodeManager.DeleteMonitoredItemsAsync(
-                        context,
-                        Id,
-                        monitoredItems,
-                        cleanupErrors,
-                        CancellationToken.None).ConfigureAwait(false);
-                }
-                finally
-                {
-                    foreach (IMonitoredItem monitoredItem in monitoredItems)
-                    {
-                        monitoredItem?.Dispose();
-                    }
-                }
-                throw new ServiceResultException(
-                    StatusCodes.BadSubscriptionIdInvalid);
-            }
 
             // allocate results.
             bool diagnosticsExist = false;
@@ -2039,17 +2059,6 @@ namespace Opc.Ua.Server
             ArrayOf<MonitoredItemModifyRequest> itemsToModify,
             CancellationToken cancellationToken = default)
         {
-            if (m_server.NodeManager is IDynamicNodeManagerHost coordinator)
-            {
-                return coordinator.ExecuteMonitoredItemMutationAsync(
-                    () => ModifyMonitoredItemsCoreAsync(
-                        context,
-                        timestampsToReturn,
-                        itemsToModify,
-                        cancellationToken),
-                    cancellationToken);
-            }
-
             return ModifyMonitoredItemsCoreAsync(
                 context,
                 timestampsToReturn,
@@ -2069,11 +2078,6 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(context));
             }
             EnsureSessionNotClosing(context);
-            if (m_server.SubscriptionManager?.IsDeleting(Id) == true)
-            {
-                throw new ServiceResultException(
-                    StatusCodes.BadSubscriptionIdInvalid);
-            }
 
             int count = itemsToModify.Count;
 
@@ -2253,17 +2257,6 @@ namespace Opc.Ua.Server
             bool doNotCheckSession,
             CancellationToken cancellationToken = default)
         {
-            if (m_server.NodeManager is IDynamicNodeManagerHost coordinator)
-            {
-                return coordinator.ExecuteMonitoredItemMutationAsync(
-                    () => DeleteMonitoredItemsCoreAsync(
-                        context,
-                        monitoredItemIds,
-                        doNotCheckSession,
-                        cancellationToken),
-                    cancellationToken);
-            }
-
             return DeleteMonitoredItemsCoreAsync(
                 context,
                 monitoredItemIds,
@@ -2453,17 +2446,6 @@ namespace Opc.Ua.Server
             ArrayOf<uint> monitoredItemIds,
             CancellationToken cancellationToken = default)
         {
-            if (m_server.NodeManager is IDynamicNodeManagerHost coordinator)
-            {
-                return coordinator.ExecuteMonitoredItemMutationAsync(
-                    () => SetMonitoringModeCoreAsync(
-                        context,
-                        monitoringMode,
-                        monitoredItemIds,
-                        cancellationToken),
-                    cancellationToken);
-            }
-
             return SetMonitoringModeCoreAsync(
                 context,
                 monitoringMode,
@@ -2484,11 +2466,6 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(context));
             }
             EnsureSessionNotClosing(context);
-            if (m_server.SubscriptionManager?.IsDeleting(Id) == true)
-            {
-                throw new ServiceResultException(
-                    StatusCodes.BadSubscriptionIdInvalid);
-            }
 
             int count = monitoredItemIds.Count;
 
@@ -2796,7 +2773,7 @@ namespace Opc.Ua.Server
             {
                 m_refreshInProgress = true;
 
-                var operationContext = new OperationContext(Session, DiagnosticsMasks.None);
+                using var operationContext = new OperationContext(Session, DiagnosticsMasks.None);
                 await m_server.NodeManager.ConditionRefreshAsync(operationContext, monitoredItems, cancellationToken)
                     .ConfigureAwait(false);
             }
@@ -3016,8 +2993,7 @@ namespace Opc.Ua.Server
 
         private void EnsureSessionNotClosing(OperationContext context)
         {
-            if (context.Session is not null &&
-                m_server.IsSessionClosing(context.Session.Id))
+            if (context.Session is { IsClosing: true })
             {
                 throw new ServiceResultException(StatusCodes.BadSessionClosed);
             }

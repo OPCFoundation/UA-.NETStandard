@@ -43,6 +43,10 @@ using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
 using Quickstarts.ReferenceServer;
 
+// Test code exercises RequestManager.RequestCompleted, which is obsolete for callers
+// because requests are completed by disposing the OperationContext.
+#pragma warning disable CS0618
+
 namespace Opc.Ua.Server.Tests.NodeManager
 {
     /// <summary>
@@ -423,38 +427,26 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
-        public void AddAsyncFromRequestScopeRejectsWithoutInvokingFactory()
+        public void AddAsyncFromServiceDispatchScopeRejectsWithoutInvokingFactory()
         {
             IServerInternal server = m_server.CurrentInstance;
             var factory = new Mock<IAsyncNodeManagerFactory>(MockBehavior.Strict);
-            var context = new OperationContext(
-                new RequestHeader(),
-                secureChannelContext: null,
-                RequestType.Read,
-                RequestLifetime.None);
 
-            try
-            {
-                using IDisposable requestScope =
-                    server.RequestManager.EnterRequestScope(context);
+            using IDisposable dispatchScope =
+                server.RequestManager.EnterServiceDispatchScope();
 
-                Assert.That(
-                    async () => await m_server.NodeManagerLifecycle
-                        .AddAsync(factory.Object)
-                        .ConfigureAwait(false),
-                    Throws.InvalidOperationException.With.Message.Contains(
-                        "cannot run from an OPC UA request callback"));
-                factory.Verify(
-                    candidate => candidate.CreateAsync(
-                        It.IsAny<IServerInternal>(),
-                        It.IsAny<ApplicationConfiguration>(),
-                        It.IsAny<CancellationToken>()),
-                    Times.Never);
-            }
-            finally
-            {
-                server.RequestManager.RequestCompleted(context);
-            }
+            Assert.That(
+                async () => await m_server.NodeManagerLifecycle
+                    .AddAsync(factory.Object)
+                    .ConfigureAwait(false),
+                Throws.InvalidOperationException.With.Message.Contains(
+                    "cannot run from an OPC UA request callback"));
+            factory.Verify(
+                candidate => candidate.CreateAsync(
+                    It.IsAny<IServerInternal>(),
+                    It.IsAny<ApplicationConfiguration>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
         }
 
         [Test]
@@ -798,59 +790,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// Reload waits for an in-flight monitored-item mutation before transferring ownership.
         /// </summary>
-        [Test]
-        public async Task ReloadAsyncWaitsForMonitoredItemMutationAsync()
-        {
-            NodeManagerRegistration original = await m_server.NodeManagerLifecycle
-                .AddRuntimeNodeSetAsync(CreateGenerationOptions(generation: 1))
-                .ConfigureAwait(false);
-            IServerInternal server = m_server.CurrentInstance;
-            ushort ns = (ushort)server.NamespaceUris.GetIndex(kModelNamespaceUri);
-            var services = new ServerTestServices(m_server, m_secureChannelContext);
-            (uint subscriptionId, _) = await CreateSubscriptionWithMonitoredItemAsync(
-                services,
-                new NodeId(kValueNodeId, ns)).ConfigureAwait(false);
-            var coordinator = (IDynamicNodeManagerHost)server.NodeManager;
-            var mutationStarted = new TaskCompletionSource<bool>(
-                TaskCreationOptions.RunContinuationsAsynchronously);
-            var releaseMutation = new TaskCompletionSource<bool>(
-                TaskCreationOptions.RunContinuationsAsynchronously);
-
-            try
-            {
-                async ValueTask<bool> BlockMutationAsync()
-                {
-                    mutationStarted.TrySetResult(true);
-                    await releaseMutation.Task.ConfigureAwait(false);
-                    return true;
-                }
-
-                Task<bool> mutationTask = coordinator.ExecuteMonitoredItemMutationAsync(
-                    BlockMutationAsync,
-                    CancellationToken.None).AsTask();
-                await mutationStarted.Task.ConfigureAwait(false);
-
-                Task<NodeManagerRegistration> reloadTask = m_server.NodeManagerLifecycle
-                    .ReloadRuntimeNodeSetAsync(
-                        original,
-                        CreateGenerationOptions(generation: 2))
-                    .AsTask();
-                Task earlyCompletion = await Task.WhenAny(
-                    reloadTask,
-                    Task.Delay(TimeSpan.FromMilliseconds(100))).ConfigureAwait(false);
-                Assert.That(earlyCompletion, Is.Not.SameAs(reloadTask));
-
-                releaseMutation.TrySetResult(true);
-                Assert.That(await mutationTask.ConfigureAwait(false), Is.True);
-                NodeManagerRegistration reloaded = await reloadTask.ConfigureAwait(false);
-                Assert.That(reloaded.Generation, Is.EqualTo(original.Generation + 1));
-            }
-            finally
-            {
-                releaseMutation.TrySetResult(true);
-                await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
-            }
-        }
 
         /// <summary>
         /// Reload detaches a dropped NodeId, publishes BadNodeIdUnknown once, and recovers
@@ -2780,7 +2719,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                             replacement,
                             beforeCommit: () =>
                             {
-                                DetachedMonitoredItemOwnership.Detach(server, itemLifecycle);
+                                itemLifecycle.Detach(server);
                                 return default;
                             },
                             afterCommit: () =>
@@ -2986,11 +2925,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 () => host.Release(null!));
             Assert.That(exception.ParamName, Is.EqualTo("nodeManager"));
 
-            exception = Assert.ThrowsAsync<ArgumentNullException>(
-                async () => await coordinator
-                    .ExecuteMonitoredItemMutationAsync<int>(null!)
-                    .ConfigureAwait(false));
-            Assert.That(exception.ParamName, Is.EqualTo("mutation"));
 
             Assert.That(
                 async () => await host
@@ -3133,53 +3067,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
             disposable.Verify(value => value.Dispose(), Times.Once);
         }
 
-        [Test]
-        public async Task SessionClosingWaitsForMonitoredItemMutationAsync()
-        {
-            IServerInternal server = m_server.CurrentInstance;
-            var master = (MasterNodeManager)server.NodeManager;
-            var coordinator = (IDynamicNodeManagerHost)master;
-            var mutationStarted = new TaskCompletionSource<bool>(
-                TaskCreationOptions.RunContinuationsAsynchronously);
-            var releaseMutation = new TaskCompletionSource<bool>(
-                TaskCreationOptions.RunContinuationsAsynchronously);
-
-            async ValueTask<bool> BlockMutationAsync()
-            {
-                mutationStarted.TrySetResult(true);
-                await releaseMutation.Task.ConfigureAwait(false);
-                return true;
-            }
-
-            Task<bool> mutationTask = coordinator
-                .ExecuteMonitoredItemMutationAsync(
-                    BlockMutationAsync,
-                    CancellationToken.None)
-                .AsTask();
-            await mutationStarted.Task.ConfigureAwait(false);
-
-            var context = new OperationContext(
-                new RequestHeader(),
-                null,
-                RequestType.CloseSession,
-                RequestLifetime.None);
-            Task closingTask = master
-                .SessionClosingAsync(
-                    context,
-                    new NodeId(Guid.NewGuid()),
-                    deleteSubscriptions: false,
-                    CancellationToken.None)
-                .AsTask();
-
-            Task earlyCompletion = await Task.WhenAny(
-                closingTask,
-                Task.Delay(TimeSpan.FromMilliseconds(100))).ConfigureAwait(false);
-            Assert.That(earlyCompletion, Is.Not.SameAs(closingTask));
-
-            releaseMutation.TrySetResult(true);
-            Assert.That(await mutationTask.ConfigureAwait(false), Is.True);
-            await closingTask.ConfigureAwait(false);
-        }
 
         [Test]
         public Task AddAsyncCleansFailedSessionActivationAsync()

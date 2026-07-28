@@ -4944,6 +4944,10 @@ namespace Opc.Ua.Server.Tests
     {
         public bool IsRestored { get; set; }
 
+        public bool IsDeleted { get; set; }
+
+        public bool IsDetached { get; set; }
+
         public bool AlwaysReportUpdates { get; set; }
 
         public uint AttributeId { get; set; }

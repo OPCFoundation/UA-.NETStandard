@@ -697,10 +697,7 @@ namespace Opc.Ua.Server
             bool deleteSubscriptions,
             CancellationToken cancellationToken = default)
         {
-            m_closingSessions.AddOrUpdate(
-                sessionId,
-                1,
-                static (_, count) => count + 1);
+            MarkSessionClosing(sessionId);
             try
             {
                 await NodeManager.SessionClosingAsync(context, sessionId, deleteSubscriptions, cancellationToken)
@@ -708,39 +705,30 @@ namespace Opc.Ua.Server
                 await SubscriptionManager
                     .SessionClosingAsync(context, sessionId, deleteSubscriptions, cancellationToken)
                     .ConfigureAwait(false);
-                await SessionManager.CloseSessionAsync(sessionId, cancellationToken).ConfigureAwait(false);
             }
             finally
             {
-                UnmarkSessionClosing(sessionId);
+                // The Session is marked closing for good, so it must not be left registered and
+                // serving when a NodeManager or the SubscriptionManager fails to tear its state
+                // down. The original failure still propagates to the caller.
+                await SessionManager.CloseSessionAsync(sessionId, cancellationToken).ConfigureAwait(false);
             }
         }
 
-        /// <inheritdoc/>
-        public bool IsSessionClosing(NodeId sessionId)
+        /// <summary>
+        /// Marks the session as closing so that nothing creates new state for it while it is being
+        /// torn down. The mark lives on the Session itself, because every caller that has to test
+        /// it already holds the Session, and it is never cleared: a Session that started closing is
+        /// on its way out.
+        /// </summary>
+        /// <param name="sessionId">The session being closed.</param>
+        private void MarkSessionClosing(NodeId sessionId)
         {
-            return m_closingSessions.ContainsKey(sessionId);
-        }
-
-        private void UnmarkSessionClosing(NodeId sessionId)
-        {
-            while (m_closingSessions.TryGetValue(
-                sessionId,
-                out int count))
+            foreach (ISession session in SessionManager.GetSessions())
             {
-                if (count <= 1)
+                if (session.Id == sessionId)
                 {
-                    if (((ICollection<KeyValuePair<NodeId, int>>)m_closingSessions)
-                        .Remove(new KeyValuePair<NodeId, int>(sessionId, count)))
-                    {
-                        return;
-                    }
-                }
-                else if (m_closingSessions.TryUpdate(
-                    sessionId,
-                    count - 1,
-                    count))
-                {
+                    (session as Session)?.MarkClosing();
                     return;
                 }
             }
@@ -1288,7 +1276,6 @@ namespace Opc.Ua.Server
 
         private readonly ServerProperties m_serverDescription;
         private readonly ApplicationConfiguration m_configuration;
-        private readonly ConcurrentDictionary<NodeId, int> m_closingSessions = [];
         private readonly List<Uri> m_endpointAddresses;
         private readonly Lock m_serviceLevelLock = new();
         private RoleStateBinding? m_roleStateBinding;

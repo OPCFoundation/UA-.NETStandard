@@ -89,28 +89,17 @@ namespace Opc.Ua.Server
         /// <param name="queueFactory">the factory for <see cref="IDataChangeMonitoredItemQueue"/></param>
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="discardedValueHandler">Handler for discarded values</param>
+        /// <param name="timeProvider">
+        /// Supplies the per-sample timestamp used for sampling-interval throttling, so it can be
+        /// mocked in tests. Defaults to <see cref="TimeProvider.System"/>.
+        /// </param>
         public DataChangeQueueHandler(
             uint monitoredItemId,
             bool createDurable,
             IMonitoredItemQueueFactory queueFactory,
             ITelemetryContext telemetry,
-            Action? discardedValueHandler = null)
-            : this(monitoredItemId, createDurable, queueFactory, telemetry, discardedValueHandler, null)
-        {
-        }
-
-        /// <summary>
-        /// Creates a new Queue with an explicit <see cref="TimeProvider"/> so
-        /// the per-sample timestamp used for sampling-interval throttling can
-        /// be mocked in tests.
-        /// </summary>
-        public DataChangeQueueHandler(
-            uint monitoredItemId,
-            bool createDurable,
-            IMonitoredItemQueueFactory queueFactory,
-            ITelemetryContext telemetry,
-            Action? discardedValueHandler,
-            TimeProvider? timeProvider)
+            Action? discardedValueHandler = null,
+            TimeProvider? timeProvider = null)
         {
             m_logger = telemetry.CreateLogger<DataChangeQueueHandler>();
             m_dataValueQueue = queueFactory.CreateDataChangeQueue(createDurable, monitoredItemId);
@@ -129,73 +118,33 @@ namespace Opc.Ua.Server
         /// Create a DatachangeQueueHandler from an existing queue
         /// Used for restore after a server restart
         /// </summary>
+        /// <param name="dataValueQueue">The queue to take over.</param>
+        /// <param name="discardOldest">Whether to discard the oldest values if the queue overflows.</param>
+        /// <param name="samplingInterval">The sampling interval.</param>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
+        /// <param name="discardedValueHandler">Handler for discarded values</param>
+        /// <param name="timeProvider">
+        /// Supplies the per-sample timestamp used for sampling-interval throttling, so it can be
+        /// mocked in tests. Defaults to <see cref="TimeProvider.System"/>.
+        /// </param>
         public DataChangeQueueHandler(
             IDataChangeMonitoredItemQueue dataValueQueue,
             bool discardOldest,
             double samplingInterval,
             ITelemetryContext telemetry,
-            Action? discardedValueHandler = null)
-            : this(
-                dataValueQueue,
-                dataValueQueue.QueueSize,
-                discardOldest,
-                samplingInterval,
-                DiagnosticsMasks.None,
-                telemetry,
-                discardedValueHandler,
-                null)
-        {
-        }
-
-        /// <summary>
-        /// Create a DatachangeQueueHandler from an existing queue with an
-        /// explicit <see cref="TimeProvider"/>.
-        /// </summary>
-        public DataChangeQueueHandler(
-            IDataChangeMonitoredItemQueue dataValueQueue,
-            bool discardOldest,
-            double samplingInterval,
-            ITelemetryContext telemetry,
-            Action? discardedValueHandler,
-            TimeProvider? timeProvider)
-            : this(
-                dataValueQueue,
-                dataValueQueue.QueueSize,
-                discardOldest,
-                samplingInterval,
-                DiagnosticsMasks.None,
-                telemetry,
-                discardedValueHandler,
-                timeProvider)
-        {
-        }
-
-        /// <summary>
-        /// Creates a queue handler from an existing queue and restores protected lifecycle markers.
-        /// </summary>
-        internal DataChangeQueueHandler(
-            IDataChangeMonitoredItemQueue dataValueQueue,
-            uint queueSize,
-            bool discardOldest,
-            double samplingInterval,
-            DiagnosticsMasks diagnosticsMasks,
-            ITelemetryContext telemetry,
-            Action? discardedValueHandler,
+            Action? discardedValueHandler = null,
             TimeProvider? timeProvider = null)
         {
             m_logger = telemetry.CreateLogger<DataChangeQueueHandler>();
 
             m_dataValueQueue = dataValueQueue;
             m_monitoredItemId = dataValueQueue.MonitoredItemId;
-            m_queueSize = Math.Max(queueSize, 1);
-            m_queueErrors = (diagnosticsMasks & DiagnosticsMasks.OperationAll) != 0;
             m_discardOldest = discardOldest;
             m_discardedValueHandler = discardedValueHandler!;
             m_nextSampleTime = 0;
             m_overflow = default;
             m_overflowPending = false;
             m_timeProvider = timeProvider ?? TimeProvider.System;
-            RestoreQueueState();
             SetSamplingInterval(samplingInterval);
         }
 
@@ -210,27 +159,47 @@ namespace Opc.Ua.Server
             bool discardOldest,
             DiagnosticsMasks diagnosticsMasks)
         {
-            m_queueSize = Math.Max(queueSize, 1);
-            m_queueErrors = (diagnosticsMasks & DiagnosticsMasks.OperationAll) != 0;
+            bool queueErrors = (diagnosticsMasks & DiagnosticsMasks.OperationAll) != 0;
+
             m_discardOldest = discardOldest;
 
-            List<QueuedValue> existingValues = DrainQueue();
-            uint physicalQueueSize = Math.Max(m_queueSize, (uint)existingValues.Count);
-            m_dataValueQueue.ResetQueue(physicalQueueSize, m_queueErrors);
-            m_overflow = default;
-            m_overflowPending = false;
-            ResetQueueState();
-            foreach (QueuedValue queuedValue in existingValues)
+            // copy existing values.
+            List<DataValue>? existingValues = null;
+            List<ServiceResult>? existingErrors = null;
+
+            if (ItemsInQueue > 0)
             {
-                if (queuedValue.Required)
+                existingValues = new List<DataValue>((int)queueSize);
+                existingErrors = new List<ServiceResult>((int)queueSize);
+
+                while (PublishSingleValue(out DataValue value, out ServiceResult error, true))
                 {
-                    EnqueueRequired(queuedValue.Value, queuedValue.Error);
-                }
-                else
-                {
-                    Enqueue(queuedValue.Value, queuedValue.Error, out _);
+                    existingValues.Add(value);
+                    existingErrors.Add(error);
                 }
             }
+
+            // The marker keeps its identity across the resize, so draining it here must not clear
+            // the flag that protects it from being discarded once it is put back.
+            DataValue required = m_required;
+            bool requiredPending = m_requiredPending;
+
+            m_dataValueQueue.ResetQueue(queueSize, queueErrors);
+
+            m_overflow = default;
+            m_overflowPending = false;
+
+            // requeue the data.
+            if (existingValues != null)
+            {
+                for (int ii = 0; ii < existingValues.Count; ii++)
+                {
+                    Enqueue(existingValues[ii], existingErrors![ii]);
+                }
+            }
+
+            m_required = required;
+            m_requiredPending = requiredPending;
         }
 
         /// <summary>
@@ -271,22 +240,6 @@ namespace Opc.Ua.Server
         /// <returns>true of overflow occured</returns>
         public bool QueueValue(in DataValue value, ServiceResult error)
         {
-            return QueueValue(value, error, out _);
-        }
-
-        /// <summary>
-        /// Queues a value and reports whether the value was retained.
-        /// </summary>
-        internal bool QueueValue(
-            in DataValue value,
-            ServiceResult error,
-            out bool queued)
-        {
-            if (m_lifecycleBoundaryQueued)
-            {
-                return Enqueue(value, error, out queued);
-            }
-
             long now = m_timeProvider.GetTimestampMilliseconds();
 
             if (m_dataValueQueue.ItemsInQueue > 0)
@@ -294,10 +247,13 @@ namespace Opc.Ua.Server
                 // check if too soon for another sample.
                 if (now < m_nextSampleTime)
                 {
-                    m_dataValueQueue.TryPeekLastValue(out DataValue overwrittenValue);
-                    if (m_lastEnqueuedRequired)
+                    if (!m_dataValueQueue.TryPeekLastValue(out DataValue overwrittenValue) ||
+                        IsRequiredMarker(overwrittenValue))
                     {
-                        return Enqueue(value, error, out queued);
+                        // The missing-node marker has to reach the Client, so it is never
+                        // replaced. The sample arrived too soon to be queued in its own right,
+                        // so it is dropped instead.
+                        return false;
                     }
 
                     m_logger.OVERWRITTENVALUETOOSOONFORANOTHERSAMPLE(
@@ -311,7 +267,6 @@ namespace Opc.Ua.Server
 
                     m_discardedValueHandler?.Invoke();
 
-                    queued = true;
                     return false;
                 }
             }
@@ -332,7 +287,7 @@ namespace Opc.Ua.Server
             }
 
             // queue next value.
-            return Enqueue(value, error, out queued);
+            return Enqueue(value, error);
         }
 
         /// <summary>
@@ -346,13 +301,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets whether a required missing-node marker is pending.
         /// </summary>
-        internal bool HasRequiredValues => m_requiredValueCount > 0;
-
-        /// <summary>
-        /// Gets whether values remain in an active lifecycle publication sequence.
-        /// </summary>
-        internal bool HasLifecycleValues =>
-            m_lifecycleBoundaryQueued && m_dataValueQueue.ItemsInQueue > 0;
+        internal bool HasRequiredValues => m_requiredPending;
 
         /// <summary>
         /// Deques the last item
@@ -362,39 +311,12 @@ namespace Opc.Ua.Server
             out ServiceResult error,
             bool noEventLog = false)
         {
-            return PublishSingleValue(out value, out error, out _, noEventLog);
-        }
-
-        /// <summary>
-        /// Dequeues the oldest item and reports whether it is a protected lifecycle marker.
-        /// </summary>
-        internal bool PublishSingleValue(
-            out DataValue value,
-            out ServiceResult error,
-            out bool required,
-            bool noEventLog = false)
-        {
             if (m_dataValueQueue.Dequeue(out value, out error))
             {
-                required = DequeueRequiredFlag(value, error);
-                if (required)
+                if (IsRequiredMarker(value))
                 {
-                    m_requiredValueCount--;
-                }
-                else if (m_lifecycleBoundaryQueued)
-                {
-                    if (m_ordinaryValuesBeforeLifecycle > 0)
-                    {
-                        m_ordinaryValuesBeforeLifecycle--;
-                    }
-                    else
-                    {
-                        m_lifecycleOrdinaryValueCount--;
-                    }
-                }
-                else
-                {
-                    m_ordinaryValuesBeforeLifecycle--;
+                    m_required = default;
+                    m_requiredPending = false;
                 }
 
                 if (m_overflowPending && m_overflow == value)
@@ -412,14 +334,9 @@ namespace Opc.Ua.Server
                         value.StatusCode.Overflow);
                 }
 
-                if (m_dataValueQueue.ItemsInQueue == 0)
-                {
-                    ResetQueueState();
-                }
-
                 return true;
             }
-            required = false;
+
             return false;
         }
 
@@ -427,29 +344,15 @@ namespace Opc.Ua.Server
         /// Enque value
         /// </summary>
         /// <returns>true of overflow occured</returns>
-        private bool Enqueue(
-            DataValue value,
-            ServiceResult error,
-            out bool queued)
+        private bool Enqueue(DataValue value, ServiceResult error)
         {
-            int ordinaryValueCount = m_lifecycleBoundaryQueued
-                ? m_lifecycleOrdinaryValueCount
-                : m_ordinaryValuesBeforeLifecycle;
-            uint ordinaryValueLimit = m_lifecycleBoundaryQueued
-                ? GetLifecycleOrdinaryValueLimit(m_requiredValueCount)
-                : m_queueSize;
-
             // check for empty queue.
             if (m_dataValueQueue.ItemsInQueue == 0)
             {
                 m_logger.ENQUEUEVALUEValueValue(value.WrappedValue);
 
-                EnsurePhysicalCapacity(1);
                 m_dataValueQueue.Enqueue(value, error);
-                AppendRequiredFlag(false);
-                IncrementOrdinaryValueCount();
 
-                queued = true;
                 return false;
             }
 
@@ -460,296 +363,160 @@ namespace Opc.Ua.Server
                 // overwrite the last value
                 m_dataValueQueue.OverwriteLastValue(value, error);
 
-                queued = true;
                 return false;
             }
 
             // check if queue is full.
-            if (ordinaryValueLimit == 0 || (uint)ordinaryValueCount >= ordinaryValueLimit)
+            if (m_dataValueQueue.ItemsInQueue == m_dataValueQueue.QueueSize)
             {
-                m_discardedValueHandler?.Invoke();
-
-                if (!RemoveOrdinaryValue(fromEnd: !m_discardOldest, out DataValue discardedValue))
+                if (!m_discardOldest)
                 {
-                    // Only protected lifecycle markers remain queued. They must still be
-                    // delivered, so the incoming value is discarded instead of a queued one.
-                    ServerUtils.ReportDiscardedValue(default, m_monitoredItemId, value);
-                    queued = false;
+                    if (IsRequiredMarker(lastValue))
+                    {
+                        // The missing-node marker has to reach the Client, so the incoming value
+                        // is discarded instead of the marker, and the marker reports the loss.
+                        DiscardIncomingValue(value, lastValue);
+                        return true;
+                    }
+
+                    m_discardedValueHandler?.Invoke();
+                    ServerUtils.ReportDiscardedValue(default, m_monitoredItemId, lastValue);
+
+                    // the newest value reports the loss.
+                    m_overflow = value;
+                    m_overflowPending = true;
+
+                    // overwrite last value
+                    m_dataValueQueue.OverwriteLastValue(value, error);
+
                     return true;
                 }
 
-                ServerUtils.ReportDiscardedValue(default, m_monitoredItemId, discardedValue);
-
-                if (!m_discardOldest)
+                if (m_dataValueQueue.TryPeekOldestValue(out DataValue peekedOldest) &&
+                    IsRequiredMarker(peekedOldest))
                 {
-                    //set overflow bit in newest value
-                    SetOverflowBit(ref value, ref error);
-                }
-                else if (!SetOverflowOnOldestOrdinaryValue() && m_queueSize > 1)
-                {
-                    // No ordinary value remains to carry the overflow bit, so the incoming
-                    // value becomes the oldest one and reports the loss instead. A queue of
-                    // size one is a last value cache, which never reports an overflow.
-                    SetOverflowBit(ref value, ref error);
-                }
-            }
-            else
-            {
-                m_logger.ENQUEUEVALUEValueValue(value.WrappedValue);
-            }
-
-            EnsurePhysicalCapacity((uint)m_dataValueQueue.ItemsInQueue + 1);
-            m_dataValueQueue.Enqueue(value, error);
-            AppendRequiredFlag(false);
-            IncrementOrdinaryValueCount();
-
-            queued = true;
-            return (uint)ordinaryValueCount >= ordinaryValueLimit;
-        }
-
-        private void EnqueueRequired(DataValue value, ServiceResult error)
-        {
-            if (!m_lifecycleBoundaryQueued)
-            {
-                m_lifecycleBoundaryQueued = true;
-            }
-
-            EnsurePhysicalCapacity((uint)m_dataValueQueue.ItemsInQueue + 1);
-            m_dataValueQueue.Enqueue(value, error);
-            AppendRequiredFlag(true);
-            m_requiredValueCount++;
-        }
-
-        private uint GetLifecycleOrdinaryValueLimit(int requiredValueCount)
-        {
-            return (uint)requiredValueCount >= m_queueSize
-                ? 0
-                : m_queueSize - (uint)requiredValueCount;
-        }
-
-        private void IncrementOrdinaryValueCount()
-        {
-            if (m_lifecycleBoundaryQueued)
-            {
-                m_lifecycleOrdinaryValueCount++;
-            }
-            else
-            {
-                m_ordinaryValuesBeforeLifecycle++;
-            }
-        }
-
-        private bool RemoveOrdinaryValue(bool fromEnd, out DataValue discardedValue)
-        {
-            List<QueuedValue> values = DrainQueue();
-            int firstRequired = values.FindIndex(queuedValue => queuedValue.Required);
-            int index = -1;
-            if (fromEnd)
-            {
-                for (int ii = values.Count - 1; ii >= 0; ii--)
-                {
-                    if (!values[ii].Required &&
-                        (!m_lifecycleBoundaryQueued || ii > firstRequired))
-                    {
-                        index = ii;
-                        break;
-                    }
-                }
-            }
-            else
-            {
-                for (int ii = 0; ii < values.Count; ii++)
-                {
-                    if (!values[ii].Required &&
-                        (!m_lifecycleBoundaryQueued || ii > firstRequired))
-                    {
-                        index = ii;
-                        break;
-                    }
-                }
-            }
-
-            if (index < 0)
-            {
-                RestorePhysicalQueue(values);
-                discardedValue = default;
-                return false;
-            }
-
-            discardedValue = values[index].Value;
-            values.RemoveAt(index);
-            RestorePhysicalQueue(values);
-            if (m_lifecycleBoundaryQueued)
-            {
-                m_lifecycleOrdinaryValueCount--;
-            }
-            else
-            {
-                m_ordinaryValuesBeforeLifecycle--;
-            }
-            return true;
-        }
-
-        private bool SetOverflowOnOldestOrdinaryValue()
-        {
-            List<QueuedValue> values = DrainQueue();
-            int firstRequired = values.FindIndex(queuedValue => queuedValue.Required);
-            bool overflowSet = false;
-            for (int ii = 0; ii < values.Count; ii++)
-            {
-                if (!values[ii].Required &&
-                    (!m_lifecycleBoundaryQueued || ii > firstRequired))
-                {
-                    DataValue value = values[ii].Value;
-                    ServiceResult error = values[ii].Error;
-                    SetOverflowBit(ref value, ref error);
-                    values[ii] = values[ii] with { Value = value, Error = error };
-                    overflowSet = true;
-                    break;
-                }
-            }
-            RestorePhysicalQueue(values);
-            return overflowSet;
-        }
-
-        private void EnsurePhysicalCapacity(uint requiredCapacity)
-        {
-            if (m_dataValueQueue.QueueSize >= requiredCapacity)
-            {
-                return;
-            }
-
-            List<QueuedValue> values = DrainQueue();
-            m_dataValueQueue.ResetQueue(requiredCapacity, m_queueErrors);
-            RefillPhysicalQueue(values);
-        }
-
-        private List<QueuedValue> DrainQueue()
-        {
-            int itemCount = m_dataValueQueue.ItemsInQueue;
-            var values = new List<QueuedValue>(itemCount);
-            var spinWait = new SpinWait();
-            // Durable queues may temporarily return false while restoring a persisted batch.
-            // Drain the captured item count exactly so a resize cannot drop a partially restored batch.
-            // The retry is bounded, because a queue that permanently stops handing back the values it
-            // reports as queued would otherwise spin a server thread forever.
-            int failedAttempts = 0;
-            while (values.Count < itemCount)
-            {
-                if (m_dataValueQueue.Dequeue(out DataValue value, out ServiceResult error))
-                {
-                    values.Add(
-                        new QueuedValue(value, error, DequeueRequiredFlag(value, error)));
-                    spinWait.Reset();
-                    failedAttempts = 0;
-                    continue;
+                    // The missing-node marker has to reach the Client, so the incoming value is
+                    // discarded instead of the marker, and the marker reports the loss.
+                    DiscardIncomingValue(value, peekedOldest);
+                    return true;
                 }
 
-                if (++failedAttempts > kMaxDrainAttempts)
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadInternalError,
-                        "The monitored item queue did not return the values it reported as queued.");
-                }
-                spinWait.SpinOnce();
-            }
-            return values;
-        }
+                m_discardedValueHandler?.Invoke();
 
-        private void RestorePhysicalQueue(List<QueuedValue> values)
-        {
-            uint physicalQueueSize = Math.Max(
-                m_dataValueQueue.QueueSize,
-                Math.Max(m_queueSize, (uint)values.Count));
-            m_dataValueQueue.ResetQueue(physicalQueueSize, m_queueErrors);
-            RefillPhysicalQueue(values);
-        }
-
-        private void RestoreQueueState()
-        {
-            List<QueuedValue> values = DrainQueue();
-            bool lifecycleBoundaryFound = false;
-            for (int ii = 0; ii < values.Count; ii++)
-            {
-                // A restored durable queue carries no marker flags, so the status code is the
-                // only signal available here. This best-effort classification is deliberately
-                // limited to restore: live values are classified by QueueRequiredValue alone.
-                bool required = IsRequiredMarker(values[ii].Value, values[ii].Error);
-                values[ii] = values[ii] with { Required = required };
-
-                if (required)
+                // remove oldest value.
+                if (DequeueWithRetry(out DataValue discardedValue, out _))
                 {
-                    lifecycleBoundaryFound = true;
-                    m_lifecycleBoundaryQueued = true;
-                    m_requiredValueCount++;
-                }
-                else if (lifecycleBoundaryFound)
-                {
-                    m_lifecycleOrdinaryValueCount++;
+                    ServerUtils.ReportDiscardedValue(default, m_monitoredItemId, discardedValue);
                 }
                 else
                 {
-                    m_ordinaryValuesBeforeLifecycle++;
+                    throw new ServiceResultException(
+                        StatusCodes.BadInternalError,
+                        "Error queueing DataValue. DataValueQueue was full but it was not possible to discard the oldest value.");
                 }
+
+                // the value that is now the oldest reports the loss.
+                if (m_dataValueQueue.TryPeekOldestValue(out DataValue oldestValue))
+                {
+                    m_overflow = oldestValue;
+                    m_overflowPending = true;
+                }
+
+                m_dataValueQueue.Enqueue(value, error);
+
+                return true;
             }
 
-            RefillPhysicalQueue(values);
-        }
+            m_logger.ENQUEUEVALUEValueValue(value.WrappedValue);
 
-        private void ResetQueueState()
-        {
-            m_lifecycleBoundaryQueued = false;
-            m_ordinaryValuesBeforeLifecycle = 0;
-            m_lifecycleOrdinaryValueCount = 0;
-            m_requiredValueCount = 0;
-            m_requiredFlags.Clear();
-            m_lastEnqueuedRequired = false;
+            m_dataValueQueue.Enqueue(value, error);
+
+            return false;
         }
 
         /// <summary>
-        /// Records whether the value appended to the physical queue is a protected
-        /// lifecycle marker.
+        /// Queues the marker that tells the Client the monitored Node is gone. It is queued like
+        /// any other value, so Part 4 5.13.1.5 ordering holds, and from then on it is the one
+        /// value that is never discarded, so a full queue cannot swallow the notification that
+        /// Part 4 5.8.4.1 requires.
+        /// <para>
+        /// The specification does not say how a mandatory data change Notification survives a full
+        /// queue: the protected, over capacity entry it defines applies to
+        /// EventQueueOverflowEventType only. Issue #4102 records the ambiguity and where to change
+        /// this if the behaviour chosen here turns out to be non-compliant.
+        /// </para>
         /// </summary>
-        private void AppendRequiredFlag(bool required)
+        /// <param name="value">The marker value.</param>
+        /// <param name="error">The marker error.</param>
+        private void EnqueueRequired(DataValue value, ServiceResult error)
         {
-            m_requiredFlags.Enqueue(required);
-            m_lastEnqueuedRequired = required;
-        }
-
-        /// <summary>
-        /// Consumes the marker flag of the value removed from the front of the queue.
-        /// </summary>
-        private bool DequeueRequiredFlag(in DataValue value, ServiceResult? error)
-        {
-            if (m_requiredFlags.Count > 0)
+            if (m_requiredPending)
             {
-                return m_requiredFlags.Dequeue();
+                // A marker is already queued and says the same thing, so a second one adds
+                // nothing and would only displace a real value.
+                return;
             }
 
-            // The physical queue was populated without the handler, so fall back to the
-            // best-effort status code classification used for restored durable queues.
-            return IsRequiredMarker(value, error);
+            // No marker is queued yet, so the rule that protects it cannot reject this one.
+            Enqueue(value, error);
+            m_required = value;
+            m_requiredPending = true;
         }
 
         /// <summary>
-        /// Refills the physical queue and rebuilds the marker flags from the drained values.
+        /// Gets whether the queued value is the pending missing-node marker.
         /// </summary>
-        private void RefillPhysicalQueue(List<QueuedValue> values)
+        /// <param name="value">The queued value.</param>
+        private bool IsRequiredMarker(in DataValue value)
         {
-            m_requiredFlags.Clear();
-            m_lastEnqueuedRequired = false;
-            foreach (QueuedValue queuedValue in values)
-            {
-                m_dataValueQueue.Enqueue(queuedValue.Value, queuedValue.Error);
-                AppendRequiredFlag(queuedValue.Required);
-            }
+            return m_requiredPending && m_required == value;
         }
 
-        private static bool IsRequiredMarker(in DataValue value, ServiceResult? error)
+        /// <summary>
+        /// Discards the incoming value because the value it would have displaced is the marker,
+        /// and lets the marker report the loss instead.
+        /// </summary>
+        /// <param name="value">The value that is not queued.</param>
+        /// <param name="marker">The marker that keeps its place.</param>
+        private void DiscardIncomingValue(DataValue value, DataValue marker)
         {
-            return error?.StatusCode.Code == StatusCodes.BadNodeIdUnknown.Code ||
-                (!value.IsNull && value.StatusCode.Code == StatusCodes.BadNodeIdUnknown.Code);
+            m_discardedValueHandler?.Invoke();
+            ServerUtils.ReportDiscardedValue(default, m_monitoredItemId, value);
+            m_overflow = marker;
+            m_overflowPending = true;
         }
+
+        /// <summary>
+        /// Dequeues a value, tolerating a durable queue that transiently reports no value while it
+        /// restores a persisted batch. The retry is bounded, because a queue that permanently
+        /// stops handing back the values it reports as queued would otherwise spin a server
+        /// thread forever.
+        /// </summary>
+        /// <param name="value">The value that was dequeued.</param>
+        /// <param name="error">The error that belongs to the value.</param>
+        private bool DequeueWithRetry(out DataValue value, out ServiceResult error)
+        {
+            var spinWait = new SpinWait();
+            for (int attempt = 0; attempt <= kMaxDrainAttempts; attempt++)
+            {
+                if (m_dataValueQueue.Dequeue(out value, out error))
+                {
+                    return true;
+                }
+
+                if (m_dataValueQueue.ItemsInQueue == 0)
+                {
+                    return false;
+                }
+
+                spinWait.SpinOnce();
+            }
+
+            value = default;
+            error = ServiceResult.Good;
+            return false;
+        }
+
 
         /// <summary>
         /// Sets the overflow bit in the value and error.
@@ -801,25 +568,14 @@ namespace Opc.Ua.Server
         private readonly ILogger m_logger;
         private readonly TimeProvider m_timeProvider;
         private readonly uint m_monitoredItemId;
-        private uint m_queueSize;
-        private bool m_queueErrors;
         private bool m_discardOldest;
         private long m_nextSampleTime;
         private long m_samplingInterval;
         private readonly Action m_discardedValueHandler;
         private DataValue m_overflow;
         private bool m_overflowPending;
-        private bool m_lifecycleBoundaryQueued;
-        private int m_ordinaryValuesBeforeLifecycle;
-        private int m_lifecycleOrdinaryValueCount;
-        private int m_requiredValueCount;
-        private readonly Queue<bool> m_requiredFlags = [];
-        private bool m_lastEnqueuedRequired;
-
-        private readonly record struct QueuedValue(
-            DataValue Value,
-            ServiceResult Error,
-            bool Required);
+        private DataValue m_required;
+        private bool m_requiredPending;
     }
 
     /// <summary>

@@ -40,7 +40,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// A generic session manager object for a server.
     /// </summary>
-    public class Session : ISession, INodeManagerContinuationPointTracker
+    public class Session : ISession
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="Session"/> class.
@@ -150,6 +150,7 @@ namespace Opc.Ua.Server
             m_timeProvider = timeProvider
                 ?? (server as ITimeProviderProvider)?.TimeProvider
                 ?? TimeProvider.System;
+            m_logger = server.Telemetry.CreateLogger<Session>();
             m_eventLogger = server.Telemetry.CreateLogger(
                 ServerCompatibilityEventIds.CategoryName);
             ClientNonce = clientNonce;
@@ -403,6 +404,22 @@ namespace Opc.Ua.Server
         /// Whether the session has been activated.
         /// </summary>
         public bool Activated { get; private set; }
+
+        /// <summary>
+        /// Whether the session is being closed. Closing is entered once and never left, so a
+        /// Session that started closing never serves new work again.
+        /// </summary>
+        public bool IsClosing => Volatile.Read(ref m_closing) != 0;
+
+        /// <summary>
+        /// Marks the session as being closed. The mark is one way: once a close has started the
+        /// Session is on its way out, so nothing that would create new state for it is accepted
+        /// again, even if the close itself fails.
+        /// </summary>
+        internal void MarkClosing()
+        {
+            Volatile.Write(ref m_closing, 1);
+        }
 
         /// <summary>
         /// Set the ECC security policy URI
@@ -777,6 +794,7 @@ namespace Opc.Ua.Server
         public void InvalidateContinuationPoints(IAsyncNodeManager nodeManager)
         {
             m_continuationPoints.RemoveBrowseForManager(nodeManager);
+            m_continuationPoints.RemoveHistoryForManager(nodeManager);
         }
 
         /// <summary>
@@ -1324,6 +1342,8 @@ namespace Opc.Ua.Server
         }
 
         private readonly Lock m_lock = new();
+        private int m_closing;
+        private readonly ILogger m_logger;
         private readonly ILogger m_eventLogger;
         private readonly IServerInternal m_server;
         private readonly TimeProvider m_timeProvider;

@@ -1377,28 +1377,18 @@ namespace Opc.Ua.Server
             }
         }
 
-        private static async ValueTask RetireMonitoredItemsAsync(
+        /// <summary>
+        /// Retires every monitored item owned by the NodeManager, optionally releasing
+        /// the owner references afterwards. Each subscription and monitored item applies
+        /// the transition under its own lock, so no additional server-wide mutation lock
+        /// is taken here.
+        /// </summary>
+        private static void RetireMonitoredItems(
             IServerInternal server,
             IAsyncNodeManager nodeManager,
             ServiceResult error,
             bool detachOwner = false)
         {
-            if (server.NodeManager is IDynamicNodeManagerHost coordinator)
-            {
-                await coordinator.ExecuteMonitoredItemMutationAsync(
-                    () =>
-                    {
-                        RetireMonitoredItemsCore(server, nodeManager, error);
-                        if (detachOwner)
-                        {
-                            DetachRetiredMonitoredItemsCore(server, nodeManager);
-                        }
-                        return new ValueTask<bool>(true);
-                    },
-                    CancellationToken.None).ConfigureAwait(false);
-                return;
-            }
-
             RetireMonitoredItemsCore(server, nodeManager, error);
             if (detachOwner)
             {
@@ -1454,10 +1444,7 @@ namespace Opc.Ua.Server
         {
             foreach (ISession session in server.SessionManager.GetSessions())
             {
-                if (session is INodeManagerContinuationPointTracker tracker)
-                {
-                    tracker.InvalidateContinuationPoints(nodeManager);
-                }
+                session.InvalidateContinuationPoints(nodeManager);
             }
         }
 
@@ -1502,7 +1489,7 @@ namespace Opc.Ua.Server
                 foreach (ISession session in server.SessionManager.GetSessions())
                 {
                     if (!session.Activated ||
-                        IsSessionClosing(server, session))
+                        session.IsClosing)
                     {
                         continue;
                     }
@@ -1569,7 +1556,7 @@ namespace Opc.Ua.Server
                     .GetSessions()
                     .Where(session =>
                         session.Activated &&
-                        !IsSessionClosing(server, session))
+                        !session.IsClosing)
             ];
             Dictionary<NodeId, ISession> currentSessionsById =
                 currentSessions.ToDictionary(session => session.Id);
@@ -1586,11 +1573,12 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
+                using var sessionContext = new OperationContext(
+                    binding.Value.Session,
+                    DiagnosticsMasks.None);
                 await nodeManager
                     .SessionClosingAsync(
-                        new OperationContext(
-                            binding.Value.Session,
-                            DiagnosticsMasks.None),
+                        sessionContext,
                         binding.Key,
                         deleteSubscriptions: false,
                         ct)
@@ -1639,9 +1627,10 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
+                using var eventContext = new OperationContext(binding.Value);
                 await nodeManager
                     .SubscribeToAllEventsAsync(
-                        new OperationContext(binding.Value),
+                        eventContext,
                         binding.Value.SubscriptionId,
                         binding.Value,
                         true,
@@ -1681,9 +1670,10 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
+                using var eventContext = new OperationContext(monitoredItem);
                 await nodeManager
                     .SubscribeToAllEventsAsync(
-                        new OperationContext(monitoredItem),
+                        eventContext,
                         monitoredItem.SubscriptionId,
                         monitoredItem,
                         true,
@@ -1693,7 +1683,7 @@ namespace Opc.Ua.Server
 
             foreach (ISession session in server.SessionManager.GetSessions())
             {
-                var context = new OperationContext(session, DiagnosticsMasks.None);
+                using var context = new OperationContext(session, DiagnosticsMasks.None);
                 await nodeManager
                     .SessionClosingAsync(
                         context,
@@ -1712,9 +1702,10 @@ namespace Opc.Ua.Server
             foreach (IEventMonitoredItem monitoredItem in
                 bindings.EventMonitoredItems.Values)
             {
+                using var eventContext = new OperationContext(monitoredItem);
                 await nodeManager
                     .SubscribeToAllEventsAsync(
-                        new OperationContext(monitoredItem),
+                        eventContext,
                         monitoredItem.SubscriptionId,
                         monitoredItem,
                         true,
@@ -1725,11 +1716,12 @@ namespace Opc.Ua.Server
             foreach (KeyValuePair<NodeId, SessionBinding> binding in
                 bindings.Sessions)
             {
+                using var sessionContext = new OperationContext(
+                    binding.Value.Session,
+                    DiagnosticsMasks.None);
                 await nodeManager
                     .SessionClosingAsync(
-                        new OperationContext(
-                            binding.Value.Session,
-                            DiagnosticsMasks.None),
+                        sessionContext,
                         binding.Key,
                         deleteSubscriptions: false,
                         ct)
@@ -1745,7 +1737,7 @@ namespace Opc.Ua.Server
         {
             while (true)
             {
-                var context = new OperationContext(session, DiagnosticsMasks.None);
+                using var context = new OperationContext(session, DiagnosticsMasks.None);
                 IUserIdentity identity = context.UserIdentity;
                 try
                 {
@@ -1777,14 +1769,14 @@ namespace Opc.Ua.Server
                 }
                 if (ReferenceEquals(identity, session.EffectiveIdentity) &&
                     session.Activated &&
-                    !IsSessionClosing(server, session) &&
+                    !session.IsClosing &&
                     server.SessionManager.GetSessions().Any(current =>
                         ReferenceEquals(current, session)))
                 {
                     return new SessionBinding(session, identity);
                 }
                 if (!session.Activated ||
-                    IsSessionClosing(server, session) ||
+                    session.IsClosing ||
                     !server.SessionManager.GetSessions().Any(current =>
                         ReferenceEquals(current, session)))
                 {
@@ -1801,20 +1793,13 @@ namespace Opc.Ua.Server
             }
         }
 
-        private static bool IsSessionClosing(
-            IServerInternal server,
-            ISession session)
-        {
-            return server.IsSessionClosing(session.Id);
-        }
-
         private static async ValueTask<bool> SubscribeToAllEventsAsync(
             IServerInternal server,
             IAsyncNodeManager nodeManager,
             IEventMonitoredItem monitoredItem,
             CancellationToken ct)
         {
-            var context = new OperationContext(monitoredItem);
+            using var context = new OperationContext(monitoredItem);
             try
             {
                 await nodeManager
@@ -1857,9 +1842,10 @@ namespace Opc.Ua.Server
                 return true;
             }
 
+            using var eventContext = new OperationContext(monitoredItem);
             await nodeManager
                 .SubscribeToAllEventsAsync(
-                    new OperationContext(monitoredItem),
+                    eventContext,
                     monitoredItem.SubscriptionId,
                     monitoredItem,
                     true,
@@ -2394,11 +2380,10 @@ namespace Opc.Ua.Server
 
                 if (retired.ImmediateRetirementError is not null)
                 {
-                    await RetireMonitoredItemsAsync(
-                            server,
-                            retired.NodeManager,
-                            retired.ImmediateRetirementError)
-                        .ConfigureAwait(false);
+                    RetireMonitoredItems(
+                        server,
+                        retired.NodeManager,
+                        retired.ImmediateRetirementError);
                 }
                 InvalidateContinuationPoints(server, retired.NodeManager);
                 await server.RequestManager
@@ -2410,12 +2395,11 @@ namespace Opc.Ua.Server
                     // A request that captured the old routing generation before the
                     // switch may have completed monitored-item creation during the
                     // drain. Retire that late item before detaching the owner.
-                    await RetireMonitoredItemsAsync(
-                            server,
-                            retired.NodeManager,
-                            retired.ImmediateRetirementError,
-                            detachOwner: true)
-                        .ConfigureAwait(false);
+                    RetireMonitoredItems(
+                        server,
+                        retired.NodeManager,
+                        retired.ImmediateRetirementError,
+                        detachOwner: true);
                 }
                 EnsureNoActiveMonitoredItems(server, retired.NodeManager);
                 await UnbindFromServerAsync(
@@ -2473,11 +2457,23 @@ namespace Opc.Ua.Server
             {
                 foreach (IMonitoredItem monitoredItem in m_compatibleItems.Concat(m_deletedItems))
                 {
+                    // A Subscription being deleted, a Session being closed or a Client deleting the
+                    // item can remove it while the transition runs. There is then nothing to move,
+                    // so the item is skipped instead of failing the lifecycle operation.
+                    if (!IsOwnedBySubscription(monitoredItem))
+                    {
+                        continue;
+                    }
+
                     ServiceResult result = await m_current
                         .DetachMonitoredItemAsync(monitoredItem, ct)
                         .ConfigureAwait(false);
                     if (ServiceResult.IsBad(result))
                     {
+                        if (!IsOwnedBySubscription(monitoredItem))
+                        {
+                            continue;
+                        }
                         throw new ServiceResultException(result);
                     }
                     m_detachedItems.Add(monitoredItem);
@@ -2500,6 +2496,17 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
+                    // Every MonitoredItem the server creates is detachable. A test double or
+                    // a foreign implementation that is not cannot take part in the reservation, so
+                    // it is handed over without one.
+                    var detachable = monitoredItem as IDetachableMonitoredItem;
+                    if (detachable?.TryBeginAttach() == false)
+                    {
+                        // The item was deleted and disposed before the hand-over started.
+                        continue;
+                    }
+
+                    bool attached = false;
                     try
                     {
                         ServiceResult result = await m_replacement
@@ -2507,14 +2514,16 @@ namespace Opc.Ua.Server
                             .ConfigureAwait(false);
                         if (ServiceResult.IsGood(result))
                         {
+                            attached = true;
                             m_attachedItems.Add(monitoredItem);
-                            continue;
                         }
-
-                        MarkAttachFailure(monitoredItem);
-                        if (!IsExpectedMonitoredItemIncompatibility(result))
+                        else
                         {
-                            failures.Add(new ServiceResultException(result));
+                            MarkAttachFailure(monitoredItem);
+                            if (!IsExpectedMonitoredItemIncompatibility(result))
+                            {
+                                failures.Add(new ServiceResultException(result));
+                            }
                         }
                     }
                     catch (Exception ex) when (ex is not OutOfMemoryException)
@@ -2522,6 +2531,27 @@ namespace Opc.Ua.Server
                         MarkAttachFailure(monitoredItem);
                         failures.Add(ex);
                     }
+
+                    if (detachable is null || detachable.EndAttach() || !attached)
+                    {
+                        continue;
+                    }
+
+                    // The item was deleted and disposed while it was being handed over, so the
+                    // replacement must not be left sampling it.
+                    m_attachedItems.Remove(monitoredItem);
+                    try
+                    {
+                        await m_replacement
+                            .DetachMonitoredItemAsync(monitoredItem, ct)
+                            .ConfigureAwait(false);
+                    }
+                    catch (Exception ex) when (ex is not OutOfMemoryException)
+                    {
+                        failures.Add(ex);
+                    }
+
+                    detachable.Detach(m_server);
                 }
 
                 return failures;
@@ -2534,7 +2564,7 @@ namespace Opc.Ua.Server
                     if (IsOwnedBySubscription(monitoredItem))
                     {
                         var lifecycle = (IDetachableMonitoredItem)monitoredItem;
-                        DetachedMonitoredItemOwnership.Detach(m_server, lifecycle);
+                        lifecycle.Detach(m_server);
                         lifecycle.MarkNodeDeleted();
                     }
                 }
@@ -2600,7 +2630,7 @@ namespace Opc.Ua.Server
             private void MarkAttachFailure(IMonitoredItem monitoredItem)
             {
                 var lifecycle = (IDetachableMonitoredItem)monitoredItem;
-                DetachedMonitoredItemOwnership.Detach(m_server, lifecycle);
+                lifecycle.Detach(m_server);
                 lifecycle.MarkNodeDeleted();
                 m_failedItems.Add(monitoredItem);
             }
