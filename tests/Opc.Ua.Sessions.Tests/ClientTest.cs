@@ -713,6 +713,87 @@ namespace Opc.Ua.Sessions.Tests
             session.Dispose();
         }
 
+        [TestCase(true)]
+        [TestCase(false)]
+        [Order(240)]
+        public async Task TransferJWTSubscriptionUsesAuthenticatedClientUserIdAsync(
+            bool sameSubject)
+        {
+            const string sourceSubject = "transfer-source";
+            string targetSubject = sameSubject ? sourceSubject : "transfer-target";
+            var sourceIdentity = new UserIdentity(
+                new IssuedIdentityTokenHandler(
+                    Profiles.JwtUserToken,
+                    "source-issued-token"u8));
+            var targetIdentity = new UserIdentity(
+                new IssuedIdentityTokenHandler(
+                    Profiles.JwtUserToken,
+                    "target-issued-token"u8));
+            ISession? sourceSession = null;
+            ISession? targetSession = null;
+            Subscription? subscription = null;
+
+            try
+            {
+                TokenValidator.Subject = sourceSubject;
+                sourceSession = await ClientFixture
+                    .ConnectAsync(
+                        ServerUrl,
+                        SecurityPolicies.Basic256Sha256,
+                        Endpoints,
+                        sourceIdentity)
+                    .ConfigureAwait(false);
+                subscription = new Subscription(sourceSession.DefaultSubscription)
+                {
+                    PublishingInterval = 1_000,
+                    LifetimeCount = 30,
+                    KeepAliveCount = 5,
+                    PublishingEnabled = true
+                };
+                Assert.That(sourceSession.AddSubscription(subscription), Is.True);
+                await subscription.CreateAsync().ConfigureAwait(false);
+
+                sourceSession.DeleteSubscriptionsOnClose = false;
+                StatusCode closeStatus = await sourceSession.CloseAsync().ConfigureAwait(false);
+                Assert.That(StatusCode.IsGood(closeStatus), Is.True);
+
+                TokenValidator.Subject = targetSubject;
+                targetSession = await ClientFixture
+                    .ConnectAsync(
+                        ServerUrl,
+                        SecurityPolicies.Basic256Sha256,
+                        Endpoints,
+                        targetIdentity)
+                    .ConfigureAwait(false);
+
+                TransferSubscriptionsResponse response =
+                    await targetSession.TransferSubscriptionsAsync(
+                        null,
+                        [subscription.Id],
+                        false,
+                        default).ConfigureAwait(false);
+
+                Assert.That(response.Results, Has.Count.EqualTo(1));
+                Assert.That(
+                    response.Results[0].StatusCode,
+                    sameSubject
+                        ? Is.EqualTo(StatusCodes.Good)
+                        : Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            }
+            finally
+            {
+                TokenValidator.Issuer = TokenValidatorMock.DefaultIssuer;
+                TokenValidator.Subject = TokenValidatorMock.DefaultSubject;
+                if (targetSession != null)
+                {
+                    await targetSession.CloseAsync().ConfigureAwait(false);
+                    targetSession.Dispose();
+                }
+                sourceSession?.Dispose();
+                subscription?.Dispose();
+            }
+        }
+
         [Test]
         [Order(240)]
         public async Task ConnectMultipleSessionsAsync()

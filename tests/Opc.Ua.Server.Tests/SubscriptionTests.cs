@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests
@@ -48,9 +49,19 @@ namespace Opc.Ua.Server.Tests
             // ServerSystemContext requires invoked server mock to have properties setup
             m_serverMock.Setup(s => s.DefaultSystemContext).Returns(new ServerSystemContext(m_serverMock.Object));
 
+            var identity = new UserIdentity(new AnonymousIdentityToken());
             m_sessionMock.Setup(s => s.Id).Returns(new NodeId(Guid.NewGuid()));
+            m_sessionMock.Setup(s => s.Identity).Returns(identity);
+            m_sessionMock.Setup(s => s.IdentityToken).Returns(identity.TokenHandler);
             m_sessionMock.Setup(s => s.DiagnosticsLock).Returns(new object());
-            m_sessionMock.Setup(s => s.SessionDiagnostics).Returns(new SessionDiagnosticsDataType());
+            m_sessionMock.Setup(s => s.SessionDiagnostics).Returns(
+                new SessionDiagnosticsDataType
+                {
+                    ClientDescription = new ApplicationDescription
+                    {
+                        ApplicationUri = "urn:localhost:opcfoundation.org:SubscriptionTests"
+                    }
+                });
 
             m_diagnosticsNodeManagerMock
                 .Setup(d => d.CreateSubscriptionDiagnosticsAsync(
@@ -77,6 +88,65 @@ namespace Opc.Ua.Server.Tests
                 publishingEnabled: true,
                 maxMessageCount: 10,
                 timeProvider: timeProvider);
+        }
+
+        [Test]
+        public void TransferIsRejectedWhenTargetUsesADifferentTokenTypeWithTheSameIdentifier()
+        {
+            // A user name may be spelled exactly like a certificate subject. The
+            // two are different principals, so the subscription must not move
+            // between them (OPC 10000-4 transfer keeps the same ClientUserId).
+            const string identifier = "CN=SubscriptionTransferTests";
+            var userNameToken = new UserNameIdentityTokenHandler(identifier, [1, 2, 3]);
+            SetSessionIdentity(m_sessionMock, userNameToken);
+            using Subscription subscription = CreateSubscription();
+
+            using Certificate certificate = DefaultCertificateFactory.Instance
+                .CreateCertificate(identifier)
+                .SetRSAKeySize(CertificateFactory.DefaultKeySize)
+                .CreateForRSA();
+            var x509Token = new X509IdentityTokenHandler(new X509IdentityToken
+            {
+                CertificateData = certificate.RawData.ToByteString()
+            });
+            var targetSession = new Mock<ISession>();
+            targetSession.Setup(s => s.Id).Returns(new NodeId(Guid.NewGuid()));
+            SetSessionIdentity(targetSession, x509Token);
+
+            Assert.That(subscription.IsTransferIdentityCompatible(targetSession.Object), Is.False);
+        }
+
+        [Test]
+        public void TransferIsAllowedWhenTargetPresentsTheSameUserNameIdentity()
+        {
+            var ownerToken = new UserNameIdentityTokenHandler("alice", [1, 2, 3]);
+            SetSessionIdentity(m_sessionMock, ownerToken);
+            using Subscription subscription = CreateSubscription();
+
+            var targetToken = new UserNameIdentityTokenHandler("alice", [4, 5, 6]);
+            var targetSession = new Mock<ISession>();
+            targetSession.Setup(s => s.Id).Returns(new NodeId(Guid.NewGuid()));
+            SetSessionIdentity(targetSession, targetToken);
+
+            Assert.That(subscription.IsTransferIdentityCompatible(targetSession.Object), Is.True);
+        }
+
+        private static void SetSessionIdentity(
+            Mock<ISession> session,
+            IUserIdentityTokenHandler tokenHandler)
+        {
+            var identity = new UserIdentity(tokenHandler);
+            session.Setup(s => s.Identity).Returns(identity);
+            session.Setup(s => s.IdentityToken).Returns(tokenHandler);
+            session.Setup(s => s.DiagnosticsLock).Returns(new object());
+            session.Setup(s => s.SessionDiagnostics).Returns(
+                new SessionDiagnosticsDataType
+                {
+                    ClientDescription = new ApplicationDescription
+                    {
+                        ApplicationUri = "urn:localhost:opcfoundation.org:SubscriptionTests"
+                    }
+                });
         }
 
         private static void SetExpiryTime(Subscription subscription, long expiryTime)
