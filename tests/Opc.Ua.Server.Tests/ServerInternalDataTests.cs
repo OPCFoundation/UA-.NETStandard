@@ -100,6 +100,17 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public void RequestManagerIsUnsetUntilTheServerObjectIsCreated()
+        {
+            using ServerInternalData data = CreateServerInternalData();
+
+            // Request dispatch runs against this datastore from the moment it is published,
+            // which happens before the request manager exists. Callers must therefore treat
+            // the request manager as absent during that startup window.
+            Assert.That(data.RequestManager, Is.Null);
+        }
+
+        [Test]
         public void ConstructorInitializesEndpointAddresses()
         {
             using ServerInternalData data = CreateServerInternalData();
