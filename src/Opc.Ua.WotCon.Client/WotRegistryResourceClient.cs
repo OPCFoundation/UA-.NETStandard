@@ -31,6 +31,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client;
+using Opc.Ua.XRegistry.Client;
 
 namespace Opc.Ua.WotCon.Client
 {
@@ -167,13 +168,17 @@ namespace Opc.Ua.WotCon.Client
         /// <summary>
         /// Downloads the currently persisted resource content (the active
         /// / default version) via chunked <c>Read</c> calls.
+        /// <para>
+        /// A WoT document resource is an xRegistry <c>ResourceType</c>, so this reuses the shared
+        /// <see cref="ResourceTypeClientExtensions.ReadDocumentAsync"/> helper directly on the
+        /// generated proxy rather than round-tripping the document through a <c>byte[]</c>.
+        /// </para>
         /// </summary>
-        public async ValueTask<ByteString> DownloadAsync(
+        public ValueTask<ByteString> DownloadAsync(
             int chunkSize = FileTypeClientExtensions.DefaultChunkSize,
             CancellationToken ct = default)
         {
-            byte[] bytes = await Proxy.DownloadAllAsync(chunkSize, ct).ConfigureAwait(false);
-            return bytes.ToByteString();
+            return Proxy.ReadDocumentAsync(chunkSize, ct);
         }
 
         /// <summary>

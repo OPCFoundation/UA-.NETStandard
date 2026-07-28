@@ -33,6 +33,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client;
 using Opc.Ua.XRegistry;
+using Opc.Ua.XRegistry.Client;
 
 namespace Opc.Ua.WotCon.Client
 {
@@ -40,12 +41,17 @@ namespace Opc.Ua.WotCon.Client
     /// High-level client for the WoT Connectivity 1.1 registry surface
     /// (the well-known <c>WoTRegistry</c> object hosted by the connected
     /// server, see the <c>xRegistry</c>/<c>WoTRegistryType</c> model).
-    /// Composes (does <strong>not</strong> inherit) the source-generated
-    /// <see cref="WoTRegistryTypeClient"/> proxy and adds group/resource
+    /// <para>
+    /// As the WoT registry model subtypes the xRegistry base model, this is a
+    /// domain client in the sense of <see cref="XRegistryClient"/>: it inherits
+    /// the base registry lifecycle and adds WoT-specific group/resource
     /// resolution, a typed <c>Refresh</c> result and a dependency-ordered
-    /// bulk-load workflow.
+    /// bulk-load workflow. It composes (does <strong>not</strong> inherit) the
+    /// source-generated <see cref="WoTRegistryTypeClient"/> proxy, so the typed
+    /// proxy is reused directly rather than re-resolved per call.
+    /// </para>
     /// </summary>
-    public sealed class WotRegistryClient
+    public sealed class WotRegistryClient : XRegistryClient
     {
         /// <summary>
         /// The well-known reserved group id that always holds Thing
@@ -73,23 +79,44 @@ namespace Opc.Ua.WotCon.Client
             ISession session,
             NodeId registryObjectId,
             ITelemetryContext telemetry)
+            : base(
+                session,
+                EnsureRegistryNamespace(session),
+                ValidateRegistryObjectId(registryObjectId),
+                telemetry)
+        {
+            Proxy = new WoTRegistryTypeClient(session, registryObjectId, telemetry);
+        }
+
+        /// <summary>
+        /// Registers the WoT Connectivity namespace on the session so the base class can resolve
+        /// its index. A client may legitimately be constructed against a session that has not
+        /// fetched the server namespace table yet, so this appends rather than failing — matching
+        /// what <see cref="ForServerAsync"/> does.
+        /// </summary>
+        private static string EnsureRegistryNamespace(ISession session)
         {
             if (session is null)
             {
                 throw new ArgumentNullException(nameof(session));
             }
+            session.NamespaceUris.GetIndexOrAppend(Namespaces.WotCon);
+            return Namespaces.WotCon;
+        }
+
+        /// <summary>
+        /// Rejects a null registry root. The WoT registry root is server-specific and discovered by
+        /// Browse, so unlike the base model there is no well-known identifier to fall back to.
+        /// </summary>
+        private static NodeId ValidateRegistryObjectId(NodeId registryObjectId)
+        {
             if (registryObjectId.IsNull)
             {
-                throw new ArgumentException("Registry object NodeId is required.", nameof(registryObjectId));
+                throw new ArgumentException(
+                    "Registry object NodeId is required.",
+                    nameof(registryObjectId));
             }
-            if (telemetry is null)
-            {
-                throw new ArgumentNullException(nameof(telemetry));
-            }
-            Session = session;
-            Telemetry = telemetry;
-            RegistryObjectId = registryObjectId;
-            Proxy = new WoTRegistryTypeClient(session, registryObjectId, telemetry);
+            return registryObjectId;
         }
 
         /// <summary>
@@ -133,21 +160,6 @@ namespace Opc.Ua.WotCon.Client
                 ct).ConfigureAwait(false);
             return new WotRegistryClient(session, registryId, telemetry);
         }
-
-        /// <summary>
-        /// The OPC UA session.
-        /// </summary>
-        public ISession Session { get; }
-
-        /// <summary>
-        /// Telemetry context.
-        /// </summary>
-        public ITelemetryContext Telemetry { get; }
-
-        /// <summary>
-        /// The <c>WoTRegistry</c> object NodeId.
-        /// </summary>
-        public NodeId RegistryObjectId { get; }
 
         /// <summary>
         /// The underlying generated proxy.
@@ -255,7 +267,7 @@ namespace Opc.Ua.WotCon.Client
             ushort ns = Session.NamespaceUris.GetIndexOrAppend(Namespaces.WotCon);
             NodeId groupNodeId = await WotConBrowsePathResolver.ResolveChildAsync(
                 Session,
-                RegistryObjectId,
+                RegistryNodeId,
                 Ua.ReferenceTypeIds.Organizes,
                 ns,
                 groupId,

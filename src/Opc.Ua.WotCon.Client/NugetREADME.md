@@ -7,7 +7,7 @@
 Reference this package alongside `Opc.Ua.Client` from any tool that manages connectivity configuration or the registry on a WoT-conformant OPC UA server.
 
 * `WotConnectivityClient` / `WotAssetClient` — the OPC 10100-1 v1.02 asset-connection surface (`WoTAssetConnectionManagement`).
-* `WotRegistryClient` / `WotRegistryGroupClient` / `WotRegistryResourceClient` — the WoT Connectivity 1.1 registry surface (`WoTRegistry`): create/get-or-create Thing Description and Thing Model groups and resources, upload document versions through the inherited `FileType` transfer, validate/enable/delete resources, trigger `Refresh`, and load a dependency-ordered batch of documents in one workflow via `LoadDocumentsAsync`.
+* `WotRegistryClient` / `WotRegistryGroupClient` / `WotRegistryResourceClient` — the WoT Connectivity 1.1 registry surface (`WoTRegistry`): create/get-or-create Thing Description and Thing Model groups and resources, upload document versions through the inherited `FileType` transfer, validate/enable/delete resources, trigger `Refresh`, and load a dependency-ordered batch of documents in one workflow via `LoadDocumentsAsync`. `WotRegistryClient` derives from the shared `XRegistryClient` (package `OPCFoundation.NetStandard.Opc.Ua.XRegistry.Client`), so it inherits the generic registry lifecycle and adds only the WoT-specific surface.
 
 ## Target frameworks
 

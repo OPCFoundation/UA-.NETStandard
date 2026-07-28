@@ -64,7 +64,7 @@ namespace Opc.Ua.WotCon.Tests.Client
                 .ForServerAsync(mock.Session, CreateTelemetry())
                 .ConfigureAwait(false);
 
-            Assert.That(client.RegistryObjectId, Is.EqualTo(mock.RegistryNodeId));
+            Assert.That(client.RegistryNodeId, Is.EqualTo(mock.RegistryNodeId));
         }
 
         [Test]
