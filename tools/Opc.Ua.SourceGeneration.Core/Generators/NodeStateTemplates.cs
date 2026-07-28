@@ -1149,7 +1149,7 @@ namespace Opc.Ua.SourceGeneration
                 global::Opc.Ua.ISystemContext context,
                 global::Opc.Ua.QualifiedName browseName,
                 bool createOrReplace,
-                global::Opc.Ua.BaseInstanceState replacement)
+                global::Opc.Ua.BaseInstanceState? replacement)
             {
                 if (browseName.IsNull)
                 {
@@ -1237,7 +1237,7 @@ namespace Opc.Ua.SourceGeneration
             /// </param>
             {{Tokens.AccessorSymbol}} {{Tokens.ClassName}} CreateOrReplace{{Tokens.ChildName}}(
                 global::Opc.Ua.ISystemContext context,
-                global::Opc.Ua.BaseInstanceState replacement,
+                global::Opc.Ua.BaseInstanceState? replacement,
                 bool assignInstanceNodeIds = true)
             {
                 if (replacement is {{Tokens.ClassName}} typedReplacement)
