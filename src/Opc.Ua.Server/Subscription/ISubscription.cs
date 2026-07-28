@@ -200,7 +200,21 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Tells the subscription that the owning session is being closed.
         /// </summary>
+        [Obsolete("Use SessionClosed(ISession) instead, which only releases the subscription when the closing session still owns it.")]
         void SessionClosed();
+
+        /// <summary>
+        /// Tells the subscription that a session is being closed, and releases the subscription
+        /// only when that session still owns it.
+        /// <para>
+        /// A subscription can be transferred to another session while the old one is closing, so
+        /// the closing session has to be passed in: clearing the owner unconditionally would strip
+        /// a subscription that has already moved on.
+        /// </para>
+        /// </summary>
+        /// <param name="closingSession">The session that is being closed.</param>
+        /// <returns><c>true</c> when the subscription was released by this call.</returns>
+        bool SessionClosed(ISession closingSession);
 
         /// <summary>
         /// Removes a message from the message queue.

@@ -852,9 +852,8 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Tells the subscription that the owning session is being closed.
-        /// </summary>
+        /// <inheritdoc/>
+        [Obsolete("Use SessionClosed(ISession) instead, which only releases the subscription when the closing session still owns it.")]
         public void SessionClosed()
         {
             ISession session;
@@ -869,10 +868,8 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Clears the session only if the closing session still owns the subscription.
-        /// </summary>
-        internal bool SessionClosed(ISession closingSession)
+        /// <inheritdoc/>
+        public bool SessionClosed(ISession closingSession)
         {
             lock (m_lock)
             {

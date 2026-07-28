@@ -370,6 +370,22 @@ Custom implementations must add both. Returning `false` from `IsClosing` and doi
 `InvalidateContinuationPoints` preserves the previous behaviour; the built-in `Session` already
 implements them.
 
+### `ISubscription.SessionClosed(ISession)`
+
+**Source-breaking for custom implementations.** `ISubscription` gains
+`bool SessionClosed(ISession closingSession)`, and the parameterless `SessionClosed()` is
+`[Obsolete]`.
+
+A subscription can be transferred to another session while the old one is closing, so clearing the
+owner unconditionally would strip a subscription that has already moved on. The new overload takes
+the closing session, releases the subscription only when that session still owns it, and reports
+whether it did. Deciding ownership inside the subscription also makes the check atomic with the
+release, which a caller comparing `Session` beforehand cannot be.
+
+Custom implementations must add the overload; comparing the argument against the current owner and
+delegating to the existing `SessionClosed()` preserves the previous behaviour. The built-in
+`Subscription` already implements it.
+
 ### PubSub
 
 **Not source-breaking.** No public top-level types in `Opc.Ua.PubSub` were removed or renamed in 2.0. Changes are limited to internal modernization, AOT preparation, and diagnostics improvements. `Newtonsoft.Json` remains a direct `<PackageReference>` of `src/Opc.Ua.PubSub/Opc.Ua.PubSub.csproj`, so PubSub consumers keep receiving it transitively (see [Newtonsoft.Json - what really changed](#newtonsoftjson---what-really-changed)).
