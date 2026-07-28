@@ -113,6 +113,31 @@ protected override void OnAfterCreate(ISystemContext context, NodeState node, Ca
 }
 ```
 
+#### CreateChild / ReplaceChild assign per-instance NodeIds
+
+`NodeState.CreateChild(context, browseName)` and `ReplaceChild(context, child)` dispatch into the source-generated `CreateOrReplace<Child>` helpers. Those helpers now stamp the child's SymbolicName / BrowseName / DisplayName and - when the context supplies an `ISystemContext.NodeIdFactory` - assign a per-instance NodeId to the new child and its descendants. Previously the new child was returned bare (null NodeId, no browse name) or kept the type-level NodeId of the replacement, which forced every node manager that materialises children at runtime to hand-roll a recursive re-stamp before registration.
+
+* A NodeId **you** assigned is never overwritten: only a child whose NodeId is null or still equal to its declaration NodeId is rebased.
+* Pass `assignInstanceNodeIds: false` if you are building a declaration subtree and want to keep the type-level NodeIds. The generated type factories use exactly this.
+* If you have your own recursive `AssignChildNodeIds`-style walk after calling `CreateInstanceOf<Type>` / `Add<Child>` / `CreateChild`, it is now redundant and can be deleted.
+
+```csharp
+// Before - the manual walk was required.
+PumpState pump = SystemContext.CreateInstanceOfPumpType(parent: null!, browseName);
+deviceSet.AddChild(pump);
+pump.NodeId = SystemContext.NodeIdFactory.New(SystemContext, pump);
+MaterialiseOptionalChildren(pump);
+AssignChildNodeIds(pump);
+
+// After - the factory rebases the subtree; Add<Child> and CreateChild
+// mint per-instance NodeIds for anything added afterwards.
+PumpState pump = SystemContext.CreateInstanceOfPumpType(deviceSet, browseName);
+deviceSet.AddChild(pump);
+MaterialiseOptionalChildren(pump);
+```
+
+`CreateInstanceOf<Type>` additionally no longer requires a non-null `parent` to rebase: supplying a `browseName` is what marks a dynamically materialised instance. Call it without a browse name (as the generated `NodeStateActivator`s do) to keep the declaration NodeIds.
+
 ### INodeManager3 - new role-permission and method-resolution hooks
 
 2.0 introduces `INodeManager3`, an extension of `INodeManager2` that surfaces explicit hooks for per-role permission evaluation and for resolving the target of a `Call` request. `CustomNodeManager2` implements the new members with safe defaults that mirror the previous behavior, so node managers that already derive from `CustomNodeManager2` need no changes.

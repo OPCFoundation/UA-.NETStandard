@@ -389,10 +389,10 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                     "if (parent.NodeId.Equals(global::Opc.Ua.NodeId.Create(2253u, global::Opc.Ua.Namespaces.OpcUa, context.NamespaceUris)))"),
                     "CreateServerType_GetMonitoredItems should dispatch on the Server singleton NodeId.");
                 Assert.That(code, Does.Contain(
-                    "state.CreateOrReplaceInputArguments(context, CreateServer_GetMonitoredItems_InputArguments(context, state, forInstance: true));"),
+                    "state.CreateOrReplaceInputArguments(context, CreateServer_GetMonitoredItems_InputArguments(context, state, forInstance: true), assignInstanceNodeIds: false);"),
                     "The Server singleton branch should call the singleton-instance InputArguments factory.");
                 Assert.That(code, Does.Contain(
-                    "state.CreateOrReplaceOutputArguments(context, CreateServer_GetMonitoredItems_OutputArguments(context, state, forInstance: true));"),
+                    "state.CreateOrReplaceOutputArguments(context, CreateServer_GetMonitoredItems_OutputArguments(context, state, forInstance: true), assignInstanceNodeIds: false);"),
                     "The Server singleton branch should call the singleton-instance OutputArguments factory.");
 
                 // RoleType (multi-singleton: WellKnownRole_Observer = 15668,
@@ -400,10 +400,10 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 // must dispatch on parent.NodeId across every singleton
                 // whose corresponding child factory has been collected.
                 Assert.That(code, Does.Contain(
-                    "state.CreateOrReplaceInputArguments(context, CreateWellKnownRole_Observer_AddIdentity_InputArguments(context, state, forInstance: true));"),
+                    "state.CreateOrReplaceInputArguments(context, CreateWellKnownRole_Observer_AddIdentity_InputArguments(context, state, forInstance: true), assignInstanceNodeIds: false);"),
                     "RoleType_AddIdentity should dispatch to WellKnownRole_Observer's InputArguments factory.");
                 Assert.That(code, Does.Contain(
-                    "state.CreateOrReplaceInputArguments(context, CreateWellKnownRole_SecurityAdmin_AddIdentity_InputArguments(context, state, forInstance: true));"),
+                    "state.CreateOrReplaceInputArguments(context, CreateWellKnownRole_SecurityAdmin_AddIdentity_InputArguments(context, state, forInstance: true), assignInstanceNodeIds: false);"),
                     "RoleType_AddIdentity should dispatch to WellKnownRole_SecurityAdmin's InputArguments factory.");
 
                 // The top-level NodeId override re-binds nodeState.NodeId from
