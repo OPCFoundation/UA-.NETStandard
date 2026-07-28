@@ -759,10 +759,13 @@ namespace Opc.Ua.Server
         /// <param name="cancellationToken">The cancellation token.</param>
         public async ValueTask TransferSessionAsync(OperationContext context, bool sendInitialValues, CancellationToken cancellationToken = default)
         {
-            // locked by caller
-            Session = context.Session;
-
-            var monitoredItems = m_monitoredItems.Select(v => v.Value.Value).ToList();
+            ISession destinationSession = context.Session;
+            List<IMonitoredItem> monitoredItems;
+            lock (m_lock)
+            {
+                Session = destinationSession;
+                monitoredItems = m_monitoredItems.Select(v => v.Value.Value).ToList();
+            }
             var errors = new List<ServiceResult>(monitoredItems.Count);
             for (int ii = 0; ii < monitoredItems.Count; ii++)
             {
@@ -789,7 +792,7 @@ namespace Opc.Ua.Server
 
             lock (DiagnosticsWriteLock)
             {
-                Diagnostics.SessionId = Session.Id;
+                Diagnostics.SessionId = destinationSession.Id;
             }
         }
 
@@ -815,19 +818,39 @@ namespace Opc.Ua.Server
         /// </summary>
         public void SessionClosed()
         {
+            ISession session;
             lock (m_lock)
             {
-                if (Session != null)
+                session = Session;
+            }
+
+            if (session != null)
+            {
+                SessionClosed(session);
+            }
+        }
+
+        /// <summary>
+        /// Clears the session only if the closing session still owns the subscription.
+        /// </summary>
+        internal bool SessionClosed(ISession closingSession)
+        {
+            lock (m_lock)
+            {
+                if (!ReferenceEquals(Session, closingSession))
                 {
-                    m_savedOwnerIdentity = Session.EffectiveIdentity;
-                    Session = null!;
+                    return false;
                 }
+
+                m_savedOwnerIdentity = closingSession.EffectiveIdentity;
+                Session = null!;
             }
 
             lock (DiagnosticsWriteLock)
             {
                 Diagnostics.SessionId = default;
             }
+            return true;
         }
 
         /// <summary>

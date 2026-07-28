@@ -258,6 +258,7 @@ namespace Opc.Ua.Server.Tests
 
             var subMock = new Mock<ISubscription>();
             subMock.Setup(s => s.Id).Returns(1);
+            subMock.Setup(s => s.Session).Returns(m_sessionMock.Object);
             queue.Add(subMock.Object);
 
             Task<ISubscription> task = queue.PublishAsync("channel1", DateTime.MaxValue, false, null, CancellationToken.None);
@@ -270,6 +271,25 @@ namespace Opc.Ua.Server.Tests
 
             ServiceResultException ex = Assert.CatchAsync<ServiceResultException>(() => task);
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSessionClosed));
+        }
+
+        [Test]
+        public void Close_DoesNotCloseSubscriptionOwnedByAnotherSession()
+        {
+            using var queue = new SessionPublishQueue(
+                m_serverMock.Object,
+                m_sessionMock.Object,
+                kMaxPublishRequests);
+            var destinationSession = new Mock<ISession>();
+            var subMock = new Mock<ISubscription>();
+            subMock.Setup(s => s.Id).Returns(1);
+            subMock.Setup(s => s.Session).Returns(destinationSession.Object);
+            queue.Add(subMock.Object);
+
+            IList<ISubscription> subs = queue.Close();
+
+            Assert.That(subs, Is.Empty);
+            subMock.Verify(s => s.SessionClosed(), Times.Never);
         }
 
         [Test]

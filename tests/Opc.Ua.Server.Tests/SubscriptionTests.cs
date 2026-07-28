@@ -790,6 +790,101 @@ namespace Opc.Ua.Server.Tests
                 Is.EqualTo((uint)expectedLimit));
         }
 
+        [Test]
+        public async Task TransferSerializesWithClosingSourceSessionAsync()
+        {
+            var configuration = new ApplicationConfiguration
+            {
+                ServerConfiguration = new ServerConfiguration()
+            };
+            using var manager = new SubscriptionManager(
+                m_serverMock.Object,
+                configuration);
+            var identity = new UserIdentity("transfer-user", new byte[] { 1, 2, 3 });
+            bool sourceClosing = false;
+            m_sessionMock.SetupGet(session => session.EffectiveIdentity).Returns(identity);
+            m_sessionMock.SetupGet(session => session.IsClosing).Returns(() => sourceClosing);
+            var destinationSession = new Mock<ISession>();
+            destinationSession.SetupGet(session => session.Id).Returns(new NodeId(Guid.NewGuid()));
+            destinationSession.SetupGet(session => session.EffectiveIdentity).Returns(identity);
+            destinationSession.SetupGet(session => session.DiagnosticsLock).Returns(new object());
+            destinationSession.SetupGet(session => session.SessionDiagnostics)
+                .Returns(new SessionDiagnosticsDataType());
+            var sourceContext = new OperationContext(
+                m_sessionMock.Object,
+                DiagnosticsMasks.None);
+            var destinationContext = new OperationContext(
+                destinationSession.Object,
+                DiagnosticsMasks.None);
+            CreateSubscriptionResponse created = await manager.CreateSubscriptionAsync(
+                sourceContext,
+                requestedPublishingInterval: 1000,
+                requestedLifetimeCount: 30,
+                requestedMaxKeepAliveCount: 10,
+                maxNotificationsPerPublish: 0,
+                publishingEnabled: true,
+                priority: 0).ConfigureAwait(false);
+            Assert.That(
+                manager.TryGetSubscription(created.SubscriptionId, out ISubscription subscription),
+                Is.True);
+
+            var transferEntered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseTransfer = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            m_nodeManagerMock
+                .Setup(manager => manager.TransferMonitoredItemsAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<IList<IMonitoredItem>>(),
+                    It.IsAny<IList<ServiceResult>>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback(() => transferEntered.TrySetResult(true))
+                .Returns(() => new ValueTask(releaseTransfer.Task));
+            sourceClosing = true;
+
+            Task<TransferSubscriptionsResponse> transferTask = manager
+                .TransferSubscriptionsAsync(
+                    destinationContext,
+                    [created.SubscriptionId],
+                    sendInitialValues: false)
+                .AsTask();
+            Task entered = await Task.WhenAny(
+                transferEntered.Task,
+                Task.Delay(TimeSpan.FromSeconds(5))).ConfigureAwait(false);
+            if (!ReferenceEquals(entered, transferEntered.Task))
+            {
+                releaseTransfer.TrySetResult(true);
+                Assert.Fail("Transfer did not reach the monitored-item barrier.");
+            }
+
+            Task closeTask = manager
+                .SessionClosingAsync(
+                    sourceContext,
+                    m_sessionMock.Object.Id,
+                    deleteSubscriptions: false,
+                    CancellationToken.None)
+                .AsTask();
+            bool closeWaitedForTransfer = !closeTask.IsCompleted;
+            releaseTransfer.TrySetResult(true);
+            TransferSubscriptionsResponse transferred = await transferTask.ConfigureAwait(false);
+            await closeTask.ConfigureAwait(false);
+            var abandonedSubscriptions =
+                GetPrivateField<ConcurrentDictionary<uint, ISubscription>>(
+                    manager,
+                    "m_abandonedSubscriptions");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(closeWaitedForTransfer, Is.True);
+                Assert.That(transferred.Results, Has.Count.EqualTo(1));
+                Assert.That(transferred.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(subscription.Session, Is.SameAs(destinationSession.Object));
+                Assert.That(abandonedSubscriptions, Is.Empty);
+            });
+            Assert.DoesNotThrow(() => subscription.ResendData(destinationContext));
+        }
+
         private async Task RegisterMonitoredItemsAsync(
             Subscription subscription,
             params IMonitoredItem[] monitoredItems)

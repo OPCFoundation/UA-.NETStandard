@@ -494,28 +494,44 @@ namespace Opc.Ua.Server
             bool deleteSubscriptions,
             CancellationToken cancellationToken)
         {
-            IList<ISubscription>? subscriptionsToDelete = null;
+            IList<ISubscription>? sessionSubscriptions = null;
+            SessionPublishQueue? publishQueue = null;
 
             // close the publish queue for the session.
-            if (m_publishQueues.TryRemove(sessionId, out SessionPublishQueue? queue))
+            await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
-                try
+                if (m_publishQueues.TryRemove(sessionId, out publishQueue))
                 {
-                    subscriptionsToDelete = queue.Close();
+                    sessionSubscriptions = publishQueue.Close();
 
                     // remove the subscriptions.
-                    if (deleteSubscriptions && subscriptionsToDelete != null)
+                    if (deleteSubscriptions)
                     {
-                        for (int ii = 0; ii < subscriptionsToDelete.Count; ii++)
+                        for (int ii = 0; ii < sessionSubscriptions.Count; ii++)
                         {
-                            m_subscriptions.TryRemove(subscriptionsToDelete[ii].Id, out _);
+                            m_subscriptions.TryRemove(sessionSubscriptions[ii].Id, out _);
+                        }
+                    }
+                    else
+                    {
+                        for (int ii = 0; ii < sessionSubscriptions.Count; ii++)
+                        {
+                            ISubscription subscription = sessionSubscriptions[ii];
+                            if (m_abandonedSubscriptions.TryAdd(
+                                    subscription.Id,
+                                    subscription))
+                            {
+                                m_logger.SubscriptionABANDONEDIdSubscriptionId(subscription.Id);
+                            }
                         }
                     }
                 }
-                finally
-                {
-                    queue.Dispose();
-                }
+            }
+            finally
+            {
+                m_semaphoreSlim.Release();
+                publishQueue?.Dispose();
             }
 
             // remove the expired subscription status change notifications for this session
@@ -528,35 +544,26 @@ namespace Opc.Ua.Server
             }
 
             // process all subscriptions in the queue.
-            if (subscriptionsToDelete != null)
+            if (deleteSubscriptions && sessionSubscriptions != null)
             {
-                for (int ii = 0; ii < subscriptionsToDelete.Count; ii++)
+                for (int ii = 0; ii < sessionSubscriptions.Count; ii++)
                 {
-                    ISubscription subscription = subscriptionsToDelete[ii];
+                    ISubscription subscription = sessionSubscriptions[ii];
 
-                    // delete the subscription.
-                    if (deleteSubscriptions)
+                    // raise subscription event.
+                    RaiseSubscriptionEvent(subscription, true);
+
+                    // delete subscription.
+                    await subscription.DeleteAsync(context, cancellationToken).ConfigureAwait(false);
+
+                    // get the count for the diagnostics.
+                    uint publishingIntervalCount = GetPublishingIntervalCount();
+                    lock (m_server.DiagnosticsWriteLock)
                     {
-                        // raise subscription event.
-                        RaiseSubscriptionEvent(subscription, true);
-
-                        // delete subscription.
-                        await subscription.DeleteAsync(context, cancellationToken).ConfigureAwait(false);
-
-                        // get the count for the diagnostics.
-                        uint publishingIntervalCount = GetPublishingIntervalCount();
-                        lock (m_server.DiagnosticsWriteLock)
-                        {
-                            ServerDiagnosticsSummaryDataType diagnostics = m_server
-                                .ServerDiagnostics;
-                            diagnostics.CurrentSubscriptionCount--;
-                            diagnostics.PublishingIntervalCount = publishingIntervalCount;
-                        }
-                    }
-                    // mark the subscriptions as abandoned.
-                    else if (m_abandonedSubscriptions.TryAdd(subscription.Id, subscription))
-                    {
-                        m_logger.SubscriptionABANDONEDIdSubscriptionId(subscription.Id);
+                        ServerDiagnosticsSummaryDataType diagnostics = m_server
+                            .ServerDiagnostics;
+                        diagnostics.CurrentSubscriptionCount--;
+                        diagnostics.PublishingIntervalCount = publishingIntervalCount;
                     }
                 }
             }
@@ -1402,54 +1409,69 @@ namespace Opc.Ua.Server
                         diagnostics.TransferRequestCount++;
                     }
 
-                    // check if new and old sessions are different
-                    ISession ownerSession = subscription.Session;
-                    if (ownerSession != null &&
-                        !ownerSession.Id.IsNull &&
-                        ownerSession.Id == context.Session.Id)
-                    {
-                        result.StatusCode = StatusCodes.BadNothingToDo;
-                        results.Add(result);
-                        if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
-                        {
-                            diagnosticInfos.Add(null!);
-                        }
-                        continue;
-                    }
-
-                    // Validate the identity of the user who owns/owned the subscription
-                    // is the same as the new owner.
-                    bool validIdentity = subscription.EffectiveIdentity.TokenHandler.Equals(
-                        context.Session.EffectiveIdentity.TokenHandler);
-
-                    // Test if anonymous user is using a secure session using Sign or SignAndEncrypt
-                    if (validIdentity &&
-                        subscription.EffectiveIdentity.TokenType == UserTokenType.Anonymous)
-                    {
-                        MessageSecurityMode securityMode = context!.ChannelContext!
-                            .EndpointDescription!
-                            .SecurityMode;
-                        validIdentity = securityMode
-                            is MessageSecurityMode.Sign
-                            or MessageSecurityMode.SignAndEncrypt;
-                    }
-
-                    // continue if identity check failed
-                    if (!validIdentity)
-                    {
-                        result.StatusCode = StatusCodes.BadUserAccessDenied;
-                        results.Add(result);
-                        if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
-                        {
-                            diagnosticInfos.Add(null!);
-                        }
-                        continue;
-                    }
-
-                    // transfer session, add subscription to publish queue
+                    ISession ownerSession = null!;
                     await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
                     try
                     {
+                        if (!m_subscriptions.TryGetValue(
+                                subscriptionIds[ii],
+                                out ISubscription? currentSubscription) ||
+                            !ReferenceEquals(currentSubscription, subscription))
+                        {
+                            result.StatusCode = StatusCodes.BadSubscriptionIdInvalid;
+                            results.Add(result);
+                            if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
+                            {
+                                diagnosticInfos.Add(null!);
+                            }
+                            continue;
+                        }
+
+                        // check if new and old sessions are different
+                        ownerSession = subscription.Session;
+                        if (ownerSession != null &&
+                            !ownerSession.Id.IsNull &&
+                            ownerSession.Id == context.Session.Id)
+                        {
+                            result.StatusCode = StatusCodes.BadNothingToDo;
+                            results.Add(result);
+                            if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
+                            {
+                                diagnosticInfos.Add(null!);
+                            }
+                            continue;
+                        }
+
+                        // Validate the identity of the user who owns/owned the subscription
+                        // is the same as the new owner.
+                        bool validIdentity = subscription.EffectiveIdentity.TokenHandler.Equals(
+                            context.Session.EffectiveIdentity.TokenHandler);
+
+                        // Test if anonymous user is using a secure session using Sign or SignAndEncrypt
+                        if (validIdentity &&
+                            subscription.EffectiveIdentity.TokenType == UserTokenType.Anonymous)
+                        {
+                            MessageSecurityMode securityMode = context!.ChannelContext!
+                                .EndpointDescription!
+                                .SecurityMode;
+                            validIdentity = securityMode
+                                is MessageSecurityMode.Sign
+                                or MessageSecurityMode.SignAndEncrypt;
+                        }
+
+                        // continue if identity check failed
+                        if (!validIdentity)
+                        {
+                            result.StatusCode = StatusCodes.BadUserAccessDenied;
+                            results.Add(result);
+                            if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
+                            {
+                                diagnosticInfos.Add(null!);
+                            }
+                            continue;
+                        }
+
+                        // transfer session, add subscription to publish queue
                         await subscription.TransferSessionAsync(context, sendInitialValues, cancellationToken).ConfigureAwait(false);
 
                         // remove from queue in old session
@@ -1477,6 +1499,7 @@ namespace Opc.Ua.Server
                                 m_timeProvider);
                         }
                         publishQueue.Add(subscription);
+                        m_abandonedSubscriptions.TryRemove(subscription.Id, out _);
                     }
                     finally
                     {

@@ -169,6 +169,7 @@ namespace Opc.Ua.Server
         /// <returns>The list of subscriptions in the queue.</returns>
         public IList<ISubscription> Close()
         {
+            var queuedSubscriptions = new List<ISubscription>();
             var subscriptions = new List<ISubscription>();
 
             lock (m_lock)
@@ -187,16 +188,33 @@ namespace Opc.Ua.Server
                 // tell the subscriptions that the session is closed.
                 foreach (KeyValuePair<uint, QueuedSubscription> entry in m_queuedSubscriptions)
                 {
-                    subscriptions.Add(entry.Value.Subscription);
+                    queuedSubscriptions.Add(entry.Value.Subscription);
                 }
 
                 // clear the queue.
                 m_queuedSubscriptions.Clear();
             }
 
-            foreach (ISubscription subscription in subscriptions)
+            foreach (ISubscription subscription in queuedSubscriptions)
             {
-                subscription.SessionClosed();
+                bool sessionClosed;
+                if (subscription is Subscription concreteSubscription)
+                {
+                    sessionClosed = concreteSubscription.SessionClosed(m_session);
+                }
+                else
+                {
+                    sessionClosed = ReferenceEquals(subscription.Session, m_session);
+                    if (sessionClosed)
+                    {
+                        subscription.SessionClosed();
+                    }
+                }
+
+                if (sessionClosed)
+                {
+                    subscriptions.Add(subscription);
+                }
             }
 
             return subscriptions;
