@@ -636,15 +636,6 @@ namespace Opc.Ua.Di.Tests
                     CancellationToken.None).ConfigureAwait(false);
                 Assert.That(baseValue.WrappedValue.TryGetValue(out NodeId frameBase), Is.True);
                 Assert.That(frameBase, Is.EqualTo(worldFrameId));
-                DataValue frameValue = await m_session.ReadValueAsync(
-                    positionFrameId,
-                    CancellationToken.None).ConfigureAwait(false);
-                ThreeDFrame frame = null!;
-                Assert.That(
-                    frameValue.WrappedValue.TryGetValue(
-                        out frame!,
-                        m_session.MessageContext),
-                    Is.True);
                 NodeId frameXId = await FindChildAsync(
                     await FindChildAsync(
                         positionFrameId,
@@ -652,11 +643,37 @@ namespace Opc.Ua.Di.Tests
                         "Position").ConfigureAwait(false),
                     global::Opc.Ua.ReferenceTypeIds.HasComponent,
                     "X").ConfigureAwait(false);
-                DataValue frameXValue = await m_session.ReadValueAsync(
-                    frameXId,
+                // The robot is mobile, so its frame moves continuously. Read the
+                // composite frame and its X component in a single Read so the
+                // server samples both from the same instant; two separate reads
+                // compare two different positions and cannot agree exactly.
+                var frameReads = new ReadValueId[]
+                {
+                    new ReadValueId
+                    {
+                        NodeId = positionFrameId,
+                        AttributeId = Attributes.Value
+                    },
+                    new ReadValueId
+                    {
+                        NodeId = frameXId,
+                        AttributeId = Attributes.Value
+                    }
+                };
+                ReadResponse frameRead = await m_session.ReadAsync(
+                    null,
+                    0,
+                    TimestampsToReturn.Neither,
+                    frameReads,
                     CancellationToken.None).ConfigureAwait(false);
+                ThreeDFrame frame = null!;
                 Assert.That(
-                    frameXValue.WrappedValue.TryGetValue(out double frameX),
+                    frameRead.Results[0].WrappedValue.TryGetValue(
+                        out frame!,
+                        m_session.MessageContext),
+                    Is.True);
+                Assert.That(
+                    frameRead.Results[1].WrappedValue.TryGetValue(out double frameX),
                     Is.True);
                 Assert.That(
                     frameX,
@@ -709,24 +726,40 @@ namespace Opc.Ua.Di.Tests
                     globalLocationId,
                     global::Opc.Ua.ReferenceTypeIds.HasComponent,
                     "Orientation").ConfigureAwait(false);
-                DataValue orientationValue = await m_session.ReadValueAsync(
-                    orientationId,
-                    CancellationToken.None).ConfigureAwait(false);
-                ThreeDOrientation orientation = null!;
-                Assert.That(
-                    orientationValue.WrappedValue.TryGetValue(
-                        out orientation!,
-                        m_session.MessageContext),
-                    Is.True);
                 NodeId orientationCId = await FindChildAsync(
                     orientationId,
                     global::Opc.Ua.ReferenceTypeIds.HasComponent,
                     "C").ConfigureAwait(false);
-                DataValue orientationCValue = await m_session.ReadValueAsync(
-                    orientationCId,
+                // Same reason as the position frame above: the orientation turns
+                // as the robot drives, so the composite and its C component have
+                // to be sampled by one Read to be comparable.
+                var orientationReads = new ReadValueId[]
+                {
+                    new ReadValueId
+                    {
+                        NodeId = orientationId,
+                        AttributeId = Attributes.Value
+                    },
+                    new ReadValueId
+                    {
+                        NodeId = orientationCId,
+                        AttributeId = Attributes.Value
+                    }
+                };
+                ReadResponse orientationRead = await m_session.ReadAsync(
+                    null,
+                    0,
+                    TimestampsToReturn.Neither,
+                    orientationReads,
                     CancellationToken.None).ConfigureAwait(false);
+                ThreeDOrientation orientation = null!;
                 Assert.That(
-                    orientationCValue.WrappedValue.TryGetValue(
+                    orientationRead.Results[0].WrappedValue.TryGetValue(
+                        out orientation!,
+                        m_session.MessageContext),
+                    Is.True);
+                Assert.That(
+                    orientationRead.Results[1].WrappedValue.TryGetValue(
                         out double orientationC),
                     Is.True);
                 Assert.That(
@@ -875,6 +908,22 @@ namespace Opc.Ua.Di.Tests
                     frame.NodeId,
                     AngleUnit.Degrees,
                     CancellationToken.None).ConfigureAwait(false);
+            // The robot drives continuously, so the frame read above and the
+            // server-side resolve are two samples of a moving value and can never
+            // match exactly. Bracket the resolve with a second read: the world
+            // transform must equal the frame's own translation at some instant
+            // between them, which is exactly the invariant under test - a chain
+            // that wrongly contributed an offset would fall outside the bracket.
+            RelativeSpatialFrameValue frameAfter = await rslClient
+                .ReadPositionFrameAsync(
+                    spatialObjects[0].NodeId,
+                    CancellationToken.None).ConfigureAwait(false);
+            double frameXLower = Math.Min(
+                frame.Frame.CartesianCoordinates.X,
+                frameAfter.Frame.CartesianCoordinates.X);
+            double frameXUpper = Math.Max(
+                frame.Frame.CartesianCoordinates.X,
+                frameAfter.Frame.CartesianCoordinates.X);
             Assert.Multiple(() =>
             {
                 Assert.That(frame.BaseNodeId.IsNull, Is.False);
@@ -972,7 +1021,7 @@ namespace Opc.Ua.Di.Tests
                 Assert.That(position.CoordinateReferenceSystem, Is.EqualTo(4326));
                 Assert.That(
                     resolvedFrame.TransformToWorld.Translation.X,
-                    Is.EqualTo(frame.Frame.CartesianCoordinates.X).Within(1e-9));
+                    Is.InRange(frameXLower - 1e-9, frameXUpper + 1e-9));
                 Assert.That(
                     roundTrip.Longitude,
                     Is.EqualTo(location.Location.Position.Longitude).Within(1e-8));
