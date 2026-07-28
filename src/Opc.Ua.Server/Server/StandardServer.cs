@@ -2993,14 +2993,17 @@ namespace Opc.Ua.Server
             IEndpointIncomingRequest request,
             CancellationToken cancellationToken = default)
         {
-            ServerInternalData? serverInternal = m_serverInternal;
-            if (serverInternal == null)
+            // The request manager is published part-way through startup, so a request that
+            // arrives while the server is still starting has nothing to enrol with yet. Such a
+            // request is rejected by request validation instead of being dispatched.
+            RequestManager? requestManager = m_serverInternal?.RequestManager;
+            if (requestManager == null)
             {
                 await base.ProcessRequestAsync(request, cancellationToken).ConfigureAwait(false);
                 return;
             }
 
-            using IDisposable dispatchScope = serverInternal.RequestManager.EnterServiceDispatchScope();
+            using IDisposable dispatchScope = requestManager.EnterServiceDispatchScope();
             await base.ProcessRequestAsync(request, cancellationToken).ConfigureAwait(false);
         }
 
