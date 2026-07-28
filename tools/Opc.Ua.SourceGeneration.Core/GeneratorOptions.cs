@@ -147,6 +147,11 @@ namespace Opc.Ua.SourceGeneration
         public string EventRecordNamespace { get; set; }
 
         /// <summary>
+        /// Suppresses source-generated event record classes.
+        /// </summary>
+        public bool OmitEventRecords { get; set; }
+
+        /// <summary>
         /// Maps an OPC UA namespace URI (key) to the C# namespace
         /// (value) in which the corresponding source-generated
         /// <c>*Record</c> classes live. Used by the

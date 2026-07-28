@@ -758,40 +758,36 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
+            Parameter[] inputArguments = MethodDesignArgumentResolver.ResolveMethodInputs(method);
+            Parameter[] outputArguments = MethodDesignArgumentResolver.ResolveMethodOutputs(method);
             context.Out.WriteLine("global::Opc.Ua.ISystemContext _context,");
             context.Out.WriteLine("global::Opc.Ua.MethodState _method,");
             context.Out.Write("global::Opc.Ua.NodeId _objectId");
 
-            if (method.InputArguments != null)
+            for (int ii = 0; ii < inputArguments.Length; ii++)
             {
-                for (int ii = 0; ii < method.InputArguments.Length; ii++)
-                {
-                    Parameter argument = method.InputArguments[ii];
+                Parameter argument = inputArguments[ii];
 
-                    context.Out.WriteLine(",");
-                    context.Out.Write("{1} {0}", argument.GetChildFieldName()[2..],
-                        argument.DataTypeNode.GetMethodArgumentTypeAsCode(
-                            argument.ValueRank,
-                            m_context.ModelDesign.TargetNamespace.Value,
-                            m_context.ModelDesign.Namespaces,
-                            argument.IsOptional));
-                }
+                context.Out.WriteLine(",");
+                context.Out.Write("{1} {0}", argument.GetChildFieldName()[2..],
+                    argument.DataTypeNode.GetMethodArgumentTypeAsCode(
+                        argument.ValueRank,
+                        m_context.ModelDesign.TargetNamespace.Value,
+                        m_context.ModelDesign.Namespaces,
+                        argument.IsOptional));
             }
 
-            if (method.OutputArguments != null)
+            for (int ii = 0; ii < outputArguments.Length; ii++)
             {
-                for (int ii = 0; ii < method.OutputArguments.Length; ii++)
-                {
-                    Parameter argument = method.OutputArguments[ii];
+                Parameter argument = outputArguments[ii];
 
-                    context.Out.WriteLine(",");
-                    context.Out.Write("ref {1} {0}", argument.GetChildFieldName()[2..],
-                        argument.DataTypeNode.GetMethodArgumentTypeAsCode(
-                            argument.ValueRank,
-                            m_context.ModelDesign.TargetNamespace.Value,
-                            m_context.ModelDesign.Namespaces,
-                            argument.IsOptional));
-                }
+                context.Out.WriteLine(",");
+                context.Out.Write("ref {1} {0}", argument.GetChildFieldName()[2..],
+                    argument.DataTypeNode.GetMethodArgumentTypeAsCode(
+                        argument.ValueRank,
+                        m_context.ModelDesign.TargetNamespace.Value,
+                        m_context.ModelDesign.Namespaces,
+                        argument.IsOptional));
             }
 
             context.Out.WriteLine(");");
@@ -805,24 +801,22 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
+            Parameter[] inputArguments = MethodDesignArgumentResolver.ResolveMethodInputs(method);
             context.Out.WriteLine("global::Opc.Ua.ISystemContext _context,");
             context.Out.WriteLine("global::Opc.Ua.MethodState _method,");
             context.Out.Write("global::Opc.Ua.NodeId _objectId");
 
-            if (method.InputArguments != null)
+            for (int ii = 0; ii < inputArguments.Length; ii++)
             {
-                for (int ii = 0; ii < method.InputArguments.Length; ii++)
-                {
-                    Parameter argument = method.InputArguments[ii];
+                Parameter argument = inputArguments[ii];
 
-                    context.Out.WriteLine(",");
-                    context.Out.Write("{1} {0}", argument.GetChildFieldName()[2..],
-                        argument.DataTypeNode.GetMethodArgumentTypeAsCode(
-                            argument.ValueRank,
-                            m_context.ModelDesign.TargetNamespace.Value,
-                            m_context.ModelDesign.Namespaces,
-                            argument.IsOptional));
-                }
+                context.Out.WriteLine(",");
+                context.Out.Write("{1} {0}", argument.GetChildFieldName()[2..],
+                    argument.DataTypeNode.GetMethodArgumentTypeAsCode(
+                        argument.ValueRank,
+                        m_context.ModelDesign.TargetNamespace.Value,
+                        m_context.ModelDesign.Namespaces,
+                        argument.IsOptional));
             }
 
             context.Out.WriteLine(",");
@@ -889,27 +883,23 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
+            Parameter[] inputArguments = MethodDesignArgumentResolver.ResolveMethodInputs(method);
+            Parameter[] outputArguments = MethodDesignArgumentResolver.ResolveMethodOutputs(method);
             context.Out.WriteLine("_result = OnCall(");
             context.Out.WriteLine("    _context,");
             context.Out.WriteLine("    this,");
             context.Out.Write("    _objectId");
 
-            if (method.InputArguments != null)
+            for (int ii = 0; ii < inputArguments.Length; ii++)
             {
-                for (int ii = 0; ii < method.InputArguments.Length; ii++)
-                {
-                    context.Out.WriteLine(",");
-                    context.Out.Write("    {0}", method.InputArguments[ii].GetChildFieldName()[2..]);
-                }
+                context.Out.WriteLine(",");
+                context.Out.Write("    {0}", inputArguments[ii].GetChildFieldName()[2..]);
             }
 
-            if (method.OutputArguments != null)
+            for (int ii = 0; ii < outputArguments.Length; ii++)
             {
-                for (int ii = 0; ii < method.OutputArguments.Length; ii++)
-                {
-                    context.Out.WriteLine(",");
-                    context.Out.Write("    ref {0}", method.OutputArguments[ii].GetChildFieldName()[2..]);
-                }
+                context.Out.WriteLine(",");
+                context.Out.Write("    ref {0}", outputArguments[ii].GetChildFieldName()[2..]);
             }
 
             context.Out.WriteLine(");");
@@ -923,18 +913,16 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
+            Parameter[] inputArguments = MethodDesignArgumentResolver.ResolveMethodInputs(method);
             context.Out.WriteLine("_result = await OnCallAsync(");
             context.Out.WriteLine("    _context,");
             context.Out.WriteLine("    this,");
             context.Out.Write("    _objectId");
 
-            if (method.InputArguments != null)
+            for (int ii = 0; ii < inputArguments.Length; ii++)
             {
-                for (int ii = 0; ii < method.InputArguments.Length; ii++)
-                {
-                    context.Out.WriteLine(",");
-                    context.Out.Write("    {0}", method.InputArguments[ii].GetChildFieldName()[2..]);
-                }
+                context.Out.WriteLine(",");
+                context.Out.Write("    {0}", inputArguments[ii].GetChildFieldName()[2..]);
             }
 
             context.Out.WriteLine(",");
@@ -1711,8 +1699,11 @@ namespace Opc.Ua.SourceGeneration
             InstanceDesign instance,
             string forInstanceVariableValue)
         {
-            List<(NodeToGenerate Singleton, NodeToGenerate SingletonChild, string SingletonChildSymbolicId)> singletonChildren =
-                FindSingletonChildren(node);
+            List<
+                (
+                    NodeToGenerate Singleton,
+                    NodeToGenerate SingletonChild,
+                    string SingletonChildSymbolicId)> singletonChildren = FindSingletonChildren(node);
             if (singletonChildren.Count == 0)
             {
                 context.Out.WriteLine(
@@ -1847,6 +1838,26 @@ namespace Opc.Ua.SourceGeneration
                 Tokens.Description,
                 (parameter?.Description).GetLocalizedTextAsCode(true));
 
+            return context.Template.Render();
+        }
+
+        private bool WriteTemplate_MethodArguments(IWriteContext context)
+        {
+            if (context.Target is not MethodArgumentsToGenerate arguments)
+            {
+                return false;
+            }
+            context.Template.AddReplacement(
+                Tokens.PropertyName,
+                arguments.PropertyName);
+            context.Template.AddReplacement(
+                Tokens.BrowseName,
+                arguments.BrowseName);
+            context.Template.AddReplacement(
+                Tokens.ListOfValues,
+                NodeStateTemplates.ArgumentValue,
+                arguments.Arguments,
+                WriteTemplate_Argument);
             return context.Template.Render();
         }
 
@@ -2042,6 +2053,8 @@ namespace Opc.Ua.SourceGeneration
             IWriteContext context,
             MethodDesign method)
         {
+            Parameter[] inputArguments = MethodDesignArgumentResolver.ResolveMethodInputs(method);
+            Parameter[] outputArguments = MethodDesignArgumentResolver.ResolveMethodOutputs(method);
             string targetNamespace = m_context.ModelDesign.TargetNamespace.Value;
             string declaredClassName = method.GetNodeStateClassName(
                 targetNamespace,
@@ -2063,7 +2076,7 @@ namespace Opc.Ua.SourceGeneration
                 declaredClassName);
             context.Template.AddReplacement(
                 Tokens.ListOfInputArguments,
-                method.InputArguments,
+                inputArguments,
                 LoadTemplate_ListOfInputArguments);
             context.Template.AddReplacement(
                 Tokens.OnCallDeclaration,
@@ -2083,19 +2096,19 @@ namespace Opc.Ua.SourceGeneration
                 LoadTemplate_OnCallAsyncImplementation);
             context.Template.AddReplacement(
                 Tokens.ListOfOutputDeclarations,
-                method.OutputArguments,
+                outputArguments,
                 LoadTemplate_ListOfOutputDeclarations);
             context.Template.AddReplacement(
                 Tokens.ListOfOutputArgumentsFromResult,
-                method.OutputArguments,
+                outputArguments,
                 LoadTemplate_ListOfOutputArgumentsFromResult);
             context.Template.AddReplacement(
                 Tokens.ListOfOutputArguments,
-                method.OutputArguments,
+                outputArguments,
                 LoadTemplate_ListOfOutputArguments);
             context.Template.AddReplacement(
                 Tokens.ListOfResultProperties,
-                method.OutputArguments,
+                outputArguments,
                 LoadTemplate_ListOfResultProperties);
         }
 
@@ -2264,12 +2277,14 @@ namespace Opc.Ua.SourceGeneration
                     case "XmlSchema_TypeSystem":
                         context.Template.AddReplacement(
                             Tokens.ValueCode,
-                            "state.WrappedValue = global::Opc.Ua.Variant.From(global::Opc.Ua.ByteString.From(XmlSchemas.TypesXsd.ToArray()));");
+                            "state.WrappedValue = global::Opc.Ua.Variant.From(" +
+                            "global::Opc.Ua.ByteString.From(XmlSchemas.TypesXsd.ToArray()));");
                         return;
                     case "OPCBinarySchema_TypeSystem":
                         context.Template.AddReplacement(
                             Tokens.ValueCode,
-                            "state.WrappedValue = global::Opc.Ua.Variant.From(global::Opc.Ua.ByteString.From(XmlSchemas.TypesBsd.ToArray()));");
+                            "state.WrappedValue = global::Opc.Ua.Variant.From(" +
+                            "global::Opc.Ua.ByteString.From(XmlSchemas.TypesBsd.ToArray()));");
                         return;
                 }
                 // unknown type system
@@ -2432,10 +2447,118 @@ namespace Opc.Ua.SourceGeneration
                 node.MethodDeclarationNode != null
                     ? CoreUtils.Format(
                         "state.MethodDeclarationId = {0};",
-                        node.MethodDeclarationNode.GetNodeIdAsCode(
+                        (HasResolvableNodeId(node.MethodDeclarationNode) ||
+                            !node.NumericIdSpecified
+                                ? node.MethodDeclarationNode
+                                : node).GetNodeIdAsCode(
                             m_context.ModelDesign.Namespaces,
                             kNamespaceTableContextVariable))
                     : null);
+            AddMethodArgumentsReplacement(
+                context,
+                nodeToGenerate,
+                Tokens.ListOfInputArguments,
+                BrowseNames.InputArguments,
+                "inputArguments",
+                node.InputArguments);
+            AddMethodArgumentsReplacement(
+                context,
+                nodeToGenerate,
+                Tokens.ListOfOutputArguments,
+                BrowseNames.OutputArguments,
+                "outputArguments",
+                node.OutputArguments);
+        }
+
+        /// <summary>
+        /// Emits the InputArguments or OutputArguments property of a method.
+        /// The property is normally produced by its own child node factory,
+        /// which carries the well known NodeId of the argument property and
+        /// must therefore not be replaced -
+        /// <see cref="MethodState.CreateOrReplaceInputArguments"/> keeps the
+        /// property that was assigned first. Only the arguments themselves are
+        /// re-emitted from the resolved model, and only when the value of the
+        /// property cannot be trusted (see
+        /// <see cref="RequiresArgumentValueOverride"/>). When no child factory
+        /// exists the whole property is created inline.
+        /// </summary>
+        private void AddMethodArgumentsReplacement(
+            IWriteContext context,
+            NodeToGenerate nodeToGenerate,
+            string token,
+            string browseName,
+            string propertyName,
+            Parameter[] arguments)
+        {
+            if (arguments == null || arguments.Length == 0)
+            {
+                return;
+            }
+            bool hasChild = HasArgumentChild(nodeToGenerate, browseName);
+            if (hasChild && !RequiresArgumentValueOverride(arguments))
+            {
+                return;
+            }
+            context.Template.AddReplacement(
+                token,
+                hasChild
+                    ? NodeStateTemplates.Assign_MethodArgumentValues
+                    : NodeStateTemplates.Create_MethodArguments,
+                [
+                    new MethodArgumentsToGenerate(propertyName, browseName, arguments)
+                ],
+                WriteTemplate_MethodArguments);
+        }
+
+        /// <summary>
+        /// The value of an argument property imported from a nodeset is emitted
+        /// verbatim as the XML of the source nodeset, where the NodeId of the
+        /// argument data type is indexed against the namespace table of that
+        /// nodeset. Such an index does not survive the import and resolves to
+        /// an unrelated namespace at runtime, so the arguments have to be
+        /// re-emitted from the resolved model. Arguments that only reference
+        /// the OPC UA namespace always decode to the same value and are left
+        /// alone.
+        /// </summary>
+        private static bool RequiresArgumentValueOverride(Parameter[] arguments)
+        {
+            return Array.Exists(
+                arguments,
+                argument => argument.DataTypeNode != null &&
+                    !string.Equals(
+                        argument.DataTypeNode.SymbolicId.Namespace,
+                        Namespaces.OpcUa,
+                        StringComparison.Ordinal));
+        }
+
+        /// <summary>
+        /// The declaration node of a method is only usable as
+        /// <see cref="MethodState.MethodDeclarationId"/> when it resolves to a
+        /// real NodeId. Method type declarations that are synthesized while
+        /// importing a nodeset have no identifier of their own and would emit a
+        /// NodeId built from their symbolic name, which does not exist in any
+        /// address space. In that case the method node itself is the
+        /// declaration.
+        /// </summary>
+        private static bool HasResolvableNodeId(NodeDesign node)
+        {
+            return node.NumericIdSpecified ||
+                !string.IsNullOrEmpty(node.StringId) ||
+                node.FindNumericIdentifier().HasValue;
+        }
+
+        /// <summary>
+        /// Indicates that the model generates a dedicated child node factory
+        /// for the InputArguments or OutputArguments property of a method.
+        /// </summary>
+        private static bool HasArgumentChild(NodeToGenerate node, string browseName)
+        {
+            return node.AllChildren.Exists(
+                child => child.Design is InstanceDesign instance &&
+                    string.Equals(
+                        instance.SymbolicName?.Name,
+                        browseName,
+                        StringComparison.Ordinal));
         }
 
         private static void AddViewStateFactoryReplacements(
@@ -2636,7 +2759,11 @@ namespace Opc.Ua.SourceGeneration
         private List<(NodeToGenerate Singleton, NodeToGenerate SingletonChild, string SingletonChildSymbolicId)>
             FindSingletonChildren(NodeToGenerate typeChild)
         {
-            var result = new List<(NodeToGenerate Singleton, NodeToGenerate SingletonChild, string SingletonChildSymbolicId)>();
+            var result = new List<
+                (
+                    NodeToGenerate Singleton,
+                    NodeToGenerate SingletonChild,
+                    string SingletonChildSymbolicId)>();
             if (typeChild == null || !typeChild.RootIsTypeDefinition)
             {
                 return result;
@@ -2733,7 +2860,11 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         private bool WriteTemplate_InstanceNodeIdOverride(IWriteContext context)
         {
-            if (context.Target is not List<(NodeToGenerate Singleton, NodeToGenerate SingletonChild, string SingletonChildSymbolicId)> branches)
+            if (context.Target is not List<
+                (
+                    NodeToGenerate Singleton,
+                    NodeToGenerate SingletonChild,
+                    string SingletonChildSymbolicId)> branches)
             {
                 return false;
             }
@@ -3767,6 +3898,11 @@ namespace Opc.Ua.SourceGeneration
             NodeDesign TargetNode,
             XmlQualifiedName ReferenceTypeId,
             bool IsInverse);
+
+        private sealed record MethodArgumentsToGenerate(
+            string PropertyName,
+            string BrowseName,
+            Parameter[] Arguments);
 
         private const string kNamespaceTableContextVariable = "context.NamespaceUris";
 
