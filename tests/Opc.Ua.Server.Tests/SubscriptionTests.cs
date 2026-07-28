@@ -314,6 +314,117 @@ namespace Opc.Ua.Server.Tests
                     $"Field {fieldName} is null."));
         }
 
+        private static void SetPrivateField<T>(
+            object instance,
+            string fieldName,
+            T value)
+        {
+            FieldInfo field = instance.GetType().GetField(
+                fieldName,
+                BindingFlags.Instance | BindingFlags.NonPublic)
+                ?? throw new InvalidOperationException(
+                    $"Field {fieldName} not found.");
+            field.SetValue(instance, value);
+        }
+
+        private static void ExpireOnNextPublishTimer(Subscription subscription)
+        {
+            uint maxLifetimeCount = GetPrivateField<uint>(
+                subscription,
+                "m_maxLifetimeCount");
+            SetPrivateField(
+                subscription,
+                "m_lifetimeCounter",
+                maxLifetimeCount - 1);
+            SetPrivateField(subscription, "m_waitingForPublish", true);
+            SetExpiryTime(
+                subscription,
+                TimeProvider.System.GetTimestampMilliseconds() - 100);
+        }
+
+        private static SessionPublishQueue GetPublishQueue(
+            SubscriptionManager manager,
+            NodeId sessionId)
+        {
+            NodeIdDictionary<SessionPublishQueue> publishQueues =
+                GetPrivateField<NodeIdDictionary<SessionPublishQueue>>(
+                    manager,
+                    "m_publishQueues");
+            return publishQueues[sessionId];
+        }
+
+        private async Task<(
+            SubscriptionManager Manager,
+            Subscription Subscription,
+            OperationContext SourceContext,
+            OperationContext DestinationContext,
+            Mock<ISession> DestinationSession)> CreateTransferSubscriptionAsync()
+        {
+            var configuration = new ApplicationConfiguration
+            {
+                ServerConfiguration = new ServerConfiguration()
+            };
+            var manager = new SubscriptionManager(
+                m_serverMock.Object,
+                configuration);
+            m_serverMock.SetupGet(server => server.SubscriptionManager).Returns(manager);
+
+            var identity = new UserIdentity("transfer-user", new byte[] { 1, 2, 3 });
+            m_sessionMock.SetupGet(session => session.EffectiveIdentity).Returns(identity);
+            m_sessionMock.SetupGet(session => session.IsClosing).Returns(false);
+            var destinationSession = new Mock<ISession>();
+            destinationSession.SetupGet(session => session.Id)
+                .Returns(new NodeId(Guid.NewGuid()));
+            destinationSession.SetupGet(session => session.EffectiveIdentity).Returns(identity);
+            destinationSession.SetupGet(session => session.DiagnosticsLock)
+                .Returns(new object());
+            destinationSession.SetupGet(session => session.SessionDiagnostics)
+                .Returns(new SessionDiagnosticsDataType());
+            var sourceContext = new OperationContext(
+                m_sessionMock.Object,
+                DiagnosticsMasks.None);
+            var destinationContext = new OperationContext(
+                destinationSession.Object,
+                DiagnosticsMasks.None);
+
+            CreateSubscriptionResponse created = await manager.CreateSubscriptionAsync(
+                sourceContext,
+                requestedPublishingInterval: 1000,
+                requestedLifetimeCount: 30,
+                requestedMaxKeepAliveCount: 10,
+                maxNotificationsPerPublish: 0,
+                publishingEnabled: true,
+                priority: 0).ConfigureAwait(false);
+            if (!manager.TryGetSubscription(
+                    created.SubscriptionId,
+                    out ISubscription subscription))
+            {
+                manager.Dispose();
+                throw new InvalidOperationException("Created subscription was not registered.");
+            }
+
+            return (
+                manager,
+                (Subscription)subscription,
+                sourceContext,
+                destinationContext,
+                destinationSession);
+        }
+
+        private static async ValueTask DeleteSubscriptionAndSignalAsync(
+            SubscriptionManager manager,
+            uint subscriptionId,
+            TaskCompletionSource<bool> deletionCompleted,
+            CancellationToken cancellationToken)
+        {
+            await manager.DeleteSubscriptionAsync(
+                    null!,
+                    subscriptionId,
+                    cancellationToken)
+                .ConfigureAwait(false);
+            deletionCompleted.TrySetResult(true);
+        }
+
         private static void ResetKeepAlive(Subscription subscription)
         {
             FieldInfo field = typeof(Subscription).GetField("m_keepAliveCounter", BindingFlags.NonPublic | BindingFlags.Instance)
@@ -883,6 +994,292 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(abandonedSubscriptions, Is.Empty);
             });
             Assert.DoesNotThrow(() => subscription.ResendData(destinationContext));
+        }
+
+        [Test]
+        public async Task SourcePublishTimerSnapshotDoesNotExpireTransferredSubscriptionAsync()
+        {
+            var fixture = await CreateTransferSubscriptionAsync().ConfigureAwait(false);
+            using SubscriptionManager manager = fixture.Manager;
+            Subscription subscription = fixture.Subscription;
+            ExpireOnNextPublishTimer(subscription);
+            SessionPublishQueue sourceQueue = GetPublishQueue(
+                manager,
+                fixture.SourceContext.SessionId);
+            var snapshotCaptured = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseSnapshot = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            Task staleTimer = Task.Run(
+                async () =>
+                {
+                    IReadOnlyList<SessionPublishQueue.QueuedSubscription> snapshot =
+                        sourceQueue.CapturePublishTimerSnapshot();
+                    snapshotCaptured.TrySetResult(true);
+                    await releaseSnapshot.Task.ConfigureAwait(false);
+                    sourceQueue.PublishTimerExpired(snapshot);
+                });
+
+            Task captured = await Task.WhenAny(
+                snapshotCaptured.Task,
+                Task.Delay(TimeSpan.FromSeconds(5))).ConfigureAwait(false);
+            if (!ReferenceEquals(captured, snapshotCaptured.Task))
+            {
+                releaseSnapshot.TrySetResult(true);
+                Assert.Fail("Publish timer did not capture the source queue.");
+            }
+
+            TransferSubscriptionsResponse transferred;
+            try
+            {
+                transferred = await manager.TransferSubscriptionsAsync(
+                    fixture.DestinationContext,
+                    [subscription.Id],
+                    sendInitialValues: false).ConfigureAwait(false);
+            }
+            finally
+            {
+                releaseSnapshot.TrySetResult(true);
+            }
+            await staleTimer.ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(transferred.Results, Has.Count.EqualTo(1));
+                Assert.That(transferred.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(
+                    subscription.Session,
+                    Is.SameAs(fixture.DestinationSession.Object));
+                Assert.That(
+                    manager.TryGetSubscription(subscription.Id, out _),
+                    Is.True);
+            });
+            Assert.DoesNotThrow(
+                () => subscription.ResendData(fixture.DestinationContext));
+        }
+
+        [Test]
+        public async Task AbandonedTimerSnapshotDoesNotExpireTransferredSubscriptionAsync()
+        {
+            var fixture = await CreateTransferSubscriptionAsync().ConfigureAwait(false);
+            using SubscriptionManager manager = fixture.Manager;
+            Subscription subscription = fixture.Subscription;
+            m_sessionMock.SetupGet(session => session.IsClosing).Returns(true);
+            await manager.SessionClosingAsync(
+                    fixture.SourceContext,
+                    fixture.SourceContext.SessionId,
+                    deleteSubscriptions: false,
+                    CancellationToken.None)
+                .ConfigureAwait(false);
+            ExpireOnNextPublishTimer(subscription);
+
+            var snapshotCaptured = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseSnapshot = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            Task staleTimer = Task.Run(
+                async () =>
+                {
+                    IReadOnlyList<ISubscription> snapshot =
+                        manager.CaptureAbandonedPublishTimerSnapshot();
+                    snapshotCaptured.TrySetResult(true);
+                    await releaseSnapshot.Task.ConfigureAwait(false);
+                    manager.ProcessAbandonedPublishTimers(snapshot);
+                });
+
+            Task captured = await Task.WhenAny(
+                snapshotCaptured.Task,
+                Task.Delay(TimeSpan.FromSeconds(5))).ConfigureAwait(false);
+            if (!ReferenceEquals(captured, snapshotCaptured.Task))
+            {
+                releaseSnapshot.TrySetResult(true);
+                Assert.Fail("Publish timer did not capture the abandoned subscription.");
+            }
+
+            TransferSubscriptionsResponse transferred;
+            try
+            {
+                transferred = await manager.TransferSubscriptionsAsync(
+                    fixture.DestinationContext,
+                    [subscription.Id],
+                    sendInitialValues: false).ConfigureAwait(false);
+            }
+            finally
+            {
+                releaseSnapshot.TrySetResult(true);
+            }
+            await staleTimer.ConfigureAwait(false);
+            ConcurrentDictionary<uint, ISubscription> abandonedSubscriptions =
+                GetPrivateField<ConcurrentDictionary<uint, ISubscription>>(
+                    manager,
+                    "m_abandonedSubscriptions");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(transferred.Results, Has.Count.EqualTo(1));
+                Assert.That(transferred.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(
+                    subscription.Session,
+                    Is.SameAs(fixture.DestinationSession.Object));
+                Assert.That(abandonedSubscriptions, Is.Empty);
+                Assert.That(
+                    manager.TryGetSubscription(subscription.Id, out _),
+                    Is.True);
+            });
+            Assert.DoesNotThrow(
+                () => subscription.ResendData(fixture.DestinationContext));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CurrentOwnerPublishTimerStillExpiresSubscriptionAsync(
+            bool abandonBeforeExpiration)
+        {
+            var fixture = await CreateTransferSubscriptionAsync().ConfigureAwait(false);
+            using SubscriptionManager manager = fixture.Manager;
+            Subscription subscription = fixture.Subscription;
+            SessionPublishQueue sourceQueue = GetPublishQueue(
+                manager,
+                fixture.SourceContext.SessionId);
+            if (abandonBeforeExpiration)
+            {
+                m_sessionMock.SetupGet(session => session.IsClosing).Returns(true);
+                await manager.SessionClosingAsync(
+                        fixture.SourceContext,
+                        fixture.SourceContext.SessionId,
+                        deleteSubscriptions: false,
+                        CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
+            var deletionCompleted = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            m_serverMock
+                .Setup(server => server.DeleteSubscriptionAsync(
+                    subscription.Id,
+                    It.IsAny<CancellationToken>()))
+                .Returns((uint subscriptionId, CancellationToken cancellationToken) =>
+                    DeleteSubscriptionAndSignalAsync(
+                        manager,
+                        subscriptionId,
+                        deletionCompleted,
+                        cancellationToken));
+            ExpireOnNextPublishTimer(subscription);
+
+            if (abandonBeforeExpiration)
+            {
+                manager.ProcessAbandonedPublishTimers(
+                    manager.CaptureAbandonedPublishTimerSnapshot());
+            }
+            else
+            {
+                sourceQueue.PublishTimerExpired(
+                    sourceQueue.CapturePublishTimerSnapshot());
+            }
+
+            ServiceResultException exception = Assert.Throws<ServiceResultException>(
+                () => subscription.ResendData(fixture.SourceContext));
+            Assert.That(
+                exception.StatusCode,
+                Is.EqualTo(StatusCodes.BadSubscriptionIdInvalid));
+            Task deleted = await Task.WhenAny(
+                deletionCompleted.Task,
+                Task.Delay(TimeSpan.FromSeconds(5))).ConfigureAwait(false);
+            Assert.That(
+                deleted,
+                Is.SameAs(deletionCompleted.Task),
+                "Expired subscription cleanup did not complete.");
+            Assert.That(
+                manager.TryGetSubscription(subscription.Id, out _),
+                Is.False);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task FailedTransferRestoresClaimedExpirationSourceAsync(
+            bool abandonBeforeTransfer)
+        {
+            var fixture = await CreateTransferSubscriptionAsync().ConfigureAwait(false);
+            using SubscriptionManager manager = fixture.Manager;
+            Subscription subscription = fixture.Subscription;
+            SessionPublishQueue sourceQueue = GetPublishQueue(
+                manager,
+                fixture.SourceContext.SessionId);
+            if (abandonBeforeTransfer)
+            {
+                m_sessionMock.SetupGet(session => session.IsClosing).Returns(true);
+                await manager.SessionClosingAsync(
+                        fixture.SourceContext,
+                        fixture.SourceContext.SessionId,
+                        deleteSubscriptions: false,
+                        CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
+            int transferCalls = 0;
+            m_nodeManagerMock
+                .Setup(nodeManager => nodeManager.TransferMonitoredItemsAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<IList<IMonitoredItem>>(),
+                    It.IsAny<IList<ServiceResult>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(
+                    () => Interlocked.Increment(ref transferCalls) == 1
+                        ? new ValueTask(
+                            Task.FromException(
+                                new ServiceResultException(
+                                    StatusCodes.BadUnexpectedError)))
+                        : new ValueTask());
+
+            TransferSubscriptionsResponse failed = await manager
+                .TransferSubscriptionsAsync(
+                    fixture.DestinationContext,
+                    [subscription.Id],
+                    sendInitialValues: false)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(failed.Results, Has.Count.EqualTo(1));
+                Assert.That(
+                    ServiceResult.IsBad(failed.Results[0].StatusCode),
+                    Is.True);
+                if (abandonBeforeTransfer)
+                {
+                    Assert.That(subscription.Session, Is.Null);
+                    ConcurrentDictionary<uint, ISubscription> abandonedSubscriptions =
+                        GetPrivateField<ConcurrentDictionary<uint, ISubscription>>(
+                            manager,
+                            "m_abandonedSubscriptions");
+                    Assert.That(
+                        abandonedSubscriptions.TryGetValue(
+                            subscription.Id,
+                            out ISubscription restoredSubscription),
+                        Is.True);
+                    Assert.That(restoredSubscription, Is.SameAs(subscription));
+                }
+                else
+                {
+                    IReadOnlyList<SessionPublishQueue.QueuedSubscription> restoredSource =
+                        sourceQueue.CapturePublishTimerSnapshot();
+                    Assert.That(subscription.Session, Is.SameAs(m_sessionMock.Object));
+                    Assert.That(restoredSource, Has.Count.EqualTo(1));
+                    Assert.That(
+                        restoredSource[0].Subscription,
+                        Is.SameAs(subscription));
+                }
+            });
+
+            TransferSubscriptionsResponse retried = await manager
+                .TransferSubscriptionsAsync(
+                    fixture.DestinationContext,
+                    [subscription.Id],
+                    sendInitialValues: false)
+                .ConfigureAwait(false);
+
+            Assert.That(retried.Results, Has.Count.EqualTo(1));
+            Assert.That(retried.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.DoesNotThrow(
+                () => subscription.ResendData(fixture.DestinationContext));
         }
 
         private async Task RegisterMonitoredItemsAsync(

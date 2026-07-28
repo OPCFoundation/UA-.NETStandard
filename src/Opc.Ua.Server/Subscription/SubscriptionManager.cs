@@ -91,6 +91,7 @@ namespace Opc.Ua.Server
 
             m_subscriptions = [];
             m_abandonedSubscriptions = [];
+            m_expiringSubscriptions = [];
             m_publishQueues = [];
             m_statusMessages = [];
             m_lastSubscriptionId = BitConverter.ToUInt32(
@@ -132,6 +133,7 @@ namespace Opc.Ua.Server
 
                     subscriptions = [.. m_subscriptions.Values];
                     m_subscriptions.Clear();
+                    m_expiringSubscriptions.Clear();
                 }
                 finally
                 {
@@ -306,6 +308,7 @@ namespace Opc.Ua.Server
                 }
 
                 m_subscriptions.Clear();
+                m_expiringSubscriptions.Clear();
             }
             finally
             {
@@ -719,6 +722,8 @@ namespace Opc.Ua.Server
                     m_logger.SubscriptionDELETEDABANDONEDIdSubscriptionId(subscriptionId);
                 }
 
+                m_expiringSubscriptions.Remove(subscriptionId);
+
                 // remove subscription.
                 m_subscriptions.TryRemove(subscriptionId, out _);
             }
@@ -1028,6 +1033,94 @@ namespace Opc.Ua.Server
                     queue.Enqueue(message);
                 }
             }
+        }
+
+        /// <summary>
+        /// Claims an expiration from the exact current session queue entry.
+        /// </summary>
+        internal bool TryClaimSubscriptionExpiration(
+            SessionPublishQueue sourceQueue,
+            ISession sourceSession,
+            SessionPublishQueue.QueuedSubscription queuedSubscription)
+        {
+            ISubscription subscription = queuedSubscription.Subscription;
+            m_semaphoreSlim.Wait();
+            try
+            {
+                if (!m_subscriptions.TryGetValue(
+                        subscription.Id,
+                        out ISubscription? currentSubscription) ||
+                    !ReferenceEquals(currentSubscription, subscription) ||
+                    m_expiringSubscriptions.ContainsKey(subscription.Id) ||
+                    !ReferenceEquals(subscription.Session, sourceSession) ||
+                    !m_publishQueues.TryGetValue(
+                        sourceSession.Id,
+                        out SessionPublishQueue? currentQueue) ||
+                    !ReferenceEquals(currentQueue, sourceQueue))
+                {
+                    return false;
+                }
+
+                m_expiringSubscriptions.Add(subscription.Id, subscription);
+                if (sourceQueue.TryRemoveForExpiration(queuedSubscription))
+                {
+                    return true;
+                }
+
+                m_expiringSubscriptions.Remove(subscription.Id);
+                return false;
+            }
+            finally
+            {
+                m_semaphoreSlim.Release();
+            }
+        }
+
+        private bool TryClaimAbandonedSubscriptionExpiration(ISubscription subscription)
+        {
+            m_semaphoreSlim.Wait();
+            try
+            {
+                if (!m_subscriptions.TryGetValue(
+                        subscription.Id,
+                        out ISubscription? currentSubscription) ||
+                    !ReferenceEquals(currentSubscription, subscription) ||
+                    m_expiringSubscriptions.ContainsKey(subscription.Id) ||
+                    subscription.Session != null)
+                {
+                    return false;
+                }
+
+                m_expiringSubscriptions.Add(subscription.Id, subscription);
+                if (TryRemoveAbandonedSubscription(subscription))
+                {
+                    return true;
+                }
+
+                m_expiringSubscriptions.Remove(subscription.Id);
+                return false;
+            }
+            finally
+            {
+                m_semaphoreSlim.Release();
+            }
+        }
+
+        private bool TryRemoveAbandonedSubscription(ISubscription subscription)
+        {
+            var entry = new KeyValuePair<uint, ISubscription>(
+                subscription.Id,
+                subscription);
+            return ((ICollection<KeyValuePair<uint, ISubscription>>)m_abandonedSubscriptions)
+                .Remove(entry);
+        }
+
+        private bool ContainsAbandonedSubscription(ISubscription subscription)
+        {
+            return m_abandonedSubscriptions.TryGetValue(
+                    subscription.Id,
+                    out ISubscription? currentSubscription) &&
+                ReferenceEquals(currentSubscription, subscription);
         }
 
         /// <summary>
@@ -1410,13 +1503,18 @@ namespace Opc.Ua.Server
                     }
 
                     ISession ownerSession = null!;
+                    SessionPublishQueue? sourcePublishQueue = null;
+                    bool sourceIsAbandoned = false;
+                    bool sourceRemoved = false;
+                    bool transferCompleted = false;
                     await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
                     try
                     {
                         if (!m_subscriptions.TryGetValue(
                                 subscriptionIds[ii],
                                 out ISubscription? currentSubscription) ||
-                            !ReferenceEquals(currentSubscription, subscription))
+                            !ReferenceEquals(currentSubscription, subscription) ||
+                            m_expiringSubscriptions.ContainsKey(subscription.Id))
                         {
                             result.StatusCode = StatusCodes.BadSubscriptionIdInvalid;
                             results.Add(result);
@@ -1471,35 +1569,119 @@ namespace Opc.Ua.Server
                             continue;
                         }
 
-                        // transfer session, add subscription to publish queue
-                        await subscription.TransferSessionAsync(context, sendInitialValues, cancellationToken).ConfigureAwait(false);
-
-                        // remove from queue in old session
-                        if (ownerSession != null &&
-                            m_publishQueues.TryGetValue(
-                                ownerSession.Id,
-                                out SessionPublishQueue? ownerPublishQueue) &&
-                            ownerPublishQueue != null)
+                        // Validate the exact current source while holding the same
+                        // semaphore used by expiration claims.
+                        if (ownerSession != null)
                         {
-                            // keep the queued requests for the status message
-                            ownerPublishQueue.Remove(subscription, false);
+                            if (!m_publishQueues.TryGetValue(
+                                    ownerSession.Id,
+                                    out sourcePublishQueue) ||
+                                sourcePublishQueue == null ||
+                                !sourcePublishQueue.ContainsSubscription(subscription))
+                            {
+                                result.StatusCode = StatusCodes.BadSubscriptionIdInvalid;
+                                results.Add(result);
+                                if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
+                                {
+                                    diagnosticInfos.Add(null!);
+                                }
+                                continue;
+                            }
+                        }
+                        else if (ContainsAbandonedSubscription(subscription))
+                        {
+                            sourceIsAbandoned = true;
+                        }
+                        else if (m_abandonedSubscriptions.ContainsKey(subscription.Id))
+                        {
+                            result.StatusCode = StatusCodes.BadSubscriptionIdInvalid;
+                            results.Add(result);
+                            if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
+                            {
+                                diagnosticInfos.Add(null!);
+                            }
+                            continue;
                         }
 
-                        // add to queue in new session, create queue if necessary
-                        if (!m_publishQueues.TryGetValue(
-                                context.SessionId,
-                                out SessionPublishQueue? publishQueue) ||
-                            publishQueue == null)
+                        try
                         {
-                            m_publishQueues[context.SessionId]
-                                = publishQueue = new SessionPublishQueue(
-                                m_server,
-                                context.Session,
-                                m_maxPublishRequestCount,
-                                m_timeProvider);
+                            // transfer session, add subscription to publish queue
+                            await subscription.TransferSessionAsync(
+                                    context,
+                                    sendInitialValues,
+                                    cancellationToken)
+                                .ConfigureAwait(false);
+
+                            if (sourcePublishQueue != null)
+                            {
+                                sourceRemoved =
+                                    sourcePublishQueue.TryRemoveForTransfer(subscription);
+                            }
+                            else if (sourceIsAbandoned)
+                            {
+                                sourceRemoved =
+                                    TryRemoveAbandonedSubscription(subscription);
+                            }
+
+                            if ((sourcePublishQueue != null || sourceIsAbandoned) &&
+                                !sourceRemoved)
+                            {
+                                throw new ServiceResultException(
+                                    StatusCodes.BadSubscriptionIdInvalid,
+                                    "Subscription source changed during transfer.");
+                            }
+
+                            // add to queue in new session, create queue if necessary
+                            if (!m_publishQueues.TryGetValue(
+                                    context.SessionId,
+                                    out SessionPublishQueue? publishQueue) ||
+                                publishQueue == null)
+                            {
+                                m_publishQueues[context.SessionId]
+                                    = publishQueue = new SessionPublishQueue(
+                                    m_server,
+                                    context.Session,
+                                    m_maxPublishRequestCount,
+                                    m_timeProvider);
+                            }
+                            publishQueue.Add(subscription);
+                            transferCompleted = true;
                         }
-                        publishQueue.Add(subscription);
-                        m_abandonedSubscriptions.TryRemove(subscription.Id, out _);
+                        finally
+                        {
+                            if (!transferCompleted)
+                            {
+                                bool ownershipRestored =
+                                    ReferenceEquals(subscription.Session, ownerSession);
+                                if (!ownershipRestored && subscription is Subscription concrete)
+                                {
+                                    ownershipRestored =
+                                        concrete.TryRestoreSessionAfterFailedTransfer(
+                                            context.Session,
+                                            ownerSession);
+                                }
+
+                                if (ownershipRestored)
+                                {
+                                    if (sourceRemoved &&
+                                        sourcePublishQueue != null &&
+                                        ownerSession != null &&
+                                        m_publishQueues.TryGetValue(
+                                            ownerSession.Id,
+                                            out SessionPublishQueue? currentOwnerQueue) &&
+                                        ReferenceEquals(currentOwnerQueue, sourcePublishQueue))
+                                    {
+                                        sourcePublishQueue.Add(subscription);
+                                    }
+                                    else if (sourceRemoved && sourceIsAbandoned)
+                                    {
+                                        m_abandonedSubscriptions.TryAdd(
+                                            subscription.Id,
+                                            subscription);
+                                    }
+                                }
+                            }
+                        }
                     }
                     finally
                     {
@@ -1625,7 +1807,12 @@ namespace Opc.Ua.Server
                 catch (Exception e)
                 {
                     result.StatusCode = StatusCodes.Bad;
-                    if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
+                    if (results.Count == ii)
+                    {
+                        results.Add(result);
+                    }
+                    if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0 &&
+                        diagnosticInfos.Count == ii)
                     {
                         diagnosticInfos.Add(
                             new DiagnosticInfo(e, context.DiagnosticsMask, false, null!, m_logger));
@@ -2093,7 +2280,8 @@ namespace Opc.Ua.Server
                     // ConcurrentDictionary enumeration is thread-safe and provides a stable
                     // snapshot for the current pass without taking the manager semaphore.
                     SessionPublishQueue[] queues = [.. m_publishQueues.Values];
-                    ISubscription[] abandonedSubscriptions = [.. m_abandonedSubscriptions.Values];
+                    IReadOnlyList<ISubscription> abandonedSubscriptions =
+                        CaptureAbandonedPublishTimerSnapshot();
 
                     // check the publish timer for each subscription. Each queue is
                     // independent (its own lock and subscription state), so at high
@@ -2115,36 +2303,7 @@ namespace Opc.Ua.Server
                         }
                     }
 
-                    // check the publish timer for each abandoned subscription.
-                    if (abandonedSubscriptions.Length > 0)
-                    {
-                        var subscriptionsToDelete = new List<ISubscription>();
-
-                        for (int ii = 0; ii < abandonedSubscriptions.Length; ii++)
-                        {
-                            ISubscription subscription = abandonedSubscriptions[ii];
-
-                            if (subscription.PublishTimerExpired() != PublishingState.Expired)
-                            {
-                                continue;
-                            }
-
-                            subscriptionsToDelete.Add(subscription);
-                            SubscriptionExpired(subscription);
-                            m_logger.SubscriptionAbandonedSubscriptionIdSubscriptionId(subscription.Id);
-                        }
-
-                        // schedule cleanup on a background thread.
-                        if (subscriptionsToDelete.Count > 0)
-                        {
-                            for (int ii = 0; ii < subscriptionsToDelete.Count; ii++)
-                            {
-                                m_abandonedSubscriptions.TryRemove(subscriptionsToDelete[ii].Id, out _);
-                            }
-
-                            CleanupSubscriptions(m_server, subscriptionsToDelete, m_logger);
-                        }
-                    }
+                    ProcessAbandonedPublishTimers(abandonedSubscriptions);
 
                     if (m_shutdownEvent.WaitOne(0))
                     {
@@ -2163,6 +2322,43 @@ namespace Opc.Ua.Server
             {
                 m_logger.SubscriptionPublishTaskTaskIdX8ExitedUnexpectedly(e, Task.CurrentId);
             }
+        }
+
+        /// <summary>
+        /// Captures the abandoned subscriptions processed by one publish timer pass.
+        /// </summary>
+        internal IReadOnlyList<ISubscription> CaptureAbandonedPublishTimerSnapshot()
+        {
+            return [.. m_abandonedSubscriptions.Values];
+        }
+
+        /// <summary>
+        /// Checks the publish timer for an exact abandoned subscription snapshot.
+        /// </summary>
+        internal void ProcessAbandonedPublishTimers(
+            IReadOnlyList<ISubscription> abandonedSubscriptions)
+        {
+            if (abandonedSubscriptions.Count == 0)
+            {
+                return;
+            }
+
+            var subscriptionsToDelete = new List<ISubscription>();
+            for (int ii = 0; ii < abandonedSubscriptions.Count; ii++)
+            {
+                ISubscription subscription = abandonedSubscriptions[ii];
+                if (subscription.PublishTimerExpired() != PublishingState.Expired ||
+                    !TryClaimAbandonedSubscriptionExpiration(subscription))
+                {
+                    continue;
+                }
+
+                subscriptionsToDelete.Add(subscription);
+                SubscriptionExpired(subscription);
+                m_logger.SubscriptionAbandonedSubscriptionIdSubscriptionId(subscription.Id);
+            }
+
+            CleanupSubscriptions(m_server, subscriptionsToDelete, m_logger);
         }
 
         /// <summary>
@@ -2332,6 +2528,7 @@ namespace Opc.Ua.Server
         private readonly bool m_durableSubscriptionsEnabled;
         private readonly ConcurrentDictionary<uint, ISubscription> m_subscriptions;
         private readonly ConcurrentDictionary<uint, ISubscription> m_abandonedSubscriptions;
+        private readonly Dictionary<uint, ISubscription> m_expiringSubscriptions;
         private readonly NodeIdDictionary<Queue<StatusMessage>> m_statusMessages;
         private readonly NodeIdDictionary<SessionPublishQueue> m_publishQueues;
         private readonly ManualResetEvent m_shutdownEvent;

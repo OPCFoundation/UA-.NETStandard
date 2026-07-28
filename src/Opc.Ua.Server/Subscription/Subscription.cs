@@ -760,10 +760,11 @@ namespace Opc.Ua.Server
         public async ValueTask TransferSessionAsync(OperationContext context, bool sendInitialValues, CancellationToken cancellationToken = default)
         {
             ISession destinationSession = context.Session;
+            ISession? sourceSession;
             List<IMonitoredItem> monitoredItems;
             lock (m_lock)
             {
-                Session = destinationSession;
+                sourceSession = Session;
                 monitoredItems = m_monitoredItems.Select(v => v.Value.Value).ToList();
             }
             var errors = new List<ServiceResult>(monitoredItems.Count);
@@ -790,10 +791,48 @@ namespace Opc.Ua.Server
                 m_logger.FailedToTransferCountMonitoredItems(badTransfers);
             }
 
+            lock (m_lock)
+            {
+                if (!ReferenceEquals(Session, sourceSession))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadSubscriptionIdInvalid,
+                        "Subscription ownership changed during transfer.");
+                }
+                Session = destinationSession;
+            }
+
             lock (DiagnosticsWriteLock)
             {
                 Diagnostics.SessionId = destinationSession.Id;
             }
+        }
+
+        /// <summary>
+        /// Restores ownership if a transfer failed after assigning its destination.
+        /// </summary>
+        internal bool TryRestoreSessionAfterFailedTransfer(
+            ISession destinationSession,
+            ISession? sourceSession)
+        {
+            lock (m_lock)
+            {
+                if (ReferenceEquals(Session, sourceSession))
+                {
+                    return true;
+                }
+                if (!ReferenceEquals(Session, destinationSession))
+                {
+                    return false;
+                }
+                Session = sourceSession!;
+            }
+
+            lock (DiagnosticsWriteLock)
+            {
+                Diagnostics.SessionId = sourceSession?.Id ?? default;
+            }
+            return true;
         }
 
         /// <summary>

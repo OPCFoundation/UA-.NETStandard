@@ -260,6 +260,33 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Checks whether the exact subscription is still in this queue.
+        /// </summary>
+        internal bool ContainsSubscription(ISubscription subscription)
+        {
+            return m_queuedSubscriptions.TryGetValue(
+                    subscription.Id,
+                    out QueuedSubscription? queuedSubscription) &&
+                ReferenceEquals(queuedSubscription.Subscription, subscription);
+        }
+
+        /// <summary>
+        /// Removes the exact subscription entry so a transfer can claim it.
+        /// </summary>
+        internal bool TryRemoveForTransfer(ISubscription subscription)
+        {
+            if (!m_queuedSubscriptions.TryGetValue(
+                    subscription.Id,
+                    out QueuedSubscription? queuedSubscription) ||
+                !ReferenceEquals(queuedSubscription.Subscription, subscription))
+            {
+                return false;
+            }
+
+            return TryRemoveExact(queuedSubscription);
+        }
+
+        /// <summary>
         /// Removes outstanding requests if no subscriptions exist for the Session.
         /// </summary>
         public void RemoveQueuedRequests()
@@ -449,21 +476,49 @@ namespace Opc.Ua.Server
         /// </summary>
         public void PublishTimerExpired()
         {
+            PublishTimerExpired(CapturePublishTimerSnapshot());
+        }
+
+        /// <summary>
+        /// Captures the exact queue entries processed by one publish timer pass.
+        /// </summary>
+        internal IReadOnlyList<QueuedSubscription> CapturePublishTimerSnapshot()
+        {
+            var subscriptions = new List<QueuedSubscription>(m_queuedSubscriptions.Count);
+            foreach (KeyValuePair<uint, QueuedSubscription> entry in m_queuedSubscriptions)
+            {
+                subscriptions.Add(entry.Value);
+            }
+            return subscriptions;
+        }
+
+        /// <summary>
+        /// Checks the state of an exact publish timer snapshot.
+        /// </summary>
+        internal void PublishTimerExpired(IReadOnlyList<QueuedSubscription> queuedSubscriptions)
+        {
             var subscriptionsToDelete = new List<ISubscription>();
 
             // check each available subscription.
-            foreach (KeyValuePair<uint, QueuedSubscription> entry in m_queuedSubscriptions)
+            for (int ii = 0; ii < queuedSubscriptions.Count; ii++)
             {
-                QueuedSubscription subscription = entry.Value;
+                QueuedSubscription subscription = queuedSubscriptions[ii];
                 PublishingState state = subscription.Subscription.PublishTimerExpired();
 
                 // check for expired subscription.
                 if (state == PublishingState.Expired)
                 {
-                    m_queuedSubscriptions.TryRemove(subscription.Subscription.Id, out _);
+                    var subscriptionManager = (SubscriptionManager)m_server.SubscriptionManager;
+                    if (!subscriptionManager.TryClaimSubscriptionExpiration(
+                            this,
+                            m_session,
+                            subscription))
+                    {
+                        continue;
+                    }
+
                     subscriptionsToDelete.Add(subscription.Subscription);
-                    ((SubscriptionManager)m_server.SubscriptionManager).SubscriptionExpired(
-                        subscription.Subscription);
+                    subscriptionManager.SubscriptionExpired(subscription.Subscription);
                     continue;
                 }
 
@@ -495,6 +550,23 @@ namespace Opc.Ua.Server
 
             // schedule cleanup on a background thread.
             SubscriptionManager.CleanupSubscriptions(m_server, subscriptionsToDelete, m_logger);
+        }
+
+        /// <summary>
+        /// Removes the exact queue entry captured by a publish timer pass.
+        /// </summary>
+        internal bool TryRemoveForExpiration(QueuedSubscription queuedSubscription)
+        {
+            return TryRemoveExact(queuedSubscription);
+        }
+
+        private bool TryRemoveExact(QueuedSubscription queuedSubscription)
+        {
+            var entry = new KeyValuePair<uint, QueuedSubscription>(
+                queuedSubscription.Subscription.Id,
+                queuedSubscription);
+            return ((ICollection<KeyValuePair<uint, QueuedSubscription>>)m_queuedSubscriptions)
+                .Remove(entry);
         }
 
         /// <summary>
@@ -636,7 +708,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Stores a subscription that belongs to this Session Publish Queue.
         /// </summary>
-        private sealed class QueuedSubscription
+        internal sealed class QueuedSubscription
         {
             public QueuedSubscription(ISubscription subscription)
             {
