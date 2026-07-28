@@ -9,13 +9,20 @@
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Nullable>enable</Nullable>
-    <!-- Suppress CS8002: the Dekaf package is not strong-named. This only surfaces on the
-         .NET Framework / netstandard TFMs of the signed preview-pack build (SignAssembly=true);
-         referencing a non-strong-named assembly is otherwise benign. -->
-    <NoWarn>$(NoWarn);CS1591;CS8002</NoWarn>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
     <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>
     <!-- The default Dekaf backend is AOT-compatible; the opt-in Confluent backend is not. -->
     <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
+  </PropertyGroup>
+  <!--
+    Suppress CS8002: the Dekaf package is not strong-named (PublicKeyToken=null) and ships no
+    signed variant. CS8002 is only ever emitted when the output assembly is itself strong-named,
+    which happens in the signed preview-pack build, so the suppression is scoped to that build.
+    common.props already suppresses CS8002 for net5.0-compatible target frameworks (strong-name
+    identity is not enforced there), leaving only the .NET Framework / netstandard TFMs below.
+  -->
+  <PropertyGroup Condition="'$(SignAssembly)' == 'true' AND !$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net5.0'))">
+    <NoWarn>$(NoWarn);CS8002</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.PubSub.Kafka.Tests" />
