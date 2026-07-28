@@ -160,6 +160,92 @@ namespace Opc.Ua.SourceGeneration
             helpLinkUri: "www.opcfoundation.org",
             customTags: ["opcua"]);
 
+        public static readonly DiagnosticDescriptor NodesetIdentifierFileMissing = new(
+            id: "MODELGEN022",
+            title: "NodeSet identifier file is missing",
+            messageFormat: (LocalizableString)(
+                "NodeSet '{0}' assigns identifier file '{1}', but it was not supplied " +
+                "as an AdditionalFile"),
+            category: Name,
+            DiagnosticSeverity.Error,
+            isEnabledByDefault: true,
+            helpLinkUri: "www.opcfoundation.org",
+            customTags: ["opcua"]);
+
+        public static readonly DiagnosticDescriptor NodesetIdentifierDuplicateSymbolicName = new(
+            id: "MODELGEN023",
+            title: "NodeSet identifier file has a duplicate symbolic name",
+            messageFormat: (LocalizableString)"NodeSet '{0}' identifier file '{1}' duplicates symbolic name '{2}'",
+            category: Name,
+            DiagnosticSeverity.Error,
+            isEnabledByDefault: true,
+            helpLinkUri: "www.opcfoundation.org",
+            customTags: ["opcua"]);
+
+        public static readonly DiagnosticDescriptor NodesetIdentifierDuplicateNumericId = new(
+            id: "MODELGEN024",
+            title: "NodeSet identifier file has a duplicate numeric identifier",
+            messageFormat: (LocalizableString)"NodeSet '{0}' identifier file '{1}' duplicates numeric identifier '{3}'",
+            category: Name,
+            DiagnosticSeverity.Error,
+            isEnabledByDefault: true,
+            helpLinkUri: "www.opcfoundation.org",
+            customTags: ["opcua"]);
+
+        public static readonly DiagnosticDescriptor NodesetIdentifierUnknownSymbol = new(
+            id: "MODELGEN025",
+            title: "NodeSet identifier file references an unknown symbol",
+            messageFormat: (LocalizableString)"NodeSet '{0}' identifier file '{1}' references unknown symbol '{2}'",
+            category: Name,
+            DiagnosticSeverity.Error,
+            isEnabledByDefault: true,
+            helpLinkUri: "www.opcfoundation.org",
+            customTags: ["opcua"]);
+
+        public static readonly DiagnosticDescriptor NodesetIdentifierNumericIdMismatch = new(
+            id: "MODELGEN026",
+            title: "NodeSet identifier file numeric identifier does not match",
+            messageFormat: (LocalizableString)(
+                "NodeSet '{0}' identifier file '{1}' symbol '{2}' has numeric " +
+                "identifier '{3}' that differs from the NodeSet"),
+            category: Name,
+            DiagnosticSeverity.Error,
+            isEnabledByDefault: true,
+            helpLinkUri: "www.opcfoundation.org",
+            customTags: ["opcua"]);
+
+        public static readonly DiagnosticDescriptor NodesetIdentifierNodeClassMismatch = new(
+            id: "MODELGEN027",
+            title: "NodeSet identifier file node class does not match",
+            messageFormat: (LocalizableString)(
+                "NodeSet '{0}' identifier file '{1}' symbol '{2}' has node class " +
+                "'{3}' that differs from the NodeSet"),
+            category: Name,
+            DiagnosticSeverity.Error,
+            isEnabledByDefault: true,
+            helpLinkUri: "www.opcfoundation.org",
+            customTags: ["opcua"]);
+
+        public static readonly DiagnosticDescriptor NodesetIdentifierAssignedToMultipleModels = new(
+            id: "MODELGEN028",
+            title: "NodeSet identifier file is assigned to multiple models",
+            messageFormat: (LocalizableString)"NodeSet '{0}' shares identifier file '{1}' with another NodeSet model",
+            category: Name,
+            DiagnosticSeverity.Error,
+            isEnabledByDefault: true,
+            helpLinkUri: "www.opcfoundation.org",
+            customTags: ["opcua"]);
+
+        public static readonly DiagnosticDescriptor NodesetIdentifierInvalidRow = new(
+            id: "MODELGEN029",
+            title: "NodeSet identifier file contains an invalid row",
+            messageFormat: (LocalizableString)"NodeSet '{0}' identifier file '{1}' contains invalid row '{3}'",
+            category: Name,
+            DiagnosticSeverity.Error,
+            isEnabledByDefault: true,
+            helpLinkUri: "www.opcfoundation.org",
+            customTags: ["opcua"]);
+
         /// <summary>
         /// A WoT (<c>.tm.json</c>/<c>.td.json</c>/<c>.tm.jsonld</c>/<c>.td.jsonld</c>,
         /// or opted-in <c>.jsonld</c>) AdditionalFile could not even be parsed as

@@ -13,6 +13,14 @@ MODELGEN012 | ModelSourceGenerator | Info | Multiple referenced assemblies expos
 MODELGEN013 | ModelSourceGenerator | Info | Model already provided by referenced assembly
 MODELGEN020 | ModelSourceGenerator | Warning | BrowseName requires C# string-literal escaping (UASG_BROWSENAME_UNSAFE)
 MODELGEN021 | ModelSourceGenerator | Error | [DataType] namespace could not be resolved
+MODELGEN022 | ModelSourceGenerator | Error | NodeSet identifier file is missing
+MODELGEN023 | ModelSourceGenerator | Error | NodeSet identifier file has a duplicate symbolic name
+MODELGEN024 | ModelSourceGenerator | Error | NodeSet identifier file has a duplicate numeric identifier
+MODELGEN025 | ModelSourceGenerator | Error | NodeSet identifier file references an unknown symbol
+MODELGEN026 | ModelSourceGenerator | Error | NodeSet identifier file numeric identifier does not match
+MODELGEN027 | ModelSourceGenerator | Error | NodeSet identifier file node class does not match
+MODELGEN028 | ModelSourceGenerator | Error | NodeSet identifier file is assigned to multiple models
+MODELGEN029 | ModelSourceGenerator | Error | NodeSet identifier file contains an invalid row
 MODELGEN030 | ModelSourceGenerator | Error | WoT model could not be parsed
 MODELGEN031 | ModelSourceGenerator | Error | WoT model could not be converted to a NodeSet2 model
 MODELGEN032 | ModelSourceGenerator | Warning | WoT model conversion produced a warning

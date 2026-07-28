@@ -327,7 +327,9 @@ namespace Opc.Ua.SourceGeneration
                 }
 
                 /// <inheritdoc/>
-                protected override async global::System.Threading.Tasks.ValueTask<global::Opc.Ua.ServiceResult?> CallAsync(
+                protected override async
+                    global::System.Threading.Tasks.ValueTask<global::Opc.Ua.ServiceResult?>
+                    CallAsync(
                     global::Opc.Ua.ISystemContext _context,
                     global::Opc.Ua.NodeId _objectId,
                     global::Opc.Ua.ArrayOf<global::Opc.Ua.Variant> _inputArguments,
@@ -381,7 +383,9 @@ namespace Opc.Ua.SourceGeneration
             /// <summary>
             /// Handles the asynchronous {{Tokens.ClassName}} method call.
             /// </summary>
-            public delegate global::System.Threading.Tasks.ValueTask<{{Tokens.ClassName}}Result> {{Tokens.ClassName}}MethodAsyncCallHandler(
+            public delegate
+                global::System.Threading.Tasks.ValueTask<{{Tokens.ClassName}}Result>
+                {{Tokens.ClassName}}MethodAsyncCallHandler(
                 {{Tokens.OnCallAsyncDeclaration}}
 
             """);
@@ -648,10 +652,18 @@ namespace Opc.Ua.SourceGeneration
 
                     if (m_value != null)
                     {
-                        value = global::Opc.Ua.Variant.{{Tokens.VariantFrom}}(({{Tokens.ChildDataType}})m_value.{{Tokens.ChildPath}});
+                        value = global::Opc.Ua.Variant.{{Tokens.VariantFrom}}(
+                            ({{Tokens.ChildDataType}})m_value.{{Tokens.ChildPath}});
                     }
 
-                    var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                    var result = Read(
+                        context,
+                        node,
+                        indexRange,
+                        dataEncoding,
+                        ref value,
+                        ref statusCode,
+                        ref timestamp);
 
                     if (childVariable != null && global::Opc.Ua.ServiceResult.IsNotBad(result))
                     {
@@ -1737,6 +1749,50 @@ namespace Opc.Ua.SourceGeneration
             """);
 
         /// <summary>
+        /// Creates a MethodState InputArguments or OutputArguments property.
+        /// </summary>
+        public static readonly TemplateString Create_MethodArguments = TemplateString.Parse(
+            $$"""
+            global::Opc.Ua.PropertyState<global::Opc.Ua.ArrayOf<global::Opc.Ua.Argument>> {{Tokens.PropertyName}} =
+                state.CreateOrReplace{{Tokens.BrowseName}}(context, null);
+            {{Tokens.PropertyName}}.SymbolicName = global::Opc.Ua.BrowseNames.{{Tokens.BrowseName}};
+            {{Tokens.PropertyName}}.BrowseName =
+                global::Opc.Ua.QualifiedName.From(global::Opc.Ua.BrowseNames.{{Tokens.BrowseName}});
+            {{Tokens.PropertyName}}.DisplayName =
+                new global::Opc.Ua.LocalizedText(global::Opc.Ua.BrowseNames.{{Tokens.BrowseName}});
+            {{Tokens.PropertyName}}.TypeDefinitionId = global::Opc.Ua.VariableTypeIds.PropertyType;
+            {{Tokens.PropertyName}}.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.HasProperty;
+            {{Tokens.PropertyName}}.ModellingRuleId =
+                new global::Opc.Ua.NodeId(global::Opc.Ua.Objects.ModellingRule_Mandatory);
+            {{Tokens.PropertyName}}.DataType = global::Opc.Ua.DataTypeIds.Argument;
+            {{Tokens.PropertyName}}.ValueRank = global::Opc.Ua.ValueRanks.OneDimension;
+            {{Tokens.PropertyName}}.ArrayDimensions = global::Opc.Ua.ArrayOf.Wrapped(0u);
+            {{Tokens.PropertyName}}.Value = global::Opc.Ua.ArrayOf.ToArrayOf(
+                new global::Opc.Ua.Argument[]
+                {
+                    {{Tokens.ListOfValues}}
+                });
+
+            """);
+
+        /// <summary>
+        /// Overrides the value of an existing MethodState InputArguments or
+        /// OutputArguments property while leaving the identity of the property
+        /// node created by its own child factory untouched.
+        /// </summary>
+        public static readonly TemplateString Assign_MethodArgumentValues = TemplateString.Parse(
+            $$"""
+            global::Opc.Ua.PropertyState<global::Opc.Ua.ArrayOf<global::Opc.Ua.Argument>> {{Tokens.PropertyName}} =
+                state.CreateOrReplace{{Tokens.BrowseName}}(context, null);
+            {{Tokens.PropertyName}}.Value = global::Opc.Ua.ArrayOf.ToArrayOf(
+                new global::Opc.Ua.Argument[]
+                {
+                    {{Tokens.ListOfValues}}
+                });
+
+            """);
+
+        /// <summary>
         /// Template for object type instance creation (instantiate an object type)
         /// </summary>
         public static readonly TemplateString Create_InstanceOfObjectType = TemplateString.Parse(
@@ -2004,6 +2060,8 @@ namespace Opc.Ua.SourceGeneration
                 }
                 {{Tokens.ListOfReferences}}
                 {{Tokens.ListOfChildNodeStates}}
+                {{Tokens.ListOfInputArguments}}
+                {{Tokens.ListOfOutputArguments}}
                 if (!forInstance)
                 {
                     {{Tokens.ModellingRuleId}}
@@ -2187,6 +2245,8 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ListOfRolePermissions}}
                 {{Tokens.ListOfReferences}}
                 {{Tokens.ListOfChildNodeStates}}
+                {{Tokens.ListOfInputArguments}}
+                {{Tokens.ListOfOutputArguments}}
                 if (!forInstance)
                 {
                     {{Tokens.ModellingRuleId}}

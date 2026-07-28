@@ -97,6 +97,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
         private ILogger m_logger;
 
         /// <summary>
+        /// Shared by every Session the fixture activates. A subscription transfer between
+        /// two anonymous Sessions is only permitted when both report the same client
+        /// ApplicationUri (OPC 10000-4 §5.7.3.1).
+        /// </summary>
+        private const string kClientApplicationUri =
+            "urn:localhost:opcfoundation.org:NodeManagerLifecycleTests";
+
+        /// <summary>
         /// Starts a fresh <see cref="ReferenceServer"/> and activates a session for the test.
         /// </summary>
         [SetUp]
@@ -118,7 +126,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             m_logger = NUnitTelemetryContext.Create().CreateLogger<NodeManagerLifecycleTests>();
 
             (m_requestHeader, m_secureChannelContext) = await m_server
-                .CreateAndActivateSessionAsync(TestContext.CurrentContext.Test.Name)
+                .CreateAndActivateSessionAsync(
+                    TestContext.CurrentContext.Test.Name,
+                    clientApplicationUri: kClientApplicationUri)
                 .ConfigureAwait(false);
             m_requestHeader.Timestamp = DateTimeUtc.Now;
         }
@@ -4918,11 +4928,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             // Session B activates on a secured channel so the subscription (owned by an
             // anonymous identity) can be transferred to it: the server only permits an
-            // anonymous-identity transfer over a Sign/SignAndEncrypt channel.
+            // anonymous-identity transfer over a Sign/SignAndEncrypt channel, and only
+            // when both Sessions report the same client ApplicationUri.
             (RequestHeader headerB, SecureChannelContext channelB) = await m_server
                 .CreateAndActivateSessionAsync(
                     $"{TestContext.CurrentContext.Test.Name}_SessionB",
-                    useSecurity: true)
+                    useSecurity: true,
+                    clientApplicationUri: kClientApplicationUri)
                 .ConfigureAwait(false);
             try
             {

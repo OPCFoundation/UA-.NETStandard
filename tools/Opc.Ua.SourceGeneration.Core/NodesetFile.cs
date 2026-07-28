@@ -95,6 +95,11 @@ namespace Opc.Ua.SourceGeneration
         /// Version
         /// </summary>
         public string Version { get; init; }
+
+        /// <summary>
+        /// Optional identifier CSV explicitly associated with this NodeSet.
+        /// </summary>
+        public string IdentifierFile { get; init; }
     }
 
     /// <summary>
@@ -130,10 +135,17 @@ namespace Opc.Ua.SourceGeneration
             .Select(x => $"{x.FileName},{x.Info.Prefix},{x.Info.Name}");
 
         /// <summary>
+        /// Identifier sidecar validation errors discovered while loading NodeSets.
+        /// </summary>
+        public IReadOnlyList<NodesetIdentifierValidationError> IdentifierValidationErrors
+            => m_identifierValidationErrors;
+
+        /// <summary>
         /// Create collection
         /// </summary>
         public NodesetFileCollection(
             ImmutableArray<(string, NodesetFileOptions)> nodeset2Files,
+            IReadOnlyList<string> csvFiles,
             IFileSystem fileSystem,
             ITelemetryContext telemetry)
         {
@@ -198,9 +210,29 @@ namespace Opc.Ua.SourceGeneration
                                 options.Name : name,
                             Prefix = !string.IsNullOrEmpty(options.Prefix) ?
                                 options.Prefix : name,
-                            Ignore = options.Ignore
+                            Ignore = options.Ignore,
+                            IdentifierFile = options.IdentifierFile
                         }
                     };
+
+                    if (!string.IsNullOrWhiteSpace(options.IdentifierFile))
+                    {
+                        string identifierFile = NodesetIdentifierFileValidator.ResolvePath(
+                            file,
+                            options.IdentifierFile,
+                            csvFiles);
+                        if (identifierFile == null)
+                        {
+                            m_identifierValidationErrors.Add(
+                                NodesetIdentifierValidationError.MissingFile(
+                                    file,
+                                    options.IdentifierFile));
+                        }
+                        else
+                        {
+                            m_identifierFiles.Add((info, identifierFile));
+                        }
+                    }
 
                     if (m_nodesets.TryGetValue(model.ModelUri, out NodesetFile existing) &&
                         existing.Info.Version.CompareTo(info.Info.Version, StringComparison.Ordinal) < 0)
@@ -224,6 +256,34 @@ namespace Opc.Ua.SourceGeneration
                         m_logger.LogCritical(ex, "Could not parse NodeSet ({File}).", file);
                     }
                 }
+            }
+
+            foreach (IGrouping<string, (NodesetFile NodeSet, string IdentifierFile)> group in
+                m_identifierFiles
+                    .GroupBy(entry => entry.IdentifierFile, StringComparer.Ordinal)
+                    .OrderBy(entry => entry.Key, StringComparer.Ordinal))
+            {
+                if (group.Count() > 1)
+                {
+                    foreach ((NodesetFile nodeset, string identifierFile) in group
+                        .OrderBy(entry => entry.NodeSet.FileName, StringComparer.Ordinal))
+                    {
+                        m_identifierValidationErrors.Add(
+                            NodesetIdentifierValidationError.AssignedToMultipleModels(
+                                nodeset.FileName,
+                                identifierFile));
+                    }
+                    continue;
+                }
+
+                (NodesetFile singleNodeset, string singleIdentifierFile) = group.Single();
+                m_identifierValidationErrors.AddRange(
+                    NodesetIdentifierFileValidator.Validate(
+                        fileSystem,
+                        singleNodeset.FileName,
+                        singleNodeset.Info.ModelUri,
+                        singleIdentifierFile,
+                        telemetry));
             }
         }
 
@@ -362,5 +422,7 @@ namespace Opc.Ua.SourceGeneration
 
         private readonly ILogger m_logger;
         private readonly Dictionary<string, NodesetFile> m_nodesets = [];
+        private readonly List<(NodesetFile NodeSet, string IdentifierFile)> m_identifierFiles = [];
+        private readonly List<NodesetIdentifierValidationError> m_identifierValidationErrors = [];
     }
 }

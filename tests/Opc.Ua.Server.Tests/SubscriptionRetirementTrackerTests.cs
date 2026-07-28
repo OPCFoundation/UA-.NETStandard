@@ -71,9 +71,20 @@ namespace Opc.Ua.Server.Tests
             m_serverMock.Setup(s => s.Factory).Returns(new Mock<IEncodeableFactory>().Object);
             m_serverMock.Setup(s => s.DefaultSystemContext).Returns(new ServerSystemContext(m_serverMock.Object));
 
+            var identity = new UserIdentity(new AnonymousIdentityToken());
             m_sessionMock.Setup(s => s.Id).Returns(new NodeId(Guid.NewGuid()));
+            m_sessionMock.Setup(s => s.Identity).Returns(identity);
+            m_sessionMock.Setup(s => s.IdentityToken).Returns(identity.TokenHandler);
             m_sessionMock.Setup(s => s.DiagnosticsLock).Returns(new object());
-            m_sessionMock.Setup(s => s.SessionDiagnostics).Returns(new SessionDiagnosticsDataType());
+            m_sessionMock.Setup(s => s.SessionDiagnostics).Returns(
+                new SessionDiagnosticsDataType
+                {
+                    ClientDescription = new ApplicationDescription
+                    {
+                        ApplicationUri =
+                            "urn:localhost:opcfoundation.org:SubscriptionRetirementTrackerTests"
+                    }
+                });
 
             m_diagnosticsNodeManagerMock
                 .Setup(d => d.CreateSubscriptionDiagnosticsAsync(

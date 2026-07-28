@@ -215,6 +215,7 @@ namespace Opc.Ua.Schema.Model.Tests
             string path = ResourcePath(SameNamedArgumentsResource);
             var nodesets = new NodesetFileCollection(
                 [(path, new NodesetFileOptions())],
+                [],
                 m_fileSystem,
                 telemetry);
             List<string> designFiles = nodesets.GetDesignFileListForModel(

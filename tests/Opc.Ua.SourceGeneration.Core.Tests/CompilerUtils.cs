@@ -98,6 +98,14 @@ namespace Opc.Ua.SourceGeneration
             return new EmbeddedText(path, content);
         }
 
+        /// <summary>
+        /// Creates in-memory additional text.
+        /// </summary>
+        public static AdditionalText Create(string path, string content)
+        {
+            return new EmbeddedText(path, content);
+        }
+
         private readonly SourceText m_text;
     }
 
@@ -222,7 +230,10 @@ namespace Opc.Ua.SourceGeneration
                     MetadataReference.CreateFromFile(typeof(List<>).GetTypeInfo().Assembly.Location),
                     MetadataReference.CreateFromFile(typeof(ValueTask<>).GetTypeInfo().Assembly.Location)
 #else
-                    MetadataReference.CreateFromFile(Path.Combine(assemblyPath, "System.Runtime.Serialization.Primitives.dll")),
+                    MetadataReference.CreateFromFile(
+                        Path.Combine(
+                            assemblyPath,
+                            "System.Runtime.Serialization.Primitives.dll")),
                     MetadataReference.CreateFromFile(Path.Combine(assemblyPath, "System.Collections.dll")),
                     // MetadataReference.CreateFromFile(Path.Combine(binPath, "System.Threading.Tasks.Extensions.dll"))
                     MetadataReference.CreateFromFile(typeof(ValueTask<>).GetTypeInfo().Assembly.Location)
@@ -294,11 +305,20 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// Add core stubs
         /// </summary>
+        /// <param name="codeFiles">The compilation sources.</param>
+        /// <param name="includeBaseEventTypeRecord">
+        /// Whether to include the standard event-record base stub. Set to
+        /// <c>false</c> when the stack generator emits that type.
+        /// </param>
         public static IEnumerable<KeyValuePair<string, string>> WithOpcUaCoreStubs(
-            this IEnumerable<KeyValuePair<string, string>> codeFiles)
+            this IEnumerable<KeyValuePair<string, string>> codeFiles,
+            bool includeBaseEventTypeRecord = true)
         {
+            string stubs = includeBaseEventTypeRecord
+                ? OpcUaCoreStubs
+                : RemoveBaseEventTypeRecordStub(OpcUaCoreStubs);
             return codeFiles.Append(new KeyValuePair<string, string>(
-                nameof(OpcUaCoreStubs), OpcUaCoreStubs));
+                nameof(OpcUaCoreStubs), stubs));
         }
 
         /// <summary>
@@ -439,6 +459,27 @@ namespace Opc.Ua.SourceGeneration
         {
             emitResult.Diagnostics.Check(errorWriter, out errorCount, out warnCount);
             return emitResult.Success;
+        }
+
+        private static string RemoveBaseEventTypeRecordStub(string stubs)
+        {
+            const string startMarker =
+                "public partial record BaseEventTypeRecord : EventRecord";
+            const string endMarker =
+                "public sealed class EventRecordDecoderRegistry";
+            int start = stubs.IndexOf(startMarker, StringComparison.Ordinal);
+            if (start < 0)
+            {
+                throw new InvalidOperationException(
+                    "The BaseEventTypeRecord stub could not be located.");
+            }
+            int end = stubs.IndexOf(endMarker, start, StringComparison.Ordinal);
+            if (end < 0)
+            {
+                throw new InvalidOperationException(
+                    "The EventRecordDecoderRegistry stub could not be located.");
+            }
+            return stubs.Remove(start, end - start);
         }
 
         /// <summary>
@@ -586,6 +627,24 @@ namespace Opc.Ua.SourceGeneration
                 public abstract record EventRecord
                 {
                 }
+                public partial record BaseEventTypeRecord : EventRecord
+                {
+                    public ByteString EventId { get; init; }
+                    public NodeId EventType { get; init; }
+                    public NodeId SourceNode { get; init; }
+                    public string? SourceName { get; init; }
+                    public DateTime? Time { get; init; }
+                    public DateTime? ReceiveTime { get; init; }
+                    public Variant LocalTime { get; init; }
+                    public LocalizedText Message { get; init; }
+                    public ushort? Severity { get; init; }
+                    public NodeId ConditionClassId { get; init; }
+                    public LocalizedText ConditionClassName { get; init; }
+                    public NodeId[]? ConditionSubClassId { get; init; }
+                    public LocalizedText[]? ConditionSubClassName { get; init; }
+                    public static class Decoder { }
+                    public static class EventFilters { }
+                }
                 public sealed class EventRecordDecoderRegistry
                 {
                     public static EventRecordDecoderRegistry Default
@@ -605,33 +664,66 @@ namespace Opc.Ua.SourceGeneration
                 }
                 public static class EventRecordFieldReaders
                 {
-                    public static ByteString GetByteString(System.Collections.Generic.IReadOnlyList<Variant> fields, int index)
+                    public static ByteString GetByteString(
+                        System.Collections.Generic.IReadOnlyList<Variant> fields,
+                        int index)
                         => default;
                     public static string? GetString(System.Collections.Generic.IReadOnlyList<Variant> fields, int index)
                         => default;
-                    public static DateTime GetDateTime(System.Collections.Generic.IReadOnlyList<Variant> fields, int index)
+                    public static DateTime GetDateTime(
+                        System.Collections.Generic.IReadOnlyList<Variant> fields,
+                        int index)
                         => default;
-                    public static LocalizedText GetLocalizedText(System.Collections.Generic.IReadOnlyList<Variant> fields, int index)
+                    public static LocalizedText GetLocalizedText(
+                        System.Collections.Generic.IReadOnlyList<Variant> fields,
+                        int index)
                         => default;
                     public static ushort GetUInt16(System.Collections.Generic.IReadOnlyList<Variant> fields, int index)
                         => default;
                     public static bool GetBool(System.Collections.Generic.IReadOnlyList<Variant> fields, int index)
                         => default;
-                    public static StatusCode GetStatusCode(System.Collections.Generic.IReadOnlyList<Variant> fields, int index)
+                    public static StatusCode GetStatusCode(
+                        System.Collections.Generic.IReadOnlyList<Variant> fields,
+                        int index)
                         => default;
-                    public static bool? GetNullableBool(System.Collections.Generic.IReadOnlyList<Variant> fields, int index)
+                    public static bool? GetNullableBool(
+                        System.Collections.Generic.IReadOnlyList<Variant> fields,
+                        int index)
                         => default;
-                    public static double? GetNullableDouble(System.Collections.Generic.IReadOnlyList<Variant> fields, int index)
+                    public static double? GetNullableDouble(
+                        System.Collections.Generic.IReadOnlyList<Variant> fields,
+                        int index)
                         => default;
-                    public static DateTime? GetNullableDateTime(System.Collections.Generic.IReadOnlyList<Variant> fields, int index)
+                    public static DateTime? GetNullableDateTime(
+                        System.Collections.Generic.IReadOnlyList<Variant> fields,
+                        int index)
                         => default;
-                    public static LocalizedText[]? GetLocalizedTextArray(System.Collections.Generic.IReadOnlyList<Variant> fields, int index)
+                    public static LocalizedText[]? GetLocalizedTextArray(
+                        System.Collections.Generic.IReadOnlyList<Variant> fields,
+                        int index)
                         => default;
                     public static NodeId GetNodeId(System.Collections.Generic.IReadOnlyList<Variant> fields, int index)
                         => default;
-                    public static ushort? GetNullableUInt16(System.Collections.Generic.IReadOnlyList<Variant> fields, int index)
+                    public static NodeId[]? GetNodeIdArray(
+                        System.Collections.Generic.IReadOnlyList<Variant> fields,
+                        int index) => default;
+                    public static ushort? GetNullableUInt16(
+                        System.Collections.Generic.IReadOnlyList<Variant> fields,
+                        int index)
                         => default;
-                    public static NodeId? GetNullableNodeId(System.Collections.Generic.IReadOnlyList<Variant> fields, int index)
+                    public static NodeId? GetNullableNodeId(
+                        System.Collections.Generic.IReadOnlyList<Variant> fields,
+                        int index)
+                        => default;
+                    public static T GetEncodeable<T>(
+                        System.Collections.Generic.IReadOnlyList<Variant> fields,
+                        int index)
+                        where T : class, IEncodeable
+                        => default!;
+                    public static T[]? GetEncodeableArray<T>(
+                        System.Collections.Generic.IReadOnlyList<Variant> fields,
+                        int index)
+                        where T : class
                         => default;
                 }
             }
@@ -660,6 +752,18 @@ namespace Opc.Ua.SourceGeneration
                     public const uint BaseDataType = 0;
                     public const uint Number = 0;
                 }
+                public static partial class DataTypeIds
+                {
+                    public static NodeId Argument => new NodeId(296u);
+                }
+                public static partial class ReferenceTypeIds
+                {
+                    public static NodeId HasProperty => new NodeId(46u);
+                }
+                public static partial class VariableTypeIds
+                {
+                    public static NodeId PropertyType => new NodeId(68u);
+                }
                 public static partial class Objects
                 {
                     public const uint ModellingRule_Mandatory = 0;
@@ -671,10 +775,120 @@ namespace Opc.Ua.SourceGeneration
                 public static partial class BrowseNames
                 {
                     public const string FileSystem = "FileSystem";
+                    public const string EventId = "EventId";
+                    public const string EventType = "EventType";
+                    public const string SourceNode = "SourceNode";
+                    public const string SourceName = "SourceName";
+                    public const string Time = "Time";
+                    public const string ReceiveTime = "ReceiveTime";
+                    public const string LocalTime = "LocalTime";
+                    public const string Message = "Message";
+                    public const string Severity = "Severity";
+                    public const string ConditionClassId = "ConditionClassId";
+                    public const string ConditionClassName = "ConditionClassName";
+                    public const string ConditionSubClassId = "ConditionSubClassId";
+                    public const string ConditionSubClassName = "ConditionSubClassName";
+                    public const string JobOrder = "JobOrder";
+                    public const string JobResponse = "JobResponse";
+                    public const string JobState = "JobState";
+                    public const string Id = "Id";
+                    public const string InputArguments = "InputArguments";
+                    public const string OutputArguments = "OutputArguments";
                 }
                 public static partial class Namespaces
                 {
                     public const string OpcUa = "http://opcfoundation.org/UA/";
+                }
+                // This generated-stack stub is compiled down to C# 8 by
+                // compatibility tests. It intentionally uses classes; the
+                // production EventRecord API and emitted event types remain
+                // records.
+                public abstract class EventRecord
+                {
+                }
+                public partial class BaseEventTypeRecord : EventRecord
+                {
+                    public ByteString EventId { get; set; }
+                    public NodeId EventType { get; set; }
+                    public NodeId SourceNode { get; set; }
+                    public string? SourceName { get; set; }
+                    public global::System.DateTime? Time { get; set; }
+                    public global::System.DateTime? ReceiveTime { get; set; }
+                    public Variant LocalTime { get; set; }
+                    public LocalizedText Message { get; set; }
+                    public ushort? Severity { get; set; }
+                    public NodeId ConditionClassId { get; set; }
+                    public LocalizedText ConditionClassName { get; set; }
+                    public NodeId[]? ConditionSubClassId { get; set; }
+                    public LocalizedText[]? ConditionSubClassName { get; set; }
+                    public static class Decoder { }
+                    public static class EventFilters { }
+                }
+                public sealed class EventRecordDecoderRegistry
+                {
+                    public static EventRecordDecoderRegistry Default
+                        => throw new global::System.NotSupportedException();
+                    public bool TryRegister(
+                        NodeId eventTypeId,
+                        QualifiedName[][] standardFields,
+                        global::System.Func<
+                            global::System.Collections.Generic.IReadOnlyList<Variant>,
+                            EventRecord?> decode)
+                        => throw new global::System.NotSupportedException();
+                }
+                public class EventFilter
+                {
+                }
+                public static class EventFilterFactory
+                {
+                    public static EventFilter Create(
+                        NodeId eventTypeId,
+                        EventRecordDecoderRegistry? registry = null)
+                        => throw new global::System.NotSupportedException();
+                }
+                public static class EventRecordFieldReaders
+                {
+                    public static ByteString GetByteString(
+                        global::System.Collections.Generic.IReadOnlyList<Variant> fields,
+                        int index) => default;
+                    public static string? GetString(
+                        global::System.Collections.Generic.IReadOnlyList<Variant> fields,
+                        int index) => default;
+                    public static LocalizedText GetLocalizedText(
+                        global::System.Collections.Generic.IReadOnlyList<Variant> fields,
+                        int index) => default;
+                    public static ushort? GetUInt16(
+                        global::System.Collections.Generic.IReadOnlyList<Variant> fields,
+                        int index) => default;
+                    public static StatusCode GetStatusCode(
+                        global::System.Collections.Generic.IReadOnlyList<Variant> fields,
+                        int index) => default;
+                    public static bool? GetNullableBool(
+                        global::System.Collections.Generic.IReadOnlyList<Variant> fields,
+                        int index) => default;
+                    public static double? GetNullableDouble(
+                        global::System.Collections.Generic.IReadOnlyList<Variant> fields,
+                        int index) => default;
+                    public static global::System.DateTime? GetNullableDateTime(
+                        global::System.Collections.Generic.IReadOnlyList<Variant> fields,
+                        int index) => default;
+                    public static LocalizedText[]? GetLocalizedTextArray(
+                        global::System.Collections.Generic.IReadOnlyList<Variant> fields,
+                        int index) => default;
+                    public static NodeId GetNodeId(
+                        global::System.Collections.Generic.IReadOnlyList<Variant> fields,
+                        int index) => default;
+                    public static NodeId[]? GetNodeIdArray(
+                        global::System.Collections.Generic.IReadOnlyList<Variant> fields,
+                        int index) => default;
+                    public static T GetEncodeable<T>(
+                        global::System.Collections.Generic.IReadOnlyList<Variant> fields,
+                        int index)
+                        where T : class, IEncodeable => default!;
+                    public static T[]? GetEncodeableArray<T>(
+                        global::System.Collections.Generic.IReadOnlyList<Variant> fields,
+                        int index)
+                        where T : class, IEncodeable => default;
                 }
                 public class Encodeable : IEncodeable
                 {

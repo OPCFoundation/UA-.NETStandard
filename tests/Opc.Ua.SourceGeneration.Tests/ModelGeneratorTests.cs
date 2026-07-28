@@ -84,7 +84,8 @@ namespace Opc.Ua.SourceGeneration
                     // Suppress fluent-builder emission so the generated
                     // code compiles standalone (matches model-only
                     // production csprojs).
-                    ["build_property.ModelSourceGeneratorOmitFluentApi"] = "true"
+                    ["build_property.ModelSourceGeneratorOmitFluentApi"] = "true",
+                    ["build_property.ModelSourceGeneratorOmitEventRecords"] = "true"
                 });
 
             // Create the driver the executes the generator
@@ -117,7 +118,8 @@ namespace Opc.Ua.SourceGeneration
                     // The test compilation includes Core stubs but no
                     // Server reference. Suppress fluent-builder
                     // emission so the generated code compiles standalone.
-                    ["build_property.ModelSourceGeneratorOmitFluentApi"] = "true"
+                    ["build_property.ModelSourceGeneratorOmitFluentApi"] = "true",
+                    ["build_property.ModelSourceGeneratorOmitEventRecords"] = "true"
                 });
 
             // Create the driver the executes the generator
@@ -150,12 +152,7 @@ namespace Opc.Ua.SourceGeneration
                 .AddCode(
                     new Dictionary<string, string>().WithOpcUaGeneratedStack(),
                     LanguageVersion.CSharp13);
-            var options = new AnalyzerOptionsProvider(
-                new Dictionary<string, string>
-                {
-                    ["build_property.ModelSourceGeneratorStartId"] = "1000",
-                    ["build_property.ModelSourceGeneratorOmitFluentApi"] = "true"
-                });
+            var options = DefaultWotOptions();
 
             AdditionalText nodeSetText = EmbeddedText.From("DemoModel.NodeSet2.xml");
             using var nodeSetStream = new MemoryStream(
@@ -684,7 +681,8 @@ namespace Opc.Ua.SourceGeneration
             var options = new AnalyzerOptionsProvider(
                 new Dictionary<string, string>
                 {
-                    ["build_property.ModelSourceGeneratorOmitFluentApi"] = "true"
+                    ["build_property.ModelSourceGeneratorOmitFluentApi"] = "true",
+                    ["build_property.ModelSourceGeneratorOmitEventRecords"] = "true"
                 });
 
             GeneratorDriver driver = CSharpGeneratorDriver.Create(host)
@@ -780,7 +778,8 @@ namespace Opc.Ua.SourceGeneration
                     // The test compilation includes Core stubs but no
                     // Server reference. Suppress fluent-builder
                     // emission so the generated code compiles standalone.
-                    ["build_property.ModelSourceGeneratorOmitFluentApi"] = "true"
+                    ["build_property.ModelSourceGeneratorOmitFluentApi"] = "true",
+                    ["build_property.ModelSourceGeneratorOmitEventRecords"] = "true"
                 });
 
             // Create the driver that executes the generator
@@ -1135,6 +1134,13 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// Default per-file/global options shared by the WoT AdditionalFile
         /// tests below.
+        /// <para>
+        /// Event records are omitted because these tests compile the DI NodeSet
+        /// only as a model dependency. Its generated alarm event records are
+        /// C# <c>record</c> types that derive from the standard UA alarm
+        /// records, which the deliberately class-based generated-stack stub in
+        /// <c>CompilerUtils</c> does not provide.
+        /// </para>
         /// </summary>
         private static AnalyzerOptionsProvider DefaultWotOptions()
         {
@@ -1142,7 +1148,8 @@ namespace Opc.Ua.SourceGeneration
                 new Dictionary<string, string>
                 {
                     ["build_property.ModelSourceGeneratorStartId"] = "1000",
-                    ["build_property.ModelSourceGeneratorOmitFluentApi"] = "true"
+                    ["build_property.ModelSourceGeneratorOmitFluentApi"] = "true",
+                    ["build_property.ModelSourceGeneratorOmitEventRecords"] = "true"
                 });
         }
 
