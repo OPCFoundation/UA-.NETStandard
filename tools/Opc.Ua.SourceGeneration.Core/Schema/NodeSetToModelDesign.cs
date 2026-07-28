@@ -1986,10 +1986,15 @@ namespace Opc.Ua.Schema.Model
                         continue;
                     }
 
-                    // Skip standalone method-type declarations (no owning parent):
-                    // they already act as the method type, so synthesizing a
-                    // "<Name>MethodType" for them would create a spurious node.
-                    if (method.Parent == null)
+                    // Skip a standalone node that already is a method type (no owning
+                    // parent and the conventional "MethodType" name, e.g. the
+                    // incorporated WoT Connectivity 1.02 CreateAssetMethodType).
+                    // Synthesizing a declaration for it would emit a spurious
+                    // "<Name>MethodTypeMethodType" node. A parentless method that is
+                    // merely a declaration target of another method still needs one.
+                    if (method.Parent == null &&
+                        method.SymbolicName != null &&
+                        method.SymbolicName.Name.EndsWith("MethodType", StringComparison.Ordinal))
                     {
                         continue;
                     }
@@ -2050,11 +2055,18 @@ namespace Opc.Ua.Schema.Model
         /// </summary>
         private XmlDecoder CreateDecoder(System.Xml.XmlElement source, string sourceNodeSetUri = null)
         {
-            var messageContext = new ServiceMessageContext(m_telemetry, s_valueDecodingFactory);
-            messageContext.NamespaceUris = m_settings.NamespaceUris;
-            messageContext.ServerUris = m_serverUris;
+            // Reuse a single message context whose factory knows the standard OPC UA encodeable
+            // types. Without them, structured NodeSet2 values such as method Argument lists
+            // (InputArguments/OutputArguments) cannot be decoded and the generated typed method
+            // state would lose its arguments and result fields.
+            if (m_decoderContext == null)
+            {
+                m_decoderContext = new ServiceMessageContext(m_telemetry, s_valueDecodingFactory);
+                m_decoderContext.NamespaceUris = m_settings.NamespaceUris;
+                m_decoderContext.ServerUris = m_serverUris;
+            }
 
-            var decoder = new XmlDecoder((XmlElement)source, messageContext);
+            var decoder = new XmlDecoder((XmlElement)source, m_decoderContext);
 
             var namespaceUris = new NamespaceTable();
 
@@ -2560,5 +2572,6 @@ namespace Opc.Ua.Schema.Model
         private readonly Dictionary<string, NodeId> m_aliases = [];
         private readonly Dictionary<NodeId, UANode> m_index;
         private readonly Dictionary<string, XmlQualifiedName> m_symbolicIds;
+        private ServiceMessageContext m_decoderContext;
     }
 }
