@@ -368,7 +368,7 @@ namespace Opc.Ua.Subscriptions.Tests
         }
 
         [Test]
-        public async Task FailedMonitoredItemAddYieldsNoItemsAsync()
+        public async Task FailedMonitoredItemAddSurfacesToCallerAsync()
         {
             var manager = new StubSubscriptionManager(failItemAdd: true);
             await using var subscription = new StreamingSubscription(manager);
@@ -376,12 +376,15 @@ namespace Opc.Ua.Subscriptions.Tests
             (IAsyncEnumerator<DataValueChange> enumerator, Task<bool> move) =
                 StartDataChanges(subscription, s_nodeA, CancellationToken.None);
 
+            InvalidOperationException ex =
+                await AwaitFaultAsync<InvalidOperationException>(move).ConfigureAwait(false);
+            Assert.That(ex.Message, Does.Contain(s_nodeA.ToString()));
             Assert.That(manager.AddCallCount, Is.EqualTo(1));
             StubMonitoredItemCollection collection = manager.Subscription!.Collection;
             Assert.That(collection.Count, Is.Zero);
             Assert.That(collection.Added, Is.Empty);
 
-            await DrainAsync(subscription, enumerator, move).ConfigureAwait(false);
+            await enumerator.DisposeAsync().ConfigureAwait(false);
         }
 
         [Test]

@@ -35,8 +35,10 @@ across industrial control, manufacturing, energy, and IoT systems.
   (Historical Access), Part 13 (Aggregates), Part 16 (State Machines),
   Part 17 (Alias Names), Part 18 (Role Management), Part 20 (File
   Transfer), Part 100 (Device Integration), Parts 210/211 (Relative
-  Spatial Location and Global Positioning), OPC 10100-1 (WoT Connectivity),
-  OPC 40001-1 (Industrial Automation), OPC 40010-1 (Robotics).
+  Spatial Location and Global Positioning), OPC-10030 (ISA-95 Common
+  Model) with OPC-10031-4 Job Control V1/V2, OPC 10100-1 (WoT
+  Connectivity), OPC 40001-1 (Industrial Automation), OPC 40010-1
+  (Robotics).
 - **Modern developer surface** — first-class `Microsoft.Extensions.DependencyInjection`
   hosting (`services.AddOpcUa()`), fluent server + client builders,
   source-generated NodeManagers and DataTypes, and an MCP server so
@@ -103,6 +105,10 @@ Each sample has its own `README.md` with build and run instructions.
 - [Minimal Robot Server](samples/MinimalRobotServer/README.md) — OPC 40010
   Robotics with independently configurable RSL/GPOS motion and live OpenUSD
   transforms.
+- [Minimal ISA-95 Server](samples/MinimalIsa95Server/README.md) —
+  minimal server hosting the OPC-10030 ISA-95 Common Model together
+  with OPC-10031-4 Job Control V1 and V2, using the typed common-model
+  builder and the in-memory Job Control provider.
 
 More sample projects are maintained in the companion
 [OPC UA .NET Samples](https://github.com/OPCFoundation/UA-.NETStandard-Samples)

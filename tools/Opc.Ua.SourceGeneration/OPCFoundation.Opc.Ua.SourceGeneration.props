@@ -15,6 +15,7 @@
     <CompilerVisibleProperty Include="ModelSourceGeneratorEmitDependencyMetadata" />
     <CompilerVisibleProperty Include="ModelSourceGeneratorOmitFluentApi" />
     <CompilerVisibleProperty Include="ModelSourceGeneratorFluentAccessorsOnly" />
+    <CompilerVisibleProperty Include="ModelSourceGeneratorOmitEventRecords" />
   </ItemGroup>
   <ItemGroup>
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="ModelSourceGeneratorVersion" />
@@ -22,5 +23,6 @@
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="ModelSourceGeneratorName" />
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="ModelSourceGeneratorPrefix" />
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="ModelSourceGeneratorIgnore" />
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="ModelSourceGeneratorIdentifierFile" />
   </ItemGroup>
 </Project>

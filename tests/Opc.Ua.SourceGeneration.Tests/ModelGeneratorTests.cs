@@ -80,7 +80,8 @@ namespace Opc.Ua.SourceGeneration
                     // Suppress fluent-builder emission so the generated
                     // code compiles standalone (matches model-only
                     // production csprojs).
-                    ["build_property.ModelSourceGeneratorOmitFluentApi"] = "true"
+                    ["build_property.ModelSourceGeneratorOmitFluentApi"] = "true",
+                    ["build_property.ModelSourceGeneratorOmitEventRecords"] = "true"
                 });
 
             // Create the driver the executes the generator
@@ -113,7 +114,8 @@ namespace Opc.Ua.SourceGeneration
                     // The test compilation includes Core stubs but no
                     // Server reference. Suppress fluent-builder
                     // emission so the generated code compiles standalone.
-                    ["build_property.ModelSourceGeneratorOmitFluentApi"] = "true"
+                    ["build_property.ModelSourceGeneratorOmitFluentApi"] = "true",
+                    ["build_property.ModelSourceGeneratorOmitEventRecords"] = "true"
                 });
 
             // Create the driver the executes the generator
@@ -150,7 +152,8 @@ namespace Opc.Ua.SourceGeneration
             var options = new AnalyzerOptionsProvider(
                 new Dictionary<string, string>
                 {
-                    ["build_property.ModelSourceGeneratorOmitFluentApi"] = "true"
+                    ["build_property.ModelSourceGeneratorOmitFluentApi"] = "true",
+                    ["build_property.ModelSourceGeneratorOmitEventRecords"] = "true"
                 });
 
             GeneratorDriver driver = CSharpGeneratorDriver.Create(host)
@@ -179,7 +182,7 @@ namespace Opc.Ua.SourceGeneration
                 .ToString();
             Assert.That(nodeSet, Does.Contain("OPC Foundation MIT License 1.00"));
 
-            XDocument document = XDocument.Parse(nodeSet);
+            var document = XDocument.Parse(nodeSet);
             XNamespace ua = "http://opcfoundation.org/UA/2011/03/UANodeSet.xsd";
             XElement root = document.Root!;
             XElement[] models = [.. root.Element(ua + "Models")!.Elements(ua + "Model")];
@@ -246,7 +249,8 @@ namespace Opc.Ua.SourceGeneration
                     // The test compilation includes Core stubs but no
                     // Server reference. Suppress fluent-builder
                     // emission so the generated code compiles standalone.
-                    ["build_property.ModelSourceGeneratorOmitFluentApi"] = "true"
+                    ["build_property.ModelSourceGeneratorOmitFluentApi"] = "true",
+                    ["build_property.ModelSourceGeneratorOmitEventRecords"] = "true"
                 });
 
             // Create the driver that executes the generator

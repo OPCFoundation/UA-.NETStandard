@@ -205,6 +205,13 @@ namespace Opc.Ua.SourceGeneration
         public static string ListOfOptionalChildNodeStates => nameof(ListOfOptionalChildNodeStates);
         public static string ListOfReferences => nameof(ListOfReferences);
         public static string NodeIdConstant => nameof(NodeIdConstant);
+
+        public static string EventFilterParameters => nameof(EventFilterParameters);
+
+        public static string EventFilterParameterDocumentation =>
+            nameof(EventFilterParameterDocumentation);
+
+        public static string EventTypeId => nameof(EventTypeId);
         public static string InstanceNodeIdOverride => nameof(InstanceNodeIdOverride);
         public static string ListOfInstanceNodeIdBranches => nameof(ListOfInstanceNodeIdBranches);
         public static string ParentNodeIdConstant => nameof(ParentNodeIdConstant);

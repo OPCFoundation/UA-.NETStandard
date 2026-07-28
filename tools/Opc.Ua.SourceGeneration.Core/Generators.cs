@@ -243,7 +243,7 @@ namespace Opc.Ua.SourceGeneration
                     continue;
                 }
 
-                Generate(new GeneratorContext
+                var context = new GeneratorContext
                 {
                     FileSystem = fileSystem,
                     OutputFolder = outputDir,
@@ -251,9 +251,19 @@ namespace Opc.Ua.SourceGeneration
                     Telemetry = telemetry,
                     Options = options,
                     ReferencedModels = referencedModels
-                },
+                };
+                Generate(
+                context,
                 validateSchemas: false,
                 designOptions: effectiveOptions);
+                // In fluent-accessors-only mode the model itself is already
+                // supplied by a referenced assembly, which carries its event
+                // records too. Emitting them again here would duplicate every
+                // record type the reference already exports (CS0436).
+                if (!options.OmitEventRecords && !options.FluentAccessorsOnly)
+                {
+                    new EventRecordGenerator(context).Emit();
+                }
             }
 
             if (!deferBindingDiagnostics)
@@ -883,7 +893,7 @@ namespace Opc.Ua.SourceGeneration
                     continue;
                 }
 
-                Generate(new GeneratorContext
+                var context = new GeneratorContext
                 {
                     FileSystem = fileSystem,
                     OutputFolder = outputDir,
@@ -891,9 +901,19 @@ namespace Opc.Ua.SourceGeneration
                     Telemetry = telemetry,
                     Options = options,
                     ReferencedModels = referencedModels
-                },
+                };
+                Generate(
+                context,
                 validateSchemas: false,
                 designOptions: effectiveOptions);
+                // In fluent-accessors-only mode the model itself is already
+                // supplied by a referenced assembly, which carries its event
+                // records too. Emitting them again here would duplicate every
+                // record type the reference already exports (CS0436).
+                if (!options.OmitEventRecords && !options.FluentAccessorsOnly)
+                {
+                    new EventRecordGenerator(context).Emit();
+                }
             }
 
             if (!deferBindingDiagnostics)
@@ -990,11 +1010,10 @@ namespace Opc.Ua.SourceGeneration
                     stackProxyGenerator.Emit();
                 }
 
-                // Emit event-record records for every standard UA
-                // event type. Records reference EventRecord (in
-                // Opc.Ua.Core) so they are only emitted in the Stack
-                // path (which runs against Opc.Ua.Core), not in the
-                // Models path (which runs against Opc.Ua.Core.Types).
+                // Event records depend on EventRecord and decoder runtime
+                // types in Opc.Ua.Core. Emit them only for the Stack target;
+                // the Models target builds Opc.Ua.Core.Types and cannot
+                // reference Opc.Ua.Core without creating a cycle.
                 var stackRecordContext = new GeneratorContext
                 {
                     FileSystem = generatorContext.FileSystem,
@@ -1009,8 +1028,10 @@ namespace Opc.Ua.SourceGeneration
                         UseUtf8StringLiterals = options.UseUtf8StringLiterals
                     }
                 };
-                var stackRecordGenerator = new EventRecordGenerator(stackRecordContext);
-                stackRecordGenerator.Emit();
+                if (!options.OmitEventRecords)
+                {
+                    new EventRecordGenerator(stackRecordContext).Emit();
+                }
             }
 
             if ((generatorType & StackGenerationType.Models) != 0)

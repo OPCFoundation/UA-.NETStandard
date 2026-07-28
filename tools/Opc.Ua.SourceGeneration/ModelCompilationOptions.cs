@@ -161,6 +161,11 @@ namespace Opc.Ua.SourceGeneration
         public bool FluentAccessorsOnly { get; set; }
 
         /// <summary>
+        /// Suppresses event-record generation.
+        /// </summary>
+        public bool OmitEventRecords { get; set; }
+
+        /// <summary>
         /// Get options from options provider
         /// </summary>
         public static ModelCompilationOptions From(AnalyzerConfigOptionsProvider provider)
@@ -196,7 +201,9 @@ namespace Opc.Ua.SourceGeneration
                 OmitFluentApi = provider.GlobalOptions.GetBool(
                     nameof(OmitFluentApi)),
                 FluentAccessorsOnly = provider.GlobalOptions.GetBool(
-                    nameof(FluentAccessorsOnly))
+                    nameof(FluentAccessorsOnly)),
+                OmitEventRecords = provider.GlobalOptions.GetBool(
+                    nameof(OmitEventRecords))
             };
         }
 
