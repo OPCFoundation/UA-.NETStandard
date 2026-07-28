@@ -356,10 +356,11 @@ after calling `base` left it registered forever, because the caller never receiv
 nothing disposed it. Override `protected virtual ValueTask OnRequestValidatedAsync(OperationContext)`
 instead; throwing from it rejects the request and completes it.
 
-### `ISession.IsClosing` and `ISession.InvalidateContinuationPoints`
+### `Opc.Ua.Server.ISession`: `IsClosing` and `InvalidateContinuationPoints`
 
-**Source-breaking for custom implementations.** `ISession` gains `bool IsClosing` and
-`void InvalidateContinuationPoints(IAsyncNodeManager)`.
+**Source-breaking for custom implementations.** This is the **server-side** `Opc.Ua.Server.ISession`,
+implemented by the server's `Session` — not the client-side `Opc.Ua.Client.ISession` discussed above.
+It gains `bool IsClosing` and `void InvalidateContinuationPoints(IAsyncNodeManager)`.
 
 `IsClosing` reports that the Session is being torn down, so work that would create new state for it
 is rejected instead of started. It is one way: a Session that started closing never serves new work
@@ -367,14 +368,16 @@ again, even if the close itself fails. `InvalidateContinuationPoints` drops the 
 history continuation points that would otherwise keep a retired NodeManager reachable.
 
 Custom implementations must add both. Returning `false` from `IsClosing` and doing nothing in
-`InvalidateContinuationPoints` preserves the previous behaviour; the built-in `Session` already
-implements them.
+`InvalidateContinuationPoints` preserves the previous behaviour; the built-in server `Session`
+already implements them.
 
-### `ISubscription.SessionClosed(ISession)`
+### `Opc.Ua.Server.ISubscription.SessionClosed(ISession)`
 
-**Source-breaking for custom implementations.** `ISubscription` gains
-`bool SessionClosed(ISession closingSession)`, and the parameterless `SessionClosed()` is
-`[Obsolete]`.
+**Source-breaking for custom implementations.** This is the **server-side**
+`Opc.Ua.Server.ISubscription` — not the client-side `Opc.Ua.Client.Subscriptions.ISubscription`
+introduced by the V2 subscription shape above. It gains
+`bool SessionClosed(Opc.Ua.Server.ISession closingSession)`, and the parameterless `SessionClosed()`
+is `[Obsolete]`.
 
 A subscription can be transferred to another session while the old one is closing, so clearing the
 owner unconditionally would strip a subscription that has already moved on. The new overload takes
@@ -383,7 +386,7 @@ whether it did. Deciding ownership inside the subscription also makes the check 
 release, which a caller comparing `Session` beforehand cannot be.
 
 Custom implementations must add the overload; comparing the argument against the current owner and
-delegating to the existing `SessionClosed()` preserves the previous behaviour. The built-in
+delegating to the existing `SessionClosed()` preserves the previous behaviour. The built-in server
 `Subscription` already implements it.
 
 ### PubSub
