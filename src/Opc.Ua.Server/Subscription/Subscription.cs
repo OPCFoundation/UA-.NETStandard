@@ -93,6 +93,7 @@ namespace Opc.Ua.Server
         {
             Id = subscriptionId;
             Session = session ?? throw new ArgumentNullException(nameof(session));
+            UpdateOwnerIdentity(Session);
             m_server = server ?? throw new ArgumentNullException(nameof(server));
             m_logger = server.Telemetry.CreateLogger<Subscription>();
             m_timeProvider = timeProvider
@@ -254,6 +255,14 @@ namespace Opc.Ua.Server
             m_savedOwnerIdentity = storedSubscription.UserIdentityToken != null
                 ? new UserIdentity(storedSubscription.UserIdentityToken)
                 : null;
+            m_ownerUserTokenType = m_savedOwnerIdentity?.TokenType ?? UserTokenType.Anonymous;
+            if (m_savedOwnerIdentity != null)
+            {
+                ClientUserIdResolver.TryResolveContinuityKey(
+                    m_savedOwnerIdentity.TokenHandler,
+                    m_savedOwnerIdentity,
+                    out m_ownerClientUserId);
+            }
 
             m_monitoredItems = [];
             m_itemsToCheck = new LinkedList<IMonitoredItem>();
@@ -800,12 +809,49 @@ namespace Opc.Ua.Server
                         "Subscription ownership changed during transfer.");
                 }
                 Session = destinationSession;
+
+                // The recorded owner identity has to follow the owner, because the transfer
+                // compatibility checks in IsTransferIdentityCompatible are made against it.
+                UpdateOwnerIdentity(destinationSession);
             }
 
             lock (DiagnosticsWriteLock)
             {
                 Diagnostics.SessionId = destinationSession.Id;
             }
+        }
+
+        /// <inheritdoc/>
+        public bool IsTransferIdentityCompatible(ISession targetSession)
+        {
+            if (targetSession == null)
+            {
+                throw new ArgumentNullException(nameof(targetSession));
+            }
+
+            UserTokenType targetTokenType = targetSession.IdentityToken.TokenType;
+            if (m_ownerUserTokenType == UserTokenType.Anonymous ||
+                targetTokenType == UserTokenType.Anonymous)
+            {
+                return m_ownerUserTokenType == UserTokenType.Anonymous &&
+                    targetTokenType == UserTokenType.Anonymous &&
+                    !string.IsNullOrEmpty(m_ownerClientApplicationUri) &&
+                    string.Equals(
+                        m_ownerClientApplicationUri,
+                        targetSession.SessionDiagnostics.ClientDescription.ApplicationUri,
+                        StringComparison.Ordinal);
+            }
+
+            return m_ownerClientUserId != null &&
+                ClientUserIdResolver.TryResolveContinuityKey(
+                    targetSession.IdentityToken,
+                    targetSession.Identity,
+                    out string? targetClientUserId) &&
+                targetClientUserId != null &&
+                string.Equals(
+                    m_ownerClientUserId,
+                    targetClientUserId,
+                    StringComparison.Ordinal);
         }
 
         /// <summary>
@@ -826,6 +872,13 @@ namespace Opc.Ua.Server
                     return false;
                 }
                 Session = sourceSession!;
+
+                // Roll the recorded owner identity back with the owner, so a failed transfer
+                // cannot leave the destination's identity attached to the source session.
+                if (sourceSession != null)
+                {
+                    UpdateOwnerIdentity(sourceSession);
+                }
             }
 
             lock (DiagnosticsWriteLock)
@@ -913,6 +966,17 @@ namespace Opc.Ua.Server
             {
                 Diagnostics.CurrentLifetimeCount = 0;
             }
+        }
+
+        private void UpdateOwnerIdentity(ISession session)
+        {
+            m_ownerUserTokenType = session.IdentityToken.TokenType;
+            ClientUserIdResolver.TryResolveContinuityKey(
+                session.IdentityToken,
+                session.Identity,
+                out m_ownerClientUserId);
+            m_ownerClientApplicationUri =
+                session.SessionDiagnostics.ClientDescription.ApplicationUri;
         }
 
         /// <summary>
@@ -2986,6 +3050,9 @@ namespace Opc.Ua.Server
         private readonly IServerInternal m_server;
         private readonly TimeProvider m_timeProvider;
         private IUserIdentity? m_savedOwnerIdentity;
+        private UserTokenType m_ownerUserTokenType;
+        private string? m_ownerClientUserId;
+        private string? m_ownerClientApplicationUri;
         private double m_publishingInterval;
         private uint m_maxLifetimeCount;
         private uint m_maxKeepAliveCount;

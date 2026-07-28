@@ -57,6 +57,7 @@ namespace Opc.Ua.SourceGeneration
         public ModelCompilation(
             SourceProductionContext context,
             ImmutableArray<(AdditionalText, NodesetFileOptions)> inputFiles,
+            ImmutableArray<AdditionalText> csvFiles,
             ImmutableArray<AdditionalText> identifierFiles,
             ModelCompilationOptions options,
             CompilationOptions compilationOptions,
@@ -67,6 +68,7 @@ namespace Opc.Ua.SourceGeneration
         {
             m_context = context;
             m_input = inputFiles;
+            m_csvFiles = csvFiles;
             m_identifierFiles = identifierFiles;
             m_options = options;
             m_compilationOptions = compilationOptions;
@@ -86,7 +88,7 @@ namespace Opc.Ua.SourceGeneration
                 return;
             }
             var sourceFiles = new SourceGeneratorFileSystem(
-                m_input.Select(i => i.Item1).Concat(m_identifierFiles));
+                m_input.Select(i => i.Item1).Concat(m_csvFiles));
 
             using var vfs = new VirtualFileSystem(); // Use a virtual file sytem
             try
@@ -117,13 +119,16 @@ namespace Opc.Ua.SourceGeneration
                     UseTypeDefinitionModellingRules =
                         m_options.UseTypeDefinitionModellingRules,
                     EmitDependencyMetadata = ResolveEmitDependencyMetadata(),
-                    OmitFluentApi = m_options.OmitFluentApi
+                    OmitFluentApi = m_options.OmitFluentApi,
+                    OmitEventRecords = m_options.OmitEventRecords
                 };
 
                 // Load all available nodeset files from the input
                 NodesetFileCollection nodesets = m_input.ToNodeSetFileCollection(
+                    m_csvFiles,
                     sourceFiles, // .WithFallback(vfs),
                     m_telemetry);
+                ReportNodesetIdentifierDiagnostics(nodesets.IdentifierValidationErrors);
 
                 // Resolve [NodeManager] bindings: validate partial-ness and
                 // build the binding list to pass into both GenerateCode calls
@@ -154,9 +159,11 @@ namespace Opc.Ua.SourceGeneration
 
                 void reportBinding(NodeManagerAttributeBinding binding, string message)
                 {
-                    Location loc = bindingByPayload.TryGetValue(binding, out NodeManagerAttributeDiscovery d) && d != null
-                        ? d.Location
-                        : Location.None;
+                    Location loc =
+                        bindingByPayload.TryGetValue(binding, out NodeManagerAttributeDiscovery d) &&
+                        d != null
+                            ? d.Location
+                            : Location.None;
                     m_context.ReportDiagnostic(
                         Diagnostic.Create(
                             SourceGenerator.NodeManagerBindingError,
@@ -292,6 +299,39 @@ namespace Opc.Ua.SourceGeneration
             return true;
         }
 
+        private void ReportNodesetIdentifierDiagnostics(
+            IEnumerable<NodesetIdentifierValidationError> errors)
+        {
+            foreach (NodesetIdentifierValidationError error in errors)
+            {
+                m_context.ReportDiagnostic(
+                    Diagnostic.Create(
+                        error.Kind switch
+                        {
+                            NodesetIdentifierValidationErrorKind.MissingFile =>
+                                SourceGenerator.NodesetIdentifierFileMissing,
+                            NodesetIdentifierValidationErrorKind.DuplicateSymbolicName =>
+                                SourceGenerator.NodesetIdentifierDuplicateSymbolicName,
+                            NodesetIdentifierValidationErrorKind.DuplicateNumericId =>
+                                SourceGenerator.NodesetIdentifierDuplicateNumericId,
+                            NodesetIdentifierValidationErrorKind.UnknownSymbol =>
+                                SourceGenerator.NodesetIdentifierUnknownSymbol,
+                            NodesetIdentifierValidationErrorKind.NumericIdMismatch =>
+                                SourceGenerator.NodesetIdentifierNumericIdMismatch,
+                            NodesetIdentifierValidationErrorKind.NodeClassMismatch =>
+                                SourceGenerator.NodesetIdentifierNodeClassMismatch,
+                            NodesetIdentifierValidationErrorKind.AssignedToMultipleModels =>
+                                SourceGenerator.NodesetIdentifierAssignedToMultipleModels,
+                            _ => SourceGenerator.NodesetIdentifierInvalidRow
+                        },
+                        Location.None,
+                        error.NodeSetFilePath,
+                        error.IdentifierFilePath,
+                        error.SymbolicName,
+                        error.Value));
+            }
+        }
+
         /// <summary>
         /// Group the referenced-assembly attributes by model URI; when more
         /// than one assembly contributes the same URI, prefer the entry with
@@ -398,6 +438,7 @@ namespace Opc.Ua.SourceGeneration
 
         private readonly SourceProductionContext m_context;
         private readonly ImmutableArray<(AdditionalText, NodesetFileOptions)> m_input;
+        private readonly ImmutableArray<AdditionalText> m_csvFiles;
         private readonly ImmutableArray<AdditionalText> m_identifierFiles;
         private readonly ModelCompilationOptions m_options;
         private readonly CompilationOptions m_compilationOptions;

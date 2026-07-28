@@ -1054,6 +1054,7 @@ namespace Opc.Ua
                 .ConfigureAwait(false);
 
             var outcome = new AggregatedReactivationOutcome();
+            List<Task<bool>>? recreateTasks = null;
             for (int i = 0; i < results.Length; i++)
             {
                 switch (results[i])
@@ -1089,34 +1090,47 @@ namespace Opc.Ua
                         }
                         break;
                     case ParticipantReconnectResult.RequiresSessionRecreate:
-                        DispatchRecreate(snapshot[i].Participant);
+                        recreateTasks ??= [];
+                        recreateTasks.Add(
+                            RecreateParticipantAsync(snapshot[i].Participant));
                         break;
+                }
+            }
+            if (recreateTasks != null)
+            {
+                bool[] recreateResults = await Task.WhenAll(recreateTasks)
+                    .ConfigureAwait(false);
+                if (recreateResults.Any(static success => !success))
+                {
+                    outcome.AnyTransient = true;
                 }
             }
             return outcome;
         }
 
-        private void DispatchRecreate(IReconnectParticipant participant)
+        private async Task<bool> RecreateParticipantAsync(
+            IReconnectParticipant participant)
         {
-            CancellationToken shutdownToken = OwnerManager.ShutdownToken;
-            _ = Task.Run(async () =>
+            try
             {
-                try
-                {
-                    ValueTask work = ResolveRecreateInvocation(participant, shutdownToken);
-                    await work.ConfigureAwait(false);
-                    OwnerManager.RecordParticipantRecreate(this, participant.Id, success: true);
-                }
-                catch (OperationCanceledException)
-                {
-                    // Shutdown is best effort; recreate work observes the manager token.
-                }
-                catch (Exception ex)
-                {
-                    OwnerManager.Logger?.ChannelEntryLog7(ex, participant.Id);
-                    OwnerManager.RecordParticipantRecreate(this, participant.Id, success: false);
-                }
-            });
+                using IDisposable scope = ClientChannelManager.EnterReactivationScope();
+                ValueTask work = ResolveRecreateInvocation(
+                    participant,
+                    OwnerManager.ShutdownToken);
+                await work.ConfigureAwait(false);
+                OwnerManager.RecordParticipantRecreate(this, participant.Id, success: true);
+                return true;
+            }
+            catch (OperationCanceledException) when (OwnerManager.ShutdownToken.IsCancellationRequested)
+            {
+                return false;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                OwnerManager.Logger?.ChannelEntryLog7(ex, participant.Id);
+                OwnerManager.RecordParticipantRecreate(this, participant.Id, success: false);
+                return false;
+            }
         }
 
         private static TimeSpan ResolveParticipantTimeout(IChannelReconnectPolicy policy)
