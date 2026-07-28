@@ -24,6 +24,11 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Opc.Ua.Core\Opc.Ua.Core.csproj" />
+    <!-- The xRegistry abstract registry base model and its shared abstractions
+         ship as their own package. The WoT registry types below derive from its
+         RegistryType / GroupType / ResourceType, so the model is consumed from
+         there rather than vendored into this assembly. -->
+    <ProjectReference Include="..\Opc.Ua.XRegistry\Opc.Ua.XRegistry.csproj" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj">
@@ -46,22 +51,22 @@
          into the combined 1.1 NodeSet below. They are intentionally NOT
          source-generated: the combined NodeSet is the single generation input,
          so the 1.02 model is never generated a second time. -->
-    <None Remove="Design\Opc.Ua.XRegistry.NodeSet2.csv" />
-    <None Remove="Design\Opc.Ua.XRegistry.NodeSet2.xml" />
     <None Remove="Design\Opc.Ua.WoTCon.NodeSet2.csv" />
     <None Remove="Design\Opc.Ua.WoTCon.NodeSet2.xml" />
   </ItemGroup>
   <ItemGroup>
     <!-- xRegistry abstract registry base model (http://opcfoundation.org/UA/xRegistry/).
-         Emitted into the Opc.Ua.XRegistry C# namespace so its RegistryType /
-         GroupType / ResourceType constants are available as base types for the
-         WoT registry types incorporated in the combined model below. -->
-    <AdditionalFiles Include="Design\Opc.Ua.XRegistry.NodeSet2.xml">
+         Supplied only so the combined WoT Connectivity model below can resolve its
+         RequiredModel; generation is suppressed because the referenced
+         Opc.Ua.XRegistry assembly already provides these types. The file is
+         linked from that package so there is a single copy of the model. -->
+    <AdditionalFiles Include="..\Opc.Ua.XRegistry\Opc.Ua.XRegistry.NodeSet2.xml">
+      <Link>Design\Opc.Ua.XRegistry.NodeSet2.xml</Link>
       <ModelSourceGeneratorPrefix>Opc.Ua.XRegistry</ModelSourceGeneratorPrefix>
       <ModelSourceGeneratorName>XRegistry</ModelSourceGeneratorName>
       <ModelSourceGeneratorModelUri>http://opcfoundation.org/UA/xRegistry/</ModelSourceGeneratorModelUri>
+      <ModelSourceGeneratorIgnore>true</ModelSourceGeneratorIgnore>
     </AdditionalFiles>
-    <AdditionalFiles Include="Design\Opc.Ua.XRegistry.NodeSet2.csv" />
     <!-- WoT Connectivity 1.1 combined model (http://opcfoundation.org/UA/WoT-Con/).
          One NodeSet in one namespace incorporating the complete published
          OPC 10100-1 v1.02 model (NodeIds 1..172, marked deprecated) plus the

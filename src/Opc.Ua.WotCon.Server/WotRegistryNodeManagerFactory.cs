@@ -33,6 +33,7 @@ using System.Threading.Tasks;
 using Opc.Ua.Server;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
+using Opc.Ua.XRegistry;
 
 namespace Opc.Ua.WotCon.Server
 {
@@ -60,7 +61,7 @@ namespace Opc.Ua.WotCon.Server
         public ArrayOf<string> NamespacesUris => new string[]
         {
             Namespaces.WotCon,
-            XRegistry.Namespaces.XRegistry
+            XRegistryWellKnown.XRegistryNamespaceUri
         };
 
         /// <inheritdoc/>

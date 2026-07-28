@@ -996,7 +996,7 @@ namespace Opc.Ua.WotCon.Server
         }
 
         private ushort XRegistryNs
-            => (ushort)m_manager.Server.NamespaceUris.GetIndex(XRegistry.Namespaces.XRegistry);
+            => (ushort)m_manager.Server.NamespaceUris.GetIndex(XRegistryWellKnown.XRegistryNamespaceUri);
 
         /// <summary>
         /// Links the <see cref="MethodState.InputArguments"/> /

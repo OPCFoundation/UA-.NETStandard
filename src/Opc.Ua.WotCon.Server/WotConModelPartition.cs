@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Opc.Ua.XRegistry;
+
 namespace Opc.Ua.WotCon.Server
 {
     /// <summary>
@@ -63,7 +65,7 @@ namespace Opc.Ua.WotCon.Server
         /// </summary>
         public static void EnsureXRegistryNamespace(ISystemContext context)
         {
-            context.NamespaceUris.GetIndexOrAppend(XRegistry.Namespaces.XRegistry);
+            context.NamespaceUris.GetIndexOrAppend(XRegistryWellKnown.XRegistryNamespaceUri);
         }
 
         /// <summary>

@@ -43,6 +43,7 @@ using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
 using Opc.Ua.WotCon.Tests.Materialization;
+using Opc.Ua.XRegistry;
 using Quickstarts.ReferenceServer;
 
 namespace Opc.Ua.WotCon.Tests
@@ -217,7 +218,7 @@ namespace Opc.Ua.WotCon.Tests
             // the xRegistry ResourceType base) over the real session to
             // prove the uploaded/materialized resource is observable
             // through the same client-resolved NodeId.
-            ushort xRegistryNs = m_session.NamespaceUris.GetIndexOrAppend(XRegistry.Namespaces.XRegistry);
+            ushort xRegistryNs = m_session.NamespaceUris.GetIndexOrAppend(XRegistryWellKnown.XRegistryNamespaceUri);
             NodeId versionIdNodeId = await ResolveChildAsync(
                 m_session, resource.ResourceNodeId, xRegistryNs, "VersionId").ConfigureAwait(false);
             ArrayOf<ReadValueId> nodesToRead = new[]

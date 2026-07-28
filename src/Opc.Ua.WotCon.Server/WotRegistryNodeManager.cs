@@ -65,7 +65,7 @@ namespace Opc.Ua.WotCon.Server
                   configuration,
                   server.Telemetry.CreateLogger<WotRegistryNodeManager>(),
                   Namespaces.WotCon,
-                  XRegistry.Namespaces.XRegistry)
+                  XRegistryWellKnown.XRegistryNamespaceUri)
         {
             m_options = options ?? throw new ArgumentNullException(nameof(options));
             Registry = registry ?? throw new ArgumentNullException(nameof(registry));

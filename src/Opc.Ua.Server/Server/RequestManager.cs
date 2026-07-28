@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -256,8 +257,15 @@ namespace Opc.Ua.Server
         internal IDisposable EnterServiceDispatchScope()
         {
             bool previous = m_inServiceDispatch.Value;
+            StrongBox<uint?>? previousSlot = m_currentRequestSlot.Value;
             m_inServiceDispatch.Value = true;
-            return new ServiceDispatchScope(this, previous);
+            // Establish the slot here, for the same reason the flag is set here: the
+            // request id is only known once validation has produced the context, and an
+            // assignment made inside that async method would not be visible to the
+            // service handler. Writing through this box is, because the box itself is
+            // what flows down.
+            m_currentRequestSlot.Value = new StrongBox<uint?>(null);
+            return new ServiceDispatchScope(this, previous, previousSlot);
         }
 
         /// <summary>
@@ -305,7 +313,19 @@ namespace Opc.Ua.Server
             }
 
             RequestReceived(context);
-            return new RequestExecutionScope(this, context);
+            StrongBox<uint?>? slot = m_currentRequestSlot.Value;
+            if (slot is null)
+            {
+                // No dispatch scope established one, which happens when a caller
+                // enters a request scope directly rather than through the service
+                // dispatcher. This method is synchronous, so assigning the
+                // AsyncLocal here is visible to that caller's flow.
+                slot = new StrongBox<uint?>(null);
+                m_currentRequestSlot.Value = slot;
+            }
+            uint? previousRequestId = slot.Value;
+            slot.Value = context.RequestId;
+            return new RequestExecutionScope(this, context, slot, previousRequestId);
         }
 
 
@@ -399,8 +419,20 @@ namespace Opc.Ua.Server
             var longest = TimeSpan.Zero;
             var awaited = new List<uint>(m_requests.Count);
 
+            // A lifecycle operation may legitimately run from inside a request
+            // callback when its NodeManager opted in (see
+            // IRequestCallbackSafeNodeManagerFactory) - the WoT registry drives a
+            // reload from its own Refresh Method. Awaiting the calling request
+            // would make that operation wait for itself, so it is excluded here.
+            uint? currentRequestId = m_currentRequestSlot.Value?.Value;
+
             foreach (OperationContext request in m_requests.Values)
             {
+                if (request.RequestId == currentRequestId)
+                {
+                    continue;
+                }
+
                 if (request.OperationDeadline < DateTime.MaxValue)
                 {
                     if (request.OperationDeadline < abandoned)
@@ -536,6 +568,12 @@ namespace Opc.Ua.Server
         private readonly TimeProvider m_timeProvider;
         private readonly AsyncLocal<bool> m_inServiceDispatch = new();
 
+        // Holds the request the calling flow is executing, so a lifecycle drain
+        // started from inside a request callback does not await itself. A box is
+        // used because it is established by the dispatcher before the request id
+        // is known: writing through the box reaches the dispatcher's flow, while
+        // assigning the AsyncLocal itself would not.
+        private readonly AsyncLocal<StrongBox<uint?>> m_currentRequestSlot = new();
 
         private readonly Dictionary<uint, OperationContext> m_requests;
         private readonly List<RequestDrain> m_requestDrains = [];
@@ -630,12 +668,21 @@ namespace Opc.Ua.Server
             /// </summary>
             /// <param name="requestManager">The owning request manager.</param>
             /// <param name="context">The context of the request being executed.</param>
+            /// <param name="slot">The dispatch-scoped slot holding the executing request id.</param>
+            /// <param name="previousRequestId">
+            /// The request the calling flow was executing before this one, restored on dispose so
+            /// nested dispatches unwind correctly.
+            /// </param>
             public RequestExecutionScope(
                 RequestManager requestManager,
-                OperationContext context)
+                OperationContext context,
+                StrongBox<uint?>? slot,
+                uint? previousRequestId)
             {
                 m_requestManager = requestManager;
                 m_context = context;
+                m_slot = slot;
+                m_previousRequestId = previousRequestId;
             }
 
             /// <summary>
@@ -647,11 +694,17 @@ namespace Opc.Ua.Server
                 {
                     m_disposed = true;
                     m_requestManager.CompleteRequest(m_context);
+                    if (m_slot is not null)
+                    {
+                        m_slot.Value = m_previousRequestId;
+                    }
                 }
             }
 
             private readonly RequestManager m_requestManager;
             private readonly OperationContext m_context;
+            private readonly StrongBox<uint?>? m_slot;
+            private readonly uint? m_previousRequestId;
             private bool m_disposed;
         }
 
@@ -665,10 +718,15 @@ namespace Opc.Ua.Server
             /// </summary>
             /// <param name="requestManager">The owning request manager.</param>
             /// <param name="previous">The value to restore on dispose.</param>
-            public ServiceDispatchScope(RequestManager requestManager, bool previous)
+            /// <param name="previousSlot">The request-id slot to restore on dispose.</param>
+            public ServiceDispatchScope(
+                RequestManager requestManager,
+                bool previous,
+                StrongBox<uint?>? previousSlot)
             {
                 m_requestManager = requestManager;
                 m_previous = previous;
+                m_previousSlot = previousSlot;
             }
 
             /// <summary>
@@ -680,11 +738,13 @@ namespace Opc.Ua.Server
                 {
                     m_disposed = true;
                     m_requestManager.m_inServiceDispatch.Value = m_previous;
+                    m_requestManager.m_currentRequestSlot.Value = m_previousSlot!;
                 }
             }
 
             private readonly RequestManager m_requestManager;
             private readonly bool m_previous;
+            private readonly StrongBox<uint?>? m_previousSlot;
             private bool m_disposed;
         }
 

@@ -301,8 +301,8 @@ namespace Opc.Ua.WotCon.Tests
             NamespaceTable sessionTable = m_session.NamespaceUris;
             NamespaceTable channelTable = m_session.MessageContext.NamespaceUris;
 
-            int sessionIndex = sessionTable.GetIndex(XRegistry.Namespaces.XRegistry);
-            int channelIndex = channelTable.GetIndex(XRegistry.Namespaces.XRegistry);
+            int sessionIndex = sessionTable.GetIndex(XRegistryWellKnown.XRegistryNamespaceUri);
+            int channelIndex = channelTable.GetIndex(XRegistryWellKnown.XRegistryNamespaceUri);
 
             Assert.Multiple(() =>
             {
@@ -341,7 +341,7 @@ namespace Opc.Ua.WotCon.Tests
                 .ConfigureAwait(false);
             Assert.That(labelsNodeId.IsNull, Is.False, "Labels node must be browsable via HasComponent.");
 
-            ushort xNs = m_session.NamespaceUris.GetIndexOrAppend(XRegistry.Namespaces.XRegistry);
+            ushort xNs = m_session.NamespaceUris.GetIndexOrAppend(XRegistryWellKnown.XRegistryNamespaceUri);
             ServiceResultException? ex = null;
             try
             {
@@ -382,7 +382,7 @@ namespace Opc.Ua.WotCon.Tests
                 .ConfigureAwait(false);
             Assert.That(labelsNodeId.IsNull, Is.False, "Labels node must be browsable via HasComponent.");
 
-            ushort xNs = m_session.NamespaceUris.GetIndexOrAppend(XRegistry.Namespaces.XRegistry);
+            ushort xNs = m_session.NamespaceUris.GetIndexOrAppend(XRegistryWellKnown.XRegistryNamespaceUri);
             ServiceResultException? ex = null;
             try
             {
@@ -415,7 +415,7 @@ namespace Opc.Ua.WotCon.Tests
                 .ConfigureAwait(false);
             Assert.That(labelsNodeId.IsNull, Is.False, "Labels node must be browsable via HasComponent.");
 
-            ushort xNs = m_session.NamespaceUris.GetIndexOrAppend(XRegistry.Namespaces.XRegistry);
+            ushort xNs = m_session.NamespaceUris.GetIndexOrAppend(XRegistryWellKnown.XRegistryNamespaceUri);
             ServiceResultException? ex = null;
             try
             {
@@ -450,7 +450,7 @@ namespace Opc.Ua.WotCon.Tests
                 .ConfigureAwait(false);
             Assert.That(labelsNodeId.IsNull, Is.False, "Labels node must be browsable via HasComponent.");
 
-            ushort xNs = m_session.NamespaceUris.GetIndexOrAppend(XRegistry.Namespaces.XRegistry);
+            ushort xNs = m_session.NamespaceUris.GetIndexOrAppend(XRegistryWellKnown.XRegistryNamespaceUri);
             ServiceResultException? ex = null;
             try
             {
@@ -807,7 +807,7 @@ namespace Opc.Ua.WotCon.Tests
         /// </summary>
         private async ValueTask<NodeId> BrowseForChildNodeIdAsync(NodeId parent, string name)
         {
-            ushort xNs = m_session.NamespaceUris.GetIndexOrAppend(XRegistry.Namespaces.XRegistry);
+            ushort xNs = m_session.NamespaceUris.GetIndexOrAppend(XRegistryWellKnown.XRegistryNamespaceUri);
             ArrayOf<BrowsePath> paths = new[]
             {
                 new BrowsePath

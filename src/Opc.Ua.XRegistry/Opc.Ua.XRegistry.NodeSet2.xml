@@ -125,7 +125,7 @@
       <Reference ReferenceType="HasProperty">ns=1;i=63502</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="ns=1;i=63502" BrowseName="1:InputArguments" ParentNodeId="ns=1;i=63501" DataType="Argument" ValueRank="1" ArrayDimensions="3">
+  <UAVariable NodeId="ns=1;i=63502" BrowseName="InputArguments" ParentNodeId="ns=1;i=63501" DataType="Argument" ValueRank="1" ArrayDimensions="3">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -143,7 +143,7 @@
       <Reference ReferenceType="HasProperty">ns=1;i=63504</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="ns=1;i=63504" BrowseName="1:InputArguments" ParentNodeId="ns=1;i=63503" DataType="Argument" ValueRank="1" ArrayDimensions="2">
+  <UAVariable NodeId="ns=1;i=63504" BrowseName="InputArguments" ParentNodeId="ns=1;i=63503" DataType="Argument" ValueRank="1" ArrayDimensions="2">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -313,7 +313,7 @@
       <Reference ReferenceType="HasProperty">ns=1;i=63523</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="ns=1;i=63522" BrowseName="1:InputArguments" ParentNodeId="ns=1;i=63521" DataType="Argument" ValueRank="1" ArrayDimensions="1">
+  <UAVariable NodeId="ns=1;i=63522" BrowseName="InputArguments" ParentNodeId="ns=1;i=63521" DataType="Argument" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -322,7 +322,7 @@
     </References>
     <Value><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>GroupId</Name><DataType><Identifier>i=12</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>The groupid of the group to create.</Text></Description></Argument></Body></ExtensionObject></ListOfExtensionObject></Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=63523" BrowseName="1:OutputArguments" ParentNodeId="ns=1;i=63521" DataType="Argument" ValueRank="1" ArrayDimensions="1">
+  <UAVariable NodeId="ns=1;i=63523" BrowseName="OutputArguments" ParentNodeId="ns=1;i=63521" DataType="Argument" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -341,7 +341,7 @@
       <Reference ReferenceType="HasProperty">ns=1;i=63526</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="ns=1;i=63525" BrowseName="1:InputArguments" ParentNodeId="ns=1;i=63524" DataType="Argument" ValueRank="1" ArrayDimensions="1">
+  <UAVariable NodeId="ns=1;i=63525" BrowseName="InputArguments" ParentNodeId="ns=1;i=63524" DataType="Argument" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -350,7 +350,7 @@
     </References>
     <Value><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>GroupId</Name><DataType><Identifier>i=12</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>The groupid to get or create.</Text></Description></Argument></Body></ExtensionObject></ListOfExtensionObject></Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=63526" BrowseName="1:OutputArguments" ParentNodeId="ns=1;i=63524" DataType="Argument" ValueRank="1" ArrayDimensions="2">
+  <UAVariable NodeId="ns=1;i=63526" BrowseName="OutputArguments" ParentNodeId="ns=1;i=63524" DataType="Argument" ValueRank="1" ArrayDimensions="2">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -459,7 +459,7 @@
       <Reference ReferenceType="HasProperty">ns=1;i=63539</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="ns=1;i=63538" BrowseName="1:InputArguments" ParentNodeId="ns=1;i=63537" DataType="Argument" ValueRank="1" ArrayDimensions="3">
+  <UAVariable NodeId="ns=1;i=63538" BrowseName="InputArguments" ParentNodeId="ns=1;i=63537" DataType="Argument" ValueRank="1" ArrayDimensions="3">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -468,14 +468,14 @@
     </References>
     <Value><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>ResourceId</Name><DataType><Identifier>i=12</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>The resourceid of the resource.</Text></Description></Argument></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>VersionId</Name><DataType><Identifier>i=12</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>The versionid of the version to create; empty to let the server assign the next versionid per the registry model.</Text></Description></Argument></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>RequestFileOpen</Name><DataType><Identifier>i=1</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>If true, the new resource file is opened for writing and a FileHandle is returned.</Text></Description></Argument></Body></ExtensionObject></ListOfExtensionObject></Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=63539" BrowseName="1:OutputArguments" ParentNodeId="ns=1;i=63537" DataType="Argument" ValueRank="1" ArrayDimensions="3">
+  <UAVariable NodeId="ns=1;i=63539" BrowseName="OutputArguments" ParentNodeId="ns=1;i=63537" DataType="Argument" ValueRank="1" ArrayDimensions="3">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=63537</Reference>
     </References>
-    <Value><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>ResourceNodeId</Name><DataType><Identifier>i=17</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>NodeId of the created resource/version Object.</Text></Description></Argument></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>VersionId</Name><DataType><Identifier>i=12</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>The versionid assigned to the created version.</Text></Description></Argument></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>FileHandle</Name><DataType><Identifier>i=7</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>Write handle when RequestFileOpen is true; otherwise 0.</Text></Description></Argument></Body></ExtensionObject></ListOfExtensionObject></Value>
+    <Value><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>ResourceNodeId</Name><DataType><Identifier>i=17</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>NodeId of the created resource/version Object.</Text></Description></Argument></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>AssignedVersionId</Name><DataType><Identifier>i=12</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>The versionid assigned to the created version.</Text></Description></Argument></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>FileHandle</Name><DataType><Identifier>i=7</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>Write handle when RequestFileOpen is true; otherwise 0.</Text></Description></Argument></Body></ExtensionObject></ListOfExtensionObject></Value>
   </UAVariable>
   <UAMethod NodeId="ns=1;i=63540" BrowseName="1:GetOrCreateResource" ParentNodeId="ns=1;i=63001">
     <DisplayName>GetOrCreateResource</DisplayName>
@@ -487,7 +487,7 @@
       <Reference ReferenceType="HasProperty">ns=1;i=63542</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="ns=1;i=63541" BrowseName="1:InputArguments" ParentNodeId="ns=1;i=63540" DataType="Argument" ValueRank="1" ArrayDimensions="3">
+  <UAVariable NodeId="ns=1;i=63541" BrowseName="InputArguments" ParentNodeId="ns=1;i=63540" DataType="Argument" ValueRank="1" ArrayDimensions="3">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -496,14 +496,14 @@
     </References>
     <Value><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>ResourceId</Name><DataType><Identifier>i=12</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>The resourceid to get or create.</Text></Description></Argument></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>VersionId</Name><DataType><Identifier>i=12</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>The versionid to get or create; empty selects or creates the default version.</Text></Description></Argument></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>RequestFileOpen</Name><DataType><Identifier>i=1</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>If true, the resource file is opened for writing and a FileHandle is returned.</Text></Description></Argument></Body></ExtensionObject></ListOfExtensionObject></Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=63542" BrowseName="1:OutputArguments" ParentNodeId="ns=1;i=63540" DataType="Argument" ValueRank="1" ArrayDimensions="4">
+  <UAVariable NodeId="ns=1;i=63542" BrowseName="OutputArguments" ParentNodeId="ns=1;i=63540" DataType="Argument" ValueRank="1" ArrayDimensions="4">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=63540</Reference>
     </References>
-    <Value><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>ResourceNodeId</Name><DataType><Identifier>i=17</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>NodeId of the existing or newly created resource/version Object.</Text></Description></Argument></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>VersionId</Name><DataType><Identifier>i=12</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>The versionid of the returned version.</Text></Description></Argument></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>FileHandle</Name><DataType><Identifier>i=7</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>Write handle when RequestFileOpen is true; otherwise 0.</Text></Description></Argument></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>Created</Name><DataType><Identifier>i=1</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>True if the resource/version was created, false if it already existed.</Text></Description></Argument></Body></ExtensionObject></ListOfExtensionObject></Value>
+    <Value><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>ResourceNodeId</Name><DataType><Identifier>i=17</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>NodeId of the existing or newly created resource/version Object.</Text></Description></Argument></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>AssignedVersionId</Name><DataType><Identifier>i=12</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>The versionid of the returned version.</Text></Description></Argument></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>FileHandle</Name><DataType><Identifier>i=7</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>Write handle when RequestFileOpen is true; otherwise 0.</Text></Description></Argument></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>Created</Name><DataType><Identifier>i=1</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>True if the resource/version was created, false if it already existed.</Text></Description></Argument></Body></ExtensionObject></ListOfExtensionObject></Value>
   </UAVariable>
   <UAMethod NodeId="ns=1;i=63543" BrowseName="1:Delete" ParentNodeId="ns=1;i=63001">
     <DisplayName>Delete</DisplayName>
@@ -514,7 +514,7 @@
       <Reference ReferenceType="HasProperty">ns=1;i=63544</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="ns=1;i=63544" BrowseName="1:InputArguments" ParentNodeId="ns=1;i=63543" DataType="Argument" ValueRank="1" ArrayDimensions="1">
+  <UAVariable NodeId="ns=1;i=63544" BrowseName="InputArguments" ParentNodeId="ns=1;i=63543" DataType="Argument" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -658,7 +658,7 @@
       <Reference ReferenceType="HasProperty">ns=1;i=63560</Reference>
     </References>
   </UAMethod>
-  <UAVariable NodeId="ns=1;i=63560" BrowseName="1:InputArguments" ParentNodeId="ns=1;i=63559" DataType="Argument" ValueRank="1" ArrayDimensions="1">
+  <UAVariable NodeId="ns=1;i=63560" BrowseName="InputArguments" ParentNodeId="ns=1;i=63559" DataType="Argument" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>

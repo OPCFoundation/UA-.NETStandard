@@ -33,6 +33,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using Opc.Ua.Client;
+using Opc.Ua.XRegistry;
 
 namespace Opc.Ua.WotCon.Tests.Client
 {
@@ -53,7 +54,7 @@ namespace Opc.Ua.WotCon.Tests.Client
             var telemetryMock = new Mock<ITelemetryContext>();
             var messageContext = ServiceMessageContext.Create(telemetryMock.Object);
             WotConNs = messageContext.NamespaceUris.GetIndexOrAppend(Namespaces.WotCon);
-            XRegistryNs = messageContext.NamespaceUris.GetIndexOrAppend(XRegistry.Namespaces.XRegistry);
+            XRegistryNs = messageContext.NamespaceUris.GetIndexOrAppend(XRegistryWellKnown.XRegistryNamespaceUri);
             RegistryNodeId = new NodeId("WoTRegistry", WotConNs);
 
             m_thingModelGroupType = ExpandedNodeId.ToNodeId(
