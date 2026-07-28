@@ -1098,20 +1098,18 @@ namespace Opc.Ua.Server
             OperationContext context,
             IUserIdentity effectiveIdentity)
         {
-            // Part 18 §5.2.8 — restrict the session to the Anonymous role if
-            // the user has MustChangePassword set. The ChangePassword method
-            // is callable by USERNAME sessions regardless of role; once the
-            // password is changed the next ActivateSession will see
-            // MustChangePassword == false and grant the full role set.
+            // Part 18 5.2.8 - the Session "shall have only the Role Anonymous" if
+            // the user has MustChangePassword set, so every other role and any
+            // role-derived privilege of the impersonated identity is discarded
+            // rather than merged. The ChangePassword method is callable by
+            // USERNAME sessions regardless of role; once the password is changed
+            // the next ActivateSession will see MustChangePassword == false and
+            // grant the full role set.
             if (effectiveIdentity.TokenType == UserTokenType.UserName &&
                 !string.IsNullOrEmpty(effectiveIdentity.DisplayName) &&
                 m_server.UserManagement?.MustChangePassword(effectiveIdentity.DisplayName) == true)
             {
-                if (effectiveIdentity is RoleBasedIdentity rbiMustChange)
-                {
-                    return rbiMustChange.WithAdditionalRoles([Role.Anonymous], m_server.NamespaceUris);
-                }
-                return new RoleBasedIdentity(
+                return RoleBasedIdentity.CreateRestricted(
                     effectiveIdentity,
                     [Role.Anonymous],
                     m_server.NamespaceUris);
