@@ -364,6 +364,7 @@ namespace Opc.Ua.Server
             bool sendInitialValues,
             IList<IMonitoredItem> monitoredItems,
             IList<ServiceResult> errors,
+            MonitoredItemTransferOptions? transferOptions = null,
             CancellationToken cancellationToken = default);
 
         /// <summary>
@@ -408,5 +409,24 @@ namespace Opc.Ua.Server
             OperationContext context,
             ArrayOf<WriteValue> nodesToWrite,
             CancellationToken cancellationToken = default);
+    }
+
+    internal interface IMonitoredItemTransferCoordinator
+    {
+        ValueTask<IMonitoredItemTransferTransaction> PrepareMonitoredItemsTransferAsync(
+            OperationContext destinationContext,
+            OperationContext sourceContext,
+            bool sendInitialValues,
+            IList<IMonitoredItem> monitoredItems,
+            IList<ServiceResult> errors,
+            MonitoredItemTransferOptions? transferOptions,
+            CancellationToken cancellationToken);
+    }
+
+    internal interface IMonitoredItemTransferTransaction
+    {
+        void Commit();
+
+        ValueTask RollbackAsync(CancellationToken cancellationToken);
     }
 }

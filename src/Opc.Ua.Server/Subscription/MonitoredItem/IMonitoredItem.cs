@@ -370,6 +370,11 @@ namespace Opc.Ua.Server
         void SetSamplingInterval(double samplingInterval);
     }
 
+    internal interface IMonitoredItemTransferState
+    {
+        void RestoreResendDataTrigger(bool resendData);
+    }
+
     /// <summary>
     /// Defines constants for the monitored item type.
     /// </summary>

@@ -29,6 +29,7 @@
 
 #nullable enable
 
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -138,7 +139,7 @@ namespace Opc.Ua.Server.Tests
                     new ViewDescription(),
                     0u,
                     System.Array.Empty<BrowseDescription>().ToArrayOf(),
-                    CancellationToken.None).ConfigureAwait(false),
+                    cancellationToken: CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<System.ArgumentNullException>()
                     .With.Property("ParamName").EqualTo("context"));
         }
@@ -157,7 +158,7 @@ namespace Opc.Ua.Server.Tests
                     view,
                     0u,
                     System.Array.Empty<BrowseDescription>().ToArrayOf(),
-                    CancellationToken.None).ConfigureAwait(false),
+                    cancellationToken: CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<ServiceResultException>()
                     .With.Property(nameof(ServiceResultException.StatusCode))
                     .EqualTo(StatusCodes.BadViewIdUnknown));
@@ -174,7 +175,7 @@ namespace Opc.Ua.Server.Tests
                 new ViewDescription(),
                 0u,
                 System.Array.Empty<BrowseDescription>().ToArrayOf(),
-                CancellationToken.None).ConfigureAwait(false);
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(results.Count, Is.Zero);
         }
@@ -196,7 +197,7 @@ namespace Opc.Ua.Server.Tests
                 new ViewDescription(),
                 0u,
                 new BrowseDescription[] { nodeToBrowse }.ToArrayOf(),
-                CancellationToken.None).ConfigureAwait(false);
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(results.Count, Is.EqualTo(1));
             Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
@@ -223,7 +224,7 @@ namespace Opc.Ua.Server.Tests
                 new ViewDescription(),
                 0u,
                 new BrowseDescription[] { nodeToBrowse }.ToArrayOf(),
-                CancellationToken.None).ConfigureAwait(false);
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(results.Count, Is.EqualTo(1));
             Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
@@ -248,7 +249,7 @@ namespace Opc.Ua.Server.Tests
                 new ViewDescription(),
                 0u,
                 new BrowseDescription[] { nodeToBrowse }.ToArrayOf(),
-                CancellationToken.None).ConfigureAwait(false);
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadReferenceTypeIdInvalid));
         }
@@ -270,7 +271,7 @@ namespace Opc.Ua.Server.Tests
                 new ViewDescription(),
                 0u,
                 new BrowseDescription[] { nodeToBrowse }.ToArrayOf(),
-                CancellationToken.None).ConfigureAwait(false);
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadBrowseDirectionInvalid));
         }
@@ -297,7 +298,7 @@ namespace Opc.Ua.Server.Tests
                     new ViewDescription(),
                     1u,
                     new BrowseDescription[] { nodeToBrowse }.ToArrayOf(),
-                    CancellationToken.None).ConfigureAwait(false);
+                    cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
                 Assert.That(results.Count, Is.EqualTo(1));
                 Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadNoContinuationPoints));
@@ -319,7 +320,7 @@ namespace Opc.Ua.Server.Tests
                     null!,
                     false,
                     System.Array.Empty<ByteString>().ToArrayOf(),
-                    CancellationToken.None).ConfigureAwait(false),
+                    cancellationToken: CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<System.ArgumentNullException>()
                     .With.Property("ParamName").EqualTo("context"));
         }
@@ -334,7 +335,7 @@ namespace Opc.Ua.Server.Tests
                 ctx,
                 false,
                 System.Array.Empty<ByteString>().ToArrayOf(),
-                CancellationToken.None).ConfigureAwait(false);
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(results.Count, Is.Zero);
         }
@@ -354,7 +355,7 @@ namespace Opc.Ua.Server.Tests
                 ctx,
                 false,
                 continuationPoints,
-                CancellationToken.None).ConfigureAwait(false);
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(results.Count, Is.EqualTo(1));
             Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
@@ -376,7 +377,7 @@ namespace Opc.Ua.Server.Tests
                 ctx,
                 true,
                 continuationPoints,
-                CancellationToken.None).ConfigureAwait(false);
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(results.Count, Is.EqualTo(1));
             Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
@@ -403,7 +404,7 @@ namespace Opc.Ua.Server.Tests
                     new ViewDescription(),
                     1u,
                     new BrowseDescription[] { nodeToBrowse }.ToArrayOf(),
-                    CancellationToken.None).ConfigureAwait(false);
+                    cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
                 Assert.That(firstResults.Count, Is.EqualTo(1));
                 Assert.That(firstResults[0].StatusCode, Is.EqualTo(StatusCodes.Good));
@@ -413,7 +414,7 @@ namespace Opc.Ua.Server.Tests
                     ctx,
                     false,
                     new ByteString[] { firstResults[0].ContinuationPoint }.ToArrayOf(),
-                    CancellationToken.None).ConfigureAwait(false);
+                    cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
                 Assert.That(nextResults.Count, Is.EqualTo(1));
                 Assert.That(nextResults[0].StatusCode, Is.EqualTo(StatusCodes.Good));
@@ -425,7 +426,7 @@ namespace Opc.Ua.Server.Tests
                     ctx,
                     false,
                     new ByteString[] { nextResults[0].ContinuationPoint }.ToArrayOf(),
-                    CancellationToken.None).ConfigureAwait(false);
+                    cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
                 Assert.That(finalResults.Count, Is.EqualTo(1));
                 Assert.That(finalResults[0].StatusCode, Is.EqualTo(StatusCodes.BadNoContinuationPoints));
@@ -446,7 +447,7 @@ namespace Opc.Ua.Server.Tests
             (ArrayOf<BrowsePathResult> results, _) = await sut.TranslateBrowsePathsToNodeIdsAsync(
                 ctx,
                 System.Array.Empty<BrowsePath>().ToArrayOf(),
-                CancellationToken.None).ConfigureAwait(false);
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(results.Count, Is.Zero);
         }
@@ -472,7 +473,7 @@ namespace Opc.Ua.Server.Tests
             (ArrayOf<BrowsePathResult> results, _) = await sut.TranslateBrowsePathsToNodeIdsAsync(
                 ctx,
                 new BrowsePath[] { browsePath }.ToArrayOf(),
-                CancellationToken.None).ConfigureAwait(false);
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
         }
@@ -492,7 +493,7 @@ namespace Opc.Ua.Server.Tests
             (ArrayOf<BrowsePathResult> results, _) = await sut.TranslateBrowsePathsToNodeIdsAsync(
                 ctx,
                 new BrowsePath[] { browsePath }.ToArrayOf(),
-                CancellationToken.None).ConfigureAwait(false);
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadNothingToDo));
         }
@@ -518,7 +519,7 @@ namespace Opc.Ua.Server.Tests
             (ArrayOf<BrowsePathResult> results, _) = await sut.TranslateBrowsePathsToNodeIdsAsync(
                 ctx,
                 new BrowsePath[] { browsePath }.ToArrayOf(),
-                CancellationToken.None).ConfigureAwait(false);
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadBrowseNameInvalid));
         }
@@ -535,7 +536,7 @@ namespace Opc.Ua.Server.Tests
                     -1.0,
                     TimestampsToReturn.Neither,
                     System.Array.Empty<ReadValueId>().ToArrayOf(),
-                    CancellationToken.None).ConfigureAwait(false),
+                    cancellationToken: CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<ServiceResultException>()
                     .With.Property(nameof(ServiceResultException.StatusCode))
                     .EqualTo(StatusCodes.BadMaxAgeInvalid));
@@ -553,7 +554,7 @@ namespace Opc.Ua.Server.Tests
                     0.0,
                     (TimestampsToReturn)99,
                     System.Array.Empty<ReadValueId>().ToArrayOf(),
-                    CancellationToken.None).ConfigureAwait(false),
+                    cancellationToken: CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<ServiceResultException>()
                     .With.Property(nameof(ServiceResultException.StatusCode))
                     .EqualTo(StatusCodes.BadTimestampsToReturnInvalid));
@@ -570,7 +571,7 @@ namespace Opc.Ua.Server.Tests
                 0.0,
                 TimestampsToReturn.Neither,
                 System.Array.Empty<ReadValueId>().ToArrayOf(),
-                CancellationToken.None).ConfigureAwait(false);
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(values.Count, Is.Zero);
         }
@@ -586,7 +587,7 @@ namespace Opc.Ua.Server.Tests
                 0.0,
                 TimestampsToReturn.Neither,
                 new ReadValueId[] { new() { AttributeId = Attributes.Value } }.ToArrayOf(),
-                CancellationToken.None).ConfigureAwait(false);
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(values[0].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdInvalid));
         }
@@ -604,7 +605,7 @@ namespace Opc.Ua.Server.Tests
                 0.0,
                 TimestampsToReturn.Neither,
                 new ReadValueId[] { readValueId }.ToArrayOf(),
-                CancellationToken.None).ConfigureAwait(false);
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(values[0].StatusCode, Is.EqualTo(StatusCodes.BadAttributeIdInvalid));
         }
@@ -622,7 +623,7 @@ namespace Opc.Ua.Server.Tests
                 0.0,
                 TimestampsToReturn.Neither,
                 new ReadValueId[] { readValueId }.ToArrayOf(),
-                CancellationToken.None).ConfigureAwait(false);
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(values[0].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
         }
@@ -636,7 +637,7 @@ namespace Opc.Ua.Server.Tests
                 async () => await sut.WriteAsync(
                     null!,
                     System.Array.Empty<WriteValue>().ToArrayOf(),
-                    CancellationToken.None).ConfigureAwait(false),
+                    cancellationToken: CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<System.ArgumentNullException>()
                     .With.Property("ParamName").EqualTo("context"));
         }
@@ -650,7 +651,7 @@ namespace Opc.Ua.Server.Tests
             (ArrayOf<StatusCode> results, _) = await sut.WriteAsync(
                 ctx,
                 System.Array.Empty<WriteValue>().ToArrayOf(),
-                CancellationToken.None).ConfigureAwait(false);
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(results.Count, Is.Zero);
         }
@@ -664,7 +665,7 @@ namespace Opc.Ua.Server.Tests
             (ArrayOf<StatusCode> results, _) = await sut.WriteAsync(
                 ctx,
                 new WriteValue[] { new() { AttributeId = Attributes.Value } }.ToArrayOf(),
-                CancellationToken.None).ConfigureAwait(false);
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(results[0], Is.EqualTo(StatusCodes.BadNodeIdInvalid));
         }
@@ -685,7 +686,7 @@ namespace Opc.Ua.Server.Tests
             (ArrayOf<StatusCode> results, _) = await sut.WriteAsync(
                 ctx,
                 new WriteValue[] { writeValue }.ToArrayOf(),
-                CancellationToken.None).ConfigureAwait(false);
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(results[0], Is.EqualTo(StatusCodes.BadNodeIdUnknown));
         }
@@ -703,7 +704,7 @@ namespace Opc.Ua.Server.Tests
                     TimestampsToReturn.Neither,
                     false,
                     System.Array.Empty<HistoryReadValueId>().ToArrayOf(),
-                    CancellationToken.None).ConfigureAwait(false),
+                    cancellationToken: CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<ServiceResultException>()
                     .With.Property(nameof(ServiceResultException.StatusCode))
                     .EqualTo(StatusCodes.BadHistoryOperationInvalid));
@@ -721,7 +722,7 @@ namespace Opc.Ua.Server.Tests
                 TimestampsToReturn.Neither,
                 false,
                 System.Array.Empty<HistoryReadValueId>().ToArrayOf(),
-                CancellationToken.None).ConfigureAwait(false);
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(results.Count, Is.Zero);
         }
@@ -738,7 +739,7 @@ namespace Opc.Ua.Server.Tests
                 TimestampsToReturn.Neither,
                 false,
                 new HistoryReadValueId[] { new() }.ToArrayOf(),
-                CancellationToken.None).ConfigureAwait(false);
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdInvalid));
         }
@@ -757,7 +758,7 @@ namespace Opc.Ua.Server.Tests
                 TimestampsToReturn.Neither,
                 false,
                 new HistoryReadValueId[] { historyReadValueId }.ToArrayOf(),
-                CancellationToken.None).ConfigureAwait(false);
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
         }
@@ -771,7 +772,7 @@ namespace Opc.Ua.Server.Tests
             (ArrayOf<HistoryUpdateResult> results, _) = await sut.HistoryUpdateAsync(
                 ctx,
                 System.Array.Empty<ExtensionObject>().ToArrayOf(),
-                CancellationToken.None).ConfigureAwait(false);
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(results.Count, Is.Zero);
         }
@@ -790,7 +791,7 @@ namespace Opc.Ua.Server.Tests
             (ArrayOf<HistoryUpdateResult> results, _) = await sut.HistoryUpdateAsync(
                 ctx,
                 new ExtensionObject[] { details }.ToArrayOf(),
-                CancellationToken.None).ConfigureAwait(false);
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdInvalid));
         }
@@ -810,7 +811,7 @@ namespace Opc.Ua.Server.Tests
             (ArrayOf<HistoryUpdateResult> results, _) = await sut.HistoryUpdateAsync(
                 ctx,
                 new ExtensionObject[] { details }.ToArrayOf(),
-                CancellationToken.None).ConfigureAwait(false);
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
         }
@@ -824,7 +825,7 @@ namespace Opc.Ua.Server.Tests
                 async () => await sut.CallAsync(
                     null!,
                     System.Array.Empty<CallMethodRequest>().ToArrayOf(),
-                    CancellationToken.None).ConfigureAwait(false),
+                    cancellationToken: CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<System.ArgumentNullException>()
                     .With.Property("ParamName").EqualTo("context"));
         }
@@ -838,7 +839,7 @@ namespace Opc.Ua.Server.Tests
             (ArrayOf<CallMethodResult> results, _) = await sut.CallAsync(
                 ctx,
                 System.Array.Empty<CallMethodRequest>().ToArrayOf(),
-                CancellationToken.None).ConfigureAwait(false);
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(results.Count, Is.Zero);
         }
@@ -852,7 +853,7 @@ namespace Opc.Ua.Server.Tests
             (ArrayOf<CallMethodResult> results, _) = await sut.CallAsync(
                 ctx,
                 new CallMethodRequest[] { new() }.ToArrayOf(),
-                CancellationToken.None).ConfigureAwait(false);
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdInvalid));
         }
@@ -868,7 +869,7 @@ namespace Opc.Ua.Server.Tests
             (ArrayOf<CallMethodResult> results, _) = await sut.CallAsync(
                 ctx,
                 new CallMethodRequest[] { request }.ToArrayOf(),
-                CancellationToken.None).ConfigureAwait(false);
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadMethodInvalid));
         }
@@ -888,7 +889,7 @@ namespace Opc.Ua.Server.Tests
             (ArrayOf<CallMethodResult> results, _) = await sut.CallAsync(
                 ctx,
                 new CallMethodRequest[] { request }.ToArrayOf(),
-                CancellationToken.None).ConfigureAwait(false);
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
         }
@@ -909,7 +910,7 @@ namespace Opc.Ua.Server.Tests
                     [],
                     [],
                     false,
-                    CancellationToken.None).ConfigureAwait(false),
+                    cancellationToken: CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<System.ArgumentNullException>()
                     .With.Property("ParamName").EqualTo("context"));
         }
@@ -931,7 +932,7 @@ namespace Opc.Ua.Server.Tests
                     [],
                     [],
                     false,
-                    CancellationToken.None).ConfigureAwait(false),
+                    cancellationToken: CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<System.ArgumentNullException>()
                     .With.Property("ParamName").EqualTo("errors"));
         }
@@ -953,7 +954,7 @@ namespace Opc.Ua.Server.Tests
                     [],
                     null!,
                     false,
-                    CancellationToken.None).ConfigureAwait(false),
+                    cancellationToken: CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<System.ArgumentNullException>()
                     .With.Property("ParamName").EqualTo("monitoredItems"));
         }
@@ -975,7 +976,7 @@ namespace Opc.Ua.Server.Tests
                     [],
                     [],
                     false,
-                    CancellationToken.None).ConfigureAwait(false),
+                    cancellationToken: CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<System.ArgumentOutOfRangeException>()
                     .With.Property("ParamName").EqualTo("publishingInterval"));
         }
@@ -997,7 +998,7 @@ namespace Opc.Ua.Server.Tests
                     [],
                     [],
                     false,
-                    CancellationToken.None).ConfigureAwait(false),
+                    cancellationToken: CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<ServiceResultException>()
                     .With.Property(nameof(ServiceResultException.StatusCode))
                     .EqualTo(StatusCodes.BadTimestampsToReturnInvalid));
@@ -1016,7 +1017,7 @@ namespace Opc.Ua.Server.Tests
                     System.Array.Empty<MonitoredItemModifyRequest>().ToArrayOf(),
                     [],
                     [],
-                    CancellationToken.None).ConfigureAwait(false),
+                    cancellationToken: CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<System.ArgumentNullException>()
                     .With.Property("ParamName").EqualTo("context"));
         }
@@ -1035,7 +1036,7 @@ namespace Opc.Ua.Server.Tests
                     System.Array.Empty<MonitoredItemModifyRequest>().ToArrayOf(),
                     [],
                     [],
-                    CancellationToken.None).ConfigureAwait(false),
+                    cancellationToken: CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<ServiceResultException>()
                     .With.Property(nameof(ServiceResultException.StatusCode))
                     .EqualTo(StatusCodes.BadTimestampsToReturnInvalid));
@@ -1052,7 +1053,7 @@ namespace Opc.Ua.Server.Tests
                     1u,
                     [],
                     [],
-                    CancellationToken.None).ConfigureAwait(false),
+                    cancellationToken: CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<System.ArgumentNullException>()
                     .With.Property("ParamName").EqualTo("context"));
         }
@@ -1072,7 +1073,7 @@ namespace Opc.Ua.Server.Tests
                 1u,
                 itemsToDelete,
                 errors,
-                CancellationToken.None).ConfigureAwait(false);
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.BadMonitoredItemIdInvalid));
         }
@@ -1090,7 +1091,7 @@ namespace Opc.Ua.Server.Tests
                 1u,
                 itemsToDelete,
                 errors,
-                CancellationToken.None).ConfigureAwait(false);
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.Good));
         }
@@ -1120,7 +1121,7 @@ namespace Opc.Ua.Server.Tests
                 new[] { request }.ToArrayOf(),
                 errors,
                 filterResults,
-                CancellationToken.None).ConfigureAwait(false);
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
             Assert.That(request.Processed, Is.True);
@@ -1137,7 +1138,7 @@ namespace Opc.Ua.Server.Tests
                     MonitoringMode.Reporting,
                     [],
                     [],
-                    CancellationToken.None).ConfigureAwait(false),
+                    cancellationToken: CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<System.ArgumentNullException>()
                     .With.Property("ParamName").EqualTo("context"));
         }
@@ -1157,7 +1158,7 @@ namespace Opc.Ua.Server.Tests
                 MonitoringMode.Reporting,
                 itemsToModify,
                 errors,
-                CancellationToken.None).ConfigureAwait(false);
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.BadMonitoredItemIdInvalid));
         }
@@ -1174,7 +1175,7 @@ namespace Opc.Ua.Server.Tests
                 MonitoringMode.Reporting,
                 [item],
                 errors,
-                CancellationToken.None).ConfigureAwait(false);
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(item.MonitoringMode, Is.EqualTo(MonitoringMode.Reporting));
@@ -1192,7 +1193,7 @@ namespace Opc.Ua.Server.Tests
                     false,
                     [],
                     [],
-                    CancellationToken.None).ConfigureAwait(false),
+                    cancellationToken: CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<System.ArgumentNullException>()
                     .With.Property("ParamName").EqualTo("context"));
         }
@@ -1211,7 +1212,7 @@ namespace Opc.Ua.Server.Tests
                 false,
                 monitoredItems,
                 errors,
-                CancellationToken.None).ConfigureAwait(false);
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.BadMonitoredItemIdInvalid));
         }
@@ -1228,10 +1229,193 @@ namespace Opc.Ua.Server.Tests
                 true,
                 [item],
                 errors,
-                CancellationToken.None).ConfigureAwait(false);
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(Publish(item).Peek().Value.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+        }
+
+
+        [Test]
+        public async Task TransferMonitoredItemsAsyncFailureRollsBackOwnerAndResendAsync()
+        {
+            var sourceSession = new Mock<ISession>();
+            sourceSession.SetupGet(session => session.Id).Returns(new NodeId(Guid.NewGuid()));
+            sourceSession.SetupGet(session => session.EffectiveIdentity)
+                .Returns(new Mock<IUserIdentity>().Object);
+            sourceSession.SetupGet(session => session.PreferredLocales).Returns([]);
+            var destinationSession = new Mock<ISession>();
+            destinationSession.SetupGet(session => session.Id).Returns(new NodeId(Guid.NewGuid()));
+            destinationSession.SetupGet(session => session.EffectiveIdentity)
+                .Returns(new Mock<IUserIdentity>().Object);
+            destinationSession.SetupGet(session => session.PreferredLocales).Returns([]);
+            var owner = new Mock<IAsyncNodeManager>();
+            var laterOwner = new Mock<IAsyncNodeManager>();
+            ISession observedOwner = sourceSession.Object;
+            ISession observedLaterOwner = sourceSession.Object;
+            int rollbackCalls = 0;
+            int laterRollbackCalls = 0;
+            int ownerForwardCalls = 0;
+            int laterForwardCalls = 0;
+            bool failNextDestinationCallback = true;
+
+            owner.Setup(nodeManager => nodeManager.TransferMonitoredItemsAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<IList<IMonitoredItem>>(),
+                    It.IsAny<IList<bool>>(),
+                    It.IsAny<IList<ServiceResult>>(),
+                    It.IsAny<MonitoredItemTransferOptions>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback<OperationContext, bool, IList<IMonitoredItem>, IList<bool>, IList<ServiceResult>, MonitoredItemTransferOptions, CancellationToken>(
+                    (context, sendInitialValues, monitoredItems, processedItems, errors, transferOptions, _) =>
+                    {
+                        for (int ii = 0; ii < monitoredItems.Count; ii++)
+                        {
+                            if (!processedItems[ii] &&
+                                ReferenceEquals(monitoredItems[ii].NodeManager, owner.Object))
+                            {
+                                processedItems[ii] = true;
+                                errors[ii] = ServiceResult.Good;
+                                if (sendInitialValues)
+                                {
+                                    monitoredItems[ii].SetupResendDataTrigger();
+                                }
+                            }
+                        }
+                        observedOwner = context.Session;
+                        ownerForwardCalls++;
+                    })
+                .Returns(default(ValueTask));
+            laterOwner.Setup(nodeManager => nodeManager.TransferMonitoredItemsAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<IList<IMonitoredItem>>(),
+                    It.IsAny<IList<bool>>(),
+                    It.IsAny<IList<ServiceResult>>(),
+                    It.IsAny<MonitoredItemTransferOptions>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback<OperationContext, bool, IList<IMonitoredItem>, IList<bool>, IList<ServiceResult>, MonitoredItemTransferOptions, CancellationToken>(
+                    (context, sendInitialValues, monitoredItems, processedItems, errors, transferOptions, _) =>
+                    {
+                        for (int ii = 0; ii < monitoredItems.Count; ii++)
+                        {
+                            if (!processedItems[ii] &&
+                                ReferenceEquals(monitoredItems[ii].NodeManager, laterOwner.Object))
+                            {
+                                processedItems[ii] = true;
+                                errors[ii] = ServiceResult.Good;
+                                if (sendInitialValues)
+                                {
+                                    monitoredItems[ii].SetupResendDataTrigger();
+                                }
+                            }
+                        }
+                        observedLaterOwner = context.Session;
+                        laterForwardCalls++;
+                        if (ReferenceEquals(context.Session, destinationSession.Object) &&
+                            failNextDestinationCallback)
+                        {
+                            failNextDestinationCallback = false;
+                            throw new InvalidOperationException("Later owner failed.");
+                        }
+                    })
+                .Returns(default(ValueTask));
+
+            owner.Setup(nodeManager => nodeManager.RollbackMonitoredItemsTransferAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<IList<IMonitoredItem>>(),
+                    It.IsAny<IList<bool>>(),
+                    It.IsAny<IList<ServiceResult>>(),
+                    It.IsAny<MonitoredItemTransferOptions>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback<OperationContext, IList<IMonitoredItem>, IList<bool>, IList<ServiceResult>, MonitoredItemTransferOptions, CancellationToken>(
+                    (context, monitoredItems, processedItems, errors, _, _) =>
+                    {
+                        for (int ii = 0; ii < monitoredItems.Count; ii++)
+                        {
+                            if (!processedItems[ii] &&
+                                ReferenceEquals(monitoredItems[ii].NodeManager, owner.Object))
+                            {
+                                processedItems[ii] = true;
+                                errors[ii] = ServiceResult.Good;
+                            }
+                        }
+                        observedOwner = context.Session;
+                        rollbackCalls++;
+                    })
+                .Returns(default(ValueTask));
+            laterOwner.Setup(nodeManager => nodeManager.RollbackMonitoredItemsTransferAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<IList<IMonitoredItem>>(),
+                    It.IsAny<IList<bool>>(),
+                    It.IsAny<IList<ServiceResult>>(),
+                    It.IsAny<MonitoredItemTransferOptions>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback<OperationContext, IList<IMonitoredItem>, IList<bool>, IList<ServiceResult>, MonitoredItemTransferOptions, CancellationToken>(
+                    (context, monitoredItems, processedItems, errors, _, _) =>
+                    {
+                        for (int ii = 0; ii < monitoredItems.Count; ii++)
+                        {
+                            if (!processedItems[ii] &&
+                                ReferenceEquals(monitoredItems[ii].NodeManager, laterOwner.Object))
+                            {
+                                processedItems[ii] = true;
+                                errors[ii] = ServiceResult.Good;
+                            }
+                        }
+                        observedLaterOwner = context.Session;
+                        laterRollbackCalls++;
+                    })
+                .Returns(default(ValueTask));
+
+            using var sut = new MasterNodeManager(
+                m_server.CurrentInstance,
+                m_fixture.Config,
+                null,
+                owner.Object,
+                laterOwner.Object);
+            using var item = CreateMonitoredItem(owner.Object, sourceSession.Object, 2, 3, 42);
+            using var laterItem = CreateMonitoredItem(laterOwner.Object, sourceSession.Object, 4, 5, 84);
+
+            var failedErrors = new List<ServiceResult> { null!, null! };
+            Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await sut.TransferMonitoredItemsAsync(
+                    new OperationContext(destinationSession.Object, DiagnosticsMasks.None),
+                    true,
+                    [item, laterItem],
+                    failedErrors,
+                    cancellationToken: CancellationToken.None).ConfigureAwait(false));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(observedOwner, Is.SameAs(sourceSession.Object));
+                Assert.That(observedLaterOwner, Is.SameAs(destinationSession.Object));
+                Assert.That(ownerForwardCalls, Is.EqualTo(1));
+                Assert.That(laterForwardCalls, Is.EqualTo(1));
+                Assert.That(rollbackCalls, Is.EqualTo(1));
+                Assert.That(laterRollbackCalls, Is.Zero);
+                Assert.That(item.IsResendData, Is.False);
+                Assert.That(laterItem.IsResendData, Is.False);
+            });
+
+            var retryErrors = new List<ServiceResult> { null!, null! };
+            await sut.TransferMonitoredItemsAsync(
+                new OperationContext(destinationSession.Object, DiagnosticsMasks.None),
+                false,
+                [item, laterItem],
+                retryErrors,
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(observedOwner, Is.SameAs(destinationSession.Object));
+                Assert.That(observedLaterOwner, Is.SameAs(destinationSession.Object));
+                Assert.That(item.IsResendData, Is.False);
+                Assert.That(laterItem.IsResendData, Is.False);
+                Assert.That(Publish(item), Is.Empty);
+                Assert.That(Publish(laterItem), Is.Empty);
+            });
         }
 
         private MasterNodeManager CreateMasterNodeManager()
@@ -1269,6 +1453,44 @@ namespace Opc.Ua.Server.Tests
                 discardOldest: true,
                 sourceSamplingInterval: 1000);
             ((IDetachableMonitoredItem)monitoredItem).Detach(m_server.CurrentInstance);
+            return monitoredItem;
+        }
+
+
+        private MonitoredItem CreateMonitoredItem(
+            IAsyncNodeManager nodeManager,
+            ISession session,
+            uint id,
+            uint clientHandle,
+            int value)
+        {
+            var monitoredItem = new MonitoredItem(
+                m_server.CurrentInstance,
+                nodeManager,
+                new object(),
+                subscriptionId: 1,
+                id: id,
+                itemToMonitor: new ReadValueId
+                {
+                    NodeId = new NodeId($"Transactional{id}", 2),
+                    AttributeId = Attributes.Value
+                },
+                diagnosticsMasks: DiagnosticsMasks.None,
+                timestampsToReturn: TimestampsToReturn.Both,
+                monitoringMode: MonitoringMode.Reporting,
+                clientHandle: clientHandle,
+                originalFilter: null,
+                filterToUse: null,
+                range: null,
+                samplingInterval: 1000,
+                queueSize: 1,
+                discardOldest: true,
+                sourceSamplingInterval: 1000);
+            var subscription = new Mock<ISubscription>();
+            subscription.SetupGet(value => value.Session).Returns(session);
+            monitoredItem.SubscriptionCallback = subscription.Object;
+            monitoredItem.QueueValue(new DataValue(new Variant(value)), null);
+            Assert.That(Publish(monitoredItem), Has.Count.EqualTo(1));
             return monitoredItem;
         }
 

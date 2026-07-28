@@ -736,6 +736,11 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
+                if (m_transferInProgress)
+                {
+                    return PublishingState.Idle;
+                }
+
                 long currentTime = m_timeProvider.GetTimestampMilliseconds();
 
                 // check if publish interval has elapsed.
@@ -900,7 +905,13 @@ namespace Opc.Ua.Server
             }
 
             await m_server.NodeManager
-                .TransferMonitoredItemsAsync(context, sendInitialValues, monitoredItems, errors, cancellationToken)
+                .TransferMonitoredItemsAsync(
+                    context,
+                    sendInitialValues,
+                    monitoredItems,
+                    errors,
+                    null,
+                    cancellationToken)
                 .ConfigureAwait(false);
 
             int badTransfers = 0;
@@ -938,6 +949,7 @@ namespace Opc.Ua.Server
             }
         }
 
+
         /// <inheritdoc/>
         public bool IsTransferIdentityCompatible(ISession targetSession)
         {
@@ -969,6 +981,310 @@ namespace Opc.Ua.Server
                     m_ownerClientUserId,
                     targetClientUserId,
                     StringComparison.Ordinal);
+        }
+        internal bool TryBeginTransfer(ISession? sourceSession)
+        {
+            lock (m_lock)
+            {
+                if (m_transferInProgress ||
+                    m_expired ||
+                    !ReferenceEquals(Session, sourceSession))
+                {
+                    return false;
+                }
+
+                m_transferInProgress = true;
+                return true;
+            }
+        }
+
+        internal async ValueTask<PreparedSessionTransfer> PrepareSessionTransferAsync(
+            OperationContext context,
+            ISession? sourceSession,
+            bool sendInitialValues,
+            CancellationToken cancellationToken)
+        {
+            List<IMonitoredItem> monitoredItems;
+            lock (m_lock)
+            {
+                if (!m_transferInProgress ||
+                    !ReferenceEquals(Session, sourceSession))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadSubscriptionIdInvalid,
+                        "Subscription source changed during transfer.");
+                }
+                monitoredItems = m_monitoredItems.Select(v => v.Value.Value).ToList();
+            }
+
+            var errors = new List<ServiceResult>(monitoredItems.Count);
+            for (int ii = 0; ii < monitoredItems.Count; ii++)
+            {
+                errors.Add(null!);
+            }
+
+            OperationContext? sourceContext = null;
+            IMonitoredItemTransferTransaction? monitoredItemTransaction = null;
+            try
+            {
+                if (m_server.NodeManager is IMonitoredItemTransferCoordinator coordinator)
+                {
+                    sourceContext = sourceSession != null
+                        ? new OperationContext(sourceSession, context.DiagnosticsMask)
+                        : new OperationContext(
+                            new RequestHeader(),
+                            null!,
+                            RequestType.Unknown,
+                            RequestLifetime.None);
+                    monitoredItemTransaction = await coordinator
+                        .PrepareMonitoredItemsTransferAsync(
+                            context,
+                            sourceContext,
+                            sendInitialValues,
+                            monitoredItems,
+                            errors,
+                            new MonitoredItemTransferOptions
+                            {
+                                DeferInitialValues = sendInitialValues
+                            },
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                else
+                {
+                    var fallbackTransaction = new ResendStateTransferTransaction(
+                        monitoredItems);
+                    try
+                    {
+                        // The non-coordinator contract has no commit callback.
+                        // Keep legacy eager resend semantics instead of
+                        // requesting deferral that cannot be committed here.
+                        await m_server.NodeManager
+                            .TransferMonitoredItemsAsync(
+                                context,
+                                sendInitialValues,
+                                monitoredItems,
+                                errors,
+                                transferOptions: null,
+                                cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                    catch
+                    {
+                        await fallbackTransaction.RollbackAsync(CancellationToken.None)
+                            .ConfigureAwait(false);
+                        throw;
+                    }
+                    monitoredItemTransaction = fallbackTransaction;
+                }
+            }
+            catch
+            {
+                sourceContext?.Dispose();
+                throw;
+            }
+
+            int badTransfers = 0;
+            for (int ii = 0; ii < errors.Count; ii++)
+            {
+                if (ServiceResult.IsBad(errors[ii]))
+                {
+                    badTransfers++;
+                }
+            }
+            if (badTransfers > 0)
+            {
+                m_logger.FailedToTransferCountMonitoredItems(badTransfers);
+            }
+
+            return new PreparedSessionTransfer(
+                this,
+                sourceSession,
+                context.Session,
+                monitoredItemTransaction,
+                sourceContext);
+        }
+
+        internal void CompleteTransfer(ISession destinationSession)
+        {
+            lock (m_lock)
+            {
+                if (!m_transferInProgress ||
+                    !ReferenceEquals(Session, destinationSession))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadSubscriptionIdInvalid,
+                        "Subscription ownership changed while completing transfer.");
+                }
+                m_transferInProgress = false;
+            }
+        }
+
+        internal void AbortTransfer(ISession? sourceSession)
+        {
+            lock (m_lock)
+            {
+                if (m_transferInProgress &&
+                    ReferenceEquals(Session, sourceSession))
+                {
+                    m_transferInProgress = false;
+                }
+            }
+        }
+
+        internal sealed class PreparedSessionTransfer
+        {
+            public PreparedSessionTransfer(
+                Subscription subscription,
+                ISession? sourceSession,
+                ISession destinationSession,
+                IMonitoredItemTransferTransaction? monitoredItemTransaction,
+                OperationContext? sourceContext)
+            {
+                m_subscription = subscription;
+                m_sourceSession = sourceSession;
+                m_destinationSession = destinationSession;
+                m_monitoredItemTransaction = monitoredItemTransaction;
+                m_sourceContext = sourceContext;
+            }
+
+            public void CommitOwnership()
+            {
+                lock (m_subscription.m_lock)
+                {
+                    if (!m_subscription.m_transferInProgress ||
+                        !ReferenceEquals(m_subscription.Session, m_sourceSession))
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadSubscriptionIdInvalid,
+                            "Subscription ownership changed during transfer.");
+                    }
+                    m_subscription.Session = m_destinationSession;
+                }
+
+                lock (m_subscription.DiagnosticsWriteLock)
+                {
+                    m_subscription.Diagnostics.SessionId = m_destinationSession.Id;
+                }
+            }
+
+            public void CommitMonitoredItemEffects()
+            {
+                m_monitoredItemTransaction?.Commit();
+            }
+
+            public async ValueTask RollbackAsync(CancellationToken cancellationToken)
+            {
+                var rollbackErrors = new List<Exception>();
+                try
+                {
+                    try
+                    {
+                        lock (m_subscription.m_lock)
+                        {
+                            if (ReferenceEquals(m_subscription.Session, m_destinationSession))
+                            {
+                                m_subscription.Session = m_sourceSession!;
+                            }
+                            else if (!ReferenceEquals(m_subscription.Session, m_sourceSession))
+                            {
+                                throw new ServiceResultException(
+                                    StatusCodes.BadSubscriptionIdInvalid,
+                                    "Subscription ownership changed while rolling back transfer.");
+                            }
+                        }
+
+                        lock (m_subscription.DiagnosticsWriteLock)
+                        {
+                            m_subscription.Diagnostics.SessionId = m_sourceSession?.Id ?? default;
+                        }
+                    }
+                    catch (Exception error)
+                    {
+                        rollbackErrors.Add(error);
+                    }
+
+                    if (m_monitoredItemTransaction != null)
+                    {
+                        try
+                        {
+                            await m_monitoredItemTransaction.RollbackAsync(cancellationToken)
+                                .ConfigureAwait(false);
+                        }
+                        catch (Exception error)
+                        {
+                            rollbackErrors.Add(error);
+                        }
+                    }
+                }
+                finally
+                {
+                    DisposeSourceContext();
+                }
+
+                if (rollbackErrors.Count > 0)
+                {
+                    throw new AggregateException(
+                        "The subscription transfer could not be fully rolled back.",
+                        rollbackErrors);
+                }
+            }
+
+            public void Complete()
+            {
+                DisposeSourceContext();
+            }
+
+            private void DisposeSourceContext()
+            {
+                Interlocked.Exchange(ref m_sourceContext, null)?.Dispose();
+            }
+
+            private readonly Subscription m_subscription;
+            private readonly ISession? m_sourceSession;
+            private readonly ISession m_destinationSession;
+            private readonly IMonitoredItemTransferTransaction? m_monitoredItemTransaction;
+            private OperationContext? m_sourceContext;
+        }
+
+        private sealed class ResendStateTransferTransaction :
+            IMonitoredItemTransferTransaction
+        {
+            public ResendStateTransferTransaction(IList<IMonitoredItem> monitoredItems)
+            {
+                m_monitoredItems = monitoredItems;
+                m_resendStates = new bool[monitoredItems.Count];
+                for (int ii = 0; ii < monitoredItems.Count; ii++)
+                {
+                    m_resendStates[ii] = monitoredItems[ii]?.IsResendData ?? false;
+                }
+            }
+
+            public void Commit()
+            {
+            }
+
+            public ValueTask RollbackAsync(CancellationToken cancellationToken)
+            {
+                if (Interlocked.Exchange(ref m_rolledBack, 1) != 0)
+                {
+                    return default;
+                }
+
+                for (int ii = 0; ii < m_monitoredItems.Count; ii++)
+                {
+                    if (m_monitoredItems[ii] is IMonitoredItemTransferState transferState)
+                    {
+                        transferState.RestoreResendDataTrigger(m_resendStates[ii]);
+                    }
+                }
+                return default;
+            }
+
+            private readonly IList<IMonitoredItem> m_monitoredItems;
+            private readonly bool[] m_resendStates;
+            private int m_rolledBack;
+
         }
 
         /// <summary>
@@ -3048,6 +3364,13 @@ namespace Opc.Ua.Server
                 throw new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid);
             }
 
+            if (m_transferInProgress)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSubscriptionIdInvalid,
+                    "Subscription transfer is in progress.");
+            }
+
             if (!ReferenceEquals(context.Session, Session))
             {
                 throw new ServiceResultException(
@@ -3186,6 +3509,7 @@ namespace Opc.Ua.Server
         private readonly NodeId m_diagnosticsId;
         private bool m_refreshInProgress;
         private bool m_expired;
+        private bool m_transferInProgress;
         private readonly Dictionary<uint, List<ITriggeredMonitoredItem>> m_itemsToTrigger;
         private readonly bool m_supportsDurable;
         private readonly ILogger m_logger;

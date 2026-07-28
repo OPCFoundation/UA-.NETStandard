@@ -41,6 +41,7 @@ namespace Opc.Ua.Server
     public class MasterNodeManager :
         IDisposable,
         IMasterNodeManager,
+        IMonitoredItemTransferCoordinator,
         IDynamicNodeManagerHost,
         ISyncNodeManagerMonitoredItemRecovery
     {
@@ -5426,29 +5427,114 @@ namespace Opc.Ua.Server
             bool sendInitialValues,
             IList<IMonitoredItem> monitoredItems,
             IList<ServiceResult> errors,
+            MonitoredItemTransferOptions? transferOptions = null,
             CancellationToken cancellationToken = default)
         {
             if (context == null)
             {
                 throw new ArgumentNullException(nameof(context));
             }
-
             if (monitoredItems == null)
             {
                 throw new ArgumentNullException(nameof(monitoredItems));
             }
+            if (errors == null)
+            {
+                throw new ArgumentNullException(nameof(errors));
+            }
 
+            using OperationContext sourceContext = CreateTransferSourceContext(
+                context,
+                monitoredItems);
+            IMonitoredItemTransferTransaction transaction =
+                await PrepareMonitoredItemsTransferAsync(
+                    context,
+                    sourceContext,
+                    sendInitialValues,
+                    monitoredItems,
+                    errors,
+                    transferOptions,
+                    cancellationToken).ConfigureAwait(false);
+            try
+            {
+                transaction.Commit();
+            }
+            catch (Exception commitError)
+            {
+                try
+                {
+                    await transaction.RollbackAsync(CancellationToken.None).ConfigureAwait(false);
+                }
+                catch (Exception rollbackError)
+                {
+                    throw new AggregateException(commitError, rollbackError);
+                }
+                throw;
+            }
+        }
+
+        ValueTask<IMonitoredItemTransferTransaction>
+            IMonitoredItemTransferCoordinator.PrepareMonitoredItemsTransferAsync(
+                OperationContext destinationContext,
+                OperationContext sourceContext,
+                bool sendInitialValues,
+                IList<IMonitoredItem> monitoredItems,
+                IList<ServiceResult> errors,
+                MonitoredItemTransferOptions? transferOptions,
+                CancellationToken cancellationToken)
+        {
+            return PrepareMonitoredItemsTransferAsync(
+                destinationContext,
+                sourceContext,
+                sendInitialValues,
+                monitoredItems,
+                errors,
+                transferOptions,
+                cancellationToken);
+        }
+
+        private async ValueTask<IMonitoredItemTransferTransaction>
+            PrepareMonitoredItemsTransferAsync(
+                OperationContext destinationContext,
+                OperationContext sourceContext,
+                bool sendInitialValues,
+                IList<IMonitoredItem> monitoredItems,
+                IList<ServiceResult> errors,
+                MonitoredItemTransferOptions? transferOptions,
+                CancellationToken cancellationToken)
+        {
+            if (destinationContext == null)
+            {
+                throw new ArgumentNullException(nameof(destinationContext));
+            }
+            if (sourceContext == null)
+            {
+                throw new ArgumentNullException(nameof(sourceContext));
+            }
+            if (monitoredItems == null)
+            {
+                throw new ArgumentNullException(nameof(monitoredItems));
+            }
             if (errors == null)
             {
                 throw new ArgumentNullException(nameof(errors));
             }
 
             var processedItems = new List<bool>(monitoredItems.Count);
+            var originalErrors = new ServiceResult[errors.Count];
+            var resendStates = new bool[monitoredItems.Count];
+            var effectiveTransferOptions = new MonitoredItemTransferOptions
+            {
+                DeferInitialValues = sendInitialValues ||
+                    (transferOptions?.DeferInitialValues ?? false)
+            };
 
             // preset results for unknown nodes
             for (int ii = 0; ii < monitoredItems.Count; ii++)
             {
                 IMonitoredItem? monitoredItem = monitoredItems[ii];
+                originalErrors[ii] = errors[ii];
+                resendStates[ii] = monitoredItem?.IsResendData ?? false;
                 ServiceResult? retirementError = GetRetirementError(monitoredItem);
                 bool isDetached = monitoredItem is IDetachableMonitoredItem
                 {
@@ -5462,31 +5548,257 @@ namespace Opc.Ua.Server
                     (isDetached
                         ? ServiceResult.Good
                         : new ServiceResult(StatusCodes.BadMonitoredItemIdInvalid));
-                if (retirementError is null &&
-                    isDetached &&
-                    sendInitialValues &&
-                    monitoredItem is not null)
+            }
+
+            var participants = new List<MonitoredItemTransferParticipant>();
+            List<(IAsyncNodeManager Owner, List<int> Indices)>? owners =
+                GroupDataMonitoredItemsByOwner(
+                    monitoredItems,
+                    index => processedItems[index]);
+            if (owners is not null)
+            {
+                foreach ((IAsyncNodeManager owner, List<int> indices) in owners)
                 {
-                    ((IDetachableMonitoredItem)monitoredItem).QueueNodeIdUnknown();
+                    // Present only this owner's items as unprocessed.
+                    bool[] ownedItems = new bool[monitoredItems.Count];
+                    for (int ii = 0; ii < ownedItems.Length; ii++)
+                    {
+                        ownedItems[ii] = true;
+                    }
+                    foreach (int ii in indices)
+                    {
+                        ownedItems[ii] = false;
+                    }
+
+                    try
+                    {
+                        using (MonitoredItemTransferExecution.BeginDeferredInitialValues())
+                        {
+                            await owner.TransferMonitoredItemsAsync(
+                                    destinationContext,
+                                    sendInitialValues,
+                                    monitoredItems,
+                                    ownedItems,
+                                    errors,
+                                    effectiveTransferOptions,
+                                    cancellationToken)
+                                .ConfigureAwait(false);
+                        }
+                    }
+                    catch (Exception transferError)
+                    {
+                        var failedTransaction = new MonitoredItemTransferTransaction(
+                            sourceContext,
+                            sendInitialValues,
+                            monitoredItems,
+                            errors,
+                            originalErrors,
+                            resendStates,
+                            participants,
+                            effectiveTransferOptions);
+                        try
+                        {
+                            await failedTransaction.RollbackAsync(CancellationToken.None)
+                                .ConfigureAwait(false);
+                        }
+                        catch (Exception rollbackError)
+                        {
+                            throw new AggregateException(transferError, rollbackError);
+                        }
+                        throw;
+                    }
+
+                    participants.Add(
+                        new MonitoredItemTransferParticipant(
+                            owner,
+                            [.. indices]));
+
+                    // Merge the owner's processed marks back into the shared list.
+                    foreach (int ii in indices)
+                    {
+                        if (ownedItems[ii])
+                        {
+                            processedItems[ii] = true;
+                        }
+                    }
                 }
             }
 
-            // call each owning node manager. Data monitored items are dispatched to their
-            // recorded owning NodeManager (grouped by owner) so items owned by a
-            // shadow-retired generation are transferred by that generation.
-            await DispatchDataMonitoredItemsToOwningNodeManagersAsync(
-                    monitoredItems,
-                    processedItems,
-                    (owner, ownedItems) => owner.TransferMonitoredItemsAsync(
-                        context,
-                        sendInitialValues,
-                        monitoredItems,
-                        ownedItems,
-                        errors,
-                        cancellationToken),
-                    notifyRetiredGenerationDrain: false,
-                    cancellationToken)
-                .ConfigureAwait(false);
+            return new MonitoredItemTransferTransaction(
+                sourceContext,
+                sendInitialValues,
+                monitoredItems,
+                errors,
+                originalErrors,
+                resendStates,
+                participants,
+                effectiveTransferOptions);
+        }
+
+        private static OperationContext CreateTransferSourceContext(
+            OperationContext destinationContext,
+            IList<IMonitoredItem> monitoredItems)
+        {
+            if (destinationContext == null)
+            {
+                throw new ArgumentNullException(nameof(destinationContext));
+            }
+            if (monitoredItems == null)
+            {
+                throw new ArgumentNullException(nameof(monitoredItems));
+            }
+
+            ISession? sourceSession = null;
+            for (int ii = 0; ii < monitoredItems.Count; ii++)
+            {
+                sourceSession = monitoredItems[ii]?.Session;
+                if (sourceSession != null)
+                {
+                    break;
+                }
+            }
+
+            return sourceSession != null
+                ? new OperationContext(sourceSession, destinationContext.DiagnosticsMask)
+                : new OperationContext(
+                    new RequestHeader(),
+                    null!,
+                    RequestType.Unknown,
+                    RequestLifetime.None);
+        }
+
+        private sealed class MonitoredItemTransferParticipant
+        {
+            public MonitoredItemTransferParticipant(
+                IAsyncNodeManager nodeManager,
+                int[] processedItems)
+            {
+                NodeManager = nodeManager;
+                ProcessedItems = processedItems;
+            }
+
+            public IAsyncNodeManager NodeManager { get; }
+
+            public int[] ProcessedItems { get; }
+        }
+
+        private sealed class MonitoredItemTransferTransaction :
+            IMonitoredItemTransferTransaction
+        {
+            public MonitoredItemTransferTransaction(
+                OperationContext sourceContext,
+                bool sendInitialValues,
+                IList<IMonitoredItem> monitoredItems,
+                IList<ServiceResult> errors,
+                ServiceResult[] originalErrors,
+                bool[] resendStates,
+                List<MonitoredItemTransferParticipant> participants,
+                MonitoredItemTransferOptions transferOptions)
+            {
+                m_sourceContext = sourceContext;
+                m_sendInitialValues = sendInitialValues;
+                m_monitoredItems = monitoredItems;
+                m_errors = errors;
+                m_originalErrors = originalErrors;
+                m_resendStates = resendStates;
+                m_participants = participants;
+                m_transferOptions = transferOptions;
+            }
+
+            public void Commit()
+            {
+                if (Interlocked.CompareExchange(ref m_state, 1, 0) != 0)
+                {
+                    throw new InvalidOperationException("The monitored-item transfer is no longer pending.");
+                }
+
+                if (!m_sendInitialValues)
+                {
+                    return;
+                }
+
+                for (int ii = 0; ii < m_monitoredItems.Count; ii++)
+                {
+                    IMonitoredItem? monitoredItem = m_monitoredItems[ii];
+                    if (monitoredItem == null || ServiceResult.IsBad(m_errors[ii]))
+                    {
+                        continue;
+                    }
+                    if (monitoredItem is IDetachableMonitoredItem
+                        {
+                            IsDetached: true
+                        } detachedMonitoredItem)
+                    {
+                        detachedMonitoredItem.QueueNodeIdUnknown();
+                    }
+                    else
+                    {
+                        monitoredItem.SetupResendDataTrigger();
+                    }
+                }
+            }
+
+            public async ValueTask RollbackAsync(CancellationToken cancellationToken)
+            {
+                int previousState = Interlocked.Exchange(ref m_state, 2);
+                if (previousState == 2)
+                {
+                    return;
+                }
+
+                var rollbackErrors = new List<Exception>();
+                for (int ii = m_participants.Count - 1; ii >= 0; ii--)
+                {
+                    MonitoredItemTransferParticipant participant = m_participants[ii];
+                    var processedItems = Enumerable.Repeat(true, m_monitoredItems.Count).ToList();
+                    for (int jj = 0; jj < participant.ProcessedItems.Length; jj++)
+                    {
+                        processedItems[participant.ProcessedItems[jj]] = false;
+                    }
+                    var errors = Enumerable.Repeat(ServiceResult.Good, m_monitoredItems.Count).ToList();
+                    try
+                    {
+                        await participant.NodeManager.RollbackMonitoredItemsTransferAsync(
+                                m_sourceContext,
+                                m_monitoredItems,
+                                processedItems,
+                                errors,
+                                m_transferOptions,
+                                cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                    catch (Exception error)
+                    {
+                        rollbackErrors.Add(error);
+                    }
+                }
+
+                for (int ii = 0; ii < m_monitoredItems.Count; ii++)
+                {
+                    if (m_monitoredItems[ii] is IMonitoredItemTransferState transferState)
+                    {
+                        transferState.RestoreResendDataTrigger(m_resendStates[ii]);
+                    }
+                    m_errors[ii] = m_originalErrors[ii];
+                }
+
+                if (rollbackErrors.Count > 0)
+                {
+                    throw new AggregateException(
+                        "One or more monitored-item owners could not roll back a failed transfer.",
+                        rollbackErrors);
+                }
+            }
+
+            private readonly OperationContext m_sourceContext;
+            private readonly bool m_sendInitialValues;
+            private readonly IList<IMonitoredItem> m_monitoredItems;
+            private readonly IList<ServiceResult> m_errors;
+            private readonly ServiceResult[] m_originalErrors;
+            private readonly bool[] m_resendStates;
+            private readonly List<MonitoredItemTransferParticipant> m_participants;
+            private readonly MonitoredItemTransferOptions m_transferOptions;
+            private int m_state;
         }
 
         /// <summary>
