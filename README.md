@@ -34,7 +34,8 @@ across industrial control, manufacturing, energy, and IoT systems.
 - **Companion-spec coverage** — Part 9 (Alarms & Conditions), Part 11
   (Historical Access), Part 13 (Aggregates), Part 16 (State Machines),
   Part 17 (Alias Names), Part 18 (Role Management), Part 20 (File
-  Transfer), Part 100 (Device Integration), OPC 10100-1 (WoT
+  Transfer), Part 100 (Device Integration), OPC-10030 (ISA-95 Common
+  Model) with OPC-10031-4 Job Control V1/V2, OPC 10100-1 (WoT
   Connectivity).
 - **Modern developer surface** — first-class `Microsoft.Extensions.DependencyInjection`
   hosting (`services.AddOpcUa()`), fluent server + client builders,
@@ -99,6 +100,10 @@ Each sample has its own `README.md` with build and run instructions.
 - [Pump Device Integration Server](samples/PumpDeviceIntegrationServer/README.md) —
   minimal Device Integration (Part 100) server using
   `Opc.Ua.Di.Server`'s fluent builder.
+- [Minimal ISA-95 Server](samples/MinimalIsa95Server/README.md) —
+  minimal server hosting the OPC-10030 ISA-95 Common Model together
+  with OPC-10031-4 Job Control V1 and V2, using the typed common-model
+  builder and the in-memory Job Control provider.
 
 More sample projects are maintained in the companion
 [OPC UA .NET Samples](https://github.com/OPCFoundation/UA-.NETStandard-Samples)

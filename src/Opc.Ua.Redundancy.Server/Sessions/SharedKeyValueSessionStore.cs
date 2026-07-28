@@ -28,10 +28,12 @@
  * ======================================================================*/
 
 using System;
+using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Redundancy.Server
 {
@@ -62,10 +64,20 @@ namespace Opc.Ua.Redundancy.Server
             ISharedKeyValueStore store,
             IServiceMessageContext context,
             IRecordProtector? protector = null)
+            : this(store, context, protector, null)
+        {
+        }
+
+        internal SharedKeyValueSessionStore(
+            ISharedKeyValueStore store,
+            IServiceMessageContext context,
+            IRecordProtector? protector,
+            ILogger<SharedKeyValueSessionStore>? logger)
         {
             m_store = store ?? throw new ArgumentNullException(nameof(store));
             m_context = context ?? throw new ArgumentNullException(nameof(context));
             m_protector = protector ?? NullRecordProtector.Instance;
+            m_logger = logger ?? m_context.Telemetry.CreateLogger<SharedKeyValueSessionStore>();
         }
 
         /// <inheritdoc/>
@@ -90,12 +102,21 @@ namespace Opc.Ua.Redundancy.Server
             NodeId authenticationToken,
             CancellationToken ct = default)
         {
+            string key = KeyFor(authenticationToken);
             (bool found, ByteString value) = await m_store
-                .TryGetAsync(KeyFor(authenticationToken), ct)
+                .TryGetAsync(key, ct)
                 .ConfigureAwait(false);
             if (found && m_protector.TryUnprotect(value, out ByteString payload))
             {
-                return Decode(payload);
+                try
+                {
+                    return Decode(payload);
+                }
+                catch (Exception ex) when (ex is ServiceResultException or EndOfStreamException)
+                {
+                    m_logger.FailedToDecodeSharedSessionEntry(key, ex);
+                    return null;
+                }
             }
             return null;
         }
@@ -145,6 +166,11 @@ namespace Opc.Ua.Redundancy.Server
             encoder.WriteDouble(null, entry.SessionTimeout);
             encoder.WriteEncodeable(null, entry.ClientDescription ?? new ApplicationDescription());
             encoder.WriteByteString(null, entry.SecretMaterial);
+            encoder.WriteUInt32(null, entry.SecurityStateVersion);
+            encoder.WriteByteString(null, entry.OriginalClientChannelCertificate);
+            encoder.WriteString(null, entry.ClientUserId);
+            encoder.WriteInt32(null, (int)entry.ClientUserTokenType);
+            encoder.WriteBoolean(null, entry.HasActivatedUserIdentity);
             byte[]? buffer = encoder.CloseAndReturnBuffer();
             return buffer is null ? ByteString.Empty : new ByteString(buffer);
         }
@@ -152,7 +178,7 @@ namespace Opc.Ua.Redundancy.Server
         private SharedSessionEntry Decode(ByteString payload)
         {
             using var decoder = new BinaryDecoder(payload.ToArray(), m_context);
-            return new SharedSessionEntry
+            var entry = new SharedSessionEntry
             {
                 SessionId = decoder.ReadNodeId(null),
                 AuthenticationToken = decoder.ReadNodeId(null),
@@ -169,11 +195,74 @@ namespace Opc.Ua.Redundancy.Server
                 ClientDescription = decoder.ReadEncodeable<ApplicationDescription>(null),
                 SecretMaterial = decoder.ReadByteString(null)
             };
+
+            if (decoder.Position == payload.Length)
+            {
+                return entry;
+            }
+
+            uint securityStateVersion = decoder.ReadUInt32(null);
+            if (securityStateVersion == 1)
+            {
+                SharedSessionEntry versionOne = entry with
+                {
+                    SecurityStateVersion = securityStateVersion,
+                    OriginalClientChannelCertificate = decoder.ReadByteString(null),
+                    ClientUserId = decoder.ReadString(null)
+                };
+                EnsureFullyDecoded(decoder, payload);
+                return versionOne;
+            }
+
+            if (securityStateVersion != SharedSessionEntry.CurrentSecurityStateVersion)
+            {
+                return entry with
+                {
+                    SecurityStateVersion = securityStateVersion
+                };
+            }
+
+            SharedSessionEntry decoded = entry with
+            {
+                SecurityStateVersion = securityStateVersion,
+                OriginalClientChannelCertificate = decoder.ReadByteString(null),
+                ClientUserId = decoder.ReadString(null),
+                ClientUserTokenType = (UserTokenType)decoder.ReadInt32(null),
+                HasActivatedUserIdentity = decoder.ReadBoolean(null)
+            };
+
+            EnsureFullyDecoded(decoder, payload);
+            return decoded;
+        }
+
+        private static void EnsureFullyDecoded(BinaryDecoder decoder, ByteString payload)
+        {
+            if (decoder.Position != payload.Length)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Unexpected trailing data in a shared Session entry.");
+            }
         }
 
         private const string Prefix = "session/";
         private readonly ISharedKeyValueStore m_store;
         private readonly IServiceMessageContext m_context;
         private readonly IRecordProtector m_protector;
+        private readonly ILogger<SharedKeyValueSessionStore> m_logger;
+    }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="SharedKeyValueSessionStore"/>.
+    /// </summary>
+    internal static partial class SharedKeyValueSessionStoreLog
+    {
+        [LoggerMessage(EventId = RedundancyServerEventIds.SharedKeyValueSessionStore,
+            Level = LogLevel.Warning,
+            Message = "Failed to decode shared Session entry {Key}; treating it as absent.")]
+        public static partial void FailedToDecodeSharedSessionEntry(
+            this ILogger logger,
+            string key,
+            Exception exception);
     }
 }

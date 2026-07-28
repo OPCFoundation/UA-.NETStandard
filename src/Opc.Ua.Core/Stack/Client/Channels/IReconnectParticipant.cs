@@ -87,13 +87,14 @@ namespace Opc.Ua
 
 #if NETSTANDARD2_1 || NET8_0_OR_GREATER
         /// <summary>
-        /// Invoked fire-and-forget by the manager after the participant returned
+        /// Invoked by the manager after the participant returned
         /// <see cref="ParticipantReconnectResult.RequiresSessionRecreate"/> from
         /// <see cref="OnReconnectAsync"/>.
         /// </summary>
         /// <remarks>
-        /// The participant performs its own session recreation here. The manager does not block
-        /// its transition to <see cref="ChannelState.Ready"/> on this call.
+        /// The participant performs its own session recreation here. The manager
+        /// awaits completion before transitioning the channel to
+        /// <see cref="ChannelState.Ready"/>.
         /// </remarks>
         /// <param name="ct">Cancellation token bound to the manager's shutdown.</param>
         /// <returns>The asynchronous recreation work.</returns>
@@ -112,13 +113,14 @@ namespace Opc.Ua
     public interface IRecreateAwareReconnectParticipant : IReconnectParticipant
     {
         /// <summary>
-        /// Invoked fire-and-forget by the manager after the participant returned
+        /// Invoked by the manager after the participant returned
         /// <see cref="ParticipantReconnectResult.RequiresSessionRecreate"/> from
         /// <see cref="IReconnectParticipant.OnReconnectAsync"/>.
         /// </summary>
         /// <remarks>
-        /// The participant performs its own session recreation here. The manager does not block
-        /// its transition to <see cref="ChannelState.Ready"/> on this call.
+        /// The participant performs its own session recreation here. The manager
+        /// awaits completion before transitioning the channel to
+        /// <see cref="ChannelState.Ready"/>.
         /// </remarks>
         /// <param name="ct">Cancellation token bound to the manager's shutdown.</param>
         /// <returns>The asynchronous recreation work.</returns>

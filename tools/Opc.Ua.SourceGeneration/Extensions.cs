@@ -33,6 +33,7 @@ using System.Collections.Immutable;
 using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Diagnostics;
+using Microsoft.CodeAnalysis.Text;
 
 namespace Opc.Ua.SourceGeneration
 {
@@ -55,7 +56,8 @@ namespace Opc.Ua.SourceGeneration
                 Prefix = options.GetString(nameof(NodesetFileOptions.Prefix), false),
                 Version = options.GetString(nameof(NodesetFileOptions.Version), false),
                 Name = options.GetString(nameof(NodesetFileOptions.Name), false),
-                ModelUri = options.GetString(nameof(NodesetFileOptions.ModelUri), false)
+                ModelUri = options.GetString(nameof(NodesetFileOptions.ModelUri), false),
+                IdentifierFile = options.GetString(nameof(NodesetFileOptions.IdentifierFile), false)
             };
         }
 
@@ -64,11 +66,13 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         public static NodesetFileCollection ToNodeSetFileCollection(
             this ImmutableArray<(AdditionalText, NodesetFileOptions)> nodeset2Files,
+            ImmutableArray<AdditionalText> csvFiles,
             IFileSystem fileSystem,
             ITelemetryContext telemetry)
         {
             return new NodesetFileCollection(
                 [.. nodeset2Files.Select(f => (f.Item1.Path, f.Item2))],
+                [.. csvFiles.Select(f => f.Path)],
                 fileSystem,
                 telemetry);
         }
@@ -84,11 +88,47 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <summary>
-        /// Identifer files are csv files
+        /// Identifier files contain at least one legacy identifier CSV row.
         /// </summary>
         public static bool IsIdentifierFile(this AdditionalText text)
         {
-            return text.HasFileExtension("csv");
+            if (!text.HasFileExtension("csv"))
+            {
+                return false;
+            }
+
+            SourceText sourceText = text.GetText();
+            if (sourceText == null)
+            {
+                return false;
+            }
+
+            foreach (TextLine sourceLine in sourceText.Lines)
+            {
+                string line = sourceLine.ToString().TrimStart('\uFEFF').Trim();
+                if (string.IsNullOrEmpty(line) ||
+                    line.StartsWith("#", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                string[] columns = line.Split(',');
+                if (columns.Length < 2)
+                {
+                    continue;
+                }
+
+                string identifier = columns[1].Trim();
+                if (uint.TryParse(identifier, out _) ||
+                    (identifier.Length > 1 &&
+                        identifier.StartsWith("\"", StringComparison.Ordinal) &&
+                        identifier.EndsWith("\"", StringComparison.Ordinal)))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>
