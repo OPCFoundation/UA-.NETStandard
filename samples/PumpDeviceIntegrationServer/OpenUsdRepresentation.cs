@@ -150,7 +150,7 @@ namespace Pumps
                 // with no external asset resolver.
                 UsdAssetDelivery.AttachStageAssets(SystemContext, m_plantStage, ns, servedAssets);
 
-                AssignChildNodeIds(root);
+                SystemContext.AssignInstanceChildNodeIds(root);
                 await AddPredefinedNodeAsync(SystemContext, root, cancellationToken)
                     .ConfigureAwait(false);
 
@@ -224,7 +224,9 @@ namespace Pumps
                 "Linked OpenUSD facility under the Server Object (i=2253).");
         }
 
-        // Call between AssignChildNodeIds(pump) and AddPredefinedNodeAsync(pump).
+        // Call before AddPredefinedNodeAsync(pump), so the binding source
+        // NodeIds captured here are the per-instance ones the generated
+        // CreateOrReplace/AddXxx helpers assigned.
         private void AttachOpenUsdRepresentation(PumpState pump)
         {
             if (m_plantStage == null)
@@ -339,7 +341,7 @@ namespace Pumps
             // prim (arc=Child). This adds <Component> bindings on the pump representation.
             AttachPumpComponents(pump, rep, ns);
 
-            AssignChildNodeIds(rep);
+            SystemContext.AssignInstanceChildNodeIds(rep);
         }
 
         // ECLASS-style IRDI for "volume flow rate" — a portable semantic id a
@@ -381,7 +383,7 @@ namespace Pumps
 
         // Creates a simple Variable child on the pump (used for the 0.2 command
         // setpoint and alarm-active demo signals), assigning a per-instance NodeId
-        // immediately because AssignChildNodeIds(pump) already ran.
+        // immediately: the node is hand-built, so no generated helper assigns one.
         private BaseDataVariableState CreatePumpVariable(
             PumpState pump, string name, NodeId dataType, Variant initialValue, bool writable)
         {

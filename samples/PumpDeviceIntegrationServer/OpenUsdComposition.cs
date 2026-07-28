@@ -143,7 +143,7 @@ namespace Pumps
                     assetReference: "@remote-pump.usda@</Pump>",
                     componentServerUri: RemoteServerUri, componentEndpointUrl: RemoteEndpointUrl);
 
-                AssignChildNodeIds(line);
+                SystemContext.AssignInstanceChildNodeIds(line);
                 await AddPredefinedNodeAsync(SystemContext, line, cancellationToken).ConfigureAwait(false);
 
                 // Register the line representation in the discovery registry.
@@ -255,7 +255,7 @@ namespace Pumps
             rep.NodeId = SystemContext.NodeIdFactory.New(SystemContext, rep);
             rep.CreateOrReplaceStage(SystemContext, null!).Value = m_plantStage!.NodeId;
             rep.CreateOrReplacePrimPath(SystemContext, null!).Value = primPath;
-            AssignChildNodeIds(obj);
+            SystemContext.AssignInstanceChildNodeIds(obj);
             return (obj, rep);
         }
 

@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -212,15 +211,17 @@ namespace Pumps
         /// from the DI <c>DeviceSet</c> with <c>Organizes</c>. The instance carries
         /// <c>PumpType</c> as its TypeDefinitionId so clients see the
         /// full OPC 40223 pump surface; the source-generated factory
-        /// materialises mandatory children (Identification) automatically.
+        /// materialises mandatory children (Identification) automatically
+        /// and - because a browse name is supplied - rebases the whole
+        /// subtree onto per-instance NodeIds minted by <see cref="New"/>.
         /// Optional children that the fluent simulation wires
         /// (Operational/Measurements/{analog states}, Events with the
         /// SupervisionProcessFluid + SupervisionPumpOperation subtrees,
         /// Maintenance) are materialised here via the generator-emitted
-        /// <c>AddXxx(context)</c> helpers; each new node gets a
-        /// per-instance NodeId via <see cref="AssignChildNodeIds"/>
-        /// before <c>AddPredefinedNodeAsync</c> recursively registers
-        /// the entire subtree.
+        /// <c>AddXxx(context)</c> helpers, which assign per-instance
+        /// NodeIds to every node they add before
+        /// <c>AddPredefinedNodeAsync</c> recursively registers the
+        /// entire subtree.
         /// </summary>
         private async ValueTask<PumpState> MaterialisePumpInstanceAsync(
             QualifiedName pumpBrowseName,
@@ -250,24 +251,21 @@ namespace Pumps
                     pumpBrowseName);
             }
 
+            // The DeviceSet is passed as the parent so New() can derive the
+            // per-instance NodeIds the factory stamps on the pump and its
+            // mandatory children from the parent chain.
             PumpState pump = SystemContext
-                .CreateInstanceOfPumpType(parent: null!, pumpBrowseName);
+                .CreateInstanceOfPumpType(deviceSet, pumpBrowseName);
 
             pump.ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.Organizes;
             deviceSet.AddChild(pump);
-            pump.NodeId = SystemContext.NodeIdFactory.New(SystemContext, pump);
 
             MaterialisePumpOptionalChildren(pump);
 
-            // Walk the whole pump subtree assigning per-instance NodeIds
-            // BEFORE AddPredefinedNodeAsync uses them as the PredefinedNodes
-            // dictionary key. The generator's AddXxx helpers stamp the
-            // TYPE NodeId on every new child; without this walk every
-            // instance of PumpType would collide on those NodeIds.
-            AssignChildNodeIds(pump);
-
-            // Attach the OpenUSD representation + live bindings after per-instance
-            // NodeIds are assigned and before registration.
+            // Attach the OpenUSD representation + live bindings before
+            // registration. Per-instance NodeIds are already assigned by the
+            // generated CreateOrReplace/AddXxx helpers, so the binding source
+            // NodeIds captured here are the instance ones.
             AttachOpenUsdRepresentation(pump);
 
             await AddPredefinedNodeAsync(SystemContext, pump, cancellationToken)
@@ -288,7 +286,8 @@ namespace Pumps
         /// Materialises the optional PumpType children that the fluent
         /// simulation in <see cref="Configure"/> wires. Each call to a
         /// generator-emitted <c>AddXxx(context)</c> helper creates the
-        /// child and assigns it to the parent's typed property; the
+        /// child, assigns it to the parent's typed property and stamps a
+        /// per-instance NodeId on the new node and its descendants; the
         /// parent.AddChild bookkeeping happens inside the helpers
         /// transparently.
         /// </summary>
@@ -327,25 +326,6 @@ namespace Pumps
             // typed-accessor generator (FB-3 phase 3) ships materialisable
             // leaves for ConditionBasedMaintenance / BreakdownMaintenance.
             pump.AddMaintenance(SystemContext);
-        }
-
-        /// <summary>
-        /// Recursively walks the children of <paramref name="parent"/>
-        /// and assigns per-instance NodeIds via the active
-        /// <see cref="ISystemContext.NodeIdFactory"/>. Required after
-        /// calling generator-emitted <c>AddXxx(context)</c> helpers
-        /// which stamp the TYPE NodeId on every new child.
-        /// </summary>
-        private void AssignChildNodeIds(NodeState parent)
-        {
-            var children = new List<BaseInstanceState>();
-            parent.GetChildren(SystemContext, children);
-            foreach (BaseInstanceState child in children)
-            {
-                child.NodeId = SystemContext.NodeIdFactory.New(
-                    SystemContext, child);
-                AssignChildNodeIds(child);
-            }
         }
 
         /// <summary>

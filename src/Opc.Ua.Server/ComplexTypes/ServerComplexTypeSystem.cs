@@ -115,5 +115,57 @@ namespace Opc.Ua.Server
             }
             return factorySource;
         }
+
+        internal static async ValueTask<IDataTypeDefinitionResolver>
+            LoadComplexTypesAsync(
+                this IServerInternal server,
+                ITelemetryContext telemetry,
+                ServerComplexTypeOptions? options,
+                DataTypeDefinitionRegistry? registry,
+                IAsyncNodeManager additionalNodeManager,
+                CancellationToken cancellationToken = default)
+        {
+            if (server == null)
+            {
+                throw new ArgumentNullException(nameof(server));
+            }
+            if (telemetry == null)
+            {
+                throw new ArgumentNullException(nameof(telemetry));
+            }
+            if (additionalNodeManager == null)
+            {
+                throw new ArgumentNullException(nameof(additionalNodeManager));
+            }
+
+            options ??= new ServerComplexTypeOptions();
+            var resolver = new AddressSpaceComplexTypeResolver(
+                server,
+                additionalNodeManager);
+            var complexTypeSystem = new ComplexTypeSystem(resolver, telemetry)
+            {
+                DisableDataTypeDictionary = true
+            };
+
+            await complexTypeSystem
+                .LoadAsync(
+                    options.OnlyEnumTypes,
+                    options.ThrowOnError,
+                    cancellationToken)
+                .ConfigureAwait(false);
+
+#pragma warning disable UA_NETStandard_1
+            IDataTypeDefinitionResolver factorySource =
+                new EncodeableFactoryDefinitionSource(
+                    server.Factory,
+                    server.NamespaceUris);
+#pragma warning restore UA_NETStandard_1
+            if (registry != null)
+            {
+                return new CompositeDataTypeDefinitionResolver(
+                    [factorySource, registry]);
+            }
+            return factorySource;
+        }
     }
 }

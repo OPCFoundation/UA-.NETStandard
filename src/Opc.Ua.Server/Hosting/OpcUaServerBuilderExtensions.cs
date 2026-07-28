@@ -1298,6 +1298,9 @@ namespace Microsoft.Extensions.DependencyInjection
             services.AddHostedService<OpcUaServerHostedService>();
             services.AddOpcUa().AddApplicationInstance();
             services.TryAddSingleton<IOpcUaServerFactory, DefaultOpcUaServerFactory>();
+            services.TryAddSingleton<HostedNodeManagerLifecycle>();
+            services.TryAddSingleton<INodeManagerLifecycle>(services =>
+                services.GetRequiredService<HostedNodeManagerLifecycle>());
             RegisterFallbackAnonymousAuthenticator(services);
         }
 

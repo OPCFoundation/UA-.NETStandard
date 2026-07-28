@@ -259,7 +259,13 @@ namespace Opc.Ua
 
                     File = MemoryMappedFile.CreateNew(
                         GetMapName(),
-                        32 * 1024 * 1024,
+                        // Reservation, not an allocation: DelayAllocatePages
+                        // commits pages on demand, so this only costs address
+                        // space. It has to clear the largest single generated
+                        // file - the source generator writes whole model
+                        // sources through this file system, and a large
+                        // companion model already exceeds 32 MB.
+                        256 * 1024 * 1024,
                         MemoryMappedFileAccess.ReadWrite,
                         MemoryMappedFileOptions.DelayAllocatePages,
                         HandleInheritability.None);

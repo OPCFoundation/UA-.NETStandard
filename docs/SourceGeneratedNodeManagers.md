@@ -580,7 +580,7 @@ warnings** (~29 MB self-contained EXE).
 
 ## Runtime NodeSet alternative
 
-When you want to host a NodeSet2 document without any source generation — for example a companion-spec XML received from a vendor, or a model that changes more frequently than you rebuild — use [AddRuntimeNodeSet](RuntimeNodeSets.md) instead. The runtime path loads a file or stream at server startup, imports nodes in topological dependency order, and exposes them through the same untyped `INodeManagerBuilder` surface as the `Configure` partial above. No rebuild is needed when the XML content changes; restart the server to pick up new content. See [RuntimeNodeSets.md](RuntimeNodeSets.md) for a side-by-side comparison of the two paths.
+When you want to host a NodeSet2 document without any source generation — for example a companion-spec XML received from a vendor, or a model that changes more frequently than you rebuild — use [AddRuntimeNodeSet](RuntimeNodeSets.md) instead. The runtime path loads a file or stream, imports nodes in topological dependency order, and exposes them through the same untyped `INodeManagerBuilder` surface as the `Configure` partial above. Use `AddRuntimeNodeSet` for startup registration or `INodeManagerLifecycle` to add, reload, and remove a model while the server runs. See [RuntimeNodeSets.md](RuntimeNodeSets.md) for a side-by-side comparison of the two paths.
 
 ## Building richer node managers — the fluent extension surface
 
@@ -958,6 +958,48 @@ input is supplied to the others as a resolution dependency (both
 > NodeSet2's generated types — set the per-file MSBuild metadata on the
 > NodeSet2 entry to control it.
 
+## Materialising instances at runtime — NodeId assignment
+
+Every model gets three families of instance helpers. They differ only in
+**who owns the NodeIds** of the nodes they produce:
+
+| Helper | Produces | NodeIds |
+| --- | --- | --- |
+| `context.CreateInstanceOf<Type>(parent, browseName)` | A full typed subtree | Rebased onto per-instance NodeIds minted by `ISystemContext.NodeIdFactory` whenever a `browseName` is supplied |
+| `owner.Add<Child>(context, nodeId = default)` | One optional child (+ its declared subtree) | Per-instance NodeIds, or the explicit `nodeId` you pass |
+| `owner.CreateOrReplace<Child>(context, replacement)` | One child slot — also the plumbing behind `NodeState.CreateChild` / `ReplaceChild` | Per-instance NodeIds for a child that carries no NodeId yet or still carries the type-level one |
+
+```csharp
+// Two instances of the same type never collide: the factory rebases the
+// mandatory children, and every subsequent child materialisation mints
+// its own NodeId from the parent chain.
+PumpState pump = SystemContext.CreateInstanceOfPumpType(deviceSet, pumpBrowseName);
+deviceSet.AddChild(pump);
+
+pump.AddOperational(SystemContext);                     // optional child
+pump.CreateChild(SystemContext, someBrowseName);        // CreateOrReplace<Child>
+
+await AddPredefinedNodeAsync(SystemContext, pump, cancellationToken);
+```
+
+Notes:
+
+* An explicit `browseName` is what marks a *dynamically materialised
+  instance*. `CreateInstanceOf<Type>()` without one (as used by the
+  generated `NodeStateActivator`s and when replacing a well-known
+  singleton) keeps the declaration NodeIds.
+* A NodeId **you** assigned is never overwritten — pass a fully
+  configured child as the `replacement`, or use `Add<Child>(context,
+  nodeId)`, to keep control.
+* The generated type factories opt out through
+  `assignInstanceNodeIds: false`: they build declaration subtrees whose
+  NodeIds `CreateInstanceOf<Type>` rebases in a single pass afterwards.
+  The same parameter is available to you if you need that behaviour.
+* Assignment only happens when the context carries an
+  `ISystemContext.NodeIdFactory`. `AsyncCustomNodeManager` supplies one
+  that allocates from the manager's namespace; override `New` to derive
+  ids from the parent chain instead.
+
 ## Current limitations
 
 - **Browse-path wildcards** (`*`, `**`) are not supported. Wire each
@@ -989,4 +1031,3 @@ input is supplied to the others as a resolution dependency (both
   DI + Machinery + Pumps), and additionally attaches the OPC
   10000-100 software-update facet to a second declarative pump
   device.
-
