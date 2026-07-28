@@ -580,7 +580,7 @@ warnings** (~29 MB self-contained EXE).
 
 ## Runtime NodeSet alternative
 
-When you want to host a NodeSet2 document without any source generation — for example a companion-spec XML received from a vendor, or a model that changes more frequently than you rebuild — use [AddRuntimeNodeSet](RuntimeNodeSets.md) instead. The runtime path loads a file or stream at server startup, imports nodes in topological dependency order, and exposes them through the same untyped `INodeManagerBuilder` surface as the `Configure` partial above. No rebuild is needed when the XML content changes; restart the server to pick up new content. See [RuntimeNodeSets.md](RuntimeNodeSets.md) for a side-by-side comparison of the two paths.
+When you want to host a NodeSet2 document without any source generation — for example a companion-spec XML received from a vendor, or a model that changes more frequently than you rebuild — use [AddRuntimeNodeSet](RuntimeNodeSets.md) instead. The runtime path loads a file or stream, imports nodes in topological dependency order, and exposes them through the same untyped `INodeManagerBuilder` surface as the `Configure` partial above. Use `AddRuntimeNodeSet` for startup registration or `INodeManagerLifecycle` to add, reload, and remove a model while the server runs. See [RuntimeNodeSets.md](RuntimeNodeSets.md) for a side-by-side comparison of the two paths.
 
 ## Building richer node managers — the fluent extension surface
 
@@ -989,4 +989,3 @@ input is supplied to the others as a resolution dependency (both
   DI + Machinery + Pumps), and additionally attaches the OPC
   10000-100 software-update facet to a second declarative pump
   device.
-

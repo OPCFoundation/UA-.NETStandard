@@ -64,6 +64,7 @@ namespace Opc.Ua.Server
             : base(telemetry)
         {
             TimeProvider = timeProvider ?? TimeProvider.System;
+            NodeManagerLifecycle = new NodeManagerLifecycle(this);
             m_eventLogger = telemetry.CreateLogger(
                 ServerCompatibilityEventIds.CategoryName);
         }
@@ -76,6 +77,15 @@ namespace Opc.Ua.Server
         /// Set to <c>false</c> to opt out.
         /// </summary>
         public bool LoadComplexTypes { get; set; } = true;
+
+        /// <summary>
+        /// Gets the provider used to add, reload, and remove NodeManagers at runtime.
+        /// </summary>
+        public INodeManagerLifecycle NodeManagerLifecycle { get; }
+
+        internal ApplicationConfiguration CurrentConfiguration
+            => Configuration
+                ?? throw new InvalidOperationException("The server has not been configured.");
 
         /// <summary>
         /// The <see cref="TimeProvider"/> used by the server for all
@@ -195,6 +205,8 @@ namespace Opc.Ua.Server
                 m_rateLimiterProvider = null;
 
                 m_certManagerSubscription?.Dispose();
+
+                (NodeManagerLifecycle as IDisposable)?.Dispose();
 
                 m_semaphoreSlim.Dispose();
             }
@@ -472,7 +484,7 @@ namespace Opc.Ua.Server
             ArrayOf<EndpointDescription> serverEndpoints = default;
             uint maxRequestMessageSize = (uint)MessageContext.MaxMessageSize;
 
-            OperationContext context = await ValidateRequestAsync(
+            using OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.CreateSession,
@@ -861,7 +873,7 @@ namespace Opc.Ua.Server
         {
             ByteString serverNonce;
 
-            OperationContext context = await ValidateRequestAsync(
+            using OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.ActivateSession,
@@ -1045,7 +1057,7 @@ namespace Opc.Ua.Server
             bool deleteSubscriptions,
             RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(
+            using OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.CloseSession,
@@ -1095,7 +1107,7 @@ namespace Opc.Ua.Server
             uint requestHandle,
             RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(
+            using OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.Cancel,
@@ -1144,7 +1156,7 @@ namespace Opc.Ua.Server
             ArrayOf<BrowseDescription> nodesToBrowse,
             RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(
+            using OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.Browse,
@@ -1198,7 +1210,7 @@ namespace Opc.Ua.Server
             ArrayOf<ByteString> continuationPoints,
             RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(
+            using OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.BrowseNext,
@@ -1250,7 +1262,7 @@ namespace Opc.Ua.Server
             ArrayOf<AddNodesItem> nodesToAdd,
             RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(
+            using OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.AddNodes,
@@ -1314,7 +1326,7 @@ namespace Opc.Ua.Server
             ArrayOf<DeleteNodesItem> nodesToDelete,
             RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(
+            using OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.DeleteNodes,
@@ -1378,7 +1390,7 @@ namespace Opc.Ua.Server
             ArrayOf<AddReferencesItem> referencesToAdd,
             RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(
+            using OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.AddReferences,
@@ -1442,7 +1454,7 @@ namespace Opc.Ua.Server
             ArrayOf<DeleteReferencesItem> referencesToDelete,
             RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(
+            using OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.DeleteReferences,
@@ -1544,7 +1556,7 @@ namespace Opc.Ua.Server
             ArrayOf<NodeId> nodesToRegister,
             RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(
+            using OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.RegisterNodes,
@@ -1591,7 +1603,7 @@ namespace Opc.Ua.Server
             ArrayOf<NodeId> nodesToUnregister,
             RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(
+            using OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.UnregisterNodes,
@@ -1639,7 +1651,7 @@ namespace Opc.Ua.Server
             ArrayOf<BrowsePath> browsePaths,
             RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(
+            using OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.TranslateBrowsePathsToNodeIds,
@@ -1701,7 +1713,7 @@ namespace Opc.Ua.Server
             ArrayOf<ReadValueId> nodesToRead,
             RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(
+            using OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.Read,
@@ -1758,7 +1770,7 @@ namespace Opc.Ua.Server
             ArrayOf<HistoryReadValueId> nodesToRead,
             RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(
+            using OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.HistoryRead,
@@ -1825,7 +1837,7 @@ namespace Opc.Ua.Server
             ArrayOf<WriteValue> nodesToWrite,
             RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(
+            using OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.Write,
@@ -1874,7 +1886,7 @@ namespace Opc.Ua.Server
             ArrayOf<ExtensionObject> historyUpdateDetails,
             RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(
+            using OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.HistoryUpdate,
@@ -1963,7 +1975,7 @@ namespace Opc.Ua.Server
             byte priority,
             RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(
+            using OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.CreateSubscription,
@@ -2013,7 +2025,7 @@ namespace Opc.Ua.Server
             bool sendInitialValues,
             RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(
+            using OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.TransferSubscriptions,
@@ -2060,7 +2072,7 @@ namespace Opc.Ua.Server
             ArrayOf<uint> subscriptionIds,
             RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(
+            using OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.DeleteSubscriptions,
@@ -2106,7 +2118,7 @@ namespace Opc.Ua.Server
             ArrayOf<SubscriptionAcknowledgement> subscriptionAcknowledgements,
             RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(
+            using OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.Publish,
@@ -2156,7 +2168,7 @@ namespace Opc.Ua.Server
             uint retransmitSequenceNumber,
             RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(
+            using OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.Republish,
@@ -2208,7 +2220,7 @@ namespace Opc.Ua.Server
             byte priority,
             RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(
+            using OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.ModifySubscription,
@@ -2266,7 +2278,7 @@ namespace Opc.Ua.Server
             ArrayOf<uint> subscriptionIds,
             RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(
+            using OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.SetPublishingMode,
@@ -2322,7 +2334,7 @@ namespace Opc.Ua.Server
             ArrayOf<uint> linksToRemove,
             RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(
+            using OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.SetTriggering,
@@ -2392,7 +2404,7 @@ namespace Opc.Ua.Server
             ArrayOf<MonitoredItemCreateRequest> itemsToCreate,
             RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(
+            using OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.CreateMonitoredItems,
@@ -2442,7 +2454,7 @@ namespace Opc.Ua.Server
             ArrayOf<MonitoredItemModifyRequest> itemsToModify,
             RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(
+            using OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.ModifyMonitoredItems,
@@ -2491,7 +2503,7 @@ namespace Opc.Ua.Server
             ArrayOf<uint> monitoredItemIds,
             RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(
+            using OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.DeleteMonitoredItems,
@@ -2540,7 +2552,7 @@ namespace Opc.Ua.Server
             ArrayOf<uint> monitoredItemIds,
             RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(
+            using OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.SetMonitoringMode,
@@ -2593,7 +2605,7 @@ namespace Opc.Ua.Server
             ArrayOf<CallMethodRequest> methodsToCall,
             RequestLifetime requestLifetime)
         {
-            OperationContext context = await ValidateRequestAsync(
+            using OperationContext context = await ValidateRequestAsync(
                 secureChannelContext,
                 requestHeader,
                 RequestType.Call,
@@ -2935,6 +2947,38 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Dispatches an incoming request and marks the calling flow as serving that request.
+        /// <para>
+        /// The mark has to be applied here rather than while the request is being validated. An
+        /// <see cref="AsyncLocal{T}"/> written inside an <c>async</c> method is visible only to
+        /// that method and to the methods it calls, never to the caller that awaited it, so a mark
+        /// applied by <see cref="ValidateRequestAsync"/> would never reach the service handler.
+        /// Applied here it covers the handler and every NodeManager callback beneath it, which is
+        /// what lets the lifecycle API reject a re-entrant call instead of deadlocking on its own
+        /// request.
+        /// </para>
+        /// </summary>
+        /// <param name="request">The request.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        protected override async Task ProcessRequestAsync(
+            IEndpointIncomingRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            // The request manager is published part-way through startup, so a request that
+            // arrives while the server is still starting has nothing to enrol with yet. Such a
+            // request is rejected by request validation instead of being dispatched.
+            RequestManager? requestManager = m_serverInternal?.RequestManager;
+            if (requestManager == null)
+            {
+                await base.ProcessRequestAsync(request, cancellationToken).ConfigureAwait(false);
+                return;
+            }
+
+            using IDisposable dispatchScope = requestManager.EnterServiceDispatchScope();
+            await base.ProcessRequestAsync(request, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// Updates the server state.
         /// </summary>
         /// <param name="state">The state.</param>
@@ -3009,13 +3053,21 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// Verifies that the request header is valid.
+        /// <para>
+        /// This is not virtual, because a subclass that rejected a request after the request had
+        /// been registered would leave it registered forever: the caller never receives the
+        /// context, so nothing ever disposes it, and every NodeManager lifecycle operation would
+        /// then wait for a request that has already failed. Override
+        /// <see cref="OnRequestValidatedAsync"/> instead, which is invoked with the registered
+        /// request and whose failures are cleaned up here.
+        /// </para>
         /// </summary>
         /// <param name="secureChannelContext">The secure channel context.</param>
         /// <param name="requestHeader">The request header.</param>
         /// <param name="requestType">Type of the request.</param>
         /// <param name="requestLifetime">The request lifetime.</param>
         /// <exception cref="ServiceResultException"></exception>
-        protected virtual async ValueTask<OperationContext> ValidateRequestAsync(
+        protected async ValueTask<OperationContext> ValidateRequestAsync(
             SecureChannelContext secureChannelContext,
             [NotNull] RequestHeader? requestHeader,
             RequestType requestType,
@@ -3023,12 +3075,19 @@ namespace Opc.Ua.Server
         {
             base.ValidateRequest(requestHeader);
 
-            if (!ServerInternal.IsRunning)
+            ServerInternalData? serverInternal = m_serverInternal;
+            if (serverInternal == null || !serverInternal.IsRunning)
             {
                 throw new ServiceResultException(StatusCodes.BadServerHalted);
             }
 
-            OperationContext context = await ServerInternal.SessionManager
+            RequestManager requestManager = serverInternal.RequestManager;
+
+            // The validation scope covers the window before the request exists, so a NodeManager
+            // cannot be retired between resolving the Session and starting to execute the request.
+            using IDisposable validationScope = requestManager.EnterValidationScope();
+
+            OperationContext context = await serverInternal.SessionManager
                 .ValidateRequestAsync(requestHeader, secureChannelContext, requestType, requestLifetime).ConfigureAwait(false);
 
             if (m_eventLogger.IsEventLogEnabled())
@@ -3041,11 +3100,34 @@ namespace Opc.Ua.Server
                 m_eventLogger.CompatibilityServerCall(requestTypeString!, context.RequestId);
             }
 
-            // notify the request manager.
-            ServerInternal.RequestManager.RequestReceived(context);
+            // Hand the validated request over to its execution scope. The context owns the scope
+            // from here, so disposing the context completes the request.
+            context.AttachRequestScope(requestManager.EnterRequestScope(context));
+
+            try
+            {
+                await OnRequestValidatedAsync(context).ConfigureAwait(false);
+            }
+            catch
+            {
+                context.Dispose();
+                throw;
+            }
 
             return context;
         }
+
+        /// <summary>
+        /// Called once a request has been validated and registered, so that a subclass can apply
+        /// its own admission rules. Throwing rejects the request and completes it.
+        /// </summary>
+        /// <param name="context">The context of the request that was validated.</param>
+        /// <exception cref="ServiceResultException">The request is rejected.</exception>
+        protected virtual ValueTask OnRequestValidatedAsync(OperationContext context)
+        {
+            return default;
+        }
+
 
         /// <summary>
         /// Validate operation limits.
@@ -3189,7 +3271,8 @@ namespace Opc.Ua.Server
                     throw new ServiceResultException(StatusCodes.BadServerHalted);
                 }
 
-                ServerInternal.RequestManager.RequestCompleted(context);
+                // The request itself is completed by disposing the OperationContext, which owns
+                // the execution scope. This hook remains for derived servers that extend it.
             }
             finally
             {
@@ -3786,6 +3869,18 @@ namespace Opc.Ua.Server
                     await RegisterWithDiscoveryServerAsync(cancellationToken).ConfigureAwait(false);
                 }
 
+                var lifecycle =
+                    NodeManagerLifecycle as NodeManagerLifecycle;
+                IServerInternal? lifecycleServer = m_serverInternal;
+                if (lifecycle is not null &&
+                    lifecycleServer is not null)
+                {
+                    await lifecycle.BeginShutdownAsync(
+                        lifecycleServer,
+                        cancellationToken)
+                        .ConfigureAwait(false);
+                }
+
                 await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
                 try
                 {
@@ -3796,6 +3891,13 @@ namespace Opc.Ua.Server
                         await ServerInternal.SubscriptionManager.ShutdownAsync(cancellationToken).ConfigureAwait(false);
                         ServerInternal.SessionManager.Shutdown();
                         await ServerInternal.NodeManager.ShutdownAsync(cancellationToken).ConfigureAwait(false);
+                        if (lifecycle is not null)
+                        {
+                            await lifecycle.CompleteShutdownAsync(
+                                m_serverInternal,
+                                CancellationToken.None)
+                                .ConfigureAwait(false);
+                        }
                     }
                 }
                 finally
@@ -4417,20 +4519,10 @@ namespace Opc.Ua.Server
             IServerInternal server,
             CancellationToken cancellationToken = default)
         {
-            if (LoadComplexTypes)
-            {
-                // Build stand-in encodeables for custom DataTypes loaded from a
-                // NodeSet at runtime (types already in the factory are skipped)
-                // and expose the primed factory as the schema resolver.
-                IDataTypeDefinitionResolver resolver = await server
-                    .LoadComplexTypesAsync(
-                        server.Telemetry,
-                        ComplexTypeOptions,
-                        ComplexTypeRegistry,
-                        cancellationToken)
-                    .ConfigureAwait(false);
-                ComplexTypeResolverHolder?.SetResolver(resolver);
-            }
+            await RefreshComplexTypesAsync(
+                server,
+                additionalNodeManager: null,
+                cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -4440,6 +4532,36 @@ namespace Opc.Ua.Server
         protected virtual void OnServerStarted(IServerInternal server)
         {
             // may be overridden by the subclass.
+        }
+
+        internal async ValueTask RefreshComplexTypesAsync(
+            IServerInternal server,
+            IAsyncNodeManager? additionalNodeManager = null,
+            CancellationToken cancellationToken = default)
+        {
+            if (LoadComplexTypes)
+            {
+                // Build stand-in encodeables for custom DataTypes loaded from a
+                // NodeSet at runtime (types already in the factory are skipped)
+                // and expose the primed factory as the schema resolver.
+                IDataTypeDefinitionResolver resolver = additionalNodeManager is null
+                    ? await server
+                        .LoadComplexTypesAsync(
+                            server.Telemetry,
+                            ComplexTypeOptions,
+                            ComplexTypeRegistry,
+                            cancellationToken)
+                        .ConfigureAwait(false)
+                    : await server
+                        .LoadComplexTypesAsync(
+                            server.Telemetry,
+                            ComplexTypeOptions,
+                            ComplexTypeRegistry,
+                            additionalNodeManager,
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                ComplexTypeResolverHolder?.SetResolver(resolver);
+            }
         }
 
         /// <inheritdoc/>

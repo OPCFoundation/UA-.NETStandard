@@ -1,4 +1,34 @@
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Threading;
@@ -91,6 +121,190 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        [Category("NodeManagerLifecycle")]
+        public void HasMonitoredItemsThrowsForNullNodeManager()
+        {
+            using Subscription subscription = CreateSubscription();
+
+            ArgumentNullException exception = Assert.Throws<ArgumentNullException>(
+                () => subscription.HasMonitoredItems(null!));
+
+            Assert.That(exception.ParamName, Is.EqualTo("nodeManager"));
+        }
+
+        [Test]
+        [Category("NodeManagerLifecycle")]
+        public void CreateMonitoredItemsRejectsClosingSession()
+        {
+            using ServerInternalData server = CreateServerInternalData();
+            m_sessionMock.SetupGet(session => session.IsClosing).Returns(true);
+            using var subscription = new Subscription(
+                server,
+                m_sessionMock.Object,
+                subscriptionId: 1,
+                publishingInterval: 1000,
+                maxLifetimeCount: 10,
+                maxKeepAliveCount: 5,
+                maxNotificationsPerPublish: 0,
+                priority: 0,
+                publishingEnabled: true,
+                maxMessageCount: 10);
+            var context = new OperationContext(
+                m_sessionMock.Object,
+                DiagnosticsMasks.None);
+
+            ServiceResultException exception =
+                Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await subscription
+                        .CreateMonitoredItemsAsync(
+                            context,
+                            TimestampsToReturn.Both,
+                            [],
+                            CancellationToken.None)
+                        .ConfigureAwait(false));
+
+            Assert.That(
+                exception.StatusCode,
+                Is.EqualTo(StatusCodes.BadSessionClosed));
+        }
+
+        private ServerInternalData CreateServerInternalData()
+        {
+            var configuration = new ApplicationConfiguration
+            {
+                ApplicationUri = "urn:opcfoundation.org:Tests:Subscription",
+                ServerConfiguration = new ServerConfiguration
+                {
+                    BaseAddresses = []
+                }
+            };
+            var server = new ServerInternalData(
+                new ServerProperties(),
+                configuration,
+                ServiceMessageContext.Create(m_telemetry));
+            var masterNodeManager = new Mock<IMasterNodeManager>();
+            masterNodeManager
+                .SetupGet(manager => manager.DiagnosticsNodeManager)
+                .Returns(m_diagnosticsNodeManagerMock.Object);
+            masterNodeManager
+                .SetupGet(manager => manager.ConfigurationNodeManager)
+                .Returns((IConfigurationNodeManager)null);
+            masterNodeManager
+                .SetupGet(manager => manager.CoreNodeManager)
+                .Returns((ICoreNodeManager)null);
+            server.SetNodeManager(masterNodeManager.Object);
+            server.SetMonitoredItemQueueFactory(m_queueFactoryMock.Object);
+            return server;
+        }
+
+        [Test]
+        [Category("NodeManagerLifecycle")]
+        public async Task HasMonitoredItemsReturnsTrueForDifferentAdaptersOverSameSynchronousManagerAsync()
+        {
+            var synchronousNodeManager = new Mock<INodeManager>();
+            var adapterA = new AsyncNodeManagerAdapter(synchronousNodeManager.Object);
+            var adapterB = new AsyncNodeManagerAdapter(synchronousNodeManager.Object);
+            var differentAdapter = new AsyncNodeManagerAdapter(new Mock<INodeManager>().Object);
+            using var queueFactory = new MonitoredItemQueueFactory(m_telemetry);
+            m_serverMock.Setup(s => s.MonitoredItemQueueFactory).Returns(queueFactory);
+
+            using Subscription subscription = CreateSubscription();
+            var itemToMonitor = new ReadValueId
+            {
+                NodeId = new NodeId(1),
+                AttributeId = Attributes.Value
+            };
+            var monitoredItem = new MonitoredItem(
+                m_serverMock.Object,
+                adapterA,
+                new object(),
+                subscription.Id,
+                id: 1,
+                itemToMonitor,
+                DiagnosticsMasks.None,
+                TimestampsToReturn.Both,
+                MonitoringMode.Reporting,
+                clientHandle: 1,
+                originalFilter: null,
+                filterToUse: null,
+                range: null,
+                samplingInterval: 0,
+                queueSize: 1,
+                discardOldest: true,
+                sourceSamplingInterval: 0);
+            var masterNodeManager = new Mock<IMasterNodeManager>();
+            masterNodeManager
+                .Setup(n => n.CreateMonitoredItemsAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<double>(),
+                    It.IsAny<TimestampsToReturn>(),
+                    It.IsAny<ArrayOf<MonitoredItemCreateRequest>>(),
+                    It.IsAny<IList<ServiceResult>>(),
+                    It.IsAny<IList<MonitoringFilterResult>>(),
+                    It.IsAny<IList<IMonitoredItem>>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback<
+                    OperationContext,
+                    uint,
+                    double,
+                    TimestampsToReturn,
+                    ArrayOf<MonitoredItemCreateRequest>,
+                    IList<ServiceResult>,
+                    IList<MonitoringFilterResult>,
+                    IList<IMonitoredItem>,
+                    bool,
+                    CancellationToken>((
+                    _,
+                    _,
+                    _,
+                    _,
+                    _,
+                    errors,
+                    filterResults,
+                    monitoredItems,
+                    _,
+                    _) =>
+                {
+                    errors[0] = ServiceResult.Good;
+                    filterResults[0] = null;
+                    monitoredItems[0] = monitoredItem;
+                })
+                .Returns(default(ValueTask));
+            m_serverMock.Setup(s => s.NodeManager).Returns(masterNodeManager.Object);
+
+            var request = new MonitoredItemCreateRequest
+            {
+                ItemToMonitor = itemToMonitor,
+                MonitoringMode = MonitoringMode.Reporting,
+                RequestedParameters = new MonitoringParameters
+                {
+                    ClientHandle = 1,
+                    SamplingInterval = 0,
+                    QueueSize = 1,
+                    DiscardOldest = true
+                }
+            };
+            var context = new OperationContext(m_sessionMock.Object, DiagnosticsMasks.None);
+
+            CreateMonitoredItemsResponse response = await subscription.CreateMonitoredItemsAsync(
+                context,
+                TimestampsToReturn.Both,
+                [request],
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(adapterA, Is.Not.SameAs(adapterB));
+            Assert.That(adapterA.SyncNodeManager, Is.SameAs(synchronousNodeManager.Object));
+            Assert.That(adapterB.SyncNodeManager, Is.SameAs(synchronousNodeManager.Object));
+            Assert.That(response.Results, Has.Count.EqualTo(1));
+            Assert.That(response.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(subscription.HasMonitoredItems(adapterA), Is.True);
+            Assert.That(subscription.HasMonitoredItems(adapterB), Is.True);
+            Assert.That(subscription.HasMonitoredItems(differentAdapter), Is.False);
+        }
+
+        [Test]
         public void TransferIsRejectedWhenTargetUsesADifferentTokenTypeWithTheSameIdentifier()
         {
             // A user name may be spelled exactly like a certificate subject. The
@@ -131,6 +345,17 @@ namespace Opc.Ua.Server.Tests
             Assert.That(subscription.IsTransferIdentityCompatible(targetSession.Object), Is.True);
         }
 
+        private static SessionDiagnosticsDataType CreateSessionDiagnostics()
+        {
+            return new SessionDiagnosticsDataType
+            {
+                ClientDescription = new ApplicationDescription
+                {
+                    ApplicationUri = "urn:localhost:opcfoundation.org:SubscriptionTests"
+                }
+            };
+        }
+
         private static void SetSessionIdentity(
             Mock<ISession> session,
             IUserIdentityTokenHandler tokenHandler)
@@ -154,6 +379,136 @@ namespace Opc.Ua.Server.Tests
             FieldInfo field = typeof(Subscription).GetField("m_publishTimerExpiry", BindingFlags.NonPublic | BindingFlags.Instance)
                 ?? throw new InvalidOperationException("Field m_publishTimerExpiry not found");
             field.SetValue(subscription, expiryTime);
+        }
+
+        private static T GetPrivateField<T>(
+            object instance,
+            string fieldName)
+        {
+            FieldInfo field = instance.GetType().GetField(
+                fieldName,
+                BindingFlags.Instance | BindingFlags.NonPublic)
+                ?? throw new InvalidOperationException(
+                    $"Field {fieldName} not found.");
+            return (T)(field.GetValue(instance) ??
+                throw new InvalidOperationException(
+                    $"Field {fieldName} is null."));
+        }
+
+        private static void SetPrivateField<T>(
+            object instance,
+            string fieldName,
+            T value)
+        {
+            FieldInfo field = instance.GetType().GetField(
+                fieldName,
+                BindingFlags.Instance | BindingFlags.NonPublic)
+                ?? throw new InvalidOperationException(
+                    $"Field {fieldName} not found.");
+            field.SetValue(instance, value);
+        }
+
+        private static void ExpireOnNextPublishTimer(Subscription subscription)
+        {
+            uint maxLifetimeCount = GetPrivateField<uint>(
+                subscription,
+                "m_maxLifetimeCount");
+            SetPrivateField(
+                subscription,
+                "m_lifetimeCounter",
+                maxLifetimeCount - 1);
+            SetPrivateField(subscription, "m_waitingForPublish", true);
+            SetExpiryTime(
+                subscription,
+                TimeProvider.System.GetTimestampMilliseconds() - 100);
+        }
+
+        private static SessionPublishQueue GetPublishQueue(
+            SubscriptionManager manager,
+            NodeId sessionId)
+        {
+            NodeIdDictionary<SessionPublishQueue> publishQueues =
+                GetPrivateField<NodeIdDictionary<SessionPublishQueue>>(
+                    manager,
+                    "m_publishQueues");
+            return publishQueues[sessionId];
+        }
+
+        private async Task<(
+            SubscriptionManager Manager,
+            Subscription Subscription,
+            OperationContext SourceContext,
+            OperationContext DestinationContext,
+            Mock<ISession> DestinationSession)> CreateTransferSubscriptionAsync()
+        {
+            var configuration = new ApplicationConfiguration
+            {
+                ServerConfiguration = new ServerConfiguration()
+            };
+            var manager = new SubscriptionManager(
+                m_serverMock.Object,
+                configuration);
+            m_serverMock.SetupGet(server => server.SubscriptionManager).Returns(manager);
+
+            var identity = new UserIdentity("transfer-user", new byte[] { 1, 2, 3 });
+            m_sessionMock.SetupGet(session => session.EffectiveIdentity).Returns(identity);
+            m_sessionMock.SetupGet(session => session.Identity).Returns(identity);
+            m_sessionMock.SetupGet(session => session.IdentityToken).Returns(identity.TokenHandler);
+            m_sessionMock.SetupGet(session => session.IsClosing).Returns(false);
+            var destinationSession = new Mock<ISession>();
+            destinationSession.SetupGet(session => session.Id)
+                .Returns(new NodeId(Guid.NewGuid()));
+            destinationSession.SetupGet(session => session.EffectiveIdentity).Returns(identity);
+            destinationSession.SetupGet(session => session.Identity).Returns(identity);
+            destinationSession.SetupGet(session => session.IdentityToken)
+                .Returns(identity.TokenHandler);
+            destinationSession.SetupGet(session => session.DiagnosticsLock)
+                .Returns(new object());
+            destinationSession.SetupGet(session => session.SessionDiagnostics)
+                .Returns(CreateSessionDiagnostics());
+            var sourceContext = new OperationContext(
+                m_sessionMock.Object,
+                DiagnosticsMasks.None);
+            var destinationContext = new OperationContext(
+                destinationSession.Object,
+                DiagnosticsMasks.None);
+
+            CreateSubscriptionResponse created = await manager.CreateSubscriptionAsync(
+                sourceContext,
+                requestedPublishingInterval: 1000,
+                requestedLifetimeCount: 30,
+                requestedMaxKeepAliveCount: 10,
+                maxNotificationsPerPublish: 0,
+                publishingEnabled: true,
+                priority: 0).ConfigureAwait(false);
+            if (!manager.TryGetSubscription(
+                    created.SubscriptionId,
+                    out ISubscription subscription))
+            {
+                manager.Dispose();
+                throw new InvalidOperationException("Created subscription was not registered.");
+            }
+
+            return (
+                manager,
+                (Subscription)subscription,
+                sourceContext,
+                destinationContext,
+                destinationSession);
+        }
+
+        private static async ValueTask DeleteSubscriptionAndSignalAsync(
+            SubscriptionManager manager,
+            uint subscriptionId,
+            TaskCompletionSource<bool> deletionCompleted,
+            CancellationToken cancellationToken)
+        {
+            await manager.DeleteSubscriptionAsync(
+                    null!,
+                    subscriptionId,
+                    cancellationToken)
+                .ConfigureAwait(false);
+            deletionCompleted.TrySetResult(true);
         }
 
         private static void ResetKeepAlive(Subscription subscription)
@@ -630,6 +985,392 @@ namespace Opc.Ua.Server.Tests
             Assert.That(
                 subscription.Diagnostics.MaxNotificationsPerPublish,
                 Is.EqualTo((uint)expectedLimit));
+        }
+
+        [Test]
+        public async Task TransferSerializesWithClosingSourceSessionAsync()
+        {
+            var configuration = new ApplicationConfiguration
+            {
+                ServerConfiguration = new ServerConfiguration()
+            };
+            using var manager = new SubscriptionManager(
+                m_serverMock.Object,
+                configuration);
+            var identity = new UserIdentity("transfer-user", new byte[] { 1, 2, 3 });
+            bool sourceClosing = false;
+            m_sessionMock.SetupGet(session => session.EffectiveIdentity).Returns(identity);
+            m_sessionMock.SetupGet(session => session.Identity).Returns(identity);
+            m_sessionMock.SetupGet(session => session.IdentityToken).Returns(identity.TokenHandler);
+            m_sessionMock.SetupGet(session => session.IsClosing).Returns(() => sourceClosing);
+            var destinationSession = new Mock<ISession>();
+            destinationSession.SetupGet(session => session.Id).Returns(new NodeId(Guid.NewGuid()));
+            destinationSession.SetupGet(session => session.EffectiveIdentity).Returns(identity);
+            destinationSession.SetupGet(session => session.Identity).Returns(identity);
+            destinationSession.SetupGet(session => session.IdentityToken)
+                .Returns(identity.TokenHandler);
+            destinationSession.SetupGet(session => session.DiagnosticsLock).Returns(new object());
+            destinationSession.SetupGet(session => session.SessionDiagnostics)
+                .Returns(CreateSessionDiagnostics());
+            var sourceContext = new OperationContext(
+                m_sessionMock.Object,
+                DiagnosticsMasks.None);
+            var destinationContext = new OperationContext(
+                destinationSession.Object,
+                DiagnosticsMasks.None);
+            CreateSubscriptionResponse created = await manager.CreateSubscriptionAsync(
+                sourceContext,
+                requestedPublishingInterval: 1000,
+                requestedLifetimeCount: 30,
+                requestedMaxKeepAliveCount: 10,
+                maxNotificationsPerPublish: 0,
+                publishingEnabled: true,
+                priority: 0).ConfigureAwait(false);
+            Assert.That(
+                manager.TryGetSubscription(created.SubscriptionId, out ISubscription subscription),
+                Is.True);
+
+            var transferEntered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseTransfer = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            m_nodeManagerMock
+                .Setup(manager => manager.TransferMonitoredItemsAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<IList<IMonitoredItem>>(),
+                    It.IsAny<IList<ServiceResult>>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback(() => transferEntered.TrySetResult(true))
+                .Returns(() => new ValueTask(releaseTransfer.Task));
+            sourceClosing = true;
+
+            Task<TransferSubscriptionsResponse> transferTask = manager
+                .TransferSubscriptionsAsync(
+                    destinationContext,
+                    [created.SubscriptionId],
+                    sendInitialValues: false)
+                .AsTask();
+            Task entered = await Task.WhenAny(
+                transferEntered.Task,
+                Task.Delay(TimeSpan.FromSeconds(5))).ConfigureAwait(false);
+            if (!ReferenceEquals(entered, transferEntered.Task))
+            {
+                releaseTransfer.TrySetResult(true);
+                Assert.Fail("Transfer did not reach the monitored-item barrier.");
+            }
+
+            Task closeTask = manager
+                .SessionClosingAsync(
+                    sourceContext,
+                    m_sessionMock.Object.Id,
+                    deleteSubscriptions: false,
+                    CancellationToken.None)
+                .AsTask();
+            bool closeWaitedForTransfer = !closeTask.IsCompleted;
+            releaseTransfer.TrySetResult(true);
+            TransferSubscriptionsResponse transferred = await transferTask.ConfigureAwait(false);
+            await closeTask.ConfigureAwait(false);
+            var abandonedSubscriptions =
+                GetPrivateField<ConcurrentDictionary<uint, ISubscription>>(
+                    manager,
+                    "m_abandonedSubscriptions");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(closeWaitedForTransfer, Is.True);
+                Assert.That(transferred.Results, Has.Count.EqualTo(1));
+                Assert.That(transferred.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(subscription.Session, Is.SameAs(destinationSession.Object));
+                Assert.That(abandonedSubscriptions, Is.Empty);
+            });
+            Assert.DoesNotThrow(() => subscription.ResendData(destinationContext));
+        }
+
+        [Test]
+        public async Task SourcePublishTimerSnapshotDoesNotExpireTransferredSubscriptionAsync()
+        {
+            var fixture = await CreateTransferSubscriptionAsync().ConfigureAwait(false);
+            using SubscriptionManager manager = fixture.Manager;
+            Subscription subscription = fixture.Subscription;
+            ExpireOnNextPublishTimer(subscription);
+            SessionPublishQueue sourceQueue = GetPublishQueue(
+                manager,
+                fixture.SourceContext.SessionId);
+            var snapshotCaptured = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseSnapshot = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            Task staleTimer = Task.Run(
+                async () =>
+                {
+                    IReadOnlyList<SessionPublishQueue.QueuedSubscription> snapshot =
+                        sourceQueue.CapturePublishTimerSnapshot();
+                    snapshotCaptured.TrySetResult(true);
+                    await releaseSnapshot.Task.ConfigureAwait(false);
+                    sourceQueue.PublishTimerExpired(snapshot);
+                });
+
+            Task captured = await Task.WhenAny(
+                snapshotCaptured.Task,
+                Task.Delay(TimeSpan.FromSeconds(5))).ConfigureAwait(false);
+            if (!ReferenceEquals(captured, snapshotCaptured.Task))
+            {
+                releaseSnapshot.TrySetResult(true);
+                Assert.Fail("Publish timer did not capture the source queue.");
+            }
+
+            TransferSubscriptionsResponse transferred;
+            try
+            {
+                transferred = await manager.TransferSubscriptionsAsync(
+                    fixture.DestinationContext,
+                    [subscription.Id],
+                    sendInitialValues: false).ConfigureAwait(false);
+            }
+            finally
+            {
+                releaseSnapshot.TrySetResult(true);
+            }
+            await staleTimer.ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(transferred.Results, Has.Count.EqualTo(1));
+                Assert.That(transferred.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(
+                    subscription.Session,
+                    Is.SameAs(fixture.DestinationSession.Object));
+                Assert.That(
+                    manager.TryGetSubscription(subscription.Id, out _),
+                    Is.True);
+            });
+            Assert.DoesNotThrow(
+                () => subscription.ResendData(fixture.DestinationContext));
+        }
+
+        [Test]
+        public async Task AbandonedTimerSnapshotDoesNotExpireTransferredSubscriptionAsync()
+        {
+            var fixture = await CreateTransferSubscriptionAsync().ConfigureAwait(false);
+            using SubscriptionManager manager = fixture.Manager;
+            Subscription subscription = fixture.Subscription;
+            m_sessionMock.SetupGet(session => session.IsClosing).Returns(true);
+            await manager.SessionClosingAsync(
+                    fixture.SourceContext,
+                    fixture.SourceContext.SessionId,
+                    deleteSubscriptions: false,
+                    CancellationToken.None)
+                .ConfigureAwait(false);
+            ExpireOnNextPublishTimer(subscription);
+
+            var snapshotCaptured = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseSnapshot = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            Task staleTimer = Task.Run(
+                async () =>
+                {
+                    IReadOnlyList<ISubscription> snapshot =
+                        manager.CaptureAbandonedPublishTimerSnapshot();
+                    snapshotCaptured.TrySetResult(true);
+                    await releaseSnapshot.Task.ConfigureAwait(false);
+                    manager.ProcessAbandonedPublishTimers(snapshot);
+                });
+
+            Task captured = await Task.WhenAny(
+                snapshotCaptured.Task,
+                Task.Delay(TimeSpan.FromSeconds(5))).ConfigureAwait(false);
+            if (!ReferenceEquals(captured, snapshotCaptured.Task))
+            {
+                releaseSnapshot.TrySetResult(true);
+                Assert.Fail("Publish timer did not capture the abandoned subscription.");
+            }
+
+            TransferSubscriptionsResponse transferred;
+            try
+            {
+                transferred = await manager.TransferSubscriptionsAsync(
+                    fixture.DestinationContext,
+                    [subscription.Id],
+                    sendInitialValues: false).ConfigureAwait(false);
+            }
+            finally
+            {
+                releaseSnapshot.TrySetResult(true);
+            }
+            await staleTimer.ConfigureAwait(false);
+            ConcurrentDictionary<uint, ISubscription> abandonedSubscriptions =
+                GetPrivateField<ConcurrentDictionary<uint, ISubscription>>(
+                    manager,
+                    "m_abandonedSubscriptions");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(transferred.Results, Has.Count.EqualTo(1));
+                Assert.That(transferred.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(
+                    subscription.Session,
+                    Is.SameAs(fixture.DestinationSession.Object));
+                Assert.That(abandonedSubscriptions, Is.Empty);
+                Assert.That(
+                    manager.TryGetSubscription(subscription.Id, out _),
+                    Is.True);
+            });
+            Assert.DoesNotThrow(
+                () => subscription.ResendData(fixture.DestinationContext));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CurrentOwnerPublishTimerStillExpiresSubscriptionAsync(
+            bool abandonBeforeExpiration)
+        {
+            var fixture = await CreateTransferSubscriptionAsync().ConfigureAwait(false);
+            using SubscriptionManager manager = fixture.Manager;
+            Subscription subscription = fixture.Subscription;
+            SessionPublishQueue sourceQueue = GetPublishQueue(
+                manager,
+                fixture.SourceContext.SessionId);
+            if (abandonBeforeExpiration)
+            {
+                m_sessionMock.SetupGet(session => session.IsClosing).Returns(true);
+                await manager.SessionClosingAsync(
+                        fixture.SourceContext,
+                        fixture.SourceContext.SessionId,
+                        deleteSubscriptions: false,
+                        CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
+            var deletionCompleted = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            m_serverMock
+                .Setup(server => server.DeleteSubscriptionAsync(
+                    subscription.Id,
+                    It.IsAny<CancellationToken>()))
+                .Returns((uint subscriptionId, CancellationToken cancellationToken) =>
+                    DeleteSubscriptionAndSignalAsync(
+                        manager,
+                        subscriptionId,
+                        deletionCompleted,
+                        cancellationToken));
+            ExpireOnNextPublishTimer(subscription);
+
+            if (abandonBeforeExpiration)
+            {
+                manager.ProcessAbandonedPublishTimers(
+                    manager.CaptureAbandonedPublishTimerSnapshot());
+            }
+            else
+            {
+                sourceQueue.PublishTimerExpired(
+                    sourceQueue.CapturePublishTimerSnapshot());
+            }
+
+            ServiceResultException exception = Assert.Throws<ServiceResultException>(
+                () => subscription.ResendData(fixture.SourceContext));
+            Assert.That(
+                exception.StatusCode,
+                Is.EqualTo(StatusCodes.BadSubscriptionIdInvalid));
+            Task deleted = await Task.WhenAny(
+                deletionCompleted.Task,
+                Task.Delay(TimeSpan.FromSeconds(5))).ConfigureAwait(false);
+            Assert.That(
+                deleted,
+                Is.SameAs(deletionCompleted.Task),
+                "Expired subscription cleanup did not complete.");
+            Assert.That(
+                manager.TryGetSubscription(subscription.Id, out _),
+                Is.False);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task FailedTransferRestoresClaimedExpirationSourceAsync(
+            bool abandonBeforeTransfer)
+        {
+            var fixture = await CreateTransferSubscriptionAsync().ConfigureAwait(false);
+            using SubscriptionManager manager = fixture.Manager;
+            Subscription subscription = fixture.Subscription;
+            SessionPublishQueue sourceQueue = GetPublishQueue(
+                manager,
+                fixture.SourceContext.SessionId);
+            if (abandonBeforeTransfer)
+            {
+                m_sessionMock.SetupGet(session => session.IsClosing).Returns(true);
+                await manager.SessionClosingAsync(
+                        fixture.SourceContext,
+                        fixture.SourceContext.SessionId,
+                        deleteSubscriptions: false,
+                        CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
+            int transferCalls = 0;
+            m_nodeManagerMock
+                .Setup(nodeManager => nodeManager.TransferMonitoredItemsAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<IList<IMonitoredItem>>(),
+                    It.IsAny<IList<ServiceResult>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(
+                    () => Interlocked.Increment(ref transferCalls) == 1
+                        ? new ValueTask(
+                            Task.FromException(
+                                new ServiceResultException(
+                                    StatusCodes.BadUnexpectedError)))
+                        : new ValueTask());
+
+            TransferSubscriptionsResponse failed = await manager
+                .TransferSubscriptionsAsync(
+                    fixture.DestinationContext,
+                    [subscription.Id],
+                    sendInitialValues: false)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(failed.Results, Has.Count.EqualTo(1));
+                Assert.That(
+                    ServiceResult.IsBad(failed.Results[0].StatusCode),
+                    Is.True);
+                if (abandonBeforeTransfer)
+                {
+                    Assert.That(subscription.Session, Is.Null);
+                    ConcurrentDictionary<uint, ISubscription> abandonedSubscriptions =
+                        GetPrivateField<ConcurrentDictionary<uint, ISubscription>>(
+                            manager,
+                            "m_abandonedSubscriptions");
+                    Assert.That(
+                        abandonedSubscriptions.TryGetValue(
+                            subscription.Id,
+                            out ISubscription restoredSubscription),
+                        Is.True);
+                    Assert.That(restoredSubscription, Is.SameAs(subscription));
+                }
+                else
+                {
+                    IReadOnlyList<SessionPublishQueue.QueuedSubscription> restoredSource =
+                        sourceQueue.CapturePublishTimerSnapshot();
+                    Assert.That(subscription.Session, Is.SameAs(m_sessionMock.Object));
+                    Assert.That(restoredSource, Has.Count.EqualTo(1));
+                    Assert.That(
+                        restoredSource[0].Subscription,
+                        Is.SameAs(subscription));
+                }
+            });
+
+            TransferSubscriptionsResponse retried = await manager
+                .TransferSubscriptionsAsync(
+                    fixture.DestinationContext,
+                    [subscription.Id],
+                    sendInitialValues: false)
+                .ConfigureAwait(false);
+
+            Assert.That(retried.Results, Has.Count.EqualTo(1));
+            Assert.That(retried.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.DoesNotThrow(
+                () => subscription.ResendData(fixture.DestinationContext));
         }
 
         private async Task RegisterMonitoredItemsAsync(

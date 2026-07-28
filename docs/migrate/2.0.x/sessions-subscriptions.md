@@ -351,6 +351,54 @@ The server-side `ISubscriptionStore` definition-persistence methods are asynchro
 
 `ISubscriptionStore` also adds asynchronous per-monitored-item queue-restore hooks - `ValueTask<IDataChangeMonitoredItemQueue?> RestoreDataChangeMonitoredItemQueueAsync(uint, CancellationToken)` and `ValueTask<IEventMonitoredItemQueue?> RestoreEventMonitoredItemQueueAsync(uint, CancellationToken)` - so a networked store can re-hydrate a monitored-item queue without blocking. The master node manager pre-fetches these queues asynchronously at the start of subscription restore and hands the pre-hydrated queue to the (still synchronous) `MonitoredItem` constructor via new runtime-only `IStoredMonitoredItem.RestoredDataChangeQueue`/`RestoredEventQueue` properties. Custom `ISubscriptionStore` implementations must add the two async members; a store that keeps queues locally can simply delegate to the existing synchronous `RestoreDataChangeMonitoredItemQueue`/`RestoreEventMonitoredItemQueue`, which remain as the fallback used when no pre-hydrated queue is supplied. Custom `IStoredMonitoredItem` implementations must add the two new properties (the built-in `StoredMonitoredItem` already does). The high-availability `SharedKeyValueMonitoredItemQueueFactory` uses these hooks to restore mirrored queue contents on failover (see [High Availability](../../HighAvailability.md)).
 
+### Request completion is owned by `OperationContext`
+
+**Source-breaking for custom servers.** `OperationContext` is now `IDisposable` and owns the scope
+that tracks the request while it executes. Service handlers obtain it with
+`using OperationContext context = await ValidateRequestAsync(...)`, and disposing it reports the
+request as completed. `RequestManager.RequestCompleted(OperationContext)` is `[Obsolete]`: a context
+that is disposed completes its own request, and completing it twice is a no-op. Code that creates an
+`OperationContext` directly must dispose it; leaving one undisposed keeps the request registered and
+blocks NodeManager lifecycle operations until they time out.
+
+`StandardServer.ValidateRequestAsync` is no longer `virtual`. A subclass that rejected a request
+after calling `base` left it registered forever, because the caller never received the context and
+nothing disposed it. Override `protected virtual ValueTask OnRequestValidatedAsync(OperationContext)`
+instead; throwing from it rejects the request and completes it.
+
+### `Opc.Ua.Server.ISession`: `IsClosing` and `InvalidateContinuationPoints`
+
+**Source-breaking for custom implementations.** This is the **server-side** `Opc.Ua.Server.ISession`,
+implemented by the server's `Session` — not the client-side `Opc.Ua.Client.ISession` discussed above.
+It gains `bool IsClosing` and `void InvalidateContinuationPoints(IAsyncNodeManager)`.
+
+`IsClosing` reports that the Session is being torn down, so work that would create new state for it
+is rejected instead of started. It is one way: a Session that started closing never serves new work
+again, even if the close itself fails. `InvalidateContinuationPoints` drops the saved Browse and
+history continuation points that would otherwise keep a retired NodeManager reachable.
+
+Custom implementations must add both. Returning `false` from `IsClosing` and doing nothing in
+`InvalidateContinuationPoints` preserves the previous behaviour; the built-in server `Session`
+already implements them.
+
+### `Opc.Ua.Server.ISubscription.SessionClosed(ISession)`
+
+**Source-breaking for custom implementations.** This is the **server-side**
+`Opc.Ua.Server.ISubscription` — not the client-side `Opc.Ua.Client.Subscriptions.ISubscription`
+introduced by the V2 subscription shape above. It gains
+`bool SessionClosed(Opc.Ua.Server.ISession closingSession)`, and the parameterless `SessionClosed()`
+is `[Obsolete]`.
+
+A subscription can be transferred to another session while the old one is closing, so clearing the
+owner unconditionally would strip a subscription that has already moved on. The new overload takes
+the closing session, releases the subscription only when that session still owns it, and reports
+whether it did. Deciding ownership inside the subscription also makes the check atomic with the
+release, which a caller comparing `Session` beforehand cannot be.
+
+Custom implementations must add the overload; comparing the argument against the current owner and
+delegating to the existing `SessionClosed()` preserves the previous behaviour. The built-in server
+`Subscription` already implements it.
+
 ### PubSub
 
 **Not source-breaking.** No public top-level types in `Opc.Ua.PubSub` were removed or renamed in 2.0. Changes are limited to internal modernization, AOT preparation, and diagnostics improvements. `Newtonsoft.Json` remains a direct `<PackageReference>` of `src/Opc.Ua.PubSub/Opc.Ua.PubSub.csproj`, so PubSub consumers keep receiving it transitively (see [Newtonsoft.Json - what really changed](#newtonsoftjson---what-really-changed)).
