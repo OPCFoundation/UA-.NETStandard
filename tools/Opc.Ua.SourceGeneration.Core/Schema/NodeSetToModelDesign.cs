@@ -2050,20 +2050,11 @@ namespace Opc.Ua.Schema.Model
         /// </summary>
         private XmlDecoder CreateDecoder(System.Xml.XmlElement source, string sourceNodeSetUri = null)
         {
-            // Reuse a single message context whose factory knows the standard
-            // OPC UA encodeable types. Without them, structured NodeSet2 values
-            // such as method Argument lists (InputArguments/OutputArguments)
-            // cannot be decoded and the generated typed method state would lose
-            // its arguments and result fields.
-            if (m_decoderContext == null)
-            {
-                m_decoderContext = ServiceMessageContext.CreateEmpty(m_telemetry);
-                m_decoderContext.NamespaceUris = m_settings.NamespaceUris;
-                m_decoderContext.ServerUris = m_serverUris;
-                m_decoderContext.Factory.Builder.AddEncodeableTypes(typeof(Argument).Assembly).Commit();
-            }
+            var messageContext = new ServiceMessageContext(m_telemetry, s_valueDecodingFactory);
+            messageContext.NamespaceUris = m_settings.NamespaceUris;
+            messageContext.ServerUris = m_serverUris;
 
-            var decoder = new XmlDecoder((XmlElement)source, m_decoderContext);
+            var decoder = new XmlDecoder((XmlElement)source, messageContext);
 
             var namespaceUris = new NamespaceTable();
 
@@ -2096,6 +2087,32 @@ namespace Opc.Ua.Schema.Model
             decoder.SetMappingTables(namespaceUris, serverUris);
 
             return decoder;
+        }
+
+        /// <summary>
+        /// Builds the factory used to decode Variable values and Method arguments out of a NodeSet2.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <see cref="ServiceMessageContext.CreateEmpty(ITelemetryContext)"/> hands back a factory with
+        /// <b>no</b> registered types, which silently loses every ExtensionObject in the NodeSet — most
+        /// visibly a Method's <c>InputArguments</c> / <c>OutputArguments</c>, which are encoded as a
+        /// list of <see cref="Argument"/>. That produced argument-less MethodStates and ObjectType
+        /// proxies for every NodeSet2-sourced model.
+        /// </para>
+        /// <para>
+        /// Rather than hand-picking the types we happen to know about, every encodeable type exported
+        /// from the assembly that defines the OPC UA built-ins is registered, so a NodeSet carrying any
+        /// other standard structure decodes as well. The full set of known types lives in
+        /// <c>Opc.Ua.Core.Types</c>, which the generator deliberately does not reference; a model that
+        /// needs a type from there declares it in its own NodeSet and the generator emits it.
+        /// </para>
+        /// </remarks>
+        private static IEncodeableFactory CreateValueDecodingFactory()
+        {
+            IEncodeableFactory factory = ServiceMessageContext.CreateEmpty(null).Factory;
+            factory.AddEncodeableTypes(typeof(Argument).Assembly);
+            return factory;
         }
 
         private static AccessLevel ImportAccessLevel(uint input)
@@ -2525,6 +2542,15 @@ namespace Opc.Ua.Schema.Model
             "string"
         ];
 
+        /// <summary>
+        /// Encodeable factory used to decode NodeSet2 <c>Value</c> elements. A NodeSet2 encodes a
+        /// Method's <c>InputArguments</c>/<c>OutputArguments</c> Property as a list of
+        /// <see cref="Argument"/> ExtensionObjects, so the decoder must be able to resolve that
+        /// encoding id; an empty factory silently yields zero arguments and every generated method
+        /// wrapper (NodeState handler and ObjectType proxy) would lose its parameters.
+        /// </summary>
+        private static readonly IEncodeableFactory s_valueDecodingFactory = CreateValueDecodingFactory();
+
         private readonly NodeSetReaderSettings m_settings;
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
@@ -2534,6 +2560,5 @@ namespace Opc.Ua.Schema.Model
         private readonly Dictionary<string, NodeId> m_aliases = [];
         private readonly Dictionary<NodeId, UANode> m_index;
         private readonly Dictionary<string, XmlQualifiedName> m_symbolicIds;
-        private ServiceMessageContext m_decoderContext;
     }
 }
