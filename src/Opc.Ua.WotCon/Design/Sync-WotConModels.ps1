@@ -5,11 +5,11 @@
     NodeSet2 model artifacts against the authoring draft repository.
 
 .DESCRIPTION
-    The Opc.Ua.WotCon model assembly source-generates two NodeSet2 models
+    The Opc.Ua.WotCon model assembly source-generates the WoT Connectivity
+    NodeSet2 model and consumes the shared xRegistry NodeSet2 model, both
     copied ("pinned") from the OPC UA drafts authoring repository:
 
-        core-specs/xregistry/Opc.Ua.XRegistry.NodeSet2.xml   -> Design/Opc.Ua.XRegistry.NodeSet2.xml
-        core-specs/xregistry/Opc.Ua.XRegistry.NodeIds.csv    -> Design/Opc.Ua.XRegistry.NodeSet2.csv
+        core-specs/xregistry/Opc.Ua.XRegistry.NodeSet2.xml    -> ../../Opc.Ua.XRegistry/Opc.Ua.XRegistry.NodeSet2.xml
         wot-specs/WoT-Connectivity/Opc.Ua.WoTCon.NodeSet2.xml -> Design/Opc.Ua.WoTCon.NodeSet2.xml
         wot-specs/WoT-Connectivity/Opc.Ua.WoTCon.NodeIds.csv  -> Design/Opc.Ua.WoTCon.NodeSet2.csv
 
@@ -66,12 +66,11 @@ if (-not $DraftRepo) {
     $DraftRepo = Join-Path (Split-Path $repoRoot -Parent) 'opcua-drafts2'
 }
 
-# Mapping of draft-repo source -> pinned Design destination file name.
+# Mapping of draft-repo source -> pinned destination file.
 $map = @(
-    @{ Source = 'core-specs/xregistry/Opc.Ua.XRegistry.NodeSet2.xml';        Dest = 'Opc.Ua.XRegistry.NodeSet2.xml' }
-    @{ Source = 'core-specs/xregistry/Opc.Ua.XRegistry.NodeIds.csv';         Dest = 'Opc.Ua.XRegistry.NodeSet2.csv' }
-    @{ Source = 'wot-specs/WoT-Connectivity/Opc.Ua.WoTCon.NodeSet2.xml';     Dest = 'Opc.Ua.WoTCon.NodeSet2.xml' }
-    @{ Source = 'wot-specs/WoT-Connectivity/Opc.Ua.WoTCon.NodeIds.csv';      Dest = 'Opc.Ua.WoTCon.NodeSet2.csv' }
+    @{ Source = 'core-specs/xregistry/Opc.Ua.XRegistry.NodeSet2.xml';        Dest = '..\..\Opc.Ua.XRegistry\Opc.Ua.XRegistry.NodeSet2.xml'; Label = 'Opc.Ua.XRegistry.NodeSet2.xml' }
+    @{ Source = 'wot-specs/WoT-Connectivity/Opc.Ua.WoTCon.NodeSet2.xml';     Dest = 'Opc.Ua.WoTCon.NodeSet2.xml'; Label = 'Opc.Ua.WoTCon.NodeSet2.xml' }
+    @{ Source = 'wot-specs/WoT-Connectivity/Opc.Ua.WoTCon.NodeIds.csv';      Dest = 'Opc.Ua.WoTCon.NodeSet2.csv'; Label = 'Opc.Ua.WoTCon.NodeSet2.csv' }
 )
 
 function Get-NormalizedHash([string]$path) {
@@ -101,6 +100,7 @@ $missingSource = @()
 foreach ($entry in $map) {
     $src = Join-Path $DraftRepo $entry.Source
     $dst = Join-Path $designDir $entry.Dest
+    $label = $entry.Label
 
     if (-not (Test-Path -LiteralPath $src)) {
         $missingSource += $src
@@ -109,18 +109,18 @@ foreach ($entry in $map) {
 
     if ($doUpdate) {
         Copy-Item -LiteralPath $src -Destination $dst -Force
-        Write-Host "Updated $($entry.Dest)"
+        Write-Host "Updated $label"
         continue
     }
 
     $srcHash = Get-NormalizedHash $src
     $dstHash = Get-NormalizedHash $dst
     if ($srcHash -ne $dstHash) {
-        $drift += $entry.Dest
-        Write-Warning "DRIFT: $($entry.Dest) differs from draft $($entry.Source)"
+        $drift += $label
+        Write-Warning "DRIFT: $label differs from draft $($entry.Source)"
     }
     else {
-        Write-Host "OK:    $($entry.Dest)"
+        Write-Host "OK:    $label"
     }
 }
 
