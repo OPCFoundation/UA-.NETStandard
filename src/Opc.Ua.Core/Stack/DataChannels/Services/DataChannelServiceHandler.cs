@@ -413,11 +413,11 @@ namespace Opc.Ua.Bindings
                 // reason takes both peers to Closed and a Bad one takes
                 // both to Faulted. The StatusCode is the only wire signal
                 // that distinguishes them.
-                channel.QueueReset(reason);
+                channel.Reset(reason);
             }
             else
             {
-                channel.BeginClose();
+                channel.Close();
             }
 
             return new CloseDataChannelResponse();

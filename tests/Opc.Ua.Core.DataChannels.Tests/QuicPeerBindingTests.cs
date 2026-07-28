@@ -147,7 +147,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
 
         private static X509Certificate2 CreateCertificate(
             string subject,
-            string applicationUri = null)
+            string? applicationUri = null)
         {
             ICertificateBuilder builder = CertificateBuilder.Create(subject);
 

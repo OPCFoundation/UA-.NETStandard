@@ -174,7 +174,7 @@ namespace Opc.Ua.Bindings
                 if (manager.TryGetChannel(frame.ChannelId, out DataChannel? faulted) &&
                     faulted != null)
                 {
-                    faulted.QueueReset(error.ToStatusCode());
+                    faulted.Reset(error.ToStatusCode());
                 }
 
                 return false;
@@ -183,6 +183,23 @@ namespace Opc.Ua.Bindings
             manager.HandleFrame(frame);
             return false;
         }
+
+        /// <summary>
+        /// Tracks how much of the SecureChannel SequenceNumber space
+        /// remains under the current SecurityToken. STR frames consume
+        /// SequenceNumbers at the data rate of the channel rather than at
+        /// Service call rate, which is what makes the budget of
+        /// Part 6 errata 5.1.1 necessary at all.
+        /// </summary>
+        public DataChannelSequenceBudget SequenceBudget => m_sequenceBudget;
+
+        /// <summary>
+        /// True when the SequenceNumber space remaining under the current
+        /// token has fallen below the renewal threshold, so the owning
+        /// channel should initiate OpenSecureChannel with
+        /// RenewalRequest ahead of the normal lifetime based renewal.
+        /// </summary>
+        public bool IsSequenceRenewalDue => m_sequenceBudget.ShouldRenew;
 
         /// <summary>
         /// Writes one data channel frame as a STR chunk.
@@ -197,6 +214,17 @@ namespace Opc.Ua.Bindings
                 ?? throw ServiceResultException.Create(
                     StatusCodes.BadSecureChannelClosed,
                     "The SecureChannel has no active token.");
+
+            // Initiating renewal is not sufficient on its own, because a
+            // slow renewal can still be overtaken. A sender stalls its
+            // data channels rather than emitting a chunk that would reuse
+            // a SequenceNumber under the current TokenId.
+            if (!m_sequenceBudget.TryConsume())
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSecureChannelTokenUnknown,
+                    "The SequenceNumber space under the current SecurityToken is exhausted.");
+            }
 
             int size = frame.EncodedSize;
             byte[] body = BufferManager.TakeBuffer(size, nameof(SendDataChannelFrameAsync), ct);
@@ -307,6 +335,7 @@ namespace Opc.Ua.Bindings
         }
 
         private DataChannelManager? m_dataChannels;
+        private readonly DataChannelSequenceBudget m_sequenceBudget = new();
         private bool m_isDataChannelSource;
     }
 }

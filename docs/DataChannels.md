@@ -117,11 +117,15 @@ if (message != null)
 | Deficit round robin, per-channel quantum, anti-starvation | Complete |
 | Per-direction state machine, half-close, reset, drain timeout | Complete |
 | Deadline expiry and per-run `GAP` emission | Complete |
+| SequenceNumber budget, renewal threshold, stall-rather-than-reuse | Complete |
 | `OpenDataChannel`, `ModifyDataChannel`, `CloseDataChannel` | Generated from the model compiler inputs; server-side handler complete |
 | Parameter negotiation, offers, Session scoping, authorization recheck, audit | Complete |
-| `opc.quic` transport | Not yet implemented |
+| `opc.quic` — url scheme, ALPN, control stream, per-channel streams, non-downgrading fallback | Complete (`Opc.Ua.Bindings.Quic`, net8.0+) |
+| `opc.quic` — TLS-to-OPC-UA key binding (§7.6.1) | Complete |
+| `opc.quic` — listener, service host and endpoint discovery | Not yet implemented |
+| Unreliable datagrams (§7.5) | **Not implementable on .NET.** `QuicConnection` exposes no RFC 9221 datagram API through .NET 10, so `SupportsUnreliableDatagrams` is `False` and the Server refuses `Unreliable` and `PartiallyReliable` with `Bad_DeliveryModeUnsupported` — which is what the errata requires rather than silently carrying them on the stream |
 | `DataChannelCapabilities` model instance wiring | Generated; server binding not yet wired |
-| SequenceNumber budget renewal | Not yet implemented |
+| DI / fluent builder extensions, worked sample | Not yet implemented |
 
 ## Design notes worth knowing
 
@@ -160,6 +164,22 @@ of the stream header.
 response. No OPC UA service reuses a parameter name across the two, and the model
 compiler enforces it, so the response parameter here is `revisedTransportChannelId`. The
 errata needs the same correction.
+
+## Building
+
+A cold build needs the model compiler built before the solution, otherwise the analyzers
+load half-built and produce thousands of spurious errors in generated code:
+
+```sh
+dotnet build tools/Opc.Ua.SourceGeneration.Core/Opc.Ua.SourceGeneration.Core.csproj
+dotnet build tools/Opc.Ua.SourceGeneration/Opc.Ua.SourceGeneration.csproj
+dotnet build tools/Opc.Ua.SourceGeneration.Stack/Opc.Ua.SourceGeneration.Stack.csproj
+dotnet build UA.slnx
+```
+
+After editing anything under `tools/Opc.Ua.SourceGeneration.Core/Design/`, rebuild
+`Opc.Ua.Core.Types` with `-t:Rebuild`: an incremental build keeps the stale analyzer and
+silently drops the new types while still reporting success.
 
 ## References
 

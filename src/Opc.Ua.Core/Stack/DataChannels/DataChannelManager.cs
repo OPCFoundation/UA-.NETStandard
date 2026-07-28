@@ -448,7 +448,7 @@ namespace Opc.Ua.Bindings
             switch (action)
             {
                 case DataChannelFrameAction.ResetChannel:
-                    channel.QueueReset(status);
+                    channel.Reset(status);
                     break;
                 case DataChannelFrameAction.CloseSecureChannel:
                     m_transport.OnProtocolFault(DataChannelFrameError.MalformedHeader);

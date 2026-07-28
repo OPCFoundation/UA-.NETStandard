@@ -199,6 +199,11 @@ namespace Opc.Ua.Bindings
             CurrentToken = token;
             RenewedToken = null;
 
+            // The SequenceNumber space is per token, so a new token
+            // restores the budget the data channel sender stalls against
+            // (Part 6 errata 5.1.1).
+            m_sequenceBudget.OnTokenActivated();
+
             TokenActivatedCallback?.Invoke(token, PreviousToken);
 
             if (m_logger.IsEnabled(LogLevel.Information))

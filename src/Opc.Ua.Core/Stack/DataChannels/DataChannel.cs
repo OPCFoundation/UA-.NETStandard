@@ -609,7 +609,7 @@ namespace Opc.Ua.Bindings
         /// Frames already queued still flow, and END follows the last of
         /// them.
         /// </summary>
-        internal void BeginClose()
+        public void Close()
         {
             lock (m_lock)
             {
@@ -709,7 +709,7 @@ namespace Opc.Ua.Bindings
         /// orderly discard and close; a Bad value is an abort.
         /// </summary>
         /// <param name="reason">The StatusCode.</param>
-        internal void QueueReset(StatusCode reason)
+        public void Reset(StatusCode reason)
         {
             lock (m_lock)
             {
@@ -750,7 +750,7 @@ namespace Opc.Ua.Bindings
         /// second bounds that keep it from becoming an amplification
         /// surface.
         /// </summary>
-        internal bool TryQueuePing()
+        public bool TryPing()
         {
             lock (m_lock)
             {

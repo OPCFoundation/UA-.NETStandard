@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
 
@@ -253,6 +254,129 @@ namespace Opc.Ua.Core.DataChannels.Tests
             window.Accept(200, out _, out _);
 
             Assert.That(window.RetainedGapRuns, Is.Zero);
+        }
+
+        // DCF-034: SequenceNumber exhaustion forces renewal, and a sender
+        // stalls rather than reusing a value under one TokenId.
+        [Test]
+        public void DcF034RenewalIsDueBeforeTheSpaceIsExhausted()
+        {
+            var budget = new DataChannelSequenceBudget(capacity: 1000);
+
+            Assert.That(budget.ShouldRenew, Is.False, "a fresh token has the whole space");
+
+            for (int ii = 0; ii < 1000; ii++)
+            {
+                Assert.That(budget.TryConsume(), Is.True);
+            }
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(budget.Remaining, Is.Zero);
+                Assert.That(budget.ShouldRenew, Is.True);
+                Assert.That(budget.MustStall, Is.True);
+            });
+        }
+
+        [Test]
+        public void DcF034ASenderStallsRatherThanReusingASequenceNumber()
+        {
+            var budget = new DataChannelSequenceBudget(capacity: 4);
+
+            for (int ii = 0; ii < 4; ii++)
+            {
+                Assert.That(budget.TryConsume(), Is.True);
+            }
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    budget.TryConsume(),
+                    Is.False,
+                    "the chunk that would reuse a value is refused, not renumbered");
+                Assert.That(
+                    budget.Consumed,
+                    Is.EqualTo(4L),
+                    "a refused chunk does not consume from the budget");
+            });
+        }
+
+        [Test]
+        public void ANewTokenRestoresTheWholeSpace()
+        {
+            var budget = new DataChannelSequenceBudget(capacity: 4);
+
+            for (int ii = 0; ii < 4; ii++)
+            {
+                budget.TryConsume();
+            }
+
+            Assert.That(budget.MustStall, Is.True);
+
+            budget.OnTokenActivated();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(budget.MustStall, Is.False);
+                Assert.That(budget.Consumed, Is.Zero);
+                Assert.That(budget.Remaining, Is.EqualTo(4L));
+            });
+        }
+
+        [Test]
+        public void TheRenewalThresholdIsTheLesserOfTheFixedHeadroomAndOneMinuteOfTraffic()
+        {
+            var clock = new Microsoft.Extensions.Time.Testing.FakeTimeProvider(
+                new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+
+            var budget = new DataChannelSequenceBudget(clock);
+
+            // Ten chunks over ten seconds is one per second, so one
+            // minute of traffic is sixty values: far below the fixed
+            // 2^30 headroom, which is what keeps a slow channel from
+            // renewing needlessly.
+            for (int ii = 0; ii < 10; ii++)
+            {
+                budget.TryConsume();
+            }
+
+            clock.Advance(TimeSpan.FromSeconds(10));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(budget.ChunksPerSecond, Is.EqualTo(1d).Within(0.01));
+                Assert.That(
+                    budget.RenewalThreshold,
+                    Is.EqualTo(60L),
+                    "the rate based threshold wins while it is the smaller of the two");
+                Assert.That(budget.ShouldRenew, Is.False);
+            });
+        }
+
+        [Test]
+        public void TheFixedHeadroomCapsTheThresholdForAVeryFastChannel()
+        {
+            var clock = new Microsoft.Extensions.Time.Testing.FakeTimeProvider(
+                new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+
+            var budget = new DataChannelSequenceBudget(clock);
+
+            // A hundred million chunks in one second is a rate whose
+            // minute of traffic exceeds the 32 bit space entirely, so the
+            // fixed headroom is what bounds the threshold.
+            for (int ii = 0; ii < 100_000_000; ii += 1_000_000)
+            {
+                for (int jj = 0; jj < 1_000_000; jj += 1_000_000)
+                {
+                    budget.TryConsume();
+                }
+            }
+
+            clock.Advance(TimeSpan.FromMilliseconds(1));
+
+            Assert.That(
+                budget.RenewalThreshold,
+                Is.LessThanOrEqualTo(DataChannelConstants.SequenceNumberRenewalHeadroom));
         }
     }
 }
