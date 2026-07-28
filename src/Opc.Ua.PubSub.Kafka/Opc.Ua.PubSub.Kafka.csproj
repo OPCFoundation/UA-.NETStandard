@@ -9,7 +9,10 @@
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Nullable>enable</Nullable>
-    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <!-- Suppress CS8002: the Dekaf package is not strong-named. This only surfaces on the
+         .NET Framework / netstandard TFMs of the signed preview-pack build (SignAssembly=true);
+         referencing a non-strong-named assembly is otherwise benign. -->
+    <NoWarn>$(NoWarn);CS1591;CS8002</NoWarn>
     <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>
     <!-- The default Dekaf backend is AOT-compatible; the opt-in Confluent backend is not. -->
     <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
