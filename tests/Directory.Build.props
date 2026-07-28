@@ -1,0 +1,37 @@
+<Project>
+
+  <!-- Chain to the repository-root Directory.Build.props (targets/common/version). -->
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+
+  <PropertyGroup>
+    <!--
+      Copy the resolved NuGet (lock-file) dependencies next to the test binary. coverlet
+      instruments the assemblies under test with Mono.Cecil, which must be able to resolve every
+      assembly referenced by an instrumented module; when a reference is missing from the output
+      directory Cecil throws and coverlet silently skips the whole module (0% coverage).
+    -->
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+
+  <!--
+    Microsoft.Extensions.Logging.Abstractions is on the .NET 10 SDK package-prune list, so the SDK
+    removes it from the test output (and the compile closure) even though libraries under test (e.g.
+    Opc.Ua.Types / Opc.Ua.Core) reference it for ILogger. coverlet's Mono.Cecil resolver only
+    searches the output directory, so when the assembly is missing it fails to resolve those modules
+    and skips instrumenting them entirely - their Avro / Arrow / Json / Binary encoders then report
+    0% coverage even though the tests run and pass. Tests/Directory.Build.targets forces the package
+    back into the graph (with a path property); this target copies its implementation next to the
+    test binary when the SDK pruned it out. The package ships lib-only, so the net8.0 asset is the
+    real implementation and loads on every net8.0+ test host.
+  -->
+  <Target Name="_CopyLoggingAbstractionsForCoverage"
+          AfterTargets="Build"
+          Condition="'$(TargetFrameworkIdentifier)' == '.NETCoreApp'
+                     and '$(PkgMicrosoft_Extensions_Logging_Abstractions)' != ''
+                     and !Exists('$(OutDir)Microsoft.Extensions.Logging.Abstractions.dll')">
+    <Copy SourceFiles="$(PkgMicrosoft_Extensions_Logging_Abstractions)/lib/net8.0/Microsoft.Extensions.Logging.Abstractions.dll"
+          DestinationFolder="$(OutDir)"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+</Project>
