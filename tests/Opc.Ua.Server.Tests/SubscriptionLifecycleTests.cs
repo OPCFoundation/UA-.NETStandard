@@ -250,7 +250,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(subscription.Session, Is.Not.Null);
 
-            subscription.SessionClosed();
+            subscription.SessionClosed(m_sessionMock.Object);
 
             Assert.That(subscription.Session, Is.Null);
         }
@@ -260,7 +260,7 @@ namespace Opc.Ua.Server.Tests
         {
             using Subscription subscription = CreateSubscription();
 
-            subscription.SessionClosed();
+            subscription.SessionClosed(m_sessionMock.Object);
 
             Assert.That(subscription.SessionId, Is.Default);
         }
@@ -270,7 +270,7 @@ namespace Opc.Ua.Server.Tests
         {
             using Subscription subscription = CreateSubscription();
 
-            subscription.SessionClosed();
+            subscription.SessionClosed(m_sessionMock.Object);
 
             Assert.That(subscription.Diagnostics.SessionId, Is.Default);
         }

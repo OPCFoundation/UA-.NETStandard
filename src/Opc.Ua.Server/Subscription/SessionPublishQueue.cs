@@ -197,21 +197,7 @@ namespace Opc.Ua.Server
 
             foreach (ISubscription subscription in queuedSubscriptions)
             {
-                bool sessionClosed;
-                if (subscription is Subscription concreteSubscription)
-                {
-                    sessionClosed = concreteSubscription.SessionClosed(m_session);
-                }
-                else
-                {
-                    sessionClosed = ReferenceEquals(subscription.Session, m_session);
-                    if (sessionClosed)
-                    {
-                        subscription.SessionClosed();
-                    }
-                }
-
-                if (sessionClosed)
+                if (subscription.SessionClosed(m_session))
                 {
                     subscriptions.Add(subscription);
                 }
