@@ -3261,14 +3261,6 @@ namespace Opc.Ua.Server
                         .ConfigureAwait(false);
                 }
 
-                // update trace configuration.
-                currentConfiguration.TraceConfiguration = configuration.TraceConfiguration ??
-                    new TraceConfiguration();
-
-                // Legacy Utils trace pipeline; kept for 1.5.378 -> 2.0 migration.
-#pragma warning disable CS0618 // Type or member is obsolete
-                currentConfiguration.TraceConfiguration.ApplySettings();
-#pragma warning restore CS0618 // Type or member is obsolete
             }
             catch (Exception e)
             {
