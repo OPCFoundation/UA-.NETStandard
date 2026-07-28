@@ -981,37 +981,46 @@ namespace Opc.Ua.XRegistry.Server
             await m_resourceStore.WriteAsync(entry.StoreKey, 0, ByteString.From(document))
                 .ConfigureAwait(false);
 
+            bool stillRegistered;
             lock (m_gate)
             {
                 // The resource can have been deleted while the store call was in flight. Its
                 // fast-path reference is already released, so publishing here would strand a node
                 // that nothing can ever release and re-create a document the delete removed.
-                if (!IsRegisteredLocked(resource))
+                stillRegistered = IsRegisteredLocked(resource);
+                if (stillRegistered)
                 {
-                    return new CloseMethodStateResult { ServiceResult = StatusCodes.BadInvalidState };
-                }
-
-                string xid = contentId.ToHexString();
-                string previousXid = resource.Xid?.Value ?? string.Empty;
-                if (!string.Equals(previousXid, xid, StringComparison.Ordinal))
-                {
-                    // The document changed, so this resource no longer resolves to its previous
-                    // content id; drop that reference before taking one on the new id.
-                    if (previousXid.Length > 0)
+                    string xid = contentId.ToHexString();
+                    string previousXid = resource.Xid?.Value ?? string.Empty;
+                    if (!string.Equals(previousXid, xid, StringComparison.Ordinal))
                     {
-                        ReleaseFastPathNode(previousXid);
+                        // The document changed, so this resource no longer resolves to its previous
+                        // content id; drop that reference before taking one on the new id.
+                        if (previousXid.Length > 0)
+                        {
+                            ReleaseFastPathNode(previousXid);
+                        }
+                        PublishFastPathNode(contentId, xid, document);
                     }
-                    PublishFastPathNode(contentId, xid, document);
-                }
 
-                SetValue(resource.Xid, xid);
-                SetValue(resource.Format, format);
-                SetValue(resource.ModifiedAt, DateTimeUtc.Now);
-                SetValue(resource.Size, (ulong)document.Length);
-                if (resource.Epoch != null)
-                {
-                    resource.Epoch.Value++;
+                    SetValue(resource.Xid, xid);
+                    SetValue(resource.Format, format);
+                    SetValue(resource.ModifiedAt, DateTimeUtc.Now);
+                    SetValue(resource.Size, (ulong)document.Length);
+                    if (resource.Epoch != null)
+                    {
+                        resource.Epoch.Value++;
+                    }
                 }
+            }
+
+            if (!stillRegistered)
+            {
+                // The delete already ran its own store cleanup, so the bytes written above would be
+                // orphaned. Store keys are the resource NodeId and instance ids only ever increase,
+                // so the key is never reused and nothing would ever collect them.
+                _ = await m_resourceStore.DeleteAsync(entry.StoreKey).ConfigureAwait(false);
+                return new CloseMethodStateResult { ServiceResult = StatusCodes.BadInvalidState };
             }
 
             UpdateFileProperties(resource);
