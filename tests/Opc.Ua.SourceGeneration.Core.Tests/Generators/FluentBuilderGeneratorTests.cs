@@ -335,6 +335,25 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             });
         }
 
+        /// <summary>
+        /// A NodeSet2 encodes a Method's InputArguments Property as a list of Argument
+        /// ExtensionObjects, so the importer's value decoder must be able to resolve the Argument
+        /// encoding id. When it cannot, the arguments decode to an empty list and every generated
+        /// method wrapper silently loses its parameters while still reporting HasArguments. This
+        /// asserts the imported arguments actually reach the generated method surface.
+        /// </summary>
+        [Test]
+        public void DeclarationBackedNodeSetEmitsTypedMethodArguments()
+        {
+            Dictionary<string, string> files = GenerateForDeclarationBackedNodeSet();
+            string nodeStates = files
+                .Single(kv => kv.Key.EndsWith(".NodeStates.g.cs", StringComparison.Ordinal)).Value;
+
+            Assert.That(nodeStates, Does.Match(@"float\s+setpoint"),
+                "The Float input declared by the NodeSet2 method declaration must be imported " +
+                "and emitted as a typed parameter on the generated method handler.");
+        }
+
         [Test]
         public void EmittedNodeManager_InvokesBothPlainAndTypedConfigurePartials()
         {
