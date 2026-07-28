@@ -884,27 +884,27 @@ namespace Opc.Ua.SourceGeneration
                 {
                     public FileDirectoryState(NodeState? parent) : base(parent) { }
                     public void CreateOrReplaceCreateDirectory(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public void CreateOrReplaceCreateFile(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public void CreateOrReplaceDeleteFileSystemObject(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public void CreateOrReplaceMoveOrCopy(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                 }
                 public class AnalogUnitState : BaseDataVariableState
                 {
                     public AnalogUnitState(NodeState? parent) : base(parent) { }
                     public void CreateOrReplaceEngineeringUnits(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                 }
                 public class AnalogItemState : BaseDataVariableState
                 {
                     public AnalogItemState(NodeState? parent) : base(parent) { }
                     public void CreateOrReplaceEURange(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public void CreateOrReplaceEngineeringUnits(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                 }
                 public class AnalogItemState<T> : AnalogItemState
                 {
@@ -924,51 +924,51 @@ namespace Opc.Ua.SourceGeneration
                 {
                     public BaseEventState(NodeState? parent) : base(parent) { }
                     public void CreateOrReplaceEventId(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public void CreateOrReplaceEventType(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public void CreateOrReplaceSourceNode(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public void CreateOrReplaceSourceName(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public void CreateOrReplaceTime(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public void CreateOrReplaceReceiveTime(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public void CreateOrReplaceMessage(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public void CreateOrReplaceSeverity(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public void CreateOrReplaceConditionClassId(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public void CreateOrReplaceConditionClassName(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public void CreateOrReplaceConditionName(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public void CreateOrReplaceBranchId(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public void CreateOrReplaceRetain(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public void CreateOrReplaceEnabledState(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public void CreateOrReplaceQuality(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public void CreateOrReplaceLastSeverity(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public void CreateOrReplaceComment(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public void CreateOrReplaceClientUserId(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public void CreateOrReplaceDisable(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public void CreateOrReplaceEnable(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public void CreateOrReplaceAddComment(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public void CreateOrReplaceAckedState(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public void CreateOrReplaceAcknowledge(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                 }
                 public class ConditionState : BaseEventState
                 {
@@ -986,59 +986,59 @@ namespace Opc.Ua.SourceGeneration
                 {
                     public NamespaceMetadataState(NodeState? parent) : base(parent) { }
                     public void CreateOrReplaceNamespaceUri(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public void CreateOrReplaceNamespaceVersion(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public void CreateOrReplaceNamespacePublicationDate(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public void CreateOrReplaceIsNamespaceSubset(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public void CreateOrReplaceStaticNodeIdTypes(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public void CreateOrReplaceStaticNumericNodeIdRange(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public void CreateOrReplaceStaticStringNodeIdPattern(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                 }
                 public class InstrumentDiagnosticAlarmState : BaseEventState
                 {
                     public InstrumentDiagnosticAlarmState(NodeState? parent) : base(parent) { }
                     public void CreateOrReplaceIterations(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public void CreateOrReplaceNewValueCount(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public void CreateOrReplaceSuppressedOrShelved(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public void CreateOrReplaceActiveState(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public void CreateOrReplaceInputNode(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public void CreateOrReplaceNormalState(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                 }
                 public class TemporaryFileTransferState : BaseObjectState
                 {
                     public TemporaryFileTransferState(NodeState? parent) : base(parent) { }
                     public void CreateOrReplaceClientProcessingTimeout(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public void CreateOrReplaceGenerateFileForWrite(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public void CreateOrReplaceGenerateFileForRead(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public void CreateOrReplaceCloseAndCommit(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                 }
                 public class TwoStateVariableState : BaseVariableState
                 {
                     public TwoStateVariableState(NodeState? parent) : base(parent) { }
                     public void CreateOrReplaceId(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                 }
                 public class ConditionVariableState<T> : BaseVariableState
                 {
                     public ConditionVariableState(NodeState? parent) : base(parent) { }
                     public void CreateOrReplaceSourceTimestamp(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public static ConditionVariableState<T> With<TBuilder>(
                         NodeState? parent = null)
                         where TBuilder : struct, IVariantBuilder<T>
@@ -1050,13 +1050,13 @@ namespace Opc.Ua.SourceGeneration
                 {
                     public FiniteStateVariableState(NodeState? parent) : base(parent) { }
                     public void CreateOrReplaceId(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                 }
                 public class FiniteStateMachineState : BaseObjectState
                 {
                     public FiniteStateMachineState(NodeState? parent) : base(parent) { }
                     public void CreateOrReplaceCurrentState(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                 }
                 public class DataTypeEncodingState : BaseObjectState
                 {
@@ -1119,31 +1119,31 @@ namespace Opc.Ua.SourceGeneration
                     public FileState(NodeState? parent) : base(parent) { }
 
                     public void CreateOrReplaceSize(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public void CreateOrReplaceWritable(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public void CreateOrReplaceUserWritable(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public void CreateOrReplaceOpenCount(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public void CreateOrReplaceOpen(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public void CreateOrReplaceClose(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public void CreateOrReplaceRead(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public void CreateOrReplaceWrite(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public void CreateOrReplaceGetPosition(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public void CreateOrReplaceSetPosition(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                 }
                 public class StateMachineStateState : BaseObjectState
                 {
                     public StateMachineStateState(NodeState? parent) : base(parent) { }
                     public void CreateOrReplaceStateNumber(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                 }
                 public class StateMachineInitialStateState : StateMachineStateState
                 {
@@ -1153,29 +1153,29 @@ namespace Opc.Ua.SourceGeneration
                 {
                     public StateMachineTransitionState(NodeState? parent) : base(parent) { }
                     public void CreateOrReplaceTransitionNumber(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                 }
                 public class StateMachineState : BaseObjectState
                 {
                     public StateMachineState(NodeState? parent) : base(parent) { }
                     public void CreateOrReplaceStateNumber(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public void CreateOrReplaceCurrentState(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public void CreateOrReplaceLastTransition(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                 }
                 public class StateVariableState : BaseDataVariableState
                 {
                     public StateVariableState(NodeState? parent) : base(parent) { }
                     public void CreateOrReplaceId(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public void CreateOrReplaceName(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public void CreateOrReplaceNumber(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public void CreateOrReplaceEffectiveDisplayName(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                 }
                 public class AddCommentMethodState : MethodState
                 {
@@ -1185,9 +1185,9 @@ namespace Opc.Ua.SourceGeneration
                 {
                     public DataTypeDictionaryState(NodeState? parent) : base(parent) { }
                     public void CreateOrReplaceNamespaceUri(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                     public void CreateOrReplaceDeprecated(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                 }
                 public class DataTypeDescriptionState : BaseDataVariableState
                 {
@@ -1197,7 +1197,7 @@ namespace Opc.Ua.SourceGeneration
                 {
                     public RoleState(NodeState? parent) : base(parent) { }
                     public void CreateOrReplaceIdentities(
-                        ISystemContext context, BaseInstanceState replacement) { }
+                        ISystemContext context, BaseInstanceState? replacement, bool assignInstanceNodeIds = true) { }
                 }
                 public class DeleteFileSystemObjectMethodState : MethodState
                 {
