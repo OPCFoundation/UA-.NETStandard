@@ -351,6 +351,57 @@ namespace Opc.Ua.Core.DataChannels.Tests
             });
         }
 
+        /// <summary>
+        /// The scheduler's deficit bounds how much a channel may send in
+        /// one round, not how often rounds happen. A round that leaves
+        /// payload queued has to schedule the next one immediately.
+        /// </summary>
+        /// <remarks>
+        /// Regression: the loop originally waited for its idle tick
+        /// between rounds, which capped a channel at one quantum per tick
+        /// - about fifty frames a second, useless for media. The sample
+        /// measured 0.5 Mbit/s before the fix and 1.3 Gbit/s after it, so
+        /// this test fails loudly rather than merely slowly if the wake
+        /// is ever dropped again.
+        /// </remarks>
+        [Test]
+        public async Task ManyFramesDrainWithoutWaitingForTheIdleTick()
+        {
+            const int frameCount = 200;
+            const int frameSize = 512;
+
+            DataChannel source = OpenPair(
+                DataChannelDirection.SourceToSink,
+                initialCredit: frameCount * frameSize * 2,
+                maxFrameSize: frameSize);
+
+            DataChannel sink = m_client.Channels[0];
+
+            var stopwatch = Stopwatch.StartNew();
+
+            for (int ii = 0; ii < frameCount; ii++)
+            {
+                source.Write(new byte[frameSize], DataChannelFrameFlags.MessageStart);
+            }
+
+            for (int ii = 0; ii < frameCount; ii++)
+            {
+                using DataChannelMessage? message = await ReadWithTimeoutAsync(sink)
+                    .ConfigureAwait(false);
+
+                Assert.That(message, Is.Not.Null, $"frame {ii + 1} was never delivered");
+            }
+
+            stopwatch.Stop();
+
+            // One quantum per 20 ms tick would need four seconds for two
+            // hundred frames. Anything near that means the wake was lost.
+            Assert.That(
+                stopwatch.Elapsed,
+                Is.LessThan(TimeSpan.FromSeconds(2)),
+                "a queued channel must not wait for the idle tick between rounds");
+        }
+
         private DataChannel OpenPair(
             DataChannelDirection direction,
             bool fromServer = true,

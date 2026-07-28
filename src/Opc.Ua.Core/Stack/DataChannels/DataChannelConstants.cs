@@ -233,14 +233,13 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The url scheme of the QUIC transport (Part 6 errata 7.2).
         /// </summary>
-        public const string QuicScheme = "opc.quic";
+        public const string QuicScheme = Utils.UriSchemeOpcQuic;
 
         /// <summary>
         /// The TransportProfileUri of the QUIC transport
         /// (Part 6 errata 7.2).
         /// </summary>
-        public const string QuicTransportProfileUri =
-            "http://opcfoundation.org/UA-Profile/Transport/quic-uasc-uabinary";
+        public const string QuicTransportProfileUri = Profiles.UaQuicTransport;
 
         /// <summary>
         /// The TLS exporter label that binds the QUIC key schedule to the

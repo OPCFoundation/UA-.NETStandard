@@ -1,4 +1,4 @@
-#if NET8_0_OR_GREATER
+#if NET9_0_OR_GREATER
 /* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *

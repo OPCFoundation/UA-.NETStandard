@@ -1,0 +1,349 @@
+/* ========================================================================
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+using System;
+using System.Buffers.Binary;
+using System.Collections.Concurrent;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+
+namespace Opc.Ua.Bindings
+{
+    /// <summary>
+    /// Carries data channel frames over per-channel QUIC streams.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A frame on a data channel stream is in <b>QUIC framing</b>: the
+    /// message header followed directly by the stream header, payload and
+    /// nothing else. The symmetric security header, the sequence header
+    /// and the message footer are omitted, because QUIC's TLS 1.3 record
+    /// layer already authenticates and encrypts every byte and QUIC
+    /// already orders and deduplicates each stream. The message header is
+    /// retained so that one decoder serves both transports and a frame
+    /// stays self delimiting without reassembly state.
+    /// </para>
+    /// <para>
+    /// QUIC applies its own per-stream and per-connection flow control,
+    /// so <see cref="HasTransportFlowControl"/> is true: no CREDIT frame
+    /// is sent or expected, and a receiver ignores one. Duplicating the
+    /// window in two layers gains nothing and deadlocks when the two
+    /// disagree.
+    /// </para>
+    /// </remarks>
+    public sealed class QuicDataChannelTransport : IDataChannelTransport, IAsyncDisposable
+    {
+        /// <summary>
+        /// Creates a data channel transport over a QUIC connection.
+        /// </summary>
+        /// <param name="transport">The multiplexed connection whose
+        /// streams carry the channels.</param>
+        /// <param name="bufferManager">The pool frame buffers are rented
+        /// from.</param>
+        /// <param name="telemetry">Telemetry context.</param>
+        /// <param name="timeProvider">The clock, or null for the system
+        /// clock.</param>
+        public QuicDataChannelTransport(
+            QuicMultiplexedTransport transport,
+            BufferManager bufferManager,
+            ITelemetryContext telemetry,
+            TimeProvider? timeProvider = null)
+        {
+            m_transport = transport ?? throw new ArgumentNullException(nameof(transport));
+            BufferManager = bufferManager ?? throw new ArgumentNullException(nameof(bufferManager));
+            TimeProvider = timeProvider ?? TimeProvider.System;
+            m_logger = telemetry.CreateLogger<QuicDataChannelTransport>();
+            m_stop = new CancellationTokenSource();
+        }
+
+        /// <summary>
+        /// The engine inbound frames are dispatched to. Set once the
+        /// manager has been constructed around this transport.
+        /// </summary>
+        public DataChannelManager? Manager { get; set; }
+
+        /// <inheritdoc/>
+        public DataChannelFramingMode FramingMode => DataChannelFramingMode.Quic;
+
+        /// <inheritdoc/>
+        public int MaxFrameBodySize { get; set; } = 8192;
+
+        /// <inheritdoc/>
+        public bool HasTransportFlowControl => true;
+
+        /// <summary>
+        /// The pool receive buffers are rented from.
+        /// </summary>
+        public BufferManager BufferManager { get; }
+
+        /// <summary>
+        /// The clock used for deadlines and round trip measurement.
+        /// </summary>
+        public TimeProvider TimeProvider { get; }
+
+        /// <summary>
+        /// Binds a data channel to a QUIC stream and starts reading it.
+        /// </summary>
+        /// <param name="channelId">The data channel.</param>
+        /// <param name="streamId">The transport stream identifier that
+        /// travelled in transportChannelId.</param>
+        public void BindChannel(uint channelId, ulong streamId)
+        {
+            m_streamsByChannel[channelId] = streamId;
+            m_channelsByStream[streamId] = channelId;
+
+            _ = RunReceiveLoopAsync(channelId, streamId, m_stop.Token);
+        }
+
+        /// <summary>
+        /// Releases a channel's stream. A RESET carrying a StatusCode is
+        /// realized as a QUIC RESET_STREAM whose application error code
+        /// carries it; an orderly close completes the writes.
+        /// </summary>
+        /// <param name="channelId">The data channel.</param>
+        /// <param name="status">The StatusCode, or Good for an orderly
+        /// close.</param>
+        public void ReleaseChannel(uint channelId, StatusCode status)
+        {
+            if (!m_streamsByChannel.TryRemove(channelId, out ulong streamId))
+            {
+                return;
+            }
+
+            m_channelsByStream.TryRemove(streamId, out _);
+
+            if (StatusCode.IsBad(status))
+            {
+                m_transport.AbortStream(streamId, status.Code);
+            }
+            else
+            {
+                m_transport.CloseStream(streamId);
+            }
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask SendFrameAsync(DataChannelFrame frame, CancellationToken ct)
+        {
+            if (!m_streamsByChannel.TryGetValue(frame.ChannelId, out ulong streamId))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDataChannelIdInvalid,
+                    "ChannelId {0} is not bound to a QUIC stream.",
+                    frame.ChannelId);
+            }
+
+            int bodySize = frame.EncodedSize;
+            int total = MessageHeaderSize + bodySize;
+
+            byte[] buffer = BufferManager.TakeBuffer(total, nameof(SendFrameAsync), ct);
+
+            try
+            {
+                WriteMessageHeader(buffer.AsSpan(0, MessageHeaderSize), total);
+                DataChannelFrameCodec.Encode(buffer.AsSpan(MessageHeaderSize, bodySize), frame);
+
+                await m_transport
+                    .SendOnStreamAsync(streamId, new ReadOnlyMemory<byte>(buffer, 0, total), ct)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                BufferManager.ReturnBuffer(buffer, nameof(SendFrameAsync));
+            }
+        }
+
+        /// <inheritdoc/>
+        public void OnProtocolFault(DataChannelFrameError error)
+        {
+            // Losing the framing on a data channel stream is not a reason
+            // to destroy the SecureChannel, because the control stream is
+            // a different stream and is still trustworthy. The channel is
+            // reset instead.
+            m_logger.QuicDataChannelFramingFault(error.ToString());
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask DisposeAsync()
+        {
+            if (m_disposed)
+            {
+                return;
+            }
+
+            m_disposed = true;
+            await m_stop.CancelAsync().ConfigureAwait(false);
+            m_stop.Dispose();
+
+            m_streamsByChannel.Clear();
+            m_channelsByStream.Clear();
+        }
+
+        private async Task RunReceiveLoopAsync(uint channelId, ulong streamId, CancellationToken ct)
+        {
+            while (!ct.IsCancellationRequested)
+            {
+                ArraySegment<byte> chunk;
+
+                try
+                {
+                    chunk = await m_transport
+                        .ReceiveOnStreamAsync(streamId, ct)
+                        .ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    return;
+                }
+                catch (ServiceResultException e) when
+                    (e.StatusCode == StatusCodes.BadConnectionClosed)
+                {
+                    // The peer completed or reset the stream, which is
+                    // the transport level form of END or RESET.
+                    Manager?.TryGetChannel(channelId, out DataChannel? closing);
+                    return;
+                }
+#pragma warning disable CA1031 // One bad stream must not stop the others.
+                catch (Exception e)
+#pragma warning restore CA1031
+                {
+                    m_logger.QuicDataChannelReceiveFailed(e, channelId);
+                    return;
+                }
+
+                try
+                {
+                    DispatchChunk(channelId, chunk);
+                }
+                finally
+                {
+                    BufferManager.ReturnBuffer(chunk.Array, nameof(RunReceiveLoopAsync));
+                }
+            }
+        }
+
+        private void DispatchChunk(uint channelId, ArraySegment<byte> chunk)
+        {
+            if (chunk.Count <= MessageHeaderSize)
+            {
+                return;
+            }
+
+            var body = new ReadOnlyMemory<byte>(
+                chunk.Array!,
+                chunk.Offset + MessageHeaderSize,
+                chunk.Count - MessageHeaderSize);
+
+            if (!DataChannelFrameCodec.TryDecode(
+                body,
+                MaxFrameBodySize,
+                out DataChannelFrame frame,
+                out DataChannelFrameError error))
+            {
+                OnProtocolFault(error);
+
+                if (Manager != null &&
+                    Manager.TryGetChannel(channelId, out DataChannel? faulted) &&
+                    faulted != null)
+                {
+                    faulted.Reset(error.ToStatusCode());
+                }
+
+                return;
+            }
+
+            // The stream a frame arrived on is the authoritative binding,
+            // so a frame naming a different ChannelId is a protocol error
+            // rather than a demultiplexing hint.
+            if (frame.ChannelId != channelId &&
+                frame.ChannelId != DataChannelConstants.ConnectionControlChannelId)
+            {
+                m_logger.QuicDataChannelMisdirectedFrame(frame.ChannelId, channelId);
+                return;
+            }
+
+            Manager?.HandleFrame(frame);
+        }
+
+        private static void WriteMessageHeader(Span<byte> destination, int totalSize)
+        {
+            // 'STR' followed by 'F': a data channel frame is a single
+            // chunk and is never a Message abort.
+            destination[0] = (byte)'S';
+            destination[1] = (byte)'T';
+            destination[2] = (byte)'R';
+            destination[3] = (byte)'F';
+            BinaryPrimitives.WriteUInt32LittleEndian(destination.Slice(4), (uint)totalSize);
+            BinaryPrimitives.WriteUInt32LittleEndian(destination.Slice(8), 0);
+        }
+
+        /// <summary>
+        /// MessageType, IsFinal, MessageSize and SecureChannelId. The
+        /// SecureChannelId is zero over QUIC, where the connection itself
+        /// identifies the SecureChannel.
+        /// </summary>
+        private const int MessageHeaderSize = 12;
+
+        private readonly ConcurrentDictionary<uint, ulong> m_streamsByChannel = new();
+        private readonly ConcurrentDictionary<ulong, uint> m_channelsByStream = new();
+        private readonly QuicMultiplexedTransport m_transport;
+        private readonly CancellationTokenSource m_stop;
+        private readonly ILogger m_logger;
+        private bool m_disposed;
+    }
+
+    /// <summary>
+    /// Source-generated log messages for
+    /// <see cref="QuicDataChannelTransport"/>.
+    /// </summary>
+    internal static partial class QuicDataChannelTransportLog
+    {
+        [LoggerMessage(EventId = 10, Level = LogLevel.Warning,
+            Message = "opc.quic data channel framing fault: {Error}.")]
+        public static partial void QuicDataChannelFramingFault(
+            this ILogger logger,
+            string error);
+
+        [LoggerMessage(EventId = 11, Level = LogLevel.Warning,
+            Message = "opc.quic data channel {ChannelId} receive loop ended with an error.")]
+        public static partial void QuicDataChannelReceiveFailed(
+            this ILogger logger,
+            Exception exception,
+            uint channelId);
+
+        [LoggerMessage(EventId = 12, Level = LogLevel.Warning,
+            Message = "A frame naming ChannelId {FrameChannelId} arrived on the stream bound to {StreamChannelId}.")]
+        public static partial void QuicDataChannelMisdirectedFrame(
+            this ILogger logger,
+            uint frameChannelId,
+            uint streamChannelId);
+    }
+}

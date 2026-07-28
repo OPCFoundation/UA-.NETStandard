@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+    <TargetFrameworks>net9.0;net10.0</TargetFrameworks>
     <AssemblyName>$(AssemblyPrefix).Bindings.Quic</AssemblyName>
     <PackageId>$(PackagePrefix).Opc.Ua.Bindings.Quic</PackageId>
     <RootNamespace>Opc.Ua.Bindings</RootNamespace>

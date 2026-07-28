@@ -88,10 +88,39 @@ namespace Opc.Ua.Bindings
             m_bufferManager = bufferManager ?? throw new ArgumentNullException(nameof(bufferManager));
             m_receiveBufferSize = receiveBufferSize;
             m_logger = telemetry.CreateLogger<QuicMultiplexedTransport>();
+            m_options = new QuicClientOptions();
         }
 
+        /// <summary>
+        /// Creates an unconnected client transport.
+        /// <see cref="ConnectAsync"/> establishes the QUIC connection and
+        /// opens the control stream.
+        /// </summary>
+        /// <param name="bufferManager">The pool receive buffers are
+        /// rented from.</param>
+        /// <param name="receiveBufferSize">The largest chunk this
+        /// transport accepts.</param>
+        /// <param name="telemetry">Telemetry context.</param>
+        /// <param name="options">How the connection is established.</param>
+        public QuicMultiplexedTransport(
+            BufferManager bufferManager,
+            int receiveBufferSize,
+            ITelemetryContext telemetry,
+            QuicClientOptions? options = null)
+        {
+            m_bufferManager = bufferManager ?? throw new ArgumentNullException(nameof(bufferManager));
+            m_receiveBufferSize = receiveBufferSize;
+            m_logger = telemetry.CreateLogger<QuicMultiplexedTransport>();
+            m_options = options ?? new QuicClientOptions();
+        }
+
+        /// <summary>
+        /// The stable identifier this implementation reports.
+        /// </summary>
+        public const string ImplementationName = "UA-QUIC";
+
         /// <inheritdoc/>
-        public string Implementation => "UA-QUIC";
+        public string Implementation => ImplementationName;
 
         /// <inheritdoc/>
         public TransportChannelFeatures Features
@@ -101,10 +130,10 @@ namespace Opc.Ua.Bindings
                TransportChannelFeatures.MultiplexedStreams;
 
         /// <inheritdoc/>
-        public EndPoint? LocalEndpoint => m_connection.LocalEndPoint;
+        public EndPoint? LocalEndpoint => m_connection?.LocalEndPoint;
 
         /// <inheritdoc/>
-        public EndPoint? RemoteEndpoint => m_connection.RemoteEndPoint;
+        public EndPoint? RemoteEndpoint => m_connection?.RemoteEndPoint;
 
         /// <inheritdoc/>
         public bool SupportsDatagrams => MaxDatagramSize > 0;
@@ -129,17 +158,45 @@ namespace Opc.Ua.Bindings
         /// OPC UA identity.
         /// </summary>
         public System.Security.Cryptography.X509Certificates.X509Certificate2? PeerCertificate
-            => m_connection.RemoteCertificate as
+            => m_connection?.RemoteCertificate as
                 System.Security.Cryptography.X509Certificates.X509Certificate2;
 
         /// <inheritdoc/>
-        public ValueTask ConnectAsync(Uri url, CancellationToken ct)
+        public async ValueTask ConnectAsync(Uri url, CancellationToken ct)
         {
-            // The connection is established by the listener or the client
-            // factory before this type wraps it, because ALPN negotiation
-            // and the control stream have to succeed first.
-            throw new NotSupportedException(
-                "A QUIC transport is constructed around an established connection.");
+            if (url == null)
+            {
+                throw new ArgumentNullException(nameof(url));
+            }
+
+            if (m_connection != null)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadInvalidState,
+                    "The transport is already connected.");
+            }
+
+            QuicConnection connection = await QuicConnectionBuilder
+                .ConnectAsync(url, m_options, ct)
+                .ConfigureAwait(false);
+
+            try
+            {
+                // The first client-initiated bidirectional stream carries
+                // the UACP and Secure Conversation conversation byte for
+                // byte as it appears over opc.tcp (Part 6 errata 7.3).
+                QuicStream control = await connection
+                    .OpenOutboundStreamAsync(QuicStreamType.Bidirectional, ct)
+                    .ConfigureAwait(false);
+
+                m_connection = connection;
+                m_controlStream = control;
+            }
+            catch
+            {
+                await connection.DisposeAsync().ConfigureAwait(false);
+                throw;
+            }
         }
 
         /// <inheritdoc/>
@@ -149,8 +206,9 @@ namespace Opc.Ua.Bindings
 
             try
             {
-                await m_controlStream.WriteAsync(chunk, ct).ConfigureAwait(false);
-                await m_controlStream.FlushAsync(ct).ConfigureAwait(false);
+                QuicStream control = RequireControlStream();
+                await control.WriteAsync(chunk, ct).ConfigureAwait(false);
+                await control.FlushAsync(ct).ConfigureAwait(false);
             }
             finally
             {
@@ -170,18 +228,20 @@ namespace Opc.Ua.Bindings
 
             try
             {
+                QuicStream control = RequireControlStream();
+
                 for (int ii = 0; ii < buffers.Count; ii++)
                 {
                     ArraySegment<byte> segment = buffers[ii];
 
-                    await m_controlStream
+                    await control
                         .WriteAsync(
                             new ReadOnlyMemory<byte>(segment.Array!, segment.Offset, segment.Count),
                             ct)
                         .ConfigureAwait(false);
                 }
 
-                await m_controlStream.FlushAsync(ct).ConfigureAwait(false);
+                await control.FlushAsync(ct).ConfigureAwait(false);
             }
             finally
             {
@@ -192,13 +252,13 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public ValueTask<ArraySegment<byte>> ReceiveChunkAsync(CancellationToken ct)
         {
-            return ReadChunkAsync(m_controlStream, ct);
+            return ReadChunkAsync(RequireControlStream(), ct);
         }
 
         /// <inheritdoc/>
         public async ValueTask<ulong> OpenStreamAsync(bool bidirectional, CancellationToken ct)
         {
-            QuicStream stream = await m_connection
+            QuicStream stream = await RequireConnection()
                 .OpenOutboundStreamAsync(
                     bidirectional ? QuicStreamType.Bidirectional : QuicStreamType.Unidirectional,
                     ct)
@@ -212,7 +272,7 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public async ValueTask<ulong> AcceptStreamAsync(CancellationToken ct)
         {
-            QuicStream stream = await m_connection
+            QuicStream stream = await RequireConnection()
                 .AcceptInboundStreamAsync(ct)
                 .ConfigureAwait(false);
 
@@ -328,10 +388,33 @@ namespace Opc.Ua.Bindings
 
             m_streams.Clear();
 
-            await m_controlStream.DisposeAsync().ConfigureAwait(false);
-            await m_connection.DisposeAsync().ConfigureAwait(false);
+            if (m_controlStream != null)
+            {
+                await m_controlStream.DisposeAsync().ConfigureAwait(false);
+                m_controlStream = null;
+            }
+
+            if (m_connection != null)
+            {
+                await m_connection.DisposeAsync().ConfigureAwait(false);
+                m_connection = null;
+            }
 
             m_sendLock.Dispose();
+        }
+
+        private QuicConnection RequireConnection()
+        {
+            return m_connection ?? throw ServiceResultException.Create(
+                StatusCodes.BadNotConnected,
+                "The QUIC transport is not connected.");
+        }
+
+        private QuicStream RequireControlStream()
+        {
+            return m_controlStream ?? throw ServiceResultException.Create(
+                StatusCodes.BadNotConnected,
+                "The QUIC control stream is not open.");
         }
 
         private QuicStream RequireStream(ulong streamId)
@@ -431,8 +514,9 @@ namespace Opc.Ua.Bindings
 
         private readonly ConcurrentDictionary<ulong, QuicStream> m_streams = new();
         private readonly SemaphoreSlim m_sendLock = new(1, 1);
-        private readonly QuicConnection m_connection;
-        private readonly QuicStream m_controlStream;
+        private QuicConnection? m_connection;
+        private QuicStream? m_controlStream;
+        private readonly QuicClientOptions m_options;
         private readonly BufferManager m_bufferManager;
         private readonly int m_receiveBufferSize;
         private readonly ILogger m_logger;

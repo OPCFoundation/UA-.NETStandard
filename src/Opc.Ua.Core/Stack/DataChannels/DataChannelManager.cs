@@ -616,6 +616,7 @@ namespace Opc.Ua.Bindings
         private async ValueTask RunRoundAsync(List<DataChannel> ready, CancellationToken ct)
         {
             long nowTicks = m_transport.TimeProvider.GetUtcNow().UtcDateTime.ToFileTimeUtc();
+            bool more = false;
 
             ready.Clear();
 
@@ -684,6 +685,21 @@ namespace Opc.Ua.Bindings
                 {
                     channel.Deficit = 0;
                 }
+                else
+                {
+                    // The deficit bounds how much this channel may send
+                    // in one round, not how often rounds may happen. A
+                    // channel that still has payload and is not blocked
+                    // gets the next round immediately rather than waiting
+                    // for the idle tick, which would otherwise cap a
+                    // media stream at one quantum per tick.
+                    more = true;
+                }
+            }
+
+            if (more)
+            {
+                Wake();
             }
         }
 

@@ -1,0 +1,193 @@
+/* ========================================================================
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+#if NET9_0_OR_GREATER
+
+using System;
+using System.Net;
+using System.Net.Quic;
+using System.Net.Security;
+using System.Security.Cryptography.X509Certificates;
+using System.Threading;
+using System.Threading.Tasks;
+using Opc.Ua.Bindings;
+
+namespace Opc.Ua.Core.DataChannels.Tests
+{
+    /// <summary>
+    /// A real QUIC connection between two
+    /// <see cref="QuicMultiplexedTransport"/> instances on the loopback
+    /// interface, with the OPC UA ALPN identifier negotiated and the
+    /// control stream established.
+    /// </summary>
+    internal sealed class QuicLoopback : IAsyncDisposable
+    {
+        private QuicLoopback(
+            QuicListener listener,
+            QuicMultiplexedTransport client,
+            QuicMultiplexedTransport server,
+            int port)
+        {
+            m_listener = listener;
+            Client = client;
+            Server = server;
+            Port = port;
+        }
+
+        /// <summary>
+        /// The client side of the connection.
+        /// </summary>
+        public QuicMultiplexedTransport Client { get; }
+
+        /// <summary>
+        /// The server side of the connection.
+        /// </summary>
+        public QuicMultiplexedTransport Server { get; }
+
+        /// <summary>
+        /// The UDP port the listener bound to.
+        /// </summary>
+        public int Port { get; }
+
+        /// <summary>
+        /// Starts a listener on an ephemeral port, connects a client, and
+        /// establishes the control stream on both sides.
+        /// </summary>
+        /// <param name="certificate">The certificate the server presents,
+        /// which stands in for its Application Instance Certificate.</param>
+        /// <param name="bufferManager">The pool both sides rent from.</param>
+        /// <param name="telemetry">Telemetry context.</param>
+        public static async Task<QuicLoopback> StartAsync(
+            X509Certificate2 certificate,
+            BufferManager bufferManager,
+            ITelemetryContext telemetry)
+        {
+            var listenerOptions = new QuicListenerOptions
+            {
+                ListenEndPoint = new IPEndPoint(IPAddress.Loopback, 0),
+                ApplicationProtocols = [QuicTransport.ApplicationProtocol],
+                ConnectionOptionsCallback = (_, _, _) => ValueTask.FromResult(
+                    new QuicServerConnectionOptions
+                    {
+                        DefaultStreamErrorCode = 0x0A,
+                        DefaultCloseErrorCode = 0x0B,
+                        MaxInboundBidirectionalStreams = 32,
+                        MaxInboundUnidirectionalStreams = 32,
+                        ServerAuthenticationOptions = new SslServerAuthenticationOptions
+                        {
+                            ApplicationProtocols = [QuicTransport.ApplicationProtocol],
+                            ServerCertificate = certificate
+                        }
+                    })
+            };
+
+            QuicListener listener = await QuicListener
+                .ListenAsync(listenerOptions)
+                .ConfigureAwait(false);
+
+            int port = listener.LocalEndPoint.Port;
+
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+
+            Task<QuicConnection> accept = listener
+                .AcceptConnectionAsync(timeout.Token)
+                .AsTask();
+
+            var client = new QuicMultiplexedTransport(
+                bufferManager,
+                65536,
+                telemetry,
+                new QuicClientOptions
+                {
+                    ServerCertificateValidation = (_, _, _, _) => true
+                });
+
+            await client
+                .ConnectAsync(QuicTransport.CreateUrl("localhost", port), timeout.Token)
+                .ConfigureAwait(false);
+
+            QuicConnection serverConnection = await accept.ConfigureAwait(false);
+
+            // A QUIC stream only materializes on the wire when something
+            // is written to it, so the control stream is primed with one
+            // minimal chunk. A real client primes it with HEL; the
+            // harness consumes the primer so every test starts from a
+            // clean stream.
+            await client
+                .SendChunkAsync(BuildPrimingChunk(), timeout.Token)
+                .ConfigureAwait(false);
+
+            QuicStream serverControl = await serverConnection
+                .AcceptInboundStreamAsync(timeout.Token)
+                .ConfigureAwait(false);
+
+            var server = new QuicMultiplexedTransport(
+                serverConnection,
+                serverControl,
+                bufferManager,
+                65536,
+                telemetry);
+
+            ArraySegment<byte> primer = await server
+                .ReceiveChunkAsync(timeout.Token)
+                .ConfigureAwait(false);
+
+            bufferManager.ReturnBuffer(primer.Array, nameof(StartAsync));
+
+            return new QuicLoopback(listener, client, server, port);
+        }
+
+        /// <summary>
+        /// The smallest well-formed chunk: a message type and the size
+        /// that follows it, and nothing else.
+        /// </summary>
+        private static byte[] BuildPrimingChunk()
+        {
+            byte[] chunk = new byte[8];
+            chunk[0] = (byte)'A';
+            chunk[1] = (byte)'C';
+            chunk[2] = (byte)'K';
+            chunk[3] = (byte)'F';
+            BitConverter.GetBytes(8).CopyTo(chunk, 4);
+            return chunk;
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask DisposeAsync()
+        {
+            await Client.DisposeAsync().ConfigureAwait(false);
+            await Server.DisposeAsync().ConfigureAwait(false);
+            await m_listener.DisposeAsync().ConfigureAwait(false);
+        }
+
+        private readonly QuicListener m_listener;
+    }
+}
+
+#endif

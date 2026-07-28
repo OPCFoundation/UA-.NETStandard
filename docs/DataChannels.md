@@ -120,12 +120,34 @@ if (message != null)
 | SequenceNumber budget, renewal threshold, stall-rather-than-reuse | Complete |
 | `OpenDataChannel`, `ModifyDataChannel`, `CloseDataChannel` | Generated from the model compiler inputs; server-side handler complete |
 | Parameter negotiation, offers, Session scoping, authorization recheck, audit | Complete |
-| `opc.quic` — url scheme, ALPN, control stream, per-channel streams, non-downgrading fallback | Complete (`Opc.Ua.Bindings.Quic`, net8.0+) |
+| `opc.quic` — url scheme, ALPN negotiation and enforcement, control stream, client channel and factory | Complete (`Opc.Ua.Bindings.Quic`, **net9.0+**) |
+| `opc.quic` — listener, service host, endpoint discovery, reverse connect, certificate rotation | Complete |
+| `opc.quic` — data channels bound to per-channel streams, `RESET_STREAM` carrying the StatusCode | Complete |
 | `opc.quic` — TLS-to-OPC-UA key binding (§7.6.1) | Complete |
-| `opc.quic` — listener, service host and endpoint discovery | Not yet implemented |
+| `DataChannelCapabilities` model projection | Complete (`DataChannelModel`) |
+| Worked sample | `samples/ConsoleDataChannelStreaming` |
 | Unreliable datagrams (§7.5) | **Not implementable on .NET.** `QuicConnection` exposes no RFC 9221 datagram API through .NET 10, so `SupportsUnreliableDatagrams` is `False` and the Server refuses `Unreliable` and `PartiallyReliable` with `Bad_DeliveryModeUnsupported` — which is what the errata requires rather than silently carrying them on the stream |
-| `DataChannelCapabilities` model instance wiring | Generated; server binding not yet wired |
-| DI / fluent builder extensions, worked sample | Not yet implemented |
+| DI / fluent builder extension | `AddQuicTransport()` |
+
+## Why the QUIC binding is net9.0+
+
+`System.Net.Quic` is still behind `[RequiresPreviewFeatures]` on net8.0. Opting in
+would emit a `RequiresPreviewFeatures` assembly attribute that every consumer would
+then have to opt into as well, so the binding targets net9.0 and net10.0, where the
+API is stable. `Opc.Ua.Core` itself is unaffected and still builds for all six TFMs.
+
+## Running the sample
+
+```sh
+cd samples/ConsoleDataChannelStreaming
+dotnet run -- --transport tcp  --frames 2000 --size 1200
+dotnet run -- --transport quic --frames 2000 --size 1200
+```
+
+The same application code drives both framings; only the transport differs. The
+sample reports throughput, discarded frames and the credit-stall counter, and the
+stall counter staying at zero over `opc.quic` is the visible consequence of QUIC
+owning the flow control there.
 
 ## Design notes worth knowing
 
@@ -157,6 +179,12 @@ close, and it is why a long upload survives the other end half-closing.
 by `Reason` per OPC 10000-6 §6.7.3, so accepting `A` would let that parser read a 32-bit
 string length out of the attacker-controlled `FrameType`, `Flags` and `Reserved` bytes
 of the stream header.
+
+**The scheduler's deficit bounds volume, not frequency.** A round that leaves payload
+queued schedules the next one immediately. The loop originally waited for its idle tick
+between rounds, which capped a channel at one quantum per tick — about fifty frames a
+second. The sample measured 0.5 Mbit/s before the fix and 1.3 Gbit/s after it, and
+`ManyFramesDrainWithoutWaitingForTheIdleTick` fails loudly if the wake is dropped again.
 
 ## Deviation from the errata
 
