@@ -79,11 +79,16 @@ namespace Opc.Ua.Server
         /// active monitored items, as a shadow or immediate reload does; <c>false</c> to fail
         /// closed before any routing change, as an ordinary reload does.
         /// </param>
+        /// <param name="retainReplacedNotifications">
+        /// <c>true</c> to keep the replaced generation in session and existing all-events
+        /// notification fan-out while its active MonitoredItems drain.
+        /// </param>
         /// <param name="ct">The token used to cancel the operation.</param>
         ValueTask ReplaceAsync(
             IAsyncNodeManager current,
             PreparedNodeManager replacement,
             bool allowActiveMonitoredItems = false,
+            bool retainReplacedNotifications = false,
             CancellationToken ct = default);
 
         /// <summary>
@@ -118,18 +123,26 @@ namespace Opc.Ua.Server
             CancellationToken ct = default);
 
         /// <summary>
-        /// Tears down a NodeManager that is no longer reachable and disposes it. This is the only
-        /// stage that cannot be undone, so it runs after all Clients have stopped using it.
+        /// Destroys the address space of a NodeManager that is no longer reachable. This method
+        /// does not remove external references discovered during deletion and does not dispose the
+        /// NodeManager. The lifecycle checkpoints this stage before performing either later action.
         /// </summary>
-        /// <param name="nodeManager">The NodeManager to tear down.</param>
-        /// <param name="removeExternalReferences">
-        /// <c>true</c> to also remove the references this NodeManager added to Nodes owned by
-        /// other NodeManagers. A reload keeps them, because the replacement re-adds them.
-        /// </param>
+        /// <param name="nodeManager">The NodeManager whose address space is torn down.</param>
         /// <param name="ct">The token used to cancel the operation.</param>
-        ValueTask DestroyAsync(
+        ValueTask DestroyAddressSpaceAsync(
             IAsyncNodeManager nodeManager,
-            bool removeExternalReferences,
+            CancellationToken ct = default);
+
+        /// <summary>
+        /// Removes external references discovered while destroying
+        /// <paramref name="nodeManager"/>'s address space. This separate, retryable stage ensures
+        /// a failure in another NodeManager never repeats third-party address-space deletion.
+        /// A reload does not invoke this stage because its replacement re-adds the references.
+        /// </summary>
+        /// <param name="nodeManager">The destroyed NodeManager whose references are removed.</param>
+        /// <param name="ct">The token used to cancel the operation.</param>
+        ValueTask RemoveDestroyedExternalReferencesAsync(
+            IAsyncNodeManager nodeManager,
             CancellationToken ct = default);
 
         /// <summary>
@@ -168,6 +181,40 @@ namespace Opc.Ua.Server
             IAsyncNodeManager nodeManager,
             IReadOnlyCollection<NodeId>? nodeIds = null,
             CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Enables or suspends session and existing all-events notifications for a
+        /// shadow-retired generation. Suspending notifications establishes the cutoff
+        /// used before its final request drain and destruction.
+        /// </summary>
+        /// <param name="nodeManager">The shadow-retired generation.</param>
+        /// <param name="enabled"><c>true</c> to enable notifications; otherwise <c>false</c>.</param>
+        void SetRetiredGenerationNotifications(
+            IAsyncNodeManager nodeManager,
+            bool enabled);
+
+        /// <summary>
+        /// Disables new lifecycle-protected notifications and waits for dispatches that already
+        /// captured <paramref name="nodeManager"/> to finish, without changing its retained
+        /// all-events subscription snapshot.
+        /// </summary>
+        /// <param name="nodeManager">The generation whose dispatches must drain.</param>
+        /// <param name="ct">The token used to cancel the wait.</param>
+        ValueTask WaitForNotificationDispatchesAsync(
+            IAsyncNodeManager nodeManager,
+            CancellationToken ct = default);
+
+        /// <summary>
+        /// Unsubscribes a shadow-retired generation from the exact all-events monitored
+        /// items captured when it was retired. Items already handled by an in-flight
+        /// deletion are absent, while deletions excluded after notification suspension
+        /// remain in the snapshot and are finalized here.
+        /// </summary>
+        /// <param name="nodeManager">The shadow-retired generation.</param>
+        /// <param name="ct">The token used to cancel the operation.</param>
+        ValueTask FinalizeRetiredGenerationNotificationsAsync(
+            IAsyncNodeManager nodeManager,
+            CancellationToken ct = default);
     }
 
     /// <summary>
@@ -232,5 +279,11 @@ namespace Opc.Ua.Server
         /// down only after they drain.
         /// </summary>
         public bool AllowActiveMonitoredItems { get; set; }
+
+        /// <summary>
+        /// Gets or sets whether the replaced generation remains in session and existing
+        /// all-events notification fan-out after the routing swap.
+        /// </summary>
+        public bool RetainReplacedNotifications { get; set; }
     }
 }

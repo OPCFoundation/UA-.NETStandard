@@ -1139,7 +1139,8 @@ namespace Opc.Ua.Server
         /// </summary>
         public NotificationMessage PublishTimeout()
         {
-            NotificationMessage? message;
+            NotificationMessage? message = null;
+
             lock (m_lock)
             {
                 m_expired = true;
@@ -1167,7 +1168,8 @@ namespace Opc.Ua.Server
         /// </summary>
         public NotificationMessage SubscriptionTransferred()
         {
-            NotificationMessage? message;
+            NotificationMessage? message = null;
+
             lock (m_lock)
             {
                 message = (NotificationMessage)NotificationMessageActivator.Instance.CreateInstance();
@@ -1676,7 +1678,7 @@ namespace Opc.Ua.Server
 
                 if (!m_monitoredItems.TryGetValue(
                     triggeringItemId,
-                    out _))
+                    out LinkedListNode<IMonitoredItem>? triggerNode))
                 {
                     throw new ServiceResultException(StatusCodes.BadMonitoredItemIdInvalid);
                 }
@@ -2337,10 +2339,12 @@ namespace Opc.Ua.Server
                     // remove the item from the internal lists.
                     m_monitoredItems.Remove(monitoredItemIds[ii]);
                     m_itemsToTrigger.Remove(monitoredItemIds[ii]);
+
+                    //remove the links towards the deleted monitored item
+                    List<ITriggeredMonitoredItem>? triggeredItems = null;
                     foreach (KeyValuePair<uint, List<ITriggeredMonitoredItem>> item in m_itemsToTrigger)
                     {
-                        //remove the links towards the deleted monitored item
-                        List<ITriggeredMonitoredItem>? triggeredItems = item.Value;
+                        triggeredItems = item.Value;
                         for (int jj = 0; jj < triggeredItems.Count; jj++)
                         {
                             if (triggeredItems[jj].Id == monitoredItemIds[ii])
@@ -3144,4 +3148,5 @@ namespace Opc.Ua.Server
             this ILogger logger,
             uint subscriptionId);
     }
+
 }

@@ -44,11 +44,14 @@ namespace Opc.Ua.WotCon.Server.Registry
     /// immutable <see cref="WotRegistrySnapshot"/>, serialises every mutation on
     /// a single lock, enforces the configured <see cref="WotRegistryPersistenceBounds"/>,
     /// and persists through the injected <see cref="IWotRegistryStore"/>. Every
-    /// mutation is made durable by an atomic <see cref="IWotRegistryStore.CommitAsync"/>
-    /// <em>before</em> the new snapshot is published to <see cref="Current"/> or
-    /// the <see cref="Changed"/> notification is raised, so a persistence failure
-    /// leaves <see cref="Current"/> unchanged, raises no event, and a retry
-    /// re-attempts the same commit.
+    /// mutation is persisted by <see cref="IWotRegistryStore.CommitAsync"/> before
+    /// the new snapshot is published. A pre-switch failure leaves
+    /// <see cref="Current"/> unchanged. If the store validates that the manifest
+    /// switched but final durability is uncertain, the service publishes the
+    /// committed snapshot and then surfaces the dedicated exception. A confirmed
+    /// not-committed outcome leaves the previous snapshot published and remains
+    /// retryable. An indeterminate commit blocks mutation until
+    /// <see cref="InitializeAsync"/> reloads a known generation.
     /// </summary>
     public sealed class WotRegistryService : IWotRegistryService, IDisposable
     {
@@ -80,9 +83,11 @@ namespace Opc.Ua.WotCon.Server.Registry
             await m_mutex.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                m_reloadRequired = true;
                 WotRegistrySnapshot loaded = await m_store
                     .LoadAsync(cancellationToken).ConfigureAwait(false);
                 Volatile.Write(ref m_snapshot, loaded);
+                m_reloadRequired = false;
             }
             finally
             {
@@ -101,6 +106,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             await m_mutex.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                EnsureMutationAllowed();
                 WotRegistrySnapshot snapshot = m_snapshot;
                 WotResourceGroup? existing = snapshot.FindGroup(groupId);
                 if (existing is not null)
@@ -117,9 +123,9 @@ namespace Opc.Ua.WotCon.Server.Registry
                 var group = new WotResourceGroup(
                     groupId, kind, name: name, epoch: generation);
                 WotRegistrySnapshot next = snapshot.WithGroup(group, generation);
-                await m_store.CommitAsync(next, cancellationToken).ConfigureAwait(false);
-                Volatile.Write(ref m_snapshot, next);
-                RaiseChanged(snapshot, next, [group.Xid], projectionOnly: false);
+                await CommitAndPublishAsync(
+                        snapshot, next, [group.Xid], projectionOnly: false, cancellationToken)
+                    .ConfigureAwait(false);
                 return group;
             }
             finally
@@ -139,6 +145,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             await m_mutex.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                EnsureMutationAllowed();
                 WotRegistrySnapshot snapshot = m_snapshot;
                 if (snapshot.FindGroup(groupId) is not null)
                 {
@@ -153,9 +160,9 @@ namespace Opc.Ua.WotCon.Server.Registry
                 long generation = snapshot.Generation + 1;
                 var group = new WotResourceGroup(groupId, kind, name: name, epoch: generation);
                 WotRegistrySnapshot next = snapshot.WithGroup(group, generation);
-                await m_store.CommitAsync(next, cancellationToken).ConfigureAwait(false);
-                Volatile.Write(ref m_snapshot, next);
-                RaiseChanged(snapshot, next, [group.Xid], projectionOnly: false);
+                await CommitAndPublishAsync(
+                        snapshot, next, [group.Xid], projectionOnly: false, cancellationToken)
+                    .ConfigureAwait(false);
                 return group;
             }
             finally
@@ -173,6 +180,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             await m_mutex.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                EnsureMutationAllowed();
                 WotRegistrySnapshot snapshot = m_snapshot;
                 WotResourceGroup? group = snapshot.FindGroup(groupId);
                 if (group is null)
@@ -190,9 +198,9 @@ namespace Opc.Ua.WotCon.Server.Registry
                 {
                     changed.Add(resource.Xid);
                 }
-                await m_store.CommitAsync(next, cancellationToken).ConfigureAwait(false);
-                Volatile.Write(ref m_snapshot, next);
-                RaiseChanged(snapshot, next, changed, projectionOnly: false);
+                await CommitAndPublishAsync(
+                        snapshot, next, changed, projectionOnly: false, cancellationToken)
+                    .ConfigureAwait(false);
                 return new WotRegistryMutationResult(
                     WoTOutcomeEnum.Success, null, generation, []);
             }
@@ -214,6 +222,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             await m_mutex.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                EnsureMutationAllowed();
                 WotResource? existing = m_snapshot.FindResource(groupId, resourceId);
                 if (existing is not null)
                 {
@@ -241,6 +250,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             await m_mutex.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                EnsureMutationAllowed();
                 if (m_snapshot.FindResource(groupId, resourceId) is not null)
                 {
                     return null;
@@ -317,9 +327,9 @@ namespace Opc.Ua.WotCon.Server.Registry
                 epoch: generation,
                 name: resourceId);
             WotRegistrySnapshot next = ReplaceResource(snapshot, group, resource, generation);
-            await m_store.CommitAsync(next, cancellationToken).ConfigureAwait(false);
-            Volatile.Write(ref m_snapshot, next);
-            RaiseChanged(snapshot, next, [resource.Xid], projectionOnly: false);
+            await CommitAndPublishAsync(
+                    snapshot, next, [resource.Xid], projectionOnly: false, cancellationToken)
+                .ConfigureAwait(false);
             return resource;
         }
 
@@ -404,6 +414,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             await m_mutex.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                EnsureMutationAllowed();
                 WotRegistrySnapshot snapshot = m_snapshot;
                 WotResourceGroup? group = snapshot.FindGroup(groupId);
                 if (group is null)
@@ -511,9 +522,9 @@ namespace Opc.Ua.WotCon.Server.Registry
                         clearValidation: validation is null);
 
                 WotRegistrySnapshot next = ReplaceResource(snapshot, group, resource, generation);
-                await m_store.CommitAsync(next, cancellationToken).ConfigureAwait(false);
-                Volatile.Write(ref m_snapshot, next);
-                RaiseChanged(snapshot, next, [resource.Xid], projectionOnly: false);
+                await CommitAndPublishAsync(
+                        snapshot, next, [resource.Xid], projectionOnly: false, cancellationToken)
+                    .ConfigureAwait(false);
 
                 WoTOutcomeEnum outcome = parseFailed
                     ? WoTOutcomeEnum.Warning
@@ -537,6 +548,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             await m_mutex.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                EnsureMutationAllowed();
                 WotRegistrySnapshot snapshot = m_snapshot;
                 WotResource? resource = snapshot.FindResource(groupId, resourceId);
                 if (resource is null)
@@ -553,9 +565,9 @@ namespace Opc.Ua.WotCon.Server.Registry
                 WotResourceGroup nextGroup = group.WithResources(
                     group.Resources.Remove(resourceId), generation);
                 WotRegistrySnapshot next = snapshot.WithGroup(nextGroup, generation);
-                await m_store.CommitAsync(next, cancellationToken).ConfigureAwait(false);
-                Volatile.Write(ref m_snapshot, next);
-                RaiseChanged(snapshot, next, [resource.Xid], projectionOnly: false);
+                await CommitAndPublishAsync(
+                        snapshot, next, [resource.Xid], projectionOnly: false, cancellationToken)
+                    .ConfigureAwait(false);
                 return new WotRegistryMutationResult(
                     WoTOutcomeEnum.Success, resource, generation, []);
             }
@@ -627,6 +639,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             await m_mutex.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                EnsureMutationAllowed();
                 WotRegistrySnapshot snapshot = m_snapshot;
                 if (expectedEpoch is { } epoch && epoch != snapshot.Generation)
                 {
@@ -643,9 +656,9 @@ namespace Opc.Ua.WotCon.Server.Registry
                 long generation = snapshot.Generation + 1;
                 WotRegistrySnapshot next = snapshot.WithLabels(
                     snapshot.Labels.SetItem(key, value), generation);
-                await m_store.CommitAsync(next, cancellationToken).ConfigureAwait(false);
-                Volatile.Write(ref m_snapshot, next);
-                RaiseChanged(snapshot, next, [], projectionOnly: true);
+                await CommitAndPublishAsync(
+                        snapshot, next, [], projectionOnly: true, cancellationToken)
+                    .ConfigureAwait(false);
                 return new WotRegistryMutationResult(
                     WoTOutcomeEnum.Success, null, generation, []);
             }
@@ -669,6 +682,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             await m_mutex.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                EnsureMutationAllowed();
                 WotRegistrySnapshot snapshot = m_snapshot;
                 if (expectedEpoch is { } epoch && epoch != snapshot.Generation)
                 {
@@ -681,9 +695,9 @@ namespace Opc.Ua.WotCon.Server.Registry
                 long generation = snapshot.Generation + 1;
                 WotRegistrySnapshot next = snapshot.WithLabels(
                     snapshot.Labels.Remove(key), generation);
-                await m_store.CommitAsync(next, cancellationToken).ConfigureAwait(false);
-                Volatile.Write(ref m_snapshot, next);
-                RaiseChanged(snapshot, next, [], projectionOnly: true);
+                await CommitAndPublishAsync(
+                        snapshot, next, [], projectionOnly: true, cancellationToken)
+                    .ConfigureAwait(false);
                 return new WotRegistryMutationResult(
                     WoTOutcomeEnum.Success, null, generation, []);
             }
@@ -827,6 +841,7 @@ epoch: generation, labels: resource.Labels.Remove(key));
             await m_mutex.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                EnsureMutationAllowed();
                 WotRegistrySnapshot snapshot = m_snapshot;
                 long generation = snapshot.Generation + 1;
                 var changed = new List<string>();
@@ -863,9 +878,9 @@ epoch: generation, labels: resource.Labels.Remove(key));
                 {
                     return;
                 }
-                await m_store.CommitAsync(next, cancellationToken).ConfigureAwait(false);
-                Volatile.Write(ref m_snapshot, next);
-                RaiseChanged(snapshot, next, changed, projectionOnly: true);
+                await CommitAndPublishAsync(
+                        snapshot, next, changed, projectionOnly: true, cancellationToken)
+                    .ConfigureAwait(false);
             }
             finally
             {
@@ -890,6 +905,7 @@ epoch: generation, labels: resource.Labels.Remove(key));
             await m_mutex.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                EnsureMutationAllowed();
                 WotRegistrySnapshot snapshot = m_snapshot;
                 WotResource? resource = snapshot.FindResource(groupId, resourceId);
                 if (resource is null)
@@ -912,9 +928,9 @@ epoch: generation, labels: resource.Labels.Remove(key));
                 }
                 WotResourceGroup group = snapshot.FindGroup(groupId)!;
                 WotRegistrySnapshot next = ReplaceResource(snapshot, group, updated, generation);
-                await m_store.CommitAsync(next, cancellationToken).ConfigureAwait(false);
-                Volatile.Write(ref m_snapshot, next);
-                RaiseChanged(snapshot, next, [updated.Xid], projectionOnly);
+                await CommitAndPublishAsync(
+                        snapshot, next, [updated.Xid], projectionOnly, cancellationToken)
+                    .ConfigureAwait(false);
                 return new WotRegistryMutationResult(
                     WoTOutcomeEnum.Success, updated, generation, []);
             }
@@ -934,6 +950,7 @@ epoch: generation, labels: resource.Labels.Remove(key));
             await m_mutex.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                EnsureMutationAllowed();
                 WotRegistrySnapshot snapshot = m_snapshot;
                 WotResourceGroup? group = snapshot.FindGroup(groupId);
                 if (group is null)
@@ -955,9 +972,9 @@ epoch: generation, labels: resource.Labels.Remove(key));
                     return Failed(snapshot.Generation, "Mutation produced no result.");
                 }
                 WotRegistrySnapshot next = snapshot.WithGroup(updated, generation);
-                await m_store.CommitAsync(next, cancellationToken).ConfigureAwait(false);
-                Volatile.Write(ref m_snapshot, next);
-                RaiseChanged(snapshot, next, [updated.Xid], projectionOnly);
+                await CommitAndPublishAsync(
+                        snapshot, next, [updated.Xid], projectionOnly, cancellationToken)
+                    .ConfigureAwait(false);
                 return new WotRegistryMutationResult(
                     WoTOutcomeEnum.Success, null, generation, []);
             }
@@ -976,6 +993,52 @@ epoch: generation, labels: resource.Labels.Remove(key));
             WotResourceGroup nextGroup = group.WithResources(
                 group.Resources.SetItem(resource.ResourceId, resource), generation);
             return snapshot.WithGroup(nextGroup, generation);
+        }
+
+        private async ValueTask CommitAndPublishAsync(
+            WotRegistrySnapshot previous,
+            WotRegistrySnapshot intended,
+            IReadOnlyList<string> changed,
+            bool projectionOnly,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                await m_store.CommitAsync(intended, cancellationToken).ConfigureAwait(false);
+            }
+            catch (WotRegistryCommitDurabilityUncertainException exception)
+            {
+                Volatile.Write(ref m_snapshot, exception.CommittedSnapshot);
+                RaiseChanged(
+                    previous,
+                    exception.CommittedSnapshot,
+                    changed,
+                    projectionOnly);
+                throw;
+            }
+            catch (WotRegistryCommitNotCommittedException)
+            {
+                // The store established that the previous generation remains active.
+                throw;
+            }
+            catch (WotRegistryCommitIndeterminateException)
+            {
+                m_reloadRequired = true;
+                throw;
+            }
+
+            Volatile.Write(ref m_snapshot, intended);
+            RaiseChanged(previous, intended, changed, projectionOnly);
+        }
+
+        private void EnsureMutationAllowed()
+        {
+            if (m_reloadRequired)
+            {
+                throw new InvalidOperationException(
+                    "The WoT registry requires a successful InitializeAsync reload " +
+                    "before further mutation.");
+            }
         }
 
         private void RaiseChanged(
@@ -1042,7 +1105,7 @@ epoch: generation, labels: resource.Labels.Remove(key));
                         : WotRegistryGroups.ThingDescriptions;
         }
 
-        private static string NormalizeSegment(string value, string paramName)
+        internal static string NormalizeSegment(string value, string paramName)
         {
             if (string.IsNullOrWhiteSpace(value))
             {
@@ -1112,5 +1175,6 @@ epoch: generation, labels: resource.Labels.Remove(key));
         private readonly IWotRegistryStore m_store;
         private readonly SemaphoreSlim m_mutex = new(1, 1);
         private WotRegistrySnapshot m_snapshot;
+        private bool m_reloadRequired;
     }
 }

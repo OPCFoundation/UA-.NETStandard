@@ -1221,11 +1221,12 @@ namespace Opc.Ua.Server
                     m_dataChangeQueueHandler?.Dispose();
                     m_dataChangeQueueHandler = null;
                     m_retirementNotificationPending = true;
+                    DateTime utcNow = m_timeProvider.GetUtcNow().UtcDateTime;
                     var value = new DataValue(
                         Variant.Null,
                         error.StatusCode,
-                        DateTime.UtcNow,
-                        DateTime.UtcNow);
+                        utcNow,
+                        utcNow);
                     if (!m_lastValue.IsNull)
                     {
                         m_readyToTrigger = true;

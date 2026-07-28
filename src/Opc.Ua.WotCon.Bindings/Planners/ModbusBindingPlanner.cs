@@ -53,7 +53,7 @@ namespace Opc.Ua.WotCon.Bindings.Planners
         /// <summary>
         /// The maximum addressable 16-bit Modbus register / bit address.
         /// </summary>
-        private const int MaxAddress = 65535;
+        private const int MaxAddress = ModbusProtocolLimits.MaxAddress;
 
         private static readonly string[] s_schemes = ["modbus+tcp", "modbus"];
 
@@ -186,7 +186,40 @@ namespace Opc.Ua.WotCon.Bindings.Planners
             bool bitEntity =
                 string.Equals(effectiveEntity, "coil", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(effectiveEntity, "discreteInput", StringComparison.OrdinalIgnoreCase);
-            int maxQuantity = bitEntity ? context.Bounds.MaxCoilQuantity : context.Bounds.MaxRegisterQuantity;
+            if (function?.Code is 5 or 6 && quantity != 1)
+            {
+                diagnostics.Add(WotBindingDiagnostic.Error(
+                    WotBindingDiagnosticCode.ConflictingFields,
+                    $"modv:function '{function.Value.Mnemonic}' requires modv:quantity 1; " +
+                    $"the form specifies {quantity}.",
+                    form.Pointer("modv:quantity"), "modv:quantity"));
+                return WotBindingCompilation.Unsupported([.. diagnostics]);
+            }
+            if (function?.Code == 15 && quantity > ModbusProtocolLimits.MaxWriteCoils)
+            {
+                diagnostics.Add(WotBindingDiagnostic.Error(
+                    WotBindingDiagnosticCode.BoundsExceeded,
+                    $"modv:function '{function.Value.Mnemonic}' supports at most " +
+                    $"{ModbusProtocolLimits.MaxWriteCoils} coils; the form specifies {quantity}.",
+                    form.Pointer("modv:quantity"), "modv:quantity"));
+                return WotBindingCompilation.Unsupported([.. diagnostics]);
+            }
+            if (function?.Code == 16 && quantity > ModbusProtocolLimits.MaxWriteRegisters)
+            {
+                diagnostics.Add(WotBindingDiagnostic.Error(
+                    WotBindingDiagnosticCode.BoundsExceeded,
+                    $"modv:function '{function.Value.Mnemonic}' supports at most " +
+                    $"{ModbusProtocolLimits.MaxWriteRegisters} registers; the form specifies {quantity}.",
+                    form.Pointer("modv:quantity"), "modv:quantity"));
+                return WotBindingCompilation.Unsupported([.. diagnostics]);
+            }
+            int protocolMaxQuantity = bitEntity
+                ? ModbusProtocolLimits.MaxReadBits
+                : ModbusProtocolLimits.MaxReadRegisters;
+            int configuredMaxQuantity = bitEntity
+                ? context.Bounds.MaxCoilQuantity
+                : context.Bounds.MaxRegisterQuantity;
+            int maxQuantity = Math.Min(configuredMaxQuantity, protocolMaxQuantity);
             if (quantity > maxQuantity)
             {
                 diagnostics.Add(WotBindingDiagnostic.Error(
@@ -215,7 +248,11 @@ namespace Opc.Ua.WotCon.Bindings.Planners
                 return WotBindingCompilation.Unsupported([.. diagnostics]);
             }
 
-            string dataType = form.TryGetString("modv:type", out string type) ? type : "uint16";
+            bool bitArrayPayload = bitEntity && quantity > 1;
+            string dataType = bitEntity
+                ? (bitArrayPayload ? "boolean[]" : "boolean")
+                : (form.TryGetString("modv:type", out string type) ? type : "uint16");
+            int encodedRegisterCount = bitEntity ? 0 : ModbusDataTypes.RegisterCount(dataType);
             bool msbFirst = !form.TryGetBoolean("modv:mostSignificantByte", out bool msb) || msb;
             bool mswFirst = !form.TryGetBoolean("modv:mostSignificantWord", out bool msw) || msw;
 
@@ -261,6 +298,23 @@ namespace Opc.Ua.WotCon.Bindings.Planners
                         form.Pointer("modv:entity"), "modv:entity"));
                     continue;
                 }
+                int inferredWriteMaximum = bitEntity
+                    ? ModbusProtocolLimits.MaxWriteCoils
+                    : ModbusProtocolLimits.MaxWriteRegisters;
+                if (isWriteOp &&
+                    function is null &&
+                    quantity > inferredWriteMaximum)
+                {
+                    string items = bitEntity ? "coils" : "registers";
+                    string writeKind = bitEntity ? "multiple-coil" : "multiple-register";
+                    diagnostics.Add(WotBindingDiagnostic.Warning(
+                        WotBindingDiagnosticCode.BoundsExceeded,
+                        $"A Modbus {writeKind} write supports at most " +
+                        $"{inferredWriteMaximum} {items}; the write operation was dropped " +
+                        $"while the read binding is preserved.",
+                        form.Pointer("modv:quantity"), "modv:quantity"));
+                    continue;
+                }
                 // Reject op / function direction mismatches: an explicit write
                 // function cannot serve a read / observe op and vice versa. The
                 // offending op is dropped (rejected) while any compatible op on the
@@ -273,6 +327,15 @@ namespace Opc.Ua.WotCon.Bindings.Planners
                         (function.Value.IsWrite ? "write" : "read") +
                         $" function and cannot serve the '{op}' operation; the operation was dropped.",
                         form.Pointer("modv:function"), "modv:function"));
+                    continue;
+                }
+                if (isWriteOp && !bitEntity && quantity != encodedRegisterCount)
+                {
+                    diagnostics.Add(WotBindingDiagnostic.Warning(
+                        WotBindingDiagnosticCode.ConflictingFields,
+                        $"modv:quantity {quantity} does not match the {encodedRegisterCount}-register " +
+                        $"encoded width of modv:type '{dataType}'; the write operation was dropped.",
+                        form.Pointer("modv:quantity"), "modv:quantity"));
                     continue;
                 }
                 string method = function is not null

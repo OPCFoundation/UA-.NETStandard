@@ -37,7 +37,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests.Support
 {
     /// <summary>
     /// A minimal in-process Modbus TCP server / simulator supporting the read and
-    /// write function codes required by the WoT Modbus binding (FC 1/3/4/5/6/16).
+    /// write function codes required by the WoT Modbus binding (FC 1/2/3/4/5/6/15/16).
     /// </summary>
     public sealed class TestModbusServer : IDisposable
     {
@@ -55,7 +55,11 @@ namespace Opc.Ua.WotCon.Bindings.Tests.Support
 
         public ushort[] InputRegisters { get; } = new ushort[1024];
 
-        public bool[] Coils { get; } = new bool[1024];
+        public bool[] Coils { get; } = new bool[2048];
+
+        public bool[] DiscreteInputs { get; } = new bool[2048];
+
+        public int LastFunctionCode => Volatile.Read(ref m_lastFunctionCode);
 
         public void Dispose()
         {
@@ -133,10 +137,13 @@ namespace Opc.Ua.WotCon.Bindings.Tests.Support
         private byte[] Process(byte[] pdu)
         {
             byte function = pdu[0];
+            Volatile.Write(ref m_lastFunctionCode, function);
             switch (function)
             {
                 case 0x01:
                     return ReadBits(pdu, Coils, function);
+                case 0x02:
+                    return ReadBits(pdu, DiscreteInputs, function);
                 case 0x03:
                     return ReadRegisters(pdu, HoldingRegisters, function);
                 case 0x04:
@@ -151,6 +158,16 @@ namespace Opc.Ua.WotCon.Bindings.Tests.Support
                 {
                     int address = (pdu[1] << 8) | pdu[2];
                     HoldingRegisters[address] = (ushort)((pdu[3] << 8) | pdu[4]);
+                    return [function, pdu[1], pdu[2], pdu[3], pdu[4]];
+                }
+                case 0x0F:
+                {
+                    int address = (pdu[1] << 8) | pdu[2];
+                    int quantity = (pdu[3] << 8) | pdu[4];
+                    for (int i = 0; i < quantity; i++)
+                    {
+                        Coils[address + i] = (pdu[6 + (i / 8)] & (1 << (i % 8))) != 0;
+                    }
                     return [function, pdu[1], pdu[2], pdu[3], pdu[4]];
                 }
                 case 0x10:
@@ -235,5 +252,6 @@ namespace Opc.Ua.WotCon.Bindings.Tests.Support
         private readonly TcpListener m_listener;
         private readonly Task m_loop;
         private readonly CancellationTokenSource m_cts = new();
+        private int m_lastFunctionCode;
     }
 }

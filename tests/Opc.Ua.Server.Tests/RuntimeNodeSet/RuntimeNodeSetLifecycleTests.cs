@@ -1034,15 +1034,20 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
             }
 
-            // With the owning subscription gone, a later lifecycle operation
-            // opportunistically finishes retired-generation cleanup: the old generation's
-            // own address space is torn down without ever deleting the client's
-            // (already independently deleted) subscription itself.
+            // With the owning subscription gone, prompt background cleanup or the later
+            // lifecycle operation finishes retired-generation cleanup. If the background
+            // pass already claimed the generation, Remove need not duplicate that work.
             NodeManagerRegistration current = m_server.NodeManagerLifecycle.Registrations
                 .Find(r => r.Id == original.Id);
             Assert.That(current, Is.Not.Null);
             await m_server.NodeManagerLifecycle.RemoveAsync(current).ConfigureAwait(false);
 
+            for (int attempt = 0;
+                attempt < 400 && originalManager.Find(valueNodeId) is not null;
+                attempt++)
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(25)).ConfigureAwait(false);
+            }
             Assert.That(originalManager.Find(valueNodeId), Is.Null);
             Assert.That(
                 CountMatches(m_server.NodeManagerLifecycle.Registrations, r => r.Id == original.Id),

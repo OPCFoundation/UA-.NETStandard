@@ -38,22 +38,31 @@ namespace Opc.Ua.WotCon.Bindings.Http
     /// so callers can supply a pooled, mutually-authenticated or test
     /// <see cref="HttpClient"/>; when none is supplied the executor owns a private
     /// client. Default headers are applied to every request in addition to any
-    /// credential the provider resolves.
+    /// credential the provider resolves and are treated as sensitive by the
+    /// redirect policy.
     /// </summary>
     public sealed class HttpWotBindingOptions
     {
         /// <summary>
         /// Gets or sets the factory that supplies the <see cref="HttpClient"/>. When
         /// <c>null</c> the executor creates and owns a private client whose handler
-        /// disables automatic redirects, so the executor can apply a bounded,
-        /// origin-aware redirect policy that never leaks credentials across origins.
-        /// A supplied client is treated as caller-owned and is never disposed by
-        /// the executor.
+        /// disables automatic redirects and ambient cookie handling, so the executor
+        /// can apply a bounded, origin-aware redirect policy that never leaks
+        /// credentials across origins. A supplied client is treated as caller-owned
+        /// and is never disposed or mutated by the executor. Every supplied client
+        /// must satisfy
+        /// <see cref="CallerClientHandlesRedirectSafety"/>, regardless of the
+        /// currently configured headers or form security.
         /// </summary>
         public Func<HttpClient>? ClientFactory { get; set; }
 
         /// <summary>
-        /// Gets or sets default headers applied to every request.
+        /// Gets or sets default headers applied to requests on the original origin
+        /// and any same-origin redirect. All configured headers are treated as
+        /// sensitive and are stripped from cross-origin redirects. The collection is
+        /// copied into immutable per-channel state during activation; later changes
+        /// to this property or its original collection do not affect an active
+        /// channel.
         /// </summary>
         public IReadOnlyDictionary<string, string>? DefaultHeaders { get; set; }
 
@@ -65,8 +74,9 @@ namespace Opc.Ua.WotCon.Bindings.Http
         /// <summary>
         /// Gets or sets the maximum number of redirects the executor-owned client
         /// follows for a single request. The default is <c>5</c>; <c>0</c> disables
-        /// redirect following entirely. Custom header and query credentials are
-        /// stripped whenever a redirect crosses to a different origin.
+        /// redirect following entirely. Default headers and custom header / query
+        /// credentials are stripped whenever a redirect crosses to a different
+        /// origin.
         /// </summary>
         public int MaxAutomaticRedirects { get; set; } = 5;
 
@@ -79,13 +89,14 @@ namespace Opc.Ua.WotCon.Bindings.Http
 
         /// <summary>
         /// Gets or sets whether a caller-supplied <see cref="HttpClient"/> is trusted
-        /// to handle redirects safely for credential-bearing forms. The default is
-        /// <c>false</c>: activating a credential-bearing form on a caller-supplied
-        /// client fails closed, because the executor cannot guarantee that client
-        /// disables automatic redirects (which could leak custom header or query
-        /// credentials across origins). Set to <c>true</c> only when the supplied
-        /// client is known to disable automatic redirects, or to follow them without
-        /// forwarding credentials to a different origin.
+        /// to handle redirects safely. The default is <c>false</c>: every
+        /// caller-supplied client fails closed because the executor cannot inspect or
+        /// control its redirect handler, automatic cookie handling and
+        /// <see cref="System.Net.CookieContainer"/>, mutable
+        /// <see cref="HttpClient.DefaultRequestHeaders"/>, or later caller
+        /// mutations. Set to <c>true</c> only when the supplied client is known to
+        /// disable automatic redirects, or to follow them without forwarding
+        /// credentials to a different origin.
         /// </summary>
         public bool CallerClientHandlesRedirectSafety { get; set; }
     }

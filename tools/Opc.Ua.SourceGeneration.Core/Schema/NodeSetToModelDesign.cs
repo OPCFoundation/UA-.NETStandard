@@ -1087,47 +1087,7 @@ namespace Opc.Ua.Schema.Model
                 }
             }
 
-            DisambiguateArgumentFieldNames(output);
-        }
-
-        /// <summary>
-        /// A method may declare an output argument whose name matches one of its
-        /// input arguments (for example an xRegistry method that accepts a
-        /// desired <c>VersionId</c> and returns the effective <c>VersionId</c>).
-        /// The generated typed handler emits the input arguments and the
-        /// by-reference output arguments as parameters/locals in the same scope,
-        /// so a shared name produces a duplicate C# identifier. Suffix the
-        /// generated field name of the colliding output arguments; the runtime
-        /// argument names (read positionally from the NodeSet value) are
-        /// unaffected.
-        /// </summary>
-        private static void DisambiguateArgumentFieldNames(MethodDesign output)
-        {
-            if (output.InputArguments == null ||
-                output.InputArguments.Length == 0 ||
-                output.OutputArguments == null ||
-                output.OutputArguments.Length == 0)
-            {
-                return;
-            }
-
-            var inputFieldNames = new HashSet<string>(StringComparer.Ordinal);
-            foreach (Parameter input in output.InputArguments)
-            {
-                if (!string.IsNullOrEmpty(input?.Name))
-                {
-                    inputFieldNames.Add(input.GetChildFieldName());
-                }
-            }
-
-            foreach (Parameter arg in output.OutputArguments)
-            {
-                if (!string.IsNullOrEmpty(arg?.Name) &&
-                    inputFieldNames.Contains(arg.GetChildFieldName()))
-                {
-                    arg.Name += "Out";
-                }
-            }
+            output.AssignMethodArgumentCodeNames();
         }
 
         private void LinkChildToParent(UAInstance input)
@@ -2026,10 +1986,15 @@ namespace Opc.Ua.Schema.Model
                         continue;
                     }
 
-                    // Skip standalone method-type declarations (no owning parent):
-                    // they already act as the method type, so synthesizing a
-                    // "<Name>MethodType" for them would create a spurious node.
-                    if (method.Parent == null)
+                    // Skip a standalone node that already is a method type (no owning
+                    // parent and the conventional "MethodType" name, e.g. the
+                    // incorporated WoT Connectivity 1.02 CreateAssetMethodType).
+                    // Synthesizing a declaration for it would emit a spurious
+                    // "<Name>MethodTypeMethodType" node. A parentless method that is
+                    // merely a declaration target of another method still needs one.
+                    if (method.Parent == null &&
+                        method.SymbolicName != null &&
+                        method.SymbolicName.Name.EndsWith("MethodType", StringComparison.Ordinal))
                     {
                         continue;
                     }
@@ -2090,6 +2055,10 @@ namespace Opc.Ua.Schema.Model
         /// </summary>
         private XmlDecoder CreateDecoder(System.Xml.XmlElement source, string sourceNodeSetUri = null)
         {
+            // The factory knows the standard OPC UA encodeable types. Without them, structured
+            // NodeSet2 values such as method Argument lists (InputArguments/OutputArguments)
+            // cannot be decoded and the generated typed method state would lose its arguments
+            // and result fields.
             var messageContext = new ServiceMessageContext(m_telemetry, s_valueDecodingFactory);
             messageContext.NamespaceUris = m_settings.NamespaceUris;
             messageContext.ServerUris = m_serverUris;

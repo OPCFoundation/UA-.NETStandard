@@ -179,39 +179,29 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         }
 
         [Test]
-        public async Task ModbusChannelWriteToDiscreteInputReturnsBadNotWritable()
+        public void ModbusChannelWriteToDiscreteInputIsRejectedDuringActivation()
         {
             using var server = new TestModbusServer();
             WotCompiledForm form = BuildRawForm(
                 server.Port, "discreteInput", WoTBindingCapabilityEnum.WriteProperty, "writeproperty");
             var executor = new ModbusWotBindingExecutor();
-            IWotBindingChannel channel = await executor.ActivateAsync(
-                form, new WotExecutorContext()).ConfigureAwait(false);
-            await using (channel.ConfigureAwait(false))
-            {
-                WotWriteResult result = await channel.WriteAsync(
-                    new DataValue(new Variant(true))).ConfigureAwait(false);
-                Assert.That(result.Success, Is.False);
-                Assert.That(result.Status, Is.EqualTo(StatusCodes.BadNotWritable));
-            }
+            Assert.ThrowsAsync<ArgumentException>(
+                async () => await executor
+                    .ActivateAsync(form, new WotExecutorContext())
+                    .ConfigureAwait(false));
         }
 
         [Test]
-        public async Task ModbusChannelWriteToInputRegisterReturnsBadNotWritable()
+        public void ModbusChannelWriteToInputRegisterIsRejectedDuringActivation()
         {
             using var server = new TestModbusServer();
             WotCompiledForm form = BuildRawForm(
                 server.Port, "inputRegister", WoTBindingCapabilityEnum.WriteProperty, "writeproperty");
             var executor = new ModbusWotBindingExecutor();
-            IWotBindingChannel channel = await executor.ActivateAsync(
-                form, new WotExecutorContext()).ConfigureAwait(false);
-            await using (channel.ConfigureAwait(false))
-            {
-                WotWriteResult result = await channel.WriteAsync(
-                    new DataValue(new Variant(42))).ConfigureAwait(false);
-                Assert.That(result.Success, Is.False);
-                Assert.That(result.Status, Is.EqualTo(StatusCodes.BadNotWritable));
-            }
+            Assert.ThrowsAsync<ArgumentException>(
+                async () => await executor
+                    .ActivateAsync(form, new WotExecutorContext())
+                    .ConfigureAwait(false));
         }
 
         [Test]

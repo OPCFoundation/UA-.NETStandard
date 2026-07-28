@@ -70,16 +70,27 @@ namespace Opc.Ua.SourceGeneration
                     .Select(static (pair, _) => (pair.Text, pair.Options.ToNodeSetOptions()))
                     .Collect();
 
-            // Every WoT input is converted independently (and cheaply cached
-            // per file): parse, bounds, missing preservation/native mapping,
-            // dependency/resolver and conversion problems are captured as
-            // diagnostics on the outcome rather than thrown, so one malformed
-            // input can never abort the whole generator run.
-            IncrementalValueProvider<ImmutableArray<WotConversionOutcome>> wotOutcomes =
+            // Snapshot the structural per-file options before conversion so
+            // downstream work remains cheaply cached per file. An ignored WoT
+            // input leaves the pipeline here, before its contents are read or
+            // it can produce diagnostics, dependencies or a virtual path claim.
+            IncrementalValuesProvider<(AdditionalText Text, NodesetFileOptions Options)> wotInputFiles =
                 textsWithOptions
                     .Where(static pair => pair.Text.IsWotFile(pair.Options))
-                    .Select(static (pair, ct) => WotNodeSetAdditionalText.Convert(
-                        pair.Text, pair.Options.ToNodeSetOptions(), ct))
+                    .Select(static (pair, _) => (
+                        pair.Text,
+                        Options: pair.Options.ToNodeSetOptions()))
+                    .Where(static pair => !pair.Options.Ignore);
+
+            // Every active WoT input is converted independently: parse, bounds,
+            // missing preservation/native mapping, dependency/resolver and
+            // conversion problems are captured as diagnostics on the outcome
+            // rather than thrown, so one malformed input can never abort the
+            // whole generator run.
+            IncrementalValueProvider<ImmutableArray<WotConversionOutcome>> wotOutcomes =
+                wotInputFiles
+                    .Select(static (input, ct) => WotNodeSetAdditionalText.Convert(
+                        input.Text, input.Options, ct))
                     .Collect();
 
             // Resolve WoT outcomes against the explicit NodeSet2/ModelDesign

@@ -95,8 +95,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
 
                 var registry = new WotProtocolBinderRegistry(
                     [new HttpBindingPlanner()],
-                    [ new HttpWotBindingExecutor(
-                        new HttpWotBindingOptions { ClientFactory = () => new HttpClient() }) ]);
+                    [new HttpWotBindingExecutor()]);
                 string td = "{\"@context\":\"https://www.w3.org/2022/wot/td/v1.1\",\"title\":\"t\"," +
                     "\"properties\":{\"p\":{\"type\":\"number\",\"forms\":[{\"href\":\"" +
                     server.BaseUrl +

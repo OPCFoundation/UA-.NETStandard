@@ -64,12 +64,38 @@ namespace Opc.Ua.Server
             }
         }
 
+        internal long ShutdownCleanupProgress =>
+            Interlocked.Read(ref m_shutdownCleanupProgress);
+
+        internal int RetiredNodeManagerCount
+        {
+            get
+            {
+                lock (m_registrationLock)
+                {
+                    return m_retiredNodeManagers.Count;
+                }
+            }
+        }
+
         /// <inheritdoc/>
         public void Dispose()
         {
-            if (!m_disposed)
+            bool disposeSemaphore;
+            lock (m_operationLifetimeLock)
             {
+                if (m_disposeRequested)
+                {
+                    return;
+                }
+
+                m_disposeRequested = true;
                 m_disposed = true;
+                m_shuttingDown = true;
+                disposeSemaphore = TryReserveSemaphoreDisposal();
+            }
+            if (disposeSemaphore)
+            {
                 m_lifecycleSemaphore.Dispose();
             }
         }
@@ -83,20 +109,44 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(server));
             }
 
-            m_shuttingDown = true;
-            await m_lifecycleSemaphore.WaitAsync(ct).ConfigureAwait(false);
+            Task activeOperations = EnterShutdownMethod();
+            bool semaphoreHeld = false;
+            bool shutdownPrepared = false;
             try
             {
+                await activeOperations.WaitAsync(ct).ConfigureAwait(false);
+                await m_lifecycleSemaphore.WaitAsync(ct).ConfigureAwait(false);
+                semaphoreHeld = true;
                 if (server.NodeManager is IDynamicNodeManagerHost host)
                 {
                     await CleanupRetiredNodeManagersAsync(
                         server,
-                        host).ConfigureAwait(false);
+                        host,
+                        allowShuttingDown: true).ConfigureAwait(false);
+
+                    RetiredNodeManager[] retired;
+                    lock (m_registrationLock)
+                    {
+                        retired = [.. m_retiredNodeManagers];
+                    }
+
+                    foreach (RetiredNodeManager retiredNodeManager in retired)
+                    {
+                        host.SetRetiredGenerationNotifications(
+                            retiredNodeManager.NodeManager,
+                            enabled: false);
+                        retiredNodeManager.NotificationsSuspended = true;
+                    }
                 }
+                shutdownPrepared = true;
             }
             finally
             {
-                m_lifecycleSemaphore.Release();
+                if (semaphoreHeld)
+                {
+                    m_lifecycleSemaphore.Release();
+                }
+                ExitBeginShutdownMethod(shutdownPrepared);
             }
         }
 
@@ -109,42 +159,131 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(server));
             }
 
-            await m_lifecycleSemaphore.WaitAsync(ct).ConfigureAwait(false);
+            Task activeOperations = EnterShutdownMethod();
+            bool semaphoreHeld = false;
+            bool shutdownCompleted = false;
             try
             {
+                await activeOperations.WaitAsync(ct).ConfigureAwait(false);
+                await m_lifecycleSemaphore.WaitAsync(ct).ConfigureAwait(false);
+                semaphoreHeld = true;
                 RegistrationState[] registrations;
                 RetiredNodeManager[] retired;
                 lock (m_registrationLock)
                 {
                     registrations = [.. m_registrations.Values];
-                    m_registrations.Clear();
                     retired = [.. m_retiredNodeManagers];
-                    m_retiredNodeManagers.Clear();
                 }
 
                 var host =
                     server.NodeManager as IDynamicNodeManagerHost;
+                var failures = new List<Exception>();
+                OperationCanceledException? cancellationException = null;
                 foreach (RegistrationState registration in registrations)
                 {
-                    host?.Release(registration.Prepared.NodeManager);
-                    await DisposeNodeManagerAsync(registration.Prepared.NodeManager)
-                        .ConfigureAwait(false);
+                    try
+                    {
+                        ct.ThrowIfCancellationRequested();
+                        ShutdownCleanupState cleanup = registration.ShutdownCleanup;
+                        bool completeCommittedRemoval = cleanup.RemovalUnpublished;
+                        if (completeCommittedRemoval && !cleanup.Detached)
+                        {
+                            cleanup.RemovalMonitoredItemsDeleted = true;
+                            cleanup.Detached = true;
+                            registration.Prepared.Staged = false;
+                            RecordShutdownCleanupProgress();
+                        }
+                        await CleanupShutdownNodeManagerAsync(
+                                server,
+                                host,
+                                registration.Prepared.NodeManager,
+                                cleanup,
+                                pendingReferences: null,
+                                destroyAddressSpace: completeCommittedRemoval,
+                                removeDestroyedExternalReferences: completeCommittedRemoval,
+                                ct)
+                            .ConfigureAwait(false);
+                        lock (m_registrationLock)
+                        {
+                            if (m_registrations.TryGetValue(
+                                    registration.Registration.Id,
+                                    out RegistrationState? current) &&
+                                ReferenceEquals(current, registration))
+                            {
+                                m_registrations.Remove(registration.Registration.Id);
+                            }
+                        }
+                    }
+                    catch (OperationCanceledException ex) when (
+                        ct.IsCancellationRequested)
+                    {
+                        cancellationException = ex;
+                        break;
+                    }
+                    catch (Exception ex) when (ex is not OutOfMemoryException)
+                    {
+                        failures.Add(
+                            new InvalidOperationException(
+                                "A registered NodeManager failed during shutdown cleanup.",
+                                ex));
+                    }
                 }
 
-                // The server itself tears down every session, subscription, and
-                // monitored item during shutdown, so a shadow-reloaded generation that
-                // is still draining outside of shutdown is safe to dispose here rather
-                // than left to leak.
-                foreach (RetiredNodeManager retiredNodeManager in retired)
+                if (cancellationException is null)
                 {
-                    host?.Release(retiredNodeManager.NodeManager);
-                    await DisposeNodeManagerAsync(retiredNodeManager.NodeManager)
-                        .ConfigureAwait(false);
+                    foreach (RetiredNodeManager retiredNodeManager in retired)
+                    {
+                        try
+                        {
+                            ct.ThrowIfCancellationRequested();
+                            await CleanupShutdownNodeManagerAsync(
+                                    server,
+                                    host,
+                                    retiredNodeManager.NodeManager,
+                                    retiredNodeManager.ShutdownCleanup,
+                                    retiredNodeManager.PendingReferences,
+                                    destroyAddressSpace: true,
+                                    removeDestroyedExternalReferences: false,
+                                    ct)
+                                .ConfigureAwait(false);
+                            RemoveRetiredNodeManagerRecord(retiredNodeManager);
+                        }
+                        catch (OperationCanceledException ex) when (
+                            ct.IsCancellationRequested)
+                        {
+                            cancellationException = ex;
+                            break;
+                        }
+                        catch (Exception ex) when (ex is not OutOfMemoryException)
+                        {
+                            failures.Add(
+                                new InvalidOperationException(
+                                    "A retired NodeManager failed during shutdown cleanup.",
+                                    ex));
+                        }
+                    }
                 }
+
+                if (cancellationException is not null)
+                {
+                    throw cancellationException;
+                }
+                if (failures.Count > 0)
+                {
+                    throw new AggregateException(
+                        "One or more NodeManagers failed during shutdown cleanup.",
+                        failures);
+                }
+
+                shutdownCompleted = true;
             }
             finally
             {
-                m_lifecycleSemaphore.Release();
+                if (semaphoreHeld)
+                {
+                    m_lifecycleSemaphore.Release();
+                }
+                ExitCompleteShutdownMethod(shutdownCompleted);
             }
         }
 
@@ -308,154 +447,278 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(registration));
             }
 
-            await m_lifecycleSemaphore.WaitAsync(ct).ConfigureAwait(false);
+            using OperationLifetime operation = EnterLifecycleOperation();
+            RegistrationState permissionState = GetCurrentState(
+                registration,
+                allowRemovalRetry: true);
+            bool allowRequestCallback =
+                permissionState.AllowLifecycleFromRequestCallback;
+            (IServerInternal entryServer, _) =
+                GetRunningServer(allowRequestCallback);
+            using RequestManager.RequestLifecycleWaiterScope? requestWaiter =
+                EnterRequestLifecycleWaiter(entryServer);
+            await WaitForLifecycleSemaphoreAsync(requestWaiter, ct)
+                .ConfigureAwait(false);
             try
             {
-                RegistrationState state = GetCurrentState(registration);
-                EnsureRequestCallbackAllowed(state.AllowLifecycleFromRequestCallback);
-                (IServerInternal server, IDynamicNodeManagerHost host) = GetRunningServer(
-                    state.AllowLifecycleFromRequestCallback);
-                await CleanupRetiredNodeManagersAsync(server, host).ConfigureAwait(false);
-                MonitoredItemTransition monitoredItemTransition =
-                    await PrepareMonitoredItemRemovalAsync(
-                        server,
-                        state.Prepared.NodeManager,
-                        ct).ConfigureAwait(false);
-                if (!state.Prepared.Published &&
-                    state.Prepared.Staged)
-                {
-                    await UnbindFromServerAsync(
-                        server,
-                        state.Prepared.NodeManager,
-                        CancellationToken.None).ConfigureAwait(false);
-                    state.Prepared.Staged = false;
-                }
-                if (state.Prepared.Published)
-                {
-                    await host
-                        .UnpublishAsync(
-                            state.Prepared.NodeManager,
-                            beforeUnpublish: () =>
-                                monitoredItemTransition.DetachCurrentAsync(ct),
-                            rollbackUnpublish: () =>
-                                monitoredItemTransition.RollbackAsync(
-                                    CancellationToken.None),
-                            ct: ct)
-                        .ConfigureAwait(false);
-                    state.Prepared.Published = false;
+                EnsureRequestCallbackAllowed(allowRequestCallback);
+                (IServerInternal cleanupServer, IDynamicNodeManagerHost cleanupHost) =
+                    GetRunningServer(allowRequestCallback);
+                await CleanupRetiredNodeManagersAsync(cleanupServer, cleanupHost)
+                    .ConfigureAwait(false);
 
-                    try
+                RegistrationState state = GetCurrentState(
+                    registration,
+                    allowRemovalRetry: true);
+                (IServerInternal server, IDynamicNodeManagerHost host) =
+                    GetRunningServer(allowRequestCallback);
+                ShutdownCleanupState cleanup = state.ShutdownCleanup;
+                try
+                {
+                    if (!cleanup.Detached)
                     {
-                        InvalidateContinuationPoints(
-                            server,
-                            state.Prepared.NodeManager);
-                        await server.RequestManager
-                            .WaitForCurrentRequestsAsync(ct)
-                            .ConfigureAwait(false);
-                        InvalidateContinuationPoints(
-                            server,
-                            state.Prepared.NodeManager);
-                        await UnbindFromServerAsync(
-                            server,
-                            state.Prepared.NodeManager,
-                            ct).ConfigureAwait(false);
-                    }
-                    catch (Exception ex) when (ex is not OutOfMemoryException)
-                    {
-                        ServerBindings? rollbackBindings = null;
+                        MonitoredItemTransition monitoredItemTransition =
+                            await PrepareMonitoredItemRemovalAsync(
+                                server,
+                                state.Prepared.NodeManager,
+                                ct).ConfigureAwait(false);
+                        bool rollbackPublication = false;
+                        if (!cleanup.RemovalUnpublished)
+                        {
+                            if (state.Prepared.Published)
+                            {
+                                await host
+                                    .UnpublishAsync(
+                                        state.Prepared.NodeManager,
+                                        beforeUnpublish: () =>
+                                            monitoredItemTransition.DetachCurrentAsync(ct),
+                                        rollbackUnpublish: () =>
+                                            monitoredItemTransition.RollbackAsync(
+                                                CancellationToken.None),
+                                        ct: ct)
+                                    .ConfigureAwait(false);
+                                state.Prepared.Published = false;
+                                rollbackPublication = true;
+                            }
+                            else
+                            {
+                                await monitoredItemTransition
+                                    .DetachCurrentAsync(ct)
+                                    .ConfigureAwait(false);
+                            }
+                            MarkRemovalUnpublished(cleanup);
+                        }
+                        ClaimRemoval(registration, state);
+
                         try
                         {
-                            await host
-                                .PublishAsync(
-                                    state.Prepared,
-                                    CancellationToken.None)
+                            await WaitForNotificationDispatchesOutsideLifecycleSemaphoreAsync(
+                                    server,
+                                    host,
+                                    state.Prepared.NodeManager)
                                 .ConfigureAwait(false);
-                            rollbackBindings = await BindToServerAsync(
+                            ValidateRemovalClaim(
+                                registration,
+                                state,
+                                "The registration was replaced while notifications drained.");
+                            InvalidateContinuationPoints(
                                 server,
-                                state.Prepared.NodeManager,
-                                CancellationToken.None).ConfigureAwait(false);
-                            await CommitWithReconciliationAsync(
+                                state.Prepared.NodeManager);
+                            await DrainRequestsOutsideLifecycleSemaphoreAsync(
+                                    server,
+                                    ct)
+                                .ConfigureAwait(false);
+                            EnsureSameRunningServer(
                                 server,
                                 host,
-                                state.Prepared,
-                                state.Prepared.NodeManager,
-                                rollbackBindings,
-                                CancellationToken.None,
-                                afterCommit: () =>
-                                    monitoredItemTransition.RollbackAsync(
-                                        CancellationToken.None)).ConfigureAwait(false);
-                            await server.RequestManager
-                                .WaitForCurrentRequestsAsync(CancellationToken.None)
-                                .ConfigureAwait(false);
-                            await ReconcileBindingsAsync(
+                                allowRequestCallback);
+                            ValidateRemovalClaim(
+                                registration,
+                                state,
+                                "The registration was replaced while removal requests drained.");
+                            InvalidateContinuationPoints(
+                                server,
+                                state.Prepared.NodeManager);
+                            await UnbindFromServerAsync(
                                 server,
                                 state.Prepared.NodeManager,
-                                rollbackBindings,
-                                CancellationToken.None).ConfigureAwait(false);
+                                ct).ConfigureAwait(false);
+                            state.Prepared.Staged = false;
                         }
-                        catch (Exception rollbackException) when (
-                            rollbackException is not OutOfMemoryException)
+                        catch (Exception ex) when (ex is not OutOfMemoryException)
                         {
-                            Exception? cleanupException = null;
-                            if (!state.Prepared.Published)
+                            if (!rollbackPublication ||
+                                !CanRecoverRunningServer(server, host))
                             {
-                                try
+                                throw;
+                            }
+
+                            ServerBindings? rollbackBindings = null;
+                            try
+                            {
+                                await host
+                                    .PublishAsync(
+                                        state.Prepared,
+                                        CancellationToken.None)
+                                    .ConfigureAwait(false);
+                                rollbackBindings = await BindToServerAsync(
+                                    server,
+                                    state.Prepared.NodeManager,
+                                    CancellationToken.None).ConfigureAwait(false);
+                                await CommitWithReconciliationAsync(
+                                    server,
+                                    host,
+                                    state.Prepared,
+                                    state.Prepared.NodeManager,
+                                    rollbackBindings,
+                                    CancellationToken.None,
+                                    afterCommit: () =>
+                                        monitoredItemTransition.RollbackAsync(
+                                            CancellationToken.None)).ConfigureAwait(false);
+                                ResetRemovalUnpublished(cleanup);
+                                lock (m_registrationLock)
                                 {
-                                    if (rollbackBindings is not null)
-                                    {
-                                        await UnbindBindingsAsync(
-                                            state.Prepared.NodeManager,
-                                            rollbackBindings,
-                                            CancellationToken.None).ConfigureAwait(false);
-                                    }
-                                    await UnbindFromServerAsync(
+                                    state.RemovalPending = false;
+                                }
+                                host.SetRetiredGenerationNotifications(
+                                    state.Prepared.NodeManager,
+                                    enabled: true);
+                                await DrainRequestsOutsideLifecycleSemaphoreAsync(
+                                        server,
+                                        CancellationToken.None)
+                                    .ConfigureAwait(false);
+                                EnsureSameRunningServer(
+                                    server,
+                                    host,
+                                    allowRequestCallback);
+                                if (IsCurrentRegistration(registration))
+                                {
+                                    await ReconcileBindingsAsync(
                                         server,
                                         state.Prepared.NodeManager,
+                                        rollbackBindings,
                                         CancellationToken.None).ConfigureAwait(false);
-                                    state.Prepared.Staged = false;
-                                }
-                                catch (Exception ex2) when (
-                                    ex2 is not OutOfMemoryException)
-                                {
-                                    cleanupException = ex2;
                                 }
                             }
-                            if (cleanupException is not null)
+                            catch (Exception rollbackException) when (
+                                rollbackException is not OutOfMemoryException)
                             {
-                                rollbackException = new AggregateException(
-                                    "NodeManager rollback binding cleanup failed.",
-                                    rollbackException,
-                                    cleanupException);
+                                state.RemovalPending = false;
+                                Exception? cleanupException = null;
+                                if (state.Prepared.Published)
+                                {
+                                    ResetRemovalUnpublished(cleanup);
+                                    host.SetRetiredGenerationNotifications(
+                                        state.Prepared.NodeManager,
+                                        enabled: true);
+                                }
+                                else
+                                {
+                                    try
+                                    {
+                                        if (rollbackBindings is not null)
+                                        {
+                                            await UnbindBindingsAsync(
+                                                state.Prepared.NodeManager,
+                                                rollbackBindings,
+                                                CancellationToken.None).ConfigureAwait(false);
+                                        }
+                                        await UnbindFromServerAsync(
+                                            server,
+                                            state.Prepared.NodeManager,
+                                            CancellationToken.None).ConfigureAwait(false);
+                                        state.Prepared.Staged = false;
+                                    }
+                                    catch (Exception ex2) when (
+                                        ex2 is not OutOfMemoryException)
+                                    {
+                                        cleanupException = ex2;
+                                    }
+                                }
+                                if (cleanupException is not null)
+                                {
+                                    rollbackException = new AggregateException(
+                                        "NodeManager rollback binding cleanup failed.",
+                                        rollbackException,
+                                        cleanupException);
+                                }
+                                throw new AggregateException(
+                                    "NodeManager removal and rollback both failed.",
+                                    ex,
+                                    rollbackException);
                             }
-                            throw new AggregateException(
-                                "NodeManager removal and rollback both failed.",
-                                ex,
-                                rollbackException);
+                            throw;
                         }
-                        throw;
+
+                        MarkRemovalDetached(cleanup, monitoredItemTransition);
+                    }
+                    else
+                    {
+                        ClaimRemoval(registration, state);
+                    }
+
+                    if (!cleanup.NotificationsFinalized)
+                    {
+                        await FinalizeNotificationsOutsideLifecycleSemaphoreAsync(
+                                server,
+                                host,
+                                state.Prepared.NodeManager)
+                            .ConfigureAwait(false);
+                        cleanup.NotificationsFinalized = true;
+                        ValidateRemovalClaim(
+                            registration,
+                            state,
+                            "The registration changed while notifications drained.");
+                    }
+                    if (!cleanup.Destroyed)
+                    {
+                        await host
+                            .DestroyAddressSpaceAsync(
+                                state.Prepared.NodeManager,
+                                ct: CancellationToken.None)
+                            .ConfigureAwait(false);
+                        cleanup.NotificationsFinalized = true;
+                        cleanup.Destroyed = true;
+                    }
+                    if (!cleanup.DestroyedExternalReferencesRemoved)
+                    {
+                        await host
+                            .RemoveDestroyedExternalReferencesAsync(
+                                state.Prepared.NodeManager,
+                                CancellationToken.None)
+                            .ConfigureAwait(false);
+                        cleanup.DestroyedExternalReferencesRemoved = true;
+                    }
+                    if (!cleanup.Disposed)
+                    {
+                        RebuildActiveTypeTree(server);
+                        await DisposeNodeManagerAsync(state.Prepared.NodeManager)
+                            .ConfigureAwait(false);
+                        cleanup.Disposed = true;
+                    }
+                    ValidateRemovalClaim(
+                        registration,
+                        state,
+                        "The registration changed while removal cleanup completed.");
+                    lock (m_registrationLock)
+                    {
+                        m_registrations.Remove(registration.Id);
                     }
                 }
-
-                monitoredItemTransition.MarkDeletedItems();
-                await host
-                    .DestroyAsync(
-                        state.Prepared.NodeManager,
-                        removeExternalReferences: true,
-                        ct: CancellationToken.None)
-                    .ConfigureAwait(false);
-                RebuildActiveTypeTree(server);
-                await DisposeNodeManagerAsync(state.Prepared.NodeManager)
-                    .ConfigureAwait(false);
-                lock (m_registrationLock)
+                catch
                 {
-                    m_registrations.Remove(registration.Id);
+                    state.RemovalPending = false;
+                    throw;
                 }
 
-                await NotifyCommittedChangeAsync(
-                    server,
-                    "removed",
-                    namespaceCountBefore: server.NamespaceUris.Count,
-                    ct: CancellationToken.None).ConfigureAwait(false);
+                if (!m_shuttingDown && !m_disposed)
+                {
+                    await NotifyCommittedChangeAsync(
+                        server,
+                        "removed",
+                        namespaceCountBefore: server.NamespaceUris.Count,
+                        ct: CancellationToken.None).ConfigureAwait(false);
+                }
             }
             finally
             {
@@ -468,8 +731,13 @@ namespace Opc.Ua.Server
             bool allowRequestCallback,
             CancellationToken ct)
         {
-            EnsureRequestCallbackAllowed(allowRequestCallback);
-            await m_lifecycleSemaphore.WaitAsync(ct).ConfigureAwait(false);
+            using OperationLifetime operation = EnterLifecycleOperation();
+            (IServerInternal entryServer, _) =
+                GetRunningServer(allowRequestCallback);
+            using RequestManager.RequestLifecycleWaiterScope? requestWaiter =
+                EnterRequestLifecycleWaiter(entryServer);
+            await WaitForLifecycleSemaphoreAsync(requestWaiter, ct)
+                .ConfigureAwait(false);
             IAsyncNodeManager? nodeManager = null;
             PreparedNodeManager? prepared = null;
             IServerInternal? server = null;
@@ -478,8 +746,11 @@ namespace Opc.Ua.Server
             bool committed = false;
             try
             {
+                (IServerInternal cleanupServer, IDynamicNodeManagerHost cleanupHost) =
+                    GetRunningServer(allowRequestCallback);
+                await CleanupRetiredNodeManagersAsync(cleanupServer, cleanupHost)
+                    .ConfigureAwait(false);
                 (server, host) = GetRunningServer(allowRequestCallback);
-                await CleanupRetiredNodeManagersAsync(server, host).ConfigureAwait(false);
                 namespaceCountBefore = server.NamespaceUris.Count;
                 nodeManager = await createNodeManager(
                     server,
@@ -528,19 +799,30 @@ namespace Opc.Ua.Server
                 }
                 committed = true;
 
-                await server.RequestManager
-                    .WaitForCurrentRequestsAsync(CancellationToken.None)
+                await DrainRequestsOutsideLifecycleSemaphoreAsync(
+                        server,
+                        CancellationToken.None)
                     .ConfigureAwait(false);
-                await ReconcileBindingsAsync(
+                EnsureSameRunningServer(
                     server,
-                    nodeManager,
-                    bindings,
-                    CancellationToken.None).ConfigureAwait(false);
-                await NotifyCommittedChangeAsync(
-                    server,
-                    "added",
-                    namespaceCountBefore,
-                    CancellationToken.None).ConfigureAwait(false);
+                    host,
+                    allowRequestCallback);
+                if (IsCurrentRegistration(registration))
+                {
+                    await ReconcileBindingsAsync(
+                        server,
+                        nodeManager,
+                        bindings,
+                        CancellationToken.None).ConfigureAwait(false);
+                }
+                if (!m_shuttingDown && !m_disposed)
+                {
+                    await NotifyCommittedChangeAsync(
+                        server,
+                        "added",
+                        namespaceCountBefore,
+                        CancellationToken.None).ConfigureAwait(false);
+                }
                 return registration;
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)
@@ -559,7 +841,8 @@ namespace Opc.Ua.Server
                     cleanupException = await CleanupPreparedAsync(
                         server,
                         host,
-                        prepared).ConfigureAwait(false);
+                        prepared,
+                        allowRequestCallback).ConfigureAwait(false);
                 }
 
                 NodeManagerRegistration? retainedRegistration = null;
@@ -582,35 +865,46 @@ namespace Opc.Ua.Server
                                 allowRequestCallback);
                     }
 
-                    try
+                    if (CanRecoverRunningServer(server, host))
                     {
-                        ServerBindings recoveryBindings =
-                            await BindToServerAsync(
+                        try
+                        {
+                            ServerBindings recoveryBindings =
+                                await BindToServerAsync(
+                                    server,
+                                    nodeManager,
+                                    CancellationToken.None).ConfigureAwait(false);
+                            await ReconcileBindingsAsync(
                                 server,
                                 nodeManager,
+                                recoveryBindings,
                                 CancellationToken.None).ConfigureAwait(false);
-                        await ReconcileBindingsAsync(
-                            server,
-                            nodeManager,
-                            recoveryBindings,
-                            CancellationToken.None).ConfigureAwait(false);
-                        await server.RequestManager
-                            .WaitForCurrentRequestsAsync(CancellationToken.None)
-                            .ConfigureAwait(false);
-                        await ReconcileBindingsAsync(
-                            server,
-                            nodeManager,
-                            recoveryBindings,
-                            CancellationToken.None).ConfigureAwait(false);
-                    }
-                    catch (Exception recoveryFailure) when (
-                        recoveryFailure is not OutOfMemoryException)
-                    {
-                        recoveryException = recoveryFailure;
+                            await DrainRequestsOutsideLifecycleSemaphoreAsync(
+                                    server,
+                                    CancellationToken.None)
+                                .ConfigureAwait(false);
+                            EnsureSameRunningServer(
+                                server,
+                                host,
+                                allowRequestCallback);
+                            if (IsCurrentRegistration(retainedRegistration))
+                            {
+                                await ReconcileBindingsAsync(
+                                    server,
+                                    nodeManager,
+                                    recoveryBindings,
+                                    CancellationToken.None).ConfigureAwait(false);
+                            }
+                        }
+                        catch (Exception recoveryFailure) when (
+                            recoveryFailure is not OutOfMemoryException)
+                        {
+                            recoveryException = recoveryFailure;
+                        }
                     }
                 }
 
-                if (server is not null)
+                if (server is not null && !m_disposed && !m_shuttingDown)
                 {
                     if (nodeManager is not null)
                     {
@@ -682,7 +976,17 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(registration));
             }
 
-            await m_lifecycleSemaphore.WaitAsync(ct).ConfigureAwait(false);
+            using OperationLifetime operation = EnterLifecycleOperation();
+            bool factoryAllowsRequestCallback = allowRequestCallback;
+            RegistrationState permissionState = GetCurrentState(registration);
+            allowRequestCallback = factoryAllowsRequestCallback &&
+                permissionState.AllowLifecycleFromRequestCallback;
+            (IServerInternal entryServer, _) =
+                GetRunningServer(allowRequestCallback);
+            using RequestManager.RequestLifecycleWaiterScope? requestWaiter =
+                EnterRequestLifecycleWaiter(entryServer);
+            await WaitForLifecycleSemaphoreAsync(requestWaiter, ct)
+                .ConfigureAwait(false);
             IAsyncNodeManager? replacementManager = null;
             PreparedNodeManager? replacement = null;
             RegistrationState? current = null;
@@ -700,12 +1004,17 @@ namespace Opc.Ua.Server
                     : null;
             try
             {
+                EnsureRequestCallbackAllowed(allowRequestCallback);
+                (IServerInternal cleanupServer, IDynamicNodeManagerHost cleanupHost) =
+                    GetRunningServer(allowRequestCallback);
+                await CleanupRetiredNodeManagersAsync(cleanupServer, cleanupHost)
+                    .ConfigureAwait(false);
+
                 current = GetCurrentState(registration);
-                allowRequestCallback &=
+                allowRequestCallback = factoryAllowsRequestCallback &&
                     current.AllowLifecycleFromRequestCallback;
                 EnsureRequestCallbackAllowed(allowRequestCallback);
                 (server, host) = GetRunningServer(allowRequestCallback);
-                await CleanupRetiredNodeManagersAsync(server, host).ConfigureAwait(false);
                 namespaceCountBefore = server.NamespaceUris.Count;
                 if (immediateRetirementError is not null)
                 {
@@ -807,8 +1116,10 @@ namespace Opc.Ua.Server
                     .ReplaceAsync(
                         current.Prepared.NodeManager,
                         replacement,
-                        allowActiveMonitoredItems,
-                        ct)
+                        allowActiveMonitoredItems: allowActiveMonitoredItems,
+                        retainReplacedNotifications:
+                            deferForActiveMonitoredItems,
+                        ct: ct)
                     .ConfigureAwait(false);
                 await CommitWithReconciliationAsync(
                     server,
@@ -853,24 +1164,96 @@ namespace Opc.Ua.Server
                     host.SetRetiredGenerationDrainObserver(
                         ScheduleRetiredGenerationDrainCleanup);
                 }
+
+                bool retiredDrainClaimed =
+                    !deferForActiveMonitoredItems ||
+                    !HasActiveMonitoredItems(
+                        server,
+                        retired.NodeManager);
+                bool retiredDrainReady = retiredDrainClaimed;
+                if (retiredDrainClaimed)
+                {
+                    if (deferForActiveMonitoredItems)
+                    {
+                        host.SetRetiredGenerationNotifications(
+                            retired.NodeManager,
+                            enabled: false);
+                        retired.NotificationsSuspended = true;
+                    }
+                    retired.DrainPending = true;
+                    await WaitForNotificationDispatchesOutsideLifecycleSemaphoreAsync(
+                            server,
+                            host,
+                            retired.NodeManager)
+                        .ConfigureAwait(false);
+                    if (deferForActiveMonitoredItems &&
+                        HasActiveMonitoredItems(server, retired.NodeManager))
+                    {
+                        host.SetRetiredGenerationNotifications(
+                            retired.NodeManager,
+                            enabled: true);
+                        retired.NotificationsSuspended = false;
+                        retired.DrainPending = false;
+                        retiredDrainReady = false;
+                    }
+                    else
+                    {
+                        InvalidateContinuationPoints(server, retired.NodeManager);
+                        if (immediateRetirementError is not null)
+                        {
+                            await RetireMonitoredItemsAsync(
+                                    server,
+                                    retired.NodeManager,
+                                    immediateRetirementError)
+                                .ConfigureAwait(false);
+                        }
+                    }
+                }
+
                 Exception? postCommitFailure = null;
                 try
                 {
-                    await server.RequestManager
-                        .WaitForCurrentRequestsAsync(CancellationToken.None)
+                    await DrainRequestsOutsideLifecycleSemaphoreAsync(
+                            server,
+                            CancellationToken.None)
                         .ConfigureAwait(false);
-                    await ReconcileBindingsAsync(
+                    EnsureSameRunningServer(
                         server,
-                        replacementManager,
-                        bindings,
-                        CancellationToken.None).ConfigureAwait(false);
-                    bool cleaned = await CleanupRetiredNodeManagerAsync(server, host, retired)
-                        .ConfigureAwait(false);
-                    if (cleaned)
+                        host,
+                        allowRequestCallback);
+                    if (IsCurrentRegistration(nextRegistration))
                     {
-                        lock (m_registrationLock)
+                        await ReconcileBindingsAsync(
+                            server,
+                            replacementManager,
+                            bindings,
+                            CancellationToken.None).ConfigureAwait(false);
+                    }
+
+                    if (retiredDrainReady)
+                    {
+                        retired.RequestsDrained = true;
+                        if (deferForActiveMonitoredItems &&
+                            HasActiveMonitoredItems(
+                                server,
+                                retired.NodeManager))
                         {
-                            m_retiredNodeManagers.Remove(retired);
+                            host.SetRetiredGenerationNotifications(
+                                retired.NodeManager,
+                                enabled: true);
+                            retired.NotificationsSuspended = false;
+                            retired.RequestsDrained = false;
+                        }
+                        else
+                        {
+                            bool cleaned = await CleanupRetiredNodeManagerAsync(
+                                server,
+                                host,
+                                retired).ConfigureAwait(false);
+                            if (cleaned)
+                            {
+                                RemoveRetiredNodeManagerRecord(retired);
+                            }
                         }
                     }
                 }
@@ -878,26 +1261,46 @@ namespace Opc.Ua.Server
                 {
                     postCommitFailure = ex;
                 }
-
-                try
+                finally
                 {
-                    await NotifyCommittedChangeAsync(
-                        server,
-                        retirementMode switch
+                    if (retiredDrainClaimed)
+                    {
+                        try
                         {
-                            ReloadRetirementMode.Graceful => "shadow-reloaded",
-                            ReloadRetirementMode.Immediate => "immediate-reloaded",
-                            _ => "reloaded"
-                        },
-                        namespaceCountBefore,
-                        CancellationToken.None,
-                        semanticChanges).ConfigureAwait(false);
+                            RestoreRetiredNotificationsForActiveItems(
+                                server,
+                                host,
+                                retired);
+                        }
+                        finally
+                        {
+                            retired.DrainPending = false;
+                        }
+                    }
                 }
-                catch (Exception ex) when (ex is not OutOfMemoryException)
+
+                if (!m_shuttingDown && !m_disposed)
                 {
-                    postCommitFailure = postCommitFailure is null
-                        ? ex
-                        : new AggregateException(postCommitFailure, ex);
+                    try
+                    {
+                        await NotifyCommittedChangeAsync(
+                            server,
+                            retirementMode switch
+                            {
+                                ReloadRetirementMode.Graceful => "shadow-reloaded",
+                                ReloadRetirementMode.Immediate => "immediate-reloaded",
+                                _ => "reloaded"
+                            },
+                            namespaceCountBefore,
+                            CancellationToken.None,
+                            semanticChanges).ConfigureAwait(false);
+                    }
+                    catch (Exception ex) when (ex is not OutOfMemoryException)
+                    {
+                        postCommitFailure = postCommitFailure is null
+                            ? ex
+                            : new AggregateException(postCommitFailure, ex);
+                    }
                 }
 
                 if (postCommitFailure is not null)
@@ -925,7 +1328,8 @@ namespace Opc.Ua.Server
                     cleanupException = await CleanupPreparedAsync(
                         server,
                         host,
-                        replacement).ConfigureAwait(false);
+                        replacement,
+                        allowRequestCallback).ConfigureAwait(false);
                 }
 
                 NodeManagerRegistration? retainedRegistration = null;
@@ -974,31 +1378,42 @@ namespace Opc.Ua.Server
                                     immediateRetirementError: immediateRetirementError));
                         }
 
-                        try
+                        if (CanRecoverRunningServer(server, host))
                         {
-                            ServerBindings recoveryBindings =
-                                await BindToServerAsync(
+                            try
+                            {
+                                ServerBindings recoveryBindings =
+                                    await BindToServerAsync(
+                                        server,
+                                        replacementManager,
+                                        CancellationToken.None).ConfigureAwait(false);
+                                await ReconcileBindingsAsync(
                                     server,
                                     replacementManager,
+                                    recoveryBindings,
                                     CancellationToken.None).ConfigureAwait(false);
-                            await ReconcileBindingsAsync(
-                                server,
-                                replacementManager,
-                                recoveryBindings,
-                                CancellationToken.None).ConfigureAwait(false);
-                            await server.RequestManager
-                                .WaitForCurrentRequestsAsync(CancellationToken.None)
-                                .ConfigureAwait(false);
-                            await ReconcileBindingsAsync(
-                                server,
-                                replacementManager,
-                                recoveryBindings,
-                                CancellationToken.None).ConfigureAwait(false);
-                        }
-                        catch (Exception recoveryFailure) when (
-                            recoveryFailure is not OutOfMemoryException)
-                        {
-                            recoveryException = recoveryFailure;
+                                await DrainRequestsOutsideLifecycleSemaphoreAsync(
+                                        server,
+                                        CancellationToken.None)
+                                    .ConfigureAwait(false);
+                                EnsureSameRunningServer(
+                                    server,
+                                    host,
+                                    allowRequestCallback);
+                                if (IsCurrentRegistration(retainedRegistration))
+                                {
+                                    await ReconcileBindingsAsync(
+                                        server,
+                                        replacementManager,
+                                        recoveryBindings,
+                                        CancellationToken.None).ConfigureAwait(false);
+                                }
+                            }
+                            catch (Exception recoveryFailure) when (
+                                recoveryFailure is not OutOfMemoryException)
+                            {
+                                recoveryException = recoveryFailure;
+                            }
                         }
                     }
                 }
@@ -1012,7 +1427,7 @@ namespace Opc.Ua.Server
                         ex);
                 }
 
-                if (server is not null)
+                if (server is not null && !m_disposed && !m_shuttingDown)
                 {
                     if (replacementManager is not null)
                     {
@@ -1105,6 +1520,265 @@ namespace Opc.Ua.Server
             return (server, host);
         }
 
+        private OperationLifetime EnterLifecycleOperation()
+        {
+            lock (m_operationLifetimeLock)
+            {
+                if (m_disposed)
+                {
+                    throw new ObjectDisposedException(nameof(NodeManagerLifecycle));
+                }
+                if (m_shuttingDown)
+                {
+                    throw new InvalidOperationException(
+                        "The NodeManager lifecycle is shutting down.");
+                }
+
+                m_activeLifecycleOperations++;
+                return new OperationLifetime(this);
+            }
+        }
+
+        private bool TryEnterBackgroundOperation()
+        {
+            lock (m_operationLifetimeLock)
+            {
+                if (m_disposed || m_shuttingDown)
+                {
+                    return false;
+                }
+
+                m_activeLifecycleOperations++;
+                return true;
+            }
+        }
+
+        private void ExitLifecycleOperation()
+        {
+            TaskCompletionSource<bool>? operationsDrained = null;
+            bool disposeSemaphore;
+            lock (m_operationLifetimeLock)
+            {
+                if (--m_activeLifecycleOperations == 0)
+                {
+                    operationsDrained = m_operationsDrained;
+                    m_operationsDrained = null;
+                }
+                disposeSemaphore = TryReserveSemaphoreDisposal();
+            }
+
+            operationsDrained?.TrySetResult(true);
+            if (disposeSemaphore)
+            {
+                m_lifecycleSemaphore.Dispose();
+            }
+        }
+
+        private Task EnterShutdownMethod()
+        {
+            lock (m_operationLifetimeLock)
+            {
+                if (m_lifecycleSemaphoreDisposed)
+                {
+                    throw new ObjectDisposedException(nameof(NodeManagerLifecycle));
+                }
+
+                m_shuttingDown = true;
+                m_activeShutdownMethods++;
+                if (m_activeLifecycleOperations == 0)
+                {
+                    return Task.CompletedTask;
+                }
+                return (m_operationsDrained ??=
+                    new TaskCompletionSource<bool>(
+                        TaskCreationOptions.RunContinuationsAsynchronously)).Task;
+            }
+        }
+
+        private void ExitBeginShutdownMethod(bool shutdownPrepared)
+        {
+            bool disposeSemaphore;
+            lock (m_operationLifetimeLock)
+            {
+                if (shutdownPrepared)
+                {
+                    m_shutdownPrepared = true;
+                }
+                m_activeShutdownMethods--;
+                disposeSemaphore = TryReserveSemaphoreDisposal();
+            }
+            if (disposeSemaphore)
+            {
+                m_lifecycleSemaphore.Dispose();
+            }
+        }
+
+        private void ExitCompleteShutdownMethod(bool shutdownCompleted)
+        {
+            bool disposeSemaphore;
+            lock (m_operationLifetimeLock)
+            {
+                m_shutdownPrepared = !shutdownCompleted;
+                m_activeShutdownMethods--;
+                disposeSemaphore = TryReserveSemaphoreDisposal();
+            }
+            if (disposeSemaphore)
+            {
+                m_lifecycleSemaphore.Dispose();
+            }
+        }
+
+        private bool TryReserveSemaphoreDisposal()
+        {
+            if (!m_disposeRequested ||
+                m_lifecycleSemaphoreDisposed ||
+                m_activeLifecycleOperations != 0 ||
+                m_activeShutdownMethods != 0 ||
+                m_shutdownPrepared)
+            {
+                return false;
+            }
+
+            m_lifecycleSemaphoreDisposed = true;
+            return true;
+        }
+
+        private bool CanRecoverRunningServer(
+            IServerInternal server,
+            IDynamicNodeManagerHost host)
+        {
+            // Linearize the decision to start rollback recovery with shutdown intent.
+            lock (m_operationLifetimeLock)
+            {
+                return !m_disposed &&
+                    !m_shuttingDown &&
+                    m_server.CurrentState == ServerState.Running &&
+                    ReferenceEquals(m_server.CurrentInstance, server) &&
+                    ReferenceEquals(server.NodeManager, host);
+            }
+        }
+
+        /// <summary>
+        /// Releases the lifecycle semaphore for a request drain and always reacquires it
+        /// before returning. Callers must revalidate every server or registration state
+        /// that can change while the semaphore is released.
+        /// </summary>
+        private async ValueTask DrainRequestsOutsideLifecycleSemaphoreAsync(
+            IServerInternal server,
+            CancellationToken ct)
+        {
+            m_lifecycleSemaphore.Release();
+            try
+            {
+                await server.RequestManager
+                    .WaitForCurrentRequestsAsync(ct)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                await m_lifecycleSemaphore
+                    .WaitAsync(CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
+        }
+
+        private async ValueTask FinalizeNotificationsOutsideLifecycleSemaphoreAsync(
+            IServerInternal server,
+            IDynamicNodeManagerHost host,
+            IAsyncNodeManager nodeManager,
+            bool allowShuttingDown = false)
+        {
+            m_lifecycleSemaphore.Release();
+            try
+            {
+                await host
+                    .FinalizeRetiredGenerationNotificationsAsync(
+                        nodeManager,
+                        CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                await m_lifecycleSemaphore
+                    .WaitAsync(CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
+
+            if (!TryGetRunningServer(
+                out IServerInternal currentServer,
+                out IDynamicNodeManagerHost currentHost,
+                allowShuttingDown) ||
+                !ReferenceEquals(currentServer, server) ||
+                !ReferenceEquals(currentHost, host))
+            {
+                throw new InvalidOperationException(
+                    "The running server changed while notification dispatches drained.");
+            }
+        }
+
+        private async ValueTask WaitForNotificationDispatchesOutsideLifecycleSemaphoreAsync(
+            IServerInternal server,
+            IDynamicNodeManagerHost host,
+            IAsyncNodeManager nodeManager,
+            bool allowShuttingDown = false)
+        {
+            m_lifecycleSemaphore.Release();
+            try
+            {
+                await host
+                    .WaitForNotificationDispatchesAsync(
+                        nodeManager,
+                        CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                await m_lifecycleSemaphore
+                    .WaitAsync(CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
+
+            if (!TryGetRunningServer(
+                out IServerInternal currentServer,
+                out IDynamicNodeManagerHost currentHost,
+                allowShuttingDown) ||
+                !ReferenceEquals(currentServer, server) ||
+                !ReferenceEquals(currentHost, host))
+            {
+                throw new InvalidOperationException(
+                    "The running server changed while notification dispatches drained.");
+            }
+        }
+
+        private void EnsureSameRunningServer(
+            IServerInternal server,
+            IDynamicNodeManagerHost host,
+            bool allowRequestCallback)
+        {
+            (IServerInternal currentServer, IDynamicNodeManagerHost currentHost) =
+                GetRunningServer(allowRequestCallback);
+            if (!ReferenceEquals(currentServer, server) ||
+                !ReferenceEquals(currentHost, host))
+            {
+                throw new InvalidOperationException(
+                    "The running server changed while requests were draining.");
+            }
+        }
+
+        private bool IsCurrentRegistration(NodeManagerRegistration registration)
+        {
+            lock (m_registrationLock)
+            {
+                return m_registrations.TryGetValue(
+                    registration.Id,
+                    out RegistrationState? state) &&
+                    state.Registration.Generation == registration.Generation &&
+                    ReferenceEquals(
+                        state.Registration.NodeManager,
+                        registration.NodeManager);
+            }
+        }
+
         private void EnsureRequestCallbackAllowed(bool allowRequestCallback)
         {
             if (m_server.CurrentState == ServerState.Running &&
@@ -1116,6 +1790,23 @@ namespace Opc.Ua.Server
             }
         }
 
+        private async ValueTask WaitForLifecycleSemaphoreAsync(
+            RequestManager.RequestLifecycleWaiterScope? requestWaiter,
+            CancellationToken ct)
+        {
+            Task semaphoreWait = m_lifecycleSemaphore.WaitAsync(ct);
+            requestWaiter?.MarkSemaphoreWaitStarted();
+            await semaphoreWait.ConfigureAwait(false);
+        }
+
+        private static RequestManager.RequestLifecycleWaiterScope?
+            EnterRequestLifecycleWaiter(IServerInternal server)
+        {
+            return server.RequestManager.IsExecutingRequest
+                ? server.RequestManager.EnterLifecycleWaiter()
+                : null;
+        }
+
         private static bool IsRequestCallbackSafe(IAsyncNodeManagerFactory factory)
         {
             return factory is IRequestCallbackSafeNodeManagerFactory
@@ -1124,7 +1815,9 @@ namespace Opc.Ua.Server
             };
         }
 
-        private RegistrationState GetCurrentState(NodeManagerRegistration registration)
+        private RegistrationState GetCurrentState(
+            NodeManagerRegistration registration,
+            bool allowRemovalRetry = false)
         {
             lock (m_registrationLock)
             {
@@ -1134,13 +1827,77 @@ namespace Opc.Ua.Server
                     state.Registration.Generation != registration.Generation ||
                     !ReferenceEquals(
                         state.Registration.NodeManager,
-                        registration.NodeManager))
+                        registration.NodeManager) ||
+                    state.RemovalPending ||
+                    (state.ShutdownCleanup.RemovalUnpublished &&
+                        !allowRemovalRetry))
                 {
                     throw new InvalidOperationException(
                         "The registration is stale or is not owned by this lifecycle provider.");
                 }
                 return state;
             }
+        }
+
+        private void ClaimRemoval(
+            NodeManagerRegistration registration,
+            RegistrationState state)
+        {
+            lock (m_registrationLock)
+            {
+                if (!m_registrations.TryGetValue(
+                        registration.Id,
+                        out RegistrationState? currentState) ||
+                    !ReferenceEquals(currentState, state) ||
+                    state.RemovalPending)
+                {
+                    throw new InvalidOperationException(
+                        "The registration changed while removal was being committed.");
+                }
+                state.RemovalPending = true;
+            }
+        }
+
+        private void ValidateRemovalClaim(
+            NodeManagerRegistration registration,
+            RegistrationState state,
+            string message)
+        {
+            lock (m_registrationLock)
+            {
+                if (!m_registrations.TryGetValue(
+                        registration.Id,
+                        out RegistrationState? currentState) ||
+                    !ReferenceEquals(currentState, state) ||
+                    !state.RemovalPending)
+                {
+                    throw new InvalidOperationException(message);
+                }
+            }
+        }
+
+        private static void MarkRemovalUnpublished(ShutdownCleanupState cleanup)
+        {
+            cleanup.RemovalUnpublished = true;
+            cleanup.ReferencesRemoved = true;
+        }
+
+        private static void ResetRemovalUnpublished(ShutdownCleanupState cleanup)
+        {
+            cleanup.RemovalUnpublished = false;
+            cleanup.ReferencesRemoved = false;
+        }
+
+        private static void MarkRemovalDetached(
+            ShutdownCleanupState cleanup,
+            MonitoredItemTransition monitoredItemTransition)
+        {
+            if (!cleanup.RemovalMonitoredItemsDeleted)
+            {
+                monitoredItemTransition.MarkDeletedItems();
+                cleanup.RemovalMonitoredItemsDeleted = true;
+            }
+            cleanup.Detached = true;
         }
 
         private static async ValueTask<MonitoredItemTransition>
@@ -1383,7 +2140,7 @@ namespace Opc.Ua.Server
         /// the transition under its own lock, so no additional server-wide mutation lock
         /// is taken here.
         /// </summary>
-        private static void RetireMonitoredItems(
+        private static ValueTask RetireMonitoredItemsAsync(
             IServerInternal server,
             IAsyncNodeManager nodeManager,
             ServiceResult error,
@@ -1394,6 +2151,7 @@ namespace Opc.Ua.Server
             {
                 DetachRetiredMonitoredItemsCore(server, nodeManager);
             }
+            return default;
         }
 
         private static void RetireMonitoredItemsCore(
@@ -1661,24 +2419,29 @@ namespace Opc.Ua.Server
         private static async ValueTask UnbindFromServerAsync(
             IServerInternal server,
             IAsyncNodeManager nodeManager,
-            CancellationToken ct)
+            CancellationToken ct,
+            bool unsubscribeAllEvents = true)
         {
-            foreach (IEventMonitoredItem monitoredItem in server.EventManager.GetMonitoredItems())
+            if (unsubscribeAllEvents)
             {
-                if (!monitoredItem.MonitoringAllEvents)
+                foreach (IEventMonitoredItem monitoredItem in
+                    server.EventManager.GetMonitoredItems())
                 {
-                    continue;
-                }
+                    if (!monitoredItem.MonitoringAllEvents)
+                    {
+                        continue;
+                    }
 
-                using var eventContext = new OperationContext(monitoredItem);
-                await nodeManager
-                    .SubscribeToAllEventsAsync(
-                        eventContext,
-                        monitoredItem.SubscriptionId,
-                        monitoredItem,
-                        true,
-                        ct)
-                    .ConfigureAwait(false);
+                    using var eventContext = new OperationContext(monitoredItem);
+                    await nodeManager
+                        .SubscribeToAllEventsAsync(
+                            eventContext,
+                            monitoredItem.SubscriptionId,
+                            monitoredItem,
+                            true,
+                            ct)
+                        .ConfigureAwait(false);
+                }
             }
 
             foreach (ISession session in server.SessionManager.GetSessions())
@@ -2162,6 +2925,105 @@ namespace Opc.Ua.Server
             }
         }
 
+        private async ValueTask CleanupShutdownNodeManagerAsync(
+            IServerInternal server,
+            IDynamicNodeManagerHost? host,
+            IAsyncNodeManager nodeManager,
+            ShutdownCleanupState cleanup,
+            List<LocalReference>? pendingReferences,
+            bool destroyAddressSpace,
+            bool removeDestroyedExternalReferences,
+            CancellationToken ct)
+        {
+            if (!cleanup.NotificationsFinalized)
+            {
+                if (host is not null)
+                {
+                    await host
+                        .FinalizeRetiredGenerationNotificationsAsync(nodeManager, ct)
+                        .ConfigureAwait(false);
+                }
+                cleanup.NotificationsFinalized = true;
+                RecordShutdownCleanupProgress();
+            }
+
+            if (!cleanup.ReferencesRemoved)
+            {
+                if (pendingReferences is { Count: > 0 })
+                {
+                    await server.NodeManager
+                        .RemoveReferencesAsync(pendingReferences, ct)
+                        .ConfigureAwait(false);
+                    pendingReferences.Clear();
+                }
+                cleanup.ReferencesRemoved = true;
+                RecordShutdownCleanupProgress();
+            }
+
+            if (destroyAddressSpace && !cleanup.Destroyed)
+            {
+                if (host is not null)
+                {
+                    await host
+                        .DestroyAddressSpaceAsync(
+                            nodeManager,
+                            ct)
+                        .ConfigureAwait(false);
+                }
+                else
+                {
+                    await nodeManager.DeleteAddressSpaceAsync(ct).ConfigureAwait(false);
+                }
+                cleanup.Destroyed = true;
+                RecordShutdownCleanupProgress();
+            }
+
+            if (removeDestroyedExternalReferences &&
+                !cleanup.DestroyedExternalReferencesRemoved)
+            {
+                if (host is not null)
+                {
+                    await host
+                        .RemoveDestroyedExternalReferencesAsync(nodeManager, ct)
+                        .ConfigureAwait(false);
+                }
+                cleanup.DestroyedExternalReferencesRemoved = true;
+                RecordShutdownCleanupProgress();
+            }
+
+            if (!cleanup.Released)
+            {
+                host?.Release(nodeManager);
+                cleanup.Released = true;
+                RecordShutdownCleanupProgress();
+            }
+
+            if (!cleanup.Disposed)
+            {
+                await DisposeNodeManagerAsync(nodeManager).ConfigureAwait(false);
+                cleanup.Disposed = true;
+                RecordShutdownCleanupProgress();
+            }
+        }
+
+        private void RecordShutdownCleanupProgress()
+        {
+            Interlocked.Increment(ref m_shutdownCleanupProgress);
+        }
+
+        private void RemoveRetiredNodeManagerRecord(RetiredNodeManager retired)
+        {
+            bool removed;
+            lock (m_registrationLock)
+            {
+                removed = m_retiredNodeManagers.Remove(retired);
+            }
+            if (removed)
+            {
+                RecordShutdownCleanupProgress();
+            }
+        }
+
         private static async ValueTask<Exception?> TryDisposeNodeManagerAsync(
             IAsyncNodeManager nodeManager)
         {
@@ -2176,11 +3038,38 @@ namespace Opc.Ua.Server
             }
         }
 
-        private static async ValueTask<Exception?> CleanupPreparedAsync(
+        private async ValueTask<Exception?> CleanupPreparedAsync(
             IServerInternal? server,
             IDynamicNodeManagerHost host,
-            PreparedNodeManager prepared)
+            PreparedNodeManager prepared,
+            bool allowRequestCallback)
         {
+            var failures = new List<Exception>();
+            if (server is not null && prepared.Published)
+            {
+                try
+                {
+                    await FinalizeNotificationsOutsideLifecycleSemaphoreAsync(
+                            server,
+                            host,
+                            prepared.NodeManager,
+                            allowShuttingDown: true)
+                        .ConfigureAwait(false);
+                    await DrainRequestsOutsideLifecycleSemaphoreAsync(
+                            server,
+                            CancellationToken.None)
+                        .ConfigureAwait(false);
+                    EnsureSameRunningServer(
+                        server,
+                        host,
+                        allowRequestCallback);
+                }
+                catch (Exception ex) when (ex is not OutOfMemoryException)
+                {
+                    failures.Add(ex);
+                }
+            }
+
             Exception? unbindException = null;
             if (server is not null)
             {
@@ -2194,6 +3083,7 @@ namespace Opc.Ua.Server
                 catch (Exception ex) when (ex is not OutOfMemoryException)
                 {
                     unbindException = ex;
+                    failures.Add(ex);
                 }
             }
 
@@ -2207,16 +3097,23 @@ namespace Opc.Ua.Server
             catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 rollbackException = ex;
+                failures.Add(ex);
             }
 
-            if (unbindException is not null && rollbackException is not null)
+            if (prepared.Published && server is not null)
+            {
+                host.SetRetiredGenerationNotifications(
+                    prepared.NodeManager,
+                    enabled: true);
+            }
+
+            if (failures.Count > 1)
             {
                 return new AggregateException(
-                    "NodeManager unbinding and structural rollback both failed.",
-                    unbindException,
-                    rollbackException);
+                    "NodeManager finalization, unbinding, or structural rollback failed.",
+                    failures);
             }
-            return unbindException ?? rollbackException;
+            return failures.Count == 1 ? failures[0] : null;
         }
 
         /// <summary>
@@ -2224,21 +3121,25 @@ namespace Opc.Ua.Server
         /// monitored items have drained. Invoked by the host from an ownership-sensitive
         /// monitored item request (for example, the Delete that drains the last item), so
         /// the teardown must never run inline on the request path: it is dispatched to the
-        /// thread pool with the request's execution context suppressed and coordinated
-        /// through the lifecycle semaphore, exactly like an explicit lifecycle operation.
-        /// If cleanup cannot complete now (for example, a lifecycle operation is already
-        /// running), a later lifecycle operation or shutdown retries it.
+        /// thread pool with the request's execution context suppressed. Background and direct
+        /// cleanup use the same claim protocol: briefly take the lifecycle semaphore to suspend
+        /// retired-generation notifications and invalidate continuation points, release it for
+        /// the request drain, then reacquire and revalidate before destruction. This prevents
+        /// either cleanup schedule from forming a circular wait with a callback-safe lifecycle
+        /// call.
         /// </summary>
         private void ScheduleRetiredGenerationDrainCleanup()
         {
-            if (m_disposed || m_shuttingDown)
+            if (!TryEnterBackgroundOperation())
             {
                 return;
             }
+            bool scheduled = false;
             lock (m_registrationLock)
             {
                 if (m_retiredNodeManagers.Count == 0)
                 {
+                    ExitLifecycleOperation();
                     return;
                 }
             }
@@ -2254,6 +3155,7 @@ namespace Opc.Ua.Server
                     restoreFlow = true;
                 }
                 _ = Task.Run(DrainRetiredGenerationsAsync);
+                scheduled = true;
             }
             finally
             {
@@ -2261,60 +3163,67 @@ namespace Opc.Ua.Server
                 {
                     ExecutionContext.RestoreFlow();
                 }
+                if (!scheduled)
+                {
+                    ExitLifecycleOperation();
+                }
             }
         }
 
         private async Task DrainRetiredGenerationsAsync()
         {
+            bool semaphoreHeld = false;
             try
             {
-                if (m_disposed || m_shuttingDown)
+                if (!TryGetRunningServer(
+                    out IServerInternal server,
+                    out IDynamicNodeManagerHost host))
                 {
                     return;
                 }
 
-                await m_lifecycleSemaphore
-                    .WaitAsync(CancellationToken.None)
+                await m_lifecycleSemaphore.WaitAsync(CancellationToken.None)
                     .ConfigureAwait(false);
-                try
+                semaphoreHeld = true;
+                if (!TryGetRunningServer(
+                    out IServerInternal currentServer,
+                    out IDynamicNodeManagerHost currentHost) ||
+                    !ReferenceEquals(currentServer, server) ||
+                    !ReferenceEquals(currentHost, host))
                 {
-                    if (m_disposed || m_shuttingDown)
-                    {
-                        return;
-                    }
-                    if (!TryGetRunningServer(
-                        out IServerInternal server,
-                        out IDynamicNodeManagerHost host))
-                    {
-                        return;
-                    }
-
-                    await CleanupRetiredNodeManagersAsync(server, host)
-                        .ConfigureAwait(false);
+                    return;
                 }
-                finally
-                {
-                    m_lifecycleSemaphore.Release();
-                }
+                await CleanupRetiredNodeManagersAsync(server, host)
+                    .ConfigureAwait(false);
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 // Prompt cleanup is best-effort. Any generation that could not be torn down
                 // here is retried by the next lifecycle operation or server shutdown.
             }
+            finally
+            {
+                if (semaphoreHeld)
+                {
+                    m_lifecycleSemaphore.Release();
+                }
+                ExitLifecycleOperation();
+            }
         }
 
         private bool TryGetRunningServer(
             out IServerInternal server,
-            out IDynamicNodeManagerHost host)
+            out IDynamicNodeManagerHost host,
+            bool allowShuttingDown = false)
         {
             server = null!;
             host = null!;
-            if (m_disposed || m_shuttingDown)
+            if ((m_disposed || m_shuttingDown) && !allowShuttingDown)
             {
                 return false;
             }
-            if (m_server.CurrentState != ServerState.Running)
+            if (!allowShuttingDown &&
+                m_server.CurrentState != ServerState.Running)
             {
                 return false;
             }
@@ -2332,28 +3241,239 @@ namespace Opc.Ua.Server
 
         private async ValueTask CleanupRetiredNodeManagersAsync(
             IServerInternal server,
-            IDynamicNodeManagerHost host)
+            IDynamicNodeManagerHost host,
+            bool allowShuttingDown = false)
         {
-            RetiredNodeManager[] retired;
-            lock (m_registrationLock)
+            while (true)
             {
-                retired = [.. m_retiredNodeManagers];
-            }
-
-            foreach (RetiredNodeManager retiredNodeManager in retired)
-            {
-                bool cleaned = await CleanupRetiredNodeManagerAsync(
-                    server,
-                    host,
-                    retiredNodeManager).ConfigureAwait(false);
-                if (cleaned)
+                bool pendingDrain;
+                lock (m_registrationLock)
                 {
-                    lock (m_registrationLock)
+                    pendingDrain = m_retiredNodeManagers.Any(retired =>
+                        retired.DrainPending);
+                }
+
+                if (pendingDrain)
+                {
+                    return;
+                }
+
+                RetiredNodeManager[] retired;
+                lock (m_registrationLock)
+                {
+                    retired = [.. m_retiredNodeManagers];
+                }
+
+                var claimed = new List<RetiredNodeManager>();
+                foreach (RetiredNodeManager retiredNodeManager in retired)
+                {
+                    if (retiredNodeManager.DrainPending ||
+                        (retiredNodeManager.AllowActiveMonitoredItems &&
+                            HasActiveMonitoredItems(
+                                server,
+                                retiredNodeManager.NodeManager)))
                     {
-                        m_retiredNodeManagers.Remove(retiredNodeManager);
+                        continue;
+                    }
+
+                    if (retiredNodeManager.AllowActiveMonitoredItems &&
+                        !retiredNodeManager.NotificationsSuspended)
+                    {
+                        host.SetRetiredGenerationNotifications(
+                            retiredNodeManager.NodeManager,
+                            enabled: false);
+                        retiredNodeManager.NotificationsSuspended = true;
+                    }
+                    retiredNodeManager.RequestsDrained = false;
+                    retiredNodeManager.DrainPending = true;
+                    claimed.Add(retiredNodeManager);
+                }
+
+                if (claimed.Count == 0)
+                {
+                    return;
+                }
+
+                try
+                {
+                    var drainReady = new List<RetiredNodeManager>();
+                    foreach (RetiredNodeManager retiredNodeManager in claimed)
+                    {
+                        await WaitForNotificationDispatchesOutsideLifecycleSemaphoreAsync(
+                                server,
+                                host,
+                                retiredNodeManager.NodeManager,
+                                allowShuttingDown)
+                            .ConfigureAwait(false);
+
+                        bool stillRetired;
+                        lock (m_registrationLock)
+                        {
+                            stillRetired =
+                                m_retiredNodeManagers.Contains(retiredNodeManager);
+                        }
+                        if (!stillRetired)
+                        {
+                            continue;
+                        }
+                        if (retiredNodeManager.AllowActiveMonitoredItems &&
+                            HasActiveMonitoredItems(
+                                server,
+                                retiredNodeManager.NodeManager))
+                        {
+                            host.SetRetiredGenerationNotifications(
+                                retiredNodeManager.NodeManager,
+                                enabled: true);
+                            retiredNodeManager.NotificationsSuspended = false;
+                            continue;
+                        }
+                        if (retiredNodeManager.NeedsDetachment)
+                        {
+                            InvalidateContinuationPoints(
+                                server,
+                                retiredNodeManager.NodeManager);
+                            if (retiredNodeManager.ImmediateRetirementError is not null)
+                            {
+                                await RetireMonitoredItemsAsync(
+                                        server,
+                                        retiredNodeManager.NodeManager,
+                                        retiredNodeManager.ImmediateRetirementError)
+                                    .ConfigureAwait(false);
+                            }
+                        }
+                        drainReady.Add(retiredNodeManager);
+                    }
+
+                    if (drainReady.Count == 0)
+                    {
+                        return;
+                    }
+
+                    m_lifecycleSemaphore.Release();
+                    try
+                    {
+                        await server.RequestManager
+                            .WaitForCurrentRequestsAsync(CancellationToken.None)
+                            .ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        await m_lifecycleSemaphore
+                            .WaitAsync(CancellationToken.None)
+                            .ConfigureAwait(false);
+                    }
+
+                    foreach (RetiredNodeManager retiredNodeManager in drainReady)
+                    {
+                        retiredNodeManager.RequestsDrained = true;
+                    }
+
+                    if (!TryGetRunningServer(
+                        out IServerInternal currentServer,
+                        out IDynamicNodeManagerHost currentHost,
+                        allowShuttingDown) ||
+                        !ReferenceEquals(currentServer, server) ||
+                        !ReferenceEquals(currentHost, host))
+                    {
+                        return;
+                    }
+
+                    foreach (RetiredNodeManager retiredNodeManager in drainReady)
+                    {
+                        bool stillRetired;
+                        lock (m_registrationLock)
+                        {
+                            stillRetired =
+                                m_retiredNodeManagers.Contains(retiredNodeManager);
+                        }
+                        if (!stillRetired)
+                        {
+                            continue;
+                        }
+                        if (retiredNodeManager.AllowActiveMonitoredItems &&
+                            HasActiveMonitoredItems(
+                                server,
+                                retiredNodeManager.NodeManager))
+                        {
+                            host.SetRetiredGenerationNotifications(
+                                retiredNodeManager.NodeManager,
+                                enabled: true);
+                            retiredNodeManager.NotificationsSuspended = false;
+                            retiredNodeManager.RequestsDrained = false;
+                            continue;
+                        }
+
+                        bool cleaned = await CleanupRetiredNodeManagerAsync(
+                            server,
+                            host,
+                            retiredNodeManager,
+                            allowShuttingDown).ConfigureAwait(false);
+                        if (cleaned)
+                        {
+                            RemoveRetiredNodeManagerRecord(retiredNodeManager);
+                        }
+                    }
+                }
+                finally
+                {
+                    foreach (RetiredNodeManager retiredNodeManager in claimed)
+                    {
+                        try
+                        {
+                            RestoreRetiredNotificationsForActiveItems(
+                                server,
+                                host,
+                                retiredNodeManager);
+                        }
+                        finally
+                        {
+                            retiredNodeManager.DrainPending = false;
+                        }
                     }
                 }
             }
+        }
+
+        private void RestoreRetiredNotificationsForActiveItems(
+            IServerInternal server,
+            IDynamicNodeManagerHost host,
+            RetiredNodeManager retired)
+        {
+            if (!retired.AllowActiveMonitoredItems ||
+                !retired.NotificationsSuspended ||
+                m_shuttingDown ||
+                m_disposed)
+            {
+                return;
+            }
+
+            if (!TryGetRunningServer(
+                    out IServerInternal currentServer,
+                    out IDynamicNodeManagerHost currentHost) ||
+                !ReferenceEquals(currentServer, server) ||
+                !ReferenceEquals(currentHost, host))
+            {
+                return;
+            }
+
+            lock (m_registrationLock)
+            {
+                if (!m_retiredNodeManagers.Contains(retired))
+                {
+                    return;
+                }
+            }
+
+            if (!HasActiveMonitoredItems(server, retired.NodeManager))
+            {
+                return;
+            }
+
+            host.SetRetiredGenerationNotifications(
+                retired.NodeManager,
+                enabled: true);
+            retired.NotificationsSuspended = false;
+            retired.RequestsDrained = false;
         }
 
         /// <summary>
@@ -2365,11 +3485,13 @@ namespace Opc.Ua.Server
         /// retirement instead invalidates owned monitored items before detachment; neither
         /// policy deletes the client's subscription.
         /// </summary>
-        private static async ValueTask<bool> CleanupRetiredNodeManagerAsync(
+        private async ValueTask<bool> CleanupRetiredNodeManagerAsync(
             IServerInternal server,
             IDynamicNodeManagerHost host,
-            RetiredNodeManager retired)
+            RetiredNodeManager retired,
+            bool allowShuttingDown = false)
         {
+            ShutdownCleanupState cleanup = retired.ShutdownCleanup;
             if (retired.NeedsDetachment)
             {
                 if (retired.AllowActiveMonitoredItems &&
@@ -2378,56 +3500,112 @@ namespace Opc.Ua.Server
                     return false;
                 }
 
+                if (retired.AllowActiveMonitoredItems &&
+                    !retired.NotificationsSuspended)
+                {
+                    host.SetRetiredGenerationNotifications(
+                        retired.NodeManager,
+                        enabled: false);
+                    retired.NotificationsSuspended = true;
+                }
+
                 if (retired.ImmediateRetirementError is not null)
                 {
-                    RetireMonitoredItems(
+                    await RetireMonitoredItemsAsync(
                         server,
                         retired.NodeManager,
-                        retired.ImmediateRetirementError);
+                        retired.ImmediateRetirementError)
+                        .ConfigureAwait(false);
                 }
-                InvalidateContinuationPoints(server, retired.NodeManager);
-                await server.RequestManager
-                    .WaitForCurrentRequestsAsync(CancellationToken.None)
-                    .ConfigureAwait(false);
+                if (!retired.RequestsDrained)
+                {
+                    throw new InvalidOperationException(
+                        "A retired NodeManager cannot be detached before its requests drain.");
+                }
                 InvalidateContinuationPoints(server, retired.NodeManager);
                 if (retired.ImmediateRetirementError is not null)
                 {
                     // A request that captured the old routing generation before the
                     // switch may have completed monitored-item creation during the
                     // drain. Retire that late item before detaching the owner.
-                    RetireMonitoredItems(
+                    await RetireMonitoredItemsAsync(
                         server,
                         retired.NodeManager,
                         retired.ImmediateRetirementError,
-                        detachOwner: true);
+                        detachOwner: true)
+                        .ConfigureAwait(false);
                 }
                 EnsureNoActiveMonitoredItems(server, retired.NodeManager);
+                if (retired.AllowActiveMonitoredItems &&
+                    !cleanup.NotificationsFinalized)
+                {
+                    await FinalizeNotificationsOutsideLifecycleSemaphoreAsync(
+                            server,
+                            host,
+                            retired.NodeManager,
+                            allowShuttingDown)
+                        .ConfigureAwait(false);
+                    cleanup.NotificationsFinalized = true;
+                    RecordShutdownCleanupProgress();
+                }
                 await UnbindFromServerAsync(
                     server,
                     retired.NodeManager,
-                    CancellationToken.None).ConfigureAwait(false);
-                retired.NeedsDetachment = false;
-            }
-
-            if (retired.PendingReferences.Count > 0)
-            {
-                await server.NodeManager
-                    .RemoveReferencesAsync(
-                        retired.PendingReferences,
-                        CancellationToken.None)
+                    CancellationToken.None,
+                    unsubscribeAllEvents: !retired.AllowActiveMonitoredItems)
                     .ConfigureAwait(false);
-                retired.PendingReferences.Clear();
+                retired.NeedsDetachment = false;
+                if (!cleanup.Detached)
+                {
+                    cleanup.Detached = true;
+                    RecordShutdownCleanupProgress();
+                }
+            }
+            else if (!cleanup.Detached)
+            {
+                cleanup.Detached = true;
+                RecordShutdownCleanupProgress();
             }
 
-            await host
-                .DestroyAsync(
-                    retired.NodeManager,
-                    removeExternalReferences: false,
-                    ct: CancellationToken.None)
-                .ConfigureAwait(false);
-            RebuildActiveTypeTree(server);
-            await DisposeNodeManagerAsync(retired.NodeManager).ConfigureAwait(false);
-            return true;
+            if (!cleanup.ReferencesRemoved)
+            {
+                if (retired.PendingReferences.Count > 0)
+                {
+                    await server.NodeManager
+                        .RemoveReferencesAsync(
+                            retired.PendingReferences,
+                            CancellationToken.None)
+                        .ConfigureAwait(false);
+                    retired.PendingReferences.Clear();
+                }
+                cleanup.ReferencesRemoved = true;
+                RecordShutdownCleanupProgress();
+            }
+
+            if (!cleanup.Destroyed)
+            {
+                await host
+                    .DestroyAddressSpaceAsync(
+                        retired.NodeManager,
+                        ct: CancellationToken.None)
+                    .ConfigureAwait(false);
+                if (!cleanup.NotificationsFinalized)
+                {
+                    cleanup.NotificationsFinalized = true;
+                    RecordShutdownCleanupProgress();
+                }
+                cleanup.Destroyed = true;
+                RecordShutdownCleanupProgress();
+            }
+
+            if (!cleanup.Disposed)
+            {
+                RebuildActiveTypeTree(server);
+                await DisposeNodeManagerAsync(retired.NodeManager).ConfigureAwait(false);
+                cleanup.Disposed = true;
+                RecordShutdownCleanupProgress();
+            }
+            return cleanup.Disposed;
         }
 
         private delegate ValueTask<IAsyncNodeManager> CreateNodeManagerAsync(
@@ -2733,6 +3911,10 @@ namespace Opc.Ua.Server
             public PreparedNodeManager Prepared { get; }
 
             public bool AllowLifecycleFromRequestCallback { get; }
+
+            public bool RemovalPending { get; set; }
+
+            public ShutdownCleanupState ShutdownCleanup { get; } = new();
         }
 
         private sealed class ServerBindings
@@ -2780,6 +3962,25 @@ namespace Opc.Ua.Server
             public bool NeedsDetachment { get; set; }
 
             /// <summary>
+            /// Gets or sets whether session and existing all-events notifications have
+            /// been suspended before the final request drain.
+            /// </summary>
+            public bool NotificationsSuspended { get; set; }
+
+            /// <summary>
+            /// Gets or sets whether all requests that could still call this generation
+            /// have drained since notifications and continuation points were cut off.
+            /// </summary>
+            public bool RequestsDrained { get; set; }
+
+            /// <summary>
+            /// Gets or sets whether a background or direct two-phase drain currently owns
+            /// cleanup. Callback-safe lifecycle operations skip the generation until that
+            /// pass revalidates.
+            /// </summary>
+            public bool DrainPending { get; set; }
+
+            /// <summary>
             /// Gets whether this generation was retired by a shadow reload and may still
             /// own active monitored items. Cleanup is deferred rather than rejected while
             /// this holds true and monitored items remain.
@@ -2790,14 +3991,60 @@ namespace Opc.Ua.Server
             /// Gets the status queued to monitored items before immediate cleanup.
             /// </summary>
             public ServiceResult? ImmediateRetirementError { get; }
+
+            public ShutdownCleanupState ShutdownCleanup { get; } = new();
+        }
+
+        private sealed class ShutdownCleanupState
+        {
+            public bool RemovalUnpublished { get; set; }
+
+            public bool RemovalMonitoredItemsDeleted { get; set; }
+
+            public bool Detached { get; set; }
+
+            public bool NotificationsFinalized { get; set; }
+
+            public bool ReferencesRemoved { get; set; }
+
+            public bool Destroyed { get; set; }
+
+            public bool DestroyedExternalReferencesRemoved { get; set; }
+
+            public bool Released { get; set; }
+
+            public bool Disposed { get; set; }
+        }
+
+        private sealed class OperationLifetime : IDisposable
+        {
+            public OperationLifetime(NodeManagerLifecycle owner)
+            {
+                m_owner = owner;
+            }
+
+            public void Dispose()
+            {
+                Interlocked.Exchange(ref m_owner, null)?.ExitLifecycleOperation();
+            }
+
+            private NodeManagerLifecycle? m_owner;
         }
 
         private readonly StandardServer m_server;
         private readonly SemaphoreSlim m_lifecycleSemaphore = new(1, 1);
         private readonly Lock m_registrationLock = new();
+        private readonly Lock m_operationLifetimeLock = new();
         private readonly Dictionary<Guid, RegistrationState> m_registrations = [];
         private readonly List<RetiredNodeManager> m_retiredNodeManagers = [];
-        private bool m_disposed;
+        private TaskCompletionSource<bool>? m_operationsDrained;
+        private int m_activeLifecycleOperations;
+        private int m_activeShutdownMethods;
+        private long m_shutdownCleanupProgress;
+        private bool m_shutdownPrepared;
+        private bool m_disposeRequested;
+        private bool m_lifecycleSemaphoreDisposed;
+        private volatile bool m_disposed;
         private volatile bool m_shuttingDown;
     }
 }

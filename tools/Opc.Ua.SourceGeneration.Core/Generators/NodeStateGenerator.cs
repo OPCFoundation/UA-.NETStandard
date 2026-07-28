@@ -647,7 +647,7 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-            string fieldName = field.GetChildFieldName()[2..];
+            string fieldName = GetMethodArgumentIdentifier(field);
             string typeName = field.DataTypeNode.GetMethodArgumentTypeAsCode(
                 field.ValueRank,
                 m_context.ModelDesign.TargetNamespace.Value,
@@ -689,7 +689,7 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-            string fieldName = field.GetChildFieldName()[2..];
+            string fieldName = GetMethodArgumentIdentifier(field);
             string typeName = field.DataTypeNode.GetMethodArgumentTypeAsCode(
                 field.ValueRank,
                 m_context.ModelDesign.TargetNamespace.Value,
@@ -731,7 +731,7 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-            string fieldName = field.GetChildFieldName()[2..];
+            string fieldName = GetMethodArgumentIdentifier(field);
             switch (field.DataTypeNode.BasicDataType)
             {
                 case BasicDataType.UserDefined:
@@ -773,7 +773,7 @@ namespace Opc.Ua.SourceGeneration
                     Parameter argument = method.InputArguments[ii];
 
                     context.Out.WriteLine(",");
-                    context.Out.Write("{1} {0}", argument.GetChildFieldName()[2..],
+                    context.Out.Write("{1} {0}", GetMethodArgumentIdentifier(argument),
                         argument.DataTypeNode.GetMethodArgumentTypeAsCode(
                             argument.ValueRank,
                             m_context.ModelDesign.TargetNamespace.Value,
@@ -789,7 +789,7 @@ namespace Opc.Ua.SourceGeneration
                     Parameter argument = method.OutputArguments[ii];
 
                     context.Out.WriteLine(",");
-                    context.Out.Write("ref {1} {0}", argument.GetChildFieldName()[2..],
+                    context.Out.Write("ref {1} {0}", GetMethodArgumentIdentifier(argument),
                         argument.DataTypeNode.GetMethodArgumentTypeAsCode(
                             argument.ValueRank,
                             m_context.ModelDesign.TargetNamespace.Value,
@@ -820,7 +820,7 @@ namespace Opc.Ua.SourceGeneration
                     Parameter argument = method.InputArguments[ii];
 
                     context.Out.WriteLine(",");
-                    context.Out.Write("{1} {0}", argument.GetChildFieldName()[2..],
+                    context.Out.Write("{1} {0}", GetMethodArgumentIdentifier(argument),
                         argument.DataTypeNode.GetMethodArgumentTypeAsCode(
                             argument.ValueRank,
                             m_context.ModelDesign.TargetNamespace.Value,
@@ -843,7 +843,7 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-            string fieldName = field.GetChildFieldName()[2..].ToUpperCamelCase();
+            string fieldName = GetMethodArgumentIdentifier(field, upperCamelCase: true);
             switch (field.DataTypeNode.BasicDataType)
             {
                 case BasicDataType.UserDefined:
@@ -874,7 +874,7 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-            string fieldName = field.GetChildFieldName()[2..].ToUpperCamelCase();
+            string fieldName = GetMethodArgumentIdentifier(field, upperCamelCase: true);
             context.Out.WriteLine(
                "public {1} {0} {{ get; set; }}",
                fieldName,
@@ -903,7 +903,9 @@ namespace Opc.Ua.SourceGeneration
                 for (int ii = 0; ii < method.InputArguments.Length; ii++)
                 {
                     context.Out.WriteLine(",");
-                    context.Out.Write("    {0}", method.InputArguments[ii].GetChildFieldName()[2..]);
+                    context.Out.Write(
+                        "    {0}",
+                        GetMethodArgumentIdentifier(method.InputArguments[ii]));
                 }
             }
 
@@ -912,7 +914,9 @@ namespace Opc.Ua.SourceGeneration
                 for (int ii = 0; ii < method.OutputArguments.Length; ii++)
                 {
                     context.Out.WriteLine(",");
-                    context.Out.Write("    ref {0}", method.OutputArguments[ii].GetChildFieldName()[2..]);
+                    context.Out.Write(
+                        "    ref {0}",
+                        GetMethodArgumentIdentifier(method.OutputArguments[ii]));
                 }
             }
 
@@ -937,7 +941,9 @@ namespace Opc.Ua.SourceGeneration
                 for (int ii = 0; ii < method.InputArguments.Length; ii++)
                 {
                     context.Out.WriteLine(",");
-                    context.Out.Write("    {0}", method.InputArguments[ii].GetChildFieldName()[2..]);
+                    context.Out.Write(
+                        "    {0}",
+                        GetMethodArgumentIdentifier(method.InputArguments[ii]));
                 }
             }
 
@@ -2051,6 +2057,9 @@ namespace Opc.Ua.SourceGeneration
                 targetNamespace,
                 [],
                 applyStandardFallback: false);
+            method.AssignMethodArgumentCodeNames(
+                s_methodArgumentCodeNameScope,
+                declaredClassName + "Result");
             // Declarations require an unqualified identifier, while fallback
             // tracking requires the fully-qualified name. Neither may apply
             // the reference-only fallback policy.
@@ -3807,7 +3816,38 @@ namespace Opc.Ua.SourceGeneration
             XmlQualifiedName ReferenceTypeId,
             bool IsInverse);
 
+        private static string GetMethodArgumentIdentifier(
+            Parameter parameter,
+            bool upperCamelCase = false)
+        {
+            return parameter.GetGeneratedCodeIdentifier(
+                upperCamelCase,
+                s_methodArgumentCodeNameScope);
+        }
+
         private const string kNamespaceTableContextVariable = "context.NamespaceUris";
+
+        private static readonly MethodArgumentCodeNameScope s_methodArgumentCodeNameScope = new(
+            "_",
+            "await",
+            "ct",
+            "cancellationToken",
+            "context",
+            "_context",
+            "inputArguments",
+            "_inputArguments",
+            "method",
+            "_method",
+            "objectId",
+            "_objectId",
+            "onCall",
+            "onCallAsync",
+            "outputArguments",
+            "_outputArguments",
+            "_result",
+            "results",
+            "serviceResult",
+            "ServiceResult");
 
         private static readonly string[] s_builtInPropertyNames =
         [

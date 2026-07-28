@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.IO;
 using System.Net.Http;
 using System.Text;
@@ -49,6 +50,7 @@ namespace Opc.Ua.WotCon.Bindings.Http
             HttpClient client,
             bool ownsClient,
             bool manualRedirects,
+            ImmutableArray<KeyValuePair<string, string>> defaultHeaders,
             WotCompiledForm form,
             WotExecutorContext context,
             HttpWotBindingOptions options)
@@ -56,6 +58,7 @@ namespace Opc.Ua.WotCon.Bindings.Http
             m_client = client;
             m_ownsClient = ownsClient;
             m_manualRedirects = manualRedirects;
+            m_defaultHeaders = defaultHeaders;
             Form = form;
             m_context = context;
             m_options = options;
@@ -451,12 +454,9 @@ namespace Opc.Ua.WotCon.Bindings.Http
             {
                 return;
             }
-            if (m_options.DefaultHeaders is { Count: > 0 })
+            foreach (KeyValuePair<string, string> header in m_defaultHeaders)
             {
-                foreach (KeyValuePair<string, string> header in m_options.DefaultHeaders)
-                {
-                    request.Headers.TryAddWithoutValidation(header.Key, header.Value);
-                }
+                request.Headers.TryAddWithoutValidation(header.Key, header.Value);
             }
             if (m_credential is { } credential)
             {
@@ -494,6 +494,7 @@ namespace Opc.Ua.WotCon.Bindings.Http
         private readonly HttpClient m_client;
         private readonly bool m_ownsClient;
         private readonly bool m_manualRedirects;
+        private readonly ImmutableArray<KeyValuePair<string, string>> m_defaultHeaders;
         private readonly WotExecutorContext m_context;
         private readonly HttpWotBindingOptions m_options;
         private readonly IWotPayloadCodec m_codec;

@@ -81,11 +81,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             var registry = new WotProtocolBinderRegistry(
                 [new HttpBindingPlanner()],
                 [
-                    new HttpWotBindingExecutor(new HttpWotBindingOptions
-                    {
-                        ClientFactory = () => new HttpClient(),
-                        CallerClientHandlesRedirectSafety = true
-                    })
+                    new HttpWotBindingExecutor()
                 ],
                 credentials: credentials);
 
@@ -114,11 +110,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             var registry = new WotProtocolBinderRegistry(
                 [new HttpBindingPlanner()],
                 [
-                    new HttpWotBindingExecutor(new HttpWotBindingOptions
-                    {
-                        ClientFactory = () => new HttpClient(),
-                        CallerClientHandlesRedirectSafety = true
-                    })
+                    new HttpWotBindingExecutor()
                 ],
                 credentials: credentials);
 

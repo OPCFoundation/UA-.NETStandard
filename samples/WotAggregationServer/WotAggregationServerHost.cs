@@ -38,9 +38,7 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.WotCon.Bindings;
-#if NET8_0_OR_GREATER
 using Opc.Ua.WotCon.Bindings.OpcUa;
-#endif
 using Opc.Ua.WotCon.Server;
 
 namespace WotAggregationServer
@@ -156,7 +154,6 @@ namespace WotAggregationServer
                 };
             }).AddManagedClientPool();
 
-#if NET8_0_OR_GREATER
             opcUa.AddHttpWotBinding();
             opcUa.AddModbusWotBinding();
             opcUa.AddWotProtocolBinders();
@@ -184,9 +181,6 @@ namespace WotAggregationServer
                     }
                 });
             });
-#else
-            opcUa.AddWotProtocolBinders();
-#endif
         }
 
         private static int ReadPort(ConfigurationManager configuration)

@@ -28,7 +28,8 @@
  * ======================================================================*/
 
 using System;
-using System.Linq;
+using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -83,38 +84,43 @@ namespace Opc.Ua.WotCon.Bindings.Http
             {
                 throw new ArgumentNullException(nameof(context));
             }
-            bool ownsClient = m_options.ClientFactory is null;
-            if (!ownsClient &&
-                FormCarriesCredentials(form) &&
-                !m_options.CallerClientHandlesRedirectSafety)
+            ImmutableArray<KeyValuePair<string, string>> defaultHeaders =
+                SnapshotDefaultHeaders(m_options.DefaultHeaders);
+            Func<HttpClient>? clientFactory = m_options.ClientFactory;
+            bool ownsClient = clientFactory is null;
+            if (!ownsClient && !m_options.CallerClientHandlesRedirectSafety)
             {
                 // Fail closed: the executor cannot control a caller-supplied client's
-                // redirect behavior, so a credential-bearing form could leak its
-                // custom header / query credentials if that client auto-redirects
-                // across origins. Require the caller to explicitly confirm the client
-                // handles redirects safely.
+                // redirect handler, cookie jar, DefaultRequestHeaders or later
+                // mutations. Require explicit confirmation even when the current form
+                // and options appear not to carry credentials.
                 throw new InvalidOperationException(
-                    "A caller-supplied HttpClient cannot execute a credential-bearing HTTP form unless " +
-                    "HttpWotBindingOptions.CallerClientHandlesRedirectSafety is set. The supplied client must " +
-                    "disable automatic redirects, or follow them without forwarding credentials across origins, " +
-                    "to avoid leaking custom header / query credentials on a redirect.");
+                    "Every caller-supplied HttpClient requires " +
+                    "HttpWotBindingOptions.CallerClientHandlesRedirectSafety to be set. The supplied client must " +
+                    "disable automatic redirects, or follow them without forwarding cookies or credentials " +
+                    "across origins, " +
+                    "because its handler, cookie behavior, mutable DefaultRequestHeaders and later mutations " +
+                    "are outside the executor's control.");
             }
             HttpClient client = ownsClient
                 ? new HttpClient(new HttpClientHandler
                 {
                     AllowAutoRedirect = false,
+                    UseCookies = false,
                     CheckCertificateRevocationList = true
                 })
-                : m_options.ClientFactory!.Invoke();
+                : clientFactory!.Invoke();
             IWotBindingChannel channel = new HttpWotBindingChannel(
-                client, ownsClient, manualRedirects: ownsClient, form, context, m_options);
+                client, ownsClient, manualRedirects: ownsClient, defaultHeaders, form, context, m_options);
             return new ValueTask<IWotBindingChannel>(channel);
         }
 
-        private static bool FormCarriesCredentials(WotCompiledForm form)
+        private static ImmutableArray<KeyValuePair<string, string>> SnapshotDefaultHeaders(
+            IReadOnlyDictionary<string, string>? defaultHeaders)
         {
-            return !form.Security.IsDefaultOrEmpty &&
-                form.Security.Any(reference => reference.Scheme != WotSecurityScheme.NoSecurity);
+            return defaultHeaders is null
+                ? []
+                : ImmutableArray.CreateRange(defaultHeaders);
         }
 
         private readonly HttpWotBindingOptions m_options;

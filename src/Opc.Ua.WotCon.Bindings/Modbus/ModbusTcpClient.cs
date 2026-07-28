@@ -168,8 +168,10 @@ namespace Opc.Ua.WotCon.Bindings.Modbus
         public async ValueTask WriteSingleCoilAsync(
             byte unitId, ushort address, bool value, CancellationToken cancellationToken)
         {
-            byte[] pdu = [0x05, Hi(address), Lo(address), value ? (byte)0xFF : (byte)0x00, 0x00];
-            await TransactAsync(unitId, pdu, 0x05, cancellationToken).ConfigureAwait(false);
+            ushort encodedValue = value ? (ushort)0xFF00 : (ushort)0x0000;
+            byte[] pdu = [0x05, Hi(address), Lo(address), Hi(encodedValue), Lo(encodedValue)];
+            byte[] response = await TransactAsync(unitId, pdu, 0x05, cancellationToken).ConfigureAwait(false);
+            ValidateWriteAcknowledgement(response, address, encodedValue, "single-coil");
         }
 
         /// <summary>
@@ -178,7 +180,12 @@ namespace Opc.Ua.WotCon.Bindings.Modbus
         public async ValueTask WriteMultipleCoilsAsync(
             byte unitId, ushort address, bool[] values, CancellationToken cancellationToken)
         {
+            if (values is null)
+            {
+                throw new ArgumentNullException(nameof(values));
+            }
             int count = values.Length;
+            ValidateBitRange(address, count, ModbusProtocolLimits.MaxWriteCoils, nameof(values));
             byte byteCount = (byte)((count + 7) / 8);
             byte[] pdu = new byte[6 + byteCount];
             pdu[0] = 0x0F;
@@ -194,7 +201,52 @@ namespace Opc.Ua.WotCon.Bindings.Modbus
                     pdu[6 + (i / 8)] |= (byte)(1 << (i % 8));
                 }
             }
-            await TransactAsync(unitId, pdu, 0x0F, cancellationToken).ConfigureAwait(false);
+            byte[] response = await TransactAsync(unitId, pdu, 0x0F, cancellationToken).ConfigureAwait(false);
+            ValidateWriteAcknowledgement(response, address, (ushort)count, "multiple-coil");
+        }
+
+        private static void ValidateWriteAcknowledgement(
+            byte[] response,
+            ushort address,
+            ushort value,
+            string operation)
+        {
+            if (response.Length != 5)
+            {
+                throw new ModbusException(
+                    $"The Modbus {operation} acknowledgement must contain exactly 5 bytes.");
+            }
+            ushort echoedAddress = (ushort)((response[1] << 8) | response[2]);
+            if (echoedAddress != address)
+            {
+                throw new ModbusException(
+                    $"The Modbus {operation} acknowledgement did not echo the requested address.");
+            }
+            ushort echoedValue = (ushort)((response[3] << 8) | response[4]);
+            if (echoedValue != value)
+            {
+                throw new ModbusException(
+                    $"The Modbus {operation} acknowledgement did not echo the requested value or quantity.");
+            }
+        }
+
+        private static void ValidateBitRange(ushort address, int quantity, int maximum, string parameterName)
+        {
+            if (quantity is < 1 || quantity > maximum)
+            {
+                throw new ArgumentOutOfRangeException(
+                    parameterName,
+                    quantity,
+                    $"The Modbus bit quantity must be between 1 and {maximum}.");
+            }
+            if (address + quantity - 1 > ModbusProtocolLimits.MaxAddress)
+            {
+                throw new ArgumentOutOfRangeException(
+                    parameterName,
+                    quantity,
+                    $"The Modbus range starting at {address} for {quantity} bits exceeds the maximum " +
+                    $"address {ModbusProtocolLimits.MaxAddress}.");
+            }
         }
 
         /// <inheritdoc/>
@@ -236,6 +288,7 @@ namespace Opc.Ua.WotCon.Bindings.Modbus
         private async ValueTask<bool[]> ReadBitsAsync(
             byte function, byte unitId, ushort address, ushort quantity, CancellationToken cancellationToken)
         {
+            ValidateBitRange(address, quantity, ModbusProtocolLimits.MaxReadBits, nameof(quantity));
             byte[] pdu = [function, Hi(address), Lo(address), Hi(quantity), Lo(quantity)];
             byte[] response = await TransactAsync(unitId, pdu, function, cancellationToken).ConfigureAwait(false);
             // response[1] is the packed-bit byte count. Validate it against the
