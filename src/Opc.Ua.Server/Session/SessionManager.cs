@@ -1231,7 +1231,7 @@ namespace Opc.Ua.Server
                 // Build a minimal OperationContext to satisfy the
                 // AddMandatoryRoles signature; only ChannelContext is
                 // consulted (for the endpoint).
-                var refreshContext = new OperationContext(
+                using var refreshContext = new OperationContext(
                     new RequestHeader(),
                     secureChannelContext,
                     RequestType.Unknown,

@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -48,7 +49,9 @@ namespace Opc.Ua.Server.RuntimeNodeSet
     /// <see cref="RuntimeNodeSetNodeManagerFactory.CreateAsync"/>; callers
     /// should not instantiate this class directly.
     /// </remarks>
-    internal sealed class RuntimeNodeSetNodeManager : FluentNodeManagerBase
+    internal sealed class RuntimeNodeSetNodeManager :
+        FluentNodeManagerBase,
+        INodeManagerReloadParticipant
     {
         /// <summary>
         /// Initializes the node manager.
@@ -168,20 +171,217 @@ namespace Opc.Ua.Server.RuntimeNodeSet
             m_dispatcher?.NotifyNodeAdded(context, node);
         }
 
-        /// <inheritdoc/>
-        protected override async ValueTask RemovePredefinedNodeAsync(
-            ISystemContext context,
+        protected override ValueTask OnNodeRemovedAsync(
             NodeState node,
-            List<LocalReference> referencesToRemove,
             CancellationToken cancellationToken = default)
         {
-            m_dispatcher?.NotifyNodeRemoved(context, node);
+            m_dispatcher?.NotifyNodeRemoved(SystemContext, node);
+            return base.OnNodeRemovedAsync(node, cancellationToken);
+        }
 
-            await base.RemovePredefinedNodeAsync(
-                context,
-                node,
-                referencesToRemove,
+        public override async ValueTask AddReferencesAsync(
+            IDictionary<NodeId, IList<IReference>> references,
+            CancellationToken cancellationToken = default)
+        {
+            await base.AddReferencesAsync(references, cancellationToken)
+                .ConfigureAwait(false);
+
+            lock (m_addedReferencesLock)
+            {
+                foreach (KeyValuePair<NodeId, IList<IReference>> entry in references)
+                {
+                    if (!PredefinedNodes.ContainsKey(entry.Key))
+                    {
+                        continue;
+                    }
+
+                    if (!m_addedReferences.TryGetValue(
+                        entry.Key,
+                        out List<IReference>? added))
+                    {
+                        m_addedReferences[entry.Key] = added = [];
+                    }
+                    foreach (IReference reference in entry.Value)
+                    {
+                        if (!added.Any(existing =>
+                            existing.ReferenceTypeId == reference.ReferenceTypeId &&
+                            existing.IsInverse == reference.IsInverse &&
+                            existing.TargetId == reference.TargetId))
+                        {
+                            added.Add(reference);
+                        }
+                    }
+
+                }
+            }
+        }
+
+        public override async ValueTask<ServiceResult> DeleteReferenceAsync(
+            object sourceHandle,
+            NodeId referenceTypeId,
+            bool isInverse,
+            ExpandedNodeId targetId,
+            bool deleteBidirectional,
+            CancellationToken cancellationToken = default)
+        {
+            ServiceResult result = await base.DeleteReferenceAsync(
+                sourceHandle,
+                referenceTypeId,
+                isInverse,
+                targetId,
+                deleteBidirectional,
                 cancellationToken).ConfigureAwait(false);
+            if (ServiceResult.IsGood(result) &&
+                sourceHandle is NodeHandle handle)
+            {
+                lock (m_addedReferencesLock)
+                {
+                    if (m_addedReferences.TryGetValue(
+                        handle.NodeId,
+                        out List<IReference>? references))
+                    {
+                        references.RemoveAll(reference =>
+                            reference.ReferenceTypeId == referenceTypeId &&
+                            reference.IsInverse == isInverse &&
+                            reference.TargetId == targetId);
+                        if (references.Count == 0)
+                        {
+                            m_addedReferences.Remove(handle.NodeId);
+                        }
+                    }
+                }
+            }
+            return result;
+        }
+
+        internal IReadOnlyDictionary<NodeId, DataTypeDefinition> GetDataTypeDefinitions()
+        {
+            var definitions = new Dictionary<NodeId, DataTypeDefinition>();
+            foreach (NodeState node in PredefinedNodes.Values)
+            {
+                if (node is DataTypeState dataType &&
+                    dataType.DataTypeDefinition.TryGetValue(
+                        out DataTypeDefinition? definition))
+                {
+                    definitions[dataType.NodeId] = definition;
+                }
+            }
+            return definitions;
+        }
+
+        internal IReadOnlyDictionary<NodeId, ArrayOf<NodeId>> GetDataTypeEncodings()
+        {
+            var encodings = new Dictionary<NodeId, ArrayOf<NodeId>>();
+            foreach (NodeState node in PredefinedNodes.Values)
+            {
+                if (node is not DataTypeState dataType)
+                {
+                    continue;
+                }
+
+                var references = new List<IReference>();
+                dataType.GetReferences(
+                    SystemContext,
+                    references,
+                    ReferenceTypeIds.HasEncoding,
+                    isInverse: false);
+                var encodingIds = new List<NodeId>();
+                foreach (IReference reference in references)
+                {
+                    if (!reference.TargetId.IsAbsolute)
+                    {
+                        encodingIds.Add((NodeId)reference.TargetId);
+                    }
+                }
+                encodings[dataType.NodeId] =
+                    new ArrayOf<NodeId>(encodingIds.ToArray());
+            }
+            return encodings;
+        }
+
+        internal IReadOnlyDictionary<
+            NodeId,
+            IReadOnlyDictionary<QualifiedName, Variant>> GetSemanticProperties()
+        {
+            var nodes = new Dictionary<
+                NodeId,
+                IReadOnlyDictionary<QualifiedName, Variant>>();
+            foreach (NodeState node in PredefinedNodes.Values)
+            {
+                var children = new List<BaseInstanceState>();
+                node.GetChildren(SystemContext, children);
+                var properties = new Dictionary<QualifiedName, Variant>();
+                foreach (BaseInstanceState child in children)
+                {
+                    if (child is BaseVariableState property &&
+                        (property.AccessLevel & AccessLevels.SemanticChange) != 0)
+                    {
+                        properties[property.BrowseName] = property.Value.Copy();
+                    }
+                }
+
+                if (properties.Count > 0)
+                {
+                    nodes[node.NodeId] = properties;
+                }
+            }
+            return nodes;
+        }
+
+        internal Dictionary<NodeId, IList<IReference>> GetAddedReferences()
+        {
+            lock (m_addedReferencesLock)
+            {
+                return m_addedReferences.ToDictionary(
+                    entry => entry.Key,
+                    entry => (IList<IReference>)[.. entry.Value]);
+            }
+        }
+
+        internal bool ContainsNode(NodeId nodeId)
+        {
+            return PredefinedNodes.ContainsKey(nodeId);
+        }
+
+        public async ValueTask<ArrayOf<LocalReference>> PrepareReloadAsync(
+            IAsyncNodeManager replacement,
+            CancellationToken ct = default)
+        {
+            if (replacement is not RuntimeNodeSetNodeManager replacementRuntime)
+            {
+                throw new NotSupportedException(
+                    "A runtime NodeSet registration can only be reloaded " +
+                    "with another runtime NodeSet NodeManager.");
+            }
+
+            Dictionary<NodeId, IList<IReference>> addedReferences =
+                GetAddedReferences();
+            await replacementRuntime
+                .AddReferencesAsync(addedReferences, ct)
+                .ConfigureAwait(false);
+
+            var droppedReferences = new List<LocalReference>();
+            foreach (KeyValuePair<NodeId, IList<IReference>> entry in addedReferences)
+            {
+                if (replacementRuntime.ContainsNode(entry.Key))
+                {
+                    continue;
+                }
+
+                foreach (IReference reference in entry.Value)
+                {
+                    if (!reference.TargetId.IsAbsolute)
+                    {
+                        var sourceId = (NodeId)reference.TargetId;
+                        droppedReferences.Add(new LocalReference(
+                            sourceId,
+                            reference.ReferenceTypeId,
+                            !reference.IsInverse,
+                            entry.Key));
+                    }
+                }
+            }
+            return new ArrayOf<LocalReference>(droppedReferences.ToArray());
         }
 
         /// <inheritdoc/>
@@ -306,6 +506,8 @@ namespace Opc.Ua.Server.RuntimeNodeSet
         private readonly ParsedNodeSetDocument[] m_documents;
         private readonly string? m_defaultNamespaceUri;
         private readonly Action<INodeManagerBuilder>? m_configure;
+        private readonly Lock m_addedReferencesLock = new();
+        private readonly Dictionary<NodeId, List<IReference>> m_addedReferences = [];
         private IFluentDispatcher? m_dispatcher;
     }
 }

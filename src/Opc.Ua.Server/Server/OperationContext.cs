@@ -33,8 +33,13 @@ namespace Opc.Ua.Server
 {
     /// <summary>
     /// Stores information used while a thread is completing an operation on behalf of a client.
+    /// <para>
+    /// A context created for a Client request owns that request's tracking scope, so disposing the
+    /// context reports the request as completed. Contexts created for internal work, such as
+    /// sampling a MonitoredItem, own no scope and disposing them does nothing.
+    /// </para>
     /// </summary>
-    public class OperationContext : ISessionOperationContext
+    public class OperationContext : ISessionOperationContext, IDisposable
     {
         /// <summary>
         /// Initializes the context with a session.
@@ -295,6 +300,41 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <value>The audit entry id.</value>
         public string AuditEntryId { get; } = null!;
+
+        /// <summary>
+        /// Reports the request as completed and releases any lifecycle operation waiting for it.
+        /// Disposing a context that does not track a request does nothing, and disposing the same
+        /// context twice is safe.
+        /// </summary>
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// Overridable method to dispose of resources.
+        /// </summary>
+        /// <param name="disposing"><c>true</c> when called from <see cref="Dispose()"/>.</param>
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                System.Threading.Interlocked.Exchange(ref m_requestScope, null)?.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Attaches the scope that tracks this request while it executes, so that disposing the
+        /// context completes the request.
+        /// </summary>
+        /// <param name="requestScope">The scope that tracks the request.</param>
+        internal void AttachRequestScope(IDisposable requestScope)
+        {
+            m_requestScope = requestScope;
+        }
+
+        private IDisposable? m_requestScope;
         private static uint s_lastRequestId;
     }
 }

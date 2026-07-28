@@ -747,7 +747,7 @@ Servers can build the same dynamic stand-in encodeables for the custom DataTypes
 
 DataTypes that are already backed by a compiled, source-generated type are **already registered in the server's `IEncodeableFactory` and used as-is** for encoding and decoding; the server only builds stand-ins for the DataTypes that are still missing from the factory (i.e. those loaded from a NodeSet at runtime).
 
-If you are using [Runtime NodeSets](RuntimeNodeSets.md) (`AddRuntimeNodeSet`) to load NodeSet2 documents at server startup, the server-side complex-type pass runs automatically after all node managers finish building their address spaces — no extra configuration is needed. See [RuntimeNodeSets.md](RuntimeNodeSets.md) for details on the startup-only semantics and stream ownership contract.
+If you are using [Runtime NodeSets](RuntimeNodeSets.md), the server-side complex-type pass runs automatically after startup imports and before each live lifecycle generation is published. No extra configuration is needed. See [RuntimeNodeSets.md](RuntimeNodeSets.md) for startup and live add/reload/remove semantics, compatible DataType rules, and the stream ownership contract.
 
 ### How compiled types reach the factory
 

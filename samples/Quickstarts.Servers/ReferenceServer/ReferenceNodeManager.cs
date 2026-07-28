@@ -6135,7 +6135,7 @@ namespace Quickstarts.ReferenceServer
                     sourceTimestamp: now.AddSeconds(-(ii * 10)).AddMilliseconds(1234),
                     serverTimestamp: now.AddSeconds(-(ii * 10))));
             }
-            var opContext = new OperationContext(new RequestHeader(), null, RequestType.HistoryUpdate, RequestLifetime.None);
+            using var opContext = new OperationContext(new RequestHeader(), null, RequestType.HistoryUpdate, RequestLifetime.None);
             var systemContext = new ServerSystemContext(Server, opContext);
             var historianContext = new HistorianOperationContext(systemContext, opContext, null, HistoryUpdateType.Insert);
             _ = await m_historian!.InsertAsync(historianContext, nodeId, seed, cancellationToken).ConfigureAwait(false);

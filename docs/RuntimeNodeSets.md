@@ -12,9 +12,48 @@ Use `AddRuntimeNodeSet` when:
 
 Use the [source-generated path](SourceGeneratedNodeManagers.md) when you want compile-time safety, strong typing, and AOT-safe named constants for every node in your model. The runtime path gives you generic `NodeState` objects and untyped browse-path wiring.
 
-## Startup-only semantics
+## Startup and live lifecycle semantics
 
-The runtime NodeSet loader runs **once during server startup**, inside `CreateAddressSpaceAsync`. There is no mechanism to hot-reload, add, or remove NodeSets after the server has accepted its first client connection. If you need to pick up changes to the NodeSet XML, restart the server.
+`AddRuntimeNodeSet` on `IOpcUaServerBuilder` remains the startup path: its factory is created before the server starts and its NodeSet is imported during `CreateAddressSpaceAsync`.
+
+Running servers also expose `INodeManagerLifecycle`. Resolve it from dependency injection in a hosted server, or use `StandardServer.NodeManagerLifecycle` when constructing the server directly. The lifecycle provider can add, reload, and remove runtime NodeSets without restarting the server.
+
+```csharp
+public sealed class ModelLoader(INodeManagerLifecycle lifecycle)
+{
+    private NodeManagerRegistration? m_registration;
+
+    public async ValueTask LoadAsync(CancellationToken ct)
+    {
+        m_registration = await lifecycle.AddRuntimeNodeSetAsync(
+            new RuntimeNodeSetOptions
+            {
+                Sources = [RuntimeNodeSetSource.FromFile("Models/MyMachine.NodeSet2.xml")]
+            },
+            ct);
+    }
+
+    public async ValueTask ReloadAsync(CancellationToken ct)
+    {
+        m_registration = await lifecycle.ReloadRuntimeNodeSetAsync(
+            m_registration!,
+            new RuntimeNodeSetOptions
+            {
+                Sources = [RuntimeNodeSetSource.FromFile("Models/MyMachine.NodeSet2.xml")]
+            },
+            ct);
+    }
+
+    public ValueTask RemoveAsync(CancellationToken ct)
+    {
+        return lifecycle.RemoveAsync(m_registration!, ct);
+    }
+}
+```
+
+Each add returns an immutable `NodeManagerRegistration`, and reload returns the next generation while invalidating the previous handle.
+
+The rules that apply to every NodeManager registered at runtime -- what happens to MonitoredItems, Browse continuation points, namespace indexes, DataTypes, and change notifications, and which NodeManagers may be reloaded at all -- are described once in [Registering NodeManagers](NodeManagerRegistration.md). Runtime NodeSets follow those rules, and the built-in runtime NodeSet manager already implements the `INodeManagerReloadParticipant` contract that reload requires.
 
 ## Quick-start examples
 
@@ -69,7 +108,7 @@ services.AddOpcUa()
 
 ### Custom stream source
 
-Use `RuntimeNodeSetSource.FromStream` when you want to open the NodeSet2 document lazily at server startup — for example from a database, a blob store, or an assembly resource. The delegate is called once during startup and must return a fresh, readable `Stream` each time.
+Use `RuntimeNodeSetSource.FromStream` when you want to open the NodeSet2 document lazily — for example from a database, a blob store, or an assembly resource. The delegate is called for each startup load or live generation and must return a fresh, readable `Stream` each time.
 
 ```csharp
 services.AddOpcUa()
@@ -102,7 +141,7 @@ AddNodeManager(factory);
 
 ## Stream ownership contract
 
-When `FromStream` is used, the runtime loader calls the `openStream` delegate once while the NodeManager factory is created during server startup and closes the returned stream after deserialization. You must ensure that:
+When `FromStream` is used, the runtime loader calls the `openStream` delegate while each NodeManager generation is created and closes the returned stream after deserialization. You must ensure that:
 
 1. Each call to `openStream` returns a **new** stream positioned at the beginning.
 2. The stream is **readable** and contains a valid NodeSet2 XML document.
@@ -150,7 +189,7 @@ For a complete description of the server-side complex type system, see [ComplexT
 | Aspect | Runtime NodeSet (`AddRuntimeNodeSet`) | Source-generated (`[NodeManager]`) |
 |--------|--------------------------------------|-------------------------------------|
 | Node access in callbacks | Generic `NodeState` / `BaseVariableState` via untyped browse paths | Strongly typed, compiler-checked fluent accessors per node |
-| Compilation required on model change | No — reload the XML and restart | Yes — regenerate and rebuild |
+| Compilation required on model change | No — reload through `INodeManagerLifecycle` | Yes — regenerate and rebuild |
 | AOT / trimming compatibility | Full (uses the existing `UANodeSet.Read` XmlSerializer path) | Full (generated code is static) |
 | Named NodeId constants | Not generated | Generated (`Variables.*`, `Objects.*`, etc.) |
 | Multiple namespaces in one manager | Yes — group multiple sources | One namespace per generator run |
