@@ -45,7 +45,21 @@ namespace Opc.Ua.Client.Subscriptions
     internal abstract class MessageProcessor : IMessageProcessor, IAsyncDisposable
     {
         /// <inheritdoc/>
-        public uint Id { get; internal set; }
+        public uint Id
+        {
+            get;
+            internal set
+            {
+                if (value != 0)
+                {
+                    LastServerId = value;
+                }
+                field = value;
+            }
+        }
+
+        /// <inheritdoc/>
+        public uint LastServerId { get; private set; }
 
         /// <summary>
         /// Number of notification messages detected as missing during
@@ -275,7 +289,7 @@ namespace Opc.Ua.Client.Subscriptions
                 // to be removed
                 throw;
             }
-            await AckQueue.CompleteAsync(Id, default).ConfigureAwait(false);
+            await AckQueue.CompleteAsync(this, default).ConfigureAwait(false);
             OnPublishStateChanged(PublishState.Completed);
         }
 

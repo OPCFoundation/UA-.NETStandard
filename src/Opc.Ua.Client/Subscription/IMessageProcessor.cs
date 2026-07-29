@@ -45,6 +45,15 @@ namespace Opc.Ua.Client.Subscriptions
         uint Id { get; }
 
         /// <summary>
+        /// The last non-zero server assigned subscription id observed
+        /// for this subscription. Unlike <see cref="Id"/> this value
+        /// survives the reset that happens when the subscription is
+        /// deleted on the server, so the owning manager can still
+        /// remember which identifier has just been retired.
+        /// </summary>
+        uint LastServerId { get; }
+
+        /// <summary>
         /// Allows the session to add the notification message
         /// to the subscription for dispatch. This is called by
         /// the subscription manager when a message is received.

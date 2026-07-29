@@ -69,7 +69,7 @@ namespace Opc.Ua.Client.Subscriptions
             // Assert
             Assert.That(sut.PublishState, Is.EqualTo(PublishState.Completed));
             Assert.That(m_completion.CompletedSubscriptions,
-                Is.EqualTo(new uint[] { 3 }));
+                Is.EqualTo(new IMessageProcessor[] { sut }));
         }
 
         [Test]

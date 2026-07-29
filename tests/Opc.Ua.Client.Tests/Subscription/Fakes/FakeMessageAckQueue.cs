@@ -44,7 +44,7 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
     internal sealed class FakeMessageAckQueue : IMessageAckQueue
     {
         public List<SubscriptionAcknowledgement> QueuedAcks { get; } = [];
-        public List<uint> CompletedSubscriptions { get; } = [];
+        public List<IMessageProcessor> CompletedSubscriptions { get; } = [];
         public int UpdateCalls { get; private set; }
         public int PublishingQuiescenceCalls { get; private set; }
 
@@ -58,7 +58,7 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         /// Optional override for <see cref="CompleteAsync"/>. If null,
         /// returns completed.
         /// </summary>
-        public Func<uint, CancellationToken, ValueTask>? OnCompleteAsync { get; set; }
+        public Func<IMessageProcessor, CancellationToken, ValueTask>? OnCompleteAsync { get; set; }
 
         public ValueTask QueueAsync(SubscriptionAcknowledgement ack,
             CancellationToken ct = default)
@@ -67,11 +67,11 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
             return OnQueueAsync?.Invoke(ack, ct) ?? default;
         }
 
-        public ValueTask CompleteAsync(uint subscriptionId,
+        public ValueTask CompleteAsync(IMessageProcessor subscription,
             CancellationToken ct = default)
         {
-            CompletedSubscriptions.Add(subscriptionId);
-            return OnCompleteAsync?.Invoke(subscriptionId, ct) ?? default;
+            CompletedSubscriptions.Add(subscription);
+            return OnCompleteAsync?.Invoke(subscription, ct) ?? default;
         }
 
         public ValueTask RunWithPublishingQuiescedAsync(

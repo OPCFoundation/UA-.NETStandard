@@ -31,6 +31,7 @@
 // making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
 #pragma warning disable CA2000
 using System;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
@@ -106,7 +107,7 @@ namespace Opc.Ua.Client.Subscriptions
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadAlreadyExists));
             await Task.Delay(100).ConfigureAwait(false); // Give time to workers to start
             Assert.That(sut.PublishWorkerCount, Is.Zero);
-            await sut.CompleteAsync(1, default).ConfigureAwait(false);
+            await sut.CompleteAsync(ms1, default).ConfigureAwait(false);
             Assert.That(sut.Count, Is.EqualTo(1));
             Assert.That(sut.Items, Does.Contain(s2));
 
@@ -160,7 +161,7 @@ namespace Opc.Ua.Client.Subscriptions
             // but MinPublishWorkerCount defaults to 2, so the desired count is 2.
             await WaitForPublishWorkerCountAsync(sut, 2).ConfigureAwait(false);
 
-            await sut.CompleteAsync(2, default).ConfigureAwait(false); // Remove s2
+            await sut.CompleteAsync(ms2, default).ConfigureAwait(false); // Remove s2
             Assert.That(sut.Count, Is.EqualTo(1));
             Assert.That(sut.Items, Does.Not.Contain(s2));
 
@@ -168,7 +169,7 @@ namespace Opc.Ua.Client.Subscriptions
             Assert.That(sut.PublishWorkerCount, Is.EqualTo(2));
             Assert.That(sut.PublishControlCycles, Is.GreaterThan(0));
 
-            await sut.CompleteAsync(1, default).ConfigureAwait(false); // Remove s1
+            await sut.CompleteAsync(ms1, default).ConfigureAwait(false); // Remove s1
             Assert.That(sut.Count, Is.Zero);
             Assert.That(sut.Items, Does.Not.Contain(s1));
 
@@ -411,7 +412,7 @@ namespace Opc.Ua.Client.Subscriptions
 
             m_subscriptionManager.Add(m_mockNotificationDataHandler.Object,
                 Mock.Of<IOptionsMonitor<SubscriptionOptions>>());
-            await m_subscriptionManager.CompleteAsync(1, CancellationToken.None).ConfigureAwait(false);
+            await m_subscriptionManager.CompleteAsync(mockSubscription, CancellationToken.None).ConfigureAwait(false);
             Assert.That(m_subscriptionManager.Items, Is.Empty);
         }
 
@@ -769,6 +770,337 @@ namespace Opc.Ua.Client.Subscriptions
                 int dropped = queue.DropPendingForSubscription(7u);
                 Assert.That(dropped, Is.Zero);
 #pragma warning restore CA1859
+            }
+        }
+
+        /// <summary>
+        /// Regression for #4113. A subscription resets its server side id to
+        /// zero before its message processor drains and completes, so
+        /// <see cref="IMessageAckQueue.CompleteAsync"/> must retire the
+        /// subscription by instance. Resolving it by id would evict an
+        /// arbitrary other subscription that has been added but not created
+        /// yet — those all share id zero — leaving that subscription without
+        /// publish dispatch.
+        /// </summary>
+        [Test]
+        [CancelAfter(30_000)]
+        public async Task CompleteAsyncRetiresOnlyTheCompletedSubscriptionWhenOthersArePendingCreationAsync()
+        {
+            ILoggerFactory loggerFactory = m_telemetry.LoggerFactory;
+            var session = new FakeSubscriptionManagerContext();
+            OptionsMonitor<SubscriptionOptions> pendingOptions =
+                OptionsFactory.Create<SubscriptionOptions>();
+            OptionsMonitor<SubscriptionOptions> disposingOptions =
+                OptionsFactory.Create<SubscriptionOptions>();
+
+            // Not created yet — the server has not assigned an id.
+            var pending = new FakeManagedSubscription { Id = 0u };
+            // Created, then deleted on the server, which resets Id to zero.
+            var disposing = new FakeManagedSubscription { Id = 7u, Created = true };
+
+            var sut = new SubscriptionManager(session,
+                loggerFactory, DiagnosticsMasks.None);
+            await using (sut.ConfigureAwait(false))
+            {
+                session.CreateSubscriptionFactory = (handler, options, queue)
+                    => ReferenceEquals(options, pendingOptions) ? pending : disposing;
+
+                ISubscription pendingSubscription = sut.Add(
+                    m_mockNotificationDataHandler.Object, pendingOptions);
+                ISubscription disposingSubscription = sut.Add(
+                    m_mockNotificationDataHandler.Object, disposingOptions);
+                Assert.That(sut.Count, Is.EqualTo(2));
+
+                // Server side delete resets the id; LastServerId keeps it.
+                disposing.Id = 0u;
+                disposing.Created = false;
+                Assert.That(disposing.LastServerId, Is.EqualTo(7u));
+
+                await sut.CompleteAsync(disposing, CancellationToken.None)
+                    .ConfigureAwait(false);
+
+                Assert.That(sut.Count, Is.EqualTo(1));
+                Assert.That(sut.Items, Does.Contain(pendingSubscription));
+                Assert.That(sut.Items, Does.Not.Contain(disposingSubscription));
+            }
+        }
+
+        /// <summary>
+        /// A publish response that arrives after a subscription was retired
+        /// must not make the manager delete anything on the server: the
+        /// retired server side id is remembered even though the subscription
+        /// already reset its own id to zero.
+        /// </summary>
+        [Test]
+        [CancelAfter(30_000)]
+        public async Task CompleteAsyncRemembersRetiredServerIdAfterIdWasResetAsync(
+            CancellationToken testCt)
+        {
+            ILoggerFactory loggerFactory = m_telemetry.LoggerFactory;
+            var session = new FakeSubscriptionManagerContext();
+            OptionsMonitor<SubscriptionOptions> retiredOptions =
+                OptionsFactory.Create<SubscriptionOptions>();
+            OptionsMonitor<SubscriptionOptions> keptOptions =
+                OptionsFactory.Create<SubscriptionOptions>();
+
+            var retired = new FakeManagedSubscription { Id = 7u, Created = true };
+            var kept = new FakeManagedSubscription { Id = 8u, Created = true };
+
+            var sut = new SubscriptionManager(session,
+                loggerFactory, DiagnosticsMasks.None);
+            await using (sut.ConfigureAwait(false))
+            {
+                session.CreateSubscriptionFactory = (handler, options, queue)
+                    => ReferenceEquals(options, retiredOptions) ? retired : kept;
+
+                sut.Add(m_mockNotificationDataHandler.Object, retiredOptions);
+                sut.Add(m_mockNotificationDataHandler.Object, keptOptions);
+
+                // Server side delete of the retired subscription.
+                retired.Id = 0u;
+                retired.Created = false;
+                await sut.CompleteAsync(retired, CancellationToken.None)
+                    .ConfigureAwait(false);
+
+                // The still late in-flight publish response for id 7.
+                var publishSeen = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                session.OnPublishAsync = (h, a, ct) =>
+                {
+                    publishSeen.TrySetResult(true);
+                    return new ValueTask<PublishResponse>(
+                        CreatePublishResponse(7u, h.RequestHandle));
+                };
+
+                sut.MinPublishWorkerCount = 1;
+                sut.MaxPublishWorkerCount = 1;
+                sut.Resume();
+
+                await publishSeen.Task.WaitAsync(testCt).ConfigureAwait(false);
+                await Task.Delay(250, testCt).ConfigureAwait(false);
+
+                Assert.That(session.DeleteCalls, Is.Empty,
+                    "A publish response for a retired subscription must not " +
+                    "trigger DeleteSubscriptions.");
+            }
+        }
+
+        /// <summary>
+        /// A publish response can overtake the CreateSubscription continuation
+        /// that assigns the server side id. While any subscription is still
+        /// awaiting its id, an unresolved subscription id must not be deleted
+        /// on the server — doing so would silently kill a healthy subscription.
+        /// </summary>
+        [Test]
+        [CancelAfter(30_000)]
+        public async Task PublishWorkerDefersDeletingUnknownSubscriptionWhileCreationIsPendingAsync(
+            CancellationToken testCt)
+        {
+            ILoggerFactory loggerFactory = m_telemetry.LoggerFactory;
+            var session = new FakeSubscriptionManagerContext();
+            OptionsMonitor<SubscriptionOptions> createdOptions =
+                OptionsFactory.Create<SubscriptionOptions>();
+            OptionsMonitor<SubscriptionOptions> pendingOptions =
+                OptionsFactory.Create<SubscriptionOptions>();
+
+            var created = new FakeManagedSubscription { Id = 1u, Created = true };
+            var pending = new FakeManagedSubscription { Id = 0u };
+
+            var sut = new SubscriptionManager(session,
+                loggerFactory, DiagnosticsMasks.None);
+            await using (sut.ConfigureAwait(false))
+            {
+                session.CreateSubscriptionFactory = (handler, options, queue)
+                    => ReferenceEquals(options, createdOptions) ? created : pending;
+
+                sut.Add(m_mockNotificationDataHandler.Object, createdOptions);
+                sut.Add(m_mockNotificationDataHandler.Object, pendingOptions);
+
+                int publishCount = 0;
+                session.OnPublishAsync = (h, a, ct) =>
+                {
+                    Interlocked.Increment(ref publishCount);
+                    return new ValueTask<PublishResponse>(
+                        CreatePublishResponse(4242u, h.RequestHandle));
+                };
+
+                sut.MinPublishWorkerCount = 1;
+                sut.MaxPublishWorkerCount = 1;
+                sut.Resume();
+
+                await WaitUntilAsync(() => Volatile.Read(ref publishCount) >= 3,
+                    testCt).ConfigureAwait(false);
+                Assert.That(session.DeleteCalls, Is.Empty,
+                    "An unresolved subscription id must not be deleted while " +
+                    "another subscription is still awaiting its id.");
+
+                // Once nothing is pending creation the orphan is cleaned up.
+                pending.Id = 2u;
+                pending.Created = true;
+                sut.Update();
+
+                await WaitUntilAsync(() => session.DeleteCalls.Count > 0, testCt)
+                    .ConfigureAwait(false);
+                Assert.That(session.DeleteCalls[0].SubscriptionIds.ToList(),
+                    Does.Contain(4242u));
+            }
+        }
+
+        /// <summary>
+        /// The publish controller must not lose worker pool resize signals.
+        /// Re-arming its control wait on every loop iteration abandoned the
+        /// previous waiter inside the auto reset event, so a later signal was
+        /// handed to the dead waiter and the pool stopped resizing.
+        /// </summary>
+        [Test]
+        [CancelAfter(30_000)]
+        public async Task PublishControllerKeepsResizingAfterWorkersExitAsync(
+            CancellationToken testCt)
+        {
+            const int kForcedWorkerExits = 2;
+
+            ILoggerFactory loggerFactory = m_telemetry.LoggerFactory;
+            var session = new FakeSubscriptionManagerContext();
+            OptionsMonitor<SubscriptionOptions> options =
+                OptionsFactory.Create<SubscriptionOptions>();
+            var subscription = new FakeManagedSubscription { Id = 1u, Created = true };
+
+            var sut = new SubscriptionManager(session,
+                loggerFactory, DiagnosticsMasks.None);
+            await using (sut.ConfigureAwait(false))
+            {
+                session.CreateSubscriptionFactory = (handler, opts, queue) => subscription;
+                sut.Add(m_mockNotificationDataHandler.Object, options);
+
+                int publishCount = 0;
+                session.OnPublishAsync = async (h, a, ct) =>
+                {
+                    if (Interlocked.Increment(ref publishCount) <= kForcedWorkerExits)
+                    {
+                        // Terminates the worker task, which wakes the
+                        // controller through the worker task instead of
+                        // through its control wait.
+                        throw new OperationCanceledException();
+                    }
+                    // Park the replacement worker so the controller is idle
+                    // when the resize signal below is raised.
+                    await Task.Delay(Timeout.Infinite, ct).ConfigureAwait(false);
+                    return new PublishResponse();
+                };
+
+                sut.MaxPublishWorkerCount = 5;
+                sut.MinPublishWorkerCount = 1;
+                sut.Resume();
+
+                await WaitUntilAsync(
+                    () => Volatile.Read(ref publishCount) > kForcedWorkerExits,
+                    testCt).ConfigureAwait(false);
+                await WaitForPublishWorkerCountAsync(sut, 1).ConfigureAwait(false);
+
+                // Single signal — under the defect it was swallowed by one of
+                // the waiters abandoned while the workers were exiting.
+                sut.MinPublishWorkerCount = 3;
+
+                await WaitForPublishWorkerCountAsync(sut, 3).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Adding and retiring subscriptions concurrently must leave exactly
+        /// the subscriptions that were not retired registered — the scenario
+        /// from #4113 reduced to the manager surface. The surviving
+        /// subscriptions are deliberately left pending creation (id zero),
+        /// which is what made them eligible victims of the id based lookup.
+        /// </summary>
+        [Test]
+        [CancelAfter(60_000)]
+        public async Task ConcurrentAddAndCompleteRetireOnlyCompletedSubscriptionsAsync()
+        {
+            const int kWorkers = 8;
+            const int kIterations = 25;
+
+            ILoggerFactory loggerFactory = m_telemetry.LoggerFactory;
+            var session = new FakeSubscriptionManagerContext();
+            var sut = new SubscriptionManager(session,
+                loggerFactory, DiagnosticsMasks.None);
+            await using (sut.ConfigureAwait(false))
+            {
+                var nextId = 0;
+                var survivors = new ConcurrentBag<ISubscription>();
+                var partitions = new ConcurrentDictionary<
+                    IOptionsMonitor<SubscriptionOptions>, FakeManagedSubscription>();
+                session.CreateSubscriptionFactory =
+                    (handler, options, queue) => partitions[options];
+
+                await Task.WhenAll(Enumerable.Range(0, kWorkers)
+                    .Select(_ => Task.Run(async () =>
+                    {
+                        for (int i = 0; i < kIterations; i++)
+                        {
+                            // Added but not created yet — shares id zero with
+                            // every other subscription awaiting creation.
+                            OptionsMonitor<SubscriptionOptions> survivorOptions =
+                                OptionsFactory.Create<SubscriptionOptions>();
+                            partitions[survivorOptions] = new FakeManagedSubscription();
+                            survivors.Add(sut.Add(
+                                m_mockNotificationDataHandler.Object, survivorOptions));
+
+                            OptionsMonitor<SubscriptionOptions> churnOptions =
+                                OptionsFactory.Create<SubscriptionOptions>();
+                            var churn = new FakeManagedSubscription
+                            {
+                                Id = (uint)Interlocked.Increment(ref nextId),
+                                Created = true
+                            };
+                            partitions[churnOptions] = churn;
+                            sut.Add(m_mockNotificationDataHandler.Object, churnOptions);
+
+                            // Mimic the server side delete, which resets the id
+                            // before the message processor drains and completes.
+                            churn.Id = 0u;
+                            churn.Created = false;
+                            await sut.CompleteAsync(churn, CancellationToken.None)
+                                .ConfigureAwait(false);
+                            await Task.Yield();
+                        }
+                    }))).ConfigureAwait(false);
+
+                Assert.That(sut.Count, Is.EqualTo(kWorkers * kIterations));
+                Assert.That(sut.Items, Is.EquivalentTo(survivors));
+            }
+        }
+
+        private static PublishResponse CreatePublishResponse(
+            uint subscriptionId, uint sequenceNumber)
+        {
+            return new PublishResponse
+            {
+                AvailableSequenceNumbers = [],
+                NotificationMessage = new NotificationMessage
+                {
+                    SequenceNumber = sequenceNumber
+                },
+                Results = [],
+                SubscriptionId = subscriptionId,
+                MoreNotifications = false,
+                ResponseHeader = new ResponseHeader
+                {
+                    ServiceResult = StatusCodes.Good,
+                    StringTable = []
+                }
+            };
+        }
+
+        private static async Task WaitUntilAsync(Func<bool> condition,
+            CancellationToken ct, TimeSpan? timeout = null)
+        {
+            timeout ??= TimeSpan.FromSeconds(10);
+            var sw = Stopwatch.StartNew();
+            while (!condition())
+            {
+                Assert.That(sw.Elapsed, Is.LessThan(timeout.Value),
+                    "Timed out waiting for the expected condition.");
+                await Task.Delay(25, ct).ConfigureAwait(false);
             }
         }
 
