@@ -56,6 +56,10 @@ namespace Opc.Ua.Server.FileSystem
                     ServiceResult = ServiceResult.Create(StatusCodes.BadInvalidArgument, "Directory name required.")
                 };
             }
+            if (!IsValidEntryName(directoryName, out ServiceResult directoryNameResult))
+            {
+                return new CreateDirectoryMethodStateResult { ServiceResult = directoryNameResult };
+            }
 
             string newPath = host.CombineProviderPath(providerPath, directoryName);
             try
@@ -112,6 +116,10 @@ namespace Opc.Ua.Server.FileSystem
                 {
                     ServiceResult = ServiceResult.Create(StatusCodes.BadInvalidArgument, "File name required.")
                 };
+            }
+            if (!IsValidEntryName(fileName, out ServiceResult fileNameResult))
+            {
+                return new CreateFileMethodStateResult { ServiceResult = fileNameResult };
             }
 
             NodeId sessionId = NodeId.Null;
@@ -291,6 +299,10 @@ namespace Opc.Ua.Server.FileSystem
 
             string sourceName = ProviderPathName(sourcePath);
             string finalName = !string.IsNullOrEmpty(newName) ? newName : sourceName;
+            if (!IsValidEntryName(finalName, out ServiceResult newNameResult))
+            {
+                return new MoveOrCopyMethodStateResult { ServiceResult = newNameResult };
+            }
             string targetPath = host.CombineProviderPath(targetDirectoryPath, finalName);
 
             try
@@ -361,6 +373,52 @@ namespace Opc.Ua.Server.FileSystem
             result = ServiceResult.Good;
             return true;
         }
+
+        /// <summary>
+        /// Rejects a client-supplied entry name that is anything other than a
+        /// single path segment.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Names arrive straight from a remote caller and are combined into a
+        /// provider path, so the stack refuses separators, drive/stream
+        /// qualifiers and the relative aliases here rather than relying on
+        /// every <see cref="IFileSystemProvider"/> to re-derive the rule. A
+        /// provider that follows the documented contract and splits the
+        /// forward-slash path to reject <c>".."</c> segments would otherwise
+        /// still be escaped on Windows by a name such as
+        /// <c>"..\..\Windows\System32\evil"</c>, which contains no
+        /// slash-delimited <c>".."</c> segment yet is resolved as traversal by
+        /// <see cref="System.IO.Path"/>.
+        /// </para>
+        /// <para>
+        /// This is deliberately a defence in depth: providers remain
+        /// responsible for confining resolved paths to their own root.
+        /// </para>
+        /// </remarks>
+        /// <param name="name">The client-supplied entry name.</param>
+        /// <param name="result">The failure to report when invalid.</param>
+        /// <returns><c>true</c> when the name is a safe single segment.</returns>
+        private static bool IsValidEntryName(string name, out ServiceResult result)
+        {
+            if (string.IsNullOrWhiteSpace(name) ||
+                name.IndexOfAny(kEntryNameSeparators) >= 0 ||
+                name == "." ||
+                name == "..")
+            {
+                result = ServiceResult.Create(
+                    StatusCodes.BadInvalidArgument,
+                    "A file-system entry name must be a single segment and may not " +
+                    "contain a path separator, a drive or stream qualifier, or be " +
+                    "'.' or '..'.");
+                return false;
+            }
+
+            result = ServiceResult.Good;
+            return true;
+        }
+
+        private static readonly char[] kEntryNameSeparators = ['/', '\\', ':'];
 
         private static DeleteFileMethodStateResult CreateNotFoundDeleteResult(Exception ex)
         {

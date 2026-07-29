@@ -79,8 +79,7 @@ namespace Opc.Ua.OpenUsd.Connector
             {
                 // Rendering needs a resolvable asset closure. Without an explicit stage the
                 // connector fetches one rather than opening an empty viewport.
-                cacheDir = Path.Combine(
-                    Path.GetTempPath(), "Opc.Ua.OpenUsd.Connector", "stage");
+                cacheDir = Path.Combine(GetPrivateStateRoot(), "stage");
             }
             if (!string.IsNullOrEmpty(cacheDir))
             {
@@ -103,7 +102,7 @@ namespace Opc.Ua.OpenUsd.Connector
 
             ITelemetryContext telemetry = DefaultTelemetry.Create(b => b.SetMinimumLevel(LogLevel.Warning));
 
-            string pkiRoot = Path.Combine(Path.GetTempPath(), "Opc.Ua.OpenUsd.Connector", Path.GetRandomFileName());
+            string pkiRoot = Path.Combine(GetPrivateStateRoot(), Path.GetRandomFileName());
             var config = new ApplicationConfiguration(telemetry)
             {
                 ApplicationName = "Opc.Ua.OpenUsd.Connector",
@@ -456,6 +455,37 @@ namespace Opc.Ua.OpenUsd.Connector
                     livePath,
                     "#usda 1.0\n(\n    doc = \"OPC UA -> OpenUSD live bindings (override layer)\"\n)\n");
             }
+        }
+
+        /// <summary>
+        /// Returns the per-user directory the connector keeps its asset cache
+        /// and PKI stores in, creating it if needed.
+        /// </summary>
+        /// <remarks>
+        /// Deliberately not under <see cref="Path.GetTempPath"/>: on POSIX that
+        /// is the shared, world-writable <c>/tmp</c>, so a fixed sub-path there
+        /// can be pre-created by another local user as a symlink. Everything the
+        /// connector writes into the asset cache is server-supplied content at
+        /// server-supplied relative paths, and the PKI root holds the client's
+        /// own private key plus its trusted-issuer store - redirecting either
+        /// would be serious. LocalApplicationData is per-user on every supported
+        /// platform.
+        /// </remarks>
+        /// <returns>The private state directory.</returns>
+        private static string GetPrivateStateRoot()
+        {
+            string baseDirectory = Environment.GetFolderPath(
+                Environment.SpecialFolder.LocalApplicationData);
+            if (string.IsNullOrEmpty(baseDirectory))
+            {
+                // A headless POSIX account may have neither XDG_DATA_HOME nor
+                // HOME; fall back to a directory beside the executable rather
+                // than to a shared temp path.
+                baseDirectory = AppContext.BaseDirectory;
+            }
+            string root = Path.Combine(baseDirectory, "Opc.Ua.OpenUsd.Connector");
+            Directory.CreateDirectory(root);
+            return root;
         }
 
         private static string? GetOption(string[] args, string name)

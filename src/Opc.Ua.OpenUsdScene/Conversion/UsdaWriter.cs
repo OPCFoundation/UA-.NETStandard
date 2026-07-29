@@ -130,8 +130,9 @@ namespace Opc.Ua.OpenUsdScene.Conversion
                     continue;
                 }
                 string reference = arc.PrimPath.Length > 0
-                    ? "@" + arc.AssetPath + "@<" + arc.PrimPath + ">"
-                    : "@" + arc.AssetPath + "@";
+                    ? "@" + EscapeAssetPath(arc.AssetPath) + "@<" +
+                        EscapeAssetPath(arc.PrimPath) + ">"
+                    : "@" + EscapeAssetPath(arc.AssetPath) + "@";
                 arcLines.Add(pad + "    " + ListPositionKeyword(arc.ListPosition) + " " + kw + " = " + reference);
             }
 
@@ -150,9 +151,10 @@ namespace Opc.Ua.OpenUsdScene.Conversion
             {
                 if (vs.Selection.Length > 0)
                 {
-                    varLines.Add(pad + "    variants = { string " + vs.SetName + " = \"" + vs.Selection + "\" }");
+                    varLines.Add(pad + "    variants = { string " + EscapeQuoted(vs.SetName) +
+                        " = \"" + EscapeQuoted(vs.Selection) + "\" }");
                 }
-                varLines.Add(pad + "    prepend variantSets = \"" + vs.SetName + "\"");
+                varLines.Add(pad + "    prepend variantSets = \"" + EscapeQuoted(vs.SetName) + "\"");
             }
 
             bool hasDoc = prim.Documentation.Length > 0;
@@ -160,12 +162,13 @@ namespace Opc.Ua.OpenUsdScene.Conversion
                 || arcLines.Count > 0 || instanceable || varLines.Count > 0 || hasDoc
                 || prim.Metadata.Count > 0;
 
-            lines.Add(pad + spec + " " + typ + "\"" + prim.Name + "\"" + (hasMeta ? " (" : string.Empty));
+            lines.Add(pad + spec + " " + typ + "\"" + EscapeQuoted(prim.Name) + "\"" + (hasMeta ? " (" : string.Empty));
             if (hasMeta)
             {
                 if (hasDoc)
                 {
-                    lines.Add(pad + "    doc = \"\"\"" + prim.Documentation + "\"\"\"");
+                    lines.Add(pad + "    doc = \"\"\"" +
+                        EscapeTripleQuoted(prim.Documentation) + "\"\"\"");
                 }
                 if (prim.Kind != UsdPrimKindEnum.Unspecified)
                 {
@@ -357,13 +360,133 @@ namespace Opc.Ua.OpenUsdScene.Conversion
         {
             if (string.Equals(typeName, "asset", System.StringComparison.Ordinal))
             {
-                return "@" + s + "@";
+                return "@" + EscapeAssetPath(s) + "@";
             }
             bool quoted =
                 (typeName is "token" or "string"
                     || typeName.EndsWith("[]", System.StringComparison.Ordinal))
                 && UsdValueTypeMap.IsKnown(typeName);
-            return quoted ? "\"" + s + "\"" : s;
+            return quoted ? "\"" + EscapeQuoted(s) + "\"" : s;
+        }
+
+        /// <summary>
+        /// Escapes a value so it cannot terminate the quoted <c>.usda</c>
+        /// literal it is authored into.
+        /// </summary>
+        /// <remarks>
+        /// Attribute values are remotely writable once materialised - a
+        /// <c>Live</c> attribute is created with CurrentReadOrWrite access - and
+        /// the exporter reads them back verbatim. Without escaping, a value
+        /// containing a quote and a newline closes the literal and authors
+        /// arbitrary layer metadata, including <c>references</c>, <c>payload</c>
+        /// and <c>subLayers</c> arcs that any renderer opening the exported file
+        /// would then resolve. This mirrors <c>UsdFileSink.EscapeToken</c> and is
+        /// symmetric with <c>UsdaReader.TryParseQuoted</c>, which already
+        /// consumes these escapes.
+        /// </remarks>
+        /// <param name="s">The raw value.</param>
+        /// <returns>The escaped value.</returns>
+        private static string EscapeQuoted(string s)
+        {
+            var sb = new StringBuilder(s.Length);
+            foreach (char c in s)
+            {
+                switch (c)
+                {
+                    case '\\':
+                        sb.Append("\\\\");
+                        break;
+                    case '"':
+                        sb.Append("\\\"");
+                        break;
+                    case '\n':
+                        sb.Append("\\n");
+                        break;
+                    case '\r':
+                        sb.Append("\\r");
+                        break;
+                    case '\t':
+                        sb.Append("\\t");
+                        break;
+                    default:
+                        sb.Append(c);
+                        break;
+                }
+            }
+            return sb.Length == s.Length ? s : sb.ToString();
+        }
+
+        /// <summary>
+        /// Strips the characters that would terminate an <c>@…@</c> asset
+        /// reference or its optional <c>&lt;primPath&gt;</c> suffix.
+        /// </summary>
+        /// <remarks>
+        /// USD has no escape sequence inside an asset reference, so an unsafe
+        /// character cannot be encoded - it is removed, which keeps the emitted
+        /// layer well formed rather than letting the value inject a new arc.
+        /// </remarks>
+        /// <param name="s">The raw asset path or prim path.</param>
+        /// <returns>The sanitised value.</returns>
+        private static string EscapeAssetPath(string s)
+        {
+            var sb = new StringBuilder(s.Length);
+            foreach (char c in s)
+            {
+                if (!IsAssetPathUnsafe(c))
+                {
+                    sb.Append(c);
+                }
+            }
+            return sb.Length == s.Length ? s : sb.ToString();
+        }
+
+        private static bool IsAssetPathUnsafe(char c)
+        {
+            return c is '@' or '<' or '>' or '"' or '\n' or '\r';
+        }
+
+        /// <summary>
+        /// Neutralises a value authored inside a <c>"""…"""</c> literal.
+        /// </summary>
+        /// <remarks>
+        /// A triple-quoted USD literal has no escape sequence, so the only way
+        /// to keep a value from terminating it is to make a <c>"""</c> run
+        /// impossible; quote runs are collapsed to a single quote. Line breaks
+        /// are folded to spaces as well, so a payload cannot occupy a line of
+        /// its own and be mistaken for a directive by a line-oriented reader.
+        /// </remarks>
+        /// <param name="s">The raw documentation text.</param>
+        /// <returns>The sanitised text.</returns>
+        private static string EscapeTripleQuoted(string s)
+        {
+            var sb = new StringBuilder(s.Length);
+            bool previousWasQuote = false;
+            bool changed = false;
+            foreach (char c in s)
+            {
+                if (c == '"')
+                {
+                    if (previousWasQuote)
+                    {
+                        changed = true;
+                    }
+                    else
+                    {
+                        sb.Append(c);
+                    }
+                    previousWasQuote = true;
+                    continue;
+                }
+                previousWasQuote = false;
+                if (c is '\n' or '\r')
+                {
+                    sb.Append(' ');
+                    changed = true;
+                    continue;
+                }
+                sb.Append(c);
+            }
+            return changed ? sb.ToString() : s;
         }
 
         /// <summary>

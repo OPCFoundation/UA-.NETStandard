@@ -75,6 +75,18 @@ namespace Opc.Ua.Robotics.Server.Builders
         where TMachine : OperationStateMachineState
     {
         private readonly FiniteStateMachineDispatcher m_dispatcher;
+
+        /// <summary>
+        /// Serialises transitions on this operation: 0 when idle, 1 while a
+        /// transition is in flight. The guard, the application handler and the
+        /// commit have to be one atomic step, because the handler may run for
+        /// as long as the physical motion it starts. Without this a second
+        /// caller passes the same guard and a robot can be commanded to start
+        /// and stand down at once, leaving the published CurrentState
+        /// describing whichever commit happened to land last.
+        /// </summary>
+        private int m_transitionInFlight;
+
         private Func<RoboticsOperationTransition, CancellationToken, ValueTask>? m_transition;
         private short m_transitionReason;
 
@@ -137,22 +149,34 @@ namespace Opc.Ua.Robotics.Server.Builders
             Func<RoboticsOperationContext, CancellationToken, ValueTask<ServiceResult>> handler,
             CancellationToken cancellationToken)
         {
-            if (!IsCurrentState(fromState))
+            if (!TryBeginTransition())
             {
                 return new ServiceResult(StatusCodes.BadInvalidState);
             }
 
-            ServiceResult result = await handler(CreateContext(fromState), cancellationToken)
-                .ConfigureAwait(false);
-            result ??= ServiceResult.Good;
-            if (ServiceResult.IsBad(result))
+            try
             {
+                if (!IsCurrentState(fromState))
+                {
+                    return new ServiceResult(StatusCodes.BadInvalidState);
+                }
+
+                ServiceResult result = await handler(CreateContext(fromState), cancellationToken)
+                    .ConfigureAwait(false);
+                result ??= ServiceResult.Good;
+                if (ServiceResult.IsBad(result))
+                {
+                    return result;
+                }
+
+                await MoveAsync(fromState, toState, transitionId, cancellationToken)
+                    .ConfigureAwait(false);
                 return result;
             }
-
-            await MoveAsync(fromState, toState, transitionId, cancellationToken)
-                .ConfigureAwait(false);
-            return result;
+            finally
+            {
+                EndTransition();
+            }
         }
 
         protected async ValueTask<ServiceResult> InvokeStopAsync(
@@ -160,29 +184,41 @@ namespace Opc.Ua.Robotics.Server.Builders
             Func<RoboticsStopRequest, CancellationToken, ValueTask<ServiceResult>> handler,
             CancellationToken cancellationToken)
         {
-            if (!IsCurrentState(RoboticsOperationState.Executing))
+            if (!TryBeginTransition())
             {
                 return new ServiceResult(StatusCodes.BadInvalidState);
             }
 
-            var request = new RoboticsStopRequest
+            try
             {
-                Context = CreateContext(RoboticsOperationState.Executing),
-                StopMode = (RoboticsStopMode)(short)stopMode
-            };
-            ServiceResult result = await handler(request, cancellationToken).ConfigureAwait(false);
-            result ??= ServiceResult.Good;
-            if (ServiceResult.IsBad(result))
-            {
+                if (!IsCurrentState(RoboticsOperationState.Executing))
+                {
+                    return new ServiceResult(StatusCodes.BadInvalidState);
+                }
+
+                var request = new RoboticsStopRequest
+                {
+                    Context = CreateContext(RoboticsOperationState.Executing),
+                    StopMode = (RoboticsStopMode)(short)stopMode
+                };
+                ServiceResult result = await handler(request, cancellationToken).ConfigureAwait(false);
+                result ??= ServiceResult.Good;
+                if (ServiceResult.IsBad(result))
+                {
+                    return result;
+                }
+
+                await MoveAsync(
+                    RoboticsOperationState.Executing,
+                    RoboticsOperationState.Ready,
+                    TransitionId(RoboticsOperationState.Executing, RoboticsOperationState.Ready),
+                    cancellationToken).ConfigureAwait(false);
                 return result;
             }
-
-            await MoveAsync(
-                RoboticsOperationState.Executing,
-                RoboticsOperationState.Ready,
-                TransitionId(RoboticsOperationState.Executing, RoboticsOperationState.Ready),
-                cancellationToken).ConfigureAwait(false);
-            return result;
+            finally
+            {
+                EndTransition();
+            }
         }
 
         protected async ValueTask<RoboticsProgramResult> InvokeProgramAsync(
@@ -192,20 +228,54 @@ namespace Opc.Ua.Robotics.Server.Builders
             Func<CancellationToken, ValueTask<RoboticsProgramResult>> handler,
             CancellationToken cancellationToken)
         {
-            if (!IsCurrentState(fromState))
+            if (!TryBeginTransition())
             {
                 return BadInvalidStateProgramResult();
             }
 
-            RoboticsProgramResult result = await handler(cancellationToken).ConfigureAwait(false);
-            if (ServiceResult.IsBad(result.ServiceResult))
+            try
             {
+                if (!IsCurrentState(fromState))
+                {
+                    return BadInvalidStateProgramResult();
+                }
+
+                RoboticsProgramResult result = await handler(cancellationToken).ConfigureAwait(false);
+                if (ServiceResult.IsBad(result.ServiceResult))
+                {
+                    return result;
+                }
+
+                await MoveAsync(fromState, toState, transitionId, cancellationToken)
+                    .ConfigureAwait(false);
                 return result;
             }
+            finally
+            {
+                EndTransition();
+            }
+        }
 
-            await MoveAsync(fromState, toState, transitionId, cancellationToken)
-                .ConfigureAwait(false);
-            return result;
+        /// <summary>
+        /// Claims the operation for one transition, without waiting.
+        /// </summary>
+        /// <remarks>
+        /// A caller that arrives while a transition is in flight is rejected
+        /// rather than queued: these methods actuate a physical machine, so
+        /// blocking would let a command land long after the operator issued it.
+        /// </remarks>
+        /// <returns>
+        /// <c>true</c> when the caller owns the transition and must call
+        /// <see cref="EndTransition"/>.
+        /// </returns>
+        private bool TryBeginTransition()
+        {
+            return Interlocked.CompareExchange(ref m_transitionInFlight, 1, 0) == 0;
+        }
+
+        private void EndTransition()
+        {
+            Interlocked.Exchange(ref m_transitionInFlight, 0);
         }
 
         protected RoboticsProgramResult BadInvalidStateProgramResult()

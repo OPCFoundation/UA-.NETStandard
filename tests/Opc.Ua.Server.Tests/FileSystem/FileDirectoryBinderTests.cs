@@ -149,6 +149,76 @@ namespace Opc.Ua.Server.Tests.FileSystem
         }
 
         [Test]
+        [TestCase("../escape")]
+        [TestCase("..\\escape")]
+        [TestCase("sub/child")]
+        [TestCase("sub\\child")]
+        [TestCase("/rooted")]
+        [TestCase("\\rooted")]
+        [TestCase("C:\\Windows\\System32\\evil")]
+        [TestCase("..")]
+        [TestCase(".")]
+        [TestCase("stream:name")]
+        [TestCase("   ")]
+        public async Task CreateRejectsANameThatIsNotASingleSegmentAsync(string name)
+        {
+            InMemoryFileSystemProvider provider = CreateProvider();
+            FileDirectoryState root = CreateRoot();
+            SessionSystemContext context = CreateContext();
+
+            await using IFileDirectoryBinding binding = await CreateBinder().BindAsync(
+                root, provider, context).ConfigureAwait(false);
+
+            CreateDirectoryMethodStateResult directoryResult =
+                await root.CreateDirectory!.OnCallAsync!(
+                    context, root.CreateDirectory!, root.NodeId, name, CancellationToken.None)
+                    .ConfigureAwait(false);
+            CreateFileMethodStateResult fileResult = await root.CreateFile!.OnCallAsync!(
+                context, root.CreateFile!, root.NodeId, name, false, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    directoryResult.ServiceResult.StatusCode,
+                    Is.EqualTo(StatusCodes.BadInvalidArgument));
+                Assert.That(
+                    fileResult.ServiceResult.StatusCode,
+                    Is.EqualTo(StatusCodes.BadInvalidArgument));
+            });
+        }
+
+        [Test]
+        public async Task MoveOrCopyRejectsANewNameThatIsNotASingleSegmentAsync()
+        {
+            InMemoryFileSystemProvider provider = CreateProvider();
+            provider.AddDirectory("target");
+            provider.AddFile("old.txt", "x");
+            FileDirectoryState root = CreateRoot();
+            SessionSystemContext context = CreateContext();
+
+            await using IFileDirectoryBinding binding = await CreateBinder().BindAsync(
+                root, provider, context).ConfigureAwait(false);
+
+            NodeId sourceId = Find<FileState>(root, context, "old.txt")!.NodeId;
+            NodeId targetId = Find<FileDirectoryState>(root, context, "target")!.NodeId;
+
+            MoveOrCopyMethodStateResult result = await root.MoveOrCopy!.OnCallAsync!(
+                context,
+                root.MoveOrCopy!,
+                root.NodeId,
+                sourceId,
+                targetId,
+                false,
+                "..\\..\\escape",
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(
+                result.ServiceResult.StatusCode,
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
+        }
+
+        [Test]
         public async Task CreateDeleteAndMoveReconcileMaterialisedNodesAsync()
         {
             InMemoryFileSystemProvider provider = CreateProvider();
