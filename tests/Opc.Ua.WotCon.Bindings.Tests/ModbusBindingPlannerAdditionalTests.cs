@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Linq;
 using System.Text;
 using NUnit.Framework;
@@ -57,6 +58,50 @@ namespace Opc.Ua.WotCon.Bindings.Tests
 
             return Registry().Prepare(WotBindingPlanRequest.FromDocument(
                 "xid", WoTDocumentKindEnum.ThingDescription, Encoding.UTF8.GetBytes(td)));
+        }
+
+        [Test]
+        public void ModbusPlannerCarriesTheStandardPollingTimeOntoTheCompiledForm()
+        {
+            WotBindingPlan plan = PreparePropertyForm(
+                "\"href\":\"modbus+tcp://127.0.0.1:502\"," +
+                "\"modv:entity\":\"holdingRegister\"," +
+                "\"modv:address\":0,\"modv:pollingTime\":250,\"op\":\"observeproperty\"");
+
+            Assert.That(plan.CompiledForms, Is.Not.Empty);
+            Assert.That(
+                plan.CompiledForms[0].OperationInfo.PollInterval,
+                Is.EqualTo(TimeSpan.FromMilliseconds(250)),
+                "modv:pollingTime is the W3C Modbus binding's standard subscription polling " +
+                "interval in milliseconds, so a per-affordance rate needs no vendor term.");
+        }
+
+        [Test]
+        public void ModbusPlannerLeavesThePollIntervalUnsetWhenTheFormOmitsPollingTime()
+        {
+            WotBindingPlan plan = PreparePropertyForm(
+                "\"href\":\"modbus+tcp://127.0.0.1:502\"," +
+                "\"modv:entity\":\"holdingRegister\"," +
+                "\"modv:address\":0,\"op\":\"observeproperty\"");
+
+            Assert.That(plan.CompiledForms, Is.Not.Empty);
+            Assert.That(plan.CompiledForms[0].OperationInfo.PollInterval, Is.Null,
+                "Without the term the executor's configured ObserveInterval must apply.");
+        }
+
+        [Test]
+        public void ModbusPlannerRejectsANonPositivePollingTime()
+        {
+            WotBindingPlan plan = PreparePropertyForm(
+                "\"href\":\"modbus+tcp://127.0.0.1:502\"," +
+                "\"modv:entity\":\"holdingRegister\"," +
+                "\"modv:address\":0,\"modv:pollingTime\":0,\"op\":\"observeproperty\"");
+
+            Assert.That(plan.CompiledForms, Is.Empty);
+            Assert.That(
+                plan.Diagnostics.Any(d => d.Term == "modv:pollingTime"),
+                Is.True,
+                "An unusable polling interval must be reported against the term that carried it.");
         }
 
         [Test]

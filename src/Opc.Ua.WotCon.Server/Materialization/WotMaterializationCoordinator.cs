@@ -64,7 +64,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
             IWotProjectionHost projectionHost,
             IWotBinderRegistry? binderRegistry = null,
             WotNodeSetConverterOptions? converterOptions = null,
-            IWotDocumentConverter? documentConverter = null)
+            IWotDocumentConverter? documentConverter = null,
+            IEnumerable<IWotNodeSetContributor>? nodeSetContributors = null,
+            IWotNodeSetResolver? nodeSetResolver = null)
         {
             m_registry = registry ?? throw new ArgumentNullException(nameof(registry));
             m_host = projectionHost ?? throw new ArgumentNullException(nameof(projectionHost));
@@ -72,6 +74,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
             m_converterOptions = converterOptions ?? new WotNodeSetConverterOptions();
             m_converter = documentConverter
                 ?? new WotNodeSetDocumentConverter(m_converterOptions);
+            m_nodeSetContributors = nodeSetContributors is null
+                ? []
+                : [.. nodeSetContributors];
+            m_nodeSetResolver = nodeSetResolver;
         }
 
         /// <summary>
@@ -350,6 +356,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             var perMemberRoot = new Dictionary<string, ExpandedNodeId>(StringComparer.Ordinal);
             var bindingPlans = new List<WotBindingPlan>();
             bool degraded = false;
+            var requiredNamespaces = new HashSet<string>(StringComparer.Ordinal);
+            var ownedNamespaces = new HashSet<string>(StringComparer.Ordinal);
 
             foreach (WotResource member in members)
             {
@@ -365,6 +373,18 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
                 (UANodeSet? nodeSet, ExpandedNodeId? root, string? conversionError) =
                     TryConvert(member, snapshot);
+                if (nodeSet is not null && m_nodeSetContributors.Length > 0)
+                {
+                    // Contributors run after conversion and before any variable is created, which
+                    // is when a programmatically discovered DataType (a controller UDT, say) has to
+                    // exist for a uav:mapByFieldPath mapping to resolve against it.
+                    foreach (IWotNodeSetContributor contributor in m_nodeSetContributors)
+                    {
+                        await contributor
+                            .ContributeAsync(member, nodeSet, cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                }
                 if (nodeSet is null)
                 {
                     WoTValidationOutcomeDataType validation = FormatFailure(conversionError);
@@ -409,6 +429,31 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
                 sources.Add(new WotProjectionSource(
                     member.ResourceId, OwnedModelUris(nodeSet), xml));
+                CollectRequiredNamespaces(nodeSet, requiredNamespaces, ownedNamespaces);
+            }
+
+            // Resolve any companion-specification namespace the closure depends on that neither the
+            // closure itself nor the server already provides. Resolved models are prepended to the
+            // sources so they materialize before the documents that reference them. A namespace
+            // that stays unresolved is reported, never silently dropped: the projection then fails
+            // with a message naming exactly what is missing.
+            (ImmutableArray<WotProjectionSource> resolved, ImmutableArray<string> unresolved) =
+                await ResolveDependencyModelsAsync(
+                        requiredNamespaces, ownedNamespaces, cancellationToken)
+                    .ConfigureAwait(false);
+            if (!resolved.IsDefaultOrEmpty)
+            {
+                sources.InsertRange(0, resolved);
+            }
+            if (!unresolved.IsDefaultOrEmpty)
+            {
+                degraded = true;
+                foreach (WotResource member in members)
+                {
+                    RaiseBindingFailure(
+                        member,
+                        "Unresolved dependency namespace(s): " + string.Join(", ", unresolved));
+                }
             }
 
             if (dryRun)
@@ -707,6 +752,137 @@ namespace Opc.Ua.WotCon.Server.Materialization
             return [];
         }
 
+        /// <summary>
+        /// Records the namespaces a converted NodeSet owns and the ones it declares a dependency
+        /// on, so the closure's unmet dependencies can be resolved once for the whole projection.
+        /// </summary>
+        private static void CollectRequiredNamespaces(
+            UANodeSet nodeSet,
+            HashSet<string> required,
+            HashSet<string> owned)
+        {
+            foreach (string uri in OwnedModelUris(nodeSet))
+            {
+                owned.Add(uri);
+            }
+            if (nodeSet.Models is null)
+            {
+                return;
+            }
+            foreach (ModelTableEntry model in nodeSet.Models)
+            {
+                if (model?.RequiredModel is null)
+                {
+                    continue;
+                }
+                foreach (ModelTableEntry dependency in model.RequiredModel)
+                {
+                    if (!string.IsNullOrEmpty(dependency?.ModelUri) &&
+                        !string.Equals(
+                            dependency!.ModelUri, Ua.Namespaces.OpcUa, StringComparison.Ordinal))
+                    {
+                        required.Add(dependency.ModelUri);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Asks the configured <see cref="IWotNodeSetResolver"/> for every dependency namespace the
+        /// closure needs but neither owns nor finds on the server, recursing into whatever it gets
+        /// back. Returns the resolved models in dependency order together with the namespaces that
+        /// stayed unresolved.
+        /// </summary>
+        private async ValueTask<(ImmutableArray<WotProjectionSource> Resolved,
+            ImmutableArray<string> Unresolved)> ResolveDependencyModelsAsync(
+            HashSet<string> required,
+            HashSet<string> owned,
+            CancellationToken cancellationToken)
+        {
+            var pending = new Queue<string>();
+            foreach (string uri in required)
+            {
+                if (!owned.Contains(uri) && !IsKnownToServer(uri))
+                {
+                    pending.Enqueue(uri);
+                }
+            }
+            if (pending.Count == 0)
+            {
+                return ([], []);
+            }
+            if (m_nodeSetResolver is null)
+            {
+                return ([], [.. pending]);
+            }
+
+            ImmutableArray<WotProjectionSource>.Builder resolved =
+                ImmutableArray.CreateBuilder<WotProjectionSource>();
+            ImmutableArray<string>.Builder unresolved = ImmutableArray.CreateBuilder<string>();
+            var seen = new HashSet<string>(pending, StringComparer.Ordinal);
+            while (pending.Count > 0)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                string uri = pending.Dequeue();
+                Stream? stream = await m_nodeSetResolver
+                    .TryResolveAsync(uri, cancellationToken)
+                    .ConfigureAwait(false);
+                if (stream is null)
+                {
+                    unresolved.Add(uri);
+                    continue;
+                }
+
+                byte[] xml;
+                UANodeSet? dependency;
+                using (stream)
+                {
+                    using var buffer = new MemoryStream();
+                    await stream.CopyToAsync(buffer, 81920, cancellationToken)
+                        .ConfigureAwait(false);
+                    xml = buffer.ToArray();
+                    buffer.Position = 0;
+                    dependency = UANodeSet.Read(buffer);
+                }
+                if (dependency is null)
+                {
+                    // A resolver that hands back something unreadable is treated exactly like one
+                    // that declined, so the namespace is reported rather than faulting onboarding.
+                    unresolved.Add(uri);
+                    continue;
+                }
+
+                foreach (string ownedUri in OwnedModelUris(dependency))
+                {
+                    owned.Add(ownedUri);
+                }
+                // A resolved model may itself depend on further namespaces.
+                var nested = new HashSet<string>(StringComparer.Ordinal);
+                CollectRequiredNamespaces(dependency, nested, owned);
+                foreach (string nestedUri in nested)
+                {
+                    if (!owned.Contains(nestedUri) &&
+                        !IsKnownToServer(nestedUri) &&
+                        seen.Add(nestedUri))
+                    {
+                        pending.Enqueue(nestedUri);
+                    }
+                }
+                resolved.Add(new WotProjectionSource(uri, OwnedModelUris(dependency), xml));
+            }
+
+            // Dependencies are appended in resolution order, so reverse to put the deepest model
+            // first: a model must be materialized before the model that requires it.
+            resolved.Reverse();
+            return (resolved.ToImmutable(), unresolved.ToImmutable());
+        }
+
+        private bool IsKnownToServer(string namespaceUri)
+        {
+            NamespaceTable? namespaces = ServerNamespaceUris;
+            return namespaces is not null && namespaces.GetIndex(namespaceUri) >= 0;
+        }
+
         private static IReadOnlyList<WotResource> MembersOf(WotDependencyClosure closure)
         {
             return closure.Members.IsDefaultOrEmpty
@@ -962,6 +1138,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
         private readonly IWotProjectionHost m_host;
         private readonly IWotBinderRegistry m_binders;
         private readonly IWotDocumentConverter m_converter;
+        private readonly ImmutableArray<IWotNodeSetContributor> m_nodeSetContributors;
+        private readonly IWotNodeSetResolver? m_nodeSetResolver;
         private readonly WotNodeSetConverterOptions m_converterOptions;
         private readonly SemaphoreSlim m_mutex = new(1, 1);
 

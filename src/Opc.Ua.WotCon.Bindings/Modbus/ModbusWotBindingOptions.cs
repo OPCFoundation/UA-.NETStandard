@@ -40,6 +40,15 @@ namespace Opc.Ua.WotCon.Bindings.Modbus
         /// Gets or sets the poll interval used for observe operations.
         /// </summary>
         public TimeSpan ObserveInterval { get; set; } = TimeSpan.FromSeconds(1);
+
+        /// <summary>
+        /// Gets or sets the retry policy applied after consecutive unhealthy polls during an
+        /// observe operation. Defaults to the stack's exponential backoff
+        /// (<see cref="ExponentialBackoffChannelReconnectPolicy"/>, 500 ms doubling to 30 s), so an
+        /// asset that has gone offline is not polled once per interval. The backoff never polls
+        /// faster than <see cref="ObserveInterval"/>.
+        /// </summary>
+        public IChannelReconnectPolicy? RetryPolicy { get; set; }
     }
 
     /// <summary>

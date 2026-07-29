@@ -38,6 +38,13 @@ namespace Opc.Ua.WotCon.Bindings
     /// on a bounded interval and stops cleanly when disposed. It is used by
     /// executors whose transports have no native push channel (for example HTTP
     /// polling or Modbus polling).
+    /// <para>
+    /// A poll reports whether it was healthy. Consecutive unhealthy polls back the loop off
+    /// through an <see cref="IChannelReconnectPolicy"/> — the same policy abstraction the stack
+    /// already uses for channel reconnects — so an asset that has gone offline is not hammered
+    /// once per poll interval. The backoff never polls faster than the configured interval, and
+    /// the first healthy poll resets it.
+    /// </para>
     /// </summary>
     public sealed class PollingWotSubscription : IWotSubscription
     {
@@ -45,7 +52,12 @@ namespace Opc.Ua.WotCon.Bindings
         /// Initializes and starts a new polling subscription.
         /// </summary>
         /// <param name="form">The compiled form being observed.</param>
-        /// <param name="pollAsync">The poll callback, invoked once per interval.</param>
+        /// <param name="pollAsync">
+        /// The poll callback, invoked once per interval. It returns <c>true</c> when the poll was
+        /// healthy and <c>false</c> when the source reported a failure without throwing — a
+        /// protocol binding that maps a failure onto a bad <see cref="StatusCode"/> rather than an
+        /// exception must return <c>false</c> so the retry policy engages.
+        /// </param>
         /// <param name="interval">The bounded poll interval.</param>
         /// <param name="onError">
         /// An optional handler invoked when a single poll iteration faults with a
@@ -53,21 +65,33 @@ namespace Opc.Ua.WotCon.Bindings
         /// reported here and the loop keeps polling; it never permanently faults
         /// the subscription. A <c>null</c> handler silently continues.
         /// </param>
+        /// <param name="retryPolicy">
+        /// The backoff applied after consecutive unhealthy polls. Defaults to
+        /// <see cref="ExponentialBackoffChannelReconnectPolicy"/>. A policy that reports "stop
+        /// retrying" (a negative delay) ends the poll loop.
+        /// </param>
         public PollingWotSubscription(
             WotCompiledForm form,
-            Func<CancellationToken, ValueTask> pollAsync,
+            Func<CancellationToken, ValueTask<bool>> pollAsync,
             TimeSpan interval,
-            Action<Exception>? onError = null)
+            Action<Exception>? onError = null,
+            IChannelReconnectPolicy? retryPolicy = null)
         {
             Form = form ?? throw new ArgumentNullException(nameof(form));
             m_pollAsync = pollAsync ?? throw new ArgumentNullException(nameof(pollAsync));
             m_interval = interval <= TimeSpan.Zero ? TimeSpan.FromSeconds(1) : interval;
             m_onError = onError;
+            m_retryPolicy = retryPolicy ?? new ExponentialBackoffChannelReconnectPolicy();
             m_loop = RunAsync(m_cts.Token);
         }
 
         /// <inheritdoc/>
         public WotCompiledForm Form { get; }
+
+        /// <summary>
+        /// Gets the number of consecutive unhealthy polls. Zero while the source is healthy.
+        /// </summary>
+        public int ConsecutiveFailures => Volatile.Read(ref m_consecutiveFailures);
 
         /// <inheritdoc/>
         public async ValueTask DisposeAsync()
@@ -98,9 +122,10 @@ namespace Opc.Ua.WotCon.Bindings
         {
             while (!cancellationToken.IsCancellationRequested)
             {
+                bool healthy;
                 try
                 {
-                    await m_pollAsync(cancellationToken).ConfigureAwait(false);
+                    healthy = await m_pollAsync(cancellationToken).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {
@@ -111,16 +136,41 @@ namespace Opc.Ua.WotCon.Bindings
                 catch (Exception ex)
                 {
                     // A transient poll or callback fault must not permanently
-                    // fault the loop: report it and keep polling on the next
-                    // interval. This includes a spurious OperationCanceledException
+                    // fault the loop: report it and back off before the next
+                    // attempt. This includes a spurious OperationCanceledException
                     // that is not our own cancellation (for example a transport
                     // timeout surfaced as a cancellation).
                     ReportError(ex);
+                    healthy = false;
+                }
+
+                TimeSpan delay;
+                if (healthy)
+                {
+                    Volatile.Write(ref m_consecutiveFailures, 0);
+                    delay = m_interval;
+                }
+                else
+                {
+                    int attempt = Volatile.Read(ref m_consecutiveFailures);
+                    delay = m_retryPolicy.GetDelay(attempt);
+                    Volatile.Write(ref m_consecutiveFailures, attempt + 1);
+                    if (delay < TimeSpan.Zero)
+                    {
+                        // The policy has given up. Stop polling rather than spin;
+                        // the last reported bad status stays on the variable.
+                        return;
+                    }
+                    if (delay < m_interval)
+                    {
+                        // Backing off must never poll faster than the configured interval.
+                        delay = m_interval;
+                    }
                 }
 
                 try
                 {
-                    await Task.Delay(m_interval, cancellationToken).ConfigureAwait(false);
+                    await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {
@@ -141,10 +191,12 @@ namespace Opc.Ua.WotCon.Bindings
             }
         }
 
-        private readonly Func<CancellationToken, ValueTask> m_pollAsync;
+        private readonly Func<CancellationToken, ValueTask<bool>> m_pollAsync;
         private readonly TimeSpan m_interval;
         private readonly Action<Exception>? m_onError;
+        private readonly IChannelReconnectPolicy m_retryPolicy;
         private readonly CancellationTokenSource m_cts = new();
         private readonly Task m_loop;
+        private int m_consecutiveFailures;
     }
 }

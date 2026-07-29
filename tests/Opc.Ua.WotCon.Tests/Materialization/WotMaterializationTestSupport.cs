@@ -171,6 +171,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
         public void ClearInvalid(string resourceId) => m_invalid.Remove(resourceId);
 
+        /// <summary>
+        /// When set, every converted NodeSet declares a dependency on this namespace, so the
+        /// coordinator has an unmet dependency to resolve.
+        /// </summary>
+        public string? RequiredNamespace { get; set; }
+
         public WotConversionOutput Convert(
             WotResource resource, ReadOnlyMemory<byte> content, WotRegistrySnapshot snapshot)
         {
@@ -181,21 +187,32 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             }
             int nodeCount = m_nodeCounts.TryGetValue(resource.ResourceId, out int c) ? c : 2;
             UANodeSet nodeSet = TestNodeSets.Make(
-                $"urn:wot:{resource.GroupId}/{resource.ResourceId}", nodeCount);
+                $"urn:wot:{resource.GroupId}/{resource.ResourceId}", nodeCount, RequiredNamespace);
             return WotConversionOutput.Success(nodeSet);
         }
     }
 
     internal static class TestNodeSets
     {
-        public static UANodeSet Make(string modelUri, int nodeCount)
+        public static UANodeSet Make(
+            string modelUri, int nodeCount, string? requiredNamespace = null)
         {
             var builder = new StringBuilder();
             builder.Append("<?xml version=\"1.0\" encoding=\"utf-8\"?>");
             builder.Append("<UANodeSet xmlns=\"http://opcfoundation.org/UA/2011/03/UANodeSet.xsd\">");
             builder.Append("<NamespaceUris><Uri>").Append(modelUri).Append("</Uri></NamespaceUris>");
             builder.Append("<Models><Model ModelUri=\"").Append(modelUri)
-                .Append("\" Version=\"1.0.0\" PublicationDate=\"2026-01-01T00:00:00Z\" /></Models>");
+                .Append("\" Version=\"1.0.0\" PublicationDate=\"2026-01-01T00:00:00Z\"");
+            if (string.IsNullOrEmpty(requiredNamespace))
+            {
+                builder.Append(" /></Models>");
+            }
+            else
+            {
+                builder.Append("><RequiredModel ModelUri=\"").Append(requiredNamespace)
+                    .Append("\" Version=\"1.0.0\" PublicationDate=\"2026-01-01T00:00:00Z\" />")
+                    .Append("</Model></Models>");
+            }
             for (int i = 0; i < nodeCount; i++)
             {
                 int id = 5000 + i;

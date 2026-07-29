@@ -150,16 +150,18 @@ namespace Opc.Ua.WotCon.Bindings.Http
                 async token =>
                 {
                     WotReadResult result = await ReadAsync(token).ConfigureAwait(false);
-                    if (result.Success)
-                    {
-                        onNotification(new WotNotification(result.Value));
-                    }
+                    // A mapped failure carries its bad StatusCode on the value, so surface it
+                    // rather than leaving the last good value in place, and report the poll as
+                    // unhealthy so the retry policy backs off instead of hammering the asset.
+                    onNotification(new WotNotification(result.Value));
+                    return result.Success;
                 },
                 m_options.ObserveInterval,
                 // A transient poll fault is reported as a Bad-status notification
                 // so consumers observe the fault without the poll loop faulting.
                 onError: _ => onNotification(new WotNotification(
-                    DataValue.FromStatusCode(StatusCodes.BadCommunicationError))));
+                    DataValue.FromStatusCode(StatusCodes.BadCommunicationError))),
+                retryPolicy: m_options.RetryPolicy);
             return new ValueTask<IWotSubscription>(subscription);
         }
 

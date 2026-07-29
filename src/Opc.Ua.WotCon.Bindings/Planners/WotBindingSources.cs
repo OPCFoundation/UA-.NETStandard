@@ -89,7 +89,7 @@ namespace Opc.Ua.WotCon.Bindings.Planners
             WotBindingMaturity.EditorsDraft,
             commit: "w3c/wot-binding-templates@main",
             retrieved: Retrieved,
-            note: "modv: terms (function, entity, address, quantity, unitID, type) per " +
+            note: "modv: terms (function, entity, address, quantity, unitID, type, pollingTime) per " +
                 "https://www.w3.org/2019/wot/modbus# and the Modbus binding Editor's Draft.");
 
         /// <summary>

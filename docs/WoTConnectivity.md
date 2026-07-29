@@ -468,6 +468,26 @@ builder
 
 ### 11.2 Registry service and persistence
 
+#### Materialization extension points
+
+Two optional seams let a protocol driver supply what a Thing Description alone cannot express. Both are resolved from DI; registering neither leaves materialization exactly as it was.
+
+* **`IWotNodeSetContributor`** — runs once per resource *after* the Thing Description has been converted to a NodeSet and *before* any variable is created, and may add nodes to that NodeSet. This is the hook for custom `StructureType` DataTypes that have no NodeSet to import because they belong to one controller program — Rockwell/Studio 5000 UDTs, TIA Portal PLC data types, TwinCAT structured types — generated from the controller's own symbol table at onboarding time. It runs at that point precisely because a `uav:mapByFieldPath` mapping can only resolve once its structured DataType is registered. A document that *can* express its types declaratively does not need this seam: the native projection (`uav:NodeModel`) already carries `DataType` nodes with their `DataTypeDefinition`.
+* **`IWotDocumentConverter`** — replaces the Thing Description → NodeSet conversion wholesale, and is now resolvable from DI as well as by direct construction.
+
+#### Resolving referenced companion-specification NodeSets
+
+Thing Descriptions are uploaded at run time through the standard `WoTAssetFileType` upload, so the namespaces a server will be asked to serve are not known at start-up and static pre-loading is not sufficient. `IWotNodeSetResolver` closes that gap: for every namespace a converted document requires but neither declares itself nor finds on the server, the resolver is asked for a NodeSet2. Resolution is recursive over the resolved model's own dependencies, resolved models are projected *before* the document that requires them, and a namespace that stays unresolved is reported rather than silently dropped, so an operator can see exactly what is missing.
+
+```csharp
+public interface IWotNodeSetResolver
+{
+    ValueTask<Stream?> TryResolveAsync(string namespaceUri, CancellationToken ct = default);
+}
+```
+
+Returning `null` is the contract's way of declining and is not an error. **No implementation ships with the library** — resolving a namespace means reaching out to a catalogue (a UA Cloud Library instance, a corporate model repository, a folder on disk), which is a deployment decision, so the library takes no dependency on any of them. A document that carries its own model needs no resolver at all: the `uav:nodeSet` envelope embeds the NodeSet2 in the Thing Description itself.
+
 `IWotRegistryService` owns an immutable `WotRegistrySnapshot`. Every mutation produces a new snapshot with a strictly greater `Generation` (epoch); readers hold a snapshot and never observe a partial change. A resource carries its versions (raw source bytes + SHA-256 content digest), desired/active version pointers, `WoTLoadStateEnum`, `WoTValidationOutcomeDataType` and diagnostics.
 
 Two persistence back-ends are provided:

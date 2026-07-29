@@ -248,8 +248,26 @@ namespace Opc.Ua.WotCon.Bindings.Planners
                 return WotBindingCompilation.Unsupported([.. diagnostics]);
             }
 
-            bool bitArrayPayload = bitEntity && quantity > 1;
-            string dataType = bitEntity
+            // modv:pollingTime is the W3C Modbus binding's standard subscription polling interval,
+            // expressed in milliseconds. It is distinct from modv:timeout, which is a request
+            // timeout. A form that does not declare it falls back to the executor's configured
+            // ObserveInterval.
+            TimeSpan? pollInterval = null;
+            if (form.TryGetInt32("modv:pollingTime", out int pollingTime))
+            {
+                if (pollingTime <= 0)
+                {
+                    diagnostics.Add(WotBindingDiagnostic.Error(
+                        WotBindingDiagnosticCode.InvalidFieldValue,
+                        "modv:pollingTime must be greater than zero.",
+                        form.Pointer("modv:pollingTime"),
+                        "modv:pollingTime"));
+                    return WotBindingCompilation.Unsupported([.. diagnostics]);
+                }
+                pollInterval = TimeSpan.FromMilliseconds(pollingTime);
+            }
+
+            bool bitArrayPayload = bitEntity && quantity > 1;            string dataType = bitEntity
                 ? (bitArrayPayload ? "boolean[]" : "boolean")
                 : (form.TryGetString("modv:type", out string type) ? type : "uint16");
             int encodedRegisterCount = bitEntity ? 0 : ModbusDataTypes.RegisterCount(dataType);
@@ -341,7 +359,8 @@ namespace Opc.Ua.WotCon.Bindings.Planners
                 string method = function is not null
                     ? function.Value.Mnemonic
                     : ModbusFunction(capability, effectiveEntity, quantity);
-                var operation = new WotOperationDescriptor(capability, op, method);
+                var operation = new WotOperationDescriptor(
+                    capability, op, method, pollInterval: pollInterval);
                 entries.Add(new WotCompiledForm(
                     Identity, form.Kind, form.AffordanceName, form.JsonPointer, capability, op,
                     endpoint, addressing, operation, payload,

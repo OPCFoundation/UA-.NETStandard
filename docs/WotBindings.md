@@ -49,7 +49,15 @@ All contracts live in the `Opc.Ua.WotCon.Bindings` namespace.
   * `IWotBinderRegistry` / `WotProtocolBinderRegistry` — the Prepare / Activate / Deactivate seam the coordinator uses.
   * `WotBindingDiagnostic` — severity + stable code + **RFC 6901 JSON Pointer**.
 
-### Protocol coverage
+### Polling, retry and backoff
+
+A transport with no native push channel (HTTP, Modbus) implements `ObserveAsync` with the shared `PollingWotSubscription`, so a poll-only driver does not write its own timer loop. The poll callback reports **health**: it returns `false` when the source failed without throwing, which is how a binding that maps a failure onto a bad `StatusCode` reports it. Both the mapped bad status and a thrown fault are surfaced as a notification, so a variable never silently keeps its last good value while the asset is down.
+
+Consecutive unhealthy polls back off through an `IChannelReconnectPolicy` — the same abstraction the stack already uses for channel reconnects — so an offline device is not hammered once per poll cycle. The default is `ExponentialBackoffChannelReconnectPolicy` (500 ms doubling to 30 s, unlimited attempts); set `RetryPolicy` on `HttpWotBindingOptions` / `ModbusWotBindingOptions` to change it. Backing off never polls *faster* than the configured interval, the first healthy poll resets it, and a policy that reports "stop retrying" ends the loop rather than spinning.
+
+The interval itself comes from the form where the protocol binding defines a standard term for it. Modbus does: **`modv:pollingTime`** (milliseconds, per the W3C Modbus binding — distinct from `modv:timeout`, which is a request timeout) is compiled onto `WotOperationDescriptor.PollInterval` and wins over the executor's configured `ObserveInterval`. HTTP has no standard polling term, so it uses `HttpWotBindingOptions.ObserveInterval`. No vendor-specific `uav:` term is introduced for this.
+
+
 
 Eight planner/validator binders ship in `Opc.Ua.WotCon.Bindings` (`WotBuiltInBinders.CreateAll()`). Each pins its exact source in `Planners/WotBindingSources.cs`.
 

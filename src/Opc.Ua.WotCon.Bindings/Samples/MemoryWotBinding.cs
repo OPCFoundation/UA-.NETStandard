@@ -227,7 +227,7 @@ namespace Opc.Ua.WotCon.Bindings.Samples
             var subscription = new PollingWotSubscription(Form, token =>
             {
                 onNotification(new WotNotification(m_store.Get(m_key)));
-                return default;
+                return new ValueTask<bool>(true);
             }, TimeSpan.FromMilliseconds(200));
             return new ValueTask<IWotSubscription>(subscription);
         }

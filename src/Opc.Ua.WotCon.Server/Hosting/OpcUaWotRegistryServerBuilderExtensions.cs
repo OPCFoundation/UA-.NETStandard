@@ -173,7 +173,15 @@ namespace Microsoft.Extensions.DependencyInjection
                     sp.GetRequiredService<IWotRegistryService>(),
                     sp.GetRequiredService<IWotProjectionHost>(),
                     sp.GetRequiredService<IWotBinderRegistry>(),
-                    converterOptions);
+                    converterOptions,
+                    // Both seams are optional: a deployment that registers neither gets exactly
+                    // the previous behaviour. Registering an IWotDocumentConverter replaces the
+                    // Thing Description to NodeSet conversion; registering IWotNodeSetContributor
+                    // instances adds nodes (typically controller-specific StructureType DataTypes)
+                    // to the converted NodeSet before it is materialized.
+                    sp.GetService<IWotDocumentConverter>(),
+                    sp.GetServices<IWotNodeSetContributor>(),
+                    sp.GetService<IWotNodeSetResolver>());
             });
 
             services.TryAddSingleton(sp =>

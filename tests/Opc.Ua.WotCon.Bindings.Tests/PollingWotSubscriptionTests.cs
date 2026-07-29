@@ -56,6 +56,124 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         }
 
         [Test]
+        public async Task ConsecutiveUnhealthyPollsBackOffAndAHealthyPollResets()
+        {
+            var timestamps = new ConcurrentQueue<DateTime>();
+            var backedOff = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            int calls = 0;
+
+            // A retry policy with a clearly-longer-than-interval delay makes the backoff
+            // observable without making the test slow or timing-fragile.
+            var policy = new ExponentialBackoffChannelReconnectPolicy
+            {
+                MinDelay = TimeSpan.FromMilliseconds(300),
+                MaxDelay = TimeSpan.FromMilliseconds(300)
+            };
+
+            var subscription = new PollingWotSubscription(
+                Form(),
+                _ =>
+                {
+                    timestamps.Enqueue(DateTime.UtcNow);
+                    if (Interlocked.Increment(ref calls) >= 3)
+                    {
+                        backedOff.TrySetResult(true);
+                    }
+                    // Report unhealthy without throwing: this is how a binding that maps a
+                    // failure onto a bad StatusCode reports it.
+                    return new ValueTask<bool>(false);
+                },
+                TimeSpan.FromMilliseconds(10),
+                retryPolicy: policy);
+
+            await using (subscription)
+            {
+                Assert.That(
+                    await Task.WhenAny(backedOff.Task, Task.Delay(10000)).ConfigureAwait(false),
+                    Is.SameAs(backedOff.Task),
+                    "The poll loop must keep running while the source is unhealthy.");
+
+                Assert.That(subscription.ConsecutiveFailures, Is.GreaterThan(0),
+                    "An unhealthy poll must be counted so the retry policy can back off.");
+
+                DateTime[] taken = [.. timestamps];
+                TimeSpan gap = taken[^1] - taken[^2];
+                Assert.That(gap, Is.GreaterThan(TimeSpan.FromMilliseconds(150)),
+                    "Backing off must space polls out well beyond the 10 ms interval, so an " +
+                    "offline asset is not hammered once per poll cycle.");
+            }
+        }
+
+        [Test]
+        public async Task AHealthyPollResetsTheFailureCount()
+        {
+            bool healthy = false;
+            var healthyObserved = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+
+            var subscription = new PollingWotSubscription(
+                Form(),
+                _ =>
+                {
+                    if (healthy)
+                    {
+                        healthyObserved.TrySetResult(true);
+                        return new ValueTask<bool>(true);
+                    }
+                    return new ValueTask<bool>(false);
+                },
+                TimeSpan.FromMilliseconds(10),
+                retryPolicy: new ExponentialBackoffChannelReconnectPolicy
+                {
+                    MinDelay = TimeSpan.FromMilliseconds(10),
+                    MaxDelay = TimeSpan.FromMilliseconds(10)
+                });
+
+            await using (subscription)
+            {
+                await Task.Delay(100).ConfigureAwait(false);
+                Assert.That(subscription.ConsecutiveFailures, Is.GreaterThan(0));
+
+                healthy = true;
+                Assert.That(
+                    await Task.WhenAny(healthyObserved.Task, Task.Delay(10000))
+                        .ConfigureAwait(false),
+                    Is.SameAs(healthyObserved.Task));
+                await Task.Delay(50).ConfigureAwait(false);
+
+                Assert.That(subscription.ConsecutiveFailures, Is.Zero,
+                    "Recovery must clear the backoff so polling returns to the normal interval.");
+            }
+        }
+
+        [Test]
+        public async Task APolicyThatGivesUpStopsTheLoop()
+        {
+            int calls = 0;
+            var subscription = new PollingWotSubscription(
+                Form(),
+                _ =>
+                {
+                    Interlocked.Increment(ref calls);
+                    return new ValueTask<bool>(false);
+                },
+                TimeSpan.FromMilliseconds(5),
+                // MaxAttempts 1 means the policy reports "stop retrying" after the first failure.
+                retryPolicy: new ExponentialBackoffChannelReconnectPolicy { MaxAttempts = 1 });
+
+            await using (subscription)
+            {
+                await Task.Delay(200).ConfigureAwait(false);
+                int observed = Volatile.Read(ref calls);
+                await Task.Delay(200).ConfigureAwait(false);
+
+                Assert.That(Volatile.Read(ref calls), Is.EqualTo(observed),
+                    "Once the retry policy gives up the loop must stop rather than spin.");
+            }
+        }
+
+        [Test]
         public async Task TransientPollExceptionIsReportedAndPollingContinues()
         {
             int calls = 0;
@@ -128,6 +246,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 {
                     started.Release();
                     await Task.Delay(Timeout.Infinite, token).ConfigureAwait(false);
+                    return true;
                 },
                 TimeSpan.FromMilliseconds(10));
 

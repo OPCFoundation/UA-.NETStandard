@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Immutable;
 using System.Text.Json;
 
@@ -179,13 +180,23 @@ namespace Opc.Ua.WotCon.Bindings
             WoTBindingCapabilityEnum operation,
             string opToken,
             string method,
-            ImmutableDictionary<string, string>? metadata = null)
+            ImmutableDictionary<string, string>? metadata = null,
+            TimeSpan? pollInterval = null)
         {
             Operation = operation;
             OpToken = opToken ?? string.Empty;
             Method = method ?? string.Empty;
             Metadata = metadata ?? [];
+            PollInterval = pollInterval;
         }
+
+        /// <summary>
+        /// Gets the polling interval this affordance's form declares for a subscription, when the
+        /// protocol binding defines a standard term for it — Modbus does, through
+        /// <c>modv:pollingTime</c>. <c>null</c> means the form does not declare one and the
+        /// executor's configured default interval applies.
+        /// </summary>
+        public TimeSpan? PollInterval { get; }
 
         /// <summary>
         /// Gets the resolved capability operation.
