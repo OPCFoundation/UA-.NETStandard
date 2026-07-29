@@ -17,7 +17,7 @@
     <PackageId>$(PackageId).Debug</PackageId>
   </PropertyGroup>
   <ItemGroup>
-    <InternalsVisibleTo Include="Opc.Ua.OpenUsd.Client.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.OpenUsd.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.OpenUsd.Connector.Viewer" />
   </ItemGroup>
   <ItemGroup>

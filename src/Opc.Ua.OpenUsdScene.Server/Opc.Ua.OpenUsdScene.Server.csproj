@@ -14,7 +14,7 @@
     <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
   </PropertyGroup>
   <ItemGroup>
-    <InternalsVisibleTo Include="Opc.Ua.OpenUsdScene.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.OpenUsd.Tests" />
   </ItemGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>

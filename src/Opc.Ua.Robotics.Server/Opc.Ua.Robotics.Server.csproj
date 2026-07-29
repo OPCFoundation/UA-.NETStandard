@@ -18,7 +18,7 @@
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.Di.Tests" />
-    <InternalsVisibleTo Include="Opc.Ua.Robotics.Server.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.Robotics.Tests" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Opc.Ua.Robotics\Opc.Ua.Robotics.csproj" />

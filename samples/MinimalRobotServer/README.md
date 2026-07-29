@@ -86,10 +86,10 @@ geometry, materials and lighting are all free to change; the paths, op names,
 `xformOpOrder` entries, `/Robot/Base/.../Flange`, `/Robot/Warning`, `/Cell/SafetyBeacon`,
 `/Cell.inputs:speedOverride` and the `R1`/`R2` mount attributes are not.
 
-`RobotAssetContractTests` (in `tests/Opc.Ua.OpenUsdScene.Tests`) parses the shipped assets
+`RobotAssetContractTests` (in `tests/Opc.Ua.OpenUsd.Tests`) parses the shipped assets
 and asserts that contract, so an edit that breaks it fails the build instead of silently
 freezing the twin. Note that the `.usda` files under
-`tests/Opc.Ua.OpenUsdScene.Tests/Assets` are a **frozen** reader/materializer fixture and
+`tests/Opc.Ua.OpenUsd.Tests/Assets` are a **frozen** reader/materializer fixture and
 are deliberately *not* kept in sync with these assets.
 
 Author with real USDA syntax: the managed `UsdaReader` is more forgiving than OpenUSD

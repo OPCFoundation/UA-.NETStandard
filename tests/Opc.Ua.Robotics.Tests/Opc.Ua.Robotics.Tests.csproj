@@ -1,8 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFrameworks>$(TestsTargetFrameworks)</TargetFrameworks>
-    <RootNamespace>Opc.Ua.Robotics.Client.Tests</RootNamespace>
-    <AssemblyName>Opc.Ua.Robotics.Client.Tests</AssemblyName>
+    <RootNamespace>Opc.Ua.Robotics.Tests</RootNamespace>
+    <AssemblyName>Opc.Ua.Robotics.Tests</AssemblyName>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <NoWarn>$(NoWarn);CS1591;CA2007;CA2000;CA1014;CA1861</NoWarn>
@@ -26,5 +26,11 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Opc.Ua.Robotics.Client\Opc.Ua.Robotics.Client.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Robotics.Server\Opc.Ua.Robotics.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Robotics\Opc.Ua.Robotics.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Di\Opc.Ua.Di.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Di.Server\Opc.Ua.Di.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Server\Opc.Ua.Server.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Server.TestFramework\Opc.Ua.Server.TestFramework.csproj" />
   </ItemGroup>
 </Project>
