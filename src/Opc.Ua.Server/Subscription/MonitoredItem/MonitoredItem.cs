@@ -43,7 +43,8 @@ namespace Opc.Ua.Server
         ISampledDataChangeMonitoredItem,
         ITriggeredMonitoredItem,
         IDetachableMonitoredItem,
-        IRetirableMonitoredItem
+        IRetirableMonitoredItem,
+        IMonitoredItemTransferState
     {
         /// <summary>
         /// Initializes the object with its node type.
@@ -514,6 +515,14 @@ namespace Opc.Ua.Server
                 {
                     m_resendData = true;
                 }
+            }
+        }
+
+        void IMonitoredItemTransferState.RestoreResendDataTrigger(bool resendData)
+        {
+            lock (m_lock)
+            {
+                m_resendData = resendData;
             }
         }
 

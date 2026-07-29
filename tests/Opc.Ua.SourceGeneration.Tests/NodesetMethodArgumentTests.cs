@@ -88,10 +88,14 @@ namespace Opc.Ua.SourceGeneration
             Assert.That(generated, Does.Contain("public uint ReturnStatus"));
             Assert.That(
                 generated,
-                Does.Contain("state.CreateOrReplaceInputArguments(context, null)"));
+                Does.Contain(
+                    "state.CreateOrReplaceInputArguments(context, null, " +
+                    "assignInstanceNodeIds: false)"));
             Assert.That(
                 generated,
-                Does.Contain("state.CreateOrReplaceOutputArguments(context, null)"));
+                Does.Contain(
+                    "state.CreateOrReplaceOutputArguments(context, null, " +
+                    "assignInstanceNodeIds: false)"));
             Assert.That(generated, Does.Contain("Name = \"JobOrderCommand\""));
             Assert.That(generated, Does.Contain("Name = \"ReturnStatus\""));
         }

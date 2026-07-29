@@ -211,5 +211,41 @@ namespace Opc.Ua
                 AssignChildNodeIds(context, child, mappingTable);
             }
         }
+
+        /// <summary>
+        /// Assigns a per-instance NodeId to a child that a
+        /// <c>CreateOrReplace&lt;Child&gt;</c> helper just materialised, and
+        /// rebases its descendants. A child whose NodeId the caller already
+        /// assigned is left untouched.
+        /// </summary>
+        /// <param name="context">
+        /// The system context supplying the NodeIdFactory.
+        /// </param>
+        /// <param name="owner">
+        /// The node owning the child. Its subtree carries the references that
+        /// must be remapped.
+        /// </param>
+        /// <param name="child">The child to rebase.</param>
+        /// <param name="assignInstanceNodeIds">
+        /// When <c>false</c> the call is a no-op. Lets callers that build
+        /// declaration subtrees keep their type-level NodeIds.
+        /// </param>
+        internal static void AssignNewChildInstanceNodeIds(
+            this ISystemContext context,
+            NodeState owner,
+            NodeState child,
+            bool assignInstanceNodeIds)
+        {
+            if (!assignInstanceNodeIds ||
+                context?.NodeIdFactory == null ||
+                child == null ||
+                !child.NodeId.IsNull)
+            {
+                return;
+            }
+
+            NodeId previousNodeId = context.AssignInstanceNodeId(child);
+            context.AssignInstanceChildNodeIds(child, previousNodeId, owner);
+        }
     }
 }

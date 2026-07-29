@@ -189,11 +189,12 @@ ITopologyElementBuilder<TElement> TopologyElementByBrowseName<TElement>(
    `HardwareRevision`, `SoftwareRevision`, `DeviceRevision`,
    `DeviceManual`, `SerialNumber`, `RevisionCounter`) with correct
    DI-namespace BrowseNames — plus the type's `HasInterface`
-   references. It then sets BrowseName/SymbolicName/DisplayName, stamps
-   the `TypeDefinitionId`, assigns the NodeId via the active
-   `Context.NodeIdFactory`, and walks the whole subtree assigning
-   per-instance NodeIds so multiple instances of the same type never
-   collide on the TYPE NodeIds emitted by the generator.
+   references. Because a browse name is supplied, the factory also
+   rebases the whole subtree onto per-instance NodeIds from the active
+   `Context.NodeIdFactory`, so multiple instances of the same type
+   never collide on the TYPE NodeIds emitted by the generator. It then
+   sets BrowseName/SymbolicName/DisplayName and stamps the
+   `TypeDefinitionId`.
 5. Calls the real `AsyncCustomNodeManager.AddPredefinedNodeAsync` so
    subscription wiring, type-tree registration, and root-notifier
    propagation all happen exactly as for nodes loaded from a NodeSet2.

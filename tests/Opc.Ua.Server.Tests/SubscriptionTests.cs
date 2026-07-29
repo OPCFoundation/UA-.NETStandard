@@ -1040,6 +1040,7 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<bool>(),
                     It.IsAny<IList<IMonitoredItem>>(),
                     It.IsAny<IList<ServiceResult>>(),
+                    It.IsAny<MonitoredItemTransferOptions>(),
                     It.IsAny<CancellationToken>()))
                 .Callback(() => transferEntered.TrySetResult(true))
                 .Returns(() => new ValueTask(releaseTransfer.Task));
@@ -1085,6 +1086,410 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(abandonedSubscriptions, Is.Empty);
             });
             Assert.DoesNotThrow(() => subscription.ResendData(destinationContext));
+        }
+
+        [Test]
+        public async Task TransferClaimsSourceBeforeCallbacksAndBlocksStalePublishAsync()
+        {
+            var fixture = await CreateTransferSubscriptionAsync().ConfigureAwait(false);
+            using SubscriptionManager manager = fixture.Manager;
+            Subscription subscription = fixture.Subscription;
+            SessionPublishQueue sourceQueue = GetPublishQueue(
+                manager,
+                fixture.SourceContext.SessionId);
+            SetPrivateField(subscription, "m_waitingForPublish", false);
+            SetPrivateField(subscription, "m_lifetimeCounter", 0u);
+            SetExpiryTime(
+                subscription,
+                TimeProvider.System.GetTimestampMilliseconds() - 100);
+            m_sessionMock
+                .Setup(session => session.IsSecureChannelValid("source-channel"))
+                .Returns(true);
+            IReadOnlyList<SessionPublishQueue.QueuedSubscription> staleSnapshot =
+                sourceQueue.CapturePublishTimerSnapshot();
+            using var publishCancellation = new CancellationTokenSource();
+            Task<ISubscription> sourcePublish = sourceQueue.PublishAsync(
+                "source-channel",
+                DateTime.MaxValue,
+                requeue: false,
+                parkSink: null,
+                publishCancellation.Token);
+            var transferEntered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseTransfer = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            m_nodeManagerMock
+                .Setup(nodeManager => nodeManager.TransferMonitoredItemsAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<IList<IMonitoredItem>>(),
+                    It.IsAny<IList<ServiceResult>>(),
+                    It.IsAny<MonitoredItemTransferOptions>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback(() => transferEntered.TrySetResult(true))
+                .Returns(() => new ValueTask(releaseTransfer.Task));
+
+            Task<TransferSubscriptionsResponse> transferTask = manager
+                .TransferSubscriptionsAsync(
+                    fixture.DestinationContext,
+                    [subscription.Id],
+                    sendInitialValues: true)
+                .AsTask();
+            Task entered = await Task.WhenAny(
+                transferEntered.Task,
+                Task.Delay(TimeSpan.FromSeconds(5))).ConfigureAwait(false);
+            if (!ReferenceEquals(entered, transferEntered.Task))
+            {
+                releaseTransfer.TrySetResult(true);
+                Assert.Fail("Transfer did not reach the monitored-item callback barrier.");
+            }
+
+            try
+            {
+                sourceQueue.PublishTimerExpired(staleSnapshot);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(
+                        sourceQueue.CapturePublishTimerSnapshot(),
+                        Is.Empty,
+                        "The source entry must be claimed before callbacks run.");
+                    Assert.That(
+                        sourcePublish.IsCompleted,
+                        Is.False,
+                        "A stale source timer must not assign the claimed subscription.");
+                    ServiceResultException error = Assert.Throws<ServiceResultException>(
+                        () => subscription.Publish(
+                            fixture.SourceContext,
+                            out _,
+                            out _));
+                    Assert.That(
+                        error.StatusCode,
+                        Is.EqualTo(StatusCodes.BadSubscriptionIdInvalid));
+                });
+            }
+            finally
+            {
+                releaseTransfer.TrySetResult(true);
+            }
+
+            TransferSubscriptionsResponse transferred = await transferTask.ConfigureAwait(false);
+            publishCancellation.Cancel();
+            try
+            {
+                await sourcePublish.ConfigureAwait(false);
+            }
+            catch (Exception)
+            {
+                // The old session's parked Publish is cancelled or completed by
+                // the transferred-status notification, never with the subscription.
+            }
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(transferred.Results, Has.Count.EqualTo(1));
+                Assert.That(transferred.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(
+                    subscription.Session,
+                    Is.SameAs(fixture.DestinationSession.Object));
+            });
+            Assert.DoesNotThrow(
+                () => subscription.ResendData(fixture.DestinationContext));
+        }
+
+        [Test]
+        public async Task TransferInitialValueIsPublishedOnlyByDestinationAsync()
+        {
+            var fixture = await CreateTransferSubscriptionAsync().ConfigureAwait(false);
+            using SubscriptionManager manager = fixture.Manager;
+            Subscription subscription = fixture.Subscription;
+            using var queueFactory = new MonitoredItemQueueFactory(m_telemetry);
+            m_serverMock.Setup(server => server.MonitoredItemQueueFactory).Returns(queueFactory);
+            var itemOwner = new Mock<IAsyncNodeManager>();
+            using var monitoredItem = new MonitoredItem(
+                m_serverMock.Object,
+                itemOwner.Object,
+                new object(),
+                subscription.Id,
+                id: 10,
+                new ReadValueId
+                {
+                    NodeId = new NodeId("TransferValue", 2),
+                    AttributeId = Attributes.Value
+                },
+                DiagnosticsMasks.None,
+                TimestampsToReturn.Both,
+                MonitoringMode.Reporting,
+                clientHandle: 11,
+                originalFilter: null,
+                filterToUse: null,
+                range: null,
+                samplingInterval: 1000,
+                queueSize: 1,
+                discardOldest: true,
+                sourceSamplingInterval: 1000);
+            await RegisterMonitoredItemsAsync(subscription, monitoredItem).ConfigureAwait(false);
+            monitoredItem.QueueValue(new DataValue(new Variant(1234)), null);
+            var initialNotifications = new Queue<MonitoredItemNotification>();
+            monitoredItem.Publish(
+                new OperationContext(monitoredItem),
+                initialNotifications,
+                new Queue<DiagnosticInfo>(),
+                1,
+                m_telemetry.CreateLogger<SubscriptionTests>());
+            Assert.That(initialNotifications, Has.Count.EqualTo(1));
+
+            var transferEntered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseTransfer = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            itemOwner
+                .Setup(nodeManager => nodeManager.TransferMonitoredItemsAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<IList<IMonitoredItem>>(),
+                    It.IsAny<IList<bool>>(),
+                    It.IsAny<IList<ServiceResult>>(),
+                    It.IsAny<MonitoredItemTransferOptions>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns<
+                    OperationContext,
+                    bool,
+                    IList<IMonitoredItem>,
+                    IList<bool>,
+                    IList<ServiceResult>,
+                    MonitoredItemTransferOptions,
+                    CancellationToken>(async (_, sendInitialValues, monitoredItems, processedItems, errors, transferOptions, cancellationToken) =>
+                    {
+                        for (int ii = 0; ii < monitoredItems.Count; ii++)
+                        {
+                            if (processedItems[ii])
+                            {
+                                continue;
+                            }
+
+                            processedItems[ii] = true;
+                            errors[ii] = ServiceResult.Good;
+                            if (sendInitialValues && !transferOptions.DeferInitialValues)
+                            {
+                                monitoredItems[ii].SetupResendDataTrigger();
+                            }
+                        }
+                        transferEntered.TrySetResult(true);
+                        await releaseTransfer.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+                    });
+            itemOwner
+                .Setup(nodeManager => nodeManager.RollbackMonitoredItemsTransferAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<IList<IMonitoredItem>>(),
+                    It.IsAny<IList<bool>>(),
+                    It.IsAny<IList<ServiceResult>>(),
+                    It.IsAny<MonitoredItemTransferOptions>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask));
+            var configurationNodeManager = new Mock<IConfigurationNodeManager>();
+            configurationNodeManager
+                .SetupGet(nodeManager => nodeManager.NamespaceUris)
+                .Returns(System.Array.Empty<string>());
+            var coreNodeManager = new Mock<ICoreNodeManager>();
+            coreNodeManager
+                .SetupGet(nodeManager => nodeManager.NamespaceUris)
+                .Returns(System.Array.Empty<string>());
+            var factory = new Mock<IMainNodeManagerFactory>();
+            factory
+                .Setup(nodeManagerFactory => nodeManagerFactory.CreateConfigurationNodeManager())
+                .Returns(configurationNodeManager.Object);
+            factory
+                .Setup(nodeManagerFactory => nodeManagerFactory.CreateCoreNodeManager(It.IsAny<ushort>()))
+                .Returns(coreNodeManager.Object);
+            m_serverMock.Setup(server => server.MainNodeManagerFactory).Returns(factory.Object);
+            using var masterNodeManager = new MasterNodeManager(
+                m_serverMock.Object,
+                new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() },
+                null,
+                itemOwner.Object);
+            m_serverMock.Setup(server => server.NodeManager).Returns(masterNodeManager);
+
+            Task<TransferSubscriptionsResponse> transferTask = manager
+                .TransferSubscriptionsAsync(
+                    fixture.DestinationContext,
+                    [subscription.Id],
+                    sendInitialValues: true)
+                .AsTask();
+            Task entered = await Task.WhenAny(
+                transferEntered.Task,
+                Task.Delay(TimeSpan.FromSeconds(5))).ConfigureAwait(false);
+            if (!ReferenceEquals(entered, transferEntered.Task))
+            {
+                releaseTransfer.TrySetResult(true);
+                Assert.Fail("Transfer did not reach the monitored-item callback barrier.");
+            }
+
+            try
+            {
+                itemOwner.Verify(
+                    nodeManager => nodeManager.TransferMonitoredItemsAsync(
+                        It.IsAny<OperationContext>(),
+                        true,
+                        It.IsAny<IList<IMonitoredItem>>(),
+                        It.IsAny<IList<bool>>(),
+                        It.IsAny<IList<ServiceResult>>(),
+                        It.Is<MonitoredItemTransferOptions>(options => options.DeferInitialValues),
+                        It.IsAny<CancellationToken>()),
+                    Times.Once);
+                Assert.That(monitoredItem.IsResendData, Is.False);
+                ServiceResultException error = Assert.Throws<ServiceResultException>(
+                    () => subscription.Publish(
+                        fixture.SourceContext,
+                        out _,
+                        out _));
+                Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadSubscriptionIdInvalid));
+            }
+            finally
+            {
+                releaseTransfer.TrySetResult(true);
+            }
+
+            TransferSubscriptionsResponse transferred = await transferTask.ConfigureAwait(false);
+            Assert.That(transferred.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(monitoredItem.IsResendData, Is.True);
+
+            SessionPublishQueue destinationQueue = GetPublishQueue(
+                manager,
+                fixture.DestinationContext.SessionId);
+            SetPrivateField(subscription, "m_waitingForPublish", false);
+            SetPrivateField(subscription, "m_lifetimeCounter", 0u);
+            SetExpiryTime(
+                subscription,
+                TimeProvider.System.GetTimestampMilliseconds() - 100);
+            destinationQueue.PublishTimerExpired(
+                destinationQueue.CapturePublishTimerSnapshot());
+            ISubscription readySubscription = await destinationQueue.PublishAsync(
+                "destination-channel",
+                DateTime.MaxValue,
+                requeue: false,
+                parkSink: null,
+                CancellationToken.None).ConfigureAwait(false);
+            NotificationMessage message = readySubscription.Publish(
+                fixture.DestinationContext,
+                out _,
+                out _);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(readySubscription, Is.SameAs(subscription));
+                Assert.That(message, Is.Not.Null);
+                Assert.That(message.NotificationData, Is.Not.Empty);
+                Assert.That(monitoredItem.IsResendData, Is.False);
+            });
+        }
+
+        [Test]
+        public async Task TransferFallbackAppliesInitialValueExactlyOnceAsync()
+        {
+            var fixture = await CreateTransferSubscriptionAsync().ConfigureAwait(false);
+            using SubscriptionManager manager = fixture.Manager;
+            Subscription subscription = fixture.Subscription;
+            using var queueFactory = new MonitoredItemQueueFactory(m_telemetry);
+            m_serverMock.Setup(server => server.MonitoredItemQueueFactory).Returns(queueFactory);
+            var itemOwner = new Mock<IAsyncNodeManager>();
+            using var monitoredItem = new MonitoredItem(
+                m_serverMock.Object,
+                itemOwner.Object,
+                new object(),
+                subscription.Id,
+                id: 11,
+                new ReadValueId
+                {
+                    NodeId = new NodeId("FallbackTransferValue", 2),
+                    AttributeId = Attributes.Value
+                },
+                DiagnosticsMasks.None,
+                TimestampsToReturn.Both,
+                MonitoringMode.Reporting,
+                clientHandle: 12,
+                originalFilter: null,
+                filterToUse: null,
+                range: null,
+                samplingInterval: 1000,
+                queueSize: 1,
+                discardOldest: true,
+                sourceSamplingInterval: 1000);
+            await RegisterMonitoredItemsAsync(subscription, monitoredItem).ConfigureAwait(false);
+            monitoredItem.QueueValue(new DataValue(new Variant(5678)), null);
+            var initialNotifications = new Queue<MonitoredItemNotification>();
+            monitoredItem.Publish(
+                new OperationContext(monitoredItem),
+                initialNotifications,
+                new Queue<DiagnosticInfo>(),
+                1,
+                m_telemetry.CreateLogger<SubscriptionTests>());
+            Assert.That(initialNotifications, Has.Count.EqualTo(1));
+            int setupResendCalls = 0;
+            m_nodeManagerMock
+                .Setup(nodeManager => nodeManager.TransferMonitoredItemsAsync(
+                    It.IsAny<OperationContext>(),
+                    true,
+                    It.Is<IList<IMonitoredItem>>(items => items.Contains(monitoredItem)),
+                    It.IsAny<IList<ServiceResult>>(),
+                    It.Is<MonitoredItemTransferOptions>(options => options == null),
+                    It.IsAny<CancellationToken>()))
+                .Callback<OperationContext, bool, IList<IMonitoredItem>, IList<ServiceResult>, MonitoredItemTransferOptions, CancellationToken>(
+                    (_, sendInitialValues, monitoredItems, errors, transferOptions, _) =>
+                    {
+                        Assert.That(transferOptions, Is.Null);
+                        for (int ii = 0; ii < monitoredItems.Count; ii++)
+                        {
+                            errors[ii] = ServiceResult.Good;
+                            if (sendInitialValues)
+                            {
+                                setupResendCalls++;
+                                monitoredItems[ii].SetupResendDataTrigger();
+                            }
+                        }
+                    })
+                .Returns(default(ValueTask));
+
+            TransferSubscriptionsResponse transferred = await manager
+                .TransferSubscriptionsAsync(
+                    fixture.DestinationContext,
+                    [subscription.Id],
+                    sendInitialValues: true)
+                .ConfigureAwait(false);
+
+            Assert.That(transferred.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(setupResendCalls, Is.EqualTo(1));
+            SessionPublishQueue destinationQueue = GetPublishQueue(
+                manager,
+                fixture.DestinationContext.SessionId);
+            SetPrivateField(subscription, "m_waitingForPublish", false);
+            SetPrivateField(subscription, "m_lifetimeCounter", 0u);
+            SetExpiryTime(
+                subscription,
+                TimeProvider.System.GetTimestampMilliseconds() - 100);
+            destinationQueue.PublishTimerExpired(
+                destinationQueue.CapturePublishTimerSnapshot());
+            ISubscription readySubscription = await destinationQueue.PublishAsync(
+                "destination-channel",
+                DateTime.MaxValue,
+                requeue: false,
+                parkSink: null,
+                CancellationToken.None).ConfigureAwait(false);
+            NotificationMessage firstMessage = readySubscription.Publish(
+                fixture.DestinationContext,
+                out _,
+                out _);
+            NotificationMessage secondMessage = readySubscription.Publish(
+                fixture.DestinationContext,
+                out _,
+                out _);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(firstMessage.NotificationData, Is.Not.Empty);
+                Assert.That(secondMessage?.NotificationData ?? [], Is.Empty);
+                Assert.That(monitoredItem.IsResendData, Is.False);
+            });
         }
 
         [Test]
@@ -1312,6 +1717,7 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<bool>(),
                     It.IsAny<IList<IMonitoredItem>>(),
                     It.IsAny<IList<ServiceResult>>(),
+                    It.IsAny<MonitoredItemTransferOptions>(),
                     It.IsAny<CancellationToken>()))
                 .Returns(
                     () => Interlocked.Increment(ref transferCalls) == 1

@@ -1193,6 +1193,15 @@ namespace Opc.Ua.SourceGeneration
                 asFactory: true));
             context.Template.AddReplacement(Tokens.SymbolicId, instance.SymbolicId.Name);
             context.Template.AddReplacement(Tokens.ChildName, instance.SymbolicName.Name);
+            // The child's declaration NodeId. CreateOrReplace{Child} uses it to
+            // detect a child that still carries the type-level id (and may
+            // therefore be rebased onto a per-instance NodeId) versus one whose
+            // NodeId the caller already owns.
+            context.Template.AddReplacement(
+                Tokens.NodeIdConstant,
+                instance.GetNodeIdAsCode(
+                    m_context.ModelDesign.Namespaces,
+                    kNamespaceTableContextVariable));
             // The runtime BrowseName.Name may differ from the symbolic name
             // (the design's <opc:BrowseName> attribute can override it, e.g.
             // Boiler's "InputPipe" InstanceDesign with BrowseName "PipeX001").
@@ -1711,7 +1720,8 @@ namespace Opc.Ua.SourceGeneration
             if (singletonChildren.Count == 0)
             {
                 context.Out.WriteLine(
-                    "state.CreateOrReplace{0}(context, Create{1}(context, state, forInstance: {2}));",
+                    "state.CreateOrReplace{0}(context, Create{1}(context, state, " +
+                        "forInstance: {2}), assignInstanceNodeIds: false);",
                     instance.SymbolicName.Name,
                     instance.SymbolicId.Name,
                     forInstanceVariableValue);
@@ -1738,7 +1748,8 @@ namespace Opc.Ua.SourceGeneration
                         kNamespaceTableContextVariable));
                 context.Out.WriteLine("    {");
                 context.Out.WriteLine(
-                    "        state.CreateOrReplace{0}(context, Create{1}(context, state, forInstance: true));",
+                    "        state.CreateOrReplace{0}(context, Create{1}(context, state, " +
+                        "forInstance: true), assignInstanceNodeIds: false);",
                     instance.SymbolicName.Name,
                     singletonChildSymbolicId);
                 context.Out.WriteLine("    }");
@@ -1746,7 +1757,8 @@ namespace Opc.Ua.SourceGeneration
             context.Out.WriteLine("    else");
             context.Out.WriteLine("    {");
             context.Out.WriteLine(
-                "        state.CreateOrReplace{0}(context, Create{1}(context, state, forInstance: true));",
+                "        state.CreateOrReplace{0}(context, Create{1}(context, state, " +
+                    "forInstance: true), assignInstanceNodeIds: false);",
                 instance.SymbolicName.Name,
                 instance.SymbolicId.Name);
             context.Out.WriteLine("    }");
@@ -1754,7 +1766,8 @@ namespace Opc.Ua.SourceGeneration
             context.Out.WriteLine("else");
             context.Out.WriteLine("{");
             context.Out.WriteLine(
-                "    state.CreateOrReplace{0}(context, Create{1}(context, state, forInstance: {2}));",
+                "    state.CreateOrReplace{0}(context, Create{1}(context, state, " +
+                    "forInstance: {2}), assignInstanceNodeIds: false);",
                 instance.SymbolicName.Name,
                 instance.SymbolicId.Name,
                 forInstanceVariableValue);

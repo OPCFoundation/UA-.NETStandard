@@ -395,12 +395,12 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 Assert.That(code, Does.Contain(
                     "state.CreateOrReplaceInputArguments(context, " +
                     "CreateServer_GetMonitoredItems_InputArguments(" +
-                    "context, state, forInstance: true));"),
+                    "context, state, forInstance: true), assignInstanceNodeIds: false);"),
                     "The Server singleton branch should call the singleton-instance InputArguments factory.");
                 Assert.That(code, Does.Contain(
                     "state.CreateOrReplaceOutputArguments(context, " +
                     "CreateServer_GetMonitoredItems_OutputArguments(" +
-                    "context, state, forInstance: true));"),
+                    "context, state, forInstance: true), assignInstanceNodeIds: false);"),
                     "The Server singleton branch should call the singleton-instance OutputArguments factory.");
 
                 // RoleType (multi-singleton: WellKnownRole_Observer = 15668,
@@ -410,12 +410,12 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 Assert.That(code, Does.Contain(
                     "state.CreateOrReplaceInputArguments(context, " +
                     "CreateWellKnownRole_Observer_AddIdentity_InputArguments(" +
-                    "context, state, forInstance: true));"),
+                    "context, state, forInstance: true), assignInstanceNodeIds: false);"),
                     "RoleType_AddIdentity should dispatch to WellKnownRole_Observer's InputArguments factory.");
                 Assert.That(code, Does.Contain(
                     "state.CreateOrReplaceInputArguments(context, " +
                     "CreateWellKnownRole_SecurityAdmin_AddIdentity_InputArguments(" +
-                    "context, state, forInstance: true));"),
+                    "context, state, forInstance: true), assignInstanceNodeIds: false);"),
                     "RoleType_AddIdentity should dispatch to WellKnownRole_SecurityAdmin's InputArguments factory.");
 
                 // The top-level NodeId override re-binds nodeState.NodeId from

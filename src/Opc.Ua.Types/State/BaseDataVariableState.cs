@@ -193,15 +193,31 @@ namespace Opc.Ua
         /// <summary>
         /// Create or replace enum strings
         /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="replacement">
+        /// The child to adopt or to copy onto the existing child. When
+        /// <c>null</c> a new child is created.
+        /// </param>
+        /// <param name="assignInstanceNodeIds">
+        /// When <c>true</c> (the default) and the context supplies a
+        /// <see cref="ISystemContext.NodeIdFactory"/>, a child that does not
+        /// yet carry a NodeId - and its descendants - are assigned per-instance
+        /// NodeIds so multiple instances of the same variable never collide. A
+        /// NodeId the caller already assigned is never overwritten.
+        /// </param>
         public PropertyState<ArrayOf<LocalizedText>> CreateOrReplaceEnumStrings(
             ISystemContext context,
-            BaseInstanceState? replacement)
+            BaseInstanceState? replacement,
+            bool assignInstanceNodeIds = true)
         {
             if (EnumStrings == null)
             {
                 if (replacement is not PropertyState<ArrayOf<LocalizedText>> child)
                 {
                     child = PropertyState<ArrayOf<LocalizedText>>.With<VariantBuilder>(this);
+                    child.SymbolicName = BrowseNames.EnumStrings;
+                    child.BrowseName = QualifiedName.From(BrowseNames.EnumStrings);
+                    child.DisplayName = LocalizedText.From(BrowseNames.EnumStrings);
                     if (replacement != null)
                     {
                         child.Create(context, replacement);
@@ -209,6 +225,7 @@ namespace Opc.Ua
                 }
                 EnumStrings = child;
             }
+            context.AssignNewChildInstanceNodeIds(this, EnumStrings, assignInstanceNodeIds);
             return EnumStrings;
         }
 

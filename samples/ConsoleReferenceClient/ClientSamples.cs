@@ -404,9 +404,9 @@ namespace Quickstarts
                 }
 
                 // Define Subscription parameters
-                // CA2000: ownership of the subscription transfers to the session in
-                // AddSubscription below; the analyzer cannot model that hand-off.
-                // TODO: Remove this suppression when CA2000 recognizes the transfer.
+                // Ownership of the subscription transfers to the session in AddSubscription
+                // below, which disposes all of its subscriptions when it is disposed.
+                // TODO: remove this suppression if CA2000 learns this ownership transfer pattern.
 #pragma warning disable CA2000
                 var subscription = new Subscription(session.DefaultSubscription)
                 {
@@ -1289,9 +1289,9 @@ namespace Quickstarts
                 session.MinPublishRequestCount = 3;
 
                 // Define Subscription parameters
-                // CA2000: ownership of the subscription transfers to the session in
-                // AddSubscription below; the analyzer cannot model that hand-off.
-                // TODO: Remove this suppression when CA2000 recognizes the transfer.
+                // Ownership of the subscription transfers to the session in AddSubscription
+                // below, which disposes all of its subscriptions when it is disposed.
+                // TODO: remove this suppression if CA2000 learns this ownership transfer pattern.
 #pragma warning disable CA2000
                 var subscription = new Subscription(session.DefaultSubscription)
                 {
@@ -1309,6 +1309,7 @@ namespace Quickstarts
                     FastKeepAliveCallback = FastKeepAliveNotification
                 };
 #pragma warning restore CA2000
+
                 session.AddSubscription(subscription);
 
                 // Create the subscription on Server side
