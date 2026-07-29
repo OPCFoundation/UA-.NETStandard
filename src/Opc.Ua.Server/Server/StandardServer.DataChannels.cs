@@ -6,6 +6,7 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Bindings;
@@ -189,6 +190,56 @@ namespace Opc.Ua.Server
         protected virtual void OnDataChannelSessionClosing(ISession session, SessionEventReason reason)
         {
             AbortDataChannelsOfSession(session.Id, StatusCodes.BadSessionClosed);
+            ReapDataChannelStates();
+        }
+
+        /// <summary>
+        /// Releases the per-SecureChannel data channel state once no Session
+        /// remains on that SecureChannel.
+        /// </summary>
+        /// <remarks>
+        /// The state holds a <see cref="DataChannelManager"/> with a running
+        /// scheduler, so retaining one per SecureChannel ever seen would let
+        /// any peer that can open and close a SecureChannel accumulate them
+        /// without bound — and a data channel cannot be authorized on a
+        /// SecureChannel with no Session anyway, so nothing is lost by
+        /// releasing it.
+        /// </remarks>
+        private void ReapDataChannelStates()
+        {
+            if (m_dataChannelStates.IsEmpty)
+            {
+                return;
+            }
+
+            var live = new HashSet<string>(StringComparer.Ordinal);
+
+            foreach (ISession candidate in ServerInternal.SessionManager.GetSessions())
+            {
+                string? id = candidate?.SecureChannelId;
+
+                if (!string.IsNullOrEmpty(id))
+                {
+                    live.Add(id!);
+                }
+            }
+
+            foreach (string secureChannelId in m_dataChannelStates.Keys)
+            {
+                if (live.Contains(secureChannelId))
+                {
+                    continue;
+                }
+
+                if (m_dataChannelStates.TryRemove(
+                    secureChannelId,
+                    out DataChannelSecureChannelState? state) && state != null)
+                {
+                    state.Manager.ChannelStateChanged -= OnDataChannelStateChanged;
+                    state.Manager.AbortAll(StatusCodes.BadSecureChannelClosed);
+                    _ = state.Manager.DisposeAsync().AsTask();
+                }
+            }
         }
 
         /// <summary>
@@ -306,7 +357,7 @@ namespace Opc.Ua.Server
                     manager,
                     DataChannelSources,
                     DataChannelCapabilities,
-                    DataChannelAuthorizer ?? new PermissiveDataChannelAuthorizer(),
+                    DataChannelAuthorizer ?? new ReadEquivalentDataChannelAuthorizer(ServerInternal),
                     DataChannelAuditor ?? new ServerDataChannelAuditor(ServerInternal),
                     new ServerDataChannelStreamAllocator(this, secureChannelContext),
                     TimeProvider),
@@ -441,14 +492,90 @@ namespace Opc.Ua.Server
             }
         }
 
-        private sealed class PermissiveDataChannelAuthorizer : IDataChannelAuthorizer
+        /// <summary>
+        /// Authorizes a data channel exactly as a Read of the same content
+        /// would be authorized.
+        /// </summary>
+        /// <remarks>
+        /// Part 4 errata §7.2 requires that a Server "shall not grant a data
+        /// channel where it would refuse a Read of the same content", and
+        /// that the decision be re-evaluated rather than granted once. This
+        /// resolves the Session, builds the same OperationContext a Service
+        /// call would, and asks the owning NodeManager to validate
+        /// PermissionType.Read against the source Node — so RolePermissions,
+        /// UserRolePermissions and AccessRestrictions all apply without this
+        /// class reimplementing any of them. It fails closed: a Session that
+        /// cannot be resolved, a Node with no owning NodeManager, or any
+        /// error during validation denies the request.
+        /// </remarks>
+        private sealed class ReadEquivalentDataChannelAuthorizer(IServerInternal server)
+            : IDataChannelAuthorizer
         {
-            public ValueTask<bool> IsAuthorizedAsync(
+            public async ValueTask<bool> IsAuthorizedAsync(
                 DataChannelRequestContext context,
                 NodeId sourceNodeId,
                 CancellationToken ct)
             {
-                return new ValueTask<bool>(true);
+                if (context == null || sourceNodeId.IsNull)
+                {
+                    return false;
+                }
+
+                try
+                {
+                    ISession? session = null;
+
+                    foreach (ISession candidate in server.SessionManager.GetSessions())
+                    {
+                        if (candidate != null && candidate.Id == context.SessionId)
+                        {
+                            session = candidate;
+                            break;
+                        }
+                    }
+
+                    if (session == null)
+                    {
+                        return false;
+                    }
+
+                    (_, IAsyncNodeManager? nodeManager) = await server.NodeManager
+                        .GetManagerHandleAsync(sourceNodeId, ct)
+                        .ConfigureAwait(false);
+
+                    if (nodeManager == null)
+                    {
+                        // The source is not a Node in the AddressSpace, so
+                        // there are no RolePermissions or AccessRestrictions
+                        // to evaluate and the registration in
+                        // DataChannelSourceRegistry is the only authority —
+                        // a deliberate server-side act. This matches
+                        // ValidateRolePermissionsAsync, which likewise treats
+                        // an unknown Node as having nothing to enforce. A
+                        // source that *is* in the AddressSpace is still
+                        // checked below, which is the case that matters.
+                        return true;
+                    }
+
+                    var operationContext = new OperationContext(session, DiagnosticsMasks.None);
+
+                    ServiceResult result = await nodeManager
+                        .ValidateRolePermissionsAsync(
+                            operationContext,
+                            sourceNodeId,
+                            PermissionType.Read,
+                            ct)
+                        .ConfigureAwait(false);
+
+                    return ServiceResult.IsGood(result);
+                }
+                catch (Exception e) when (e is not OperationCanceledException)
+                {
+                    // An authorization decision that threw is a denial, not a
+                    // grant. Anything else would make an unrelated fault in
+                    // the NodeManager open the channel.
+                    return false;
+                }
             }
         }
 

@@ -30,10 +30,12 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using System.Net.Quic;
 using System.Net.Security;
+using System.Security.Authentication;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
@@ -186,9 +188,14 @@ namespace Opc.Ua.Bindings
                         activationEpoch = m_certificateEpoch;
                     }
 
-                    m_pendingConnectionEpochs[connection] = new QuicAdmissionSnapshot(
+                    TimeSpan handshakeTimeout = PendingAdmissionHandshakeTimeout;
+                    var admission = new QuicAdmissionSnapshot(
                         activationEpoch,
-                        serverCertificate.RawData);
+                        serverCertificate,
+                        TimestampAfter(handshakeTimeout));
+                    RemoveExpiredPendingAdmissions();
+                    m_pendingConnectionEpochs[connection] = admission;
+                    _ = ExpirePendingAdmissionAsync(connection, admission, handshakeTimeout).AsTask();
 
                     Func<QuicConnection, long, ValueTask>? pause =
                         AdmissionCallbackPauseForTesting;
@@ -203,6 +210,7 @@ namespace Opc.Ua.Bindings
                         DefaultCloseErrorCode = 0x0B,
                         MaxInboundBidirectionalStreams = MaxInboundStreams,
                         MaxInboundUnidirectionalStreams = MaxInboundStreams,
+                        HandshakeTimeout = handshakeTimeout,
                         ServerAuthenticationOptions = new SslServerAuthenticationOptions
                         {
                             ApplicationProtocols = [QuicTransport.ApplicationProtocol],
@@ -666,6 +674,11 @@ namespace Opc.Ua.Bindings
                     m_logger.QuicAcceptFailed(e);
                     continue;
                 }
+                catch (AuthenticationException e)
+                {
+                    m_logger.QuicAcceptFailed(e);
+                    continue;
+                }
                 catch (ObjectDisposedException)
                 {
                     return;
@@ -682,8 +695,9 @@ namespace Opc.Ua.Bindings
 
             try
             {
-                QuicAdmissionSnapshot admission = TakeConnectionAdmission(connection);
-                if (admission.ActivationEpoch != Volatile.Read(ref m_certificateEpoch))
+                if (!TryTakeConnectionAdmission(connection, out QuicAdmissionSnapshot? admission) ||
+                    admission == null ||
+                    admission.ActivationEpoch != Volatile.Read(ref m_certificateEpoch))
                 {
                     await CloseConnectionAsync(
                         connection,
@@ -727,7 +741,7 @@ namespace Opc.Ua.Bindings
                 m_connectionBindings[channelId] = new QuicConnectionBinding(
                     connection,
                     admission.ActivationEpoch,
-                    admission.CertificateRawData);
+                    admission.Certificate.RawData);
 
                 // Ownership passes to the channel, which starts the
                 // receive loop on the control stream.
@@ -773,6 +787,7 @@ namespace Opc.Ua.Bindings
                 var options = new QuicClientOptions
                 {
                     ClientCertificate = ResolveTlsCertificate(),
+                    ServerCertificateValidation = ValidateReversePeerCertificate,
                     HandshakeTimeout = timeout > 0
                         ? TimeSpan.FromMilliseconds(timeout)
                         : TimeSpan.FromSeconds(30)
@@ -796,6 +811,11 @@ namespace Opc.Ua.Bindings
                         m_bufferManager!,
                         m_quotas!.MaxBufferSize,
                         Telemetry);
+                    var boundTransport = new QuicPeerBindingTransport(
+                        transport,
+                        m_bufferManager!,
+                        endpointDescription: null,
+                        bindToOpenSecureChannelOnly: true);
 
                     uint channelId = NextChannelId();
 
@@ -810,7 +830,7 @@ namespace Opc.Ua.Bindings
                     m_channels[channelId] = channel;
 
                     // Ownership passes to the channel.
-                    channel.Attach(channelId, transport);
+                    channel.Attach(channelId, boundTransport);
                     transport = null;
                 }
                 finally
@@ -826,6 +846,51 @@ namespace Opc.Ua.Bindings
 #pragma warning restore CA1031
             {
                 m_logger.QuicReverseConnectFailed(e, url);
+            }
+        }
+
+        private bool ValidateReversePeerCertificate(
+            object sender,
+            X509Certificate? certificate,
+            X509Chain? chain,
+            SslPolicyErrors sslPolicyErrors)
+        {
+            if (certificate == null || m_quotas?.CertificateValidator == null)
+            {
+                return false;
+            }
+
+            try
+            {
+                var validationChain = new X509Certificate2Collection();
+                if (chain?.ChainElements != null && chain.ChainElements.Count > 0)
+                {
+                    foreach (X509ChainElement element in chain.ChainElements)
+                    {
+                        validationChain.Add(element.Certificate);
+                    }
+                }
+                else if (certificate is X509Certificate2 certificate2)
+                {
+                    validationChain.Add(certificate2);
+                }
+                else
+                {
+                    validationChain.Add(new X509Certificate2(certificate));
+                }
+
+                using var validationCollection = CertificateCollection.From(validationChain);
+#pragma warning disable CA2025
+                CertificateValidationResult result = m_quotas.CertificateValidator
+                    .ValidateAsync(validationCollection, ct: default)
+                    .GetAwaiter()
+                    .GetResult();
+#pragma warning restore CA2025
+                return result.IsValid;
+            }
+            catch (Exception)
+            {
+                return false;
             }
         }
 
@@ -1023,13 +1088,12 @@ namespace Opc.Ua.Bindings
             }
         }
 
-        private QuicAdmissionSnapshot TakeConnectionAdmission(QuicConnection connection)
+        private bool TryTakeConnectionAdmission(
+            QuicConnection connection,
+            out QuicAdmissionSnapshot? admission)
         {
-            return m_pendingConnectionEpochs.TryRemove(
-                connection,
-                out QuicAdmissionSnapshot? admission)
-                ? admission
-                : new QuicAdmissionSnapshot(Volatile.Read(ref m_certificateEpoch), []);
+            RemoveExpiredPendingAdmissions();
+            return m_pendingConnectionEpochs.TryRemove(connection, out admission);
         }
 
         private static bool SamePublicKey(X509Certificate2 left, X509Certificate2 right)
@@ -1053,9 +1117,57 @@ namespace Opc.Ua.Bindings
             return (uint)Interlocked.Increment(ref m_nextChannelId);
         }
 
+        private static long TimestampAfter(TimeSpan timeout)
+        {
+            return Stopwatch.GetTimestamp() +
+                (long)Math.Ceiling(timeout.TotalSeconds * Stopwatch.Frequency);
+        }
+
+        private static bool IsExpired(long expiresAtTimestamp, long now)
+        {
+            return expiresAtTimestamp <= now;
+        }
+
+        private void RemoveExpiredPendingAdmissions()
+        {
+            long now = Stopwatch.GetTimestamp();
+            foreach (KeyValuePair<QuicConnection, QuicAdmissionSnapshot> item in
+                m_pendingConnectionEpochs.ToArray())
+            {
+                if (IsExpired(item.Value.ExpiresAtTimestamp, now))
+                {
+                    ((ICollection<KeyValuePair<QuicConnection, QuicAdmissionSnapshot>>)
+                        m_pendingConnectionEpochs).Remove(item);
+                }
+            }
+        }
+
+        private async ValueTask ExpirePendingAdmissionAsync(
+            QuicConnection connection,
+            QuicAdmissionSnapshot admission,
+            TimeSpan handshakeTimeout)
+        {
+            await Task.Delay(handshakeTimeout).ConfigureAwait(false);
+            ((ICollection<KeyValuePair<QuicConnection, QuicAdmissionSnapshot>>)
+                m_pendingConnectionEpochs).Remove(
+                    new KeyValuePair<QuicConnection, QuicAdmissionSnapshot>(
+                        connection,
+                        admission));
+        }
+
         private const int MaxInboundStreams = 128;
+        private static readonly TimeSpan DefaultHandshakeTimeout = TimeSpan.FromSeconds(10);
 
         internal Func<QuicConnection, long, ValueTask>? AdmissionCallbackPauseForTesting { get; set; }
+        internal TimeSpan PendingAdmissionHandshakeTimeout { get; set; } = DefaultHandshakeTimeout;
+        internal int PendingConnectionAdmissionCount
+        {
+            get
+            {
+                RemoveExpiredPendingAdmissions();
+                return m_pendingConnectionEpochs.Count;
+            }
+        }
 
         private readonly ConcurrentDictionary<uint, TcpListenerChannel> m_channels = new();
         private readonly ConcurrentDictionary<uint, QuicConnectionBinding> m_connectionBindings = new();
@@ -1099,7 +1211,8 @@ namespace Opc.Ua.Bindings
 
         private sealed record QuicAdmissionSnapshot(
             long ActivationEpoch,
-            byte[] CertificateRawData);
+            X509Certificate2 Certificate,
+            long ExpiresAtTimestamp);
     }
 
     /// <summary>

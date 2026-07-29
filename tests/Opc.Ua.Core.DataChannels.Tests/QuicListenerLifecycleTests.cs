@@ -15,6 +15,7 @@ using System.Net.Security;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -177,6 +178,37 @@ namespace Opc.Ua.Core.DataChannels.Tests
                 Assert.That(GetChannels(listener), Has.Count.EqualTo(1));
                 Assert.That(GetSingleChannel(listener).GlobalChannelId, Is.EqualTo(globalChannelId));
             });
+        }
+
+        [Test]
+        [CancelAfter(30000)]
+        public async Task ReverseConnectRejectsPeerWhoseTlsKeyDiffersFromOpenSecureChannelAsync()
+        {
+            using Certificate reversePeerTls = CreateCertificate("QuicLifecycleReversePeerTls");
+            using Certificate openSecureChannelPeer = CreateCertificate("QuicLifecycleReversePeerOpcUa");
+            var bufferManager = new BufferManager("reverse-peer-binding", 65536, m_telemetry!);
+            await using QuicLoopback loopback = await QuicLoopback
+                .StartReverseAsync(
+                    reversePeerTls.AsX509Certificate2(),
+                    bufferManager,
+                    m_telemetry!)
+                .ConfigureAwait(false);
+            var boundTransport = new QuicPeerBindingTransport(
+                loopback.Client,
+                bufferManager,
+                endpointDescription: null,
+                bindToOpenSecureChannelOnly: true);
+
+            await loopback.Server
+                .SendChunkAsync(
+                    BuildOpenSecureChannelChunk(openSecureChannelPeer.AsX509Certificate2()),
+                    TimeoutToken())
+                .ConfigureAwait(false);
+
+            ServiceResultException? exception = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await boundTransport.ReceiveChunkAsync(TimeoutToken()).ConfigureAwait(false));
+
+            Assert.That(exception!.StatusCode, Is.EqualTo(StatusCodes.BadCertificateInvalid));
         }
 
         private async Task<QuicTransportListener> OpenListenerAsync(
@@ -480,6 +512,35 @@ namespace Opc.Ua.Core.DataChannels.Tests
                     ["localhost"])
                 .SetLifeTime(TimeSpan.FromDays(1))
                 .CreateForRSA();
+        }
+
+        private static byte[] BuildOpenSecureChannelChunk(X509Certificate2 senderCertificate)
+        {
+            byte[] policy = Encoding.UTF8.GetBytes(SecurityPolicies.Basic256Sha256);
+            byte[] certificate = senderCertificate.RawData;
+            int size = 12 +
+                sizeof(int) + policy.Length +
+                sizeof(int) + certificate.Length +
+                sizeof(int);
+            byte[] chunk = new byte[size];
+            chunk[0] = (byte)'O';
+            chunk[1] = (byte)'P';
+            chunk[2] = (byte)'N';
+            chunk[3] = (byte)'F';
+            BitConverter.GetBytes(size).CopyTo(chunk, 4);
+            int offset = 12;
+            WriteUaBytes(chunk, ref offset, policy);
+            WriteUaBytes(chunk, ref offset, certificate);
+            BitConverter.GetBytes(-1).CopyTo(chunk, offset);
+            return chunk;
+        }
+
+        private static void WriteUaBytes(byte[] chunk, ref int offset, byte[] value)
+        {
+            BitConverter.GetBytes(value.Length).CopyTo(chunk, offset);
+            offset += sizeof(int);
+            Buffer.BlockCopy(value, 0, chunk, offset, value.Length);
+            offset += value.Length;
         }
 
         private static Certificate CreateSameKeyReissue(Certificate source)

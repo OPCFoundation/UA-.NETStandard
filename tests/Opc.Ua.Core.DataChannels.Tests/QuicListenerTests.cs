@@ -353,7 +353,16 @@ namespace Opc.Ua.Core.DataChannels.Tests
         {
             int listenerPort = GetFreeUdpPort();
             Uri endpointUrl = EndpointUrl(listenerPort, "ReverseSource");
-            await using var listener = await OpenListenerAsync(endpointUrl).ConfigureAwait(false);
+
+            // The peer must be refused because the application's trust list
+            // refuses it, not because the machine root store happens to.
+            // Reverse connect previously left ServerCertificateValidation
+            // unset and fell through to OS trust, so a certificate from any
+            // CA in the host's root store was accepted — which is what
+            // §7.6.1 exists to prevent.
+            await using var listener = await OpenListenerAsync(
+                endpointUrl,
+                new RejectAllCertificateValidator()).ConfigureAwait(false);
             await using QuicListener reversePeer = await CreateRawQuicListenerAsync().ConfigureAwait(false);
             Task<QuicConnection> accepted = reversePeer.AcceptConnectionAsync(TimeoutToken()).AsTask();
             bool connectionWaitingRaised = false;
@@ -395,14 +404,16 @@ namespace Opc.Ua.Core.DataChannels.Tests
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadTcpSecureChannelUnknown));
         }
 
-        private async Task<QuicTransportListener> OpenListenerAsync(Uri endpointUrl)
+        private async Task<QuicTransportListener> OpenListenerAsync(
+            Uri endpointUrl,
+            ICertificateValidatorEx? certificateValidator = null)
         {
             var listener = new QuicTransportListener(m_telemetry!);
             try
             {
                 await listener.OpenAsync(
                     endpointUrl,
-                    CreateListenerSettings(endpointUrl, m_serverRegistry!),
+                    CreateListenerSettings(endpointUrl, m_serverRegistry!, certificateValidator),
                     m_callback!,
                     TimeoutToken()).ConfigureAwait(false);
                 return listener;
@@ -411,6 +422,39 @@ namespace Opc.Ua.Core.DataChannels.Tests
             {
                 await listener.DisposeAsync().ConfigureAwait(false);
                 throw;
+            }
+        }
+
+        private sealed class RejectAllCertificateValidator : ICertificateValidatorEx
+        {
+            public Func<Certificate, ServiceResult, bool>? AcceptError { get; set; }
+
+            public Task<CertificateValidationResult> ValidateAsync(
+                CertificateCollection chain,
+                TrustListIdentifier? trustList = null,
+                Security.Certificates.CertificateValidationOptions? options = null,
+                CancellationToken ct = default)
+            {
+                return Task.FromResult(Rejected());
+            }
+
+            public Task<CertificateValidationResult> ValidateAsync(
+                Certificate certificate,
+                TrustListIdentifier? trustList = null,
+                CancellationToken ct = default)
+            {
+                return Task.FromResult(Rejected());
+            }
+
+            private static CertificateValidationResult Rejected()
+            {
+                return new CertificateValidationResult(
+                    false,
+                    StatusCodes.BadCertificateUntrusted,
+                    [ServiceResult.Create(
+                        StatusCodes.BadCertificateUntrusted,
+                        "The peer certificate is not in the trust list.")],
+                    false);
             }
         }
 
@@ -456,7 +500,8 @@ namespace Opc.Ua.Core.DataChannels.Tests
 
         private TransportListenerSettings CreateListenerSettings(
             Uri endpointUrl,
-            ICertificateRegistry certificateRegistry)
+            ICertificateRegistry certificateRegistry,
+            ICertificateValidatorEx? certificateValidator = null)
         {
             EndpointDescription noneEndpoint = CreateEndpoint(endpointUrl, secure: false);
             EndpointDescription secureEndpoint = CreateEndpoint(endpointUrl, secure: true);
@@ -473,7 +518,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
                 Descriptions = [noneEndpoint, secureEndpoint],
                 Configuration = configuration,
                 ServerCertificates = certificateRegistry,
-                CertificateValidator = new AcceptAllCertificateValidator(),
+                CertificateValidator = certificateValidator ?? new AcceptAllCertificateValidator(),
                 NamespaceUris = new NamespaceTable(),
                 Factory = EncodeableFactory.Create(),
                 MaxChannelCount = 10

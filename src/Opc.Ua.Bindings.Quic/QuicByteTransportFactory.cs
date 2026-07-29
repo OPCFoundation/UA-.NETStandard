@@ -393,11 +393,13 @@ namespace Opc.Ua.Bindings
         public QuicPeerBindingTransport(
             QuicMultiplexedTransport inner,
             BufferManager bufferManager,
-            EndpointDescription? endpointDescription)
+            EndpointDescription? endpointDescription,
+            bool bindToOpenSecureChannelOnly = false)
         {
             m_inner = inner ?? throw new ArgumentNullException(nameof(inner));
             m_bufferManager = bufferManager ?? throw new ArgumentNullException(nameof(bufferManager));
             m_endpointDescription = endpointDescription;
+            m_bindToOpenSecureChannelOnly = bindToOpenSecureChannelOnly;
         }
 
         /// <summary>
@@ -508,9 +510,14 @@ namespace Opc.Ua.Bindings
         private void VerifyOpenSecureChannelBinding(ArraySegment<byte> chunk)
         {
             if (m_bindingVerified ||
-                m_endpointDescription == null ||
-                m_endpointDescription.SecurityMode == MessageSecurityMode.None ||
                 chunk.Array == null)
+            {
+                return;
+            }
+
+            if (!m_bindToOpenSecureChannelOnly &&
+                (m_endpointDescription == null ||
+                 m_endpointDescription.SecurityMode == MessageSecurityMode.None))
             {
                 return;
             }
@@ -528,7 +535,9 @@ namespace Opc.Ua.Bindings
             byte[] secureChannelCertificate = ReadSenderCertificate(data);
             QuicPeerBindingResult result = QuicPeerBinding.Verify(
                 m_inner.PeerCertificate,
-                m_endpointDescription.ServerCertificate.ToArray(),
+                m_bindToOpenSecureChannelOnly
+                    ? secureChannelCertificate
+                    : m_endpointDescription!.ServerCertificate.ToArray(),
                 secureChannelCertificate);
 
             if (result != QuicPeerBindingResult.Bound)
@@ -600,6 +609,7 @@ namespace Opc.Ua.Bindings
         private readonly QuicMultiplexedTransport m_inner;
         private readonly BufferManager m_bufferManager;
         private readonly EndpointDescription? m_endpointDescription;
+        private readonly bool m_bindToOpenSecureChannelOnly;
         private bool m_bindingVerified;
     }
 }

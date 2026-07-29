@@ -110,8 +110,14 @@ namespace Opc.Ua.Bindings
             m_sendWindow = new DataChannelSendWindow(
                 transport.HasTransportFlowControl ? uint.MaxValue : settings.InitialCredit);
             m_receiveCredit = new DataChannelReceiveCredit(settings.InitialCredit);
-            m_delivery = Channel.CreateUnbounded<DataChannelMessage>(
-                new UnboundedChannelOptions { SingleReader = false, SingleWriter = true });
+            m_delivery = Channel.CreateBounded<DataChannelMessage>(
+                new BoundedChannelOptions(DeliveryQueueCapacity(settings))
+                {
+                    SingleReader = false,
+                    SingleWriter = true,
+                    FullMode = BoundedChannelFullMode.Wait
+                });
+            m_previousMaxFrameSize = settings.MaxFrameSize;
 
             // A direction that carries no payload is considered ended at
             // open, so a single END closes the channel (5.11).
@@ -942,10 +948,17 @@ namespace Opc.Ua.Bindings
                     outcome == DataChannelReceiveOutcome.DeliverWithGap ? missingFrom : 0,
                     outcome == DataChannelReceiveOutcome.DeliverWithGap ? missingTo : 0);
 
-                if (m_delivery.Writer.TryWrite(message))
-                {
-                    message = null;
-                }
+                m_delivery.Writer
+                    .WriteAsync(message)
+                    .AsTask()
+                    .GetAwaiter()
+                    .GetResult();
+                message = null;
+            }
+            catch (ChannelClosedException)
+            {
+                status = StatusCodes.BadDataChannelClosed;
+                return DataChannelFrameAction.ResetChannel;
             }
             finally
             {
@@ -1110,6 +1123,14 @@ namespace Opc.Ua.Bindings
             m_delivery.Writer.TryComplete();
         }
 
+        private static int DeliveryQueueCapacity(DataChannelSettings settings)
+        {
+            ulong maxFrameSize = Math.Max(1UL, settings.MaxFrameSize);
+            ulong initialCredit = Math.Max(maxFrameSize, settings.InitialCredit);
+            ulong capacity = (initialCredit + maxFrameSize - 1) / maxFrameSize;
+            return capacity > int.MaxValue ? int.MaxValue : (int)capacity;
+        }
+
         private void RaiseStateChanged(DataChannelState state, StatusCode status)
         {
             StateChanged?.Invoke(this, new DataChannelStateChangedEventArgs(ChannelId, state, status));
@@ -1135,7 +1156,7 @@ namespace Opc.Ua.Bindings
         private long m_lastPauseEvent;
         private double m_roundTripTime;
         private uint m_lastGapSequenceNumber;
-        private uint m_previousMaxFrameSize = uint.MaxValue;
+        private uint m_previousMaxFrameSize;
         private ulong m_framesSent;
         private ulong m_framesReceived;
         private ulong m_bytesSent;
