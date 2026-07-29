@@ -91,6 +91,7 @@ namespace Opc.Ua.Server.Tests.Hosting
                     [],
                     Mock.Of<IServiceProvider>(),
                     Mock.Of<IOpcUaServerFactory>(),
+                    new HostedNodeManagerLifecycle(),
                     NullLogger<OpcUaServerHostedService>.Instance),
                 Throws.ArgumentNullException.With.Property(nameof(ArgumentNullException.ParamName))
                     .EqualTo("options"));
@@ -111,6 +112,7 @@ namespace Opc.Ua.Server.Tests.Hosting
                     [],
                     Mock.Of<IServiceProvider>(),
                     Mock.Of<IOpcUaServerFactory>(),
+                    new HostedNodeManagerLifecycle(),
                     NullLogger<OpcUaServerHostedService>.Instance),
                 Throws.ArgumentNullException.With.Property(nameof(ArgumentNullException.ParamName))
                     .EqualTo("configurationProviders"));

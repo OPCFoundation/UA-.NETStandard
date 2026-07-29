@@ -61,5 +61,27 @@ namespace Opc.Ua
         public const int SubscriptionManager = 440;
         public const int WebApiTransportChannel = 480;
         public const int WebApiWssTransportChannel = 490;
+
+        /// <summary>
+        /// The <see cref="Microsoft.Extensions.Logging.ILogger"/> category name that
+        /// preserves the identity of the legacy "OPC-UA-Client" EventSource provider
+        /// (Guid 8CFA469E-18C6-480F-9B74-B005DACDE3D3). Loggers created for this
+        /// category emit only the compatibility events below, using the
+        /// <see cref="Microsoft.Extensions.Logging.LoggerMessageAttribute"/>
+        /// <c>EventId</c>/<c>EventName</c> pairs that match the removed EventSource.
+        /// </summary>
+        public const string LegacyCategoryName = "OPC-UA-Client";
+
+        /// <summary>
+        /// Legacy EventSource-compatible event ids 1-5, preserved for consumers that migrate
+        /// from the removed provider to source-generated <c>ILogger</c> logging. These ids
+        /// intentionally overlap the ordinary per-class offsets declared above because they
+        /// are only emitted through the dedicated <see cref="LegacyCategoryName"/> logger.
+        /// </summary>
+        public const int LegacySubscriptionStateId = 1;
+        public const int LegacyNotificationId = 2;
+        public const int LegacyNotificationReceivedId = 3;
+        public const int LegacyPublishStartId = 4;
+        public const int LegacyPublishStopId = 5;
     }
 }

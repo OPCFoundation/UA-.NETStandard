@@ -49,7 +49,9 @@ namespace Opc.Ua.Mcp.Tools
         /// </summary>
         [McpServerTool(Name = "FindServers")]
         [Description(
-            "Find OPC UA servers available at a given discovery endpoint URL. Does not require an active session.")]
+            "Find OPC UA servers available at a given discovery endpoint URL. Does not require an active session. " +
+            "Returns JSON with a servers array (applicationUri, productUri, applicationName, applicationType, " +
+            "discoveryUrls); on failure returns {error:true, statusCode, message}.")]
         public static async Task<string> FindServersAsync(
             OpcUaSessionManager sessionManager,
             [Description("Discovery endpoint URL, e.g. 'opc.tcp://localhost:4840'")] string discoveryUrl,
@@ -111,7 +113,9 @@ namespace Opc.Ua.Mcp.Tools
         /// </summary>
         [McpServerTool(Name = "FindServersOnNetwork")]
         [Description(
-            "Find OPC UA servers registered on the local network via a Local Discovery Server (LDS). Does not require an active session.")]
+            "Find OPC UA servers registered on the local network via a Local Discovery Server (LDS). Does not " +
+            "require an active session. Returns JSON with a servers array (recordId, serverName, discoveryUrl, " +
+            "serverCapabilities) and lastCounterResetTime; on failure returns {error:true, statusCode, message}.")]
         public static async Task<string> FindServersOnNetworkAsync(
             OpcUaSessionManager sessionManager,
             [Description("Discovery endpoint URL of the LDS, e.g. 'opc.tcp://localhost:4840'")] string discoveryUrl,
@@ -174,12 +178,16 @@ namespace Opc.Ua.Mcp.Tools
         /// Register the server with a discovery server.
         /// </summary>
         [McpServerTool(Name = "RegisterServer")]
-        [Description("Register an OPC UA server with a Local Discovery Server. Requires an active session.")]
+        [Description("Register an OPC UA server with a Local Discovery Server using the original RegisterServer " +
+            "service. Requires an active session. Use RegisterServer2 instead when the discovery server supports " +
+            "it and you need per-configuration results (DiscoveryConfiguration/MdnsDiscoveryConfiguration) or a " +
+            "detailed configurationResults array back. Returns JSON with responseHeader only; on failure returns " +
+            "{error:true, statusCode, message}.")]
         public static async Task<string> RegisterServerAsync(
             OpcUaSessionManager sessionManager,
             [Description("Server to register - application URI")] string applicationUri,
             [Description("Server name")] string serverName,
-            [Description("Discovery URLs of the server to register")] string[] discoveryUrls,
+            [Description("Discovery URLs of the server to register, e.g. ['opc.tcp://localhost:62541/ReferenceServer']")] string[] discoveryUrls,
             [Description("Whether the server is online (default: true)")] bool isOnline = true,
             [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
@@ -236,12 +244,16 @@ namespace Opc.Ua.Mcp.Tools
         /// Register the server with a discovery server (version 2).
         /// </summary>
         [McpServerTool(Name = "RegisterServer2")]
-        [Description("Register an OPC UA server with a discovery server using RegisterServer2 (supports discovery configuration). Requires an active session.")]
+        [Description("Register an OPC UA server with a discovery server using the newer RegisterServer2 service, " +
+            "which supports additional discovery configuration and returns a per-configuration status. Prefer this " +
+            "over the plain RegisterServer when the discovery server supports RegisterServer2. Requires an active " +
+            "session. Returns JSON with responseHeader and configurationResults (array of per-configuration status " +
+            "codes); on failure returns {error:true, statusCode, message}.")]
         public static async Task<string> RegisterServer2Async(
             OpcUaSessionManager sessionManager,
             [Description("Server to register - application URI")] string applicationUri,
             [Description("Server name")] string serverName,
-            [Description("Discovery URLs of the server to register")] string[] discoveryUrls,
+            [Description("Discovery URLs of the server to register, e.g. ['opc.tcp://localhost:62541/ReferenceServer']")] string[] discoveryUrls,
             [Description("Whether the server is online (default: true)")] bool isOnline = true,
             [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)

@@ -148,6 +148,11 @@ namespace Opc.Ua.SourceGeneration
         public bool OmitFluentApi { get; set; }
 
         /// <summary>
+        /// Suppresses event-record generation.
+        /// </summary>
+        public bool OmitEventRecords { get; set; }
+
+        /// <summary>
         /// Get options from options provider
         /// </summary>
         public static ModelCompilationOptions From(AnalyzerConfigOptionsProvider provider)
@@ -181,7 +186,9 @@ namespace Opc.Ua.SourceGeneration
                 EmitDependencyMetadata = ParseEmitMode(provider.GlobalOptions.GetString(
                     nameof(EmitDependencyMetadata))),
                 OmitFluentApi = provider.GlobalOptions.GetBool(
-                    nameof(OmitFluentApi))
+                    nameof(OmitFluentApi)),
+                OmitEventRecords = provider.GlobalOptions.GetBool(
+                    nameof(OmitEventRecords))
             };
         }
 

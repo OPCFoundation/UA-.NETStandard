@@ -81,6 +81,7 @@ namespace Opc.Ua.Gds.Tests
                             GdsRole.DiscoveryAdmin,
                             GdsRole.CertificateAuthorityAdmin,
                             GdsRole.RegistrationAuthorityAdmin,
+                            GdsRole.KeyCredentialAdmin,
                             Role.SecurityAdmin,
                             Role.AuthenticatedUser
                         ]);

@@ -124,6 +124,27 @@ namespace Opc.Ua.Types.Tests.Nodes
         }
 
         [Test]
+        public void AddSubtypeReparentsExistingEntry()
+        {
+            var firstParentId = new NodeId(5000);
+            var secondParentId = new NodeId(5001);
+            var childId = new NodeId(5002);
+            m_typeTable.AddSubtype(firstParentId, NodeId.Null);
+            m_typeTable.AddSubtype(secondParentId, NodeId.Null);
+            m_typeTable.AddSubtype(childId, firstParentId);
+
+            m_typeTable.AddSubtype(childId, secondParentId);
+
+            Assert.That(m_typeTable.FindSuperType(childId), Is.EqualTo(secondParentId));
+            Assert.That(
+                m_typeTable.FindSubTypes(firstParentId).ToList(),
+                Does.Not.Contain(childId));
+            Assert.That(
+                m_typeTable.FindSubTypes(secondParentId).ToList(),
+                Does.Contain(childId));
+        }
+
+        [Test]
         public void AddReferenceSubtypeRegistersTypeWithBrowseName()
         {
             var refId = new NodeId(4000);

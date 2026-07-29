@@ -108,10 +108,13 @@ namespace Opc.Ua.Sessions.Tests
         /// Tear down the Server and the Client.
         /// </summary>
         [OneTimeTearDown]
-        public override Task OneTimeTearDownAsync()
+        public override async Task OneTimeTearDownAsync()
         {
-            ClientFixture?.Dispose();
-            return base.OneTimeTearDownAsync();
+            if (ClientFixture != null)
+            {
+                await ClientFixture.DisposeAsync().ConfigureAwait(false);
+            }
+            await base.OneTimeTearDownAsync().ConfigureAwait(false);
         }
 
         /// <summary>

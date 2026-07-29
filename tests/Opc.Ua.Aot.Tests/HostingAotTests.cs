@@ -99,6 +99,10 @@ namespace Opc.Ua.Aot.Tests
             await Assert.That(resolved.ApplicationUri).IsEqualTo(expectedUri);
             await Assert.That(resolved.AutoAcceptUntrustedCertificates).IsTrue();
 
+            INodeManagerLifecycle lifecycle =
+                sp.GetService<INodeManagerLifecycle>();
+            await Assert.That(lifecycle).IsNotNull();
+
             // The hosted service is registered via the AOT-safe
             // AddHostedService<T>() overload. Resolve it via the
             // ServiceDescriptor collection rather than constructing it,
@@ -138,6 +142,19 @@ namespace Opc.Ua.Aot.Tests
             Func<CancellationToken, Task<ManagedSession>> sessionAccessor =
                 sp.GetService<Func<CancellationToken, Task<ManagedSession>>>();
             await Assert.That(sessionAccessor).IsNotNull();
+
+            ReverseConnectManager reverseConnectManager =
+                sp.GetService<ReverseConnectManager>();
+            await Assert.That(reverseConnectManager).IsNotNull();
+
+            IReverseConnectConfigurationProvider reverseConnectProvider =
+                sp.GetService<IReverseConnectConfigurationProvider>();
+            await Assert.That(reverseConnectProvider).IsNotNull();
+
+            int reverseConnectHostedCount = services.Count(s =>
+                s.ServiceType == typeof(IHostedService) &&
+                s.ImplementationType?.Name == "ReverseConnectManagerHostedService");
+            await Assert.That(reverseConnectHostedCount).IsEqualTo(1);
         }
 
         [Test]

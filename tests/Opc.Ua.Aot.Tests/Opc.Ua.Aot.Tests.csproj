@@ -8,7 +8,7 @@
     <Nullable>disable</Nullable>
     <!-- Suppress the assembly-level IL2104 (trim) and IL3053 (AOT) rollup
          warnings from third-party packages that are not trim/AOT-analysis-clean
-         (e.g. Dekaf, the pure-managed Kafka client used on net10.0). These are
+         (e.g. the default Dekaf and opt-in Confluent.Kafka clients). These are
          referenced-assembly rollups only; our own assemblies are still analyzed
          individually per-project via IsAotCompatible on net8.0+. -->
     <NoWarn>$(NoWarn);IL2104;IL3053</NoWarn>
@@ -34,6 +34,9 @@
     <ProjectReference Include="..\..\samples\Quickstarts.Servers\Quickstarts.Servers.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Gds.Client.Common\Opc.Ua.Gds.Client.Common.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Gds.Server.Common\Opc.Ua.Gds.Server.Common.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.ISA95\Opc.Ua.ISA95.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.ISA95.Client\Opc.Ua.ISA95.Client.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.ISA95.Server\Opc.Ua.ISA95.Server.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.PubSub\Opc.Ua.PubSub.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.PubSub.Udp\Opc.Ua.PubSub.Udp.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.PubSub.Eth\Opc.Ua.PubSub.Eth.csproj" />

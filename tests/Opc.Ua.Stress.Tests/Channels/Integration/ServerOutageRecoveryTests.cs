@@ -57,10 +57,10 @@ namespace Opc.Ua.Stress.Tests.Channels.Integration
         public async Task SingleSessionRecoversAfterServerRestartAsync(
             CancellationToken ct)
         {
-            ClientChannelManager manager = CreateChannelManager(CreateTightReconnectPolicy());
+            using MetricsCollector collector = new();
+            ClientChannelManager manager = CreateChannelManager(CreateTightReconnectPolicy(), collector.Telemetry);
             try
             {
-                using MetricsCollector collector = new();
                 LeakCounters.Snapshot before = LeakCounters.Capture(manager);
                 ConfiguredEndpoint endpoint = await GetEndpointAsync(SecurityPolicies.None)
                     .ConfigureAwait(false);
@@ -128,10 +128,10 @@ namespace Opc.Ua.Stress.Tests.Channels.Integration
         public async Task MultipleSessionsRecoverAfterServerRestartAsync(
             CancellationToken ct)
         {
-            ClientChannelManager manager = CreateChannelManager(CreateTightReconnectPolicy());
+            using MetricsCollector collector = new();
+            ClientChannelManager manager = CreateChannelManager(CreateTightReconnectPolicy(), collector.Telemetry);
             try
             {
-                using MetricsCollector collector = new();
                 LeakCounters.Snapshot before = LeakCounters.Capture(manager);
                 ConfiguredEndpoint endpoint = await GetEndpointAsync(SecurityPolicies.None)
                     .ConfigureAwait(false);

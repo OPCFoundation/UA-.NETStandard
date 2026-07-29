@@ -295,10 +295,6 @@ namespace Quickstarts.ConsoleReferenceClient
                             StringComparison.Ordinal
                         );
                         config.TraceConfiguration.DeleteOnLoad = true;
-                        // TODO: remove this in 2.0 migration; use telemetry.ConfigureLogging below.
-#pragma warning disable CS0618 // Type or member is obsolete
-                        config.TraceConfiguration.ApplySettings();
-#pragma warning restore CS0618 // Type or member is obsolete
                     }
 
                     // setup the logging
@@ -335,7 +331,8 @@ namespace Quickstarts.ConsoleReferenceClient
                         Console.WriteLine($"Create reverse connection endpoint at {reverseConnectUrlString}.");
                         reverseConnectManager = new ReverseConnectManager(telemetry);
                         reverseConnectManager.AddEndpoint(new Uri(reverseConnectUrlString));
-                        reverseConnectManager.StartService(config);
+                        await reverseConnectManager.StartServiceAsync(config, cancellationToken)
+                            .ConfigureAwait(false);
                     }
 
                     // wait for timeout or Ctrl-C
@@ -766,7 +763,10 @@ namespace Quickstarts.ConsoleReferenceClient
                 }
                 finally
                 {
-                    reverseConnectManager?.Dispose();
+                    if (reverseConnectManager != null)
+                    {
+                        await reverseConnectManager.DisposeAsync().ConfigureAwait(false);
+                    }
                 }
             });
 
