@@ -4704,8 +4704,13 @@ namespace Opc.Ua.Schema.Model
                 if (instance is MethodDesign method)
                 {
                     var mergedMethod = (MethodDesign)mergedInstance;
+                    // The merged copy overrides the instance declaration it was
+                    // copied from, so that declaration is what a caller may pass
+                    // to Call as the MethodId. Pointing the link at the copy
+                    // itself would make MethodDeclarationId self referential and
+                    // the supertype's MethodId would no longer resolve.
                     mergedMethod.MethodDeclarationNode ??=
-                        method.MethodDeclarationNode ?? mergedMethod;
+                        method.MethodDeclarationNode ?? method;
                     MethodDesign methodDefinition =
                         MethodDesignArgumentResolver.ResolveMethodDefinition(mergedMethod);
                     mergedMethod.InputArguments =
@@ -5104,11 +5109,25 @@ namespace Opc.Ua.Schema.Model
 
             if (overridesType || overridesArguments || overridesDeclaration)
             {
+                MethodDesign inheritedDeclaration = mergedMethod.MethodDeclarationNode;
                 mergedMethod.TypeDefinition = method.TypeDefinition;
                 mergedMethod.TypeDefinitionNode = null;
                 mergedMethod.MethodType = method.MethodType;
+                // An override that keeps the inherited signature stays callable
+                // with the MethodId of the declaration it overrides, so that
+                // link is preserved. Only a signature change makes the override
+                // a declaration in its own right - pointing the link at the
+                // override otherwise would make MethodDeclarationId self
+                // referential and the supertype's MethodId would stop
+                // resolving in Call.
                 mergedMethod.MethodDeclarationNode =
-                    method.MethodDeclarationNode ?? mergedMethod;
+                    method.MethodDeclarationNode ??
+                    (inheritedDeclaration != null &&
+                        MethodDesignArgumentResolver.HaveSameMethodSignature(
+                            inheritedDeclaration,
+                            method)
+                            ? inheritedDeclaration
+                            : mergedMethod);
                 mergedMethod.InputArguments =
                     MethodDesignArgumentResolver.ResolveMethodInputs(method);
                 mergedMethod.OutputArguments =
