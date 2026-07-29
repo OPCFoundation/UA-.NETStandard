@@ -162,6 +162,7 @@ namespace Opc.Ua.Bindings
             // subjectPublicKeyInfo, because that is what the key equality
             // check of Part 6 errata 7.6.1 compares against.
             X509Certificate2 tlsCertificate = ResolveTlsCertificate();
+            m_tlsCertificate = tlsCertificate;
 
             var listenerOptions = new QuicListenerOptions
             {
@@ -177,7 +178,13 @@ namespace Opc.Ua.Bindings
                         ServerAuthenticationOptions = new SslServerAuthenticationOptions
                         {
                             ApplicationProtocols = [QuicTransport.ApplicationProtocol],
-                            ServerCertificate = tlsCertificate,
+                            // Read the field rather than a captured local so a
+                            // rotation performed by CertificateUpdate reaches
+                            // every subsequent connection. Presenting a retired
+                            // certificate over TLS while the UASC layer has
+                            // moved to the new one would break the key equality
+                            // check of Part 6 errata 7.6.1.
+                            ServerCertificate = m_tlsCertificate,
                             ClientCertificateRequired = false
                         }
                     })
@@ -231,6 +238,19 @@ namespace Opc.Ua.Bindings
 
             m_channels.Clear();
             stop?.Dispose();
+
+            X509Certificate2? tlsCertificate = Interlocked.Exchange(ref m_tlsCertificate, null);
+            tlsCertificate?.Dispose();
+
+            lock (m_retiredTlsCertificates)
+            {
+                foreach (X509Certificate2 retired in m_retiredTlsCertificates)
+                {
+                    retired.Dispose();
+                }
+
+                m_retiredTlsCertificates.Clear();
+            }
         }
 
         /// <summary>
@@ -259,6 +279,54 @@ namespace Opc.Ua.Bindings
             }
 
             m_serverCertificates = serverCertificates;
+
+            // The endpoint descriptions advertise the certificate a client
+            // should expect, so they shall move with it.
+            if (m_descriptions != null)
+            {
+                foreach (EndpointDescription description in m_descriptions)
+                {
+                    if (description.ServerCertificate.IsEmpty)
+                    {
+                        continue;
+                    }
+
+                    using CertificateEntry? entry = serverCertificates
+                        .AcquireApplicationCertificateBySecurityPolicy(
+                            description.SecurityPolicyUri ?? SecurityPolicies.Basic256Sha256);
+
+                    if (entry?.Certificate == null)
+                    {
+                        continue;
+                    }
+
+                    description.ServerCertificate = serverCertificates.SendCertificateChain
+                        ? entry.GetEncodedChainBlob().ToByteString()
+                        : entry.Certificate.RawData.ToByteString();
+                }
+            }
+
+            // Only replace the TLS certificate once the listener is running;
+            // OpenAsync resolves it for itself.
+            if (m_listener == null)
+            {
+                return;
+            }
+
+            X509Certificate2 rotated = ResolveTlsCertificate();
+            X509Certificate2? retired = Interlocked.Exchange(ref m_tlsCertificate, rotated);
+
+            // A handshake already in flight still holds the outgoing
+            // certificate, so retire rather than dispose it and release the
+            // whole set when the listener closes. Rotation is rare enough
+            // that the set stays small.
+            if (retired != null)
+            {
+                lock (m_retiredTlsCertificates)
+                {
+                    m_retiredTlsCertificates.Add(retired);
+                }
+            }
         }
 
         /// <inheritdoc/>
@@ -658,6 +726,8 @@ namespace Opc.Ua.Bindings
         private const int MaxInboundStreams = 128;
 
         private readonly ConcurrentDictionary<uint, TcpListenerChannel> m_channels = new();
+        private readonly List<X509Certificate2> m_retiredTlsCertificates = [];
+        private X509Certificate2? m_tlsCertificate;
         private readonly IBufferManagerFactory m_bufferManagerFactory;
         private readonly ILogger m_logger;
         private List<EndpointDescription>? m_descriptions;

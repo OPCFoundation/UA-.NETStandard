@@ -186,6 +186,35 @@ between rounds, which capped a channel at one quantum per tick — about fifty f
 second. The sample measured 0.5 Mbit/s before the fix and 1.3 Gbit/s after it, and
 `ManyFramesDrainWithoutWaitingForTheIdleTick` fails loudly if the wake is dropped again.
 
+## Test coverage
+
+The suite is 226 tests over `tests/Opc.Ua.Core.DataChannels.Tests`, covering
+**87.6%** of the lines in `Stack/DataChannels/**`, `Stack/Tcp/UaSCBinaryChannel.DataChannels.cs`
+and `Opc.Ua.Bindings.Quic`. Re-measure with the repo's own settings:
+
+```sh
+dotnet test tests/Opc.Ua.Core.DataChannels.Tests/Opc.Ua.Core.DataChannels.Tests.csproj \
+  -f net10.0 -c Release --collect:"XPlat Code Coverage" --settings tests/coverlet.runsettings.xml
+```
+
+QUIC tests are guarded by `QuicConnection.IsSupported` and `#if NET9_0_OR_GREATER`, so
+the net472 and net8.0 legs and any agent without msquic run 184 of them and skip the
+rest rather than failing. There is deliberately **no build-time coverage gate**: a gate
+would fail exactly those agents.
+
+Three defects were found by writing these tests, all in code that the pre-existing
+end-to-end tests had executed without asserting:
+
+| Defect | Consequence |
+| --- | --- |
+| `TryPing()` had no channel-state guard, though `Write()` guards `Closed`/`Faulted` | On a dead channel it took a sequence number, enqueued a PING, re-woke the scheduler and latched `m_pingOutstanding`, so the channel could later be declared dead by a ping that should never have been sent. `TryPing` is public API. |
+| `QuicConnectionBuilder.ConnectAsync` caught only `QuicException` | An ALPN or certificate rejection surfaces from the TLS handshake as `AuthenticationException` and escaped as a raw platform exception, so callers using the stack's `catch (ServiceResultException)` idiom missed it entirely. Now mapped to `Bad_SecurityChecksFailed`. |
+| `QuicTransportListener` captured the TLS certificate in the accept callback's closure | `CertificateUpdate` moved the UASC layer to the rotated certificate while TLS kept presenting the retired one — breaking the very key-equality check of §7.6.1 that the errata exists to enforce. The callback now reads a field, endpoint descriptions are refreshed, and retired certificates are held until close so an in-flight handshake is never pulled out from under. |
+
+The one lesson worth carrying forward: none of these were caught by coverage of the
+*happy path*. The scheduler bug in particular had every line executed and still shipped,
+because nothing asserted the rate.
+
 ## Deviation from the errata
 
 `OpenDataChannel` in the errata carries `transportChannelId` in both the request and the

@@ -31,6 +31,7 @@ using System;
 using System.Net;
 using System.Net.Quic;
 using System.Net.Security;
+using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -197,6 +198,18 @@ namespace Opc.Ua.Bindings
                     StatusCodes.BadNotConnected,
                     e,
                     "The QUIC connection to {0} failed.",
+                    url);
+            }
+            catch (AuthenticationException e)
+            {
+                // A rejected ALPN or certificate surfaces from the TLS
+                // handshake rather than from QUIC, and shall still reach the
+                // caller as a StatusCode rather than a raw platform
+                // exception.
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSecurityChecksFailed,
+                    e,
+                    "The QUIC handshake with {0} failed its security checks.",
                     url);
             }
 

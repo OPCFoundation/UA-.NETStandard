@@ -754,6 +754,11 @@ namespace Opc.Ua.Bindings
         {
             lock (m_lock)
             {
+                if (m_state is DataChannelState.Closed or DataChannelState.Faulted)
+                {
+                    return false;
+                }
+
                 if (m_pingOutstanding)
                 {
                     return false;
@@ -882,7 +887,10 @@ namespace Opc.Ua.Bindings
                         return DataChannelFrameAction.ResetChannel;
                     case DataChannelReceiveOutcome.DiscardGapped:
                     case DataChannelReceiveOutcome.DiscardDuplicate:
-                        m_receiveCredit.Release(length);
+                        if (!m_transport.HasTransportFlowControl)
+                        {
+                            m_receiveCredit.Release(length);
+                        }
                         return DataChannelFrameAction.Accepted;
                     default:
                         break;
