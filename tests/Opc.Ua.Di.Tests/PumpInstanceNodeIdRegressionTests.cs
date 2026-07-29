@@ -83,10 +83,16 @@ namespace Opc.Ua.Di.Tests
             "Events/OverTempAlarm/AckedState/Id",
             "Events/OverTempAlarm/Acknowledge",
             "Events/OverTempAlarm/Acknowledge/InputArguments",
+            // Empty argument properties on argument-less standard methods.
+            // The generated ConditionType declaration materialises
+            // InputArguments/OutputArguments even where the method takes
+            // none; pinned here so the deviation stays visible.
+            "Events/OverTempAlarm/Acknowledge/OutputArguments",
             "Events/OverTempAlarm/ActiveState",
             "Events/OverTempAlarm/ActiveState/Id",
             "Events/OverTempAlarm/AddComment",
             "Events/OverTempAlarm/AddComment/InputArguments",
+            "Events/OverTempAlarm/AddComment/OutputArguments",
             "Events/OverTempAlarm/BranchId",
             "Events/OverTempAlarm/ClientUserId",
             "Events/OverTempAlarm/Comment",
@@ -95,7 +101,11 @@ namespace Opc.Ua.Di.Tests
             "Events/OverTempAlarm/ConditionClassName",
             "Events/OverTempAlarm/ConditionName",
             "Events/OverTempAlarm/Disable",
+            "Events/OverTempAlarm/Disable/InputArguments",
+            "Events/OverTempAlarm/Disable/OutputArguments",
             "Events/OverTempAlarm/Enable",
+            "Events/OverTempAlarm/Enable/InputArguments",
+            "Events/OverTempAlarm/Enable/OutputArguments",
             "Events/OverTempAlarm/EnabledState",
             "Events/OverTempAlarm/EnabledState/Id",
             "Events/OverTempAlarm/EventId",
