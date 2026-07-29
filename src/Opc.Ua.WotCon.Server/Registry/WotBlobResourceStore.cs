@@ -291,7 +291,13 @@ namespace Opc.Ua.WotCon.Server.Registry
         {
             foreach (char c in resourceKey)
             {
-                if (!char.IsAsciiLetterOrDigit(c) && c != '-')
+                // char.IsAsciiLetterOrDigit is .NET 7+; this also targets net48 and
+                // netstandard2.0, and char.IsLetterOrDigit would accept non-ASCII letters that are
+                // not safe in a file name.
+                bool ascii = (c >= '0' && c <= '9') ||
+                    (c >= 'a' && c <= 'z') ||
+                    (c >= 'A' && c <= 'Z');
+                if (!ascii && c != '-')
                 {
                     return false;
                 }

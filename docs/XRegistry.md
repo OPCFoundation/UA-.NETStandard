@@ -217,6 +217,11 @@ Two rules make a store substitutable:
 The contract is exercised by `XRegistryResourceStoreContractTests`; deriving a fixture from it is the
 quickest way to validate a new implementation.
 
+`Opc.Ua.WotCon.Server` is a worked example: `WotBlobResourceStore` implements this interface over
+the `{root}/{digest}.bin` layout the WoT registry has always written, so a domain registry can adopt
+the shared byte layer without an on-disk migration. See
+[WoT Connectivity — keeping the document bytes in a shared store](WoTConnectivity.md#keeping-the-document-bytes-in-a-shared-store).
+
 ### Transport security
 
 Registry **writes always require a `SignAndEncrypt` secure channel**. A document and its

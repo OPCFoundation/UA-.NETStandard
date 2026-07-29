@@ -475,6 +475,19 @@ Two persistence back-ends are provided:
 * `InMemoryWotRegistryStore` — volatile; the registry starts empty.
 * `FileWotRegistryStore` — durable; metadata is written with a **bounded atomic replace** (write-to-temp then `File.Replace`), one blob per version, content-addressed directories. Invalid documents are stored with their failure state so a restart restores exactly the last observed contents.
 
+#### Keeping the document bytes in a shared store
+
+`WotRegistryServerOptions.ResourceStore` moves the document bytes behind the shared, injectable [`IXRegistryResourceStore`](XRegistry.md#resource-storage) — which is what lets a registry run in a high-availability or distributed deployment, because the documents then live somewhere every node can reach rather than in one server's registry folder. A store registered in DI wins over one set on the options, matching the xRegistry server's precedence:
+
+```csharp
+options.StorageFolder = "/var/lib/myapp/wot-registry";   // manifest
+options.ResourceStore = new WotBlobResourceStore("/mnt/shared/wot-documents");
+```
+
+`WotBlobResourceStore` is the default WoT implementation. It keeps one file per document named after the document's SHA-256 digest — deliberately the `{root}/{digest}.bin` layout `FileWotRegistryStore` has always written, so adopting the interface needs **no on-disk migration** and existing registry folders keep working. It is validated against the shared `XRegistryResourceStoreContractTests`, so any other implementation (an object store, a database) can be substituted.
+
+The registry still writes and switches its own manifest atomically; only the bytes move. That split is required because `IXRegistryResourceStore` has no staging, flush or bulk-delete concept, whereas the file store fsyncs its blob directory before the manifest switch and deletes it wholesale when rolling back a pristine commit. It is safe because documents are content-addressed and therefore immutable: a document is always written *before* the manifest that references it, so an interrupted commit can leave an orphaned document but never a dangling reference. A supplied store owns the durability of the bytes it holds.
+
 Resource bounds (`WotRegistryPersistenceBounds`) cap document size, versions per resource, resources per group, and group count.
 
 ### 11.3 Materialization coordinator
