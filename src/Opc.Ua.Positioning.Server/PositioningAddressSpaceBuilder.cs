@@ -45,6 +45,12 @@ namespace Opc.Ua.Positioning.Server
     /// </summary>
     public sealed class PositioningAddressSpaceBuilder
     {
+        /// <summary>
+        /// How often a provider that cannot push is polled when the bound
+        /// Variable does not declare a sampling interval of its own.
+        /// </summary>
+        private const double kDefaultPollIntervalMilliseconds = 1000.0;
+
         private readonly ILogger m_logger;
 
         private readonly Dictionary<SpatialObjectState, SpatialObjectsListState>
@@ -441,7 +447,11 @@ namespace Opc.Ua.Positioning.Server
                     provider,
                     sourceId,
                     cts.Token)
-                : Task.CompletedTask;
+                : PollGlobalPositionValueAsync(
+                    state,
+                    provider,
+                    sourceId,
+                    cts.Token);
             return new PositioningProviderSubscription(cts, completion);
         }
 
@@ -669,7 +679,12 @@ namespace Opc.Ua.Positioning.Server
                     sourceId,
                     onSampleApplied,
                     cts.Token)
-                : Task.CompletedTask;
+                : PollGlobalLocationAsync(
+                    state,
+                    provider,
+                    sourceId,
+                    onSampleApplied,
+                    cts.Token);
             return new PositioningProviderSubscription(cts, completion);
         }
 
@@ -914,6 +929,90 @@ namespace Opc.Ua.Positioning.Server
                 m_logger.GlobalProviderFailed(sourceId, ex);
                 throw;
             }
+        }
+
+        private async Task PollGlobalPositionValueAsync(
+            GlobalPositionState state,
+            IGeoLocationProvider provider,
+            string sourceId,
+            CancellationToken cancellationToken)
+        {
+            TimeSpan interval = GetPollInterval(state);
+            try
+            {
+                while (!cancellationToken.IsCancellationRequested)
+                {
+                    await Task.Delay(interval, cancellationToken)
+                        .ConfigureAwait(false);
+                    GeoLocationSample sample = await provider
+                        .ReadAsync(sourceId, cancellationToken)
+                        .ConfigureAwait(false);
+                    ValidateProviderSourceMatch(sample.SourceId, sourceId);
+                    SetGlobalPositionValue(state, sample);
+                }
+            }
+            catch (OperationCanceledException)
+                when (cancellationToken.IsCancellationRequested)
+            {
+            }
+            catch (Exception ex)
+            {
+                MarkGlobalPositionUnavailable(state);
+                state.ClearChangeMasks(SystemContext, includeChildren: true);
+                m_logger.GlobalProviderFailed(sourceId, ex);
+                throw;
+            }
+        }
+
+        private async Task PollGlobalLocationAsync(
+            GlobalLocationState state,
+            IGeoLocationProvider provider,
+            string sourceId,
+            Func<GeoLocationSample, CancellationToken, ValueTask>?
+                onSampleApplied,
+            CancellationToken cancellationToken)
+        {
+            TimeSpan interval = GetPollInterval(state);
+            try
+            {
+                while (!cancellationToken.IsCancellationRequested)
+                {
+                    await Task.Delay(interval, cancellationToken)
+                        .ConfigureAwait(false);
+                    GeoLocationSample sample = await provider
+                        .ReadAsync(sourceId, cancellationToken)
+                        .ConfigureAwait(false);
+                    ApplyGlobalSample(state, sample, sourceId);
+                    if (onSampleApplied != null)
+                    {
+                        await onSampleApplied(sample, cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                }
+            }
+            catch (OperationCanceledException)
+                when (cancellationToken.IsCancellationRequested)
+            {
+            }
+            catch (Exception ex)
+            {
+                MarkGlobalLocationUnavailable(state);
+                m_logger.GlobalProviderFailed(sourceId, ex);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Returns how often a provider that cannot push is polled: the
+        /// Variable's own sampling interval when it declares one, otherwise a
+        /// one-second default.
+        /// </summary>
+        private static TimeSpan GetPollInterval(BaseVariableState state)
+        {
+            double milliseconds = state.MinimumSamplingInterval;
+            return milliseconds > 0
+                ? TimeSpan.FromMilliseconds(milliseconds)
+                : TimeSpan.FromMilliseconds(kDefaultPollIntervalMilliseconds);
         }
 
         private async Task WatchRelativeSpatialLocationAsync(

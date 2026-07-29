@@ -262,6 +262,41 @@ namespace Opc.Ua.Positioning.Tests
             });
         }
 
+        [Test]
+        public async Task PollOnlyProviderKeepsAGlobalLocationFreshAsync()
+        {
+            GlobalLocationState state = await CreateGlobalLocationAsync()
+                .ConfigureAwait(false);
+            // Poll fast so the test does not wait on the one-second default.
+            state.MinimumSamplingInterval = 20.0;
+            var provider = new PollOnlyGlobalProvider(
+                CreateGlobalSample("robot", 8.0, includeOptionalFields: false));
+
+            PositioningProviderSubscription subscription =
+                await m_builder.BindGlobalLocationAsync(
+                    state,
+                    provider,
+                    "robot").ConfigureAwait(false);
+
+            Assert.That(state.Position!.Longitude!.Value, Is.EqualTo(8.0));
+
+            // A provider that cannot push must still be polled, otherwise the
+            // Variable would serve its initial value with Good status forever.
+            provider.Publish(
+                CreateGlobalSample("robot", 9.0, includeOptionalFields: false));
+            await WaitUntilAsync(
+                () => state.Position!.Longitude!.Value == 9.0).ConfigureAwait(false);
+
+            subscription.Dispose();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(provider.WatchCallCount, Is.Zero);
+                Assert.That(provider.ReadCallCount, Is.GreaterThan(1));
+                Assert.That(state.Position!.Longitude!.Value, Is.EqualTo(9.0));
+            });
+        }
+
         private async ValueTask<GlobalLocationState> CreateGlobalLocationAsync()
         {
             GlobalLocationState state = m_builder.AttachGlobalLocation(
@@ -324,6 +359,55 @@ namespace Opc.Ua.Positioning.Tests
             Assert.Fail("The provider update was not applied before the timeout.");
         }
 
+        /// <summary>
+        /// A provider that cannot push, so the host must poll it.
+        /// </summary>
+        private sealed class PollOnlyGlobalProvider : IGeoLocationProvider
+        {
+            public PollOnlyGlobalProvider(GeoLocationSample initial)
+            {
+                m_current = initial;
+            }
+
+            public bool SupportsPush => false;
+
+            public int ReadCallCount => m_readCallCount;
+
+            public int WatchCallCount => m_watchCallCount;
+
+            public void Publish(GeoLocationSample sample)
+            {
+                lock (m_gate)
+                {
+                    m_current = sample;
+                }
+            }
+
+            public ValueTask<GeoLocationSample> ReadAsync(
+                string sourceId,
+                CancellationToken cancellationToken = default)
+            {
+                Interlocked.Increment(ref m_readCallCount);
+                lock (m_gate)
+                {
+                    return new ValueTask<GeoLocationSample>(m_current);
+                }
+            }
+
+            public async IAsyncEnumerable<GeoLocationSample> WatchAsync(
+                string sourceId,
+                [EnumeratorCancellation] CancellationToken cancellationToken = default)
+            {
+                Interlocked.Increment(ref m_watchCallCount);
+                await Task.Yield();
+                yield break;
+            }
+
+            private readonly Lock m_gate = new();
+            private GeoLocationSample m_current;
+            private int m_readCallCount;
+            private int m_watchCallCount;
+        }
         private sealed class ControlledGlobalProvider :
             IGeoLocationProvider,
             IDisposable
