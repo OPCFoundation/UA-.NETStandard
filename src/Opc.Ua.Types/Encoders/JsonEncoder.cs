@@ -1053,7 +1053,7 @@ namespace Opc.Ua
             // Now write the remainder of the data value fields
             if (!value.StatusCode.Equals(StatusCodes.Good, StatusCodeComparison.AllBits))
             {
-                WriteStatusCode(JsonProperties.StatusCode, value.StatusCode);
+                WriteStatusCode(JsonProperties.Status, value.StatusCode);
             }
             if (value.SourceTimestamp != DateTimeUtc.MinValue)
             {
