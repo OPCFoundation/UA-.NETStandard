@@ -36,6 +36,7 @@
     <ProjectReference Include="..\..\src\Opc.Ua.WotCon.Bindings\Opc.Ua.WotCon.Bindings.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.WotCon.Server\Opc.Ua.WotCon.Server.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.WotCon.Client\Opc.Ua.WotCon.Client.csproj" />
+    <ProjectReference Include="..\Opc.Ua.XRegistry.Tests\Opc.Ua.XRegistry.Tests.csproj" />
     <ProjectReference Include="..\..\samples\Quickstarts.Servers\Quickstarts.Servers.csproj" />
     <ProjectReference Include="..\Opc.Ua.Server.TestFramework\Opc.Ua.Server.TestFramework.csproj" />
     <ProjectReference Include="..\Opc.Ua.Client.TestFramework\Opc.Ua.Client.TestFramework.csproj" />
