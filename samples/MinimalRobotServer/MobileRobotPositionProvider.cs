@@ -175,10 +175,9 @@ namespace Robotics
             TimeSpan elapsed)
         {
             ThreeDFrame local = EvaluateLocalFrame(sourceId, elapsed);
-            S3DGeographicCoordinateDataType geographic =
-                Scenario.Fit.LocalToGlobal(
-                    local.CartesianCoordinates,
-                    AngleUnit.Degrees);
+            S3DGeographicCoordinateDataType geographic = Scenario.Fit.LocalToGlobal(
+                local.CartesianCoordinates,
+                AngleUnit.Degrees);
             var position = new GlobalPositionDataType
             {
                 EncodingMask =

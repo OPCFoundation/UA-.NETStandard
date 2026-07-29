@@ -116,22 +116,20 @@ namespace Opc.Ua.Positioning.Tests
                 frame,
                 metres,
                 degrees);
-            CartesianFrameAngleOrientationState internalFrame =
-                builder.AddInternalFrame(
-                    spatialObject,
-                    new QualifiedName("SensorFrame", rslNamespaceIndex),
-                    spatialObject.PositionFrame!.NodeId,
-                    frame,
-                    metres,
-                    degrees);
-            CartesianFrameAngleOrientationState alternativeFrame =
-                builder.AddAlternativeFrame(
-                    spatialObject,
-                    new QualifiedName("SurveyFrame", rslNamespaceIndex),
-                    spatialObject.PositionFrame.NodeId,
-                    frame,
-                    metres,
-                    degrees);
+            CartesianFrameAngleOrientationState internalFrame = builder.AddInternalFrame(
+                spatialObject,
+                new QualifiedName("SensorFrame", rslNamespaceIndex),
+                spatialObject.PositionFrame!.NodeId,
+                frame,
+                metres,
+                degrees);
+            CartesianFrameAngleOrientationState alternativeFrame = builder.AddAlternativeFrame(
+                spatialObject,
+                new QualifiedName("SurveyFrame", rslNamespaceIndex),
+                spatialObject.PositionFrame.NodeId,
+                frame,
+                metres,
+                degrees);
             await builder.RegisterAsync(spatialObject).ConfigureAwait(false);
 
             var global = new S3DGeographicCoordinateDataType

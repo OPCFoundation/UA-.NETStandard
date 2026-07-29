@@ -205,14 +205,13 @@ namespace Opc.Ua.Positioning.Tests
         {
             EUInformation metres = CreateUnit("m", "metre");
             EUInformation degrees = CreateUnit("deg", "degree");
-            CartesianFrameAngleOrientationState frame =
-                m_builder.CreateCartesianFrame(
-                    m_owner,
-                    new QualifiedName("TrackedFrame", m_namespaceIndex),
-                    m_owner.NodeId,
-                    CreateFrame(1.0),
-                    metres,
-                    degrees);
+            CartesianFrameAngleOrientationState frame = m_builder.CreateCartesianFrame(
+                m_owner,
+                new QualifiedName("TrackedFrame", m_namespaceIndex),
+                m_owner.NodeId,
+                CreateFrame(1.0),
+                metres,
+                degrees);
             m_owner.AddChild(frame);
             await m_builder.RegisterAsync(frame).ConfigureAwait(false);
 

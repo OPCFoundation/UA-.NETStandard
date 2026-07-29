@@ -295,10 +295,9 @@ namespace Opc.Ua.Positioning.Tests
                 sessionMock.Object,
                 Mock.Of<ITelemetryContext>());
 
-            ServiceResultException? exception =
-                Assert.ThrowsAsync<ServiceResultException>(
-                    async () => await client.ReadGlobalLocationAsync(locationId)
-                        .ConfigureAwait(false));
+            ServiceResultException? exception = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await client.ReadGlobalLocationAsync(locationId)
+                    .ConfigureAwait(false));
 
             Assert.That(
                 exception!.StatusCode,

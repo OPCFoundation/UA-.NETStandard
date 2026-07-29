@@ -120,10 +120,9 @@ namespace Opc.Ua.Aot.Tests
                 }
             };
             byte[] encoded = BinaryEncoder.EncodeMessage(location, context);
-            GlobalLocationDataType decoded =
-                BinaryDecoder.DecodeMessage<GlobalLocationDataType>(
-                    encoded,
-                    context);
+            GlobalLocationDataType decoded = BinaryDecoder.DecodeMessage<GlobalLocationDataType>(
+                encoded,
+                context);
 
             await Assert.That(factory.NamespacesUris.Count).IsEqualTo(2);
             await Assert.That(relativeFactory).IsNotNull();

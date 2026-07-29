@@ -194,11 +194,10 @@ namespace Opc.Ua.SourceGeneration
                 CreateStackCompilation("DeclarationBackedMethodConsumer")
                     .AddReferences(producer.ToMetadataReference());
 
-            (GeneratorRunResult result, Compilation output, ImmutableArray<Diagnostic> diagnostics) =
-                RunModelGenerator(
-                    consumerBase,
-                    "DeclarationBackedMethodConsumer.NodeSet2.xml",
-                    "DeclarationBackedMethodConsumer");
+            (GeneratorRunResult result, Compilation output, ImmutableArray<Diagnostic> diagnostics) = RunModelGenerator(
+                consumerBase,
+                "DeclarationBackedMethodConsumer.NodeSet2.xml",
+                "DeclarationBackedMethodConsumer");
 
             ImmutableArray<Diagnostic> outputDiagnostics = output.GetDiagnostics();
             Assert.Multiple(() =>
@@ -346,10 +345,9 @@ namespace Opc.Ua.SourceGeneration
         public void FluentAccessorsOnlyProviderPreventsDownstreamSecondEmission()
         {
             (GeneratorRunResult firstResult, Compilation firstCompilation,
-                ImmutableArray<Diagnostic> firstDiagnostics) =
-                    RunFluentAccessorsOnly(
-                        s_producerWithoutAccessors.Value,
-                        assemblyName: "AccessorProvider");
+                ImmutableArray<Diagnostic> firstDiagnostics) = RunFluentAccessorsOnly(
+                    s_producerWithoutAccessors.Value,
+                    assemblyName: "AccessorProvider");
             Assert.That(
                 firstDiagnostics.Where(d => d.Severity == DiagnosticSeverity.Error),
                 Is.Empty);
@@ -363,11 +361,10 @@ namespace Opc.Ua.SourceGeneration
                     .Single(reference => reference.ModelUri == DemoModelUri);
             Assert.That(provider.Prefix, Is.EqualTo("DemoModel"));
 
-            (GeneratorRunResult secondResult, _, ImmutableArray<Diagnostic> secondDiagnostics) =
-                RunFluentAccessorsOnly(
-                    s_producerWithoutAccessors.Value,
-                    additionalReferences: [accessorProvider],
-                    assemblyName: "DownstreamConsumer");
+            (GeneratorRunResult secondResult, _, ImmutableArray<Diagnostic> secondDiagnostics) = RunFluentAccessorsOnly(
+                s_producerWithoutAccessors.Value,
+                additionalReferences: [accessorProvider],
+                assemblyName: "DownstreamConsumer");
 
             Diagnostic diagnostic = secondDiagnostics.Single(d => d.Id == "MODELGEN014");
             Assert.Multiple(() =>
@@ -450,12 +447,11 @@ namespace Opc.Ua.SourceGeneration
                 version: "999.0",
                 payload: null);
 
-            (GeneratorRunResult normalResult, _, ImmutableArray<Diagnostic> normalDiagnostics) =
-                RunFluentAccessorsOnly(
-                    s_producerWithoutAccessors.Value,
-                    additionalReferences: [reexport.ToMetadataReference()],
-                    fluentAccessorsOnly: false,
-                    assemblyName: "NormalConsumer");
+            (GeneratorRunResult normalResult, _, ImmutableArray<Diagnostic> normalDiagnostics) = RunFluentAccessorsOnly(
+                s_producerWithoutAccessors.Value,
+                additionalReferences: [reexport.ToMetadataReference()],
+                fluentAccessorsOnly: false,
+                assemblyName: "NormalConsumer");
             Assert.Multiple(() =>
             {
                 Assert.That(
@@ -498,12 +494,11 @@ namespace Opc.Ua.SourceGeneration
                 version: "0.0",
                 payload: Convert.ToBase64String([0xAA, 0xC7, 0x01, 0x01, 0xFF]));
 
-            (GeneratorRunResult result, _, ImmutableArray<Diagnostic> diagnostics) =
-                RunFluentAccessorsOnly(
-                    validProducer,
-                    additionalReferences: [corruptCandidate.ToMetadataReference()],
-                    fluentAccessorsOnly: false,
-                    assemblyName: "NormalConsumer");
+            (GeneratorRunResult result, _, ImmutableArray<Diagnostic> diagnostics) = RunFluentAccessorsOnly(
+                validProducer,
+                additionalReferences: [corruptCandidate.ToMetadataReference()],
+                fluentAccessorsOnly: false,
+                assemblyName: "NormalConsumer");
 
             Assert.Multiple(() =>
             {
@@ -524,11 +519,10 @@ namespace Opc.Ua.SourceGeneration
                 version: "0.0",
                 payload: "not!valid!base64!@@");
 
-            (GeneratorRunResult result, _, ImmutableArray<Diagnostic> diagnostics) =
-                RunFluentAccessorsOnly(
-                    s_producerWithoutAccessors.Value,
-                    additionalReferences: [corruptProvider.ToMetadataReference()],
-                    assemblyName: "ConservativeConsumer");
+            (GeneratorRunResult result, _, ImmutableArray<Diagnostic> diagnostics) = RunFluentAccessorsOnly(
+                s_producerWithoutAccessors.Value,
+                additionalReferences: [corruptProvider.ToMetadataReference()],
+                assemblyName: "ConservativeConsumer");
 
             Diagnostic diagnostic = diagnostics.Single(d => d.Id == "MODELGEN014");
             Assert.Multiple(() =>
@@ -553,11 +547,10 @@ namespace Opc.Ua.SourceGeneration
                 version: "999.0",
                 payload: legacyPayload);
 
-            (GeneratorRunResult result, _, ImmutableArray<Diagnostic> diagnostics) =
-                RunFluentAccessorsOnly(
-                    s_producerWithoutAccessors.Value,
-                    additionalReferences: [legacyProducer.ToMetadataReference()],
-                    assemblyName: "ConservativeConsumer");
+            (GeneratorRunResult result, _, ImmutableArray<Diagnostic> diagnostics) = RunFluentAccessorsOnly(
+                s_producerWithoutAccessors.Value,
+                additionalReferences: [legacyProducer.ToMetadataReference()],
+                assemblyName: "ConservativeConsumer");
 
             Diagnostic diagnostic = diagnostics.Single(d => d.Id == "MODELGEN014");
             Assert.Multiple(() =>
@@ -598,10 +591,9 @@ namespace Opc.Ua.SourceGeneration
         public void FluentAccessorsOnlyRejectsMismatchedReferencedPrefix()
         {
             const string consumerPrefix = "DemoModel.Consumer";
-            (GeneratorRunResult result, _, ImmutableArray<Diagnostic> diagnostics) =
-                RunFluentAccessorsOnly(
-                    s_producerWithoutAccessors.Value,
-                    consumerPrefix: consumerPrefix);
+            (GeneratorRunResult result, _, ImmutableArray<Diagnostic> diagnostics) = RunFluentAccessorsOnly(
+                s_producerWithoutAccessors.Value,
+                consumerPrefix: consumerPrefix);
 
             Diagnostic diagnostic = diagnostics.Single(d => d.Id == "MODELGEN014");
             string message = diagnostic.GetMessage(CultureInfo.InvariantCulture);
@@ -623,10 +615,9 @@ namespace Opc.Ua.SourceGeneration
                 ["build_property." + incompatibleOption] = "true"
             };
 
-            (GeneratorRunResult result, _, ImmutableArray<Diagnostic> diagnostics) =
-                RunFluentAccessorsOnly(
-                    s_producerWithoutAccessors.Value,
-                    optionOverrides: optionOverrides);
+            (GeneratorRunResult result, _, ImmutableArray<Diagnostic> diagnostics) = RunFluentAccessorsOnly(
+                s_producerWithoutAccessors.Value,
+                optionOverrides: optionOverrides);
 
             Diagnostic diagnostic = diagnostics.Single(d => d.Id == "MODELGEN015");
             string message = diagnostic.GetMessage(CultureInfo.InvariantCulture);

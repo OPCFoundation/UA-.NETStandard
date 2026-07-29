@@ -123,10 +123,9 @@ namespace Opc.Ua.Positioning.Client
             DataValue dataValue = await Session.ReadValueAsync(
                 nodeId,
                 cancellationToken).ConfigureAwait(false);
-            GlobalPositionDataType position =
-                DecodeStructure<GlobalPositionDataType>(
-                    dataValue,
-                    "GlobalPosition");
+            GlobalPositionDataType position = DecodeStructure<GlobalPositionDataType>(
+                dataValue,
+                "GlobalPosition");
             (
                 NodeId sourceId,
                 uint coordinateReferenceSystem
@@ -328,10 +327,9 @@ namespace Opc.Ua.Positioning.Client
                     cancellationToken)
                 .ConfigureAwait(false))
             {
-                GlobalPositionDataType position =
-                    DecodeStructure<GlobalPositionDataType>(
-                        change.Value,
-                        "GlobalPosition");
+                GlobalPositionDataType position = DecodeStructure<GlobalPositionDataType>(
+                    change.Value,
+                    "GlobalPosition");
                 yield return new GlobalPositionValue(
                     nodeId,
                     position,
@@ -370,10 +368,9 @@ namespace Opc.Ua.Positioning.Client
                     cancellationToken)
                 .ConfigureAwait(false))
             {
-                GlobalLocationDataType location =
-                    DecodeStructure<GlobalLocationDataType>(
-                        change.Value,
-                        "GlobalLocation");
+                GlobalLocationDataType location = DecodeStructure<GlobalLocationDataType>(
+                    change.Value,
+                    "GlobalLocation");
                 yield return new GlobalLocationValue(
                     nodeId,
                     location,

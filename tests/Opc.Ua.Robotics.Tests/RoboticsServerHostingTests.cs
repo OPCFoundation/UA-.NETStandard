@@ -216,14 +216,13 @@ namespace Opc.Ua.Robotics.Server.Tests
                 {
                     InstanceNamespaceUri = reservedNamespaces[ii]
                 };
-                ServiceResultException exception =
-                    Assert.Throws<ServiceResultException>(
-                        () => new RoboticsNodeManagerFactory(
-                            new IRoboticsModelProvider[]
-                            {
-                                new RoboticsModelProvider()
-                            },
-                            options))!;
+                ServiceResultException exception = Assert.Throws<ServiceResultException>(
+                    () => new RoboticsNodeManagerFactory(
+                        new IRoboticsModelProvider[]
+                        {
+                            new RoboticsModelProvider()
+                        },
+                        options))!;
 
                 Assert.That(
                     exception.StatusCode,
@@ -241,11 +240,10 @@ namespace Opc.Ua.Robotics.Server.Tests
                 InstanceNamespaceUri = CustomModelProvider.ModelNamespaceUri
             };
 
-            ServiceResultException exception =
-                Assert.Throws<ServiceResultException>(
-                    () => new RoboticsNodeManagerFactory(
-                        new IRoboticsModelProvider[] { new CustomModelProvider() },
-                        options))!;
+            ServiceResultException exception = Assert.Throws<ServiceResultException>(
+                () => new RoboticsNodeManagerFactory(
+                    new IRoboticsModelProvider[] { new CustomModelProvider() },
+                    options))!;
 
             Assert.That(
                 exception.StatusCode,

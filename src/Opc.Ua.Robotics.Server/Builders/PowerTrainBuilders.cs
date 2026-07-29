@@ -270,11 +270,10 @@ namespace Opc.Ua.Robotics.Server.Builders
 
         private BaseDataVariableState<bool> EnsureBrakeReleased()
         {
-            BaseDataVariableState<bool>? variable =
-                RoboticsBuilderUtilities.FindChild<BaseDataVariableState<bool>>(
-                    Scope.Context,
-                    ParameterSet,
-                    BrowseNames.BrakeReleased);
+            BaseDataVariableState<bool>? variable = RoboticsBuilderUtilities.FindChild<BaseDataVariableState<bool>>(
+                Scope.Context,
+                ParameterSet,
+                BrowseNames.BrakeReleased);
             if (variable == null)
             {
                 variable = RoboticsBuilderUtilities.AddGeneratedChild(
@@ -291,11 +290,10 @@ namespace Opc.Ua.Robotics.Server.Builders
 
         private BaseDataVariableState<ushort> EnsureEffectiveLoadRate()
         {
-            BaseDataVariableState<ushort>? variable =
-                RoboticsBuilderUtilities.FindChild<BaseDataVariableState<ushort>>(
-                    Scope.Context,
-                    ParameterSet,
-                    BrowseNames.EffectiveLoadRate);
+            BaseDataVariableState<ushort>? variable = RoboticsBuilderUtilities.FindChild<BaseDataVariableState<ushort>>(
+                Scope.Context,
+                ParameterSet,
+                BrowseNames.EffectiveLoadRate);
             if (variable == null)
             {
                 variable = RoboticsBuilderUtilities.AddGeneratedChild(

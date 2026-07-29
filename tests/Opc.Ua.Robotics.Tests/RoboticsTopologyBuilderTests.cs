@@ -627,9 +627,8 @@ namespace Opc.Ua.Robotics.Server.Tests
                         UnmarkedRoboticsNodeManager.InstanceNamespaceUri
                 };
 
-                ServiceResultException exception =
-                    Assert.Throws<ServiceResultException>(
-                        () => manager.CreateRoboticsBuildContext(options))!;
+                ServiceResultException exception = Assert.Throws<ServiceResultException>(
+                    () => manager.CreateRoboticsBuildContext(options))!;
 
                 Assert.That(
                     exception.StatusCode,
@@ -983,9 +982,8 @@ namespace Opc.Ua.Robotics.Server.Tests
                         MissingRoboticsModelNodeManager.InstanceNamespaceUri
                 };
 
-                ServiceResultException exception =
-                    Assert.Throws<ServiceResultException>(
-                        () => manager.CreateRoboticsBuildContext(options))!;
+                ServiceResultException exception = Assert.Throws<ServiceResultException>(
+                    () => manager.CreateRoboticsBuildContext(options))!;
 
                 Assert.That(
                     exception.StatusCode,
@@ -1253,18 +1251,15 @@ namespace Opc.Ua.Robotics.Server.Tests
                 })
                 .ConfigureAwait(false);
 
-            BaseDataVariableState<double> speedOverride =
-                FindChild<BaseDataVariableState<double>>(
-                    motionDevice.State.ParameterSet!,
-                    "SpeedOverride");
-            AnalogUnitState<double> actualSpeed =
-                FindChild<AnalogUnitState<double>>(
-                    axis.State.ParameterSet!,
-                    "ActualSpeed");
-            AnalogUnitState<double> actualAcceleration =
-                FindChild<AnalogUnitState<double>>(
-                    axis.State.ParameterSet!,
-                    "ActualAcceleration");
+            BaseDataVariableState<double> speedOverride = FindChild<BaseDataVariableState<double>>(
+                motionDevice.State.ParameterSet!,
+                "SpeedOverride");
+            AnalogUnitState<double> actualSpeed = FindChild<AnalogUnitState<double>>(
+                axis.State.ParameterSet!,
+                "ActualSpeed");
+            AnalogUnitState<double> actualAcceleration = FindChild<AnalogUnitState<double>>(
+                axis.State.ParameterSet!,
+                "ActualAcceleration");
             BaseDataVariableState<ExecutionModeEnumeration> executionMode =
                 FindChild<BaseDataVariableState<ExecutionModeEnumeration>>(
                     taskControl.State.ParameterSet!,
@@ -1281,13 +1276,12 @@ namespace Opc.Ua.Robotics.Server.Tests
             Assert.That(emergencyStop.State.Active!.OnReadValueAsync, Is.Not.Null);
             Assert.That(protectiveStop.State.Enabled!.OnReadValueAsync, Is.Not.Null);
 
-            ValueTask<(ServiceResult, DataValue)> readTask =
-                speedOverride.ReadAttributeAsync(
-                    motionDevice.BuildContext.Context,
-                    Attributes.Value,
-                    NumericRange.Null,
-                    QualifiedName.Null,
-                    new DataValue());
+            ValueTask<(ServiceResult, DataValue)> readTask = speedOverride.ReadAttributeAsync(
+                motionDevice.BuildContext.Context,
+                Attributes.Value,
+                NumericRange.Null,
+                QualifiedName.Null,
+                new DataValue());
             await readStarted.Task.ConfigureAwait(false);
             Assert.That(readTask.IsCompleted, Is.False);
             releaseRead.SetResult(true);
@@ -1351,25 +1345,22 @@ namespace Opc.Ua.Robotics.Server.Tests
                 })
                 .ConfigureAwait(false);
 
-            BaseDataVariableState<double> speedOverride =
-                FindChild<BaseDataVariableState<double>>(
-                    motionDevice.State.ParameterSet!,
-                    "SpeedOverride");
-            ValueTask<(ServiceResult, DataValue)> firstRead =
-                speedOverride.ReadAttributeAsync(
-                    motionDevice.BuildContext.Context,
-                    Attributes.Value,
-                    NumericRange.Null,
-                    QualifiedName.Null,
-                    new DataValue());
+            BaseDataVariableState<double> speedOverride = FindChild<BaseDataVariableState<double>>(
+                motionDevice.State.ParameterSet!,
+                "SpeedOverride");
+            ValueTask<(ServiceResult, DataValue)> firstRead = speedOverride.ReadAttributeAsync(
+                motionDevice.BuildContext.Context,
+                Attributes.Value,
+                NumericRange.Null,
+                QualifiedName.Null,
+                new DataValue());
             await firstReadStarted.Task.ConfigureAwait(false);
-            ValueTask<(ServiceResult, DataValue)> secondRead =
-                speedOverride.ReadAttributeAsync(
-                    motionDevice.BuildContext.Context,
-                    Attributes.Value,
-                    NumericRange.Null,
-                    QualifiedName.Null,
-                    new DataValue());
+            ValueTask<(ServiceResult, DataValue)> secondRead = speedOverride.ReadAttributeAsync(
+                motionDevice.BuildContext.Context,
+                Attributes.Value,
+                NumericRange.Null,
+                QualifiedName.Null,
+                new DataValue());
 
             (ServiceResult secondResult, DataValue secondValue) =
                 await secondRead.ConfigureAwait(false);
@@ -1402,10 +1393,9 @@ namespace Opc.Ua.Robotics.Server.Tests
                 })
                 .ConfigureAwait(false);
 
-            BaseDataVariableState<double> speedOverride =
-                FindChild<BaseDataVariableState<double>>(
-                    motionDevice.State.ParameterSet!,
-                    "SpeedOverride");
+            BaseDataVariableState<double> speedOverride = FindChild<BaseDataVariableState<double>>(
+                motionDevice.State.ParameterSet!,
+                "SpeedOverride");
             (ServiceResult result, DataValue value) =
                 await speedOverride.ReadAttributeAsync(
                     motionDevice.BuildContext.Context,
@@ -1464,10 +1454,9 @@ namespace Opc.Ua.Robotics.Server.Tests
                 })
                 .ConfigureAwait(false);
 
-            BaseDataVariableState<double> speedOverride =
-                FindChild<BaseDataVariableState<double>>(
-                    motionDevice.State.ParameterSet!,
-                    "SpeedOverride");
+            BaseDataVariableState<double> speedOverride = FindChild<BaseDataVariableState<double>>(
+                motionDevice.State.ParameterSet!,
+                "SpeedOverride");
             (DataValue Value, StatusCode Expected)[] invalidValues =
             [
                 (new DataValue(Variant.From("invalid")), StatusCodes.BadTypeMismatch),
@@ -1537,10 +1526,9 @@ namespace Opc.Ua.Robotics.Server.Tests
                 })
                 .ConfigureAwait(false);
 
-            BaseDataVariableState<double> speedOverride =
-                FindChild<BaseDataVariableState<double>>(
-                    motionDevice.State.ParameterSet!,
-                    "SpeedOverride");
+            BaseDataVariableState<double> speedOverride = FindChild<BaseDataVariableState<double>>(
+                motionDevice.State.ParameterSet!,
+                "SpeedOverride");
             (DataValue Value, StatusCode Expected)[] invalidValues =
             [
                 (
@@ -1598,10 +1586,9 @@ namespace Opc.Ua.Robotics.Server.Tests
                 })
                 .ConfigureAwait(false);
 
-            BaseDataVariableState<double> speedOverride =
-                FindChild<BaseDataVariableState<double>>(
-                    motionDevice.State.ParameterSet!,
-                    "SpeedOverride");
+            BaseDataVariableState<double> speedOverride = FindChild<BaseDataVariableState<double>>(
+                motionDevice.State.ParameterSet!,
+                "SpeedOverride");
             (Variant Value, StatusCode Expected)[] invalidValues =
             [
                 (Variant.From("invalid"), StatusCodes.BadTypeMismatch),
@@ -1647,10 +1634,9 @@ namespace Opc.Ua.Robotics.Server.Tests
                 .AddMotionDeviceSystemAsync(NextName("OccupiedReadSlots"), system =>
                 {
                     GraphParts graph = ConfigureValidGraph(system);
-                    BaseDataVariableState<double> speedOverride =
-                        FindChild<BaseDataVariableState<double>>(
-                            graph.MotionDevice.State.ParameterSet!,
-                            "SpeedOverride");
+                    BaseDataVariableState<double> speedOverride = FindChild<BaseDataVariableState<double>>(
+                        graph.MotionDevice.State.ParameterSet!,
+                        "SpeedOverride");
                     speedOverride.OnReadValueAsync = (_, _, _, _, _) =>
                         new ValueTask<AttributeReadResult>(
                             new AttributeReadResult(
@@ -1690,10 +1676,9 @@ namespace Opc.Ua.Robotics.Server.Tests
                 .AddMotionDeviceSystemAsync(NextName("OccupiedWriteSlots"), system =>
                 {
                     GraphParts graph = ConfigureValidGraph(system);
-                    BaseDataVariableState<double> speedOverride =
-                        FindChild<BaseDataVariableState<double>>(
-                            graph.MotionDevice.State.ParameterSet!,
-                            "SpeedOverride");
+                    BaseDataVariableState<double> speedOverride = FindChild<BaseDataVariableState<double>>(
+                        graph.MotionDevice.State.ParameterSet!,
+                        "SpeedOverride");
                     speedOverride.OnWriteValueAsync = (_, _, _, _, _) =>
                         new ValueTask<AttributeWriteResult>(
                             new AttributeWriteResult(ServiceResult.Good));

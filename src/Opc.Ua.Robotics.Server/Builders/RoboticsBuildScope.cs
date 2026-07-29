@@ -63,10 +63,9 @@ namespace Opc.Ua.Robotics.Server.Builders
             EnsureContextMutable(buildContext);
             Context = buildContext.Context;
 
-            m_rootBrowseNameReservation =
-                m_buildCoordinator.ReserveRootBrowseName(
-                    BuildContext.DeviceSet,
-                    browseName);
+            m_rootBrowseNameReservation = m_buildCoordinator.ReserveRootBrowseName(
+                BuildContext.DeviceSet,
+                browseName);
             try
             {
                 Root = Context.CreateInstanceOfMotionDeviceSystemType(

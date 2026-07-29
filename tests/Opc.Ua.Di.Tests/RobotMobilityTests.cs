@@ -172,10 +172,9 @@ namespace Opc.Ua.Di.Tests
                 CancellationToken.None).ConfigureAwait(false);
             S3DGeographicCoordinateDataType geographic =
                 sample.Location.Position;
-            ThreeDCartesianCoordinates local =
-                provider.Scenario.Fit.GlobalToLocal(
-                    geographic,
-                    AngleUnit.Degrees);
+            ThreeDCartesianCoordinates local = provider.Scenario.Fit.GlobalToLocal(
+                geographic,
+                AngleUnit.Degrees);
 
             Assert.Multiple(() =>
             {

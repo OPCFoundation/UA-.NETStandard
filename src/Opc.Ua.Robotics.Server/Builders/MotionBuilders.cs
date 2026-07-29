@@ -581,11 +581,10 @@ namespace Opc.Ua.Robotics.Server.Builders
 
         private AnalogUnitState<double> EnsureActualSpeed()
         {
-            AnalogUnitState<double>? variable =
-                RoboticsBuilderUtilities.FindChild<AnalogUnitState<double>>(
-                    Scope.Context,
-                    ParameterSet,
-                    BrowseNames.ActualSpeed);
+            AnalogUnitState<double>? variable = RoboticsBuilderUtilities.FindChild<AnalogUnitState<double>>(
+                Scope.Context,
+                ParameterSet,
+                BrowseNames.ActualSpeed);
             if (variable == null)
             {
                 variable = RoboticsBuilderUtilities.AddGeneratedChild(
@@ -602,11 +601,10 @@ namespace Opc.Ua.Robotics.Server.Builders
 
         private AnalogUnitState<double> EnsureActualAcceleration()
         {
-            AnalogUnitState<double>? variable =
-                RoboticsBuilderUtilities.FindChild<AnalogUnitState<double>>(
-                    Scope.Context,
-                    ParameterSet,
-                    BrowseNames.ActualAcceleration);
+            AnalogUnitState<double>? variable = RoboticsBuilderUtilities.FindChild<AnalogUnitState<double>>(
+                Scope.Context,
+                ParameterSet,
+                BrowseNames.ActualAcceleration);
             if (variable == null)
             {
                 variable = RoboticsBuilderUtilities.AddGeneratedChild(

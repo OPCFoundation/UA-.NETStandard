@@ -713,9 +713,8 @@ namespace Opc.Ua.Robotics.Client.Tests
                         (_, _, _, descriptions, _) =>
                         {
                             BrowseDescription description = descriptions[0];
-                            List<ReferenceDescription> refs =
-                                m_browse.TryGetValue(
-                                    description.NodeId, out List<ReferenceDescription>? value)
+                            List<ReferenceDescription> refs = m_browse.TryGetValue(
+                                description.NodeId, out List<ReferenceDescription>? value)
                                 ? value.Where(r =>
                                     description.ReferenceTypeId.IsNull ||
                                     r.ReferenceTypeId == description.ReferenceTypeId ||

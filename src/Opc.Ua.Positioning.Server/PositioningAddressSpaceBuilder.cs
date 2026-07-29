@@ -129,14 +129,13 @@ namespace Opc.Ua.Positioning.Server
             list.Identifier!.Value = identifier;
             list.NodeVersion!.Value = "1";
 
-            CartesianFrameAngleOrientationState concreteWorld =
-                CreateCartesianFrame(
-                    list,
-                    new QualifiedName("WorldFrame", RslNamespaceIndex),
-                    NodeId.Null,
-                    worldFrame,
-                    lengthUnit,
-                    angleUnit);
+            CartesianFrameAngleOrientationState concreteWorld = CreateCartesianFrame(
+                list,
+                new QualifiedName("WorldFrame", RslNamespaceIndex),
+                NodeId.Null,
+                worldFrame,
+                lengthUnit,
+                angleUnit);
             list.CreateOrReplaceWorldFrame(SystemContext, concreteWorld);
 
             FolderState root = GetRelativeSpatialLocations();
@@ -176,14 +175,13 @@ namespace Opc.Ua.Positioning.Server
                 spatialObject.Identifier!.Value = identifier;
             }
 
-            CartesianFrameAngleOrientationState concreteFrame =
-                CreateCartesianFrame(
-                    spatialObject,
-                    new QualifiedName("PositionFrame", RslNamespaceIndex),
-                    list.WorldFrame!.NodeId,
-                    positionFrame,
-                    lengthUnit,
-                    angleUnit);
+            CartesianFrameAngleOrientationState concreteFrame = CreateCartesianFrame(
+                spatialObject,
+                new QualifiedName("PositionFrame", RslNamespaceIndex),
+                list.WorldFrame!.NodeId,
+                positionFrame,
+                lengthUnit,
+                angleUnit);
             spatialObject.CreateOrReplacePositionFrame(SystemContext, concreteFrame);
 
             list.AddReference(ReferenceTypeIds.Organizes, false, spatialObject.NodeId);
