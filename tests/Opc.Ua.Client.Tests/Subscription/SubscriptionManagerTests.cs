@@ -106,7 +106,7 @@ namespace Opc.Ua.Client.Subscriptions
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadAlreadyExists));
             await Task.Delay(100).ConfigureAwait(false); // Give time to workers to start
             Assert.That(sut.PublishWorkerCount, Is.Zero);
-            await sut.CompleteAsync(1, default).ConfigureAwait(false);
+            await sut.CompleteAsync(ms1, 1, default).ConfigureAwait(false);
             Assert.That(sut.Count, Is.EqualTo(1));
             Assert.That(sut.Items, Does.Contain(s2));
 
@@ -160,7 +160,7 @@ namespace Opc.Ua.Client.Subscriptions
             // but MinPublishWorkerCount defaults to 2, so the desired count is 2.
             await WaitForPublishWorkerCountAsync(sut, 2).ConfigureAwait(false);
 
-            await sut.CompleteAsync(2, default).ConfigureAwait(false); // Remove s2
+            await sut.CompleteAsync(ms2, 2, default).ConfigureAwait(false); // Remove s2
             Assert.That(sut.Count, Is.EqualTo(1));
             Assert.That(sut.Items, Does.Not.Contain(s2));
 
@@ -168,7 +168,7 @@ namespace Opc.Ua.Client.Subscriptions
             Assert.That(sut.PublishWorkerCount, Is.EqualTo(2));
             Assert.That(sut.PublishControlCycles, Is.GreaterThan(0));
 
-            await sut.CompleteAsync(1, default).ConfigureAwait(false); // Remove s1
+            await sut.CompleteAsync(ms1, 1, default).ConfigureAwait(false); // Remove s1
             Assert.That(sut.Count, Is.Zero);
             Assert.That(sut.Items, Does.Not.Contain(s1));
 
@@ -206,7 +206,7 @@ namespace Opc.Ua.Client.Subscriptions
             Assert.That(sut.Count, Is.EqualTo(1));
 
             // A deleted subscription acknowledges completion with an id already reset to 0
-            await sut.CompleteAsync(0, default).ConfigureAwait(false);
+            await sut.CompleteAsync(new FakeManagedSubscription(), 0, default).ConfigureAwait(false);
 
             // Verify that the pending subscription still exists
             Assert.That(sut.Count, Is.EqualTo(1));
@@ -449,7 +449,8 @@ namespace Opc.Ua.Client.Subscriptions
 
             m_subscriptionManager.Add(m_mockNotificationDataHandler.Object,
                 Mock.Of<IOptionsMonitor<SubscriptionOptions>>());
-            await m_subscriptionManager.CompleteAsync(1, CancellationToken.None).ConfigureAwait(false);
+            await m_subscriptionManager.CompleteAsync(mockSubscription, 1, CancellationToken.None)
+                .ConfigureAwait(false);
             Assert.That(m_subscriptionManager.Items, Is.Empty);
         }
 

@@ -403,21 +403,24 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <inheritdoc/>
-        public ValueTask CompleteAsync(uint subscriptionId, CancellationToken ct)
+        public ValueTask CompleteAsync(IMessageProcessor completing,
+            uint subscriptionId, CancellationToken ct)
         {
             IManagedSubscription? subscription;
             LogicalSubscription? logical = null;
             lock (m_subscriptionLock)
             {
                 // Drop the partition from the dispatch registry.
-                subscription = m_subscriptions
-                    .FirstOrDefault(s => s.Id == subscriptionId);
+                subscription = completing as IManagedSubscription;
                 if (subscription == null ||
                     !m_subscriptions.Remove(subscription))
                 {
                     return default;
                 }
-                m_subscriptionHistory.Enqueue(subscriptionId);
+                if (subscriptionId != 0)
+                {
+                    m_subscriptionHistory.Enqueue(subscriptionId);
+                }
 
                 // If the removed partition was the primary of any
                 // logical wrapper, the wrapper has no usable
@@ -445,7 +448,7 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 m_subscriptionHistory.TryDequeue(out _);
             }
-            m_logger.SubscriptionRemoved(subscription.Id);
+            m_logger.SubscriptionRemoved(subscriptionId);
             m_publishControl.Set();
             return default;
         }
