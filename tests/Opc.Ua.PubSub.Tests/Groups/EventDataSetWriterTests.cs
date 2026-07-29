@@ -36,6 +36,7 @@ using NUnit.Framework;
 using Opc.Ua.PubSub.DataSets;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Groups;
+using Opc.Ua.PubSub.MetaData;
 using UadpDataSetMessageV2 = Opc.Ua.PubSub.Encoding.Uadp.UadpDataSetMessage;
 
 namespace Opc.Ua.PubSub.Tests.Groups
@@ -151,6 +152,67 @@ namespace Opc.Ua.PubSub.Tests.Groups
                 Assert.That(second.Fields[0].Value, Is.EqualTo(new Variant("second")));
                 Assert.That(exhausted.MessageType, Is.Null);
                 Assert.That(exhausted.Fields.Count, Is.Zero);
+            });
+        }
+
+        [Test]
+        public async Task EventPublishedDataSetExposesClassIdAndFixedMetadataAsync()
+        {
+            var sampler = new StubSampler();
+            sampler.Enqueue([new Variant("event"), new Variant(1)]);
+            EventPublishedDataSet dataSet = BuildPublishedDataSet(sampler);
+            var classId = new Uuid(Guid.NewGuid());
+            dataSet.MetaData.DataSetClassId = classId;
+            bool metadataChanged = false;
+            EventHandler<DataSetMetaDataChangedEventArgs> handler =
+                (_, _) => metadataChanged = true;
+
+            dataSet.MetaDataChanged += handler;
+            PublishedDataSetSnapshot snapshot =
+                await dataSet.SampleAsync().ConfigureAwait(false);
+            dataSet.MetaDataChanged -= handler;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    ((IPublishedDataSet)dataSet).DataSetClassId,
+                    Is.EqualTo(classId));
+                Assert.That(snapshot.MessageType, Is.EqualTo(PubSubDataSetMessageType.Event));
+                Assert.That(metadataChanged, Is.False);
+            });
+        }
+
+        [Test]
+        public async Task EventDataSetWriterExposesContractAndBuildsJsonMessageAsync()
+        {
+            var sampler = new StubSampler();
+            sampler.Enqueue([new Variant("event"), new Variant(1)]);
+            EventPublishedDataSet dataSet = BuildPublishedDataSet(sampler);
+            var configuration = new DataSetWriterDataType
+            {
+                Name = "json-event-writer",
+                DataSetWriterId = 8
+            };
+            var writer = new EventDataSetWriter(
+                configuration,
+                dataSet,
+                new FakeTimeProvider(),
+                Profiles.PubSubMqttJsonTransport);
+
+            ArrayOf<PubSubDataSetMessage> messages =
+                await writer.BuildEventMessagesAsync().ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    ((IDataSetWriter)writer).PublishedDataSet,
+                    Is.SameAs(dataSet));
+                Assert.That(writer.KeyFrameCount, Is.Zero);
+                Assert.That(writer.State.ComponentName, Is.EqualTo(configuration.Name));
+                Assert.That(messages, Has.Count.EqualTo(1));
+                Assert.That(
+                    messages[0],
+                    Is.TypeOf<Opc.Ua.PubSub.Encoding.Json.JsonDataSetMessage>());
             });
         }
 
