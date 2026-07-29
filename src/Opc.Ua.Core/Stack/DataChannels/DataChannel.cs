@@ -461,6 +461,17 @@ namespace Opc.Ua.Bindings
             }
         }
 
+        internal bool HasPendingControlFrames
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return m_sendQueue.HasControlFrames;
+                }
+            }
+        }
+
         /// <summary>
         /// The payload length of the frame at the head of the send queue.
         /// </summary>

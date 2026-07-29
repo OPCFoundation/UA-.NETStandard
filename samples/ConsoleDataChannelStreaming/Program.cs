@@ -69,8 +69,9 @@ namespace ConsoleDataChannelStreaming
             Console.WriteLine("OPC UA data channel streaming sample (experimental)");
             Console.WriteLine("===================================================");
             Console.WriteLine($"transport : {options.Transport}");
+            Console.WriteLine($"run mode  : {options.RunMode}");
             Console.WriteLine($"frames    : {options.FrameCount} x {options.FrameSize} bytes");
-            Console.WriteLine($"mode      : {options.DeliveryMode}");
+            Console.WriteLine($"delivery  : {options.DeliveryMode}");
             Console.WriteLine();
 
             if (options.Transport == SampleTransport.Quic && !QuicTransport.IsSupported)
@@ -102,6 +103,11 @@ namespace ConsoleDataChannelStreaming
             {
                 Console.Error.WriteLine($"failed: {e.Message}");
                 return 1;
+            }
+            catch (NotSupportedException e)
+            {
+                Console.Error.WriteLine($"pending: {e.Message}");
+                return 3;
             }
         }
 
@@ -145,7 +151,8 @@ namespace ConsoleDataChannelStreaming
                 source.Write(payload, flags);
             }
 
-            source.Close();
+            await WaitForSentAsync(source, options.FrameCount, ct).ConfigureAwait(false);
+            await harness.CloseDataChannelAsync(ct).ConfigureAwait(false);
 
             await consumer.ConfigureAwait(false);
             stopwatch.Stop();
@@ -189,6 +196,18 @@ namespace ConsoleDataChannelStreaming
             Console.WriteLine($"consumed {received} frames, {gaps} reported gaps");
         }
 
+        private static async Task WaitForSentAsync(
+            DataChannel source,
+            int frameCount,
+            CancellationToken ct)
+        {
+            while (source.GetDiagnostics().FramesSent < (uint)frameCount &&
+                !ct.IsCancellationRequested)
+            {
+                await Task.Delay(10, ct).ConfigureAwait(false);
+            }
+        }
+
         private static void Report(
             DataChannel source,
             DataChannel sink,
@@ -206,6 +225,11 @@ namespace ConsoleDataChannelStreaming
             Console.WriteLine("result");
             Console.WriteLine("------");
             Console.WriteLine($"  framing          : {harness.FramingMode}");
+            Console.WriteLine($"  channel id       : {harness.ChannelId}");
+            Console.WriteLine($"  revised max frame: {harness.RevisedParameters.MaxFrameSize}");
+            Console.WriteLine($"  revised credit   : {harness.RevisedParameters.InitialCredit}");
+            Console.WriteLine($"  revised delivery : {harness.RevisedParameters.DeliveryMode}");
+            Console.WriteLine($"  transport chan id: {harness.RevisedTransportChannelId}");
             Console.WriteLine($"  frames sent      : {sent.FramesSent}");
             Console.WriteLine($"  frames received  : {got.FramesReceived}");
             Console.WriteLine($"  bytes sent       : {sent.BytesSent}");

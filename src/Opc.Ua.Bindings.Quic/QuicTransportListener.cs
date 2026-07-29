@@ -154,7 +154,7 @@ namespace Opc.Ua.Bindings
             m_bufferManager = new BufferManager(
                 m_bufferManagerFactory.Create("QuicServer", m_quotas.MaxBufferSize, Telemetry));
 
-            int port = baseAddress.Port > 0
+            int port = baseAddress.Port >= 0
                 ? baseAddress.Port
                 : DataChannelConstants.QuicDefaultPort;
 
@@ -163,14 +163,41 @@ namespace Opc.Ua.Bindings
             // subjectPublicKeyInfo, because that is what the key equality
             // check of Part 6 errata 7.6.1 compares against.
             X509Certificate2 tlsCertificate = ResolveTlsCertificate();
-            m_tlsCertificate = tlsCertificate;
+            lock (m_certificateActivationLock)
+            {
+                m_tlsCertificate = tlsCertificate;
+            }
 
             var listenerOptions = new QuicListenerOptions
             {
                 ListenEndPoint = new IPEndPoint(IPAddress.IPv6Any, port),
                 ApplicationProtocols = [QuicTransport.ApplicationProtocol],
-                ConnectionOptionsCallback = (_, _, _) => ValueTask.FromResult(
-                    new QuicServerConnectionOptions
+                ConnectionOptionsCallback = async (connection, _, _) =>
+                {
+                    X509Certificate2 serverCertificate;
+                    long activationEpoch;
+
+                    lock (m_certificateActivationLock)
+                    {
+                        serverCertificate = m_tlsCertificate
+                            ?? throw ServiceResultException.Create(
+                                StatusCodes.BadConfigurationError,
+                                "The server has no TLS certificate to present.");
+                        activationEpoch = m_certificateEpoch;
+                    }
+
+                    m_pendingConnectionEpochs[connection] = new QuicAdmissionSnapshot(
+                        activationEpoch,
+                        serverCertificate.RawData);
+
+                    Func<QuicConnection, long, ValueTask>? pause =
+                        AdmissionCallbackPauseForTesting;
+                    if (pause != null)
+                    {
+                        await pause(connection, activationEpoch).ConfigureAwait(false);
+                    }
+
+                    return new QuicServerConnectionOptions
                     {
                         DefaultStreamErrorCode = 0x0A,
                         DefaultCloseErrorCode = 0x0B,
@@ -179,24 +206,27 @@ namespace Opc.Ua.Bindings
                         ServerAuthenticationOptions = new SslServerAuthenticationOptions
                         {
                             ApplicationProtocols = [QuicTransport.ApplicationProtocol],
-                            // Read the field rather than a captured local so a
-                            // rotation performed by CertificateUpdate reaches
-                            // every subsequent connection. Presenting a retired
-                            // certificate over TLS while the UASC layer has
-                            // moved to the new one would break the key equality
-                            // check of Part 6 errata 7.6.1.
-                            ServerCertificate = m_tlsCertificate,
-                            ClientCertificateRequired = false
+                            ServerCertificate = serverCertificate,
+                            ClientCertificateRequired = false,
+                            AllowTlsResume = false
                         }
-                    })
+                    };
+                }
             };
 
             m_listener = await QuicListener
                 .ListenAsync(listenerOptions, ct)
                 .ConfigureAwait(false);
 
-            m_stop = new CancellationTokenSource();
-            m_acceptLoop = Task.Run(() => RunAcceptLoopAsync(m_stop.Token), CancellationToken.None);
+            if (port == 0 && m_listener.LocalEndPoint is IPEndPoint actual)
+            {
+                port = actual.Port;
+                EndpointUrl = ReplacePort(baseAddress, actual.Port);
+            }
+
+            var stop = new CancellationTokenSource();
+            m_stop = stop;
+            m_acceptLoop = Task.Run(() => RunAcceptLoopAsync(stop.Token), CancellationToken.None);
 
             m_logger.QuicListenerOpened(EndpointUrl, port);
         }
@@ -238,6 +268,8 @@ namespace Opc.Ua.Bindings
             }
 
             m_channels.Clear();
+            m_connectionBindings.Clear();
+            m_pendingConnectionEpochs.Clear();
             stop?.Dispose();
 
             X509Certificate2? tlsCertificate = Interlocked.Exchange(ref m_tlsCertificate, null);
@@ -315,7 +347,21 @@ namespace Opc.Ua.Bindings
             }
 
             X509Certificate2 rotated = ResolveTlsCertificate();
-            X509Certificate2? retired = Interlocked.Exchange(ref m_tlsCertificate, rotated);
+            X509Certificate2? retired;
+            bool keyChanged = false;
+            long activatedEpoch = 0;
+
+            lock (m_certificateActivationLock)
+            {
+                retired = m_tlsCertificate;
+                keyChanged = retired != null && !SamePublicKey(retired, rotated);
+                if (keyChanged)
+                {
+                    activatedEpoch = ++m_certificateEpoch;
+                }
+
+                m_tlsCertificate = rotated;
+            }
 
             // A handshake already in flight still holds the outgoing
             // certificate, so retire rather than dispose it and release the
@@ -326,6 +372,14 @@ namespace Opc.Ua.Bindings
                 lock (m_retiredTlsCertificates)
                 {
                     m_retiredTlsCertificates.Add(retired);
+                }
+
+                if (keyChanged)
+                {
+                    _ = CloseChannelsForSupersededEpochAsync(
+                        activatedEpoch,
+                        StatusCodes.BadSecurityChecksFailed,
+                        CancellationToken.None).AsTask();
                 }
             }
         }
@@ -418,6 +472,8 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public void ChannelClosed(uint channelId)
         {
+            m_connectionBindings.TryRemove(channelId, out _);
+
             if (m_channels.TryRemove(channelId, out TcpListenerChannel? channel))
             {
                 ConnectionStatusChanged?.Invoke(
@@ -442,6 +498,75 @@ namespace Opc.Ua.Bindings
             Certificate oldCertificate,
             CancellationToken ct = default)
         {
+            return CloseChannelsForCertificateAsync(
+                oldCertificate,
+                StatusCodes.BadSecurityChecksFailed,
+                ct);
+        }
+
+        /// <summary>
+        /// Closes channels whose own bound certificate no longer validates.
+        /// </summary>
+        public async ValueTask<IReadOnlyList<string>> CloseChannelsForOwnCertificateAsync(
+            Func<Certificate, CancellationToken, ValueTask<bool>> isOwnCertificateTrustedAsync,
+            CancellationToken ct = default)
+        {
+            if (isOwnCertificateTrustedAsync == null)
+            {
+                throw new ArgumentNullException(nameof(isOwnCertificateTrustedAsync));
+            }
+
+            var closed = new List<string>();
+
+            foreach (TcpListenerChannel channel in m_channels.Values.ToArray())
+            {
+                Certificate? own = null;
+                byte[]? rawData = channel.ServerCertificate?.RawData;
+                if ((rawData == null || rawData.Length == 0) &&
+                    TryGetChannelId(channel, out uint ownChannelId) &&
+                    m_connectionBindings.TryGetValue(
+                        ownChannelId,
+                        out QuicConnectionBinding? ownBinding))
+                {
+                    rawData = ownBinding.CertificateRawData;
+                }
+
+                if (rawData == null || rawData.Length == 0)
+                {
+                    continue;
+                }
+
+                try
+                {
+                    own = Certificate.FromRawData(rawData);
+                    if (await isOwnCertificateTrustedAsync(own, ct).ConfigureAwait(false))
+                    {
+                        continue;
+                    }
+                }
+                finally
+                {
+                    own?.Dispose();
+                }
+
+                string? globalChannelId = await CloseQuicChannelAsync(
+                    channel,
+                    StatusCodes.BadSecurityChecksFailed,
+                    ct).ConfigureAwait(false);
+                if (!string.IsNullOrEmpty(globalChannelId))
+                {
+                    closed.Add(globalChannelId!);
+                }
+            }
+
+            return closed;
+        }
+
+        private async ValueTask<IReadOnlyList<string>> CloseChannelsForCertificateAsync(
+            Certificate oldCertificate,
+            StatusCode closeErrorCode,
+            CancellationToken ct = default)
+        {
             if (oldCertificate == null)
             {
                 throw new ArgumentNullException(nameof(oldCertificate));
@@ -451,8 +576,10 @@ namespace Opc.Ua.Bindings
 
             if (string.IsNullOrEmpty(thumbprint))
             {
-                return new ValueTask<IReadOnlyList<string>>([]);
+                return [];
             }
+
+            byte[] oldPublicKey = oldCertificate.AsX509Certificate2().GetPublicKey();
 
             // A re-issue that keeps the same key is transparent under
             // Part 6 errata 7.6.2: the binding of 7.6.1 is by
@@ -461,28 +588,22 @@ namespace Opc.Ua.Bindings
             // forces the connections bound to the old one to close, so
             // matching on the thumbprint alone would abort every live
             // media stream on an ordinary scheduled renewal.
-            X509Certificate2? active = m_tlsCertificate;
-
-            if (active != null &&
-                CryptographicOperations.FixedTimeEquals(
-                    active.GetPublicKey(),
-                    oldCertificate.AsX509Certificate2().GetPublicKey()))
+            X509Certificate2? active;
+            lock (m_certificateActivationLock)
             {
-                return new ValueTask<IReadOnlyList<string>>([]);
+                active = m_tlsCertificate;
             }
 
-            var closed = new List<string>();
-
-            foreach (TcpListenerChannel channel in m_channels.Values.ToArray())
+            if (active != null && SamePublicKey(active, oldCertificate.AsX509Certificate2()))
             {
-                if (channel.TryCloseForCertificateRotation(thumbprint, out string? globalChannelId) &&
-                    !string.IsNullOrEmpty(globalChannelId))
-                {
-                    closed.Add(globalChannelId!);
-                }
+                return [];
             }
 
-            return new ValueTask<IReadOnlyList<string>>(closed);
+            return await CloseChannelsForCertificateAsync(
+                thumbprint,
+                oldPublicKey,
+                closeErrorCode,
+                ct).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -511,8 +632,11 @@ namespace Opc.Ua.Bindings
                     continue;
                 }
 
-                if (channel.CloseForUntrustedPeerCertificate(out string? globalChannelId) &&
-                    !string.IsNullOrEmpty(globalChannelId))
+                string? globalChannelId = await CloseQuicChannelAsync(
+                    channel,
+                    StatusCodes.BadCertificateUntrusted,
+                    ct).ConfigureAwait(false);
+                if (!string.IsNullOrEmpty(globalChannelId))
                 {
                     closed.Add(globalChannelId!);
                 }
@@ -554,9 +678,21 @@ namespace Opc.Ua.Bindings
         private async Task HandleConnectionAsync(QuicConnection connection, CancellationToken ct)
         {
             QuicMultiplexedTransport? transport = null;
+            uint channelId = 0;
 
             try
             {
+                QuicAdmissionSnapshot admission = TakeConnectionAdmission(connection);
+                if (admission.ActivationEpoch != Volatile.Read(ref m_certificateEpoch))
+                {
+                    await CloseConnectionAsync(
+                        connection,
+                        StatusCodes.BadSecurityChecksFailed,
+                        ct).ConfigureAwait(false);
+                    await connection.DisposeAsync().ConfigureAwait(false);
+                    return;
+                }
+
                 // The first inbound bidirectional stream is the control
                 // stream; everything beside it belongs to data channels.
                 QuicStream control = await connection
@@ -570,7 +706,7 @@ namespace Opc.Ua.Bindings
                     m_quotas!.MaxBufferSize,
                     Telemetry);
 
-                uint channelId = NextChannelId();
+                channelId = NextChannelId();
 
                 var channel = new TcpServerChannel(
                     ListenerId,
@@ -588,6 +724,10 @@ namespace Opc.Ua.Bindings
                 }
 
                 m_channels[channelId] = channel;
+                m_connectionBindings[channelId] = new QuicConnectionBinding(
+                    connection,
+                    admission.ActivationEpoch,
+                    admission.CertificateRawData);
 
                 // Ownership passes to the channel, which starts the
                 // receive loop on the control stream.
@@ -613,6 +753,11 @@ namespace Opc.Ua.Bindings
                 if (transport != null)
                 {
                     await transport.DisposeAsync().ConfigureAwait(false);
+                }
+
+                if (transport != null && channelId != 0)
+                {
+                    m_connectionBindings.TryRemove(channelId, out _);
                 }
             }
         }
@@ -736,6 +881,173 @@ namespace Opc.Ua.Bindings
                     "The server has no Application Instance Certificate to present over TLS.");
         }
 
+        private async ValueTask<IReadOnlyList<string>> CloseChannelsForCertificateAsync(
+            string oldThumbprint,
+            byte[] oldPublicKey,
+            StatusCode closeErrorCode,
+            CancellationToken ct)
+        {
+            var closed = new List<string>();
+
+            foreach (TcpListenerChannel channel in m_channels.Values.ToArray())
+            {
+                byte[]? rawData = channel.ServerCertificate?.RawData;
+                if ((rawData == null || rawData.Length == 0) &&
+                    TryGetChannelId(channel, out uint channelId) &&
+                    m_connectionBindings.TryGetValue(
+                        channelId,
+                        out QuicConnectionBinding? binding))
+                {
+                    rawData = binding.CertificateRawData;
+                }
+
+                if (rawData == null || rawData.Length == 0)
+                {
+                    continue;
+                }
+
+                using Certificate serverCertificate = Certificate.FromRawData(rawData);
+                if (!CryptographicOperations.FixedTimeEquals(
+                        serverCertificate.AsX509Certificate2().GetPublicKey(),
+                        oldPublicKey))
+                {
+                    continue;
+                }
+
+                string? globalChannelId = await CloseQuicChannelAsync(
+                    channel,
+                    closeErrorCode,
+                    ct).ConfigureAwait(false);
+                if (!string.IsNullOrEmpty(globalChannelId))
+                {
+                    closed.Add(globalChannelId!);
+                }
+            }
+
+            return closed;
+        }
+
+        private async ValueTask<IReadOnlyList<string>> CloseChannelsForSupersededEpochAsync(
+            long activatedEpoch,
+            StatusCode statusCode,
+            CancellationToken ct)
+        {
+            var closed = new List<string>();
+
+            foreach (KeyValuePair<uint, TcpListenerChannel> item in m_channels.ToArray())
+            {
+                if (!m_connectionBindings.TryGetValue(
+                        item.Key,
+                        out QuicConnectionBinding? binding) ||
+                    binding.ActivationEpoch >= activatedEpoch)
+                {
+                    continue;
+                }
+
+                string? globalChannelId = await CloseQuicChannelAsync(
+                    item.Value,
+                    statusCode,
+                    ct).ConfigureAwait(false);
+                if (!string.IsNullOrEmpty(globalChannelId))
+                {
+                    closed.Add(globalChannelId!);
+                }
+            }
+
+            return closed;
+        }
+
+        private async ValueTask<string?> CloseQuicChannelAsync(
+            TcpListenerChannel channel,
+            StatusCode statusCode,
+            CancellationToken ct)
+        {
+            if (TryGetChannelId(channel, out uint channelId) &&
+                m_connectionBindings.TryGetValue(channelId, out QuicConnectionBinding? binding))
+            {
+                await CloseConnectionAsync(binding.Connection, statusCode, ct).ConfigureAwait(false);
+            }
+
+            if (!TryGetChannelId(channel, out channelId))
+            {
+                return null;
+            }
+
+            string globalChannelId = channel.GlobalChannelId;
+            m_connectionBindings.TryRemove(channelId, out _);
+            if (m_channels.TryRemove(channelId, out TcpListenerChannel? removed))
+            {
+                ConnectionStatusChanged?.Invoke(
+                    this,
+                    new ConnectionStatusEventArgs(
+                        EndpointUrl,
+                        new ServiceResult(statusCode),
+                        closed: true));
+
+                removed.Dispose();
+                return globalChannelId;
+            }
+
+            return null;
+        }
+
+        private bool TryGetChannelId(TcpListenerChannel channel, out uint channelId)
+        {
+            foreach (KeyValuePair<uint, TcpListenerChannel> item in m_channels)
+            {
+                if (ReferenceEquals(item.Value, channel))
+                {
+                    channelId = item.Key;
+                    return true;
+                }
+            }
+
+            channelId = 0;
+            return false;
+        }
+
+        private static async ValueTask CloseConnectionAsync(
+            QuicConnection connection,
+            StatusCode statusCode,
+            CancellationToken ct)
+        {
+            try
+            {
+                await connection.CloseAsync((long)statusCode.Code, ct).ConfigureAwait(false);
+            }
+            catch (QuicException)
+            {
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+        }
+
+        private QuicAdmissionSnapshot TakeConnectionAdmission(QuicConnection connection)
+        {
+            return m_pendingConnectionEpochs.TryRemove(
+                connection,
+                out QuicAdmissionSnapshot? admission)
+                ? admission
+                : new QuicAdmissionSnapshot(Volatile.Read(ref m_certificateEpoch), []);
+        }
+
+        private static bool SamePublicKey(X509Certificate2 left, X509Certificate2 right)
+        {
+            return CryptographicOperations.FixedTimeEquals(
+                left.GetPublicKey(),
+                right.GetPublicKey());
+        }
+
+        private static Uri ReplacePort(Uri uri, int port)
+        {
+            var builder = new UriBuilder(uri)
+            {
+                Port = port
+            };
+            return builder.Uri;
+        }
+
         private uint NextChannelId()
         {
             return (uint)Interlocked.Increment(ref m_nextChannelId);
@@ -743,8 +1055,21 @@ namespace Opc.Ua.Bindings
 
         private const int MaxInboundStreams = 128;
 
+        internal Func<QuicConnection, long, ValueTask>? AdmissionCallbackPauseForTesting { get; set; }
+
         private readonly ConcurrentDictionary<uint, TcpListenerChannel> m_channels = new();
+        private readonly ConcurrentDictionary<uint, QuicConnectionBinding> m_connectionBindings = new();
+        private readonly ConcurrentDictionary<QuicConnection, QuicAdmissionSnapshot>
+            m_pendingConnectionEpochs = new();
         private readonly List<X509Certificate2> m_retiredTlsCertificates = [];
+        private readonly object m_certificateActivationLock = new();
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Usage",
+            "CA2213:Disposable fields should be disposed",
+            Justification =
+                "Disposed by CloseAsync via Interlocked.Exchange; retired " +
+                "instances are moved to m_retiredTlsCertificates and disposed " +
+                "from the same close path.")]
         private X509Certificate2? m_tlsCertificate;
         private readonly IBufferManagerFactory m_bufferManagerFactory;
         private readonly ILogger m_logger;
@@ -765,6 +1090,16 @@ namespace Opc.Ua.Bindings
         private CancellationTokenSource? m_stop;
         private Task? m_acceptLoop;
         private int m_nextChannelId;
+        private long m_certificateEpoch;
+
+        private sealed record QuicConnectionBinding(
+            QuicConnection Connection,
+            long ActivationEpoch,
+            byte[] CertificateRawData);
+
+        private sealed record QuicAdmissionSnapshot(
+            long ActivationEpoch,
+            byte[] CertificateRawData);
     }
 
     /// <summary>

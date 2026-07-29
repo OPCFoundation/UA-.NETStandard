@@ -43,7 +43,7 @@ using Opc.Ua.Security.Certificates;
 namespace Opc.Ua.Server
 {
     /// <inheritdoc/>
-    public class StandardServer : SessionServerBase, IStandardServer
+    public partial class StandardServer : SessionServerBase, IStandardServer
     {
         /// <inheritdoc/>
         public StandardServer(ITelemetryContext telemetry)
@@ -175,6 +175,8 @@ namespace Opc.Ua.Server
         {
             if (disposing)
             {
+                ShutdownDataChannelServices();
+
                 // halt any outstanding timer.
                 m_registrationTimer?.Dispose();
                 m_registrationTimer = null;
@@ -3615,6 +3617,7 @@ namespace Opc.Ua.Server
 
                 // add the session manager to the datastore.
                 ServerInternal.SetSessionManager(sessionManager, subscriptionManager);
+                InitializeDataChannelServices();
 
                 ServerError = null!;
 

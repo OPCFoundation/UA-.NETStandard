@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Buffers.Binary;
 using System.Net;
 using System.Net.Quic;
 using System.Net.Security;
@@ -35,6 +36,7 @@ using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings
 {
@@ -65,6 +67,12 @@ namespace Opc.Ua.Bindings
         /// OpenSecureChannel when both other certificates are known.
         /// </remarks>
         public RemoteCertificateValidationCallback? ServerCertificateValidation { get; init; }
+
+        /// <summary>
+        /// The endpoint selected by the OPC UA client. QUIC uses it to bind
+        /// the TLS peer to the OPC UA peer after OpenSecureChannel.
+        /// </summary>
+        internal EndpointDescription? EndpointDescription { get; init; }
 
         /// <summary>
         /// How long the QUIC handshake may take.
@@ -122,15 +130,32 @@ namespace Opc.Ua.Bindings
             int receiveBufferSize,
             ITelemetryContext telemetry)
         {
-            return new QuicMultiplexedTransport(
+#pragma warning disable CA2000 // QuicPeerBindingTransport owns and closes the inner transport.
+            var transport = new QuicMultiplexedTransport(
                 bufferManager,
                 receiveBufferSize,
                 telemetry ?? m_telemetry,
-                m_options);
+                m_options with { EndpointDescription = m_endpointDescription });
+#pragma warning restore CA2000
+
+            return new QuicPeerBindingTransport(
+                transport,
+                bufferManager,
+                m_endpointDescription);
+        }
+
+        /// <summary>
+        /// Supplies the selected endpoint before the byte transport connects.
+        /// </summary>
+        /// <param name="endpointDescription">The selected endpoint.</param>
+        internal void SetEndpointDescription(EndpointDescription? endpointDescription)
+        {
+            m_endpointDescription = endpointDescription;
         }
 
         private readonly ITelemetryContext m_telemetry;
         private readonly QuicClientOptions m_options;
+        private EndpointDescription? m_endpointDescription;
     }
 
     /// <summary>
@@ -163,7 +188,14 @@ namespace Opc.Ua.Bindings
             {
                 ApplicationProtocols = [QuicTransport.ApplicationProtocol],
                 TargetHost = url.DnsSafeHost,
-                RemoteCertificateValidationCallback = options.ServerCertificateValidation
+                RemoteCertificateValidationCallback = (sender, certificate, chain, sslPolicyErrors) =>
+                    ValidateServerCertificate(
+                        url,
+                        options,
+                        sender,
+                        certificate,
+                        chain,
+                        sslPolicyErrors)
             };
 
             if (options.ClientCertificate != null)
@@ -230,5 +262,337 @@ namespace Opc.Ua.Bindings
 
             return connection;
         }
+
+        private static bool ValidateServerCertificate(
+            Uri url,
+            QuicClientOptions options,
+            object sender,
+            X509Certificate? certificate,
+            X509Chain? chain,
+            SslPolicyErrors sslPolicyErrors)
+        {
+            if (certificate == null)
+            {
+                return false;
+            }
+
+            bool callbackAccepted = options.ServerCertificateValidation != null
+                ? options.ServerCertificateValidation(sender, certificate, chain, sslPolicyErrors)
+                : sslPolicyErrors == SslPolicyErrors.None;
+
+            if (!callbackAccepted)
+            {
+                return false;
+            }
+
+            X509Certificate2? temporaryCertificate = null;
+            X509Certificate2 certificate2 = certificate as X509Certificate2 ??
+                (temporaryCertificate = new X509Certificate2(certificate));
+            try
+            {
+                string host = GetEndpointHost(options.EndpointDescription) ?? url.DnsSafeHost;
+                return SubjectAltNameCoversHost(certificate2, host);
+            }
+            finally
+            {
+                temporaryCertificate?.Dispose();
+            }
+        }
+
+        private static string? GetEndpointHost(EndpointDescription? endpoint)
+        {
+            if (endpoint?.EndpointUrl == null ||
+                !Uri.TryCreate(endpoint.EndpointUrl, UriKind.Absolute, out Uri? endpointUri))
+            {
+                return null;
+            }
+
+            return endpointUri.DnsSafeHost;
+        }
+
+        private static bool SubjectAltNameCoversHost(
+            X509Certificate2 certificate,
+            string host)
+        {
+            X509SubjectAltNameExtension? subjectAltName = FindSubjectAltName(certificate);
+            if (subjectAltName == null)
+            {
+                return false;
+            }
+
+            if (IPAddress.TryParse(host, out IPAddress? address))
+            {
+                foreach (string ipAddress in subjectAltName.IPAddresses)
+                {
+                    if (IPAddress.TryParse(ipAddress, out IPAddress? candidate) &&
+                        candidate.Equals(address))
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
+            string normalizedHost = NormalizeDnsName(host);
+            foreach (string dnsName in subjectAltName.DomainNames)
+            {
+                if (DnsNameMatches(NormalizeDnsName(dnsName), normalizedHost))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static X509SubjectAltNameExtension? FindSubjectAltName(
+            X509Certificate2 certificate)
+        {
+            foreach (X509Extension extension in certificate.Extensions)
+            {
+                if (extension.Oid?.Value is X509SubjectAltNameExtension.SubjectAltNameOid
+                    or X509SubjectAltNameExtension.SubjectAltName2Oid)
+                {
+                    return new X509SubjectAltNameExtension(extension, extension.Critical);
+                }
+            }
+
+            return null;
+        }
+
+        private static string NormalizeDnsName(string value)
+        {
+            return value.TrimEnd('.').ToLowerInvariant();
+        }
+
+        private static bool DnsNameMatches(string pattern, string host)
+        {
+            if (string.Equals(pattern, host, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            const string wildcard = "*.";
+            if (!pattern.StartsWith(wildcard, StringComparison.Ordinal) ||
+                host.Length <= pattern.Length - wildcard.Length)
+            {
+                return false;
+            }
+
+            string suffix = pattern[wildcard.Length..];
+            return host.EndsWith("." + suffix, StringComparison.OrdinalIgnoreCase) &&
+                host[..^(suffix.Length + 1)].IndexOf('.', StringComparison.Ordinal) < 0;
+        }
+    }
+
+    internal sealed class QuicPeerBindingTransport :
+        IUaSCByteTransport,
+        IMultiplexedByteTransport
+    {
+        public QuicPeerBindingTransport(
+            QuicMultiplexedTransport inner,
+            BufferManager bufferManager,
+            EndpointDescription? endpointDescription)
+        {
+            m_inner = inner ?? throw new ArgumentNullException(nameof(inner));
+            m_bufferManager = bufferManager ?? throw new ArgumentNullException(nameof(bufferManager));
+            m_endpointDescription = endpointDescription;
+        }
+
+        public EndPoint? LocalEndpoint => m_inner.LocalEndpoint;
+
+        public EndPoint? RemoteEndpoint => m_inner.RemoteEndpoint;
+
+        public TransportChannelFeatures Features => m_inner.Features;
+
+        public string Implementation => m_inner.Implementation;
+
+        public bool SupportsDatagrams => m_inner.SupportsDatagrams;
+
+        public int MaxDatagramSize => m_inner.MaxDatagramSize;
+
+        public ValueTask ConnectAsync(Uri url, CancellationToken ct)
+        {
+            return m_inner.ConnectAsync(url, ct);
+        }
+
+        public ValueTask SendChunkAsync(ReadOnlyMemory<byte> chunk, CancellationToken ct)
+        {
+            return m_inner.SendChunkAsync(chunk, ct);
+        }
+
+        public ValueTask SendChunkAsync(BufferCollection buffers, CancellationToken ct)
+        {
+            return m_inner.SendChunkAsync(buffers, ct);
+        }
+
+        public async ValueTask<ArraySegment<byte>> ReceiveChunkAsync(CancellationToken ct)
+        {
+            ArraySegment<byte> chunk = await m_inner.ReceiveChunkAsync(ct).ConfigureAwait(false);
+
+            try
+            {
+                VerifyOpenSecureChannelBinding(chunk);
+                return chunk;
+            }
+            catch
+            {
+                if (chunk.Array != null)
+                {
+                    m_bufferManager.ReturnBuffer(chunk.Array, nameof(ReceiveChunkAsync));
+                }
+
+                Close();
+                throw;
+            }
+        }
+
+        public ValueTask<ulong> OpenStreamAsync(bool bidirectional, CancellationToken ct)
+        {
+            return m_inner.OpenStreamAsync(bidirectional, ct);
+        }
+
+        public ValueTask<ulong> AcceptStreamAsync(CancellationToken ct)
+        {
+            return m_inner.AcceptStreamAsync(ct);
+        }
+
+        public ValueTask SendOnStreamAsync(
+            ulong streamId,
+            ReadOnlyMemory<byte> frame,
+            CancellationToken ct)
+        {
+            return m_inner.SendOnStreamAsync(streamId, frame, ct);
+        }
+
+        public ValueTask SendDatagramAsync(ReadOnlyMemory<byte> frame, CancellationToken ct)
+        {
+            return m_inner.SendDatagramAsync(frame, ct);
+        }
+
+        public ValueTask<ArraySegment<byte>> ReceiveOnStreamAsync(
+            ulong streamId,
+            CancellationToken ct)
+        {
+            return m_inner.ReceiveOnStreamAsync(streamId, ct);
+        }
+
+        public ValueTask<ArraySegment<byte>> ReceiveDatagramAsync(CancellationToken ct)
+        {
+            return m_inner.ReceiveDatagramAsync(ct);
+        }
+
+        public void AbortStream(ulong streamId, uint errorCode)
+        {
+            m_inner.AbortStream(streamId, errorCode);
+        }
+
+        public void CloseStream(ulong streamId)
+        {
+            m_inner.CloseStream(streamId);
+        }
+
+        public void Close()
+        {
+            m_inner.Close();
+        }
+
+        private void VerifyOpenSecureChannelBinding(ArraySegment<byte> chunk)
+        {
+            if (m_bindingVerified ||
+                m_endpointDescription == null ||
+                m_endpointDescription.SecurityMode == MessageSecurityMode.None ||
+                chunk.Array == null)
+            {
+                return;
+            }
+
+            ReadOnlySpan<byte> data = chunk.AsSpan();
+            if (data.Length < 12 ||
+                data[0] != (byte)'O' ||
+                data[1] != (byte)'P' ||
+                data[2] != (byte)'N')
+            {
+                return;
+            }
+
+            m_bindingVerified = true;
+            byte[] secureChannelCertificate = ReadSenderCertificate(data);
+            QuicPeerBindingResult result = QuicPeerBinding.Verify(
+                m_inner.PeerCertificate,
+                m_endpointDescription.ServerCertificate.ToArray(),
+                secureChannelCertificate);
+
+            if (result != QuicPeerBindingResult.Bound)
+            {
+                throw ServiceResultException.Create(
+                    QuicPeerBinding.ToStatusCode(result),
+                    "The QUIC TLS peer is not bound to the OPC UA peer: {0}.",
+                    result);
+            }
+        }
+
+        private static byte[] ReadSenderCertificate(ReadOnlySpan<byte> chunk)
+        {
+            int offset = 12;
+            SkipUaString(chunk, ref offset);
+            return ReadUaByteString(chunk, ref offset);
+        }
+
+        private static void SkipUaString(ReadOnlySpan<byte> data, ref int offset)
+        {
+            int length = ReadUaLength(data, ref offset);
+            if (length > 0)
+            {
+                EnsureAvailable(data, offset, length);
+                offset += length;
+            }
+        }
+
+        private static byte[] ReadUaByteString(ReadOnlySpan<byte> data, ref int offset)
+        {
+            int length = ReadUaLength(data, ref offset);
+            if (length <= 0)
+            {
+                return [];
+            }
+
+            EnsureAvailable(data, offset, length);
+            byte[] value = data.Slice(offset, length).ToArray();
+            offset += length;
+            return value;
+        }
+
+        private static int ReadUaLength(ReadOnlySpan<byte> data, ref int offset)
+        {
+            EnsureAvailable(data, offset, sizeof(int));
+            int length = BinaryPrimitives.ReadInt32LittleEndian(data.Slice(offset, sizeof(int)));
+            offset += sizeof(int);
+
+            if (length < -1)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadTcpMessageTypeInvalid,
+                    "The OpenSecureChannel asymmetric header is malformed.");
+            }
+
+            return length;
+        }
+
+        private static void EnsureAvailable(ReadOnlySpan<byte> data, int offset, int length)
+        {
+            if (offset < 0 || length < 0 || offset + length > data.Length)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadTcpMessageTypeInvalid,
+                    "The OpenSecureChannel asymmetric header is truncated.");
+            }
+        }
+
+        private readonly QuicMultiplexedTransport m_inner;
+        private readonly BufferManager m_bufferManager;
+        private readonly EndpointDescription? m_endpointDescription;
+        private bool m_bindingVerified;
     }
 }

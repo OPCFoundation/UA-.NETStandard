@@ -127,10 +127,77 @@ namespace Opc.Ua.Bindings
         /// travelled in transportChannelId.</param>
         public void BindChannel(uint channelId, ulong streamId)
         {
-            m_streamsByChannel[channelId] = streamId;
-            m_channelsByStream[streamId] = channelId;
+            RecordChannel(channelId, streamId, canSend: true, canReceive: true);
 
-            _ = RunReceiveLoopAsync(channelId, streamId, m_stop.Token);
+            StartReceiveLoop(channelId, streamId);
+        }
+
+        /// <summary>
+        /// Opens the stream for a channel when this peer is the §7.4
+        /// initiator, records the channel binding, and returns the id to
+        /// carry in OpenDataChannel.
+        /// </summary>
+        /// <param name="channelId">The data channel id.</param>
+        /// <param name="direction">The channel direction from
+        /// OpenDataChannel.</param>
+        /// <param name="isOpcUaServer">True when this endpoint is the OPC
+        /// UA Server role, independent of the QUIC/TLS role.</param>
+        /// <param name="ct">Cancellation token.</param>
+        public async ValueTask<ulong> OpenChannelStreamAsync(
+            uint channelId,
+            DataChannelDirection direction,
+            bool isOpcUaServer,
+            CancellationToken ct)
+        {
+            if (!IsStreamInitiator(direction, isOpcUaServer))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadInvalidState,
+                    "The {0} role does not initiate {1} data-channel streams.",
+                    isOpcUaServer ? "OPC UA Server" : "OPC UA Client",
+                    direction);
+            }
+
+            ulong streamId = await m_transport
+                .OpenStreamAsync(IsBidirectionalStream(direction), ct)
+                .ConfigureAwait(false);
+
+            RecordChannel(
+                channelId,
+                streamId,
+                CanSend(direction, isOpcUaServer),
+                CanReceive(direction, isOpcUaServer));
+            StartReceiveLoopIfNeeded(channelId, streamId);
+            return streamId;
+        }
+
+        /// <summary>
+        /// Associates a ChannelId with the QUIC stream id carried in
+        /// OpenDataChannel and waits until that inbound stream has
+        /// materialized on this connection.
+        /// </summary>
+        /// <param name="channelId">The data channel id.</param>
+        /// <param name="streamId">The stream id from transportChannelId or
+        /// revisedTransportChannelId.</param>
+        /// <param name="direction">The negotiated channel direction.</param>
+        /// <param name="isOpcUaServer">True when this endpoint is the OPC
+        /// UA Server role, independent of the QUIC/TLS role.</param>
+        /// <param name="ct">Cancellation token.</param>
+        public async ValueTask BindChannelAsync(
+            uint channelId,
+            ulong streamId,
+            DataChannelDirection direction,
+            bool isOpcUaServer,
+            CancellationToken ct)
+        {
+            await m_transport.BindInboundStreamAsync(streamId, ct).ConfigureAwait(false);
+
+            RecordChannel(
+                channelId,
+                streamId,
+                CanSend(direction, isOpcUaServer),
+                CanReceive(direction, isOpcUaServer));
+            StartReceiveLoopIfNeeded(channelId, streamId);
         }
 
         /// <summary>
@@ -143,11 +210,12 @@ namespace Opc.Ua.Bindings
         /// close.</param>
         public void ReleaseChannel(uint channelId, StatusCode status)
         {
-            if (!m_streamsByChannel.TryRemove(channelId, out ulong streamId))
+            if (!m_channelsByChannel.TryRemove(channelId, out ChannelStreamBinding? binding))
             {
                 return;
             }
 
+            ulong streamId = binding.StreamId;
             m_channelsByStream.TryRemove(streamId, out _);
 
             if (StatusCode.IsBad(status))
@@ -163,11 +231,19 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public async ValueTask SendFrameAsync(DataChannelFrame frame, CancellationToken ct)
         {
-            if (!m_streamsByChannel.TryGetValue(frame.ChannelId, out ulong streamId))
+            if (!m_channelsByChannel.TryGetValue(frame.ChannelId, out ChannelStreamBinding? binding))
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadDataChannelIdInvalid,
                     "ChannelId {0} is not bound to a QUIC stream.",
+                    frame.ChannelId);
+            }
+
+            if (!binding.CanSend)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDataChannelDirectionUnsupported,
+                    "This OPC UA role may not send DATA on ChannelId {0}.",
                     frame.ChannelId);
             }
 
@@ -182,7 +258,7 @@ namespace Opc.Ua.Bindings
                 DataChannelFrameCodec.Encode(buffer.AsSpan(MessageHeaderSize, bodySize), frame);
 
                 await m_transport
-                    .SendOnStreamAsync(streamId, new ReadOnlyMemory<byte>(buffer, 0, total), ct)
+                    .SendOnStreamAsync(binding.StreamId, new ReadOnlyMemory<byte>(buffer, 0, total), ct)
                     .ConfigureAwait(false);
             }
             finally
@@ -213,8 +289,42 @@ namespace Opc.Ua.Bindings
             await m_stop.CancelAsync().ConfigureAwait(false);
             m_stop.Dispose();
 
-            m_streamsByChannel.Clear();
+            m_channelsByChannel.Clear();
             m_channelsByStream.Clear();
+        }
+
+        /// <summary>
+        /// Returns true when the OPC UA role opens the QUIC stream for the
+        /// requested direction, per Part 6 §7.4 and §7.10.
+        /// </summary>
+        public static bool IsStreamInitiator(DataChannelDirection direction, bool isOpcUaServer)
+        {
+            return direction switch
+            {
+                DataChannelDirection.SourceToSink => isOpcUaServer,
+                DataChannelDirection.SinkToSource => !isOpcUaServer,
+                DataChannelDirection.Bidirectional => !isOpcUaServer,
+                _ => throw ServiceResultException.Create(
+                    StatusCodes.BadDataChannelDirectionUnsupported,
+                    "DataChannelDirection {0} is not supported over opc.quic.",
+                    direction)
+            };
+        }
+
+        /// <summary>
+        /// Returns true when the channel uses a bidirectional QUIC stream.
+        /// </summary>
+        public static bool IsBidirectionalStream(DataChannelDirection direction)
+        {
+            return direction switch
+            {
+                DataChannelDirection.Bidirectional => true,
+                DataChannelDirection.SourceToSink or DataChannelDirection.SinkToSource => false,
+                _ => throw ServiceResultException.Create(
+                    StatusCodes.BadDataChannelDirectionUnsupported,
+                    "DataChannelDirection {0} is not supported over opc.quic.",
+                    direction)
+            };
         }
 
         private async Task RunReceiveLoopAsync(uint channelId, ulong streamId, CancellationToken ct)
@@ -303,6 +413,52 @@ namespace Opc.Ua.Bindings
             Manager?.HandleFrame(frame);
         }
 
+        private void RecordChannel(
+            uint channelId,
+            ulong streamId,
+            bool canSend,
+            bool canReceive)
+        {
+            m_channelsByChannel[channelId] = new ChannelStreamBinding(streamId, canSend, canReceive);
+            m_channelsByStream[streamId] = channelId;
+        }
+
+        private static bool CanSend(DataChannelDirection direction, bool isOpcUaServer)
+        {
+            return direction switch
+            {
+                DataChannelDirection.SourceToSink => isOpcUaServer,
+                DataChannelDirection.SinkToSource => !isOpcUaServer,
+                DataChannelDirection.Bidirectional => true,
+                _ => false
+            };
+        }
+
+        private static bool CanReceive(DataChannelDirection direction, bool isOpcUaServer)
+        {
+            return direction switch
+            {
+                DataChannelDirection.SourceToSink => !isOpcUaServer,
+                DataChannelDirection.SinkToSource => isOpcUaServer,
+                DataChannelDirection.Bidirectional => true,
+                _ => false
+            };
+        }
+
+        private void StartReceiveLoopIfNeeded(uint channelId, ulong streamId)
+        {
+            if (m_channelsByChannel.TryGetValue(channelId, out ChannelStreamBinding? binding) &&
+                binding.CanReceive)
+            {
+                StartReceiveLoop(channelId, streamId);
+            }
+        }
+
+        private void StartReceiveLoop(uint channelId, ulong streamId)
+        {
+            _ = RunReceiveLoopAsync(channelId, streamId, m_stop.Token);
+        }
+
         /// <summary>
         /// Writes the 12-byte Message header that precedes the stream
         /// header under QUIC framing. Internal so the emitted bytes can be
@@ -328,7 +484,9 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private const int MessageHeaderSize = 12;
 
-        private readonly ConcurrentDictionary<uint, ulong> m_streamsByChannel = new();
+        private sealed record ChannelStreamBinding(ulong StreamId, bool CanSend, bool CanReceive);
+
+        private readonly ConcurrentDictionary<uint, ChannelStreamBinding> m_channelsByChannel = new();
         private readonly ConcurrentDictionary<ulong, uint> m_channelsByStream = new();
         private readonly QuicMultiplexedTransport m_transport;
         private readonly CancellationTokenSource m_stop;

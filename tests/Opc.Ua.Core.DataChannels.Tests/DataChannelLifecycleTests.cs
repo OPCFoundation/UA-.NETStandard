@@ -182,7 +182,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
         }
 
         [Test]
-        public void DataChannelLifecycle_TryPingLatchesUntilTheProbeIsAnswered()
+        public async Task DataChannelLifecycle_TryPingLatchesUntilTheProbeIsAnswered()
         {
             (DataChannel server, _) = OpenPair(DataChannelDirection.SourceToSink);
 
@@ -193,12 +193,23 @@ namespace Opc.Ua.Core.DataChannels.Tests
 
             bool firstPing = server.TryPing();
 
+            // The latch is set synchronously by TryPing; the frame itself is
+            // written by the scheduler, so it is waited for rather than
+            // asserted in the same breath.
             Assert.Multiple(() =>
             {
                 Assert.That(firstPing, Is.True);
                 Assert.That(IsPingOutstanding(server), Is.True);
                 Assert.That(server.TryPing(), Is.False);
+            });
+
+            await WaitForAsync(() => m_serverTransport.CountOf(DataChannelFrameType.Ping) > 0)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
                 Assert.That(m_serverTransport.CountOf(DataChannelFrameType.Ping), Is.EqualTo(1));
+                Assert.That(IsPingOutstanding(server), Is.True, "the dropped PONG leaves the latch set");
             });
         }
 

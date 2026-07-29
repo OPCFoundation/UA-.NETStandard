@@ -51,6 +51,12 @@ namespace ConsoleDataChannelStreaming
         Quic
     }
 
+    internal enum SampleRunMode
+    {
+        Server,
+        Direct
+    }
+
     /// <summary>
     /// The command line of the sample.
     /// </summary>
@@ -60,6 +66,8 @@ namespace ConsoleDataChannelStreaming
         /// Which framing to exercise.
         /// </summary>
         public SampleTransport Transport { get; init; } = SampleTransport.Tcp;
+
+        public SampleRunMode RunMode { get; init; } = SampleRunMode.Server;
 
         /// <summary>
         /// How many frames to send.
@@ -115,7 +123,22 @@ namespace ConsoleDataChannelStreaming
                         options = options with { FrameSize = ParseInt(Next(args, ref ii)) };
                         break;
                     case "--mode":
-                        options = options with { DeliveryMode = ParseMode(Next(args, ref ii)) };
+                        string mode = Next(args, ref ii);
+                        if (mode.Equals("direct", StringComparison.OrdinalIgnoreCase))
+                        {
+                            options = options with { RunMode = SampleRunMode.Direct };
+                        }
+                        else if (mode.Equals("server", StringComparison.OrdinalIgnoreCase))
+                        {
+                            options = options with { RunMode = SampleRunMode.Server };
+                        }
+                        else
+                        {
+                            options = options with { DeliveryMode = ParseDeliveryMode(mode) };
+                        }
+                        break;
+                    case "--delivery":
+                        options = options with { DeliveryMode = ParseDeliveryMode(Next(args, ref ii)) };
                         break;
                     default:
                         Console.Error.WriteLine($"unknown argument '{argument}'");
@@ -134,11 +157,12 @@ namespace ConsoleDataChannelStreaming
             Console.WriteLine("usage: ConsoleDataChannelStreaming [options]");
             Console.WriteLine();
             Console.WriteLine("  --transport tcp|quic  framing to exercise (default tcp)");
+            Console.WriteLine("  --mode server|direct  real Session/OpenDataChannel or direct manager (default server)");
             Console.WriteLine("  --frames N            frames to send (default 300)");
             Console.WriteLine("  --size N              payload bytes per frame (default 1200,");
             Console.WriteLine("                        which fits one QUIC datagram without");
             Console.WriteLine("                        IP fragmentation)");
-            Console.WriteLine("  --mode reliable|reliable-unordered|partial|unreliable");
+            Console.WriteLine("  --delivery reliable|reliable-unordered|partial|unreliable");
             Console.WriteLine("  -h, --help            this text");
         }
 
@@ -155,7 +179,7 @@ namespace ConsoleDataChannelStreaming
                 : 0;
         }
 
-        private static DataChannelDeliveryMode ParseMode(string value)
+        private static DataChannelDeliveryMode ParseDeliveryMode(string value)
         {
             switch (value.ToLowerInvariant())
             {

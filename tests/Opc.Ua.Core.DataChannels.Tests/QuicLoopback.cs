@@ -83,10 +83,32 @@ namespace Opc.Ua.Core.DataChannels.Tests
         /// which stands in for its Application Instance Certificate.</param>
         /// <param name="bufferManager">The pool both sides rent from.</param>
         /// <param name="telemetry">Telemetry context.</param>
-        public static async Task<QuicLoopback> StartAsync(
+        public static Task<QuicLoopback> StartAsync(
             X509Certificate2 certificate,
             BufferManager bufferManager,
             ITelemetryContext telemetry)
+        {
+            return StartAsync(certificate, bufferManager, telemetry, reverseConnect: false);
+        }
+
+        /// <summary>
+        /// Starts a reverse-connect loopback. The OPC UA Server owns the
+        /// QUIC client role, while the OPC UA Client owns the QUIC server
+        /// role.
+        /// </summary>
+        public static Task<QuicLoopback> StartReverseAsync(
+            X509Certificate2 certificate,
+            BufferManager bufferManager,
+            ITelemetryContext telemetry)
+        {
+            return StartAsync(certificate, bufferManager, telemetry, reverseConnect: true);
+        }
+
+        private static async Task<QuicLoopback> StartAsync(
+            X509Certificate2 certificate,
+            BufferManager bufferManager,
+            ITelemetryContext telemetry,
+            bool reverseConnect)
         {
             var listenerOptions = new QuicListenerOptions
             {
@@ -119,7 +141,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
                 .AcceptConnectionAsync(timeout.Token)
                 .AsTask();
 
-            var client = new QuicMultiplexedTransport(
+            var connector = new QuicMultiplexedTransport(
                 bufferManager,
                 65536,
                 telemetry,
@@ -128,39 +150,41 @@ namespace Opc.Ua.Core.DataChannels.Tests
                     ServerCertificateValidation = (_, _, _, _) => true
                 });
 
-            await client
+            await connector
                 .ConnectAsync(QuicTransport.CreateUrl("localhost", port), timeout.Token)
                 .ConfigureAwait(false);
 
-            QuicConnection serverConnection = await accept.ConfigureAwait(false);
+            QuicConnection acceptedConnection = await accept.ConfigureAwait(false);
 
             // A QUIC stream only materializes on the wire when something
             // is written to it, so the control stream is primed with one
-            // minimal chunk. A real client primes it with HEL; the
+            // minimal chunk. A real peer primes it with HEL or RHE; the
             // harness consumes the primer so every test starts from a
             // clean stream.
-            await client
+            await connector
                 .SendChunkAsync(BuildPrimingChunk(), timeout.Token)
                 .ConfigureAwait(false);
 
-            QuicStream serverControl = await serverConnection
+            QuicStream acceptedControl = await acceptedConnection
                 .AcceptInboundStreamAsync(timeout.Token)
                 .ConfigureAwait(false);
 
-            var server = new QuicMultiplexedTransport(
-                serverConnection,
-                serverControl,
+            var acceptor = new QuicMultiplexedTransport(
+                acceptedConnection,
+                acceptedControl,
                 bufferManager,
                 65536,
                 telemetry);
 
-            ArraySegment<byte> primer = await server
+            ArraySegment<byte> primer = await acceptor
                 .ReceiveChunkAsync(timeout.Token)
                 .ConfigureAwait(false);
 
             bufferManager.ReturnBuffer(primer.Array, nameof(StartAsync));
 
-            return new QuicLoopback(listener, client, server, port);
+            return reverseConnect
+                ? new QuicLoopback(listener, acceptor, connector, port)
+                : new QuicLoopback(listener, connector, acceptor, port);
         }
 
         /// <summary>

@@ -48,7 +48,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <param name="telemetry">Telemetry context.</param>
         public QuicTransportChannel(ITelemetryContext telemetry)
-            : this(telemetry, DefaultBufferManagerFactory.Instance, null)
+            : this(telemetry, DefaultBufferManagerFactory.Instance, (QuicClientOptions?)null)
         {
         }
 
@@ -64,13 +64,36 @@ namespace Opc.Ua.Bindings
             ITelemetryContext telemetry,
             IBufferManagerFactory bufferManagerFactory,
             QuicClientOptions? options)
+            : this(
+                telemetry,
+                bufferManagerFactory,
+                new QuicByteTransportFactory(telemetry, options))
+        {
+        }
+
+        private QuicTransportChannel(
+            ITelemetryContext telemetry,
+            IBufferManagerFactory bufferManagerFactory,
+            QuicByteTransportFactory transportFactory)
             : base(
-                new QuicByteTransportFactory(telemetry, options),
+                transportFactory,
                 telemetry,
                 timeProvider: null,
                 bufferManagerFactory: bufferManagerFactory)
         {
+            m_transportFactory = transportFactory;
         }
+
+        /// <inheritdoc/>
+        protected override void OnSettingsSaved(
+            TransportChannelSettings settings,
+            ChannelQuotas quotas)
+        {
+            _ = quotas;
+            m_transportFactory.SetEndpointDescription(settings.Description);
+        }
+
+        private readonly QuicByteTransportFactory m_transportFactory;
     }
 
     /// <summary>

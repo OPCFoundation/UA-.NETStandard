@@ -1288,6 +1288,10 @@ namespace Opc.Ua.Server
                     case RequestType.UnregisterNodes:
                         counter = SessionDiagnostics.UnregisterNodesCount;
                         break;
+                    case RequestType.OpenDataChannel:
+                    case RequestType.ModifyDataChannel:
+                    case RequestType.CloseDataChannel:
+                        break;
                     case RequestType.Unknown:
                     case RequestType.FindServers:
                     case RequestType.GetEndpoints:

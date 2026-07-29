@@ -81,6 +81,16 @@ namespace Opc.Ua.Bindings
         /// payload.
         /// </summary>
         public uint TransportMaxFrameSize { get; init; }
+
+        /// <summary>
+        /// The audit entry id supplied with the Service request.
+        /// </summary>
+        public string? ClientAuditEntryId { get; init; }
+
+        /// <summary>
+        /// The effective user id for audit events.
+        /// </summary>
+        public string? ClientUserId { get; init; }
     }
 
     /// <summary>
@@ -137,6 +147,32 @@ namespace Opc.Ua.Bindings
     }
 
     /// <summary>
+    /// Allocates transport streams needed by mappings that do not carry
+    /// data-channel frames inline with Services.
+    /// </summary>
+    public interface IDataChannelTransportStreamAllocator
+    {
+        /// <summary>
+        /// Allocates the server-initiated transport stream for a channel.
+        /// </summary>
+        ValueTask<ulong> AllocateServerStreamAsync(
+            DataChannelRequestContext context,
+            uint channelId,
+            DataChannelDirection direction,
+            CancellationToken ct);
+
+        /// <summary>
+        /// Binds the client-initiated transport stream for a channel.
+        /// </summary>
+        ValueTask BindClientStreamAsync(
+            DataChannelRequestContext context,
+            uint channelId,
+            ulong streamId,
+            DataChannelDirection direction,
+            CancellationToken ct);
+    }
+
+    /// <summary>
     /// The server side of the DataChannel Service Set on one
     /// SecureChannel.
     /// </summary>
@@ -158,6 +194,7 @@ namespace Opc.Ua.Bindings
         /// <param name="capabilities">The server wide limits.</param>
         /// <param name="authorizer">The authorization policy.</param>
         /// <param name="auditor">The audit sink, or null.</param>
+        /// <param name="streamAllocator">The transport stream allocator, or null.</param>
         /// <param name="timeProvider">The clock.</param>
         public DataChannelServiceHandler(
             DataChannelManager manager,
@@ -165,6 +202,7 @@ namespace Opc.Ua.Bindings
             DataChannelServerCapabilities capabilities,
             IDataChannelAuthorizer authorizer,
             IDataChannelAuditor? auditor = null,
+            IDataChannelTransportStreamAllocator? streamAllocator = null,
             TimeProvider? timeProvider = null)
         {
             m_manager = manager ?? throw new ArgumentNullException(nameof(manager));
@@ -172,6 +210,7 @@ namespace Opc.Ua.Bindings
             m_capabilities = capabilities ?? throw new ArgumentNullException(nameof(capabilities));
             m_authorizer = authorizer ?? throw new ArgumentNullException(nameof(authorizer));
             m_auditor = auditor;
+            m_streamAllocator = streamAllocator;
             Offers = new DataChannelOfferRegistry(timeProvider);
         }
 
@@ -289,12 +328,20 @@ namespace Opc.Ua.Bindings
                     StatusCodes.BadTooManyDataChannels);
             }
 
+            ulong revisedTransportChannelId = await ReviseTransportChannelIdAsync(
+                context,
+                sourceNodeId,
+                attempted,
+                channelId,
+                revised,
+                ct).ConfigureAwait(false);
+
             DataChannel channel = m_manager.Register(
                 channelId,
                 sourceNodeId,
                 DataChannelSettings.FromParameters(revised),
                 isSource: true,
-                context.TransportChannelId);
+                revisedTransportChannelId);
 
             m_authorizingSessions[channelId] = context.SessionId;
             m_auditor?.OnOpenDataChannel(
@@ -310,7 +357,7 @@ namespace Opc.Ua.Bindings
             {
                 ChannelId = channelId,
                 RevisedParameters = revised,
-                RevisedTransportChannelId = context.TransportChannelId
+                RevisedTransportChannelId = revisedTransportChannelId
             };
         }
 
@@ -518,6 +565,18 @@ namespace Opc.Ua.Bindings
                 !m_manager.TryGetChannel(channelId, out DataChannel? channel) ||
                 channel == null)
             {
+                // A channel that has already ended is released from the
+                // manager but its identifier is never reissued, so an
+                // identifier this Session owned that is no longer present
+                // names a closed channel rather than an unknown one. Part 4
+                // distinguishes the two and a Client acts on the difference:
+                // Bad_DataChannelClosed is idempotent success for a Close,
+                // Bad_DataChannelIdInvalid is a programming error.
+                if (owner == context.SessionId && m_manager.WasEverAllocated(channelId))
+                {
+                    return (null, StatusCodes.BadDataChannelClosed);
+                }
+
                 return (null, StatusCodes.BadDataChannelIdInvalid);
             }
 
@@ -549,6 +608,73 @@ namespace Opc.Ua.Bindings
             return false;
         }
 
+        private async ValueTask<ulong> ReviseTransportChannelIdAsync(
+            DataChannelRequestContext context,
+            NodeId sourceNodeId,
+            DataChannelParametersDataType attempted,
+            uint channelId,
+            DataChannelParametersDataType revised,
+            CancellationToken ct)
+        {
+            if (!string.Equals(
+                context.TransportProfileUri,
+                Profiles.UaQuicTransport,
+                StringComparison.Ordinal))
+            {
+                return 0;
+            }
+
+            if (IsClientInitiatedDirection(revised.Direction))
+            {
+                if (context.TransportChannelId == 0)
+                {
+                    Refuse(
+                        context,
+                        sourceNodeId,
+                        attempted,
+                        StatusCodes.BadDataChannelLimitsExceeded);
+                }
+
+                if (m_streamAllocator == null)
+                {
+                    Refuse(
+                        context,
+                        sourceNodeId,
+                        attempted,
+                        StatusCodes.BadDataChannelTransportUnsupported);
+                }
+
+                await m_streamAllocator!
+                    .BindClientStreamAsync(
+                        context,
+                        channelId,
+                        context.TransportChannelId,
+                        revised.Direction,
+                        ct)
+                    .ConfigureAwait(false);
+
+                return context.TransportChannelId;
+            }
+
+            if (m_streamAllocator == null)
+            {
+                Refuse(
+                    context,
+                    sourceNodeId,
+                    attempted,
+                    StatusCodes.BadDataChannelTransportUnsupported);
+            }
+
+            return await m_streamAllocator!
+                .AllocateServerStreamAsync(context, channelId, revised.Direction, ct)
+                .ConfigureAwait(false);
+        }
+
+        private static bool IsClientInitiatedDirection(DataChannelDirection direction)
+        {
+            return direction is DataChannelDirection.SinkToSource or DataChannelDirection.Bidirectional;
+        }
+
         private OpenDataChannelResponse Refuse(
             DataChannelRequestContext context,
             NodeId sourceNodeId,
@@ -568,5 +694,6 @@ namespace Opc.Ua.Bindings
         private readonly DataChannelServerCapabilities m_capabilities;
         private readonly IDataChannelAuthorizer m_authorizer;
         private readonly IDataChannelAuditor? m_auditor;
+        private readonly IDataChannelTransportStreamAllocator? m_streamAllocator;
     }
 }

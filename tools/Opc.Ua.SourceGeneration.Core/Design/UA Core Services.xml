@@ -2110,6 +2110,7 @@
     <opc:Field Name="Priority" DataType="s0:Byte" />
     <opc:Field Name="MaxRetransmits" DataType="s0:UInt16" />
     <opc:Field Name="FrameDeadline" DataType="Duration" />
+    <opc:Field Name="MaxBitrate" DataType="s0:UInt32" />
   </opc:ComplexType>
 
   <opc:ComplexType Name="DataChannelStatusDataType" AllowArrays="true" PartNo="3">

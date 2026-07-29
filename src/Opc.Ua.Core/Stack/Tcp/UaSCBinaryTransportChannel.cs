@@ -149,7 +149,30 @@ namespace Opc.Ua.Bindings
 
         /// <inheritdoc/>
         public TransportChannelFeatures SupportedFeatures =>
-            m_channel?.Transport?.Features ?? TransportChannelFeatures.None;
+            (m_channel?.Transport?.Features ?? TransportChannelFeatures.None) |
+            TransportChannelFeatures.DataChannels;
+
+        /// <summary>
+        /// Enables OPC UA data channels on the current SecureChannel.
+        /// </summary>
+        public DataChannelManager EnableDataChannels(
+            bool isServer,
+            ITelemetryContext telemetry,
+            ushort maxDataChannels = 16,
+            uint maxCreditPerChannel = 1024 * 1024)
+        {
+            UaSCUaBinaryClientChannel channel = m_channel ?? throw BadNotConnected();
+            return channel.EnableDataChannels(
+                isServer,
+                telemetry,
+                maxDataChannels,
+                maxCreditPerChannel);
+        }
+
+        /// <summary>
+        /// The data channels multiplexed onto the current SecureChannel, if enabled.
+        /// </summary>
+        public DataChannelManager? DataChannels => m_channel?.DataChannels;
 
         /// <inheritdoc/>
         public EndpointDescription EndpointDescription

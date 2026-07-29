@@ -63,6 +63,7 @@ namespace Opc.Ua.Bindings
     public sealed class QuicMultiplexedTransport :
         IUaSCByteTransport,
         IMultiplexedByteTransport,
+        IUaSCSecureChannelBoundTransport,
         IAsyncDisposable
     {
         /// <summary>
@@ -137,6 +138,16 @@ namespace Opc.Ua.Bindings
 
         /// <inheritdoc/>
         public bool SupportsDatagrams => MaxDatagramSize > 0;
+
+        /// <summary>
+        /// The pool used for chunks received from QUIC streams.
+        /// </summary>
+        internal BufferManager BufferManager => m_bufferManager;
+
+        /// <summary>
+        /// The largest complete QUIC-framed chunk this transport accepts.
+        /// </summary>
+        internal int ReceiveBufferSize => m_receiveBufferSize;
 
         /// <inheritdoc/>
         /// <remarks>
@@ -272,13 +283,45 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public async ValueTask<ulong> AcceptStreamAsync(CancellationToken ct)
         {
-            QuicStream stream = await RequireConnection()
-                .AcceptInboundStreamAsync(ct)
-                .ConfigureAwait(false);
+            QuicStream stream = await AcceptInboundStreamCoreAsync(ct).ConfigureAwait(false);
+            return (ulong)stream.Id;
+        }
 
-            var id = (ulong)stream.Id;
-            m_streams[id] = stream;
-            return id;
+        /// <summary>
+        /// Accepts inbound streams until the stream id named by an
+        /// OpenDataChannel exchange is available locally.
+        /// </summary>
+        /// <param name="streamId">The QUIC stream id carried in
+        /// transportChannelId or revisedTransportChannelId.</param>
+        /// <param name="ct">Cancellation token.</param>
+        public async ValueTask BindInboundStreamAsync(ulong streamId, CancellationToken ct)
+        {
+            if (m_streams.ContainsKey(streamId))
+            {
+                return;
+            }
+
+            while (true)
+            {
+                QuicStream? stream = await AcceptInboundStreamCoreAsync(
+                    streamId,
+                    ct).ConfigureAwait(false);
+
+                if (stream == null)
+                {
+                    return;
+                }
+
+                if ((ulong)stream.Id == streamId)
+                {
+                    return;
+                }
+
+                if (m_streams.ContainsKey(streamId))
+                {
+                    return;
+                }
+            }
         }
 
         /// <inheritdoc/>
@@ -372,6 +415,18 @@ namespace Opc.Ua.Bindings
         }
 
         /// <inheritdoc/>
+        public void OnSecureChannelAttached(string secureChannelId)
+        {
+            if (string.IsNullOrEmpty(secureChannelId))
+            {
+                return;
+            }
+
+            m_secureChannelId = secureChannelId;
+            QuicServerDataChannelTransport.BindSecureChannel(secureChannelId, this);
+        }
+
+        /// <inheritdoc/>
         public async ValueTask DisposeAsync()
         {
             if (m_disposed)
@@ -380,6 +435,12 @@ namespace Opc.Ua.Bindings
             }
 
             m_disposed = true;
+
+            if (m_secureChannelId != null)
+            {
+                QuicServerDataChannelTransport.UnbindSecureChannel(m_secureChannelId, this);
+                m_secureChannelId = null;
+            }
 
             foreach (QuicStream stream in m_streams.Values)
             {
@@ -401,6 +462,7 @@ namespace Opc.Ua.Bindings
             }
 
             m_sendLock.Dispose();
+            m_acceptLock.Dispose();
         }
 
         private QuicConnection RequireConnection()
@@ -428,6 +490,39 @@ namespace Opc.Ua.Bindings
                 StatusCodes.BadDataChannelIdInvalid,
                 "Stream {0} is not open on this QUIC connection.",
                 streamId);
+        }
+
+        private async ValueTask<QuicStream> AcceptInboundStreamCoreAsync(CancellationToken ct)
+        {
+            return (await AcceptInboundStreamCoreAsync(null, ct).ConfigureAwait(false))!;
+        }
+
+        private async ValueTask<QuicStream?> AcceptInboundStreamCoreAsync(
+            ulong? stopWhenStreamIdAvailable,
+            CancellationToken ct)
+        {
+            await m_acceptLock.WaitAsync(ct).ConfigureAwait(false);
+
+            try
+            {
+                if (stopWhenStreamIdAvailable.HasValue &&
+                    m_streams.ContainsKey(stopWhenStreamIdAvailable.Value))
+                {
+                    return null;
+                }
+
+                QuicStream stream = await RequireConnection()
+                    .AcceptInboundStreamAsync(ct)
+                    .ConfigureAwait(false);
+
+                var id = (ulong)stream.Id;
+                m_streams[id] = stream;
+                return stream;
+            }
+            finally
+            {
+                m_acceptLock.Release();
+            }
         }
 
         /// <summary>
@@ -514,12 +609,14 @@ namespace Opc.Ua.Bindings
 
         private readonly ConcurrentDictionary<ulong, QuicStream> m_streams = new();
         private readonly SemaphoreSlim m_sendLock = new(1, 1);
+        private readonly SemaphoreSlim m_acceptLock = new(1, 1);
         private QuicConnection? m_connection;
         private QuicStream? m_controlStream;
         private readonly QuicClientOptions m_options;
         private readonly BufferManager m_bufferManager;
         private readonly int m_receiveBufferSize;
         private readonly ILogger m_logger;
+        private string? m_secureChannelId;
         private bool m_disposed;
     }
 }

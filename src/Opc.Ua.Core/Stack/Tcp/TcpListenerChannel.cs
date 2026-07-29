@@ -150,6 +150,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected override void Dispose(bool disposing)
         {
+            UaSCDataChannelSecureChannelRegistry.Unbind(GlobalChannelId, this);
             base.Dispose(disposing);
         }
 
@@ -261,6 +262,13 @@ namespace Opc.Ua.Bindings
                 State = TcpChannelState.Connecting;
 
                 Transport = transport;
+
+                if (transport is IUaSCSecureChannelBoundTransport boundTransport)
+                {
+                    boundTransport.OnSecureChannelAttached(GlobalChannelId);
+                }
+
+                UaSCDataChannelSecureChannelRegistry.Bind(GlobalChannelId, this);
 
                 m_logger.TcpListenChannelLog0(
                     ChannelName,

@@ -110,6 +110,15 @@ namespace Opc.Ua.Bindings
 
             if (frameType > MaxFrameType)
             {
+                frame = DataChannelFrame.Decoded(
+                    channelId,
+                    (DataChannelFrameType)frameType,
+                    (DataChannelFrameFlags)flagBits,
+                    frameSequenceNumber,
+                    0,
+                    0,
+                    0,
+                    ReadOnlyMemory<byte>.Empty);
                 error = DataChannelFrameError.UnknownFrameType;
                 return false;
             }
@@ -171,6 +180,15 @@ namespace Opc.Ua.Bindings
 
             if (type != DataChannelFrameType.Data && payloadLength > 0)
             {
+                frame = DataChannelFrame.Decoded(
+                    channelId,
+                    type,
+                    flags,
+                    frameSequenceNumber,
+                    deadline,
+                    value1,
+                    value2,
+                    ReadOnlyMemory<byte>.Empty);
                 error = DataChannelFrameError.PayloadOnNonDataFrame;
                 return false;
             }

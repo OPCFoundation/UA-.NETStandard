@@ -88,6 +88,9 @@ namespace Opc.Ua.Bindings
             m_scheduler = Task.Run(() => RunSchedulerAsync(m_stop.Token));
         }
 
+        private static bool IsTerminal(DataChannelState state)
+            => state is DataChannelState.Closed or DataChannelState.Faulted;
+
         /// <summary>
         /// The most channels this manager keeps open at once.
         /// </summary>
@@ -102,12 +105,15 @@ namespace Opc.Ua.Bindings
         /// The channels currently open, in ascending ChannelId order.
         /// </summary>
         public IReadOnlyList<DataChannel> Channels
-            => [.. m_channels.Values.OrderBy(c => c.ChannelId)];
+            => [.. m_channels.Values
+                .Where(static c => !IsTerminal(c.State))
+                .OrderBy(c => c.ChannelId)];
 
         /// <summary>
         /// The number of channels currently open.
         /// </summary>
-        public int ActiveChannelCount => m_channels.Count;
+        public int ActiveChannelCount
+            => m_channels.Values.Count(static c => !IsTerminal(c.State));
 
         /// <summary>
         /// Raised for every state transition of every channel this
@@ -128,7 +134,7 @@ namespace Opc.Ua.Bindings
         {
             lock (m_lock)
             {
-                if (m_nextChannelId == 0 || m_channels.Count >= MaxDataChannels)
+                if (m_nextChannelId == 0 || ActiveChannelCount >= MaxDataChannels)
                 {
                     channelId = 0;
                     return false;
@@ -215,7 +221,7 @@ namespace Opc.Ua.Bindings
                     foreach (PendingFrame pending in replay)
                     {
                         m_pendingFrames.Remove(pending);
-                        m_pendingBytes -= pending.Length;
+                        m_pendingBytes -= pending.EncodedSize;
                     }
                 }
             }
@@ -243,6 +249,29 @@ namespace Opc.Ua.Bindings
         public bool TryGetChannel(uint channelId, out DataChannel? channel)
         {
             return m_channels.TryGetValue(channelId, out channel);
+        }
+
+        /// <summary>
+        /// Whether a ChannelId was ever issued on this SecureChannel, even
+        /// if the channel has since ended and been released.
+        /// </summary>
+        /// <remarks>
+        /// ChannelIds are allocated monotonically and never reused
+        /// (Part 6 errata §5.11), so an identifier below the high water
+        /// mark that is no longer present named a channel that has ended,
+        /// while one at or above it was never issued at all. That is what
+        /// lets a Server distinguish <c>Bad_DataChannelClosed</c> from
+        /// <c>Bad_DataChannelIdInvalid</c> without retaining every channel
+        /// it has ever opened.
+        /// </remarks>
+        /// <param name="channelId">The identifier.</param>
+        public bool WasEverAllocated(uint channelId)
+        {
+            lock (m_lock)
+            {
+                return channelId >= DataChannelConstants.FirstChannelId &&
+                    (m_nextChannelId == 0 || channelId < m_nextChannelId);
+            }
         }
 
         /// <summary>
@@ -546,10 +575,11 @@ namespace Opc.Ua.Bindings
                     return false;
                 }
 
-                int bound = m_transport.MaxFrameBodySize *
+                int encodedSize = frame.EncodedSize;
+                long bound = (long)m_transport.MaxFrameBodySize *
                     DataChannelConstants.UnknownChannelBufferFrames;
 
-                if (m_pendingBytes + frame.Payload.Length > bound)
+                if (m_pendingBytes > bound - encodedSize)
                 {
                     // The excess is discarded rather than buffered: the
                     // rule would otherwise be an unbounded state
@@ -564,7 +594,7 @@ namespace Opc.Ua.Bindings
                 frame.Payload.Span.CopyTo(buffer.AsSpan(0, frame.Payload.Length));
 
                 m_pendingFrames.Add(new PendingFrame(frame, buffer, frame.Payload.Length));
-                m_pendingBytes += frame.Payload.Length;
+                m_pendingBytes += encodedSize;
                 return true;
             }
         }
@@ -586,6 +616,19 @@ namespace Opc.Ua.Bindings
             DataChannelStateChangedEventArgs e)
         {
             ChannelStateChanged?.Invoke(this, e);
+
+            if (IsTerminal(e.State))
+            {
+                if (sender is DataChannel channel &&
+                    !channel.HasPendingControlFrames &&
+                    !channel.TryPeekPayloadLength(out _))
+                {
+                    Remove(channel.ChannelId);
+                    return;
+                }
+
+                Wake();
+            }
         }
 
         private void Wake()
@@ -721,6 +764,13 @@ namespace Opc.Ua.Bindings
                     // media stream at one quantum per tick.
                     more = true;
                 }
+
+                if (IsTerminal(channel.State) &&
+                    !channel.HasPendingControlFrames &&
+                    !channel.TryPeekPayloadLength(out _))
+                {
+                    Remove(channel.ChannelId);
+                }
             }
 
             if (more)
@@ -784,8 +834,26 @@ namespace Opc.Ua.Bindings
                 Flags = frame.Flags;
                 FrameSequenceNumber = frame.FrameSequenceNumber;
                 Deadline = frame.Deadline;
+                Value1 = frame.FrameType switch
+                {
+                    DataChannelFrameType.Credit => frame.ChannelCredit,
+                    DataChannelFrameType.Gap => frame.FirstDiscarded,
+                    DataChannelFrameType.Reset => frame.Status.Code,
+                    DataChannelFrameType.Ping or DataChannelFrameType.Pong
+                        => (uint)((ulong)frame.Timestamp & 0xFFFFFFFFu),
+                    _ => 0
+                };
+                Value2 = frame.FrameType switch
+                {
+                    DataChannelFrameType.Credit => frame.ConnectionCredit,
+                    DataChannelFrameType.Gap => frame.LastDiscarded,
+                    DataChannelFrameType.Ping or DataChannelFrameType.Pong
+                        => (uint)((ulong)frame.Timestamp >> 32),
+                    _ => 0
+                };
                 Buffer = buffer;
                 Length = length;
+                EncodedSize = frame.EncodedSize;
             }
 
             public uint ChannelId { get; }
@@ -798,18 +866,27 @@ namespace Opc.Ua.Bindings
 
             public long Deadline { get; }
 
+            public uint Value1 { get; }
+
+            public uint Value2 { get; }
+
             public byte[] Buffer { get; }
 
             public int Length { get; }
 
+            public int EncodedSize { get; }
+
             public DataChannelFrame ToFrame()
             {
-                return DataChannelFrame.Data(
+                return DataChannelFrame.Decoded(
                     ChannelId,
+                    FrameType,
+                    Flags,
                     FrameSequenceNumber,
-                    Flags & ~DataChannelFrameFlags.DeadlinePresent,
-                    new ReadOnlyMemory<byte>(Buffer, 0, Length),
-                    Deadline);
+                    Deadline,
+                    Value1,
+                    Value2,
+                    new ReadOnlyMemory<byte>(Buffer, 0, Length));
             }
         }
 

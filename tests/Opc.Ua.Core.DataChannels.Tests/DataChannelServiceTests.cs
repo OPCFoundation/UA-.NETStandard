@@ -58,7 +58,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(response.ChannelId, Is.GreaterThan(0u));
-                Assert.That(response.RevisedTransportChannelId, Is.EqualTo(123ul));
+                Assert.That(response.RevisedTransportChannelId, Is.Zero);
                 Assert.That(response.RevisedParameters.Direction, Is.EqualTo(DataChannelDirection.SourceToSink));
                 Assert.That(response.RevisedParameters.DeliveryMode, Is.EqualTo(DataChannelDeliveryMode.ReliableOrdered));
                 Assert.That(response.RevisedParameters.ContentType, Is.EqualTo("application/octet-stream"));
@@ -160,6 +160,41 @@ namespace Opc.Ua.Core.DataChannels.Tests
                     0,
                     Parameters(),
                     CancellationToken.None));
+        }
+
+        [Test]
+        public void OpenDataChannelAsync_WhenQuicClientInitiatedDirectionOmitsTransportChannelId_ThrowsBadDataChannelLimitsExceeded()
+        {
+            m_source.CapabilitiesOverride = SourceCapabilities(direction: DataChannelDirection.SinkToSource);
+            m_handler = CreateHandler(ServerCapabilities(Profiles.UaQuicTransport));
+
+            AssertServiceStatus(
+                StatusCodes.BadDataChannelLimitsExceeded,
+                () => m_handler.OpenDataChannelAsync(
+                    Context(transportProfileUri: Profiles.UaQuicTransport, transportChannelId: 0),
+                    SourceNodeId,
+                    0,
+                    Parameters(direction: DataChannelDirection.SinkToSource),
+                    CancellationToken.None));
+        }
+
+        [Test]
+        public async Task OpenDataChannelAsync_WhenQuicSourceToSink_AllocatesRevisedTransportChannelId()
+        {
+            m_handler = CreateHandler(
+                ServerCapabilities(Profiles.UaQuicTransport),
+                new TestStreamAllocator(987));
+
+            OpenDataChannelResponse response = await m_handler
+                .OpenDataChannelAsync(
+                    Context(transportProfileUri: Profiles.UaQuicTransport),
+                    SourceNodeId,
+                    0,
+                    Parameters(direction: DataChannelDirection.SourceToSink),
+                    CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(response.RevisedTransportChannelId, Is.EqualTo(987ul));
         }
 
         [Test]
@@ -304,13 +339,18 @@ namespace Opc.Ua.Core.DataChannels.Tests
 
             m_handler.AbortChannelsOfSession(SessionNodeId, StatusCodes.BadSessionClosed);
 
+            // An aborted channel reaches a terminal state and is released,
+            // so the observable outcome is that this Session's channels are
+            // gone while the other Session's is untouched. Their identifiers
+            // are never reissued, which is what still lets a Close on one
+            // return Bad_DataChannelClosed rather than Bad_DataChannelIdInvalid.
             Assert.Multiple(() =>
             {
-                Assert.That(Channel(first).State, Is.EqualTo(DataChannelState.Faulted));
-                Assert.That(Channel(second).State, Is.EqualTo(DataChannelState.Faulted));
+                Assert.That(IsPresent(first), Is.False);
+                Assert.That(IsPresent(second), Is.False);
+                Assert.That(m_manager.WasEverAllocated(first), Is.True);
+                Assert.That(m_manager.WasEverAllocated(second), Is.True);
                 Assert.That(Channel(other).State, Is.EqualTo(DataChannelState.Open));
-                Assert.That(Channel(first).Status, Is.EqualTo((StatusCode)StatusCodes.BadSessionClosed));
-                Assert.That(Channel(second).Status, Is.EqualTo((StatusCode)StatusCodes.BadSessionClosed));
                 Assert.That(Channel(other).Status, Is.EqualTo((StatusCode)StatusCodes.Good));
             });
         }
@@ -341,15 +381,17 @@ namespace Opc.Ua.Core.DataChannels.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(revoked, Is.EqualTo(2));
-                Assert.That(Channel(first).State, Is.EqualTo(DataChannelState.Faulted));
-                Assert.That(Channel(second).State, Is.EqualTo(DataChannelState.Faulted));
+                Assert.That(IsPresent(first), Is.False);
+                Assert.That(IsPresent(second), Is.False);
+                Assert.That(m_manager.WasEverAllocated(first), Is.True);
+                Assert.That(m_manager.WasEverAllocated(second), Is.True);
                 Assert.That(Channel(stillAllowed).State, Is.EqualTo(DataChannelState.Open));
-                Assert.That(Channel(first).Status, Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
-                Assert.That(Channel(second).Status, Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
             });
         }
 
-        private DataChannelServiceHandler CreateHandler(DataChannelServerCapabilities? capabilities = null)
+        private DataChannelServiceHandler CreateHandler(
+            DataChannelServerCapabilities? capabilities = null,
+            IDataChannelTransportStreamAllocator? streamAllocator = null)
         {
             return new DataChannelServiceHandler(
                 m_manager,
@@ -357,7 +399,8 @@ namespace Opc.Ua.Core.DataChannels.Tests
                 capabilities ?? ServerCapabilities(),
                 m_authorizer,
                 m_auditor,
-                TimeProvider.System);
+                streamAllocator,
+                timeProvider: TimeProvider.System);
         }
 
         private async ValueTask<uint> OpenAndMarkResponseSentAsync(
@@ -381,6 +424,11 @@ namespace Opc.Ua.Core.DataChannels.Tests
         {
             Assert.That(m_manager.TryGetChannel(channelId, out DataChannel? channel), Is.True);
             return channel!;
+        }
+
+        private bool IsPresent(uint channelId)
+        {
+            return m_manager.TryGetChannel(channelId, out _);
         }
 
         private static void AssertServiceStatus(
@@ -445,12 +493,13 @@ namespace Opc.Ua.Core.DataChannels.Tests
         }
 
         private static DataChannelSourceCapabilities SourceCapabilities(
+            DataChannelDirection direction = DataChannelDirection.SourceToSink,
             uint maxFrameSize = 65_536,
             ushort maxChannels = 0)
         {
             return new DataChannelSourceCapabilities
             {
-                Direction = DataChannelDirection.SourceToSink,
+                Direction = direction,
                 SupportedDeliveryModes = [DataChannelDeliveryMode.ReliableOrdered],
                 ContentType = "application/octet-stream",
                 MaxFrameSize = maxFrameSize,
@@ -459,14 +508,15 @@ namespace Opc.Ua.Core.DataChannels.Tests
             };
         }
 
-        private static DataChannelServerCapabilities ServerCapabilities()
+        private static DataChannelServerCapabilities ServerCapabilities(
+            string transportProfileUri = Profiles.UaTcpTransport)
         {
             return new DataChannelServerCapabilities
             {
                 MaxFrameSize = 65_536,
                 MaxCreditPerChannel = 1024 * 1024,
                 SupportedDeliveryModes = [DataChannelDeliveryMode.ReliableOrdered],
-                SupportedTransportProfileUris = [Profiles.UaTcpTransport]
+                SupportedTransportProfileUris = [transportProfileUri]
             };
         }
 
@@ -552,6 +602,28 @@ namespace Opc.Ua.Core.DataChannels.Tests
         }
 
         private sealed record AuditRecord(NodeId SourceNodeId, uint? ChannelId, StatusCode Status);
+
+        private sealed class TestStreamAllocator(ulong streamId) : IDataChannelTransportStreamAllocator
+        {
+            public ValueTask<ulong> AllocateServerStreamAsync(
+                DataChannelRequestContext context,
+                uint channelId,
+                DataChannelDirection direction,
+                CancellationToken ct)
+            {
+                return new ValueTask<ulong>(streamId);
+            }
+
+            public ValueTask BindClientStreamAsync(
+                DataChannelRequestContext context,
+                uint channelId,
+                ulong streamId,
+                DataChannelDirection direction,
+                CancellationToken ct)
+            {
+                return default;
+            }
+        }
 
         private static readonly NodeId SessionNodeId = new(1001u);
         private static readonly NodeId SourceNodeId = new(42u);

@@ -173,7 +173,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
             DataChannel sink = RegisterOpenSink(serverManager, channelId);
 
             ulong streamId = await loopback.Client
-                .OpenStreamAsync(bidirectional: true, TimeoutToken())
+                .OpenStreamAsync(bidirectional: false, TimeoutToken())
                 .ConfigureAwait(false);
 
             byte[] payload = [0x10, 0x20, 0x30];
@@ -195,7 +195,14 @@ namespace Opc.Ua.Core.DataChannels.Tests
                 .AcceptStreamAsync(TimeoutToken())
                 .ConfigureAwait(false);
 
-            serverData.BindChannel(channelId, acceptedId);
+            await serverData
+                .BindChannelAsync(
+                    channelId,
+                    acceptedId,
+                    DataChannelDirection.SinkToSource,
+                    isOpcUaServer: true,
+                    TimeoutToken())
+                .ConfigureAwait(false);
 
             using DataChannelMessage? message = await sink
                 .ReadAsync(TimeoutToken())
@@ -223,7 +230,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
             DataChannel sink = RegisterOpenSink(serverManager, channelId);
 
             ulong streamId = await loopback.Client
-                .OpenStreamAsync(bidirectional: true, TimeoutToken())
+                .OpenStreamAsync(bidirectional: false, TimeoutToken())
                 .ConfigureAwait(false);
 
             await loopback.Client
@@ -234,7 +241,14 @@ namespace Opc.Ua.Core.DataChannels.Tests
                 .AcceptStreamAsync(TimeoutToken())
                 .ConfigureAwait(false);
 
-            serverData.BindChannel(channelId, acceptedId);
+            await serverData
+                .BindChannelAsync(
+                    channelId,
+                    acceptedId,
+                    DataChannelDirection.SinkToSource,
+                    isOpcUaServer: true,
+                    TimeoutToken())
+                .ConfigureAwait(false);
 
             await WaitUntilAsync(
                 () => sink.State == DataChannelState.Faulted,
@@ -261,7 +275,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
             DataChannel sink = RegisterOpenSink(serverManager, boundChannelId);
 
             ulong streamId = await loopback.Client
-                .OpenStreamAsync(bidirectional: true, TimeoutToken())
+                .OpenStreamAsync(bidirectional: false, TimeoutToken())
                 .ConfigureAwait(false);
 
             await loopback.Client
@@ -279,7 +293,14 @@ namespace Opc.Ua.Core.DataChannels.Tests
                 .AcceptStreamAsync(TimeoutToken())
                 .ConfigureAwait(false);
 
-            serverData.BindChannel(boundChannelId, acceptedId);
+            await serverData
+                .BindChannelAsync(
+                    boundChannelId,
+                    acceptedId,
+                    DataChannelDirection.SinkToSource,
+                    isOpcUaServer: true,
+                    TimeoutToken())
+                .ConfigureAwait(false);
 
             using var timeout = new CancellationTokenSource(TimeSpan.FromMilliseconds(250));
             DataChannelMessage? message = null;
@@ -319,10 +340,13 @@ namespace Opc.Ua.Core.DataChannels.Tests
                 m_telemetry!);
 
             const uint channelId = 34;
-            ulong streamId = await loopback.Client
-                .OpenStreamAsync(bidirectional: true, TimeoutToken())
+            ulong streamId = await clientData
+                .OpenChannelStreamAsync(
+                    channelId,
+                    DataChannelDirection.Bidirectional,
+                    isOpcUaServer: false,
+                    TimeoutToken())
                 .ConfigureAwait(false);
-            clientData.BindChannel(channelId, streamId);
 
             await clientData
                 .SendFrameAsync(
@@ -339,7 +363,14 @@ namespace Opc.Ua.Core.DataChannels.Tests
                 .ConfigureAwait(false);
             await ReceiveAndReturnAsync(loopback.Server, acceptedId).ConfigureAwait(false);
 
-            serverData.BindChannel(channelId, acceptedId);
+            await serverData
+                .BindChannelAsync(
+                    channelId,
+                    acceptedId,
+                    DataChannelDirection.Bidirectional,
+                    isOpcUaServer: true,
+                    TimeoutToken())
+                .ConfigureAwait(false);
             StatusCode expected = StatusCodes.BadDataChannelClosed;
             serverData.ReleaseChannel(channelId, expected);
 

@@ -164,14 +164,17 @@ namespace Opc.Ua.Core.DataChannels.Tests
                 m_bufferManager!,
                 m_telemetry!);
 
-            // The client opens the stream before the call, as the
-            // ordering rule requires, and carries its id in the request.
-            ulong streamId = await loopback.Client
-                .OpenStreamAsync(bidirectional: true, TimeoutToken())
-                .ConfigureAwait(false);
-
             const uint channelId = 1;
-            clientData.BindChannel(channelId, streamId);
+
+            // SinkToSource is client-initiated and carries its stream id
+            // in the OpenDataChannel request.
+            ulong streamId = await clientData
+                .OpenChannelStreamAsync(
+                    channelId,
+                    DataChannelDirection.SinkToSource,
+                    isOpcUaServer: false,
+                    TimeoutToken())
+                .ConfigureAwait(false);
 
             byte[] payload = [0xDE, 0xAD, 0xBE, 0xEF];
 

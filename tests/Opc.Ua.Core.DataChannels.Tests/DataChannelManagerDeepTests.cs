@@ -609,7 +609,16 @@ namespace Opc.Ua.Core.DataChannels.Tests
             public TaskCompletionSource<bool> FirstDataStarted { get; } =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-            public IReadOnlyList<DataChannelFrame> Sent => m_sent;
+            public IReadOnlyList<DataChannelFrame> Sent
+            {
+                get
+                {
+                    lock (m_lock)
+                    {
+                        return [.. m_sent];
+                    }
+                }
+            }
 
             public DataChannelFramingMode FramingMode => DataChannelFramingMode.Inline;
 

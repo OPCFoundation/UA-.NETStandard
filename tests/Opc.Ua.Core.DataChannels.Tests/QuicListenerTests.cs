@@ -193,16 +193,15 @@ namespace Opc.Ua.Core.DataChannels.Tests
                 channel,
                 endpointUrl,
                 secure: true).ConfigureAwait(false);
-            string globalChannelId = GetSingleChannel(listener).GlobalChannelId;
             using Certificate newCertificate = CreateCertificate("QuicListenerServerNew");
             using var newRegistry = new InMemoryCertificateRegistry(newCertificate);
 
             listener.CertificateUpdate(new AcceptAllCertificateValidator(), newRegistry);
-            IReadOnlyList<string> closed = await listener
-                .CloseChannelsForCertificateAsync(m_serverCertificate!, TimeoutToken())
-                .ConfigureAwait(false);
+            await WaitUntilAsync(
+                () => GetChannels(listener).Count == 0,
+                "certificate update did not close the superseded QUIC channel").ConfigureAwait(false);
 
-            Assert.That(closed, Is.EqualTo(new[] { globalChannelId }));
+            Assert.That(GetChannels(listener), Is.Empty);
         }
 
         [Test]
@@ -311,19 +310,16 @@ namespace Opc.Ua.Core.DataChannels.Tests
                 channel,
                 endpointUrl,
                 secure: true).ConfigureAwait(false);
-            string globalChannelId = GetSingleChannel(listener).GlobalChannelId;
-
             // Activate a replacement carrying a different key, so the
             // superseded certificate really is superseded.
             using Certificate replacement = CreateCertificate("QuicListenerServerRotated");
             using var rotated = new InMemoryCertificateRegistry(replacement);
             listener.CertificateUpdate(new AcceptAllCertificateValidator(), rotated);
+            await WaitUntilAsync(
+                () => GetChannels(listener).Count == 0,
+                "certificate update did not close the superseded QUIC channel").ConfigureAwait(false);
 
-            IReadOnlyList<string> closed = await listener
-                .CloseChannelsForCertificateAsync(m_serverCertificate!, TimeoutToken())
-                .ConfigureAwait(false);
-
-            Assert.That(closed, Is.EqualTo(new[] { globalChannelId }));
+            Assert.That(GetChannels(listener), Is.Empty);
         }
 
         [Test]
@@ -516,6 +512,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
                 SecurityMode = secure ? MessageSecurityMode.SignAndEncrypt : MessageSecurityMode.None,
                 SecurityPolicyUri = secure ? SecurityPolicies.Basic256Sha256 : SecurityPolicies.None,
                 TransportProfileUri = Profiles.UaQuicTransport,
+                ServerCertificate = secure ? m_serverCertificate!.RawData.ToByteString() : ByteString.Empty,
                 Server = new ApplicationDescription
                 {
                     ApplicationName = new LocalizedText("Opc.Ua.Core.DataChannels.Tests"),
@@ -621,6 +618,21 @@ namespace Opc.Ua.Core.DataChannels.Tests
             }
 
             return await task.ConfigureAwait(false);
+        }
+
+        private static async Task WaitUntilAsync(Func<bool> predicate, string failure)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+            while (!predicate())
+            {
+                if (timeout.IsCancellationRequested)
+                {
+                    Assert.Fail(failure);
+                }
+
+                await Task.Delay(25, CancellationToken.None).ConfigureAwait(false);
+            }
         }
 
         private static int GetFreeUdpPort()

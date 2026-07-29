@@ -65,14 +65,34 @@ namespace Opc.Ua.Core.DataChannels.Tests
         public bool DropOutbound { get; set; }
 
         /// <summary>
-        /// Every frame handed to the transport, in order.
+        /// Every frame handed to the transport, in order. Returns a snapshot:
+        /// the scheduler appends from its own thread, so handing out the live
+        /// list lets a test enumerating it race the writer.
         /// </summary>
-        public IReadOnlyList<DataChannelFrame> Sent => m_sent;
+        public IReadOnlyList<DataChannelFrame> Sent
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return [.. m_sent];
+                }
+            }
+        }
 
         /// <summary>
         /// The faults reported against the whole SecureChannel.
         /// </summary>
-        public IReadOnlyList<DataChannelFrameError> Faults => m_faults;
+        public IReadOnlyList<DataChannelFrameError> Faults
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return [.. m_faults];
+                }
+            }
+        }
 
         /// <inheritdoc/>
         public DataChannelFramingMode FramingMode => DataChannelFramingMode.Inline;

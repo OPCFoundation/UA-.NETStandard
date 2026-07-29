@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua.Bindings
@@ -150,7 +151,7 @@ namespace Opc.Ua.Bindings
 
             try
             {
-                tlsKey = tlsCertificate.GetPublicKey();
+                tlsKey = ExportSubjectPublicKeyInfo(tlsCertificate);
             }
             catch (System.Security.Cryptography.CryptographicException)
             {
@@ -199,7 +200,7 @@ namespace Opc.Ua.Bindings
 #else
                 using var certificate = new X509Certificate2(der.ToArray());
 #endif
-                key = certificate.GetPublicKey();
+                key = ExportSubjectPublicKeyInfo(certificate);
                 return true;
             }
             catch (System.Security.Cryptography.CryptographicException)
@@ -211,6 +212,135 @@ namespace Opc.Ua.Bindings
                 return false;
             }
         }
+
+        private static byte[] ExportSubjectPublicKeyInfo(X509Certificate2 certificate)
+        {
+#if NET5_0_OR_GREATER
+            return certificate.PublicKey.ExportSubjectPublicKeyInfo();
+#else
+            PublicKey publicKey = certificate.PublicKey;
+            byte[] algorithmIdentifier = EncodeSequence(
+                EncodeOid(publicKey.Oid.Value),
+                publicKey.EncodedParameters.RawData);
+            byte[] subjectPublicKey = EncodeBitString(publicKey.EncodedKeyValue.RawData);
+            return EncodeSequence(algorithmIdentifier, subjectPublicKey);
+#endif
+        }
+
+#if !NET5_0_OR_GREATER
+        private static byte[] EncodeSequence(params byte[][] values)
+        {
+            int length = 0;
+            foreach (byte[] value in values)
+            {
+                length += value.Length;
+            }
+
+            byte[] encodedLength = EncodeLength(length);
+            byte[] result = new byte[1 + encodedLength.Length + length];
+            result[0] = 0x30;
+            Buffer.BlockCopy(encodedLength, 0, result, 1, encodedLength.Length);
+
+            int offset = 1 + encodedLength.Length;
+            foreach (byte[] value in values)
+            {
+                Buffer.BlockCopy(value, 0, result, offset, value.Length);
+                offset += value.Length;
+            }
+
+            return result;
+        }
+
+        private static byte[] EncodeBitString(byte[] value)
+        {
+            byte[] encodedLength = EncodeLength(value.Length + 1);
+            byte[] result = new byte[1 + encodedLength.Length + 1 + value.Length];
+            result[0] = 0x03;
+            Buffer.BlockCopy(encodedLength, 0, result, 1, encodedLength.Length);
+            result[1 + encodedLength.Length] = 0;
+            Buffer.BlockCopy(value, 0, result, 1 + encodedLength.Length + 1, value.Length);
+            return result;
+        }
+
+        private static byte[] EncodeOid(string? dottedDecimal)
+        {
+            if (string.IsNullOrWhiteSpace(dottedDecimal))
+            {
+                throw new System.Security.Cryptography.CryptographicException(
+                    "The certificate public key algorithm OID is missing.");
+            }
+
+            string[] parts = dottedDecimal.Split('.');
+            if (parts.Length < 2 ||
+                !uint.TryParse(parts[0], out uint first) ||
+                !uint.TryParse(parts[1], out uint second))
+            {
+                throw new System.Security.Cryptography.CryptographicException(
+                    "The certificate public key algorithm OID is invalid.");
+            }
+
+            var body = new List<byte>
+            {
+                checked((byte)((first * 40) + second))
+            };
+
+            for (int ii = 2; ii < parts.Length; ii++)
+            {
+                if (!ulong.TryParse(parts[ii], out ulong value))
+                {
+                    throw new System.Security.Cryptography.CryptographicException(
+                        "The certificate public key algorithm OID is invalid.");
+                }
+
+                var segment = new Stack<byte>();
+                segment.Push((byte)(value & 0x7F));
+                value >>= 7;
+                while (value > 0)
+                {
+                    segment.Push((byte)(0x80 | (value & 0x7F)));
+                    value >>= 7;
+                }
+
+                while (segment.Count > 0)
+                {
+                    body.Add(segment.Pop());
+                }
+            }
+
+            byte[] encodedLength = EncodeLength(body.Count);
+            byte[] result = new byte[1 + encodedLength.Length + body.Count];
+            result[0] = 0x06;
+            Buffer.BlockCopy(encodedLength, 0, result, 1, encodedLength.Length);
+            body.CopyTo(result, 1 + encodedLength.Length);
+            return result;
+        }
+
+        private static byte[] EncodeLength(int length)
+        {
+            if (length < 0x80)
+            {
+                return new[] { (byte)length };
+            }
+
+            var bytes = new Stack<byte>();
+            int value = length;
+            while (value > 0)
+            {
+                bytes.Push((byte)(value & 0xFF));
+                value >>= 8;
+            }
+
+            byte[] result = new byte[1 + bytes.Count];
+            result[0] = (byte)(0x80 | bytes.Count);
+            int offset = 1;
+            while (bytes.Count > 0)
+            {
+                result[offset++] = bytes.Pop();
+            }
+
+            return result;
+        }
+#endif
 
         private static bool AreEqual(byte[] left, byte[]? right)
         {

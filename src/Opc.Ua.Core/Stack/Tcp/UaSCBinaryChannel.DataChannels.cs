@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -210,22 +211,6 @@ namespace Opc.Ua.Bindings
             DataChannelFrame frame,
             CancellationToken ct)
         {
-            ChannelToken token = CurrentToken
-                ?? throw ServiceResultException.Create(
-                    StatusCodes.BadSecureChannelClosed,
-                    "The SecureChannel has no active token.");
-
-            // Initiating renewal is not sufficient on its own, because a
-            // slow renewal can still be overtaken. A sender stalls its
-            // data channels rather than emitting a chunk that would reuse
-            // a SequenceNumber under the current TokenId.
-            if (!m_sequenceBudget.TryConsume())
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadSecureChannelTokenUnknown,
-                    "The SequenceNumber space under the current SecurityToken is exhausted.");
-            }
-
             int size = frame.EncodedSize;
             byte[] body = BufferManager.TakeBuffer(size, nameof(SendDataChannelFrameAsync), ct);
 
@@ -233,21 +218,52 @@ namespace Opc.Ua.Bindings
 
             try
             {
-                int written = DataChannelFrameCodec.Encode(body.AsSpan(0, size), frame);
-
-                chunks = WriteSymmetricMessage(
-                    TcpMessageType.Stream,
-                    DataChannelConstants.FrameRequestId,
-                    token,
-                    new ArraySegment<byte>(body, 0, written),
-                    m_isDataChannelSource ? false : true,
-                    out bool limitsExceeded);
-
-                if (limitsExceeded)
+                // A STR chunk shares the SecureChannel's symmetric keys and
+                // its single monotonic SequenceNumber space with Service
+                // traffic (§5.1), so securing one has to be serialized
+                // against the Service path exactly as the Service path
+                // serializes against itself. Without this the scheduler
+                // thread and a Service response reach the same HMAC
+                // concurrently — which throws outright on Windows, where the
+                // CNG hash provider refuses concurrent use — and race for
+                // SequenceNumbers, which silently emits duplicates and is
+                // fatal to the channel. Only the securing is held under the
+                // lock; the send is awaited outside it so a slow peer cannot
+                // block Service traffic.
+                lock (DataLock)
                 {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadDataChannelLimitsExceeded,
-                        "The data channel frame exceeds the negotiated buffer size.");
+                    ChannelToken token = CurrentToken
+                        ?? throw ServiceResultException.Create(
+                            StatusCodes.BadSecureChannelClosed,
+                            "The SecureChannel has no active token.");
+
+                    // Initiating renewal is not sufficient on its own, because
+                    // a slow renewal can still be overtaken. A sender stalls
+                    // its data channels rather than emitting a chunk that
+                    // would reuse a SequenceNumber under the current TokenId.
+                    if (!m_sequenceBudget.TryConsume())
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadSecureChannelTokenUnknown,
+                            "The SequenceNumber space under the current SecurityToken is exhausted.");
+                    }
+
+                    int written = DataChannelFrameCodec.Encode(body.AsSpan(0, size), frame);
+
+                    chunks = WriteSymmetricMessage(
+                        TcpMessageType.Stream,
+                        DataChannelConstants.FrameRequestId,
+                        token,
+                        new ArraySegment<byte>(body, 0, written),
+                        m_isDataChannelSource ? false : true,
+                        out bool limitsExceeded);
+
+                    if (limitsExceeded)
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadDataChannelLimitsExceeded,
+                            "The data channel frame exceeds the negotiated buffer size.");
+                    }
                 }
 
                 IUaSCByteTransport transport = GetDataChannelTransport();
@@ -337,5 +353,43 @@ namespace Opc.Ua.Bindings
         private DataChannelManager? m_dataChannels;
         private readonly DataChannelSequenceBudget m_sequenceBudget = new();
         private bool m_isDataChannelSource;
+    }
+
+    /// <summary>
+    /// Maps server-side SecureChannel identifiers to their UASC channels so
+    /// the DataChannel Service Set can bind an accepted OpenDataChannel to the
+    /// transport that will carry its STR frames.
+    /// </summary>
+    public static class UaSCDataChannelSecureChannelRegistry
+    {
+        /// <summary>
+        /// Finds the server-side UASC channel that owns a SecureChannel.
+        /// </summary>
+        public static bool TryGet(
+            string secureChannelId,
+            out UaSCUaBinaryChannel? channel)
+        {
+            return s_channels.TryGetValue(secureChannelId, out channel);
+        }
+
+        internal static void Bind(string secureChannelId, UaSCUaBinaryChannel channel)
+        {
+            if (!string.IsNullOrEmpty(secureChannelId))
+            {
+                s_channels[secureChannelId] = channel;
+            }
+        }
+
+        internal static void Unbind(string secureChannelId, UaSCUaBinaryChannel channel)
+        {
+            if (!string.IsNullOrEmpty(secureChannelId) &&
+                s_channels.TryGetValue(secureChannelId, out UaSCUaBinaryChannel? current) &&
+                ReferenceEquals(current, channel))
+            {
+                s_channels.TryRemove(secureChannelId, out _);
+            }
+        }
+
+        private static readonly ConcurrentDictionary<string, UaSCUaBinaryChannel> s_channels = new();
     }
 }

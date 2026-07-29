@@ -254,6 +254,7 @@ namespace Opc.Ua.Bindings
             }
 
             revised.MaxFrameSize = maxFrameSize;
+            revised.MaxBitrate = ReviseMaxBitrate(requested.MaxBitrate, source.MaxBitrate);
 
             uint initialCredit = requested.InitialCredit == 0
                 ? server.MaxCreditPerChannel
@@ -384,5 +385,16 @@ namespace Opc.Ua.Bindings
 
             return value == uint.MaxValue ? 0 : value;
         }
+
+        private static uint ReviseMaxBitrate(uint requested, uint source)
+        {
+            if (requested == 0)
+            {
+                return source;
+            }
+
+            return source != 0 && source < requested ? source : requested;
+        }
+
     }
 }

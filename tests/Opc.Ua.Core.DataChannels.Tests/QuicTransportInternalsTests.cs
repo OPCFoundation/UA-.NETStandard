@@ -348,11 +348,13 @@ namespace Opc.Ua.Core.DataChannels.Tests
             byte[] payload = Enumerable.Range(0, 16).Select(static x => (byte)x).ToArray();
 
             const uint channelId = 1;
-            ulong streamId = await loopback.Client
-                .OpenStreamAsync(bidirectional: true, TimeoutToken())
+            ulong streamId = await clientData
+                .OpenChannelStreamAsync(
+                    channelId,
+                    DataChannelDirection.SinkToSource,
+                    isOpcUaServer: false,
+                    TimeoutToken())
                 .ConfigureAwait(false);
-
-            clientData.BindChannel(channelId, streamId);
 
             await clientData
                 .SendFrameAsync(
@@ -489,11 +491,13 @@ namespace Opc.Ua.Core.DataChannels.Tests
             uint channelId,
             byte payload)
         {
-            ulong streamId = await loopback.Client
-                .OpenStreamAsync(bidirectional: true, TimeoutToken())
+            ulong streamId = await clientData
+                .OpenChannelStreamAsync(
+                    channelId,
+                    DataChannelDirection.SinkToSource,
+                    isOpcUaServer: false,
+                    TimeoutToken())
                 .ConfigureAwait(false);
-
-            clientData.BindChannel(channelId, streamId);
 
             await clientData
                 .SendFrameAsync(
