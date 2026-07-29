@@ -201,13 +201,10 @@ connector never opens the stage a second time. `CompositeUsdSink` fans values ou
 so the on-disk artefact and the picture never diverge.
 
 > The viewport requires .NET 10 on `win-x64` and the OpenUSD packages
-> (`OpenUsd`, `OpenUsd.Viewer`, `OpenUsd.Runtime.Imaging.win-x64`). Until those are published to nuget.org, build
-> them from the [openusd repository](https://github.com/marcschier/openusd-dotnet) with `eng/pack-packages.ps1` and
-> point restore at the resulting folder feed by setting `OPENUSD_LOCAL_FEED`. For the same reason
-> `tools/Opc.Ua.OpenUsd.Connector.Viewer` is not listed in `UA.slnx` and is built explicitly:
+> (`OpenUsd`, `OpenUsd.Viewer`, `OpenUsd.Runtime.Imaging.win-x64`), which are published on nuget.org, so a plain
+> restore is enough. Publish the connector and the viewport into the *same* directory:
 >
 > ```
-> $env:OPENUSD_LOCAL_FEED = "<openusd>/artifacts/localfeed"
 > dotnet publish tools/Opc.Ua.OpenUsd.Connector -c Release -f net10.0 -r win-x64 --self-contained false -o out
 > dotnet publish tools/Opc.Ua.OpenUsd.Connector.Viewer -c Release -r win-x64 --self-contained false -o out
 > ```

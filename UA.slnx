@@ -289,9 +289,7 @@
   <Folder Name="/tools/">
     <Project Path="tools/Opc.Ua.Mcp/Opc.Ua.Mcp.csproj" />
     <Project Path="tools/Opc.Ua.OpenUsd.Connector/Opc.Ua.OpenUsd.Connector.csproj" />
-    <!-- tools/Opc.Ua.OpenUsd.Connector.Viewer is deliberately not listed: it restores the
-         OpenUSD packages, which are not on nuget.org yet, so including it would break a
-         plain solution restore. Build it explicitly with OPENUSD_LOCAL_FEED set. -->
+    <Project Path="tools/Opc.Ua.OpenUsd.Connector.Viewer/Opc.Ua.OpenUsd.Connector.Viewer.csproj" />
   </Folder>
   <Folder Name="/tools/MigrationAnalyzer/">
     <Project Path="tools/Opc.Ua.MigrationAnalyzer.CodeFixer/Opc.Ua.MigrationAnalyzer.CodeFixer.csproj" />

@@ -24,13 +24,6 @@
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>
   </PropertyGroup>
-  <!-- Until the OpenUSD packages are published to nuget.org, restore needs a local
-       folder feed produced from the openusd repository. Set OPENUSD_LOCAL_FEED or
-       pass -p:OpenUsdLocalFeed=path; when neither is set the normal feeds apply. -->
-  <PropertyGroup>
-    <OpenUsdLocalFeed Condition="'$(OpenUsdLocalFeed)' == ''">$(OPENUSD_LOCAL_FEED)</OpenUsdLocalFeed>
-    <RestoreAdditionalProjectSources Condition="'$(OpenUsdLocalFeed)' != ''">$(RestoreAdditionalProjectSources);$(OpenUsdLocalFeed)</RestoreAdditionalProjectSources>
-  </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Opc.Ua.OpenUsd.Client\Opc.Ua.OpenUsd.Client.csproj" />
   </ItemGroup>

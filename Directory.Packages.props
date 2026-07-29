@@ -130,10 +130,8 @@
   </ItemGroup>
   <!-- OpenUSD rendering stack, consumed only by the optional
        tools/Opc.Ua.OpenUsd.Connector.Viewer assembly that backs the connector's
-       view option. These are not yet on nuget.org; until they are, point
-       restore at a local folder feed built from the openusd repository with
-       eng/pack-packages.ps1, either by setting the OPENUSD_LOCAL_FEED
-       environment variable or by passing -p:OpenUsdLocalFeed=path. -->
+       view option. Published on nuget.org; the runtime packages carry the
+       per-RID native payload and the rendering path is win-x64 today. -->
   <ItemGroup>
     <PackageVersion Include="OpenUsd" Version="0.1.0-alpha" />
     <PackageVersion Include="OpenUsd.Viewer" Version="0.1.0-alpha" />
