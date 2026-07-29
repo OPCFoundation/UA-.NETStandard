@@ -30,6 +30,7 @@
 using System;
 using System.Buffers;
 using System.Linq;
+using System.Text.Json;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 
@@ -159,6 +160,27 @@ namespace Opc.Ua.Types.Tests.Encoders
                 return;
             }
             Assert.Fail("Exception not thrown");
+        }
+
+        [Test]
+        public void WriteDataValueUsesStatusMember()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            using var buffer = new PooledBufferWriter();
+            using (var writer = new JsonEncoder(buffer, messageContext))
+            {
+                DataValue value = DataValue.FromStatusCode(StatusCodes.BadNotWritable);
+                writer.WriteDataValue(JsonProperties.Value, value);
+            }
+
+            using JsonDocument document = JsonDocument.Parse(buffer.WrittenMemory);
+            JsonElement dataValue = document.RootElement.GetProperty(JsonProperties.Value);
+            Assert.Multiple(() =>
+            {
+                Assert.That(dataValue.TryGetProperty("Status", out _), Is.True);
+                Assert.That(dataValue.TryGetProperty("StatusCode", out _), Is.False);
+            });
         }
 
         [Test]
