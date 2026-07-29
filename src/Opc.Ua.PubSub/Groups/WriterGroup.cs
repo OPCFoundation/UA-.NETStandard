@@ -515,7 +515,6 @@ namespace Opc.Ua.PubSub.Groups
                 return null;
             }
 
-            uint sequenceNumber = ++runtime.SequenceNumber;
             var now = DateTimeUtc.From(m_timeProvider.GetUtcNow());
 
             PubSubDataSetMessageType messageType;
@@ -528,6 +527,17 @@ namespace Opc.Ua.PubSub.Groups
                 // so the delta derivation below cannot be applied to them and
                 // the key-frame cadence is not the source's to observe.
                 //
+                if (snapshot.Fields.Count == 0)
+                {
+                    //
+                    // Nothing occurred this cycle. This mirrors the empty-delta
+                    // case below, and like it must not consume a sequence
+                    // number: a receiver reads a gap in the sequence as a
+                    // dropped message, so a writer that skipped a publish would
+                    // look like a writer that lost one.
+                    //
+                    return null;
+                }
                 messageType = declared;
                 fields = snapshot.Fields;
             }
@@ -568,6 +578,12 @@ namespace Opc.Ua.PubSub.Groups
                 runtime.CyclesSinceKeyFrame++;
                 runtime.LastSnapshot = snapshot;
             }
+
+            if (fields.Count == 0 && snapshot.MessageType is not null)
+            {
+                return null;
+            }
+            uint sequenceNumber = ++runtime.SequenceNumber;
 
             if (string.Equals(GetEncodingProfile(), Profiles.PubSubMqttJsonTransport,
                 StringComparison.Ordinal))

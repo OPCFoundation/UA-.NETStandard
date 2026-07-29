@@ -151,6 +151,41 @@ namespace Opc.Ua.PubSub.Tests.Groups
             });
         }
 
+        [Test]
+        [TestSpec("6.2.5")]
+        public async Task PublishOnceAsync_ASkippedCycleDoesNotConsumeASequenceNumberAsync()
+        {
+            //
+            // A receiver reads a gap in the sequence as a dropped message, so a
+            // cycle that produces nothing must not consume a number. A source
+            // with nothing pending returns an empty sample, which is exactly
+            // what an event or occurrence source does between occurrences.
+            //
+            var clock = new FakeTimeProvider(
+                new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+            var source = new DeclaringSource
+            {
+                Declared = PubSubDataSetMessageType.Event
+            };
+            var captured = new List<PubSubNetworkMessage>();
+            WriterGroup group = BuildGroup(clock, captured, source);
+
+            source.Value = 1.0;
+            await group.PublishOnceAsync().ConfigureAwait(false);
+            source.Empty = true;
+            await group.PublishOnceAsync().ConfigureAwait(false);
+            await group.PublishOnceAsync().ConfigureAwait(false);
+            source.Empty = false;
+            source.Value = 2.0;
+            await group.PublishOnceAsync().ConfigureAwait(false);
+            Assert.That(captured, Has.Count.EqualTo(2));
+            var first = (UadpDataSetMessageV2)
+                ((UadpNetworkMessageV2)captured[0]).DataSetMessages[0];
+            var second = (UadpDataSetMessageV2)
+                ((UadpNetworkMessageV2)captured[1]).DataSetMessages[0];
+            Assert.That(second.SequenceNumber, Is.EqualTo(first.SequenceNumber + 1));
+        }
+
         private static WriterGroup BuildGroup(
             TimeProvider clock,
             List<PubSubNetworkMessage> sink,
@@ -211,6 +246,7 @@ namespace Opc.Ua.PubSub.Tests.Groups
         private sealed class DeclaringSource : IPublishedDataSetSource
         {
             public double Value { get; set; }
+            public bool Empty { get; set; }
             public PubSubDataSetMessageType? Declared { get; set; }
 
             public DataSetMetaDataType BuildMetaData()
@@ -228,7 +264,9 @@ namespace Opc.Ua.PubSub.Tests.Groups
                 return new ValueTask<PublishedDataSetSnapshot>(
                     new PublishedDataSetSnapshot(
                         new ConfigurationVersionDataType(),
-                        [new DataSetField { Name = "f", Value = new Variant(Value) }],
+                        Empty
+                            ? []
+                            : [new DataSetField { Name = "f", Value = new Variant(Value) }],
                         DateTimeUtc.From(DateTimeOffset.UtcNow),
                         Declared));
             }
