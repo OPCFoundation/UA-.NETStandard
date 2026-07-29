@@ -34,6 +34,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.PubSub.Connections;
+using Opc.Ua.PubSub.DataSets;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Encoding.Json;
@@ -88,6 +89,7 @@ namespace Opc.Ua.PubSub.Application
         private readonly TimeProvider m_timeProvider;
         private readonly ILogger<MetaDataPublisher> m_logger;
         private readonly Lock m_gate = new();
+        private readonly List<DataSetSubscription> m_dataSetSubscriptions = [];
 
         private long m_messageIdSeed;
         private int m_disposed;
@@ -174,6 +176,7 @@ namespace Opc.Ua.PubSub.Application
                 m_registry.MetaDataChanged += OnMetaDataChanged;
                 m_subscribed = true;
             }
+            SubscribeToDataSets();
             await PublishInitialAsync(cancellationToken).ConfigureAwait(false);
         }
 
@@ -191,9 +194,101 @@ namespace Opc.Ua.PubSub.Application
                     m_registry.MetaDataChanged -= OnMetaDataChanged;
                     m_subscribed = false;
                 }
+                foreach (DataSetSubscription subscription in m_dataSetSubscriptions)
+                {
+                    subscription.DataSet.MetaDataChanged -= subscription.Handler;
+                }
+                m_dataSetSubscriptions.Clear();
             }
             return default;
         }
+
+        /// <summary>
+        /// Subscribes to every writer's PublishedDataSet so a dataset that
+        /// resolves its metadata after startup is announced again.
+        /// </summary>
+        /// <remarks>
+        /// A source whose fields are only known once data has flowed - one fed
+        /// by a live subscription, say - has no fields at all when the initial
+        /// announcement goes out. <see cref="DataSets.PublishedDataSet"/>
+        /// rebuilds and raises <c>MetaDataChanged</c> when the source signals,
+        /// but nothing carried that into the registry this publisher watches,
+        /// so the empty announcement was the only one a consumer ever saw.
+        /// </remarks>
+        private void SubscribeToDataSets()
+        {
+            for (int connectionIndex = 0;
+                connectionIndex < m_application.Connections.Count;
+                connectionIndex++)
+            {
+                if (m_application.Connections[connectionIndex] is not PubSubConnection runtime)
+                {
+                    continue;
+                }
+                for (int writerGroupIndex = 0;
+                    writerGroupIndex < runtime.WriterGroups.Count;
+                    writerGroupIndex++)
+                {
+                    IWriterGroup writerGroup = runtime.WriterGroups[writerGroupIndex];
+                    for (int writerIndex = 0;
+                        writerIndex < writerGroup.DataSetWriters.Count;
+                        writerIndex++)
+                    {
+                        IDataSetWriter writer = writerGroup.DataSetWriters[writerIndex];
+                        IPublishedDataSet dataSet = writer.PublishedDataSet;
+                        PubSubConnection connection = runtime;
+                        IWriterGroup group = writerGroup;
+                        IDataSetWriter target = writer;
+                        void Handler(object? sender, DataSetMetaDataChangedEventArgs e)
+                        {
+                            OnDataSetMetaDataChanged(connection, group, target, e);
+                        }
+                        lock (m_gate)
+                        {
+                            if (Volatile.Read(ref m_disposed) != 0)
+                            {
+                                return;
+                            }
+                            m_dataSetSubscriptions.Add(
+                                new DataSetSubscription(dataSet, Handler));
+                        }
+                        dataSet.MetaDataChanged += Handler;
+                    }
+                }
+            }
+        }
+
+        private void OnDataSetMetaDataChanged(
+            PubSubConnection connection,
+            IWriterGroup writerGroup,
+            IDataSetWriter writer,
+            DataSetMetaDataChangedEventArgs e)
+        {
+            if (Volatile.Read(ref m_disposed) != 0 || e.Current is null)
+            {
+                return;
+            }
+            // Scheduled on the thread pool for the same reason as the registry
+            // handler: the caller may still hold a lock.
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await PublishMetaDataAsync(
+                        connection, writerGroup, writer, e.Current, CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    m_logger.FailedToPublishMetadataChange(
+                        ex, writer.DataSetWriterId, writerGroup.WriterGroupId);
+                }
+            });
+        }
+
+        private sealed record class DataSetSubscription(
+            IPublishedDataSet DataSet,
+            EventHandler<DataSetMetaDataChangedEventArgs> Handler);
 
         private async ValueTask PublishInitialAsync(CancellationToken cancellationToken)
         {
