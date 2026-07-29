@@ -180,6 +180,44 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         [Test]
+        public async Task CompleteForUncreatedIdDoesNotEvictPendingSubscriptionAsync()
+        {
+            ILoggerFactory loggerFactory = m_telemetry.LoggerFactory;
+            var session = new FakeSubscriptionManagerContext();
+            OptionsMonitor<SubscriptionOptions> so1 = OptionsFactory.Create<SubscriptionOptions>();
+
+            // Subscription awaiting CreateSubscription
+            var ms1 = new FakeManagedSubscription();
+
+            var sut = new SubscriptionManager(session,
+                loggerFactory, DiagnosticsMasks.None);
+
+            session.CreateSubscriptionFactory = (handler, options, queue) =>
+            {
+                Assert.That(queue, Is.SameAs(sut));
+                if (ReferenceEquals(options, so1))
+                {
+                    return ms1;
+                }
+                throw new InvalidOperationException("unexpected options");
+            };
+
+            ISubscription s1 = sut.Add(m_mockNotificationDataHandler.Object, so1);
+            Assert.That(sut.Count, Is.EqualTo(1));
+
+            // A deleted subscription acknowledges completion with an id already reset to 0
+            await sut.CompleteAsync(0, default).ConfigureAwait(false);
+
+            // Verify that the pending subscription still exists
+            Assert.That(sut.Count, Is.EqualTo(1));
+            Assert.That(sut.Items, Does.Contain(s1));
+
+            await sut.DisposeAsync().ConfigureAwait(false);
+            Assert.That(sut.Count, Is.Zero);
+            Assert.That(sut.PublishWorkerCount, Is.Zero);
+        }
+
+        [Test]
         public async Task ScaleOutAndInOfPublishWorkersAsync()
         {
             ILoggerFactory loggerFactory = m_telemetry.LoggerFactory;
