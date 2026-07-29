@@ -39,6 +39,7 @@ using Opc.Ua.WotCon.Bindings;
 using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
+using Opc.Ua.XRegistry.Server;
 
 namespace Microsoft.Extensions.DependencyInjection
 {
@@ -142,9 +143,15 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 WotRegistryServerOptions options =
                     sp.GetRequiredService<WotRegistryServerOptions>();
+                // A store registered in DI wins over one set on the options, so a deployment can
+                // supply a shared store the same way the xRegistry server does.
+                IXRegistryResourceStore? resourceStore =
+                    sp.GetService<IXRegistryResourceStore>() ?? options.ResourceStore;
                 IWotRegistryStore store = string.IsNullOrEmpty(options.StorageFolder)
                     ? new InMemoryWotRegistryStore()
-                    : new FileWotRegistryStore(options.StorageFolder!);
+                    : resourceStore is null
+                        ? new FileWotRegistryStore(options.StorageFolder!)
+                        : new FileWotRegistryStore(options.StorageFolder!, resourceStore);
                 return new WotRegistryService(store, options.Bounds);
             });
 

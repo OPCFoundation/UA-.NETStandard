@@ -115,6 +115,60 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
+        public async Task AnInjectedResourceStoreHoldsTheDocumentBytesInsteadOfTheRegistryFolder()
+        {
+            string storeRoot = Path.Combine(m_root, "external");
+            using var resourceStore = new WotBlobResourceStore(storeRoot);
+
+            var store = new FileWotRegistryStore(m_root, resourceStore);
+            using (var service = new WotRegistryService(store))
+            {
+                await service.InitializeAsync();
+                await service.UpsertResourceAsync(new WotUpsertResourceRequest
+                {
+                    GroupId = WotRegistryGroups.ThingDescriptions,
+                    ResourceId = "a",
+                    Kind = WoTDocumentKindEnum.ThingDescription,
+                    Content = TestMaterialization.Td("urn:a")
+                });
+            }
+
+            string registryBlobs = Path.Combine(m_root, "blobs");
+            string[] inRegistry = Directory.Exists(registryBlobs)
+                ? Directory.GetFiles(registryBlobs, "*.bin")
+                : [];
+            string[] inStore = Directory.GetFiles(storeRoot, "*.bin");
+
+            var reloadStore = new FileWotRegistryStore(m_root, resourceStore);
+            using var reloaded = new WotRegistryService(reloadStore);
+            await reloaded.InitializeAsync();
+            WotResource? td = reloaded.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions, "a");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(inStore, Is.Not.Empty,
+                    "The injected store must hold the document bytes, which is what lets a " +
+                    "distributed deployment put them somewhere every node can reach.");
+                Assert.That(inRegistry, Is.Empty,
+                    "The registry folder must no longer hold blobs once a store is injected.");
+                Assert.That(td, Is.Not.Null);
+                Assert.That(
+                    Encoding.UTF8.GetString(td!.Versions[0].Content.ToArray()),
+                    Does.Contain("urn:a"),
+                    "A reload must read the document back out of the injected store.");
+            });
+        }
+
+        [Test]
+        public void AnInjectedResourceStoreIsRequiredWhenTheOverloadIsUsed()
+        {
+            Assert.That(
+                () => new FileWotRegistryStore(m_root, resourceStore: null!),
+                Throws.ArgumentNullException);
+        }
+
+        [Test]
         public async Task InvalidDocumentSurvivesReloadWithFailureState()
         {
             var store = new FileWotRegistryStore(m_root);

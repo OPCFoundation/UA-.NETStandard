@@ -40,6 +40,7 @@ using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Win32.SafeHandles;
+using Opc.Ua.XRegistry.Server;
 
 namespace Opc.Ua.WotCon.Server.Registry
 {
@@ -84,15 +85,45 @@ namespace Opc.Ua.WotCon.Server.Registry
         {
         }
 
+        /// <summary>
+        /// Initializes a new file-backed store that keeps the manifest itself but delegates the
+        /// document bytes to <paramref name="resourceStore"/>.
+        /// <para>
+        /// Substituting the byte layer is what lets a WoT registry run in a high-availability or
+        /// distributed deployment: the documents then live in a store every node can reach. The
+        /// manifest is still written and switched atomically by this class, which is safe because
+        /// blobs are content-addressed and therefore immutable — a document is always written
+        /// before the manifest that references it, so an interrupted commit can leave an orphaned
+        /// document but never a dangling reference.
+        /// </para>
+        /// <para>
+        /// When a store is supplied it owns the durability of the document bytes; the directory
+        /// fsync this class performs for its own <c>blobs</c> folder does not apply to it.
+        /// </para>
+        /// </summary>
+        /// <param name="rootFolder">The registry folder that holds the manifest.</param>
+        /// <param name="resourceStore">The store that holds the document bytes.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="resourceStore"/> is <c>null</c>.</exception>
+        public FileWotRegistryStore(string rootFolder, IXRegistryResourceStore resourceStore)
+            : this(
+                rootFolder,
+                directorySyncFailureInjector: null,
+                manifestReplace: null,
+                resourceStore: resourceStore ?? throw new ArgumentNullException(nameof(resourceStore)))
+        {
+        }
+
         internal FileWotRegistryStore(
             string rootFolder,
             Action<DirectorySyncPhase>? directorySyncFailureInjector,
-            Action<string, string, string>? manifestReplace = null)
+            Action<string, string, string>? manifestReplace = null,
+            IXRegistryResourceStore? resourceStore = null)
         {
             m_root = Path.GetFullPath(
                 rootFolder ?? throw new ArgumentNullException(nameof(rootFolder)));
             m_blobsFolder = Path.Combine(m_root, "blobs");
             m_lockPath = Path.Combine(m_root, LockFile);
+            m_resourceStore = resourceStore;
             m_directorySyncFailureInjector = directorySyncFailureInjector;
             m_manifestReplace = manifestReplace;
         }
@@ -229,6 +260,16 @@ namespace Opc.Ua.WotCon.Server.Registry
                 // versions/resources.
                 foreach (KeyValuePair<string, byte[]> blob in intended.Blobs)
                 {
+                    if (m_resourceStore is not null)
+                    {
+                        // An injected store owns the durability of the bytes it holds, so the
+                        // directory fsync below does not apply to it. Content addressing keeps
+                        // the write idempotent, so re-staging an unchanged document is a no-op.
+                        await m_resourceStore
+                            .WriteAsync(blob.Key, 0, ByteString.From(blob.Value), cancellationToken)
+                            .ConfigureAwait(false);
+                        continue;
+                    }
                     await EnsureBlobAsync(
                             BlobPath(blob.Key),
                             blob.Value,
@@ -687,10 +728,16 @@ namespace Opc.Ua.WotCon.Server.Registry
                         }
                         else
                         {
-                            string blobPath = BlobPath(digestHex);
-                            content = await ReadBlobAsync(
-                                    blobPath, digestHex, manifestRole, cancellationToken)
-                                .ConfigureAwait(false);
+                            content = m_resourceStore is not null
+                                ? await ReadFromResourceStoreAsync(
+                                        digestHex, manifestRole, cancellationToken)
+                                    .ConfigureAwait(false)
+                                : await ReadBlobAsync(
+                                        BlobPath(digestHex),
+                                        digestHex,
+                                        manifestRole,
+                                        cancellationToken)
+                                    .ConfigureAwait(false);
                         }
                         loadedBlobs.Add(digestHex, content);
                     }
@@ -963,6 +1010,44 @@ namespace Opc.Ua.WotCon.Server.Registry
             int error = exception.HResult & 0xffff;
             // Unix contention may surface as errno or the mapped Win32 sharing code.
             return error is 4 or 11 or 13 or 16 or 32 or 33 or 35;
+        }
+
+        private async ValueTask<byte[]> ReadFromResourceStoreAsync(
+            string expectedDigest,
+            string manifestRole,
+            CancellationToken cancellationToken)
+        {
+            long length = await m_resourceStore!.GetLengthAsync(expectedDigest, cancellationToken)
+                .ConfigureAwait(false);
+            if (length < 0)
+            {
+                throw new InvalidDataException(
+                    $"WoT registry document '{expectedDigest}' referenced by the {manifestRole} " +
+                    "is missing from the resource store. The registry was left unchanged.");
+            }
+
+            ByteString document = await m_resourceStore
+                .ReadAsync(expectedDigest, 0, checked((int)length), cancellationToken)
+                .ConfigureAwait(false);
+            if (document.IsNull)
+            {
+                // A null ByteString is how the contract reports an unknown key, which can only
+                // happen here if the document was removed between the two calls.
+                throw new InvalidDataException(
+                    $"WoT registry document '{expectedDigest}' referenced by the {manifestRole} " +
+                    "is missing from the resource store. The registry was left unchanged.");
+            }
+
+            byte[] content = document.Span.ToArray();
+            string actualDigest = WotContentDigest.ToHex(WotContentDigest.Compute(content));
+            if (!string.Equals(expectedDigest, actualDigest, StringComparison.Ordinal))
+            {
+                throw new InvalidDataException(
+                    $"WoT registry document '{expectedDigest}' has SHA-256 '{actualDigest}', " +
+                    $"but the {manifestRole} requires '{expectedDigest}'. " +
+                    "The registry was left unchanged.");
+            }
+            return content;
         }
 
         private async ValueTask<byte[]> ReadBlobAsync(
@@ -1999,6 +2084,7 @@ namespace Opc.Ua.WotCon.Server.Registry
 
         private readonly string m_root;
         private readonly string m_blobsFolder;
+        private readonly IXRegistryResourceStore? m_resourceStore;
         private readonly string m_lockPath;
         private readonly Action<DirectorySyncPhase>? m_directorySyncFailureInjector;
         private readonly Action<string, string, string>? m_manifestReplace;

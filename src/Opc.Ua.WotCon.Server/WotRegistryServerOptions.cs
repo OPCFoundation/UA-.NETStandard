@@ -30,6 +30,7 @@
 using System.Collections.Generic;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
+using Opc.Ua.XRegistry.Server;
 
 namespace Opc.Ua.WotCon.Server
 {
@@ -46,6 +47,22 @@ namespace Opc.Ua.WotCon.Server
         /// <c>null</c> the registry is kept in memory only.
         /// </summary>
         public string? StorageFolder { get; set; }
+
+        /// <summary>
+        /// Gets or sets the store that holds the document bytes. When <c>null</c> the documents
+        /// live wherever the registry store puts them — in the server process for an in-memory
+        /// registry, or in the registry folder for a file-backed one.
+        /// <para>
+        /// Substituting a store is what lets a registry run in a high-availability or distributed
+        /// deployment, because the documents then live somewhere every node can reach. The store is
+        /// keyed by the SHA-256 content digest of the document, so writes are idempotent and two
+        /// resource versions with identical bytes share one entry. A supplied store owns the
+        /// durability of the bytes it holds; the registry still writes and switches its own
+        /// manifest atomically, which is safe because content-addressed documents are immutable and
+        /// are always written before the manifest that references them.
+        /// </para>
+        /// </summary>
+        public IXRegistryResourceStore? ResourceStore { get; set; }
 
         /// <summary>
         /// Gets or sets whether the registry automatically re-projects after every
