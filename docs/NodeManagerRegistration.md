@@ -129,6 +129,13 @@ Namespace indexes are append-only for the lifetime of a running server. Removing
 Nodes and routing but leaves its namespace URI in `NamespaceArray`, and a later reload or add reuses
 the same index. When a live add appends a URI, the server updates `NamespaceArray` and `UrisVersion`.
 
+A Client with [model change tracking](ModelChangeTracking.md) enabled re-reads its namespace table
+when it observes the resulting model-change notification, so NodeIds from the newly added namespace
+resolve without any application code. See
+[Namespace table refresh](ModelChangeTracking.md#namespace-table-refresh). A Client that does not
+track model changes keeps the namespace table it fetched while the Session was opened and has to
+call `ISession.FetchNamespaceTablesAsync` itself.
+
 ### DataTypes
 
 Runtime DataType registrations are additive. Reload accepts an existing DataType only when its
