@@ -60,12 +60,28 @@ namespace Opc.Ua
     public static class ArrowSchemaCanonicalForm
     {
         /// <summary>
+        /// The maximum schema nesting depth the canonical form will walk. A malformed or hostile
+        /// Arrow schema can nest list/struct/union types arbitrarily deeply; because the walk is
+        /// recursive, an unbounded depth would raise <c>StackOverflowException</c>, which .NET
+        /// cannot catch and which therefore terminates the whole process rather than the request.
+        /// </summary>
+        public const int MaxSchemaNestingDepth = 100;
+
+        /// <summary>
+        /// The maximum size of an Arrow IPC schema document accepted by
+        /// <see cref="ComputeSchemaIdFromIpc"/>. The underlying Arrow reader parses the FlatBuffers
+        /// type tree recursively before this class ever sees it, so the input is bounded up front.
+        /// </summary>
+        public const int MaxIpcSchemaLength = 1024 * 1024;
+
+        /// <summary>
         /// Computes the implementation-independent canonical string of an Arrow schema.
         /// </summary>
         /// <param name="schema">The Arrow schema.</param>
         /// <returns>The canonical string.</returns>
         /// <exception cref="ArgumentNullException"><paramref name="schema"/> is null.</exception>
         /// <exception cref="NotSupportedException">A field uses an unmapped Arrow type.</exception>
+        /// <exception cref="FormatException">The schema nests deeper than <see cref="MaxSchemaNestingDepth"/>.</exception>
         public static string Compute(ArrowSchema schema)
         {
             if (schema is null)
@@ -82,7 +98,7 @@ namespace Opc.Ua
                 builder.Append("\nF:")
                     .Append(Quote(field.Name))
                     .Append(':')
-                    .Append(TypeCode(field.DataType))
+                    .Append(TypeCode(field.DataType, 0))
                     .Append(':')
                     .Append(field.IsNullable ? '1' : '0')
                     .Append(':')
@@ -122,9 +138,21 @@ namespace Opc.Ua
         /// <param name="ipcSchema">The serialized Arrow IPC bytes carrying the schema message.</param>
         /// <param name="nbytes">The number of leading SHA-256 digest bytes to return.</param>
         /// <returns>The portable raw SchemaId bytes.</returns>
-        /// <exception cref="FormatException">The bytes are not a readable Arrow IPC schema.</exception>
+        /// <exception cref="FormatException">
+        /// The bytes are not a readable Arrow IPC schema, exceed <see cref="MaxIpcSchemaLength"/>,
+        /// or nest deeper than <see cref="MaxSchemaNestingDepth"/>.
+        /// </exception>
         public static byte[] ComputeSchemaIdFromIpc(ReadOnlySpan<byte> ipcSchema, int nbytes = 8)
         {
+            // The Arrow reader walks the FlatBuffers type tree recursively while materializing the
+            // schema, so it can overflow the stack before the depth guard in TypeCode is ever
+            // reached. Bound the input first: a legitimate schema document is far below this cap.
+            if (ipcSchema.Length > MaxIpcSchemaLength)
+            {
+                throw new FormatException(
+                    "The Arrow IPC schema exceeds " + MaxIpcSchemaLength + " bytes.");
+            }
+
             using var stream = new System.IO.MemoryStream(ipcSchema.ToArray(), writable: false);
             using var reader = new Apache.Arrow.Ipc.ArrowStreamReader(stream, leaveOpen: true);
 
@@ -136,8 +164,14 @@ namespace Opc.Ua
             return ComputeSchemaId(schema, nbytes);
         }
 
-        private static string TypeCode(IArrowType type)
+        private static string TypeCode(IArrowType type, int depth)
         {
+            if (depth > MaxSchemaNestingDepth)
+            {
+                throw new FormatException(
+                    "The Arrow schema nests deeper than " + MaxSchemaNestingDepth + " levels.");
+            }
+
             switch (type.TypeId)
             {
                 case ArrowTypeId.Null: return "null";
@@ -159,10 +193,10 @@ namespace Opc.Ua
                         .ToString(CultureInfo.InvariantCulture);
                 case ArrowTypeId.Struct:
                     return "struct<" + string.Join(",", ((StructType)type).Fields.Select(
-                        f => Quote(f.Name) + ":" + TypeCode(f.DataType) + ":" + (f.IsNullable ? "1" : "0"))) + ">";
+                        f => Quote(f.Name) + ":" + TypeCode(f.DataType, depth + 1) + ":" + (f.IsNullable ? "1" : "0"))) + ">";
                 case ArrowTypeId.List:
                     var list = (ListType)type;
-                    return "list<" + TypeCode(list.ValueDataType) + ":"
+                    return "list<" + TypeCode(list.ValueDataType, depth + 1) + ":"
                         + (list.ValueField.IsNullable ? "1" : "0") + ">";
                 case ArrowTypeId.Union:
                     var union = (UnionType)type;
@@ -172,7 +206,7 @@ namespace Opc.Ua
                     {
                         Field child = union.Fields[ii];
                         branches.Add(union.TypeIds[ii].ToString(CultureInfo.InvariantCulture)
-                            + "=" + Quote(child.Name) + ":" + TypeCode(child.DataType)
+                            + "=" + Quote(child.Name) + ":" + TypeCode(child.DataType, depth + 1)
                             + ":" + (child.IsNullable ? "1" : "0"));
                     }
                     return "union<" + mode + ";" + string.Join(",", branches) + ">";

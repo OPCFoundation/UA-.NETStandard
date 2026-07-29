@@ -213,8 +213,23 @@ namespace Opc.Ua.PubSub.Encoding
                     SchemaId = schemaId
                 };
 
+                // batch.Length is the row count declared in the RecordBatch metadata and is not
+                // cross-checked against the body by the Arrow reader, so a small frame can claim an
+                // enormous row count. Bound it before it drives any allocation.
                 int rowCount = checked((int)batch.Length);
-                var messages = new List<PubSubDataSetMessage>(rowCount);
+                if (rowCount < 0)
+                {
+                    throw new FormatException("Arrow RecordBatch declares a negative row count.");
+                }
+                if (context.MessageContext.MaxArrayLength > 0
+                    && rowCount > context.MessageContext.MaxArrayLength)
+                {
+                    throw new FormatException(
+                        $"Arrow RecordBatch row count {rowCount} exceeds MaxArrayLength " +
+                        $"{context.MessageContext.MaxArrayLength}.");
+                }
+
+                var messages = new List<PubSubDataSetMessage>();
                 for (int row = 0; row < rowCount; row++)
                 {
                     ArrowDataSetMessage message = ReadDataSetMessage(

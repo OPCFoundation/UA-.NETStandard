@@ -1443,7 +1443,20 @@ namespace Opc.Ua
                 return ArrayOf<T>.Null;
             }
 
-            return new ArrayOf<T>(read(l.Values, l.ValueOffsets[index], l.ValueOffsets[index + 1] - l.ValueOffsets[index]));
+            int start = l.ValueOffsets[index];
+            int length = l.ValueOffsets[index + 1] - start;
+            IArrowArray values = l.Values;
+
+            // The offsets buffer is attacker-controlled on a decode path, and the Read*Many helpers
+            // allocate eagerly from the resulting length, so validate the range before slicing.
+            if (start < 0 || length < 0 || (long)start + length > values.Length)
+            {
+                throw new FormatException(
+                    $"Arrow list offsets for field '{c.Field?.Name}' are out of range " +
+                    $"(start={start}, length={length}, values={values.Length}).");
+            }
+
+            return new ArrayOf<T>(read(values, start, length));
         }
 
         /// <summary>

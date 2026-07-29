@@ -88,7 +88,10 @@ namespace Opc.Ua.PubSub.Encoding
         /// <param name="schemaId">The announced raw schema identifier.</param>
         /// <param name="schema">The schema bytes.</param>
         /// <param name="format">The schema format.</param>
-        /// <exception cref="InvalidOperationException">Thrown when SchemaId verification fails.</exception>
+        /// <exception cref="InvalidOperationException">
+        /// Thrown when SchemaId verification fails, or when a different schema document is already
+        /// cached under the same SchemaId.
+        /// </exception>
         public void Add(ByteString schemaId, ByteString schema, string format)
         {
             ByteString actual = ComputeSchemaId(schema, format);
@@ -97,7 +100,22 @@ namespace Opc.Ua.PubSub.Encoding
                 throw new InvalidOperationException("The announced SchemaId does not match the schema fingerprint.");
             }
             string key = ToKey(schemaId);
-            if (_schemas.Count >= MaxCachedSchemas && !_schemas.ContainsKey(key))
+
+            // A SchemaId is only a 64-bit fingerprint, so two different documents can share one.
+            // Binding the first document seen to that id and refusing to replace it keeps a peer
+            // that announces a colliding document from substituting the schema an already-cached
+            // id decodes with. Re-announcing the identical document stays a no-op.
+            if (_schemas.TryGetValue(key, out SchemaCacheEntry existingEntry))
+            {
+                if (!existingEntry.Schema.Span.SequenceEqual(schema.Span))
+                {
+                    throw new InvalidOperationException(
+                        "A different schema document is already cached under this SchemaId.");
+                }
+                return;
+            }
+
+            if (_schemas.Count >= MaxCachedSchemas)
             {
                 foreach (string existing in _schemas.Keys)
                 {

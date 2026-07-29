@@ -181,7 +181,9 @@ namespace Opc.Ua
                         System.Text.Encoding.UTF8.GetString(schema.ToArray()));
                     fingerprint = SchemaId.RabinCrc64Avro(System.Text.Encoding.UTF8.GetBytes(canonical));
                 }
-                catch (Exception ex) when (ex is FormatException || ex is System.Text.Json.JsonException)
+                catch (Exception ex) when (ex is FormatException
+                    or System.Text.Json.JsonException
+                    || SchemaExchangePayload.IsMalformedPayload(ex))
                 {
                     fingerprint = SchemaId.RabinCrc64Avro(schema);
                 }

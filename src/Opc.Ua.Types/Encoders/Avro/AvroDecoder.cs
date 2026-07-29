@@ -578,6 +578,10 @@ namespace Opc.Ua
                     count = -count;
                 }
 
+                // The block loop accepts an unlimited number of blocks, so the running total has to
+                // be bounded rather than each individual block count.
+                CheckArrayLength(values.Count + count);
+
                 for (long i = 0; i < count; i++)
                 {
                     values.Add(read());
@@ -585,6 +589,25 @@ namespace Opc.Ua
             }
 
             return values.ToArray();
+        }
+
+        /// <summary>
+        /// Enforces <see cref="IServiceMessageContext.MaxArrayLength"/> on a decoded array,
+        /// matching the behaviour of the Binary and XML decoders.
+        /// </summary>
+        /// <param name="length">The number of elements decoded so far.</param>
+        /// <exception cref="ServiceResultException">The limit is exceeded.</exception>
+        private void CheckArrayLength(long length)
+        {
+            int max = Context.MaxArrayLength;
+            if (max > 0 && length > max)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "The number of array elements ({0}) exceeds MaxArrayLength ({1}).",
+                    length,
+                    max);
+            }
         }
 
         private MatrixOf<T> ReadMatrix<T>(Func<ArrayOf<T>> readArray)
