@@ -44,13 +44,13 @@ namespace Opc.Ua.Positioning.Server.Hosting
     {
         internal PositioningServerContext(
             AsyncCustomNodeManager manager,
-            ArrayOf<IGlobalPositionProvider> globalProviders,
+            ArrayOf<IGeoLocationProvider> geoLocationProviders,
             ArrayOf<IRelativeSpatialLocationProvider> relativeProviders,
             CancellationToken cancellationToken)
         {
             Manager = manager;
             AddressSpace = new PositioningAddressSpaceBuilder(manager);
-            GlobalPositionProviders = globalProviders;
+            GeoLocationProviders = geoLocationProviders;
             RelativeSpatialLocationProviders = relativeProviders;
             CancellationToken = cancellationToken;
         }
@@ -66,9 +66,9 @@ namespace Opc.Ua.Positioning.Server.Hosting
         public PositioningAddressSpaceBuilder AddressSpace { get; }
 
         /// <summary>
-        /// Registered global positioning providers.
+        /// Registered geo location providers.
         /// </summary>
-        public ArrayOf<IGlobalPositionProvider> GlobalPositionProviders { get; }
+        public ArrayOf<IGeoLocationProvider> GeoLocationProviders { get; }
 
         /// <summary>
         /// Registered relative spatial location providers.
@@ -104,16 +104,16 @@ namespace Opc.Ua.Positioning.Server.Hosting
     internal sealed class PositioningPostSetupRunner : IPositioningPostSetupRunner
     {
         private readonly ArrayOf<IPositioningPostSetupConfigurator> m_configurators;
-        private readonly ArrayOf<IGlobalPositionProvider> m_globalProviders;
+        private readonly ArrayOf<IGeoLocationProvider> m_geoLocationProviders;
         private readonly ArrayOf<IRelativeSpatialLocationProvider> m_relativeProviders;
 
         public PositioningPostSetupRunner(
             IEnumerable<IPositioningPostSetupConfigurator> configurators,
-            IEnumerable<IGlobalPositionProvider> globalProviders,
+            IEnumerable<IGeoLocationProvider> geoLocationProviders,
             IEnumerable<IRelativeSpatialLocationProvider> relativeProviders)
         {
             m_configurators = configurators.ToArray().ToArrayOf();
-            m_globalProviders = globalProviders.ToArray().ToArrayOf();
+            m_geoLocationProviders = geoLocationProviders.ToArray().ToArrayOf();
             m_relativeProviders = relativeProviders.ToArray().ToArrayOf();
         }
 
@@ -127,7 +127,7 @@ namespace Opc.Ua.Positioning.Server.Hosting
                 cancellationToken).ConfigureAwait(false);
             var context = new PositioningServerContext(
                 manager,
-                m_globalProviders,
+                m_geoLocationProviders,
                 m_relativeProviders,
                 cancellationToken);
 

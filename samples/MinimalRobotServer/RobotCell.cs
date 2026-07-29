@@ -556,9 +556,9 @@ namespace Robotics
             }
 
             MobileRobotPositionProvider? provider = null;
-            for (int i = 0; i < context.GlobalPositionProviders.Count; i++)
+            for (int i = 0; i < context.GeoLocationProviders.Count; i++)
             {
-                if (context.GlobalPositionProviders[i] is MobileRobotPositionProvider candidate)
+                if (context.GeoLocationProviders[i] is MobileRobotPositionProvider candidate)
                 {
                     provider = candidate;
                     break;
@@ -625,15 +625,24 @@ namespace Robotics
             ushort gposNamespaceIndex,
             ushort usdNamespaceIndex)
         {
-            GlobalPositionSample initial = await provider.ReadAsync(
+            GeoLocationSample initial = await provider.ReadAsync(
                 runtime.SourceId,
                 context.CancellationToken).ConfigureAwait(false);
+            GeoPosition initialPosition = initial.Position!.Value;
+            GeoOrientation initialOrientation = initial.Orientation!.Value;
             ThreeDCartesianCoordinates localPosition =
-                provider.Scenario.Fit.GlobalToLocal(initial.Location.Position, AngleUnit.Degrees);
+                provider.Scenario.Fit.GlobalToLocal(
+                    ToGeographic(initialPosition),
+                    AngleUnit.Degrees);
             var localFrame = new ThreeDFrame
             {
                 CartesianCoordinates = localPosition,
-                Orientation = initial.Location.Orientation
+                Orientation = new ThreeDOrientation
+                {
+                    A = initialOrientation.A,
+                    B = initialOrientation.B,
+                    C = initialOrientation.C
+                }
             };
 
             SpatialObjectState spatialObject = builder.AttachSpatialObject(
@@ -674,17 +683,26 @@ namespace Robotics
                     runtime.SourceId,
                     (sample, _) =>
                     {
+                        GeoPosition samplePosition = sample.Position!.Value;
+                        GeoOrientation sampleOrientation = sample.Orientation!.Value;
                         ThreeDCartesianCoordinates local =
-                            provider.Scenario.Fit.GlobalToLocal(sample.Location.Position, AngleUnit.Degrees);
+                            provider.Scenario.Fit.GlobalToLocal(
+                                ToGeographic(samplePosition),
+                                AngleUnit.Degrees);
                         builder.SetFrameValue(
                             positionFrame,
                             new ThreeDFrame
                             {
                                 CartesianCoordinates = local,
-                                Orientation = sample.Location.Orientation
+                                Orientation = new ThreeDOrientation
+                                {
+                                    A = sampleOrientation.A,
+                                    B = sampleOrientation.B,
+                                    C = sampleOrientation.C
+                                }
                             },
                             sample.StatusCode,
-                            sample.SourceTimestamp);
+                            sample.GetEffectiveSourceTimestamp());
                         return default;
                     },
                     context.CancellationToken).ConfigureAwait(false);
@@ -727,6 +745,24 @@ namespace Robotics
             {
                 CartesianCoordinates = new ThreeDCartesianCoordinates(),
                 Orientation = new ThreeDOrientation()
+            };
+        }
+
+        /// <summary>
+        /// Rebuilds the OPC 10000-211 geographic coordinate a provider position
+        /// describes, so the scenario's fit can project it back into the cell's
+        /// local frame.
+        /// </summary>
+        private static S3DGeographicCoordinateDataType ToGeographic(GeoPosition position)
+        {
+            return new S3DGeographicCoordinateDataType
+            {
+                EncodingMask = position.Height.HasValue
+                    ? (uint)S3DGeographicCoordinateDataTypeFields.Elevation
+                    : 0,
+                Latitude = position.Latitude,
+                Longitude = position.Longitude,
+                Elevation = position.Height ?? 0.0
             };
         }
 

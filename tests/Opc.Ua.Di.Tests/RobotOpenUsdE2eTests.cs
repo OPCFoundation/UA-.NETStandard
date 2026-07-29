@@ -169,7 +169,7 @@ namespace Opc.Ua.Di.Tests
                         .RunAsync(context.Manager, context.CancellationToken).ConfigureAwait(false))
                 .AddPositioningFor<RoboticsNodeManager>();
             positioning
-                .AddGlobalPositionProvider<global::Robotics.MobileRobotPositionProvider>()
+                .AddGeoLocationProvider<global::Robotics.MobileRobotPositionProvider>()
                 .ConfigurePositioningFor<RoboticsNodeManager>(
                     context => global::Robotics.RobotCell.GetForManager(context.Manager)
                         .ConfigurePositioningAsync(context));

@@ -44,18 +44,18 @@ namespace Opc.Ua.Positioning.Server.Hosting
         IServiceCollection Services { get; }
 
         /// <summary>
-        /// Registers a global positioning provider.
+        /// Registers a geo location provider.
         /// </summary>
         /// <typeparam name="T">Provider implementation type.</typeparam>
-        IPositioningServerBuilder AddGlobalPositionProvider<
+        IPositioningServerBuilder AddGeoLocationProvider<
             [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>()
-            where T : class, IGlobalPositionProvider;
+            where T : class, IGeoLocationProvider;
 
         /// <summary>
-        /// Registers a global positioning provider factory.
+        /// Registers a geo location provider factory.
         /// </summary>
-        IPositioningServerBuilder AddGlobalPositionProvider(
-            Func<IServiceProvider, IGlobalPositionProvider> factory);
+        IPositioningServerBuilder AddGeoLocationProvider(
+            Func<IServiceProvider, IGeoLocationProvider> factory);
 
         /// <summary>
         /// Registers a relative spatial location provider.

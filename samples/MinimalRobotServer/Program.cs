@@ -76,7 +76,7 @@ IPositioningServerBuilder positioning = builder.Services
     .AddPositioningFor<Opc.Ua.Robotics.Server.RoboticsNodeManager>();
 
 positioning
-    .AddGlobalPositionProvider<MobileRobotPositionProvider>()
+    .AddGeoLocationProvider<MobileRobotPositionProvider>()
     .ConfigurePositioningFor<Opc.Ua.Robotics.Server.RoboticsNodeManager>(
         context => RobotCell.GetForManager(context.Manager)
             .ConfigurePositioningAsync(context));

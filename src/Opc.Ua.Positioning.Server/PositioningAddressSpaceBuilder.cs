@@ -375,25 +375,27 @@ namespace Opc.Ua.Positioning.Server
         }
 
         /// <summary>
-        /// Applies a typed provider sample to a GlobalPosition Variable and its children.
+        /// Applies a provider sample to a GlobalPosition Variable and its children.
         /// </summary>
         public void SetGlobalPositionValue(
             GlobalPositionState state,
-            GlobalPositionSample sample)
+            GeoLocationSample sample)
         {
             state.ThrowIfNull(nameof(state));
-            sample.ThrowIfNull(nameof(sample));
 
-            GlobalPositionDataType position = sample.Location.Position;
+            DateTimeUtc timestamp = sample.GetEffectiveSourceTimestamp();
+            GlobalPositionDataType position = ToGlobalPosition(
+                sample,
+                RequireCoordinateReferenceSystem(state));
             ValidateGlobalPosition(state, position);
             state.Value = position;
             state.StatusCode = sample.StatusCode;
-            state.Timestamp = sample.SourceTimestamp;
+            state.Timestamp = timestamp;
             SetGlobalPositionComponents(
                 state,
                 position,
                 sample.StatusCode,
-                sample.SourceTimestamp);
+                timestamp);
             state.ClearChangeMasks(SystemContext, includeChildren: true);
         }
 
@@ -403,7 +405,7 @@ namespace Opc.Ua.Positioning.Server
         public async ValueTask<PositioningProviderSubscription>
             BindGlobalPositionAsync(
                 GlobalPositionState state,
-                IGlobalPositionProvider provider,
+                IGeoLocationProvider provider,
                 string sourceId,
                 CancellationToken cancellationToken = default)
         {
@@ -413,7 +415,7 @@ namespace Opc.Ua.Positioning.Server
 
             try
             {
-                GlobalPositionSample initial = await provider.ReadAsync(
+                GeoLocationSample initial = await provider.ReadAsync(
                     sourceId,
                     cancellationToken).ConfigureAwait(false);
                 ValidateProviderSourceMatch(initial.SourceId, sourceId);
@@ -433,39 +435,43 @@ namespace Opc.Ua.Positioning.Server
             }
 
             var cts = new CancellationTokenSource();
-            Task completion = WatchGlobalPositionValueAsync(
-                state,
-                provider,
-                sourceId,
-                cts.Token);
+            Task completion = provider.SupportsPush
+                ? WatchGlobalPositionValueAsync(
+                    state,
+                    provider,
+                    sourceId,
+                    cts.Token)
+                : Task.CompletedTask;
             return new PositioningProviderSubscription(cts, completion);
         }
 
         /// <summary>
-        /// Applies a typed provider sample to a GlobalLocation Variable and its children.
+        /// Applies a provider sample to a GlobalLocation Variable and its children.
         /// </summary>
         public void SetGlobalLocationValue(
             GlobalLocationState state,
-            GlobalPositionSample sample)
+            GeoLocationSample sample)
         {
             state.ThrowIfNull(nameof(state));
-            sample.ThrowIfNull(nameof(sample));
 
-            GlobalLocationDataType value = sample.Location;
+            DateTimeUtc timestamp = sample.GetEffectiveSourceTimestamp();
+            GlobalLocationDataType value = ToGlobalLocation(
+                sample,
+                RequireCoordinateReferenceSystem(state.Position!));
             GlobalPositionDataType position = value.Position;
             ValidateGlobalLocation(state, value);
             state.Value = value;
             state.StatusCode = sample.StatusCode;
-            state.Timestamp = sample.SourceTimestamp;
+            state.Timestamp = timestamp;
 
             state.Position!.Value = position;
             state.Position.StatusCode = sample.StatusCode;
-            state.Position.Timestamp = sample.SourceTimestamp;
+            state.Position.Timestamp = timestamp;
             SetGlobalPositionComponents(
                 state.Position,
                 position,
                 sample.StatusCode,
-                sample.SourceTimestamp);
+                timestamp);
 
             if ((value.EncodingMask &
                 (uint)GlobalLocationDataTypeFields.Orientation) != 0)
@@ -473,32 +479,146 @@ namespace Opc.Ua.Positioning.Server
                 state.AddOrientation(SystemContext);
                 state.Orientation!.Value = value.Orientation;
                 state.Orientation.StatusCode = sample.StatusCode;
-                state.Orientation.Timestamp = sample.SourceTimestamp;
+                state.Orientation.Timestamp = timestamp;
                 SetVariable(
                     state.Orientation.A!,
                     value.Orientation.A,
                     sample.StatusCode,
-                    sample.SourceTimestamp);
+                    timestamp);
                 SetVariable(
                     state.Orientation.B!,
                     value.Orientation.B,
                     sample.StatusCode,
-                    sample.SourceTimestamp);
+                    timestamp);
                 SetVariable(
                     state.Orientation.C!,
                     value.Orientation.C,
                     sample.StatusCode,
-                    sample.SourceTimestamp);
+                    timestamp);
             }
             else if (state.Orientation != null)
             {
-                MarkNoData(state.Orientation, sample.SourceTimestamp);
-                MarkNoData(state.Orientation.A, sample.SourceTimestamp);
-                MarkNoData(state.Orientation.B, sample.SourceTimestamp);
-                MarkNoData(state.Orientation.C, sample.SourceTimestamp);
+                MarkNoData(state.Orientation, timestamp);
+                MarkNoData(state.Orientation.A, timestamp);
+                MarkNoData(state.Orientation.B, timestamp);
+                MarkNoData(state.Orientation.C, timestamp);
             }
 
             state.ClearChangeMasks(SystemContext, includeChildren: true);
+        }
+
+        /// <summary>
+        /// Builds the OPC 10000-211 location structure a provider sample
+        /// describes.
+        /// </summary>
+        /// <param name="sample">The provider sample.</param>
+        /// <param name="coordinateReferenceSystem">
+        /// The EPSG code the target Variable is configured for.
+        /// </param>
+        /// <returns>The mapped location.</returns>
+        /// <exception cref="ServiceResultException">
+        /// The sample carries no position, or declares a different coordinate
+        /// reference system.
+        /// </exception>
+        private static GlobalLocationDataType ToGlobalLocation(
+            GeoLocationSample sample,
+            uint coordinateReferenceSystem)
+        {
+            var location = new GlobalLocationDataType
+            {
+                Position = ToGlobalPosition(sample, coordinateReferenceSystem)
+            };
+            if (sample.Orientation is GeoOrientation orientation)
+            {
+                location.EncodingMask =
+                    (uint)GlobalLocationDataTypeFields.Orientation;
+                location.Orientation = new ThreeDOrientation
+                {
+                    A = orientation.A,
+                    B = orientation.B,
+                    C = orientation.C
+                };
+            }
+            return location;
+        }
+
+        /// <summary>
+        /// Builds the OPC 10000-211 position structure a provider sample
+        /// describes.
+        /// </summary>
+        /// <param name="sample">The provider sample.</param>
+        /// <param name="coordinateReferenceSystem">
+        /// The EPSG code the target Variable is configured for.
+        /// </param>
+        /// <returns>The mapped position.</returns>
+        /// <exception cref="ServiceResultException">
+        /// The sample carries no position, or declares a different coordinate
+        /// reference system.
+        /// </exception>
+        private static GlobalPositionDataType ToGlobalPosition(
+            GeoLocationSample sample,
+            uint coordinateReferenceSystem)
+        {
+            if (sample.Position is not GeoPosition position)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNoDataAvailable,
+                    "The provider sample carries no geodetic position, which a " +
+                    "global positioning Variable requires. A location that is " +
+                    "only known as text cannot be published here.");
+            }
+
+            // A provider that names its reference system must agree with the
+            // one the Variable is configured for; silently publishing WGS84
+            // into a Variable declared as something else mis-georeferences it.
+            if (position.EpsgCode is uint epsg &&
+                epsg != coordinateReferenceSystem)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidArgument,
+                    $"The provider reports EPSG:{epsg} but the Variable is " +
+                    $"configured for EPSG:{coordinateReferenceSystem}.");
+            }
+
+            var mapped = new GlobalPositionDataType
+            {
+                Longitude = position.Longitude,
+                Latitude = position.Latitude
+            };
+            uint encodingMask = 0;
+            if (position.Height is double height)
+            {
+                encodingMask |= (uint)S3DGeographicCoordinateDataTypeFields.Elevation;
+                mapped.Elevation = height;
+            }
+            if (position.Accuracy is double accuracy)
+            {
+                encodingMask |= (uint)GlobalPositionDataTypeFields.Accuracy;
+                mapped.Accuracy = accuracy;
+            }
+            if (position.Floor is float floor)
+            {
+                encodingMask |= (uint)GlobalPositionDataTypeFields.Floor;
+                mapped.Floor = floor;
+            }
+            mapped.EncodingMask = encodingMask;
+            return mapped;
+        }
+
+        /// <summary>
+        /// Returns the EPSG code a GlobalPosition Variable is configured for.
+        /// </summary>
+        /// <param name="state">The Variable.</param>
+        /// <returns>The configured EPSG code.</returns>
+        /// <exception cref="ServiceResultException">
+        /// The Variable has no coordinate reference system.
+        /// </exception>
+        private static uint RequireCoordinateReferenceSystem(GlobalPositionState state)
+        {
+            return state.CoordinateReferenceSystem?.Value ??
+                throw new ServiceResultException(
+                    StatusCodes.BadConfigurationError,
+                    "CoordinateReferenceSystem is not configured.");
         }
 
         /// <summary>
@@ -507,9 +627,9 @@ namespace Opc.Ua.Positioning.Server
         public async ValueTask<PositioningProviderSubscription>
             BindGlobalLocationAsync(
                 GlobalLocationState state,
-                IGlobalPositionProvider provider,
+                IGeoLocationProvider provider,
                 string sourceId,
-                Func<GlobalPositionSample, CancellationToken, ValueTask>?
+                Func<GeoLocationSample, CancellationToken, ValueTask>?
                     onSampleApplied = null,
                 CancellationToken cancellationToken = default)
         {
@@ -519,7 +639,7 @@ namespace Opc.Ua.Positioning.Server
 
             try
             {
-                GlobalPositionSample initial = await provider.ReadAsync(
+                GeoLocationSample initial = await provider.ReadAsync(
                     sourceId,
                     cancellationToken).ConfigureAwait(false);
                 ApplyGlobalSample(state, initial, sourceId);
@@ -542,12 +662,14 @@ namespace Opc.Ua.Positioning.Server
             }
 
             var cts = new CancellationTokenSource();
-            Task completion = WatchGlobalPositionAsync(
-                state,
-                provider,
-                sourceId,
-                onSampleApplied,
-                cts.Token);
+            Task completion = provider.SupportsPush
+                ? WatchGlobalPositionAsync(
+                    state,
+                    provider,
+                    sourceId,
+                    onSampleApplied,
+                    cts.Token)
+                : Task.CompletedTask;
             return new PositioningProviderSubscription(cts, completion);
         }
 
@@ -722,7 +844,7 @@ namespace Opc.Ua.Positioning.Server
 
         private void ApplyGlobalSample(
             GlobalLocationState state,
-            GlobalPositionSample sample,
+            GeoLocationSample sample,
             string sourceId)
         {
             ValidateProviderSourceMatch(sample.SourceId, sourceId);
@@ -731,15 +853,15 @@ namespace Opc.Ua.Positioning.Server
 
         private async Task WatchGlobalPositionAsync(
             GlobalLocationState state,
-            IGlobalPositionProvider provider,
+            IGeoLocationProvider provider,
             string sourceId,
-            Func<GlobalPositionSample, CancellationToken, ValueTask>?
+            Func<GeoLocationSample, CancellationToken, ValueTask>?
                 onSampleApplied,
             CancellationToken cancellationToken)
         {
             try
             {
-                await foreach (GlobalPositionSample sample in provider
+                await foreach (GeoLocationSample sample in provider
                     .WatchAsync(sourceId, cancellationToken)
                     .WithCancellation(cancellationToken)
                     .ConfigureAwait(false))
@@ -766,13 +888,13 @@ namespace Opc.Ua.Positioning.Server
 
         private async Task WatchGlobalPositionValueAsync(
             GlobalPositionState state,
-            IGlobalPositionProvider provider,
+            IGeoLocationProvider provider,
             string sourceId,
             CancellationToken cancellationToken)
         {
             try
             {
-                await foreach (GlobalPositionSample sample in provider
+                await foreach (GeoLocationSample sample in provider
                     .WatchAsync(sourceId, cancellationToken)
                     .WithCancellation(cancellationToken)
                     .ConfigureAwait(false))
@@ -1270,9 +1392,15 @@ namespace Opc.Ua.Positioning.Server
         }
 
         private static void ValidateProviderSourceMatch(
-            string actualSourceId,
+            string? actualSourceId,
             string expectedSourceId)
         {
+            // Echoing the source is optional; a provider that does identifies
+            // its own bugs, one that does not is simply trusted.
+            if (actualSourceId == null)
+            {
+                return;
+            }
             ValidateRequestedSourceId(actualSourceId, nameof(actualSourceId));
             if (!string.Equals(
                 actualSourceId,

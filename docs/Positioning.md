@@ -47,7 +47,7 @@ IPositioningServerBuilder positioning = host.Services
     .AddPositioningServer();
 
 positioning
-    .AddGlobalPositionProvider<MyGlobalPositionProvider>()
+    .AddGeoLocationProvider<MyGpsProvider>()
     .AddRelativeSpatialLocationProvider<MyRelativeLocationProvider>()
     .ConfigurePositioningFor<PositioningNodeManager>(async context =>
     {
@@ -112,11 +112,55 @@ Dispose the subscription asynchronously during server shutdown. Provider
 failures retain the last value, set its status to `BadCommunicationError`, log
 the failure through `ITelemetryContext`, and fault `Completion`.
 
-`IGlobalPositionProvider` is intentionally technology-neutral. GPS/WGS84 is a
-built-in use case, but RTLS, UWB, RFID, local floor-plan coordinates, and other
-tracking systems use the same contract. An RSL provider is also useful when a
-robot controller, metrology system, or kinematic service is authoritative for a
-relative frame rather than a global coordinate.
+`IGeoLocationProvider` is intentionally technology-neutral, and lives in
+`Opc.Ua.Server` (namespace `Opc.Ua`) rather than in a companion-model assembly.
+GPS/WGS84 is a built-in use case, but RTLS, UWB, RFID, local floor-plan
+coordinates, and other tracking systems use the same contract. An RSL provider
+is also useful when a robot controller, metrology system, or kinematic service
+is authoritative for a relative frame rather than a global coordinate.
+
+Because the contract is shared, **one provider implementation serves every
+model that publishes location**. The same instance can back GPOS
+`GlobalLocation` Variables here and OPC 10030 (ISA-95) `GeoSpatialLocationType`
+Variables — see [ISA-95](ISA95.md#geospatiallocationtype-provider-seam). A
+sample carries an optional `GeoPosition` (latitude, longitude, optional height,
+accuracy, floor and EPSG code), an optional `GeoOrientation`, and optional text
+`Labels`:
+
+```csharp
+public sealed class MyGpsProvider : IGeoLocationProvider
+{
+    public bool SupportsPush => true;
+
+    public ValueTask<GeoLocationSample> ReadAsync(
+        string sourceId,
+        CancellationToken ct = default)
+    {
+        return new ValueTask<GeoLocationSample>(
+            GeoLocationSample.Good(
+                new GeoPosition(47.3769, 8.5417, 408.0, EpsgCode: 4326)));
+    }
+
+    public async IAsyncEnumerable<GeoLocationSample> WatchAsync(
+        string sourceId,
+        [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        // Yield a sample whenever the receiver reports a new fix.
+    }
+}
+```
+
+Set `SupportsPush` to `false` when the source can only be polled; the binding
+layer then never calls `WatchAsync` and reads through `ReadAsync` at the
+Variable's sampling interval instead.
+
+A GPOS Variable requires coordinates, so a sample whose `Position` is `null`
+is rejected with `BadNoDataAvailable`. When a position declares an `EpsgCode`
+that differs from the Variable's configured `CoordinateReferenceSystem`, the
+binding fails rather than silently mis-georeferencing the value; leave
+`EpsgCode` `null` to accept whatever the Variable is configured for.
+`InMemoryGeoLocationProvider` ships as a reference implementation for tests and
+for servers whose positions are pushed in from elsewhere.
 
 ## Client
 

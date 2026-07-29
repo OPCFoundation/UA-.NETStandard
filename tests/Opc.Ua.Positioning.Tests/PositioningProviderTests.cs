@@ -273,36 +273,25 @@ namespace Opc.Ua.Positioning.Tests
             return state;
         }
 
-        private static GlobalPositionSample CreateGlobalSample(
+        private static GeoLocationSample CreateGlobalSample(
             string sourceId,
             double longitude,
             bool includeOptionalFields)
         {
-            var position = new GlobalPositionDataType
-            {
-                EncodingMask = includeOptionalFields
-                    ? (uint)S3DGeographicCoordinateDataTypeFields.Elevation |
-                        (uint)GlobalPositionDataTypeFields.Accuracy |
-                        (uint)GlobalPositionDataTypeFields.Floor
-                    : 0,
-                Longitude = longitude,
-                Latitude = 47.0,
-                Elevation = 500.0,
-                Accuracy = 0.1,
-                Floor = 2.0f
-            };
-            return new GlobalPositionSample(
-                sourceId,
-                new GlobalLocationDataType
-                {
-                    EncodingMask = includeOptionalFields
-                        ? (uint)GlobalLocationDataTypeFields.Orientation
-                        : 0,
-                    Position = position,
-                    Orientation = new ThreeDOrientation { C = 90.0 }
-                },
+            var position = new GeoPosition(
+                47.0,
+                longitude,
+                Height: includeOptionalFields ? 500.0 : null,
+                Accuracy: includeOptionalFields ? 0.1 : null,
+                Floor: includeOptionalFields ? 2.0f : null,
+                EpsgCode: 4326);
+            return new GeoLocationSample(
+                position,
+                includeOptionalFields ? new GeoOrientation(0.0, 0.0, 90.0) : null,
+                default,
                 StatusCodes.Good,
-                DateTimeUtc.Now);
+                DateTimeUtc.Now,
+                sourceId);
         }
 
         private static ThreeDFrame CreateFrame(double x)
@@ -336,37 +325,39 @@ namespace Opc.Ua.Positioning.Tests
         }
 
         private sealed class ControlledGlobalProvider :
-            IGlobalPositionProvider,
+            IGeoLocationProvider,
             IDisposable
         {
-            private readonly ConcurrentQueue<GlobalPositionSample> m_samples = new();
+            public bool SupportsPush => true;
+
+            private readonly ConcurrentQueue<GeoLocationSample> m_samples = new();
             private readonly SemaphoreSlim m_available = new(0);
-            private readonly GlobalPositionSample m_initial;
+            private readonly GeoLocationSample m_initial;
 
             private readonly TaskCompletionSource<bool> m_cancellationObserved =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-            public ControlledGlobalProvider(GlobalPositionSample initial)
+            public ControlledGlobalProvider(GeoLocationSample initial)
             {
                 m_initial = initial;
             }
 
             public Task CancellationObserved => m_cancellationObserved.Task;
 
-            public void Publish(GlobalPositionSample sample)
+            public void Publish(GeoLocationSample sample)
             {
                 m_samples.Enqueue(sample);
                 m_available.Release();
             }
 
-            public ValueTask<GlobalPositionSample> ReadAsync(
+            public ValueTask<GeoLocationSample> ReadAsync(
                 string sourceId,
                 CancellationToken cancellationToken)
             {
-                return new ValueTask<GlobalPositionSample>(m_initial);
+                return new ValueTask<GeoLocationSample>(m_initial);
             }
 
-            public async IAsyncEnumerable<GlobalPositionSample> WatchAsync(
+            public async IAsyncEnumerable<GeoLocationSample> WatchAsync(
                 string sourceId,
                 [EnumeratorCancellation] CancellationToken cancellationToken)
             {
@@ -377,7 +368,7 @@ namespace Opc.Ua.Positioning.Tests
                         await m_available.WaitAsync(cancellationToken)
                             .ConfigureAwait(false);
                         if (m_samples.TryDequeue(
-                            out GlobalPositionSample? sample))
+                            out GeoLocationSample sample))
                         {
                             yield return sample;
                         }
@@ -398,27 +389,29 @@ namespace Opc.Ua.Positioning.Tests
             }
         }
 
-        private sealed class FailingGlobalProvider : IGlobalPositionProvider
+        private sealed class FailingGlobalProvider : IGeoLocationProvider
         {
-            private readonly GlobalPositionSample m_initial;
-            private readonly GlobalPositionSample m_update;
+            public bool SupportsPush => true;
+
+            private readonly GeoLocationSample m_initial;
+            private readonly GeoLocationSample m_update;
 
             public FailingGlobalProvider(
-                GlobalPositionSample initial,
-                GlobalPositionSample update)
+                GeoLocationSample initial,
+                GeoLocationSample update)
             {
                 m_initial = initial;
                 m_update = update;
             }
 
-            public ValueTask<GlobalPositionSample> ReadAsync(
+            public ValueTask<GeoLocationSample> ReadAsync(
                 string sourceId,
                 CancellationToken cancellationToken)
             {
-                return new ValueTask<GlobalPositionSample>(m_initial);
+                return new ValueTask<GeoLocationSample>(m_initial);
             }
 
-            public async IAsyncEnumerable<GlobalPositionSample> WatchAsync(
+            public async IAsyncEnumerable<GeoLocationSample> WatchAsync(
                 string sourceId,
                 [EnumeratorCancellation] CancellationToken cancellationToken)
             {

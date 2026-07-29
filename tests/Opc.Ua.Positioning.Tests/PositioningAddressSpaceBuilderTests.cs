@@ -163,18 +163,13 @@ namespace Opc.Ua.Positioning.Tests
                 zone.NodeId,
                 4326);
             await builder.RegisterAsync(position).ConfigureAwait(false);
-            var sample = new GlobalPositionSample(
-                "asset",
-                new GlobalLocationDataType
-                {
-                    Position = new GlobalPositionDataType
-                    {
-                        Longitude = 8.0,
-                        Latitude = 47.0
-                    }
-                },
+            var sample = new GeoLocationSample(
+                new GeoPosition(47.0, 8.0, EpsgCode: 4326),
+                null,
+                default,
                 StatusCodes.Good,
-                DateTimeUtc.Now);
+                DateTimeUtc.Now,
+                "asset");
             builder.SetGlobalPositionValue(position, sample);
 
             ZoneState proximityZone = builder.CreateProximityZone(

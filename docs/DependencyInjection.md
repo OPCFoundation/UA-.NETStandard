@@ -701,7 +701,7 @@ IPositioningServerBuilder positioning = services
     .AddPositioningServer();
 
 positioning
-    .AddGlobalPositionProvider<MyGlobalPositionProvider>()
+    .AddGeoLocationProvider<MyGpsProvider>()
     .AddRelativeSpatialLocationProvider<MyRelativeLocationProvider>()
     .ConfigurePositioningFor<PositioningNodeManager>(context =>
     {

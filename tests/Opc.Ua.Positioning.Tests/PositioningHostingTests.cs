@@ -63,14 +63,14 @@ namespace Opc.Ua.Positioning.Tests
             var globalProvider = new TestGlobalProvider();
             var relativeProvider = new TestRelativeProvider();
             positioning
-                .AddGlobalPositionProvider(_ => globalProvider)
+                .AddGeoLocationProvider(_ => globalProvider)
                 .AddRelativeSpatialLocationProvider(_ => relativeProvider);
 
             using ServiceProvider provider = services.BuildServiceProvider();
             PositioningNodeManagerFactory factory =
                 provider.GetRequiredService<PositioningNodeManagerFactory>();
-            ArrayOf<IGlobalPositionProvider> globalProviders = provider
-                .GetServices<IGlobalPositionProvider>()
+            ArrayOf<IGeoLocationProvider> globalProviders = provider
+                .GetServices<IGeoLocationProvider>()
                 .ToArray()
                 .ToArrayOf();
             ArrayOf<IRelativeSpatialLocationProvider> relativeProviders =
@@ -165,16 +165,18 @@ namespace Opc.Ua.Positioning.Tests
             });
         }
 
-        private sealed class TestGlobalProvider : IGlobalPositionProvider
+        private sealed class TestGlobalProvider : IGeoLocationProvider
         {
-            public ValueTask<GlobalPositionSample> ReadAsync(
+            public bool SupportsPush => true;
+
+            public ValueTask<GeoLocationSample> ReadAsync(
                 string sourceId,
                 CancellationToken cancellationToken)
             {
                 throw new NotSupportedException();
             }
 
-            public IAsyncEnumerable<GlobalPositionSample> WatchAsync(
+            public IAsyncEnumerable<GeoLocationSample> WatchAsync(
                 string sourceId,
                 CancellationToken cancellationToken)
             {

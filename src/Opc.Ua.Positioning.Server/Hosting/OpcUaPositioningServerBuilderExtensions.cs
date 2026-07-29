@@ -31,6 +31,7 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Opc.Ua;
 using Opc.Ua.Positioning.Server;
 using Opc.Ua.Positioning.Server.Hosting;
 using Opc.Ua.Server;
@@ -117,17 +118,17 @@ namespace Microsoft.Extensions.DependencyInjection
 
             public IServiceCollection Services { get; }
 
-            public IPositioningServerBuilder AddGlobalPositionProvider<
+            public IPositioningServerBuilder AddGeoLocationProvider<
                 [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>()
-                where T : class, IGlobalPositionProvider
+                where T : class, IGeoLocationProvider
             {
                 Services.TryAddEnumerable(
-                    ServiceDescriptor.Singleton<IGlobalPositionProvider, T>());
+                    ServiceDescriptor.Singleton<IGeoLocationProvider, T>());
                 return this;
             }
 
-            public IPositioningServerBuilder AddGlobalPositionProvider(
-                Func<IServiceProvider, IGlobalPositionProvider> factory)
+            public IPositioningServerBuilder AddGeoLocationProvider(
+                Func<IServiceProvider, IGeoLocationProvider> factory)
             {
                 factory.ThrowIfNull(nameof(factory));
                 Services.AddSingleton(factory);

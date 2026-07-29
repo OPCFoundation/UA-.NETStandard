@@ -43,8 +43,14 @@ namespace Robotics
     /// <summary>
     /// Deterministic sample provider that publishes a global location per robot.
     /// </summary>
-    public sealed class MobileRobotPositionProvider : IGlobalPositionProvider
+    public sealed class MobileRobotPositionProvider : IGeoLocationProvider
     {
+        /// <summary>
+        /// The EPSG code of WGS84, which the cell's GlobalLocation Variables
+        /// are configured for.
+        /// </summary>
+        private const uint WGS84EpsgCode = 4326;
+
         private readonly MobileRobotPositionOptions m_options;
         private readonly TimeProvider m_timeProvider;
         private readonly DateTimeOffset m_startedAt;
@@ -70,19 +76,24 @@ namespace Robotics
 
         public RobotPositioningScenario Scenario { get; }
 
-        public ValueTask<GlobalPositionSample> ReadAsync(
+        /// <inheritdoc/>
+        public bool SupportsPush => true;
+
+        /// <inheritdoc/>
+        public ValueTask<GeoLocationSample> ReadAsync(
             string sourceId,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
             TimeSpan elapsed = m_timeProvider.GetUtcNow() - m_startedAt;
-            return new ValueTask<GlobalPositionSample>(
+            return new ValueTask<GeoLocationSample>(
                 CreateSample(sourceId, elapsed));
         }
 
-        public async IAsyncEnumerable<GlobalPositionSample> WatchAsync(
+        /// <inheritdoc/>
+        public async IAsyncEnumerable<GeoLocationSample> WatchAsync(
             string sourceId,
-            [EnumeratorCancellation] CancellationToken cancellationToken)
+            [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             RobotMotionOptions options = GetOptions(sourceId);
             if (options.Mode == RobotMotionMode.Fixed)
@@ -170,7 +181,7 @@ namespace Robotics
             };
         }
 
-        private GlobalPositionSample CreateSample(
+        private GeoLocationSample CreateSample(
             string sourceId,
             TimeSpan elapsed)
         {
@@ -178,28 +189,25 @@ namespace Robotics
             S3DGeographicCoordinateDataType geographic = Scenario.Fit.LocalToGlobal(
                 local.CartesianCoordinates,
                 AngleUnit.Degrees);
-            var position = new GlobalPositionDataType
-            {
-                EncodingMask =
-                    geographic.EncodingMask |
-                    (uint)GlobalPositionDataTypeFields.Accuracy,
-                Longitude = geographic.Longitude,
-                Latitude = geographic.Latitude,
-                Elevation = geographic.Elevation,
-                Accuracy = 0.05
-            };
-            var location = new GlobalLocationDataType
-            {
-                EncodingMask =
-                    (uint)GlobalLocationDataTypeFields.Orientation,
-                Position = position,
-                Orientation = local.Orientation
-            };
-            return new GlobalPositionSample(
-                sourceId,
-                location,
+            bool hasElevation = (geographic.EncodingMask &
+                (uint)S3DGeographicCoordinateDataTypeFields.Elevation) != 0;
+            var position = new GeoPosition(
+                geographic.Latitude,
+                geographic.Longitude,
+                hasElevation ? geographic.Elevation : null,
+                Accuracy: 0.05,
+                EpsgCode: WGS84EpsgCode);
+            var orientation = new GeoOrientation(
+                local.Orientation.A,
+                local.Orientation.B,
+                local.Orientation.C);
+            return new GeoLocationSample(
+                position,
+                orientation,
+                default,
                 StatusCodes.Good,
-                new DateTimeUtc(m_timeProvider.GetUtcNow()));
+                new DateTimeUtc(m_timeProvider.GetUtcNow()),
+                sourceId);
         }
 
         private RobotMotionOptions GetOptions(string sourceId)

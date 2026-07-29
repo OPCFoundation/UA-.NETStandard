@@ -167,21 +167,26 @@ namespace Opc.Ua.Di.Tests
         {
             global::Robotics.MobileRobotPositionProvider provider =
                 CreateProvider(CreateOptions());
-            GlobalPositionSample sample = await provider.ReadAsync(
+            GeoLocationSample sample = await provider.ReadAsync(
                 "R1",
                 CancellationToken.None).ConfigureAwait(false);
-            S3DGeographicCoordinateDataType geographic =
-                sample.Location.Position;
+            GeoPosition position = sample.Position!.Value;
+            var geographic = new S3DGeographicCoordinateDataType
+            {
+                EncodingMask = position.Height.HasValue
+                    ? (uint)S3DGeographicCoordinateDataTypeFields.Elevation
+                    : 0,
+                Latitude = position.Latitude,
+                Longitude = position.Longitude,
+                Elevation = position.Height ?? 0.0
+            };
             ThreeDCartesianCoordinates local = provider.Scenario.Fit.GlobalToLocal(
                 geographic,
                 AngleUnit.Degrees);
 
             Assert.Multiple(() =>
             {
-                Assert.That(
-                    geographic.EncodingMask &
-                        (uint)S3DGeographicCoordinateDataTypeFields.Elevation,
-                    Is.Not.Zero);
+                Assert.That(position.Height, Is.Not.Null);
                 Assert.That(local.Z, Is.Zero.Within(1e-5));
             });
         }
