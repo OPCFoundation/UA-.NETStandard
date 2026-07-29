@@ -118,12 +118,13 @@ if (message != null)
 | Per-direction state machine, half-close, reset, drain timeout | Complete |
 | Deadline expiry and per-run `GAP` emission | Complete |
 | SequenceNumber budget, renewal threshold, stall-rather-than-reuse | Complete |
-| `OpenDataChannel`, `ModifyDataChannel`, `CloseDataChannel` | Generated from the model compiler inputs; server-side handler complete |
-| Parameter negotiation, offers, Session scoping, authorization recheck, audit | Complete |
+| `OpenDataChannel`, `ModifyDataChannel`, `CloseDataChannel` | Complete, and served by `StandardServer`: a real Client opens a channel through a real Session |
+| Parameter negotiation, offers, Session scoping, authorization recheck, audit | Complete, driven from the Server rather than only callable |
 | `opc.quic` — url scheme, ALPN negotiation and enforcement, control stream, client channel and factory | Complete (`Opc.Ua.Bindings.Quic`, **net9.0+**) |
 | `opc.quic` — listener, service host, endpoint discovery, reverse connect, certificate rotation | Complete |
 | `opc.quic` — data channels bound to per-channel streams, `RESET_STREAM` carrying the StatusCode | Complete |
-| `opc.quic` — TLS-to-OPC-UA key binding (§7.6.1) | Complete |
+| `opc.quic` — direction to stream type and initiator (§7.4), `revisedTransportChannelId` | Complete; `SourceToSink` gets a server-initiated unidirectional stream whose id is returned to the Client |
+| `opc.quic` — TLS-to-OPC-UA key binding (§7.6.1) | Complete, and **invoked on the connect path** — it previously existed only as tested, uncalled code, which left the profile unbound |
 | `DataChannelCapabilities` model projection | Complete (`DataChannelModel`) |
 | Worked sample | `samples/ConsoleDataChannelStreaming` |
 | Unreliable datagrams (§7.5) | **Not implementable on .NET.** `QuicConnection` exposes no RFC 9221 datagram API through .NET 10, so `SupportsUnreliableDatagrams` is `False` and the Server refuses `Unreliable` and `PartiallyReliable` with `Bad_DeliveryModeUnsupported` — which is what the errata requires rather than silently carrying them on the stream |
@@ -140,9 +141,15 @@ API is stable. `Opc.Ua.Core` itself is unaffected and still builds for all six T
 
 ```sh
 cd samples/ConsoleDataChannelStreaming
-dotnet run -- --transport tcp  --frames 2000 --size 1200
-dotnet run -- --transport quic --frames 2000 --size 1200
+dotnet run -- --transport tcp  --mode server --frames 2000 --size 1200
+dotnet run -- --transport quic --mode server --frames 2000 --size 1200
 ```
+
+`--mode server` is the one that matters: it stands up a real `StandardServer`,
+connects a real Client, creates a Session, and opens the channel through
+`OpenDataChannel` — so it exercises the Service dispatch, the Session binding and
+the negotiation, not just the framing. `--mode direct` drives `DataChannelManager`
+directly and is kept because that is the shorter path for measuring the scheduler.
 
 The same application code drives both framings; only the transport differs. The
 sample reports throughput, discarded frames and the credit-stall counter, and the
@@ -188,9 +195,14 @@ second. The sample measured 0.5 Mbit/s before the fix and 1.3 Gbit/s after it, a
 
 ## Test coverage
 
-The suite is 226 tests over `tests/Opc.Ua.Core.DataChannels.Tests`, covering
-**87.6%** of the lines in `Stack/DataChannels/**`, `Stack/Tcp/UaSCBinaryChannel.DataChannels.cs`
-and `Opc.Ua.Bindings.Quic`. Re-measure with the repo's own settings:
+The suite is 255 tests over `tests/Opc.Ua.Core.DataChannels.Tests`, covering
+**80.1%** of the lines in `Stack/DataChannels/**`, `Stack/Tcp/UaSCBinaryChannel.DataChannels.cs`
+and `Opc.Ua.Bindings.Quic`. The figure fell from 87.6% while the test count rose,
+because wiring the previously-uncalled obligations added a good deal of
+production code — the server-side Service dispatch, the stream mapping, the
+certificate lifecycle — faster than tests were added for it. It is the more
+honest number: the earlier one measured a smaller body of code, much of which
+nothing invoked. Re-measure with the repo's own settings:
 
 ```sh
 dotnet test tests/Opc.Ua.Core.DataChannels.Tests/Opc.Ua.Core.DataChannels.Tests.csproj \
@@ -214,6 +226,25 @@ end-to-end tests had executed without asserting:
 The one lesson worth carrying forward: none of these were caught by coverage of the
 *happy path*. The scheduler bug in particular had every line executed and still shipped,
 because nothing asserted the rate.
+
+## What running it found that tests did not
+
+A later conformance review showed the components were right and the **wiring** was
+missing: `QuicPeerBinding.Verify` had eight test references and no production callers,
+`DataChannelServiceHandler` was never constructed, `DataChannelManager.Remove` was never
+called. Wiring them, and then driving a real Client against a real Server, found four
+more defects that the suite could not reach:
+
+| Defect | Why no test caught it |
+| --- | --- |
+| `SendDataChannelFrameAsync` secured a `STR` chunk without holding `DataLock`, so the scheduler thread and the Service path reached the same HMAC concurrently — a `CryptographicException` from the CNG provider on Windows, and duplicate `SequenceNumber`s where it did not throw | Data channels are the first thing to write to a SecureChannel off the Service thread; no unit test runs both writers at once. Now a normative rule with conformance unit DCF-038 |
+| `Session` rejected the DataChannel request types as an unexpected `RequestType` | Unit tests construct the handler directly and never traverse Session validation |
+| `StandardServer` created listeners only for schemes in the hardcoded `Utils.DefaultUriSchemes`, so registering any out-of-tree binding silently did nothing | Listener tests construct the listener directly rather than going through server startup |
+| `ServerBase` did not map `opc.quic` to a transport profile, so its endpoints advertised none | Same |
+
+`MaxDataChannels` also counted channels that had already ended, so a SecureChannel
+refused every new channel after sixteen open-close cycles with none open — reachable
+only because the connection-level limit had no test at all, unlike the source limit.
 
 ## Deviation from the errata
 
