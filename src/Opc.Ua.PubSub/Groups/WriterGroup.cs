@@ -64,6 +64,7 @@ namespace Opc.Ua.PubSub.Groups
         private readonly ILogger<WriterGroup> m_logger;
         private readonly TimeProvider m_timeProvider;
         private readonly Dictionary<ushort, WriterRuntimeState> m_writerState;
+        private readonly Dictionary<ushort, EventDataSetWriter> m_eventWriters;
         private readonly Lock m_gate = new();
         private IPubSubActivationCoordinator m_activationCoordinator = AlwaysActiveCoordinator.Instance;
         private IPubSubWriterCheckpointStore m_checkpointStore = NullPubSubWriterCheckpointStore.Instance;
@@ -134,6 +135,22 @@ namespace Opc.Ua.PubSub.Groups
             foreach (DataSetWriter writer in m_writers)
             {
                 m_writerState[writer.DataSetWriterId] = new WriterRuntimeState();
+            }
+            //
+            // A writer whose dataset publishes events emits one message per
+            // occurrence rather than one per cycle, so it is driven by the
+            // event writer of Part 14 §6.2.4 instead of the state-sampling
+            // path.
+            //
+            m_eventWriters = new Dictionary<ushort, EventDataSetWriter>();
+            foreach (DataSetWriter writer in m_writers)
+            {
+                if (writer.PublishedDataSet is EventPublishedDataSet eventDataSet)
+                {
+                    m_eventWriters[writer.DataSetWriterId] = new EventDataSetWriter(
+                        writer.Configuration, eventDataSet, timeProvider,
+                        GetEncodingProfile(), telemetry);
+                }
             }
             m_lastPublishedTicks = timeProvider.GetTimestamp();
             m_lastCheckpointTicks = m_lastPublishedTicks;
@@ -244,6 +261,23 @@ namespace Opc.Ua.PubSub.Groups
                         continue;
                     }
                     cancellationToken.ThrowIfCancellationRequested();
+                    if (m_eventWriters.TryGetValue(writer.DataSetWriterId,
+                        out EventDataSetWriter? eventWriter))
+                    {
+                        //
+                        // An event writer publishes one message per occurrence,
+                        // so it contributes as many messages as events fired
+                        // since the previous cycle rather than at most one.
+                        //
+                        ArrayOf<PubSubDataSetMessage> occurrences = await eventWriter
+                            .BuildEventMessagesAsync(cancellationToken)
+                            .ConfigureAwait(false);
+                        for (int occurrence = 0; occurrence < occurrences.Count; occurrence++)
+                        {
+                            dataSetMessages.Add(occurrences[occurrence]);
+                        }
+                        continue;
+                    }
                     PubSubDataSetMessage? message = await BuildDataSetMessageAsync(
                         writer,
                         cancellationToken).ConfigureAwait(false);
@@ -486,13 +520,25 @@ namespace Opc.Ua.PubSub.Groups
 
             PubSubDataSetMessageType messageType;
             ArrayOf<DataSetField> fields;
-            if (writer.KeyFrameCount <= 1 ||
+            if (snapshot.MessageType is PubSubDataSetMessageType declared)
+            {
+                //
+                // The source declared what its sample is. Its samples are
+                // occurrences rather than successive states of the same fields,
+                // so the delta derivation below cannot be applied to them and
+                // the key-frame cadence is not the source's to observe.
+                //
+                messageType = declared;
+                fields = snapshot.Fields;
+            }
+            else if (writer.KeyFrameCount <= 1 ||
                 runtime.LastSnapshot is null ||
                 runtime.CyclesSinceKeyFrame >= writer.KeyFrameCount)
             {
                 messageType = PubSubDataSetMessageType.KeyFrame;
                 fields = snapshot.Fields;
                 runtime.CyclesSinceKeyFrame = 0;
+                runtime.LastSnapshot = snapshot;
             }
             else
             {
@@ -520,8 +566,8 @@ namespace Opc.Ua.PubSub.Groups
                 messageType = PubSubDataSetMessageType.DeltaFrame;
                 fields = delta;
                 runtime.CyclesSinceKeyFrame++;
+                runtime.LastSnapshot = snapshot;
             }
-            runtime.LastSnapshot = snapshot;
 
             if (string.Equals(GetEncodingProfile(), Profiles.PubSubMqttJsonTransport,
                 StringComparison.Ordinal))

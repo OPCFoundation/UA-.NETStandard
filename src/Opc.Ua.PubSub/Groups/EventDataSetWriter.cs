@@ -31,8 +31,10 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging.Abstractions;
 using Opc.Ua.PubSub.DataSets;
 using Opc.Ua.PubSub.Encoding;
+using Opc.Ua.PubSub.StateMachine;
 using JsonDataSetMessageV2 = Opc.Ua.PubSub.Encoding.Json.JsonDataSetMessage;
 using UadpDataSetMessageV2 = Opc.Ua.PubSub.Encoding.Uadp.UadpDataSetMessage;
 
@@ -54,7 +56,7 @@ namespace Opc.Ua.PubSub.Groups
     /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/5.3.3">
     /// Part 14 §5.3.3 PubSub event messages</see>.
     /// </remarks>
-    public sealed class EventDataSetWriter
+    public sealed class EventDataSetWriter : IDataSetWriter
     {
         private readonly TimeProvider m_timeProvider;
         private uint m_sequenceNumber;
@@ -68,11 +70,14 @@ namespace Opc.Ua.PubSub.Groups
         /// <param name="encodingProfile">Optional encoding profile URI;
         /// when it equals <see cref="Profiles.PubSubMqttJsonTransport"/>
         /// the writer emits JSON DataSetMessages, otherwise UADP.</param>
+        /// <param name="telemetry">Telemetry context used for the per-writer
+        /// logger.</param>
         public EventDataSetWriter(
             DataSetWriterDataType configuration,
             EventPublishedDataSet publishedDataSet,
             TimeProvider? timeProvider = null,
-            string? encodingProfile = null)
+            string? encodingProfile = null,
+            ITelemetryContext? telemetry = null)
         {
             if (configuration is null)
             {
@@ -89,6 +94,11 @@ namespace Opc.Ua.PubSub.Groups
             Name = configuration.Name ?? string.Empty;
             DataSetWriterId = configuration.DataSetWriterId;
             FieldContentMask = (DataSetFieldContentMask)configuration.DataSetFieldContentMask;
+            State = new PubSubStateMachine(
+                string.IsNullOrEmpty(Name) ? $"writer-{DataSetWriterId}" : Name,
+                PubSubComponentKind.DataSetWriter,
+                telemetry?.CreateLogger<EventDataSetWriter>()
+                    ?? NullLogger<EventDataSetWriter>.Instance);
         }
 
         /// <summary>
@@ -122,6 +132,20 @@ namespace Opc.Ua.PubSub.Groups
         public string EncodingProfile { get; }
 
         /// <summary>
+        /// State machine participating in the WriterGroup cascade.
+        /// </summary>
+        public PubSubStateMachine State { get; }
+
+        /// <summary>
+        /// An event writer publishes occurrences rather than successive states
+        /// of the same fields, so it has no key-frame cadence.
+        /// </summary>
+        public uint KeyFrameCount => 0;
+
+        /// <inheritdoc/>
+        IPublishedDataSet IDataSetWriter.PublishedDataSet => PublishedDataSet;
+
+        /// <summary>
         /// Samples pending events from
         /// <see cref="PublishedDataSet"/> and converts each one to a
         /// <see cref="PubSubDataSetMessage"/> stamped
@@ -133,7 +157,7 @@ namespace Opc.Ua.PubSub.Groups
             BuildEventMessagesAsync(CancellationToken cancellationToken = default)
         {
             ArrayOf<ArrayOf<DataSetField>> rows =
-                await PublishedDataSet.SampleAsync(cancellationToken)
+                await PublishedDataSet.SampleEventsAsync(cancellationToken)
                     .ConfigureAwait(false);
             if (rows.IsEmpty)
             {

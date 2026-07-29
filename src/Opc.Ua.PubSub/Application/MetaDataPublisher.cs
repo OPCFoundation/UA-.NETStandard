@@ -347,6 +347,13 @@ namespace Opc.Ua.PubSub.Application
                     WriterGroupId = writerGroup.WriterGroupId,
                     DataSetWriterId = writer.DataSetWriterId,
                     DataSetClassId = classId,
+                    //
+                    // The payload is documented as available on both accessors,
+                    // so both are populated. A consumer, transform or encoder
+                    // hook that reads the base property would otherwise see an
+                    // announcement as a message carrying nothing.
+                    //
+                    MetaData = metaData,
                     MetaDataPayload = metaData
                 };
                 var context = new PubSubNetworkMessageContext(

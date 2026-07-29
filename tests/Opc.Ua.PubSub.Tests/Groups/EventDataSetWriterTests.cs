@@ -114,13 +114,44 @@ namespace Opc.Ua.PubSub.Tests.Groups
             sampler.Enqueue([new Variant("event"), new Variant(99)]);
             EventPublishedDataSet pds = BuildPublishedDataSet(sampler);
             ArrayOf<ArrayOf<DataSetField>> rows =
-                await pds.SampleAsync().ConfigureAwait(false);
+                await pds.SampleEventsAsync().ConfigureAwait(false);
 
             Assert.That(((ArrayOf<DataSetField>[]?)rows) ?? [], Has.Length.EqualTo(1));
             Assert.That(rows[0][0].Name, Is.EqualTo("Message"));
             Assert.That(rows[0][1].Name, Is.EqualTo("Severity"));
             Assert.That(rows[0][0].Value, Is.EqualTo(new Variant("event")));
             Assert.That(rows[0][1].Value, Is.EqualTo(new Variant(99)));
+        }
+
+        [Test]
+        [TestSpec("6.2.4")]
+        public async Task EventPublishedDataSet_SamplesOneOccurrencePerSnapshotAsync()
+        {
+            //
+            // An event dataset has no current state to sample, so the general
+            // IPublishedDataSet contract drains one occurrence per call and
+            // declares it as an event. Without the declaration a writer group
+            // would treat the occurrence as a state snapshot and derive delta
+            // frames by comparing it against an unrelated earlier occurrence.
+            //
+            var sampler = new StubSampler();
+            sampler.Enqueue([new Variant("first"), new Variant(1)]);
+            sampler.Enqueue([new Variant("second"), new Variant(2)]);
+            EventPublishedDataSet pds = BuildPublishedDataSet(sampler);
+
+            PublishedDataSetSnapshot first = await pds.SampleAsync().ConfigureAwait(false);
+            PublishedDataSetSnapshot second = await pds.SampleAsync().ConfigureAwait(false);
+            PublishedDataSetSnapshot exhausted = await pds.SampleAsync().ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(first.MessageType, Is.EqualTo(PubSubDataSetMessageType.Event));
+                Assert.That(first.Fields[0].Value, Is.EqualTo(new Variant("first")));
+                Assert.That(second.MessageType, Is.EqualTo(PubSubDataSetMessageType.Event));
+                Assert.That(second.Fields[0].Value, Is.EqualTo(new Variant("second")));
+                Assert.That(exhausted.MessageType, Is.Null);
+                Assert.That(exhausted.Fields.Count, Is.Zero);
+            });
         }
 
         private static EventDataSetWriter BuildWriter(
