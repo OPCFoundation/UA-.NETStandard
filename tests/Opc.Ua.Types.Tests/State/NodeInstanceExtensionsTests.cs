@@ -295,6 +295,96 @@ namespace Opc.Ua.Types.Tests.State
             Assert.DoesNotThrow(() => context.AssignInstanceChildNodeIds(null));
         }
 
+        /// <summary>
+        /// CreateOrReplace helpers materialise a child onto an already
+        /// instantiated tree, so the new child must receive a per-instance
+        /// NodeId - otherwise two instances of the same type collide.
+        /// </summary>
+        [Test]
+        public void CreateOrReplaceArgumentsAssignsInstanceNodeIds()
+        {
+            SystemContext context = CreateContext(new ChildIdFactory());
+            MethodState first = CreateMethod("Start", 1);
+            MethodState second = CreateMethod("Start", 2);
+
+            PropertyState<ArrayOf<Argument>> firstArguments =
+                first.CreateOrReplaceInputArguments(context, null);
+            PropertyState<ArrayOf<Argument>> secondArguments =
+                second.CreateOrReplaceInputArguments(context, null);
+
+            Assert.That(firstArguments.NodeId.IsNull, Is.False);
+            Assert.That(secondArguments.NodeId.IsNull, Is.False);
+            Assert.That(firstArguments.NodeId, Is.Not.EqualTo(secondArguments.NodeId),
+                "Arguments of distinct method instances must not share a NodeId.");
+        }
+
+        [Test]
+        public void CreateOrReplaceArgumentsKeepsCallerAssignedNodeId()
+        {
+            SystemContext context = CreateContext(new ChildIdFactory());
+            MethodState method = CreateMethod("Start", 1);
+            var replacement = PropertyState<ArrayOf<Argument>>
+                .With<StructureBuilder<Argument>>(method);
+            var callerNodeId = new NodeId("CallerAssigned", 3);
+            replacement.NodeId = callerNodeId;
+            replacement.SymbolicName = BrowseNames.InputArguments;
+            replacement.BrowseName = new QualifiedName(BrowseNames.InputArguments, 3);
+
+            PropertyState<ArrayOf<Argument>> arguments =
+                method.CreateOrReplaceInputArguments(context, replacement);
+
+            Assert.That(arguments.NodeId, Is.EqualTo(callerNodeId));
+        }
+
+        [Test]
+        public void CreateOrReplaceArgumentsHonoursTheAssignmentOptOut()
+        {
+            SystemContext context = CreateContext(new ChildIdFactory());
+            MethodState method = CreateMethod("Start", 1);
+
+            PropertyState<ArrayOf<Argument>> arguments =
+                method.CreateOrReplaceInputArguments(context, null, assignInstanceNodeIds: false);
+
+            Assert.That(arguments.NodeId.IsNull, Is.True,
+                "Callers building declaration subtrees must keep control of the NodeIds.");
+        }
+
+        [Test]
+        public void CreateOrReplaceEnumStringsAssignsInstanceNodeIds()
+        {
+            SystemContext context = CreateContext(new ChildIdFactory());
+            var parent = new BaseObjectState(null) { NodeId = new NodeId("Owner", 3) };
+            var variable = new BaseDataVariableState(parent)
+            {
+                NodeId = new NodeId("Owner_Enum", 3),
+                SymbolicName = "Enum",
+                BrowseName = new QualifiedName("Enum", 3)
+            };
+
+            PropertyState<ArrayOf<LocalizedText>> enumStrings =
+                variable.CreateOrReplaceEnumStrings(context, null);
+
+            Assert.That(enumStrings.NodeId, Is.EqualTo(new NodeId("Owner_Enum_EnumStrings", 3)));
+        }
+
+        private static MethodState CreateMethod(string name, uint instance)
+        {
+            var owner = new BaseObjectState(null)
+            {
+                NodeId = new NodeId($"Owner{instance}", 3),
+                SymbolicName = $"Owner{instance}",
+                BrowseName = new QualifiedName($"Owner{instance}", 3)
+            };
+            var method = new MethodState(owner)
+            {
+                NodeId = new NodeId($"Owner{instance}_{name}", 3),
+                SymbolicName = name,
+                BrowseName = new QualifiedName(name, 3)
+            };
+            owner.AddChild(method);
+            return method;
+        }
+
         private static void CollectDescendants(
             ISystemContext context,
             NodeState node,
