@@ -29,11 +29,15 @@
 
 using System;
 using System.Globalization;
+using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
 using NUnit.Framework;
+using Opc.Ua.Export;
+using Opc.Ua.Wot;
 
 namespace Opc.Ua.SourceGeneration
 {
@@ -50,6 +54,41 @@ namespace Opc.Ua.SourceGeneration
     [SetUICulture("en-us")]
     public class WotNodeSetConversionFailureTests
     {
+        [Test]
+        public void ConvertUsesSynchronousConverterEntryPointForSelfContainedDocument()
+        {
+            const string json = """
+                {
+                  "@context": [
+                    "https://www.w3.org/2022/wot/td/v1.1",
+                    {
+                      "uav": "http://opcfoundation.org/UA/WoT-Binding/"
+                    }
+                  ],
+                  "@type": [
+                    "tm:ThingModel",
+                    "uav:objectType"
+                  ],
+                  "title": "SelfContained",
+                  "uav:browseName": "nsu=urn:self-contained;SelfContained",
+                  "uav:id": "nsu=urn:self-contained;s=SelfContained"
+                }
+                """;
+
+            WotConversionOutcome outcome = WotNodeSetAdditionalText.Convert(
+                EmbeddedText.FromContent("SelfContained.tm.json", json),
+                new NodesetFileOptions(),
+                CancellationToken.None);
+            using WotDocument document = WotDocument.Parse(Encoding.UTF8.GetBytes(json));
+            WotConversionResult<UANodeSet> conversion = WotNodeSetConverter.ToNodeSetResult(document);
+
+            string expectedXml = WriteNodeSet(conversion.Value!);
+            string actualXml = outcome.NodeSetText.GetText(CancellationToken.None)!.ToString();
+
+            Assert.That(outcome.Diagnostics, Is.Empty);
+            Assert.That(actualXml, Is.EqualTo(expectedXml));
+        }
+
         [Test]
         public void ConvertReportsParseErrorWhenSourceTextThrows()
         {
@@ -245,6 +284,18 @@ namespace Opc.Ua.SourceGeneration
                 $"expected exactly one {id} diagnostic but found " +
                 string.Join(", ", outcome.Diagnostics.Select(d => d.Id)));
             return matches[0];
+        }
+
+        private static string WriteNodeSet(UANodeSet nodeSet)
+        {
+            using var stream = new MemoryStream();
+            nodeSet.Write(stream);
+            string xml = Encoding.UTF8.GetString(stream.ToArray());
+            if (xml.Length > 0 && xml[0] == '\uFEFF')
+            {
+                xml = xml[1..];
+            }
+            return xml;
         }
 
         /// <summary>

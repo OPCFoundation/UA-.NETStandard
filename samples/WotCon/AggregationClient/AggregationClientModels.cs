@@ -30,18 +30,18 @@
 using Opc.Ua;
 using Opc.Ua.WotCon.Client;
 
-namespace WotAggregationClient
+namespace AggregationClient
 {
     /// <summary>
     /// Configures the reusable aggregation loader and reader workflow.
     /// </summary>
-    public sealed class WotAggregationClientOptions
+    public sealed class AggregationClientOptions
     {
         /// <summary>
         /// Gets or sets the aggregation server endpoint.
         /// </summary>
         public string AggregationEndpoint { get; set; } =
-            "opc.tcp://localhost:62550/WotAggregationServer";
+            "opc.tcp://localhost:62550/AggregationServer";
 
         /// <summary>
         /// Gets or sets the Source A endpoint substituted into the Pump TD.
@@ -58,7 +58,7 @@ namespace WotAggregationClient
         /// <summary>
         /// Gets or sets the OPC UA application name.
         /// </summary>
-        public string ApplicationName { get; set; } = "WotAggregationClient";
+        public string ApplicationName { get; set; } = "AggregationClient";
 
         /// <summary>
         /// Gets or sets the isolated PKI root.
@@ -75,12 +75,12 @@ namespace WotAggregationClient
     /// <summary>
     /// Result of loading, refreshing, browsing and reading the aggregate Pump.
     /// </summary>
-    public sealed class WotAggregationClientResult
+    public sealed class AggregationClientResult
     {
         /// <summary>
         /// Initializes a result.
         /// </summary>
-        public WotAggregationClientResult(
+        public AggregationClientResult(
             WotRegistryBulkLoadResult loadResult,
             ArrayOf<WotPumpBrowseNode> browsedNodes,
             ArrayOf<WotPumpValueResult> values)

@@ -34,17 +34,17 @@ using System.Threading.Tasks;
 using Opc.Ua;
 using Opc.Ua.Server;
 
-namespace WotFlatTagServer
+namespace FlatTagServer
 {
     /// <summary>
     /// Creates flat-tag node managers from the configured source options.
     /// </summary>
-    public sealed class WotFlatTagNodeManagerFactory : IAsyncNodeManagerFactory
+    public sealed class FlatTagNodeManagerFactory : IAsyncNodeManagerFactory
     {
         /// <summary>
         /// Initializes the factory.
         /// </summary>
-        public WotFlatTagNodeManagerFactory(WotFlatTagServerOptions options)
+        public FlatTagNodeManagerFactory(FlatTagServerOptions options)
         {
             m_options = options ?? throw new ArgumentNullException(nameof(options));
             NamespacesUris = [options.SourceNamespaceUri];
@@ -64,25 +64,25 @@ namespace WotFlatTagServer
             // CA2000 cannot model ownership transfer through ValueTask<IAsyncNodeManager>.
             // TODO: Remove this suppression when CA2000 recognizes factory ownership transfer.
 #pragma warning disable CA2000
-            IAsyncNodeManager nodeManager = new WotFlatTagNodeManager(server, m_options);
+            IAsyncNodeManager nodeManager = new FlatTagNodeManager(server, m_options);
 #pragma warning restore CA2000
             return new ValueTask<IAsyncNodeManager>(nodeManager);
         }
 
-        private readonly WotFlatTagServerOptions m_options;
+        private readonly FlatTagServerOptions m_options;
     }
 
     /// <summary>
     /// Minimal async address space exposing one half of the aggregate Pump tags.
     /// </summary>
-    public sealed class WotFlatTagNodeManager : AsyncCustomNodeManager
+    public sealed class FlatTagNodeManager : AsyncCustomNodeManager
     {
         /// <summary>
         /// Initializes the node manager.
         /// </summary>
-        public WotFlatTagNodeManager(
+        public FlatTagNodeManager(
             IServerInternal server,
-            WotFlatTagServerOptions options)
+            FlatTagServerOptions options)
             : base(server, options.SourceNamespaceUri)
         {
             m_options = options ?? throw new ArgumentNullException(nameof(options));
@@ -134,7 +134,7 @@ namespace WotFlatTagServer
                 "Pump1.Events",
                 "Events");
 
-            if (m_options.SourceNamespaceUri == WotFlatTagServerOptions.SourceANamespaceUri)
+            if (m_options.SourceNamespaceUri == FlatTagServerOptions.SourceANamespaceUri)
             {
                 AddSourceAVariables(namespaceIndex, measurements, events);
             }
@@ -152,7 +152,7 @@ namespace WotFlatTagServer
             BaseObjectState measurements,
             BaseObjectState events)
         {
-            WotFlatTagValues values = m_options.Values;
+            FlatTagValues values = m_options.Values;
             CreateVariable(
                 measurements,
                 namespaceIndex,
@@ -201,7 +201,7 @@ namespace WotFlatTagServer
             BaseObjectState measurements,
             BaseObjectState events)
         {
-            WotFlatTagValues values = m_options.Values;
+            FlatTagValues values = m_options.Values;
             CreateVariable(
                 measurements,
                 namespaceIndex,
@@ -310,6 +310,6 @@ namespace WotFlatTagServer
             return new AttributeSimpleReadResult(ServiceResult.Good, value);
         }
 
-        private readonly WotFlatTagServerOptions m_options;
+        private readonly FlatTagServerOptions m_options;
     }
 }

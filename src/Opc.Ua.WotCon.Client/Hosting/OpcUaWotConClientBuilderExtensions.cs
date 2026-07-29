@@ -504,24 +504,17 @@ namespace Microsoft.Extensions.DependencyInjection
                 }
             }
 
-            public async ValueTask DisposeAsync()
+            public ValueTask DisposeAsync()
             {
-                ManagedSession? session;
                 lock (m_gate)
                 {
                     if (m_disposed)
                     {
-                        return;
+                        return default;
                     }
                     m_disposed = true;
-                    session = m_session;
-                    m_session = null;
                 }
-
-                if (session is not null)
-                {
-                    await session.DisposeAsync().ConfigureAwait(false);
-                }
+                return default;
             }
 
             private async Task<WotRegistryClient> ConnectCoreAsync(CancellationToken ct)
@@ -547,36 +540,21 @@ namespace Microsoft.Extensions.DependencyInjection
 
                 ManagedSession session =
                     await sessionFactory(ct).ConfigureAwait(false);
-                try
+                WotRegistryClient client = await WotRegistryClient
+                    .ForServerAsync(session, telemetry, ct)
+                    .ConfigureAwait(false);
+                lock (m_gate)
                 {
-                    WotRegistryClient client = await WotRegistryClient
-                        .ForServerAsync(session, telemetry, ct)
-                        .ConfigureAwait(false);
-                    bool disposeSession;
-                    lock (m_gate)
-                    {
-                        disposeSession = m_disposed;
-                        if (!disposeSession)
-                        {
-                            m_session = session;
-                        }
-                    }
-                    if (disposeSession)
+                    if (m_disposed)
                     {
                         throw new ObjectDisposedException(nameof(WotRegistryClientAccessor));
                     }
-                    return client;
                 }
-                catch
-                {
-                    await session.DisposeAsync().ConfigureAwait(false);
-                    throw;
-                }
+                return client;
             }
 
             private readonly IServiceProvider m_sp;
             private Task<WotRegistryClient>? m_connectTask;
-            private ManagedSession? m_session;
             private readonly Lock m_gate = new();
             private bool m_disposed;
         }

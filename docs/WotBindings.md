@@ -130,7 +130,9 @@ builder.AddWotCredentialProvider(new VaultCredentialProvider());
 
 Selection is deterministic: the registry evaluates binders in ordinal `id@version` order and chooses the highest-priority `WotBindingMatch`.
 
-To write `MyCustomBinder` and `MyCustomExecutor` see [Part 2](#part-2---adding-your-own-binding). The worked `Opc.Ua.WotCon.Bindings.Samples.MemoryWotBinder` implementation binds a fictitious `mem://` protocol to an in-process key/value store.
+To write `MyCustomBinder` and `MyCustomExecutor` see [Part 2](#part-2---adding-your-own-binding). The worked
+`AggregationServer.MemoryWotBinder` implementation in the WotCon aggregation sample binds a fictitious `mem://` protocol
+to an in-process key/value store.
 
 ### Intentionally unsupported operations
 
@@ -163,7 +165,11 @@ A compiled form's NodeId (`uav:id`, and `uav:componentOf` for actions) is resolv
 
 ## Part 2 - Adding your own binding
 
-This guide explains how to add a protocol binding to the WoT Connectivity runtime from form identification through live value exchange, registration, diagnostics, tests, packaging, and NativeAOT validation. The current worked implementation is [`MemoryWotBinding.cs`](../src/Opc.Ua.WotCon.Bindings/Samples/MemoryWotBinding.cs), and the production HTTP, Modbus TCP, OPC UA, and MQTT implementations provide protocol-specific examples.
+This guide explains how to add a protocol binding to the WoT Connectivity runtime from form identification through live
+value exchange, registration, diagnostics, tests, packaging, and NativeAOT validation. The current worked implementation
+is [`MemoryWotBinding.cs`](../samples/WotCon/AggregationServer/Bindings/MemoryWotBinding.cs) in the WotCon aggregation
+sample, so it demonstrates the extension pattern without shipping in the `Opc.Ua.WotCon.Bindings` package. The
+production HTTP, Modbus TCP, OPC UA, and MQTT implementations provide protocol-specific examples.
 
 ### Architecture and lifecycle
 
@@ -718,6 +724,6 @@ Conditionally exclude executor source on older TFMs rather than reducing the bas
 ## Related documentation
 
 * [WoT Connectivity model, server, registry, and client](WoTConnectivity.md)
-* [WoT aggregation sample](../samples/WotAggregation/README.md) - exercises the complete generic projection runtime with two OPC UA source servers, runtime-loaded DI/Machinery/Pumps models, local monitored items, and shadow-generation replacement.
+* [WoT aggregation sample](../samples/WotCon/README.md) - exercises the complete generic projection runtime with two OPC UA source servers, runtime-loaded DI/Machinery/Pumps models, local monitored items, and shadow-generation replacement.
 * [Dependency injection](DependencyInjection.md)
 * [Runtime NodeSets](RuntimeNodeSets.md)

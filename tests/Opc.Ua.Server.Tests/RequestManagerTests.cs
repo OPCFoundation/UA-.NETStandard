@@ -270,6 +270,64 @@ namespace Opc.Ua.Server.Tests
 
         [Test]
         [Category("NodeManagerLifecycle")]
+        public void RegisterLifecycleExtensionTwiceReturnsSameExtension()
+        {
+            RequestManagerLifecycleExtension first = RegisterLifecycleExtension();
+            RequestManagerLifecycleExtension second = RegisterLifecycleExtension();
+
+            Assert.That(second, Is.SameAs(first));
+        }
+
+        [Test]
+        [Category("NodeManagerLifecycle")]
+        public void RegisterLifecycleExtensionAfterDisposeThrowsObjectDisposedException()
+        {
+            m_requestManager.Dispose();
+
+            Assert.That(
+                () => m_requestManager.RegisterLifecycleExtension(),
+                Throws.TypeOf<ObjectDisposedException>());
+        }
+
+        [Test]
+        [Category("NodeManagerLifecycle")]
+        public void RequestManagerWithoutLifecycleExtensionAdmitsValidationAndRequests()
+        {
+            using var requestLifetime = new RequestLifetime();
+            OperationContext context = CreateOperationContext(15, requestLifetime);
+
+            using (m_requestManager.EnterValidationScope())
+            {
+                Assert.DoesNotThrow(() => m_requestManager.RequestReceived(context));
+            }
+
+            m_requestManager.RequestCompleted(context);
+            Assert.That(requestLifetime.TryCancel(StatusCodes.BadTimeout), Is.False);
+        }
+
+        [Test]
+        [Category("NodeManagerLifecycle")]
+        public async Task RequestManagerWithoutLifecycleExtensionDoesNotRepeatDrainAsync()
+        {
+            using var requestLifetime = new RequestLifetime();
+            OperationContext context = CreateOperationContext(16, requestLifetime);
+            IDisposable validationScope = m_requestManager.EnterValidationScope();
+
+            Task drain = m_requestManager.WaitForCurrentRequestsAsync().AsTask();
+            Assert.That(drain.IsCompleted, Is.False);
+
+            m_requestManager.RequestReceived(context);
+            validationScope.Dispose();
+
+            await AssertCompletesWithinTimeoutAsync(drain).ConfigureAwait(false);
+            Assert.That(
+                requestLifetime.TryCancel(StatusCodes.BadTimeout),
+                Is.True,
+                "Without the lifecycle extension, the drain must not resnapshot promoted requests.");
+        }
+
+        [Test]
+        [Category("NodeManagerLifecycle")]
         public async Task WaitForCurrentRequestsAsyncCompletesAfterAllSnapshotRequestsCompleteAsync()
         {
             using var requestLifetimeA = new RequestLifetime();
@@ -367,6 +425,7 @@ namespace Opc.Ua.Server.Tests
         [Category("NodeManagerLifecycle")]
         public async Task WaitForCurrentRequestsAsyncExcludesEveryLifecycleWaiterAsync()
         {
+            RequestManagerLifecycleExtension extension = RegisterLifecycleExtension();
             using var requestLifetimeA = new RequestLifetime();
             using var requestLifetimeB = new RequestLifetime();
             using var requestLifetimeC = new RequestLifetime();
@@ -375,12 +434,12 @@ namespace Opc.Ua.Server.Tests
             OperationContext contextC = CreateOperationContext(12, requestLifetimeC);
 
             using IDisposable requestScopeA = m_requestManager.EnterRequestScope(contextA);
-            using RequestManager.RequestLifecycleWaiterScope waiterScopeA =
-                m_requestManager.EnterLifecycleWaiter();
+            using RequestManagerLifecycleExtension.RequestLifecycleWaiterScope waiterScopeA =
+                extension.EnterLifecycleWaiter();
             waiterScopeA.MarkSemaphoreWaitStarted();
             using IDisposable requestScopeB = m_requestManager.EnterRequestScope(contextB);
-            using RequestManager.RequestLifecycleWaiterScope waiterScopeB =
-                m_requestManager.EnterLifecycleWaiter();
+            using RequestManagerLifecycleExtension.RequestLifecycleWaiterScope waiterScopeB =
+                extension.EnterLifecycleWaiter();
             waiterScopeB.MarkSemaphoreWaitStarted();
             m_requestManager.RequestReceived(contextC);
 
@@ -404,6 +463,7 @@ namespace Opc.Ua.Server.Tests
         [Category("NodeManagerLifecycle")]
         public async Task SemaphoreWaitStartReleasesAlreadyActiveDrainAsync()
         {
+            RequestManagerLifecycleExtension extension = RegisterLifecycleExtension();
             using var requestLifetime = new RequestLifetime();
             OperationContext context = CreateOperationContext(13, requestLifetime);
             using IDisposable requestScope = m_requestManager.EnterRequestScope(context);
@@ -411,8 +471,8 @@ namespace Opc.Ua.Server.Tests
             Task drain = m_requestManager.WaitForCurrentRequestsAsync().AsTask();
             Assert.That(drain.IsCompleted, Is.False);
 
-            using RequestManager.RequestLifecycleWaiterScope waiterScope =
-                m_requestManager.EnterLifecycleWaiter();
+            using RequestManagerLifecycleExtension.RequestLifecycleWaiterScope waiterScope =
+                extension.EnterLifecycleWaiter();
 
             Assert.That(
                 drain.IsCompleted,
@@ -432,10 +492,11 @@ namespace Opc.Ua.Server.Tests
         [Category("NodeManagerLifecycle")]
         public async Task DisposedLifecycleWaiterIsIncludedInNextDrainAsync()
         {
+            RequestManagerLifecycleExtension extension = RegisterLifecycleExtension();
             using var requestLifetime = new RequestLifetime();
             OperationContext context = CreateOperationContext(14, requestLifetime);
             IDisposable requestScope = m_requestManager.EnterRequestScope(context);
-            using (m_requestManager.EnterLifecycleWaiter())
+            using (extension.EnterLifecycleWaiter())
             {
             }
 
@@ -523,14 +584,15 @@ namespace Opc.Ua.Server.Tests
         [Category("NodeManagerLifecycle")]
         public async Task ServiceDispatchScopeReceivesRequestIdentityFromAsyncValidationAsync()
         {
+            RequestManagerLifecycleExtension extension = RegisterLifecycleExtension();
             using var requestLifetime = new RequestLifetime();
             OperationContext context = CreateOperationContext(61, requestLifetime);
 
             using (m_requestManager.EnterServiceDispatchScope())
             {
                 await RegisterAsync().ConfigureAwait(false);
-                using RequestManager.RequestLifecycleWaiterScope waiter =
-                    m_requestManager.EnterLifecycleWaiter();
+                using RequestManagerLifecycleExtension.RequestLifecycleWaiterScope waiter =
+                    extension.EnterLifecycleWaiter();
             }
 
             m_requestManager.RequestCompleted(context);
@@ -547,6 +609,7 @@ namespace Opc.Ua.Server.Tests
         [Category("NodeManagerLifecycle")]
         public void NestedRequestRegistrationPreservesOuterDispatchIdentity()
         {
+            RequestManagerLifecycleExtension extension = RegisterLifecycleExtension();
             using var outerLifetime = new RequestLifetime();
             using var nestedLifetime = new RequestLifetime();
             OperationContext outer = CreateOperationContext(62, outerLifetime);
@@ -558,8 +621,8 @@ namespace Opc.Ua.Server.Tests
                 m_requestManager.RequestReceived(nested);
                 m_requestManager.RequestCompleted(nested);
 
-                using RequestManager.RequestLifecycleWaiterScope waiter =
-                    m_requestManager.EnterLifecycleWaiter();
+                using RequestManagerLifecycleExtension.RequestLifecycleWaiterScope waiter =
+                    extension.EnterLifecycleWaiter();
             }
 
             Assert.Multiple(() =>
@@ -705,10 +768,11 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void CloseAdmissionRejectsNewValidationAndDirectRequests()
         {
+            RequestManagerLifecycleExtension extension = RegisterLifecycleExtension();
             using var requestLifetime = new RequestLifetime();
             OperationContext context = CreateOperationContext(90, requestLifetime);
 
-            m_requestManager.CloseAdmission();
+            extension.CloseAdmission();
 
             ServiceResultException validationException =
                 Assert.Throws<ServiceResultException>(
@@ -734,11 +798,12 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void PreAdmittedValidationCanPromoteRequestAfterAdmissionCloses()
         {
+            RequestManagerLifecycleExtension extension = RegisterLifecycleExtension();
             using var requestLifetime = new RequestLifetime();
             OperationContext context = CreateOperationContext(91, requestLifetime);
             IDisposable validationScope = m_requestManager.EnterValidationScope();
 
-            m_requestManager.CloseAdmission();
+            extension.CloseAdmission();
 
             using (m_requestManager.EnterServiceDispatchScope())
             using (m_requestManager.EnterRequestScope(context))
@@ -754,10 +819,11 @@ namespace Opc.Ua.Server.Tests
         [Category("NodeManagerLifecycle")]
         public async Task ClosedAdmissionDrainTracksRequestRegisteredAfterInitialSnapshotAsync()
         {
+            RequestManagerLifecycleExtension extension = RegisterLifecycleExtension();
             using var requestLifetime = new RequestLifetime();
             OperationContext context = CreateOperationContext(92, requestLifetime);
             IDisposable validationScope = m_requestManager.EnterValidationScope();
-            m_requestManager.CloseAdmission();
+            extension.CloseAdmission();
 
             Task drain = m_requestManager.WaitForCurrentRequestsAsync().AsTask();
             Assert.That(drain.IsCompleted, Is.False);
@@ -783,6 +849,11 @@ namespace Opc.Ua.Server.Tests
             RequestLifetime requestLifetime)
         {
             return CreateOperationContext(requestHandle, requestLifetime, 0);
+        }
+
+        private RequestManagerLifecycleExtension RegisterLifecycleExtension()
+        {
+            return m_requestManager.RegisterLifecycleExtension();
         }
 
         private static OperationContext CreateOperationContext(

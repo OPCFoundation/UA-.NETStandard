@@ -36,18 +36,18 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace WotFlatTagServer
+namespace FlatTagServer
 {
     /// <summary>
     /// Builds and runs the reusable flat-tag source host.
     /// </summary>
-    public static class WotFlatTagServerHost
+    public static class FlatTagServerHost
     {
         /// <summary>
         /// Builds a host from explicit options.
         /// </summary>
         /// <exception cref="ArgumentNullException"></exception>
-        public static IHost Build(WotFlatTagServerOptions options)
+        public static IHost Build(FlatTagServerOptions options)
         {
             if (options is null)
             {
@@ -63,7 +63,7 @@ namespace WotFlatTagServer
         /// Builds and runs a host from explicit options.
         /// </summary>
         public static async Task RunAsync(
-            WotFlatTagServerOptions options,
+            FlatTagServerOptions options,
             CancellationToken cancellationToken = default)
         {
             using IHost host = Build(options);
@@ -78,7 +78,7 @@ namespace WotFlatTagServer
             CancellationToken cancellationToken = default)
         {
             HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
-            WotFlatTagServerOptions options = FromConfiguration(builder.Configuration);
+            FlatTagServerOptions options = FromConfiguration(builder.Configuration);
             Configure(builder, options);
             using IHost host = builder.Build();
             await host.RunAsync(cancellationToken).ConfigureAwait(false);
@@ -86,7 +86,7 @@ namespace WotFlatTagServer
 
         private static void Configure(
             HostApplicationBuilder builder,
-            WotFlatTagServerOptions options)
+            FlatTagServerOptions options)
         {
             Validate(options);
             builder.Logging.ClearProviders();
@@ -103,7 +103,7 @@ namespace WotFlatTagServer
                     server.ApplicationName = options.ApplicationName;
                     server.ApplicationUri =
                         $"urn:localhost:OPCFoundation:{options.ApplicationName}:{options.InstanceName}";
-                    server.ProductUri = "uri:opcfoundation.org:WotFlatTagServer";
+                    server.ProductUri = "uri:opcfoundation.org:FlatTagServer";
                     if (!string.IsNullOrWhiteSpace(options.PkiRoot))
                     {
                         server.PkiRoot = options.PkiRoot;
@@ -112,19 +112,19 @@ namespace WotFlatTagServer
                     server.IncludeUnsecurePolicyNone = true;
                     server.EndpointUrls.Add(endpoint);
                 })
-                .AddNodeManager<WotFlatTagNodeManagerFactory>();
+                .AddNodeManager<FlatTagNodeManagerFactory>();
         }
 
-        private static WotFlatTagServerOptions FromConfiguration(ConfigurationManager configuration)
+        private static FlatTagServerOptions FromConfiguration(ConfigurationManager configuration)
         {
-            var options = new WotFlatTagServerOptions
+            var options = new FlatTagServerOptions
             {
                 EndpointUrl = configuration["endpoint"],
                 Host = configuration["host"] ?? "localhost",
                 Port = ReadInt32(configuration, "port", 62551),
                 SourceNamespaceUri = configuration["namespace"] ??
-                    WotFlatTagServerOptions.SourceANamespaceUri,
-                ApplicationName = configuration["applicationName"] ?? "WotFlatTagServer",
+                    FlatTagServerOptions.SourceANamespaceUri,
+                ApplicationName = configuration["applicationName"] ?? "FlatTagServer",
                 InstanceName = configuration["instanceName"] ?? "SourceA"
             };
 
@@ -150,10 +150,10 @@ namespace WotFlatTagServer
             return options;
         }
 
-        private static void Validate(WotFlatTagServerOptions options)
+        private static void Validate(FlatTagServerOptions options)
         {
-            if (options.SourceNamespaceUri is not WotFlatTagServerOptions.SourceANamespaceUri and
-                not WotFlatTagServerOptions.SourceBNamespaceUri)
+            if (options.SourceNamespaceUri is not FlatTagServerOptions.SourceANamespaceUri and
+                not FlatTagServerOptions.SourceBNamespaceUri)
             {
                 throw new ArgumentException(
                     "The source namespace must identify SourceA or SourceB.",

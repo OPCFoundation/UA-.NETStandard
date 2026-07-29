@@ -177,25 +177,43 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// </summary>
         public string? RequiredNamespace { get; set; }
 
-        public WotConversionOutput Convert(
-            WotResource resource, ReadOnlyMemory<byte> content, WotRegistrySnapshot snapshot)
+        public ValueTask<WotConversionOutput> ConvertAsync(
+            WotResource resource,
+            ReadOnlyMemory<byte> content,
+            WotRegistrySnapshot snapshot,
+            CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (m_invalid.Contains(resource.ResourceId))
             {
-                return WotConversionOutput.Failure(
-                    $"Injected conversion failure for '{resource.ResourceId}'.");
+                return new ValueTask<WotConversionOutput>(
+                    WotConversionOutput.Failure($"Injected conversion failure for '{resource.ResourceId}'."));
             }
             int nodeCount = m_nodeCounts.TryGetValue(resource.ResourceId, out int c) ? c : 2;
             UANodeSet nodeSet = TestNodeSets.Make(
                 $"urn:wot:{resource.GroupId}/{resource.ResourceId}", nodeCount, RequiredNamespace);
-            return WotConversionOutput.Success(nodeSet);
+            return new ValueTask<WotConversionOutput>(WotConversionOutput.Success(nodeSet));
         }
     }
 
     internal static class TestNodeSets
     {
+        public static byte[] XmlBytes(string modelUri, string? requiredNamespace = null)
+        {
+            return Encoding.UTF8.GetBytes(Xml(modelUri, requiredNamespace));
+        }
+
         public static UANodeSet Make(
             string modelUri, int nodeCount, string? requiredNamespace = null)
+        {
+            using var stream = new MemoryStream(Encoding.UTF8.GetBytes(Xml(modelUri, requiredNamespace, nodeCount)));
+            return UANodeSet.Read(stream)!;
+        }
+
+        private static string Xml(
+            string modelUri,
+            string? requiredNamespace = null,
+            int nodeCount = 1)
         {
             var builder = new StringBuilder();
             builder.Append("<?xml version=\"1.0\" encoding=\"utf-8\"?>");
@@ -222,8 +240,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     .Append(i).Append("</DisplayName></UAObject>");
             }
             builder.Append("</UANodeSet>");
-            using var stream = new MemoryStream(Encoding.UTF8.GetBytes(builder.ToString()));
-            return UANodeSet.Read(stream)!;
+            return builder.ToString();
         }
     }
 }

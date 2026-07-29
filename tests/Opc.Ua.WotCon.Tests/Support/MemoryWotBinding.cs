@@ -33,8 +33,9 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.WotCon.Bindings;
 
-namespace Opc.Ua.WotCon.Bindings.Samples
+namespace Opc.Ua.WotCon.Tests.Support
 {
     /// <summary>
     /// A worked sample showing how a third party contributes a replaceable

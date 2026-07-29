@@ -422,7 +422,7 @@ namespace Opc.Ua.WotCon.Server
                 SetValue(node.ValidationOutcome, resource.Validation);
             }
             SetValue(node.MaterializedNodeCount, (uint)resource.MaterializedNodeCount);
-            SetValue(node.RootNodeId, resource.RootNodeId ?? NodeId.Null);
+            SetValue(node.RootNodeId, resource.RootNodeId);
             SetValue(node.RefreshGeneration, resource.RefreshGeneration);
             SetValue(node.LastRefreshTime, (DateTimeUtc)resource.LastRefreshTime);
 
@@ -434,7 +434,7 @@ namespace Opc.Ua.WotCon.Server
             else if (node is ThingModelFileState tmNode)
             {
                 SetValue(tmNode.ModelTitle, resource.Title ?? string.Empty);
-                SetValue(tmNode.DerivedTypeNodeId, resource.RootNodeId ?? NodeId.Null);
+                SetValue(tmNode.DerivedTypeNodeId, resource.RootNodeId);
             }
 
             byte[] content = active?.Content.ToArray() ?? [];
@@ -534,8 +534,9 @@ namespace Opc.Ua.WotCon.Server
                     $"Resource '{resourceId}' already exists in group '{groupId}'.");
             }
             await ReconcileAsync(ct).ConfigureAwait(false);
-            return CompleteResourceOutput(
-                resource.GroupId, resource.ResourceId, requestOpen, context, output, created: null);
+            return await CompleteResourceOutputAsync(
+                    resource.GroupId, resource.ResourceId, requestOpen, context, output, created: null, ct)
+                .ConfigureAwait(false);
         }
 
         private async ValueTask<ServiceResult> OnGetOrCreateResourceAsync(
@@ -556,28 +557,41 @@ namespace Opc.Ua.WotCon.Server
             (WotResource resource, bool created) = await m_registry
                 .GetOrCreateResourceAsync(groupId, resourceId!, kind, ct).ConfigureAwait(false);
             await ReconcileAsync(ct).ConfigureAwait(false);
-            return CompleteResourceOutput(
-                resource.GroupId, resource.ResourceId, requestOpen, context, output, created);
+            return await CompleteResourceOutputAsync(
+                    resource.GroupId, resource.ResourceId, requestOpen, context, output, created, ct)
+                .ConfigureAwait(false);
         }
 
-        private ServiceResult CompleteResourceOutput(
+        private async ValueTask<ServiceResult> CompleteResourceOutputAsync(
             string groupId, string resourceId, bool requestOpen,
-            ISystemContext context, List<Variant> output, bool? created)
+            ISystemContext context, List<Variant> output, bool? created, CancellationToken ct)
         {
             NodeId nodeId = ResourceNodeId(groupId, resourceId);
             uint fileHandle = 0;
-            if (requestOpen &&
-                m_groups.TryGetValue(groupId, out GroupEntry? group) &&
-                group.Resources.TryGetValue(resourceId, out ResourceEntry? entry) &&
-                entry.File is not null)
+            await m_gate.WaitAsync(ct).ConfigureAwait(false);
+            try
             {
-                ServiceResult open = entry.File.TryOpenWriteHandle(
-                    (context as ISessionSystemContext)?.SessionId, out fileHandle);
-                if (ServiceResult.IsBad(open))
+                if (requestOpen &&
+                    m_groups.TryGetValue(groupId, out GroupEntry? group) &&
+                    group.Resources.TryGetValue(resourceId, out ResourceEntry? entry) &&
+                    entry.File is not null)
                 {
-                    return open;
+                    ServiceResult open = entry.File.TryOpenWriteHandle(
+                        context is ISessionSystemContext sessionContext
+                            ? sessionContext.SessionId.GetValueOrDefault()
+                            : NodeId.Null,
+                        out fileHandle);
+                    if (ServiceResult.IsBad(open))
+                    {
+                        return open;
+                    }
                 }
             }
+            finally
+            {
+                m_gate.Release();
+            }
+
             WotResource? resource = m_registry.Current.FindResource(groupId, resourceId);
             output.Clear();
             output.Add(new Variant(nodeId));
@@ -642,7 +656,9 @@ namespace Opc.Ua.WotCon.Server
             }
             await ReconcileAsync(ct).ConfigureAwait(false);
             output.Clear();
-            output.Add(new Variant(new ExtensionObject(outcome)));
+#pragma warning disable CS0618 // Validate generated proxy expects a direct structure Variant.
+            output.Add(new Variant(outcome));
+#pragma warning restore CS0618
             return ServiceResult.Good;
         }
 
@@ -954,7 +970,7 @@ namespace Opc.Ua.WotCon.Server
 
         private static string NormalizeId(string id)
         {
-            return id.Trim().ToLowerInvariant();
+            return WotRegistryService.NormalizeSegment(id, nameof(id));
         }
 
         private static string BuildXid(string groupId, string resourceId)

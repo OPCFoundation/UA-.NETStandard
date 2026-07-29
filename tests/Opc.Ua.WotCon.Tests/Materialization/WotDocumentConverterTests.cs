@@ -29,6 +29,8 @@
 
 using System.Collections.Immutable;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Export;
 using Opc.Ua.Wot;
@@ -86,7 +88,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         [Test]
-        public void NodeSetDocumentConverterConvertsValidThingModel()
+        public async Task NodeSetDocumentConverterConvertsValidThingModel()
         {
             var converter = new WotNodeSetDocumentConverter();
             byte[] content = TestMaterialization.Tm("urn:test-tm");
@@ -108,13 +110,15 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             using var service = new WotRegistryService();
             WotRegistrySnapshot snapshot = service.Current;
 
-            WotConversionOutput output = converter.Convert(resource, content, snapshot);
+            WotConversionOutput output = await converter
+                .ConvertAsync(resource, content, snapshot, CancellationToken.None)
+                .ConfigureAwait(false);
 
             Assert.That(output, Is.Not.Null);
         }
 
         [Test]
-        public void NodeSetDocumentConverterFailsOnInvalidJson()
+        public async Task NodeSetDocumentConverterFailsOnInvalidJson()
         {
             var converter = new WotNodeSetDocumentConverter();
             byte[] invalidContent = TestMaterialization.InvalidJson();
@@ -136,7 +140,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             using var service = new WotRegistryService();
             WotRegistrySnapshot snapshot = service.Current;
 
-            WotConversionOutput output = converter.Convert(resource, invalidContent, snapshot);
+            WotConversionOutput output = await converter
+                .ConvertAsync(resource, invalidContent, snapshot, CancellationToken.None)
+                .ConfigureAwait(false);
 
             Assert.That(output.Succeeded, Is.False);
             Assert.That(output.Errors, Is.Not.Empty);
@@ -173,7 +179,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         {
             WotConversionOutput output = WotConversionOutput.Failure("fail");
 
-            Assert.That(output.RootNodeId, Is.Null);
+            Assert.That(output.RootNodeId.IsNull, Is.True);
         }
     }
 }

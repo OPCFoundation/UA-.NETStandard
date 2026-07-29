@@ -31,6 +31,8 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.Contracts;
+using System.IO;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using Opc.Ua.Types;
 
@@ -312,6 +314,133 @@ namespace Opc.Ua
                 typeId == encodeable.XmlEncodingId;
         }
 
+        private bool TryDecodeValue(
+            IServiceMessageContext messageContext,
+            [NotNullWhen(true)] out IEncodeable? encodeable)
+        {
+            try
+            {
+                encodeable = m_body switch
+                {
+                    ByteString binary when !binary.IsNull =>
+                        DecodeBinary(binary, messageContext),
+                    XmlElement xml =>
+                        DecodeXml(xml, messageContext),
+                    string json =>
+                        DecodeJson(json, messageContext),
+                    _ => default
+                };
+                return encodeable != null &&
+                    IsMatchingStructureIdentifier(
+                        TypeId,
+                        encodeable,
+                        messageContext.NamespaceUris);
+            }
+            catch (Exception ex) when (
+                ex is ServiceResultException or
+                    FormatException or
+                    InvalidOperationException or
+                    EndOfStreamException or
+                    JsonException)
+            {
+                encodeable = default;
+                return false;
+            }
+        }
+
+        private IEncodeable? DecodeBinary(ByteString binary, IServiceMessageContext messageContext)
+        {
+            if (!messageContext.Factory.TryGetEncodeableType(TypeId, out IEncodeableType? activator))
+            {
+                return default;
+            }
+
+            IEncodeable encodeable = activator.CreateInstance();
+            using var decoder = new BinaryDecoder(binary.ToArray(), messageContext);
+            encodeable.Decode(decoder);
+            return encodeable;
+        }
+
+        private IEncodeable? DecodeXml(XmlElement xml, IServiceMessageContext messageContext)
+        {
+            if (!messageContext.Factory.TryGetEncodeableType(TypeId, out _))
+            {
+                return default;
+            }
+
+            System.Xml.XmlElement? xmlElement = xml.AsXmlElement();
+            if (xmlElement == null)
+            {
+                return default;
+            }
+
+            using var decoder = new XmlDecoder(xmlElement, messageContext);
+            decoder.PushNamespace(xmlElement.NamespaceURI);
+            try
+            {
+                return decoder.ReadEncodeable<IEncodeable>(
+                    xmlElement.LocalName,
+                    TypeId);
+            }
+            finally
+            {
+                decoder.PopNamespace();
+            }
+        }
+
+        private IEncodeable? DecodeJson(string json, IServiceMessageContext messageContext)
+        {
+            if (!messageContext.Factory.TryGetEncodeableType(TypeId, out _))
+            {
+                return default;
+            }
+
+            using var decoder = new JsonDecoder(
+                "{\"" + JsonProperties.UaBody + "\":" + json + "}",
+                messageContext);
+            return decoder.ReadEncodeable<IEncodeable>(JsonProperties.UaBody, TypeId);
+        }
+
+        private static bool IsMatchingStructureIdentifier(
+            ExpandedNodeId actual,
+            IEncodeable expected,
+            NamespaceTable namespaceUris)
+        {
+            return AreEquivalentStructureIdentifiers(
+                    actual,
+                    expected.TypeId,
+                    namespaceUris) ||
+                AreEquivalentStructureIdentifiers(
+                    actual,
+                    expected.BinaryEncodingId,
+                    namespaceUris) ||
+                AreEquivalentStructureIdentifiers(
+                    actual,
+                    expected.XmlEncodingId,
+                    namespaceUris);
+        }
+
+        private static bool AreEquivalentStructureIdentifiers(
+            ExpandedNodeId first,
+            ExpandedNodeId second,
+            NamespaceTable namespaceUris)
+        {
+            if (first.IsNull || second.IsNull)
+            {
+                return false;
+            }
+            if (first == second)
+            {
+                return true;
+            }
+
+            var firstLocal = ExpandedNodeId.ToNodeId(first, namespaceUris);
+            var secondLocal = ExpandedNodeId.ToNodeId(second, namespaceUris);
+            return !firstLocal.IsNull &&
+                !secondLocal.IsNull &&
+                firstLocal == secondLocal;
+        }
+
         /// <inheritdoc/>
         public static bool operator ==(ExtensionObject left, ExtensionObject right)
         {
@@ -403,7 +532,11 @@ namespace Opc.Ua
                 return false;
             }
 
-            // TODO: Decode if possible
+            if (TryDecodeValue(messageContext, out encodeable))
+            {
+                return true;
+            }
+
             encodeable = default;
             return false;
         }

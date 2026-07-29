@@ -112,9 +112,11 @@ namespace Opc.Ua.WotCon.Server.Assets
             }
         }
 
-        private static NodeId? SessionIdOf(ISystemContext context)
+        private static NodeId SessionIdOf(ISystemContext context)
         {
-            return (context as ISessionSystemContext)?.SessionId;
+            return context is ISessionSystemContext sessionContext
+                ? sessionContext.SessionId.GetValueOrDefault()
+                : NodeId.Null;
         }
 
         private ServiceResult OnOpen(
@@ -131,7 +133,7 @@ namespace Opc.Ua.WotCon.Server.Assets
                 return ServiceResult.Create(StatusCodes.BadNotSupported,
                     "WoTAssetFileType only supports modes Read (1) and Write+EraseExisting (6).");
             }
-            NodeId? sessionId = SessionIdOf(context);
+            NodeId sessionId = SessionIdOf(context);
             lock (m_handles)
             {
                 if (m_handles.Count >= m_maxHandles)
@@ -381,8 +383,8 @@ namespace Opc.Ua.WotCon.Server.Assets
                 error = ServiceResult.Create(StatusCodes.BadInvalidArgument, "Unknown file handle.");
                 return false;
             }
-            NodeId? expected = SessionIdOf(context);
-            if (expected != null && located.SessionId != null && located.SessionId != expected)
+            NodeId expected = SessionIdOf(context);
+            if (!expected.IsNull && !located.SessionId.IsNull && located.SessionId != expected)
             {
                 handle = null!;
                 error = ServiceResult.Create(StatusCodes.BadUserAccessDenied,
@@ -396,23 +398,23 @@ namespace Opc.Ua.WotCon.Server.Assets
 
         private sealed class Handle : IDisposable
         {
-            private Handle(NodeId? sessionId, Stream stream, bool writing)
+            private Handle(NodeId sessionId, Stream stream, bool writing)
             {
                 SessionId = sessionId;
                 Stream = stream;
                 Writing = writing;
             }
 
-            public NodeId? SessionId { get; }
+            public NodeId SessionId { get; }
             public Stream Stream { get; }
             public bool Writing { get; }
 
-            public static Handle OpenRead(NodeId? sessionId, byte[] snapshot)
+            public static Handle OpenRead(NodeId sessionId, byte[] snapshot)
             {
                 return new(sessionId, new MemoryStream(snapshot, writable: false), writing: false);
             }
 
-            public static Handle OpenWrite(NodeId? sessionId)
+            public static Handle OpenWrite(NodeId sessionId)
             {
                 return new(sessionId, new MemoryStream(), writing: true);
             }

@@ -2,7 +2,7 @@
 
 The WoT aggregation sample demonstrates a generic OPC UA server that loads DI, Machinery, Pumps, and Pump-instance shape from WoT Thing Models and a Thing Description, then binds the materialized Pump variables to values read from two independent OPC UA source servers.
 
-The aggregation server contains no Pump-specific generated code and does not reference the DI, Machinery, or Pumps server/model assemblies. The complete DI/Machinery/Pumps/Pump instance shape is runtime-loaded from the files in [`samples/WotAggregationClient/Documents`](../WotAggregationClient/Documents) through the generic WoT-to-NodeSet converter, runtime NodeSet loader, and target-mapping binding runtime.
+The aggregation server contains no Pump-specific generated code and does not reference the DI, Machinery, or Pumps server/model assemblies. The complete DI/Machinery/Pumps/Pump instance shape is runtime-loaded from the files in [`samples/WotCon/AggregationClient/Documents`](AggregationClient/Documents) through the generic WoT-to-NodeSet converter, runtime NodeSet loader, and target-mapping binding runtime.
 
 The documents ship with the client because the client is what uploads them. The aggregation server has no build-time or run-time dependency on them: it receives whatever the client writes into the registry.
 
@@ -11,19 +11,19 @@ The documents ship with the client because the client is what uploads them. The 
 There are three long-running server processes:
 
 ```text
-WotFlatTagServer Source A ─┐
-                           ├─ OPC UA forms ─> WotAggregationServer
-WotFlatTagServer Source B ─┘                    │
+FlatTagServer Source A ─┐
+                           ├─ OPC UA forms ─> AggregationServer
+FlatTagServer Source B ─┘                    │
                                                 └─ materialized Pump OPC UA address space
 ```
 
-`WotAggregationClient` is a fourth, short-lived process. It connects to the aggregation server, uploads the checked-in documents, calls `Refresh`, browses the materialized Pump, reads ten values, prints the result, and exits.
+`AggregationClient` is a fourth, short-lived process. It connects to the aggregation server, uploads the checked-in documents, calls `Refresh`, browses the materialized Pump, reads ten values, prints the result, and exits.
 
 Source A and Source B expose deliberately flat variables. They do not expose a Pump companion-model hierarchy. The aggregation server creates that hierarchy from the WoT documents and routes each materialized variable to its selected upstream source.
 
 ## Prerequisites
 
-The complete sample requires .NET 8, .NET 9, or .NET 10. `WotAggregationServer` intentionally targets only `net8.0`, `net9.0`, and `net10.0` because the OPC UA executor required by the checked-in mappings is available only on those frameworks. Legacy `CustomTestTarget` solution builds replace that project with the repository's no-op shell; those matrix builds are not runnable aggregation-server configurations. `WotFlatTagServer` and `WotAggregationClient` remain on the shared application target matrix for standalone compatibility, but a runnable end-to-end topology always requires the modern aggregation server.
+The complete sample requires .NET 8, .NET 9, or .NET 10. `AggregationServer` intentionally targets only `net8.0`, `net9.0`, and `net10.0` because the OPC UA executor required by the checked-in mappings is available only on those frameworks. Legacy `CustomTestTarget` solution builds replace that project with the repository's no-op shell; those matrix builds are not runnable aggregation-server configurations. `FlatTagServer` and `AggregationClient` remain on the shared application target matrix for standalone compatibility, but a runnable end-to-end topology always requires the modern aggregation server.
 
 Run the commands below from the repository root with the .NET 10 SDK. The samples accept unencrypted anonymous OPC UA connections for local demonstration and auto-accept untrusted certificates; do not copy those security settings into a production deployment.
 
@@ -32,10 +32,10 @@ Run the commands below from the repository root with the .NET 10 SDK. The sample
 Start Source A in the first terminal:
 
 ```powershell
-dotnet run --project samples\WotFlatTagServer\WotFlatTagServer.csproj -f net10.0 -- `
+dotnet run --project samples\WotCon\FlatTagServer\FlatTagServer.csproj -f net10.0 -- `
   --port 62551 `
   --instanceName SourceA `
-  --applicationName WotFlatTagServerSourceA `
+  --applicationName FlatTagServerSourceA `
   --namespace urn:opcfoundation.org:UA:WotAggregation:SourceA `
   --differentialPressure 111.25 `
   --fluidTemperature 301.15 `
@@ -47,10 +47,10 @@ dotnet run --project samples\WotFlatTagServer\WotFlatTagServer.csproj -f net10.0
 Start Source B in the second terminal:
 
 ```powershell
-dotnet run --project samples\WotFlatTagServer\WotFlatTagServer.csproj -f net10.0 -- `
+dotnet run --project samples\WotCon\FlatTagServer\FlatTagServer.csproj -f net10.0 -- `
   --port 62552 `
   --instanceName SourceB `
-  --applicationName WotFlatTagServerSourceB `
+  --applicationName FlatTagServerSourceB `
   --namespace urn:opcfoundation.org:UA:WotAggregation:SourceB `
   --bearingTemperature 333.15 `
   --pumpPowerInput 17.75 `
@@ -62,26 +62,26 @@ dotnet run --project samples\WotFlatTagServer\WotFlatTagServer.csproj -f net10.0
 Start the generic aggregation server in the third terminal:
 
 ```powershell
-dotnet run --project samples\WotAggregationServer\WotAggregationServer.csproj -f net10.0 -- `
+dotnet run --project samples\WotCon\AggregationServer\AggregationServer.csproj -f net10.0 -- `
   --port 62550 `
-  --applicationName WotAggregationServer
+  --applicationName AggregationServer
 ```
 
 Run the loader/client in a fourth terminal after all three servers are listening:
 
 ```powershell
-dotnet run --project samples\WotAggregationClient\WotAggregationClient.csproj -f net10.0 -- `
-  --aggregationEndpoint opc.tcp://localhost:62550/WotAggregationServer `
+dotnet run --project samples\WotCon\AggregationClient\AggregationClient.csproj -f net10.0 -- `
+  --aggregationEndpoint opc.tcp://localhost:62550/AggregationServer `
   --sourceAEndpoint opc.tcp://localhost:62551/SourceA `
   --sourceBEndpoint opc.tcp://localhost:62552/SourceB `
-  --documentsDirectory .\samples\WotAggregationClient\Documents
+  --documentsDirectory .\samples\WotCon\AggregationClient\Documents
 ```
 
 The client should report four uploaded resources, a successful refresh generation, the recursively browsed Pump hierarchy, and ten Good values.
 
 ## Command-line and programmatic options
 
-`WotFlatTagServer` reads the following command-line configuration keys:
+`FlatTagServer` reads the following command-line configuration keys:
 
 | Key | Default | Meaning |
 | --- | --- | --- |
@@ -89,7 +89,7 @@ The client should report four uploaded resources, a successful refresh generatio
 | `host` | `localhost` | Endpoint host used when `endpoint` is unset. |
 | `port` | `62551` | Endpoint port used when `endpoint` is unset. |
 | `instanceName` | `SourceA` | Endpoint path and source instance name. |
-| `applicationName` | `WotFlatTagServer` | OPC UA application name. |
+| `applicationName` | `FlatTagServer` | OPC UA application name. |
 | `namespace` | Source A namespace URI | Must be exactly the Source A or Source B namespace URI. |
 | `differentialPressure` | `2.75` | Flat source value. |
 | `fluidTemperature` | `315.65` | Flat source value. |
@@ -102,13 +102,13 @@ The client should report four uploaded resources, a successful refresh generatio
 | `numberOfStarts` | `17` | Flat source value. |
 | `motorOverheat` | `false` | Flat source value. |
 
-`WotAggregationServer` reads `endpoint`, `host` (`localhost`), `port` (`62550`), `applicationName` (`WotAggregationServer`), and `maximumDocumentBytes` (`33554432`). Its reusable `WotAggregationServerOptions` additionally exposes `PkiRoot` for programmatic hosts.
+`AggregationServer` reads `endpoint`, `host` (`localhost`), `port` (`62550`), `applicationName` (`AggregationServer`), and `maximumDocumentBytes` (`33554432`). Its reusable `AggregationServerOptions` additionally exposes `PkiRoot` for programmatic hosts.
 
-`WotAggregationClient` reads `aggregationEndpoint`, `sourceAEndpoint`, `sourceBEndpoint`, and `documentsDirectory`. Its reusable `WotAggregationClientOptions` additionally exposes `ApplicationName` and `PkiRoot` for programmatic and integration-test hosts.
+`AggregationClient` reads `aggregationEndpoint`, `sourceAEndpoint`, `sourceBEndpoint`, and `documentsDirectory`. Its reusable `AggregationClientOptions` additionally exposes `ApplicationName` and `PkiRoot` for programmatic and integration-test hosts.
 
 ## Checked-in document set
 
-[`documents.json`](../WotAggregationClient/Documents/documents.json) declares the sample document set and the dependencies between its entries:
+[`documents.json`](AggregationClient/Documents/documents.json) declares the sample document set and the dependencies between its entries:
 
 1. `Opc.Ua.Di.tm.json` as `thingmodels/opc-ua-di`.
 2. `Opc.Ua.Machinery.tm.json` as `thingmodels/opc-ua-machinery`, depending on DI.
@@ -135,7 +135,7 @@ Both refresh models are valid, and the sample shows the second one:
 
 ## Endpoint placeholder substitution
 
-The checked-in Pump TD is portable and contains `${SOURCE_A_ENDPOINT}` and `${SOURCE_B_ENDPOINT}` placeholders. `WotAggregationClientRunner.LoadDocumentsAsync` substitutes the two endpoint options only in `SamplePump.td.json` immediately before upload. The checked-in file remains environment-independent, and no generated file is written back to the repository.
+The checked-in Pump TD is portable and contains `${SOURCE_A_ENDPOINT}` and `${SOURCE_B_ENDPOINT}` placeholders. `AggregationClientRunner.LoadDocumentsAsync` substitutes the two endpoint options only in `SamplePump.td.json` immediately before upload. The checked-in file remains environment-independent, and no generated file is written back to the repository.
 
 Each property form also contains a portable upstream `uav:id` using the source server's `nsu=` namespace URI. The property affordance contains a separate `uav:mapToNodeId` using the materialized Pump-instance namespace. The form therefore describes where to read, while the affordance describes where the value belongs in the aggregate model.
 
@@ -166,7 +166,7 @@ The materialized namespace is `urn:opcfoundation.org:UA:WotAggregation:PumpInsta
 * Measurements contain DifferentialPressure, FluidTemperature, BearingTemperature, PumpPowerInput, MassFlow, PumpEfficiency, Level, and NumberOfStarts.
 * Event supervision groups contain Cavitation and MotorOverheat variables.
 
-These nodes are not compiled into `WotAggregationServer`. They are produced from the DI, Machinery, Pumps, and Sample Pump WoT documents at runtime.
+These nodes are not compiled into `AggregationServer`. They are produced from the DI, Machinery, Pumps, and Sample Pump WoT documents at runtime.
 
 ## Values from both sources
 
@@ -207,11 +207,11 @@ If conversion, mapping resolution, channel wiring, or shadow activation fails, t
 
 ### The client cannot connect
 
-Verify that all three server processes are listening and that the client endpoint paths exactly match `/SourceA`, `/SourceB`, and `/WotAggregationServer`. The generic-host command-line syntax requires the `--` separator after `dotnet run` options.
+Verify that all three server processes are listening and that the client endpoint paths exactly match `/SourceA`, `/SourceB`, and `/AggregationServer`. The generic-host command-line syntax requires the `--` separator after `dotnet run` options.
 
 ### The source namespace is rejected
 
-`WotFlatTagServer` accepts only `urn:opcfoundation.org:UA:WotAggregation:SourceA` or `urn:opcfoundation.org:UA:WotAggregation:SourceB`. Use the matching namespace and endpoint placeholder for each process.
+`FlatTagServer` accepts only `urn:opcfoundation.org:UA:WotAggregation:SourceA` or `urn:opcfoundation.org:UA:WotAggregation:SourceB`. Use the matching namespace and endpoint placeholder for each process.
 
 ### The manifest fails before upload
 
@@ -248,12 +248,12 @@ The suite covers successful upload and refresh, companion-model hierarchy, value
 All three server/client sample projects set `PublishAot` for `net10.0`. Publish each process for the target runtime identifier; for Windows x64:
 
 ```powershell
-dotnet publish samples\WotFlatTagServer\WotFlatTagServer.csproj -c Release -f net10.0 -r win-x64 --self-contained true
-dotnet publish samples\WotAggregationServer\WotAggregationServer.csproj -c Release -f net10.0 -r win-x64 --self-contained true
-dotnet publish samples\WotAggregationClient\WotAggregationClient.csproj -c Release -f net10.0 -r win-x64 --self-contained true
+dotnet publish samples\WotCon\FlatTagServer\FlatTagServer.csproj -c Release -f net10.0 -r win-x64 --self-contained true
+dotnet publish samples\WotCon\AggregationServer\AggregationServer.csproj -c Release -f net10.0 -r win-x64 --self-contained true
+dotnet publish samples\WotCon\AggregationClient\AggregationClient.csproj -c Release -f net10.0 -r win-x64 --self-contained true
 ```
 
-Use the published `WotFlatTagServer.exe` twice with the Source A and Source B arguments above. The client project includes the checked-in `Documents` tree in its publish output, so omit `--documentsDirectory` to use `<publish-directory>\Documents` or pass an explicit external copy.
+Use the published `FlatTagServer.exe` twice with the Source A and Source B arguments above. The client project includes the checked-in `Documents` tree in its publish output, so omit `--documentsDirectory` to use `<publish-directory>\Documents` or pass an explicit external copy.
 
 ## Related documentation
 

@@ -38,7 +38,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.WotCon.Client;
-using WotAggregationClient;
+using AggregationClient;
 
 namespace Opc.Ua.WotCon.Samples.Tests
 {
@@ -65,7 +65,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 .StartAsync(timeout.Token).ConfigureAwait(false);
             await using ConfiguredAsyncDisposable environmentLifetime = environment.ConfigureAwait(false);
 
-            WotAggregationClientResult result = await WotAggregationClientRunner
+            AggregationClientResult result = await AggregationClientRunner
                 .RunAsync(environment.ClientOptions, timeout.Token)
                 .ConfigureAwait(false);
 
@@ -309,7 +309,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 timeout.Token).ConfigureAwait(false);
 
             Exception failure = await CaptureFailureAsync(
-                () => WotAggregationClientRunner.RunAsync(
+                () => AggregationClientRunner.RunAsync(
                     environment.CreateClientOptions(documents),
                     timeout.Token)).ConfigureAwait(false);
 
@@ -339,7 +339,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 timeout.Token).ConfigureAwait(false);
 
             Exception failure = await CaptureFailureAsync(
-                () => WotAggregationClientRunner.RunAsync(
+                () => AggregationClientRunner.RunAsync(
                     environment.CreateClientOptions(documents),
                     timeout.Token)).ConfigureAwait(false);
 
@@ -366,7 +366,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
             await File.WriteAllTextAsync(pumpPath, pump, timeout.Token).ConfigureAwait(false);
 
             Exception failure = await CaptureFailureAsync(
-                () => WotAggregationClientRunner.RunAsync(
+                () => AggregationClientRunner.RunAsync(
                     environment.CreateClientOptions(documents),
                     timeout.Token)).ConfigureAwait(false);
 
@@ -384,7 +384,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 $"opc.tcp://127.0.0.1:{TestPorts.GetFreePort()}/UnavailableSource";
 
             Exception failure = await CaptureFailureAsync(
-                () => WotAggregationClientRunner.RunAsync(
+                () => AggregationClientRunner.RunAsync(
                     environment.CreateClientOptions(
                         environment.DocumentsDirectory,
                         sourceAEndpoint: unavailableEndpoint),
@@ -631,7 +631,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
         }
 
         private static void AssertResultDouble(
-            WotAggregationClientResult result,
+            AggregationClientResult result,
             string name,
             double expected)
         {
@@ -642,7 +642,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
         }
 
         private static void AssertResultBoolean(
-            WotAggregationClientResult result,
+            AggregationClientResult result,
             string name,
             bool expected)
         {
@@ -653,7 +653,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
         }
 
         private static void AssertResultUInt32(
-            WotAggregationClientResult result,
+            AggregationClientResult result,
             string name,
             uint expected)
         {
@@ -664,7 +664,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
         }
 
         private static WotPumpValueResult FindResultValue(
-            WotAggregationClientResult result,
+            AggregationClientResult result,
             string name)
         {
             foreach (WotPumpValueResult candidate in result.Values)
@@ -714,7 +714,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
         }
 
         private static async Task<Exception> CaptureFailureAsync(
-            Func<Task<WotAggregationClientResult>> action)
+            Func<Task<AggregationClientResult>> action)
         {
             try
             {

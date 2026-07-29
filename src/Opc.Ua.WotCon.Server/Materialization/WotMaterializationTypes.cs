@@ -29,6 +29,8 @@
 
 using System;
 using System.Collections.Immutable;
+using System.Threading;
+using System.Threading.Tasks;
 using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Server.Registry;
 
@@ -192,7 +194,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <summary>
         /// Gets or sets the failing node id, if any.
         /// </summary>
-        public NodeId? FailedNodeId { get; init; }
+        public NodeId FailedNodeId { get; init; }
 
         /// <summary>
         /// Gets or sets the binding URI, if any.
@@ -227,15 +229,21 @@ namespace Opc.Ua.WotCon.Server.Materialization
             m_snapshot = snapshot;
         }
 
-        public WotResolverResult ResolveThing(string reference, WotResolutionContext context)
+        /// <summary>
+        /// Resolves a Thing Description or Thing Model reference from the registry snapshot.
+        /// </summary>
+        public ValueTask<WotResolverResult> ResolveThingAsync(
+            string reference,
+            WotResolutionContext context,
+            CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             WotResource? resource = WotDependencyGraph.Resolve(m_snapshot, reference);
             WotResourceVersion? version = resource?.DefaultVersion;
-            if (version is null)
-            {
-                return WotResolverResult.NotFound;
-            }
-            return WotResolverResult.FromBytes(version.Content);
+            WotResolverResult result = version is null
+                ? WotResolverResult.NotFound
+                : WotResolverResult.FromBytes(version.Content);
+            return new ValueTask<WotResolverResult>(result);
         }
 
         private readonly WotRegistrySnapshot m_snapshot;

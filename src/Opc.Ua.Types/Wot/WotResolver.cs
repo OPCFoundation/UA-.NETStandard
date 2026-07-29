@@ -30,6 +30,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Wot
 {
@@ -171,8 +173,12 @@ namespace Opc.Ua.Wot
         /// </summary>
         /// <param name="reference">The context reference (absolute or relative IRI).</param>
         /// <param name="context">The active resolution context.</param>
+        /// <param name="cancellationToken">A token that cancels the resolution operation.</param>
         /// <returns>The resolution result.</returns>
-        WotResolverResult ResolveContext(string reference, WotResolutionContext context);
+        ValueTask<WotResolverResult> ResolveContextAsync(
+            string reference,
+            WotResolutionContext context,
+            CancellationToken cancellationToken);
     }
 
     /// <summary>
@@ -187,8 +193,12 @@ namespace Opc.Ua.Wot
         /// </summary>
         /// <param name="reference">The schema reference (absolute or relative IRI or path).</param>
         /// <param name="context">The active resolution context.</param>
+        /// <param name="cancellationToken">A token that cancels the resolution operation.</param>
         /// <returns>The resolution result.</returns>
-        WotResolverResult ResolveSchema(string reference, WotResolutionContext context);
+        ValueTask<WotResolverResult> ResolveSchemaAsync(
+            string reference,
+            WotResolutionContext context,
+            CancellationToken cancellationToken);
     }
 
     /// <summary>
@@ -203,8 +213,12 @@ namespace Opc.Ua.Wot
         /// </summary>
         /// <param name="reference">The document reference (absolute or relative IRI).</param>
         /// <param name="context">The active resolution context.</param>
+        /// <param name="cancellationToken">A token that cancels the resolution operation.</param>
         /// <returns>The resolution result.</returns>
-        WotResolverResult ResolveThing(string reference, WotResolutionContext context);
+        ValueTask<WotResolverResult> ResolveThingAsync(
+            string reference,
+            WotResolutionContext context,
+            CancellationToken cancellationToken);
     }
 
     /// <summary>
@@ -220,21 +234,30 @@ namespace Opc.Ua.Wot
         public static NullWotResolver Instance { get; } = new NullWotResolver();
 
         /// <inheritdoc/>
-        public WotResolverResult ResolveContext(string reference, WotResolutionContext context)
+        public ValueTask<WotResolverResult> ResolveContextAsync(
+            string reference,
+            WotResolutionContext context,
+            CancellationToken cancellationToken)
         {
-            return WotResolverResult.NotFound;
+            return new ValueTask<WotResolverResult>(WotResolverResult.NotFound);
         }
 
         /// <inheritdoc/>
-        public WotResolverResult ResolveSchema(string reference, WotResolutionContext context)
+        public ValueTask<WotResolverResult> ResolveSchemaAsync(
+            string reference,
+            WotResolutionContext context,
+            CancellationToken cancellationToken)
         {
-            return WotResolverResult.NotFound;
+            return new ValueTask<WotResolverResult>(WotResolverResult.NotFound);
         }
 
         /// <inheritdoc/>
-        public WotResolverResult ResolveThing(string reference, WotResolutionContext context)
+        public ValueTask<WotResolverResult> ResolveThingAsync(
+            string reference,
+            WotResolutionContext context,
+            CancellationToken cancellationToken)
         {
-            return WotResolverResult.NotFound;
+            return new ValueTask<WotResolverResult>(WotResolverResult.NotFound);
         }
     }
 

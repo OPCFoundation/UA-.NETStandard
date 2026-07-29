@@ -29,6 +29,8 @@
 
 using System;
 using System.Collections.Immutable;
+using System.Threading;
+using System.Threading.Tasks;
 using Opc.Ua.Export;
 using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Server.Registry;
@@ -46,7 +48,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         public WotConversionOutput(
             UANodeSet? nodeSet,
             ImmutableArray<string> errors,
-            ExpandedNodeId? rootNodeId = null)
+            ExpandedNodeId rootNodeId = default)
         {
             NodeSet = nodeSet;
             Errors = errors.IsDefault ? [] : errors;
@@ -67,10 +69,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// Gets the root node of the projection (the type a Thing Model
         /// materializes or the top-level instance a Thing Description projects),
         /// as an absolute <see cref="ExpandedNodeId"/> whose namespace URI is
-        /// resolved from the produced NodeSet, or <c>null</c> when the document
-        /// has no identifiable root.
+        /// resolved from the produced NodeSet, or <c>ExpandedNodeId.Null</c>
+        /// when the document has no identifiable root.
         /// </summary>
-        public ExpandedNodeId? RootNodeId { get; }
+        public ExpandedNodeId RootNodeId { get; }
 
         /// <summary>
         /// Gets whether the conversion succeeded.
@@ -108,10 +110,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <summary>
         /// Converts a resource's default document to a NodeSet2 model.
         /// </summary>
-        WotConversionOutput Convert(
+        ValueTask<WotConversionOutput> ConvertAsync(
             WotResource resource,
             ReadOnlyMemory<byte> content,
-            WotRegistrySnapshot snapshot);
+            WotRegistrySnapshot snapshot,
+            CancellationToken cancellationToken);
     }
 
     /// <summary>
@@ -128,10 +131,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
         }
 
         /// <inheritdoc/>
-        public WotConversionOutput Convert(
+        public async ValueTask<WotConversionOutput> ConvertAsync(
             WotResource resource,
             ReadOnlyMemory<byte> content,
-            WotRegistrySnapshot snapshot)
+            WotRegistrySnapshot snapshot,
+            CancellationToken cancellationToken)
         {
             try
             {
@@ -142,8 +146,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 // bounds and cycle detection apply across every link resolved
                 // while converting this resource.
                 var resolution = new WotResolutionContext(m_options.ToResolverOptions());
-                WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(
-                    document, m_options, resolver, resolution);
+                WotConversionResult<UANodeSet> result = await WotNodeSetConverter.ToNodeSetResultAsync(
+                    document, m_options, resolver, resolution, cancellationToken).ConfigureAwait(false);
                 ImmutableArray<string>.Builder errors = ImmutableArray.CreateBuilder<string>();
                 foreach (WotDiagnostic diagnostic in result.Diagnostics)
                 {

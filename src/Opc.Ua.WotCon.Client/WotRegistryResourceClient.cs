@@ -31,6 +31,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client;
+using Opc.Ua.Encoders;
 using Opc.Ua.XRegistry.Client;
 
 namespace Opc.Ua.WotCon.Client
@@ -105,9 +106,65 @@ namespace Opc.Ua.WotCon.Client
         /// <summary>
         /// Calls <c>Validate</c> on the resource.
         /// </summary>
-        public ValueTask<WoTValidationOutcomeDataType> ValidateAsync(CancellationToken ct = default)
+        public async ValueTask<WoTValidationOutcomeDataType> ValidateAsync(CancellationToken ct = default)
         {
-            return Proxy.ValidateAsync(ct);
+            var request = new CallMethodRequest
+            {
+                ObjectId = ResourceNodeId,
+                MethodId = ExpandedNodeId.ToNodeId(
+                    MethodIds.WoTDocumentType_Validate,
+                    Session.NamespaceUris),
+                InputArguments = []
+            };
+            CallResponse response = await Session
+                .CallAsync(new RequestHeader(), [request], ct)
+                .ConfigureAwait(false);
+            CallMethodResult result = response.Results[0];
+            if (StatusCode.IsBad(result.StatusCode))
+            {
+                throw new ServiceResultException(result.StatusCode);
+            }
+            ArrayOf<Variant> output = result.OutputArguments.IsNull ? [] : result.OutputArguments;
+            if (output.Count == 0 ||
+                !TryDecodeStructure(output[0], out WoTValidationOutcomeDataType? outcome) ||
+                outcome is null)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadUnexpectedError,
+                    "Validate returned unexpected output arguments.");
+            }
+            return outcome;
+        }
+
+        private bool TryDecodeStructure<T>(Variant value, out T? result)
+            where T : class, IEncodeable, new()
+        {
+            result = null;
+#pragma warning disable CS8600 // TryGetStructure annotates failed output as maybe-null.
+            if (value.TryGetStructure(Session.MessageContext, out T decoded))
+#pragma warning restore CS8600
+            {
+                result = decoded;
+                return true;
+            }
+#pragma warning disable CS8600 // TryGetValue annotates failed output as maybe-null.
+            if (value.TryGetValue(out ExtensionObject extension) &&
+                extension.TryGetValue(out decoded, Session.MessageContext))
+#pragma warning restore CS8600
+            {
+                result = decoded;
+                return true;
+            }
+            if (value.TryGetValue(out extension) &&
+                extension.TryGetAsBinary(out ByteString body, Session.MessageContext) &&
+                !body.IsNull)
+            {
+                using var decoder = new BinaryDecoder(body.Span.ToArray(), Session.MessageContext);
+                result = new T();
+                result.Decode(decoder);
+                return true;
+            }
+            return false;
         }
 
         /// <summary>

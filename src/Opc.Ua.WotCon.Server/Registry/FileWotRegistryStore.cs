@@ -263,11 +263,16 @@ namespace Opc.Ua.WotCon.Server.Registry
                     if (m_resourceStore is not null)
                     {
                         // An injected store owns the durability of the bytes it holds, so the
-                        // directory fsync below does not apply to it. Content addressing keeps
-                        // the write idempotent, so re-staging an unchanged document is a no-op.
-                        await m_resourceStore
-                            .WriteAsync(blob.Key, 0, ByteString.From(blob.Value), cancellationToken)
-                            .ConfigureAwait(false);
+                        // directory fsync below does not apply to it. Content addressing makes
+                        // matching blobs immutable, so never rewrite one that already verifies.
+                        if (!await ResourceStoreBlobMatchesAsync(
+                                m_resourceStore, blob.Key, blob.Value, cancellationToken)
+                            .ConfigureAwait(false))
+                        {
+                            await m_resourceStore
+                                .WriteAsync(blob.Key, 0, ByteString.From(blob.Value), cancellationToken)
+                                .ConfigureAwait(false);
+                        }
                         continue;
                     }
                     await EnsureBlobAsync(
@@ -839,7 +844,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 RefreshGeneration = resource.RefreshGeneration,
                 LastRefreshTime = FormatDate(resource.LastRefreshTime),
                 MaterializedNodeCount = resource.MaterializedNodeCount,
-                RootNodeId = resource.RootNodeId?.ToString(),
+                RootNodeId = resource.RootNodeId.IsNull ? null : resource.RootNodeId.ToString(),
                 ThingId = resource.ThingId,
                 Title = resource.Title,
                 Diagnostics = resource.Diagnostics.IsDefaultOrEmpty
@@ -1427,6 +1432,33 @@ namespace Opc.Ua.WotCon.Server.Registry
                 .ConfigureAwait(false);
         }
 
+        private static async ValueTask<bool> ResourceStoreBlobMatchesAsync(
+            IXRegistryResourceStore resourceStore,
+            string resourceKey,
+            byte[] expected,
+            CancellationToken cancellationToken)
+        {
+            long length = await resourceStore.GetLengthAsync(resourceKey, cancellationToken)
+                .ConfigureAwait(false);
+            if (length != expected.Length || length < 0 || length > int.MaxValue)
+            {
+                return false;
+            }
+
+            ByteString existing = await resourceStore
+                .ReadAsync(resourceKey, 0, (int)length, cancellationToken)
+                .ConfigureAwait(false);
+            if (existing.IsNull || existing.Length != expected.Length)
+            {
+                return false;
+            }
+
+            return string.Equals(
+                resourceKey,
+                WotContentDigest.ToHex(WotContentDigest.Compute(existing.Span.ToArray())),
+                StringComparison.Ordinal);
+        }
+
         private static async ValueTask DurableWriteAsync(
             string path,
             byte[] bytes,
@@ -1782,11 +1814,11 @@ namespace Opc.Ua.WotCon.Server.Registry
                 : DateTime.MinValue;
         }
 
-        private static NodeId? ParseNodeId(string? value)
+        private static NodeId ParseNodeId(string? value)
         {
             if (string.IsNullOrEmpty(value))
             {
-                return null;
+                return NodeId.Null;
             }
             try
             {
@@ -1794,7 +1826,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             }
             catch (ServiceResultException)
             {
-                return null;
+                return NodeId.Null;
             }
         }
 

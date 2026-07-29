@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client;
+using Opc.Ua.Encoders;
 using Opc.Ua.XRegistry;
 using Opc.Ua.XRegistry.Client;
 
@@ -291,10 +292,129 @@ namespace Opc.Ua.WotCon.Client
             string requestId = "",
             CancellationToken ct = default)
         {
-            (WoTRefreshSummaryDataType summary, ArrayOf<WoTResourceLoadResultDataType> results, uint newGeneration) =
-                await Proxy.RefreshAsync(selection, options, expectedGeneration, requestId, ct)
-                    .ConfigureAwait(false);
+            var request = new CallMethodRequest
+            {
+                ObjectId = RegistryNodeId,
+                MethodId = ExpandedNodeId.ToNodeId(
+                    MethodIds.WoTRegistryType_Refresh,
+                    Session.NamespaceUris),
+                InputArguments =
+                [
+                    Variant.FromStructure(selection),
+                    Variant.FromStructure(options),
+                    new Variant(expectedGeneration),
+                    new Variant(requestId)
+                ]
+            };
+            CallResponse response = await Session
+                .CallAsync(new RequestHeader(), [request], ct)
+                .ConfigureAwait(false);
+            CallMethodResult callResult = response.Results[0];
+            if (StatusCode.IsBad(callResult.StatusCode))
+            {
+                throw new ServiceResultException(callResult.StatusCode);
+            }
+            ArrayOf<Variant> output = callResult.OutputArguments.IsNull
+                ? []
+                : callResult.OutputArguments;
+            if (output.Count < 3)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadUnexpectedError,
+                    "Refresh returned unexpected output arguments.");
+            }
+            bool hasSummary = TryDecodeStructure(
+                output[0], out WoTRefreshSummaryDataType? summary);
+            bool hasResults = TryDecodeStructureArray(
+                output[1], out ArrayOf<WoTResourceLoadResultDataType> results);
+            bool hasGeneration = output[2].TryGetValue(out uint newGeneration);
+            if (!hasSummary || summary is null || !hasResults || !hasGeneration)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadUnexpectedError,
+                    "Refresh returned unexpected output arguments: " +
+                    $"{output[0].TypeInfo}, {output[1].TypeInfo}, {output[2].TypeInfo}.");
+            }
             return new WotRegistryRefreshResult(summary, results, newGeneration);
+        }
+
+        private bool TryDecodeStructure<T>(Variant value, out T? result)
+            where T : class, IEncodeable, new()
+        {
+            result = null;
+#pragma warning disable CS8600 // TryGetStructure/TryGetValue annotate failed output as maybe-null.
+            if (value.TryGetStructure(Session.MessageContext, out T decoded))
+#pragma warning restore CS8600
+            {
+                result = decoded;
+                return true;
+            }
+#pragma warning disable CS8600 // TryGetValue annotates failed output as maybe-null.
+            if (value.TryGetValue(out ExtensionObject extension) &&
+                extension.TryGetValue(out decoded, Session.MessageContext))
+#pragma warning restore CS8600
+            {
+                result = decoded;
+                return true;
+            }
+#pragma warning disable CS8600 // TryGetValue annotates failed output as maybe-null.
+            if (value.TryGetValue(out extension) &&
+                TryDecodeBinaryExtension(extension, out decoded))
+#pragma warning restore CS8600
+            {
+                result = decoded;
+                return true;
+            }
+            return false;
+        }
+
+        private bool TryDecodeStructureArray<T>(Variant value, out ArrayOf<T> result)
+            where T : class, IEncodeable, new()
+        {
+            result = [];
+            if (value.TryGetStructure(Session.MessageContext, out result))
+            {
+                return true;
+            }
+            if (!value.TryGetValue(out ArrayOf<ExtensionObject> extensions))
+            {
+                return false;
+            }
+            var decoded = new T[extensions.Count];
+            for (int i = 0; i < extensions.Count; i++)
+            {
+                if (!extensions[i].TryGetValue(out T? item, Session.MessageContext) &&
+                    !TryDecodeBinaryExtension(extensions[i], out item) ||
+                    item is null)
+                {
+                    return false;
+                }
+                decoded[i] = item;
+            }
+            result = decoded.ToArrayOf();
+            return true;
+        }
+
+        private bool TryDecodeBinaryExtension<T>(ExtensionObject extension, out T? value)
+            where T : class, IEncodeable, new()
+        {
+            value = null;
+            if (!extension.TryGetAsBinary(out ByteString body, Session.MessageContext) || body.IsNull)
+            {
+                return false;
+            }
+            try
+            {
+                using var decoder = new BinaryDecoder(body.Span.ToArray(), Session.MessageContext);
+                value = new T();
+                value.Decode(decoder);
+                return true;
+            }
+            catch (ServiceResultException)
+            {
+                value = null;
+                return false;
+            }
         }
 
         /// <summary>
@@ -363,14 +483,14 @@ namespace Opc.Ua.WotCon.Client
                 if (!groups.TryGetValue(document.GroupId, out WotRegistryGroupClient? group))
                 {
                     (group, _) = await GetOrCreateGroupAsync(document.GroupId, ct).ConfigureAwait(false);
-                    if (group.Kind != document.Kind)
-                    {
-                        throw new ServiceResultException(
-                            StatusCodes.BadInvalidArgument,
-                            $"Registry group '{document.GroupId}' holds {group.Kind} resources; " +
-                            $"the document for resource '{document.ResourceId}' declares {document.Kind}.");
-                    }
                     groups[document.GroupId] = group;
+                }
+                if (group.Kind != document.Kind)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadInvalidArgument,
+                        $"Registry group '{document.GroupId}' holds {group.Kind} resources; " +
+                        $"the document for resource '{document.ResourceId}' declares {document.Kind}.");
                 }
 
                 (WotRegistryResourceClient resource, _, bool created) = await group

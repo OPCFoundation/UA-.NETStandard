@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
@@ -371,8 +372,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     return new ClosureOutcome(results.ToImmutable(), projections);
                 }
 
-                (UANodeSet? nodeSet, ExpandedNodeId? root, string? conversionError) =
-                    TryConvert(member, snapshot);
+                (UANodeSet? nodeSet, ExpandedNodeId root, string? conversionError) =
+                    await TryConvertAsync(member, snapshot, cancellationToken)
+                        .ConfigureAwait(false);
                 if (nodeSet is not null && m_nodeSetContributors.Length > 0)
                 {
                     // Contributors run after conversion and before any variable is created, which
@@ -423,9 +425,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
                 byte[] xml = SerializeNodeSet(nodeSet);
                 perMemberNodeCount[member.Xid] = nodeSet.Items?.Length ?? 0;
-                if (root is { } rootId)
+                if (!root.IsNull)
                 {
-                    perMemberRoot[member.Xid] = rootId;
+                    perMemberRoot[member.Xid] = root;
                 }
                 sources.Add(new WotProjectionSource(
                     member.ResourceId, OwnedModelUris(nodeSet), xml));
@@ -544,8 +546,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 AggregateDigest = aggregateDigest,
                 Generation = generation,
                 MemberXids = [.. members.Select(m => m.Xid)],
+                ModelNamespaceUris = [.. sources.SelectMany(s => s.ModelNamespaceUris)],
                 BindingPlans = [.. bindingPlans]
             };
+            foreach (string namespaceUri in sources.SelectMany(s => s.ModelNamespaceUris))
+            {
+                m_projectionNamespaceUris.Add(namespaceUri);
+            }
 
             foreach (WotBindingPlan plan in bindingPlans)
             {
@@ -556,9 +563,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
             foreach (WotResource member in members)
             {
                 int nodeCount = perMemberNodeCount.TryGetValue(member.Xid, out int c) ? c : 0;
-                NodeId? rootNodeId = perMemberRoot.TryGetValue(member.Xid, out ExpandedNodeId root)
+                NodeId rootNodeId = perMemberRoot.TryGetValue(member.Xid, out ExpandedNodeId root)
                     ? ResolveRootNodeId(root)
-                    : null;
+                    : NodeId.Null;
                 WoTValidationOutcomeDataType validation = SuccessValidation();
                 results.Add(new WoTResourceLoadResultDataType
                 {
@@ -572,7 +579,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     LoadState = WoTLoadStateEnum.Active,
                     Generation = generation,
                     MaterializedNodeCount = (uint)nodeCount,
-                    RootNodeId = rootNodeId ?? NodeId.Null,
+                    RootNodeId = rootNodeId,
                     ContentDigest = DigestOf(member),
                     Message = projectionWarning.Length != 0
                         ? "Projected with warning: " + projectionWarning
@@ -624,18 +631,20 @@ namespace Opc.Ua.WotCon.Server.Materialization
             return retired;
         }
 
-        private (UANodeSet? NodeSet, ExpandedNodeId? Root, string? Error) TryConvert(
-            WotResource resource, WotRegistrySnapshot snapshot)
+        private async ValueTask<(UANodeSet? NodeSet, ExpandedNodeId Root, string? Error)> TryConvertAsync(
+            WotResource resource, WotRegistrySnapshot snapshot, CancellationToken cancellationToken)
         {
             WotResourceVersion? version = resource.DefaultVersion;
             if (version is null)
             {
-                return (null, null, "Resource has no default version.");
+                return (null, default, "Resource has no default version.");
             }
-            WotConversionOutput output = m_converter.Convert(resource, version.Content, snapshot);
+            WotConversionOutput output = await m_converter
+                .ConvertAsync(resource, version.Content, snapshot, cancellationToken)
+                .ConfigureAwait(false);
             if (!output.Succeeded)
             {
-                return (null, null, output.Errors.IsDefaultOrEmpty
+                return (null, default, output.Errors.IsDefaultOrEmpty
                     ? "The document could not be converted to a NodeSet."
                     : string.Join("; ", output.Errors));
             }
@@ -646,22 +655,22 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// Resolves a projection root, recorded before lifecycle add as an
         /// absolute <see cref="ExpandedNodeId"/>, into a concrete server NodeId
         /// once its owning namespace has been registered by the projection host.
-        /// Returns <c>null</c> when there is no root or the namespace table is
+        /// Returns <c>NodeId.Null</c> when there is no root or the namespace table is
         /// unavailable or does not yet contain the owning namespace.
         /// </summary>
-        private NodeId? ResolveRootNodeId(ExpandedNodeId? root)
+        private NodeId ResolveRootNodeId(ExpandedNodeId root)
         {
-            if (root is not { } value || value.IsNull)
+            if (root.IsNull)
             {
-                return null;
+                return NodeId.Null;
             }
             NamespaceTable? namespaces = ServerNamespaceUris;
             if (namespaces is null)
             {
-                return null;
+                return NodeId.Null;
             }
-            var resolved = ExpandedNodeId.ToNodeId(value, namespaces);
-            return resolved.IsNull ? null : resolved;
+            var resolved = ExpandedNodeId.ToNodeId(root, namespaces);
+            return resolved.IsNull ? NodeId.Null : resolved;
         }
 
         private WotBindingPlanRequest BuildPlanRequest(
@@ -837,12 +846,19 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 UANodeSet? dependency;
                 using (stream)
                 {
-                    using var buffer = new MemoryStream();
-                    await stream.CopyToAsync(buffer, 81920, cancellationToken)
+                    MemoryStream? buffer = await CopyResolverDocumentAsync(
+                            stream, uri, unresolved, cancellationToken)
                         .ConfigureAwait(false);
-                    xml = buffer.ToArray();
-                    buffer.Position = 0;
-                    dependency = UANodeSet.Read(buffer);
+                    if (buffer is null)
+                    {
+                        continue;
+                    }
+                    using (buffer)
+                    {
+                        xml = buffer.ToArray();
+                        buffer.Position = 0;
+                        dependency = UANodeSet.Read(buffer);
+                    }
                 }
                 if (dependency is null)
                 {
@@ -879,8 +895,76 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
         private bool IsKnownToServer(string namespaceUri)
         {
+            foreach (ClosureState closure in m_closures.Values)
+            {
+                if (closure.ModelNamespaceUris.Contains(namespaceUri, StringComparer.Ordinal))
+                {
+                    return true;
+                }
+            }
+            if (m_projectionNamespaceUris.Contains(namespaceUri))
+            {
+                return false;
+            }
             NamespaceTable? namespaces = ServerNamespaceUris;
             return namespaces is not null && namespaces.GetIndex(namespaceUri) >= 0;
+        }
+
+        private async ValueTask<MemoryStream?> CopyResolverDocumentAsync(
+            Stream stream,
+            string namespaceUri,
+            ImmutableArray<string>.Builder unresolved,
+            CancellationToken cancellationToken)
+        {
+            int maxBytes = m_converterOptions.MaxResolverDocumentBytes;
+            var buffer = new MemoryStream();
+            var chunk = new byte[81920];
+            bool keepBuffer = false;
+            try
+            {
+                while (true)
+                {
+                    int read = await ReadBlockAsync(stream, chunk, cancellationToken)
+                        .ConfigureAwait(false);
+                    if (read == 0)
+                    {
+                        buffer.Position = 0;
+                        keepBuffer = true;
+                        return buffer;
+                    }
+                    if (buffer.Length + read > maxBytes)
+                    {
+                        unresolved.Add(
+                            namespaceUri +
+                            " (resolver response exceeded " +
+                            maxBytes.ToString(CultureInfo.InvariantCulture) +
+                            " bytes)");
+                        return null;
+                    }
+                    buffer.Write(chunk, 0, read);
+                }
+            }
+            finally
+            {
+                if (!keepBuffer)
+                {
+                    buffer.Dispose();
+                }
+            }
+        }
+
+        private static async ValueTask<int> ReadBlockAsync(
+            Stream stream,
+            byte[] buffer,
+            CancellationToken cancellationToken)
+        {
+#if NETFRAMEWORK || NETSTANDARD2_0
+            return await stream.ReadAsync(buffer, 0, buffer.Length, cancellationToken)
+                .ConfigureAwait(false);
+#else
+            return await stream.ReadAsync(buffer.AsMemory(), cancellationToken)
+                .ConfigureAwait(false);
+#endif
         }
 
         private static IReadOnlyList<WotResource> MembersOf(WotDependencyClosure closure)
@@ -982,7 +1066,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         activeVersionId: null,
                         resource.RefreshGeneration,
                         resource.MaterializedNodeCount,
-                        rootNodeId: null,
+                        rootNodeId: NodeId.Null,
                         validation,
                         string.IsNullOrEmpty(message)
                             ? []
@@ -1116,6 +1200,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             public uint Generation { get; set; }
             public ImmutableArray<string> MemberXids { get; set; } = [];
 
+            public ImmutableArray<string> ModelNamespaceUris { get; set; } = [];
+
             public ImmutableArray<WotBindingPlan> BindingPlans { get; set; }
                 = [];
         }
@@ -1144,6 +1230,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
         private readonly SemaphoreSlim m_mutex = new(1, 1);
 
         private readonly Dictionary<string, ClosureState> m_closures =
+            new(StringComparer.Ordinal);
+        private readonly HashSet<string> m_projectionNamespaceUris =
             new(StringComparer.Ordinal);
 
         private uint m_generation;

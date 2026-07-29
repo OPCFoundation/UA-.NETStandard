@@ -30,6 +30,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Text.Json;
 using Opc.Ua.Export;
 
@@ -452,7 +454,7 @@ namespace Opc.Ua.Wot
         private static UANodeSet? Synthesize(
             WotDocument document,
             WotNodeSetConverterOptions options,
-            IWotThingResolver? thingResolver,
+            WotThingCatalog? thingCatalog,
             WotResolutionContext resolutionContext,
             List<WotDiagnostic> diagnostics)
         {
@@ -594,7 +596,7 @@ namespace Opc.Ua.Wot
             Dictionary<string, string> componentTypedRefs =
                 CollectComponentTypedRefs(document, diagnostics);
             SynthesizeLinks(
-                document, rootReferences, componentTypedRefs, thingResolver,
+                document, rootReferences, componentTypedRefs, thingCatalog,
                 resolutionContext, options, diagnostics);
             SynthesizeComponentArrays(document, rootReferences, componentTypedRefs);
 
@@ -793,10 +795,44 @@ namespace Opc.Ua.Wot
             WotDocument document,
             List<Reference> rootReferences,
             Dictionary<string, string> componentTypedRefs,
-            IWotThingResolver? thingResolver,
+            WotThingCatalog? thingCatalog,
             WotResolutionContext resolutionContext,
             WotNodeSetConverterOptions options,
             List<WotDiagnostic> diagnostics)
+        {
+            foreach ((string href, string? referenceType, bool isExtends) in EnumerateResolvableThingReferences(
+                document,
+                componentTypedRefs,
+                diagnostics))
+            {
+                if (isExtends)
+                {
+                    if (TryResolveTargetNodeId(
+                        href, thingCatalog, resolutionContext, options, diagnostics, out string extendsTarget))
+                    {
+                        SetSuperType(rootReferences, extendsTarget);
+                    }
+                    continue;
+                }
+
+                if (TryResolveTargetNodeId(
+                    href, thingCatalog, resolutionContext, options, diagnostics, out string linkTarget))
+                {
+                    rootReferences.Add(new Reference
+                    {
+                        ReferenceType = referenceType!,
+                        IsForward = true,
+                        Value = linkTarget
+                    });
+                }
+            }
+        }
+
+        private static IEnumerable<(string Reference, string? ReferenceType, bool IsExtends)>
+            EnumerateResolvableThingReferences(
+                WotDocument document,
+                Dictionary<string, string> componentTypedRefs,
+                List<WotDiagnostic> diagnostics)
         {
             foreach (JsonElement link in document.Links)
             {
@@ -809,11 +845,7 @@ namespace Opc.Ua.Wot
 
                 if (string.Equals(rel, "tm:extends", StringComparison.Ordinal))
                 {
-                    if (TryResolveTargetNodeId(
-                        href, thingResolver, resolutionContext, options, diagnostics, out string extendsTarget))
-                    {
-                        SetSuperType(rootReferences, extendsTarget);
-                    }
+                    yield return (href, null, true);
                     continue;
                 }
 
@@ -830,24 +862,14 @@ namespace Opc.Ua.Wot
                     continue;
                 }
 
-                if (!TryResolveLinkReferenceType(
+                if (TryResolveLinkReferenceType(
                     document,
                     link,
                     rel,
                     diagnostics,
                     out string referenceType))
                 {
-                    continue;
-                }
-                if (TryResolveTargetNodeId(
-                    href, thingResolver, resolutionContext, options, diagnostics, out string linkTarget))
-                {
-                    rootReferences.Add(new Reference
-                    {
-                        ReferenceType = referenceType,
-                        IsForward = true,
-                        Value = linkTarget
-                    });
+                    yield return (href, referenceType, false);
                 }
             }
         }
@@ -1166,44 +1188,73 @@ namespace Opc.Ua.Wot
             return "HasComponent";
         }
 
-        private static bool TryResolveTargetNodeId(
+        private static async ValueTask PreresolveThingReferencesAsync(
+            WotDocument document,
+            WotNodeSetConverterOptions options,
+            IWotThingResolver resolver,
+            WotResolutionContext context,
+            WotThingCatalog thingCatalog,
+            List<WotDiagnostic> diagnostics,
+            CancellationToken cancellationToken)
+        {
+            if (document.TryGetEnvelope(out _) ||
+                document.TryGetNativeProjection(out _) ||
+                document.Kind == WotDocumentKind.Unknown)
+            {
+                return;
+            }
+
+            var discoveryDiagnostics = new List<WotDiagnostic>();
+            Dictionary<string, string> componentTypedRefs =
+                CollectComponentTypedRefs(document, discoveryDiagnostics);
+            foreach ((string reference, _, _) in EnumerateResolvableThingReferences(
+                document,
+                componentTypedRefs,
+                discoveryDiagnostics))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (IsNodeId(reference))
+                {
+                    continue;
+                }
+
+                string? nodeId = await ResolveTargetNodeIdAsync(
+                    reference,
+                    resolver,
+                    context,
+                    options,
+                    diagnostics,
+                    cancellationToken).ConfigureAwait(false);
+                thingCatalog.Add(reference, nodeId);
+            }
+        }
+
+        private static async ValueTask<string?> ResolveTargetNodeIdAsync(
             string reference,
-            IWotThingResolver? resolver,
+            IWotThingResolver resolver,
             WotResolutionContext context,
             WotNodeSetConverterOptions options,
             List<WotDiagnostic> diagnostics,
-            out string nodeId)
+            CancellationToken cancellationToken)
         {
-            if (IsNodeId(reference))
-            {
-                nodeId = reference;
-                return true;
-            }
-            nodeId = string.Empty;
-            if (resolver is null)
-            {
-                diagnostics.Add(new WotDiagnostic(
-                    WotDiagnosticSeverity.Warning,
-                    WotDiagnosticCode.UnresolvedReference,
-                    $"The reference '{reference}' could not be resolved to a NodeId without an external resolver.",
-                    new WotLocation(reference: reference)));
-                return false;
-            }
-
             var entered = new List<string>();
             try
             {
                 string current = reference;
                 while (true)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     if (!context.TryEnter(WotResolutionKind.Thing, current, out WotDiagnostic? blocking))
                     {
                         diagnostics.Add(blocking!);
-                        return false;
+                        return null;
                     }
                     entered.Add(current);
 
-                    WotResolverResult result = resolver.ResolveThing(current, context);
+                    WotResolverResult result = await resolver.ResolveThingAsync(
+                        current,
+                        context,
+                        cancellationToken).ConfigureAwait(false);
                     if (!result.Found)
                     {
                         diagnostics.Add(new WotDiagnostic(
@@ -1211,20 +1262,19 @@ namespace Opc.Ua.Wot
                             WotDiagnosticCode.ResolverNotFound,
                             $"The referenced document '{current}' could not be resolved.",
                             new WotLocation(reference: current)));
-                        return false;
+                        return null;
                     }
                     if (!context.TryAddBytes(current, result.Content.Length, out WotDiagnostic? limit))
                     {
                         diagnostics.Add(limit!);
-                        return false;
+                        return null;
                     }
 
                     using WotDocument resolved = WotDocument.Parse(result.Content, options);
                     string? resolvedId = GetUavString(resolved, "id");
                     if (resolvedId is not null)
                     {
-                        nodeId = resolvedId;
-                        return true;
+                        return resolvedId;
                     }
                     string? congruent = GetUavString(resolved, "congruentType");
                     if (congruent is not null &&
@@ -1238,7 +1288,7 @@ namespace Opc.Ua.Wot
                         WotDiagnosticCode.UnresolvedReference,
                         $"The referenced document '{current}' does not declare a uav:id.",
                         new WotLocation(reference: current)));
-                    return false;
+                    return null;
                 }
             }
             finally
@@ -1248,6 +1298,50 @@ namespace Opc.Ua.Wot
                     context.Leave(entered[ii]);
                 }
             }
+        }
+
+        private static bool TryResolveTargetNodeId(
+            string reference,
+            WotThingCatalog? thingCatalog,
+            WotResolutionContext context,
+            WotNodeSetConverterOptions options,
+            List<WotDiagnostic> diagnostics,
+            out string nodeId)
+        {
+            if (IsNodeId(reference))
+            {
+                nodeId = reference;
+                return true;
+            }
+            nodeId = string.Empty;
+            if (thingCatalog is null)
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Warning,
+                    WotDiagnosticCode.UnresolvedReference,
+                    $"The reference '{reference}' could not be resolved to a NodeId without an external resolver.",
+                    new WotLocation(reference: reference)));
+                return false;
+            }
+
+            if (thingCatalog.TryTake(reference, out string? resolvedNodeId))
+            {
+                if (resolvedNodeId is null)
+                {
+                    return false;
+                }
+                nodeId = resolvedNodeId;
+                return true;
+            }
+
+            diagnostics.Add(new WotDiagnostic(
+                WotDiagnosticSeverity.Warning,
+                WotDiagnosticCode.UnresolvedReference,
+                $"The reference '{reference}' was not pre-resolved before synchronous conversion.",
+                new WotLocation(reference: reference)));
+            _ = context;
+            _ = options;
+            return false;
         }
 
         private static void ReportUnsupportedSchema(

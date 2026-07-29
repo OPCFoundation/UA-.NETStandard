@@ -258,9 +258,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Items = []
             };
 
-            ExpandedNodeId? root = WotNodeSetConverter.TrySelectProjectionRoot(emptyNodeSet);
+            ExpandedNodeId root = WotNodeSetConverter.TrySelectProjectionRoot(emptyNodeSet);
 
-            Assert.That(root.HasValue, Is.False);
+            Assert.That(root.IsNull, Is.True);
         }
 
         [Test]
@@ -268,10 +268,9 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             UANodeSet nodeSet = WotTestData.CreateRichNodeSet();
 
-            ExpandedNodeId? root = WotNodeSetConverter.TrySelectProjectionRoot(nodeSet);
+            ExpandedNodeId root = WotNodeSetConverter.TrySelectProjectionRoot(nodeSet);
 
-            Assert.That(root.HasValue, Is.True);
-            Assert.That(root!.Value.IsNull, Is.False);
+            Assert.That(root.IsNull, Is.False);
         }
 
         [Test]

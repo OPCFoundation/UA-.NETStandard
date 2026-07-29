@@ -27,12 +27,12 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace WotFlatTagServer
+namespace FlatTagServer
 {
     /// <summary>
     /// Configures one deterministic flat-tag source server.
     /// </summary>
-    public sealed class WotFlatTagServerOptions
+    public sealed class FlatTagServerOptions
     {
         /// <summary>
         /// Source A namespace URI.
@@ -69,7 +69,7 @@ namespace WotFlatTagServer
         /// <summary>
         /// Gets or sets the OPC UA application name.
         /// </summary>
-        public string ApplicationName { get; set; } = "WotFlatTagServer";
+        public string ApplicationName { get; set; } = "FlatTagServer";
 
         /// <summary>
         /// Gets or sets the isolated PKI root.
@@ -84,13 +84,13 @@ namespace WotFlatTagServer
         /// <summary>
         /// Gets or sets the deterministic values exposed by this source.
         /// </summary>
-        public WotFlatTagValues Values { get; set; } = new();
+        public FlatTagValues Values { get; set; } = new();
     }
 
     /// <summary>
     /// Deterministic values used by both source instances.
     /// </summary>
-    public sealed class WotFlatTagValues
+    public sealed class FlatTagValues
     {
         /// <summary>
         /// Gets or sets the differential pressure.

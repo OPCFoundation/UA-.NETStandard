@@ -121,5 +121,109 @@ namespace Opc.Ua.XRegistry
                 Assert.That(verbatim.Span.ToArray(), Is.EqualTo(new byte[] { 2 }));
             });
         }
+
+        [Test]
+        public void WriteWithoutAtomicReplaceCapabilityFailsClearly()
+        {
+            using var fileSystem = new VirtualFileSystem();
+            using var store = new WotBlobResourceStore("blobs", new NonAtomicFileSystem(fileSystem));
+
+            IOException ex = Assert.ThrowsAsync<IOException>(
+                async () => await store.WriteAsync("blob", 0, ByteString.From([1, 2, 3]))
+                    .ConfigureAwait(false))!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    ex.Message,
+                    Does.Contain("requires a file system that supports atomic file replacement"));
+                Assert.That(fileSystem.Exists(Path.Combine("blobs", "blob.bin")), Is.False);
+            });
+        }
+
+        [Test]
+        public async Task WriteUsesAtomicReplaceCapabilityAsync()
+        {
+            using var fileSystem = new VirtualFileSystem();
+            var atomic = new CountingAtomicFileSystem(fileSystem);
+            using var store = new WotBlobResourceStore("blobs", atomic);
+
+            await store.WriteAsync("blob", 0, ByteString.From([4, 5, 6])).ConfigureAwait(false);
+            ByteString read = await store.ReadAsync("blob", 0, 16).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(atomic.ReplaceCount, Is.EqualTo(1));
+                Assert.That(read.Span.ToArray(), Is.EqualTo(new byte[] { 4, 5, 6 }));
+                Assert.That(LocalFileSystem.Instance, Is.AssignableTo<IAtomicFileReplace>());
+                Assert.That(fileSystem, Is.AssignableTo<IAtomicFileReplace>());
+            });
+        }
+
+        private sealed class NonAtomicFileSystem : IFileSystem
+        {
+            public NonAtomicFileSystem(IFileSystem inner)
+            {
+                m_inner = inner;
+            }
+
+            public bool Exists(string path, bool isDirectory = false)
+                => m_inner.Exists(path, isDirectory);
+
+            public void Delete(string path, bool isDirectory = false)
+                => m_inner.Delete(path, isDirectory);
+
+            public Stream OpenRead(string path)
+                => m_inner.OpenRead(path);
+
+            public Stream OpenWrite(string path)
+                => m_inner.OpenWrite(path);
+
+            public System.DateTime GetLastWriteTime(string path)
+                => m_inner.GetLastWriteTime(path);
+
+            public long GetLength(string path)
+                => m_inner.GetLength(path);
+
+            private readonly IFileSystem m_inner;
+        }
+
+        private sealed class CountingAtomicFileSystem : IFileSystem, IAtomicFileReplace
+        {
+            public CountingAtomicFileSystem(IFileSystem inner)
+            {
+                m_inner = inner;
+                m_atomic = (IAtomicFileReplace)inner;
+            }
+
+            public int ReplaceCount { get; private set; }
+
+            public bool Exists(string path, bool isDirectory = false)
+                => m_inner.Exists(path, isDirectory);
+
+            public void Delete(string path, bool isDirectory = false)
+                => m_inner.Delete(path, isDirectory);
+
+            public Stream OpenRead(string path)
+                => m_inner.OpenRead(path);
+
+            public Stream OpenWrite(string path)
+                => m_inner.OpenWrite(path);
+
+            public System.DateTime GetLastWriteTime(string path)
+                => m_inner.GetLastWriteTime(path);
+
+            public long GetLength(string path)
+                => m_inner.GetLength(path);
+
+            public void Replace(string sourcePath, string destinationPath)
+            {
+                ReplaceCount++;
+                m_atomic.Replace(sourcePath, destinationPath);
+            }
+
+            private readonly IFileSystem m_inner;
+            private readonly IAtomicFileReplace m_atomic;
+        }
     }
 }

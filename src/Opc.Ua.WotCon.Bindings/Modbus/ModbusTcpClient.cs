@@ -55,7 +55,7 @@ namespace Opc.Ua.WotCon.Bindings.Modbus
 
         /// <summary>
         /// Connects (or reconnects) the underlying TCP socket. The connect is
-        /// serialised with in-flight transactions so a reconnect after a fault is
+        /// serialized with in-flight transactions so a reconnect after a fault is
         /// deterministic and thread-safe: any prior (possibly faulted) socket is
         /// disposed first and a fresh connection replaces it atomically.
         /// </summary>
@@ -66,26 +66,7 @@ namespace Opc.Ua.WotCon.Bindings.Modbus
             await m_writeLock.WaitAsync(timeout.Token).ConfigureAwait(false);
             try
             {
-                // Dispose any prior (possibly faulted) connection so a reconnect
-                // always starts from a clean, deterministic state.
-                m_stream?.Dispose();
-                m_client?.Dispose();
-                m_stream = null;
-                m_client = null;
-
-                var client = new TcpClient { NoDelay = true };
-                try
-                {
-                    await client.ConnectAsync(m_host, m_port, timeout.Token).ConfigureAwait(false);
-                }
-                catch
-                {
-                    client.Dispose();
-                    throw;
-                }
-                m_client = client;
-                m_stream = client.GetStream();
-                m_faulted = false;
+                await ReconnectCoreAsync(timeout.Token).ConfigureAwait(false);
             }
             finally
             {
@@ -333,10 +314,13 @@ namespace Opc.Ua.WotCon.Bindings.Modbus
             await m_writeLock.WaitAsync(timeout.Token).ConfigureAwait(false);
             try
             {
+                if (m_stream is null && m_faulted)
+                {
+                    await ReconnectCoreAsync(timeout.Token).ConfigureAwait(false);
+                }
+
                 NetworkStream? stream = m_stream ??
-                    throw new ModbusException(m_faulted
-                        ? "The Modbus connection was faulted by a previous error and must be reconnected."
-                        : "The Modbus client is not connected.");
+                    throw new ModbusException("The Modbus client is not connected.");
 
                 byte[] responsePdu;
                 try
@@ -362,9 +346,8 @@ namespace Opc.Ua.WotCon.Bindings.Modbus
                 {
                     // A timeout, cancellation, transport error, transaction-id
                     // mismatch or truncated/invalid frame leaves the stream in an
-                    // unknown, desynchronized state. Fault the connection so every
-                    // subsequent operation fails fast until a fresh ConnectAsync
-                    // re-establishes the socket.
+                    // unknown, desynchronized state. Fault the connection so the
+                    // next operation establishes a fresh socket before sending.
                     FaultConnection();
                     throw;
                 }
@@ -404,6 +387,30 @@ namespace Opc.Ua.WotCon.Bindings.Modbus
             m_client?.Dispose();
             m_stream = null;
             m_client = null;
+        }
+
+        private async ValueTask ReconnectCoreAsync(CancellationToken cancellationToken)
+        {
+            // Dispose any prior (possibly faulted) connection so a reconnect
+            // always starts from a clean, deterministic state.
+            m_stream?.Dispose();
+            m_client?.Dispose();
+            m_stream = null;
+            m_client = null;
+
+            var client = new TcpClient { NoDelay = true };
+            try
+            {
+                await client.ConnectAsync(m_host, m_port, cancellationToken).ConfigureAwait(false);
+            }
+            catch
+            {
+                client.Dispose();
+                throw;
+            }
+            m_client = client;
+            m_stream = client.GetStream();
+            m_faulted = false;
         }
 
         private static async ValueTask<byte[]> ReadExactAsync(

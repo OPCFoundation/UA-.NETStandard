@@ -35,7 +35,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.WotCon.Bindings;
 using Opc.Ua.WotCon.Bindings.Planners;
-using Opc.Ua.WotCon.Bindings.Samples;
+using Opc.Ua.WotCon.Tests.Support;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
 

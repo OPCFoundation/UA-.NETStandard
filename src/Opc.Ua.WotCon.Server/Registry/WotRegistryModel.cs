@@ -220,7 +220,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             uint refreshGeneration = 0,
             DateTime lastRefreshTime = default,
             int materializedNodeCount = 0,
-            NodeId? rootNodeId = null,
+            NodeId rootNodeId = default,
             string? name = null,
             string? description = null,
             string? thingId = null,
@@ -333,7 +333,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// <summary>
         /// Gets the root node of the active projection, if any.
         /// </summary>
-        public NodeId? RootNodeId { get; }
+        public NodeId RootNodeId { get; }
 
         /// <summary>
         /// Gets the resource display name.
@@ -408,7 +408,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             uint? refreshGeneration = null,
             DateTime? lastRefreshTime = null,
             int? materializedNodeCount = null,
-            NodeId? rootNodeId = null,
+            NodeId rootNodeId = default,
             string? name = null,
             string? description = null,
             string? thingId = null,
@@ -434,7 +434,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 refreshGeneration ?? RefreshGeneration,
                 lastRefreshTime ?? LastRefreshTime,
                 materializedNodeCount ?? MaterializedNodeCount,
-                clearRootNodeId ? null : (rootNodeId ?? RootNodeId),
+                clearRootNodeId ? NodeId.Null : (rootNodeId.IsNull ? RootNodeId : rootNodeId),
                 name ?? Name,
                 description ?? Description,
                 thingId ?? ThingId,

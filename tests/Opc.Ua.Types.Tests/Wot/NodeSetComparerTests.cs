@@ -28,6 +28,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Linq;
 using System.Text;
 using System.Xml;
@@ -85,9 +86,55 @@ namespace Opc.Ua.Types.Tests.Wot
             }
             byte[] compact = Encoding.UTF8.GetBytes(document.OuterXml);
 
-            NodeSetComparisonResult result = NodeSetComparer.CompareXml(indented, compact);
+            NodeSetComparisonResult result = NodeSetComparer.CompareXml(indented.AsSpan(), compact.AsSpan());
 
             Assert.That(result.AreEquivalent, Is.True);
+        }
+
+        [Test]
+        public void CompareXmlAcceptsReadOnlySpanSlices()
+        {
+            byte[] xml = CreateNestedXml(2);
+            byte[] paddedLeft = [0, .. xml, 0];
+            byte[] paddedRight = [1, .. xml, 1];
+
+            NodeSetComparisonResult result = NodeSetComparer.CompareXml(
+                paddedLeft.AsSpan(1, xml.Length),
+                paddedRight.AsSpan(1, xml.Length));
+
+            Assert.That(result.AreEquivalent, Is.True);
+        }
+
+        [Test]
+        public void MaxXmlDepthAllowsDocumentAtConfiguredLimit()
+        {
+            byte[] xml = CreateNestedXml(4);
+            var options = new WotNodeSetConverterOptions
+            {
+                MaxXmlDepth = 4
+            };
+
+            NodeSetComparisonResult result = NodeSetComparer.CompareXml(xml, xml, options);
+
+            Assert.That(result.AreEquivalent, Is.True);
+            Assert.That(result.Differences, Is.Empty);
+        }
+
+        [Test]
+        public void MaxXmlDepthRejectsDocumentPastConfiguredLimit()
+        {
+            byte[] xml = CreateNestedXml(5);
+            var options = new WotNodeSetConverterOptions
+            {
+                MaxXmlDepth = 4
+            };
+
+            NodeSetComparisonResult result = NodeSetComparer.CompareXml(xml, xml, options);
+
+            Assert.That(result.AreEquivalent, Is.False);
+            Assert.That(
+                result.Differences,
+                Has.Some.Contains("NodeSet XML exceeds the configured maximum depth of 4."));
         }
 
         [Test]
@@ -103,6 +150,20 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(
                 report.Diagnostics.Any(d => d.Severity == WotDiagnosticSeverity.Error),
                 Is.False);
+        }
+
+        private static byte[] CreateNestedXml(int depth)
+        {
+            var builder = new StringBuilder();
+            for (int ii = 0; ii < depth; ii++)
+            {
+                builder.Append("<n").Append(ii).Append('>');
+            }
+            for (int ii = depth - 1; ii >= 0; ii--)
+            {
+                builder.Append("</n").Append(ii).Append('>');
+            }
+            return Encoding.UTF8.GetBytes(builder.ToString());
         }
     }
 }

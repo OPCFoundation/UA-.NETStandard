@@ -33,6 +33,8 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Security.Cryptography;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Text.Json;
 using Opc.Ua.Export;
 
@@ -141,7 +143,7 @@ namespace Opc.Ua.Wot
                 if (reconstructed is not null && !HasErrors(reconstructionDiagnostics))
                 {
                     NodeSetComparisonResult comparison =
-                        NodeSetComparer.Compare(nodeSet, reconstructed);
+                        NodeSetComparer.Compare(nodeSet, reconstructed, options);
                     nativeComplete = comparison.AreEquivalent;
                     if (!nativeComplete && comparison.Differences.Count > 0)
                     {
@@ -270,7 +272,7 @@ namespace Opc.Ua.Wot
             WotConversionResult<UANodeSet> result =
                 ToNodeSetResult(document, options);
             return result.Success &&
-                NodeSetComparer.Compare(source, result.Value!).AreEquivalent;
+                NodeSetComparer.Compare(source, result.Value!, options).AreEquivalent;
         }
 
         private static byte[] RemoveRootMembers(
@@ -344,18 +346,18 @@ namespace Opc.Ua.Wot
         /// Thing Description projects - and returns it as an absolute
         /// <see cref="ExpandedNodeId"/> whose <see cref="ExpandedNodeId.NamespaceUri"/>
         /// is resolved from the NodeSet's own namespace table. Returns
-        /// <c>null</c> when the NodeSet carries no nodes or the root NodeId
-        /// cannot be parsed.
+        /// <c>ExpandedNodeId.Null</c> when the NodeSet carries no nodes or the
+        /// root NodeId cannot be parsed.
         /// </summary>
         /// <param name="nodeSet">The projected NodeSet2 document.</param>
         /// <returns>
-        /// The root node as an absolute ExpandedNodeId, or <c>null</c> when the
-        /// NodeSet has no identifiable root.
+        /// The root node as an absolute ExpandedNodeId, or
+        /// <c>ExpandedNodeId.Null</c> when the NodeSet has no identifiable root.
         /// </returns>
         /// <exception cref="ArgumentNullException">
         /// Thrown when <paramref name="nodeSet"/> is <c>null</c>.
         /// </exception>
-        public static ExpandedNodeId? TrySelectProjectionRoot(UANodeSet nodeSet)
+        public static ExpandedNodeId TrySelectProjectionRoot(UANodeSet nodeSet)
         {
             if (nodeSet is null)
             {
@@ -364,7 +366,7 @@ namespace Opc.Ua.Wot
             UANode? root = SelectRootNode(nodeSet);
             if (root?.NodeId is not { Length: > 0 } rawNodeId)
             {
-                return null;
+                return ExpandedNodeId.Null;
             }
             NodeId parsed;
             try
@@ -373,7 +375,7 @@ namespace Opc.Ua.Wot
             }
             catch (ServiceResultException)
             {
-                return null;
+                return ExpandedNodeId.Null;
             }
             ushort localIndex = parsed.NamespaceIndex;
             string namespaceUri;
@@ -388,7 +390,7 @@ namespace Opc.Ua.Wot
             }
             else
             {
-                return null;
+                return ExpandedNodeId.Null;
             }
             return new ExpandedNodeId(parsed, namespaceUri);
         }
@@ -401,12 +403,51 @@ namespace Opc.Ua.Wot
         /// <param name="options">Resource limits; defaults are used when omitted.</param>
         /// <param name="thingResolver">An optional resolver for referenced TD/TM documents.</param>
         /// <param name="resolutionContext">An optional resolution context for cycle and limit tracking.</param>
+        /// <param name="cancellationToken">A token that cancels asynchronous resolution.</param>
         /// <returns>The conversion result and its diagnostics.</returns>
-        public static WotConversionResult<UANodeSet> ToNodeSetResult(
+        public static async ValueTask<WotConversionResult<UANodeSet>> ToNodeSetResultAsync(
             WotDocument document,
             WotNodeSetConverterOptions? options = null,
             IWotThingResolver? thingResolver = null,
-            WotResolutionContext? resolutionContext = null)
+            WotResolutionContext? resolutionContext = null,
+            CancellationToken cancellationToken = default)
+        {
+            if (document is null)
+            {
+                throw new ArgumentNullException(nameof(document));
+            }
+            var diagnostics = new List<WotDiagnostic>();
+            WotThingCatalog? thingCatalog = null;
+            if (thingResolver is not null)
+            {
+                options ??= new WotNodeSetConverterOptions();
+                options.Validate();
+                resolutionContext ??= new WotResolutionContext(options.ToResolverOptions());
+                thingCatalog = new WotThingCatalog();
+                await PreresolveThingReferencesAsync(
+                    document,
+                    options,
+                    thingResolver,
+                    resolutionContext,
+                    thingCatalog,
+                    diagnostics,
+                    cancellationToken).ConfigureAwait(false);
+            }
+            UANodeSet? nodeSet = ToNodeSetCore(
+                document, options, thingCatalog, resolutionContext, diagnostics);
+            return new WotConversionResult<UANodeSet>(nodeSet, diagnostics);
+        }
+
+        /// <summary>
+        /// Restores or synthesizes the NodeSet2 document described by a WoT
+        /// document, returning structured diagnostics together with the result.
+        /// </summary>
+        /// <param name="document">The WoT document.</param>
+        /// <param name="options">Resource limits; defaults are used when omitted.</param>
+        /// <returns>The conversion result and its diagnostics.</returns>
+        public static WotConversionResult<UANodeSet> ToNodeSetResult(
+            WotDocument document,
+            WotNodeSetConverterOptions? options = null)
         {
             if (document is null)
             {
@@ -414,14 +455,14 @@ namespace Opc.Ua.Wot
             }
             var diagnostics = new List<WotDiagnostic>();
             UANodeSet? nodeSet = ToNodeSetCore(
-                document, options, thingResolver, resolutionContext, diagnostics);
+                document, options, null, null, diagnostics);
             return new WotConversionResult<UANodeSet>(nodeSet, diagnostics);
         }
 
         private static UANodeSet? ToNodeSetCore(
             WotDocument document,
             WotNodeSetConverterOptions? options,
-            IWotThingResolver? thingResolver,
+            WotThingCatalog? thingCatalog,
             WotResolutionContext? resolutionContext,
             List<WotDiagnostic> diagnostics)
         {
@@ -465,7 +506,7 @@ namespace Opc.Ua.Wot
             }
 
             UANodeSet? synthesized =
-                Synthesize(document, options, thingResolver, resolutionContext, diagnostics);
+                Synthesize(document, options, thingCatalog, resolutionContext, diagnostics);
             if (synthesized is not null)
             {
                 WotJsonResidue.Replace(synthesized, document, options, diagnostics);
@@ -627,7 +668,8 @@ namespace Opc.Ua.Wot
                 return;
             }
 
-            NodeSetComparisonResult comparison = NodeSetComparer.Compare(baseline, projected);
+            NodeSetComparisonResult comparison =
+                NodeSetComparer.Compare(baseline, projected, options);
             if (!comparison.AreEquivalent)
             {
                 diagnostics.Add(new WotDiagnostic(

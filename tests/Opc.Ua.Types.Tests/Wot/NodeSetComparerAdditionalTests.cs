@@ -28,6 +28,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Linq;
 using NUnit.Framework;
 using Opc.Ua.Export;
@@ -37,7 +38,7 @@ namespace Opc.Ua.Types.Tests.Wot
 {
     /// <summary>
     /// Additional tests for NodeSetComparer covering difference-reporting,
-    /// null guards, and roundtrip-with-envelope paths.
+    /// guards, and roundtrip-with-envelope paths.
     /// </summary>
     [TestFixture]
     [Category("WoT")]
@@ -112,23 +113,27 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         [Test]
-        public void CompareXmlNullLeftThrows()
+        public void CompareXmlDifferentLeftSpanReportsDifference()
         {
             byte[] right = WotTestData.Serialize(WotTestData.CreateReconstructableNodeSet());
+            byte[] left = System.Text.Encoding.UTF8.GetBytes("<Different />");
 
-            Assert.That(
-                () => NodeSetComparer.CompareXml(null!, right),
-                Throws.TypeOf<System.ArgumentNullException>());
+            NodeSetComparisonResult result = NodeSetComparer.CompareXml(left.AsSpan(), right.AsSpan());
+
+            Assert.That(result.AreEquivalent, Is.False);
+            Assert.That(result.Differences, Is.Not.Empty);
         }
 
         [Test]
-        public void CompareXmlNullRightThrows()
+        public void CompareXmlDifferentRightSpanReportsDifference()
         {
             byte[] left = WotTestData.Serialize(WotTestData.CreateReconstructableNodeSet());
+            byte[] right = System.Text.Encoding.UTF8.GetBytes("<Different />");
 
-            Assert.That(
-                () => NodeSetComparer.CompareXml(left, null!),
-                Throws.TypeOf<System.ArgumentNullException>());
+            NodeSetComparisonResult result = NodeSetComparer.CompareXml(left.AsSpan(), right.AsSpan());
+
+            Assert.That(result.AreEquivalent, Is.False);
+            Assert.That(result.Differences, Is.Not.Empty);
         }
 
         [Test]

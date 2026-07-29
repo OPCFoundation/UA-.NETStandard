@@ -124,6 +124,12 @@ namespace Opc.Ua.WotCon.Bindings.Modbus
                     StatusCodes.BadCommunicationError,
                     DataValue.FromStatusCode(StatusCodes.BadCommunicationError), ex.Message);
             }
+            catch (System.Net.Sockets.SocketException ex)
+            {
+                return new WotReadResult(
+                    StatusCodes.BadCommunicationError,
+                    DataValue.FromStatusCode(StatusCodes.BadCommunicationError), ex.Message);
+            }
         }
 
         public async ValueTask<WotWriteResult> WriteAsync(
@@ -228,6 +234,10 @@ namespace Opc.Ua.WotCon.Bindings.Modbus
                 return new WotWriteResult(StatusCodes.BadTimeout, "The Modbus request timed out.");
             }
             catch (System.IO.IOException ex)
+            {
+                return new WotWriteResult(StatusCodes.BadCommunicationError, ex.Message);
+            }
+            catch (System.Net.Sockets.SocketException ex)
             {
                 return new WotWriteResult(StatusCodes.BadCommunicationError, ex.Message);
             }

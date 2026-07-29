@@ -37,9 +37,9 @@ using Microsoft.Extensions.Hosting;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.WotCon.Client;
-using WotAggregationClient;
-using WotAggregationServer;
-using WotFlatTagServer;
+using AggregationClient;
+using AggregationServer;
+using FlatTagServer;
 
 namespace Opc.Ua.WotCon.Samples.Tests
 {
@@ -50,9 +50,9 @@ namespace Opc.Ua.WotCon.Samples.Tests
             IHost sourceAHost,
             IHost sourceBHost,
             IHost aggregationHost,
-            WotAggregationClientOptions clientOptions,
-            WotFlatTagValues sourceAValues,
-            WotFlatTagValues sourceBValues)
+            AggregationClientOptions clientOptions,
+            FlatTagValues sourceAValues,
+            FlatTagValues sourceBValues)
         {
             Root = root;
             SourceAHost = sourceAHost;
@@ -71,11 +71,11 @@ namespace Opc.Ua.WotCon.Samples.Tests
 
         public IHost AggregationHost { get; }
 
-        public WotAggregationClientOptions ClientOptions { get; }
+        public AggregationClientOptions ClientOptions { get; }
 
-        public WotFlatTagValues SourceAValues { get; }
+        public FlatTagValues SourceAValues { get; }
 
-        public WotFlatTagValues SourceBValues { get; }
+        public FlatTagValues SourceBValues { get; }
 
         public string DocumentsDirectory => FindDocumentsDirectory();
 
@@ -96,9 +96,9 @@ namespace Opc.Ua.WotCon.Samples.Tests
             string sourceAEndpoint = $"opc.tcp://127.0.0.1:{sourceAPort}/SourceA";
             string sourceBEndpoint = $"opc.tcp://127.0.0.1:{sourceBPort}/SourceB";
             string aggregationEndpoint =
-                $"opc.tcp://127.0.0.1:{aggregationPort}/WotAggregationServer";
+                $"opc.tcp://127.0.0.1:{aggregationPort}/AggregationServer";
 
-            var sourceAValues = new WotFlatTagValues
+            var sourceAValues = new FlatTagValues
             {
                 DifferentialPressure = 111.25,
                 FluidTemperature = 301.15,
@@ -111,7 +111,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 NumberOfStarts = 99,
                 MotorOverheat = false
             };
-            var sourceBValues = new WotFlatTagValues
+            var sourceBValues = new FlatTagValues
             {
                 DifferentialPressure = 222.5,
                 FluidTemperature = 310.15,
@@ -125,37 +125,37 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 MotorOverheat = true
             };
 
-            IHost sourceAHost = WotFlatTagServerHost.Build(new WotFlatTagServerOptions
+            IHost sourceAHost = FlatTagServerHost.Build(new FlatTagServerOptions
             {
                 EndpointUrl = sourceAEndpoint,
-                SourceNamespaceUri = WotFlatTagServerOptions.SourceANamespaceUri,
-                ApplicationName = $"WotFlatTagServerSourceA{id}",
+                SourceNamespaceUri = FlatTagServerOptions.SourceANamespaceUri,
+                ApplicationName = $"FlatTagServerSourceA{id}",
                 InstanceName = "SourceA",
                 PkiRoot = Path.Combine(root, "SourceA", "pki"),
                 Values = sourceAValues
             });
-            IHost sourceBHost = WotFlatTagServerHost.Build(new WotFlatTagServerOptions
+            IHost sourceBHost = FlatTagServerHost.Build(new FlatTagServerOptions
             {
                 EndpointUrl = sourceBEndpoint,
-                SourceNamespaceUri = WotFlatTagServerOptions.SourceBNamespaceUri,
-                ApplicationName = $"WotFlatTagServerSourceB{id}",
+                SourceNamespaceUri = FlatTagServerOptions.SourceBNamespaceUri,
+                ApplicationName = $"FlatTagServerSourceB{id}",
                 InstanceName = "SourceB",
                 PkiRoot = Path.Combine(root, "SourceB", "pki"),
                 Values = sourceBValues
             });
-            IHost aggregationHost = WotAggregationServerHost.Build(
-                new WotAggregationServerOptions
+            IHost aggregationHost = AggregationServerHost.Build(
+                new AggregationServerOptions
                 {
                     EndpointUrl = aggregationEndpoint,
-                    ApplicationName = $"WotAggregationServer{id}",
+                    ApplicationName = $"AggregationServer{id}",
                     PkiRoot = Path.Combine(root, "Aggregation", "pki")
                 });
-            var clientOptions = new WotAggregationClientOptions
+            var clientOptions = new AggregationClientOptions
             {
                 AggregationEndpoint = aggregationEndpoint,
                 SourceAEndpoint = sourceAEndpoint,
                 SourceBEndpoint = sourceBEndpoint,
-                ApplicationName = $"WotAggregationClient{id}",
+                ApplicationName = $"AggregationClient{id}",
                 PkiRoot = Path.Combine(root, "Client", "pki"),
                 DocumentsDirectory = FindDocumentsDirectory()
             };
@@ -185,12 +185,12 @@ namespace Opc.Ua.WotCon.Samples.Tests
             }
         }
 
-        public WotAggregationClientOptions CreateClientOptions(
+        public AggregationClientOptions CreateClientOptions(
             string documentsDirectory,
             string? sourceAEndpoint = null,
             string? sourceBEndpoint = null)
         {
-            return new WotAggregationClientOptions
+            return new AggregationClientOptions
             {
                 AggregationEndpoint = ClientOptions.AggregationEndpoint,
                 SourceAEndpoint = sourceAEndpoint ?? ClientOptions.SourceAEndpoint,
@@ -204,7 +204,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
         public Task<WotClientConnection> ConnectAsync(
             CancellationToken cancellationToken)
         {
-            WotAggregationClientOptions options = CreateClientOptions(DocumentsDirectory);
+            AggregationClientOptions options = CreateClientOptions(DocumentsDirectory);
             return WotClientConnection.CreateAsync(options, cancellationToken);
         }
 
@@ -311,7 +311,8 @@ namespace Opc.Ua.WotCon.Samples.Tests
                     string documents = Path.Combine(
                         directory.FullName,
                         "samples",
-                        "WotAggregationClient",
+                        "WotCon",
+                        "AggregationClient",
                         "Documents");
                     if (Directory.Exists(documents))
                     {
@@ -321,7 +322,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 directory = directory.Parent;
             }
             throw new DirectoryNotFoundException(
-                "The checked-in samples\\WotAggregationClient\\Documents directory was not found.");
+                "The checked-in samples\\AggregationClient\\Documents directory was not found.");
         }
     }
 
@@ -341,10 +342,10 @@ namespace Opc.Ua.WotCon.Samples.Tests
         public WotRegistryClient Registry { get; }
 
         public static async Task<WotClientConnection> CreateAsync(
-            WotAggregationClientOptions options,
+            AggregationClientOptions options,
             CancellationToken cancellationToken)
         {
-            IHost host = WotAggregationClientRunner.BuildHost(options);
+            IHost host = AggregationClientRunner.BuildHost(options);
             try
             {
                 await host.StartAsync(cancellationToken).ConfigureAwait(false);

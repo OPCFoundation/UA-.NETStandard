@@ -36,7 +36,7 @@ namespace Opc.Ua.WotCon.Tests
     /// <summary>
     /// Guards the alignment of the proof to the revised spec model: the
     /// <c>Opc.Ua.WotCon</c> generated model is now produced once from the
-    /// combined <c>Opc.Ua.WoTCon</c> NodeSet2 (incorporating the OPC 10100-1
+    /// combined <c>Opc.Ua.WotCon</c> NodeSet2 (incorporating the OPC 10100-1
     /// v1.02 surface plus the additive registry nodes in one namespace) instead
     /// of the standalone 1.02 ModelDesign and a separate <c>Opc.Ua.WotCon.V2</c>
     /// model. These tests prove that switching the generation source preserved

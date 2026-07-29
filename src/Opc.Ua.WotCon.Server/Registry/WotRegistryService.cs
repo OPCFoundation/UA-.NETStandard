@@ -869,7 +869,7 @@ epoch: generation, labels: resource.Labels.Remove(key));
                         rootNodeId: projection.RootNodeId,
                         clearActiveVersion: activeVersionId is null,
                         clearValidation: projection.Validation is null,
-                        clearRootNodeId: projection.RootNodeId is null);
+                        clearRootNodeId: projection.RootNodeId.IsNull);
                     WotResourceGroup group = next.FindGroup(projection.GroupId)!;
                     next = ReplaceResource(next, group, updated, generation);
                     changed.Add(updated.Xid);

@@ -34,9 +34,9 @@ using System.IO;
 using System.Text;
 using System.Xml;
 using System.Xml.Linq;
-using Opc.Ua.Export;
+using Opc.Ua.Wot;
 
-namespace Opc.Ua.Wot
+namespace Opc.Ua.Export
 {
     /// <summary>
     /// The result of comparing two NodeSet2 documents after normalizing
@@ -113,8 +113,12 @@ namespace Opc.Ua.Wot
         /// </summary>
         /// <param name="left">The first document.</param>
         /// <param name="right">The second document.</param>
+        /// <param name="options">Optional resource limits used during comparison.</param>
         /// <returns>The comparison result.</returns>
-        public static NodeSetComparisonResult Compare(UANodeSet left, UANodeSet right)
+        public static NodeSetComparisonResult Compare(
+            UANodeSet left,
+            UANodeSet right,
+            WotNodeSetConverterOptions? options = null)
         {
             if (left is null)
             {
@@ -124,7 +128,7 @@ namespace Opc.Ua.Wot
             {
                 throw new ArgumentNullException(nameof(right));
             }
-            return CompareXml(Serialize(left), Serialize(right));
+            return CompareXml(Serialize(left), Serialize(right), options);
         }
 
         /// <summary>
@@ -132,19 +136,31 @@ namespace Opc.Ua.Wot
         /// </summary>
         /// <param name="left">The first serialized document.</param>
         /// <param name="right">The second serialized document.</param>
+        /// <param name="options">Optional resource limits used during comparison.</param>
         /// <returns>The comparison result.</returns>
-        public static NodeSetComparisonResult CompareXml(byte[] left, byte[] right)
+        public static NodeSetComparisonResult CompareXml(
+            ReadOnlySpan<byte> left,
+            ReadOnlySpan<byte> right,
+            WotNodeSetConverterOptions? options = null)
         {
-            if (left is null)
+            options ??= new WotNodeSetConverterOptions();
+            options.Validate();
+
+            string canonicalLeft;
+            string canonicalRight;
+            try
             {
-                throw new ArgumentNullException(nameof(left));
+                canonicalLeft = Canonicalize(
+                    Encoding.UTF8.GetString(StripPreamble(left).ToArray()),
+                    options.MaxXmlDepth);
+                canonicalRight = Canonicalize(
+                    Encoding.UTF8.GetString(StripPreamble(right).ToArray()),
+                    options.MaxXmlDepth);
             }
-            if (right is null)
+            catch (FormatException ex)
             {
-                throw new ArgumentNullException(nameof(right));
+                return new NodeSetComparisonResult(false, [ex.Message]);
             }
-            string canonicalLeft = Canonicalize(Encoding.UTF8.GetString(StripPreamble(left)));
-            string canonicalRight = Canonicalize(Encoding.UTF8.GetString(StripPreamble(right)));
             return BuildResult(canonicalLeft, canonicalRight);
         }
 
@@ -202,7 +218,7 @@ namespace Opc.Ua.Wot
             }
 
             byte[] restoredBytes = Serialize(backward.Value);
-            NodeSetComparisonResult comparison = CompareXml(sourceBytes, restoredBytes);
+            NodeSetComparisonResult comparison = CompareXml(sourceBytes, restoredBytes, effectiveOptions);
             bool byteIdentical = ByteEquals(sourceBytes, restoredBytes);
             return new NodeSetRoundtripReport(
                 !usedEnvelope && comparison.AreEquivalent,
@@ -246,7 +262,7 @@ namespace Opc.Ua.Wot
             return text.Substring(start, end - start);
         }
 
-        private static string Canonicalize(string xml)
+        private static string Canonicalize(string xml, int maxXmlDepth)
         {
             var settings = new XmlReaderSettings
             {
@@ -265,13 +281,26 @@ namespace Opc.Ua.Wot
             var builder = new StringBuilder();
             if (document.Root is not null)
             {
-                WriteElement(builder, document.Root);
+                WriteElement(builder, document.Root, 1, maxXmlDepth);
             }
             return builder.ToString();
         }
 
-        private static void WriteElement(StringBuilder builder, XElement element)
+        private static void WriteElement(
+            StringBuilder builder,
+            XElement element,
+            int depth,
+            int maxXmlDepth)
         {
+            if (depth > maxXmlDepth)
+            {
+                throw new FormatException(
+                    string.Format(
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        "NodeSet XML exceeds the configured maximum depth of {0}.",
+                        maxXmlDepth));
+            }
+
             builder.Append('<').Append(element.Name.ToString());
 
             var attributes = new List<XAttribute>(element.Attributes());
@@ -292,7 +321,7 @@ namespace Opc.Ua.Wot
                 switch (node)
                 {
                     case XElement child:
-                        WriteElement(builder, child);
+                        WriteElement(builder, child, depth + 1, maxXmlDepth);
                         break;
                     case XText text:
                         builder.Append(text.Value);
@@ -310,18 +339,16 @@ namespace Opc.Ua.Wot
             return stream.ToArray();
         }
 
-        private static byte[] StripPreamble(byte[] bytes)
+        private static ReadOnlySpan<byte> StripPreamble(ReadOnlySpan<byte> bytes)
         {
             if (bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)
             {
-                var trimmed = new byte[bytes.Length - 3];
-                Array.Copy(bytes, 3, trimmed, 0, trimmed.Length);
-                return trimmed;
+                return bytes[3..];
             }
             return bytes;
         }
 
-        private static bool ByteEquals(byte[] left, byte[] right)
+        private static bool ByteEquals(ReadOnlySpan<byte> left, ReadOnlySpan<byte> right)
         {
             if (left.Length != right.Length)
             {

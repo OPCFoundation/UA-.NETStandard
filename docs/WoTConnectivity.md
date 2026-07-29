@@ -14,7 +14,7 @@ This repository implements the OPC UA **WoT Connectivity** companion specificati
 The model namespace URI is `http://opcfoundation.org/UA/WoT-Con/`,
 target version `1.02.0`, publication 2025-12-05.
 
-For current protocol-runtime architecture and the contributor guide for adding a protocol see [WoT protocol bindings](WotBindings.md), and the runnable end-to-end topology is documented in the [WoT aggregation sample](../samples/WotAggregation/README.md).
+For current protocol-runtime architecture and the contributor guide for adding a protocol see [WoT protocol bindings](WotBindings.md), and the runnable end-to-end topology is documented in the [WoT aggregation sample](../samples/WotCon/README.md).
 
 ---
 
@@ -428,7 +428,7 @@ The `Opc.Ua.WotCon` assembly is source-generated once from the combined **WoT Co
 | xRegistry (abstract registry base) | `http://opcfoundation.org/UA/xRegistry/` | `Opc.Ua.XRegistry` |
 | WoT Connectivity 1.1 (combined) | `http://opcfoundation.org/UA/WoT-Con/` | `Opc.Ua.WotCon` |
 
-Both NodeSet2 models are *pinned* from the OPC UA drafts authoring repository into `src/Opc.Ua.WotCon/Design` (as `*.NodeSet2.xml` + `*.NodeSet2.csv`) and added as `AdditionalFiles`. The legacy 1.02 `WotConnection.xml` / `WotConnection.csv` sources are retained under `Design/` for reference only — they are incorporated into the combined NodeSet and are **not** source-generated a second time, so the preserved 1.02 constants and the additive registry constants coexist in one `Opc.Ua.WotCon` namespace under their exact NodeIds. Run `pwsh src/Opc.Ua.WotCon/Design/Sync-WotConModels.ps1 -Check` to verify the pinned copies still match the draft repository (use `-Update` to refresh them).
+Both NodeSet2 models are *pinned* from the OPC UA drafts authoring repository into `src/Opc.Ua.WotCon/Design` (as `*.NodeSet2.xml` + `*.NodeSet2.csv`) and added as `AdditionalFiles`. The legacy 1.02 `WotConnection.xml` / `WotConnection.csv` sources are retained under `Design/` for reference only — they are incorporated into the combined NodeSet and are **not** source-generated a second time, so the preserved 1.02 constants and the additive registry constants coexist in one `Opc.Ua.WotCon` namespace under their exact NodeIds. The tooling that refreshes the pinned copies from the draft repository lives in that authoring repository, not here.
 
 ### 11.1 Architecture
 

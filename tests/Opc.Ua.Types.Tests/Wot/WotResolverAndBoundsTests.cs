@@ -33,6 +33,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Export;
 using Opc.Ua.Wot;
@@ -80,24 +82,28 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         [Test]
-        public void NullResolverNeverResolves()
+        public async Task NullResolverNeverResolves()
         {
             var context = new WotResolutionContext();
-            WotResolverResult result = NullWotResolver.Instance.ResolveThing("urn:a", context);
+            WotResolverResult result = await NullWotResolver.Instance.ResolveThingAsync(
+                "urn:a",
+                context,
+                CancellationToken.None);
             Assert.That(result.Found, Is.False);
         }
 
         [Test]
-        public void ResolverDrivenLinkResolutionFollowsRedirect()
+        public async Task ResolverDrivenLinkResolutionFollowsRedirect()
         {
             var resolver = new MapResolver(new Dictionary<string, string>(StringComparer.Ordinal)
             {
                 ["urn:a"] = /*lang=json,strict*/ "{\"uav:congruentType\":\"urn:b\"}",
-                ["urn:b"] = /*lang=json,strict*/ "{\"uav:id\":\"ns=2;i=99\"}"
+                ["urn:b"] = /*lang=json,strict*/ "{\"uav:congruentType\":\"urn:c\"}",
+                ["urn:c"] = /*lang=json,strict*/ "{\"uav:id\":\"ns=2;i=99\"}"
             });
 
             using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(LinkModel("urn:a")));
-            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(
+            WotConversionResult<UANodeSet> result = await WotNodeSetConverter.ToNodeSetResultAsync(
                 document, null, resolver);
 
             UAObjectType root = result.Value!.Items!.OfType<UAObjectType>().Single();
@@ -105,7 +111,25 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         [Test]
-        public void ResolverDrivenLinkResolutionDetectsCycle()
+        public async Task AsyncResolverCanResolveLinkTargetEndToEnd()
+        {
+            var resolver = new AsyncMapResolver(new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["urn:target"] = /*lang=json,strict*/ "{\"uav:id\":\"ns=2;i=77\"}"
+            });
+
+            using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(LinkModel("urn:target")));
+            WotConversionResult<UANodeSet> result = await WotNodeSetConverter.ToNodeSetResultAsync(
+                document,
+                null,
+                resolver);
+
+            UAObjectType root = result.Value!.Items!.OfType<UAObjectType>().Single();
+            Assert.That(root.References!.Any(r => r.Value == "ns=2;i=77"), Is.True);
+        }
+
+        [Test]
+        public async Task ResolverDrivenLinkResolutionDetectsCycle()
         {
             var resolver = new MapResolver(new Dictionary<string, string>(StringComparer.Ordinal)
             {
@@ -114,7 +138,7 @@ namespace Opc.Ua.Types.Tests.Wot
             });
 
             using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(LinkModel("urn:a")));
-            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(
+            WotConversionResult<UANodeSet> result = await WotNodeSetConverter.ToNodeSetResultAsync(
                 document, null, resolver, new WotResolutionContext());
 
             Assert.That(
@@ -123,7 +147,55 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         [Test]
-        public void OneResolutionContextIsCreatedPerTopLevelConversionNotPerLink()
+        public async Task ResolverDrivenLinkResolutionReportsNotFound()
+        {
+            var resolver = new MapResolver([]);
+
+            using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(LinkModel("urn:missing")));
+            WotConversionResult<UANodeSet> result = await WotNodeSetConverter.ToNodeSetResultAsync(
+                document,
+                null,
+                resolver);
+
+            Assert.That(
+                result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.ResolverNotFound),
+                Is.True);
+        }
+
+        [Test]
+        public void LinkResolutionWithoutResolverReportsUnresolvedReference()
+        {
+            using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(LinkModel("urn:missing")));
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
+
+            Assert.That(
+                result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.UnresolvedReference),
+                Is.True);
+        }
+
+        [Test]
+        public void AsyncResolverCancellationPropagates()
+        {
+            var resolver = new AsyncMapResolver(new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["urn:target"] = /*lang=json,strict*/ "{\"uav:id\":\"ns=2;i=77\"}"
+            });
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+            using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(LinkModel("urn:target")));
+
+            Func<Task> act = async () => await WotNodeSetConverter.ToNodeSetResultAsync(
+                document,
+                null,
+                resolver,
+                null,
+                cts.Token);
+
+            Assert.That(act, Throws.InstanceOf<OperationCanceledException>());
+        }
+
+        [Test]
+        public async Task OneResolutionContextIsCreatedPerTopLevelConversionNotPerLink()
         {
             // Regression test: TryResolveTargetNodeId used to fall back to
             // `new WotResolutionContext()` whenever it was handed a null
@@ -142,7 +214,10 @@ namespace Opc.Ua.Types.Tests.Wot
 
             using var document = WotDocument.Parse(
                 Encoding.UTF8.GetBytes(MultiLinkModel("urn:a", "urn:b", "urn:c")));
-            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document, options, resolver);
+            WotConversionResult<UANodeSet> result = await WotNodeSetConverter.ToNodeSetResultAsync(
+                document,
+                options,
+                resolver);
 
             UAObjectType root = result.Value!.Items!.OfType<UAObjectType>().Single();
             Assert.That(
@@ -155,7 +230,7 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         [Test]
-        public void MultipleLinksAccumulateAggregateByteLimitAcrossTheSameConversion()
+        public async Task MultipleLinksAccumulateAggregateByteLimitAcrossTheSameConversion()
         {
             // Both resolved documents are 23 bytes; a 30 byte total budget
             // allows the first but must reject the second. If a fresh
@@ -171,7 +246,10 @@ namespace Opc.Ua.Types.Tests.Wot
 
             using var document = WotDocument.Parse(
                 Encoding.UTF8.GetBytes(MultiLinkModel("urn:a", "urn:b")));
-            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document, options, resolver);
+            WotConversionResult<UANodeSet> result = await WotNodeSetConverter.ToNodeSetResultAsync(
+                document,
+                options,
+                resolver);
 
             Assert.That(
                 result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.ResolverLimitExceeded),
@@ -179,7 +257,7 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         [Test]
-        public void SiblingLinkCycleDoesNotBlockAnUnrelatedSiblingLinkButIsStillReported()
+        public async Task SiblingLinkCycleDoesNotBlockAnUnrelatedSiblingLinkButIsStillReported()
         {
             var resolver = new MapResolver(new Dictionary<string, string>(StringComparer.Ordinal)
             {
@@ -190,7 +268,10 @@ namespace Opc.Ua.Types.Tests.Wot
 
             using var document = WotDocument.Parse(
                 Encoding.UTF8.GetBytes(MultiLinkModel("urn:ok", "urn:cyclic-a")));
-            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document, null, resolver);
+            WotConversionResult<UANodeSet> result = await WotNodeSetConverter.ToNodeSetResultAsync(
+                document,
+                null,
+                resolver);
 
             UAObjectType root = result.Value!.Items!.OfType<UAObjectType>().Single();
             Assert.That(root.References!.Any(r => r.Value == "ns=2;i=201"), Is.True);
@@ -338,11 +419,38 @@ namespace Opc.Ua.Types.Tests.Wot
                 m_map = map;
             }
 
-            public WotResolverResult ResolveThing(string reference, WotResolutionContext context)
+            public ValueTask<WotResolverResult> ResolveThingAsync(
+                string reference,
+                WotResolutionContext context,
+                CancellationToken cancellationToken)
             {
-                return m_map.TryGetValue(reference, out string json)
+                WotResolverResult result = m_map.TryGetValue(reference, out string json)
                     ? WotResolverResult.FromBytes(Encoding.UTF8.GetBytes(json))
                     : WotResolverResult.NotFound;
+                return new ValueTask<WotResolverResult>(result);
+            }
+        }
+
+        private sealed class AsyncMapResolver : IWotThingResolver
+        {
+            private readonly Dictionary<string, string> m_map;
+
+            public AsyncMapResolver(Dictionary<string, string> map)
+            {
+                m_map = map;
+            }
+
+            public async ValueTask<WotResolverResult> ResolveThingAsync(
+                string reference,
+                WotResolutionContext context,
+                CancellationToken cancellationToken)
+            {
+                await Task.Yield();
+                cancellationToken.ThrowIfCancellationRequested();
+                WotResolverResult result = m_map.TryGetValue(reference, out string json)
+                    ? WotResolverResult.FromBytes(Encoding.UTF8.GetBytes(json))
+                    : WotResolverResult.NotFound;
+                return result;
             }
         }
     }

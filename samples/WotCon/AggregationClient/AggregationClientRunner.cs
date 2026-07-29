@@ -42,17 +42,17 @@ using Opc.Ua.Client;
 using Opc.Ua.WotCon;
 using Opc.Ua.WotCon.Client;
 
-namespace WotAggregationClient
+namespace AggregationClient
 {
     /// <summary>
     /// Executes the real sample loader and reader workflow in process.
     /// </summary>
-    public static class WotAggregationClientRunner
+    public static class AggregationClientRunner
     {
         /// <summary>
         /// Builds the client host used by the workflow.
         /// </summary>
-        public static IHost BuildHost(WotAggregationClientOptions options)
+        public static IHost BuildHost(AggregationClientOptions options)
         {
             Validate(options);
             HostApplicationBuilder builder = Host.CreateApplicationBuilder();
@@ -67,7 +67,7 @@ namespace WotAggregationClient
                     client.ApplicationName = options.ApplicationName;
                     client.ApplicationUri =
                         $"urn:localhost:OPCFoundation:{options.ApplicationName}";
-                    client.ProductUri = "uri:opcfoundation.org:WotAggregationClient";
+                    client.ProductUri = "uri:opcfoundation.org:AggregationClient";
                     if (!string.IsNullOrWhiteSpace(options.PkiRoot))
                     {
                         client.PkiRoot = options.PkiRoot;
@@ -75,7 +75,7 @@ namespace WotAggregationClient
                     client.AutoAcceptUntrustedCertificates = true;
                     client.Session = new ManagedSessionOptions
                     {
-                        SessionName = "WotAggregationClient",
+                        SessionName = "AggregationClient",
                         SessionTimeout = TimeSpan.FromSeconds(60)
                     };
                 })
@@ -92,8 +92,8 @@ namespace WotAggregationClient
         /// <summary>
         /// Loads the four documents, refreshes the registry and reads the Pump.
         /// </summary>
-        public static async Task<WotAggregationClientResult> RunAsync(
-            WotAggregationClientOptions options,
+        public static async Task<AggregationClientResult> RunAsync(
+            AggregationClientOptions options,
             CancellationToken cancellationToken = default)
         {
             using IHost host = BuildHost(options);
@@ -134,7 +134,7 @@ namespace WotAggregationClient
                     ArrayOf<WotPumpValueResult> values = await ReadPumpValuesAsync(
                         session,
                         cancellationToken).ConfigureAwait(false);
-                    return new WotAggregationClientResult(loadResult, browsedNodes, values);
+                    return new AggregationClientResult(loadResult, browsedNodes, values);
                 }
             }
             finally
@@ -144,7 +144,7 @@ namespace WotAggregationClient
         }
 
         private static async ValueTask<ArrayOf<WotRegistryDocument>> LoadDocumentsAsync(
-            WotAggregationClientOptions options,
+            AggregationClientOptions options,
             CancellationToken cancellationToken)
         {
             string manifestPath = Path.Combine(options.DocumentsDirectory, "documents.json");
@@ -459,7 +459,7 @@ namespace WotAggregationClient
             return Encoding.UTF8.GetString(bytes);
         }
 
-        private static void Validate(WotAggregationClientOptions options)
+        private static void Validate(AggregationClientOptions options)
         {
             if (options is null)
             {

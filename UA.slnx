@@ -12,9 +12,9 @@
     <Project Path="samples/MinimalCalcServer/MinimalCalcServer.csproj" />
     <Project Path="samples/MinimalClient/MinimalClient.csproj" />
     <Project Path="samples/PumpDeviceIntegrationServer/PumpDeviceIntegrationServer.csproj" />
-    <Project Path="samples/WotAggregationClient/WotAggregationClient.csproj" />
-    <Project Path="samples/WotAggregationServer/WotAggregationServer.csproj" />
-    <Project Path="samples/WotFlatTagServer/WotFlatTagServer.csproj" />
+    <Project Path="samples/WotCon/AggregationClient/AggregationClient.csproj" />
+    <Project Path="samples/WotCon/AggregationServer/AggregationServer.csproj" />
+    <Project Path="samples/WotCon/FlatTagServer/FlatTagServer.csproj" />
     <Project Path="samples/Quickstarts.Servers/Quickstarts.Servers.csproj" />
     <Project Path="samples/RedundantClient/RedundantClient.csproj" />
   </Folder>

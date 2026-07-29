@@ -39,6 +39,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.WotCon.Server.Registry;
+using Opc.Ua.XRegistry.Server;
 
 namespace Opc.Ua.WotCon.Tests.Registry
 {
@@ -158,6 +159,31 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     Does.Contain("urn:a"),
                     "A reload must read the document back out of the injected store.");
             });
+        }
+
+        [Test]
+        public async Task InjectedStoreDoesNotRewriteExistingMatchingBlobDuringMetadataCommit()
+        {
+            var resourceStore = new CorruptingResourceStore();
+            var store = new FileWotRegistryStore(m_root, resourceStore);
+            using (var service = new WotRegistryService(store))
+            {
+                await service.InitializeAsync();
+                await service.UpsertResourceAsync(TdRequest("a", "urn:a"));
+                Assert.That(resourceStore.WriteCount, Is.EqualTo(1));
+
+                resourceStore.FailOnWrite = true;
+                await service.AddRegistryLabelAsync("environment", "test");
+            }
+
+            var reloadStore = new FileWotRegistryStore(m_root, resourceStore);
+            using var reloaded = new WotRegistryService(reloadStore);
+            await reloaded.InitializeAsync();
+
+            Assert.That(resourceStore.WriteCount, Is.EqualTo(1));
+            Assert.That(
+                reloaded.Current.FindResource(WotRegistryGroups.ThingDescriptions, "a"),
+                Is.Not.Null);
         }
 
         [Test]
@@ -1682,6 +1708,65 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 Kind = WoTDocumentKindEnum.ThingDescription,
                 Content = TestMaterialization.Td(thingId)
             };
+        }
+
+        private sealed class CorruptingResourceStore : IXRegistryResourceStore
+        {
+            public int WriteCount { get; private set; }
+
+            public bool FailOnWrite { get; set; }
+
+            public ValueTask<ByteString> ReadAsync(
+                string resourceKey,
+                long offset,
+                int count,
+                CancellationToken ct = default)
+            {
+                if (!m_blobs.TryGetValue(resourceKey, out byte[]? content))
+                {
+                    return new ValueTask<ByteString>(default(ByteString));
+                }
+                if (offset >= content.Length)
+                {
+                    return new ValueTask<ByteString>(ByteString.From([]));
+                }
+                int take = (int)Math.Min(count, content.Length - offset);
+                return new ValueTask<ByteString>(
+                    ByteString.From(content.AsSpan((int)offset, take).ToArray()));
+            }
+
+            public ValueTask WriteAsync(
+                string resourceKey,
+                long offset,
+                ByteString data,
+                CancellationToken ct = default)
+            {
+                WriteCount++;
+                if (FailOnWrite)
+                {
+                    m_blobs[resourceKey] = [0];
+                    throw new IOException("Injected partial write.");
+                }
+                m_blobs[resourceKey] = data.Span.ToArray();
+                return default;
+            }
+
+            public ValueTask<long> GetLengthAsync(
+                string resourceKey,
+                CancellationToken ct = default)
+            {
+                return new ValueTask<long>(
+                    m_blobs.TryGetValue(resourceKey, out byte[]? content) ? content.Length : -1);
+            }
+
+            public ValueTask<bool> DeleteAsync(
+                string resourceKey,
+                CancellationToken ct = default)
+            {
+                return new ValueTask<bool>(m_blobs.Remove(resourceKey));
+            }
+
+            private readonly Dictionary<string, byte[]> m_blobs = new(StringComparer.Ordinal);
         }
     }
 }

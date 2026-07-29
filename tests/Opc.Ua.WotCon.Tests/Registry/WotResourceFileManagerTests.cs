@@ -557,7 +557,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         public void TryOpenWriteHandleSucceeds()
         {
             using var harness = new Harness();
-            ServiceResult result = harness.Manager.TryOpenWriteHandle(null, out uint fileHandle);
+            ServiceResult result = harness.Manager.TryOpenWriteHandle(NodeId.Null, out uint fileHandle);
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(fileHandle, Is.GreaterThan(0u));
@@ -571,7 +571,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
             uint h1 = 0;
             harness.Open(ModeRead, ref h1);
 
-            ServiceResult result = harness.Manager.TryOpenWriteHandle(null, out uint fileHandle);
+            ServiceResult result = harness.Manager.TryOpenWriteHandle(NodeId.Null, out uint fileHandle);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadTooManyOperations));
             Assert.That(fileHandle, Is.Zero);
@@ -581,9 +581,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
         public void TryOpenWriteHandleWhenWriterAlreadyOpenReturnsBadInvalidState()
         {
             using var harness = new Harness();
-            harness.Manager.TryOpenWriteHandle(null, out uint _);
+            harness.Manager.TryOpenWriteHandle(NodeId.Null, out uint _);
 
-            ServiceResult second = harness.Manager.TryOpenWriteHandle(null, out uint fileHandle);
+            ServiceResult second = harness.Manager.TryOpenWriteHandle(NodeId.Null, out uint fileHandle);
 
             Assert.That(second.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
             Assert.That(fileHandle, Is.Zero);
@@ -676,7 +676,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 int maxOpenHandles = 8,
                 int maxDocumentSize = 1024 * 1024,
                 Func<ISystemContext, string, ServiceResult>? authorizeWrite = null,
-                Func<byte[], NodeId?, CancellationToken, ValueTask<ServiceResult>>? onCommit = null)
+                Func<byte[], NodeId, CancellationToken, ValueTask<ServiceResult>>? onCommit = null)
             {
                 Context = new SystemContext(null!)
                 {

@@ -110,6 +110,27 @@ namespace Opc.Ua.WotCon.Tests.Client
         }
 
         [Test]
+        public async Task LoadDocumentsThrowsWhenCachedGroupKindDisagreesAsync()
+        {
+            var mock = new WotRegistrySessionMock();
+            WotRegistryClient client = await WotRegistryClient
+                .ForServerAsync(mock.Session, CreateTelemetry())
+                .ConfigureAwait(false);
+
+            ArrayOf<WotRegistryDocument> documents = new WotRegistryDocument[]
+            {
+                new(WoTDocumentKindEnum.ThingDescription, "mixed", "td", Content("td")),
+                new(WoTDocumentKindEnum.ThingModel, "mixed", "tm", Content("tm"))
+            }.ToArrayOf();
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await client.LoadDocumentsAsync(documents, refresh: false)
+                    .ConfigureAwait(false))!;
+
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+        }
+
+        [Test]
         public async Task LoadDocumentsPropagatesMutationFailuresImmediatelyAsync()
         {
             var mock = new WotRegistrySessionMock();

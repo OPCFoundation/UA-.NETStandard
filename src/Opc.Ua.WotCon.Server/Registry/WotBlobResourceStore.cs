@@ -145,13 +145,16 @@ namespace Opc.Ua.WotCon.Server.Registry
                     ? await ReadAllAsync(path, ct).ConfigureAwait(false)
                     : [];
                 ReadOnlySpan<byte> chunk = data.IsNull ? default : data.Span;
-                var merged = new byte[Math.Max(existing.Length, offset + chunk.Length)];
+                long mergedLength = Math.Max(existing.Length, offset + chunk.Length);
+                if (mergedLength > int.MaxValue)
+                {
+                    throw new IOException("The blob is too large to stage in memory.");
+                }
+                var merged = new byte[(int)mergedLength];
                 existing.CopyTo(merged.AsSpan());
                 chunk.CopyTo(merged.AsSpan((int)offset));
 
-                using Stream output = m_fileSystem.OpenWrite(path);
-                await WriteBlockAsync(output, merged, ct).ConfigureAwait(false);
-                await output.FlushAsync(ct).ConfigureAwait(false);
+                await DurableWriteAsync(path, merged, ct).ConfigureAwait(false);
             }
             finally
             {
@@ -252,6 +255,46 @@ namespace Opc.Ua.WotCon.Server.Registry
                 read += n;
             }
             return read == buffer.Length ? buffer : buffer.AsSpan(0, read).ToArray();
+        }
+
+        private async ValueTask DurableWriteAsync(string path, byte[] bytes, CancellationToken ct)
+        {
+            string directory = Path.GetDirectoryName(path)!;
+            string tempPath = Path.Combine(
+                directory,
+                Path.GetFileName(path) + ".tmp-" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                using (Stream output = m_fileSystem.OpenWrite(tempPath))
+                {
+                    await WriteBlockAsync(output, bytes, ct).ConfigureAwait(false);
+                    await output.FlushAsync(ct).ConfigureAwait(false);
+                }
+
+                if (m_fileSystem is not IAtomicFileReplace atomic)
+                {
+                    throw new IOException(
+                        "Durable WoT blob storage requires a file system that supports atomic file replacement.");
+                }
+
+                atomic.Replace(tempPath, path);
+            }
+            finally
+            {
+                try
+                {
+                    if (m_fileSystem.Exists(tempPath))
+                    {
+                        m_fileSystem.Delete(tempPath);
+                    }
+                }
+                catch (IOException)
+                {
+                }
+                catch (UnauthorizedAccessException)
+                {
+                }
+            }
         }
 
         /// <summary>

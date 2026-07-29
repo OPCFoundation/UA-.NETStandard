@@ -283,13 +283,8 @@ namespace Opc.Ua.WotCon.Server
                     .RefreshAsync(request, cancellationToken).ConfigureAwait(false);
 
                 outputArguments.Clear();
-                outputArguments.Add(new Variant(new ExtensionObject(result.Summary)));
-                var encodedResults = new ExtensionObject[result.Results.Length];
-                for (int i = 0; i < result.Results.Length; i++)
-                {
-                    encodedResults[i] = new ExtensionObject(result.Results[i]);
-                }
-                outputArguments.Add(new Variant(new ArrayOf<ExtensionObject>(encodedResults)));
+                outputArguments.Add(Variant.FromStructure(result.Summary));
+                outputArguments.Add(Variant.FromStructure(result.Results.ToArrayOf()));
                 outputArguments.Add(new Variant(result.NewGeneration));
                 return ServiceResult.Good;
             }
@@ -382,7 +377,7 @@ namespace Opc.Ua.WotCon.Server
                     PopulateResourceEventFields(evt, e);
                     SetEventEnum(evt, BrowseNames.LoadState, e.LoadState);
                     SetEventValue(
-                        evt, BrowseNames.FailedNodeId, new Variant(e.FailedNodeId ?? NodeId.Null));
+                        evt, BrowseNames.FailedNodeId, new Variant(e.FailedNodeId));
                     SetEventValue(evt, BrowseNames.Reason, new Variant(e.Reason));
                     return evt;
                 }

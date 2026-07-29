@@ -35,19 +35,19 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using NUnit.Framework;
 using Opc.Ua.WotCon.Bindings;
-using WotAggregationServer;
+using AggregationServer;
 
 namespace Opc.Ua.WotCon.Samples.Tests
 {
     [TestFixture]
     [Category("WotCon")]
     [Category("Samples")]
-    public sealed class WotAggregationStartupTests
+    public sealed class AggregationStartupTests
     {
         [Test]
         public void SampleTargetsOnlyExecutableAggregationFrameworks()
         {
-            XDocument server = LoadProject("WotAggregationServer");
+            XDocument server = LoadProject("AggregationServer");
             Assert.That(
                 ReadProperty(server, "TargetFrameworks", "'$(CustomTestTarget)' == ''"),
                 Is.EqualTo("net8.0;net9.0;net10.0"));
@@ -56,21 +56,21 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 Is.EqualTo("true"));
 
             Assert.That(
-                ReadProperty(LoadProject("WotAggregationClient"), "TargetFrameworks", null),
+                ReadProperty(LoadProject("AggregationClient"), "TargetFrameworks", null),
                 Is.EqualTo("$(AppTargetFrameworks)"));
             Assert.That(
-                ReadProperty(LoadProject("WotFlatTagServer"), "TargetFrameworks", null),
+                ReadProperty(LoadProject("FlatTagServer"), "TargetFrameworks", null),
                 Is.EqualTo("$(AppTargetFrameworks)"));
         }
 
         [Test]
         public void AggregationHostRegistersOpcUaExecutor()
         {
-            using IHost host = WotAggregationServerHost.Build(
-                new WotAggregationServerOptions
+            using IHost host = AggregationServerHost.Build(
+                new AggregationServerOptions
                 {
-                    EndpointUrl = "opc.tcp://127.0.0.1:62550/WotAggregationServerStartupTest",
-                    ApplicationName = "WotAggregationServerStartupTest"
+                    EndpointUrl = "opc.tcp://127.0.0.1:62550/AggregationServerStartupTest",
+                    ApplicationName = "AggregationServerStartupTest"
                 });
             var executorIds = new List<string>();
             foreach (IWotBindingExecutor executor
@@ -91,6 +91,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 Path.Combine(
                     FindRepositoryRoot(),
                     "samples",
+                    "WotCon",
                     projectName,
                     projectName + ".csproj"));
         }

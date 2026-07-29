@@ -455,7 +455,7 @@ namespace Opc.Ua.Server
                 permissionState.AllowLifecycleFromRequestCallback;
             (IServerInternal entryServer, _) =
                 GetRunningServer(allowRequestCallback);
-            using RequestManager.RequestLifecycleWaiterScope? requestWaiter =
+            using RequestManagerLifecycleExtension.RequestLifecycleWaiterScope? requestWaiter =
                 EnterRequestLifecycleWaiter(entryServer);
             await WaitForLifecycleSemaphoreAsync(requestWaiter, ct)
                 .ConfigureAwait(false);
@@ -734,7 +734,7 @@ namespace Opc.Ua.Server
             using OperationLifetime operation = EnterLifecycleOperation();
             (IServerInternal entryServer, _) =
                 GetRunningServer(allowRequestCallback);
-            using RequestManager.RequestLifecycleWaiterScope? requestWaiter =
+            using RequestManagerLifecycleExtension.RequestLifecycleWaiterScope? requestWaiter =
                 EnterRequestLifecycleWaiter(entryServer);
             await WaitForLifecycleSemaphoreAsync(requestWaiter, ct)
                 .ConfigureAwait(false);
@@ -983,7 +983,7 @@ namespace Opc.Ua.Server
                 permissionState.AllowLifecycleFromRequestCallback;
             (IServerInternal entryServer, _) =
                 GetRunningServer(allowRequestCallback);
-            using RequestManager.RequestLifecycleWaiterScope? requestWaiter =
+            using RequestManagerLifecycleExtension.RequestLifecycleWaiterScope? requestWaiter =
                 EnterRequestLifecycleWaiter(entryServer);
             await WaitForLifecycleSemaphoreAsync(requestWaiter, ct)
                 .ConfigureAwait(false);
@@ -1791,7 +1791,7 @@ namespace Opc.Ua.Server
         }
 
         private async ValueTask WaitForLifecycleSemaphoreAsync(
-            RequestManager.RequestLifecycleWaiterScope? requestWaiter,
+            RequestManagerLifecycleExtension.RequestLifecycleWaiterScope? requestWaiter,
             CancellationToken ct)
         {
             Task semaphoreWait = m_lifecycleSemaphore.WaitAsync(ct);
@@ -1799,12 +1799,15 @@ namespace Opc.Ua.Server
             await semaphoreWait.ConfigureAwait(false);
         }
 
-        private static RequestManager.RequestLifecycleWaiterScope?
+        private static RequestManagerLifecycleExtension.RequestLifecycleWaiterScope?
             EnterRequestLifecycleWaiter(IServerInternal server)
         {
-            return server.RequestManager.IsExecutingRequest
-                ? server.RequestManager.EnterLifecycleWaiter()
-                : null;
+            RequestManagerLifecycleExtension? extension =
+                server.RequestManager.LifecycleExtension;
+            return extension is not null &&
+                server.RequestManager.IsExecutingRequest
+                    ? extension.EnterLifecycleWaiter()
+                    : null;
         }
 
         private static bool IsRequestCallbackSafe(IAsyncNodeManagerFactory factory)

@@ -14,6 +14,7 @@
  *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
  * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -27,41 +28,34 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace WotAggregationServer
+using System.Collections.Generic;
+
+namespace Opc.Ua.Wot
 {
-    /// <summary>
-    /// Configures the generic WoT aggregation server host.
-    /// </summary>
-    public sealed class WotAggregationServerOptions
+    internal sealed class WotThingCatalog
     {
-        /// <summary>
-        /// Gets or sets the endpoint URL. When empty, host and port are used.
-        /// </summary>
-        public string? EndpointUrl { get; set; }
+        public void Add(string reference, string? nodeId)
+        {
+            if (!m_entries.TryGetValue(reference, out Queue<string?>? entries))
+            {
+                entries = new Queue<string?>();
+                m_entries.Add(reference, entries);
+            }
+            entries.Enqueue(nodeId);
+        }
 
-        /// <summary>
-        /// Gets or sets the endpoint host.
-        /// </summary>
-        public string Host { get; set; } = "localhost";
+        public bool TryTake(string reference, out string? nodeId)
+        {
+            if (m_entries.TryGetValue(reference, out Queue<string?>? entries) &&
+                entries.Count > 0)
+            {
+                nodeId = entries.Dequeue();
+                return true;
+            }
+            nodeId = null;
+            return false;
+        }
 
-        /// <summary>
-        /// Gets or sets the endpoint port.
-        /// </summary>
-        public int Port { get; set; } = 62550;
-
-        /// <summary>
-        /// Gets or sets the application name.
-        /// </summary>
-        public string ApplicationName { get; set; } = "WotAggregationServer";
-
-        /// <summary>
-        /// Gets or sets the isolated PKI root shared by the server and upstream client.
-        /// </summary>
-        public string? PkiRoot { get; set; }
-
-        /// <summary>
-        /// Gets or sets the maximum accepted document size.
-        /// </summary>
-        public int MaximumDocumentBytes { get; set; } = 32 * 1024 * 1024;
+        private readonly Dictionary<string, Queue<string?>> m_entries = new(System.StringComparer.Ordinal);
     }
 }

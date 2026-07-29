@@ -27,6 +27,41 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using WotAggregationServer;
+namespace AggregationServer
+{
+    /// <summary>
+    /// Configures the generic WoT aggregation server host.
+    /// </summary>
+    public sealed class AggregationServerOptions
+    {
+        /// <summary>
+        /// Gets or sets the endpoint URL. When empty, host and port are used.
+        /// </summary>
+        public string? EndpointUrl { get; set; }
 
-await WotAggregationServerHost.RunAsync(args).ConfigureAwait(false);
+        /// <summary>
+        /// Gets or sets the endpoint host.
+        /// </summary>
+        public string Host { get; set; } = "localhost";
+
+        /// <summary>
+        /// Gets or sets the endpoint port.
+        /// </summary>
+        public int Port { get; set; } = 62550;
+
+        /// <summary>
+        /// Gets or sets the application name.
+        /// </summary>
+        public string ApplicationName { get; set; } = "AggregationServer";
+
+        /// <summary>
+        /// Gets or sets the isolated PKI root shared by the server and upstream client.
+        /// </summary>
+        public string? PkiRoot { get; set; }
+
+        /// <summary>
+        /// Gets or sets the maximum accepted document size.
+        /// </summary>
+        public int MaximumDocumentBytes { get; set; } = 32 * 1024 * 1024;
+    }
+}

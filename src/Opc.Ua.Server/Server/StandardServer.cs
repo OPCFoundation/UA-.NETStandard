@@ -195,6 +195,11 @@ namespace Opc.Ua.Server
             bool firstDisposeRequest;
             lock (m_shutdownCoordinationLock)
             {
+                // Dispose must initiate the same orderly shutdown path as StopAsync when the
+                // server is still running, because server resources are released only after
+                // request admission closes and admitted requests drain. Repeat Dispose calls are
+                // safe: m_disposeRequested lets them observe the already-published shutdown task
+                // or repeat only null-safe cleanup after disposal has completed.
                 firstDisposeRequest = !m_disposeRequested;
                 m_disposeRequested = true;
                 serverInternal = m_serverInternal;
@@ -3636,6 +3641,7 @@ namespace Opc.Ua.Server
                 RequestManager requestManager = CreateRequestManager(
                     m_serverInternal,
                     configuration);
+                requestManager.RegisterLifecycleExtension();
 
                 //create the main node manager factory
                 IMainNodeManagerFactory mainNodeManagerFactory = CreateMainNodeManagerFactory(m_serverInternal, configuration);
@@ -3960,8 +3966,8 @@ namespace Opc.Ua.Server
             RequestManager requestManager,
             Task shutdown)
         {
-            using RequestManager.RequestLifecycleWaiterScope shutdownWaiter =
-                requestManager.EnterLifecycleWaiter();
+            using RequestManagerLifecycleExtension.RequestLifecycleWaiterScope shutdownWaiter =
+                requestManager.RegisterLifecycleExtension().EnterLifecycleWaiter();
             shutdownWaiter.MarkSemaphoreWaitStarted();
             AfterServerShutdownJoinerRegisteredForTest?.Invoke();
             await shutdown.ConfigureAwait(false);
@@ -3971,10 +3977,11 @@ namespace Opc.Ua.Server
             ServerShutdownState shutdown,
             CancellationToken cancellationToken)
         {
-            RequestManager.RequestLifecycleWaiterScope? shutdownWaiter = null;
+            RequestManagerLifecycleExtension.RequestLifecycleWaiterScope? shutdownWaiter = null;
             if (shutdown.Server.RequestManager.IsExecutingRequest)
             {
-                shutdownWaiter = shutdown.Server.RequestManager.EnterLifecycleWaiter();
+                shutdownWaiter = shutdown.Server.RequestManager.RegisterLifecycleExtension()
+                    .EnterLifecycleWaiter();
                 shutdownWaiter.MarkSemaphoreWaitStarted();
             }
             try
@@ -3994,7 +4001,7 @@ namespace Opc.Ua.Server
         {
             if (!shutdown.RequestAdmissionClosed)
             {
-                shutdown.Server.RequestManager.CloseAdmission();
+                shutdown.Server.RequestManager.RegisterLifecycleExtension().CloseAdmission();
                 shutdown.RequestAdmissionClosed = true;
                 Func<Task>? afterAdmissionClosed =
                     AfterServerRequestAdmissionClosedForTest;

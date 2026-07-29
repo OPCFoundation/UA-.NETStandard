@@ -28,4 +28,4 @@ See the [main repository README](https://github.com/OPCFoundation/UA-.NETStandar
 and the
 [WoT Connectivity guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/WoTConnectivity.md).
 
-See also the [WoT protocol bindings guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/WotBindings.md) and [WoT aggregation sample](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/samples/WotAggregation/README.md).
+See also the [WoT protocol bindings guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/WotBindings.md) and [WoT aggregation sample](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/samples/WotCon/README.md).

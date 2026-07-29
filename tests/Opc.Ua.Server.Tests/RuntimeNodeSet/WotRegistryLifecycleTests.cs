@@ -667,8 +667,17 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                     "}");
             }
 
-            public WotConversionOutput Convert(
-                WotResource resource, ReadOnlyMemory<byte> content, WotRegistrySnapshot snapshot)
+            public ValueTask<WotConversionOutput> ConvertAsync(
+                WotResource resource,
+                ReadOnlyMemory<byte> content,
+                WotRegistrySnapshot snapshot,
+                CancellationToken cancellationToken)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return new ValueTask<WotConversionOutput>(Convert(content));
+            }
+
+            private static WotConversionOutput Convert(ReadOnlyMemory<byte> content)
             {
                 int generation = ParseGeneration(content.Span);
                 uint childId = kGenChildBaseNodeId + (uint)generation;

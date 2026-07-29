@@ -65,7 +65,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             int maxOpenHandles,
             int maxDocumentSize,
             Func<ISystemContext, string, ServiceResult> authorizeWrite,
-            Func<byte[], NodeId?, CancellationToken, ValueTask<ServiceResult>> onCommit)
+            Func<byte[], NodeId, CancellationToken, ValueTask<ServiceResult>> onCommit)
         {
             m_file = file ?? throw new ArgumentNullException(nameof(file));
             m_maxHandles = maxOpenHandles;
@@ -144,7 +144,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// method call, returning the handle to a client that requested a file
         /// upload as part of a create operation.
         /// </summary>
-        public ServiceResult TryOpenWriteHandle(NodeId? sessionId, out uint fileHandle)
+        public ServiceResult TryOpenWriteHandle(NodeId sessionId, out uint fileHandle)
         {
             fileHandle = 0;
             lock (m_handles)
@@ -181,8 +181,10 @@ namespace Opc.Ua.WotCon.Server.Registry
             }
         }
 
-        private static NodeId? SessionIdOf(ISystemContext context)
-            => (context as ISessionSystemContext)?.SessionId;
+        private static NodeId SessionIdOf(ISystemContext context)
+            => context is ISessionSystemContext sessionContext
+                ? sessionContext.SessionId.GetValueOrDefault()
+                : NodeId.Null;
 
         private ServiceResult OnOpen(
             ISystemContext context, MethodState method, NodeId objectId, byte mode, ref uint fileHandle)
@@ -200,7 +202,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                     return access;
                 }
             }
-            NodeId? sessionId = SessionIdOf(context);
+            NodeId sessionId = SessionIdOf(context);
             lock (m_handles)
             {
                 if (m_handles.Count >= m_maxHandles)
@@ -422,8 +424,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                 error = ServiceResult.Create(StatusCodes.BadInvalidArgument, "Unknown file handle.");
                 return false;
             }
-            NodeId? expected = SessionIdOf(context);
-            if (expected != null && located.SessionId != null && located.SessionId != expected)
+            NodeId expected = SessionIdOf(context);
+            if (!expected.IsNull && !located.SessionId.IsNull && located.SessionId != expected)
             {
                 handle = null!;
                 error = ServiceResult.Create(
@@ -437,21 +439,21 @@ namespace Opc.Ua.WotCon.Server.Registry
 
         private sealed class Handle : IDisposable
         {
-            private Handle(NodeId? sessionId, Stream stream, bool writing)
+            private Handle(NodeId sessionId, Stream stream, bool writing)
             {
                 SessionId = sessionId;
                 Stream = stream;
                 Writing = writing;
             }
 
-            public NodeId? SessionId { get; }
+            public NodeId SessionId { get; }
             public Stream Stream { get; }
             public bool Writing { get; }
 
-            public static Handle OpenRead(NodeId? sessionId, byte[] snapshot)
+            public static Handle OpenRead(NodeId sessionId, byte[] snapshot)
                 => new(sessionId, new MemoryStream(snapshot, writable: false), writing: false);
 
-            public static Handle OpenWrite(NodeId? sessionId)
+            public static Handle OpenWrite(NodeId sessionId)
                 => new(sessionId, new MemoryStream(), writing: true);
 
             public void Dispose() => Stream.Dispose();
@@ -461,7 +463,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         private readonly int m_maxHandles;
         private readonly int m_maxSize;
         private readonly Func<ISystemContext, string, ServiceResult> m_authorizeWrite;
-        private readonly Func<byte[], NodeId?, CancellationToken, ValueTask<ServiceResult>> m_onCommit;
+        private readonly Func<byte[], NodeId, CancellationToken, ValueTask<ServiceResult>> m_onCommit;
         private readonly Dictionary<uint, Handle> m_handles = new();
         private uint m_nextHandle;
         private uint m_writingHandle;

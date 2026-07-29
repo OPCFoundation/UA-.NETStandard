@@ -426,7 +426,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 new WotTargetMappingDescriptor(targetTypeNodeId: h.StructTypeNodeIdText, fieldPath: "A"),
                 affordanceName: "writeA");
             var channelA = new FakeWotBindingChannel(writeA);
-            Variant? written = null;
+            Variant written = default;
             channelA.OnWrite = (value, _) =>
             {
                 written = value.WrappedValue;
@@ -446,8 +446,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 new DataValue(new Variant(new ExtensionObject(incoming)))).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
-            Assert.That(written.HasValue, Is.True);
-            Assert.That(written!.Value.TryGetValue(out int a) && a == 55, Is.True);
+            Assert.That(written.IsNull, Is.False);
+            Assert.That(written.TryGetValue(out int a) && a == 55, Is.True);
         }
 
         [Test]
@@ -492,7 +492,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 new WotTargetMappingDescriptor(targetTypeNodeId: h.StructTypeNodeIdText, fieldPath: "Child/X"),
                 affordanceName: "writeChildX");
             var channel = new FakeWotBindingChannel(writeChildX);
-            Variant? written = null;
+            Variant written = default;
             channel.OnWrite = (value, _) =>
             {
                 written = value.WrappedValue;
@@ -513,8 +513,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 new DataValue(new Variant(new ExtensionObject(incoming)))).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
-            Assert.That(written.HasValue, Is.True);
-            Assert.That(written!.Value.TryGetValue(out int x) && x == 77, Is.True);
+            Assert.That(written.IsNull, Is.False);
+            Assert.That(written.TryGetValue(out int x) && x == 77, Is.True);
         }
 
         [Test]
@@ -640,7 +640,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 new WotTargetMappingDescriptor(targetTypeNodeId: h.StructTypeNodeIdText, fieldPath: "A"),
                 affordanceName: "writeA");
             var channelA = new FakeWotBindingChannel(writeA);
-            Variant? written = null;
+            Variant written = default;
             channelA.OnWrite = (value, _) =>
             {
                 written = value.WrappedValue;
@@ -660,7 +660,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 new DataValue(new Variant(new ExtensionObject(incomingBefore)))).ConfigureAwait(false);
             Assert.That(ServiceResult.IsBad(beforeResult), Is.True,
                 "A write before the type is registered must fail deterministically, not throw.");
-            Assert.That(written, Is.Null);
+            Assert.That(written.IsNull, Is.True);
 
             h.Builder.Context.EncodeableFactory.Builder
                 .AddEncodeableType(TestRootType.EncodingId, new TestRootType())
@@ -674,8 +674,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 new DataValue(new Variant(new ExtensionObject(incomingAfter)))).ConfigureAwait(false);
             Assert.That(ServiceResult.IsGood(afterResult), Is.True,
                 "A write after the type is registered must retry resolution and succeed.");
-            Assert.That(written.HasValue, Is.True);
-            Assert.That(written!.Value.TryGetValue(out int a) && a == 55, Is.True);
+            Assert.That(written.IsNull, Is.False);
+            Assert.That(written.TryGetValue(out int a) && a == 55, Is.True);
         }
 
         [Test]

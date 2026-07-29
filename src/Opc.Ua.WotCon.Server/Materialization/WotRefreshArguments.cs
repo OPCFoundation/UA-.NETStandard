@@ -27,9 +27,11 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using Opc.Ua.Encoders;
 
 namespace Opc.Ua.WotCon.Server.Materialization
 {
@@ -288,9 +290,73 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 value = typed;
                 return ServiceResult.Good;
             }
+            if (typeof(T) == typeof(WoTRefreshOptionsDataType) &&
+                extension.TryGetValue(out Structure? structure, context) &&
+                structure is not null &&
+                TryDecodeDynamicOptions(structure, out WoTRefreshOptionsDataType? options))
+            {
+                value = (T)(IEncodeable)options!;
+                return ServiceResult.Good;
+            }
+            if (extension.TryGetAsBinary(out ByteString body, context) && !body.IsNull)
+            {
+                try
+                {
+                    using var decoder = new BinaryDecoder(body.Span.ToArray(), context);
+                    value = new T();
+                    value.Decode(decoder);
+                    return ServiceResult.Good;
+                }
+                catch (Exception ex) when (ex is ServiceResultException or FormatException)
+                {
+                    return ServiceResult.Create(
+                        StatusCodes.BadInvalidArgument,
+                        "The encoded argument body could not be decoded.");
+                }
+            }
             return ServiceResult.Create(
                 StatusCodes.BadInvalidArgument,
                 "The encoded argument body could not be decoded.");
         }
+
+        private static bool TryDecodeDynamicOptions(
+            Structure structure,
+            out WoTRefreshOptionsDataType? options)
+        {
+            options = null;
+            if (structure.TypeId != DataTypeIds.WoTRefreshOptionsDataType ||
+                structure.BinaryEncodingId != ObjectIds.WoTRefreshOptionsDataType_Encoding_DefaultBinary)
+            {
+                return false;
+            }
+            options = new WoTRefreshOptionsDataType
+            {
+                Atomicity = GetEnum<WoTAtomicityEnum>(structure, "Atomicity"),
+                Force = GetBoolean(structure, "Force"),
+                DryRun = GetBoolean(structure, "DryRun"),
+                IncludeDependents = GetBoolean(structure, "IncludeDependents"),
+                DeletePolicy = GetEnum<WoTDeletePolicyEnum>(structure, "DeletePolicy"),
+                MaxParallelism = GetUInt32(structure, "MaxParallelism"),
+                Timeout = GetDouble(structure, "Timeout")
+            };
+            return true;
+        }
+
+        private static bool GetBoolean(Structure structure, string fieldName)
+            => structure[fieldName].TryGetValue(out bool value) && value;
+
+        private static double GetDouble(Structure structure, string fieldName)
+            => structure[fieldName].TryGetValue(out double value) ? value : 0;
+
+        private static TEnum GetEnum<TEnum>(Structure structure, string fieldName)
+            where TEnum : struct
+        {
+            return structure[fieldName].TryGetValue(out int value)
+                ? (TEnum)(object)value
+                : default;
+        }
+
+        private static uint GetUInt32(Structure structure, string fieldName)
+            => structure[fieldName].TryGetValue(out uint value) ? value : 0;
     }
 }

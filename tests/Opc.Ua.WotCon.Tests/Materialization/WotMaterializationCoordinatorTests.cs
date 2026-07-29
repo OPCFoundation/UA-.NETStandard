@@ -379,7 +379,49 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Is.EqualTo((ushort)namespaces.GetIndex(modelUri)));
             WotResource resource = m_registry.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions, "td-a")!;
-            Assert.That(resource.RootNodeId, Is.Not.Null);
+            Assert.That(resource.RootNodeId.IsNull, Is.False);
+        }
+
+        [Test]
+        public async Task RootNodeIdIsNullWhenNamespaceCannotBeResolved()
+        {
+            await RegisterTd("td-a", TestMaterialization.Td("urn:td-a"));
+
+            WotRefreshResult result = await m_coordinator.RefreshAsync(new WotRefreshRequest());
+
+            WoTResourceLoadResultDataType td = result.Results.Single(r => r.ResourceId == "td-a");
+            Assert.That(td.RootNodeId.IsNull, Is.True,
+                "A document with an unresolved root namespace must report NodeId.Null.");
+            WotResource resource = m_registry.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions, "td-a")!;
+            Assert.That(resource.RootNodeId.IsNull, Is.True);
+        }
+
+        [Test]
+        public async Task LoadFailureEventFailedNodeIdDefaultsToNullNodeId()
+        {
+            var events = new List<WotMaterializationEventArgs>();
+            m_coordinator.Event += (_, e) => events.Add(e);
+            m_converter.MarkInvalid("td-a");
+            await RegisterTd("td-a", TestMaterialization.Td("urn:td-a"));
+
+            await m_coordinator.RefreshAsync(new WotRefreshRequest());
+
+            WotMaterializationEventArgs failure = events.Single(
+                e => e.Kind == WotMaterializationEventKind.ValidationFailure);
+            Assert.That(failure.FailedNodeId.IsNull, Is.True);
+        }
+
+        [Test]
+        public void FailedNodeIdCanCarryConcreteNodeId()
+        {
+            var args = new WotMaterializationEventArgs(WotMaterializationEventKind.LoadFailure)
+            {
+                FailedNodeId = new NodeId(1234, 2)
+            };
+
+            Assert.That(args.FailedNodeId.IsNull, Is.False);
+            Assert.That(args.FailedNodeId, Is.EqualTo(new NodeId(1234, 2)));
         }
 
         [Test]

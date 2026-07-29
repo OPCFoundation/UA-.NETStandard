@@ -455,8 +455,17 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                     "\"}");
             }
 
-            public WotConversionOutput Convert(
-                WotResource resource, ReadOnlyMemory<byte> content, WotRegistrySnapshot snapshot)
+            public ValueTask<WotConversionOutput> ConvertAsync(
+                WotResource resource,
+                ReadOnlyMemory<byte> content,
+                WotRegistrySnapshot snapshot,
+                CancellationToken cancellationToken)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return new ValueTask<WotConversionOutput>(Convert(resource));
+            }
+
+            private static WotConversionOutput Convert(WotResource resource)
             {
                 if (resource.ResourceId.Contains("bad", StringComparison.Ordinal))
                 {

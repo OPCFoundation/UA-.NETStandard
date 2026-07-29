@@ -188,9 +188,7 @@ namespace Opc.Ua.SourceGeneration
                     // UnresolvedReference warning by the converter).
                     WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(
                         document,
-                        options: null,
-                        thingResolver: null,
-                        resolutionContext: null);
+                        options: null);
                     AppendConversionDiagnostics(diagnostics, sourcePath, result.Diagnostics);
                     // Exclude any result that produced an error diagnostic even
                     // when a (partial or inconsistent) NodeSet value was still

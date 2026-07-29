@@ -1522,4 +1522,5 @@ namespace Opc.Ua.Server
             string secureChannelId,
             string identity);
     }
+
 }

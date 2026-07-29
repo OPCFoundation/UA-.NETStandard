@@ -29,6 +29,7 @@
 
 using System;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
@@ -143,6 +144,20 @@ namespace Opc.Ua.WotCon.Tests.Hosting
                 sp.GetService<Func<CancellationToken, Task<WotConnectivityClient>>>(), Is.Not.Null);
             Assert.That(
                 sp.GetService<Func<CancellationToken, Task<WotRegistryClient>>>(), Is.Not.Null);
+        }
+
+        [Test]
+        public void RegistryAccessorDoesNotOwnManagedSession()
+        {
+            Type accessor = typeof(OpcUaWotConClientBuilderExtensions)
+                .GetNestedType("WotRegistryClientAccessor", BindingFlags.NonPublic)!;
+
+            FieldInfo[] managedSessionFields = accessor
+                .GetFields(BindingFlags.Instance | BindingFlags.NonPublic)
+                .Where(field => field.FieldType == typeof(ManagedSession))
+                .ToArray();
+
+            Assert.That(managedSessionFields, Is.Empty);
         }
     }
 }

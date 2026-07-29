@@ -29,6 +29,8 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Wot;
 
@@ -45,21 +47,25 @@ namespace Opc.Ua.Types.Tests.Wot
     public class WotResolverAdditionalTests
     {
         [Test]
-        public void NullResolverContextReturnsNotFound()
+        public async Task NullResolverContextReturnsNotFound()
         {
             var context = new WotResolutionContext();
-            WotResolverResult result = NullWotResolver.Instance.ResolveContext(
-                "https://example.com/ctx.jsonld", context);
+            WotResolverResult result = await NullWotResolver.Instance.ResolveContextAsync(
+                "https://example.com/ctx.jsonld",
+                context,
+                CancellationToken.None);
 
             Assert.That(result.Found, Is.False);
         }
 
         [Test]
-        public void NullResolverSchemaReturnsNotFound()
+        public async Task NullResolverSchemaReturnsNotFound()
         {
             var context = new WotResolutionContext();
-            WotResolverResult result = NullWotResolver.Instance.ResolveSchema(
-                "https://example.com/schema.json", context);
+            WotResolverResult result = await NullWotResolver.Instance.ResolveSchemaAsync(
+                "https://example.com/schema.json",
+                context,
+                CancellationToken.None);
 
             Assert.That(result.Found, Is.False);
         }

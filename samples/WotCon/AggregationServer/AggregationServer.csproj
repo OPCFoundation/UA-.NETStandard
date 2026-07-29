@@ -5,8 +5,8 @@
     <TargetFrameworks Condition="'$(TargetFrameworks)' == ''">$(CustomTestTarget)</TargetFrameworks>
     <OutputType>Exe</OutputType>
     <IsPackable>false</IsPackable>
-    <AssemblyName>WotAggregationServer</AssemblyName>
-    <PackageId>WotAggregationServer</PackageId>
+    <AssemblyName>AggregationServer</AssemblyName>
+    <PackageId>AggregationServer</PackageId>
     <Company>OPC Foundation</Company>
     <Description>Generic OPC UA WoT registry and materialization server sample.</Description>
     <Copyright>Copyright © 2004-2026 OPC Foundation, Inc</Copyright>
@@ -15,11 +15,11 @@
     <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
-    <ProjectReference Include="..\..\src\Opc.Ua.Client\Opc.Ua.Client.csproj" />
-    <ProjectReference Include="..\..\src\Opc.Ua.Server\Opc.Ua.Server.csproj" />
-    <ProjectReference Include="..\..\src\Opc.Ua.WotCon.Bindings\Opc.Ua.WotCon.Bindings.csproj" />
-    <ProjectReference Include="..\..\src\Opc.Ua.WotCon.Server\Opc.Ua.WotCon.Server.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Client\Opc.Ua.Client.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Server\Opc.Ua.Server.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.WotCon.Bindings\Opc.Ua.WotCon.Bindings.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.WotCon.Server\Opc.Ua.WotCon.Server.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Hosting" />

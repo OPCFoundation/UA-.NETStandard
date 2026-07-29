@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -248,6 +249,45 @@ namespace Opc.Ua.WotCon.Tests
 
             Assert.That(created, Is.False,
                 "Second call must report the resource as pre-existing.");
+        }
+
+        [Test]
+        public async Task GetOrCreateGroupReturnsExistingWhenNameRequiresSlugification()
+        {
+            WotRegistryClient client = await OpenClientAsync().ConfigureAwait(false);
+
+            (_, bool firstCreated) = await client.GetOrCreateGroupAsync("My Group")
+                .ConfigureAwait(false);
+            (_, bool secondCreated) = await client.GetOrCreateGroupAsync("My Group")
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(firstCreated, Is.True);
+                Assert.That(secondCreated, Is.False);
+            });
+        }
+
+        [Test]
+        public async Task ConcurrentGetOrCreateResourceOpenAndReconcileDoesNotRace()
+        {
+            WotRegistryClient client = await OpenClientAsync().ConfigureAwait(false);
+            WotRegistryGroupClient group = await client
+                .CreateThingDescriptionGroupAsync()
+                .ConfigureAwait(false);
+
+            Task[] tasks = Enumerable.Range(0, 12)
+                .Select(i => group.Proxy
+                    .GetOrCreateResourceAsync(
+                        "race-" + i.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                        string.Empty,
+                        requestFileOpen: true)
+                    .AsTask())
+                .ToArray();
+
+            Assert.That(
+                async () => await Task.WhenAll(tasks).ConfigureAwait(false),
+                Throws.Nothing);
         }
 
         /// <summary>

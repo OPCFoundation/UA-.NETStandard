@@ -29,6 +29,7 @@
 
 using System;
 using System.Globalization;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
@@ -41,18 +42,18 @@ using Opc.Ua.WotCon.Bindings;
 using Opc.Ua.WotCon.Bindings.OpcUa;
 using Opc.Ua.WotCon.Server;
 
-namespace WotAggregationServer
+namespace AggregationServer
 {
     /// <summary>
     /// Builds and runs the reusable generic aggregation host.
     /// </summary>
-    public static class WotAggregationServerHost
+    public static class AggregationServerHost
     {
         /// <summary>
         /// Builds a host from explicit options.
         /// </summary>
         /// <exception cref="ArgumentNullException"></exception>
-        public static IHost Build(WotAggregationServerOptions options)
+        public static IHost Build(AggregationServerOptions options)
         {
             if (options is null)
             {
@@ -68,7 +69,7 @@ namespace WotAggregationServer
         /// Builds and runs a host from explicit options.
         /// </summary>
         public static async Task RunAsync(
-            WotAggregationServerOptions options,
+            AggregationServerOptions options,
             CancellationToken cancellationToken = default)
         {
             using IHost host = Build(options);
@@ -83,13 +84,13 @@ namespace WotAggregationServer
             CancellationToken cancellationToken = default)
         {
             HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
-            var options = new WotAggregationServerOptions
+            var options = new AggregationServerOptions
             {
                 EndpointUrl = builder.Configuration["endpoint"],
                 Host = builder.Configuration["host"] ?? "localhost",
                 Port = ReadPort(builder.Configuration),
                 ApplicationName =
-                    builder.Configuration["applicationName"] ?? "WotAggregationServer",
+                    builder.Configuration["applicationName"] ?? "AggregationServer",
                 MaximumDocumentBytes = ReadMaximumDocumentBytes(builder.Configuration)
             };
             Configure(builder, options);
@@ -99,7 +100,7 @@ namespace WotAggregationServer
 
         private static void Configure(
             HostApplicationBuilder builder,
-            WotAggregationServerOptions options)
+            AggregationServerOptions options)
         {
             Validate(options);
             builder.Logging.ClearProviders();
@@ -107,7 +108,7 @@ namespace WotAggregationServer
             builder.Services.AddSingleton(options);
 
             string endpoint = options.EndpointUrl ??
-                $"opc.tcp://{options.Host}:{options.Port}/WotAggregationServer";
+                $"opc.tcp://{options.Host}:{options.Port}/AggregationServer";
             IOpcUaBuilder opcUa = builder.Services.AddOpcUa();
             opcUa.AddOpcTcpTransport();
             opcUa.AddServer(server =>
@@ -115,7 +116,7 @@ namespace WotAggregationServer
                 server.ApplicationName = options.ApplicationName;
                 server.ApplicationUri =
                     $"urn:localhost:OPCFoundation:{options.ApplicationName}";
-                server.ProductUri = "uri:opcfoundation.org:WotAggregationServer";
+                server.ProductUri = "uri:opcfoundation.org:AggregationServer";
                 if (!string.IsNullOrWhiteSpace(options.PkiRoot))
                 {
                     server.PkiRoot = options.PkiRoot;
@@ -138,13 +139,13 @@ namespace WotAggregationServer
 
             opcUa.AddClient(client =>
             {
-                client.ApplicationName = options.ApplicationName;
+                client.ApplicationName = $"{options.ApplicationName}.Upstream";
                 client.ApplicationUri =
-                    $"urn:localhost:OPCFoundation:{options.ApplicationName}";
-                client.ProductUri = "uri:opcfoundation.org:WotAggregationServer";
+                    $"urn:localhost:OPCFoundation:{options.ApplicationName}.Upstream";
+                client.ProductUri = "uri:opcfoundation.org:AggregationServer";
                 if (!string.IsNullOrWhiteSpace(options.PkiRoot))
                 {
-                    client.PkiRoot = options.PkiRoot;
+                    client.PkiRoot = Path.Combine(options.PkiRoot, "upstream");
                 }
                 client.AutoAcceptUntrustedCertificates = true;
                 client.Session = new ManagedSessionOptions
@@ -156,7 +157,6 @@ namespace WotAggregationServer
 
             opcUa.AddHttpWotBinding();
             opcUa.AddModbusWotBinding();
-            opcUa.AddWotProtocolBinders();
             builder.Services.AddSingleton<IWotBindingExecutor>(serviceProvider =>
             {
                 IManagedSessionPool pool =
@@ -205,7 +205,7 @@ namespace WotAggregationServer
                 : 32 * 1024 * 1024;
         }
 
-        private static void Validate(WotAggregationServerOptions options)
+        private static void Validate(AggregationServerOptions options)
         {
             if (string.IsNullOrWhiteSpace(options.ApplicationName))
             {

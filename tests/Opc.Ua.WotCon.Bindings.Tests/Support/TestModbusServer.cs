@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -59,11 +60,28 @@ namespace Opc.Ua.WotCon.Bindings.Tests.Support
 
         public bool[] DiscreteInputs { get; } = new bool[2048];
 
+        public bool RejectConnections
+        {
+            get => Volatile.Read(ref m_rejectConnections) != 0;
+            set => Volatile.Write(ref m_rejectConnections, value ? 1 : 0);
+        }
+
+        public int AcceptedConnectionCount => Volatile.Read(ref m_acceptedConnectionCount);
+
         public int LastFunctionCode => Volatile.Read(ref m_lastFunctionCode);
+
+        public void DisconnectClients()
+        {
+            foreach (TcpClient client in m_clients.Values)
+            {
+                client.Dispose();
+            }
+        }
 
         public void Dispose()
         {
             m_cts.Cancel();
+            DisconnectClients();
             m_listener.Stop();
             m_listener.Dispose();
             try
@@ -94,43 +112,65 @@ namespace Opc.Ua.WotCon.Bindings.Tests.Support
                 {
                     return;
                 }
-                _ = Task.Run(() => ServeAsync(client));
+                int connectionId = Interlocked.Increment(ref m_acceptedConnectionCount);
+                if (RejectConnections)
+                {
+                    client.Dispose();
+                    continue;
+                }
+                m_clients[connectionId] = client;
+                _ = ServeAsync(connectionId);
             }
         }
 
-        private async Task ServeAsync(TcpClient client)
+        private async Task ServeAsync(int connectionId)
         {
-            using (client)
-            using (NetworkStream stream = client.GetStream())
+            try
             {
-                try
+                if (!m_clients.TryGetValue(connectionId, out TcpClient? client))
                 {
-                    while (!m_cts.IsCancellationRequested)
+                    return;
+                }
+                using (client)
+                using (NetworkStream stream = client.GetStream())
+                {
+                    try
                     {
-                        byte[]? header = await ReadExactAsync(stream, 6).ConfigureAwait(false);
-                        if (header is null)
+                        while (!m_cts.IsCancellationRequested)
                         {
-                            return;
+                            byte[]? header = await ReadExactAsync(stream, 6).ConfigureAwait(false);
+                            if (header is null)
+                            {
+                                return;
+                            }
+                            int length = (header[4] << 8) | header[5];
+                            byte[]? rest = await ReadExactAsync(stream, length).ConfigureAwait(false);
+                            if (rest is null)
+                            {
+                                return;
+                            }
+                            byte unit = rest[0];
+                            byte[] pdu = new byte[rest.Length - 1];
+                            Array.Copy(rest, 1, pdu, 0, pdu.Length);
+                            byte[] responsePdu = Process(pdu);
+                            byte[] frame = BuildFrame(header[0], header[1], unit, responsePdu);
+                            await stream.WriteAsync(frame).ConfigureAwait(false);
+                            await stream.FlushAsync().ConfigureAwait(false);
                         }
-                        int length = (header[4] << 8) | header[5];
-                        byte[]? rest = await ReadExactAsync(stream, length).ConfigureAwait(false);
-                        if (rest is null)
-                        {
-                            return;
-                        }
-                        byte unit = rest[0];
-                        byte[] pdu = new byte[rest.Length - 1];
-                        Array.Copy(rest, 1, pdu, 0, pdu.Length);
-                        byte[] responsePdu = Process(pdu);
-                        byte[] frame = BuildFrame(header[0], header[1], unit, responsePdu);
-                        await stream.WriteAsync(frame).ConfigureAwait(false);
-                        await stream.FlushAsync().ConfigureAwait(false);
+                    }
+                    catch (System.IO.IOException)
+                    {
+                        // Client disconnected.
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        // Client disconnected.
                     }
                 }
-                catch (System.IO.IOException)
-                {
-                    // Client disconnected.
-                }
+            }
+            finally
+            {
+                m_clients.TryRemove(connectionId, out _);
             }
         }
 
@@ -252,6 +292,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests.Support
         private readonly TcpListener m_listener;
         private readonly Task m_loop;
         private readonly CancellationTokenSource m_cts = new();
+        private readonly ConcurrentDictionary<int, TcpClient> m_clients = new();
+        private int m_acceptedConnectionCount;
         private int m_lastFunctionCode;
+        private int m_rejectConnections;
     }
 }

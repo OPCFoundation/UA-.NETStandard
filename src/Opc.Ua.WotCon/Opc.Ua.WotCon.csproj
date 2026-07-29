@@ -51,8 +51,8 @@
          into the combined 1.1 NodeSet below. They are intentionally NOT
          source-generated: the combined NodeSet is the single generation input,
          so the 1.02 model is never generated a second time. -->
-    <None Remove="Design\Opc.Ua.WoTCon.NodeSet2.csv" />
-    <None Remove="Design\Opc.Ua.WoTCon.NodeSet2.xml" />
+    <None Remove="Design\Opc.Ua.WotCon.NodeSet2.csv" />
+    <None Remove="Design\Opc.Ua.WotCon.NodeSet2.xml" />
   </ItemGroup>
   <ItemGroup>
     <!-- xRegistry abstract registry base model (http://opcfoundation.org/UA/xRegistry/).
@@ -74,12 +74,12 @@
          namespace with the same prefix / name / model URI the standalone 1.02
          model previously used, so every existing 1.02 generated constant,
          NodeState and proxy — and its exact NodeId — is preserved. -->
-    <AdditionalFiles Include="Design\Opc.Ua.WoTCon.NodeSet2.xml">
+    <AdditionalFiles Include="Design\Opc.Ua.WotCon.NodeSet2.xml">
       <ModelSourceGeneratorPrefix>Opc.Ua.WotCon</ModelSourceGeneratorPrefix>
       <ModelSourceGeneratorName>WotCon</ModelSourceGeneratorName>
       <ModelSourceGeneratorModelUri>http://opcfoundation.org/UA/WoT-Con/</ModelSourceGeneratorModelUri>
     </AdditionalFiles>
-    <AdditionalFiles Include="Design\Opc.Ua.WoTCon.NodeSet2.csv" />
+    <AdditionalFiles Include="Design\Opc.Ua.WotCon.NodeSet2.csv" />
   </ItemGroup>
   <ItemGroup>
     <None Include="NugetREADME.md" Pack="true" PackagePath="\" />

@@ -85,7 +85,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         }
 
         [Test]
-        public async Task TimeoutFaultsConnectionThenReconnectSucceeds()
+        public async Task TimeoutFaultsConnectionThenNextOperationReconnects()
         {
             using var server = new ScriptedModbusServer((connection, pdu) =>
             {
@@ -105,19 +105,49 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.ThrowsAsync<OperationCanceledException>(async () =>
                 await client.ReadHoldingRegistersAsync(1, 0, 1, CancellationToken.None).ConfigureAwait(false));
 
-            // The connection is now faulted: a follow-up operation fails fast and
-            // deterministically (it does not hang or reuse the desynced stream)
-            // and reports that a reconnect is required.
-            ModbusException? fault = Assert.ThrowsAsync<ModbusException>(async () =>
-                await client.ReadHoldingRegistersAsync(1, 0, 1, CancellationToken.None).ConfigureAwait(false));
-            Assert.That(fault!.Message, Does.Contain("reconnect").IgnoreCase);
-
-            // A fresh connect re-establishes the socket and the read now succeeds.
-            await client.ConnectAsync(CancellationToken.None).ConfigureAwait(false);
+            // The connection is now faulted, so the next operation opens a fresh
+            // socket itself instead of requiring activation to run again.
             ushort[] registers = await client
                 .ReadHoldingRegistersAsync(1, 0, 1, CancellationToken.None).ConfigureAwait(false);
             Assert.That(registers, Has.Length.EqualTo(1));
             Assert.That(registers[0], Is.EqualTo((ushort)0x1234));
+        }
+
+        [Test]
+        public async Task DroppedConnectionReconnectsOncePerOperationAndRecovers()
+        {
+            using var server = new TestModbusServer();
+            server.HoldingRegisters[0] = 0x1234;
+
+            using var client = new ModbusTcpClient("127.0.0.1", server.Port, TimeSpan.FromSeconds(2));
+            await client.ConnectAsync(CancellationToken.None).ConfigureAwait(false);
+
+            ushort[] first = await client
+                .ReadHoldingRegistersAsync(1, 0, 1, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(first, Is.EqualTo(new ushort[] { 0x1234 }));
+
+            server.RejectConnections = true;
+            server.DisconnectClients();
+
+            Exception? dropped = Assert.CatchAsync<Exception>(async () =>
+                await client.ReadHoldingRegistersAsync(1, 0, 1, CancellationToken.None).ConfigureAwait(false));
+            Assert.That(dropped, Is.TypeOf<ModbusException>().Or.TypeOf<System.IO.IOException>());
+
+            int acceptedBeforeReconnect = server.AcceptedConnectionCount;
+            Exception? rejected = Assert.CatchAsync<Exception>(async () =>
+                await client.ReadHoldingRegistersAsync(1, 0, 1, CancellationToken.None).ConfigureAwait(false));
+            Assert.That(rejected, Is.TypeOf<ModbusException>().Or.TypeOf<System.IO.IOException>());
+            Assert.That(
+                server.AcceptedConnectionCount - acceptedBeforeReconnect,
+                Is.EqualTo(1),
+                "A single failed operation must not loop and open a storm of reconnect sockets.");
+
+            server.RejectConnections = false;
+            server.HoldingRegisters[0] = 0x5678;
+
+            ushort[] recovered = await client
+                .ReadHoldingRegistersAsync(1, 0, 1, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(recovered, Is.EqualTo(new ushort[] { 0x5678 }));
         }
 
         [Test]

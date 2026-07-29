@@ -424,7 +424,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
 
         private static string DocumentPath(string fileName)
         {
-            return RepositoryPath("samples", "WotAggregationClient", "Documents", fileName);
+            return RepositoryPath("samples", "WotCon", "AggregationClient", "Documents", fileName);
         }
 
         private static string RepositoryPath(params string[] segments)

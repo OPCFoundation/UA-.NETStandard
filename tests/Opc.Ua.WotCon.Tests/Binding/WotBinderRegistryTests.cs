@@ -32,7 +32,7 @@ using System.Linq;
 using NUnit.Framework;
 using Opc.Ua.WotCon.Bindings;
 using Opc.Ua.WotCon.Bindings.Planners;
-using Opc.Ua.WotCon.Bindings.Samples;
+using Opc.Ua.WotCon.Tests.Support;
 
 namespace Opc.Ua.WotCon.Tests.Binding
 {

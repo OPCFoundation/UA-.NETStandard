@@ -31,15 +31,15 @@ using System;
 using Microsoft.Extensions.Hosting;
 using Opc.Ua.WotCon;
 using Opc.Ua.WotCon.Client;
-using WotAggregationClient;
+using AggregationClient;
 
 try
 {
     HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
-    var options = new WotAggregationClientOptions
+    var options = new AggregationClientOptions
     {
         AggregationEndpoint = builder.Configuration["aggregationEndpoint"] ??
-            "opc.tcp://localhost:62550/WotAggregationServer",
+            "opc.tcp://localhost:62550/AggregationServer",
         SourceAEndpoint = builder.Configuration["sourceAEndpoint"] ??
             "opc.tcp://localhost:62551/SourceA",
         SourceBEndpoint = builder.Configuration["sourceBEndpoint"] ??
@@ -48,7 +48,7 @@ try
             System.IO.Path.Combine(AppContext.BaseDirectory, "Documents")
     };
 
-    WotAggregationClientResult result = await WotAggregationClientRunner
+    AggregationClientResult result = await AggregationClientRunner
         .RunAsync(options)
         .ConfigureAwait(false);
 

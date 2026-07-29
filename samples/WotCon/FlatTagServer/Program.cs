@@ -27,6 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using WotFlatTagServer;
+using FlatTagServer;
 
-await WotFlatTagServerHost.RunAsync(args).ConfigureAwait(false);
+await FlatTagServerHost.RunAsync(args).ConfigureAwait(false);

@@ -199,7 +199,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             string? activeVersionId,
             uint refreshGeneration,
             int materializedNodeCount,
-            NodeId? rootNodeId,
+            NodeId rootNodeId,
             WoTValidationOutcomeDataType? validation,
             ImmutableArray<string> diagnostics,
             DateTime lastRefreshTime)
@@ -249,7 +249,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// <summary>
         /// Gets the root node of the projection, if any.
         /// </summary>
-        public NodeId? RootNodeId { get; }
+        public NodeId RootNodeId { get; }
 
         /// <summary>
         /// Gets the validation outcome, if any.

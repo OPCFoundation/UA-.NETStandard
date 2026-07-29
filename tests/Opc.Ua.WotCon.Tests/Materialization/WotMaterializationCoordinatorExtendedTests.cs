@@ -27,10 +27,14 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
 
@@ -255,6 +259,85 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 events.Any(e => e.Kind == WotMaterializationEventKind.Resource &&
                                 e.ResourceId == "td-a"),
                 Is.True, "A Resource event must be raised for each successfully projected resource.");
+        }
+
+        [Test]
+        public async Task OversizedResolverResponseIsReportedAsBindingFailure()
+        {
+            var events = new List<WotMaterializationEventArgs>();
+            var resolver = new RecordingResolver(_ => new MemoryStream(new byte[16]));
+            m_coordinator.Dispose();
+            m_coordinator = new WotMaterializationCoordinator(
+                m_registry,
+                m_host,
+                converterOptions: new WotNodeSetConverterOptions { MaxResolverDocumentBytes = 8 },
+                documentConverter: m_converter,
+                nodeSetResolver: resolver);
+            m_converter.RequiredNamespace = "urn:oversized";
+            m_coordinator.Event += (_, e) => events.Add(e);
+
+            await RegisterTd("td-a", TestMaterialization.Td("urn:td-a"));
+            WotRefreshResult result = await m_coordinator.RefreshAsync(new WotRefreshRequest());
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Results.Single().Outcome, Is.EqualTo(WoTOutcomeEnum.Warning));
+                Assert.That(resolver.RequestedNamespaces, Does.Contain("urn:oversized"));
+                Assert.That(
+                    events.Any(e =>
+                        e.Kind == WotMaterializationEventKind.BindingFailure &&
+                        e.Reason.Contains("exceeded", StringComparison.Ordinal)),
+                    Is.True);
+            });
+        }
+
+        [Test]
+        public async Task RetiredProjectionNamespaceIsResolvedAgainDespiteStaleNamespaceTableEntry()
+        {
+            var namespaces = new NamespaceTable();
+            namespaces.GetIndexOrAppend("urn:wot:thingdescriptions/old");
+            var resolver = new RecordingResolver(
+                uri => new MemoryStream(TestNodeSets.XmlBytes(uri)));
+            m_coordinator.Dispose();
+            m_coordinator = new WotMaterializationCoordinator(
+                m_registry,
+                m_host,
+                documentConverter: m_converter,
+                nodeSetResolver: resolver)
+            {
+                ServerNamespaceUris = namespaces
+            };
+
+            await RegisterTd("old", TestMaterialization.Td("urn:old"));
+            await m_coordinator.RefreshAsync(new WotRefreshRequest());
+            await m_registry.DeleteResourceAsync(WotRegistryGroups.ThingDescriptions, "old");
+            await m_coordinator.RefreshAsync(new WotRefreshRequest());
+            m_converter.RequiredNamespace = "urn:wot:thingdescriptions/old";
+            await RegisterTd("new", TestMaterialization.Td("urn:new"));
+
+            await m_coordinator.RefreshAsync(new WotRefreshRequest());
+
+            Assert.That(resolver.RequestedNamespaces, Does.Contain("urn:wot:thingdescriptions/old"));
+        }
+
+        private sealed class RecordingResolver : IWotNodeSetResolver
+        {
+            public RecordingResolver(Func<string, Stream?> resolve)
+            {
+                m_resolve = resolve;
+            }
+
+            public List<string> RequestedNamespaces { get; } = [];
+
+            public ValueTask<Stream?> TryResolveAsync(
+                string namespaceUri,
+                CancellationToken cancellationToken = default)
+            {
+                RequestedNamespaces.Add(namespaceUri);
+                return new ValueTask<Stream?>(m_resolve(namespaceUri));
+            }
+
+            private readonly Func<string, Stream?> m_resolve;
         }
 
         [Test]

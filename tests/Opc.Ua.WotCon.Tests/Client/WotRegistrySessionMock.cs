@@ -386,7 +386,9 @@ namespace Opc.Ua.WotCon.Tests.Client
                     ? WoTOutcomeEnum.Failed
                     : WoTOutcomeEnum.Success
             };
-            return [new Variant(new ExtensionObject(outcome))];
+#pragma warning disable CS0618 // Validate generated proxy expects a direct structure Variant.
+            return [new Variant(outcome)];
+#pragma warning restore CS0618
         }
 
         private Variant[] OnSetEnabled(CallMethodRequest req)
@@ -523,7 +525,7 @@ namespace Opc.Ua.WotCon.Tests.Client
             };
             return
             [
-                new Variant(new ExtensionObject(summary)),
+                Variant.FromStructure(summary),
                 Variant.FromStructure(results.ToArrayOf()),
                 new Variant(generation)
             ];
