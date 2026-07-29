@@ -1312,7 +1312,7 @@ namespace Opc.Ua
                     try
                     {
                         JsonElement statusCodeElement =
-                            GetPropertyElement(JsonProperties.StatusCode);
+                            GetPropertyElement(JsonProperties.Status);
                         JsonElement sourceTimesstampElement =
                             GetPropertyElement(JsonProperties.SourceTimestamp);
                         JsonElement serverTimestampElement =

@@ -244,12 +244,12 @@ namespace Opc.Ua.Core.Tests.Stack.WebApi
             Assert.That(v.ValueKind, Is.EqualTo(JsonValueKind.Object));
 
             // Per spec, DataValue inlines the Variant fields:
-            //   { UaType, Value, Dimensions?, StatusCode?, SourceTimestamp?, ... }
+            //   { UaType, Value, Dimensions?, Status?, SourceTimestamp?, ... }
             Assert.That(v.TryGetProperty("UaType", out _), Is.True,
                 "DataValue must inline Variant 'UaType' (spec component schema)");
             Assert.That(v.TryGetProperty("Value", out _), Is.True,
                 "DataValue must inline Variant 'Value'");
-            Assert.That(v.TryGetProperty("StatusCode", out _), Is.True);
+            Assert.That(v.TryGetProperty("Status", out _), Is.True);
             Assert.That(v.TryGetProperty("SourceTimestamp", out JsonElement srcTs), Is.True);
             Assert.That(srcTs.ValueKind, Is.EqualTo(JsonValueKind.String),
                 "spec declares SourceTimestamp as string format='date-time'");
@@ -265,8 +265,8 @@ namespace Opc.Ua.Core.Tests.Stack.WebApi
                 e => e.WriteDataValue("Dv", dv));
 
             JsonElement v = doc.RootElement.GetProperty("Dv");
-            Assert.That(v.TryGetProperty("StatusCode", out _), Is.False,
-                "Compact must omit StatusCode = Good (default-value suppression)");
+            Assert.That(v.TryGetProperty("Status", out _), Is.False,
+                "Compact must omit Status = Good (default-value suppression)");
         }
 
         [Test]
