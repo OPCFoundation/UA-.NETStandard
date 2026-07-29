@@ -249,10 +249,23 @@ namespace Opc.Ua.PubSub.Application
                             {
                                 return;
                             }
-                            m_dataSetSubscriptions.Add(
-                                new DataSetSubscription(dataSet, Handler));
                         }
                         dataSet.MetaDataChanged += Handler;
+                        bool keepSubscription;
+                        lock (m_gate)
+                        {
+                            keepSubscription = Volatile.Read(ref m_disposed) == 0;
+                            if (keepSubscription)
+                            {
+                                m_dataSetSubscriptions.Add(
+                                    new DataSetSubscription(dataSet, Handler));
+                            }
+                        }
+                        if (!keepSubscription)
+                        {
+                            dataSet.MetaDataChanged -= Handler;
+                            return;
+                        }
                     }
                 }
             }

@@ -264,6 +264,8 @@ namespace Opc.Ua.PubSub.Groups
                     if (m_eventWriters.TryGetValue(writer.DataSetWriterId,
                         out EventDataSetWriter? eventWriter))
                     {
+                        WriterRuntimeState runtime = m_writerState[writer.DataSetWriterId];
+                        eventWriter.SequenceNumber = runtime.SequenceNumber;
                         //
                         // An event writer publishes one message per occurrence,
                         // so it contributes as many messages as events fired
@@ -272,6 +274,7 @@ namespace Opc.Ua.PubSub.Groups
                         ArrayOf<PubSubDataSetMessage> occurrences = await eventWriter
                             .BuildEventMessagesAsync(cancellationToken)
                             .ConfigureAwait(false);
+                        runtime.SequenceNumber = eventWriter.SequenceNumber;
                         for (int occurrence = 0; occurrence < occurrences.Count; occurrence++)
                         {
                             dataSetMessages.Add(occurrences[occurrence]);
@@ -579,10 +582,6 @@ namespace Opc.Ua.PubSub.Groups
                 runtime.LastSnapshot = snapshot;
             }
 
-            if (fields.Count == 0 && snapshot.MessageType is not null)
-            {
-                return null;
-            }
             uint sequenceNumber = ++runtime.SequenceNumber;
 
             if (string.Equals(GetEncodingProfile(), Profiles.PubSubMqttJsonTransport,

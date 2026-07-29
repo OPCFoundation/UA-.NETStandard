@@ -142,6 +142,12 @@ namespace Opc.Ua.PubSub.Groups
         /// </summary>
         public uint KeyFrameCount => 0;
 
+        internal uint SequenceNumber
+        {
+            get => m_sequenceNumber;
+            set => m_sequenceNumber = value;
+        }
+
         /// <inheritdoc/>
         IPublishedDataSet IDataSetWriter.PublishedDataSet => PublishedDataSet;
 
