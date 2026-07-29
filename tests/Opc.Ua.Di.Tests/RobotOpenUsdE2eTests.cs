@@ -137,7 +137,7 @@ namespace Opc.Ua.Di.Tests
             HostApplicationBuilder hostBuilder = Host.CreateApplicationBuilder();
             hostBuilder.Logging.ClearProviders();
             hostBuilder.Logging.SetMinimumLevel(LogLevel.Warning);
-            hostBuilder.Services.AddOptions<global::Robotics.RobotMobilityOptions>();
+            hostBuilder.Services.AddOptions<global::Robotics.MobileRobotPositionOptions>();
             hostBuilder.Services.AddSingleton<global::Robotics.RobotPositioningScenario>();
             IPositioningServerBuilder positioning = hostBuilder.Services
                 .AddOpcUa()

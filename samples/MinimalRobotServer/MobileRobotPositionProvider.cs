@@ -45,19 +45,19 @@ namespace Robotics
     /// </summary>
     public sealed class MobileRobotPositionProvider : IGlobalPositionProvider
     {
-        private readonly RobotMobilityOptions m_options;
+        private readonly MobileRobotPositionOptions m_options;
         private readonly TimeProvider m_timeProvider;
         private readonly DateTimeOffset m_startedAt;
 
         public MobileRobotPositionProvider(
-            IOptions<RobotMobilityOptions> options,
+            IOptions<MobileRobotPositionOptions> options,
             RobotPositioningScenario scenario)
             : this(options.Value, scenario, TimeProvider.System)
         {
         }
 
         public MobileRobotPositionProvider(
-            RobotMobilityOptions options,
+            MobileRobotPositionOptions options,
             RobotPositioningScenario scenario,
             TimeProvider timeProvider)
         {

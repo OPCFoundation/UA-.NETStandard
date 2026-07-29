@@ -27,32 +27,31 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.IO;
-using Opc.Ua.OpenUsdScene.Conversion;
-using Opc.Ua.OpenUsdScene.Scene;
-
-namespace Opc.Ua.OpenUsdScene.Tests
+namespace Opc.Ua.Robotics
 {
     /// <summary>
-    /// Locates and loads the bundled <c>.usda</c> example layers that are copied next to the test
-    /// assembly. The layers are self-contained so the tests never read from another repository.
+    /// Read-model snapshot of a MotionDeviceSystemType instance.
     /// </summary>
-    internal static class TestAssets
+    public sealed record MotionDeviceSystemSnapshot
     {
         /// <summary>
-        /// Gets the directory containing the copied example layers.
+        /// The system identification.
         /// </summary>
-        public static string Directory => Path.Combine(AppContext.BaseDirectory, "Assets");
+        public RoboticsComponentIdentification Identification { get; init; } = new();
 
         /// <summary>
-        /// Resolves the full path to a named example layer.
+        /// Controller instance NodeIds contained by the system.
         /// </summary>
-        public static string PathTo(string name) => Path.Combine(Directory, name);
+        public ArrayOf<NodeId> ControllerIds { get; init; } = [];
 
         /// <summary>
-        /// Parses a named example layer into a composed stage (example overlays applied).
+        /// Motion-device instance NodeIds contained by the system.
         /// </summary>
-        public static UsdStage Load(string name) => UsdaReader.ParseFile(PathTo(name));
+        public ArrayOf<NodeId> MotionDeviceIds { get; init; } = [];
+
+        /// <summary>
+        /// Safety-state instance NodeIds contained by the system.
+        /// </summary>
+        public ArrayOf<NodeId> SafetyStateIds { get; init; } = [];
     }
 }

@@ -27,32 +27,21 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.IO;
-using Opc.Ua.OpenUsdScene.Conversion;
-using Opc.Ua.OpenUsdScene.Scene;
-
-namespace Opc.Ua.OpenUsdScene.Tests
+namespace Opc.Ua.Robotics
 {
     /// <summary>
-    /// Locates and loads the bundled <c>.usda</c> example layers that are copied next to the test
-    /// assembly. The layers are self-contained so the tests never read from another repository.
+    /// Engineering metadata for a measured or commanded scalar value.
     /// </summary>
-    internal static class TestAssets
+    public sealed record RoboticsEngineeringValue
     {
         /// <summary>
-        /// Gets the directory containing the copied example layers.
+        /// The engineering unit advertised by the variable.
         /// </summary>
-        public static string Directory => Path.Combine(AppContext.BaseDirectory, "Assets");
+        public EUInformation? EngineeringUnits { get; init; }
 
         /// <summary>
-        /// Resolves the full path to a named example layer.
+        /// The supported or advertised engineering range.
         /// </summary>
-        public static string PathTo(string name) => Path.Combine(Directory, name);
-
-        /// <summary>
-        /// Parses a named example layer into a composed stage (example overlays applied).
-        /// </summary>
-        public static UsdStage Load(string name) => UsdaReader.ParseFile(PathTo(name));
+        public Range? Range { get; init; }
     }
 }

@@ -27,32 +27,41 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.IO;
-using Opc.Ua.OpenUsdScene.Conversion;
-using Opc.Ua.OpenUsdScene.Scene;
-
-namespace Opc.Ua.OpenUsdScene.Tests
+namespace Opc.Ua.Robotics
 {
     /// <summary>
-    /// Locates and loads the bundled <c>.usda</c> example layers that are copied next to the test
-    /// assembly. The layers are self-contained so the tests never read from another repository.
+    /// Read-model snapshot of a TaskControlType instance.
     /// </summary>
-    internal static class TestAssets
+    public sealed record TaskControlSnapshot
     {
         /// <summary>
-        /// Gets the directory containing the copied example layers.
+        /// The task-control identification.
         /// </summary>
-        public static string Directory => Path.Combine(AppContext.BaseDirectory, "Assets");
+        public RoboticsComponentIdentification Identification { get; init; } = new();
 
         /// <summary>
-        /// Resolves the full path to a named example layer.
+        /// The optional execution mode, including status and timestamps.
         /// </summary>
-        public static string PathTo(string name) => Path.Combine(Directory, name);
+        public DataValue ExecutionMode { get; init; } = DataValue.Null;
 
         /// <summary>
-        /// Parses a named example layer into a composed stage (example overlays applied).
+        /// Whether a task program is loaded, including status and timestamps.
         /// </summary>
-        public static UsdStage Load(string name) => UsdaReader.ParseFile(PathTo(name));
+        public DataValue TaskProgramLoaded { get; init; } = DataValue.Null;
+
+        /// <summary>
+        /// The loaded task-program name, including status and timestamps.
+        /// </summary>
+        public DataValue TaskProgramName { get; init; } = DataValue.Null;
+
+        /// <summary>
+        /// The TaskControlOperation instance, or <see cref="NodeId.Null"/> when absent.
+        /// </summary>
+        public NodeId TaskControlOperationId { get; init; } = NodeId.Null;
+
+        /// <summary>
+        /// Task modules exposed by this task control.
+        /// </summary>
+        public ArrayOf<NodeId> TaskModuleIds { get; init; } = [];
     }
 }

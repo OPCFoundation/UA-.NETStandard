@@ -337,10 +337,10 @@ namespace Opc.Ua.Robotics.Client.Tests
             public RoboticsSessionHarness()
             {
                 Telemetry = new Mock<ITelemetryContext>().Object;
-                NamespaceUris.GetIndexOrAppend(RoboticsNamespaces.Robotics);
+                NamespaceUris.GetIndexOrAppend(global::Opc.Ua.Robotics.Namespaces.Robotics);
                 NamespaceUris.GetIndexOrAppend(Opc.Ua.Di.Namespaces.OpcUaDi);
                 MessageContext = ServiceMessageContext.Create(Telemetry);
-                MessageContext.NamespaceUris.GetIndexOrAppend(RoboticsNamespaces.Robotics);
+                MessageContext.NamespaceUris.GetIndexOrAppend(global::Opc.Ua.Robotics.Namespaces.Robotics);
                 MessageContext.NamespaceUris.GetIndexOrAppend(Opc.Ua.Di.Namespaces.OpcUaDi);
                 Session.SetupGet(s => s.NamespaceUris).Returns(NamespaceUris);
                 Session.SetupGet(s => s.MessageContext).Returns(MessageContext);
@@ -653,7 +653,7 @@ namespace Opc.Ua.Robotics.Client.Tests
             {
                 NodeId referenceTypeId = new(
                     referenceType,
-                    (ushort)NamespaceUris.GetIndex(RoboticsNamespaces.Robotics));
+                    (ushort)NamespaceUris.GetIndex(global::Opc.Ua.Robotics.Namespaces.Robotics));
                 if (!m_browse.TryGetValue(source, out List<ReferenceDescription>? list))
                 {
                     list = [];

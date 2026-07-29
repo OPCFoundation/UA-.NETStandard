@@ -45,7 +45,7 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public void FixedModeUsesConfiguredPose()
         {
-            global::Robotics.RobotMobilityOptions options = CreateOptions();
+            global::Robotics.MobileRobotPositionOptions options = CreateOptions();
             options.R1.Mode = global::Robotics.RobotMotionMode.Fixed;
             options.R1.OriginX = 4.0;
             options.R1.OriginY = -3.0;
@@ -68,7 +68,7 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public void FigureEightModeFollowsConfiguredAmplitudes()
         {
-            global::Robotics.RobotMobilityOptions options = CreateOptions();
+            global::Robotics.MobileRobotPositionOptions options = CreateOptions();
             options.R1.Mode = global::Robotics.RobotMotionMode.FigureEight;
             options.R1.OriginX = 1.0;
             options.R1.OriginY = 2.0;
@@ -94,7 +94,7 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public void CircleModeUsesRadiusAndTangentHeading()
         {
-            global::Robotics.RobotMobilityOptions options = CreateOptions();
+            global::Robotics.MobileRobotPositionOptions options = CreateOptions();
             options.R1.Mode = global::Robotics.RobotMotionMode.Circle;
             options.R1.Radius = 0.75;
             options.R1.PeriodSeconds = 8.0;
@@ -118,7 +118,7 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public void ShuttleModeReversesHeadingWithDirection()
         {
-            global::Robotics.RobotMobilityOptions options = CreateOptions();
+            global::Robotics.MobileRobotPositionOptions options = CreateOptions();
             options.R1.Mode = global::Robotics.RobotMotionMode.Shuttle;
             options.R1.ShuttleDistance = 1.0;
             options.R1.PeriodSeconds = 4.0;
@@ -144,7 +144,7 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public void RobotsUseIndependentModesAndOrigins()
         {
-            global::Robotics.RobotMobilityOptions options = CreateOptions();
+            global::Robotics.MobileRobotPositionOptions options = CreateOptions();
             options.R1.Mode = global::Robotics.RobotMotionMode.Fixed;
             options.R2.Mode = global::Robotics.RobotMotionMode.Circle;
             options.R2.Radius = 0.25;
@@ -187,9 +187,9 @@ namespace Opc.Ua.Di.Tests
             });
         }
 
-        private static global::Robotics.RobotMobilityOptions CreateOptions()
+        private static global::Robotics.MobileRobotPositionOptions CreateOptions()
         {
-            return new global::Robotics.RobotMobilityOptions
+            return new global::Robotics.MobileRobotPositionOptions
             {
                 R1 = new global::Robotics.RobotMotionOptions
                 {
@@ -203,7 +203,7 @@ namespace Opc.Ua.Di.Tests
         }
 
         private static global::Robotics.MobileRobotPositionProvider CreateProvider(
-            global::Robotics.RobotMobilityOptions options)
+            global::Robotics.MobileRobotPositionOptions options)
         {
             return new global::Robotics.MobileRobotPositionProvider(
                 options,

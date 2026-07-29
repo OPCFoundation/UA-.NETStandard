@@ -27,32 +27,36 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.IO;
-using Opc.Ua.OpenUsdScene.Conversion;
-using Opc.Ua.OpenUsdScene.Scene;
-
-namespace Opc.Ua.OpenUsdScene.Tests
+namespace Opc.Ua.Robotics
 {
     /// <summary>
-    /// Locates and loads the bundled <c>.usda</c> example layers that are copied next to the test
-    /// assembly. The layers are self-contained so the tests never read from another repository.
+    /// Read-model snapshot of an AxisType instance.
     /// </summary>
-    internal static class TestAssets
+    public sealed record AxisSnapshot
     {
         /// <summary>
-        /// Gets the directory containing the copied example layers.
+        /// The axis identification.
         /// </summary>
-        public static string Directory => Path.Combine(AppContext.BaseDirectory, "Assets");
+        public RoboticsComponentIdentification Identification { get; init; } = new();
 
         /// <summary>
-        /// Resolves the full path to a named example layer.
+        /// The generated OPC 40010 axis motion profile.
         /// </summary>
-        public static string PathTo(string name) => Path.Combine(Directory, name);
+        public AxisMotionProfileEnumeration MotionProfile { get; init; }
 
         /// <summary>
-        /// Parses a named example layer into a composed stage (example overlays applied).
+        /// Engineering units and limits for axis telemetry.
         /// </summary>
-        public static UsdStage Load(string name) => UsdaReader.ParseFile(PathTo(name));
+        public AxisEngineeringOptions Engineering { get; init; } = new();
+
+        /// <summary>
+        /// Current axis telemetry values.
+        /// </summary>
+        public AxisStateSnapshot State { get; init; } = new();
+
+        /// <summary>
+        /// The contained additional-load instance, or <see cref="NodeId.Null"/> when absent.
+        /// </summary>
+        public NodeId AdditionalLoadId { get; init; } = NodeId.Null;
     }
 }

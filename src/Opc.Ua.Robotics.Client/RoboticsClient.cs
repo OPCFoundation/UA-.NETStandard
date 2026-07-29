@@ -269,7 +269,7 @@ namespace Opc.Ua.Robotics.Client
                 throw new ArgumentNullException(nameof(namespaceUris));
             }
             name = null;
-            int ns = namespaceUris.GetIndex(RoboticsNamespaces.Robotics);
+            int ns = namespaceUris.GetIndex(global::Opc.Ua.Robotics.Namespaces.Robotics);
             if (ns < 0 || typeDefinition.IsNull)
             {
                 // The Robotics namespace is not present in the table, so no node can be
@@ -307,7 +307,7 @@ namespace Opc.Ua.Robotics.Client
                 throw new ArgumentNullException(nameof(session));
             }
 
-            int ns = session.NamespaceUris.GetIndex(RoboticsNamespaces.Robotics);
+            int ns = session.NamespaceUris.GetIndex(global::Opc.Ua.Robotics.Namespaces.Robotics);
             if (ns < 0)
             {
                 // The server does not expose the Robotics companion namespace.

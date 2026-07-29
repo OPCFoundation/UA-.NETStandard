@@ -48,7 +48,7 @@ namespace Opc.Ua.Robotics.Client
         public async IAsyncEnumerable<MotionDeviceSystemEntry> EnumerateMotionDeviceSystemsAsync(
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
-            int ns = Session.NamespaceUris.GetIndex(RoboticsNamespaces.Robotics);
+            int ns = Session.NamespaceUris.GetIndex(global::Opc.Ua.Robotics.Namespaces.Robotics);
             if (ns < 0)
             {
                 yield break;
@@ -632,7 +632,7 @@ namespace Opc.Ua.Robotics.Client
             IReadOnlyList<NodeId> sources,
             CancellationToken cancellationToken)
         {
-            int ns = Session.NamespaceUris.GetIndex(RoboticsNamespaces.Robotics);
+            int ns = Session.NamespaceUris.GetIndex(global::Opc.Ua.Robotics.Namespaces.Robotics);
             if (ns < 0)
             {
                 return new RoboticsRelationshipSnapshot();
@@ -676,7 +676,7 @@ namespace Opc.Ua.Robotics.Client
             List<RoboticsRelationshipEntry> entries,
             CancellationToken cancellationToken)
         {
-            int ns = Session.NamespaceUris.GetIndex(RoboticsNamespaces.Robotics);
+            int ns = Session.NamespaceUris.GetIndex(global::Opc.Ua.Robotics.Namespaces.Robotics);
             if (ns < 0)
             {
                 return;

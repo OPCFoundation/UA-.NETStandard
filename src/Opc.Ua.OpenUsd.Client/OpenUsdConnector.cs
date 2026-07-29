@@ -150,19 +150,29 @@ namespace Opc.Ua.OpenUsd.Client
             /// </summary>
             public bool Enabled { get; set; } = true;
 
-            /// <summary>§5.3/§5.4 declaration identity — half of the effective binding key.</summary>
+            /// <summary>
+            /// §5.3/§5.4 declaration identity — half of the effective binding key.
+            /// </summary>
             public Guid BindingDefinitionId { get; set; }
 
-            /// <summary>§5.7 instance-portable source path from the represented Object.</summary>
+            /// <summary>
+            /// §5.7 instance-portable source path from the represented Object.
+            /// </summary>
             public RelativePath? SourceBrowsePath { get; set; }
 
-            /// <summary>§5.10 optional Method to Call instead of writing the target Variable.</summary>
+            /// <summary>
+            /// §5.10 optional Method to Call instead of writing the target Variable.
+            /// </summary>
             public NodeId CommandMethodId { get; set; }
 
-            /// <summary>§5.8 step (1) unit assertion of the source value.</summary>
+            /// <summary>
+            /// §5.8 step (1) unit assertion of the source value.
+            /// </summary>
             public EUInformation? SourceEngineeringUnits { get; set; }
 
-            /// <summary>§5.8 step (1) unit requested for the target value.</summary>
+            /// <summary>
+            /// §5.8 step (1) unit requested for the target value.
+            /// </summary>
             public EUInformation? TargetEngineeringUnits { get; set; }
         }
 
@@ -188,7 +198,9 @@ namespace Opc.Ua.OpenUsd.Client
             /// </summary>
             public bool Enabled { get; set; } = true;
 
-            /// <summary>§5.12 declaration identity — half of the effective binding key.</summary>
+            /// <summary>
+            /// §5.12 declaration identity — half of the effective binding key.
+            /// </summary>
             public Guid BindingDefinitionId { get; set; }
         }
 

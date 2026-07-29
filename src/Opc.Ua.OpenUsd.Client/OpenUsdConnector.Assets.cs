@@ -49,7 +49,9 @@ namespace Opc.Ua.OpenUsd.Client
     /// </summary>
     public sealed partial class OpenUsdConnector
     {
-        /// <summary>One layer fetched from the server into the local cache.</summary>
+        /// <summary>
+        /// One layer fetched from the server into the local cache.
+        /// </summary>
         public sealed class FetchedAsset
         {
             public string Identifier { get; set; } = string.Empty;

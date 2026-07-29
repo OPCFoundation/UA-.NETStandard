@@ -27,32 +27,26 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.IO;
-using Opc.Ua.OpenUsdScene.Conversion;
-using Opc.Ua.OpenUsdScene.Scene;
-
-namespace Opc.Ua.OpenUsdScene.Tests
+namespace Opc.Ua.Robotics
 {
     /// <summary>
-    /// Locates and loads the bundled <c>.usda</c> example layers that are copied next to the test
-    /// assembly. The layers are self-contained so the tests never read from another repository.
+    /// Read-model snapshot of a GearType instance.
     /// </summary>
-    internal static class TestAssets
+    public sealed record GearSnapshot
     {
         /// <summary>
-        /// Gets the directory containing the copied example layers.
+        /// The gear identification.
         /// </summary>
-        public static string Directory => Path.Combine(AppContext.BaseDirectory, "Assets");
+        public RoboticsComponentIdentification Identification { get; init; } = new();
 
         /// <summary>
-        /// Resolves the full path to a named example layer.
+        /// The gear ratio expressed with the standard RationalNumber type.
         /// </summary>
-        public static string PathTo(string name) => Path.Combine(Directory, name);
+        public RationalNumber? GearRatio { get; init; }
 
         /// <summary>
-        /// Parses a named example layer into a composed stage (example overlays applied).
+        /// The optional pitch value, including status and timestamps.
         /// </summary>
-        public static UsdStage Load(string name) => UsdaReader.ParseFile(PathTo(name));
+        public DataValue Pitch { get; init; } = DataValue.Null;
     }
 }

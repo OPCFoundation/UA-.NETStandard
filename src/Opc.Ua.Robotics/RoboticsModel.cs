@@ -78,7 +78,7 @@ namespace Opc.Ua.Robotics
                 throw new ArgumentNullException(nameof(namespaceUris));
             }
 
-            return NodeId.Create(identifier, RoboticsNamespaces.Robotics, namespaceUris);
+            return NodeId.Create(identifier, global::Opc.Ua.Robotics.Namespaces.Robotics, namespaceUris);
         }
 
         /// <summary>
@@ -231,7 +231,7 @@ namespace Opc.Ua.Robotics
             }
 
             name = null;
-            int namespaceIndex = namespaceUris.GetIndex(RoboticsNamespaces.Robotics);
+            int namespaceIndex = namespaceUris.GetIndex(global::Opc.Ua.Robotics.Namespaces.Robotics);
             if (namespaceIndex < 0 ||
                 typeDefinition.NamespaceIndex != namespaceIndex ||
                 !typeDefinition.TryGetValue(out uint identifier))
@@ -239,7 +239,7 @@ namespace Opc.Ua.Robotics
                 return false;
             }
 
-            var expandedNodeId = new ExpandedNodeId(identifier, RoboticsNamespaces.Robotics);
+            var expandedNodeId = new ExpandedNodeId(identifier, global::Opc.Ua.Robotics.Namespaces.Robotics);
             if (!ObjectTypeIds.TryGetBrowseName(expandedNodeId, out string? browseName) ||
                 string.IsNullOrEmpty(browseName))
             {
@@ -271,7 +271,7 @@ namespace Opc.Ua.Robotics
             }
 
             name = null;
-            int namespaceIndex = namespaceUris.GetIndex(RoboticsNamespaces.Robotics);
+            int namespaceIndex = namespaceUris.GetIndex(global::Opc.Ua.Robotics.Namespaces.Robotics);
             if (namespaceIndex < 0 ||
                 referenceTypeId.NamespaceIndex != namespaceIndex ||
                 !referenceTypeId.TryGetValue(out uint identifier))
@@ -279,7 +279,7 @@ namespace Opc.Ua.Robotics
                 return false;
             }
 
-            var expandedNodeId = new ExpandedNodeId(identifier, RoboticsNamespaces.Robotics);
+            var expandedNodeId = new ExpandedNodeId(identifier, global::Opc.Ua.Robotics.Namespaces.Robotics);
             return ReferenceTypeIds.TryGetBrowseName(expandedNodeId, out name);
         }
 

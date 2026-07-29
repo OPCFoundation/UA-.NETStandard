@@ -176,7 +176,9 @@ namespace Opc.Ua.OpenUsd.Client.Tests
             Assert.That(vector[2], Is.EqualTo(0.3).Within(1e-9));
         }
 
-        /// <summary>UNECE common code "C81" (radian) packed into an EUInformation UnitId.</summary>
+        /// <summary>
+        /// UNECE common code "C81" (radian) packed into an EUInformation UnitId.
+        /// </summary>
         private static EUInformation Radians()
         {
             return new EUInformation
@@ -187,7 +189,9 @@ namespace Opc.Ua.OpenUsd.Client.Tests
             };
         }
 
-        /// <summary>UNECE common code "DD" (degree) packed into an EUInformation UnitId.</summary>
+        /// <summary>
+        /// UNECE common code "DD" (degree) packed into an EUInformation UnitId.
+        /// </summary>
         private static EUInformation Degrees()
         {
             return new EUInformation

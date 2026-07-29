@@ -103,10 +103,14 @@ namespace Opc.Ua.OpenUsdScene.Server
             Value = value;
         }
 
-        /// <summary>The stage-timeline time code (may be negative or fractional).</summary>
+        /// <summary>
+        /// The stage-timeline time code (may be negative or fractional).
+        /// </summary>
         public double TimeCode { get; }
 
-        /// <summary>The sampled value.</summary>
+        /// <summary>
+        /// The sampled value.
+        /// </summary>
         public object? Value { get; }
 
         /// <inheritdoc/>
@@ -127,13 +131,17 @@ namespace Opc.Ua.OpenUsdScene.Server
             return TimeCode.GetHashCode();
         }
 
-        /// <summary>Equality operator.</summary>
+        /// <summary>
+        /// Equality operator.
+        /// </summary>
         public static bool operator ==(UsdTimeSample left, UsdTimeSample right)
         {
             return left.Equals(right);
         }
 
-        /// <summary>Inequality operator.</summary>
+        /// <summary>
+        /// Inequality operator.
+        /// </summary>
         public static bool operator !=(UsdTimeSample left, UsdTimeSample right)
         {
             return !left.Equals(right);
@@ -176,7 +184,9 @@ namespace Opc.Ua.OpenUsdScene.Server
             EpochUtc = epochUtc;
         }
 
-        /// <summary>The materialized attribute node whose history these samples are.</summary>
+        /// <summary>
+        /// The materialized attribute node whose history these samples are.
+        /// </summary>
         public UsdAttributeState Node { get; }
 
         /// <summary>
@@ -184,7 +194,9 @@ namespace Opc.Ua.OpenUsdScene.Server
         /// </summary>
         public string AttributePath { get; }
 
-        /// <summary>The time samples, ordered by ascending time code.</summary>
+        /// <summary>
+        /// The time samples, ordered by ascending time code.
+        /// </summary>
         public IReadOnlyList<UsdTimeSample> Samples { get; }
 
         /// <summary>

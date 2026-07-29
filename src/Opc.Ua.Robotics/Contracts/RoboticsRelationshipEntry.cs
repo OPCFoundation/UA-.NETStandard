@@ -27,32 +27,31 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.IO;
-using Opc.Ua.OpenUsdScene.Conversion;
-using Opc.Ua.OpenUsdScene.Scene;
-
-namespace Opc.Ua.OpenUsdScene.Tests
+namespace Opc.Ua.Robotics
 {
     /// <summary>
-    /// Locates and loads the bundled <c>.usda</c> example layers that are copied next to the test
-    /// assembly. The layers are self-contained so the tests never read from another repository.
+    /// An OPC 40010 relationship between two resolved instance NodeIds.
     /// </summary>
-    internal static class TestAssets
+    public sealed record RoboticsRelationshipEntry
     {
         /// <summary>
-        /// Gets the directory containing the copied example layers.
+        /// The source instance NodeId.
         /// </summary>
-        public static string Directory => Path.Combine(AppContext.BaseDirectory, "Assets");
+        public NodeId SourceId { get; init; } = NodeId.Null;
 
         /// <summary>
-        /// Resolves the full path to a named example layer.
+        /// The resolved ReferenceType NodeId.
         /// </summary>
-        public static string PathTo(string name) => Path.Combine(Directory, name);
+        public NodeId ReferenceTypeId { get; init; } = NodeId.Null;
 
         /// <summary>
-        /// Parses a named example layer into a composed stage (example overlays applied).
+        /// The target instance NodeId.
         /// </summary>
-        public static UsdStage Load(string name) => UsdaReader.ParseFile(PathTo(name));
+        public NodeId TargetId { get; init; } = NodeId.Null;
+
+        /// <summary>
+        /// Whether the entry was observed in the inverse direction.
+        /// </summary>
+        public bool IsInverse { get; init; }
     }
 }

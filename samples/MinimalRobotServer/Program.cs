@@ -51,7 +51,7 @@ int port = int.TryParse(builder.Configuration["port"], out int p) ? p : 62830;
 // from outside a container; override with --host / host env var (e.g. "localhost").
 string host = builder.Configuration["host"] is { Length: > 0 } h ? h : "0.0.0.0";
 
-builder.Services.AddOptions<RobotMobilityOptions>()
+builder.Services.AddOptions<MobileRobotPositionOptions>()
     .Bind(builder.Configuration.GetSection("Robots"));
 builder.Services.AddSingleton<RobotPositioningScenario>();
 

@@ -79,13 +79,19 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
         private const string RotateOp = "xformOp:rotateXYZ";
         private const string ScaleOp = "xformOp:scale";
 
-        /// <summary>Pump period, about 60 Hz.</summary>
+        /// <summary>
+        /// Pump period, about 60 Hz.
+        /// </summary>
         private static readonly TimeSpan s_tick = TimeSpan.FromMilliseconds(16);
 
-        /// <summary>Shortest interpolation window, so a burst cannot cause a visible jump.</summary>
+        /// <summary>
+        /// Shortest interpolation window, so a burst cannot cause a visible jump.
+        /// </summary>
         private static readonly long s_minWindow = Stopwatch.Frequency / 50;
 
-        /// <summary>Longest interpolation window, so a stalled feed settles instead of crawling.</summary>
+        /// <summary>
+        /// Longest interpolation window, so a stalled feed settles instead of crawling.
+        /// </summary>
         private static readonly long s_maxWindow = Stopwatch.Frequency / 2;
 
         private static readonly DateTime s_epoch =

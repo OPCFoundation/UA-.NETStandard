@@ -27,32 +27,36 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.IO;
-using Opc.Ua.OpenUsdScene.Conversion;
-using Opc.Ua.OpenUsdScene.Scene;
-
-namespace Opc.Ua.OpenUsdScene.Tests
+namespace Opc.Ua.Robotics
 {
     /// <summary>
-    /// Locates and loads the bundled <c>.usda</c> example layers that are copied next to the test
-    /// assembly. The layers are self-contained so the tests never read from another repository.
+    /// Read-model snapshot of a LoadType instance.
     /// </summary>
-    internal static class TestAssets
+    public sealed record LoadSnapshot
     {
         /// <summary>
-        /// Gets the directory containing the copied example layers.
+        /// The load instance NodeId.
         /// </summary>
-        public static string Directory => Path.Combine(AppContext.BaseDirectory, "Assets");
+        public NodeId NodeId { get; init; } = NodeId.Null;
 
         /// <summary>
-        /// Resolves the full path to a named example layer.
+        /// The load mass, including status and timestamps.
         /// </summary>
-        public static string PathTo(string name) => Path.Combine(Directory, name);
+        public DataValue Mass { get; init; } = DataValue.Null;
 
         /// <summary>
-        /// Parses a named example layer into a composed stage (example overlays applied).
+        /// Engineering metadata for the load mass.
         /// </summary>
-        public static UsdStage Load(string name) => UsdaReader.ParseFile(PathTo(name));
+        public RoboticsEngineeringValue MassEngineering { get; init; } = new();
+
+        /// <summary>
+        /// The load center of mass, including status and timestamps.
+        /// </summary>
+        public DataValue CenterOfMass { get; init; } = DataValue.Null;
+
+        /// <summary>
+        /// The load inertia, including status and timestamps.
+        /// </summary>
+        public DataValue Inertia { get; init; } = DataValue.Null;
     }
 }

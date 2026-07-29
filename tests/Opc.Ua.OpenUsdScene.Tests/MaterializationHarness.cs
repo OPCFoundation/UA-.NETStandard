@@ -92,7 +92,9 @@ namespace Opc.Ua.OpenUsdScene.Tests
     /// </summary>
     internal static class MaterializationHarness
     {
-        /// <summary>A private namespace the instance NodeIds are minted in.</summary>
+        /// <summary>
+        /// A private namespace the instance NodeIds are minted in.
+        /// </summary>
         public const string InstanceNamespaceUri = "urn:opcfoundation:openusd:tests:instances";
 
         /// <summary>

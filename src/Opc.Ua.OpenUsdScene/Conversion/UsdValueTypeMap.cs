@@ -115,7 +115,9 @@ namespace Opc.Ua.OpenUsdScene.Conversion
 
             public BuiltInType Element { get; }
 
-            /// <summary>Zero for a scalar; otherwise the pinned extent of the 1-D array.</summary>
+            /// <summary>
+            /// Zero for a scalar; otherwise the pinned extent of the 1-D array.
+            /// </summary>
             public uint FixedLength { get; }
         }
 

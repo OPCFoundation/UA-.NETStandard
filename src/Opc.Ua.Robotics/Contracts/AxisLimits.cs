@@ -27,32 +27,26 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.IO;
-using Opc.Ua.OpenUsdScene.Conversion;
-using Opc.Ua.OpenUsdScene.Scene;
-
-namespace Opc.Ua.OpenUsdScene.Tests
+namespace Opc.Ua.Robotics
 {
     /// <summary>
-    /// Locates and loads the bundled <c>.usda</c> example layers that are copied next to the test
-    /// assembly. The layers are self-contained so the tests never read from another repository.
+    /// Engineering limits for the standard AxisType telemetry values.
     /// </summary>
-    internal static class TestAssets
+    public sealed record AxisLimits
     {
         /// <summary>
-        /// Gets the directory containing the copied example layers.
+        /// The supported position range.
         /// </summary>
-        public static string Directory => Path.Combine(AppContext.BaseDirectory, "Assets");
+        public Range? Position { get; init; }
 
         /// <summary>
-        /// Resolves the full path to a named example layer.
+        /// The supported speed range.
         /// </summary>
-        public static string PathTo(string name) => Path.Combine(Directory, name);
+        public Range? Speed { get; init; }
 
         /// <summary>
-        /// Parses a named example layer into a composed stage (example overlays applied).
+        /// The supported acceleration range.
         /// </summary>
-        public static UsdStage Load(string name) => UsdaReader.ParseFile(PathTo(name));
+        public Range? Acceleration { get; init; }
     }
 }

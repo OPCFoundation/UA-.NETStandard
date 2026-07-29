@@ -38,13 +38,17 @@ namespace Opc.Ua.OpenUsdScene.Tests
     /// </summary>
     internal static class SceneQuery
     {
-        /// <summary>The materialized prim at an absolute SdfPath (for example <c>/Plant</c>).</summary>
+        /// <summary>
+        /// The materialized prim at an absolute SdfPath (for example <c>/Plant</c>).
+        /// </summary>
         public static UsdPrimState Prim(this MaterializedScene ms, string path)
         {
             return ms.Result.PrimsByPath[path];
         }
 
-        /// <summary>The materialized attribute keyed <c>&lt;primPath&gt;.&lt;name&gt;</c>.</summary>
+        /// <summary>
+        /// The materialized attribute keyed <c>&lt;primPath&gt;.&lt;name&gt;</c>.
+        /// </summary>
         public static UsdAttributeState Attr(this MaterializedScene ms, string key)
         {
             return ms.Result.AttributesByPath[key];
@@ -60,7 +64,9 @@ namespace Opc.Ua.OpenUsdScene.Tests
             return attribute.ArrayDimensions.ToArray();
         }
 
-        /// <summary>The boxed value of a materialized attribute, or <c>null</c> when unset.</summary>
+        /// <summary>
+        /// The boxed value of a materialized attribute, or <c>null</c> when unset.
+        /// </summary>
         public static object? BoxedValue(this UsdAttributeState attribute)
         {
             return attribute.Value.AsBoxedObject();
@@ -96,7 +102,9 @@ namespace Opc.Ua.OpenUsdScene.Tests
             return MaterializationHarness.ChildrenOfType<UsdCompositionArcState>(ms.Context, folder);
         }
 
-        /// <summary>The absolute SdfPath of a parsed prim, walked from its parent chain.</summary>
+        /// <summary>
+        /// The absolute SdfPath of a parsed prim, walked from its parent chain.
+        /// </summary>
         public static string PathOf(this Scene.UsdPrim prim)
         {
             var parts = new List<string>();
@@ -109,7 +117,9 @@ namespace Opc.Ua.OpenUsdScene.Tests
             return "/" + string.Join("/", parts);
         }
 
-        /// <summary>The total number of authored attribute connections across a whole scene.</summary>
+        /// <summary>
+        /// The total number of authored attribute connections across a whole scene.
+        /// </summary>
         public static int TotalConnections(this Scene.UsdStage stage)
         {
             int total = 0;

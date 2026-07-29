@@ -27,32 +27,57 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.IO;
-using Opc.Ua.OpenUsdScene.Conversion;
-using Opc.Ua.OpenUsdScene.Scene;
-
-namespace Opc.Ua.OpenUsdScene.Tests
+namespace Opc.Ua.Robotics
 {
     /// <summary>
-    /// Locates and loads the bundled <c>.usda</c> example layers that are copied next to the test
-    /// assembly. The layers are self-contained so the tests never read from another repository.
+    /// Common identification data exposed by Robotics components and the
+    /// underlying OPC UA DI model.
     /// </summary>
-    internal static class TestAssets
+    public sealed record RoboticsComponentIdentification
     {
         /// <summary>
-        /// Gets the directory containing the copied example layers.
+        /// The component instance NodeId.
         /// </summary>
-        public static string Directory => Path.Combine(AppContext.BaseDirectory, "Assets");
+        public NodeId NodeId { get; init; } = NodeId.Null;
 
         /// <summary>
-        /// Resolves the full path to a named example layer.
+        /// The component BrowseName.
         /// </summary>
-        public static string PathTo(string name) => Path.Combine(Directory, name);
+        public QualifiedName BrowseName { get; init; } = QualifiedName.Null;
 
         /// <summary>
-        /// Parses a named example layer into a composed stage (example overlays applied).
+        /// The user-facing component name.
         /// </summary>
-        public static UsdStage Load(string name) => UsdaReader.ParseFile(PathTo(name));
+        public LocalizedText ComponentName { get; init; } = LocalizedText.Null;
+
+        /// <summary>
+        /// The DI asset identifier.
+        /// </summary>
+        public string? AssetId { get; init; }
+
+        /// <summary>
+        /// The manufacturer name.
+        /// </summary>
+        public LocalizedText Manufacturer { get; init; } = LocalizedText.Null;
+
+        /// <summary>
+        /// The manufacturer model name.
+        /// </summary>
+        public LocalizedText Model { get; init; } = LocalizedText.Null;
+
+        /// <summary>
+        /// The manufacturer product code.
+        /// </summary>
+        public string? ProductCode { get; init; }
+
+        /// <summary>
+        /// The manufacturer serial number.
+        /// </summary>
+        public string? SerialNumber { get; init; }
+
+        /// <summary>
+        /// A URI or location for the component manual.
+        /// </summary>
+        public string? DeviceManual { get; init; }
     }
 }

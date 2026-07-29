@@ -27,32 +27,16 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.IO;
-using Opc.Ua.OpenUsdScene.Conversion;
-using Opc.Ua.OpenUsdScene.Scene;
-
-namespace Opc.Ua.OpenUsdScene.Tests
+namespace Opc.Ua.Robotics
 {
     /// <summary>
-    /// Locates and loads the bundled <c>.usda</c> example layers that are copied next to the test
-    /// assembly. The layers are self-contained so the tests never read from another repository.
+    /// Read-model snapshot of a DriveType instance.
     /// </summary>
-    internal static class TestAssets
+    public sealed record DriveSnapshot
     {
         /// <summary>
-        /// Gets the directory containing the copied example layers.
+        /// The drive identification.
         /// </summary>
-        public static string Directory => Path.Combine(AppContext.BaseDirectory, "Assets");
-
-        /// <summary>
-        /// Resolves the full path to a named example layer.
-        /// </summary>
-        public static string PathTo(string name) => Path.Combine(Directory, name);
-
-        /// <summary>
-        /// Parses a named example layer into a composed stage (example overlays applied).
-        /// </summary>
-        public static UsdStage Load(string name) => UsdaReader.ParseFile(PathTo(name));
+        public RoboticsComponentIdentification Identification { get; init; } = new();
     }
 }

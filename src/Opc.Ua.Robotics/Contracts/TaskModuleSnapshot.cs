@@ -30,16 +30,28 @@
 namespace Opc.Ua.Robotics
 {
     /// <summary>
-    /// Well-known namespace URIs of the OPC 40010 Robotics companion
-    /// specification and its required OPC 40001-1 Industrial Automation (IA)
-    /// base model.
+    /// Read-model snapshot of a TaskModuleType instance.
     /// </summary>
-    public static class RoboticsNamespaces
+    public sealed record TaskModuleSnapshot
     {
-        /// <summary>The OPC 40010 Robotics companion namespace URI.</summary>
-        public const string Robotics = "http://opcfoundation.org/UA/Robotics/";
+        /// <summary>
+        /// The task-module instance NodeId.
+        /// </summary>
+        public NodeId NodeId { get; init; } = NodeId.Null;
 
-        /// <summary>The OPC 40001-1 Industrial Automation (IA) namespace URI.</summary>
-        public const string IA = "http://opcfoundation.org/UA/IA/";
+        /// <summary>
+        /// The task-module name.
+        /// </summary>
+        public string? Name { get; init; }
+
+        /// <summary>
+        /// The task-module version.
+        /// </summary>
+        public string? Version { get; init; }
+
+        /// <summary>
+        /// Whether another task module references this module.
+        /// </summary>
+        public DataValue IsReferenced { get; init; } = DataValue.Null;
     }
 }

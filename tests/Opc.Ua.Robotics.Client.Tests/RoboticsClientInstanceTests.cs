@@ -53,7 +53,7 @@ namespace Opc.Ua.Robotics.Client.Tests
         private static NamespaceTable TableWithRobotics(out ushort roboticsIndex)
         {
             var table = new NamespaceTable();
-            roboticsIndex = (ushort)table.GetIndexOrAppend(RoboticsNamespaces.Robotics);
+            roboticsIndex = (ushort)table.GetIndexOrAppend(global::Opc.Ua.Robotics.Namespaces.Robotics);
             return table;
         }
 

@@ -49,7 +49,9 @@ namespace Opc.Ua.OpenUsd.Client
         public const uint AssetTypeId = 1006;
     }
 
-    /// <summary>Role of a served USD asset within a stage's closure (NodeSet i=3010).</summary>
+    /// <summary>
+    /// Role of a served USD asset within a stage's closure (NodeSet i=3010).
+    /// </summary>
     public enum OpenUsdAssetKind
     {
         RootLayer = 0,
@@ -60,14 +62,18 @@ namespace Opc.Ua.OpenUsd.Client
         Package = 5
     }
 
-    /// <summary>Cardinality of a component binding (NodeSet i=3008).</summary>
+    /// <summary>
+    /// Cardinality of a component binding (NodeSet i=3008).
+    /// </summary>
     public enum OpenUsdCardinality
     {
         One = 0,
         Many = 1
     }
 
-    /// <summary>USD composition arc for a component prim (NodeSet i=3009).</summary>
+    /// <summary>
+    /// USD composition arc for a component prim (NodeSet i=3009).
+    /// </summary>
     public enum OpenUsdCompositionArc
     {
         Child = 0,
@@ -76,7 +82,9 @@ namespace Opc.Ua.OpenUsd.Client
         Instance = 3
     }
 
-    /// <summary>How a bound value drives the target USD attribute (NodeSet i=3002).</summary>
+    /// <summary>
+    /// How a bound value drives the target USD attribute (NodeSet i=3002).
+    /// </summary>
     public enum OpenUsdRenderTargetKind
     {
         Translation = 0,
@@ -102,14 +110,18 @@ namespace Opc.Ua.OpenUsd.Client
         UsdToUaCommand = 3
     }
 
-    /// <summary>Role of the bound signal (NodeSet i=3005).</summary>
+    /// <summary>
+    /// Role of the bound signal (NodeSet i=3005).
+    /// </summary>
     public enum OpenUsdSignalRole
     {
         Observable = 0,
         Controllable = 1
     }
 
-    /// <summary>A&amp;C condition aspect a UaAlarmToUsd binding drives (NodeSet i=3006).</summary>
+    /// <summary>
+    /// A&amp;C condition aspect a UaAlarmToUsd binding drives (NodeSet i=3006).
+    /// </summary>
     public enum OpenUsdAlarmAspect
     {
         ActiveState = 0,
@@ -118,7 +130,9 @@ namespace Opc.Ua.OpenUsd.Client
         EnabledState = 3
     }
 
-    /// <summary>Digest algorithm for OpenUsdStageType.RootLayerDigest (NodeSet i=3007).</summary>
+    /// <summary>
+    /// Digest algorithm for OpenUsdStageType.RootLayerDigest (NodeSet i=3007).
+    /// </summary>
     public enum OpenUsdDigestAlgorithm
     {
         None = 0,

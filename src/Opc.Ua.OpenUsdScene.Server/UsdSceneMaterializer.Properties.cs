@@ -43,7 +43,9 @@ namespace Opc.Ua.OpenUsdScene.Server
         private const string kCesiumGeoreference = "CesiumGeoreferencePrim";
         private const string kCesiumGlobeAnchor = "CesiumGlobeAnchorAPI";
 
-        /// <summary>WGS84 — the CRS Cesium anchors are expressed in.</summary>
+        /// <summary>
+        /// WGS84 — the CRS Cesium anchors are expressed in.
+        /// </summary>
         private const int kEpsgWgs84 = 4326;
 
         /// <summary>

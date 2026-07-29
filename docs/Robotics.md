@@ -21,9 +21,10 @@ Generated model types stay in the specification namespaces `Opc.Ua.Robotics` and
 `Opc.Ua.IA`; hand-written APIs compose the generated NodeStates, factories,
 enums, and ObjectType clients instead of replacing or inheriting from them.
 
-`RoboticsNamespaces` exposes the two model namespace URIs, and `RoboticsModel`
-adds namespace-safe resolution and classification helpers over the generated
-`ObjectTypeIds` / `ReferenceTypeIds` classes, which remain the source of truth.
+The generated `Opc.Ua.Robotics.Namespaces` and `Opc.Ua.IA.Namespaces` classes
+expose the model namespace URIs, and `RoboticsModel` adds namespace-safe
+resolution and classification helpers over the generated `ObjectTypeIds` /
+`ReferenceTypeIds` classes, which remain the source of truth.
 
 ## Minimal hosted server
 

@@ -27,32 +27,46 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.IO;
-using Opc.Ua.OpenUsdScene.Conversion;
-using Opc.Ua.OpenUsdScene.Scene;
-
-namespace Opc.Ua.OpenUsdScene.Tests
+namespace Opc.Ua.Robotics
 {
     /// <summary>
-    /// Locates and loads the bundled <c>.usda</c> example layers that are copied next to the test
-    /// assembly. The layers are self-contained so the tests never read from another repository.
+    /// Categorized semantic relationships defined by the Robotics NodeSet.
     /// </summary>
-    internal static class TestAssets
+    public sealed record RoboticsRelationshipSnapshot
     {
         /// <summary>
-        /// Gets the directory containing the copied example layers.
+        /// Controller-to-motion-device and task-control-to-motion-device Controls relationships.
         /// </summary>
-        public static string Directory => Path.Combine(AppContext.BaseDirectory, "Assets");
+        public ArrayOf<RoboticsRelationshipEntry> Controls { get; init; } = [];
 
         /// <summary>
-        /// Resolves the full path to a named example layer.
+        /// Axis-to-power-train Requires relationships.
         /// </summary>
-        public static string PathTo(string name) => Path.Combine(Directory, name);
+        public ArrayOf<RoboticsRelationshipEntry> Requires { get; init; } = [];
 
         /// <summary>
-        /// Parses a named example layer into a composed stage (example overlays applied).
+        /// Power-train-to-axis Moves relationships.
         /// </summary>
-        public static UsdStage Load(string name) => UsdaReader.ParseFile(PathTo(name));
+        public ArrayOf<RoboticsRelationshipEntry> Moves { get; init; } = [];
+
+        /// <summary>
+        /// Motor-to-drive IsDrivenBy relationships.
+        /// </summary>
+        public ArrayOf<RoboticsRelationshipEntry> IsDrivenBy { get; init; } = [];
+
+        /// <summary>
+        /// Power-train HasSlave relationships.
+        /// </summary>
+        public ArrayOf<RoboticsRelationshipEntry> HasSlave { get; init; } = [];
+
+        /// <summary>
+        /// Symmetric IsConnectedTo relationships.
+        /// </summary>
+        public ArrayOf<RoboticsRelationshipEntry> IsConnectedTo { get; init; } = [];
+
+        /// <summary>
+        /// Controller-to-safety-state HasSafetyStates relationships.
+        /// </summary>
+        public ArrayOf<RoboticsRelationshipEntry> HasSafetyStates { get; init; } = [];
     }
 }

@@ -44,10 +44,14 @@ namespace Opc.Ua.OpenUsdScene.Server
     /// </remarks>
     public static class UsdSceneDiscovery
     {
-        /// <summary>The standalone discovery root BrowseName.</summary>
+        /// <summary>
+        /// The standalone discovery root BrowseName.
+        /// </summary>
         public const string OpenUsdSceneRootName = "OpenUSDScene";
 
-        /// <summary>The BrowseName of the stages folder under either discovery root.</summary>
+        /// <summary>
+        /// The BrowseName of the stages folder under either discovery root.
+        /// </summary>
         public const string StagesFolderName = "Stages";
 
         /// <summary>
