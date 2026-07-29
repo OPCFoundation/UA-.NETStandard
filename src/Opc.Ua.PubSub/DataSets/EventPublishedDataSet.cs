@@ -54,8 +54,6 @@ namespace Opc.Ua.PubSub.DataSets
     /// </remarks>
     public sealed class EventPublishedDataSet : IPublishedDataSet
     {
-        private readonly IEventSampler m_sampler;
-
         /// <summary>
         /// Initializes a new <see cref="EventPublishedDataSet"/>.
         /// </summary>
@@ -215,7 +213,7 @@ namespace Opc.Ua.PubSub.DataSets
             CancellationToken cancellationToken = default)
         {
             ArrayOf<Encoding.DataSetField> occurrence = [];
-            lock (m_pending)
+            lock (m_pendingGate)
             {
                 if (m_pending.Count != 0)
                 {
@@ -226,7 +224,7 @@ namespace Opc.Ua.PubSub.DataSets
             {
                 ArrayOf<ArrayOf<Encoding.DataSetField>> rows =
                     await SampleEventsAsync(cancellationToken).ConfigureAwait(false);
-                lock (m_pending)
+                lock (m_pendingGate)
                 {
                     for (int i = 0; i < rows.Count; i++)
                     {
@@ -247,6 +245,8 @@ namespace Opc.Ua.PubSub.DataSets
                     PubSubDataSetMessageType.Event);
         }
 
+        private readonly IEventSampler m_sampler;
+        private readonly Lock m_pendingGate = new();
         private readonly Queue<ArrayOf<Encoding.DataSetField>> m_pending = new();
     }
 }

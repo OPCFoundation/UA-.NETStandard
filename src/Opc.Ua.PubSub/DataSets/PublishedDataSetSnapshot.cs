@@ -31,7 +31,8 @@ using System;
 using Opc.Ua.PubSub.Encoding;
 
 namespace Opc.Ua.PubSub.DataSets
-{    /// <summary>
+{
+    /// <summary>
     /// Immutable snapshot of one <see cref="IPublishedDataSet"/>
     /// sample: the metadata version the snapshot was produced under,
     /// the materialised field values, and the sample timestamp.

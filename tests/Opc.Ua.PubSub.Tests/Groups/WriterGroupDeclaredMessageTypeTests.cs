@@ -236,10 +236,10 @@ namespace Opc.Ua.PubSub.Tests.Groups
                     return default;
                 }
             };
-            _ = group.State.TryEnable();
-            _ = group.State.TryMarkOperational();
-            _ = writer.State.TryEnable();
-            _ = writer.State.TryMarkOperational();
+            Assert.That(group.State.TryEnable(), Is.True);
+            Assert.That(group.State.TryMarkOperational(), Is.True);
+            Assert.That(writer.State.TryEnable(), Is.True);
+            Assert.That(writer.State.TryMarkOperational(), Is.True);
             return group;
         }
 
