@@ -443,6 +443,32 @@ namespace Opc.Ua.Bindings
 
         private void DispatchToChannel(DataChannel channel, in DataChannelFrame frame)
         {
+            // A CREDIT frame on a non-zero ChannelId replenishes the
+            // connection window as well as the channel's own (Part 6
+            // errata 5.8.2). The channel cannot do this itself: the
+            // connection window belongs to the manager, and dropping the
+            // grant leaves the window to be exhausted once and never
+            // refilled, which stalls every channel permanently.
+            if (frame.FrameType == DataChannelFrameType.Credit &&
+                !m_transport.HasTransportFlowControl &&
+                frame.ConnectionCredit != 0)
+            {
+                bool overflow;
+
+                lock (m_lock)
+                {
+                    overflow = !m_connectionSend.TryGrant(frame.ConnectionCredit);
+                    m_connectionCreditReceived = true;
+                }
+
+                if (overflow)
+                {
+                    m_logger.DataChannelManagerCreditOverflow();
+                    AbortAll(StatusCodes.BadDataChannelCreditExceeded);
+                    return;
+                }
+            }
+
             DataChannelFrameAction action = channel.HandleFrame(frame, out StatusCode status);
 
             switch (action)

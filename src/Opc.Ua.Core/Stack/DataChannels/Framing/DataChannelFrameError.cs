@@ -150,8 +150,9 @@ namespace Opc.Ua.Bindings
                 case DataChannelFrameError.None:
                     return StatusCodes.Good;
                 case DataChannelFrameError.UnknownFrameType:
+                    return StatusCodes.BadDataChannelFrameTypeUnsupported;
                 case DataChannelFrameError.PayloadOnNonDataFrame:
-                    return StatusCodes.BadDataChannelLimitsExceeded;
+                    return StatusCodes.BadDataChannelFrameInvalid;
                 default:
                     return StatusCodes.BadTcpMessageTypeInvalid;
             }

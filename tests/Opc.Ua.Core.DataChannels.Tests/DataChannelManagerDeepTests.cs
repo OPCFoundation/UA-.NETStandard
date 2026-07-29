@@ -332,6 +332,55 @@ namespace Opc.Ua.Core.DataChannels.Tests
         }
 
         [Test]
+        public void ConnectionCreditIsReplenishedByAPerChannelCreditFrame()
+        {
+            // Part 6 errata 5.8.2: a CREDIT frame on a non-zero ChannelId
+            // grants ChannelCredit to that channel and, where ConnectionCredit
+            // is non-zero, that amount to the connection as well. Dropping the
+            // connection half leaves the window granted once at open and never
+            // refilled, so every channel stalls permanently once it is spent.
+            // No volume test reached that point, which is why this is asserted
+            // on the accounting rather than by moving megabytes.
+            var transport = new LoopbackTransport(m_bufferManager, m_timeProvider);
+            DataChannelManager manager = CreateManager(transport, isServer: true);
+            DataChannel channel = RegisterOpen(manager, 1);
+
+            uint before = ConnectionSendAvailable(manager);
+
+            manager.HandleFrame(DataChannelFrame.Credit(channel.ChannelId, 1, 4096, 4096));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    ConnectionSendAvailable(manager),
+                    Is.EqualTo(before + 4096),
+                    "the connection window shall grow by the frame's ConnectionCredit");
+                Assert.That(channel.State, Is.Not.EqualTo(DataChannelState.Faulted));
+            });
+        }
+
+        [Test]
+        public void ConnectionCreditOverflowFromAPerChannelFrameAbortsEveryChannel()
+        {
+            var transport = new LoopbackTransport(m_bufferManager, m_timeProvider);
+            DataChannelManager manager = CreateManager(transport, isServer: true);
+            DataChannel first = RegisterOpen(manager, 1);
+            DataChannel second = RegisterOpen(manager, 2);
+
+            manager.HandleFrame(DataChannelFrame.Credit(first.ChannelId, 1, 1, uint.MaxValue));
+            manager.HandleFrame(DataChannelFrame.Credit(first.ChannelId, 2, 1, 1));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(first.State, Is.EqualTo(DataChannelState.Faulted));
+                Assert.That(second.State, Is.EqualTo(DataChannelState.Faulted));
+                Assert.That(
+                    first.Status,
+                    Is.EqualTo((StatusCode)StatusCodes.BadDataChannelCreditExceeded));
+            });
+        }
+
+        [Test]
         public void ConnectionCreditOverflowAbortsEveryOpenChannel()
         {
             var transport = new LoopbackTransport(m_bufferManager, m_timeProvider);
@@ -450,6 +499,17 @@ namespace Opc.Ua.Core.DataChannels.Tests
             client.MarkOpen(channelId);
 
             return (serverChannel, clientChannel);
+        }
+
+        private static uint ConnectionSendAvailable(DataChannelManager manager)
+        {
+            object window = typeof(DataChannelManager)
+                .GetField("m_connectionSend", BindingFlags.Instance | BindingFlags.NonPublic)!
+                .GetValue(manager)!;
+
+            return (uint)window.GetType()
+                .GetProperty("Available", BindingFlags.Instance | BindingFlags.Public)!
+                .GetValue(window)!;
         }
 
         private static DataChannel RegisterOpen(

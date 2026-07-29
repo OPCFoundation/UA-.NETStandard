@@ -267,7 +267,39 @@ namespace Opc.Ua.Core.DataChannels.Tests
 
         [Test]
         [CancelAfter(30000)]
-        public async Task CloseChannelsForCertificateReturnsAffectedChannelIdsAsync()
+        public async Task CloseChannelsForCertificateIgnoresASameKeyReissueAsync()
+        {
+            // Part 6 errata 7.6.2 / DCQ-013: a renewal that re-issues the
+            // same key is transparent, because the binding of 7.6.1 is by
+            // subjectPublicKeyInfo. Matching on the thumbprint alone would
+            // tear down every live stream on a routine renewal.
+            int port = GetFreeUdpPort();
+            Uri endpointUrl = EndpointUrl(port, "SameKeyReissue");
+            await using var listener = await OpenListenerAsync(endpointUrl).ConfigureAwait(false);
+            using var channel = CreateClientChannel();
+
+            await ConnectClientAndWaitForStatusAsync(
+                listener,
+                channel,
+                endpointUrl,
+                secure: true).ConfigureAwait(false);
+            string openChannelId = GetSingleChannel(listener).GlobalChannelId;
+
+            IReadOnlyList<string> closed = await listener
+                .CloseChannelsForCertificateAsync(m_serverCertificate!, TimeoutToken())
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(closed, Is.Empty);
+                Assert.That(GetSingleChannel(listener).GlobalChannelId,
+                    Is.EqualTo(openChannelId));
+            });
+        }
+
+        [Test]
+        [CancelAfter(30000)]
+        public async Task CloseChannelsForCertificateReturnsAffectedChannelIdsOnAKeyChangeAsync()
         {
             int port = GetFreeUdpPort();
             Uri endpointUrl = EndpointUrl(port, "CertificateRotation");
@@ -280,6 +312,12 @@ namespace Opc.Ua.Core.DataChannels.Tests
                 endpointUrl,
                 secure: true).ConfigureAwait(false);
             string globalChannelId = GetSingleChannel(listener).GlobalChannelId;
+
+            // Activate a replacement carrying a different key, so the
+            // superseded certificate really is superseded.
+            using Certificate replacement = CreateCertificate("QuicListenerServerRotated");
+            using var rotated = new InMemoryCertificateRegistry(replacement);
+            listener.CertificateUpdate(new AcceptAllCertificateValidator(), rotated);
 
             IReadOnlyList<string> closed = await listener
                 .CloseChannelsForCertificateAsync(m_serverCertificate!, TimeoutToken())

@@ -90,6 +90,16 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public DataChannelManager? Manager { get; set; }
 
+        /// <summary>
+        /// The identifier of the SecureChannel whose frames this transport
+        /// carries. Part 6 errata §5.1 requires the Message header's
+        /// SecureChannelId to be that of the enclosing SecureChannel under
+        /// both framings, and the published QUIC wire vector carries a
+        /// non-zero value, so one decoder serves both transports. It is
+        /// assigned once OpenSecureChannel completes on the control stream.
+        /// </summary>
+        public uint SecureChannelId { get; set; }
+
         /// <inheritdoc/>
         public DataChannelFramingMode FramingMode => DataChannelFramingMode.Quic;
 
@@ -293,7 +303,15 @@ namespace Opc.Ua.Bindings
             Manager?.HandleFrame(frame);
         }
 
-        private static void WriteMessageHeader(Span<byte> destination, int totalSize)
+        /// <summary>
+        /// Writes the 12-byte Message header that precedes the stream
+        /// header under QUIC framing. Internal so the emitted bytes can be
+        /// compared against the specification's published wire vector,
+        /// whose first twelve bytes the codec tests do not cover.
+        /// </summary>
+        /// <param name="destination">The header destination.</param>
+        /// <param name="totalSize">The whole frame length.</param>
+        internal void WriteMessageHeader(Span<byte> destination, int totalSize)
         {
             // 'STR' followed by 'F': a data channel frame is a single
             // chunk and is never a Message abort.
@@ -302,13 +320,11 @@ namespace Opc.Ua.Bindings
             destination[2] = (byte)'R';
             destination[3] = (byte)'F';
             BinaryPrimitives.WriteUInt32LittleEndian(destination.Slice(4), (uint)totalSize);
-            BinaryPrimitives.WriteUInt32LittleEndian(destination.Slice(8), 0);
+            BinaryPrimitives.WriteUInt32LittleEndian(destination.Slice(8), SecureChannelId);
         }
 
         /// <summary>
-        /// MessageType, IsFinal, MessageSize and SecureChannelId. The
-        /// SecureChannelId is zero over QUIC, where the connection itself
-        /// identifies the SecureChannel.
+        /// MessageType, IsFinal, MessageSize and SecureChannelId.
         /// </summary>
         private const int MessageHeaderSize = 12;
 

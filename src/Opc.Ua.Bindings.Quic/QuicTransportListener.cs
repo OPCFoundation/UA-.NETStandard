@@ -34,6 +34,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Quic;
 using System.Net.Security;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -449,6 +450,23 @@ namespace Opc.Ua.Bindings
             string thumbprint = oldCertificate.Thumbprint;
 
             if (string.IsNullOrEmpty(thumbprint))
+            {
+                return new ValueTask<IReadOnlyList<string>>([]);
+            }
+
+            // A re-issue that keeps the same key is transparent under
+            // Part 6 errata 7.6.2: the binding of 7.6.1 is by
+            // subjectPublicKeyInfo, so an established connection remains
+            // consistent and shall not be torn down. Only a change of key
+            // forces the connections bound to the old one to close, so
+            // matching on the thumbprint alone would abort every live
+            // media stream on an ordinary scheduled renewal.
+            X509Certificate2? active = m_tlsCertificate;
+
+            if (active != null &&
+                CryptographicOperations.FixedTimeEquals(
+                    active.GetPublicKey(),
+                    oldCertificate.AsX509Certificate2().GetPublicKey()))
             {
                 return new ValueTask<IReadOnlyList<string>>([]);
             }

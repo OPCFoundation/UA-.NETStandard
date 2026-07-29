@@ -38,10 +38,10 @@ namespace Opc.Ua.Core.DataChannels.Tests
                     Is.EqualTo((StatusCode)StatusCodes.Good));
                 Assert.That(
                     DataChannelFrameError.UnknownFrameType.ToStatusCode(),
-                    Is.EqualTo((StatusCode)StatusCodes.BadDataChannelLimitsExceeded));
+                    Is.EqualTo((StatusCode)StatusCodes.BadDataChannelFrameTypeUnsupported));
                 Assert.That(
                     DataChannelFrameError.PayloadOnNonDataFrame.ToStatusCode(),
-                    Is.EqualTo((StatusCode)StatusCodes.BadDataChannelLimitsExceeded));
+                    Is.EqualTo((StatusCode)StatusCodes.BadDataChannelFrameInvalid));
                 Assert.That(
                     DataChannelFrameError.MalformedHeader.ToStatusCode(),
                     Is.EqualTo((StatusCode)StatusCodes.BadTcpMessageTypeInvalid));
@@ -116,6 +116,43 @@ namespace Opc.Ua.Core.DataChannels.Tests
                     .ConfigureAwait(false))!;
 
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadDataChannelIdInvalid));
+        }
+
+        [Test]
+        public async Task MessageHeaderMatchesThePublishedQuicWireVectorAsync()
+        {
+            // The codec tests compare only from the stream header onward
+            // (SpecVectors.QuicPrefix skips twelve bytes), so the Message
+            // header a QUIC frame carries was never checked against the
+            // specification. It is checked here.
+            byte[] vector = SpecVectors.Load("quic_datagram_unreliable");
+
+            await using var multiplexed = new QuicMultiplexedTransport(
+                m_bufferManager!,
+                65536,
+                m_telemetry!);
+
+            await using var transport = new QuicDataChannelTransport(
+                multiplexed,
+                m_bufferManager!,
+                m_telemetry!);
+
+            uint expectedChannelId = BinaryPrimitives.ReadUInt32LittleEndian(
+                vector.AsSpan(8, 4));
+
+            transport.SecureChannelId = expectedChannelId;
+
+            var header = new byte[SpecVectors.QuicPrefix];
+            transport.WriteMessageHeader(header, vector.Length);
+
+            Assert.Multiple(() =>
+            {
+                // The vector must itself carry a real SecureChannelId; if
+                // this ever became zero the check below would pass while
+                // proving nothing.
+                Assert.That(expectedChannelId, Is.Not.Zero);
+                Assert.That(header, Is.EqualTo(vector[..SpecVectors.QuicPrefix]));
+            });
         }
 
         [Test]

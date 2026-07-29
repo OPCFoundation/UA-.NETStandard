@@ -924,6 +924,12 @@
   <opc:Constant Name="Bad_DataChannelOfferInvalid">
     <opc:Documentation>The data channel offer is unknown, expired, already accepted, or does not match the source.</opc:Documentation>
   </opc:Constant>
+  <opc:Constant Name="Bad_DataChannelFrameTypeUnsupported">
+    <opc:Documentation>A data channel frame carried a FrameType the receiver does not implement, or one held back for a future revision.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_DataChannelFrameInvalid">
+    <opc:Documentation>A data channel frame was well-formed as a header but not as a frame of its own type.</opc:Documentation>
+  </opc:Constant>
   <opc:Constant Name="Uncertain_DataDiscarded">
     <opc:Documentation>Delivered payload is incomplete because frames were discarded or lost.</opc:Documentation>
   </opc:Constant>
