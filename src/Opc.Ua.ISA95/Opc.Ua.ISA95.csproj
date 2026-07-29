@@ -1,0 +1,70 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>$(AssemblyPrefix).ISA95</AssemblyName>
+    <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
+    <PackageId>$(PackagePrefix).Opc.Ua.ISA95</PackageId>
+    <RootNamespace>Opc.Ua.ISA95</RootNamespace>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <Nullable>enable</Nullable>
+    <Description>OPC UA ISA-95 Common Model and Job Control V1/V2 information models</Description>
+    <IsPackable>true</IsPackable>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageLicenseFile></PackageLicenseFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.ISA95.Server" />
+    <InternalsVisibleTo Include="Opc.Ua.ISA95.Client" />
+    <InternalsVisibleTo Include="Opc.Ua.ISA95.Tests" />
+  </ItemGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Opc.Ua.Core\Opc.Ua.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj">
+      <OutputItemType>Analyzer</OutputItemType>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="..\..\tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />
+  <PropertyGroup>
+    <ModelSourceGeneratorVersion>v105</ModelSourceGeneratorVersion>
+    <ModelSourceGeneratorOmitFluentApi>true</ModelSourceGeneratorOmitFluentApi>
+    <ModelSourceGeneratorUseAllowSubtypes>true</ModelSourceGeneratorUseAllowSubtypes>
+  </PropertyGroup>
+  <ItemGroup>
+    <AdditionalFiles
+        Include="Design\Common\Opc.ISA95.NodeSet2.xml"
+        Condition="'$(IncludeIsa95Common)' != 'false'">
+      <ModelSourceGeneratorModelUri>http://www.OPCFoundation.org/UA/2013/01/ISA95</ModelSourceGeneratorModelUri>
+      <ModelSourceGeneratorName>ISA95</ModelSourceGeneratorName>
+      <ModelSourceGeneratorPrefix>Opc.Ua.ISA95</ModelSourceGeneratorPrefix>
+      <ModelSourceGeneratorIdentifierFile>Opc.ISA95.NodeIds.csv</ModelSourceGeneratorIdentifierFile>
+    </AdditionalFiles>
+    <AdditionalFiles
+        Include="Design\Common\Opc.ISA95.NodeIds.csv"
+        Condition="'$(IncludeIsa95Common)' != 'false'" />
+    <AdditionalFiles Include="Design\JobControl\V1\Opc.Ua.ISA95.JobControl.V1.NodeSet2.xml">
+      <ModelSourceGeneratorModelUri>http://opcfoundation.org/UA/ISA95-JOBCONTROL</ModelSourceGeneratorModelUri>
+      <ModelSourceGeneratorName>ISA95JobControlV1</ModelSourceGeneratorName>
+      <ModelSourceGeneratorPrefix>Opc.Ua.ISA95.JobControl.V1</ModelSourceGeneratorPrefix>
+      <ModelSourceGeneratorIdentifierFile>Opc.Ua.ISA95.JobControl.V1.NodeIds.csv</ModelSourceGeneratorIdentifierFile>
+    </AdditionalFiles>
+    <AdditionalFiles Include="Design\JobControl\V1\Opc.Ua.ISA95.JobControl.V1.NodeIds.csv" />
+    <AdditionalFiles Include="Design\JobControl\V2\Opc.Ua.ISA95.JobControl.V2.NodeSet2.xml">
+      <ModelSourceGeneratorModelUri>http://opcfoundation.org/UA/ISA95-JOBCONTROL_V2/</ModelSourceGeneratorModelUri>
+      <ModelSourceGeneratorName>ISA95JobControlV2</ModelSourceGeneratorName>
+      <ModelSourceGeneratorPrefix>Opc.Ua.ISA95.JobControl.V2</ModelSourceGeneratorPrefix>
+      <ModelSourceGeneratorIdentifierFile>Opc.Ua.ISA95.JobControl.V2.NodeIds.csv</ModelSourceGeneratorIdentifierFile>
+    </AdditionalFiles>
+    <AdditionalFiles Include="Design\JobControl\V2\Opc.Ua.ISA95.JobControl.V2.NodeIds.csv" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>

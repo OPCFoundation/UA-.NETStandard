@@ -40,7 +40,9 @@ namespace Opc.Ua.Server
     /// <summary>
     /// Manages a subscription created by a client.
     /// </summary>
-    public class Subscription : ISubscription
+    public class Subscription :
+        ISubscription,
+        ISubscriptionMonitoredItemLifecycle
     {
         /// <summary>
         /// Initializes the object.
@@ -91,6 +93,7 @@ namespace Opc.Ua.Server
         {
             Id = subscriptionId;
             Session = session ?? throw new ArgumentNullException(nameof(session));
+            UpdateOwnerIdentity(Session);
             m_server = server ?? throw new ArgumentNullException(nameof(server));
             m_logger = server.Telemetry.CreateLogger<Subscription>();
             m_timeProvider = timeProvider
@@ -252,6 +255,14 @@ namespace Opc.Ua.Server
             m_savedOwnerIdentity = storedSubscription.UserIdentityToken != null
                 ? new UserIdentity(storedSubscription.UserIdentityToken)
                 : null;
+            m_ownerUserTokenType = m_savedOwnerIdentity?.TokenType ?? UserTokenType.Anonymous;
+            if (m_savedOwnerIdentity != null)
+            {
+                ClientUserIdResolver.TryResolveContinuityKey(
+                    m_savedOwnerIdentity.TokenHandler,
+                    m_savedOwnerIdentity,
+                    out m_ownerClientUserId);
+            }
 
             m_monitoredItems = [];
             m_itemsToCheck = new LinkedList<IMonitoredItem>();
@@ -457,6 +468,106 @@ namespace Opc.Ua.Server
         /// </summary>
         public byte Priority { get; private set; }
 
+        /// <inheritdoc/>
+        public bool HasMonitoredItems(IAsyncNodeManager nodeManager)
+        {
+            if (nodeManager is null)
+            {
+                throw new ArgumentNullException(nameof(nodeManager));
+            }
+
+            lock (m_lock)
+            {
+                return m_monitoredItems.Values.Any(monitoredItem =>
+                    monitoredItem.Value is not IDetachableMonitoredItem
+                    {
+                        IsDetached: true
+                    } &&
+                    AreSameNodeManager(monitoredItem.Value.NodeManager, nodeManager));
+            }
+        }
+
+        /// <inheritdoc/>
+        IReadOnlyList<IMonitoredItem>
+            ISubscriptionMonitoredItemLifecycle.GetMonitoredItemsSnapshot(
+                IAsyncNodeManager nodeManager)
+        {
+            lock (m_lock)
+            {
+                return
+                [
+                    .. m_monitoredItems.Values
+                        .Select(entry => entry.Value)
+                        .Where(monitoredItem =>
+                            monitoredItem is not IDetachableMonitoredItem
+                            {
+                                IsDetached: true
+                            } &&
+                            AreSameNodeManager(monitoredItem.NodeManager, nodeManager))
+                ];
+            }
+        }
+
+        /// <inheritdoc/>
+        IReadOnlyList<IMonitoredItem>
+            ISubscriptionMonitoredItemLifecycle.GetRecoverableMonitoredItemsSnapshot(
+                IReadOnlyCollection<NodeId>? nodeIds)
+        {
+            lock (m_lock)
+            {
+                if (nodeIds == null)
+                {
+                    return
+                    [
+                        .. m_monitoredItems.Values
+                            .Select(entry => entry.Value)
+                            .Where(monitoredItem =>
+                                monitoredItem is IDetachableMonitoredItem lifecycle &&
+                                (lifecycle.IsDetached || lifecycle.IsDeleted))
+                    ];
+                }
+
+                if (nodeIds.Count == 0)
+                {
+                    return [];
+                }
+
+                var requestedNodeIds = new HashSet<NodeId>(
+                    nodeIds,
+                    NodeIdComparer.Default);
+                return
+                [
+                    .. m_monitoredItems.Values
+                        .Select(entry => entry.Value)
+                        .Where(monitoredItem =>
+                        monitoredItem is IDetachableMonitoredItem lifecycle &&
+                        (lifecycle.IsDetached || lifecycle.IsDeleted) &&
+                        requestedNodeIds.Contains(monitoredItem.NodeId))
+                ];
+            }
+        }
+
+        /// <inheritdoc/>
+        bool ISubscriptionMonitoredItemLifecycle.ContainsMonitoredItem(
+            IMonitoredItem monitoredItem)
+        {
+            lock (m_lock)
+            {
+                return m_monitoredItems.TryGetValue(
+                        monitoredItem.Id,
+                        out LinkedListNode<IMonitoredItem>? node) &&
+                    ReferenceEquals(node.Value, monitoredItem);
+            }
+        }
+
+        private static bool AreSameNodeManager(
+            IAsyncNodeManager first,
+            IAsyncNodeManager second)
+        {
+            return ReferenceEquals(first, second) ||
+                ReferenceEquals(first.SyncNodeManager, second.SyncNodeManager);
+        }
+
         /// <summary>
         /// Deletes the subscription.
         /// </summary>
@@ -482,7 +593,11 @@ namespace Opc.Ua.Server
                     {
                         ReturnDiagnostics = (int)DiagnosticsMasks.OperationSymbolicIdAndText
                     };
+                    // Passed on to DeleteMonitoredItemsAsync below; it tracks no request, so there
+                    // is nothing to release when this scope ends.
+#pragma warning disable CA2000
                     context = new OperationContext(requestHeader, null, RequestType.Unknown, RequestLifetime.None);
+#pragma warning restore CA2000
                 }
 
                 await DeleteMonitoredItemsAsync(
@@ -653,10 +768,14 @@ namespace Opc.Ua.Server
         /// <param name="cancellationToken">The cancellation token.</param>
         public async ValueTask TransferSessionAsync(OperationContext context, bool sendInitialValues, CancellationToken cancellationToken = default)
         {
-            // locked by caller
-            Session = context.Session;
-
-            var monitoredItems = m_monitoredItems.Select(v => v.Value.Value).ToList();
+            ISession destinationSession = context.Session;
+            ISession? sourceSession;
+            List<IMonitoredItem> monitoredItems;
+            lock (m_lock)
+            {
+                sourceSession = Session;
+                monitoredItems = m_monitoredItems.Select(v => v.Value.Value).ToList();
+            }
             var errors = new List<ServiceResult>(monitoredItems.Count);
             for (int ii = 0; ii < monitoredItems.Count; ii++)
             {
@@ -681,10 +800,92 @@ namespace Opc.Ua.Server
                 m_logger.FailedToTransferCountMonitoredItems(badTransfers);
             }
 
+            lock (m_lock)
+            {
+                if (!ReferenceEquals(Session, sourceSession))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadSubscriptionIdInvalid,
+                        "Subscription ownership changed during transfer.");
+                }
+                Session = destinationSession;
+
+                // The recorded owner identity has to follow the owner, because the transfer
+                // compatibility checks in IsTransferIdentityCompatible are made against it.
+                UpdateOwnerIdentity(destinationSession);
+            }
+
             lock (DiagnosticsWriteLock)
             {
-                Diagnostics.SessionId = Session.Id;
+                Diagnostics.SessionId = destinationSession.Id;
             }
+        }
+
+        /// <inheritdoc/>
+        public bool IsTransferIdentityCompatible(ISession targetSession)
+        {
+            if (targetSession == null)
+            {
+                throw new ArgumentNullException(nameof(targetSession));
+            }
+
+            UserTokenType targetTokenType = targetSession.IdentityToken.TokenType;
+            if (m_ownerUserTokenType == UserTokenType.Anonymous ||
+                targetTokenType == UserTokenType.Anonymous)
+            {
+                return m_ownerUserTokenType == UserTokenType.Anonymous &&
+                    targetTokenType == UserTokenType.Anonymous &&
+                    !string.IsNullOrEmpty(m_ownerClientApplicationUri) &&
+                    string.Equals(
+                        m_ownerClientApplicationUri,
+                        targetSession.SessionDiagnostics.ClientDescription.ApplicationUri,
+                        StringComparison.Ordinal);
+            }
+
+            return m_ownerClientUserId != null &&
+                ClientUserIdResolver.TryResolveContinuityKey(
+                    targetSession.IdentityToken,
+                    targetSession.Identity,
+                    out string? targetClientUserId) &&
+                targetClientUserId != null &&
+                string.Equals(
+                    m_ownerClientUserId,
+                    targetClientUserId,
+                    StringComparison.Ordinal);
+        }
+
+        /// <summary>
+        /// Restores ownership if a transfer failed after assigning its destination.
+        /// </summary>
+        internal bool TryRestoreSessionAfterFailedTransfer(
+            ISession destinationSession,
+            ISession? sourceSession)
+        {
+            lock (m_lock)
+            {
+                if (ReferenceEquals(Session, sourceSession))
+                {
+                    return true;
+                }
+                if (!ReferenceEquals(Session, destinationSession))
+                {
+                    return false;
+                }
+                Session = sourceSession!;
+
+                // Roll the recorded owner identity back with the owner, so a failed transfer
+                // cannot leave the destination's identity attached to the source session.
+                if (sourceSession != null)
+                {
+                    UpdateOwnerIdentity(sourceSession);
+                }
+            }
+
+            lock (DiagnosticsWriteLock)
+            {
+                Diagnostics.SessionId = sourceSession?.Id ?? default;
+            }
+            return true;
         }
 
         /// <summary>
@@ -704,24 +905,41 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Tells the subscription that the owning session is being closed.
-        /// </summary>
+        /// <inheritdoc/>
+        [Obsolete("Use SessionClosed(ISession) instead, which only releases the subscription when the closing session still owns it.")]
         public void SessionClosed()
+        {
+            ISession session;
+            lock (m_lock)
+            {
+                session = Session;
+            }
+
+            if (session != null)
+            {
+                SessionClosed(session);
+            }
+        }
+
+        /// <inheritdoc/>
+        public bool SessionClosed(ISession closingSession)
         {
             lock (m_lock)
             {
-                if (Session != null)
+                if (!ReferenceEquals(Session, closingSession))
                 {
-                    m_savedOwnerIdentity = Session.EffectiveIdentity;
-                    Session = null!;
+                    return false;
                 }
+
+                m_savedOwnerIdentity = closingSession.EffectiveIdentity;
+                Session = null!;
             }
 
             lock (DiagnosticsWriteLock)
             {
                 Diagnostics.SessionId = default;
             }
+            return true;
         }
 
         /// <summary>
@@ -748,6 +966,17 @@ namespace Opc.Ua.Server
             {
                 Diagnostics.CurrentLifetimeCount = 0;
             }
+        }
+
+        private void UpdateOwnerIdentity(ISession session)
+        {
+            m_ownerUserTokenType = session.IdentityToken.TokenType;
+            ClientUserIdResolver.TryResolveContinuityKey(
+                session.IdentityToken,
+                session.Identity,
+                out m_ownerClientUserId);
+            m_ownerClientApplicationUri =
+                session.SessionDiagnostics.ClientDescription.ApplicationUri;
         }
 
         /// <summary>
@@ -805,7 +1034,6 @@ namespace Opc.Ua.Server
             {
                 throw new ArgumentNullException(nameof(context));
             }
-
             NotificationMessage? message = null;
 
             lock (m_lock)
@@ -1548,16 +1776,31 @@ namespace Opc.Ua.Server
         /// Adds monitored items to a subscription.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
-        public async ValueTask<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
+        public ValueTask<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
             OperationContext context,
             TimestampsToReturn timestampsToReturn,
             ArrayOf<MonitoredItemCreateRequest> itemsToCreate,
             CancellationToken cancellationToken = default)
         {
+            return CreateMonitoredItemsCoreAsync(
+                context,
+                timestampsToReturn,
+                itemsToCreate,
+                cancellationToken);
+        }
+
+        private async ValueTask<CreateMonitoredItemsResponse>
+            CreateMonitoredItemsCoreAsync(
+                OperationContext context,
+                TimestampsToReturn timestampsToReturn,
+                ArrayOf<MonitoredItemCreateRequest> itemsToCreate,
+                CancellationToken cancellationToken)
+        {
             if (context == null)
             {
                 throw new ArgumentNullException(nameof(context));
             }
+            EnsureSessionNotClosing(context);
 
             int count = itemsToCreate.Count;
 
@@ -1756,16 +1999,31 @@ namespace Opc.Ua.Server
         /// Modifies monitored items in a subscription.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
-        public async ValueTask<ModifyMonitoredItemsResponse> ModifyMonitoredItemsAsync(
+        public ValueTask<ModifyMonitoredItemsResponse> ModifyMonitoredItemsAsync(
             OperationContext context,
             TimestampsToReturn timestampsToReturn,
             ArrayOf<MonitoredItemModifyRequest> itemsToModify,
             CancellationToken cancellationToken = default)
         {
+            return ModifyMonitoredItemsCoreAsync(
+                context,
+                timestampsToReturn,
+                itemsToModify,
+                cancellationToken);
+        }
+
+        private async ValueTask<ModifyMonitoredItemsResponse>
+            ModifyMonitoredItemsCoreAsync(
+                OperationContext context,
+                TimestampsToReturn timestampsToReturn,
+                ArrayOf<MonitoredItemModifyRequest> itemsToModify,
+                CancellationToken cancellationToken)
+        {
             if (context == null)
             {
                 throw new ArgumentNullException(nameof(context));
             }
+            EnsureSessionNotClosing(context);
 
             int count = itemsToModify.Count;
 
@@ -1939,15 +2197,33 @@ namespace Opc.Ua.Server
         /// Deletes the monitored items in a subscription.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
-        private async ValueTask<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(
+        private ValueTask<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(
             OperationContext context,
             ArrayOf<uint> monitoredItemIds,
             bool doNotCheckSession,
             CancellationToken cancellationToken = default)
         {
+            return DeleteMonitoredItemsCoreAsync(
+                context,
+                monitoredItemIds,
+                doNotCheckSession,
+                cancellationToken);
+        }
+
+        private async ValueTask<DeleteMonitoredItemsResponse>
+            DeleteMonitoredItemsCoreAsync(
+                OperationContext context,
+                ArrayOf<uint> monitoredItemIds,
+                bool doNotCheckSession,
+                CancellationToken cancellationToken)
+        {
             if (context == null)
             {
                 throw new ArgumentNullException(nameof(context));
+            }
+            if (!doNotCheckSession)
+            {
+                EnsureSessionNotClosing(context);
             }
 
             int count = monitoredItemIds.Count;
@@ -2112,16 +2388,32 @@ namespace Opc.Ua.Server
         /// Changes the monitoring mode for a set of items.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
-        public async ValueTask<(ArrayOf<StatusCode> results, ArrayOf<DiagnosticInfo> diagnosticInfos)> SetMonitoringModeAsync(
+        public ValueTask<(ArrayOf<StatusCode> results, ArrayOf<DiagnosticInfo> diagnosticInfos)> SetMonitoringModeAsync(
             OperationContext context,
             MonitoringMode monitoringMode,
             ArrayOf<uint> monitoredItemIds,
             CancellationToken cancellationToken = default)
         {
+            return SetMonitoringModeCoreAsync(
+                context,
+                monitoringMode,
+                monitoredItemIds,
+                cancellationToken);
+        }
+
+        private async ValueTask<(
+            ArrayOf<StatusCode> results,
+            ArrayOf<DiagnosticInfo> diagnosticInfos)> SetMonitoringModeCoreAsync(
+                OperationContext context,
+                MonitoringMode monitoringMode,
+                ArrayOf<uint> monitoredItemIds,
+                CancellationToken cancellationToken)
+        {
             if (context == null)
             {
                 throw new ArgumentNullException(nameof(context));
             }
+            EnsureSessionNotClosing(context);
 
             int count = monitoredItemIds.Count;
 
@@ -2429,7 +2721,7 @@ namespace Opc.Ua.Server
             {
                 m_refreshInProgress = true;
 
-                var operationContext = new OperationContext(Session, DiagnosticsMasks.None);
+                using var operationContext = new OperationContext(Session, DiagnosticsMasks.None);
                 await m_server.NodeManager.ConditionRefreshAsync(operationContext, monitoredItems, cancellationToken)
                     .ConfigureAwait(false);
             }
@@ -2647,6 +2939,14 @@ namespace Opc.Ua.Server
             }
         }
 
+        private void EnsureSessionNotClosing(OperationContext context)
+        {
+            if (context.Session is { IsClosing: true })
+            {
+                throw new ServiceResultException(StatusCodes.BadSessionClosed);
+            }
+        }
+
         /// <summary>
         /// The states to log.
         /// </summary>
@@ -2670,17 +2970,23 @@ namespace Opc.Ua.Server
             }
 
             // save counters
-            Monitor.Enter(m_lock);
-
-            long sequenceNumber = m_messageQueue.NextSequenceNumber;
-            int itemsToCheck = m_itemsToCheck.Count;
-            int monitoredItems = m_monitoredItems.Count;
-            int itemsToPublish = m_itemsToPublish.Count;
-            int sentMessages = m_messageQueue.SentCount;
-            bool publishingEnabled = m_publishingEnabled;
-            bool waitingForPublish = m_waitingForPublish;
-
-            Monitor.Exit(m_lock);
+            long sequenceNumber;
+            int itemsToCheck;
+            int monitoredItems;
+            int itemsToPublish;
+            int sentMessages;
+            bool publishingEnabled;
+            bool waitingForPublish;
+            lock (m_lock)
+            {
+                sequenceNumber = m_messageQueue.NextSequenceNumber;
+                itemsToCheck = m_itemsToCheck.Count;
+                monitoredItems = m_monitoredItems.Count;
+                itemsToPublish = m_itemsToPublish.Count;
+                sentMessages = m_messageQueue.SentCount;
+                publishingEnabled = m_publishingEnabled;
+                waitingForPublish = m_waitingForPublish;
+            }
 
             switch (id)
             {
@@ -2740,10 +3046,13 @@ namespace Opc.Ua.Server
             }
         }
 
-        private readonly object m_lock = new();
+        private readonly Lock m_lock = new();
         private readonly IServerInternal m_server;
         private readonly TimeProvider m_timeProvider;
         private IUserIdentity? m_savedOwnerIdentity;
+        private UserTokenType m_ownerUserTokenType;
+        private string? m_ownerClientUserId;
+        private string? m_ownerClientApplicationUri;
         private double m_publishingInterval;
         private uint m_maxLifetimeCount;
         private uint m_maxKeepAliveCount;

@@ -329,6 +329,16 @@ The factory caches the connected session — subsequent awaits return the same i
 
 This iteration uses single-instance options (no named/keyed registrations); the underlying V2 manager consumes options via `IOptionsMonitor<T>` unfiltered. For one-off use, the `AddSubscription`/`TryAddMonitoredItem` extensions adapt plain options snapshots into the required `IOptionsMonitor<T>` automatically. Named-options dependency injection is deferred to a future iteration.
 
+## Server Session Activation and Subscription Transfer
+
+`ISession.ValidateBeforeActivateAsync(...)` is now the direct activation-validation contract. Custom server `ISession` implementations must validate the application signature and user identity token asynchronously and return the validated token handler and matching `UserTokenPolicy`. The synchronous `ValidateBeforeActivate(...)` member remains available but is obsolete; migrate callers and implementations to the asynchronous member.
+
+`ISubscription` now exposes `IsTransferIdentityCompatible(ISession targetSession)`. Custom server subscription implementations must compare the authenticated owner of the target Session with the identity that owns the subscription and return `false` when the transfer would cross ClientUserIds.
+
+Identity continuity across a SecureChannel transfer or a Subscription transfer is compared using an encoded continuity key rather than the human-readable ClientUserId that OPC 10000-5 reports through `SessionSecurityDiagnostics`. The key includes the `UserTokenType` and delimits the issuer from the subject, so a `UserNameIdentityToken` whose user name equals an X.509 certificate subject — or two issued tokens whose issuer and subject concatenate to the same string — are no longer treated as the same owner. Transfers that previously succeeded only because of such a collision are now rejected with `Bad_IdentityChangeNotSupported` (activation) or `Bad_UserAccessDenied` (subscription transfer). The reported `ClientUserIdOfSession` diagnostic value is unchanged.
+
+`SessionManager.OnSessionActivatedAsync` takes an additional `long activationSequence` parameter. The value increases with every successful activation of a Session and is stamped while the per-Session activation gate is still held. Because the callback itself runs after that gate is released, implementations that persist activation state outside the gate must use the sequence to discard writes that a newer concurrent activation has already superseded.
+
 ## Subscriptions and Transports
 
 ### Durable subscriptions and reshaped Subscription tree
@@ -340,6 +350,54 @@ Consumers adopting the new shape may need to add a `using Opc.Ua.Client.Subscrip
 The server-side `ISubscriptionStore` definition-persistence methods are asynchronous: `StoreSubscriptions` is now `ValueTask<bool> StoreSubscriptionsAsync(IEnumerable<IStoredSubscription>, CancellationToken)`, `RestoreSubscriptions` is now `ValueTask<RestoreSubscriptionResult> RestoreSubscriptionsAsync(CancellationToken)`, and `OnSubscriptionRestoreComplete` is now `ValueTask OnSubscriptionRestoreCompleteAsync(Dictionary<uint, ArrayOf<uint>>, CancellationToken)`. This lets subscription definitions be persisted to an async network backend without a sync-over-async wrapper. Custom `ISubscriptionStore` implementations must adopt the async signatures; a synchronous body can simply return `new ValueTask<T>(result)`.
 
 `ISubscriptionStore` also adds asynchronous per-monitored-item queue-restore hooks - `ValueTask<IDataChangeMonitoredItemQueue?> RestoreDataChangeMonitoredItemQueueAsync(uint, CancellationToken)` and `ValueTask<IEventMonitoredItemQueue?> RestoreEventMonitoredItemQueueAsync(uint, CancellationToken)` - so a networked store can re-hydrate a monitored-item queue without blocking. The master node manager pre-fetches these queues asynchronously at the start of subscription restore and hands the pre-hydrated queue to the (still synchronous) `MonitoredItem` constructor via new runtime-only `IStoredMonitoredItem.RestoredDataChangeQueue`/`RestoredEventQueue` properties. Custom `ISubscriptionStore` implementations must add the two async members; a store that keeps queues locally can simply delegate to the existing synchronous `RestoreDataChangeMonitoredItemQueue`/`RestoreEventMonitoredItemQueue`, which remain as the fallback used when no pre-hydrated queue is supplied. Custom `IStoredMonitoredItem` implementations must add the two new properties (the built-in `StoredMonitoredItem` already does). The high-availability `SharedKeyValueMonitoredItemQueueFactory` uses these hooks to restore mirrored queue contents on failover (see [High Availability](../../HighAvailability.md)).
+
+### Request completion is owned by `OperationContext`
+
+**Source-breaking for custom servers.** `OperationContext` is now `IDisposable` and owns the scope
+that tracks the request while it executes. Service handlers obtain it with
+`using OperationContext context = await ValidateRequestAsync(...)`, and disposing it reports the
+request as completed. `RequestManager.RequestCompleted(OperationContext)` is `[Obsolete]`: a context
+that is disposed completes its own request, and completing it twice is a no-op. Code that creates an
+`OperationContext` directly must dispose it; leaving one undisposed keeps the request registered and
+blocks NodeManager lifecycle operations until they time out.
+
+`StandardServer.ValidateRequestAsync` is no longer `virtual`. A subclass that rejected a request
+after calling `base` left it registered forever, because the caller never received the context and
+nothing disposed it. Override `protected virtual ValueTask OnRequestValidatedAsync(OperationContext)`
+instead; throwing from it rejects the request and completes it.
+
+### `Opc.Ua.Server.ISession`: `IsClosing` and `InvalidateContinuationPoints`
+
+**Source-breaking for custom implementations.** This is the **server-side** `Opc.Ua.Server.ISession`,
+implemented by the server's `Session` — not the client-side `Opc.Ua.Client.ISession` discussed above.
+It gains `bool IsClosing` and `void InvalidateContinuationPoints(IAsyncNodeManager)`.
+
+`IsClosing` reports that the Session is being torn down, so work that would create new state for it
+is rejected instead of started. It is one way: a Session that started closing never serves new work
+again, even if the close itself fails. `InvalidateContinuationPoints` drops the saved Browse and
+history continuation points that would otherwise keep a retired NodeManager reachable.
+
+Custom implementations must add both. Returning `false` from `IsClosing` and doing nothing in
+`InvalidateContinuationPoints` preserves the previous behaviour; the built-in server `Session`
+already implements them.
+
+### `Opc.Ua.Server.ISubscription.SessionClosed(ISession)`
+
+**Source-breaking for custom implementations.** This is the **server-side**
+`Opc.Ua.Server.ISubscription` — not the client-side `Opc.Ua.Client.Subscriptions.ISubscription`
+introduced by the V2 subscription shape above. It gains
+`bool SessionClosed(Opc.Ua.Server.ISession closingSession)`, and the parameterless `SessionClosed()`
+is `[Obsolete]`.
+
+A subscription can be transferred to another session while the old one is closing, so clearing the
+owner unconditionally would strip a subscription that has already moved on. The new overload takes
+the closing session, releases the subscription only when that session still owns it, and reports
+whether it did. Deciding ownership inside the subscription also makes the check atomic with the
+release, which a caller comparing `Session` beforehand cannot be.
+
+Custom implementations must add the overload; comparing the argument against the current owner and
+delegating to the existing `SessionClosed()` preserves the previous behaviour. The built-in server
+`Subscription` already implements it.
 
 ### PubSub
 
@@ -446,4 +504,3 @@ The DI extension resolves both factory types out of the container (so they may h
 - Related: [certificates.md](certificates.md), [identity.md](identity.md), [node-states.md](node-states.md).
 - [2.0 migration index](README.md) — analyzer quick-start + symptom → sub-doc table.
 - [Migration Guide](../../MigrationGuide.md) — landing page across versions.
-
