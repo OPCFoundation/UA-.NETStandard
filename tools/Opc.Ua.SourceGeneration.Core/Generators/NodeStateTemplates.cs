@@ -1161,7 +1161,7 @@ namespace Opc.Ua.SourceGeneration
                 global::Opc.Ua.ISystemContext context,
                 global::Opc.Ua.QualifiedName browseName,
                 bool createOrReplace,
-                global::Opc.Ua.BaseInstanceState replacement)
+                global::Opc.Ua.BaseInstanceState? replacement)
             {
                 if (browseName.IsNull)
                 {
@@ -1217,16 +1217,40 @@ namespace Opc.Ua.SourceGeneration
             """);
 
         /// <summary>
-        /// Create or replace a child on the class
+        /// Create or replace a child on the class. The optional
+        /// <c>assignInstanceNodeIds</c> parameter lets the generated type and
+        /// child factories opt out of per-instance NodeId assignment: they
+        /// build declaration subtrees whose NodeIds must stay at their
+        /// type-level values (the enclosing
+        /// <c>CreateInstanceOf&lt;Type&gt;</c> factory rebases the finished
+        /// subtree in one pass). Every other caller - the generated
+        /// <c>FindChild</c> plumbing behind <c>NodeState.CreateChild</c> /
+        /// <c>NodeState.ReplaceChild</c> and hand-written node managers -
+        /// materialises children onto an already-instantiated tree and
+        /// therefore gets per-instance NodeIds by default.
         /// </summary>
         public static readonly TemplateString CreateOrReplaceChild = TemplateString.Parse(
             $$"""
             /// <summary>
             /// Create or replace the mandatory {{Tokens.ChildName}} child
             /// </summary>
+            /// <param name="context">The system context.</param>
+            /// <param name="replacement">
+            /// The child to adopt or to copy onto the existing child. When
+            /// <c>null</c> a new child is created.
+            /// </param>
+            /// <param name="assignInstanceNodeIds">
+            /// When <c>true</c> (the default) and the context supplies a
+            /// <see cref="global::Opc.Ua.ISystemContext.NodeIdFactory"/>, a
+            /// child that still carries a null or type-level NodeId - and its
+            /// descendants - are rebased onto per-instance NodeIds so multiple
+            /// instances of the same type never collide. A NodeId the caller
+            /// already assigned is never overwritten.
+            /// </param>
             {{Tokens.AccessorSymbol}} {{Tokens.ClassName}} CreateOrReplace{{Tokens.ChildName}}(
                 global::Opc.Ua.ISystemContext context,
-                global::Opc.Ua.BaseInstanceState replacement)
+                global::Opc.Ua.BaseInstanceState? replacement,
+                bool assignInstanceNodeIds = true)
             {
                 if (replacement is {{Tokens.ClassName}} typedReplacement)
                 {
@@ -1237,6 +1261,20 @@ namespace Opc.Ua.SourceGeneration
                 else if ({{Tokens.ChildName}} == null)
                 {
                     {{Tokens.ClassName}} child = {{Tokens.ClassFactory}}(this);
+                    // Stamp the child's identity so a path based NodeIdFactory
+                    // can derive a per-instance NodeId for it below, and so
+                    // NodeState.CreateChild returns a child that carries the
+                    // browse name it was asked for.
+                    global::Opc.Ua.NodeState childNode = child;
+                    childNode.SymbolicName = "{{Tokens.BrowseNameLiteral}}";
+                    childNode.DisplayName = new global::Opc.Ua.LocalizedText(
+                        "{{Tokens.ChildBrowseNameLiteral}}");
+                    if (context.NamespaceUris != null)
+                    {
+                        childNode.BrowseName = new global::Opc.Ua.QualifiedName(
+                            "{{Tokens.ChildBrowseNameLiteral}}",
+                            context.NamespaceUris.GetIndexOrAppend({{Tokens.BrowseNameNamespaceUri}}));
+                    }
                     if (replacement != null)
                     {
                         child.Create(context, replacement);
@@ -1248,6 +1286,23 @@ namespace Opc.Ua.SourceGeneration
                     // an existing child is replaced by copying the replacement
                     // onto it, keeping the strongly typed instance.
                     {{Tokens.ChildName}}.Create(context, replacement);
+                }
+                if (assignInstanceNodeIds && context.NodeIdFactory != null)
+                {
+                    global::Opc.Ua.NodeState childState = {{Tokens.ChildName}};
+                    if (childState.NodeId.IsNull ||
+                        childState.NodeId.Equals({{Tokens.NodeIdConstant}}))
+                    {
+                        global::Opc.Ua.NodeId previousNodeId =
+                            global::Opc.Ua.NodeInstanceExtensions.AssignInstanceNodeId(
+                                context,
+                                childState);
+                        global::Opc.Ua.NodeInstanceExtensions.AssignInstanceChildNodeIds(
+                            context,
+                            childState,
+                            previousNodeId,
+                            this);
+                    }
                 }
                 return {{Tokens.ChildName}};
             }
@@ -1734,7 +1789,7 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ListOfRolePermissions}}
                 {{Tokens.ListOfReferences}}
                 {{Tokens.ListOfChildNodeStates}}
-                if (parent != null && !browseName.IsNull && context.NodeIdFactory != null)
+                if (!browseName.IsNull && context.NodeIdFactory != null)
                 {
                     global::Opc.Ua.NodeId previousNodeId =
                         global::Opc.Ua.NodeInstanceExtensions.AssignInstanceNodeId(context, state);
@@ -1754,7 +1809,7 @@ namespace Opc.Ua.SourceGeneration
         public static readonly TemplateString Create_MethodArguments = TemplateString.Parse(
             $$"""
             global::Opc.Ua.PropertyState<global::Opc.Ua.ArrayOf<global::Opc.Ua.Argument>> {{Tokens.PropertyName}} =
-                state.CreateOrReplace{{Tokens.BrowseName}}(context, null);
+                state.CreateOrReplace{{Tokens.BrowseName}}(context, null, assignInstanceNodeIds: false);
             {{Tokens.PropertyName}}.SymbolicName = global::Opc.Ua.BrowseNames.{{Tokens.BrowseName}};
             {{Tokens.PropertyName}}.BrowseName =
                 global::Opc.Ua.QualifiedName.From(global::Opc.Ua.BrowseNames.{{Tokens.BrowseName}});
@@ -1783,7 +1838,7 @@ namespace Opc.Ua.SourceGeneration
         public static readonly TemplateString Assign_MethodArgumentValues = TemplateString.Parse(
             $$"""
             global::Opc.Ua.PropertyState<global::Opc.Ua.ArrayOf<global::Opc.Ua.Argument>> {{Tokens.PropertyName}} =
-                state.CreateOrReplace{{Tokens.BrowseName}}(context, null);
+                state.CreateOrReplace{{Tokens.BrowseName}}(context, null, assignInstanceNodeIds: false);
             {{Tokens.PropertyName}}.Value = global::Opc.Ua.ArrayOf.ToArrayOf(
                 new global::Opc.Ua.Argument[]
                 {
@@ -1836,7 +1891,7 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ListOfRolePermissions}}
                 {{Tokens.ListOfReferences}}
                 {{Tokens.ListOfChildNodeStates}}
-                if (parent != null && !browseName.IsNull && context.NodeIdFactory != null)
+                if (!browseName.IsNull && context.NodeIdFactory != null)
                 {
                     global::Opc.Ua.NodeId previousNodeId =
                         global::Opc.Ua.NodeInstanceExtensions.AssignInstanceNodeId(context, state);
@@ -1903,7 +1958,7 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ListOfRolePermissions}}
                 {{Tokens.ListOfReferences}}
                 {{Tokens.ListOfChildNodeStates}}
-                if (parent != null && !browseName.IsNull && context.NodeIdFactory != null)
+                if (!browseName.IsNull && context.NodeIdFactory != null)
                 {
                     global::Opc.Ua.NodeId previousNodeId =
                         global::Opc.Ua.NodeInstanceExtensions.AssignInstanceNodeId(context, state);
