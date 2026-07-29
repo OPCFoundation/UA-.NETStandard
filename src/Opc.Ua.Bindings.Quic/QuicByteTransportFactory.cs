@@ -400,8 +400,15 @@ namespace Opc.Ua.Bindings
             m_endpointDescription = endpointDescription;
         }
 
-        public EndPoint? LocalEndpoint => m_inner.LocalEndpoint;
+        /// <summary>
+        /// The connection this wrapper secures. Exposed so an application
+        /// can reach the QUIC connection to bind a data channel to the
+        /// stream the Server named in <c>revisedTransportChannelId</c>,
+        /// without having to know that the peer binding wraps it.
+        /// </summary>
+        public QuicMultiplexedTransport Inner => m_inner;
 
+        public EndPoint? LocalEndpoint => m_inner.LocalEndpoint;
         public EndPoint? RemoteEndpoint => m_inner.RemoteEndpoint;
 
         public TransportChannelFeatures Features => m_inner.Features;

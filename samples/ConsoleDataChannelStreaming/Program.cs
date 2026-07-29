@@ -151,7 +151,6 @@ namespace ConsoleDataChannelStreaming
                 source.Write(payload, flags);
             }
 
-            await WaitForSentAsync(source, options.FrameCount, ct).ConfigureAwait(false);
             await harness.CloseDataChannelAsync(ct).ConfigureAwait(false);
 
             await consumer.ConfigureAwait(false);
@@ -194,18 +193,6 @@ namespace ConsoleDataChannelStreaming
             }
 
             Console.WriteLine($"consumed {received} frames, {gaps} reported gaps");
-        }
-
-        private static async Task WaitForSentAsync(
-            DataChannel source,
-            int frameCount,
-            CancellationToken ct)
-        {
-            while (source.GetDiagnostics().FramesSent < (uint)frameCount &&
-                !ct.IsCancellationRequested)
-            {
-                await Task.Delay(10, ct).ConfigureAwait(false);
-            }
         }
 
         private static void Report(

@@ -499,6 +499,10 @@ namespace Opc.Ua
                         address.ProfileUri = Profiles.UaWssTransport;
                         address.DiscoveryUrl = address.Url;
                         break;
+                    case Utils.UriSchemeOpcQuic:
+                        address.ProfileUri = Profiles.UaQuicTransport;
+                        address.DiscoveryUrl = address.Url;
+                        break;
                     default:
                         throw ServiceResultException.ConfigurationError(
                             "Unsupported scheme for base address: {0}", address.Url);

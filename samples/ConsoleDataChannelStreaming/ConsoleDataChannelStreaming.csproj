@@ -12,7 +12,7 @@
     <!-- CA1822: static methods are not required for a console sample.
          DataChannels: the sample exists to demonstrate the experimental
          surface, so it opts in deliberately. -->
-    <NoWarn>$(NoWarn);CA1822;DataChannels</NoWarn>
+    <NoWarn>$(NoWarn);CA1812;CA1822;CA2000;CA5359;DataChannels</NoWarn>
     <!-- Opt into the root Directory.Build.targets no-op shape on
          per-TFM CI matrix entries that pin CustomTestTarget to a
          legacy TFM this app cannot target. -->

@@ -6,7 +6,7 @@
 
 using System;
 using System.IO;
-using System.Reflection;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,7 +15,10 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Bindings;
 using Opc.Ua.Client;
+using Opc.Ua.Client.Discovery;
+using Opc.Ua.Configuration;
 using Opc.Ua.Server;
+using ClientSession = Opc.Ua.Client.ISession;
 
 namespace ConsoleDataChannelStreaming
 {
@@ -25,7 +28,7 @@ namespace ConsoleDataChannelStreaming
     internal sealed class StreamingHarness : IAsyncDisposable
     {
         private StreamingHarness(
-            DataChannelManager sourceManager,
+            DataChannelManager? sourceManager,
             DataChannelManager sinkManager,
             DataChannel source,
             DataChannel sink,
@@ -34,7 +37,8 @@ namespace ConsoleDataChannelStreaming
             DataChannelParametersDataType revisedParameters,
             ulong revisedTransportChannelId,
             Func<CancellationToken, ValueTask>? closeService = null,
-            IAsyncDisposable? owner = null)
+            IAsyncDisposable? owner = null,
+            Task? channelAttachTask = null)
         {
             m_sourceManager = sourceManager;
             m_sinkManager = sinkManager;
@@ -46,6 +50,7 @@ namespace ConsoleDataChannelStreaming
             RevisedTransportChannelId = revisedTransportChannelId;
             m_closeService = closeService;
             m_owner = owner;
+            m_channelAttachTask = channelAttachTask;
         }
 
         public DataChannel Source { get; }
@@ -69,6 +74,11 @@ namespace ConsoleDataChannelStreaming
 
         public async ValueTask CloseDataChannelAsync(CancellationToken ct)
         {
+            if (m_channelAttachTask != null)
+            {
+                await m_channelAttachTask.WaitAsync(ct).ConfigureAwait(false);
+            }
+
             if (m_closeService != null)
             {
                 await m_closeService(ct).ConfigureAwait(false);
@@ -118,26 +128,31 @@ namespace ConsoleDataChannelStreaming
 
         private static async Task<StreamingHarness> CreateServerAsync(SampleOptions options, CancellationToken ct)
         {
-            if (options.Transport == SampleTransport.Quic)
-            {
-                throw new NotSupportedException(
-                    "The end-to-end QUIC path is pending a public client-side stream allocator/binder. " +
-                    "The server-side IServerDataChannelTransport seam exists, but the sample cannot yet " +
-                    "bind the client DataChannelManager to the negotiated QUIC stream without reaching into QUIC internals.");
-            }
-
             var state = new ServerStreamingState(options);
             DataChannelSampleServer.PendingState = state;
 
-            const string endpointUrl = "opc.tcp://localhost:62550/ConsoleDataChannelStreaming";
+            string endpointUrl = options.Transport == SampleTransport.Quic
+                ? $"opc.quic://{Environment.MachineName}:62551/ConsoleDataChannelStreaming"
+                : "opc.tcp://localhost:62550/ConsoleDataChannelStreaming";
             HostApplicationBuilder builder = Host.CreateApplicationBuilder();
             builder.Logging.ClearProviders();
             builder.Logging.AddConsole();
             builder.Logging.SetMinimumLevel(LogLevel.Warning);
 
-            builder.Services
-                .AddOpcUa()
-                .AddServer<DataChannelSampleServer>(o =>
+            IOpcUaBuilder opcUa = builder.Services.AddOpcUa();
+            if (options.Transport == SampleTransport.Quic)
+            {
+                opcUa.AddQuicTransport();
+                ClientChannelManager.DefaultChannelBindings.RegisterChannelFactory(
+                    new QuicTransportChannelFactory(
+                        DefaultBufferManagerFactory.Instance,
+                        new QuicClientOptions
+                        {
+                            ServerCertificateValidation = (_, _, _, _) => true
+                        }));
+            }
+
+            opcUa.AddServer<DataChannelSampleServer>(o =>
                 {
                     const string applicationName = "ConsoleDataChannelStreamingServer";
                     o.ApplicationName = applicationName;
@@ -154,8 +169,13 @@ namespace ConsoleDataChannelStreaming
                     o.EndpointUrls.Add(endpointUrl);
                 });
 
-            builder.Services
-                .AddOpcUa()
+            IOpcUaBuilder clientOpcUa = builder.Services.AddOpcUa();
+            if (options.Transport == SampleTransport.Quic)
+            {
+                clientOpcUa.AddQuicTransport();
+            }
+
+            clientOpcUa
                 .AddClient(o =>
                 {
                     const string applicationName = "ConsoleDataChannelStreamingClient";
@@ -186,9 +206,8 @@ namespace ConsoleDataChannelStreaming
             IHost host = builder.Build();
             await host.StartAsync(ct).ConfigureAwait(false);
 
-            Func<CancellationToken, Task<ManagedSession>> connect =
-                host.Services.GetRequiredService<Func<CancellationToken, Task<ManagedSession>>>();
-            ManagedSession session = await ConnectWithRetryAsync(connect, ct).ConfigureAwait(false);
+            ClientSession session = await ConnectWithRetryAsync(host.Services, endpointUrl, options, ct)
+                .ConfigureAwait(false);
 
             ITelemetryContext telemetry = host.Services.GetRequiredService<ITelemetryContext>();
             OpenDataChannelResponse opened = await session.OpenDataChannelAsync(
@@ -199,16 +218,45 @@ namespace ConsoleDataChannelStreaming
                 SettingsFromOptions(options).ToParameters(),
                 ct).ConfigureAwait(false);
 
-            UaSCUaBinaryTransportChannel tcpChannel =
-                UnwrapTransportChannel(session.TransportChannel) as UaSCUaBinaryTransportChannel ??
+            UaSCUaBinaryTransportChannel clientChannel =
+                session.TransportChannel as UaSCUaBinaryTransportChannel ??
                 throw new InvalidOperationException(
                     $"The client transport is {session.TransportChannel.GetType().FullName}, not UASC binary.");
 
-            DataChannelManager clientManager = tcpChannel.EnableDataChannels(
-                isServer: false,
-                telemetry,
-                maxDataChannels: 16,
-                maxCreditPerChannel: 1024 * 1024);
+            IAsyncDisposable? clientDataTransport = null;
+            Task? channelAttachTask = null;
+            DataChannelManager clientManager;
+            DataChannelFramingMode framingMode;
+            if (options.Transport == SampleTransport.Quic)
+            {
+                var bufferManager = new BufferManager("sample-quic-client-data-channels", 65536, telemetry);
+                QuicDataChannelTransport quicTransport = clientChannel.CreateDataChannelTransport(
+                    bufferManager,
+                    telemetry);
+                clientDataTransport = quicTransport;
+                clientManager = new DataChannelManager(
+                    quicTransport,
+                    isServer: false,
+                    telemetry,
+                    maxDataChannels: 16,
+                    maxCreditPerChannel: 1024 * 1024);
+                quicTransport.Manager = clientManager;
+                channelAttachTask = quicTransport.AttachChannelAsync(
+                    opened.ChannelId,
+                    opened.RevisedTransportChannelId,
+                    opened.RevisedParameters.Direction,
+                    ct).AsTask();
+                framingMode = DataChannelFramingMode.Quic;
+            }
+            else
+            {
+                clientManager = clientChannel.EnableDataChannels(
+                    isServer: false,
+                    telemetry,
+                    maxDataChannels: 16,
+                    maxCreditPerChannel: 1024 * 1024);
+                framingMode = DataChannelFramingMode.Inline;
+            }
 
             DataChannel sink = clientManager.Register(
                 opened.ChannelId,
@@ -220,11 +268,11 @@ namespace ConsoleDataChannelStreaming
 
             DataChannel source = await state.WaitForSourceAsync(ct).ConfigureAwait(false);
             return new StreamingHarness(
-                state.ServerManager ?? throw new InvalidOperationException("Server data-channel manager was not created."),
+                state.ServerManager,
                 clientManager,
                 source,
                 sink,
-                DataChannelFramingMode.Inline,
+                framingMode,
                 opened.ChannelId,
                 opened.RevisedParameters,
                 opened.RevisedTransportChannelId,
@@ -234,12 +282,16 @@ namespace ConsoleDataChannelStreaming
                     StatusCodes.Good,
                     deleteQueued: false,
                     closeCt).ConfigureAwait(false),
-                new ServerHarnessOwner(host, session));
+                new ServerHarnessOwner(host, session, clientDataTransport),
+                channelAttachTask);
         }
 
         public async ValueTask DisposeAsync()
         {
-            await m_sourceManager.DisposeAsync().ConfigureAwait(false);
+            if (m_sourceManager != null && !ReferenceEquals(m_sourceManager, m_sinkManager))
+            {
+                await m_sourceManager.DisposeAsync().ConfigureAwait(false);
+            }
             await m_sinkManager.DisposeAsync().ConfigureAwait(false);
             if (m_owner != null)
             {
@@ -263,8 +315,10 @@ namespace ConsoleDataChannelStreaming
             };
         }
 
-        private static async Task<ManagedSession> ConnectWithRetryAsync(
-            Func<CancellationToken, Task<ManagedSession>> connect,
+        private static async Task<ClientSession> ConnectWithRetryAsync(
+            IServiceProvider services,
+            string endpointUrl,
+            SampleOptions options,
             CancellationToken ct)
         {
             Exception? last = null;
@@ -272,7 +326,8 @@ namespace ConsoleDataChannelStreaming
             {
                 try
                 {
-                    return await connect(ct).ConfigureAwait(false);
+                    return await ConnectSessionAsync(services, endpointUrl, options, ct)
+                        .ConfigureAwait(false);
                 }
                 catch (Exception ex) when (!ct.IsCancellationRequested)
                 {
@@ -284,33 +339,71 @@ namespace ConsoleDataChannelStreaming
             throw new InvalidOperationException("The in-process OPC UA server did not become ready.", last);
         }
 
-        private static ITransportChannel UnwrapTransportChannel(ITransportChannel channel)
+        private static async Task<ClientSession> ConnectSessionAsync(
+            IServiceProvider services,
+            string endpointUrl,
+            SampleOptions options,
+            CancellationToken ct)
         {
-            if (channel.GetType().FullName != "Opc.Ua.ManagedTransportChannelLease")
+            ApplicationConfiguration configuration = await services
+                .GetRequiredService<IOpcUaApplicationConfigurationProvider>()
+                .GetAsync(ct)
+                .ConfigureAwait(false);
+            IOpcUaDiscoveryService discovery = services.GetRequiredService<IOpcUaDiscoveryService>();
+            ArrayOf<EndpointDescription> endpoints = await discovery
+                .GetEndpointsAsync(endpointUrl, ct: ct)
+                .ConfigureAwait(false);
+            string transportProfile = options.Transport == SampleTransport.Quic
+                ? Profiles.UaQuicTransport
+                : Profiles.UaTcpTransport;
+            EndpointDescription? description = null;
+            foreach (EndpointDescription endpointDescription in endpoints)
             {
-                return channel;
+                if (endpointDescription.TransportProfileUri == transportProfile &&
+                    endpointDescription.SecurityMode == MessageSecurityMode.SignAndEncrypt &&
+                    endpointDescription.SecurityPolicyUri == SecurityPolicies.Basic256Sha256)
+                {
+                    description = endpointDescription;
+                    break;
+                }
             }
 
-            object? entry = channel.GetType()
-                .GetProperty("Entry", BindingFlags.Instance | BindingFlags.NonPublic)
-                ?.GetValue(channel);
-            object? underlying = entry?.GetType()
-                .GetProperty("Underlying", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
-                ?.GetValue(entry);
-            return underlying as ITransportChannel ?? channel;
+            if (description == null)
+            {
+                throw new InvalidOperationException(
+                    $"No SignAndEncrypt/Basic256Sha256 endpoint was returned for {transportProfile}.");
+            }
+
+            var endpoint = new ConfiguredEndpoint(
+                null,
+                description,
+                EndpointConfiguration.Create(configuration));
+            ISessionFactory sessionFactory = services.GetRequiredService<ISessionFactory>();
+            return await sessionFactory.CreateAsync(
+                configuration,
+                endpoint,
+                updateBeforeConnect: false,
+                checkDomain: false,
+                "ConsoleDataChannelStreaming",
+                60_000,
+                new UserIdentity(),
+                default,
+                ct).ConfigureAwait(false);
         }
 
         private static readonly NodeId SourceNodeId = new("Camera1", 1);
-        private readonly DataChannelManager m_sourceManager;
+        private readonly DataChannelManager? m_sourceManager;
         private readonly DataChannelManager m_sinkManager;
         private readonly Func<CancellationToken, ValueTask>? m_closeService;
         private readonly IAsyncDisposable? m_owner;
+        private readonly Task? m_channelAttachTask;
     }
 
     internal sealed class ServerStreamingState : IDataChannelSource
     {
         public ServerStreamingState(SampleOptions options)
         {
+            Transport = options.Transport;
             SourceNodeId = new NodeId("Camera1", 1);
             Capabilities = new DataChannelSourceCapabilities
             {
@@ -324,6 +417,8 @@ namespace ConsoleDataChannelStreaming
         }
 
         public NodeId SourceNodeId { get; }
+
+        public SampleTransport Transport { get; }
 
         public NodeId NodeId => SourceNodeId;
 
@@ -372,9 +467,19 @@ namespace ConsoleDataChannelStreaming
                 MaxFrameSize = 64 * 1024,
                 MaxCreditPerChannel = 1024 * 1024,
                 SupportedDeliveryModes = [DataChannelDeliveryMode.ReliableOrdered],
-                SupportedTransportProfileUris = [Profiles.UaTcpTransport]
+                SupportedTransportProfileUris =
+                    state.Transport == SampleTransport.Quic
+                        ? [Profiles.UaQuicTransport]
+                        : [Profiles.UaTcpTransport]
             };
-            DataChannelTransport = new TcpServerDataChannelTransport(state);
+            if (state.Transport == SampleTransport.Quic)
+            {
+                this.UseQuicDataChannelTransport();
+            }
+            else
+            {
+                DataChannelTransport = new TcpServerDataChannelTransport(state);
+            }
         }
 
         public static ServerStreamingState? PendingState { get; set; }
@@ -436,11 +541,18 @@ namespace ConsoleDataChannelStreaming
         }
     }
 
-    internal sealed class ServerHarnessOwner(IHost host, ManagedSession session) : IAsyncDisposable
+    internal sealed class ServerHarnessOwner(
+        IHost host,
+        ClientSession session,
+        IAsyncDisposable? clientDataTransport) : IAsyncDisposable
     {
         public async ValueTask DisposeAsync()
         {
             await session.DisposeAsync().ConfigureAwait(false);
+            if (clientDataTransport != null)
+            {
+                await clientDataTransport.DisposeAsync().ConfigureAwait(false);
+            }
             await host.StopAsync(CancellationToken.None).ConfigureAwait(false);
             host.Dispose();
         }

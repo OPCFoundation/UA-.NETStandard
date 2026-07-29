@@ -3451,9 +3451,16 @@ namespace Opc.Ua.Server
 
             List<EndpointDescription> endpointsList = [];
             ArrayOf<string> baseAddresses = configuration.ServerConfiguration.BaseAddresses;
-            foreach (
-                string scheme in Utils.DefaultUriSchemes.Where(scheme =>
-                    baseAddresses.Contains(a => a.StartsWith(scheme, StringComparison.Ordinal))))
+            var schemes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (string address in baseAddresses)
+            {
+                if (Uri.TryCreate(address, UriKind.Absolute, out Uri? uri))
+                {
+                    schemes.Add(uri.Scheme);
+                }
+            }
+
+            foreach (string scheme in schemes)
             {
                 ITransportListenerFactory? binding = bindingFactory.GetListenerFactory(scheme);
                 if (binding != null)
