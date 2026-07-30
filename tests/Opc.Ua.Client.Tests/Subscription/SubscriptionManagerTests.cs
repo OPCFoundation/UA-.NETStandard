@@ -106,7 +106,7 @@ namespace Opc.Ua.Client.Subscriptions
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadAlreadyExists));
             await Task.Delay(100).ConfigureAwait(false); // Give time to workers to start
             Assert.That(sut.PublishWorkerCount, Is.Zero);
-            await sut.CompleteAsync(1, default).ConfigureAwait(false);
+            await sut.CompleteAsync(ms1, 1, default).ConfigureAwait(false);
             Assert.That(sut.Count, Is.EqualTo(1));
             Assert.That(sut.Items, Does.Contain(s2));
 
@@ -160,7 +160,7 @@ namespace Opc.Ua.Client.Subscriptions
             // but MinPublishWorkerCount defaults to 2, so the desired count is 2.
             await WaitForPublishWorkerCountAsync(sut, 2).ConfigureAwait(false);
 
-            await sut.CompleteAsync(2, default).ConfigureAwait(false); // Remove s2
+            await sut.CompleteAsync(ms2, 2, default).ConfigureAwait(false); // Remove s2
             Assert.That(sut.Count, Is.EqualTo(1));
             Assert.That(sut.Items, Does.Not.Contain(s2));
 
@@ -168,11 +168,49 @@ namespace Opc.Ua.Client.Subscriptions
             Assert.That(sut.PublishWorkerCount, Is.EqualTo(2));
             Assert.That(sut.PublishControlCycles, Is.GreaterThan(0));
 
-            await sut.CompleteAsync(1, default).ConfigureAwait(false); // Remove s1
+            await sut.CompleteAsync(ms1, 1, default).ConfigureAwait(false); // Remove s1
             Assert.That(sut.Count, Is.Zero);
             Assert.That(sut.Items, Does.Not.Contain(s1));
 
             await WaitForPublishWorkerCountAsync(sut, 0).ConfigureAwait(false);
+
+            await sut.DisposeAsync().ConfigureAwait(false);
+            Assert.That(sut.Count, Is.Zero);
+            Assert.That(sut.PublishWorkerCount, Is.Zero);
+        }
+
+        [Test]
+        public async Task CompleteForUncreatedIdDoesNotEvictPendingSubscriptionAsync()
+        {
+            ILoggerFactory loggerFactory = m_telemetry.LoggerFactory;
+            var session = new FakeSubscriptionManagerContext();
+            OptionsMonitor<SubscriptionOptions> so1 = OptionsFactory.Create<SubscriptionOptions>();
+
+            // Subscription awaiting CreateSubscription
+            var ms1 = new FakeManagedSubscription();
+
+            var sut = new SubscriptionManager(session,
+                loggerFactory, DiagnosticsMasks.None);
+
+            session.CreateSubscriptionFactory = (handler, options, queue) =>
+            {
+                Assert.That(queue, Is.SameAs(sut));
+                if (ReferenceEquals(options, so1))
+                {
+                    return ms1;
+                }
+                throw new InvalidOperationException("unexpected options");
+            };
+
+            ISubscription s1 = sut.Add(m_mockNotificationDataHandler.Object, so1);
+            Assert.That(sut.Count, Is.EqualTo(1));
+
+            // A deleted subscription acknowledges completion with an id already reset to 0
+            await sut.CompleteAsync(new FakeManagedSubscription(), 0, default).ConfigureAwait(false);
+
+            // Verify that the pending subscription still exists
+            Assert.That(sut.Count, Is.EqualTo(1));
+            Assert.That(sut.Items, Does.Contain(s1));
 
             await sut.DisposeAsync().ConfigureAwait(false);
             Assert.That(sut.Count, Is.Zero);
@@ -411,7 +449,7 @@ namespace Opc.Ua.Client.Subscriptions
 
             m_subscriptionManager.Add(m_mockNotificationDataHandler.Object,
                 Mock.Of<IOptionsMonitor<SubscriptionOptions>>());
-            await m_subscriptionManager.CompleteAsync(1, CancellationToken.None).ConfigureAwait(false);
+            await m_subscriptionManager.CompleteAsync(mockSubscription, 1, CancellationToken.None).ConfigureAwait(false);
             Assert.That(m_subscriptionManager.Items, Is.Empty);
         }
 
