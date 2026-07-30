@@ -62,16 +62,7 @@ namespace Opc.Ua.Di.Tests
             services.AddLogging();
             services.AddOpcUa()
                 .AddServer<CaptureServer>(ConfigureServer)
-                .AddNodeManager<PumpNodeManagerFactory>()
-                .ConfigureDevicesFor<PumpNodeManager>(async context =>
-                {
-                    var manager = (PumpNodeManager)context.Manager;
-                    ushort pumpsNamespaceIndex = (ushort)manager.Server.NamespaceUris.GetIndex(
-                        Opc.Ua.Pumps.Namespaces.Pumps);
-                    await manager.CreatePumpAsync(
-                        new QualifiedName("Pump #2", pumpsNamespaceIndex),
-                        context.CancellationToken).ConfigureAwait(false);
-                });
+                .AddNodeManager<PumpNodeManagerFactory>();
 
             await using ServiceProvider provider = services.BuildServiceProvider();
             IHostedService hostedService = provider.GetServices<IHostedService>().Single();
@@ -114,7 +105,7 @@ namespace Opc.Ua.Di.Tests
                 for (int ii = 0; ii < results[0].References.Count; ii++)
                 {
                     ReferenceDescription reference = results[0].References[ii];
-                    if (reference.BrowseName.Name is "Pump #1" or "Pump #2")
+                    if (reference.BrowseName.Name is "Pump_1" or "Pump_2")
                     {
                         pumpReferences.Add(reference);
                     }
@@ -150,7 +141,7 @@ namespace Opc.Ua.Di.Tests
                 {
                     ReferenceDescription reference =
                         clientBrowse.Results[0].References[ii];
-                    if (reference.BrowseName.Name is "Pump #1" or "Pump #2")
+                    if (reference.BrowseName.Name is "Pump_1" or "Pump_2")
                     {
                         clientPumpReferences.Add(reference);
                     }
@@ -163,22 +154,27 @@ namespace Opc.Ua.Di.Tests
                             reference.ReferenceTypeId,
                             session.NamespaceUris) == Opc.Ua.Types.ReferenceTypeIds.Organizes));
 
-                ushort clientDiNamespaceIndex = (ushort)session.NamespaceUris.GetIndex(
-                    Opc.Ua.Di.Namespaces.OpcUaDi);
+                NodeId pump1Id = ExpandedNodeId.ToNodeId(
+                    clientPumpReferences.Single(reference => reference.BrowseName.Name == "Pump_1").NodeId,
+                    session.NamespaceUris);
+                NodeId pump2Id = ExpandedNodeId.ToNodeId(
+                    clientPumpReferences.Single(reference => reference.BrowseName.Name == "Pump_2").NodeId,
+                    session.NamespaceUris);
                 var pump1PressureId = new NodeId(
-                    "5001_Pump #1_Operational_Measurements_DifferentialPressure",
-                    clientDiNamespaceIndex);
+                    pump1Id.IdentifierAsString + "_Operational_Measurements_DifferentialPressure",
+                    pump1Id.NamespaceIndex);
                 var pump2PressureId = new NodeId(
-                    "5001_Pump #2_Operational_Measurements_DifferentialPressure",
-                    clientDiNamespaceIndex);
-                var pump2Id = new NodeId("5001_Pump #2", clientDiNamespaceIndex);
+                    pump2Id.IdentifierAsString + "_Operational_Measurements_DifferentialPressure",
+                    pump2Id.NamespaceIndex);
 
-                DataValue initialPump1 = await session.ReadValueAsync(
+                DataValue initialPump1 = await ReadGoodValueAsync(
+                    session,
                     pump1PressureId,
-                    CancellationToken.None).ConfigureAwait(false);
-                DataValue initialPump2 = await session.ReadValueAsync(
+                    TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                DataValue initialPump2 = await ReadGoodValueAsync(
+                    session,
                     pump2PressureId,
-                    CancellationToken.None).ConfigureAwait(false);
+                    TimeSpan.FromSeconds(5)).ConfigureAwait(false);
                 Assert.Multiple(() =>
                 {
                     Assert.That(initialPump1.WrappedValue.TryGetValue(out double pump1Value), Is.True);
@@ -319,6 +315,141 @@ namespace Opc.Ua.Di.Tests
             }
         }
 
+        /// <summary>
+        /// A pump materialised after the server has started - through the
+        /// declarative <c>ConfigureDevicesFor</c> hosting hook rather than the
+        /// configured pump count - must join the shared simulation loop, not
+        /// just appear in the address space. This pins the post-setup
+        /// registration path in <c>CreatePumpAsync</c>.
+        /// </summary>
+        [Test]
+        public async Task PumpCreatedAfterStartupJoinsTheLiveSimulationAsync()
+        {
+            const string dynamicPumpName = "Pump_Dynamic";
+
+            CaptureServer.Reset();
+            var services = new ServiceCollection();
+            services.AddLogging();
+            services.AddOpcUa()
+                .AddServer<CaptureServer>(ConfigureServer)
+                .AddNodeManager<PumpNodeManagerFactory>()
+                .ConfigureDevicesFor<PumpNodeManager>(async context =>
+                {
+                    var manager = (PumpNodeManager)context.Manager;
+                    await manager.CreatePumpAsync(
+                        new QualifiedName(dynamicPumpName, manager.InstanceNamespaceIndex),
+                        context.CancellationToken).ConfigureAwait(false);
+                });
+
+            await using ServiceProvider provider = services.BuildServiceProvider();
+            IHostedService hostedService = provider.GetServices<IHostedService>().Single();
+            await hostedService.StartAsync(CancellationToken.None).ConfigureAwait(false);
+            try
+            {
+                Assert.That(
+                    await WaitForAsync(
+                        () => CaptureServer.StartedInstance != null,
+                        TimeSpan.FromSeconds(30)).ConfigureAwait(false),
+                    Is.True);
+                IServerInternal server = CaptureServer.StartedInstance!;
+
+                ushort diNamespaceIndex = (ushort)server.NamespaceUris.GetIndex(
+                    Opc.Ua.Di.Namespaces.OpcUaDi);
+                var deviceSetId = new NodeId(Opc.Ua.Di.Objects.DeviceSet, diNamespaceIndex);
+                ArrayOf<BrowseDescription> nodesToBrowse =
+                [
+                    new BrowseDescription
+                    {
+                        NodeId = deviceSetId,
+                        BrowseDirection = BrowseDirection.Forward,
+                        ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.HierarchicalReferences,
+                        IncludeSubtypes = true,
+                        ResultMask = (uint)BrowseResultMask.All
+                    }
+                ];
+
+                using var clientFixture = new ClientFixture(NUnitTelemetryContext.Create());
+                string clientPkiRoot = System.IO.Path.Combine(
+                    TestContext.CurrentContext.WorkDirectory,
+                    nameof(PumpCreatedAfterStartupJoinsTheLiveSimulationAsync),
+                    "client-pki");
+                await clientFixture.LoadClientConfigurationAsync(clientPkiRoot)
+                    .ConfigureAwait(false);
+                using Opc.Ua.Client.ISession session = await clientFixture.ConnectAsync(
+                    new Uri(s_endpointUrl),
+                    SecurityPolicies.None).ConfigureAwait(false);
+
+                BrowseResponse clientBrowse = await session.BrowseAsync(
+                    null,
+                    null,
+                    0,
+                    nodesToBrowse,
+                    CancellationToken.None).ConfigureAwait(false);
+
+                ReferenceDescription? dynamicPump = null;
+                for (int ii = 0; ii < clientBrowse.Results[0].References.Count; ii++)
+                {
+                    ReferenceDescription reference = clientBrowse.Results[0].References[ii];
+                    if (reference.BrowseName.Name == dynamicPumpName)
+                    {
+                        dynamicPump = reference;
+                    }
+                }
+
+                Assert.That(
+                    dynamicPump,
+                    Is.Not.Null,
+                    "The pump created after startup was not organized by DeviceSet.");
+
+                NodeId dynamicPumpId = ExpandedNodeId.ToNodeId(
+                    dynamicPump!.NodeId,
+                    session.NamespaceUris);
+                var pressureId = new NodeId(
+                    dynamicPumpId.IdentifierAsString +
+                        "_Operational_Measurements_DifferentialPressure",
+                    dynamicPumpId.NamespaceIndex);
+
+                // Joining the simulation is what turns the initial
+                // BadWaitingForInitialData into a published value.
+                DataValue first = await ReadGoodValueAsync(
+                    session,
+                    pressureId,
+                    TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                Assert.That(
+                    StatusCode.IsGood(first.StatusCode),
+                    Is.True,
+                    "The pump created after startup never published a value, so it did " +
+                    "not join the simulation.");
+
+                bool changed = false;
+                DateTime deadline = DateTime.UtcNow + TimeSpan.FromSeconds(10);
+                first.WrappedValue.TryGetValue(out double before);
+                while (DateTime.UtcNow < deadline)
+                {
+                    DataValue current = await session
+                        .ReadValueAsync(pressureId, CancellationToken.None)
+                        .ConfigureAwait(false);
+                    if (current.WrappedValue.TryGetValue(out double now) &&
+                        !now.Equals(before))
+                    {
+                        changed = true;
+                        break;
+                    }
+                    await Task.Delay(100).ConfigureAwait(false);
+                }
+
+                Assert.That(
+                    changed,
+                    Is.True,
+                    "The value of the pump created after startup never changed, so the " +
+                    "simulation is not advancing it.");
+            }
+            finally
+            {
+                await hostedService.StopAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+        }
+
         private static void ConfigureServer(OpcUaServerOptions options)
         {
             string applicationName = nameof(PumpHostedReferenceTests);
@@ -369,6 +500,34 @@ namespace Opc.Ua.Di.Tests
                 await Task.Delay(100).ConfigureAwait(false);
             }
             return condition();
+        }
+
+        private static async Task<DataValue> ReadGoodValueAsync(
+            Opc.Ua.Client.ISession session,
+            NodeId nodeId,
+            TimeSpan timeout)
+        {
+            DateTime deadline = DateTime.UtcNow + timeout;
+            DataValue value;
+            do
+            {
+                try
+                {
+                    value = await session.ReadValueAsync(nodeId, CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
+                catch (ServiceResultException ex) when (ex.StatusCode == StatusCodes.BadWaitingForInitialData)
+                {
+                    value = DataValue.FromStatusCode(StatusCodes.BadWaitingForInitialData);
+                }
+                if (StatusCode.IsGood(value.StatusCode))
+                {
+                    return value;
+                }
+                await Task.Delay(100).ConfigureAwait(false);
+            } while (DateTime.UtcNow < deadline);
+
+            return value;
         }
 
         private static string s_endpointUrl = string.Empty;
