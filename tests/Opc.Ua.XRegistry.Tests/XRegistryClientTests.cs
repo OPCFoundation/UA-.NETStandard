@@ -116,6 +116,57 @@ namespace Opc.Ua.XRegistry.Tests
         }
 
         [Test]
+        public void RegistryNodeIdUsesAnExplicitRootWhenSupplied()
+        {
+            var domainRoot = new NodeId(64100u, 1);
+
+            var client = new GenericXRegistryClient(
+                CreateSession().Object,
+                TestNamespaceUri,
+                domainRoot,
+                CreateTelemetry());
+
+            Assert.That(client.RegistryNodeId, Is.EqualTo(domainRoot),
+                "A domain registry declares its own root, so an explicitly supplied NodeId must " +
+                "win over the provisional well-known identifier.");
+        }
+
+        [Test]
+        public void RegistryNodeIdFallsBackToTheWellKnownRootForANullExplicitRoot()
+        {
+            var client = new GenericXRegistryClient(
+                CreateSession().Object,
+                TestNamespaceUri,
+                default,
+                CreateTelemetry());
+
+            Assert.That(client.RegistryNodeId,
+                Is.EqualTo(new NodeId(XRegistryWellKnown.RegistryObject, 1)),
+                "A null NodeId selects the well-known root, so the explicit-root overload stays " +
+                "equivalent to the namespace-only constructor.");
+        }
+
+        [Test]
+        public async Task AnExplicitRootDrivesTheGroupLifecycleAsync()
+        {
+            Mock<ISession> session = CreateSession();
+            var calls = new List<CallMethodRequest>();
+            SetupCall(session, calls);
+            var domainRoot = new NodeId(64100u, 1);
+
+            var client = new GenericXRegistryClient(
+                session.Object,
+                TestNamespaceUri,
+                domainRoot,
+                CreateTelemetry());
+            await client.CreateGroupAsync(client.RegistryNodeId, "things")
+                .ConfigureAwait(false);
+
+            Assert.That(calls[0].ObjectId, Is.EqualTo(domainRoot),
+                "The lifecycle Methods must be invoked on the explicit root, not the well-known one.");
+        }
+
+        [Test]
         public async Task RegistryNodeIdDrivesTheGroupLifecycleAsync()
         {
             Mock<ISession> session = CreateSession();
@@ -799,8 +850,8 @@ namespace Opc.Ua.XRegistry.Tests
         }
 
         /// <summary>
-        /// Stands in for a domain registry client (Schema Registry, WoT registry): it extends the
-        /// abstract base and adds domain naming without re-implementing the lifecycle.
+        /// Stands in for a domain registry client: it extends the abstract base and adds domain
+        /// naming without re-implementing the lifecycle.
         /// </summary>
         private sealed class TestDomainRegistryClient : XRegistryClient
         {
