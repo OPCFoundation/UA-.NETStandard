@@ -141,7 +141,7 @@ namespace Opc.Ua.PubSub.Encoding.Tests
                 int bit = int.Parse((string)field.Attribute("Value")!, CultureInfo.InvariantCulture);
                 var expected = (AvroNetworkMessageContentMask)(1u << bit);
                 Assert.That(
-                    Enum.Parse<AvroNetworkMessageContentMask>(name),
+                    (AvroNetworkMessageContentMask)Enum.Parse(typeof(AvroNetworkMessageContentMask), name),
                     Is.EqualTo(expected),
                     $"bit {bit} ({name})");
             }
@@ -158,7 +158,7 @@ namespace Opc.Ua.PubSub.Encoding.Tests
                 int bit = int.Parse((string)field.Attribute("Value")!, CultureInfo.InvariantCulture);
                 var expected = (AvroDataSetMessageContentMask)(1u << bit);
                 Assert.That(
-                    Enum.Parse<AvroDataSetMessageContentMask>(name),
+                    (AvroDataSetMessageContentMask)Enum.Parse(typeof(AvroDataSetMessageContentMask), name),
                     Is.EqualTo(expected),
                     $"bit {bit} ({name})");
             }
