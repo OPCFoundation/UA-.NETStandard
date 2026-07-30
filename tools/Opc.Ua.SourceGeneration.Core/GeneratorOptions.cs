@@ -94,6 +94,19 @@ namespace Opc.Ua.SourceGeneration
         public bool OmitFluentApi { get; set; }
 
         /// <summary>
+        /// When set to <c>true</c>, generation is limited to the
+        /// per-ObjectType typed fluent accessor extension classes emitted
+        /// by <see cref="FluentBuilderGenerator"/>. The target model must
+        /// already be supplied by a referenced assembly under the same
+        /// model URI and C# prefix so the emitted accessors can reference
+        /// that assembly's state types. Its model dependency payload must
+        /// explicitly declare that the producer omitted fluent accessors;
+        /// missing capability metadata and producers that already emitted
+        /// accessors are rejected.
+        /// </summary>
+        public bool FluentAccessorsOnly { get; set; }
+
+        /// <summary>
         /// Optional override for the C# namespace used by classes emitted
         /// by the <see cref="ObjectTypeProxyGenerator"/>. When unset,
         /// the model's target namespace prefix is used.
