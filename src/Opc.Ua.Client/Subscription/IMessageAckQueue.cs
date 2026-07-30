@@ -51,10 +51,13 @@ namespace Opc.Ua.Client.Subscriptions
         /// <summary>
         /// Complete subscription
         /// </summary>
-        /// <param name="subscriptionId"></param>
+        /// <param name="subscription">The completing subscription.</param>
+        /// <param name="subscriptionId">The last server-assigned id of the
+        /// subscription (0 when it was never created).</param>
         /// <param name="ct"></param>
         /// <returns></returns>
-        ValueTask CompleteAsync(uint subscriptionId,
+        ValueTask CompleteAsync(IMessageProcessor subscription,
+            uint subscriptionId,
             CancellationToken ct = default);
 
         /// <summary>

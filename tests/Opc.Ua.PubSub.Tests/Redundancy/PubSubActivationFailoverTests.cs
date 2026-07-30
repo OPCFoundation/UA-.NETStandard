@@ -331,6 +331,66 @@ namespace Opc.Ua.PubSub.Tests.Redundancy
 
         [Test]
         [TestSpec("9.1.6")]
+        public async Task WriterGroupEventWriterHotStandbyContinuesSequenceNumberFromSharedCheckpointAsync()
+        {
+            var clock = new FakeTimeProvider(
+                new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+            using var sharedBackend = new InMemorySharedKeyValueStore();
+            var checkpointStore = new SharedStorePubSubWriterCheckpointStore(sharedBackend);
+            const PubSubComponentRole activeRole = PubSubComponentRole.Active;
+            PubSubComponentRole standbyRole = PubSubComponentRole.Standby;
+            Mock<IPubSubActivationCoordinator> activeCoordinator = CreateCoordinatorMock(
+                WriterComponentId,
+                () => activeRole);
+            Mock<IPubSubActivationCoordinator> standbyCoordinator = CreateCoordinatorMock(
+                WriterComponentId,
+                () => standbyRole);
+            var activeMessages = new List<PubSubNetworkMessage>();
+            var promotedMessages = new List<PubSubNetworkMessage>();
+            var activeSampler = new QueuedEventSampler();
+            var promotedSampler = new QueuedEventSampler();
+            WriterGroup activeGroup = CreateEventWriterGroup(
+                activeCoordinator.Object,
+                activeMessages,
+                activeSampler,
+                clock);
+            WriterGroup promotedGroup = CreateEventWriterGroup(
+                standbyCoordinator.Object,
+                promotedMessages,
+                promotedSampler,
+                clock);
+            activeGroup.ConfigureWriterCheckpointStore(checkpointStore);
+            promotedGroup.ConfigureWriterCheckpointStore(checkpointStore);
+
+            await activeGroup.EnableAsync().ConfigureAwait(false);
+            activeSampler.Enqueue(1);
+            await activeGroup.PublishOnceAsync().ConfigureAwait(false);
+            clock.Advance(TimeSpan.FromMilliseconds(1100));
+            activeSampler.Enqueue(2);
+            await activeGroup.PublishOnceAsync().ConfigureAwait(false);
+            uint lastActiveSequenceNumber =
+                GetSingleDataSetMessage(activeMessages[^1]).SequenceNumber;
+
+            await promotedGroup.EnableAsync().ConfigureAwait(false);
+            promotedSampler.Enqueue(3);
+            standbyRole = PubSubComponentRole.Active;
+            standbyCoordinator.Raise(
+                c => c.RoleChanged += null!,
+                new PubSubRoleChangedEventArgs(WriterComponentId, PubSubComponentRole.Active));
+            await promotedGroup.PublishOnceAsync().ConfigureAwait(false);
+
+            Assert.That(promotedMessages, Has.Count.EqualTo(1));
+            uint promotedSequenceNumber =
+                GetSingleDataSetMessage(promotedMessages[0]).SequenceNumber;
+            Assert.Multiple(() =>
+            {
+                Assert.That(lastActiveSequenceNumber, Is.GreaterThan(1u));
+                Assert.That(promotedSequenceNumber, Is.GreaterThan(lastActiveSequenceNumber));
+            });
+        }
+
+        [Test]
+        [TestSpec("9.1.6")]
         public async Task WriterGroup_ColdStandbyWithoutCheckpointResetsSequenceNumberAsync()
         {
             var clock = new FakeTimeProvider(
@@ -504,6 +564,42 @@ namespace Opc.Ua.PubSub.Tests.Redundancy
                 }
             };
             var dataSet = new PublishedDataSet(dataSetConfig, new CountingSource());
+            return CreateWriterGroup(coordinator, captured, dataSet, timeProvider);
+        }
+
+        private static WriterGroup CreateEventWriterGroup(
+            IPubSubActivationCoordinator coordinator,
+            List<PubSubNetworkMessage> captured,
+            IEventSampler sampler,
+            TimeProvider? timeProvider = null)
+        {
+            var eventSource = new PublishedEventsDataType
+            {
+                EventNotifier = new NodeId("notifier", 1),
+                SelectedFields =
+                [
+                    new SimpleAttributeOperand { TypeDefinitionId = new NodeId("Base", 1) }
+                ]
+            };
+            var dataSetConfig = new PublishedDataSetDataType
+            {
+                Name = "pds",
+                DataSetMetaData = new DataSetMetaDataType
+                {
+                    Fields = [new FieldMetaData { Name = "value" }]
+                },
+                DataSetSource = new ExtensionObject(eventSource)
+            };
+            var dataSet = new EventPublishedDataSet(dataSetConfig, sampler);
+            return CreateWriterGroup(coordinator, captured, dataSet, timeProvider);
+        }
+
+        private static WriterGroup CreateWriterGroup(
+            IPubSubActivationCoordinator coordinator,
+            List<PubSubNetworkMessage> captured,
+            IPublishedDataSet dataSet,
+            TimeProvider? timeProvider)
+        {
             var writer = new DataSetWriter(
                 new DataSetWriterDataType
                 {
@@ -663,6 +759,31 @@ namespace Opc.Ua.PubSub.Tests.Redundancy
                         [new DataSetField { Name = "value", Value = new Variant(value) }],
                         DateTimeUtc.From(DateTimeOffset.UtcNow)));
             }
+        }
+
+        private sealed class QueuedEventSampler : IEventSampler
+        {
+            public string Name => "events";
+
+            public void Enqueue(int value)
+            {
+                m_pending.Add([new Variant(value)]);
+            }
+
+            public ValueTask<IReadOnlyList<IReadOnlyList<Variant>>> SampleEventsAsync(
+                ArrayOf<SimpleAttributeOperand> selectedFields,
+                ContentFilter? filter,
+                CancellationToken cancellationToken = default)
+            {
+                _ = selectedFields;
+                _ = filter;
+                cancellationToken.ThrowIfCancellationRequested();
+                IReadOnlyList<IReadOnlyList<Variant>> result = [.. m_pending];
+                m_pending.Clear();
+                return new ValueTask<IReadOnlyList<IReadOnlyList<Variant>>>(result);
+            }
+
+            private readonly List<IReadOnlyList<Variant>> m_pending = [];
         }
 
         private sealed class CountingSink : ISubscribedDataSetSink

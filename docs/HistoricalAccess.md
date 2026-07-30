@@ -258,6 +258,24 @@ For every `HistoryRead` / `HistoryUpdate` operation the dispatcher resolves the 
 2. **Server-wide registry** — searched in `RegisterForNode → RegisterForNamespace → RegisterDefault` order.
 3. **Fallback** — if all of the above return `null`, the dispatcher returns `BadHistoryOperationUnsupported`.
 
+### Startup advertisement reconciliation
+
+At server startup, `AsyncCustomNodeManager` reconciles every variable
+that advertises history (`Historizing`, `AccessLevels.HistoryRead`, or
+`AccessLevels.HistoryWrite`) with the provider resolution order above.
+If no `IHistorianProvider` is wired for a variable, the server clears
+`Historizing` and masks the history bits from `AccessLevel`,
+`UserAccessLevel`, `AccessLevelEx`, and the attribute read callbacks.
+
+This is intentional for companion NodeSets: many official models mark
+variables as historizing because the model permits history, but a
+particular server instance may not archive those variables. Variables
+configured with `.Historize(...)`, `WithHistorian(...)`, a namespace or
+default historian registration, or a node-manager
+`GetHistorianProvider(...)` override keep their advertised history
+surface. See [Server address-space metadata](NodeManagers.md#server-address-space-metadata)
+for the startup sequence.
+
 ### Annotations
 
 The historian framework natively understands the OPC UA convention that annotations live on the `Annotations` property of a historizing variable (`HasProperty` reference, `BrowseName = "Annotations"`, `DataType = Annotation`, `ValueRank = OneDimension`). Clients address the property NodeId, the framework translates property → parent variable NodeId before calling `IHistorianAnnotationProvider`, so providers only ever see the variable NodeId.

@@ -183,7 +183,7 @@ Client-side feature coverage:
   see [NodeSet Export](NodeSetExport.md).
 - **Source-generated typed proxies** — `*TypeClient` proxies for
   ObjectTypes inside loaded models give strongly-typed method-call
-  signatures; see [Source-Generated NodeManagers](SourceGeneratedNodeManagers.md).
+  signatures; see [Source-Generated NodeManagers](NodeManagers.md#source-generated-node-managers).
 - **Complex types** — Decode and consume server-defined structures and
   enumerations on the client; see [Complex Types](ComplexTypes.md).
 

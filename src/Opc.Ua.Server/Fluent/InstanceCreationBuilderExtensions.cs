@@ -57,12 +57,8 @@ namespace Opc.Ua.Server.Fluent
     /// </list>
     /// <para>
     /// The new instance is attached to the parent via
-    /// <see cref="NodeState.AddChild(BaseInstanceState)"/>; if the
-    /// owning manager needs the instance indexed in
-    /// <c>PredefinedNodes</c> for direct NodeId lookup, the caller is
-    /// responsible for invoking
-    /// <c>AsyncCustomNodeManager.AddPredefinedNodeAsync</c> with the
-    /// returned <see cref="IInstanceBuilder{TState}.Node"/>.
+    /// <see cref="NodeState.AddChild(BaseInstanceState)"/> and
+    /// registered with the owning node manager.
     /// </para>
     /// <para>
     /// NodeIds for the new instance follow the
@@ -133,6 +129,7 @@ namespace Opc.Ua.Server.Fluent
             instance.SymbolicName = symbolicName;
             instance.BrowseName = browseName;
             instance.DisplayName = new LocalizedText(symbolicName);
+            instance.ReferenceTypeId = ReferenceTypeIds.HasComponent;
 
             string parentIdentifier = parent.Node.NodeId.IdentifierAsString;
             instance.NodeId = new NodeId(
@@ -145,6 +142,7 @@ namespace Opc.Ua.Server.Fluent
                 instance.TypeDefinitionId = typeDefinitionId;
             }
             parent.Node.AddChild(instance);
+            FluentNodeRegistration.RegisterCreatedNode(parent.Builder, instance);
 
             return new InstanceBuilder<TState>(parent, instance);
         }
