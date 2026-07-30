@@ -75,7 +75,7 @@ namespace Opc.Ua.Positioning.Client
 
             return results.Count > 0
                 ? results[0]
-                : default;
+                : ArrayOf<ReferenceDescription>.Empty;
         }
 
         public async ValueTask<NodeId> ResolveChildAsync(
