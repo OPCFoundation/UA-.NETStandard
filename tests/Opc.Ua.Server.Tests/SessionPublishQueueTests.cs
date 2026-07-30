@@ -190,6 +190,62 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        [CancelAfter(10000)]
+        public async Task PublishTimerAssignsWaitingRequestToHighestPrioritySubscriptionAsync()
+        {
+            using var queue = new SessionPublishQueue(
+                m_serverMock.Object,
+                m_sessionMock.Object,
+                kMaxPublishRequests);
+
+            // The queued subscriptions are enumerated in an unspecified order, so the
+            // priority is derived from the observed order: the Subscription the publish
+            // timer visits first is the one with the lowest priority.
+            var timerOrder = new List<ISubscription>();
+            var subscription1 = new Mock<ISubscription>();
+            var subscription2 = new Mock<ISubscription>();
+
+            byte GetPriority(ISubscription subscription)
+            {
+                return timerOrder.Count > 0 && ReferenceEquals(timerOrder[0], subscription)
+                    ? (byte)1
+                    : (byte)200;
+            }
+
+            subscription1.Setup(s => s.Id).Returns(1);
+            subscription1.Setup(s => s.Priority).Returns(() => GetPriority(subscription1.Object));
+            subscription1
+                .Setup(s => s.PublishTimerExpired())
+                .Callback(() => timerOrder.Add(subscription1.Object))
+                .Returns(PublishingState.NotificationsAvailable);
+            queue.Add(subscription1.Object);
+
+            subscription2.Setup(s => s.Id).Returns(2);
+            subscription2.Setup(s => s.Priority).Returns(() => GetPriority(subscription2.Object));
+            subscription2
+                .Setup(s => s.PublishTimerExpired())
+                .Callback(() => timerOrder.Add(subscription2.Object))
+                .Returns(PublishingState.NotificationsAvailable);
+            queue.Add(subscription2.Object);
+
+            Task<ISubscription> request = queue.PublishAsync(
+                "channel1",
+                DateTime.MaxValue,
+                false,
+                null,
+                CancellationToken.None);
+            Assert.That(request.IsCompleted, Is.False);
+
+            queue.PublishTimerExpired();
+
+            Assert.That(timerOrder, Has.Count.EqualTo(2));
+
+            ISubscription result = await request.ConfigureAwait(false);
+            Assert.That(result.Priority, Is.EqualTo(200));
+            Assert.That(result, Is.SameAs(timerOrder[1]));
+        }
+
+        [Test]
         public void PublishAsync_WhenParked_NotifiesParkSinkOnce()
         {
             using var queue = new SessionPublishQueue(m_serverMock.Object, m_sessionMock.Object, kMaxPublishRequests);
