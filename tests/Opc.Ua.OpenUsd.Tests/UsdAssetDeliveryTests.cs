@@ -95,7 +95,13 @@ namespace Opc.Ua.OpenUsd.Server.Tests
             OpenUsdRootState root = OpenUsdAuthoringHarness.NewFacility(context, ns);
             OpenUsdStageState stage = OpenUsdAuthoringHarness.NewStage(context, root, ns, "Cell");
             byte[] payload = Bytes("#usda 1.0");
-            byte[] expected = System.Security.Cryptography.SHA256.HashData(payload);
+            byte[] expected;
+#pragma warning disable CA1850 // Prefer static HashData (net48/netstandard2.0 compatibility)
+            using (var sha = System.Security.Cryptography.SHA256.Create())
+            {
+                expected = sha.ComputeHash(payload);
+            }
+#pragma warning restore CA1850
 
             ArrayOf<OpenUsdAssetState> created = UsdAssetDelivery.AttachStageAssets(
                 context, stage, ns,
