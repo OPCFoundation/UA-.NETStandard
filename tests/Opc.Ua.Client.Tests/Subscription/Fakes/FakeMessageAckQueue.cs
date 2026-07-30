@@ -67,7 +67,8 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
             return OnQueueAsync?.Invoke(ack, ct) ?? default;
         }
 
-        public ValueTask CompleteAsync(uint subscriptionId,
+        public ValueTask CompleteAsync(IMessageProcessor subscription,
+            uint subscriptionId,
             CancellationToken ct = default)
         {
             CompletedSubscriptions.Add(subscriptionId);
