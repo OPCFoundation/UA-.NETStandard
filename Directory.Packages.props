@@ -128,6 +128,18 @@
     <PackageVersion Include="System.Threading.RateLimiting" Version="10.0.9" />
     <PackageVersion Include="System.Threading.Tasks.Extensions" Version="4.6.3" />
   </ItemGroup>
+  <!-- OpenUSD rendering stack, consumed only by the optional
+       tools/Opc.Ua.OpenUsd.Connector.Viewer assembly that backs the connector's
+       view option. Published on nuget.org; the runtime packages carry the
+       per-RID native payload and the rendering path is win-x64 today. -->
+  <ItemGroup>
+    <PackageVersion Include="OpenUsd" Version="0.1.0-alpha" />
+    <PackageVersion Include="OpenUsd.Viewer" Version="0.1.0-alpha" />
+    <PackageVersion Include="OpenUsd.Runtime.Core.win-x64" Version="0.1.0-alpha" />
+    <PackageVersion Include="OpenUsd.Runtime.Imaging.win-x64" Version="0.1.0-alpha" />
+    <PackageVersion Include="Avalonia" Version="12.1.0" />
+    <PackageVersion Include="Avalonia.Desktop" Version="12.1.0" />
+  </ItemGroup>
   <!-- MQTTnet 5.x dropped net48/net472/netstandard2.1 support. Per-TFM pinning is
        required because CentralPackageTransitivePinningEnabled lets the central pin
        win over PubSub's VersionOverride for transitive consumers (e.g. samples

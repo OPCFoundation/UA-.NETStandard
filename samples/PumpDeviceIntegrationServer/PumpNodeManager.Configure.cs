@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Threading;
 using Microsoft.Extensions.Logging;
@@ -51,6 +52,18 @@ namespace Pumps
     /// </remarks>
     public partial class PumpNodeManager
     {
+        /// <summary>
+        /// Shaft angular position of the primary pump, in degrees. This is what
+        /// makes the OpenUSD twin look like it is running.
+        /// </summary>
+        private double ShaftAngleDegrees =>
+            m_primarySimulation?.ShaftAngleDegrees ?? 0.0;
+
+        /// <summary>
+        /// The supervision alarm state the OpenUSD status-light binding follows.
+        /// </summary>
+        private bool AlarmActive => m_primarySimulation?.AlarmActive ?? false;
+
         partial void Configure(INodeManagerBuilder builder)
         {
             Server.Telemetry.CreateLogger<PumpNodeManager>()
@@ -120,6 +133,9 @@ namespace Pumps
                         pump.BrowseName,
                         pump.NodeId);
                 }
+
+                // The OpenUSD twin follows the first pump, so remember it.
+                m_primarySimulation ??= simulation;
             }
         }
 
@@ -257,6 +273,7 @@ namespace Pumps
 
             return new PumpSimulationState(
                 profileIndex,
+                SimulationInterval,
                 pressure,
                 fluidTemperature,
                 bearingTemperature,
@@ -318,6 +335,44 @@ namespace Pumps
             {
                 simulation.Advance(tick);
             }
+            PublishOpenUsdSignals();
+        }
+
+        /// <summary>
+        /// Adds a Variable to the set the simulation tick publishes.
+        /// </summary>
+        /// <param name="variable">The variable to publish every tick.</param>
+        /// <param name="getter">Yields the latest value.</param>
+        /// <remarks>
+        /// The OpenUSD signals are created directly rather than through the
+        /// fluent builder, so they have no <see cref="IValueUpdater{TValue}"/>
+        /// of their own. A variable wired with only an <c>OnRead</c> handler
+        /// serves polled reads but never raises a data change, which leaves a
+        /// twin driven from a subscription rendering the start-up value
+        /// forever; publishing here is what makes monitored items observe them.
+        /// </remarks>
+        private void TrackSignal(BaseVariableState variable, Func<double> getter)
+        {
+            m_liveSignals.Add((variable, getter));
+        }
+
+        private void PublishOpenUsdSignals()
+        {
+            DateTime now = DateTime.UtcNow;
+            foreach ((BaseVariableState variable, Func<double> getter) in m_liveSignals)
+            {
+                variable.Value = getter();
+                variable.Timestamp = now;
+                variable.ClearChangeMasks(SystemContext, includeChildren: false);
+            }
+
+            BaseDataVariableState? alarm = m_alarmActiveVar;
+            if (alarm != null)
+            {
+                alarm.Value = AlarmActive;
+                alarm.Timestamp = now;
+                alarm.ClearChangeMasks(SystemContext, includeChildren: false);
+            }
         }
 
         private static class EngineeringUnits
@@ -345,6 +400,7 @@ namespace Pumps
         {
             public PumpSimulationState(
                 int profileIndex,
+                TimeSpan tickInterval,
                 IValueUpdater<double> pressure,
                 IValueUpdater<double> fluidTemperature,
                 IValueUpdater<double> bearingTemperature,
@@ -357,6 +413,7 @@ namespace Pumps
                 IValueUpdater<bool> motorOverheat)
             {
                 m_phaseOffset = profileIndex * 17L;
+                m_tickInterval = tickInterval;
                 m_pressure = pressure;
                 m_fluidTemperature = fluidTemperature;
                 m_bearingTemperature = bearingTemperature;
@@ -400,8 +457,9 @@ namespace Pumps
                     5_000.0 + (500.0 * Math.Sin(localTick * 0.02)),
                     statusCode,
                     sourceTimestamp);
+                double flow = 0.05 + (0.005 * Math.Cos(localTick * 0.04));
                 m_flow.SetValue(
-                    0.05 + (0.005 * Math.Cos(localTick * 0.04)),
+                    flow,
                     statusCode,
                     sourceTimestamp);
                 m_efficiency.SetValue(
@@ -412,6 +470,20 @@ namespace Pumps
                     2.5 + (0.5 * Math.Sin(localTick * 0.02)),
                     statusCode,
                     sourceTimestamp);
+
+                // Integrate the shaft position from the running speed so the
+                // twin shows the pump actually turning. Speed follows flow, so
+                // the impeller visibly slows and picks up with the duty point.
+                // MassFlow is a rate: binding it straight to a rotation op
+                // would pin the shaft at a fraction of a degree instead.
+                // Unbounded on purpose - wrapping at 360 would make a client
+                // that interpolates between samples spin the shaft backwards
+                // across the wrap.
+                double rpm = NominalRpm * (flow / NominalFlow);
+                double seconds = m_tickInterval.TotalSeconds;
+                Volatile.Write(
+                    ref m_shaftAngle,
+                    Volatile.Read(ref m_shaftAngle) + (rpm * 6.0 * seconds));
 
                 uint numberOfStarts = checked((uint)(localTick / 3_600));
                 if (publishAll || numberOfStarts != m_currentNumberOfStarts)
@@ -437,7 +509,31 @@ namespace Pumps
                 }
             }
 
+            /// <summary>
+            /// Shaft angular position in degrees, integrated from the running
+            /// speed. Drives the OpenUSD rotation binding.
+            /// </summary>
+            public double ShaftAngleDegrees => Volatile.Read(ref m_shaftAngle);
+
+            /// <summary>
+            /// The supervision state the OpenUSD status-light binding follows.
+            /// </summary>
+            public bool AlarmActive => m_currentCavitation || m_currentMotorOverheat;
+
+            /// <summary>
+            /// Nominal speed of a 2-pole 50 Hz pump set, in revolutions per
+            /// minute.
+            /// </summary>
+            private const double NominalRpm = 2900.0;
+
+            /// <summary>
+            /// Mass flow at the nominal duty point, in kilograms per second.
+            /// The shaft turns in proportion to how close the pump is to it.
+            /// </summary>
+            private const double NominalFlow = 0.05;
+
             private readonly long m_phaseOffset;
+            private readonly TimeSpan m_tickInterval;
             private readonly IValueUpdater<double> m_pressure;
             private readonly IValueUpdater<double> m_fluidTemperature;
             private readonly IValueUpdater<double> m_bearingTemperature;
@@ -451,6 +547,7 @@ namespace Pumps
             private uint m_currentNumberOfStarts;
             private bool m_currentCavitation;
             private bool m_currentMotorOverheat;
+            private double m_shaftAngle;
             private bool m_hasPublishedGoodValue;
         }
 
@@ -458,6 +555,17 @@ namespace Pumps
         private readonly Lock m_simulationRegistrationLock = new();
         private long m_simulationTicks;
         private int m_nextSimulationProfile;
+
+        /// <summary>
+        /// Measurement Variables created outside the fluent builder, paired
+        /// with the getter that yields their latest simulated value.
+        /// </summary>
+        private readonly List<(BaseVariableState Variable, Func<double> Getter)> m_liveSignals = [];
+
+        /// <summary>
+        /// The simulation the OpenUSD twin follows.
+        /// </summary>
+        private PumpSimulationState? m_primarySimulation;
     }
 
     internal static partial class PumpNodeManagerLog
