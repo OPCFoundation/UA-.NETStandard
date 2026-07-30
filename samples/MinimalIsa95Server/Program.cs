@@ -31,6 +31,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using MinimalIsa95Server;
+using Opc.Ua;
 using Opc.Ua.ISA95;
 using Opc.Ua.ISA95.Server.Builders;
 using Opc.Ua.ISA95.Server.Providers;
@@ -43,8 +44,11 @@ int port = int.TryParse(builder.Configuration["port"], out int configuredPort)
     ? configuredPort
     : 62545;
 Isa95GeoSpatialLocationBinding? locationBinding = null;
-using var locationProvider = new Isa95GeoSpatialLocationProvider(
-    "POINT (8.5417 47.3769)");
+const string PlantSourceId = "plant";
+using var locationProvider = new InMemoryGeoLocationProvider();
+locationProvider.Update(
+    PlantSourceId,
+    new GeoPosition(47.3769, 8.5417, EpsgCode: 4326));
 
 builder.Services
     .AddOpcUa()
@@ -107,7 +111,8 @@ builder.Services
                 model.Root,
                 "PlantLocation",
                 locationProvider,
-                ct).ConfigureAwait(false);
+                PlantSourceId,
+                cancellationToken: ct).ConfigureAwait(false);
         PhysicalAssetPropertyState locationProperty = await model.AddPropertyAsync(
             vessel,
             "LocationReference",
