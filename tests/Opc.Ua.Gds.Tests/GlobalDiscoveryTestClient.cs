@@ -133,8 +133,6 @@ namespace Opc.Ua.Gds.Tests
                 .SetRejectUnknownRevocationStatus(true)
                 .SetMinimumCertificateKeySize(1024)
                 .AddExtension(null, clientConfig)
-                .SetOutputFilePath(Path.Combine(root, "Logs", "Opc.Ua.Gds.Tests.log.txt"))
-                .SetTraceMasks(519)
                 .CreateAsync()
                 .ConfigureAwait(false);
 #endif
@@ -275,12 +273,6 @@ namespace Opc.Ua.Gds.Tests
                     await gdsClient.DisposeAsync().ConfigureAwait(false);
                 }
             }
-        }
-
-        public string ReadLogFile()
-        {
-            return File.ReadAllText(
-                Utils.ReplaceSpecialFolderNames(Configuration.TraceConfiguration.OutputFilePath));
         }
 
         private async Task ApplyNewApplicationInstanceCertificateAsync(

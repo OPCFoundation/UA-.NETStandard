@@ -47,7 +47,9 @@ namespace Opc.Ua.Mcp.Tools
         /// Call one or more methods on the OPC UA server.
         /// </summary>
         [McpServerTool(Name = "Call")]
-        [Description("Call one or more methods on the OPC UA server. Each method call specifies the object and method NodeIds plus input arguments.")]
+        [Description("Call one or more methods on the OPC UA server. Each method call specifies the object and " +
+            "method NodeIds plus input arguments. Returns JSON with responseHeader, statusCode, outputArguments, " +
+            "and inputArgumentResults for the call; on failure returns {error:true, statusCode, message}.")]
         public static async Task<string> CallAsync(
             OpcUaSessionManager sessionManager,
             [Description("Object node ID on which the method is defined")] string objectId,

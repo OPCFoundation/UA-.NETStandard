@@ -107,11 +107,14 @@ namespace Opc.Ua.Mcp.Tools
         /// Write attributes of one or more nodes.
         /// </summary>
         [McpServerTool(Name = "Write")]
-        [Description("Write values to one or more node attributes. Provide matching arrays of nodeIds and values.")]
+        [Description("Write to one or more node attributes at once (default attribute: Value). Use this raw Part 4 " +
+            "Write for multi-node/multi-attribute writes; for a single variable's Value use the simpler WriteValue " +
+            "tool instead. Provide matching arrays of nodeIds and values. Returns JSON with responseHeader and " +
+            "results (array of per-node status codes); on failure returns {error:true, statusCode, message}.")]
         public static async Task<string> WriteAsync(
             OpcUaSessionManager sessionManager,
             [Description("Array of node IDs to write, e.g. ['ns=2;s=MyVariable']")] string[] nodeIds,
-            [Description("Array of values to write (matched by index with nodeIds)")] string[] values,
+            [Description("Array of values to write as strings, matched by index with nodeIds, e.g. ['72.5', 'true']")] string[] values,
             [Description("Attribute to write (default: 'Value')")] string? attributeId = null,
             [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
@@ -155,10 +158,12 @@ namespace Opc.Ua.Mcp.Tools
         /// Read historical data or events from one or more nodes.
         /// </summary>
         [McpServerTool(Name = "HistoryRead")]
-        [Description("Read historical data values from one or more nodes. Specify a time range to retrieve historical data.")]
+        [Description("Read historical (previously archived) data values for one or more nodes within a time range. " +
+            "Returns JSON with responseHeader and results (array with statusCode and dataValues per node); on " +
+            "failure returns {error:true, statusCode, message}.")]
         public static async Task<string> HistoryReadAsync(
             OpcUaSessionManager sessionManager,
-            [Description("Array of node IDs to read history for")] string[] nodeIds,
+            [Description("Array of node IDs to read history for, e.g. ['ns=2;s=MyVariable']")] string[] nodeIds,
             [Description("Start time for the history range (ISO 8601 format)")] string startTime,
             [Description("End time for the history range (ISO 8601 format)")] string endTime,
             [Description("Maximum number of values to return per node (default: 100)")] int maxValues = 100,
@@ -232,12 +237,14 @@ namespace Opc.Ua.Mcp.Tools
         /// Update historical data or events.
         /// </summary>
         [McpServerTool(Name = "HistoryUpdate")]
-        [Description("Update or delete historical data values. Use to insert, replace, or delete historical data points.")]
+        [Description("Insert, replace, or delete historical (previously archived) data points for a single node " +
+            "(see updateType). Returns JSON with responseHeader and results (array with statusCode and " +
+            "operationResults); on failure returns {error:true, statusCode, message}.")]
         public static async Task<string> HistoryUpdateAsync(
             OpcUaSessionManager sessionManager,
             [Description("Node ID to update history for")] string nodeId,
-            [Description("Array of timestamps (ISO 8601 format) for the data points")] string[] timestamps,
-            [Description("Array of values for the data points (matched by index with timestamps)")] string[] values,
+            [Description("Array of ISO 8601 timestamps for the data points, e.g. ['2024-01-01T00:00:00Z', '2024-01-01T00:01:00Z']")] string[] timestamps,
+            [Description("Array of values for the data points, matched by index with timestamps, e.g. ['21.5', '22.0']")] string[] values,
             [Description("Update type: 'Insert', 'Replace', or 'Update' (default: 'Update')")] string updateType = "Update",
             [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)

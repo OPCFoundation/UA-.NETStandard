@@ -45,7 +45,15 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
     {
         public List<SubscriptionAcknowledgement> QueuedAcks { get; } = [];
         public List<uint> CompletedSubscriptions { get; } = [];
+
+        /// <summary>
+        /// Instances passed to <see cref="CompleteAsync"/>, so tests can
+        /// assert the subscription is retired by identity and not only by
+        /// the server assigned id.
+        /// </summary>
+        public List<IMessageProcessor> CompletedProcessors { get; } = [];
         public int UpdateCalls { get; private set; }
+        public int PublishingQuiescenceCalls { get; private set; }
 
         /// <summary>
         /// Optional override for <see cref="QueueAsync"/>. If null, returns
@@ -66,11 +74,21 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
             return OnQueueAsync?.Invoke(ack, ct) ?? default;
         }
 
-        public ValueTask CompleteAsync(uint subscriptionId,
+        public ValueTask CompleteAsync(IMessageProcessor subscription,
+            uint subscriptionId,
             CancellationToken ct = default)
         {
+            CompletedProcessors.Add(subscription);
             CompletedSubscriptions.Add(subscriptionId);
             return OnCompleteAsync?.Invoke(subscriptionId, ct) ?? default;
+        }
+
+        public ValueTask RunWithPublishingQuiescedAsync(
+            Func<CancellationToken, ValueTask> operation,
+            CancellationToken ct = default)
+        {
+            PublishingQuiescenceCalls++;
+            return operation(ct);
         }
 
         /// <summary>

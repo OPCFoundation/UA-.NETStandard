@@ -104,7 +104,7 @@ namespace Opc.Ua.SourceGeneration
         public static readonly TemplateString NodeIdDeclarationAbsolute = TemplateString.Parse(
             $$"""
             public static readonly global::Opc.Ua.ExpandedNodeId {{Tokens.SymbolicName}} =
-                new global::Opc.Ua.ExpandedNodeId({{Tokens.NamespacePrefix}}.{{Tokens.NodeClass}}s.{{Tokens.SymbolicName}}, {{Tokens.NamespaceUri}});
+                new global::Opc.Ua.ExpandedNodeId(global::{{Tokens.NamespacePrefix}}.{{Tokens.NodeClass}}s.{{Tokens.SymbolicName}}, {{Tokens.NamespaceUri}});
 
             """);
 
@@ -114,7 +114,7 @@ namespace Opc.Ua.SourceGeneration
         public static readonly TemplateString NodeIdDeclaration = TemplateString.Parse(
             $$"""
             public static global::Opc.Ua.NodeId {{Tokens.SymbolicName}} =>
-                new global::Opc.Ua.NodeId({{Tokens.NamespacePrefix}}.{{Tokens.NodeClass}}s.{{Tokens.SymbolicName}});
+                new global::Opc.Ua.NodeId(global::{{Tokens.NamespacePrefix}}.{{Tokens.NodeClass}}s.{{Tokens.SymbolicName}});
 
             """);
 

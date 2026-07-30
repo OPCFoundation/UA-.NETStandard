@@ -48,6 +48,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var mockServer = new Mock<IServerInternal>();
             var mockMasterNodeManager = new Mock<IMasterNodeManager>();
             var mockConfigurationNodeManager = new Mock<IConfigurationNodeManager>();
+            var mockCoreNodeManager = new Mock<ICoreNodeManager>();
 
             var namespaceTable = new NamespaceTable();
             namespaceTable.Append(TestNamespaceUri);
@@ -57,9 +58,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
             mockServer.Setup(s => s.TypeTree).Returns(new TypeTable(namespaceTable));
             mockServer.Setup(s => s.Factory).Returns(EncodeableFactory.Create());
             mockServer.Setup(s => s.NodeManager).Returns(mockMasterNodeManager.Object);
+            mockServer.Setup(s => s.CoreNodeManager).Returns(mockCoreNodeManager.Object);
             mockServer.Setup(s => s.IsRunning).Returns(true);
             mockMasterNodeManager.Setup(m => m.ConfigurationNodeManager)
                 .Returns(mockConfigurationNodeManager.Object);
+            mockMasterNodeManager.Setup(m => m.CoreNodeManager)
+                .Returns(mockCoreNodeManager.Object);
 
             var mockTelemetry = new Mock<ITelemetryContext>();
             mockServer.Setup(s => s.Telemetry).Returns(mockTelemetry.Object);

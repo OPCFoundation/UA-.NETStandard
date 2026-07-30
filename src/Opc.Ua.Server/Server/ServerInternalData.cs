@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
@@ -65,6 +66,7 @@ namespace Opc.Ua.Server
         Historian.IHistorianRegistryProvider,
         ITransportListenerRegistryProvider,
         IServerEndpointRegistryProvider,
+
         ITimeProviderProvider
     {
         /// <summary>
@@ -695,11 +697,40 @@ namespace Opc.Ua.Server
             bool deleteSubscriptions,
             CancellationToken cancellationToken = default)
         {
-            await NodeManager.SessionClosingAsync(context, sessionId, deleteSubscriptions, cancellationToken)
-                .ConfigureAwait(false);
-            await SubscriptionManager.SessionClosingAsync(context, sessionId, deleteSubscriptions, cancellationToken)
-                .ConfigureAwait(false);
-            await SessionManager.CloseSessionAsync(sessionId, cancellationToken).ConfigureAwait(false);
+            MarkSessionClosing(sessionId);
+            try
+            {
+                await NodeManager.SessionClosingAsync(context, sessionId, deleteSubscriptions, cancellationToken)
+                    .ConfigureAwait(false);
+                await SubscriptionManager.SessionClosingAsync(context, sessionId, deleteSubscriptions, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                // The Session is marked closing for good, so it must not be left registered and
+                // serving when a NodeManager or the SubscriptionManager fails to tear its state
+                // down. The original failure still propagates to the caller.
+                await SessionManager.CloseSessionAsync(sessionId, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Marks the session as closing so that nothing creates new state for it while it is being
+        /// torn down. The mark lives on the Session itself, because every caller that has to test
+        /// it already holds the Session, and it is never cleared: a Session that started closing is
+        /// on its way out.
+        /// </summary>
+        /// <param name="sessionId">The session being closed.</param>
+        private void MarkSessionClosing(NodeId sessionId)
+        {
+            foreach (ISession session in SessionManager.GetSessions())
+            {
+                if (session.Id == sessionId)
+                {
+                    (session as Session)?.MarkClosing();
+                    return;
+                }
+            }
         }
 
         /// <summary>

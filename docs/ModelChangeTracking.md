@@ -24,6 +24,7 @@ The server-side counterpart lives in `Opc.Ua.Server.Alarms`:
   - [Enabling tracking on a `ManagedSession`](#enabling-tracking-on-a-managedsession)
   - [Manual construction](#manual-construction)
   - [Reacting to changes](#reacting-to-changes)
+  - [Namespace table refresh](#namespace-table-refresh)
   - [Per-node `NodeCache` invalidation](#per-node-nodecache-invalidation)
 - [NodeVersion correlation](#nodeversion-correlation)
 - [Security considerations](#security-considerations)
@@ -40,6 +41,7 @@ The server-side counterpart lives in `Opc.Ua.Server.Alarms`:
 | Inspect changes | n/a | `IModelChangeTracker.ModelChanged` event |
 | Invalidate one node | n/a | `INodeCache.InvalidateNode(nodeId)` |
 | Invalidate everything | n/a | `INodeCache.Clear()` |
+| Refresh the namespace table | Live NodeManager registration updates `NamespaceArray` / `UrisVersion` | Automatic — see [Namespace table refresh](#namespace-table-refresh) |
 
 ## Server side: emitting model changes
 
@@ -66,6 +68,10 @@ public class MyNodeManager : AsyncCustomNodeManager
     }
 }
 ```
+
+> **Browse consistency.** `CreateNodeAsync`, `AddNodeAsync` and `DeleteNodeAsync` also keep the node manager's internal component cache in sync with the change.
+> A deleted node is evicted from the cache, and the parent's cached view is refreshed after a runtime add or remove, so a Browse, Read or Call issued afterwards reflects the committed child set instead of a stale, cached view.
+> Re-registering or replacing a node id (for example swapping a passive child for a typed proxy) refreshes the cached instance only when that node is already cached.
 
 If your node manager mutates the address space without going through
 `CreateNodeAsync` / `DeleteNodeAsync` (for example by editing an
@@ -183,13 +189,16 @@ var streaming = new StreamingSubscription(session.SubscriptionManager);
 var tracker = new ModelChangeTracker(
     streaming,
     nodeCache: session.NodeCache,
-    logger: logger);
+    logger: logger,
+    namespaceTables: session);
 
 await tracker.StartTrackingAsync(ct);
 ```
 
 The tracker takes an `IStreamingSubscription`, an optional `INodeCache`
-to invalidate, and an optional `ILogger`. It subscribes to
+to invalidate, an optional `ILogger`, and an optional
+`INamespaceTableRefresher` (see
+[Namespace table refresh](#namespace-table-refresh)). It subscribes to
 `BaseModelChangeEventType` on the Server object's notifier
 (`ObjectIds.Server`), which covers both `GeneralModelChangeEventType`
 and `SemanticChangeEventType` payloads.
@@ -204,13 +213,17 @@ public sealed class ModelChangedEventArgs
 {
     public IReadOnlyList<ModelChange> Changes { get; }
     public bool RequiresFullCacheInvalidation { get; }
+    public bool NamespaceTableRefreshed { get; }
 }
 
-public readonly record struct ModelChange(
+public record struct ModelChange(
     ModelChangeVerb Verb,
     NodeId AffectedNode,
-    NodeId? TypeDefinition);
+    NodeId TypeDefinition);
 ```
+
+`TypeDefinition` is `NodeId.Null` when the server did not report one —
+test it with `change.TypeDefinition.IsNull`.
 
 `RequiresFullCacheInvalidation` is `true` when the server reports a
 change without per-node detail (a Part 5 semantic change without a
@@ -240,6 +253,68 @@ session.ModelChange!.ModelChanged += async (sender, args) =>
     }
 };
 ```
+
+### Namespace table refresh
+
+A Server may append namespace uris while it is running — most notably
+when a NodeManager is
+[registered live](NodeManagerRegistration.md#namespaces). The Server
+updates `Server_NamespaceArray`, bumps `Server_UrisVersion`, and then
+reports the address-space change. Without a refresh, a Client resolves
+NodeIds from the new namespace against a stale `NamespaceUris` table
+and silently gets the wrong index.
+
+The tracker closes that gap. Given an `INamespaceTableRefresher` it
+re-reads the namespace table before it invalidates the cache and before
+it raises `ModelChanged`, so subscribers that re-browse from the handler
+already see the new uris:
+
+```csharp
+public interface INamespaceTableRefresher
+{
+    NamespaceTable NamespaceUris { get; }
+    Task FetchNamespaceTablesAsync(CancellationToken ct = default);
+}
+```
+
+Both `Session` and `ManagedSession` implement it, and
+`EnableModelChangeTrackingAsync` wires the session in automatically —
+opting into tracking is all an application has to do:
+
+```csharp
+session.ModelChange!.ModelChanged += (sender, args) =>
+{
+    if (args.NamespaceTableRefreshed)
+    {
+        // The namespace table grew. Re-resolve any ExpandedNodeIds
+        // the application cached as namespace-index based NodeIds.
+        RemapCachedNodeIds(session.NamespaceUris);
+    }
+};
+```
+
+A refresh is triggered when any of the following holds:
+
+| Trigger | Why |
+|---|---|
+| The event carries no per-node detail (`RequiresFullCacheInvalidation`) | This is the `BaseModelChangeEvent` shape a live NodeManager registration emits; the Client cannot tell whether namespaces changed, so it re-reads. |
+| An affected node is `Server_NamespaceArray` | The Server explicitly reported the namespace array as changed. |
+| An affected node (or its type definition) has a namespace index beyond the Client's table | The Client provably cannot resolve the NodeId. |
+
+There is no throttling. An unqualified change already forces
+`INodeCache.Clear()`, which is far more expensive for an application
+than one two-node Read, so the namespace read rides along with it.
+A failing refresh is logged and swallowed: the `ModelChanged` event is
+still raised (with `NamespaceTableRefreshed == false`) and tracking
+continues.
+
+Pass `namespaceTables: null` when constructing the tracker manually to
+opt out entirely, or supply a custom `INamespaceTableRefresher` to
+control how and when the table is re-read.
+
+> **Namespace indexes are append-only** for the lifetime of a running
+> Server, so a refresh can only ever extend the Client table. Indexes
+> the Client already resolved stay valid.
 
 ### Per-node `NodeCache` invalidation
 

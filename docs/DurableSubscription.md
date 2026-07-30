@@ -34,4 +34,5 @@ Extend the ServerConfiguration
 ## Known limitations and issues
 
 - Subscriptions are only persistet on a gracefuls shutdown. If the server crashes or needs to be shut down forcefully all `Subscriptions` / `MonitoredItems` are lost.
+- The Quickstarts durable-subscription store uses a versioned format and rejects files written by the previous unsafe format. User-name passwords are removed before persistence, and issued-token subscriptions are not persisted because their bearer token is the identity.
 - **Breaking change**: The Interfaces for INodeManager & IMonitoredItem were extended to support durable subscriptions.

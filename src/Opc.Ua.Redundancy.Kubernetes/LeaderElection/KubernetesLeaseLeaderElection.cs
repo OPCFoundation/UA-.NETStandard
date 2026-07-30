@@ -28,9 +28,11 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Net;
 using System.Net.Http;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -74,6 +76,11 @@ namespace Opc.Ua.Redundancy.Kubernetes
             m_namespace = KubernetesApiClientFactory.ResolveNamespace(m_options.Kubernetes, m_apiClient);
             m_timeProvider = timeProvider ?? TimeProvider.System;
             m_logger = logger;
+            m_watchdog = m_timeProvider.CreateTimer(
+                static state => ((KubernetesLeaseLeaderElection)state!).OnWatchdogElapsed(),
+                this,
+                Timeout.InfiniteTimeSpan,
+                Timeout.InfiniteTimeSpan);
         }
 
         /// <inheritdoc/>
@@ -94,58 +101,16 @@ namespace Opc.Ua.Redundancy.Kubernetes
         /// <inheritdoc/>
         public async ValueTask<bool> TryAcquireOrRenewAsync(CancellationToken ct = default)
         {
-            if (!m_apiClient.IsInCluster)
-            {
-                SetLeader(false);
-                return false;
-            }
-
+            ThrowIfDisposed();
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, m_cts.Token);
+            await m_attemptGate.WaitAsync(linkedCts.Token).ConfigureAwait(false);
             try
             {
-                DateTimeOffset now = m_timeProvider.GetUtcNow();
-                KubernetesLease? current = await m_apiClient
-                    .GetLeaseAsync(m_namespace, m_options.LeaseName, ct)
-                    .ConfigureAwait(false);
-
-                if (current == null)
-                {
-                    KubernetesLease created = NewLease(now);
-                    await m_apiClient.CreateLeaseAsync(m_namespace, created, ct).ConfigureAwait(false);
-                    SetLeader(true);
-                    return true;
-                }
-
-                if (!CanAcquireOrRenew(current, now))
-                {
-                    SetLeader(false);
-                    return false;
-                }
-
-                string? previousHolder = current.Spec.HolderIdentity;
-                current.Spec.HolderIdentity = m_options.Kubernetes.NodeId;
-                current.Spec.LeaseDurationSeconds = ToLeaseSeconds(m_options.LeaseDuration);
-                current.Spec.RenewTime = FormatTime(now);
-                if (!string.Equals(previousHolder, m_options.Kubernetes.NodeId, StringComparison.Ordinal))
-                {
-                    current.Spec.AcquireTime = FormatTime(now);
-                    current.Spec.LeaseTransitions = (current.Spec.LeaseTransitions ?? 0) + 1;
-                }
-
-                await m_apiClient
-                    .ReplaceLeaseAsync(m_namespace, m_options.LeaseName, current, ct)
-                    .ConfigureAwait(false);
-                SetLeader(true);
-                return true;
+                return await TryAcquireOrRenewCoreAsync(linkedCts.Token).ConfigureAwait(false);
             }
-            catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.Conflict)
+            finally
             {
-                SetLeader(false);
-                return false;
-            }
-            catch
-            {
-                SetLeader(false);
-                throw;
+                m_attemptGate.Release();
             }
         }
 
@@ -166,6 +131,8 @@ namespace Opc.Ua.Redundancy.Kubernetes
         /// <inheritdoc/>
         public async ValueTask DisposeAsync()
         {
+            bool leadershipChanged;
+            long notificationGeneration;
             lock (m_lock)
             {
                 if (m_disposed)
@@ -173,7 +140,12 @@ namespace Opc.Ua.Redundancy.Kubernetes
                     return;
                 }
                 m_disposed = true;
+                m_fence++;
+                leadershipChanged = m_isLeader;
+                m_isLeader = false;
+                notificationGeneration = m_fence;
             }
+            NotifyLeadershipChanged(false, notificationGeneration, leadershipChanged);
 
             m_cts.Cancel();
             if (m_loop != null)
@@ -188,8 +160,18 @@ namespace Opc.Ua.Redundancy.Kubernetes
                 }
             }
 
-            await ReleaseIfOwnedAsync().ConfigureAwait(false);
-            m_cts.Dispose();
+            await m_attemptGate.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                await ReleaseIfOwnedAsync().ConfigureAwait(false);
+                m_watchdog.Dispose();
+                m_cts.Dispose();
+            }
+            finally
+            {
+                m_attemptGate.Release();
+                m_attemptGate.Dispose();
+            }
         }
 
         /// <summary>
@@ -201,6 +183,77 @@ namespace Opc.Ua.Redundancy.Kubernetes
         internal static bool IsReadyServiceLevel(byte serviceLevel, byte readyMinimumServiceLevel)
         {
             return serviceLevel >= readyMinimumServiceLevel;
+        }
+
+        private async ValueTask<bool> TryAcquireOrRenewCoreAsync(CancellationToken ct)
+        {
+            long attemptFence = GetFence();
+            try
+            {
+                if (!m_apiClient.IsInCluster)
+                {
+                    LoseLeadership();
+                    return false;
+                }
+
+                DateTimeOffset now = m_timeProvider.GetUtcNow();
+                KubernetesLease? current = await ExecuteApiAttemptAsync(
+                    token => m_apiClient.GetLeaseAsync(m_namespace, m_options.LeaseName, token),
+                    ct)
+                    .ConfigureAwait(false);
+                if (!IsAttemptCurrent(attemptFence))
+                {
+                    return false;
+                }
+
+                if (current == null)
+                {
+                    ClearObservedForeignLease();
+                    KubernetesLease created = NewLease(now);
+                    _ = await ExecuteApiAttemptAsync(
+                        token => m_apiClient.CreateLeaseAsync(m_namespace, created, token),
+                        ct)
+                        .ConfigureAwait(false);
+                    return TryConfirmLeadership(attemptFence);
+                }
+
+                if (!CanAcquireOrRenew(current))
+                {
+                    LoseLeadership();
+                    return false;
+                }
+
+                string? previousHolder = current.Spec.HolderIdentity;
+                current.Spec.HolderIdentity = m_options.Kubernetes.NodeId;
+                current.Spec.LeaseDurationSeconds = ToLeaseSeconds(m_options.LeaseDuration);
+                current.Spec.RenewTime = FormatTime(now);
+                if (!string.Equals(previousHolder, m_options.Kubernetes.NodeId, StringComparison.Ordinal))
+                {
+                    current.Spec.AcquireTime = FormatTime(now);
+                    current.Spec.LeaseTransitions = (current.Spec.LeaseTransitions ?? 0) + 1;
+                }
+
+                _ = await ExecuteApiAttemptAsync(
+                    token => m_apiClient.ReplaceLeaseAsync(
+                        m_namespace,
+                        m_options.LeaseName,
+                        current,
+                        token),
+                    ct)
+                    .ConfigureAwait(false);
+                return TryConfirmLeadership(attemptFence);
+            }
+            catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.Conflict)
+            {
+                ClearObservedForeignLease();
+                LoseLeadership();
+                return false;
+            }
+            catch
+            {
+                LoseLeadership();
+                throw;
+            }
         }
 
         private static IKubernetesApiClient CreateApiClient(KubernetesLeaderElectionOptions options)
@@ -230,20 +283,43 @@ namespace Opc.Ua.Redundancy.Kubernetes
             };
         }
 
-        private bool CanAcquireOrRenew(KubernetesLease lease, DateTimeOffset now)
+        private bool CanAcquireOrRenew(KubernetesLease lease)
         {
             string? holder = lease.Spec.HolderIdentity;
             if (string.IsNullOrEmpty(holder) ||
                 string.Equals(holder, m_options.Kubernetes.NodeId, StringComparison.Ordinal))
             {
+                ClearObservedForeignLease();
                 return true;
             }
 
-            DateTimeOffset renewTime = ParseTime(lease.Spec.RenewTime) ?? DateTimeOffset.MinValue;
-            int leaseSeconds = lease.Spec.LeaseDurationSeconds > 0
-                ? lease.Spec.LeaseDurationSeconds
-                : ToLeaseSeconds(m_options.LeaseDuration);
-            return renewTime.AddSeconds(leaseSeconds) <= now;
+            string? resourceVersion = lease.Metadata.ResourceVersion;
+            long observedTimestamp = m_timeProvider.GetTimestamp();
+            TimeSpan leaseDuration = lease.Spec.LeaseDurationSeconds > 0
+                ? TimeSpan.FromSeconds(lease.Spec.LeaseDurationSeconds)
+                : GetLeaseDuration();
+            // RenewTime is written by another process's wall clock. Treat the lease as expired only after its
+            // resource version remains unchanged for a full lease duration measured by this process.
+            lock (m_lock)
+            {
+                if (string.IsNullOrEmpty(resourceVersion))
+                {
+                    ClearObservedForeignLeaseCore();
+                    return false;
+                }
+                if (!string.Equals(m_observedResourceVersion, resourceVersion, StringComparison.Ordinal) ||
+                    !string.Equals(m_observedHolderIdentity, holder, StringComparison.Ordinal))
+                {
+                    m_observedResourceVersion = resourceVersion;
+                    m_observedHolderIdentity = holder;
+                    m_observedResourceVersionTimestamp = observedTimestamp;
+                    m_observedLeaseDuration = leaseDuration;
+                    return false;
+                }
+
+                return m_timeProvider.GetElapsedTime(m_observedResourceVersionTimestamp) >=
+                    m_observedLeaseDuration;
+            }
         }
 
         private async Task RenewLoopAsync(CancellationToken ct)
@@ -265,7 +341,7 @@ namespace Opc.Ua.Redundancy.Kubernetes
                         m_logger?.KubernetesLeaseElectionRenewFailed(ex, m_options.Kubernetes.NodeId);
                     }
 
-                    await Task.Delay(m_options.RenewInterval, ct).ConfigureAwait(false);
+                    await m_timeProvider.Delay(m_options.RenewInterval, ct).ConfigureAwait(false);
                 }
             }
             catch (OperationCanceledException)
@@ -283,16 +359,24 @@ namespace Opc.Ua.Redundancy.Kubernetes
 
             try
             {
-                KubernetesLease? current = await m_apiClient
-                    .GetLeaseAsync(m_namespace, m_options.LeaseName, CancellationToken.None)
+                KubernetesLease? current = await ExecuteApiAttemptAsync(
+                    token => m_apiClient.GetLeaseAsync(m_namespace, m_options.LeaseName, token),
+                    CancellationToken.None,
+                    stopOnDispose: false)
                     .ConfigureAwait(false);
                 if (current != null &&
                     string.Equals(current.Spec.HolderIdentity, m_options.Kubernetes.NodeId, StringComparison.Ordinal))
                 {
                     current.Spec.HolderIdentity = null;
                     current.Spec.RenewTime = FormatTime(m_timeProvider.GetUtcNow());
-                    await m_apiClient
-                        .ReplaceLeaseAsync(m_namespace, m_options.LeaseName, current, CancellationToken.None)
+                    _ = await ExecuteApiAttemptAsync(
+                        token => m_apiClient.ReplaceLeaseAsync(
+                            m_namespace,
+                            m_options.LeaseName,
+                            current,
+                            token),
+                        CancellationToken.None,
+                        stopOnDispose: false)
                         .ConfigureAwait(false);
                 }
             }
@@ -302,36 +386,248 @@ namespace Opc.Ua.Redundancy.Kubernetes
             }
         }
 
-        private void SetLeader(bool value)
+        private long GetFence()
         {
-            bool changed;
             lock (m_lock)
             {
-                changed = m_isLeader != value;
-                m_isLeader = value;
+                return m_fence;
             }
-            if (changed)
+        }
+
+        private bool IsAttemptCurrent(long attemptFence)
+        {
+            lock (m_lock)
             {
-                LeadershipChanged?.Invoke(value);
+                return !m_disposed && attemptFence == m_fence;
+            }
+        }
+
+        private bool TryConfirmLeadership(long attemptFence)
+        {
+            bool changed;
+            long notificationGeneration;
+            lock (m_lock)
+            {
+                if (m_disposed || attemptFence != m_fence)
+                {
+                    return false;
+                }
+
+                changed = !m_isLeader;
+                m_isLeader = true;
+                m_lastConfirmedLeadershipTimestamp = m_timeProvider.GetTimestamp();
+                ClearObservedForeignLeaseCore();
+                m_watchdog.Change(GetLeaseDuration(), Timeout.InfiniteTimeSpan);
+                notificationGeneration = m_fence;
+            }
+            NotifyLeadershipChanged(true, notificationGeneration, changed);
+            return true;
+        }
+
+        private void LoseLeadership()
+        {
+            bool changed;
+            long notificationGeneration;
+            lock (m_lock)
+            {
+                m_fence++;
+                changed = m_isLeader;
+                m_isLeader = false;
+                if (!m_disposed)
+                {
+                    m_watchdog.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+                }
+                notificationGeneration = m_fence;
+            }
+            NotifyLeadershipChanged(false, notificationGeneration, changed);
+        }
+
+        private void OnWatchdogElapsed()
+        {
+            bool changed = false;
+            long notificationGeneration = 0;
+            lock (m_lock)
+            {
+                if (m_disposed || !m_isLeader)
+                {
+                    return;
+                }
+
+                TimeSpan leaseDuration = GetLeaseDuration();
+                TimeSpan elapsed = m_timeProvider.GetElapsedTime(m_lastConfirmedLeadershipTimestamp);
+                if (elapsed < leaseDuration)
+                {
+                    m_watchdog.Change(leaseDuration - elapsed, Timeout.InfiniteTimeSpan);
+                    return;
+                }
+
+                m_fence++;
+                m_isLeader = false;
+                changed = true;
+                notificationGeneration = m_fence;
+            }
+            NotifyLeadershipChanged(false, notificationGeneration, changed);
+        }
+
+        private void NotifyLeadershipChanged(
+            bool value,
+            long notificationGeneration,
+            bool stateChanged)
+        {
+            lock (m_notificationLock)
+            {
+                lock (m_lock)
+                {
+                    if (notificationGeneration != m_fence ||
+                        m_isLeader != value ||
+                        (value && m_disposed))
+                    {
+                        return;
+                    }
+                }
+
+                if (notificationGeneration < m_lastNotificationGeneration)
+                {
+                    return;
+                }
+                m_lastNotificationGeneration = notificationGeneration;
+                if (m_hasLeadershipNotification && m_lastNotifiedLeadership == value)
+                {
+                    return;
+                }
+                if (!m_hasLeadershipNotification && !stateChanged)
+                {
+                    return;
+                }
+
+                m_hasLeadershipNotification = true;
+                m_lastNotifiedLeadership = value;
+                m_pendingLeadershipNotifications.Enqueue(
+                    new LeadershipNotification(LeadershipChanged, value));
+                if (m_dispatchingLeadershipNotifications)
+                {
+                    return;
+                }
+                m_dispatchingLeadershipNotifications = true;
+            }
+            DispatchLeadershipNotifications();
+        }
+
+        private void DispatchLeadershipNotifications()
+        {
+            Exception? dispatchException = null;
+            while (true)
+            {
+                LeadershipNotification notification;
+                lock (m_notificationLock)
+                {
+                    if (!m_pendingLeadershipNotifications.TryDequeue(out notification))
+                    {
+                        m_dispatchingLeadershipNotifications = false;
+                        break;
+                    }
+                }
+
+                try
+                {
+                    notification.Handler?.Invoke(notification.Value);
+                }
+                catch (Exception ex)
+                {
+                    dispatchException ??= ex;
+                }
+            }
+
+            if (dispatchException != null)
+            {
+                ExceptionDispatchInfo.Capture(dispatchException).Throw();
+            }
+        }
+
+        private void ClearObservedForeignLease()
+        {
+            lock (m_lock)
+            {
+                ClearObservedForeignLeaseCore();
+            }
+        }
+
+        private void ClearObservedForeignLeaseCore()
+        {
+            m_observedResourceVersion = null;
+            m_observedHolderIdentity = null;
+            m_observedResourceVersionTimestamp = 0;
+            m_observedLeaseDuration = default;
+        }
+
+        private async ValueTask<T> ExecuteApiAttemptAsync<T>(
+            Func<CancellationToken, ValueTask<T>> operation,
+            CancellationToken ct,
+            bool stopOnDispose = true)
+        {
+            using CancellationTokenSource operationCts = stopOnDispose
+                ? CancellationTokenSource.CreateLinkedTokenSource(ct, m_cts.Token)
+                : CancellationTokenSource.CreateLinkedTokenSource(ct);
+            using CancellationTokenSource delayCts = stopOnDispose
+                ? CancellationTokenSource.CreateLinkedTokenSource(ct, m_cts.Token)
+                : CancellationTokenSource.CreateLinkedTokenSource(ct);
+            Task<T> operationTask = operation(operationCts.Token).AsTask();
+            TimeSpan timeout = GetApiAttemptTimeout();
+            Task delayTask = m_timeProvider.Delay(timeout, delayCts.Token);
+            _ = await Task.WhenAny(operationTask, delayTask).ConfigureAwait(false);
+            if (operationTask.IsCompleted)
+            {
+                delayCts.Cancel();
+                return await operationTask.ConfigureAwait(false);
+            }
+
+            operationCts.Cancel();
+            ObserveFault(operationTask);
+            ct.ThrowIfCancellationRequested();
+            if (stopOnDispose)
+            {
+                m_cts.Token.ThrowIfCancellationRequested();
+            }
+            throw new TimeoutException(
+                $"The Kubernetes Lease API attempt did not complete within {timeout}.");
+        }
+
+        private static void ObserveFault(Task task)
+        {
+            _ = task.ContinueWith(
+                static completed => _ = completed.Exception,
+                CancellationToken.None,
+                TaskContinuationOptions.ExecuteSynchronously | TaskContinuationOptions.OnlyOnFaulted,
+                TaskScheduler.Default);
+        }
+
+        private TimeSpan GetApiAttemptTimeout()
+        {
+            if (m_options.RenewInterval > TimeSpan.Zero)
+            {
+                return m_options.RenewInterval;
+            }
+            return GetLeaseDuration();
+        }
+
+        private TimeSpan GetLeaseDuration()
+        {
+            return m_options.LeaseDuration > TimeSpan.Zero
+                ? m_options.LeaseDuration
+                : TimeSpan.FromSeconds(1);
+        }
+
+        private void ThrowIfDisposed()
+        {
+            lock (m_lock)
+            {
+                ObjectDisposedException.ThrowIf(m_disposed, this);
             }
         }
 
         private static string FormatTime(DateTimeOffset time)
         {
             return time.UtcDateTime.ToString("O", CultureInfo.InvariantCulture);
-        }
-
-        private static DateTimeOffset? ParseTime(string? value)
-        {
-            if (DateTimeOffset.TryParse(
-                value,
-                CultureInfo.InvariantCulture,
-                DateTimeStyles.AssumeUniversal,
-                out DateTimeOffset parsed))
-            {
-                return parsed.ToUniversalTime();
-            }
-            return null;
         }
 
         private static int ToLeaseSeconds(TimeSpan leaseDuration)
@@ -345,11 +641,27 @@ namespace Opc.Ua.Redundancy.Kubernetes
         private readonly TimeProvider m_timeProvider;
         private readonly ILogger? m_logger;
         private readonly Lock m_lock = new();
+        private readonly Lock m_notificationLock = new();
+        private readonly Queue<LeadershipNotification> m_pendingLeadershipNotifications = [];
         private readonly CancellationTokenSource m_cts = new();
+        private readonly SemaphoreSlim m_attemptGate = new(1, 1);
+        private readonly ITimer m_watchdog;
         private Task? m_loop;
+        private string? m_observedResourceVersion;
+        private string? m_observedHolderIdentity;
+        private long m_observedResourceVersionTimestamp;
+        private long m_lastConfirmedLeadershipTimestamp;
+        private long m_fence;
+        private long m_lastNotificationGeneration = -1;
+        private TimeSpan m_observedLeaseDuration;
         private bool m_isLeader;
+        private bool m_hasLeadershipNotification;
+        private bool m_lastNotifiedLeadership;
+        private bool m_dispatchingLeadershipNotifications;
         private bool m_started;
         private bool m_disposed;
+
+        private readonly record struct LeadershipNotification(Action<bool>? Handler, bool Value);
     }
 
     /// <summary>

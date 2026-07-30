@@ -57,6 +57,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         private ITelemetryContext m_telemetry = null!;
         private FileSystemNodeManager m_manager = null!;
         private ISystemContext m_context = null!;
+        private NodeId m_sessionId;
 
         [SetUp]
         public void SetUp()
@@ -93,7 +94,12 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Mock<IServerInternal> mockServer = DeterministicServerMock.Create(out _);
             mockServer.Setup(s => s.Telemetry).Returns(m_telemetry);
             m_manager = new FileSystemNodeManager(mockServer.Object, new ApplicationConfiguration(), provider);
-            m_context = m_manager.SystemContext;
+            m_sessionId = new NodeId("directory-session", 0);
+            var session = new Mock<ISession>();
+            session.Setup(s => s.Id).Returns(m_sessionId);
+            session.Setup(s => s.Identity).Returns(new Mock<IUserIdentity>().Object);
+            session.Setup(s => s.PreferredLocales).Returns([]);
+            m_context = m_manager.SystemContext.Copy(session.Object);
         }
 
         private DirectoryObjectState CreateRootDirectory()
@@ -166,6 +172,47 @@ namespace Opc.Ua.Server.Tests.FileSystem
 
             Assert.That(ServiceResult.IsGood(result.ServiceResult), Is.True);
             Assert.That(result.FileHandle, Is.GreaterThan(0u));
+        }
+
+        [Test]
+        public async Task CreateFileWithOpenWithoutSessionReturnsBadSessionIdInvalidAsync()
+        {
+            DirectoryObjectState state = CreateRootDirectory();
+            ISystemContext contextWithoutSession = m_manager.SystemContext.Copy();
+
+            CreateFileMethodStateResult result = await state.CreateFile!.OnCallAsync!(
+                contextWithoutSession,
+                state.CreateFile,
+                state.NodeId,
+                "opened.txt",
+                true,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(
+                result.ServiceResult.StatusCode.Code,
+                Is.EqualTo(StatusCodes.BadSessionIdInvalid));
+            Assert.That(result.FileHandle, Is.Zero);
+            Assert.That(File.Exists(Path.Combine(m_root, "opened.txt")), Is.False);
+        }
+
+        [Test]
+        public async Task CreateFileWithOpenScopesFileHandleToCreatingSessionAsync()
+        {
+            DirectoryObjectState state = CreateRootDirectory();
+
+            CreateFileMethodStateResult result = await state.CreateFile!.OnCallAsync!(
+                m_context, state.CreateFile, state.NodeId, "scoped.txt", true, CancellationToken.None)
+                .ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(result.ServiceResult), Is.True);
+
+            FileHandle handle = m_manager.GetOrCreateHandle(result.FileNodeId, "scoped.txt")!;
+            var otherSessionId = new NodeId("other-directory-session", 0);
+
+            bool closedByOtherSession = handle.Close(otherSessionId, result.FileHandle);
+            bool closedByCreatingSession = handle.Close(m_sessionId, result.FileHandle);
+
+            Assert.That(closedByOtherSession, Is.False);
+            Assert.That(closedByCreatingSession, Is.True);
         }
 
         [Test]

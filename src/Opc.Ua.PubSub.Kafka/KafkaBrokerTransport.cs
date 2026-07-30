@@ -66,11 +66,11 @@ namespace Opc.Ua.PubSub.Kafka
     /// </para>
     /// <para>
     /// The transport delegates to an <see cref="IKafkaClientAdapter"/> so
-    /// the Confluent.Kafka client surface is invisible to higher layers,
-    /// and so unit tests can inject a fake adapter to exercise the state
-    /// machine without an actual broker. Each produced record carries a
-    /// partition key derived from the PublisherId so records from a
-    /// publisher preserve ordering within a partition.
+    /// the Kafka client implementation is invisible to higher layers, and
+    /// so unit tests can inject a fake adapter to exercise the state machine
+    /// without an actual broker. Each produced record carries a partition
+    /// key derived from the PublisherId so records from a publisher preserve
+    /// ordering within a partition.
     /// </para>
     /// </remarks>
     public sealed class KafkaBrokerTransport

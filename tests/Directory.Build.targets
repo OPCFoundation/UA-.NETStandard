@@ -1,0 +1,20 @@
+<Project>
+
+  <!-- Chain to the repository-root Directory.Build.targets (RestrictForLegacyTfm / logging generator). -->
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.targets', '$(MSBuildThisFileDirectory)../'))" />
+
+  <!--
+    Force Microsoft.Extensions.Logging.Abstractions back into the (.NET Core) restore graph so it
+    is resolved and coverlet's Cecil resolver can find it (see Tests/Directory.Build.props for the
+    full explanation and the copy target). This lives in Directory.Build.targets - imported AFTER
+    each .csproj - so the Remove+Include also de-duplicates the reference for the few test projects
+    that already declare it (which would otherwise trigger NU1504 "duplicate PackageReference").
+    GeneratePathProperty exposes $(PkgMicrosoft_Extensions_Logging_Abstractions) for the copy target.
+    Restricted legacy-TFM shell builds (RestrictForLegacyTfm) strip all references, so skip them.
+  -->
+  <ItemGroup Condition="'$(TargetFrameworkIdentifier)' == '.NETCoreApp' and '$(RestrictForLegacyTfm)' != 'true'">
+    <PackageReference Remove="Microsoft.Extensions.Logging.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" GeneratePathProperty="true" />
+  </ItemGroup>
+
+</Project>

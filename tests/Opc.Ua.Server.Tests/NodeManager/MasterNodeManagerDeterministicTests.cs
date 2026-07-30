@@ -200,6 +200,34 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(results.Count, Is.EqualTo(1));
             Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+            Assert.That(results[0].ContinuationPoint.IsNull, Is.True);
+        }
+
+        [Test]
+        public async Task BrowseAsyncCompletedBrowseReturnsNullContinuationPointAsync()
+        {
+            IMasterNodeManager sut = m_server.CurrentInstance.NodeManager;
+            OperationContext ctx = CreateContext();
+
+            var nodeToBrowse = new BrowseDescription
+            {
+                NodeId = ObjectIds.ViewsFolder,
+                BrowseDirection = BrowseDirection.Forward,
+                ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
+                IncludeSubtypes = true,
+                ResultMask = (uint)BrowseResultMask.All
+            };
+
+            (ArrayOf<BrowseResult> results, _) = await sut.BrowseAsync(
+                ctx,
+                new ViewDescription(),
+                0u,
+                new BrowseDescription[] { nodeToBrowse }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(results.Count, Is.EqualTo(1));
+            Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(results[0].ContinuationPoint.IsNull, Is.True);
         }
 
         [Test]
@@ -330,6 +358,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(results.Count, Is.EqualTo(1));
             Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
+            Assert.That(results[0].ContinuationPoint.IsNull, Is.True);
         }
 
         [Test]
@@ -351,6 +380,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(results.Count, Is.EqualTo(1));
             Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(results[0].ContinuationPoint.IsNull, Is.True);
         }
 
         [Test]
@@ -1048,6 +1078,55 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task DeleteMonitoredItemsAsyncDetachedItemReturnsGoodAsync()
+        {
+            using MasterNodeManager sut = CreateMasterNodeManager();
+            using MonitoredItem item = CreateDetachedMonitoredItem();
+            var itemsToDelete = new List<IMonitoredItem> { item };
+            var errors = new List<ServiceResult> { ServiceResult.Good };
+
+            await sut.DeleteMonitoredItemsAsync(
+                CreateContext(),
+                1u,
+                itemsToDelete,
+                errors,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+        }
+
+        [Test]
+        public async Task ModifyMonitoredItemsAsyncDetachedItemReturnsBadNodeIdUnknownAsync()
+        {
+            using MasterNodeManager sut = CreateMasterNodeManager();
+            using MonitoredItem item = CreateDetachedMonitoredItem();
+            var request = new MonitoredItemModifyRequest
+            {
+                RequestedParameters = new MonitoringParameters
+                {
+                    ClientHandle = item.ClientHandle,
+                    SamplingInterval = item.SamplingInterval,
+                    QueueSize = item.QueueSize,
+                    DiscardOldest = true
+                }
+            };
+            var errors = new List<ServiceResult> { ServiceResult.Good };
+            var filterResults = new List<MonitoringFilterResult> { null! };
+
+            await sut.ModifyMonitoredItemsAsync(
+                CreateContext(),
+                TimestampsToReturn.Both,
+                [item],
+                new[] { request }.ToArrayOf(),
+                errors,
+                filterResults,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+            Assert.That(request.Processed, Is.True);
+        }
+
+        [Test]
         public void SetMonitoringModeAsync_NullContext_ThrowsArgumentNullException()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
@@ -1081,6 +1160,25 @@ namespace Opc.Ua.Server.Tests
                 CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.BadMonitoredItemIdInvalid));
+        }
+
+        [Test]
+        public async Task SetMonitoringModeAsyncDetachedItemUpdatesLocallyAndQueuesBadAsync()
+        {
+            using MasterNodeManager sut = CreateMasterNodeManager();
+            using MonitoredItem item = CreateDetachedMonitoredItem(MonitoringMode.Disabled);
+            var errors = new List<ServiceResult> { ServiceResult.Good };
+
+            await sut.SetMonitoringModeAsync(
+                CreateContext(),
+                MonitoringMode.Reporting,
+                [item],
+                errors,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(item.MonitoringMode, Is.EqualTo(MonitoringMode.Reporting));
+            Assert.That(Publish(item).Peek().Value.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
         }
 
         [Test]
@@ -1118,6 +1216,24 @@ namespace Opc.Ua.Server.Tests
             Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.BadMonitoredItemIdInvalid));
         }
 
+        [Test]
+        public async Task TransferMonitoredItemsAsyncDetachedItemSucceedsAndQueuesBadAsync()
+        {
+            using MasterNodeManager sut = CreateMasterNodeManager();
+            using MonitoredItem item = CreateDetachedMonitoredItem();
+            var errors = new List<ServiceResult> { ServiceResult.Good };
+
+            await sut.TransferMonitoredItemsAsync(
+                CreateContext(),
+                true,
+                [item],
+                errors,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(Publish(item).Peek().Value.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+        }
+
         private MasterNodeManager CreateMasterNodeManager()
         {
             return new MasterNodeManager(
@@ -1125,6 +1241,48 @@ namespace Opc.Ua.Server.Tests
                 m_fixture.Config,
                 null,
                 System.Array.Empty<INodeManager>());
+        }
+
+        private MonitoredItem CreateDetachedMonitoredItem(
+            MonitoringMode monitoringMode = MonitoringMode.Reporting)
+        {
+            var monitoredItem = new MonitoredItem(
+                m_server.CurrentInstance,
+                new Mock<IAsyncNodeManager>().Object,
+                new object(),
+                subscriptionId: 1,
+                id: 2,
+                itemToMonitor: new ReadValueId
+                {
+                    NodeId = new NodeId("Detached", 2),
+                    AttributeId = Attributes.Value
+                },
+                diagnosticsMasks: DiagnosticsMasks.None,
+                timestampsToReturn: TimestampsToReturn.Both,
+                monitoringMode,
+                clientHandle: 3,
+                originalFilter: null,
+                filterToUse: null,
+                range: null,
+                samplingInterval: 1000,
+                queueSize: 1,
+                discardOldest: true,
+                sourceSamplingInterval: 1000);
+            ((IDetachableMonitoredItem)monitoredItem).Detach(m_server.CurrentInstance);
+            return monitoredItem;
+        }
+
+        private Queue<MonitoredItemNotification> Publish(MonitoredItem item)
+        {
+            var notifications = new Queue<MonitoredItemNotification>();
+            var diagnostics = new Queue<DiagnosticInfo>();
+            item.Publish(
+                new OperationContext(item),
+                notifications,
+                diagnostics,
+                10,
+                m_server.CurrentInstance.Telemetry.CreateLogger<MasterNodeManagerDeterministicTests>());
+            return notifications;
         }
 
         private static OperationContext CreateContext()

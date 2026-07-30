@@ -46,12 +46,19 @@ namespace Microsoft.Extensions.DependencyInjection
     /// <para>
     /// The DI extensions install <see cref="ITransportBindingConfigurator"/>
     /// instances into the service collection. The
-    /// <see cref="DefaultTransportBindingRegistry"/> singleton runs
+    /// <see cref="DefaultTransportBindingRegistry"/> singleton seeds the
+    /// mandatory raw-socket <c>opc.tcp</c> factories and then runs
     /// every registered configurator at first resolution time, in
     /// registration order, so a downstream
-    /// <c>AddKestrelOpcTcpTransport()</c> after <c>AddOpcTcpTransport()</c>
-    /// swaps the raw-socket listener for the Kestrel-hosted one
-    /// (last-writer-wins per URI scheme).
+    /// <c>AddKestrelOpcTcpTransport()</c> swaps the raw-socket listener
+    /// for the Kestrel-hosted one (last-writer-wins per URI scheme).
+    /// </para>
+    /// <para>
+    /// The mandatory <c>opc.tcp</c> transport is seeded by
+    /// <see cref="OpcUaServiceCollectionExtensions.AddOpcUa(IServiceCollection)"/>
+    /// (which calls <see cref="AddTransportBindingRegistry"/>), so an
+    /// explicit <see cref="AddOpcTcpTransport(IOpcUaBuilder)"/> call is
+    /// no longer required for the common case.
     /// </para>
     /// <para>
     /// Calling any <c>Add*Transport()</c> extension is idempotent — the
@@ -154,11 +161,31 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers the <see cref="ITransportBindingRegistry"/>
         /// singleton if no consumer has done so already. The singleton
-        /// factory runs every registered
+        /// factory seeds the mandatory raw-socket <c>opc.tcp</c> secure
+        /// channel listener and tcp connection channel factories, then
+        /// runs every registered
         /// <see cref="ITransportBindingConfigurator"/> in registration
         /// order at first resolution time so subsequent
         /// <c>Add*Transport()</c> calls compose cleanly.
         /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <see cref="OpcUaServiceCollectionExtensions.AddOpcUa(IServiceCollection)"/>
+        /// calls this method, so the mandatory <c>opc.tcp</c> transport is
+        /// always available without any explicit
+        /// <see cref="AddOpcTcpTransport(IOpcUaBuilder)"/> call.
+        /// </para>
+        /// <para>
+        /// Because the seed runs before the registered configurators, any
+        /// downstream <c>AddKestrelOpcTcpTransport()</c> /
+        /// <c>AddHttpsTransport()</c> / <c>AddWssTransport()</c> /
+        /// <c>AddCustomTransport&lt;,&gt;()</c> overrides the seeded defaults
+        /// (last-writer-wins per URI scheme). A configurator may also call
+        /// <see cref="ITransportBindingRegistry.RemoveListenerFactory"/> /
+        /// <see cref="ITransportBindingRegistry.RemoveChannelFactory"/> to
+        /// unregister the seeded defaults entirely.
+        /// </para>
+        /// </remarks>
         /// <exception cref="ArgumentNullException"></exception>
         public static IServiceCollection AddTransportBindingRegistry(this IServiceCollection services)
         {
@@ -166,9 +193,24 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 throw new ArgumentNullException(nameof(services));
             }
+
+            services.TryAddSingleton<BufferManagerFactoryOptions>();
+            services.TryAddSingleton<IBufferManagerFactory, DefaultBufferManagerFactory>();
             services.TryAddSingleton<ITransportBindingRegistry>(provider =>
             {
                 var registry = new DefaultTransportBindingRegistry();
+
+                // Seed the mandatory raw-socket opc.tcp secure channel listener
+                // and tcp connection channel factories so opc.tcp is available
+                // out of the box. This runs before the registered configurators
+                // so any Add*Transport() override (Kestrel / HTTPS / WSS / custom)
+                // or a RemoveListenerFactory/RemoveChannelFactory configurator can
+                // still replace or drop these defaults.
+                IBufferManagerFactory bufferManagerFactory =
+                    provider.GetRequiredService<IBufferManagerFactory>();
+                registry.RegisterListenerFactory(new TcpTransportListenerFactory(bufferManagerFactory));
+                registry.RegisterChannelFactory(new TcpTransportChannelFactory(bufferManagerFactory));
+
                 foreach (ITransportBindingConfigurator configurator in
                     provider.GetServices<ITransportBindingConfigurator>())
                 {

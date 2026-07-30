@@ -91,6 +91,7 @@ namespace Opc.Ua.Server.Tests.Hosting
                     [],
                     Mock.Of<IServiceProvider>(),
                     Mock.Of<IOpcUaServerFactory>(),
+                    new HostedNodeManagerLifecycle(),
                     NullLogger<OpcUaServerHostedService>.Instance),
                 Throws.ArgumentNullException.With.Property(nameof(ArgumentNullException.ParamName))
                     .EqualTo("options"));
@@ -111,6 +112,7 @@ namespace Opc.Ua.Server.Tests.Hosting
                     [],
                     Mock.Of<IServiceProvider>(),
                     Mock.Of<IOpcUaServerFactory>(),
+                    new HostedNodeManagerLifecycle(),
                     NullLogger<OpcUaServerHostedService>.Instance),
                 Throws.ArgumentNullException.With.Property(nameof(ArgumentNullException.ParamName))
                     .EqualTo("configurationProviders"));
@@ -144,17 +146,33 @@ namespace Opc.Ua.Server.Tests.Hosting
                 await WaitForAsync(
                     () => RegistryCaptureServer.StartedServer != null,
                     TimeSpan.FromSeconds(60)).ConfigureAwait(false),
-                Is.True);
+                Is.True,
+                "Hosted service post-start registry wiring did not complete.");
 
             IServerInternal server = RegistryCaptureServer.StartedServer ??
                 throw new InvalidOperationException("The server did not start.");
 
             var historianRegistryProvider = (IHistorianRegistryProvider)server;
+            var aliasRegistryProvider = (IAliasNameStoreRegistryProvider)server;
+
+            // OnServerStarted publishes StartedServer before the hosted service completes
+            // RegisterPostStartRegistries. Wait for all post-start registrations to become visible.
+            Assert.That(
+                await WaitForAsync(
+                    () =>
+                        historianRegistryProvider.HistorianRegistry.Providers.Contains(
+                            historian.Object) &&
+                        aliasRegistryProvider.AliasNameStoreRegistry.Stores.Contains(
+                            directStore.Object) &&
+                        aliasRegistryProvider.AliasNameStoreRegistry.Stores.Contains(
+                            registrySourcedStore.Object),
+                    TimeSpan.FromSeconds(60)).ConfigureAwait(false),
+                Is.True);
+
             Assert.That(
                 historianRegistryProvider.HistorianRegistry.Providers,
                 Has.Member(historian.Object));
 
-            var aliasRegistryProvider = (IAliasNameStoreRegistryProvider)server;
             Assert.That(
                 aliasRegistryProvider.AliasNameStoreRegistry.Stores,
                 Has.Member(directStore.Object));
@@ -267,7 +285,16 @@ namespace Opc.Ua.Server.Tests.Hosting
                     message => message.Contains(
                         "without a matching identity authenticator", StringComparison.Ordinal)),
                 Is.False);
-            Assert.That(server.IdentityRegistry.UnregisterAugmenter(augmenter.Object), Is.True);
+            // The augmenter is registered during the hosted service's post-start
+            // phase (RegisterIdentityAugmenters), which runs after OnServerStarted
+            // sets StartedServer. Poll UnregisterAugmenter (which returns false
+            // until the augmenter is present, then true once, removing it) so the
+            // assertion does not race that background registration.
+            Assert.That(
+                await WaitForAsync(
+                    () => server.IdentityRegistry.UnregisterAugmenter(augmenter.Object),
+                    TimeSpan.FromSeconds(60)).ConfigureAwait(false),
+                Is.True);
         }
 
         private static void ConfigureHostedOptions(OpcUaServerOptions options, string applicationName)

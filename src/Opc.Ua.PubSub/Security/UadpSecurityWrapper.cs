@@ -29,9 +29,11 @@
 
 using System;
 using System.Buffers;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.PubSub.Encoding;
 
 namespace Opc.Ua.PubSub.Security
 {
@@ -235,10 +237,41 @@ namespace Opc.Ua.PubSub.Security
         /// payload on success; otherwise an
         /// <see cref="UnwrapResult.Failure"/> describing why.
         /// </returns>
-        public async ValueTask<UnwrapResult> TryUnwrapAsync(
+        public ValueTask<UnwrapResult> TryUnwrapAsync(
             ReadOnlyMemory<byte> outerPrefix,
             ReadOnlyMemory<byte> securityAndPayload,
             CancellationToken cancellationToken = default)
+        {
+            return TryUnwrapCoreAsync(
+                outerPrefix,
+                securityAndPayload,
+                replayIdentity: null,
+                MessageSecurityMode.None,
+                cancellationToken);
+        }
+
+        internal ValueTask<UnwrapResult> TryUnwrapAsync(
+            ReadOnlyMemory<byte> outerPrefix,
+            ReadOnlyMemory<byte> securityAndPayload,
+            PublisherId publisherId,
+            ushort writerGroupId,
+            MessageSecurityMode requiredMode,
+            CancellationToken cancellationToken = default)
+        {
+            return TryUnwrapCoreAsync(
+                outerPrefix,
+                securityAndPayload,
+                new ReplayIdentity(publisherId, writerGroupId),
+                requiredMode,
+                cancellationToken);
+        }
+
+        private async ValueTask<UnwrapResult> TryUnwrapCoreAsync(
+            ReadOnlyMemory<byte> outerPrefix,
+            ReadOnlyMemory<byte> securityAndPayload,
+            ReplayIdentity? replayIdentity,
+            MessageSecurityMode requiredMode,
+            CancellationToken cancellationToken)
         {
             if (!UadpSecurityHeader.TryRead(
                 securityAndPayload.Span,
@@ -309,14 +342,44 @@ namespace Opc.Ua.PubSub.Security
                     }
                 }
 
-                // The MessageNonce embeds a monotonic per-key
-                // SequenceNumber (Part 14 Table 156: RandomBytes ||
-                // SequenceNumber). The nonce is part of the signed
-                // SecurityHeader, so the sequence number is
-                // authenticated and available before decryption.
-                // Extract it and drive the monotonic replay window with
-                // it, rejecting duplicates, too-old sequences and exact
-                // nonce reuse.
+                if (!SatisfiesRequiredSecurity(requiredMode, flagsMask))
+                {
+                    return UnwrapResult.Failure(
+                        StatusCodes.BadSecurityModeRejected,
+                        "Inbound frame security level is lower than the configured SecurityMode.");
+                }
+
+                byte[] plaintext = new byte[payloadAndFooterLength];
+                if (encrypted && Policy.EncryptingKeyLength > 0)
+                {
+                    try
+                    {
+                        Policy.Decrypt(
+                            securityAndPayload.Span.Slice(headerLength, payloadAndFooterLength),
+                            key.EncryptingKey.Span,
+                            header.MessageNonce.Span,
+                            plaintext);
+                    }
+                    catch (CryptographicException)
+                    {
+                        Array.Clear(plaintext, 0, plaintext.Length);
+                        return UnwrapResult.Failure(
+                            StatusCodes.BadSecurityChecksFailed,
+                            "Payload decryption or authentication failed");
+                    }
+                }
+                else
+                {
+                    securityAndPayload
+                        .Span
+                        .Slice(headerLength, payloadAndFooterLength)
+                        .CopyTo(plaintext);
+                }
+
+                // Commit replay state only after every cryptographic operation
+                // has succeeded. This prevents a forged record that fails during
+                // decryption or authentication from poisoning the sequence window
+                // or nonce filter.
                 ulong sequenceNumber = 0;
                 ReadOnlySpan<byte> nonceSpan = header.MessageNonce.Span;
                 if (nonceSpan.Length == AesCtrNonceLayout.NonceLength)
@@ -324,11 +387,50 @@ namespace Opc.Ua.PubSub.Security
                     (_, sequenceNumber) = AesCtrNonceLayout.Parse(nonceSpan);
                 }
 
-                if (!m_tokenWindow.TryAccept(
-                    header.SecurityTokenId,
-                    sequenceNumber,
-                    nonceSpan))
+                bool replayAccepted;
+                if (replayIdentity is ReplayIdentity identity)
                 {
+                    if (signed &&
+                        signatureLength > 0 &&
+                        m_tokenWindow is IScopedSecurityTokenWindow scopedWindow)
+                    {
+                        replayAccepted = scopedWindow.TryAccept(
+                            identity.PublisherId,
+                            identity.WriterGroupId,
+                            header.SecurityTokenId,
+                            sequenceNumber,
+                            nonceSpan);
+                    }
+                    else if (signed && signatureLength > 0)
+                    {
+                        replayAccepted = m_tokenWindow.TryAccept(
+                            header.SecurityTokenId,
+                            sequenceNumber,
+                            nonceSpan);
+                    }
+                    else
+                    {
+                        // The PublisherId, WriterGroupId and nonce are not
+                        // authenticated on an unsigned frame. Do not let it
+                        // mutate replay state for authenticated traffic.
+                        replayAccepted = true;
+                    }
+                }
+                else if (signed && signatureLength > 0)
+                {
+                    replayAccepted = m_tokenWindow.TryAccept(
+                        header.SecurityTokenId,
+                        sequenceNumber,
+                        nonceSpan);
+                }
+                else
+                {
+                    replayAccepted = true;
+                }
+
+                if (!replayAccepted)
+                {
+                    Array.Clear(plaintext, 0, plaintext.Length);
                     m_logger.RejectedReplayOrNonceReuse(header.SecurityTokenId, sequenceNumber);
                     EmitSecurityEvent(new PubSubSecurityEvent(
                         PubSubSecurityEventKind.ReplayRejected,
@@ -340,23 +442,6 @@ namespace Opc.Ua.PubSub.Security
                         "Replay or nonce reuse detected");
                 }
 
-                byte[] plaintext = new byte[payloadAndFooterLength];
-                if (encrypted && Policy.EncryptingKeyLength > 0)
-                {
-                    Policy.Decrypt(
-                        securityAndPayload.Span.Slice(headerLength, payloadAndFooterLength),
-                        key.EncryptingKey.Span,
-                        header.MessageNonce.Span,
-                        plaintext);
-                }
-                else
-                {
-                    securityAndPayload
-                        .Span
-                        .Slice(headerLength, payloadAndFooterLength)
-                        .CopyTo(plaintext);
-                }
-
                 return UnwrapResult.Success(plaintext, header);
             }
             finally
@@ -364,6 +449,23 @@ namespace Opc.Ua.PubSub.Security
                 Array.Clear(signedBuffer, 0, signedLength);
                 ArrayPool<byte>.Shared.Return(signedBuffer);
             }
+        }
+
+        private static bool SatisfiesRequiredSecurity(
+            MessageSecurityMode requiredMode,
+            UadpSecurityFlagsEncodingMask flags)
+        {
+            if (requiredMode is not (MessageSecurityMode.Sign
+                or MessageSecurityMode.SignAndEncrypt))
+            {
+                return true;
+            }
+
+            bool signed = (flags & UadpSecurityFlagsEncodingMask.NetworkMessageSigned) != 0;
+            bool encrypted = (flags & UadpSecurityFlagsEncodingMask.NetworkMessageEncrypted) != 0;
+            return requiredMode == MessageSecurityMode.SignAndEncrypt
+                ? signed && encrypted
+                : signed;
         }
 
         private void EmitSecurityEvent(PubSubSecurityEvent securityEvent)
@@ -383,8 +485,13 @@ namespace Opc.Ua.PubSub.Security
             }
         }
 
+        private readonly record struct ReplayIdentity(
+            PublisherId PublisherId,
+            ushort WriterGroupId);
+
         /// <summary>
-        /// Outcome of <see cref="TryUnwrapAsync"/>.
+        /// Outcome of
+        /// <see cref="TryUnwrapAsync(ReadOnlyMemory{byte}, ReadOnlyMemory{byte}, CancellationToken)"/>.
         /// </summary>
         public sealed record UnwrapResult
         {

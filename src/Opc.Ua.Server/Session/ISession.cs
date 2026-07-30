@@ -45,6 +45,21 @@ namespace Opc.Ua.Server
         bool Activated { get; }
 
         /// <summary>
+        /// Whether the session is being closed. Requests that would create new server state for
+        /// the session are rejected once this is set, because that state would be torn down again
+        /// immediately. Closing is entered once and never left.
+        /// </summary>
+        bool IsClosing { get; }
+
+        /// <summary>
+        /// Removes and disposes the saved continuation points that retain the NodeManager, so it
+        /// can be torn down without a Client being able to resume a Browse or a history read into
+        /// it.
+        /// </summary>
+        /// <param name="nodeManager">The NodeManager being retired.</param>
+        void InvalidateContinuationPoints(IAsyncNodeManager nodeManager);
+
+        /// <summary>
         /// The server application instance certificate used by this session.
         /// </summary>
         Certificate ServerCertificate { get; }
@@ -239,8 +254,31 @@ namespace Opc.Ua.Server
         bool UpdateLocaleIds(ArrayOf<string> localeIds);
 
         /// <summary>
-        /// Activates the session and binds it to the current secure channel.
+        /// Validates the application signature and user identity token before activation.
         /// </summary>
+        /// <param name="context">The operation context for the activation request.</param>
+        /// <param name="clientSignature">The client application signature.</param>
+        /// <param name="userIdentityToken">The encoded user identity token.</param>
+        /// <param name="userTokenSignature">The user token signature.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>The validated identity token handler and matching user token policy.</returns>
+        ValueTask<(
+            IUserIdentityTokenHandler IdentityToken,
+            UserTokenPolicy? UserTokenPolicy)> ValidateBeforeActivateAsync(
+            OperationContext context,
+            SignatureData clientSignature,
+            ExtensionObject userIdentityToken,
+            SignatureData userTokenSignature,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Validates the application signature and user identity token before activation.
+        /// </summary>
+        /// <remarks>
+        /// Retained for compatibility with 1.5.378 implementations. New code should use
+        /// <see cref="ValidateBeforeActivateAsync"/>.
+        /// </remarks>
+        [Obsolete("Use ValidateBeforeActivateAsync instead.")]
         void ValidateBeforeActivate(
             OperationContext context,
             SignatureData clientSignature,

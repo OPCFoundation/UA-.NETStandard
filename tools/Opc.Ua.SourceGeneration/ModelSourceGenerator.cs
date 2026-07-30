@@ -61,9 +61,13 @@ namespace Opc.Ua.SourceGeneration
                         pair.Left,
                         pair.Right.GetOptions(pair.Left).ToNodeSetOptions()))
                     .Collect();
-            IncrementalValueProvider<ImmutableArray<AdditionalText>> identiferFile =
+            IncrementalValueProvider<ImmutableArray<AdditionalText>> identifierFiles =
                 context.AdditionalTextsProvider
                     .Where(f => f.IsIdentifierFile())
+                    .Collect();
+            IncrementalValueProvider<ImmutableArray<AdditionalText>> csvFiles =
+                context.AdditionalTextsProvider
+                    .Where(f => f.HasFileExtension("csv"))
                     .Collect();
             IncrementalValueProvider<ModelCompilationOptions> options =
                 context.AnalyzerConfigOptionsProvider
@@ -74,6 +78,9 @@ namespace Opc.Ua.SourceGeneration
             IncrementalValueProvider<ImmutableArray<ModelDependencyReference>> referencedModels =
                 context.CompilationProvider
                     .Select((c, _) => ReferencedModelDependencyScanner.Scan(c));
+            IncrementalValueProvider<ImmutableHashSet<string>> stateTypeIndex =
+                context.CompilationProvider
+                    .Select((c, _) => OpcUaStateTypeIndex.Build(c));
 
             IncrementalValueProvider<ImmutableArray<NodeManagerAttributeDiscovery>> nodeManagerBindings =
                 context.SyntaxProvider.ForAttributeWithMetadataName(
@@ -83,21 +90,81 @@ namespace Opc.Ua.SourceGeneration
                 .Where(static m => m is not null)
                 .Collect();
 
+            IncrementalValueProvider<
+                (
+                    ImmutableArray<(AdditionalText Left, NodesetFileOptions)> InputFiles,
+                    ImmutableArray<AdditionalText> CsvFiles,
+                    ImmutableArray<AdditionalText> IdentifierFiles)> modelFiles = inputFiles
+                .Combine(csvFiles)
+                .Combine(identifierFiles)
+                .Select(static (pair, _) => (
+                    InputFiles: pair.Left.Left,
+                    CsvFiles: pair.Left.Right,
+                    IdentifierFiles: pair.Right));
+            IncrementalValueProvider<
+                (ModelCompilationOptions Options, CompilationOptions CompilationOptions)>
+                modelSettings = options
+                .Combine(settings)
+                .Select(static (pair, _) => (
+                    Options: pair.Left,
+                    CompilationOptions: pair.Right));
+            IncrementalValueProvider<
+                (
+                    ImmutableArray<ModelDependencyReference> ReferencedModels,
+                    ImmutableArray<NodeManagerAttributeDiscovery> NodeManagerBindings)>
+                modelReferences = referencedModels
+                .Combine(nodeManagerBindings)
+                .Select(static (pair, _) => (
+                    ReferencedModels: pair.Left,
+                    NodeManagerBindings: pair.Right));
+            IncrementalValueProvider<
+                (
+                    ImmutableArray<ModelDependencyReference> ReferencedModels,
+                    ImmutableArray<NodeManagerAttributeDiscovery> NodeManagerBindings,
+                    ImmutableHashSet<string> AvailableStateTypeNames)> modelDependencies =
+                modelReferences
+                .Combine(stateTypeIndex)
+                .Select(static (pair, _) => (pair.Left.ReferencedModels,
+                    pair.Left.NodeManagerBindings,
+                    AvailableStateTypeNames: pair.Right));
+            IncrementalValueProvider<
+                (
+                    ImmutableArray<(AdditionalText Left, NodesetFileOptions)> InputFiles,
+                    ImmutableArray<AdditionalText> CsvFiles,
+                    ImmutableArray<AdditionalText> IdentifierFiles,
+                    ModelCompilationOptions Options,
+                    CompilationOptions CompilationOptions)> configuredModel = modelFiles
+                .Combine(modelSettings)
+                .Select(static (pair, _) => (pair.Left.InputFiles,
+                    pair.Left.CsvFiles,
+                    pair.Left.IdentifierFiles,
+                    pair.Right.Options,
+                    pair.Right.CompilationOptions));
+            IncrementalValueProvider<ModelCompilationInput> modelCompilationInput =
+                configuredModel
+                    .Combine(modelDependencies)
+                    .Select(static (pair, _) => new ModelCompilationInput(
+                        pair.Left.InputFiles,
+                        pair.Left.CsvFiles,
+                        pair.Left.IdentifierFiles,
+                        pair.Left.Options,
+                        pair.Left.CompilationOptions,
+                        pair.Right.ReferencedModels,
+                        pair.Right.NodeManagerBindings,
+                        pair.Right.AvailableStateTypeNames));
+
             context.RegisterSourceOutput(
-                inputFiles
-                    .Combine(identiferFile)
-                    .Combine(options)
-                    .Combine(settings)
-                    .Combine(referencedModels)
-                    .Combine(nodeManagerBindings),
-                (context, combination) => new ModelCompilation(
+                modelCompilationInput,
+                (context, input) => new ModelCompilation(
                     context,
-                    combination.Left.Left.Left.Left.Left,
-                    combination.Left.Left.Left.Left.Right,
-                    combination.Left.Left.Left.Right,
-                    combination.Left.Left.Right,
-                    combination.Left.Right,
-                    combination.Right,
+                    input.InputFiles,
+                    input.CsvFiles,
+                    input.IdentifierFiles,
+                    input.Options,
+                    input.CompilationOptions,
+                    input.ReferencedModels,
+                    input.NodeManagerBindings,
+                    input.AvailableStateTypeNames,
                     Logger).Emit(context.CancellationToken));
 
             IncrementalValueProvider<bool> publicDataTypeExtensions =
@@ -115,5 +182,15 @@ namespace Opc.Ua.SourceGeneration
                 static (spc, pair) => DataTypeCompilation.EmitBatch(
                     spc, pair.Left, pair.Right));
         }
+
+        private readonly record struct ModelCompilationInput(
+            ImmutableArray<(AdditionalText, NodesetFileOptions)> InputFiles,
+            ImmutableArray<AdditionalText> CsvFiles,
+            ImmutableArray<AdditionalText> IdentifierFiles,
+            ModelCompilationOptions Options,
+            CompilationOptions CompilationOptions,
+            ImmutableArray<ModelDependencyReference> ReferencedModels,
+            ImmutableArray<NodeManagerAttributeDiscovery> NodeManagerBindings,
+            ImmutableHashSet<string> AvailableStateTypeNames);
     }
 }

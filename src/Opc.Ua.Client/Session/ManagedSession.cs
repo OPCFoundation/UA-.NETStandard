@@ -56,7 +56,8 @@ namespace Opc.Ua.Client
     /// delegated to the inner session.
     /// </para>
     /// </remarks>
-    public partial class ManagedSession : IManagedSession
+    public partial class ManagedSession : IManagedSession,
+        ModelChange.INamespaceTableRefresher
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="ManagedSession"/>
@@ -1273,6 +1274,8 @@ namespace Opc.Ua.Client
         private static bool RequiresSessionRecreate(StatusCode statusCode)
         {
             return statusCode == StatusCodes.BadApplicationSignatureInvalid ||
+                statusCode == StatusCodes.BadSecurityChecksFailed ||
+                statusCode == StatusCodes.BadIdentityChangeNotSupported ||
                 statusCode == StatusCodes.BadSessionIdInvalid ||
                 statusCode == StatusCodes.BadSessionClosed ||
                 statusCode == StatusCodes.BadSessionNotActivated ||

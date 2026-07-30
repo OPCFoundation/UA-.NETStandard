@@ -36,7 +36,7 @@ jobs:
         fetch-depth: 0
 
     - name: Set up .NET
-      uses: actions/setup-dotnet@v5
+      uses: actions/setup-dotnet@v6
       with:
         dotnet-version: '8.x'
 
@@ -84,4 +84,5 @@ jobs:
         platforms: linux/amd64
         provenance: false
         cache-from: type=gha
-        cache-to: type=gha,mode=max
+        # setup-buildx-action@v4 installs Buildx and BuildKit versions that support ignore-error.
+        cache-to: type=gha,mode=max,ignore-error=true

@@ -354,6 +354,29 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             Assert.That(names, Is.EqualTo(s_expectedAlphaBeta));
         }
 
+        [Test]
+        public void TryRequeueRoutesToOwningPartition()
+        {
+            FakeManagedSubscription primary = NewFake(1);
+            FakeManagedSubscription secondary = NewFake(2);
+            var policy = new PartitionPlacementPolicy(1);
+            var composite = new CompositeMonitoredItemCollection(
+                [primary],
+                new object(),
+                policy,
+                () => secondary);
+            Assert.That(composite.TryAdd("a", MakeOptions(new V2Options()),
+                out _), Is.True);
+            Assert.That(composite.TryAdd("b", MakeOptions(new V2Options()),
+                out IMonitoredItem? item), Is.True);
+
+            Assert.That(composite.TryRequeue(item!.ClientHandle), Is.True);
+
+            var secondaryItems = (InMemoryCollection)secondary.MonitoredItems;
+            Assert.That(secondaryItems.LastRequeuedHandle,
+                Is.EqualTo(item.ClientHandle));
+        }
+
         private static readonly string[] s_expectedAlphaBeta = ["a", "b"];
 
         private static FakeManagedSubscription NewFake(uint id)
@@ -450,7 +473,9 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// from a process-global counter so handles stay unique
         /// across partition instances.
         /// </summary>
-        private sealed class InMemoryCollection : IMonitoredItemCollection
+        private sealed class InMemoryCollection :
+            IMonitoredItemCollection,
+            IMonitoredItemRetryCollection
         {
             private readonly Dictionary<string, FakeMonitoredItem> m_byName
                 = new(StringComparer.Ordinal);
@@ -460,6 +485,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             public uint Count => (uint)m_byHandle.Count;
 
             public IEnumerable<IMonitoredItem> Items => [.. m_byHandle.Values];
+
+            public uint? LastRequeuedHandle { get; private set; }
 
             public bool TryGetMonitoredItemByClientHandle(uint clientHandle,
                 [MaybeNullWhen(false)] out IMonitoredItem? monitoredItem)
@@ -509,6 +536,16 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     return false;
                 }
                 m_byName.Remove(item.Name);
+                return true;
+            }
+
+            public bool TryRequeue(uint clientHandle)
+            {
+                if (!m_byHandle.ContainsKey(clientHandle))
+                {
+                    return false;
+                }
+                LastRequeuedHandle = clientHandle;
                 return true;
             }
 

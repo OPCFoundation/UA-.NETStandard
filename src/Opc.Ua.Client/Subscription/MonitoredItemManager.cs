@@ -44,6 +44,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
     /// A managed set of monitored items inside a subscription.
     /// </summary>
     internal sealed class MonitoredItemManager : IMonitoredItemCollection,
+        IMonitoredItemRetryCollection,
         IMonitoredItemContext, IAsyncDisposable
     {
         /// <inheritdoc/>
@@ -146,6 +147,23 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             }
             m_context.Update();
             return true;
+        }
+
+        /// <inheritdoc/>
+        public bool TryRequeue(uint clientHandle)
+        {
+            bool requeued;
+            lock (m_monitoredItemsLock)
+            {
+                requeued = m_monitoredItems.TryGetValue(
+                    clientHandle, out MonitoredItem? item) &&
+                    item.TryRequeue();
+            }
+            if (requeued)
+            {
+                m_context.Update();
+            }
+            return requeued;
         }
 
         /// <summary>

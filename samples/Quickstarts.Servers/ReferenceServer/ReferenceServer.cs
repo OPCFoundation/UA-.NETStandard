@@ -400,6 +400,12 @@ namespace Quickstarts.ReferenceServer
                 if (id.SymbolicId is { } symbolicId)
                 {
                     resourceManager.Add(symbolicId, "en-US", symbolicId);
+
+                    // Advertise German ("de-DE") as an additional supported locale.
+                    // The server's ServerCapabilities.LocaleIdArray is derived from
+                    // the locales that have translation tables, so registering the
+                    // status-code symbols under de-DE makes the locale available.
+                    resourceManager.Add(symbolicId, "de-DE", symbolicId);
                 }
             }
 

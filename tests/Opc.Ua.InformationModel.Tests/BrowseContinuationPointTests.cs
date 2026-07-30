@@ -118,8 +118,8 @@ namespace Opc.Ua.InformationModel.Tests
                 cp = nextResp.Results[0].ContinuationPoint;
             }
 
-            Assert.That(cp.IsEmpty, Is.True,
-                "Continuation point should be empty after full traversal.");
+            Assert.That(cp.IsNull, Is.True,
+                "Continuation point should be null after full traversal.");
             Assert.That(totalRefs, Is.GreaterThan(1),
                 "Server node should have more than one reference.");
         }
@@ -391,7 +391,7 @@ namespace Opc.Ua.InformationModel.Tests
             Assert.That(response.Results.Count, Is.EqualTo(1));
             Assert.That(
                 StatusCode.IsGood(response.Results[0].StatusCode), Is.True);
-            Assert.That(response.Results[0].ContinuationPoint.IsEmpty, Is.True,
+            Assert.That(response.Results[0].ContinuationPoint.IsNull, Is.True,
                 "Views folder has few children; no continuation point " +
                 "should be returned with MaxRefs=100.");
         }
@@ -432,7 +432,7 @@ namespace Opc.Ua.InformationModel.Tests
                 Is.True,
                 "Release should return Good status.");
             Assert.That(
-                releaseResp.Results[0].ContinuationPoint.IsEmpty, Is.True,
+                releaseResp.Results[0].ContinuationPoint.IsNull, Is.True,
                 "No continuation point should remain after release.");
         }
 
@@ -631,7 +631,7 @@ namespace Opc.Ua.InformationModel.Tests
             Assert.That(response.Results[0].References.Count,
                 Is.GreaterThan(0),
                 "Server node should have at least one reference.");
-            Assert.That(response.Results[0].ContinuationPoint.IsEmpty, Is.True,
+            Assert.That(response.Results[0].ContinuationPoint.IsNull, Is.True,
                 "MaxReferencesPerNode=0 should return all references " +
                 "without a continuation point.");
         }

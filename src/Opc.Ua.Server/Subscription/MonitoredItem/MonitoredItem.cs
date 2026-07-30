@@ -41,7 +41,8 @@ namespace Opc.Ua.Server
     public class MonitoredItem :
         IEventMonitoredItem,
         ISampledDataChangeMonitoredItem,
-        ITriggeredMonitoredItem
+        ITriggeredMonitoredItem,
+        IDetachableMonitoredItem
     {
         /// <summary>
         /// Initializes the object with its node type.
@@ -341,6 +342,9 @@ namespace Opc.Ua.Server
                 MonitoringMode);
 
             RestoreQueue();
+
+            m_isDeleted = storedMonitoredItem.IsDeleted;
+            m_isDetached = storedMonitoredItem.IsDetached;
         }
 
         /// <summary>
@@ -378,6 +382,30 @@ namespace Opc.Ua.Server
         /// </summary>
         public IAsyncNodeManager NodeManager { get; private set; }
 
+        /// <inheritdoc/>
+        bool IDetachableMonitoredItem.IsDetached
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return m_isDetached;
+                }
+            }
+        }
+
+        /// <inheritdoc/>
+        bool IDetachableMonitoredItem.IsDeleted
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return m_isDeleted;
+                }
+            }
+        }
+
         /// <summary>
         /// The handle assigned by the node manager when it created the item.
         /// </summary>
@@ -413,21 +441,18 @@ namespace Opc.Ua.Server
                 // check if not ready to publish in case it doesn't ResendData
                 if (!m_readyToPublish)
                 {
-                    //ServerUtils.EventLog.MonitoredItemReady(Id, "FALSE");
                     return false;
                 }
 
                 // check if it has been triggered.
                 if (MonitoringMode != MonitoringMode.Disabled && m_triggered)
                 {
-                    //ServerUtils.EventLog.MonitoredItemReady(Id, "TRIGGERED");
                     return true;
                 }
 
                 // check if monitoring was turned off.
                 if (MonitoringMode != MonitoringMode.Reporting)
                 {
-                    //ServerUtils.EventLog.MonitoredItemReady(Id, "FALSE");
                     return false;
                 }
 
@@ -438,13 +463,9 @@ namespace Opc.Ua.Server
 
                     if (m_nextSamplingTime > now)
                     {
-                        //ServerUtils.EventLog.MonitoredItemReady(
-                        //    Id,
-                        //    Utils.Format("FALSE {0}ms", m_nextSamplingTime - now));
                         return false;
                     }
                 }
-                //ServerUtils.EventLog.MonitoredItemReady(Id, "NORMAL");
                 return true;
             }
         }
@@ -527,6 +548,127 @@ namespace Opc.Ua.Server
         public void SetStructureChanged()
         {
             m_structureChanged = true;
+        }
+
+        /// <inheritdoc/>
+        bool IDetachableMonitoredItem.TryBeginAttach()
+        {
+            lock (m_lock)
+            {
+                if (m_isDisposed)
+                {
+                    return false;
+                }
+
+                m_isAttaching = true;
+                return true;
+            }
+        }
+
+        /// <inheritdoc/>
+        bool IDetachableMonitoredItem.EndAttach()
+        {
+            lock (m_lock)
+            {
+                m_isAttaching = false;
+                if (!m_isDisposed)
+                {
+                    return true;
+                }
+            }
+
+            // The item was deleted and disposed while it was being handed to the replacement, so
+            // the teardown that Dispose deferred runs now and the caller has to undo the attach.
+            DisposeQueueHandlers();
+            return false;
+        }
+
+        /// <inheritdoc/>
+        void IDetachableMonitoredItem.MarkNodeDeleted()
+        {
+            lock (m_lock)
+            {
+                m_isDeleted = true;
+                QueueNodeIdUnknown();
+            }
+        }
+
+        /// <inheritdoc/>
+        void IDetachableMonitoredItem.BeginDetach()
+        {
+            lock (m_lock)
+            {
+                m_isDetached = true;
+            }
+        }
+
+        /// <inheritdoc/>
+        void IDetachableMonitoredItem.Detach(IServerInternal server)
+        {
+            if (server is null)
+            {
+                throw new ArgumentNullException(nameof(server));
+            }
+
+            IAsyncNodeManager owner = GetDetachedOwner(server);
+
+            lock (m_lock)
+            {
+                NodeManager = owner;
+                ManagerHandle = DetachedHandle;
+                m_isDetached = true;
+            }
+        }
+
+        /// <summary>
+        /// Returns the long lived NodeManager that a detached MonitoredItem is parked on. The
+        /// CoreNodeManager is used because it outlives every NodeManager that can be retired.
+        /// </summary>
+        /// <param name="server">The server that owns the NodeManagers.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="server"/> is <c>null</c>.</exception>
+        /// <exception cref="InvalidOperationException">The server has no CoreNodeManager.</exception>
+        internal static IAsyncNodeManager GetDetachedOwner(IServerInternal server)
+        {
+            if (server is null)
+            {
+                throw new ArgumentNullException(nameof(server));
+            }
+
+            return server.NodeManager?.CoreNodeManager ??
+                server.CoreNodeManager ??
+                throw new InvalidOperationException(
+                    "The server does not have a long lived CoreNodeManager for detached monitored items.");
+        }
+
+        /// <summary>
+        /// Gets the handle a detached MonitoredItem is parked on.
+        /// </summary>
+        internal static object DetachedHandle => s_detachedHandle;
+
+        /// <inheritdoc/>
+        void IDetachableMonitoredItem.QueueNodeIdUnknown()
+        {
+            lock (m_lock)
+            {
+                if (!m_isDeleted)
+                {
+                    m_isDeleted = true;
+                }
+
+                QueueNodeIdUnknown();
+            }
+        }
+
+        /// <inheritdoc/>
+        void IDetachableMonitoredItem.Rebind(IAsyncNodeManager nodeManager, object managerHandle)
+        {
+            lock (m_lock)
+            {
+                NodeManager = nodeManager ?? throw new ArgumentNullException(nameof(nodeManager));
+                ManagerHandle = managerHandle;
+                m_isDetached = false;
+                m_isDeleted = false;
+                }
         }
 
         /// <summary>
@@ -974,11 +1116,12 @@ namespace Opc.Ua.Server
                 // create empty value if none provided.
                 if (ServiceResult.IsBad(error) && current.IsNull)
                 {
+                    DateTime utcNow = m_timeProvider.GetUtcNow().UtcDateTime;
                     current = new DataValue(
                         Variant.Null,
                         error!.StatusCode,
-                        DateTime.UtcNow,
-                        DateTime.UtcNow);
+                        utcNow,
+                        utcNow);
                 }
 
                 // this should never happen.
@@ -1463,6 +1606,7 @@ namespace Opc.Ua.Server
 
                     IncrementSampleTime();
                 }
+
                 // check if queueing enabled.
                 if (m_dataChangeQueueHandler != null &&
                     (!m_resendData || m_dataChangeQueueHandler.ItemsInQueue != 0))
@@ -1507,8 +1651,13 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Publishes a single data change notifications.
+        /// Publishes a single data change notification.
         /// </summary>
+        /// <param name="context">The context of the Publish request.</param>
+        /// <param name="notifications">The queue the notification is added to.</param>
+        /// <param name="diagnostics">The queue the diagnostic info is added to.</param>
+        /// <param name="value">The value to publish.</param>
+        /// <param name="error">The error that belongs to the value.</param>
         protected virtual bool Publish(
             OperationContext context,
             Queue<MonitoredItemNotification> notifications,
@@ -1584,6 +1733,7 @@ namespace Opc.Ua.Server
             return false;
         }
 
+
         /// <summary>
         /// The object to call when item is ready to publish.
         /// </summary>
@@ -1643,32 +1793,80 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public IStoredMonitoredItem ToStorableMonitoredItem()
         {
-            return new StoredMonitoredItem
+            lock (m_lock)
             {
-                SamplingInterval = m_samplingInterval,
-                SourceSamplingInterval = m_sourceSamplingInterval,
-                SubscriptionId = SubscriptionId,
-                QueueSize = QueueSize,
-                AlwaysReportUpdates = AlwaysReportUpdates,
-                AttributeId = AttributeId,
-                ClientHandle = ClientHandle,
-                DiagnosticsMasks = DiagnosticsMasks,
-                DiscardOldest = m_discardOldest,
-                IsDurable = IsDurable,
-                Encoding = DataEncoding,
-                FilterToUse = m_filterToUse!,
-                Id = Id,
-                IndexRange = m_indexRange!,
-                LastError = m_lastError!,
-                LastValue = m_lastValue,
-                MonitoringMode = MonitoringMode,
-                NodeId = NodeId,
-                OriginalFilter = Filter!,
-                Range = m_range,
-                TimestampsToReturn = m_timestampsToReturn,
-                TypeMask = MonitoredItemType,
-                ParsedIndexRange = m_parsedIndexRange
-            };
+                return new StoredMonitoredItem
+                {
+                    SamplingInterval = m_samplingInterval,
+                    SourceSamplingInterval = m_sourceSamplingInterval,
+                    SubscriptionId = SubscriptionId,
+                    QueueSize = QueueSize,
+                    AlwaysReportUpdates = AlwaysReportUpdates,
+                    AttributeId = AttributeId,
+                    ClientHandle = ClientHandle,
+                    DiagnosticsMasks = DiagnosticsMasks,
+                    DiscardOldest = m_discardOldest,
+                    IsDurable = IsDurable,
+                    IsDeleted = m_isDeleted,
+                    IsDetached = m_isDetached,
+                    Encoding = DataEncoding,
+                    FilterToUse = m_filterToUse!,
+                    Id = Id,
+                    IndexRange = m_indexRange!,
+                    LastError = m_lastError!,
+                    LastValue = m_lastValue,
+                    MonitoringMode = MonitoringMode,
+                    NodeId = NodeId,
+                    OriginalFilter = Filter!,
+                    Range = m_range,
+                    TimestampsToReturn = m_timestampsToReturn,
+                    TypeMask = MonitoredItemType,
+                    ParsedIndexRange = m_parsedIndexRange
+                };
+            }
+        }
+
+        private void QueueNodeIdUnknown()
+        {
+            if ((MonitoredItemType & MonitoredItemTypeMask.DataChange) == 0)
+            {
+                return;
+            }
+
+            DataValue value = CreateNodeIdUnknownValue();
+            var error = new ServiceResult(StatusCodes.BadNodeIdUnknown);
+
+            // With queueing disabled the last value is what the Client is served, so there is
+            // nothing to protect and the notification simply becomes that value.
+            if (QueueSize > 1)
+            {
+                m_dataChangeQueueHandler?.QueueRequiredValue(value, error);
+            }
+
+            m_lastValue = value;
+            m_lastError = error;
+            m_readyToPublish = true;
+            m_readyToTrigger = true;
+        }
+
+        private DataValue CreateNodeIdUnknownValue()
+        {
+            DateTime utcNow = m_timeProvider.GetUtcNow().UtcDateTime;
+            return new DataValue(
+                Variant.Null,
+                StatusCodes.BadNodeIdUnknown,
+                utcNow,
+                utcNow);
+        }
+
+        private static bool IsBadNodeIdUnknown(in DataValue value, ServiceResult? error)
+        {
+            if (error?.StatusCode.Code == StatusCodes.BadNodeIdUnknown.Code)
+            {
+                return true;
+            }
+
+            return !value.IsNull && value.StatusCode.Code == StatusCodes.BadNodeIdUnknown.Code;
         }
 
         /// <summary>
@@ -2010,15 +2208,53 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual void Dispose(bool disposing)
         {
-            if (disposing)
+            if (!disposing)
             {
-                m_dataChangeQueueHandler?.Dispose();
-                m_eventQueueHandler?.Dispose();
+                return;
             }
+
+            lock (m_lock)
+            {
+                if (m_isDisposed)
+                {
+                    return;
+                }
+
+                m_isDisposed = true;
+
+                // A NodeManager reload may be handing this item to its replacement right now.
+                // Tearing the queues down underneath it would leave the replacement sampling a
+                // disposed item, so the teardown waits for the attach to report back.
+                if (m_isAttaching)
+                {
+                    return;
+                }
+            }
+
+            DisposeQueueHandlers();
+        }
+
+        /// <summary>
+        /// Releases the queues once no attach is in flight.
+        /// </summary>
+        private void DisposeQueueHandlers()
+        {
+            DataChangeQueueHandler? dataChangeQueueHandler;
+            EventQueueHandler? eventQueueHandler;
+            lock (m_lock)
+            {
+                dataChangeQueueHandler = m_dataChangeQueueHandler;
+                eventQueueHandler = m_eventQueueHandler;
+            }
+
+            dataChangeQueueHandler?.Dispose();
+            eventQueueHandler?.Dispose();
         }
 
         private readonly Lock m_lock = new();
         private readonly ILogger m_logger;
+        private bool m_isDisposed;
+        private bool m_isAttaching;
         private readonly TimeProvider m_timeProvider;
         private IServerInternal m_server;
         private string? m_indexRange;
@@ -2049,6 +2285,14 @@ namespace Opc.Ua.Server
         private bool m_triggered;
         private bool m_resendData;
         private HashSet<string>? m_filteredRetainConditionIds;
+        private bool m_isDetached;
+
+        /// <summary>
+        /// The handle a detached MonitoredItem is parked on. It is a shared sentinel, because a
+        /// detached item has no real Node behind it until it is attached again.
+        /// </summary>
+        private static readonly object s_detachedHandle = new();
+        private bool m_isDeleted;
     }
 
     /// <summary>
@@ -2102,6 +2346,15 @@ namespace Opc.Ua.Server
             Message = "MONITORED ITEM: Publish(QueueSize={QueueSize})")]
         public static partial void MONITOREDITEMPublishQueueSizeQueueSize(this ILogger logger, int queueSize);
 
+        [LoggerMessage(
+            EventId = ServerCompatibilityEventIds.MonitoredItemReady,
+            EventName = "MonitoredItemReady",
+            Level = LogLevel.Trace,
+            Message = "IsReadyToPublish[{Id}] {State}")]
+        public static partial void CompatibilityMonitoredItemReady(
+            this ILogger logger,
+            uint id,
+            string state);
 
         [LoggerMessage(EventId = ServerEventIds.MonitoredItem + 7, Level = LogLevel.Error,
             Message = "Failed to restore queue for monitored item with id {MonitoredItemId}")]

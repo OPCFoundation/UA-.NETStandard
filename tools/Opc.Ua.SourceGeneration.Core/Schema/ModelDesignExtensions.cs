@@ -116,7 +116,8 @@ namespace Opc.Ua.Schema.Model
             this InstanceDesign instance,
             string targetNamespace,
             Namespace[] namespaces,
-            bool asFactory = false)
+            bool asFactory = false,
+            bool applyStandardFallback = true)
         {
             if (instance is MethodDesign method)
             {
@@ -146,10 +147,24 @@ namespace Opc.Ua.Schema.Model
 
                 if (method.HasArguments)
                 {
-                    return CoreUtils.Format(
+                    string typedClassName = CoreUtils.Format(
                         "{0}{1}MethodState",
                         asFactory ? "new " : string.Empty,
                         className);
+                    // Degrade a reference to a standard global::Opc.Ua.*MethodState
+                    // to the base MethodState when a curated Opc.Ua.Core omits the
+                    // typed class and the current model pass does not declare it
+                    // (e.g. the FileDirectoryType methods on a Robotics Programs
+                    // object). Model-generation-scoped; see
+                    // StandardMethodStateFallback.
+                    if (applyStandardFallback &&
+                        StandardMethodStateFallback.ShouldFallBackToBase(typedClassName))
+                    {
+                        return CoreUtils.Format(
+                            "{0}global::Opc.Ua.MethodState",
+                            asFactory ? "new " : string.Empty);
+                    }
+                    return typedClassName;
                 }
 
                 return CoreUtils.Format(

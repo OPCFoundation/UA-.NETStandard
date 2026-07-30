@@ -350,7 +350,7 @@ namespace Opc.Ua.Gds.Server.Diagnostics
                 server, systemContext, objectId, method, inputArguments,
                 "KeyCredentialRequestedAuditEvent",
                 static () => new KeyCredentialRequestedAuditEventState(null),
-                logger, exception);
+                logger, exception, redactExceptionMessage: true);
         }
 
         /// <summary>
@@ -362,13 +362,14 @@ namespace Opc.Ua.Gds.Server.Diagnostics
             NodeId objectId,
             MethodState method,
             ArrayOf<Variant> inputArguments,
-            ILogger logger)
+            ILogger logger,
+            Exception? exception = null)
         {
             ReportSimpleAuditEvent(
                 server, systemContext, objectId, method, inputArguments,
                 "KeyCredentialDeliveredAuditEvent",
                 static () => new KeyCredentialDeliveredAuditEventState(null),
-                logger, null);
+                logger, exception, redactExceptionMessage: true);
         }
 
         /// <summary>
@@ -387,7 +388,7 @@ namespace Opc.Ua.Gds.Server.Diagnostics
                 server, systemContext, objectId, method, inputArguments,
                 "KeyCredentialRevokedAuditEvent",
                 static () => new KeyCredentialRevokedAuditEventState(null),
-                logger, exception);
+                logger, exception, redactExceptionMessage: true);
         }
 
         /// <summary>
@@ -406,7 +407,7 @@ namespace Opc.Ua.Gds.Server.Diagnostics
                 server, systemContext, objectId, method, inputArguments,
                 "AccessTokenIssuedAuditEvent",
                 static () => new AccessTokenIssuedAuditEventState(null),
-                logger, exception);
+                logger, exception, redactExceptionMessage: false);
         }
 
         /// <summary>
@@ -422,16 +423,19 @@ namespace Opc.Ua.Gds.Server.Diagnostics
             string eventName,
             Func<AuditUpdateMethodEventState> factory,
             ILogger logger,
-            Exception? exception)
+            Exception? exception,
+            bool redactExceptionMessage)
         {
             try
             {
                 AuditUpdateMethodEventState e = factory();
 
-                TranslationInfo message = exception == null
-                    ? new TranslationInfo(eventName, "en-US", $"{eventName}.")
-                    : new TranslationInfo(eventName, "en-US",
-                        $"{eventName} - Exception: {exception.Message}.");
+                string messageText = exception == null
+                    ? $"{eventName}."
+                    : redactExceptionMessage
+                        ? $"{eventName} failed."
+                        : $"{eventName} - Exception: {exception.Message}.";
+                var message = new TranslationInfo(eventName, "en-US", messageText);
 
                 e.Initialize(
                     systemContext, null, EventSeverity.Min,

@@ -30,13 +30,12 @@ plugs it together.
 | Library | Role |
 |---------|------|
 | `Opc.Ua.Di` | Model assembly: source-generated NodeId tables, DataTypes, ObjectType client proxies, `AddOpcUaDi(NodeStateCollection)` extension. |
-| `Opc.Ua.Di.Server` | Server: `DiNodeManager`, fluent `IDeviceBuilder`, locking service, software-update package store, hosting integration. |
+| `Opc.Ua.Di.Server` | Server: `DiNodeManager`, fluent topology/device builders, locking service, software-update package store, hosting integration. |
 | `Opc.Ua.Di.Client` | Client: `DiDeviceClient`, `DiDiscoveryClient`, `DiTopologyClient`, `DiLockClient`, `SoftwareUpdateClient`, hosting integration. |
 
-The running example is `samples/PumpDeviceIntegrationServer`
-(companion-spec server with full simulation **and** the Device
-Integration software-update facet attached to a second declarative
-device).
+The running example is `samples/PumpDeviceIntegrationServer`, a
+companion-spec server with full simulation and a second generated
+`PumpType` configured through the topology-element builder.
 
 ## Quick start
 
@@ -82,14 +81,20 @@ builder.Services
     // double-register the OPC UA Device Integration namespace.
     .ConfigureDevicesFor<Pumps.PumpNodeManager>(async ctx =>
     {
-        var pump = await ctx.CreateDeviceAsync(
-            new QualifiedName("Pump #2", ctx.Manager.DiNamespaceIndex));
-        pump.WithIdentification(id =>
-        {
-            id.Manufacturer = new LocalizedText("Acme Pumps Inc.");
-            id.SerialNumber = "SN-DI-2";
-            id.DeviceClass = "Pump";
-        });
+        var manager = (Pumps.PumpNodeManager)ctx.Manager;
+        ushort pumpsNamespaceIndex = (ushort)manager.Server.NamespaceUris.GetIndex(
+            Opc.Ua.Pumps.Namespaces.Pumps);
+        PumpState state = await manager.CreatePumpAsync(
+            new QualifiedName("Pump #2", pumpsNamespaceIndex),
+            ctx.CancellationToken);
+        ITopologyElementBuilder<PumpState> pump =
+            ctx.TopologyElement<PumpState>(state.NodeId);
+
+        ushort diNamespaceIndex = manager.DiNamespaceIndex;
+        pump.WithIdentificationGroup(group => group.Configure(node =>
+            node.WithProperty(
+                new QualifiedName("SerialNumber", diNamespaceIndex),
+                Variant.From("SN-DI-2"))));
     });
 ```
 
@@ -131,14 +136,14 @@ fluent API for node managers.
 All entry points live on `DiNodeManager`:
 
 ```csharp
-// Default DeviceState under the Device Integration DeviceSet folder (or whatever
-// ResolveDefaultDeviceParent() returns).
+// Default DeviceState organized by the Device Integration DeviceSet (or attached
+// below whatever ResolveDefaultDeviceParent() returns).
 ValueTask<IDeviceBuilder<DeviceState>> CreateDeviceAsync(
     QualifiedName browseName,
     NodeState? parent = null,
     CancellationToken ct = default);
 
-// Typed factory — required for companion-spec subclasses (PumpType etc.)
+// Typed factory for ComponentType-derived companion-spec devices.
 ValueTask<IDeviceBuilder<TDevice>> CreateDeviceAsync<TDevice>(
     QualifiedName browseName,
     NodeId typeDefinitionId,
@@ -156,6 +161,16 @@ IDeviceBuilder<TDevice> DeviceByBrowseName<TDevice>(
     QualifiedName browseName,
     NodeState? parent = null)
     where TDevice : ComponentState;
+
+// Wrap an existing TopologyElementType-derived companion instance.
+ITopologyElementBuilder<TElement> TopologyElement<TElement>(TElement element)
+    where TElement : TopologyElementState;
+ITopologyElementBuilder<TElement> TopologyElement<TElement>(NodeId nodeId)
+    where TElement : TopologyElementState;
+ITopologyElementBuilder<TElement> TopologyElementByBrowseName<TElement>(
+    QualifiedName browseName,
+    NodeState? parent = null)
+    where TElement : TopologyElementState;
 ```
 
 `CreateDeviceAsync` performs four steps:
@@ -163,21 +178,24 @@ IDeviceBuilder<TDevice> DeviceByBrowseName<TDevice>(
 1. Resolves the parent (default: Device Integration `DeviceSet`; subclasses override
    `ResolveDefaultDeviceParent()` — e.g. machinery managers can return
    the `Machines` folder).
-2. Fails fast if a child with the same browse name already exists
+2. Uses `Organizes` for the well-known DI `DeviceSet`; explicit custom parents
+   retain `HasComponent`.
+3. Fails fast if a child with the same browse name already exists
    (`StatusCodes.BadBrowseNameDuplicated`).
-3. Materialises the instance through the source-generated
+4. Materialises the instance through the source-generated
    `CreateInstanceOf<Type>` factory (e.g. `CreateInstanceOfDeviceType`)
    so the device carries the type's **mandatory** children — for
    `DeviceType` the eight nameplate variables (`Manufacturer`, `Model`,
    `HardwareRevision`, `SoftwareRevision`, `DeviceRevision`,
    `DeviceManual`, `SerialNumber`, `RevisionCounter`) with correct
    DI-namespace BrowseNames — plus the type's `HasInterface`
-   references. It then sets BrowseName/SymbolicName/DisplayName, stamps
-   the `TypeDefinitionId`, assigns the NodeId via the active
-   `Context.NodeIdFactory`, and walks the whole subtree assigning
-   per-instance NodeIds so multiple instances of the same type never
-   collide on the TYPE NodeIds emitted by the generator.
-4. Calls the real `AsyncCustomNodeManager.AddPredefinedNodeAsync` so
+   references. Because a browse name is supplied, the factory also
+   rebases the whole subtree onto per-instance NodeIds from the active
+   `Context.NodeIdFactory`, so multiple instances of the same type
+   never collide on the TYPE NodeIds emitted by the generator. It then
+   sets BrowseName/SymbolicName/DisplayName and stamps the
+   `TypeDefinitionId`.
+5. Calls the real `AsyncCustomNodeManager.AddPredefinedNodeAsync` so
    subscription wiring, type-tree registration, and root-notifier
    propagation all happen exactly as for nodes loaded from a NodeSet2.
 
@@ -200,6 +218,16 @@ IDeviceBuilder<TDevice>
     .Configure(action<TDevice, ISystemContext>)
     .WithDeviceHealth(DeviceHealthEnumeration)   // extension; requires TDevice : DeviceState
 ```
+
+`ITopologyElementBuilder<TElement>` is the parallel surface for
+generated companion types that derive directly from
+`TopologyElementType`. It exposes only common topology operations:
+functional groups, `ConnectsTo` references, typed node access, and
+raw state configuration. The internal device-builder implementation
+reuses the same behavior without changing the existing public
+`IDeviceBuilder<TDevice>` contract. Component nameplates, support
+information, software update, lifetime indications, and
+`DeviceHealth` remain on their narrower component/device builders.
 
 #### Identification properties
 
@@ -467,6 +495,12 @@ public interface IDiPostSetupContext
     IDeviceBuilder<TDevice> Device<TDevice>(NodeId nodeId) where TDevice : ComponentState;
     IDeviceBuilder<TDevice> DeviceByBrowseName<TDevice>(QualifiedName name, NodeState? parent = null)
         where TDevice : ComponentState;
+    ITopologyElementBuilder<TElement> TopologyElement<TElement>(NodeId nodeId)
+        where TElement : TopologyElementState;
+    ITopologyElementBuilder<TElement> TopologyElementByBrowseName<TElement>(
+        QualifiedName name,
+        NodeState? parent = null)
+        where TElement : TopologyElementState;
 }
 ```
 
@@ -742,9 +776,6 @@ builder.Services
     });
 ```
 
-The companion sample `samples/PumpDeviceIntegrationServer`
-demonstrates the end-to-end pattern with `SoftwarePackageSeeder`.
-
 ### Client-side software update
 
 `SoftwareUpdateClient` exposes a minimal read-only surface:
@@ -894,7 +925,8 @@ References are to the OPC 10000-100 (DI v1.05) specification sections.
 
 ### Foundation — nameplates and topology elements
 
-- `TopologyElementType` (§5.2) — abstract base for every Device Integration node.
+- `TopologyElementType` (§5.2) — abstract base exposed through
+  `ITopologyElementBuilder<TElement>`.
 - `IVendorNameplateType` (§5.10) — Manufacturer, Model, SerialNumber, HardwareRevision, SoftwareRevision, DeviceRevision, DeviceManual, DeviceClass, ProductInstanceUri, ProductCode. Populated by `IDeviceBuilder.WithIdentification(...)`.
 - `ITagNameplateType` (§5.11) — AssetId, ComponentName, DeviceRevision. Populated by the same builder.
 - `IDeviceHealthType` (§5.12) — DeviceHealth enum plus the four NAMUR alarm references.
@@ -909,8 +941,9 @@ References are to the OPC 10000-100 (DI v1.05) specification sections.
 
 ### Topology references
 
-- `ConnectsTo` (§5.6.2) — `IDeviceBuilder.ConnectsTo(other)`.
-- `ConnectsToParent` (§5.6.3) — `IDeviceBuilder.ConnectsToParent(other)`.
+- `ConnectsTo` (§5.6.2) — `ITopologyElementBuilder.ConnectsTo(other)`.
+- `ConnectsToParent` (§5.6.3) —
+  `ITopologyElementBuilder.ConnectsToParent(other)`.
 - `IsOnline` (§5.6.4) — exposed for online-component wiring.
 - `UpdateParent`, `CanUpdate` (§5.6.5–§5.6.6) — used by software update.
 
@@ -923,7 +956,9 @@ References are to the OPC 10000-100 (DI v1.05) specification sections.
 
 ### Functional groups (§5.7)
 
-All eight well-known Device Integration functional groups are exposed through typed builder methods on `IDeviceBuilder`:
+All eight well-known Device Integration functional groups are exposed
+through typed methods on `ITopologyElementBuilder`; device builders
+inherit the same surface:
 
 - `Identification`, `Configuration`, `Maintenance`, `Diagnostics`, `Statistics`, `Status`, `Operational`, `OperationCounters`.
 

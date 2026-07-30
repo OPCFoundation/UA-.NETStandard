@@ -183,6 +183,45 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task RestoredSessionWithoutTransferSecurityStateFailsClosedAsync()
+        {
+            var factory = new TestSessionManagerFactory(
+                RestoreBehavior.RestoreWithoutSecurityState);
+            var fixture = new ServerFixture<StandardServer>(t => new StandardServer(t)
+            {
+                SessionManagerFactory = factory
+            })
+            {
+                SecurityNone = true
+            };
+
+            try
+            {
+                StandardServer server = await fixture.StartAsync().ConfigureAwait(false);
+
+                ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await server.ActivateSessionAsync(
+                        CreateChannelContext(server),
+                        new RequestHeader
+                        {
+                            AuthenticationToken = new NodeId("missing-security-state", 2)
+                        },
+                        null,
+                        [],
+                        [],
+                        default,
+                        null,
+                        RequestLifetime.None).ConfigureAwait(false))!;
+
+                Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+            }
+            finally
+            {
+                await fixture.StopAsync().ConfigureAwait(false);
+            }
+        }
+
+        [Test]
         public async Task DelayedRestoreDoesNotBlockConcurrentSessionOperationsAsync()
         {
             var factory = new TestSessionManagerFactory(RestoreBehavior.DelayThenRestore);
@@ -271,6 +310,7 @@ namespace Opc.Ua.Server.Tests
         {
             ReturnNull,
             Restore,
+            RestoreWithoutSecurityState,
             DelayThenRestore
         }
 
@@ -458,6 +498,18 @@ namespace Opc.Ua.Server.Tests
                     0,
                     0);
                 await session.InitializeAsync(context, cancellationToken).ConfigureAwait(false);
+                if (m_behavior != RestoreBehavior.RestoreWithoutSecurityState)
+                {
+                    EndpointDescription endpoint =
+                        context.ChannelContext!.EndpointDescription!;
+                    SetRestoredSessionTransferSecurityState(
+                        session,
+                        context.ChannelContext.ClientChannelCertificate.ToByteString(),
+                        endpoint.SecurityPolicyUri ?? SecurityPolicies.None,
+                        endpoint.SecurityMode,
+                        UserTokenType.Anonymous,
+                        clientUserId: null);
+                }
                 return session;
             }
 

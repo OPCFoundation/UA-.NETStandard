@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -97,6 +96,24 @@ namespace Pumps
             return node.NodeId;
         }
 
+        /// <summary>
+        /// Creates and registers a generated <see cref="PumpState"/>
+        /// instance organized by the DI <c>DeviceSet</c>.
+        /// </summary>
+        /// <param name="pumpBrowseName">Browse name for the pump instance.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        /// <returns>The registered generated pump state.</returns>
+        /// <exception cref="ServiceResultException"></exception>
+        public ValueTask<PumpState> CreatePumpAsync(
+            QualifiedName pumpBrowseName,
+            CancellationToken cancellationToken = default)
+        {
+            return MaterialisePumpInstanceAsync(
+                pumpBrowseName,
+                cancellationToken,
+                RegisterPumpSimulation);
+        }
+
         /// <inheritdoc/>
         protected override ValueTask<NodeStateCollection> LoadPredefinedNodesAsync(
             ISystemContext context,
@@ -160,7 +177,7 @@ namespace Pumps
         /// <c>CreateDeviceAsync</c> requires
         /// (<c>where TDevice : ComponentState</c>). The materialisation
         /// therefore goes through
-        /// <see cref="MaterialisePumpInstanceAsync(QualifiedName, CancellationToken)"/>
+        /// <see cref="CreatePumpAsync(QualifiedName, CancellationToken)"/>
         /// which composes the same primitives
         /// (<see cref="SystemContext"/> +
         /// <see cref="CustomNodeManager2.AddPredefinedNodeAsync(ISystemContext, NodeState, CancellationToken)"/>)
@@ -178,23 +195,26 @@ namespace Pumps
 
         /// <summary>
         /// Creates a <see cref="PumpState"/> instance with the supplied
-        /// browse name as a child of the DI <c>DeviceSet</c> object and
-        /// registers it as a predefined node. The instance carries
+        /// browse name, registers it as a predefined node, and links it
+        /// from the DI <c>DeviceSet</c> with <c>Organizes</c>. The instance carries
         /// <c>PumpType</c> as its TypeDefinitionId so clients see the
         /// full OPC 40223 pump surface; the source-generated factory
-        /// materialises mandatory children (Identification) automatically.
+        /// materialises mandatory children (Identification) automatically
+        /// and - because a browse name is supplied - rebases the whole
+        /// subtree onto per-instance NodeIds minted by <see cref="New"/>.
         /// Optional children that the fluent simulation wires
         /// (Operational/Measurements/{analog states}, Events with the
         /// SupervisionProcessFluid + SupervisionPumpOperation subtrees,
         /// Maintenance) are materialised here via the generator-emitted
-        /// <c>AddXxx(context)</c> helpers; each new node gets a
-        /// per-instance NodeId via <see cref="AssignChildNodeIds"/>
-        /// before <c>AddPredefinedNodeAsync</c> recursively registers
-        /// the entire subtree.
+        /// <c>AddXxx(context)</c> helpers, which assign per-instance
+        /// NodeIds to every node they add before
+        /// <c>AddPredefinedNodeAsync</c> recursively registers the
+        /// entire subtree.
         /// </summary>
-        private async ValueTask MaterialisePumpInstanceAsync(
+        private async ValueTask<PumpState> MaterialisePumpInstanceAsync(
             QualifiedName pumpBrowseName,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            Action<PumpState>? onRegistered = null)
         {
             NodeState? deviceSet = PredefinedNodes.FindById(NodeId.Create(
                 Opc.Ua.Di.Objects.DeviceSet,
@@ -203,48 +223,50 @@ namespace Pumps
             if (deviceSet == null)
             {
                 m_logger.DiDeviceSetNotFound(pumpBrowseName.Name);
-                return;
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConfigurationError,
+                    "The DI DeviceSet is not available.");
             }
 
-            // Fail-fast on duplicate.
-            if (deviceSet.FindChild(SystemContext, pumpBrowseName) != null)
+            var pumpNodeId = new NodeId(
+                $"{deviceSet.NodeId.IdentifierAsString}_{pumpBrowseName.Name}",
+                deviceSet.NodeId.NamespaceIndex);
+            if (PredefinedNodes.ContainsKey(pumpNodeId))
             {
                 m_logger.DeviceSetAlreadyContains(pumpBrowseName.Name);
-                return;
+                throw ServiceResultException.Create(
+                    StatusCodes.BadBrowseNameDuplicated,
+                    "DeviceSet already contains '{0}'.",
+                    pumpBrowseName);
             }
 
+            // The DeviceSet is passed as the parent so New() can derive the
+            // per-instance NodeIds the factory stamps on the pump and its
+            // mandatory children from the parent chain.
             PumpState pump = SystemContext
                 .CreateInstanceOfPumpType(deviceSet, pumpBrowseName);
 
-            pump.NodeId = SystemContext.NodeIdFactory.New(SystemContext, pump);
+            pump.ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.Organizes;
+            deviceSet.AddChild(pump);
 
             MaterialisePumpOptionalChildren(pump);
 
-            // AddChild defaults ReferenceTypeId to HasComponent when null
-            // (NodeState.AddChild line 4511-4514); ModellingRuleId defaults
-            // to NodeId.Null on every fresh NodeState — no explicit set needed.
-            deviceSet.AddChild(pump);
-
-            // Walk the whole pump subtree assigning per-instance NodeIds
-            // BEFORE AddPredefinedNodeAsync uses them as the PredefinedNodes
-            // dictionary key. The generator's AddXxx helpers stamp the
-            // TYPE NodeId on every new child; without this walk every
-            // instance of PumpType would collide on those NodeIds.
-            AssignChildNodeIds(pump);
-
             await AddPredefinedNodeAsync(SystemContext, pump, cancellationToken)
                 .ConfigureAwait(false);
-
-            m_pump1 = pump;
+            await AddRootNotifierAsync(pump, cancellationToken)
+                .ConfigureAwait(false);
+            onRegistered?.Invoke(pump);
 
             m_logger.MaterialisedPump(pumpBrowseName.Name, pump.NodeId);
+            return pump;
         }
 
         /// <summary>
         /// Materialises the optional PumpType children that the fluent
         /// simulation in <see cref="Configure"/> wires. Each call to a
         /// generator-emitted <c>AddXxx(context)</c> helper creates the
-        /// child and assigns it to the parent's typed property; the
+        /// child, assigns it to the parent's typed property and stamps a
+        /// per-instance NodeId on the new node and its descendants; the
         /// parent.AddChild bookkeeping happens inside the helpers
         /// transparently.
         /// </summary>
@@ -273,6 +295,17 @@ namespace Pumps
             // under SupervisionPumpOperation.
             pump.AddEvents(SystemContext);
             SupervisionState events = pump.Events!;
+            pump.EventNotifier |= EventNotifiers.SubscribeToEvents;
+            events.EventNotifier |= EventNotifiers.SubscribeToEvents;
+            pump.AddReference(
+                Opc.Ua.Types.ReferenceTypeIds.HasNotifier,
+                isInverse: false,
+                events.NodeId);
+            events.AddReference(
+                Opc.Ua.Types.ReferenceTypeIds.HasNotifier,
+                isInverse: true,
+                pump.NodeId);
+
             events.AddSupervisionProcessFluid(SystemContext);
             events.SupervisionProcessFluid!.AddCavitation(SystemContext);
 
@@ -283,47 +316,6 @@ namespace Pumps
             // typed-accessor generator (FB-3 phase 3) ships materialisable
             // leaves for ConditionBasedMaintenance / BreakdownMaintenance.
             pump.AddMaintenance(SystemContext);
-        }
-
-        /// <summary>
-        /// Recursively walks the children of <paramref name="parent"/>
-        /// and assigns per-instance NodeIds via the active
-        /// <see cref="ISystemContext.NodeIdFactory"/>. Required after
-        /// calling generator-emitted <c>AddXxx(context)</c> helpers
-        /// which stamp the TYPE NodeId on every new child.
-        /// </summary>
-        private void AssignChildNodeIds(NodeState parent)
-        {
-            var children = new List<BaseInstanceState>();
-            parent.GetChildren(SystemContext, children);
-            foreach (BaseInstanceState child in children)
-            {
-                child.NodeId = SystemContext.NodeIdFactory.New(
-                    SystemContext, child);
-                AssignChildNodeIds(child);
-            }
-        }
-
-        /// <summary>
-        /// Registers a DI <c>DeviceHealth</c> variable that the
-        /// supervision simulation loop should toggle in response to
-        /// the simulated cavitation / motor-overheat flags. The
-        /// companion-spec PumpType does not itself expose
-        /// <c>DeviceHealth</c> (it inherits from
-        /// <see cref="TopologyElementState"/>, not
-        /// <see cref="DeviceState"/>); callers can
-        /// attach <c>DeviceHealth</c> to a sibling
-        /// <see cref="DeviceState"/> (e.g. the
-        /// declarative <c>Pump #2</c> created in <c>Program.cs</c>)
-        /// and register it here to participate in the simulation loop.
-        /// </summary>
-        /// <param name="health">
-        /// The variable to drive; pass <see langword="null"/> to detach.
-        /// </param>
-        public void RegisterSupervisedDeviceHealth(
-            BaseDataVariableState<DeviceHealthEnumeration>? health)
-        {
-            m_supervisedDeviceHealth = health;
         }
 
         /// <summary>

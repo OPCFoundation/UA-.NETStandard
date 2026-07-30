@@ -91,6 +91,7 @@ namespace Opc.Ua.Bindings
                 timeProvider)
         {
             m_logger = telemetry.CreateLogger<TcpServerChannel>();
+            m_eventLogger = telemetry.CreateLogger(CoreEventIds.CoreCompatibilityCategory);
             m_queuedResponses = [];
         }
 
@@ -1385,11 +1386,7 @@ namespace Opc.Ua.Bindings
                         "Cannot send response over a closed channel.");
                 }
 
-                Utils.EventLog.SendResponse((int)ChannelId, (int)requestId);
-                // trace logger:
-                //     "ChannelId {ChannelId}: SendResponse {RequestId}",
-                //     ChannelId,
-                //     requestId);
+                m_eventLogger.CoreSendResponse((int)ChannelId, (int)requestId);
                 BufferCollection? buffers = null;
 
                 try
@@ -1497,6 +1494,7 @@ namespace Opc.Ua.Bindings
         }
 
         private readonly ILogger m_logger;
+        private readonly ILogger m_eventLogger;
         private SortedDictionary<uint, IServiceResponse> m_queuedResponses;
         private ReverseConnectAsyncResult? m_pendingReverseHello;
         private byte[]? m_oscRequestSignature;
@@ -1623,6 +1621,16 @@ namespace Opc.Ua.Bindings
         public static partial void TcpServerLog17(
             this ILogger logger,
             global::System.Exception? exception);
+
+        [LoggerMessage(
+            EventId = CoreEventIds.CoreSendResponse,
+            EventName = "SendResponse",
+            Level = LogLevel.Trace,
+            Message = "ChannelId {ChannelId}: SendResponse {RequestId}")]
+        public static partial void CoreSendResponse(
+            this ILogger logger,
+            int channelId,
+            int requestId);
 
     }
 

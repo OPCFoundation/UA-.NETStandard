@@ -111,6 +111,33 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(evicted.Disposed, Is.True);
             Assert.That(holder.RestoreBrowse(ToByteString(cp1.Id)), Is.Null);
+            Assert.That(holder.RestoreBrowse(ToByteString(cp2.Id)), Is.Null);
+            Assert.That(holder.RestoreBrowse(ToByteString(cp3.Id)), Is.SameAs(cp3));
+            store.Verify(
+                s => s.RemoveContinuationPoint(s_sessionId, ContinuationPointKind.Browse, cp1.Id),
+                Times.Once);
+            store.Verify(
+                s => s.RemoveContinuationPoint(s_sessionId, ContinuationPointKind.Browse, cp2.Id),
+                Times.Once);
+        }
+
+        [Test]
+        public void SaveBrowseEvictsWhenCountReachesConfiguredLimit()
+        {
+            var store = new Mock<IContinuationPointStore>(MockBehavior.Loose);
+            SessionContinuationPoints holder = NewHolder(maxBrowse: 2, store: store.Object);
+
+            var evicted = new TrackingDisposable();
+            ContinuationPoint cp1 = NewBrowsePoint(data: evicted);
+            ContinuationPoint cp2 = NewBrowsePoint();
+            ContinuationPoint cp3 = NewBrowsePoint();
+
+            holder.SaveBrowse(cp1);
+            holder.SaveBrowse(cp2);
+            holder.SaveBrowse(cp3);
+
+            Assert.That(evicted.Disposed, Is.True);
+            Assert.That(holder.RestoreBrowse(ToByteString(cp1.Id)), Is.Null);
             Assert.That(holder.RestoreBrowse(ToByteString(cp2.Id)), Is.SameAs(cp2));
             Assert.That(holder.RestoreBrowse(ToByteString(cp3.Id)), Is.SameAs(cp3));
             store.Verify(
@@ -166,6 +193,70 @@ namespace Opc.Ua.Server.Tests
             holder.SaveBrowse(NewBrowsePoint());
 
             Assert.That(holder.RestoreBrowse(ToByteString(Guid.NewGuid())), Is.Null);
+        }
+
+        [Test]
+        public void RemoveBrowseForManagerThrowsOnNullNodeManager()
+        {
+            SessionContinuationPoints holder = NewHolder();
+
+            ArgumentNullException ex = Assert.Throws<ArgumentNullException>(
+                () => holder.RemoveBrowseForManager(null!))!;
+            Assert.That(ex.ParamName, Is.EqualTo("nodeManager"));
+        }
+
+        [Test]
+        public void RemoveBrowseForManagerIsNoOpWhenNoBrowsePointsSaved()
+        {
+            SessionContinuationPoints holder = NewHolder();
+            IAsyncNodeManager nodeManager = NewNodeManager(new Mock<INodeManager>().Object);
+
+            Assert.DoesNotThrow(() => holder.RemoveBrowseForManager(nodeManager));
+        }
+
+        [Test]
+        public void RemoveBrowseForManagerRemovesMatchingManagerAndNotifiesStore()
+        {
+            var store = new Mock<IContinuationPointStore>(MockBehavior.Loose);
+            SessionContinuationPoints holder = NewHolder(store: store.Object);
+
+            IAsyncNodeManager matchingManager = NewNodeManager(new Mock<INodeManager>().Object);
+            IAsyncNodeManager otherManager = NewNodeManager(new Mock<INodeManager>().Object);
+
+            var evicted = new TrackingDisposable();
+            ContinuationPoint matchingCp = NewBrowsePoint(data: evicted);
+            matchingCp.Manager = matchingManager;
+            ContinuationPoint otherCp = NewBrowsePoint();
+            otherCp.Manager = otherManager;
+
+            holder.SaveBrowse(matchingCp);
+            holder.SaveBrowse(otherCp);
+
+            holder.RemoveBrowseForManager(matchingManager);
+
+            Assert.That(evicted.Disposed, Is.True);
+            Assert.That(holder.RestoreBrowse(ToByteString(matchingCp.Id)), Is.Null);
+            Assert.That(holder.RestoreBrowse(ToByteString(otherCp.Id)), Is.SameAs(otherCp));
+            store.Verify(
+                s => s.RemoveContinuationPoint(s_sessionId, ContinuationPointKind.Browse, matchingCp.Id),
+                Times.Once);
+        }
+
+        [Test]
+        public void RemoveBrowseForManagerMatchesBySyncNodeManagerWhenManagerInstancesDiffer()
+        {
+            SessionContinuationPoints holder = NewHolder();
+            INodeManager sharedSyncManager = new Mock<INodeManager>().Object;
+            IAsyncNodeManager creatingManager = NewNodeManager(sharedSyncManager);
+            IAsyncNodeManager lookupManager = NewNodeManager(sharedSyncManager);
+
+            ContinuationPoint cp = NewBrowsePoint();
+            cp.Manager = creatingManager;
+            holder.SaveBrowse(cp);
+
+            holder.RemoveBrowseForManager(lookupManager);
+
+            Assert.That(holder.RestoreBrowse(ToByteString(cp.Id)), Is.Null);
         }
 
         [Test]
@@ -364,12 +455,52 @@ namespace Opc.Ua.Server.Tests
             Assert.DoesNotThrow(holder.Clear);
         }
 
+        [Test]
+        public void RemoveHistoryForManagerThrowsOnNullNodeManager()
+        {
+            SessionContinuationPoints holder = NewHolder();
+
+            ArgumentNullException ex = Assert.Throws<ArgumentNullException>(
+                () => holder.RemoveHistoryForManager(null!))!;
+            Assert.That(ex.ParamName, Is.EqualTo("nodeManager"));
+        }
+
+        [Test]
+        public void RemoveHistoryForManagerIsNoOpWhenNoHistoryPointsSaved()
+        {
+            SessionContinuationPoints holder = NewHolder();
+
+            Assert.DoesNotThrow(
+                () => holder.RemoveHistoryForManager(NewNodeManager(Mock.Of<INodeManager>())));
+        }
+
+        [Test]
+        public void RemoveHistoryForManagerLeavesPointsOfOtherOwners()
+        {
+            SessionContinuationPoints holder = NewHolder();
+            Guid id = Guid.NewGuid();
+
+            // A continuation point that does not record a provider cannot be attributed to a
+            // NodeManager, so it is left alone rather than dropped on a guess.
+            holder.SaveHistory(id, new object());
+
+            holder.RemoveHistoryForManager(NewNodeManager(Mock.Of<INodeManager>()));
+
+            Assert.That(holder.RestoreHistory(ToByteString(id)), Is.Not.Null);
+        }
         private static SessionContinuationPoints NewHolder(
             int maxBrowse = 10,
             int maxHistory = 10,
             IContinuationPointStore? store = null)
         {
             return new SessionContinuationPoints(() => s_sessionId, maxBrowse, maxHistory, store);
+        }
+
+        private static IAsyncNodeManager NewNodeManager(INodeManager syncNodeManager)
+        {
+            var nodeManager = new Mock<IAsyncNodeManager>();
+            nodeManager.Setup(m => m.SyncNodeManager).Returns(syncNodeManager);
+            return nodeManager.Object;
         }
 
         private static ContinuationPoint NewBrowsePoint(IDisposable? data = null)

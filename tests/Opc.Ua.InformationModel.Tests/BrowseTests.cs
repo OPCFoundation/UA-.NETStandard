@@ -417,7 +417,7 @@ namespace Opc.Ua.InformationModel.Tests
             Assert.That(releaseResponse.Results.Count, Is.EqualTo(1));
             Assert.That(StatusCode.IsGood(releaseResponse.Results[0].StatusCode), Is.True,
                 "Releasing a continuation point should return Good.");
-            Assert.That(releaseResponse.Results[0].ContinuationPoint.IsEmpty, Is.True,
+            Assert.That(releaseResponse.Results[0].ContinuationPoint.IsNull, Is.True,
                 "No continuation point should remain after release.");
         }
 

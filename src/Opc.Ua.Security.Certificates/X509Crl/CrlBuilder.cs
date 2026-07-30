@@ -260,9 +260,9 @@ namespace Opc.Ua.Security.Certificates
         /// <returns>The signed CRL.</returns>
         public IX509CRL CreateSignature(X509SignatureGenerator generator)
         {
-            byte[] tbsRawData = Encode();
             byte[] signatureAlgorithm = generator.GetSignatureAlgorithmIdentifier(
                 HashAlgorithmName);
+            byte[] tbsRawData = Encode(signatureAlgorithm);
             byte[] signature = generator.SignData(tbsRawData, HashAlgorithmName);
             var crlSigner = new X509Signature(tbsRawData, signature, signatureAlgorithm);
             RawData = crlSigner.Encode();
@@ -298,6 +298,9 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Constructs Certificate Revocation List raw data in X509 ASN format.
         /// </summary>
+        /// <param name="signatureAlgorithmIdentifier">
+        /// The DER-encoded signature AlgorithmIdentifier.
+        /// </param>
         /// <remarks>
         /// <para>CRL fields -- https://tools.ietf.org/html/rfc5280#section-5.1</para>
         /// <para>
@@ -326,7 +329,7 @@ namespace Opc.Ua.Security.Certificates
         ///                            }
         /// </para>
         /// </remarks>
-        internal byte[] Encode()
+        internal byte[] Encode(ReadOnlySpan<byte> signatureAlgorithmIdentifier)
         {
             var crlWriter = new AsnWriter(AsnEncodingRules.DER);
             {
@@ -337,13 +340,7 @@ namespace Opc.Ua.Security.Certificates
                 crlWriter.WriteInteger(1);
 
                 // Signature Algorithm Identifier
-                crlWriter.PushSequence();
-                string signatureAlgorithm = Oids.GetRSAOid(HashAlgorithmName);
-                crlWriter.WriteObjectIdentifier(signatureAlgorithm);
-                crlWriter.WriteNull();
-
-                // pop
-                crlWriter.PopSequence();
+                crlWriter.WriteEncodedValue(signatureAlgorithmIdentifier);
 
                 // Issuer
                 crlWriter.WriteEncodedValue((ReadOnlySpan<byte>)IssuerName.RawData);

@@ -183,7 +183,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Generators.GenerateStack(StackGenerationType.All, fileSystem, string.Empty, telemetry,
                 new GeneratorOptions
                 {
-                    OmitFluentApi = true
+                    OmitFluentApi = true,
+                    OmitEventRecords = true
                 });
 
             // Get all generated C# files
@@ -218,8 +219,17 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             var predefinedNodesFiles = fileSystem.CreatedFiles
                 .Where(c => c.EndsWith(".NodeStates.ex.g.cs", StringComparison.Ordinal))
                 .ToList();
+            string generatedCode = string.Join("\n", fileSystem.CreatedFiles
+                .Where(c => Path.GetExtension(c) == ".cs")
+                .Select(c => Encoding.UTF8.GetString(fileSystem.Get(c))));
 
             Assert.That(predefinedNodesFiles, Is.Not.Empty);
+            Assert.That(generatedCode, Does.Contain(
+                "global::Opc.Ua.NodeId previousNodeId = nodeState.NodeId;"));
+            Assert.That(generatedCode, Does.Contain(
+                "nodeState.NodeId.Equals("));
+            Assert.That(generatedCode, Does.Not.Contain(
+                "((global::Opc.Ua.NodeState)state)"));
 
             foreach (string file in predefinedNodesFiles)
             {
@@ -228,9 +238,11 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 // Check for proper method signatures
                 Assert.That(content, Does.Contain("global::Opc.Ua.ISystemContext context"),
                     "Methods should use ISystemContext parameter");
-                Assert.That(content, Does.Contain("state.NodeId ="),
+                Assert.That(content, Does.Contain("global::Opc.Ua.NodeState nodeState = state;"),
+                    "Code should use a base-typed NodeState local");
+                Assert.That(content, Does.Contain("nodeState.NodeId ="),
                     "Code should set NodeId property");
-                Assert.That(content, Does.Contain("state.BrowseName ="),
+                Assert.That(content, Does.Contain("nodeState.BrowseName ="),
                     "Code should set BrowseName property");
             }
         }
@@ -322,7 +334,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 Assert.That(
                     certificateAlarmFactory,
                     Does.Contain(
-                        "CreateCertificateExpirationAlarmType_ExpirationDate(context, state, forInstance: forInstance)"),
+                        "CreateCertificateExpirationAlarmType_ExpirationDate(" +
+                        "context, state, forInstance: forInstance)"),
                     "The ObjectType factory must pass its declaration/instance mode to child factories.");
                 Assert.That(
                     expirationDateFactory,
@@ -375,13 +388,18 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 // InputArguments / OutputArguments children through the
                 // singleton-instance child factories (Server_*).
                 Assert.That(code, Does.Contain(
-                    "if (parent.NodeId.Equals(global::Opc.Ua.NodeId.Create(2253u, global::Opc.Ua.Namespaces.OpcUa, context.NamespaceUris)))"),
+                    "if (parent.NodeId.Equals(global::Opc.Ua.NodeId.Create(" +
+                    "2253u, global::Opc.Ua.Namespaces.OpcUa, context.NamespaceUris)))"),
                     "CreateServerType_GetMonitoredItems should dispatch on the Server singleton NodeId.");
                 Assert.That(code, Does.Contain(
-                    "state.CreateOrReplaceInputArguments(context, CreateServer_GetMonitoredItems_InputArguments(context, state, forInstance: true));"),
+                    "state.CreateOrReplaceInputArguments(context, " +
+                    "CreateServer_GetMonitoredItems_InputArguments(" +
+                    "context, state, forInstance: true), assignInstanceNodeIds: false);"),
                     "The Server singleton branch should call the singleton-instance InputArguments factory.");
                 Assert.That(code, Does.Contain(
-                    "state.CreateOrReplaceOutputArguments(context, CreateServer_GetMonitoredItems_OutputArguments(context, state, forInstance: true));"),
+                    "state.CreateOrReplaceOutputArguments(context, " +
+                    "CreateServer_GetMonitoredItems_OutputArguments(" +
+                    "context, state, forInstance: true), assignInstanceNodeIds: false);"),
                     "The Server singleton branch should call the singleton-instance OutputArguments factory.");
 
                 // RoleType (multi-singleton: WellKnownRole_Observer = 15668,
@@ -389,20 +407,26 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 // must dispatch on parent.NodeId across every singleton
                 // whose corresponding child factory has been collected.
                 Assert.That(code, Does.Contain(
-                    "state.CreateOrReplaceInputArguments(context, CreateWellKnownRole_Observer_AddIdentity_InputArguments(context, state, forInstance: true));"),
+                    "state.CreateOrReplaceInputArguments(context, " +
+                    "CreateWellKnownRole_Observer_AddIdentity_InputArguments(" +
+                    "context, state, forInstance: true), assignInstanceNodeIds: false);"),
                     "RoleType_AddIdentity should dispatch to WellKnownRole_Observer's InputArguments factory.");
                 Assert.That(code, Does.Contain(
-                    "state.CreateOrReplaceInputArguments(context, CreateWellKnownRole_SecurityAdmin_AddIdentity_InputArguments(context, state, forInstance: true));"),
+                    "state.CreateOrReplaceInputArguments(context, " +
+                    "CreateWellKnownRole_SecurityAdmin_AddIdentity_InputArguments(" +
+                    "context, state, forInstance: true), assignInstanceNodeIds: false);"),
                     "RoleType_AddIdentity should dispatch to WellKnownRole_SecurityAdmin's InputArguments factory.");
 
-                // The top-level NodeId override re-binds state.NodeId from
+                // The top-level NodeId override re-binds nodeState.NodeId from
                 // the type-level constant to the singleton-instance NodeId
                 // when the dispatch matches. For GetMonitoredItems the
                 // override rewrites 11489 → 11492 under the Server
                 // singleton.
                 Assert.That(code, Does.Contain(
-                    "state.NodeId = global::Opc.Ua.NodeId.Create(11492u, global::Opc.Ua.Namespaces.OpcUa, context.NamespaceUris);"),
-                    "The Server singleton dispatch should override state.NodeId to Server_GetMonitoredItems (11492).");
+                    "nodeState.NodeId = global::Opc.Ua.NodeId.Create(" +
+                    "11492u, global::Opc.Ua.Namespaces.OpcUa, context.NamespaceUris);"),
+                    "The Server singleton dispatch should override nodeState.NodeId " +
+                    "to Server_GetMonitoredItems (11492).");
             });
         }
 
@@ -485,6 +509,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
 
             var nodesets = new NodesetFileCollection(
                 [(path, new NodesetFileOptions())],
+                [],
                 fileSystem,
                 telemetry);
 

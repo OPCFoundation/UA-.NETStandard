@@ -205,6 +205,14 @@ namespace Opc.Ua.Server.Fluent
             {
                 throw new ArgumentNullException(nameof(factory));
             }
+            if (parent.Node is not BaseObjectState parentObject)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadTypeMismatch,
+                    "Alarm parent '{0}' must be an Object; resolved node is '{1}'.",
+                    parent.Node.BrowseName,
+                    parent.Node.NodeClass);
+            }
             string symbolicName = browseName.Name ?? string.Empty;
             TState alarm = factory(parent.Node);
             alarm.SymbolicName = symbolicName;
@@ -224,8 +232,20 @@ namespace Opc.Ua.Server.Fluent
                 browseName,
                 displayName: new LocalizedText(symbolicName),
                 assignNodeIds: false);
+            alarm.SetEnableState(parent.Builder.Context, enabled: true);
 
             parent.Node.AddChild(alarm);
+            parentObject.EventNotifier |= EventNotifiers.SubscribeToEvents;
+
+            parent.Node.AddReference(
+                ReferenceTypeIds.HasEventSource,
+                isInverse: false,
+                alarm.NodeId);
+            alarm.AddReference(
+                ReferenceTypeIds.HasEventSource,
+                isInverse: true,
+                parent.Node.NodeId);
+
             return alarm;
         }
     }

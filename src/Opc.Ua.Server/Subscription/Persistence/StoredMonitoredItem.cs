@@ -36,6 +36,12 @@ namespace Opc.Ua.Server
         public bool IsRestored { get; set; }
 
         /// <inheritdoc/>
+        public bool IsDeleted { get; set; }
+
+        /// <inheritdoc/>
+        public bool IsDetached { get; set; }
+
+        /// <inheritdoc/>
         public uint SubscriptionId { get; set; }
 
         /// <inheritdoc/>

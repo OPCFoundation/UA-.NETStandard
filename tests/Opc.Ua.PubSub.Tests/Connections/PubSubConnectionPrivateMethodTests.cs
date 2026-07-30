@@ -577,6 +577,8 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 "TryUnwrapInboundAsync",
                 wrapped,
                 prefix.Length,
+                PublisherId.FromUInt16(1),
+                (ushort)1,
                 MessageSecurityMode.None,
                 CancellationToken.None).ConfigureAwait(false);
 

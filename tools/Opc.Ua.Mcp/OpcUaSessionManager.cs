@@ -83,6 +83,7 @@ namespace Opc.Ua.Mcp
             public required string AuthType { get; init; }
             public DateTime ConnectedAt { get; init; } = DateTime.UtcNow;
             public bool IsConnected => Session.Connected;
+            internal ConnectionValidationContext? ValidationContext { get; init; }
         }
 
         /// <summary>
@@ -124,7 +125,7 @@ namespace Opc.Ua.Mcp
             await m_lock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                await EnsureConfigurationInternalAsync(false, ct).ConfigureAwait(false);
+                await EnsureConfigurationInternalAsync(ct).ConfigureAwait(false);
                 return m_configuration!;
             }
             finally
@@ -204,18 +205,12 @@ namespace Opc.Ua.Mcp
         {
             ObjectDisposedException.ThrowIf(m_disposed, this);
 
-            await EnsureConfigurationInternalAsync(false, ct).ConfigureAwait(false);
-
-            var uri = new Uri(discoveryUrl);
-            var endpointConfiguration = EndpointConfiguration.Create(m_configuration!);
-
-            using DiscoveryClient client = await DiscoveryClient.CreateAsync(
-                m_configuration!,
-                uri,
-                endpointConfiguration,
-                ct: ct).ConfigureAwait(false);
-
-            return await client.GetEndpointsAsync(default, ct).ConfigureAwait(false);
+            ApplicationConfiguration configuration =
+                await EnsureConfigurationAsync(ct).ConfigureAwait(false);
+            return await DiscoverEndpointsInternalAsync(
+                configuration,
+                discoveryUrl,
+                ct).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -256,60 +251,80 @@ namespace Opc.Ua.Mcp
                     m_sessions.TryRemove(name, out _);
                 }
 
-                await EnsureConfigurationInternalAsync(autoAcceptCerts, ct).ConfigureAwait(false);
-
-                if (autoAcceptCerts)
+                await EnsureConfigurationInternalAsync(ct).ConfigureAwait(false);
+                ConnectionValidationContext? validationContext =
+                    await CreateConnectionValidationContextAsync(
+                        m_configuration!,
+                        Telemetry,
+                        autoAcceptCerts,
+                        ct).ConfigureAwait(false);
+                try
                 {
-                    m_configuration!.CertificateManager.AcceptError = AutoAcceptError;
+                    ApplicationConfiguration configuration = validationContext.Configuration;
+
+                    m_logger.Connecting(endpointUrl, name);
+
+                    EndpointDescription selectedEndpoint = await SelectEndpointAsync(
+                        configuration,
+                        endpointUrl,
+                        securityMode,
+                        securityPolicy,
+                        authType,
+                        ct).ConfigureAwait(false);
+
+                    UserIdentity identity = BuildUserIdentity(authType, username, password);
+
+                    var endpointConfiguration = EndpointConfiguration.Create(configuration);
+                    var endpoint = new ConfiguredEndpoint(null, selectedEndpoint, endpointConfiguration);
+                    ManagedSessionBuilder builder = new ManagedSessionBuilder(configuration, Telemetry)
+                        .UseEndpoint(endpoint)
+                        .WithSessionName(name)
+                        .WithSessionTimeout(TimeSpan.FromMilliseconds(60_000))
+                        .WithUserIdentity(identity);
+
+                    if (validationContext.UseSharedChannelManager)
+                    {
+                        builder.WithChannelManager(
+                            m_serviceProvider.GetRequiredService<IClientChannelManager>());
+                    }
+
+                    ManagedSession session = await builder
+                        .ConnectAsync(ct)
+                        .ConfigureAwait(false);
+
+                    session.KeepAliveInterval = 5000;
+                    session.ConnectionStateChanged += (_, e) => SessionConnectionStateChanged(name, e);
+                    session.ChannelStateChanged += (_, e) => SessionChannelStateChanged(name, e);
+
+                    m_sessions[name] = new SessionInfo
+                    {
+                        Name = name,
+                        Session = session,
+                        Endpoint = selectedEndpoint,
+                        AuthType = authType,
+                        ConnectedAt = DateTime.UtcNow,
+                        ValidationContext = validationContext
+                    };
+                    validationContext = null;
+
+                    m_logger.Connected(name, session.SessionName, session.SessionId);
+
+                    return string.Format(
+                        CultureInfo.InvariantCulture,
+                        "Connected to {0} as '{1}'. SecurityMode={2}, SecurityPolicy={3}, Auth={4}, " +
+                        "SessionName={5}, SessionId={6}",
+                        endpointUrl,
+                        name,
+                        selectedEndpoint.SecurityMode,
+                        selectedEndpoint.SecurityPolicyUri,
+                        authType,
+                        session.SessionName,
+                        session.SessionId);
                 }
-
-                m_logger.Connecting(endpointUrl, name);
-
-                EndpointDescription selectedEndpoint = await SelectEndpointAsync(
-                    endpointUrl, securityMode, securityPolicy, authType, ct).ConfigureAwait(false);
-
-                UserIdentity identity = BuildUserIdentity(authType, username, password);
-
-                ApplicationConfiguration configuration = m_configuration!;
-                var endpointConfiguration = EndpointConfiguration.Create(configuration);
-                var endpoint = new ConfiguredEndpoint(null, selectedEndpoint, endpointConfiguration);
-                IClientChannelManager channelManager = m_serviceProvider.GetRequiredService<IClientChannelManager>();
-
-                ManagedSession session = await new ManagedSessionBuilder(configuration, Telemetry)
-                    .UseEndpoint(endpoint)
-                    .WithChannelManager(channelManager)
-                    .WithSessionName(configuration.ApplicationName ?? kApplicationName)
-                    .WithSessionTimeout(TimeSpan.FromMilliseconds(60_000))
-                    .WithUserIdentity(identity)
-                    .ConnectAsync(ct)
-                    .ConfigureAwait(false);
-
-                session.KeepAliveInterval = 5000;
-                session.ConnectionStateChanged += (_, e) => SessionConnectionStateChanged(name, e);
-                session.ChannelStateChanged += (_, e) => SessionChannelStateChanged(name, e);
-
-                m_sessions[name] = new SessionInfo
+                finally
                 {
-                    Name = name,
-                    Session = session,
-                    Endpoint = selectedEndpoint,
-                    AuthType = authType,
-                    ConnectedAt = DateTime.UtcNow
-                };
-
-                m_logger.Connected(name, session.SessionName, session.SessionId);
-
-                return string.Format(
-                    CultureInfo.InvariantCulture,
-                    "Connected to {0} as '{1}'. SecurityMode={2}, SecurityPolicy={3}, Auth={4}, " +
-                    "SessionName={5}, SessionId={6}",
-                    endpointUrl,
-                    name,
-                    selectedEndpoint.SecurityMode,
-                    selectedEndpoint.SecurityPolicyUri,
-                    authType,
-                    session.SessionName,
-                    session.SessionId);
+                    validationContext?.Dispose();
+                }
             }
             finally
             {
@@ -399,7 +414,14 @@ namespace Opc.Ua.Mcp
             m_disposed = true;
             foreach (SessionInfo info in m_sessions.Values)
             {
-                info.Session.Dispose();
+                try
+                {
+                    info.Session.Dispose();
+                }
+                finally
+                {
+                    info.ValidationContext?.Dispose();
+                }
             }
 
             m_sessions.Clear();
@@ -408,11 +430,64 @@ namespace Opc.Ua.Mcp
 
         private static async Task DisconnectInternalAsync(SessionInfo info, CancellationToken ct)
         {
-            await info.Session.CloseAsync(ct).ConfigureAwait(false);
-            info.Session.Dispose();
+            try
+            {
+                await info.Session.CloseAsync(ct).ConfigureAwait(false);
+            }
+            finally
+            {
+                try
+                {
+                    info.Session.Dispose();
+                }
+                finally
+                {
+                    info.ValidationContext?.Dispose();
+                }
+            }
         }
 
-        private async Task EnsureConfigurationInternalAsync(bool autoAcceptCerts, CancellationToken ct)
+        internal static async Task<ConnectionValidationContext>
+            CreateConnectionValidationContextAsync(
+                ApplicationConfiguration configuration,
+                ITelemetryContext telemetry,
+                bool autoAcceptCertificates,
+                CancellationToken ct)
+        {
+            if (!autoAcceptCertificates)
+            {
+                return new ConnectionValidationContext(configuration, null);
+            }
+
+            CertificateManager? certificateManager = null;
+            try
+            {
+                certificateManager = CertificateManagerFactory.Create(
+                    configuration.SecurityConfiguration,
+                    telemetry);
+                certificateManager.AcceptError = AutoAcceptError;
+                await certificateManager.LoadApplicationCertificatesAsync(
+                    configuration.SecurityConfiguration,
+                    configuration.ApplicationUri,
+                    ct).ConfigureAwait(false);
+
+                var isolatedConfiguration = new ApplicationConfiguration(configuration)
+                {
+                    CertificateManager = certificateManager
+                };
+                var result = new ConnectionValidationContext(
+                    isolatedConfiguration,
+                    certificateManager);
+                certificateManager = null;
+                return result;
+            }
+            finally
+            {
+                certificateManager?.Dispose();
+            }
+        }
+
+        private async Task EnsureConfigurationInternalAsync(CancellationToken ct)
         {
             if (m_configuration != null)
             {
@@ -448,16 +523,29 @@ namespace Opc.Ua.Mcp
                 m_logger.ApplicationCertificateNotFound();
             }
 
-            if (autoAcceptCerts)
-            {
-                config.CertificateManager.AcceptError = AutoAcceptError;
-            }
-
             m_clientOptions.Configuration = config;
             m_configuration = config;
         }
 
+        private async Task<ArrayOf<EndpointDescription>> DiscoverEndpointsInternalAsync(
+            ApplicationConfiguration configuration,
+            string discoveryUrl,
+            CancellationToken ct)
+        {
+            var uri = new Uri(discoveryUrl);
+            var endpointConfiguration = EndpointConfiguration.Create(configuration);
+
+            using DiscoveryClient client = await DiscoveryClient.CreateAsync(
+                configuration,
+                uri,
+                endpointConfiguration,
+                ct: ct).ConfigureAwait(false);
+
+            return await client.GetEndpointsAsync(default, ct).ConfigureAwait(false);
+        }
+
         private async Task<EndpointDescription> SelectEndpointAsync(
+            ApplicationConfiguration configuration,
             string endpointUrl,
             string? securityMode,
             string? securityPolicy,
@@ -470,13 +558,13 @@ namespace Opc.Ua.Mcp
             {
                 // Auto-select most secure, fall back to no-security
                 return (await CoreClientUtils.SelectEndpointAsync(
-                    m_configuration!,
+                    configuration,
                     endpointUrl,
                     true,
                     Telemetry,
                     ct: ct).ConfigureAwait(false) ??
                     await CoreClientUtils.SelectEndpointAsync(
-                        m_configuration!,
+                        configuration,
                         endpointUrl,
                         false,
                         Telemetry,
@@ -487,7 +575,10 @@ namespace Opc.Ua.Mcp
             }
 
             ArrayOf<EndpointDescription> allEndpoints =
-                await DiscoverEndpointsAsync(endpointUrl, ct).ConfigureAwait(false);
+                await DiscoverEndpointsInternalAsync(
+                    configuration,
+                    endpointUrl,
+                    ct).ConfigureAwait(false);
 
             IEnumerable<EndpointDescription> candidates = allEndpoints.ToArray() ??
                 [];
@@ -655,11 +746,37 @@ namespace Opc.Ua.Mcp
                 info.Session.ServerUris?.ToArray().FirstOrDefault() ?? "unknown");
         }
 
-        private static bool AutoAcceptError(
-            Certificate certificate,
-            ServiceResult error)
+        private static bool AutoAcceptError(Certificate _, ServiceResult error)
         {
-            return true;
+            return error.StatusCode == StatusCodes.BadCertificateUntrusted;
+        }
+
+        internal sealed class ConnectionValidationContext : IDisposable
+        {
+            public ConnectionValidationContext(
+                ApplicationConfiguration configuration,
+                CertificateManager? ownedCertificateManager)
+            {
+                Configuration = configuration ??
+                    throw new ArgumentNullException(nameof(configuration));
+                m_ownedCertificateManager = ownedCertificateManager;
+            }
+
+            public ApplicationConfiguration Configuration { get; }
+
+            public bool IsIsolated => m_ownedCertificateManager != null;
+
+            public bool UseSharedChannelManager => !IsIsolated;
+
+            public void Dispose()
+            {
+                CertificateManager? certificateManager = Interlocked.Exchange(
+                    ref m_ownedCertificateManager,
+                    null);
+                certificateManager?.Dispose();
+            }
+
+            private CertificateManager? m_ownedCertificateManager;
         }
     }
 
