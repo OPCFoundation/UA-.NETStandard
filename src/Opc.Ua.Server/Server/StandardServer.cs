@@ -3917,6 +3917,7 @@ namespace Opc.Ua.Server
         {
             ServerShutdownState shutdownState;
             Task shutdown;
+            TaskCompletionSource<object?>? reservedShutdown = null;
             bool joiningActiveShutdown = false;
             lock (m_shutdownCoordinationLock)
             {
@@ -3942,11 +3943,19 @@ namespace Opc.Ua.Server
                 {
                     shutdownState.TerminalError = null;
                     shutdownState.AttemptCount++;
-                    shutdown = ShutdownServerInternalAsync(
-                        shutdownState,
-                        cancellationToken);
+                    reservedShutdown = new TaskCompletionSource<object?>(
+                        TaskCreationOptions.RunContinuationsAsynchronously);
+                    shutdown = reservedShutdown.Task;
                     shutdownState.ActiveTask = shutdown;
                 }
+            }
+
+            if (reservedShutdown is not null)
+            {
+                _ = CompleteReservedServerInternalShutdownAsync(
+                    shutdownState,
+                    reservedShutdown,
+                    cancellationToken);
             }
 
             EnsureDeferredServerInternalShutdownObserved(shutdownState, shutdown);
@@ -3960,6 +3969,30 @@ namespace Opc.Ua.Server
                     shutdown);
             }
             return shutdown;
+        }
+
+        private async Task CompleteReservedServerInternalShutdownAsync(
+            ServerShutdownState shutdown,
+            TaskCompletionSource<object?> reservedShutdown,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                await ShutdownServerInternalAsync(shutdown, cancellationToken)
+                    .ConfigureAwait(false);
+                reservedShutdown.TrySetResult(null);
+            }
+            catch (OperationCanceledException ex)
+            {
+                reservedShutdown.TrySetCanceled(
+                    ex.CancellationToken.CanBeCanceled
+                        ? ex.CancellationToken
+                        : cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                reservedShutdown.TrySetException(ex);
+            }
         }
 
         private async Task JoinActiveServerInternalShutdownFromRequest(
@@ -4088,6 +4121,8 @@ namespace Opc.Ua.Server
 
             if (!shutdown.NodeManagersStopped)
             {
+                // Final node-manager cleanup owns retained resources and must finish even
+                // if the caller abandons the shutdown request.
                 await shutdown.Server.NodeManager
                     .ShutdownAsync(CancellationToken.None)
                     .ConfigureAwait(false);
@@ -4098,6 +4133,8 @@ namespace Opc.Ua.Server
             {
                 if (lifecycle is not null)
                 {
+                    // CompleteShutdownAsync disposes retired lifecycle state; cancelling it
+                    // would leak managers that are no longer reachable for a later retry.
                     await lifecycle.CompleteShutdownAsync(
                             shutdown.Server,
                             CancellationToken.None)
@@ -4106,6 +4143,8 @@ namespace Opc.Ua.Server
                 shutdown.LifecycleCompleted = true;
             }
 
+            // The final disposal stage owns the server semaphore. It must not be cancelled
+            // after earlier cleanup stages have permanently stopped request admission.
             await m_semaphoreSlim.WaitAsync(CancellationToken.None).ConfigureAwait(false);
             try
             {
@@ -4177,9 +4216,30 @@ namespace Opc.Ua.Server
             }
             else if (observe)
             {
-                _ = ObserveDeferredServerInternalShutdownAsync(
+                _ = ObserveDeferredServerInternalShutdownSafelyAsync(
                     shutdownState,
                     shutdown);
+            }
+        }
+
+        private async Task ObserveDeferredServerInternalShutdownSafelyAsync(
+            ServerShutdownState shutdownState,
+            Task shutdown)
+        {
+            try
+            {
+                await ObserveDeferredServerInternalShutdownAsync(
+                        shutdownState,
+                        shutdown)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                var terminalError = new AggregateException(
+                    "Deferred server shutdown observer failed. Server internals and synchronization resources " +
+                    "remain retained for an explicit retry.",
+                    ex);
+                RecordDeferredServerShutdownTerminalError(shutdownState, terminalError);
             }
         }
 
@@ -4209,6 +4269,7 @@ namespace Opc.Ua.Server
                 ServerInternalData? serverInternal = null;
                 Task? concurrentShutdown = null;
                 int retryCount = 0;
+                Exception? terminalError = null;
                 lock (m_shutdownCoordinationLock)
                 {
                     if (m_disposeRequested &&
@@ -4223,8 +4284,12 @@ namespace Opc.Ua.Server
                         else
                         {
                             long progress = GetServerShutdownProgress(shutdownState);
-                            if (shutdownState.DeferredRetryCount == 0 ||
-                                progress > shutdownState.LastDeferredRetryProgress)
+                            terminalError = TryCreateDeferredServerShutdownTerminalError(
+                                shutdownState,
+                                failures);
+                            if (terminalError is null &&
+                                (shutdownState.DeferredRetryCount == 0 ||
+                                    progress > shutdownState.LastDeferredRetryProgress))
                             {
                                 shutdownState.LastDeferredRetryProgress = progress;
                                 retryCount = ++shutdownState.DeferredRetryCount;
@@ -4232,12 +4297,10 @@ namespace Opc.Ua.Server
                             }
                             else
                             {
-                                string message =
+                                terminalError ??= new AggregateException(
                                     $"Deferred server shutdown stopped after {shutdownState.AttemptCount} attempt(s) " +
                                     "because the latest attempt made no cleanup progress. Server internals and " +
-                                    "synchronization resources remain retained for an explicit retry.";
-                                var terminalError = new AggregateException(
-                                    message,
+                                    "synchronization resources remain retained for an explicit retry.",
                                     failures);
                                 shutdownState.TerminalError = terminalError;
                                 shutdownState.DeferredObserverActive = false;
@@ -4249,6 +4312,12 @@ namespace Opc.Ua.Server
                     {
                         shutdownState.DeferredObserverActive = false;
                     }
+                }
+                if (terminalError is not null)
+                {
+                    m_logger.DeferredServerShutdownTerminated(
+                        terminalError,
+                        terminalError.Message);
                 }
 
                 if (concurrentShutdown is not null)
@@ -4302,6 +4371,54 @@ namespace Opc.Ua.Server
             }
         }
 
+        private AggregateException? TryCreateDeferredServerShutdownTerminalError(
+            ServerShutdownState shutdownState,
+            List<Exception> failures)
+        {
+            int maxRetryCount = Math.Max(DeferredServerShutdownMaxRetryCount, 0);
+            if (shutdownState.DeferredRetryCount >= maxRetryCount)
+            {
+                return new AggregateException(
+                    $"Deferred server shutdown stopped after {shutdownState.AttemptCount} attempt(s) because it " +
+                    $"exceeded the deferred retry limit of {maxRetryCount} retry attempt(s). Server internals and " +
+                    "synchronization resources remain retained for an explicit retry.",
+                    failures);
+            }
+
+            DateTimeOffset now = TimeProvider.GetUtcNow();
+            shutdownState.DeferredRetryStartedAt ??= now;
+            TimeSpan retryBudget = DeferredServerShutdownRetryBudget;
+            if (retryBudget <= TimeSpan.Zero ||
+                now - shutdownState.DeferredRetryStartedAt.Value >= retryBudget)
+            {
+                return new AggregateException(
+                    $"Deferred server shutdown stopped after {shutdownState.AttemptCount} attempt(s) because it " +
+                    $"exceeded the deferred retry time budget of {retryBudget}. Server internals and " +
+                    "synchronization resources remain retained for an explicit retry.",
+                    failures);
+            }
+
+            return null;
+        }
+
+        private void RecordDeferredServerShutdownTerminalError(
+            ServerShutdownState shutdownState,
+            Exception terminalError)
+        {
+            lock (m_shutdownCoordinationLock)
+            {
+                if (ReferenceEquals(m_serverShutdownState, shutdownState))
+                {
+                    shutdownState.TerminalError = terminalError;
+                    shutdownState.DeferredObserverActive = false;
+                    ServerError = new ServiceResult(terminalError);
+                }
+            }
+            m_logger.DeferredServerShutdownTerminated(
+                terminalError,
+                terminalError.Message);
+        }
+
         private long GetServerShutdownProgress(ServerShutdownState shutdown)
         {
             long progress = 0;
@@ -4322,6 +4439,11 @@ namespace Opc.Ua.Server
             {
                 progress += lifecycle.ShutdownCleanupProgress;
             }
+            Func<long>? additionalProgress = AdditionalServerShutdownProgressForTest;
+            if (additionalProgress is not null)
+            {
+                progress += additionalProgress();
+            }
             return progress;
         }
 
@@ -4330,6 +4452,10 @@ namespace Opc.Ua.Server
             int exponent = Math.Min(Math.Max(retryCount - 1, 0), 6);
             return TimeSpan.FromMilliseconds(10 * (1 << exponent));
         }
+
+        private const int kDefaultDeferredServerShutdownMaxRetryCount = 64;
+        private static readonly TimeSpan kDefaultDeferredServerShutdownRetryBudget =
+            TimeSpan.FromMinutes(1);
 
         private void CompleteBaseResourceDisposal(bool disposeLifecycle)
         {
@@ -4420,6 +4546,9 @@ namespace Opc.Ua.Server
             if (terminalError is not null)
             {
                 ServerError = new ServiceResult(terminalError);
+                m_logger.ServerShutdownResourceDisposalFailed(
+                    terminalError,
+                    terminalError.Message);
             }
         }
 
@@ -5155,6 +5284,13 @@ namespace Opc.Ua.Server
         internal Action? AfterServerRequestDrainStartedForTest { get; set; }
         internal Func<Task>? BeforeServerRequestDrainForTest { get; set; }
         internal Func<Task>? BeforeServerShutdownSemaphoreReleaseForTest { get; set; }
+        internal int DeferredServerShutdownMaxRetryCount { get; set; } =
+            kDefaultDeferredServerShutdownMaxRetryCount;
+
+        internal TimeSpan DeferredServerShutdownRetryBudget { get; set; } =
+            kDefaultDeferredServerShutdownRetryBudget;
+
+        internal Func<long>? AdditionalServerShutdownProgressForTest { get; set; }
 
         internal bool ServerSemaphoreDisposedForTest
         {
@@ -5246,6 +5382,8 @@ namespace Opc.Ua.Server
             public int DeferredRetryCount { get; set; }
 
             public long LastDeferredRetryProgress { get; set; }
+
+            public DateTimeOffset? DeferredRetryStartedAt { get; set; }
 
             public bool DeferredObserverActive { get; set; }
 
@@ -5494,5 +5632,19 @@ namespace Opc.Ua.Server
         [LoggerMessage(EventId = ServerEventIds.StandardServer + 33, Level = LogLevel.Error,
             Message = "CertificateManager change observer failed to fan-out cert update.")]
         public static partial void CertificateManagerChangeObserverFailedToFanOut(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = ServerEventIds.StandardServer + 34, Level = LogLevel.Error,
+            Message = "Deferred server shutdown terminated. {ErrorMessage}")]
+        public static partial void DeferredServerShutdownTerminated(
+            this ILogger logger,
+            Exception ex,
+            string? errorMessage);
+
+        [LoggerMessage(EventId = ServerEventIds.StandardServer + 35, Level = LogLevel.Error,
+            Message = "Server shutdown resource disposal failed. {ErrorMessage}")]
+        public static partial void ServerShutdownResourceDisposalFailed(
+            this ILogger logger,
+            Exception ex,
+            string? errorMessage);
     }
 }

@@ -1006,6 +1006,58 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
+        public async Task ConcurrentShutdownCallersJoinReservedTaskStartedOutsideCoordinationLockAsync()
+        {
+            var shutdownBodyEntered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseShutdownBody = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            int shutdownBodyEntries = 0;
+            m_server.AfterServerRequestAdmissionClosedForTest = async () =>
+            {
+                Interlocked.Increment(ref shutdownBodyEntries);
+                _ = m_server.ServerShutdownAttemptCountForTest;
+                shutdownBodyEntered.TrySetResult(true);
+                await releaseShutdownBody.Task.ConfigureAwait(false);
+            };
+
+            m_requestHeader = null;
+            Task firstShutdown = RunWithoutExecutionContext(
+                () => m_server.ShutdownInternalsAsync().AsTask());
+            try
+            {
+                await shutdownBodyEntered.Task
+                    .WaitAsync(TimeSpan.FromSeconds(10))
+                    .ConfigureAwait(false);
+
+                Task secondShutdown = RunWithoutExecutionContext(
+                    () => m_server.ShutdownInternalsAsync().AsTask());
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(firstShutdown.IsCompleted, Is.False);
+                    Assert.That(secondShutdown.IsCompleted, Is.False);
+                    Assert.That(m_server.ServerShutdownAttemptCountForTest, Is.EqualTo(1));
+                    Assert.That(Volatile.Read(ref shutdownBodyEntries), Is.EqualTo(1));
+                });
+
+                releaseShutdownBody.TrySetResult(true);
+                await Task.WhenAll(firstShutdown, secondShutdown)
+                    .WaitAsync(TimeSpan.FromSeconds(10))
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                releaseShutdownBody.TrySetResult(true);
+                m_server.AfterServerRequestAdmissionClosedForTest = null;
+            }
+
+            Assert.That(m_server.ServerShutdownAttemptCountForTest, Is.EqualTo(1));
+            AssertServerInternalsDisposed();
+            await FinishShutdownTestAsync().ConfigureAwait(false);
+        }
+
+        [Test]
         public async Task ShutdownAdmissionGateRejectsLateReadAndDrainsAdmittedReadAsync()
         {
             IServerInternal server = m_server.CurrentInstance;
@@ -4541,6 +4593,84 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(m_server.TransportListenerCountForTest, Is.Zero);
             Assert.That(m_server.ServerSemaphoreDisposedForTest, Is.True);
             Assert.That(failingManager.DeleteAddressSpaceCount, Is.EqualTo(3));
+            Assert.That(
+                m_server.DeferredServerShutdownTerminalErrorForTest,
+                Is.Null);
+            await FinishShutdownTestAsync().ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task DeferredDisposeStopsRetryingAtBoundDespiteCleanupProgressAsync()
+        {
+            TrackingLifecycleNodeManager failingManager = null;
+            await m_server.NodeManagerLifecycle
+                .AddAsync(CreateTrackingNodeManagementFactory(
+                    832,
+                    created => failingManager = created,
+                    "urn:opcfoundation.org:Tests:NodeManagerLifecycle:ShutdownBoundedFailure"))
+                .ConfigureAwait(false);
+            failingManager.DeleteAddressSpaceFailuresRemaining = int.MaxValue;
+            m_server.DeferredServerShutdownMaxRetryCount = 1;
+            int progressTicks = 0;
+            m_server.AdditionalServerShutdownProgressForTest =
+                () => Interlocked.Increment(ref progressTicks);
+
+            bool unobservedTaskException = false;
+            EventHandler<UnobservedTaskExceptionEventArgs> handler = (_, args) =>
+            {
+                unobservedTaskException = true;
+                args.SetObserved();
+            };
+            TaskScheduler.UnobservedTaskException += handler;
+
+            try
+            {
+                m_requestHeader = null;
+                m_server.Dispose();
+                await WaitForConditionAsync(
+                        () => m_server.DeferredServerShutdownTerminalErrorForTest is not null)
+                    .ConfigureAwait(false);
+
+                Exception terminalError =
+                    m_server.DeferredServerShutdownTerminalErrorForTest;
+                Assert.Multiple(() =>
+                {
+                    Assert.That(
+                        terminalError.Message,
+                        Does.Contain("exceeded the deferred retry limit"));
+                    Assert.That(ServiceResult.IsBad(m_server.ServerError), Is.True);
+                    Assert.That(m_server.ServerShutdownAttemptCountForTest, Is.EqualTo(2));
+                    Assert.That(failingManager.DeleteAddressSpaceCount, Is.EqualTo(2));
+                    Assert.That(Volatile.Read(ref progressTicks), Is.GreaterThan(2));
+                });
+
+                for (int collection = 0; collection < 3; collection++)
+                {
+                    GC.Collect();
+                    GC.WaitForPendingFinalizers();
+                    await Task.Yield();
+                }
+
+                Assert.That(
+                    unobservedTaskException,
+                    Is.False,
+                    "Deferred shutdown failures must be awaited by the observer.");
+            }
+            finally
+            {
+                TaskScheduler.UnobservedTaskException -= handler;
+                m_server.AdditionalServerShutdownProgressForTest = null;
+            }
+
+            failingManager.DeleteAddressSpaceFailuresRemaining = 0;
+            await m_server.ShutdownInternalsAsync()
+                .AsTask()
+                .WaitAsync(TimeSpan.FromSeconds(10))
+                .ConfigureAwait(false);
+            await WaitForConditionAsync(
+                    () => m_server.BaseResourcesDisposedForTest)
+                .ConfigureAwait(false);
+
             Assert.That(
                 m_server.DeferredServerShutdownTerminalErrorForTest,
                 Is.Null);
