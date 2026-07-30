@@ -45,6 +45,30 @@ namespace System
     /// </summary>
     public static class Polyfills
     {
+        /// <summary>
+        /// Throws when a reference argument is null.
+        /// </summary>
+        /// <typeparam name="T">The reference type to validate.</typeparam>
+        /// <param name="target">The reference to validate.</param>
+        /// <param name="parameterName">The argument name.</param>
+        /// <returns>The non-null reference.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static T ThrowIfNull<T>(
+            this T? target,
+            string parameterName)
+            where T : class
+        {
+            return target ?? throw new ArgumentNullException(parameterName);
+        }
+
+        /// <summary>
+        /// Returns true when a double is neither NaN nor infinity.
+        /// </summary>
+        public static bool IsFinite(this double target)
+        {
+            return !double.IsNaN(target) && !double.IsInfinity(target);
+        }
+
 #if NETSTANDARD2_0 || NETFRAMEWORK
         /// <summary>
         /// Return hash code assuming ordinal

@@ -44,12 +44,12 @@ namespace Opc.Ua.Server.FileSystem
             NodeId referenceType, bool includeSubtypes, BrowseDirection browseDirection,
             QualifiedName browseName, IEnumerable<IReference>? additionalReferences,
             bool internalOnly,
-            FileSystemNodeManager manager,
+            IFileSystemHost host,
             DirectoryObjectState source)
             : base(context, view, referenceType, includeSubtypes, browseDirection,
                 browseName, additionalReferences, internalOnly)
         {
-            m_manager = manager;
+            m_host = host;
             m_source = source;
             m_stage = Stage.Begin;
         }
@@ -64,7 +64,7 @@ namespace Opc.Ua.Server.FileSystem
                     return reference;
                 }
 
-                if (InternalOnly || m_manager == null)
+                if (InternalOnly || m_host == null)
                 {
                     return null;
                 }
@@ -98,7 +98,7 @@ namespace Opc.Ua.Server.FileSystem
             var list = new List<FileSystemEntry>();
             try
             {
-                IAsyncEnumerator<FileSystemEntry> enumerator = m_manager.Provider
+                IAsyncEnumerator<FileSystemEntry> enumerator = m_host.Provider
                     .EnumerateAsync(m_source.ProviderPath, CancellationToken.None)
                     .GetAsyncEnumerator(CancellationToken.None);
                 try
@@ -160,8 +160,8 @@ namespace Opc.Ua.Server.FileSystem
         private NodeStateReference CreateReference(FileSystemEntry entry)
         {
             NodeId targetId = entry.IsDirectory
-                ? FileSystemNodeId.BuildDirectory(entry.Path, m_manager.NamespaceIndex)
-                : FileSystemNodeId.BuildFile(entry.Path, m_manager.NamespaceIndex);
+                ? m_host.BuildDirectoryNodeId(entry.Path)
+                : m_host.BuildFileNodeId(entry.Path);
             return new NodeStateReference(ReferenceTypeIds.HasComponent, false, targetId);
         }
 
@@ -172,7 +172,7 @@ namespace Opc.Ua.Server.FileSystem
             Done
         }
 
-        private readonly FileSystemNodeManager m_manager;
+        private readonly IFileSystemHost m_host;
         private readonly DirectoryObjectState m_source;
         private List<FileSystemEntry>? m_pending;
         private Stage m_stage;
