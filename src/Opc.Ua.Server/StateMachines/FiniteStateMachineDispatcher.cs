@@ -204,11 +204,11 @@ namespace Opc.Ua.Server.StateMachines
                 return;
             }
 
-            machine.LastTransition.Value = default;
+            machine.LastTransition.Value = LocalizedText.Null;
 
             if (machine.LastTransition.Id is { } idVariable)
             {
-                idVariable.Value = default;
+                idVariable.Value = NodeId.Null;
             }
             if (machine.LastTransition.Number is { } numberVariable)
             {

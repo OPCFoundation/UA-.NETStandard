@@ -64,7 +64,7 @@ namespace Opc.Ua.Server.FileSystem
                     return reference;
                 }
 
-                if (InternalOnly || m_host == null)
+                if (InternalOnly)
                 {
                     return null;
                 }

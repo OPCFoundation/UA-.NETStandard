@@ -84,7 +84,7 @@ namespace Opc.Ua
         public IEncodeableFactory EncodeableFactory => m_context.EncodeableFactory;
 
         /// <inheritdoc/>
-        public INodeIdFactory NodeIdFactory => null!;
+        public INodeIdFactory? NodeIdFactory => null;
 
         /// <inheritdoc/>
         public NodeStateFactory NodeStateFactory => m_context.NodeStateFactory;

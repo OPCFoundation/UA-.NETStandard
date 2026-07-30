@@ -326,7 +326,7 @@ namespace Opc.Ua.Di.Server.Builders
             group.SymbolicName = browseName.Name ?? string.Empty;
             group.BrowseName = browseName;
             group.DisplayName = new LocalizedText(browseName.Name);
-            group.NodeId = builder.Context.NodeIdFactory.New(
+            group.NodeId = builder.Context.RequireNodeIdFactory().New(
                 builder.Context,
                 group);
             group.TypeDefinitionId = NodeId.Create(

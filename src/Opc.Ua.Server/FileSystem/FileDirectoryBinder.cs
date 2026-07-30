@@ -108,17 +108,6 @@ namespace Opc.Ua.Server.FileSystem
     /// </summary>
     public sealed class FileDirectoryBinder : IFileDirectoryBinder
     {
-        /// <summary>
-        /// Initializes a new instance of the <see cref="FileDirectoryBinder"/> class.
-        /// </summary>
-        public FileDirectoryBinder(ITelemetryContext telemetry)
-        {
-            if (telemetry == null)
-            {
-                throw new ArgumentNullException(nameof(telemetry));
-            }
-        }
-
         /// <inheritdoc/>
         public async ValueTask<IFileDirectoryBinding> BindAsync(
             FileDirectoryState directory,
@@ -181,6 +170,13 @@ namespace Opc.Ua.Server.FileSystem
                 await m_gate.WaitAsync(cancellationToken).ConfigureAwait(false);
                 try
                 {
+                    // The binding may have been disposed while this refresh was
+                    // queued behind another one.
+                    if (m_disposed)
+                    {
+                        return;
+                    }
+
                     var seen = new HashSet<string>(StringComparer.Ordinal);
                     await ReconcileDirectoryAsync(Directory, string.Empty, 0, seen, cancellationToken)
                         .ConfigureAwait(false);
@@ -192,32 +188,46 @@ namespace Opc.Ua.Server.FileSystem
                 }
             }
 
-            public ValueTask DisposeAsync()
+            /// <summary>
+            /// Tears the binding down under the same gate a refresh takes, so a
+            /// refresh that is in flight or queued completes first. Disposing
+            /// the gate underneath a refresh would fault its release and let
+            /// the teardown race the node materialisation.
+            /// </summary>
+            public async ValueTask DisposeAsync()
             {
-                if (m_disposed)
+                await m_gate.WaitAsync().ConfigureAwait(false);
+                try
                 {
-                    return default;
+                    if (m_disposed)
+                    {
+                        return;
+                    }
+
+                    m_disposed = true;
+                    DetachDirectoryCallbacks(Directory);
+                    foreach (MaterializedNode entry in m_nodesByPath.Values)
+                    {
+                        DetachCallbacks(entry.Node);
+                    }
+                    foreach (FileHandle handle in m_handles.Values)
+                    {
+                        handle.Dispose();
+                    }
+                    foreach (MaterializedNode entry in m_nodesByPath.Values)
+                    {
+                        entry.Node.Parent?.RemoveChild(entry.Node);
+                    }
+                    m_nodesByPath.Clear();
+                    m_nodesById.Clear();
+                    m_handles.Clear();
+                }
+                finally
+                {
+                    m_gate.Release();
                 }
 
-                m_disposed = true;
-                DetachDirectoryCallbacks(Directory);
-                foreach (MaterializedNode entry in m_nodesByPath.Values)
-                {
-                    DetachCallbacks(entry.Node);
-                }
-                foreach (FileHandle handle in m_handles.Values)
-                {
-                    handle.Dispose();
-                }
-                foreach (MaterializedNode entry in m_nodesByPath.Values)
-                {
-                    entry.Node.Parent?.RemoveChild(entry.Node);
-                }
-                m_nodesByPath.Clear();
-                m_nodesById.Clear();
-                m_handles.Clear();
                 m_gate.Dispose();
-                return default;
             }
 
             public NodeId BuildDirectoryNodeId(string providerPath)

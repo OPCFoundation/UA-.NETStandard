@@ -348,7 +348,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
 
         private static FileDirectoryBinder CreateBinder()
         {
-            return new FileDirectoryBinder(NUnitTelemetryContext.Create());
+            return new FileDirectoryBinder();
         }
 
         private static SessionSystemContext CreateContext()
