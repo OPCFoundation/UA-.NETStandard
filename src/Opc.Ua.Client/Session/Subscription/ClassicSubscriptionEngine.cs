@@ -694,7 +694,6 @@ namespace Opc.Ua.Client
             // deleted.
             if (subscription != null)
             {
-#if DEBUG
                 // The publish-time validation below is diagnostics only, so
                 // skip the comparisons and the local-time conversions unless
                 // the messages would actually be emitted.
@@ -720,7 +719,7 @@ namespace Opc.Ua.Client
                             subscription.Id);
                     }
                 }
-#endif
+
                 // save the information that more notifications
                 // are expected
                 notificationMessage.MoreNotifications = moreNotifications;
