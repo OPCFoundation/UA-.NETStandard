@@ -736,6 +736,8 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
+                // OPC 10000-4 §5.14.1.2, Table 79 handles TransferSubscriptions as a single transition
+                // that sets the new Session, returns the response and issues Good_SubscriptionTransferred.
                 if (m_transferInProgress)
                 {
                     return PublishingState.Idle;
@@ -904,14 +906,13 @@ namespace Opc.Ua.Server
                 errors.Add(null!);
             }
 
-            await m_server.NodeManager
-                .TransferMonitoredItemsAsync(
-                    context,
-                    sendInitialValues,
-                    monitoredItems,
-                    errors,
-                    null,
-                    cancellationToken)
+            await m_server.NodeManager.TransferMonitoredItemsAsync(
+                context,
+                sendInitialValues,
+                monitoredItems,
+                errors,
+                null,
+                cancellationToken)
                 .ConfigureAwait(false);
 
             int badTransfers = 0;
@@ -982,6 +983,12 @@ namespace Opc.Ua.Server
                     targetClientUserId,
                     StringComparison.Ordinal);
         }
+
+        /// <summary>
+        /// Reserves the subscription for transfer while it is still owned by the expected source session.
+        /// </summary>
+        /// <param name="sourceSession">The session that currently owns the subscription.</param>
+        /// <returns><c>true</c> when the transfer reservation was acquired.</returns>
         internal bool TryBeginTransfer(ISession? sourceSession)
         {
             lock (m_lock)
@@ -998,6 +1005,17 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Prepares monitored item state for a session transfer without making the new owner visible yet.
+        /// </summary>
+        /// <param name="context">The operation context for the destination session.</param>
+        /// <param name="sourceSession">The session that currently owns the subscription.</param>
+        /// <param name="sendInitialValues">Whether initial values should be sent after transfer commits.</param>
+        /// <param name="cancellationToken">The token that aborts transfer preparation.</param>
+        /// <returns>A prepared transfer that can be committed or rolled back by the caller.</returns>
+        /// <exception cref="ServiceResultException">
+        /// The subscription is no longer reserved by the source session.
+        /// </exception>
         internal async ValueTask<PreparedSessionTransfer> PrepareSessionTransferAsync(
             OperationContext context,
             ISession? sourceSession,
@@ -1036,18 +1054,17 @@ namespace Opc.Ua.Server
                             null!,
                             RequestType.Unknown,
                             RequestLifetime.None);
-                    monitoredItemTransaction = await coordinator
-                        .PrepareMonitoredItemsTransferAsync(
-                            context,
-                            sourceContext,
-                            sendInitialValues,
-                            monitoredItems,
-                            errors,
-                            new MonitoredItemTransferOptions
-                            {
-                                DeferInitialValues = sendInitialValues
-                            },
-                            cancellationToken)
+                    monitoredItemTransaction = await coordinator.PrepareMonitoredItemsTransferAsync(
+                        context,
+                        sourceContext,
+                        sendInitialValues,
+                        monitoredItems,
+                        errors,
+                        new MonitoredItemTransferOptions
+                        {
+                            DeferInitialValues = sendInitialValues
+                        },
+                        cancellationToken)
                         .ConfigureAwait(false);
                 }
                 else
@@ -1059,14 +1076,13 @@ namespace Opc.Ua.Server
                         // The non-coordinator contract has no commit callback.
                         // Keep legacy eager resend semantics instead of
                         // requesting deferral that cannot be committed here.
-                        await m_server.NodeManager
-                            .TransferMonitoredItemsAsync(
-                                context,
-                                sendInitialValues,
-                                monitoredItems,
-                                errors,
-                                transferOptions: null,
-                                cancellationToken)
+                        await m_server.NodeManager.TransferMonitoredItemsAsync(
+                            context,
+                            sendInitialValues,
+                            monitoredItems,
+                            errors,
+                            transferOptions: null,
+                            cancellationToken)
                             .ConfigureAwait(false);
                     }
                     catch
@@ -1105,6 +1121,11 @@ namespace Opc.Ua.Server
                 sourceContext);
         }
 
+        /// <summary>
+        /// Releases the transfer reservation after the destination session is already the owner.
+        /// </summary>
+        /// <param name="destinationSession">The session that must currently own the subscription.</param>
+        /// <exception cref="ServiceResultException">Ownership changed before transfer completion.</exception>
         internal void CompleteTransfer(ISession destinationSession)
         {
             lock (m_lock)
@@ -1120,6 +1141,10 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Releases a transfer reservation without changing ownership when preparation cannot continue.
+        /// </summary>
+        /// <param name="sourceSession">The source session that still owns the subscription.</param>
         internal void AbortTransfer(ISession? sourceSession)
         {
             lock (m_lock)
@@ -1132,8 +1157,20 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Represents a prepared subscription transfer whose ownership and monitored item effects can
+        /// still be committed or rolled back.
+        /// </summary>
         internal sealed class PreparedSessionTransfer
         {
+            /// <summary>
+            /// Initializes a prepared transfer with the source context and monitored item transaction to dispose.
+            /// </summary>
+            /// <param name="subscription">The subscription being transferred.</param>
+            /// <param name="sourceSession">The session that owned the subscription when preparation started.</param>
+            /// <param name="destinationSession">The session that will own the subscription after commit.</param>
+            /// <param name="monitoredItemTransaction">The prepared monitored item transfer, if one was needed.</param>
+            /// <param name="sourceContext">The source operation context created for monitored item callbacks.</param>
             public PreparedSessionTransfer(
                 Subscription subscription,
                 ISession? sourceSession,
@@ -1148,6 +1185,12 @@ namespace Opc.Ua.Server
                 m_sourceContext = sourceContext;
             }
 
+            /// <summary>
+            /// Moves subscription ownership and diagnostics to the destination session.
+            /// </summary>
+            /// <exception cref="ServiceResultException">
+            /// The subscription is no longer owned by the source session.
+            /// </exception>
             public void CommitOwnership()
             {
                 lock (m_subscription.m_lock)
@@ -1168,11 +1211,20 @@ namespace Opc.Ua.Server
                 }
             }
 
+            /// <summary>
+            /// Makes the prepared monitored item transfer effects visible after ownership commits.
+            /// </summary>
             public void CommitMonitoredItemEffects()
             {
                 m_monitoredItemTransaction?.Commit();
             }
 
+            /// <summary>
+            /// Restores source ownership and monitored item state when a later transfer step fails.
+            /// </summary>
+            /// <param name="cancellationToken">The token that aborts monitored item rollback.</param>
+            /// <returns>A task that completes when rollback has finished.</returns>
+            /// <exception cref="AggregateException">One or more rollback steps failed.</exception>
             public async ValueTask RollbackAsync(CancellationToken cancellationToken)
             {
                 var rollbackErrors = new List<Exception>();
@@ -1230,6 +1282,9 @@ namespace Opc.Ua.Server
                 }
             }
 
+            /// <summary>
+            /// Releases the source operation context after a successful transfer.
+            /// </summary>
             public void Complete()
             {
                 DisposeSourceContext();
@@ -1250,6 +1305,10 @@ namespace Opc.Ua.Server
         private sealed class ResendStateTransferTransaction :
             IMonitoredItemTransferTransaction
         {
+            /// <summary>
+            /// Captures resend-data state so the legacy transfer path can be rolled back.
+            /// </summary>
+            /// <param name="monitoredItems">The monitored items whose resend state is captured.</param>
             public ResendStateTransferTransaction(IList<IMonitoredItem> monitoredItems)
             {
                 m_monitoredItems = monitoredItems;
@@ -1260,10 +1319,18 @@ namespace Opc.Ua.Server
                 }
             }
 
+            /// <summary>
+            /// Completes the legacy transfer transaction; no deferred work is required.
+            /// </summary>
             public void Commit()
             {
             }
 
+            /// <summary>
+            /// Restores each monitored item's resend-data trigger to the captured value.
+            /// </summary>
+            /// <param name="cancellationToken">Unused token; rollback is synchronous and idempotent.</param>
+            /// <returns>A completed task.</returns>
             public ValueTask RollbackAsync(CancellationToken cancellationToken)
             {
                 if (Interlocked.Exchange(ref m_rolledBack, 1) != 0)
@@ -3520,18 +3587,30 @@ namespace Opc.Ua.Server
     /// </summary>
     internal static partial class SubscriptionLog
     {
+        /// <summary>
+        /// Logs that deleting monitored items for a subscription failed.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.Subscription + 0, Level = LogLevel.Error,
             Message = "Delete items for subscription failed.")]
         public static partial void DeleteItemsForSubscriptionFailed(this ILogger logger, Exception ex);
 
+        /// <summary>
+        /// Logs the number of monitored items that could not be transferred.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.Subscription + 1, Level = LogLevel.Trace,
             Message = "Failed to transfer {Count} Monitored Items")]
         public static partial void FailedToTransferCountMonitoredItems(this ILogger logger, int count);
 
+        /// <summary>
+        /// Logs an invariant violation where monitored items were queued without available notifications.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.Subscription + 2, Level = LogLevel.Error,
             Message = "Oops! MonitoredItems queued but no notifications available.")]
         public static partial void OopsMonitoredItemsQueuedButNoNotificationsAvailable(this ILogger logger);
 
+        /// <summary>
+        /// Logs that durable subscription setup was requested without a durable monitored item queue factory.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.Subscription + 3, Level = LogLevel.Error,
             Message = "SetSubscriptionDurable requested for subscription with id {SubscriptionId}, but no " +
                 "IMonitoredItemQueueFactory that supports durable queues was registered")]

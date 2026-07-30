@@ -534,20 +534,35 @@ namespace Opc.Ua.WotCon.Server
         private BaseObjectState? m_registryNode;
     }
 
+    /// <summary>
+    /// Holds source-generated log messages emitted by the WoT registry NodeManager component.
+    /// </summary>
     internal static partial class WotRegistryNodeManagerLog
     {
+        /// <summary>
+        /// Logs that raising a WoT materialization event failed.
+        /// </summary>
         [LoggerMessage(EventId = WotConServerEventIds.WotRegistryNodeManager + 0, Level = LogLevel.Warning,
             Message = "Failed to report WoT materialization event.")]
         public static partial void FailedToReportMaterializationEvent(this ILogger logger, Exception ex);
 
+        /// <summary>
+        /// Logs that reconciling the registry projection failed.
+        /// </summary>
         [LoggerMessage(EventId = WotConServerEventIds.WotRegistryNodeManager + 1, Level = LogLevel.Warning,
             Message = "WoT registry projection reconcile failed.")]
         public static partial void RegistryProjectionReconcileFailed(this ILogger logger, Exception ex);
 
+        /// <summary>
+        /// Logs that a registry refresh failed for the supplied reason.
+        /// </summary>
         [LoggerMessage(EventId = WotConServerEventIds.WotRegistryNodeManager + 2, Level = LogLevel.Warning,
             Message = "WoT registry refresh ({Reason}) failed.")]
         public static partial void RegistryRefreshFailed(this ILogger logger, Exception ex, string reason);
 
+        /// <summary>
+        /// Logs that a registry management call was denied because channel security was too weak.
+        /// </summary>
         [LoggerMessage(EventId = WotConServerEventIds.WotRegistryNodeManager + 3, Level = LogLevel.Warning,
             Message = "Denied WoT registry '{Operation}': channel security mode {Mode} is too low.")]
         public static partial void ManagementCallDeniedSecurityMode(
@@ -555,10 +570,16 @@ namespace Opc.Ua.WotCon.Server
             string operation,
             MessageSecurityMode mode);
 
+        /// <summary>
+        /// Logs that a registry management call was denied because the caller was anonymous.
+        /// </summary>
         [LoggerMessage(EventId = WotConServerEventIds.WotRegistryNodeManager + 4, Level = LogLevel.Warning,
             Message = "Denied WoT registry '{Operation}': anonymous or missing identity.")]
         public static partial void ManagementCallDeniedAnonymousIdentity(this ILogger logger, string operation);
 
+        /// <summary>
+        /// Logs that a registry management call was denied because the caller lacks the required role.
+        /// </summary>
         [LoggerMessage(EventId = WotConServerEventIds.WotRegistryNodeManager + 5, Level = LogLevel.Warning,
             Message = "Denied WoT registry '{Operation}': caller lacks required role.")]
         public static partial void ManagementCallDeniedMissingRole(this ILogger logger, string operation);

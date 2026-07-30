@@ -567,6 +567,12 @@ namespace Opc.Ua.Server.RuntimeNodeSet
         /// </summary>
         internal sealed class ParsedNodeSetDocument
         {
+            /// <summary>
+            /// Initializes a parsed RuntimeNodeSet source and the namespace models it owns.
+            /// </summary>
+            /// <param name="nodeSet">The parsed UANodeSet document.</param>
+            /// <param name="ownedModelUris">The model URIs owned by the source.</param>
+            /// <param name="sourceName">The name used for diagnostics that mention the source.</param>
             public ParsedNodeSetDocument(
                 UANodeSet nodeSet,
                 ArrayOf<string> ownedModelUris,
@@ -577,14 +583,32 @@ namespace Opc.Ua.Server.RuntimeNodeSet
                 SourceName = sourceName;
             }
 
+            /// <summary>
+            /// Gets the parsed UANodeSet document.
+            /// </summary>
             public UANodeSet NodeSet { get; }
+
+            /// <summary>
+            /// Gets the namespace model URIs contributed by the document.
+            /// </summary>
             public ArrayOf<string> OwnedModelUris { get; }
+
+            /// <summary>
+            /// Gets the source name used in parser and lifecycle diagnostics.
+            /// </summary>
             public string SourceName { get; }
         }
     }
 
+    /// <summary>
+    /// Marks a RuntimeNodeSet factory whose lifecycle entry points can safely run while a request
+    /// callback is suspended.
+    /// </summary>
     internal interface IRequestCallbackSafeNodeManagerFactory
     {
+        /// <summary>
+        /// Gets whether request callbacks may enter lifecycle work without deadlocking request drains.
+        /// </summary>
         bool AllowLifecycleFromRequestCallback { get; }
     }
 
@@ -593,6 +617,9 @@ namespace Opc.Ua.Server.RuntimeNodeSet
     /// </summary>
     internal static partial class RuntimeNodeSetNodeManagerFactoryLog
     {
+        /// <summary>
+        /// Logs that a RuntimeNodeSet source is about to be parsed.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.RuntimeNodeSetNodeManagerFactory + 0, Level = LogLevel.Information,
             Message = "RuntimeNodeSet: parsing source '{Source}'.")]
         public static partial void RuntimeNodeSetParsingSourceSource(this ILogger logger, string? source);

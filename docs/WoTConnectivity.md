@@ -566,7 +566,7 @@ The legacy `WotConnectivityNodeManager`, its generated 1.02 namespace/NodeIds/me
 
 The implemented data plane covers executable HTTP, Modbus TCP, MQTT, and OPC UA binding forms according to the operation coverage documented in [WoT protocol bindings](WotBindings.md). CoAP, BACnet, PROFINET, and LoRaWAN currently ship as planner-only binders: their forms are validated and represented in plans, but a non-strict closure is degraded until an executor is registered.
 
-OPC 10101 target mapping is authored on property affordances, not forms. `uav:mapByFieldPath` requires `uav:mapToType`, portable `nsu=` NodeIds are resolved against the runtime generation's namespace table, and the mapping is protocol-neutral as illustrated by [OPC 10101 §8.2](https://reference.opcfoundation.org/specs/OPC-10101/8.2). See [OPC 10101 §6.5.4](https://reference.opcfoundation.org/specs/OPC-10101/6.5.4) and the [binding-authoring guide](WotBindings.md#part-2---adding-your-own-binding) for the exact validation and runtime semantics.
+OPC 10101 target mapping is authored on property affordances, not forms. `uav:mapByFieldPath` requires `uav:mapToType`, portable `nsu=` NodeIds are resolved against the runtime generation's namespace table, and the mapping is protocol-neutral as illustrated by [OPC 10101 §8.2](https://reference.opcfoundation.org/specs/OPC-10101/8.2). See [OPC 10101 §6.5.4](https://reference.opcfoundation.org/specs/OPC-10101/6.5.4) and the [binding-authoring guide](WotBindings.md#adding-your-own-binding) for the exact validation and runtime semantics.
 
 ### 11.7 Browseable registry projection and management Methods
 

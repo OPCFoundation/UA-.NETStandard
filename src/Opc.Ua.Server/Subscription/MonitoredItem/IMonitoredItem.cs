@@ -370,8 +370,15 @@ namespace Opc.Ua.Server
         void SetSamplingInterval(double samplingInterval);
     }
 
+    /// <summary>
+    /// Restores monitored item transient state when a prepared subscription transfer is rolled back.
+    /// </summary>
     internal interface IMonitoredItemTransferState
     {
+        /// <summary>
+        /// Restores the resend-data trigger to the value captured before transfer preparation.
+        /// </summary>
+        /// <param name="resendData">The original resend-data trigger state.</param>
         void RestoreResendDataTrigger(bool resendData);
     }
 

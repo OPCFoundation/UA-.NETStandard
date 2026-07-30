@@ -43,7 +43,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
     /// primitives (Open/Read/Write/Close/GetPosition/SetPosition) in isolation,
     /// without a running server. The ThingDescriptionFileState is created via
     /// the source-generated factory; method handlers are invoked directly
-    /// through the wired OnCall delegates.
+    /// through the wired method delegates.
     /// </summary>
     [TestFixture]
     [Category("WotCon")]
@@ -164,7 +164,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public void OpenCountIncreasesAndDecreasesWithHandles()
+        public async Task OpenCountIncreasesAndDecreasesWithHandles()
         {
             using var harness = new Harness();
             uint h1 = 0;
@@ -173,14 +173,14 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(harness.File.OpenCount!.Value, Is.EqualTo((ushort)1));
             harness.Open(ModeRead, ref h2);
             Assert.That(harness.File.OpenCount.Value, Is.EqualTo((ushort)2));
-            harness.Close(h1);
+            await harness.CloseAsync(h1).ConfigureAwait(false);
             Assert.That(harness.File.OpenCount.Value, Is.EqualTo((ushort)1));
-            harness.Close(h2);
+            await harness.CloseAsync(h2).ConfigureAwait(false);
             Assert.That(harness.File.OpenCount.Value, Is.Zero);
         }
 
         [Test]
-        public void ReadOnValidReadHandleReturnsContent()
+        public async Task ReadOnValidReadHandleReturnsContent()
         {
             using var harness = new Harness();
             byte[] content = Encoding.UTF8.GetBytes("hello resource");
@@ -190,14 +190,14 @@ namespace Opc.Ua.WotCon.Tests.Registry
             harness.Open(ModeRead, ref handle);
             ByteString data = default;
             ServiceResult result = harness.Read(handle, 256, ref data);
-            harness.Close(handle);
+            await harness.CloseAsync(handle).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(data.Span.ToArray(), Is.EqualTo(content));
         }
 
         [Test]
-        public void ReadWithLengthZeroReturnsEmptyAndSuccess()
+        public async Task ReadWithLengthZeroReturnsEmptyAndSuccess()
         {
             using var harness = new Harness();
             harness.Manager.UpdatePersistedContent(new byte[] { 1, 2, 3 }, null);
@@ -205,14 +205,14 @@ namespace Opc.Ua.WotCon.Tests.Registry
             harness.Open(ModeRead, ref handle);
             ByteString data = default;
             ServiceResult result = harness.Read(handle, 0, ref data);
-            harness.Close(handle);
+            await harness.CloseAsync(handle).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(data.IsNull || data.Span.Length == 0, Is.True);
         }
 
         [Test]
-        public void ReadPastEndOfFileReturnsEmptyAndSuccess()
+        public async Task ReadPastEndOfFileReturnsEmptyAndSuccess()
         {
             using var harness = new Harness();
             harness.Manager.UpdatePersistedContent(new byte[] { 1, 2 }, null);
@@ -222,21 +222,21 @@ namespace Opc.Ua.WotCon.Tests.Registry
             harness.Read(handle, 2, ref first);
             ByteString data = default;
             ServiceResult result = harness.Read(handle, 256, ref data);
-            harness.Close(handle);
+            await harness.CloseAsync(handle).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(data.IsNull || data.Span.Length == 0, Is.True);
         }
 
         [Test]
-        public void ReadOnWriteHandleReturnsBadInvalidState()
+        public async Task ReadOnWriteHandleReturnsBadInvalidState()
         {
             using var harness = new Harness();
             uint handle = 0;
             harness.Open(ModeWriteErase, ref handle);
             ByteString data = default;
             ServiceResult result = harness.Read(handle, 16, ref data);
-            harness.Close(handle);
+            await harness.CloseAsync(handle).ConfigureAwait(false);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
         }
@@ -252,25 +252,25 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public void WriteOnValidWriteHandleSucceeds()
+        public async Task WriteOnValidWriteHandleSucceeds()
         {
             using var harness = new Harness();
             uint handle = 0;
             harness.Open(ModeWriteErase, ref handle);
             ServiceResult result = harness.Write(handle, ByteString.From(new byte[] { 1, 2, 3 }));
-            harness.Close(handle);
+            await harness.CloseAsync(handle).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
         }
 
         [Test]
-        public void WriteOnReadHandleReturnsBadInvalidState()
+        public async Task WriteOnReadHandleReturnsBadInvalidState()
         {
             using var harness = new Harness();
             uint handle = 0;
             harness.Open(ModeRead, ref handle);
             ServiceResult result = harness.Write(handle, ByteString.From(new byte[] { 1 }));
-            harness.Close(handle);
+            await harness.CloseAsync(handle).ConfigureAwait(false);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
         }
@@ -285,31 +285,31 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public void WriteBeyondMaxSizeReturnsBadOutOfMemory()
+        public async Task WriteBeyondMaxSizeReturnsBadOutOfMemory()
         {
             using var harness = new Harness(maxDocumentSize: 4);
             uint handle = 0;
             harness.Open(ModeWriteErase, ref handle);
             ServiceResult result = harness.Write(handle, ByteString.From(new byte[] { 1, 2, 3, 4, 5 }));
-            harness.Close(handle);
+            await harness.CloseAsync(handle).ConfigureAwait(false);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadOutOfMemory));
         }
 
         [Test]
-        public void WriteEmptyByteStringIsNoOp()
+        public async Task WriteEmptyByteStringIsNoOp()
         {
             using var harness = new Harness();
             uint handle = 0;
             harness.Open(ModeWriteErase, ref handle);
             ServiceResult result = harness.Write(handle, ByteString.Empty);
-            harness.Close(handle);
+            await harness.CloseAsync(handle).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
         }
 
         [Test]
-        public void WriteWhenAuthorizeFailsReturnsBadResult()
+        public async Task WriteWhenAuthorizeFailsReturnsBadResult()
         {
             using var harness = new Harness(authorizeWrite: (_, op) =>
             {
@@ -323,13 +323,13 @@ namespace Opc.Ua.WotCon.Tests.Registry
             uint handle = 0;
             harness.Open(ModeWriteErase, ref handle);
             ServiceResult result = harness.Write(handle, ByteString.From(new byte[] { 1, 2 }));
-            harness.Close(handle);
+            await harness.CloseAsync(handle).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsBad(result), Is.True);
         }
 
         [Test]
-        public void GetPositionOnReadHandleReturnsZeroInitially()
+        public async Task GetPositionOnReadHandleReturnsZeroInitially()
         {
             using var harness = new Harness();
             harness.Manager.UpdatePersistedContent(new byte[] { 1, 2, 3 }, null);
@@ -337,7 +337,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
             harness.Open(ModeRead, ref handle);
             ulong position = 999;
             ServiceResult result = harness.GetPosition(handle, ref position);
-            harness.Close(handle);
+            await harness.CloseAsync(handle).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(position, Is.Zero);
@@ -354,7 +354,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public void GetPositionReflectsCurrentReadOffset()
+        public async Task GetPositionReflectsCurrentReadOffset()
         {
             using var harness = new Harness();
             harness.Manager.UpdatePersistedContent(new byte[] { 1, 2, 3, 4, 5 }, null);
@@ -364,14 +364,14 @@ namespace Opc.Ua.WotCon.Tests.Registry
             harness.Read(handle, 3, ref data);
             ulong position = 0;
             ServiceResult result = harness.GetPosition(handle, ref position);
-            harness.Close(handle);
+            await harness.CloseAsync(handle).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(position, Is.EqualTo(3ul));
         }
 
         [Test]
-        public void SetPositionOnReadHandleWithinBoundsSucceeds()
+        public async Task SetPositionOnReadHandleWithinBoundsSucceeds()
         {
             using var harness = new Harness();
             harness.Manager.UpdatePersistedContent(new byte[] { 1, 2, 3, 4, 5 }, null);
@@ -380,21 +380,21 @@ namespace Opc.Ua.WotCon.Tests.Registry
             ServiceResult result = harness.SetPosition(handle, 3);
             ulong pos = 0;
             harness.GetPosition(handle, ref pos);
-            harness.Close(handle);
+            await harness.CloseAsync(handle).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(pos, Is.EqualTo(3ul));
         }
 
         [Test]
-        public void SetPositionBeyondLengthReturnsBadInvalidArgument()
+        public async Task SetPositionBeyondLengthReturnsBadInvalidArgument()
         {
             using var harness = new Harness();
             harness.Manager.UpdatePersistedContent(new byte[] { 1, 2, 3 }, null);
             uint handle = 0;
             harness.Open(ModeRead, ref handle);
             ServiceResult result = harness.SetPosition(handle, 100);
-            harness.Close(handle);
+            await harness.CloseAsync(handle).ConfigureAwait(false);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
@@ -409,7 +409,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public void SetPositionOnWriteHandleCallsAuthorizeWrite()
+        public async Task SetPositionOnWriteHandleCallsAuthorizeWrite()
         {
             bool setPosAuthCalled = false;
             using var harness = new Harness(authorizeWrite: (_, op) =>
@@ -425,13 +425,13 @@ namespace Opc.Ua.WotCon.Tests.Registry
             harness.Open(ModeWriteErase, ref handle);
             harness.Write(handle, ByteString.From(new byte[] { 1, 2, 3 }));
             harness.SetPosition(handle, 1);
-            harness.Close(handle);
+            await harness.CloseAsync(handle).ConfigureAwait(false);
 
             Assert.That(setPosAuthCalled, Is.True);
         }
 
         [Test]
-        public void SetPositionOnWriteHandleWhenAuthorizeFailsReturnsBadResult()
+        public async Task SetPositionOnWriteHandleWhenAuthorizeFailsReturnsBadResult()
         {
             using var harness = new Harness(authorizeWrite: (_, op) =>
             {
@@ -446,13 +446,13 @@ namespace Opc.Ua.WotCon.Tests.Registry
             harness.Open(ModeWriteErase, ref handle);
             harness.Write(handle, ByteString.From(new byte[] { 1, 2, 3 }));
             ServiceResult result = harness.SetPosition(handle, 1);
-            harness.Close(handle);
+            await harness.CloseAsync(handle).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsBad(result), Is.True);
         }
 
         [Test]
-        public void CloseReadHandleSucceedsWithoutCommit()
+        public async Task CloseReadHandleSucceedsWithoutCommit()
         {
             int commitCount = 0;
             using var harness = new Harness(onCommit: (_, _, _) =>
@@ -462,14 +462,14 @@ namespace Opc.Ua.WotCon.Tests.Registry
             });
             uint handle = 0;
             harness.Open(ModeRead, ref handle);
-            ServiceResult result = harness.Close(handle);
+            ServiceResult result = await harness.CloseAsync(handle).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(commitCount, Is.Zero);
         }
 
         [Test]
-        public void CloseWriteHandleWithContentInvokesCommitCallback()
+        public async Task CloseWriteHandleWithContentInvokesCommitCallback()
         {
             byte[]? committed = null;
             using var harness = new Harness(onCommit: (bytes, _, _) =>
@@ -481,14 +481,41 @@ namespace Opc.Ua.WotCon.Tests.Registry
             uint handle = 0;
             harness.Open(ModeWriteErase, ref handle);
             harness.Write(handle, ByteString.From(payload));
-            ServiceResult result = harness.Close(handle);
+            ServiceResult result = await harness.CloseAsync(handle).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(committed, Is.EqualTo(payload));
         }
 
         [Test]
-        public void CloseWriteHandleWithoutContentIsNoOp()
+        public async Task CloseWriteHandleAwaitsCommitCallbackAsync()
+        {
+            var commitStarted = new TaskCompletionSource<object>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseCommit = new TaskCompletionSource<ServiceResult>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            using var harness = new Harness(onCommit: async (_, _, _) =>
+            {
+                commitStarted.SetResult(new object());
+                return await releaseCommit.Task.ConfigureAwait(false);
+            });
+            uint handle = 0;
+            harness.Open(ModeWriteErase, ref handle);
+            harness.Write(handle, ByteString.From(Encoding.UTF8.GetBytes("doc body")));
+
+            ValueTask<ServiceResult> close = harness.CloseAsync(handle);
+            await commitStarted.Task.ConfigureAwait(false);
+
+            Assert.That(close.IsCompleted, Is.False);
+
+            releaseCommit.SetResult(ServiceResult.Good);
+            ServiceResult result = await close.ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+        }
+
+        [Test]
+        public async Task CloseWriteHandleWithoutContentIsNoOp()
         {
             int commitCount = 0;
             using var harness = new Harness(onCommit: (_, _, _) =>
@@ -498,23 +525,23 @@ namespace Opc.Ua.WotCon.Tests.Registry
             });
             uint handle = 0;
             harness.Open(ModeWriteErase, ref handle);
-            ServiceResult result = harness.Close(handle);
+            ServiceResult result = await harness.CloseAsync(handle).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(commitCount, Is.Zero);
         }
 
         [Test]
-        public void CloseWithInvalidHandleReturnsBadInvalidArgument()
+        public async Task CloseWithInvalidHandleReturnsBadInvalidArgument()
         {
             using var harness = new Harness();
-            ServiceResult result = harness.Close(9999);
+            ServiceResult result = await harness.CloseAsync(9999).ConfigureAwait(false);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
-        public void CloseWriteHandleWhenCommitFailsReturnsBadResult()
+        public async Task CloseWriteHandleWhenCommitFailsReturnsBadResult()
         {
             using var harness = new Harness(onCommit: (_, _, _) =>
                 new ValueTask<ServiceResult>((ServiceResult)StatusCodes.BadInternalError));
@@ -522,13 +549,13 @@ namespace Opc.Ua.WotCon.Tests.Registry
             uint handle = 0;
             harness.Open(ModeWriteErase, ref handle);
             harness.Write(handle, ByteString.From(payload));
-            ServiceResult result = harness.Close(handle);
+            ServiceResult result = await harness.CloseAsync(handle).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsBad(result), Is.True);
         }
 
         [Test]
-        public void CloseWriteHandleWhenCloseAuthorizeFailsRemovesHandle()
+        public async Task CloseWriteHandleWhenCloseAuthorizeFailsRemovesHandle()
         {
             int closeAuthCount = 0;
             using var harness = new Harness(authorizeWrite: (_, op) =>
@@ -545,7 +572,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
             uint handle = 0;
             harness.Open(ModeWriteErase, ref handle);
             harness.Write(handle, ByteString.From(payload));
-            ServiceResult result = harness.Close(handle);
+            ServiceResult result = await harness.CloseAsync(handle).ConfigureAwait(false);
 
             Assert.That(closeAuthCount, Is.EqualTo(1));
             Assert.That(ServiceResult.IsBad(result), Is.True);
@@ -601,21 +628,21 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public void WriteThenReadRoundTripsContent()
+        public async Task WriteThenReadRoundTripsContent()
         {
             using var harness = new Harness();
             byte[] payload = Encoding.UTF8.GetBytes("{\"title\":\"my-thing\"}");
             uint wh = 0;
             harness.Open(ModeWriteErase, ref wh);
             harness.Write(wh, ByteString.From(payload));
-            harness.Close(wh);
+            await harness.CloseAsync(wh).ConfigureAwait(false);
             harness.Manager.UpdatePersistedContent(payload, null);
 
             uint rh = 0;
             harness.Open(ModeRead, ref rh);
             ByteString data = default;
             harness.Read(rh, payload.Length + 16, ref data);
-            harness.Close(rh);
+            await harness.CloseAsync(rh).ConfigureAwait(false);
 
             Assert.That(data.Span.ToArray(), Is.EqualTo(payload));
         }
@@ -649,14 +676,14 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public void OperationsOnUnknownHandleReturnBadInvalidArgument()
+        public async Task OperationsOnUnknownHandleReturnBadInvalidArgument()
         {
             using var harness = new Harness();
             ByteString data = default;
             ulong pos = 0;
 
             ServiceResult readResult = harness.Read(9999, 1, ref data);
-            ServiceResult closeResult = harness.Close(9999);
+            ServiceResult closeResult = await harness.CloseAsync(9999).ConfigureAwait(false);
             ServiceResult writeResult = harness.Write(9999, ByteString.From(new byte[] { 1 }));
             ServiceResult getPos = harness.GetPosition(9999, ref pos);
             ServiceResult setPos = harness.SetPosition(9999, 0);
@@ -709,8 +736,17 @@ namespace Opc.Ua.WotCon.Tests.Registry
             public ServiceResult Open(byte mode, ref uint fileHandle)
                 => File.Open!.OnCall!.Invoke(Context, File.Open, m_objectId, mode, ref fileHandle);
 
-            public ServiceResult Close(uint fileHandle)
-                => File.Close!.OnCall!.Invoke(Context, File.Close, m_objectId, fileHandle);
+            public async ValueTask<ServiceResult> CloseAsync(uint fileHandle)
+            {
+                CloseMethodStateResult result = await File.Close!.OnCallAsync!(
+                        Context,
+                        File.Close,
+                        m_objectId,
+                        fileHandle,
+                        CancellationToken.None)
+                    .ConfigureAwait(false);
+                return result.ServiceResult;
+            }
 
             public ServiceResult Read(uint fileHandle, int length, ref ByteString data)
                 => File.Read!.OnCall!.Invoke(Context, File.Read, m_objectId, fileHandle, length, ref data);
@@ -731,3 +767,5 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
     }
 }
+
+

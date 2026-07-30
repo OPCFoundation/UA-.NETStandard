@@ -87,7 +87,8 @@ namespace Opc.Ua.WotCon.Server.Registry
 
     /// <summary>
     /// Indicates that the requested generation is the validated committed generation,
-    /// but a persistence operation still reported a failure.
+    /// but a persistence operation still reported a failure. Callers should reload
+    /// before retrying because the mutation may already be durable.
     /// </summary>
     [SuppressMessage(
         "Design",
@@ -99,6 +100,11 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// Initializes a committed, durability-uncertain outcome that external
         /// <see cref="IWotRegistryStore"/> implementations can report.
         /// </summary>
+        /// <param name="committedSnapshot">The snapshot that became the active primary generation.</param>
+        /// <param name="persistenceFailure">The failure reported after the commit became active.</param>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="committedSnapshot"/> or <paramref name="persistenceFailure"/> is <c>null</c>.
+        /// </exception>
         public WotRegistryCommitDurabilityUncertainException(
             WotRegistrySnapshot committedSnapshot,
             Exception persistenceFailure)
@@ -131,7 +137,8 @@ namespace Opc.Ua.WotCon.Server.Registry
 
     /// <summary>
     /// Indicates that the requested generation was conclusively not committed. The
-    /// previous generation remains active and the mutation may be retried.
+    /// previous generation remains active and the mutation may be retried without
+    /// first reconciling an active partial commit.
     /// </summary>
     [SuppressMessage(
         "Design",
@@ -143,6 +150,12 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// Initializes a confirmed not-committed outcome that external
         /// <see cref="IWotRegistryStore"/> implementations can report.
         /// </summary>
+        /// <param name="intendedSnapshot">The snapshot that failed before becoming active.</param>
+        /// <param name="persistenceFailure">The failure that prevented the commit.</param>
+        /// <param name="recoveryArtifactPath">Optional path to a preserved artifact for operator recovery.</param>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="intendedSnapshot"/> or <paramref name="persistenceFailure"/> is <c>null</c>.
+        /// </exception>
         public WotRegistryCommitNotCommittedException(
             WotRegistrySnapshot intendedSnapshot,
             Exception persistenceFailure,
@@ -183,7 +196,8 @@ namespace Opc.Ua.WotCon.Server.Registry
 
     /// <summary>
     /// Indicates that a manifest switch may have occurred, but the resulting primary
-    /// generation could not be validated. Reload or operator recovery is required.
+    /// generation could not be validated. Callers must not blindly retry; reload or
+    /// operator recovery is required to determine which generation is active.
     /// </summary>
     [SuppressMessage(
         "Design",
@@ -195,6 +209,13 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// Initializes an indeterminate outcome that external
         /// <see cref="IWotRegistryStore"/> implementations can report.
         /// </summary>
+        /// <param name="intendedSnapshot">The snapshot whose commit outcome could not be established.</param>
+        /// <param name="persistenceFailure">The failure reported by the persistence operation.</param>
+        /// <param name="validationFailure">The failure encountered while validating the resulting primary.</param>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="intendedSnapshot"/>, <paramref name="persistenceFailure"/>, or
+        /// <paramref name="validationFailure"/> is <c>null</c>.
+        /// </exception>
         public WotRegistryCommitIndeterminateException(
             WotRegistrySnapshot intendedSnapshot,
             Exception persistenceFailure,

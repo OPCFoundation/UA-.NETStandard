@@ -1882,16 +1882,54 @@ namespace Opc.Ua.WotCon.Server.Registry
         [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
         private static extern int CloseUnix(IntPtr file);
 
+        /// <summary>
+        /// Identifies the file-system durability barrier reached while committing manifest version 2.
+        /// </summary>
         internal enum DirectorySyncPhase
         {
+            /// <summary>
+            /// The parent directory for a created root path component is being flushed.
+            /// </summary>
             RootComponentParent,
+
+            /// <summary>
+            /// Blob content has been written and is being flushed before the manifest switch.
+            /// </summary>
             BlobsBeforeManifest,
+
+            /// <summary>
+            /// The registry root is being flushed before replacing the primary manifest.
+            /// </summary>
             RootBeforeManifest,
+
+            /// <summary>
+            /// The registry root is being flushed after staging the replacement manifest.
+            /// </summary>
             RootAfterManifestStaging,
+
+            /// <summary>
+            /// The registry root is being flushed after the primary manifest replacement.
+            /// </summary>
             RootAfterManifest,
+
+            /// <summary>
+            /// The registry root is being flushed after writing the pristine rollback marker.
+            /// </summary>
             RootAfterPristineRollbackMarker,
+
+            /// <summary>
+            /// Blob content is being flushed after restoring a pristine generation.
+            /// </summary>
             BlobsAfterPristineRollback,
+
+            /// <summary>
+            /// The registry root is being flushed after restoring pristine content.
+            /// </summary>
             RootAfterPristineRollback,
+
+            /// <summary>
+            /// The registry root is being flushed after removing the pristine rollback marker.
+            /// </summary>
             RootAfterPristineRollbackMarkerRemoval
         }
 
@@ -2124,70 +2162,268 @@ namespace Opc.Ua.WotCon.Server.Registry
         private ManifestStamp? m_expectedManifest;
         private long? m_expectedGeneration;
 
+        /// <summary>
+        /// Serializes the manifest version 2 root document for the file-backed WoT registry store.
+        /// </summary>
         internal sealed class ManifestDto
         {
+            /// <summary>
+            /// Gets or sets the manifest schema version used to validate compatibility.
+            /// </summary>
             public int SchemaVersion { get; set; }
+
+            /// <summary>
+            /// Gets or sets the committed registry generation number.
+            /// </summary>
             public long Generation { get; set; }
+
+            /// <summary>
+            /// Gets or sets registry-level labels persisted with the manifest.
+            /// </summary>
             public Dictionary<string, string>? RegistryLabels { get; set; }
+
+            /// <summary>
+            /// Gets or sets the resource groups contained in the generation.
+            /// </summary>
             public GroupDto[]? Groups { get; set; }
         }
 
+        /// <summary>
+        /// Serializes one xRegistry group inside a manifest version 2 document.
+        /// </summary>
         internal sealed class GroupDto
         {
+            /// <summary>
+            /// Gets or sets the xRegistry group identifier.
+            /// </summary>
             public string GroupId { get; set; } = string.Empty;
+
+            /// <summary>
+            /// Gets or sets the serialized group kind.
+            /// </summary>
             public int Kind { get; set; }
+
+            /// <summary>
+            /// Gets or sets the display name stored for the group.
+            /// </summary>
             public string Name { get; set; } = string.Empty;
+
+            /// <summary>
+            /// Gets or sets the description stored for the group.
+            /// </summary>
             public string Description { get; set; } = string.Empty;
+
+            /// <summary>
+            /// Gets or sets the group epoch used for optimistic consistency.
+            /// </summary>
             public long Epoch { get; set; }
+
+            /// <summary>
+            /// Gets or sets group labels stored in the manifest.
+            /// </summary>
             public Dictionary<string, string>? Labels { get; set; }
+
+            /// <summary>
+            /// Gets or sets the resources that belong to the group.
+            /// </summary>
             public ResourceDto[]? Resources { get; set; }
         }
 
+        /// <summary>
+        /// Serializes one resource version entry inside a manifest version 2 resource.
+        /// </summary>
         internal sealed class VersionDto
         {
+            /// <summary>
+            /// Gets or sets the resource version identifier.
+            /// </summary>
             public string VersionId { get; set; } = string.Empty;
+
+            /// <summary>
+            /// Gets or sets the media type recorded for the version blob.
+            /// </summary>
             public string? ContentType { get; set; }
+
+            /// <summary>
+            /// Gets or sets the format label recorded for the version.
+            /// </summary>
             public string? Format { get; set; }
+
+            /// <summary>
+            /// Gets or sets the version creation timestamp text.
+            /// </summary>
             public string? CreatedAt { get; set; }
+
+            /// <summary>
+            /// Gets or sets the version modification timestamp text.
+            /// </summary>
             public string? ModifiedAt { get; set; }
+
+            /// <summary>
+            /// Gets or sets the SHA-256 digest of the version blob as hexadecimal text.
+            /// </summary>
             public string? DigestHex { get; set; }
         }
 
+        /// <summary>
+        /// Serializes validation metadata for one manifest version 2 resource.
+        /// </summary>
         internal sealed class ValidationDto
         {
+            /// <summary>
+            /// Gets or sets whether the resource format has been validated.
+            /// </summary>
             public bool FormatValidated { get; set; }
+
+            /// <summary>
+            /// Gets or sets the serialized format validation outcome.
+            /// </summary>
             public int FormatOutcome { get; set; }
+
+            /// <summary>
+            /// Gets or sets the reason associated with the format validation outcome.
+            /// </summary>
             public string? FormatReason { get; set; }
+
+            /// <summary>
+            /// Gets or sets whether compatibility validation has run.
+            /// </summary>
             public bool CompatibilityValidated { get; set; }
+
+            /// <summary>
+            /// Gets or sets the serialized compatibility validation outcome.
+            /// </summary>
             public int CompatibilityOutcome { get; set; }
+
+            /// <summary>
+            /// Gets or sets the reason associated with the compatibility validation outcome.
+            /// </summary>
             public string? CompatibilityReason { get; set; }
+
+            /// <summary>
+            /// Gets or sets the compatibility policy used for validation.
+            /// </summary>
             public string? CompatibilityPolicy { get; set; }
+
+            /// <summary>
+            /// Gets or sets the timestamp text for the validation result.
+            /// </summary>
             public string? ValidatedAt { get; set; }
+
+            /// <summary>
+            /// Gets or sets the WoT vocabulary version used during validation.
+            /// </summary>
             public string? VocabularyVersion { get; set; }
         }
 
+        /// <summary>
+        /// Serializes one xRegistry resource and its materialization state in manifest version 2.
+        /// </summary>
         internal sealed class ResourceDto
         {
+            /// <summary>
+            /// Gets or sets the identifier of the group that owns the resource.
+            /// </summary>
             public string GroupId { get; set; } = string.Empty;
+
+            /// <summary>
+            /// Gets or sets the xRegistry resource identifier.
+            /// </summary>
             public string ResourceId { get; set; } = string.Empty;
+
+            /// <summary>
+            /// Gets or sets the serialized resource kind.
+            /// </summary>
             public int Kind { get; set; }
+
+            /// <summary>
+            /// Gets or sets the display name stored for the resource.
+            /// </summary>
             public string Name { get; set; } = string.Empty;
+
+            /// <summary>
+            /// Gets or sets the description stored for the resource.
+            /// </summary>
             public string Description { get; set; } = string.Empty;
+
+            /// <summary>
+            /// Gets or sets the default version identifier for clients that do not request one.
+            /// </summary>
             public string? DefaultVersionId { get; set; }
+
+            /// <summary>
+            /// Gets or sets the desired version identifier selected by management operations.
+            /// </summary>
             public string? DesiredVersionId { get; set; }
+
+            /// <summary>
+            /// Gets or sets the active version identifier currently materialized.
+            /// </summary>
             public string? ActiveVersionId { get; set; }
+
+            /// <summary>
+            /// Gets or sets whether the resource participates in materialization.
+            /// </summary>
             public bool Enabled { get; set; }
+
+            /// <summary>
+            /// Gets or sets the serialized resource load state.
+            /// </summary>
             public int LoadState { get; set; }
+
+            /// <summary>
+            /// Gets or sets the resource epoch used for optimistic consistency.
+            /// </summary>
             public long Epoch { get; set; }
+
+            /// <summary>
+            /// Gets or sets the projection refresh generation that produced the materialized state.
+            /// </summary>
             public uint RefreshGeneration { get; set; }
+
+            /// <summary>
+            /// Gets or sets the timestamp text for the last projection refresh.
+            /// </summary>
             public string? LastRefreshTime { get; set; }
+
+            /// <summary>
+            /// Gets or sets the number of OPC UA nodes materialized for the resource.
+            /// </summary>
             public int MaterializedNodeCount { get; set; }
+
+            /// <summary>
+            /// Gets or sets the root OPC UA NodeId assigned to the materialized resource.
+            /// </summary>
             public string? RootNodeId { get; set; }
+
+            /// <summary>
+            /// Gets or sets the Thing Description identifier discovered in the active version.
+            /// </summary>
             public string? ThingId { get; set; }
+
+            /// <summary>
+            /// Gets or sets the Thing Description title discovered in the active version.
+            /// </summary>
             public string? Title { get; set; }
+
+            /// <summary>
+            /// Gets or sets diagnostic messages captured while loading or materializing the resource.
+            /// </summary>
             public string[]? Diagnostics { get; set; }
+
+            /// <summary>
+            /// Gets or sets validation metadata for the resource.
+            /// </summary>
             public ValidationDto? Validation { get; set; }
+
+            /// <summary>
+            /// Gets or sets the versions stored for the resource.
+            /// </summary>
             public VersionDto[]? Versions { get; set; }
+
+            /// <summary>
+            /// Gets or sets resource-level labels persisted with the manifest.
+            /// </summary>
             public Dictionary<string, string>? Labels { get; set; }
         }
     }

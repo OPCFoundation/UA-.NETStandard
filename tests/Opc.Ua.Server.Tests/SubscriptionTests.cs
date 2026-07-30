@@ -408,6 +408,27 @@ namespace Opc.Ua.Server.Tests
             field.SetValue(instance, value);
         }
 
+        private static void EnqueueConditionRefreshTask(
+            SubscriptionManager manager,
+            ISubscription subscription)
+        {
+            Type taskType = typeof(SubscriptionManager).GetNestedType(
+                    "ConditionRefreshTask",
+                    BindingFlags.NonPublic)
+                ?? throw new InvalidOperationException(
+                    "ConditionRefreshTask type not found.");
+            object task = Activator.CreateInstance(taskType, subscription, 0u)
+                ?? throw new InvalidOperationException(
+                    "ConditionRefreshTask could not be created.");
+            object queue = GetPrivateField<object>(
+                manager,
+                "m_conditionRefreshQueue");
+            MethodInfo enqueue = queue.GetType().GetMethod("Enqueue")
+                ?? throw new InvalidOperationException(
+                    "ConditionRefreshTask queue Enqueue method not found.");
+            enqueue.Invoke(queue, [task]);
+        }
+
         private static void ExpireOnNextPublishTimer(Subscription subscription)
         {
             uint maxLifetimeCount = GetPrivateField<uint>(
@@ -931,6 +952,82 @@ namespace Opc.Ua.Server.Tests
             Assert.That(
                 subscription.Diagnostics.MaxNotificationsPerPublish,
                 Is.EqualTo((uint)expectedLimit));
+        }
+
+        [Test]
+        public async Task DisposeAsyncJoinsWorkersAndIsIdempotentAsync()
+        {
+            var timeProvider = new FakeTimeProvider(
+                new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+            var configuration = new ApplicationConfiguration
+            {
+                ServerConfiguration = new ServerConfiguration
+                {
+                    PublishingResolution = 1000
+                }
+            };
+            var manager = new SubscriptionManager(
+                m_serverMock.Object,
+                configuration,
+                timeProvider);
+
+            await manager.StartupAsync().ConfigureAwait(false);
+            await Task.Yield();
+
+            await manager.DisposeAsync().ConfigureAwait(false);
+            await manager.DisposeAsync().ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    GetPrivateField<Task>(manager, "m_publishSubscriptionsTask").IsCompleted,
+                    Is.True);
+                Assert.That(
+                    GetPrivateField<Task>(manager, "m_conditionRefreshTask").IsCompleted,
+                    Is.True);
+            });
+        }
+
+        [Test]
+        public async Task DisposeAsyncWhileConditionRefreshIsRunningWaitsForWorkAsync()
+        {
+            var configuration = new ApplicationConfiguration
+            {
+                ServerConfiguration = new ServerConfiguration()
+            };
+            var manager = new SubscriptionManager(
+                m_serverMock.Object,
+                configuration);
+            var refreshStarted = new TaskCompletionSource<object>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseRefresh = new TaskCompletionSource<object>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            bool refreshCompleted = false;
+            var subscription = new Mock<ISubscription>();
+            subscription
+                .Setup(s => s.ConditionRefreshAsync(It.IsAny<CancellationToken>()))
+                .Returns((CancellationToken _) => new ValueTask(WaitForReleaseAsync()));
+
+            async Task WaitForReleaseAsync()
+            {
+                refreshStarted.SetResult(new object());
+                await releaseRefresh.Task.ConfigureAwait(false);
+                refreshCompleted = true;
+            }
+
+            EnqueueConditionRefreshTask(manager, subscription.Object);
+            manager.StartConditionRefreshWorkerForTest();
+            await refreshStarted.Task.ConfigureAwait(false);
+
+            Task disposeTask = manager.DisposeAsync().AsTask();
+
+            Assert.That(disposeTask.IsCompleted, Is.False);
+
+            releaseRefresh.SetResult(new object());
+            await disposeTask.ConfigureAwait(false);
+            await manager.DisposeAsync().ConfigureAwait(false);
+
+            Assert.That(refreshCompleted, Is.True);
         }
 
         [TestCase(0, 0L, 0L)]
@@ -1910,3 +2007,5 @@ namespace Opc.Ua.Server.Tests
         }
     }
 }
+
+

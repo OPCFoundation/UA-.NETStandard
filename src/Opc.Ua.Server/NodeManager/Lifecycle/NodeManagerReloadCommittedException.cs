@@ -43,7 +43,13 @@ namespace Opc.Ua.Server
         Justification = "A committed reload exception is meaningful only with its authoritative registration.")]
     public sealed class NodeManagerReloadCommittedException : InvalidOperationException
     {
-        /// <summary>Initializes the exception.</summary>
+        /// <summary>
+        /// Initializes an exception for a reload whose replacement registration already became authoritative.
+        /// </summary>
+        /// <param name="registration">The committed replacement registration that callers must keep.</param>
+        /// <param name="message">The failure message describing the post-commit error.</param>
+        /// <param name="innerException">The exception raised after commit completed.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="registration"/> is <c>null</c>.</exception>
         public NodeManagerReloadCommittedException(
             NodeManagerRegistration registration,
             string message,
@@ -53,7 +59,9 @@ namespace Opc.Ua.Server
             Registration = registration ?? throw new ArgumentNullException(nameof(registration));
         }
 
-        /// <summary>Gets the committed replacement registration.</summary>
+        /// <summary>
+        /// Gets the committed replacement registration that remains the active NodeManager generation.
+        /// </summary>
         public NodeManagerRegistration Registration { get; }
     }
 }

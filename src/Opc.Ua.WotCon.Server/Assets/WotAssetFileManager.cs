@@ -396,6 +396,9 @@ namespace Opc.Ua.WotCon.Server.Assets
             return true;
         }
 
+        /// <summary>
+        /// Tracks an open OPC UA file handle and whether it owns a writable buffer.
+        /// </summary>
         private sealed class Handle : IDisposable
         {
             private Handle(NodeId sessionId, Stream stream, bool writing)
@@ -405,20 +408,45 @@ namespace Opc.Ua.WotCon.Server.Assets
                 Writing = writing;
             }
 
+            /// <summary>
+            /// Gets the session that opened the file handle.
+            /// </summary>
             public NodeId SessionId { get; }
+
+            /// <summary>
+            /// Gets the stream backing the open file handle.
+            /// </summary>
             public Stream Stream { get; }
+
+            /// <summary>
+            /// Gets whether the handle buffers a write that will be committed on close.
+            /// </summary>
             public bool Writing { get; }
 
+            /// <summary>
+            /// Opens a read handle over an immutable snapshot of the Thing Description JSON.
+            /// </summary>
+            /// <param name="sessionId">The session that opened the handle.</param>
+            /// <param name="snapshot">The bytes exposed by the read handle.</param>
+            /// <returns>A read-only file handle.</returns>
             public static Handle OpenRead(NodeId sessionId, byte[] snapshot)
             {
                 return new(sessionId, new MemoryStream(snapshot, writable: false), writing: false);
             }
 
+            /// <summary>
+            /// Opens a write handle whose buffer is validated and committed when the OPC UA file closes.
+            /// </summary>
+            /// <param name="sessionId">The session that opened the handle.</param>
+            /// <returns>A writable file handle.</returns>
             public static Handle OpenWrite(NodeId sessionId)
             {
                 return new(sessionId, new MemoryStream(), writing: true);
             }
 
+            /// <summary>
+            /// Disposes the stream owned by the file handle.
+            /// </summary>
             public void Dispose()
             {
                 Stream.Dispose();
@@ -435,8 +463,14 @@ namespace Opc.Ua.WotCon.Server.Assets
         private uint m_writingHandle;
     }
 
+    /// <summary>
+    /// Holds source-generated log messages emitted by the WoT asset file manager component.
+    /// </summary>
     internal static partial class WotAssetFileManagerLog
     {
+        /// <summary>
+        /// Logs that uploaded Thing Description JSON could not be parsed before being accepted.
+        /// </summary>
         [LoggerMessage(EventId = WotConServerEventIds.WotAssetFileManager + 0, Level = LogLevel.Warning,
             Message = "Thing description JSON could not be parsed")]
         public static partial void ThingDescriptionJsonCouldNotBeParsed(this ILogger logger, JsonException ex);

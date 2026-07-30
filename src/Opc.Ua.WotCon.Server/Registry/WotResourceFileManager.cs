@@ -96,7 +96,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             }
             if (m_file.Close is not null)
             {
-                m_file.Close.OnCall = new CloseMethodStateMethodCallHandler(OnClose);
+                m_file.Close.OnCallAsync = new CloseMethodStateMethodAsyncCallHandler(OnCloseAsync);
             }
             if (m_file.Read is not null)
             {
@@ -231,8 +231,12 @@ namespace Opc.Ua.WotCon.Server.Registry
             return ServiceResult.Good;
         }
 
-        private ServiceResult OnClose(
-            ISystemContext context, MethodState method, NodeId objectId, uint fileHandle)
+        private async ValueTask<CloseMethodStateResult> OnCloseAsync(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            uint fileHandle,
+            CancellationToken cancellationToken)
         {
             Handle handle;
             bool commit;
@@ -240,7 +244,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             {
                 if (!TryGetHandleLocked(context, fileHandle, out handle, out ServiceResult err))
                 {
-                    return err;
+                    return new CloseMethodStateResult { ServiceResult = err };
                 }
                 commit = m_writingHandle == fileHandle;
                 if (commit)
@@ -255,7 +259,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                             m_file.OpenCount.Value = (ushort)m_handles.Count;
                         }
                         handle.Dispose();
-                        return access;
+                        return new CloseMethodStateResult { ServiceResult = access };
                     }
                     m_writingHandle = 0;
                 }
@@ -270,16 +274,17 @@ namespace Opc.Ua.WotCon.Server.Registry
             {
                 if (!commit)
                 {
-                    return ServiceResult.Good;
+                    return new CloseMethodStateResult { ServiceResult = ServiceResult.Good };
                 }
                 byte[] content = ((MemoryStream)handle.Stream).ToArray();
                 if (content.Length == 0)
                 {
                     // Nothing was written: closing a fresh writer is a no-op.
-                    return ServiceResult.Good;
+                    return new CloseMethodStateResult { ServiceResult = ServiceResult.Good };
                 }
-                return m_onCommit(content, SessionIdOf(context), CancellationToken.None)
-                    .AsTask().GetAwaiter().GetResult();
+                ServiceResult result = await m_onCommit(content, SessionIdOf(context), cancellationToken)
+                    .ConfigureAwait(false);
+                return new CloseMethodStateResult { ServiceResult = result };
             }
             finally
             {

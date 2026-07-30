@@ -57,7 +57,6 @@ namespace Opc.Ua
     /// OPC UA data-types.
     /// <br/></para>
     /// </remarks>
-    // [Union]
     public readonly struct Variant :
         INullable,
         IFormattable,
@@ -8286,42 +8285,81 @@ namespace Opc.Ua
                     typeof(T).Name));
         }
 
+        /// <summary>
+        /// Stores the primitive Variant payload or array slice metadata without allocating boxed values.
+        /// </summary>
         [StructLayout(LayoutKind.Explicit, Size = 8)]
         internal struct Union
         {
+            /// <summary>
+            /// Stores a Boolean payload.
+            /// </summary>
             [FieldOffset(0)]
             public bool Boolean;
 
+            /// <summary>
+            /// Stores a signed byte payload.
+            /// </summary>
             [FieldOffset(0)]
             public sbyte SByte;
 
+            /// <summary>
+            /// Stores an unsigned byte payload.
+            /// </summary>
             [FieldOffset(0)]
             public byte Byte;
 
+            /// <summary>
+            /// Stores a 16-bit signed integer payload.
+            /// </summary>
             [FieldOffset(0)]
             public short Int16;
 
+            /// <summary>
+            /// Stores a 16-bit unsigned integer payload.
+            /// </summary>
             [FieldOffset(0)]
             public ushort UInt16;
 
+            /// <summary>
+            /// Stores a 32-bit signed integer payload.
+            /// </summary>
             [FieldOffset(0)]
             public int Int32;
 
+            /// <summary>
+            /// Stores a 32-bit unsigned integer payload.
+            /// </summary>
             [FieldOffset(0)]
             public uint UInt32;
 
+            /// <summary>
+            /// Stores a 64-bit signed integer payload.
+            /// </summary>
             [FieldOffset(0)]
             public long Int64;
 
+            /// <summary>
+            /// Stores a 64-bit unsigned integer payload.
+            /// </summary>
             [FieldOffset(0)]
             public ulong UInt64;
 
+            /// <summary>
+            /// Stores a single-precision floating-point payload.
+            /// </summary>
             [FieldOffset(0)]
             public float Float;
 
+            /// <summary>
+            /// Stores a double-precision floating-point payload.
+            /// </summary>
             [FieldOffset(0)]
             public double Double;
 
+            /// <summary>
+            /// Stores a DateTime payload.
+            /// </summary>
             [FieldOffset(0)]
             public DateTimeUtc DateTime;
 

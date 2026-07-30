@@ -32,8 +32,19 @@ using System.Collections.Generic;
 
 namespace Opc.Ua.Wot
 {
+    /// <summary>
+    /// Tracks generated Thing Description references so WoT conversion can preserve stable NodeIds
+    /// when multiple documents reference the same Thing.
+    /// </summary>
     internal sealed class WotThingCatalog
     {
+        /// <summary>
+        /// Adds a generated NodeId candidate for a Thing reference.
+        /// </summary>
+        /// <param name="reference">The Thing reference used as the catalog key.</param>
+        /// <param name="nodeId">
+        /// The NodeId associated with the reference, or <c>null</c> when none was generated.
+        /// </param>
         public void Add(string reference, string? nodeId)
         {
             if (!m_entries.TryGetValue(reference, out Queue<string?>? entries))
@@ -44,6 +55,12 @@ namespace Opc.Ua.Wot
             entries.Enqueue(nodeId);
         }
 
+        /// <summary>
+        /// Removes the next NodeId candidate for a Thing reference while preserving insertion order.
+        /// </summary>
+        /// <param name="reference">The Thing reference to resolve.</param>
+        /// <param name="nodeId">The next catalogued NodeId, or <c>null</c> when none was stored.</param>
+        /// <returns><c>true</c> when a catalogued entry was available.</returns>
         public bool TryTake(string reference, out string? nodeId)
         {
             if (m_entries.TryGetValue(reference, out Queue<string?>? entries) &&

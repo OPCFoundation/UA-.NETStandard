@@ -41,7 +41,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// A generic session manager object for a server.
     /// </summary>
-    public class SubscriptionManager : ISubscriptionManager
+    public class SubscriptionManager : ISubscriptionManager, IAsyncDisposable
     {
         /// <summary>
         /// Initializes the manager with its configuration.
@@ -100,6 +100,7 @@ namespace Opc.Ua.Server
 
             // create a event to signal shutdown.
             m_shutdownEvent = new ManualResetEvent(true);
+            m_workerShutdown = new CancellationTokenSource();
 
             // create queue and event for condition refresh worker
             m_conditionRefreshEvent = new ManualResetEvent(false);
@@ -116,51 +117,96 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Frees managed resources that require asynchronous shutdown.
+        /// </summary>
+        public async ValueTask DisposeAsync()
+        {
+            await DisposeAsyncCore().ConfigureAwait(false);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
         /// An overrideable version of the Dispose.
         /// </summary>
         protected virtual void Dispose(bool disposing)
         {
-            if (disposing)
+            if (disposing && Interlocked.Exchange(ref m_disposed, 1) == 0)
             {
-                List<ISubscription>? subscriptions = null;
-                List<SessionPublishQueue>? publishQueues = null;
-
                 SignalConditionRefreshShutdown();
-                Task.WhenAll(
-                        m_publishSubscriptionsTask ?? Task.CompletedTask,
-                        m_conditionRefreshTask ?? Task.CompletedTask)
-                    .GetAwaiter()
-                    .GetResult();
-
-                m_semaphoreSlim.Wait();
-                try
-                {
-                    publishQueues = [.. m_publishQueues.Values];
-                    m_publishQueues.Clear();
-
-                    subscriptions = [.. m_subscriptions.Values];
-                    m_subscriptions.Clear();
-                    m_expiringSubscriptions.Clear();
-                }
-                finally
-                {
-                    m_semaphoreSlim.Release();
-                }
-
-                foreach (SessionPublishQueue publishQueue in publishQueues)
-                {
-                    publishQueue?.Dispose();
-                }
-
-                foreach (ISubscription subscription in subscriptions)
-                {
-                    subscription?.Dispose();
-                }
-
-                m_shutdownEvent.Dispose();
-                m_conditionRefreshEvent.Dispose();
-                m_semaphoreSlim.Dispose();
+                CaptureManagedResources(
+                    out List<SessionPublishQueue> publishQueues,
+                    out List<ISubscription> subscriptions);
+                DisposeManagedResources(publishQueues, subscriptions);
+                DisposeSynchronizationResources();
             }
+        }
+
+        /// <summary>
+        /// An overrideable version of the asynchronous dispose.
+        /// </summary>
+        protected virtual async ValueTask DisposeAsyncCore()
+        {
+            if (Interlocked.Exchange(ref m_disposed, 1) != 0)
+            {
+                return;
+            }
+
+            SignalConditionRefreshShutdown();
+
+            await Task.WhenAll(
+                    m_publishSubscriptionsTask ?? Task.CompletedTask,
+                    m_conditionRefreshTask ?? Task.CompletedTask)
+                .ConfigureAwait(false);
+
+            await m_semaphoreSlim.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+            List<SessionPublishQueue> publishQueues;
+            List<ISubscription> subscriptions;
+            try
+            {
+                CaptureManagedResources(out publishQueues, out subscriptions);
+            }
+            finally
+            {
+                m_semaphoreSlim.Release();
+            }
+
+            DisposeManagedResources(publishQueues, subscriptions);
+            DisposeSynchronizationResources();
+        }
+
+        private void CaptureManagedResources(
+            out List<SessionPublishQueue> publishQueues,
+            out List<ISubscription> subscriptions)
+        {
+            publishQueues = [.. m_publishQueues.Values];
+            m_publishQueues.Clear();
+
+            subscriptions = [.. m_subscriptions.Values];
+            m_subscriptions.Clear();
+            m_expiringSubscriptions.Clear();
+        }
+
+        private static void DisposeManagedResources(
+            List<SessionPublishQueue> publishQueues,
+            List<ISubscription> subscriptions)
+        {
+            foreach (SessionPublishQueue publishQueue in publishQueues)
+            {
+                publishQueue?.Dispose();
+            }
+
+            foreach (ISubscription subscription in subscriptions)
+            {
+                subscription?.Dispose();
+            }
+        }
+
+        private void DisposeSynchronizationResources()
+        {
+            m_shutdownEvent.Dispose();
+            m_conditionRefreshEvent.Dispose();
+            m_workerShutdown.Dispose();
+            m_semaphoreSlim.Dispose();
         }
 
         /// <summary>
@@ -258,10 +304,19 @@ namespace Opc.Ua.Server
                 await RestoreSubscriptionsAsync(cancellationToken)
                     .ConfigureAwait(false);
 
+                if (m_workerShutdown.IsCancellationRequested)
+                {
+                    m_workerShutdown.Dispose();
+                    m_workerShutdown = new CancellationTokenSource();
+                }
+
                 m_shutdownEvent.Reset();
+                CancellationToken workerCancellationToken = m_workerShutdown.Token;
 
                 m_publishSubscriptionsTask = Task.Factory.StartNew(
-                        () => PublishSubscriptionsAsync(m_publishingResolution).AsTask(),
+                        () => PublishSubscriptionsAsync(
+                            m_publishingResolution,
+                            workerCancellationToken).AsTask(),
                         default,
                         TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach,
                         TaskScheduler.Default)
@@ -2455,6 +2510,10 @@ namespace Opc.Ua.Server
             {
                 m_logger.SubscriptionPublishTaskTaskIdX8ExitedNormally2(Task.CurrentId);
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                m_logger.SubscriptionPublishTaskTaskIdX8ExitedNormally2(Task.CurrentId);
+            }
             catch (Exception e)
             {
                 m_logger.SubscriptionPublishTaskTaskIdX8ExitedUnexpectedly(e, Task.CurrentId);
@@ -2579,6 +2638,7 @@ namespace Opc.Ua.Server
             lock (m_conditionRefreshLock)
             {
                 m_shutdownEvent.Set();
+                m_workerShutdown.Cancel();
                 m_conditionRefreshEvent.Set();
             }
         }
@@ -2696,8 +2756,10 @@ namespace Opc.Ua.Server
         private readonly ManualResetEvent m_shutdownEvent;
         private readonly Queue<ConditionRefreshTask> m_conditionRefreshQueue;
         private readonly ManualResetEvent m_conditionRefreshEvent;
+        private CancellationTokenSource m_workerShutdown;
         private Task? m_publishSubscriptionsTask;
         private Task? m_conditionRefreshTask;
+        private int m_disposed;
         internal Action? BeforeConditionRefreshResetForTest { get; set; }
         internal Action? BeforeConditionRefreshShutdownSignalForTest { get; set; }
 

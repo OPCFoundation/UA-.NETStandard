@@ -629,12 +629,28 @@ namespace Opc.Ua.WotCon.Server
         private long m_nextDynamicId = 1_000_000;
     }
 
+    /// <summary>
+    /// Holds the source-generated log messages for <see cref="WotConnectivityNodeManager"/>.
+    /// </summary>
     internal static partial class WotConnectivityNodeManagerLog
     {
+        /// <summary>
+        /// Logs a warning when restoring a persisted WoT asset fails with the reported service result.
+        /// </summary>
+        /// <param name="logger">The logger that writes the message.</param>
+        /// <param name="assetName">The name of the asset that could not be restored.</param>
+        /// <param name="status">The service result returned while restoring the asset.</param>
         [LoggerMessage(EventId = WotConServerEventIds.WotConnectivityNodeManager + 0, Level = LogLevel.Warning,
             Message = "Restoring asset {AssetName} failed: {Status}")]
         public static partial void RestoringAssetFailed(this ILogger logger, string assetName, ServiceResult status);
 
+        /// <summary>
+        /// Logs a warning when subscribing to an observable WoT asset property fails.
+        /// </summary>
+        /// <param name="logger">The logger that writes the message.</param>
+        /// <param name="ex">The exception thrown while subscribing.</param>
+        /// <param name="assetName">The name of the asset containing the property.</param>
+        /// <param name="property">The name of the property that could not be subscribed to.</param>
         [LoggerMessage(EventId = WotConServerEventIds.WotConnectivityNodeManager + 1, Level = LogLevel.Warning,
             Message = "Subscribe failed for asset {AssetName} property {Property}")]
         public static partial void SubscribeFailed(
@@ -643,6 +659,13 @@ namespace Opc.Ua.WotCon.Server
             string assetName,
             string property);
 
+        /// <summary>
+        /// Logs a warning when unsubscribing from a WoT asset property fails.
+        /// </summary>
+        /// <param name="logger">The logger that writes the message.</param>
+        /// <param name="ex">The exception thrown while unsubscribing.</param>
+        /// <param name="assetName">The name of the asset containing the property.</param>
+        /// <param name="property">The name of the property that could not be unsubscribed from.</param>
         [LoggerMessage(EventId = WotConServerEventIds.WotConnectivityNodeManager + 2, Level = LogLevel.Warning,
             Message = "Unsubscribe failed for asset {AssetName} property {Property}")]
         public static partial void UnsubscribeFailed(
@@ -651,6 +674,13 @@ namespace Opc.Ua.WotCon.Server
             string assetName,
             string property);
 
+        /// <summary>
+        /// Logs a warning when a WoT management call is denied because the secure-channel security mode is insufficient.
+        /// </summary>
+        /// <param name="logger">The logger that writes the message.</param>
+        /// <param name="operation">The WoT management operation that was denied.</param>
+        /// <param name="actual">The security mode used by the caller's secure channel.</param>
+        /// <param name="required">The required minimum security mode for WoT management calls.</param>
         [LoggerMessage(EventId = WotConServerEventIds.WotConnectivityNodeManager + 3, Level = LogLevel.Warning,
             Message = "WoT management call {Operation} denied: channel security mode {Actual} below " +
                 "required {Required}.")]
@@ -660,6 +690,12 @@ namespace Opc.Ua.WotCon.Server
             MessageSecurityMode actual,
             MessageSecurityMode required);
 
+        /// <summary>
+        /// Logs a warning when a WoT management call is denied because anonymous identity is not permitted.
+        /// </summary>
+        /// <param name="logger">The logger that writes the message.</param>
+        /// <param name="operation">The WoT management operation that was denied.</param>
+        /// <param name="tokenType">The caller token type that failed the anonymous-identity precondition.</param>
         [LoggerMessage(EventId = WotConServerEventIds.WotConnectivityNodeManager + 4, Level = LogLevel.Warning,
             Message = "WoT management call {Operation} denied: anonymous identity not permitted " +
                 "(token type {TokenType}).")]
@@ -668,6 +704,14 @@ namespace Opc.Ua.WotCon.Server
             string operation,
             UserTokenType tokenType);
 
+        /// <summary>
+        /// Logs a warning when a WoT management call is denied because the caller lacks the required role.
+        /// </summary>
+        /// <param name="logger">The logger that writes the message.</param>
+        /// <param name="operation">The WoT management operation that was denied.</param>
+        /// <param name="tokenType">The caller token type that failed the role precondition.</param>
+        /// <param name="requiredRole">The role required to invoke the operation.</param>
+        /// <param name="grantedRoles">The roles granted to the caller.</param>
         [LoggerMessage(EventId = WotConServerEventIds.WotConnectivityNodeManager + 5, Level = LogLevel.Warning,
             Message = "WoT management call {Operation} denied: identity {TokenType} lacks required " +
                 "role {RequiredRole} (granted: {GrantedRoles}).")]

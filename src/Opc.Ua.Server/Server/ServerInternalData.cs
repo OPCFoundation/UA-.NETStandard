@@ -66,7 +66,7 @@ namespace Opc.Ua.Server
         Historian.IHistorianRegistryProvider,
         ITransportListenerRegistryProvider,
         IServerEndpointRegistryProvider,
-
+        IAsyncDisposable,
         ITimeProviderProvider
     {
         /// <summary>
@@ -139,12 +139,21 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Frees managed resources that require asynchronous shutdown.
+        /// </summary>
+        public async ValueTask DisposeAsync()
+        {
+            await DisposeAsyncCore().ConfigureAwait(false);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
         /// An overrideable version of the Dispose.
         /// </summary>
         /// <param name="disposing"><c>true</c> to release both managed and unmanaged resources; <c>false</c> to release only unmanaged resources.</param>
         protected virtual void Dispose(bool disposing)
         {
-            if (disposing)
+            if (disposing && Interlocked.Exchange(ref m_disposed, 1) == 0)
             {
                 m_roleStateBinding?.Dispose();
                 m_roleStateBinding = null;
@@ -161,6 +170,39 @@ namespace Opc.Ua.Server
                 (AliasNameStoreRegistry as IDisposable)?.Dispose();
                 (HistorianRegistry as IDisposable)?.Dispose();
             }
+        }
+
+        /// <summary>
+        /// An overrideable version of asynchronous dispose.
+        /// </summary>
+        protected virtual async ValueTask DisposeAsyncCore()
+        {
+            if (Interlocked.Exchange(ref m_disposed, 1) != 0)
+            {
+                return;
+            }
+
+            m_roleStateBinding?.Dispose();
+            m_roleStateBinding = null;
+            (RoleManager as IDisposable)?.Dispose();
+            ResourceManager?.Dispose();
+            RequestManager?.Dispose();
+            AggregateManager?.Dispose();
+            ModellingRulesManager?.Dispose();
+            ConformanceUnitsManager?.Dispose();
+            (NodeManager as IDisposable)?.Dispose();
+            SessionManager?.Dispose();
+            if (SubscriptionManager is IAsyncDisposable asyncSubscriptionManager)
+            {
+                await asyncSubscriptionManager.DisposeAsync().ConfigureAwait(false);
+            }
+            else
+            {
+                SubscriptionManager?.Dispose();
+            }
+            MonitoredItemQueueFactory?.Dispose();
+            (AliasNameStoreRegistry as IDisposable)?.Dispose();
+            (HistorianRegistry as IDisposable)?.Dispose();
         }
 
         /// <summary>
@@ -1281,5 +1323,6 @@ namespace Opc.Ua.Server
         private RoleStateBinding? m_roleStateBinding;
         private volatile IReadOnlyList<ITransportListener>? m_transportListeners;
         private ArrayOf<EndpointDescription> m_serverEndpoints;
+        private int m_disposed;
     }
 }

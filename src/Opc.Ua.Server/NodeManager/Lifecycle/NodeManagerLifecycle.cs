@@ -3616,8 +3616,22 @@ namespace Opc.Ua.Server
             ApplicationConfiguration configuration,
             CancellationToken ct);
 
+        /// <summary>
+        /// Tracks monitored items while a NodeManager reload detaches them from the retiring
+        /// NodeManager and attaches compatible items to the replacement.
+        /// </summary>
         internal sealed class MonitoredItemTransition
         {
+            /// <summary>
+            /// Creates a monitored item transition with the item sets selected during reload
+            /// preparation.
+            /// </summary>
+            /// <param name="server">The server that owns the subscriptions being inspected.</param>
+            /// <param name="current">The lifecycle endpoint for the retiring NodeManager.</param>
+            /// <param name="replacement">The lifecycle endpoint for the replacement NodeManager, if any.</param>
+            /// <param name="compatibleItems">Items that can be handed to the replacement NodeManager.</param>
+            /// <param name="deletedItems">Items whose nodes disappeared during reload.</param>
+            /// <param name="isOwnedBySubscription">Optional test hook that verifies subscription ownership.</param>
             public MonitoredItemTransition(
                 IServerInternal server,
                 INodeManagerMonitoredItemLifecycle current,
@@ -3634,6 +3648,12 @@ namespace Opc.Ua.Server
                 m_isOwnedBySubscription = isOwnedBySubscription;
             }
 
+            /// <summary>
+            /// Detaches every item still owned by a subscription from the retiring NodeManager.
+            /// </summary>
+            /// <param name="ct">The token that aborts detach work.</param>
+            /// <returns>A task that completes when all current items have detached.</returns>
+            /// <exception cref="ServiceResultException">The retiring NodeManager rejects a detach.</exception>
             public async ValueTask DetachCurrentAsync(CancellationToken ct)
             {
                 foreach (IMonitoredItem monitoredItem in m_compatibleItems.Concat(m_deletedItems))
@@ -3646,8 +3666,9 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
-                    ServiceResult result = await m_current
-                        .DetachMonitoredItemAsync(monitoredItem, ct)
+                    ServiceResult result = await m_current.DetachMonitoredItemAsync(
+                        monitoredItem,
+                        ct)
                         .ConfigureAwait(false);
                     if (ServiceResult.IsBad(result))
                     {
@@ -3661,6 +3682,12 @@ namespace Opc.Ua.Server
                 }
             }
 
+            /// <summary>
+            /// Attaches compatible items to the replacement NodeManager and records failures
+            /// that should delete the item instead.
+            /// </summary>
+            /// <param name="ct">The token that aborts attach work.</param>
+            /// <returns>The non-fatal failures that occurred while attempting the attach.</returns>
             public async ValueTask<List<Exception>> AttachCompatibleAsync(
                 CancellationToken ct)
             {
@@ -3690,8 +3717,9 @@ namespace Opc.Ua.Server
                     bool attached = false;
                     try
                     {
-                        ServiceResult result = await m_replacement
-                            .AttachMonitoredItemAsync(monitoredItem, ct)
+                        ServiceResult result = await m_replacement.AttachMonitoredItemAsync(
+                            monitoredItem,
+                            ct)
                             .ConfigureAwait(false);
                         if (ServiceResult.IsGood(result))
                         {
@@ -3723,8 +3751,9 @@ namespace Opc.Ua.Server
                     m_attachedItems.Remove(monitoredItem);
                     try
                     {
-                        await m_replacement
-                            .DetachMonitoredItemAsync(monitoredItem, ct)
+                        await m_replacement.DetachMonitoredItemAsync(
+                            monitoredItem,
+                            ct)
                             .ConfigureAwait(false);
                     }
                     catch (Exception ex) when (ex is not OutOfMemoryException)
@@ -3738,6 +3767,10 @@ namespace Opc.Ua.Server
                 return failures;
             }
 
+            /// <summary>
+            /// Marks deleted or incompatible items as removed after the replacement transition
+            /// succeeds.
+            /// </summary>
             public void MarkDeletedItems()
             {
                 foreach (IMonitoredItem monitoredItem in m_deletedItems.Concat(m_failedItems))
@@ -3751,6 +3784,12 @@ namespace Opc.Ua.Server
                 }
             }
 
+            /// <summary>
+            /// Reverses the detach and attach steps already completed by this transition.
+            /// </summary>
+            /// <param name="ct">The token that aborts rollback work.</param>
+            /// <returns>A task that completes when the transition has been restored.</returns>
+            /// <exception cref="AggregateException">One or more monitored items could not be restored.</exception>
             public async ValueTask RollbackAsync(CancellationToken ct)
             {
                 var failures = new List<Exception>();
@@ -3760,8 +3799,9 @@ namespace Opc.Ua.Server
                     {
                         try
                         {
-                            ServiceResult result = await m_replacement
-                                .DetachMonitoredItemAsync(m_attachedItems[ii], ct)
+                            ServiceResult result = await m_replacement.DetachMonitoredItemAsync(
+                                m_attachedItems[ii],
+                                ct)
                                 .ConfigureAwait(false);
                             if (ServiceResult.IsBad(result))
                             {
@@ -3784,8 +3824,9 @@ namespace Opc.Ua.Server
 
                     try
                     {
-                        ServiceResult result = await m_current
-                            .RecoverMonitoredItemAsync(m_detachedItems[ii], ct)
+                        ServiceResult result = await m_current.RecoverMonitoredItemAsync(
+                            m_detachedItems[ii],
+                            ct)
                             .ConfigureAwait(false);
                         if (ServiceResult.IsBad(result))
                         {

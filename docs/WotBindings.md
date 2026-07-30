@@ -4,22 +4,56 @@ The WoT Connectivity 1.1 runtime materializes Thing Descriptions and Thing Model
 
 The subsystem is deliberately layered so the model remains transport-neutral while the base Bindings package can bundle the dependency-compatible executors on modern .NET.
 
-This document has two parts. [Part 1](#part-1---the-bindings-that-ship-today) describes the bindings that ship today and how to register them. [Part 2](#part-2---adding-your-own-binding) is the contributor guide for adding your own.
+This document starts with the bindings that ship today and how to register them, then describes the contributor workflow for adding your own binding.
 
-## Part 1 - The bindings that ship today
+## Table of contents
+
+- [Bindings that ship today](#bindings-that-ship-today)
+  - [Package and assembly layout](#package-and-assembly-layout)
+  - [Stable public interfaces](#stable-public-interfaces)
+  - [Polling, retry and backoff](#polling-retry-and-backoff)
+  - [Runtime integration](#runtime-integration)
+  - [OPC UA target-mapping binding runtime](#opc-ua-target-mapping-binding-runtime)
+  - [Registering binders and executors](#registering-binders-and-executors)
+  - [Intentionally unsupported operations](#intentionally-unsupported-operations)
+  - [Transport security](#transport-security)
+  - [Operation coverage (OPC UA executor)](#operation-coverage-opc-ua-executor)
+- [Adding your own binding](#adding-your-own-binding)
+  - [Architecture and lifecycle](#architecture-and-lifecycle)
+  - [Identification and capability](#identification-and-capability)
+  - [Form extraction and vocabulary terms](#form-extraction-and-vocabulary-terms)
+  - [Authoring OPC 10101 target mapping](#authoring-opc-10101-target-mapping)
+  - [Planner validation and compiled forms](#planner-validation-and-compiled-forms)
+  - [Executors, channels, and disposal](#executors-channels-and-disposal)
+  - [Payload codecs](#payload-codecs)
+  - [Credentials and trust](#credentials-and-trust)
+  - [Registration](#registration)
+  - [Monitoring and local sampling](#monitoring-and-local-sampling)
+  - [Structured target mapping](#structured-target-mapping)
+  - [Status and error mapping](#status-and-error-mapping)
+  - [Memory-binding implementation](#memory-binding-implementation)
+  - [Memory-binding tests](#memory-binding-tests)
+  - [NativeAOT and trimming](#nativeaot-and-trimming)
+  - [Packaging and TFM decisions](#packaging-and-tfm-decisions)
+  - [Contributor checklist](#contributor-checklist)
+  - [Testing matrix](#testing-matrix)
+- [Related documentation](#related-documentation)
+
+## Bindings that ship today
 
 ### Package and assembly layout
 
 | Project, assembly, or namespace | Contents | Availability and dependencies |
 | --- | --- | --- |
-| `src/Opc.Ua.WotCon.Bindings` / `Opc.Ua.WotCon.Bindings` | Stable interfaces, plan model, codecs, the eight planner/validator binders, registry, and sample binder | Base package `OPCFoundation.NetStandard.Opc.Ua.WotCon.Bindings`; full `net472;net48;netstandard2.1;net8.0;net9.0;net10.0` matrix. |
+| `src/Opc.Ua.WotCon.Bindings` / `Opc.Ua.WotCon.Bindings` | Stable interfaces, plan model, codecs, the eight planner/validator binders, and registry. No sample binding ships in this library. | Base package `OPCFoundation.NetStandard.Opc.Ua.WotCon.Bindings`; full `net472;net48;netstandard2.1;net8.0;net9.0;net10.0` matrix. |
 | `Opc.Ua.WotCon.Bindings.Http` | HTTP executor and options, included in the base Bindings package | `net8.0`, `net9.0`, and `net10.0`; `HttpClient`. |
 | `Opc.Ua.WotCon.Bindings.Modbus` | Modbus TCP client, executor, addressing, and conversion, included in the base Bindings package | `net8.0`, `net9.0`, and `net10.0`; sockets only. |
 | `Opc.Ua.WotCon.Bindings.OpcUa` | OPC UA-to-OPC UA executor and options, included in the base Bindings package | `net8.0`, `net9.0`, and `net10.0`; `Opc.Ua.Client`. |
 | `src/Opc.Ua.WotCon.Bindings.Mqtt` / `Opc.Ua.WotCon.Bindings.Mqtt` | MQTT executor and options | Separate `OPCFoundation.NetStandard.Opc.Ua.WotCon.Bindings.Mqtt` package for `net8.0`, `net9.0`, and `net10.0`; MQTTnet. |
-| `Opc.Ua.WotCon.Server` | Materialization coordinator integration | references `Opc.Ua.WotCon.Bindings` only |
+| `Opc.Ua.WotCon.Server` | Materialization coordinator integration | References `Opc.Ua.WotCon.Bindings` only. |
+| `samples/WotCon` | Runnable sample guide plus `AggregationClient`, `AggregationServer`, and `FlatTagServer` projects. `AggregationServer/Bindings/MemoryWotBinding.cs` is a reference custom binding only. | Sample applications; the memory binding is deliberately not registered in the sample host. |
 
-The base Bindings package keeps its full TFM matrix, but its concrete HTTP, Modbus, and OPC UA executor namespaces are compiled only for `net8.0`, `net9.0`, and `net10.0`. MQTT remains separate because it carries an optional external transport dependency. Planner-only use therefore remains available on every base-package TFM.
+The base Bindings package keeps its full TFM matrix, but its concrete HTTP, Modbus, and OPC UA executor namespaces are compiled only for `net8.0`, `net9.0`, and `net10.0`. MQTT remains separate because it carries an optional external transport dependency. Planner-only use therefore remains available on every base-package TFM. The WoT samples now live under `samples/WotCon`; their project, assembly, and namespace names are `AggregationClient`, `AggregationServer`, and `FlatTagServer` without a `Wot` prefix. The sample guide is [`samples/WotCon/README.md`](../samples/WotCon/README.md).
 
 The plural `Bindings` name is part of every current artifact and namespace. Do not add new references to the retired singular `Opc.Ua.WotCon.Binding*` names.
 
@@ -56,6 +90,8 @@ A transport with no native push channel (HTTP, Modbus) implements `ObserveAsync`
 Consecutive unhealthy polls back off through an `IChannelReconnectPolicy` — the same abstraction the stack already uses for channel reconnects — so an offline device is not hammered once per poll cycle. The default is `ExponentialBackoffChannelReconnectPolicy` (500 ms doubling to 30 s, unlimited attempts); set `RetryPolicy` on `HttpWotBindingOptions` / `ModbusWotBindingOptions` to change it. Backing off never polls *faster* than the configured interval, the first healthy poll resets it, and a policy that reports "stop retrying" ends the loop rather than spinning.
 
 The interval itself comes from the form where the protocol binding defines a standard term for it. Modbus does: **`modv:pollingTime`** (milliseconds, per the W3C Modbus binding — distinct from `modv:timeout`, which is a request timeout) is compiled onto `WotOperationDescriptor.PollInterval` and wins over the executor's configured `ObserveInterval`. HTTP has no standard polling term, so it uses `HttpWotBindingOptions.ObserveInterval`. No vendor-specific `uav:` term is introduced for this.
+
+For Modbus TCP, `ModbusTcpClient` treats a faulted socket as disposable state. The next read or write transaction reconnects before sending the MBAP request, so polling backoff controls retry rate while ordinary operations can recover without recreating the binding channel.
 
 
 
@@ -130,7 +166,7 @@ builder.AddWotCredentialProvider(new VaultCredentialProvider());
 
 Selection is deterministic: the registry evaluates binders in ordinal `id@version` order and chooses the highest-priority `WotBindingMatch`.
 
-To write `MyCustomBinder` and `MyCustomExecutor` see [Part 2](#part-2---adding-your-own-binding). The worked
+To write `MyCustomBinder` and `MyCustomExecutor` see [Adding your own binding](#adding-your-own-binding). The worked
 `AggregationServer.MemoryWotBinder` implementation in the WotCon aggregation sample binds a fictitious `mem://` protocol
 to an in-process key/value store.
 
@@ -163,13 +199,15 @@ Both subscription kinds share one code path: a dedicated `Subscription` is creat
 
 A compiled form's NodeId (`uav:id`, and `uav:componentOf` for actions) is resolved with `NodeId.Parse` for the plain `ns=` / `i=` / `s=` / `g=` / `b=` forms; a portable NodeId carrying an `nsu=` namespace URI is parsed as an `ExpandedNodeId` and resolved against the connected session's namespace table, since `NodeId.Parse` alone cannot resolve a namespace URI without one.
 
-## Part 2 - Adding your own binding
+## Adding your own binding
 
 This guide explains how to add a protocol binding to the WoT Connectivity runtime from form identification through live
 value exchange, registration, diagnostics, tests, packaging, and NativeAOT validation. The current worked implementation
 is [`MemoryWotBinding.cs`](../samples/WotCon/AggregationServer/Bindings/MemoryWotBinding.cs) in the WotCon aggregation
-sample, so it demonstrates the extension pattern without shipping in the `Opc.Ua.WotCon.Bindings` package. The
-production HTTP, Modbus TCP, OPC UA, and MQTT implementations provide protocol-specific examples.
+sample, so it demonstrates the extension pattern without shipping in the `Opc.Ua.WotCon.Bindings` package or being
+registered by the sample host. A test-only copy lives in
+[`tests/Opc.Ua.WotCon.Tests/Support/MemoryWotBinding.cs`](../tests/Opc.Ua.WotCon.Tests/Support/MemoryWotBinding.cs).
+The production HTTP, Modbus TCP, OPC UA, and MQTT implementations provide protocol-specific examples.
 
 ### Architecture and lifecycle
 
@@ -309,8 +347,8 @@ The direct-construction path is useful in focused tests:
 ```csharp
 var store = new MemoryWotStore();
 var registry = new WotProtocolBinderRegistry(
-    new IWotProtocolBinder[] { new MemoryWotBinder() },
-    new IWotBindingExecutor[] { new MemoryWotBindingExecutor(store) });
+    [new MemoryWotBinder()],
+    [new MemoryWotBindingExecutor(store)]);
 ```
 
 The normal host path uses `IOpcUaBuilder` extensions:
@@ -363,9 +401,9 @@ Return a `WotReadResult`, `WotWriteResult`, or `WotInvokeResult` for expected pr
 
 Preserve a source protocol's meaningful OPC UA status and timestamps when the source is OPC UA. Do not expose credentials or stack traces through `Error`; use concise operator-safe text and server-side telemetry for detailed exceptions.
 
-### Complete memory binding
+### Memory-binding implementation
 
-The following is the complete pattern used by the checked-in sample. It supports `mem://` property read, write, and polling-based observation.
+The following excerpt is the checked-in sample implementation pattern. It supports `mem://` property read, write, and polling-based observation. Use the linked source file as the authoritative copy if this excerpt is trimmed in rendered documentation.
 
 ```csharp
 using System;
@@ -378,195 +416,218 @@ using Opc.Ua;
 using Opc.Ua.WotCon;
 using Opc.Ua.WotCon.Bindings;
 
-public sealed class MemoryWotBinder : WotProtocolBinderBase
+namespace AggregationServer
 {
-    public const string BindingUri = "urn:example:wot:mem";
-
-    private static readonly string[] s_schemes = { "mem" };
-
-    public override WotBindingIdentity Identity { get; } =
-        new("example.mem", "1.0", BindingUri, "Sample In-Memory Binding");
-
-    public override WotBindingCapability Capability { get; } = new(
-        BindingUri,
-        "Sample In-Memory Binding",
-        new WotBindingSource(
-            "urn:example:wot:mem",
-            "1.0",
-            WotBindingMaturity.UnofficialDraft,
-            note: "A sample custom binding for documentation and tests."),
-        new[]
-        {
-            WoTBindingCapabilityEnum.ReadProperty,
-            WoTBindingCapabilityEnum.WriteProperty,
-            WoTBindingCapabilityEnum.ObserveProperty
-        },
-        new[] { "application/json", "text/plain" },
-        isExecutable: true);
-
-    protected override IReadOnlyCollection<string> Schemes => s_schemes;
-
-    public override WotBindingMatch Match(
-        WotAffordanceForm form,
-        WotBindingSelectionContext context)
-        => MatchStandard(form, context, "memv:");
-
-    public override WotBindingCompilation Compile(
-        WotAffordanceForm form,
-        WotBindingPlanContext context)
+    /// <summary>
+    /// A worked sample showing how a third party contributes a replaceable
+    /// protocol binder as pure code-behind. The fictitious <c>mem</c> protocol
+    /// binds property affordances to an in-process key/value store, demonstrating
+    /// the full extension surface: identity, capability, deterministic
+    /// identification, a planner and an executor with a live channel. Register it
+    /// with <c>builder.AddWotBinder(new MemoryWotBinder())</c> and
+    /// <c>builder.AddWotBindingExecutor(new MemoryWotBindingExecutor(store))</c>.
+    /// </summary>
+    public sealed class MemoryWotBinder : WotProtocolBinderBase
     {
-        var diagnostics = new List<WotBindingDiagnostic>();
-        if (!RequireHref(form, context, diagnostics, out string href) ||
-            !TryParseUri(href, out Uri uri) ||
-            !string.Equals(uri.Scheme, "mem", StringComparison.OrdinalIgnoreCase))
+        /// <summary>
+        /// The sample binding vocabulary URI.
+        /// </summary>
+        public const string BindingUri = "urn:example:wot:mem";
+
+        private static readonly string[] s_schemes = ["mem"];
+
+        /// <inheritdoc/>
+        public override WotBindingIdentity Identity { get; } =
+            new WotBindingIdentity("example.mem", "1.0", BindingUri, "Sample In-Memory Binding");
+
+        /// <inheritdoc/>
+        public override WotBindingCapability Capability { get; } = new WotBindingCapability(
+            BindingUri,
+            "Sample In-Memory Binding",
+            new WotBindingSource("urn:example:wot:mem", "1.0", WotBindingMaturity.UnofficialDraft,
+                note: "A sample custom binding for documentation and tests."),
+            [
+                WoTBindingCapabilityEnum.ReadProperty,
+                WoTBindingCapabilityEnum.WriteProperty,
+                WoTBindingCapabilityEnum.ObserveProperty
+            ],
+            ["application/json", "text/plain"],
+            isExecutable: true);
+
+        /// <inheritdoc/>
+        protected override IReadOnlyCollection<string> Schemes => s_schemes;
+
+        /// <inheritdoc/>
+        public override WotBindingMatch Match(WotAffordanceForm form, WotBindingSelectionContext context)
         {
-            diagnostics.Add(WotBindingDiagnostic.Error(
-                WotBindingDiagnosticCode.InvalidHref,
-                "The href is not a valid mem:// URI.",
-                form.Pointer("href")));
-            return WotBindingCompilation.Unsupported(diagnostics.ToArray());
+            return MatchStandard(form, context, "memv:");
         }
 
-        string key = uri.AbsolutePath.Trim('/');
-        ResolveCodec(form, context, out WotPayloadDescriptor payload);
-        WotEndpointDescriptor endpoint = MakeEndpoint(uri);
-        var addressing = new WotAddressingDescriptor(key);
-        var entries = ImmutableArray.CreateBuilder<WotCompiledForm>();
-
-        foreach ((string op, WoTBindingCapabilityEnum capability) in
-            ResolveOperations(form, diagnostics))
+        /// <inheritdoc/>
+        public override WotBindingCompilation Compile(WotAffordanceForm form, WotBindingPlanContext context)
         {
-            var operation = new WotOperationDescriptor(
-                capability,
-                op,
-                capability.ToString());
-            entries.Add(new WotCompiledForm(
-                Identity,
-                form.Kind,
-                form.AffordanceName,
-                form.JsonPointer,
-                capability,
-                op,
-                endpoint,
-                addressing,
-                operation,
-                payload,
-                ImmutableArray<WotCredentialReference>.Empty,
-                Capability.IsExecutable));
+            var diagnostics = new List<WotBindingDiagnostic>();
+            if (!RequireHref(form, context, diagnostics, out string href) ||
+                !TryParseUri(href, out Uri uri) ||
+                !string.Equals(uri.Scheme, "mem", StringComparison.OrdinalIgnoreCase))
+            {
+                diagnostics.Add(WotBindingDiagnostic.Error(
+                    WotBindingDiagnosticCode.InvalidHref,
+                    "The href is not a valid mem:// URI.", form.Pointer("href")));
+                return WotBindingCompilation.Unsupported([.. diagnostics]);
+            }
+
+            string key = uri.AbsolutePath.Trim('/');
+            ResolveCodec(form, context, out WotPayloadDescriptor payload);
+            WotEndpointDescriptor endpoint = MakeEndpoint(uri);
+            var addressing = new WotAddressingDescriptor(key);
+
+            ImmutableArray<WotCompiledForm>.Builder entries = ImmutableArray.CreateBuilder<WotCompiledForm>();
+            foreach ((string op, WoTBindingCapabilityEnum capability) in ResolveOperations(form, diagnostics))
+            {
+                var operation = new WotOperationDescriptor(capability, op, capability.ToString());
+                entries.Add(new WotCompiledForm(
+                    Identity, form.Kind, form.AffordanceName, form.JsonPointer, capability, op,
+                    endpoint, addressing, operation, payload,
+                    [], Capability.IsExecutable));
+            }
+
+            return entries.Count == 0
+                ? WotBindingCompilation.Unsupported([.. diagnostics])
+                : WotBindingCompilation.Supported(entries.ToImmutable(), [.. diagnostics]);
+        }
+    }
+
+    /// <summary>
+    /// The in-process key/value store the sample binding reads and writes.
+    /// </summary>
+    public sealed class MemoryWotStore
+    {
+        /// <summary>
+        /// Gets the value stored under a key.
+        /// </summary>
+        public DataValue Get(string key)
+        {
+            return m_values.TryGetValue(key, out DataValue value) ? value : new DataValue(Variant.Null);
         }
 
-        return entries.Count == 0
-            ? WotBindingCompilation.Unsupported(diagnostics.ToArray())
-            : WotBindingCompilation.Supported(
-                entries.ToImmutable(),
-                diagnostics.ToImmutableArray());
-    }
-}
-
-public sealed class MemoryWotStore
-{
-    public DataValue Get(string key)
-        => m_values.TryGetValue(key, out DataValue value)
-            ? value
-            : new DataValue(Variant.Null);
-
-    public void Set(string key, DataValue value)
-        => m_values[key] = value;
-
-    private readonly ConcurrentDictionary<string, DataValue> m_values =
-        new(StringComparer.Ordinal);
-}
-
-public sealed class MemoryWotBindingExecutor : IWotBindingExecutor
-{
-    public MemoryWotBindingExecutor(MemoryWotStore store)
-    {
-        m_store = store ?? throw new ArgumentNullException(nameof(store));
-    }
-
-    public WotBindingIdentity Identity { get; } =
-        new("example.mem", "1.0", MemoryWotBinder.BindingUri, "Sample In-Memory Executor");
-
-    public bool CanExecute(WotCompiledForm form)
-        => form is not null &&
-            string.Equals(form.Binding.Id, Identity.Id, StringComparison.Ordinal);
-
-    public ValueTask<IWotBindingChannel> ActivateAsync(
-        WotCompiledForm form,
-        WotExecutorContext context,
-        CancellationToken cancellationToken = default)
-    {
-        if (form is null)
+        /// <summary>
+        /// Sets the value stored under a key.
+        /// </summary>
+        public void Set(string key, DataValue value)
         {
-            throw new ArgumentNullException(nameof(form));
+            m_values[key] = value;
         }
-        IWotBindingChannel channel = new MemoryWotBindingChannel(m_store, form);
-        return new ValueTask<IWotBindingChannel>(channel);
+
+        private readonly ConcurrentDictionary<string, DataValue> m_values =
+            new(StringComparer.Ordinal);
     }
 
-    private readonly MemoryWotStore m_store;
-}
-
-internal sealed class MemoryWotBindingChannel : IWotBindingChannel
-{
-    public MemoryWotBindingChannel(MemoryWotStore store, WotCompiledForm form)
+    /// <summary>
+    /// The executor for the sample in-memory binding.
+    /// </summary>
+    public sealed class MemoryWotBindingExecutor : IWotBindingExecutor
     {
-        m_store = store;
-        Form = form;
-        m_key = form.Addressing.Target;
-    }
-
-    public WotCompiledForm Form { get; }
-
-    public ValueTask<WotReadResult> ReadAsync(
-        CancellationToken cancellationToken = default)
-        => new(new WotReadResult(StatusCodes.Good, m_store.Get(m_key)));
-
-    public ValueTask<WotWriteResult> WriteAsync(
-        DataValue value,
-        CancellationToken cancellationToken = default)
-    {
-        m_store.Set(m_key, value);
-        return new ValueTask<WotWriteResult>(
-            new WotWriteResult(StatusCodes.Good));
-    }
-
-    public ValueTask<WotInvokeResult> InvokeAsync(
-        IReadOnlyList<Variant> inputs,
-        CancellationToken cancellationToken = default)
-        => new(new WotInvokeResult(
-            StatusCodes.BadNotSupported,
-            null,
-            "The sample binding has no actions."));
-
-    public ValueTask<IWotSubscription> ObserveAsync(
-        Action<WotNotification> onNotification,
-        CancellationToken cancellationToken = default)
-    {
-        if (onNotification is null)
+        /// <summary>
+        /// Initializes a new sample executor over the supplied store.
+        /// </summary>
+        public MemoryWotBindingExecutor(MemoryWotStore store)
         {
-            throw new ArgumentNullException(nameof(onNotification));
+            m_store = store ?? throw new ArgumentNullException(nameof(store));
         }
-        IWotSubscription subscription = new PollingWotSubscription(
-            Form,
-            token =>
+
+        /// <inheritdoc/>
+        public WotBindingIdentity Identity { get; } =
+            new WotBindingIdentity("example.mem", "1.0", MemoryWotBinder.BindingUri, "Sample In-Memory Executor");
+
+        /// <inheritdoc/>
+        public bool CanExecute(WotCompiledForm form)
+        {
+            return form is not null && string.Equals(form.Binding.Id, Identity.Id, StringComparison.Ordinal);
+        }
+
+        /// <inheritdoc/>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Reliability", "CA2000:Dispose objects before losing scope",
+            Justification = "The channel is owned by the caller, who disposes it via DisposeAsync.")]
+        public ValueTask<IWotBindingChannel> ActivateAsync(
+            WotCompiledForm form, WotExecutorContext context, CancellationToken cancellationToken = default)
+        {
+            if (form is null)
+            {
+                throw new ArgumentNullException(nameof(form));
+            }
+            IWotBindingChannel channel = new MemoryWotBindingChannel(m_store, form);
+            return new ValueTask<IWotBindingChannel>(channel);
+        }
+
+        private readonly MemoryWotStore m_store;
+    }
+
+    /// <summary>
+    /// The live channel for the sample in-memory binding.
+    /// </summary>
+    internal sealed class MemoryWotBindingChannel : IWotBindingChannel
+    {
+        public MemoryWotBindingChannel(MemoryWotStore store, WotCompiledForm form)
+        {
+            m_store = store;
+            Form = form;
+            m_key = form.Addressing.Target;
+        }
+
+        public WotCompiledForm Form { get; }
+
+        public ValueTask<WotReadResult> ReadAsync(CancellationToken cancellationToken = default)
+        {
+            return new ValueTask<WotReadResult>(new WotReadResult(StatusCodes.Good, m_store.Get(m_key)));
+        }
+
+        public ValueTask<WotWriteResult> WriteAsync(DataValue value, CancellationToken cancellationToken = default)
+        {
+            m_store.Set(m_key, value);
+            return new ValueTask<WotWriteResult>(new WotWriteResult(StatusCodes.Good));
+        }
+
+        public ValueTask<WotInvokeResult> InvokeAsync(
+            IReadOnlyList<Variant> inputs, CancellationToken cancellationToken = default)
+        {
+            return new ValueTask<WotInvokeResult>(new WotInvokeResult(
+                        StatusCodes.BadNotSupported, null, "The sample binding has no actions."));
+        }
+
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Reliability", "CA2000:Dispose objects before losing scope",
+            Justification = "Ownership of the subscription is transferred to the caller, who disposes it.")]
+        public ValueTask<IWotSubscription> ObserveAsync(
+            Action<WotNotification> onNotification, CancellationToken cancellationToken = default)
+        {
+            if (onNotification is null)
+            {
+                throw new ArgumentNullException(nameof(onNotification));
+            }
+            var subscription = new PollingWotSubscription(Form, token =>
             {
                 onNotification(new WotNotification(m_store.Get(m_key)));
-                return default;
-            },
-            TimeSpan.FromMilliseconds(200));
-        return new ValueTask<IWotSubscription>(subscription);
+                return new ValueTask<bool>(true);
+            }, TimeSpan.FromMilliseconds(200));
+            return new ValueTask<IWotSubscription>(subscription);
+        }
+
+        public ValueTask<IWotSubscription> SubscribeEventAsync(
+            Action<WotNotification> onEvent, CancellationToken cancellationToken = default)
+        {
+            return ObserveAsync(onEvent, cancellationToken);
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            return default;
+        }
+
+        private readonly MemoryWotStore m_store;
+        private readonly string m_key;
     }
-
-    public ValueTask<IWotSubscription> SubscribeEventAsync(
-        Action<WotNotification> onEvent,
-        CancellationToken cancellationToken = default)
-        => ObserveAsync(onEvent, cancellationToken);
-
-    public ValueTask DisposeAsync() => default;
-
-    private readonly MemoryWotStore m_store;
-    private readonly string m_key;
 }
 ```
 
@@ -580,8 +641,8 @@ public async Task SampleBinderCompilesAndExecutesReadWrite()
 {
     var store = new MemoryWotStore();
     var registry = new WotProtocolBinderRegistry(
-        new IWotProtocolBinder[] { new MemoryWotBinder() },
-        new IWotBindingExecutor[] { new MemoryWotBindingExecutor(store) });
+        [new MemoryWotBinder()],
+        [new MemoryWotBindingExecutor(store)]);
 
     const string td =
         """
@@ -636,7 +697,7 @@ Add a diagnostic test so malformed input remains actionable:
 public void SampleBinderReportsInvalidHrefAtTheFormPointer()
 {
     var registry = new WotProtocolBinderRegistry(
-        new IWotProtocolBinder[] { new MemoryWotBinder() });
+        [new MemoryWotBinder()]);
 
     const string td =
         """
