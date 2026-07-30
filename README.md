@@ -22,7 +22,7 @@ across industrial control, manufacturing, energy, and IoT systems.
 ## 📦 What it is
 
 - **A full-stack OPC UA implementation** — Core / Client / Server /
-  PubSub / GDS / LDS / Complex Types / Device Integration libraries
+  PubSub / GDS / LDS / Complex Types / Device Integration / Positioning libraries
   built on .NET, with UA-TCP and HTTPS transports.
 - **Cross-platform** — runs on .NET 10, .NET 9, .NET 8 (LTS),
   .NET Framework 4.8, and .NET Standard 2.1; ships
@@ -34,9 +34,11 @@ across industrial control, manufacturing, energy, and IoT systems.
 - **Companion-spec coverage** — Part 9 (Alarms & Conditions), Part 11
   (Historical Access), Part 13 (Aggregates), Part 16 (State Machines),
   Part 17 (Alias Names), Part 18 (Role Management), Part 20 (File
-  Transfer), Part 100 (Device Integration), OPC-10030 (ISA-95 Common
+  Transfer), Part 100 (Device Integration), Parts 210/211 (Relative
+  Spatial Location and Global Positioning), OPC-10030 (ISA-95 Common
   Model) with OPC-10031-4 Job Control V1/V2, OPC 10100-1 (WoT
-  Connectivity).
+  Connectivity), OPC 40001-1 (Industrial Automation), OPC 40010-1
+  (Robotics).
 - **Modern developer surface** — first-class `Microsoft.Extensions.DependencyInjection`
   hosting (`services.AddOpcUa()`), fluent server + client builders,
   source-generated NodeManagers and DataTypes, and an MCP server so
@@ -100,6 +102,9 @@ Each sample has its own `README.md` with build and run instructions.
 - [Pump Device Integration Server](samples/PumpDeviceIntegrationServer/README.md) —
   minimal Device Integration (Part 100) server using
   `Opc.Ua.Di.Server`'s fluent builder.
+- [Minimal Robot Server](samples/MinimalRobotServer/README.md) — OPC 40010
+  Robotics with independently configurable RSL/GPOS motion and live OpenUSD
+  transforms.
 - [Minimal ISA-95 Server](samples/MinimalIsa95Server/README.md) —
   minimal server hosting the OPC-10030 ISA-95 Common Model together
   with OPC-10031-4 Job Control V1 and V2, using the typed common-model

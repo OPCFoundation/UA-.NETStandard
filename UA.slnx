@@ -12,6 +12,7 @@
     <Project Path="samples/MinimalCalcServer/MinimalCalcServer.csproj" />
     <Project Path="samples/MinimalClient/MinimalClient.csproj" />
     <Project Path="samples/PumpDeviceIntegrationServer/PumpDeviceIntegrationServer.csproj" />
+    <Project Path="samples/MinimalRobotServer/MinimalRobotServer.csproj" />
     <Project Path="samples/Quickstarts.Servers/Quickstarts.Servers.csproj" />
     <Project Path="samples/RedundantClient/RedundantClient.csproj" />
   </Folder>
@@ -75,6 +76,9 @@
     <Project Path="src/Opc.Ua.Positioning/Opc.Ua.Positioning.csproj" />
     <Project Path="src/Opc.Ua.Positioning.Client/Opc.Ua.Positioning.Client.csproj" />
     <Project Path="src/Opc.Ua.Positioning.Server/Opc.Ua.Positioning.Server.csproj" />
+    <Project Path="src/Opc.Ua.Robotics/Opc.Ua.Robotics.csproj" />
+    <Project Path="src/Opc.Ua.Robotics.Server/Opc.Ua.Robotics.Server.csproj" />
+    <Project Path="src/Opc.Ua.Robotics.Client/Opc.Ua.Robotics.Client.csproj" />
     <Project Path="src/Opc.Ua.Gds.Client.Common/Opc.Ua.Gds.Client.Common.csproj" />
     <Project Path="src/Opc.Ua.Gds.Common/Opc.Ua.Gds.Common.csproj" />
     <Project Path="src/Opc.Ua.Gds.Server.Common/Opc.Ua.Gds.Server.Common.csproj" />
@@ -234,6 +238,7 @@
     <Project Path="tests/Opc.Ua.Core.Security.Tests/Opc.Ua.Core.Security.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Di.Tests/Opc.Ua.Di.Tests.csproj" />
     <Project Path="tests/Opc.Ua.OpenUsd.Tests/Opc.Ua.OpenUsd.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.Robotics.Tests/Opc.Ua.Robotics.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Core.Diagnostics.Tests/Opc.Ua.Core.Diagnostics.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Bindings.Https.WebApi.Tests/Opc.Ua.Bindings.Https.WebApi.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Features.Tests/Opc.Ua.Features.Tests.csproj" />
@@ -247,7 +252,6 @@
     <Project Path="tests/Opc.Ua.Subscriptions.Durable.Tests/Opc.Ua.Subscriptions.Durable.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Gds.Tests/Opc.Ua.Gds.Tests.csproj" />
     <Project Path="tests/Opc.Ua.ISA95.Tests/Opc.Ua.ISA95.Tests.csproj" />
-    <Project Path="tests/Opc.Ua.Positioning.Tests/Opc.Ua.Positioning.Tests.csproj" />
     <Project Path="tests/Opc.Ua.PubSub.Tests/Opc.Ua.PubSub.Tests.csproj" />
     <Project Path="tests/Opc.Ua.PubSub.Adapter.Tests/Opc.Ua.PubSub.Adapter.Tests.csproj" />
     <Project Path="tests/Opc.Ua.PubSub.Udp.Tests/Opc.Ua.PubSub.Udp.Tests.csproj" />
@@ -257,6 +261,7 @@
     <Project Path="tests/Opc.Ua.PubSub.Schema.Tests/Opc.Ua.PubSub.Schema.Tests.csproj" />
     <Project Path="tests/Opc.Ua.PubSub.Server.Tests/Opc.Ua.PubSub.Server.Tests.csproj" />
     <Project Path="tests/Opc.Ua.PubSub.Diagnostics.Tests/Opc.Ua.PubSub.Diagnostics.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.Positioning.Tests/Opc.Ua.Positioning.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Redundancy.PubSub.Tests/Opc.Ua.Redundancy.PubSub.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Security.Certificates.Tests/Opc.Ua.Security.Certificates.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Server.Tests/Opc.Ua.Server.Tests.csproj" />
