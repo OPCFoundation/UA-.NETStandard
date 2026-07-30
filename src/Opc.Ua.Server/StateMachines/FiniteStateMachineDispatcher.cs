@@ -101,13 +101,13 @@ namespace Opc.Ua.Server.StateMachines
             machine.CurrentState.AddNumber(context);
             machine.CurrentState.Value = new LocalizedText(entry.Name);
 
-            if (machine.CurrentState.Id is { } idVariable)
+            if (machine.CurrentState.Id != null)
             {
-                idVariable.Value = new NodeId(stateId, m_namespaceIndex);
+                machine.CurrentState.Id.Value = new NodeId(stateId, m_namespaceIndex);
             }
-            if (machine.CurrentState.Number is { } numberVariable)
+            if (machine.CurrentState.Number != null)
             {
-                numberVariable.Value = entry.Number;
+                machine.CurrentState.Number.Value = entry.Number;
             }
 
             machine.CurrentState.ClearChangeMasks(context, includeChildren: true);
@@ -136,17 +136,17 @@ namespace Opc.Ua.Server.StateMachines
             machine.LastTransition.AddNumber(context);
             machine.LastTransition.Value = new LocalizedText(entry.Name);
 
-            if (machine.LastTransition.Id is { } idVariable)
+            if (machine.LastTransition.Id != null)
             {
-                idVariable.Value = new NodeId(transitionId, m_namespaceIndex);
+                machine.LastTransition.Id.Value = new NodeId(transitionId, m_namespaceIndex);
             }
-            if (machine.LastTransition.Number is { } numberVariable)
+            if (machine.LastTransition.Number != null)
             {
-                numberVariable.Value = entry.Number;
+                machine.LastTransition.Number.Value = entry.Number;
             }
-            if (machine.LastTransition.TransitionTime is { } transitionTimeVariable)
+            if (machine.LastTransition.TransitionTime != null)
             {
-                transitionTimeVariable.Value = DateTime.UtcNow;
+                machine.LastTransition.TransitionTime.Value = DateTime.UtcNow;
             }
 
             machine.LastTransition.ClearChangeMasks(context, includeChildren: true);
@@ -206,17 +206,17 @@ namespace Opc.Ua.Server.StateMachines
 
             machine.LastTransition.Value = LocalizedText.Null;
 
-            if (machine.LastTransition.Id is { } idVariable)
+            if (machine.LastTransition.Id != null)
             {
-                idVariable.Value = NodeId.Null;
+                machine.LastTransition.Id.Value = NodeId.Null;
             }
-            if (machine.LastTransition.Number is { } numberVariable)
+            if (machine.LastTransition.Number != null)
             {
-                numberVariable.Value = 0;
+                machine.LastTransition.Number.Value = 0;
             }
-            if (machine.LastTransition.TransitionTime is { } transitionTimeVariable)
+            if (machine.LastTransition.TransitionTime != null)
             {
-                transitionTimeVariable.Value = DateTime.MinValue;
+                machine.LastTransition.TransitionTime.Value = DateTime.MinValue;
             }
         }
 
