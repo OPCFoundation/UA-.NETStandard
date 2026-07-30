@@ -258,7 +258,7 @@ session.ModelChange!.ModelChanged += async (sender, args) =>
 
 A Server may append namespace uris while it is running — most notably
 when a NodeManager is
-[registered live](NodeManagerRegistration.md#namespaces). The Server
+[registered live](NodeManagers.md#namespaces). The Server
 updates `Server_NamespaceArray`, bumps `Server_UrisVersion`, and then
 reports the address-space change. Without a refresh, a Client resolves
 NodeIds from the new namespace against a stale `NamespaceUris` table
