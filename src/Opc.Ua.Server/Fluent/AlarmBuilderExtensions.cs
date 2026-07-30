@@ -107,11 +107,9 @@ namespace Opc.Ua.Server.Fluent
     {
         /// <summary>
         /// Creates a new <see cref="NonExclusiveLimitAlarmState"/> child
-        /// under the resolved parent. The alarm is attached via
-        /// <see cref="NodeState.AddChild(BaseInstanceState)"/>; the
-        /// owning manager is responsible for indexing it via
-        /// <c>AddPredefinedNodeAsync</c> if direct NodeId lookup is
-        /// required.
+        /// under the resolved parent. The alarm is attached to the
+        /// parent, registered with the owning node manager, and the
+        /// parent object is promoted as an event notifier.
         /// </summary>
         public static IAlarmBuilder<NonExclusiveLimitAlarmState> CreateLimitAlarm(
             this INodeBuilder parent,
@@ -225,8 +223,44 @@ namespace Opc.Ua.Server.Fluent
                 displayName: new LocalizedText(symbolicName),
                 assignNodeIds: false);
 
+            alarm.ReferenceTypeId = ReferenceTypeIds.HasCondition;
             parent.Node.AddChild(alarm);
+            InitializeAlarmSource(parent.Node, alarm);
+            FluentNodeRegistration.RegisterCreatedNode(parent.Builder, alarm);
+            FluentNodeRegistration.RegisterAlarmEventSource(parent.Builder, parent.Node);
             return alarm;
+        }
+
+        private static void InitializeAlarmSource<TState>(
+            NodeState source,
+            TState alarm)
+            where TState : ConditionState
+        {
+            if (alarm.SourceNode != null &&
+                alarm.SourceNode.Value.IsNull)
+            {
+                alarm.SourceNode.Value = source.NodeId;
+            }
+
+            if (alarm.SourceName != null &&
+                string.IsNullOrEmpty(alarm.SourceName.Value))
+            {
+                QualifiedName browseName = source.BrowseName;
+                alarm.SourceName.Value = browseName.IsNull ? string.Empty : browseName.Name ?? string.Empty;
+            }
+
+            if (alarm.ConditionName != null &&
+                string.IsNullOrEmpty(alarm.ConditionName.Value))
+            {
+                alarm.ConditionName.Value = alarm.BrowseName.Name ?? string.Empty;
+            }
+
+            if (alarm is AlarmConditionState alarmCondition &&
+                alarmCondition.InputNode != null &&
+                alarmCondition.InputNode.Value.IsNull)
+            {
+                alarmCondition.InputNode.Value = source.NodeId;
+            }
         }
     }
 

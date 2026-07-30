@@ -136,8 +136,8 @@ namespace Opc.Ua.Di.Server.Builders
             // (via NodeInstanceExtensions.AssignInstanceChildNodeIds) and, for
             // the explicitly added optional method children, by FinaliseChild.
             device.AddChild(su);
-            manager.AddPredefinedNodeAsync(su, CancellationToken.None)
-                .AsTask().GetAwaiter().GetResult();
+            manager.AddPlainPredefinedNodeSynchronously(su);
+            manager.RecordSoftwareUpdateFacet(config.LoadingMode);
 
             return su;
         }

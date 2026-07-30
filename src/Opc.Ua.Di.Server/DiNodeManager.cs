@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -72,7 +73,7 @@ namespace Opc.Ua.Di.Server
     /// must still call <c>base</c>.
     /// </para>
     /// </remarks>
-    public class DiNodeManager : FluentNodeManagerBase, INodeIdFactory
+    public class DiNodeManager : FluentNodeManagerBase, INodeIdFactory, IConformanceContributor
     {
         /// <summary>
         /// The DI namespace URI (<c>http://opcfoundation.org/UA/DI/</c>).
@@ -80,6 +81,8 @@ namespace Opc.Ua.Di.Server
         public const string DiNamespaceUri = Opc.Ua.Di.Namespaces.OpcUaDi;
 
         private NodeManagerBuilder? m_builder;
+        private readonly string m_instanceNamespaceUri;
+        private readonly HashSet<SoftwareLoadingMode> m_softwareUpdateLoadingModes = [];
 
         /// <summary>
         /// Initialises a new <see cref="DiNodeManager"/> without DI-
@@ -109,8 +112,9 @@ namespace Opc.Ua.Di.Server
                   server,
                   configuration,
                   server.Telemetry.CreateLogger<DiNodeManager>(),
-                  DiNamespaceUri)
+                  CombineNamespaces(configuration))
         {
+            m_instanceNamespaceUri = GetInstanceNamespaceUri(configuration);
             SystemContext.NodeIdFactory = this;
             PostSetupRunner = postSetupRunner;
         }
@@ -150,8 +154,9 @@ namespace Opc.Ua.Di.Server
                   server,
                   configuration,
                   server.Telemetry.CreateLogger<DiNodeManager>(),
-                  CombineNamespaces(additionalNamespaceUris))
+                  CombineNamespaces(configuration, additionalNamespaceUris))
         {
+            m_instanceNamespaceUri = GetInstanceNamespaceUri(configuration);
             SystemContext.NodeIdFactory = this;
             PostSetupRunner = postSetupRunner;
         }
@@ -167,17 +172,49 @@ namespace Opc.Ua.Di.Server
         /// </summary>
         protected Hosting.IDiPostSetupRunner? PostSetupRunner { get; }
 
-        private static string[] CombineNamespaces(string[] additional)
+        private static string GetInstanceNamespaceUri(
+            ApplicationConfiguration configuration)
         {
-            if (additional == null || additional.Length == 0)
+            if (configuration == null)
             {
-                return [DiNamespaceUri];
+                throw new ArgumentNullException(nameof(configuration));
+            }
+            if (string.IsNullOrEmpty(configuration.ApplicationUri))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConfigurationError,
+                    "The DI node manager requires a non-empty application URI to mint server-owned instance NodeIds.");
+            }
+            return configuration.ApplicationUri;
+        }
+
+        private static string[] CombineNamespaces(
+            ApplicationConfiguration configuration,
+            string[]? additional = null)
+        {
+            string instanceNamespaceUri = GetInstanceNamespaceUri(configuration);
+            var combined = new List<string>();
+            if (additional != null)
+            {
+                foreach (string uri in additional)
+                {
+                    if (!string.IsNullOrEmpty(uri) &&
+                        !combined.Contains(uri))
+                    {
+                        combined.Add(uri);
+                    }
+                }
+            }
+            if (!combined.Contains(instanceNamespaceUri))
+            {
+                combined.Add(instanceNamespaceUri);
+            }
+            if (!combined.Contains(DiNamespaceUri))
+            {
+                combined.Add(DiNamespaceUri);
             }
 
-            string[] combined = new string[additional.Length + 1];
-            additional.CopyTo(combined, 0);
-            combined[^1] = DiNamespaceUri;
-            return combined;
+            return [.. combined];
         }
 
         /// <summary>
@@ -185,6 +222,19 @@ namespace Opc.Ua.Di.Server
         /// </summary>
         public ushort DiNamespaceIndex =>
             (ushort)Server.NamespaceUris.GetIndex(DiNamespaceUri);
+
+        /// <summary>
+        /// The server-owned namespace index used for runtime-created
+        /// device and topology instance NodeIds.
+        /// </summary>
+        public ushort InstanceNamespaceIndex =>
+            (ushort)Server.NamespaceUris.GetIndex(m_instanceNamespaceUri);
+
+        /// <inheritdoc/>
+        public ArrayOf<QualifiedName> ConformanceUnits => BuildConformanceUnits();
+
+        /// <inheritdoc/>
+        public ArrayOf<string> ServerProfiles => BuildServerProfiles();
 
         /// <inheritdoc/>
         public override NodeId New(ISystemContext context, NodeState node)
@@ -196,14 +246,14 @@ namespace Opc.Ua.Di.Server
 
                 return new NodeId(
                     $"{parentId}_{instance.SymbolicName}",
-                    instance.Parent.NodeId.NamespaceIndex);
+                    InstanceNamespaceIndex);
             }
 
             return node.NodeId;
         }
 
         /// <summary>
-        /// Adds an instance node under the Machinery <c>Machines</c> folder
+        /// References an instance node from the Machinery <c>Machines</c> folder
         /// if it is present in the address space. Returns <see langword="true"/>
         /// when the folder was found and the reference was added.
         /// </summary>
@@ -218,7 +268,14 @@ namespace Opc.Ua.Di.Server
                 if (root.BrowseName.Name == machinesFolderBrowseName &&
                     root is BaseObjectState folder)
                 {
-                    folder.AddChild(instance);
+                    folder.AddReference(
+                        Opc.Ua.Types.ReferenceTypeIds.Organizes,
+                        false,
+                        instance.NodeId);
+                    instance.AddReference(
+                        Opc.Ua.Types.ReferenceTypeIds.Organizes,
+                        true,
+                        folder.NodeId);
                     return true;
                 }
             }
@@ -719,6 +776,11 @@ namespace Opc.Ua.Di.Server
             AddPredefinedNodeSynchronously(node);
         }
 
+        internal void RecordSoftwareUpdateFacet(SoftwareLoadingMode mode)
+        {
+            m_softwareUpdateLoadingModes.Add(mode);
+        }
+
         /// <summary>
         /// Returns (and lazily creates) the fluent
         /// <see cref="NodeManagerBuilder"/> used internally by the
@@ -765,6 +827,115 @@ namespace Opc.Ua.Di.Server
 
             AttachToBuilder(m_builder);
             return m_builder;
+        }
+
+        private ArrayOf<QualifiedName> BuildConformanceUnits()
+        {
+            var units = new List<QualifiedName>();
+            if (HasDeviceSet())
+            {
+                units.Add(new QualifiedName("DI DeviceTopology"));
+                units.Add(new QualifiedName("DI Offline"));
+            }
+            if (HasWiredLockingService())
+            {
+                units.Add(new QualifiedName("DI Locking"));
+                if (HasWiredBreakLockService())
+                {
+                    units.Add(new QualifiedName("DI BreakLocking"));
+                }
+            }
+            if (m_softwareUpdateLoadingModes.Count > 0)
+            {
+                units.Add(new QualifiedName("DI SU Software Update"));
+                units.Add(new QualifiedName("DI SU PrepareForUpdate"));
+                units.Add(new QualifiedName("DI SU Resume Update"));
+            }
+            if (m_softwareUpdateLoadingModes.Contains(SoftwareLoadingMode.Package))
+            {
+                units.Add(new QualifiedName("DI SU FileSystem Loading"));
+                units.Add(new QualifiedName("DI SU Installation for File System"));
+            }
+            if (m_softwareUpdateLoadingModes.Contains(SoftwareLoadingMode.Direct))
+            {
+                units.Add(new QualifiedName("DI SU DirectLoading"));
+                units.Add(new QualifiedName("DI SU UpdateStatus"));
+            }
+            if (m_softwareUpdateLoadingModes.Contains(SoftwareLoadingMode.Cached))
+            {
+                units.Add(new QualifiedName("DI SU CachedLoading"));
+                units.Add(new QualifiedName("DI SU Installation for Cached Loading"));
+                units.Add(new QualifiedName("DI SU UpdateStatus"));
+            }
+            return units.ToArrayOf();
+        }
+
+        private ArrayOf<string> BuildServerProfiles()
+        {
+            var profiles = new List<string>();
+            if (HasDeviceSet())
+            {
+                profiles.Add("http://opcfoundation.org/UA-Profile/DI/Server/DeviceIntegrationHost");
+            }
+            if (HasWiredLockingService())
+            {
+                profiles.Add("http://opcfoundation.org/UA-Profile/DI/Server/Locking");
+            }
+            if (m_softwareUpdateLoadingModes.Count > 0)
+            {
+                profiles.Add("http://opcfoundation.org/UA-Profile/DI/Server/SoftwareUpdateBase");
+            }
+            if (m_softwareUpdateLoadingModes.Contains(SoftwareLoadingMode.Package))
+            {
+                profiles.Add("http://opcfoundation.org/UA-Profile/DI/Server/FileSystemLoading");
+            }
+            if (m_softwareUpdateLoadingModes.Contains(SoftwareLoadingMode.Direct))
+            {
+                profiles.Add("http://opcfoundation.org/UA-Profile/DI/Server/DirectLoading");
+            }
+            if (m_softwareUpdateLoadingModes.Contains(SoftwareLoadingMode.Cached))
+            {
+                profiles.Add("http://opcfoundation.org/UA-Profile/DI/Server/CachedLoading");
+            }
+            return profiles.ToArrayOf();
+        }
+
+        private bool HasDeviceSet()
+        {
+            NodeId deviceSetId = NodeId.Create(
+                Opc.Ua.Di.Objects.DeviceSet,
+                DiNamespaceUri,
+                Server.NamespaceUris);
+
+            return PredefinedNodes.ContainsKey(deviceSetId);
+        }
+
+        private bool HasWiredLockingService()
+        {
+            foreach (NodeState node in PredefinedNodes.Values)
+            {
+                if (node is LockingServicesState lockState &&
+                    (lockState.InitLock?.OnCall != null ||
+                        lockState.RenewLock?.OnCall != null ||
+                        lockState.ExitLock?.OnCall != null))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private bool HasWiredBreakLockService()
+        {
+            foreach (NodeState node in PredefinedNodes.Values)
+            {
+                if (node is LockingServicesState lockState &&
+                    lockState.BreakLock?.OnCall != null)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
     }
 }

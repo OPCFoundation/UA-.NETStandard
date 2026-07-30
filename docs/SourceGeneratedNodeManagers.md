@@ -691,7 +691,9 @@ builder.Node("Pumps/Pump #1/Operational/MyGroup")
 new `BaseObjectState` child under the current node and returns a typed
 builder for the new object. NodeIds follow the
 `{parentIdentifier}_{childName}` pattern used by the source generator's
-default factory.
+default factory. The helper registers the created node with the owning
+`AsyncCustomNodeManager`, so the object is immediately browseable and
+addressable by NodeId.
 
 ```csharp
 // Create a custom FunctionalGroup, then attach measurements.
@@ -701,10 +703,8 @@ builder.Node("Pumps/Pump #1")
 ```
 
 Newly created objects are reachable through navigation from the parent
-immediately. If you also need direct NodeId lookup (e.g. for `Read`
-service calls that target the new node by id), invoke
-`AsyncCustomNodeManager.AddPredefinedNodeAsync` on the new node from a
-deferred `OnNodeAdded` callback.
+and through direct NodeId lookup immediately. Callers do not need to
+index nodes created by `AddObject` themselves.
 
 ### Creating instances of model types
 
@@ -732,12 +732,23 @@ The factory pattern keeps the API reflection-free and AOT safe — the
 generator already emits the per-type `Create<Type>` extension methods
 that the factory delegate calls into.
 
+Like `AddObject`, `CreateInstance<TState>` registers the materialised
+subtree with the owning node manager. The same registration behaviour
+is used by the fluent state-machine creators, so generated instances
+created from a builder can be browsed, read, and monitored without a
+separate `AddPredefinedNodeAsync` call.
+
 ### Alarm setup (MVP)
 
 `INodeBuilder.CreateLimitAlarm`, `.CreateExclusiveLimitAlarm` and
 `.CreateOffNormalAlarm` attach a fresh alarm condition under the
 current node and return an `IAlarmBuilder<TState>` for further
-configuration:
+configuration. The helpers register the condition, add the
+`HasCondition` reference, initialise `SourceNode`, `SourceName`,
+`ConditionName`, and `InputNode`, and promote the source object and its
+ancestors with `EventNotifiers.SubscribeToEvents`. The source is also
+registered as a root notifier so clients subscribing to the `Server`
+object receive condition events:
 
 ```csharp
 builder.Node("Pumps/Pump #1/Events")
@@ -768,7 +779,8 @@ builder.Node("Events")
 callbacks that fire when the variable's value transitions. The
 `.ActivatesAlarm(alarmBuilder)` extension wires the bool variable to
 an `AlarmConditionState`'s ActiveState so it flips in lockstep with
-the supervision flag — exactly the OPC UA DI / NAMUR NE 107 pattern.
+the supervision flag, updates `Retain`, adjusts severity, and reports a
+condition event — exactly the OPC UA DI / NAMUR NE 107 pattern.
 
 ```csharp
 IAlarmBuilder<NonExclusiveLimitAlarmState> cavitationAlarm =
@@ -958,6 +970,17 @@ input is supplied to the others as a resolution dependency (both
 > NodeSet2's generated types — set the per-file MSBuild metadata on the
 > NodeSet2 entry to control it.
 
+### NodeSet2 access-level bitmasks
+
+NodeSet2 imports preserve the verbatim `AccessLevel` bitmask. This
+matters for values such as `AccessLevel="5"` (`CurrentRead |
+HistoryRead`): the legacy ModelDesign enum can describe the individual
+named values but is not a `[Flags]` enum. The importer stores the raw
+mask on `VariableDesign.RawAccessLevel`, and code generation emits the
+corresponding `Opc.Ua.AccessLevels` constants instead of collapsing the
+value to `Read`. `UserAccessLevel` intentionally mirrors
+`AccessLevel`, matching the runtime NodeSet2 importer.
+
 ## Materialising instances at runtime — NodeId assignment
 
 Every model gets three families of instance helpers. They differ only in
@@ -1004,8 +1027,13 @@ Notes:
 
 - **Browse-path wildcards** (`*`, `**`) are not supported. Wire each
   path explicitly or resolve by NodeId / TypeDefinitionId.
-- **HistoryRead/Update** integration is delegate-only in v1; deeper
-  paging/queueing still requires `INodeManager2` work.
+- **Historical access advertisement.** Servers reconcile
+  `Historizing` and `HistoryRead` / `HistoryWrite` access-level bits at
+  startup. Variables that do not resolve to an `IHistorianProvider`
+  have those bits masked before the server accepts clients; variables
+  wired with `Historize()` or another historian keep their history
+  surface. See [Server address-space metadata](ServerAddressSpaceMetadata.md)
+  and [Historical Access](HistoricalAccess.md).
 - **Reserved child names.** A component/property whose BrowseName
   matches a built-in `NodeState` attribute member (for example
   `Description` or `DisplayName`) shadows that member on the generated

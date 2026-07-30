@@ -61,16 +61,7 @@ namespace Opc.Ua.Di.Tests
             services.AddLogging();
             services.AddOpcUa()
                 .AddServer<CaptureServer>(ConfigureServer)
-                .AddNodeManager<PumpNodeManagerFactory>()
-                .ConfigureDevicesFor<PumpNodeManager>(async context =>
-                {
-                    var manager = (PumpNodeManager)context.Manager;
-                    ushort pumpsNamespaceIndex = (ushort)manager.Server.NamespaceUris.GetIndex(
-                        Opc.Ua.Pumps.Namespaces.Pumps);
-                    await manager.CreatePumpAsync(
-                        new QualifiedName("Pump #2", pumpsNamespaceIndex),
-                        context.CancellationToken).ConfigureAwait(false);
-                });
+                .AddNodeManager<PumpNodeManagerFactory>();
 
             await using ServiceProvider provider = services.BuildServiceProvider();
             IHostedService hostedService = provider.GetServices<IHostedService>().Single();
@@ -113,7 +104,7 @@ namespace Opc.Ua.Di.Tests
                 for (int ii = 0; ii < results[0].References.Count; ii++)
                 {
                     ReferenceDescription reference = results[0].References[ii];
-                    if (reference.BrowseName.Name is "Pump #1" or "Pump #2")
+                    if (reference.BrowseName.Name is "Pump_1" or "Pump_2")
                     {
                         pumpReferences.Add(reference);
                     }
@@ -149,7 +140,7 @@ namespace Opc.Ua.Di.Tests
                 {
                     ReferenceDescription reference =
                         clientBrowse.Results[0].References[ii];
-                    if (reference.BrowseName.Name is "Pump #1" or "Pump #2")
+                    if (reference.BrowseName.Name is "Pump_1" or "Pump_2")
                     {
                         clientPumpReferences.Add(reference);
                     }

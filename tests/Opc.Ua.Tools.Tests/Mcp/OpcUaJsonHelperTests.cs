@@ -150,47 +150,73 @@ namespace Opc.Ua.Tools.Tests.Mcp
         public void VariantToObjectReturnsNullForNullVariant()
         {
             Assert.That(OpcUaJsonHelper.VariantToObject(Variant.Null), Is.Null);
+            Assert.That(OpcUaJsonHelper.VariantToObject(default), Is.Null);
         }
 
         [Test]
         public void VariantToObjectReturnsBooleanAsIs()
         {
+            Assert.That(OpcUaJsonHelper.VariantToObject(Variant.From(false)), Is.False);
             Assert.That(OpcUaJsonHelper.VariantToObject(new Variant(true)), Is.True);
         }
 
         [Test]
         public void VariantToObjectReturnsIntegerAsIs()
         {
+            object? result = OpcUaJsonHelper.VariantToObject(Variant.From(0));
+
+            Assert.That(result, Is.TypeOf<int>());
+            Assert.That(result, Is.Zero);
             Assert.That(OpcUaJsonHelper.VariantToObject(new Variant(123)), Is.EqualTo(123));
         }
 
         [Test]
-        public void VariantToObjectFormatsScalarDateTimeUsingDateTimeUtcToString()
+        public void VariantToObjectReturnsZeroScalarsAsValues()
         {
-            // Scalar DateTime values are boxed by Variant.AsBoxedObject() as
-            // DateTimeUtc (not System.DateTime), so VariantToObject falls back
-            // to the default ToString() branch rather than the ISO-8601 branch.
+            object? uintResult = OpcUaJsonHelper.VariantToObject(Variant.From((uint)0));
+            object? byteResult = OpcUaJsonHelper.VariantToObject(Variant.From((byte)0));
+            object? doubleResult = OpcUaJsonHelper.VariantToObject(Variant.From(0.0));
+            object? floatResult = OpcUaJsonHelper.VariantToObject(Variant.From(0.0f));
+
+            Assert.That(uintResult, Is.TypeOf<uint>());
+            Assert.That(uintResult, Is.Zero);
+            Assert.That(byteResult, Is.TypeOf<byte>());
+            Assert.That(byteResult, Is.Zero);
+            Assert.That(doubleResult, Is.TypeOf<double>());
+            Assert.That(doubleResult, Is.Zero);
+            Assert.That(floatResult, Is.TypeOf<float>());
+            Assert.That(floatResult, Is.Zero);
+        }
+
+        [Test]
+        public void VariantToObjectReturnsNonZeroScalarsAsValues()
+        {
+            Assert.That(OpcUaJsonHelper.VariantToObject(Variant.From((byte)255)), Is.EqualTo((byte)255));
+            Assert.That(OpcUaJsonHelper.VariantToObject(Variant.From(1.5)), Is.EqualTo(1.5d));
+            Assert.That(OpcUaJsonHelper.VariantToObject(Variant.From("text")), Is.EqualTo("text"));
+            Assert.That(OpcUaJsonHelper.VariantToObject(Variant.From(string.Empty)), Is.EqualTo(string.Empty));
+        }
+
+        [Test]
+        public void VariantToObjectFormatsScalarDateTimeUsingRoundTripFormat()
+        {
             var dt = new DateTime(2024, 5, 6, 7, 8, 9, DateTimeKind.Utc);
 
             object? result = OpcUaJsonHelper.VariantToObject(new Variant(dt));
 
             Assert.That(
                 result,
-                Is.EqualTo(new DateTimeUtc(dt).ToString(System.Globalization.CultureInfo.InvariantCulture)));
+                Is.EqualTo(dt.ToString("o", CultureInfo.InvariantCulture)));
         }
 
         [Test]
-        public void VariantToObjectFormatsByteArrayUsingArrayOfToString()
+        public void VariantToObjectFormatsByteStringUsingBase64()
         {
-            // byte[] is implicitly converted to ArrayOf<byte> by the Variant
-            // constructor, so AsBoxedObject() returns the ArrayOf<byte> wrapper
-            // rather than a raw byte[], and VariantToObject falls back to
-            // ArrayOf<T>.ToString() rather than Base64-encoding the bytes.
             byte[] bytes = [1, 2, 3, 4];
 
-            object? result = OpcUaJsonHelper.VariantToObject(new Variant(bytes));
+            object? result = OpcUaJsonHelper.VariantToObject(Variant.From(ByteString.From(bytes)));
 
-            Assert.That(result, Is.EqualTo(new ArrayOf<byte>(bytes).ToString()));
+            Assert.That(result, Is.EqualTo(Convert.ToBase64String(bytes)));
         }
 
         [Test]
@@ -256,16 +282,18 @@ namespace Opc.Ua.Tools.Tests.Mcp
         }
 
         [Test]
-        public void VariantToObjectFormatsPrimitiveArrayUsingArrayOfToString()
+        public void VariantToObjectFormatsPrimitiveArrayUsingList()
         {
-            // int[] is implicitly converted to ArrayOf<int>, so VariantToObject's
-            // "Array array => ArrayToList(array)" branch is not reached; the
-            // result falls back to ArrayOf<T>.ToString().
-            var values = new int[] { 1, 2, 3 };
+            var values = new int[] { 0, 1, 2 };
 
-            object? result = OpcUaJsonHelper.VariantToObject(new Variant(values));
+            object? result = OpcUaJsonHelper.VariantToObject(Variant.From(new ArrayOf<int>(values)));
 
-            Assert.That(result, Is.EqualTo(new ArrayOf<int>(values).ToString()));
+            Assert.That(result, Is.InstanceOf<System.Collections.Generic.IReadOnlyList<object?>>());
+            var list = (System.Collections.Generic.IReadOnlyList<object?>)result!;
+            Assert.That(list, Has.Count.EqualTo(3));
+            Assert.That(list[0], Is.EqualTo("0"));
+            Assert.That(list[1], Is.EqualTo("1"));
+            Assert.That(list[2], Is.EqualTo("2"));
         }
 
         [Test]

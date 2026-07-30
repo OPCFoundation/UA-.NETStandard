@@ -340,6 +340,14 @@ namespace Opc.Ua.Server
                     }
                 }
 
+                foreach (IAsyncNodeManager nodeManager in m_nodeManagers)
+                {
+                    if (nodeManager is AsyncCustomNodeManager customNodeManager)
+                    {
+                        customNodeManager.ReconcileHistoricalAccessAdvertisement();
+                    }
+                }
+
                 // update external references.
                 foreach (IAsyncNodeManager nodeManager in m_nodeManagers)
                 {

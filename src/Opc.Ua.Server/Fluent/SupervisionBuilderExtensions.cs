@@ -153,13 +153,36 @@ namespace Opc.Ua.Server.Fluent
             AlarmConditionState alarm,
             bool active)
         {
-            if (alarm.ActiveState?.Id != null)
+            if (alarm.ActiveState?.Id == null)
             {
-                alarm.ActiveState.Id.Value = active;
-                alarm.ActiveState.Value = new LocalizedText(active ? "Active" : "Inactive");
-                alarm.Time?.Value = DateTimeUtc.Now;
-                alarm.ClearChangeMasks(context, includeChildren: true);
+                return;
             }
+
+            alarm.SetActiveState(context, active);
+            alarm.SetSeverity(context, active ? EventSeverity.Medium : EventSeverity.Min);
+            alarm.Retain!.Value = active;
+
+            if (alarm.Message != null)
+            {
+                alarm.Message.Value = LocalizedText.From(active ? "Alarm active" : "Alarm inactive");
+            }
+
+            ReportAlarmEvent(context, alarm);
+        }
+
+        private static void ReportAlarmEvent(
+            ISystemContext context,
+            AlarmConditionState alarm)
+        {
+            alarm.EventId!.Value = Uuid.NewUuid().ToByteString();
+            alarm.Time!.Value = DateTimeUtc.Now;
+            alarm.ReceiveTime!.Value = alarm.Time.Value;
+
+            alarm.ClearChangeMasks(context, includeChildren: true);
+
+            var snapshot = new InstanceStateSnapshot();
+            snapshot.Initialize(context, alarm);
+            alarm.ReportEvent(context, snapshot);
         }
 
         private static EdgeTracker AttachEdgeTracker(BaseVariableState variable)
