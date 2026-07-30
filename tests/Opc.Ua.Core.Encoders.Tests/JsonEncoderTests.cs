@@ -974,8 +974,15 @@ namespace Opc.Ua.Core.Encoders.Tests
             {
                 BuiltInType.DataValue,
                 DataValue.FromStatusCode(StatusCodes.BadNotWritable),
-                $$$"""{"StatusCode":{"Code":{{{StatusCodes.BadNotWritable.Code}}}}}""",
-                $$$"""{"StatusCode":{"Code":{{{StatusCodes.BadNotWritable.Code}}}, "Symbol":"{{{nameof(StatusCodes.BadNotWritable)}}}"}}"""
+                $$$"""{"Status":{"Code":{{{StatusCodes.BadNotWritable.Code}}}}}""",
+                $$$"""
+                {
+                    "Status": {
+                        "Code": {{{StatusCodes.BadNotWritable.Code}}},
+                        "Symbol": "{{{nameof(StatusCodes.BadNotWritable)}}}"
+                    }
+                }
+                """
             },
             {
                 BuiltInType.Enumeration,

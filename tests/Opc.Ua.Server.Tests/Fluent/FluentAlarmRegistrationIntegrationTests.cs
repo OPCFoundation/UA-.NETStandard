@@ -130,7 +130,12 @@ namespace Opc.Ua.Server.Tests.Fluent
             h.Flag.ClearChangeMasks(h.Manager.SystemContext, includeChildren: false);
 
             Assert.That(alarm.Alarm.ActiveState.Id.Value, Is.False);
-            Assert.That(alarm.Alarm.Retain.Value, Is.False);
+
+            // OPC 10000-9: Retain stays set while the Condition is still
+            // unacknowledged, even once it is no longer active, so that
+            // clients can still see and acknowledge it.
+            Assert.That(alarm.Alarm.AckedState!.Id!.Value, Is.False);
+            Assert.That(alarm.Alarm.Retain.Value, Is.True);
             h.Server.Verify(
                 s => s.ReportEventAsync(
                     It.IsAny<ISystemContext>(),

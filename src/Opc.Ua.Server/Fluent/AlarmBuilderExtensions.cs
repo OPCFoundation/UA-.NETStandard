@@ -203,6 +203,14 @@ namespace Opc.Ua.Server.Fluent
             {
                 throw new ArgumentNullException(nameof(factory));
             }
+            if (parent.Node is not BaseObjectState parentObject)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadTypeMismatch,
+                    "Alarm parent '{0}' must be an Object; resolved node is '{1}'.",
+                    parent.Node.BrowseName,
+                    parent.Node.NodeClass);
+            }
             string symbolicName = browseName.Name ?? string.Empty;
             TState alarm = factory(parent.Node);
             alarm.SymbolicName = symbolicName;
@@ -222,10 +230,27 @@ namespace Opc.Ua.Server.Fluent
                 browseName,
                 displayName: new LocalizedText(symbolicName),
                 assignNodeIds: false);
+            alarm.SetEnableState(parent.Builder.Context, enabled: true);
 
             alarm.ReferenceTypeId = ReferenceTypeIds.HasCondition;
             parent.Node.AddChild(alarm);
             InitializeAlarmSource(parent.Node, alarm);
+
+            parentObject.EventNotifier |= EventNotifiers.SubscribeToEvents;
+
+            parent.Node.AddReference(
+                ReferenceTypeIds.HasEventSource,
+                isInverse: false,
+                alarm.NodeId);
+            alarm.AddReference(
+                ReferenceTypeIds.HasEventSource,
+                isInverse: true,
+                parent.Node.NodeId);
+
+            // Index the alarm so it is browsable and resolvable by NodeId,
+            // then promote the notifier chain above it and register the
+            // source as a root notifier so clients subscribing on the
+            // Server Object receive the condition events.
             FluentNodeRegistration.RegisterCreatedNode(parent.Builder, alarm);
             FluentNodeRegistration.RegisterAlarmEventSource(parent.Builder, parent.Node);
             return alarm;

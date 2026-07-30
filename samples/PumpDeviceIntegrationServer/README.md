@@ -42,7 +42,40 @@ identifier-safe names (`Pump_1`, `Pump_2`, ...); DisplayNames keep the
 operator-friendly labels (`Pump #1`, `Pump #2`, ...). Pass `--pumps N`
 or set `pumps=N` to materialise more instances. Every pump is wired
 through the same simulation, alarm, history, identification, maintenance,
-and declarative DI `ConfigureDevicesFor` flow.
+and declarative DI `ConfigureDevicesFor` flow, so pumps added after
+startup automatically join the same live simulation. All pumps publish
+monitored data changes every 250 ms, with deterministic phase offsets so
+their values do not move in lockstep.
+
+Subscribe to the `EventNotifier` attribute on any pump to receive alarm
+condition events when its simulated `MotorOverheat` state activates or
+clears. Each pump is also registered as a root notifier, so the same events
+are available from a subscription on the Server object.
+
+## Validating the address space
+
+The
+[`Pump Address Space Validation`](../../.github/workflows/pump-address-space-validation.yml)
+workflow runs nightly and can also be started manually. It builds this sample,
+installs the latest stable
+[`OpcUaAddressSpaceChecker`](https://www.nuget.org/packages/OpcUaAddressSpaceChecker)
+global tool, and validates all `PumpType` instances.
+
+To reproduce the validation locally, start the server and run the following
+commands in another terminal:
+
+```pwsh
+dotnet tool install --global OpcUaAddressSpaceChecker
+opcua-check-address-space `
+    --endpoint opc.tcp://localhost:62542/PumpDeviceIntegrationServer `
+    --type "nsu=http://opcfoundation.org/UA/Pumps/;i=1052" `
+    --severity-threshold warning `
+    --view-completeness complete `
+    --require-complete-view
+```
+
+The nightly check keeps the tool's default `auto` validation-view policy and
+fails on confirmed errors or any checker execution failure.
 
 ## Running in Docker
 
@@ -99,10 +132,12 @@ workflow on every push to `master` and on manual dispatch.
 | Identification properties via `WithProperty(name, value)` | `PumpNodeManager.Configure.cs` `WithIdentification` |
 | Optional-child materialisation via generator-emitted `AddXxx(context)` helpers (Operational / Measurements / Events / SupervisionProcessFluid / SupervisionPumpOperation / Maintenance) | `PumpNodeManager.cs` `MaterialisePumpOptionalChildren` |
 | Engineering units / EURange via `WithEngineeringUnits` / `WithEURange` | `WithMeasurements` |
-| Discrete `NumberOfStarts` counter wired via `Variable<uint>(...).OnRead(...)` | `WithMeasurements` |
-| 250 ms simulation tick via `Simulation(...).OnTick(...)` | `Configure` → `AdvanceSimulation` |
-| Browsable/subscribable limit alarm with thresholds and acknowledge handler via `CreateLimitAlarm(...).WithLimits(...)` | `WithSupervision` |
-| Boolean supervision (TwoStateDiscreteState) → alarm activation, condition raise/clear, and event reporting via `.ActivatesAlarm(...)` | `WithSupervision` |
+| Push-style monitored value updates via `Bind(out IValueUpdater<T>)` | `CreatePumpSimulation` |
+| Discrete `NumberOfStarts` counter published on change | `CreatePumpSimulation` |
+| One 250 ms simulation tick for all phase-shifted pumps | `Configure` → `AdvanceSimulation` |
+| Browsable/subscribable limit alarm with thresholds and acknowledge handler via `CreateLimitAlarm(...).WithLimits(...)` | `CreatePumpSimulation` |
+| Boolean supervision (TwoStateDiscreteState) → alarm activation, condition raise/clear, and reported events via `.ActivatesAlarm(...)` | `CreatePumpSimulation` |
+| `EventNotifier`, `HasNotifier`, and `HasEventSource` instance wiring | `PumpNodeManager.cs` + fluent alarm builders |
 | Cross-namespace path resolution (Pump #1 in Pumps NS → Operational in Machinery NS → Measurements in Pumps NS, all in one unqualified browse path) | `src/Opc.Ua.Server/Fluent/BrowsePathResolver.cs` |
 | Declarative `ConfigureDevicesFor` topology-element configuration adding an application-namespace Diagnostics functional group to every generated `PumpType` instance | `Program.cs` |
 | In-memory historian wiring so NodeSet-declared historical access is genuinely serviceable for all analog measurements and historized supervision booleans | `PumpNodeManager.Configure.cs` `UseHistorian()` / `Historize()` |
@@ -147,15 +182,19 @@ want to reference Machinery or Pumps the same way they reference
 `Opc.Ua.Di` should source-generate against the model XML inside their
 own assembly using the same `<AdditionalFiles>` pattern.
 
+The sample intentionally does not add `GeneratesEvent` to pump instances.
+OPC 10000-3 restricts that reference to ObjectType, VariableType, and Method
+declarations; runtime delivery is provided by the notifier/event-source
+hierarchy and `ReportEvent`.
+
 ## Extending the sample
 
 - **Add a measurement**: open `PumpNodeManager.Configure.cs`, add a
-  call to `AddMeasurement(builder, browsePath, getter, units, min, max)`
-  inside `WithMeasurements`, then add a field + line to
-  `AdvanceSimulation` that updates the value each tick.
-- **Add an alarm**: inside `WithSupervision`, chain another
-  `builder.Node(pumpBrowseName + "/Events").CreateLimitAlarm(...).WithLimits(...)`
-  and wire the triggering boolean variable via `.ActivatesAlarm(...)`.
+  bound updater in `CreatePumpSimulation`, store it in
+  `PumpSimulationState`, and publish its value from `Publish`.
+- **Add an alarm**: create it from the typed `Events` builder in
+  `CreatePumpSimulation` and wire the triggering boolean variable via
+  `.ActivatesAlarm(...)`.
 - **Add pumps**: pass `--pumps N` (or set `pumps=N`) to materialise N
   identical simulated `PumpType` instances. `PumpNodeManager` demonstrates
   the hand-written fluent style by creating every pump, wiring
@@ -164,6 +203,8 @@ own assembly using the same `<AdditionalFiles>` pattern.
   the declarative DI style by wrapping each generated pump with
   `ctx.TopologyElement<PumpState>(...)` and adding the ad-hoc Diagnostics
   functional group through `ConfigureDevicesFor<PumpNodeManager>`.
+  `CreatePumpAsync` registers each new instance with the shared simulation,
+  so pumps created after startup join the same live tick.
 
 ## NativeAOT publishing
 
