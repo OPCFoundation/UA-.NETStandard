@@ -30,6 +30,8 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Reflection;
+using System.Threading.Tasks;
 using NUnit.Framework;
 
 namespace Opc.Ua.Types.Tests.Utils.FileSystem
@@ -60,12 +62,6 @@ namespace Opc.Ua.Types.Tests.Utils.FileSystem
             {
                 Directory.Delete(m_testDirectory, recursive: true);
             }
-        }
-
-        [Test]
-        public void LocalFileSystemIsAtomicFileReplace()
-        {
-            Assert.That(new LocalFileSystem(), Is.AssignableTo<IAtomicFileReplace>());
         }
 
         [Test]
@@ -117,13 +113,6 @@ namespace Opc.Ua.Types.Tests.Utils.FileSystem
         }
 
         [Test]
-        public void VirtualFileSystemIsAtomicFileReplace()
-        {
-            using var fileSystem = new VirtualFileSystem();
-            Assert.That(fileSystem, Is.AssignableTo<IAtomicFileReplace>());
-        }
-
-        [Test]
         public void VirtualFileSystemReplaceMovesSourceWhenDestinationDoesNotExist()
         {
             using var fileSystem = new VirtualFileSystem();
@@ -167,10 +156,89 @@ namespace Opc.Ua.Types.Tests.Utils.FileSystem
             byte[] destinationContent = "existing destination"u8.ToArray();
             fileSystem.Add(destinationPath, destinationContent);
 
-            FileNotFoundException exception = Assert.Throws<FileNotFoundException>(
-                () => fileSystem.Replace(sourcePath, destinationPath));
-            Assert.That(exception.FileName, Is.EqualTo(sourcePath));
+            Assert.That(
+                () => fileSystem.Replace(sourcePath, destinationPath),
+                Throws.TypeOf<FileNotFoundException>()
+                    .With.Property(nameof(FileNotFoundException.FileName)).EqualTo(sourcePath));
             Assert.That(fileSystem.Get(destinationPath), Is.EqualTo(destinationContent));
+        }
+
+        [Test]
+        public void VirtualFileSystemReplaceConcurrentlyPublishesCompleteSource()
+        {
+            using var fileSystem = new VirtualFileSystem();
+            const string destinationPath = "published.bin";
+            byte[] initialContent = "initial content"u8.ToArray();
+            byte[][] contents = Enumerable.Range(0, 32)
+                .Select(i => Enumerable.Repeat((byte)i, 256 + i).ToArray())
+                .ToArray();
+            fileSystem.Add(destinationPath, initialContent);
+
+            Task[] tasks = contents.Select((content, index) => Task.Run(() =>
+            {
+                string sourcePath = "staged" + index + ".bin";
+                fileSystem.Add(sourcePath, content);
+                fileSystem.Replace(sourcePath, destinationPath);
+            })).ToArray();
+            Task.WaitAll(tasks);
+
+            byte[] published = fileSystem.Get(destinationPath);
+            Assert.That(contents, Has.Some.EqualTo(published));
+            for (int ii = 0; ii < contents.Length; ii++)
+            {
+                Assert.That(fileSystem.Exists("staged" + ii + ".bin"), Is.False);
+            }
+        }
+
+        [Test]
+        public void CombinedFileSystemReplaceUsesSecondaryByDefault()
+        {
+            using var primary = new VirtualFileSystem();
+            using var secondary = new VirtualFileSystem();
+            var fileSystem = new CombinedFileSystem(primary, secondary);
+            byte[] sourceContent = "secondary content"u8.ToArray();
+            secondary.Add("staged.bin", sourceContent);
+
+            fileSystem.Replace("staged.bin", "published.bin");
+
+            Assert.That(primary.Exists("published.bin"), Is.False);
+            Assert.That(secondary.Get("published.bin"), Is.EqualTo(sourceContent));
+        }
+
+        [Test]
+        public void CombinedFileSystemReplaceUsesPrimaryWhenConfiguredForPrimaryWrites()
+        {
+            using var primary = new VirtualFileSystem();
+            using var secondary = new VirtualFileSystem();
+            var fileSystem = new CombinedFileSystem(primary, secondary, usePrimaryForWrite: true);
+            byte[] sourceContent = "primary content"u8.ToArray();
+            primary.Add("staged.bin", sourceContent);
+
+            fileSystem.Replace("staged.bin", "published.bin");
+
+            Assert.That(primary.Get("published.bin"), Is.EqualTo(sourceContent));
+            Assert.That(secondary.Exists("published.bin"), Is.False);
+        }
+
+        [Test]
+        public void NullFileSystemReplaceThrowsFileNotFoundException()
+        {
+            NullFileSystem fileSystem = NullFileSystem.Instance;
+
+            Assert.That(
+                () => fileSystem.Replace("staged.bin", "published.bin"),
+                Throws.TypeOf<FileNotFoundException>()
+                    .With.Property(nameof(FileNotFoundException.FileName)).EqualTo("staged.bin"));
+        }
+
+        [Test]
+        public void ResourceFileSystemReplaceThrowsIOException()
+        {
+            var fileSystem = new ResourceFileSystem(Assembly.GetExecutingAssembly());
+
+            Assert.That(
+                () => fileSystem.Replace("staged.bin", "published.bin"),
+                Throws.TypeOf<IOException>());
         }
 
         private string GetLocalPath(string fileName)

@@ -40,7 +40,7 @@ namespace Opc.Ua
     /// <summary>
     /// Virtual file system
     /// </summary>
-    public class VirtualFileSystem : IFileSystem, IAtomicFileReplace, IDisposable
+    public class VirtualFileSystem : IFileSystem, IDisposable
     {
         /// <summary>
         /// Get created files in this file system
@@ -172,18 +172,23 @@ namespace Opc.Ua
                     sourcePath);
             }
 
-            // Re-keying the whole entry publishes the file in one step, so a reader sees
-            // either the previous content or the new content and never a partial write.
-            VirtualFile? replaced = null;
-            m_files.AddOrUpdate(
-                destinationPath,
-                staged,
-                (_, existing) =>
+            while (true)
+            {
+                if (!m_files.TryGetValue(destinationPath, out VirtualFile? existing))
                 {
-                    replaced = existing;
-                    return staged;
-                });
-            replaced?.Dispose();
+                    if (m_files.TryAdd(destinationPath, staged))
+                    {
+                        return;
+                    }
+                    continue;
+                }
+
+                if (m_files.TryUpdate(destinationPath, staged, existing))
+                {
+                    existing.Dispose();
+                    return;
+                }
+            }
         }
 
         /// <inheritdoc/>

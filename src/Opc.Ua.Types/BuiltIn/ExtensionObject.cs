@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.Contracts;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Opc.Ua.Types;
@@ -355,7 +356,10 @@ namespace Opc.Ua
             }
 
             IEncodeable encodeable = activator.CreateInstance();
-            using var decoder = new BinaryDecoder(binary.ToArray(), messageContext);
+            ReadOnlyMemory<byte> memory = binary;
+            using BinaryDecoder decoder = MemoryMarshal.TryGetArray(memory, out ArraySegment<byte> segment)
+                ? new BinaryDecoder(segment, messageContext)
+                : new BinaryDecoder(memory.ToArray(), messageContext);
             encodeable.Decode(decoder);
             return encodeable;
         }
