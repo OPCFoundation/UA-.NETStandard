@@ -217,6 +217,8 @@ The following NuGet packages are released on a monthly cadence (with hot fixes f
 
 For improved source-level debugging, symbol packages are published on nuget.org in `snupkg` format, and `Debug`-compiled packages are available with a `.Debug` suffix. In addition, every successful `master` build publishes preview packages to the [Azure DevOps preview feed](https://opcfoundation.visualstudio.com/opcua-netstandard/_artifacts/feed/opcua-preview).
 
+The full set of packages the preview pipeline produces is pinned in [`.azurepipelines/expected-packages.txt`](../.azurepipelines/expected-packages.txt). `.azurepipelines/validate-source-generator-packages.ps1` fails the build when the packed output does not match it, so adding, removing or renaming a shipped package has to be done deliberately in the same pull request. That script also validates the analyzer packages: their `analyzers/dotnet/roslyn<major>.<minor>/cs` layout, that they carry their runtime closure privately, that the model generator's auto-imported `build/<PackageId>.props` is named after the package id, and — end to end — that a standalone project consuming the packed generator with a NodeSet actually gets code generated.
+
 ### Supported target frameworks
 
 The class libraries currently target:
