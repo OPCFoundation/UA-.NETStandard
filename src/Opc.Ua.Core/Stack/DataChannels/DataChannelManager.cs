@@ -80,8 +80,7 @@ namespace Opc.Ua.Bindings
             MaxDataChannels = maxDataChannels;
             MaxCreditPerChannel = maxCreditPerChannel;
 
-            m_connectionSend = new DataChannelSendWindow(
-                transport.HasTransportFlowControl ? uint.MaxValue : 0);
+            m_connectionSend = new DataChannelSendWindow();
             m_connectionReceive = new DataChannelReceiveCredit();
             m_wakeUp = new SemaphoreSlim(0, 1);
             m_stop = new CancellationTokenSource();
@@ -735,9 +734,12 @@ namespace Opc.Ua.Bindings
                     channel.SetPaused(false);
                     channel.Deficit -= length;
 
-                    lock (m_lock)
+                    if (!m_transport.HasTransportFlowControl)
                     {
-                        m_connectionSend.TryConsume(length);
+                        lock (m_lock)
+                        {
+                            m_connectionSend.TryConsume(length);
+                        }
                     }
 
                     try

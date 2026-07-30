@@ -107,8 +107,7 @@ namespace Opc.Ua.Bindings
             m_receiveWindow = new DataChannelReceiveWindow(
                 DataChannelConstants.MinReplayWindow,
                 settings.MaxGapRuns);
-            m_sendWindow = new DataChannelSendWindow(
-                transport.HasTransportFlowControl ? uint.MaxValue : settings.InitialCredit);
+            m_sendWindow = new DataChannelSendWindow(settings.InitialCredit);
             m_receiveCredit = new DataChannelReceiveCredit(settings.InitialCredit);
             m_delivery = Channel.CreateBounded<DataChannelMessage>(
                 new BoundedChannelOptions(DeliveryQueueCapacity(settings))
@@ -306,7 +305,7 @@ namespace Opc.Ua.Bindings
                     BytesSent = m_bytesSent,
                     BytesReceived = m_bytesReceived,
                     FramesDiscarded = m_framesDiscarded,
-                    CreditStalls = m_sendWindow.Stalls,
+                    CreditStalls = m_transport.HasTransportFlowControl ? 0 : m_sendWindow.Stalls,
                     RoundTripTime = m_roundTripTime,
                     LastGapSequenceNumber = m_lastGapSequenceNumber
                 };
@@ -492,7 +491,8 @@ namespace Opc.Ua.Bindings
 
         /// <summary>
         /// Takes the DATA frame at the head of the send queue and spends
-        /// the channel window on it.
+        /// the channel window on it when the data channel layer owns flow
+        /// control.
         /// </summary>
         /// <param name="frame">The frame.</param>
         /// <param name="buffer">The pooled payload buffer, to be released
@@ -506,7 +506,11 @@ namespace Opc.Ua.Bindings
                     return false;
                 }
 
-                m_sendWindow.TryConsume(frame.Payload.Length);
+                if (!m_transport.HasTransportFlowControl)
+                {
+                    m_sendWindow.TryConsume(frame.Payload.Length);
+                }
+
                 m_framesSent++;
                 m_bytesSent += (ulong)frame.Payload.Length;
                 return true;
@@ -524,13 +528,18 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// True when the send window cannot carry a frame of the given
-        /// size. Entry to and exit from Paused use this same test.
+        /// True when the data channel send window cannot carry a frame of
+        /// the given size. Entry to and exit from Paused use this same test.
         /// </summary>
         /// <param name="payloadLength">The payload length of the head
         /// frame.</param>
         internal bool IsSendBlocked(int payloadLength)
         {
+            if (m_transport.HasTransportFlowControl)
+            {
+                return false;
+            }
+
             lock (m_lock)
             {
                 return m_sendWindow.IsBlockedBy(payloadLength);
