@@ -421,9 +421,12 @@ namespace Opc.Ua.Client.ComplexTypes
                 nodesToBrowse = nextNodesToBrowse;
             }
 #if DEBUG
-            m_logger.LoadDataTypesReturnsCountNodesDurationMs(
-                result.Count,
-                (long)m_timeProvider.GetElapsedTime(startTimestamp).TotalMilliseconds);
+            if (m_logger.IsEnabled(LogLevel.Information))
+            {
+                m_logger.LoadDataTypesReturnsCountNodesDurationMs(
+                    result.Count,
+                    (long)m_timeProvider.GetElapsedTime(startTimestamp).TotalMilliseconds);
+            }
 #endif
             return result;
         }
