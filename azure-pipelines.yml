@@ -11,6 +11,30 @@ parameters:
   - mixed
   - managed
   - hosted
+# Which CI system owns the all-TFM solution build, the cross-platform test
+# matrix and the Native AoT run.  This is one half of a single conceptual
+# switch - the other half is CI_BUILD_BACKEND in
+# .github/workflows/buildandtest.yml.  BOTH MUST BE FLIPPED TOGETHER.
+#
+#   ado     - (default) Azure Pipelines owns the work: the Linux all-TFM build
+#             leg, the Linux test leg, Native AoT and the coverage gate all run
+#             on pull requests, and the equivalent GitHub Actions jobs stand
+#             down.
+#   actions - restores the previous split: GitHub Actions runs the all-TFM
+#             builds, the ubuntu test matrix and AoT, and the stages below fall
+#             back to their Schedule/Manual-only cadence.
+#
+# Note on scope: Azure Pipelines evaluates the YAML from the PR's merge ref, so
+# a PR targeting master378 or a release branch runs *that* branch's copy of this
+# file.  In practice every PR that evaluates this file targets master, which is
+# why the conditions below only need the parameter and not a target-branch test.
+- name: ciBuildBackend
+  displayName: 'CI build backend: ado runs the all-TFM build, cross-platform tests, AoT and the coverage gate here; actions hands them back to GitHub Actions'
+  type: string
+  default: ado
+  values:
+  - ado
+  - actions
 
 trigger:
   batch: 'true'
@@ -56,6 +80,12 @@ schedules:
 variables:
   FullBuild: ${{ ne(variables['Build.Reason'], 'PullRequest') }}
   ScheduledBuild: ${{ in(variables['Build.Reason'], 'Schedule', 'Manual') }}
+  # 'True' when Azure Pipelines owns the build/test matrix that GitHub Actions
+  # used to run (see the ciBuildBackend parameter).  Stages that were previously
+  # Schedule/Manual-only - Native AoT and Coverage - additionally run on pull
+  # requests while this is True, because they are now the only place that work
+  # happens.
+  AdoOwnsMatrix: ${{ eq(parameters.ciBuildBackend, 'ado') }}
   # macOS jobs always run on Microsoft-hosted agents because Managed DevOps Pools
   # does not provide macOS images.
   macImage: 'macOS-15'
@@ -103,15 +133,35 @@ stages:
       poolImage: ${{ variables.hostWindowsImage }}
       poolName: ${{ variables.hostPoolName }}
       jobnamesuffix: win2025
-      # PR builds discover every *.slnx and restrict to a small TFM set so each
-      # matrix job's bin tree fits on the managed-pool agent's small temp
-      # disk; master/scheduled/manual/fork-PR builds also discover every
-      # *.slnx but fan out across all supported TFMs.
+      # Every build discovers every *.slnx.  The TFM fan-out differs by run
+      # type: master/scheduled/manual builds cover all supported TFMs here,
+      # while PR builds are narrowed so the managed pool is not swamped.
       solutions: ''
-      ${{ if eq(variables.FullBuild, 'False') }}:
-        tfms: 'net10.0,net48'
-      ${{ else }}:
+      ${{ if ne(variables.FullBuild, 'False') }}:
         tfms: 'net472,net48,netstandard2.0,netstandard2.1,net8.0,net9.0,net10.0'
+      ${{ elseif eq(parameters.ciBuildBackend, 'ado') }}:
+        # ADO now owns the all-TFM PR build that GitHub Actions used to run, so
+        # a PR has to cover all seven TFMs.  Windows takes the .NET Framework
+        # targets and the Linux leg below takes the modern ones - the same split
+        # the build-all-tfm-windows / build-all-tfm-linux jobs used - which
+        # keeps full coverage without fanning every TFM across both pools.
+        tfms: 'net472,net48,netstandard2.0'
+      ${{ else }}:
+        # GitHub Actions owns the all-TFM build; this PR gate only needs the two
+        # TFMs the contribution guide requires.
+        tfms: 'net10.0,net48'
+  - ${{ if eq(parameters.ciBuildBackend, 'ado') }}:
+    # Replaces the GitHub Actions build-all-tfm-linux job: proves UA.slnx still
+    # compiles on Linux for every Linux-capable TFM.  Release only, because this
+    # leg exists to catch TFM/platform breaks rather than to exercise Debug.
+    - template: .azurepipelines/sln.yml
+      parameters:
+        poolImage: ${{ variables.mgdLinuxImage }}
+        poolName: ${{ variables.mgdPoolName }}
+        jobnamesuffix: linuxalltfm
+        solutions: 'UA.slnx'
+        configurations: 'Release'
+        tfms: 'netstandard2.1,net8.0,net9.0,net10.0'
 - stage: testfastpr
   dependsOn: []
   displayName: 'Fast PR test'
@@ -128,7 +178,14 @@ stages:
     parameters:
       configuration: Release
       framework: net10.0
-      agents: '@{ windows = "${{ variables.mgdWindowsImage }}" }'
+      # When ADO owns the matrix this leg also covers Linux, replacing the
+      # GitHub Actions build-and-test job that ran every test project on
+      # ubuntu.  With ciBuildBackend=actions it stays Windows-only, exactly as
+      # before, because GitHub Actions is still providing the Linux coverage.
+      ${{ if eq(parameters.ciBuildBackend, 'ado') }}:
+        agents: '@{ windows = "${{ variables.mgdWindowsImage }}"; linux = "${{ variables.mgdLinuxImage }}" }'
+      ${{ else }}:
+        agents: '@{ windows = "${{ variables.mgdWindowsImage }}" }'
       jobnamesuffix: net100
       customtestarget: net10.0
       poolName: ${{ variables.mgdPoolName }}
@@ -149,7 +206,10 @@ stages:
 - stage: testaot
   dependsOn: []
   displayName: 'Test Native AoT'
-  condition: and(succeeded(), ne(variables.ScheduledBuild, 'False'))
+  # Native AoT is Schedule/Manual-only when GitHub Actions still runs its own
+  # AoT job.  Once ADO owns the matrix this is the only place AoT runs, so it
+  # has to gate pull requests too.
+  condition: and(succeeded(), or(ne(variables.ScheduledBuild, 'False'), ne(variables.AdoOwnsMatrix, 'False')))
   jobs:
   - template: .azurepipelines/test-aot.yml
     parameters:
@@ -277,9 +337,18 @@ stages:
       poolName: ${{ variables.mgdPoolName }}
       windowsImage: ${{ variables.mgdWindowsImage }}
 - stage: coverage
-  dependsOn: [testdebug,testfastpr]
+  ${{ if eq(parameters.ciBuildBackend, 'ado') }}:
+    # testdebug is Schedule/Manual-only, so keeping it as a dependency would
+    # skip coverage on every pull request.  Coverage consumes nothing from
+    # testdebug - it runs its own dotnet test over UA.slnx - so the dependency
+    # is dropped when this stage has to gate PRs.
+    dependsOn: [testfastpr]
+  ${{ else }}:
+    dependsOn: [testdebug,testfastpr]
   displayName: 'Code Coverage'
-  condition: and(succeeded(), ne(variables.ScheduledBuild, 'False'))
+  # Runs on pull requests once ADO owns the matrix, because this stage hosts the
+  # coverage gate that replaced the codecov/project and codecov/patch checks.
+  condition: and(succeeded(), or(ne(variables.ScheduledBuild, 'False'), ne(variables.AdoOwnsMatrix, 'False')))
   jobs:
   - template: .azurepipelines/testcc.yml
     parameters:
