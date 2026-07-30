@@ -22,6 +22,7 @@
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="ModelSourceGeneratorName" />
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="ModelSourceGeneratorPrefix" />
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="ModelSourceGeneratorIgnore" />
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="ModelSourceGeneratorWot" />
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="ModelSourceGeneratorIdentifierFile" />
   </ItemGroup>
 </Project>

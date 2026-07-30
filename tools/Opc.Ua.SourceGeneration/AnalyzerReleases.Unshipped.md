@@ -21,3 +21,8 @@ MODELGEN026 | ModelSourceGenerator | Error | NodeSet identifier file numeric ide
 MODELGEN027 | ModelSourceGenerator | Error | NodeSet identifier file node class does not match
 MODELGEN028 | ModelSourceGenerator | Error | NodeSet identifier file is assigned to multiple models
 MODELGEN029 | ModelSourceGenerator | Error | NodeSet identifier file contains an invalid row
+MODELGEN030 | ModelSourceGenerator | Error | WoT model could not be parsed
+MODELGEN031 | ModelSourceGenerator | Error | WoT model could not be converted to a NodeSet2 model
+MODELGEN032 | ModelSourceGenerator | Warning | WoT model conversion produced a warning
+MODELGEN033 | ModelSourceGenerator | Info | WoT model conversion note
+MODELGEN034 | ModelSourceGenerator | Error | WoT model virtual NodeSet2 path collides with another input
