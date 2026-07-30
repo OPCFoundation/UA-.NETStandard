@@ -41,10 +41,13 @@ using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
 using Quickstarts.ReferenceServer;
 using WotConModel = Opc.Ua.WotCon;
+using UaBrowseNames = global::Opc.Ua.BrowseNames;
+using UaObjectIds = global::Opc.Ua.ObjectIds;
+using UaObjectTypeIds = global::Opc.Ua.ObjectTypeIds;
 
-#nullable enable
+#nullable disable warnings
 
-namespace Opc.Ua.Server.Tests.RuntimeNodeSet
+namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
 {
     /// <summary>
     /// End-to-end tests that a real subscription with a real
@@ -101,7 +104,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 {
                     MinimumSecurityMode = MessageSecurityMode.None,
                     AllowAnonymous = true,
-                    RequiredRoleId = ObjectIds.WellKnownRole_Anonymous
+                    RequiredRoleId = UaObjectIds.WellKnownRole_Anonymous
                 }
             };
             m_registry = new WotRegistryService();
@@ -292,7 +295,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 => new()
                 {
                     AttributeId = Attributes.Value,
-                    TypeDefinitionId = ObjectTypeIds.BaseEventType,
+                    TypeDefinitionId = UaObjectTypeIds.BaseEventType,
                     BrowsePath = [new QualifiedName(name, v2)]
                 };
 
@@ -300,7 +303,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 => new()
                 {
                     AttributeId = Attributes.Value,
-                    TypeDefinitionId = ObjectTypeIds.BaseEventType,
+                    TypeDefinitionId = UaObjectTypeIds.BaseEventType,
                     BrowsePath = [QualifiedName.From(name)]
                 };
 
@@ -308,7 +311,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             {
                 SelectClauses =
                 [
-                    Base(BrowseNames.EventType),           // 0
+                    Base(UaBrowseNames.EventType),           // 0
                     Wot(WotConModel.BrowseNames.Xid),               // 1
                     Wot(WotConModel.BrowseNames.ResourceId),        // 2
                     Wot(WotConModel.BrowseNames.VersionId),         // 3

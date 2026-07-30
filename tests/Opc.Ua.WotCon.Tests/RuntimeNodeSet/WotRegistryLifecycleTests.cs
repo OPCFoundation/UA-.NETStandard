@@ -36,6 +36,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Export;
+using Opc.Ua.Server;
 using Opc.Ua.Server.TestFramework;
 using Opc.Ua.WotCon;
 using Opc.Ua.WotCon.Server;
@@ -43,8 +44,12 @@ using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
 using Quickstarts.ReferenceServer;
 using WotConModel = Opc.Ua.WotCon;
+using UaObjectIds = global::Opc.Ua.ObjectIds;
+using UaReferenceTypeIds = global::Opc.Ua.ReferenceTypeIds;
 
-namespace Opc.Ua.Server.Tests.RuntimeNodeSet
+#nullable disable warnings
+
+namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
 {
     /// <summary>
     /// End-to-end lifecycle test for the WoT Connectivity V2 registry hosted on a
@@ -114,7 +119,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 {
                     MinimumSecurityMode = MessageSecurityMode.None,
                     AllowAnonymous = true,
-                    RequiredRoleId = ObjectIds.WellKnownRole_Anonymous
+                    RequiredRoleId = UaObjectIds.WellKnownRole_Anonymous
                 }
             };
             m_registry = new WotRegistryService();
@@ -387,7 +392,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             m_options.ManagementAccess = new WotManagementAccessPolicy
             {
                 AllowAnonymous = true,
-                RequiredRoleId = ObjectIds.WellKnownRole_Anonymous
+                RequiredRoleId = UaObjectIds.WellKnownRole_Anonymous
             };
 
             NodeId writeId = await FindChildAsync(resourceNodeId, "Write").ConfigureAwait(false);
@@ -409,7 +414,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             {
                 MinimumSecurityMode = MessageSecurityMode.None,
                 AllowAnonymous = true,
-                RequiredRoleId = ObjectIds.WellKnownRole_Anonymous
+                RequiredRoleId = UaObjectIds.WellKnownRole_Anonymous
             };
             NodeId openId = await FindChildAsync(resourceNodeId, "Open").ConfigureAwait(false);
             CallMethodResult authorizedWriteOpen = await CallAsync(
@@ -428,7 +433,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             m_options.ManagementAccess = new WotManagementAccessPolicy
             {
                 AllowAnonymous = true,
-                RequiredRoleId = ObjectIds.WellKnownRole_Anonymous
+                RequiredRoleId = UaObjectIds.WellKnownRole_Anonymous
             };
             CallMethodResult writeOpen = await CallAsync(
                 resourceNodeId,
@@ -769,7 +774,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             var template = new BrowseDescription
             {
                 BrowseDirection = BrowseDirection.Forward,
-                ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
+                ReferenceTypeId = UaReferenceTypeIds.HierarchicalReferences,
                 IncludeSubtypes = true,
                 NodeClassMask = 0,
                 ResultMask = (uint)BrowseResultMask.All

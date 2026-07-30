@@ -103,6 +103,40 @@ namespace Opc.Ua.WotCon.Tests.Hosting
         }
 
         [Test]
+        public void AddWotConServerRegistersUnderServerFeature()
+        {
+            IServiceCollection services = new ServiceCollection();
+            services.AddLogging();
+
+            services.AddOpcUa()
+                .AddServer(o =>
+                {
+                    o.ApplicationName = "WotConHostServer";
+                    o.ApplicationUri = "urn:localhost:Test:WotConHostServer";
+                    o.ProductUri = "uri:opcfoundation.org:Test:WotConHostServer";
+                    o.EndpointUrls.Add("opc.tcp://localhost:0/WotConHostServer");
+                    o.AutoAcceptUntrustedCertificates = true;
+                })
+                .Services.AddOpcUa()
+                .AddWotConServer(o => o.AssetNamespaceUri = "urn:test:wot:assets");
+
+            using ServiceProvider sp = services.BuildServiceProvider();
+
+            OpcUaServerNodeManagerRegistration[] registrations =
+                [.. sp.GetServices<OpcUaServerNodeManagerRegistration>()];
+
+            int wotCount = registrations.Count(
+                r => r.SyncFactory is WotConnectivityNodeManagerFactory);
+            Assert.That(wotCount, Is.EqualTo(1),
+                "WotConnectivityNodeManagerFactory must be registered exactly once " +
+                "as an OpcUaServerNodeManagerRegistration.");
+
+            WotConnectivityNodeManagerFactory factory =
+                sp.GetRequiredService<WotConnectivityNodeManagerFactory>();
+            Assert.That(factory, Is.Not.Null);
+        }
+
+        [Test]
         public void AddWotConServerThrowsOnDuplicateRegistration()
         {
             IServiceCollection services = new ServiceCollection();
