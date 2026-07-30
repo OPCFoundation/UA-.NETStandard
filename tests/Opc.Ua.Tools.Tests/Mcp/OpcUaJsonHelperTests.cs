@@ -290,10 +290,40 @@ namespace Opc.Ua.Tools.Tests.Mcp
 
             Assert.That(result, Is.InstanceOf<System.Collections.Generic.IReadOnlyList<object?>>());
             var list = (System.Collections.Generic.IReadOnlyList<object?>)result!;
-            Assert.That(list, Has.Count.EqualTo(3));
-            Assert.That(list[0], Is.EqualTo("0"));
-            Assert.That(list[1], Is.EqualTo("1"));
-            Assert.That(list[2], Is.EqualTo("2"));
+
+            // Array elements keep their JSON type, matching scalar conversion,
+            // so a zero stays the number 0 rather than becoming "0".
+            Assert.That(list, Is.EqualTo(new object[] { 0, 1, 2 }));
+        }
+
+        [Test]
+        public void VariantToObjectPreservesBooleanArrayElementTypes()
+        {
+            object? result = OpcUaJsonHelper.VariantToObject(
+                Variant.From(new ArrayOf<bool>(new bool[] { false, true })));
+
+            var list = (System.Collections.Generic.IReadOnlyList<object?>)result!;
+            Assert.That(list, Is.EqualTo(new object[] { false, true }));
+        }
+
+        [Test]
+        public void VariantToObjectPreservesDoubleArrayElementTypes()
+        {
+            object? result = OpcUaJsonHelper.VariantToObject(
+                Variant.From(new ArrayOf<double>(new double[] { 0.0, 1.5 })));
+
+            var list = (System.Collections.Generic.IReadOnlyList<object?>)result!;
+            Assert.That(list, Is.EqualTo(new object[] { 0.0, 1.5 }));
+        }
+
+        [Test]
+        public void VariantToObjectFormatsStringArrayElements()
+        {
+            object? result = OpcUaJsonHelper.VariantToObject(
+                Variant.From(new ArrayOf<string>(new string[] { "a", string.Empty })));
+
+            var list = (System.Collections.Generic.IReadOnlyList<object?>)result!;
+            Assert.That(list, Is.EqualTo(new object[] { "a", string.Empty }));
         }
 
         [Test]

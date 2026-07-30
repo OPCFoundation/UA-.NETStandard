@@ -442,14 +442,50 @@ namespace Opc.Ua.Mcp.Serialization
             var list = new List<object?>(array.Length);
             foreach (object? item in array)
             {
-                list.Add(item switch
-                {
-                    Variant v => VariantToObject(v),
-                    DataValue dv => DataValueToDict(dv),
-                    _ => item.ToString()
-                });
+                list.Add(ElementToObject(item));
             }
             return list;
+        }
+
+        /// <summary>
+        /// Converts a single array element to a JSON-friendly value using the
+        /// same conventions as the scalar conversion, so that an array of
+        /// numbers or booleans keeps its JSON type instead of being
+        /// stringified.
+        /// </summary>
+        private static object? ElementToObject(object? item)
+        {
+            return item switch
+            {
+                null => null,
+                bool value => value,
+                sbyte value => value,
+                byte value => value,
+                short value => value,
+                ushort value => value,
+                int value => value,
+                uint value => value,
+                long value => value,
+                ulong value => value,
+                float value => value,
+                double value => value,
+                string value => value,
+                DateTimeUtc value => value.ToDateTime().ToString("o", CultureInfo.InvariantCulture),
+                DateTime value => value.ToString("o", CultureInfo.InvariantCulture),
+                Uuid value => value.ToString(),
+                Guid value => value.ToString(),
+                ByteString value => value.IsNull ? null : Convert.ToBase64String(value.ToArray()),
+                byte[] value => Convert.ToBase64String(value),
+                NodeId value => value.ToString(),
+                ExpandedNodeId value => value.ToString(),
+                QualifiedName value => value.ToString(),
+                LocalizedText value => value.Text,
+                StatusCode value => StatusCodeToString(value),
+                ExtensionObject value => ExtensionObjectToDict(value),
+                Variant value => VariantToObject(value),
+                DataValue value => DataValueToDict(value),
+                _ => item.ToString()
+            };
         }
 
         private static List<object?>? ArrayToList<T>(ArrayOf<T> value)

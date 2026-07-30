@@ -105,14 +105,14 @@ namespace Pumps
             if (m_options.PumpCount < 1 || m_options.PumpCount > 100)
             {
                 throw new ArgumentOutOfRangeException(
-                    nameof(options),
+                    $"{nameof(options)}.{nameof(PumpDeviceIntegrationOptions.PumpCount)}",
                     m_options.PumpCount,
                     "Pump count must be between 1 and 100.");
             }
             if (m_options.SimulationInterval <= TimeSpan.Zero)
             {
                 throw new ArgumentOutOfRangeException(
-                    nameof(options),
+                    $"{nameof(options)}.{nameof(PumpDeviceIntegrationOptions.SimulationInterval)}",
                     m_options.SimulationInterval,
                     "Simulation interval must be positive.");
             }

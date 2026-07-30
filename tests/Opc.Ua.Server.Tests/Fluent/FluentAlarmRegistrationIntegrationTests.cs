@@ -96,18 +96,25 @@ namespace Opc.Ua.Server.Tests.Fluent
         }
 
         [Test]
-        public void CreateLimitAlarmAddsHasNotifierPathFromServerToEventSource()
+        public async Task CreateLimitAlarmAddsHasNotifierPathFromServerToEventSourceAsync()
         {
             using Harness h = CreateHarness();
 
             h.Builder.Node(h.Source.NodeId)
                 .CreateLimitAlarm(new QualifiedName("OverTempAlarm", h.NamespaceIndex));
 
-            Assert.That(
-                h.ServerObject.ReferenceExists(ReferenceTypeIds.HasNotifier, false, h.Source.NodeId),
-                Is.True);
+            // The inverse edge is written directly onto the event source.
             Assert.That(
                 h.Source.ReferenceExists(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server),
+                Is.True);
+
+            // The forward edge is published through the node manager that owns
+            // the Server Object, which the server does during startup.
+            await h.Manager.PublishRootNotifierReferencesAsync(CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(
+                h.ServerObject.ReferenceExists(ReferenceTypeIds.HasNotifier, false, h.Source.NodeId),
                 Is.True);
         }
 
@@ -225,6 +232,29 @@ namespace Opc.Ua.Server.Tests.Fluent
                 .Returns(new ValueTask());
             masterNodeManager.Setup(m => m.ConfigurationNodeManager)
                 .Returns(configurationNodeManager.Object);
+
+            // The forward HasNotifier edge belongs to whichever node manager
+            // owns the Server Object, so it is published through the master
+            // node manager. Apply it here the way the real owner would, so the
+            // publication contract can be asserted.
+            masterNodeManager.Setup(m => m.AddReferencesAsync(
+                    It.IsAny<NodeId>(),
+                    It.IsAny<IList<IReference>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns((NodeId sourceId, IList<IReference> references, CancellationToken _) =>
+                {
+                    if (sourceId == ObjectIds.Server)
+                    {
+                        foreach (IReference reference in references)
+                        {
+                            serverObject.AddReference(
+                                reference.ReferenceTypeId,
+                                reference.IsInverse,
+                                reference.TargetId);
+                        }
+                    }
+                    return new ValueTask();
+                });
 
             var serverSystemContext = new ServerSystemContext(server.Object);
             server.Setup(s => s.DefaultSystemContext).Returns(serverSystemContext);

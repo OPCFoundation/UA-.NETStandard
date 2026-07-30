@@ -5878,23 +5878,10 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                ServerObjectState? serverObject = Server.ServerObject;
-                if (serverObject != null)
-                {
-                    lock (serverObject)
-                    {
-                        if (!serverObject.ReferenceExists(
-                            ReferenceTypeIds.HasNotifier,
-                            false,
-                            notifier.NodeId))
-                        {
-                            serverObject.AddReference(
-                                ReferenceTypeIds.HasNotifier,
-                                false,
-                                notifier.NodeId);
-                        }
-                    }
-                }
+                // The matching forward reference on the Server Object belongs
+                // to whichever node manager owns it, so it is published
+                // through PublishRootNotifierReferenceAsync rather than being
+                // written into the shared ServerObjectState from here.
             }
         }
 
