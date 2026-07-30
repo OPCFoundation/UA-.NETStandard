@@ -21,12 +21,12 @@ just reference `Opc.Ua.Core` and `Opc.Ua.Types`).
 
 ## Supported hosts
 
-The package ships one build of the generator per Roslyn API version;
-the .NET SDK automatically loads the one matching its compiler.
+The package ships the generator under a Roslyn-versioned analyzer folder.
+The .NET SDK loads it when its compiler supports that Roslyn API and
+ignores it otherwise, so an older host cleanly skips the generator.
 
 | Roslyn API | Minimum host |
 | --- | --- |
-| 4.8 | Visual Studio 2022 17.8 / .NET 8 SDK |
 | 5.0 | Visual Studio 2026 18.0 / .NET 10 SDK |
 
 ## Additional documentation

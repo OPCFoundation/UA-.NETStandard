@@ -137,13 +137,13 @@ whole block once the MigrationAnalyzer package is removed.
 
 ## Packaging note
 
-The package ships **three Roslyn component DLLs** per supported Roslyn API version,
-under `analyzers/dotnet/roslyn<major>.<minor>/cs/`. The .NET SDK loads the highest
-folder its compiler supports:
+The package ships **three Roslyn component DLLs** under
+`analyzers/dotnet/roslyn<major>.<minor>/cs/`. The .NET SDK loads that folder when its
+compiler supports the Roslyn API and ignores it otherwise, so an older host cleanly
+skips the analyzer rather than failing to load it:
 
 | Roslyn API | Minimum host |
 | --- | --- |
-| 4.8 | Visual Studio 2022 17.8 / .NET 8 SDK |
 | 5.0 | Visual Studio 2026 18.0 / .NET 10 SDK |
 
 - `Opc.Ua.MigrationAnalyzer.dll` — the analyzer assembly. References **only**

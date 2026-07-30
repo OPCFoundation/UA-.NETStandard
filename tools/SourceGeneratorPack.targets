@@ -9,8 +9,15 @@
     The payload is collected by globbing each variant's output directory rather
     than by enumerating assemblies, so any package or project added to a
     generator's dependency tree flows into every Roslyn folder without touching
-    a project file. Roslyn host assemblies are excluded because the compiler
-    already provides them and loading a second copy breaks the analyzer host.
+    a project file.
+
+    Assemblies the Roslyn host itself supplies are excluded. Shipping a second
+    copy of Microsoft.CodeAnalysis*, System.Collections.Immutable or
+    System.Reflection.Metadata makes the analyzer load context bind a different
+    identity for types the compiler passes across its own API surface (most
+    visibly ImmutableArray<T>), which fails at generator-initialization time with
+    MissingMethodException - reported as warning CS8784, i.e. silently no
+    generated code. See tools/RoslynVariants.props for the full rationale.
 
     The `ProjectReference` entries exist purely for build ordering and NuGet
     graph correctness. `ReferenceOutputAssembly` is off, the assemblies are
@@ -64,18 +71,31 @@
   <Target Name="IncludeSourceGeneratorAnalyzerAssets">
     <PropertyGroup>
       <_SourceGeneratorVariantTargetFramework>netstandard2.0</_SourceGeneratorVariantTargetFramework>
+      <_SourceGeneratorVariantBin>bin\$(Configuration)\$(_SourceGeneratorVariantTargetFramework)</_SourceGeneratorVariantBin>
     </PropertyGroup>
     <ItemGroup>
       <_SourceGeneratorVariantAssembly
-          Include="%(SourceGeneratorVariant.RootDir)%(SourceGeneratorVariant.Directory)bin\$(Configuration)\$(_SourceGeneratorVariantTargetFramework)\*.dll"
-          Exclude="%(SourceGeneratorVariant.RootDir)%(SourceGeneratorVariant.Directory)bin\$(Configuration)\$(_SourceGeneratorVariantTargetFramework)\Microsoft.CodeAnalysis*.dll">
+          Include="%(SourceGeneratorVariant.RootDir)%(SourceGeneratorVariant.Directory)$(_SourceGeneratorVariantBin)\*.dll"
+          Exclude="%(SourceGeneratorVariant.RootDir)%(SourceGeneratorVariant.Directory)$(_SourceGeneratorVariantBin)\Microsoft.CodeAnalysis*.dll;
+                   %(SourceGeneratorVariant.RootDir)%(SourceGeneratorVariant.Directory)$(_SourceGeneratorVariantBin)\System.Collections.Immutable.dll;
+                   %(SourceGeneratorVariant.RootDir)%(SourceGeneratorVariant.Directory)$(_SourceGeneratorVariantBin)\System.Reflection.Metadata.dll">
         <RoslynAnalyzerFolder>%(SourceGeneratorVariant.RoslynAnalyzerFolder)</RoslynAnalyzerFolder>
       </_SourceGeneratorVariantAssembly>
       <TfmSpecificPackageFile Include="@(_SourceGeneratorVariantAssembly)">
         <PackagePath>analyzers/dotnet/%(_SourceGeneratorVariantAssembly.RoslynAnalyzerFolder)/cs/%(_SourceGeneratorVariantAssembly.Filename)%(_SourceGeneratorVariantAssembly.Extension)</PackagePath>
       </TfmSpecificPackageFile>
     </ItemGroup>
-    <Error Condition="'@(_SourceGeneratorVariantAssembly)' == ''"
-           Text="No source generator assemblies found for $(PackageId). Build the @(SourceGeneratorVariant->Count()) variant project(s) for configuration '$(Configuration)' first." />
+    <!-- Guard per variant, not over the flattened list: with N variants declared,
+         an aggregate emptiness check still passes when N-1 of them produced
+         nothing, which would silently ship a package missing a Roslyn band. -->
+    <PropertyGroup>
+      <_SourceGeneratorProducedFolders>@(_SourceGeneratorVariantAssembly->'%(RoslynAnalyzerFolder)'->Distinct(), ';')</_SourceGeneratorProducedFolders>
+    </PropertyGroup>
+    <ItemGroup>
+      <_SourceGeneratorVariantWithoutAssets Include="@(SourceGeneratorVariant)"
+          Condition="!$(_SourceGeneratorProducedFolders.Contains('%(SourceGeneratorVariant.RoslynAnalyzerFolder)'))" />
+    </ItemGroup>
+    <Error Condition="'@(_SourceGeneratorVariantWithoutAssets)' != ''"
+           Text="No analyzer assemblies found under '$(_SourceGeneratorVariantBin)' for @(_SourceGeneratorVariantWithoutAssets->'%(Filename)', ', ') while packing $(PackageId). Build every variant project for configuration '$(Configuration)' first." />
   </Target>
 </Project>

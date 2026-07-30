@@ -108,14 +108,13 @@ function Test-PackageContents
     ) "Package '$($Package.Id)' contains assemblies outside '$analyzerRoot'."
 
     # One folder per supported Roslyn API version; the .NET SDK loads the
-    # highest one its compiler supports.
+    # highest one its compiler supports and ignores folders above it.
     $roslynFolders = @($dllEntries |
         ForEach-Object { $_.Substring($analyzerRoot.Length).Split("/")[0] } |
         Sort-Object -Unique)
     Assert-Condition (
-        $roslynFolders.Count -ge 2
-    ) ("Package '$($Package.Id)' must ship one analyzer folder per supported Roslyn " +
-        "version; found: $($roslynFolders -join ', ').")
+        $roslynFolders.Count -ge 1
+    ) "Package '$($Package.Id)' ships no analyzer folder."
     Assert-Condition (
         @($roslynFolders | Where-Object { $_ -notmatch "^roslyn[0-9]+\.[0-9]+$" }).Count -eq 0
     ) ("Package '$($Package.Id)' analyzer folders must be named 'roslyn<major>.<minor>'; " +
@@ -132,13 +131,27 @@ function Test-PackageContents
         }
     }
 
-    Assert-Condition (
-        @($dllEntries | Where-Object {
-            [IO.Path]::GetFileName($_).StartsWith(
-                "Microsoft.CodeAnalysis",
-                [StringComparison]::OrdinalIgnoreCase)
-        }).Count -eq 0
-    ) "Package '$($Package.Id)' must not ship Microsoft.CodeAnalysis host assemblies."
+    # Assemblies the Roslyn host supplies itself must never be shipped alongside an
+    # analyzer. A second copy makes the analyzer load context bind a different
+    # identity for types that cross Roslyn's own API surface - most visibly
+    # ImmutableArray<T> - so the generator dies on its first API call with
+    # MissingMethodException, surfaced only as warning CS8784.
+    $hostProvided = @(
+        "Microsoft.CodeAnalysis",
+        "System.Collections.Immutable",
+        "System.Reflection.Metadata"
+    )
+    foreach ($forbidden in $hostProvided)
+    {
+        Assert-Condition (
+            @($dllEntries | Where-Object {
+                [IO.Path]::GetFileName($_).StartsWith(
+                    $forbidden,
+                    [StringComparison]::OrdinalIgnoreCase)
+            }).Count -eq 0
+        ) ("Package '$($Package.Id)' must not ship '$forbidden*' - the Roslyn host " +
+            "provides it, and a second copy breaks generator initialization.")
+    }
     Assert-Condition (
         @($dllEntries | Where-Object {
             [IO.Path]::GetFileName($_).StartsWith(

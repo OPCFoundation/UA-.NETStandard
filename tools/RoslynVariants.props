@@ -1,21 +1,38 @@
 <Project>
   <!--
-    Single source of truth for the Roslyn API versions the OPC UA analyzers and
-    source generators are built against. Every analyzer ships one assembly per
-    entry, packaged under `analyzers/dotnet/<folder>/cs`; the .NET SDK then
-    loads the highest folder its compiler supports.
+    The Roslyn API version the OPC UA analyzers and source generators are built
+    against. Each analyzer ships under `analyzers/dotnet/<folder>/cs`; the .NET SDK
+    loads the highest folder its compiler supports and silently ignores folders
+    above it. Using a versioned folder rather than a bare `analyzers/dotnet/cs` is
+    deliberate: a host older than the band below skips the analyzer instead of
+    loading it and failing at generator-initialization time.
 
     See https://learn.microsoft.com/visualstudio/extensibility/roslyn-version-support
     for the Roslyn package version to Visual Studio mapping.
+
+    Only one band is shipped today. Adding a down-level band is NOT just another
+    entry here - the whole analyzer closure has to bind against the Roslyn host's
+    own copies of System.Collections.Immutable and System.Reflection.Metadata.
+    Those two assemblies are supplied by the compiler, and their assembly version
+    is fixed per Roslyn band (4.8 -> 7.0.0.0, 4.14 -> 8.0.0.0, 5.0 -> 9.0.0.0).
+    Because Directory.Packages.props pins them centrally (with transitive pinning
+    on), every assembly in the closure - the generator, Opc.Ua.SourceGeneration.Core
+    and Opc.Ua.Types - currently references 10.0.0.0. On any older band the
+    compiler cannot satisfy that reference: the generator either fails to load
+    (FileNotFoundException) or, if a copy is shipped alongside, binds a second
+    ImmutableArray<T> identity and dies with MissingMethodException on the first
+    Roslyn API call. Both surface as warning CS8784, so the consumer silently gets
+    no generated code.
+
+    A down-level band therefore requires building that whole closure - including
+    Opc.Ua.Types - against the band's System.Collections.Immutable /
+    System.Reflection.Metadata versions, not just the generator project.
   -->
   <PropertyGroup>
-    <!-- Visual Studio 2022 17.8+ / .NET 8 SDK. -->
-    <RoslynApiVersionVS2022>4.8.0</RoslynApiVersionVS2022>
     <!-- Visual Studio 2026 18.0+ / .NET 10 SDK. -->
     <RoslynApiVersionVS2026>5.0.0</RoslynApiVersionVS2026>
   </PropertyGroup>
   <PropertyGroup>
-    <RoslynAnalyzerFolderVS2022>roslyn$(RoslynApiVersionVS2022.Substring(0, $(RoslynApiVersionVS2022.LastIndexOf('.'))))</RoslynAnalyzerFolderVS2022>
     <RoslynAnalyzerFolderVS2026>roslyn$(RoslynApiVersionVS2026.Substring(0, $(RoslynApiVersionVS2026.LastIndexOf('.'))))</RoslynAnalyzerFolderVS2026>
   </PropertyGroup>
 </Project>

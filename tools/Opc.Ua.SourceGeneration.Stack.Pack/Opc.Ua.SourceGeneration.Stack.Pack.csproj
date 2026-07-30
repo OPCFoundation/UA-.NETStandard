@@ -16,8 +16,6 @@
   <ItemGroup>
     <SourceGeneratorVariant Include="..\Opc.Ua.SourceGeneration.Stack\Opc.Ua.SourceGeneration.Stack.csproj"
                             RoslynAnalyzerFolder="$(RoslynAnalyzerFolderVS2026)" />
-    <SourceGeneratorVariant Include="..\Opc.Ua.SourceGeneration.Stack.Roslyn4_8\Opc.Ua.SourceGeneration.Stack.Roslyn4_8.csproj"
-                            RoslynAnalyzerFolder="$(RoslynAnalyzerFolderVS2022)" />
   </ItemGroup>
   <Import Project="..\SourceGeneratorPack.targets" />
 </Project>

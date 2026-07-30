@@ -71,9 +71,6 @@
     <file src="$analyzerDllVS2026$" target="analyzers\dotnet\$roslynFolderVS2026$\cs\Opc.Ua.MigrationAnalyzer.dll" />
     <file src="$codeFixesDllVS2026$" target="analyzers\dotnet\$roslynFolderVS2026$\cs\Opc.Ua.MigrationAnalyzer.CodeFixer.dll" />
     <file src="$generatorDllVS2026$" target="analyzers\dotnet\$roslynFolderVS2026$\cs\Opc.Ua.MigrationAnalyzer.Generator.dll" />
-    <file src="$analyzerDllVS2022$" target="analyzers\dotnet\$roslynFolderVS2022$\cs\Opc.Ua.MigrationAnalyzer.dll" />
-    <file src="$codeFixesDllVS2022$" target="analyzers\dotnet\$roslynFolderVS2022$\cs\Opc.Ua.MigrationAnalyzer.CodeFixer.dll" />
-    <file src="$generatorDllVS2022$" target="analyzers\dotnet\$roslynFolderVS2022$\cs\Opc.Ua.MigrationAnalyzer.Generator.dll" />
     <file src="$shimBin$\net472\Opc.Ua.MigrationAnalyzer.Core.dll" target="lib\net472\Opc.Ua.MigrationAnalyzer.Core.dll" />
     <file src="$shimBin$\net48\Opc.Ua.MigrationAnalyzer.Core.dll" target="lib\net48\Opc.Ua.MigrationAnalyzer.Core.dll" />
     <file src="$shimBin$\netstandard2.1\Opc.Ua.MigrationAnalyzer.Core.dll" target="lib\netstandard2.1\Opc.Ua.MigrationAnalyzer.Core.dll" />
