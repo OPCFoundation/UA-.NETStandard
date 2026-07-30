@@ -113,7 +113,7 @@ namespace Opc.Ua.SourceGeneration
                         SourceGenerator.Exception,
                         Location.None,
                         ex.Message,
-                        ex.StackTrace));
+                        ex.ToString()));
             }
         }
 

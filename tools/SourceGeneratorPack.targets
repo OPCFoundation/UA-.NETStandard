@@ -28,6 +28,11 @@
     <NoPackageAnalysis>true</NoPackageAnalysis>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <!-- Must stay empty: common.props sets PackageLicenseFile=LICENSE.txt for every
+         packable project, and NuGet rejects a package that declares both a license
+         expression and a license file (NU5035). Clearing it also makes common.props
+         pack LICENSE.txt at the package root as plain content, which is what the
+         other OPC UA packages do. -->
     <PackageLicenseFile></PackageLicenseFile>
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
@@ -37,6 +42,8 @@
          there is nothing for the analyzers to inspect. -->
     <RunAnalyzers>false</RunAnalyzers>
     <EnableNETAnalyzers>false</EnableNETAnalyzers>
+    <!-- Spelling intentionally matches the (misspelled) condition in common.props,
+         which is the only thing that reads this property. -->
     <NoRoslynatorAnalzers>true</NoRoslynatorAnalzers>
     <TargetsForTfmSpecificContentInPackage>
       $(TargetsForTfmSpecificContentInPackage);IncludeSourceGeneratorAnalyzerAssets

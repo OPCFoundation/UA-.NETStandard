@@ -58,12 +58,15 @@ namespace Opc.Ua.SourceGeneration
             }
             catch (Exception ex)
             {
+                // ex.ToString() rather than ex.StackTrace: it carries the exception
+                // type and the inner-exception chain, and is never null - a bare
+                // StackTrace is null for an exception that never left its throw site.
                 context.ReportDiagnostic(
                     Diagnostic.Create(
                         Exception,
                         Location.None,
                         ex.Message,
-                        ex.StackTrace));
+                        ex.ToString()));
             }
         }
 

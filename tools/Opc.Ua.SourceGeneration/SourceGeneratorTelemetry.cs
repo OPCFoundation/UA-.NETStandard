@@ -161,7 +161,11 @@ namespace Opc.Ua.SourceGeneration
                     return;
                 }
 
-                Debug.WriteLine($"[{m_categoryName}] {message}");
+                // Anything without a descriptor only reaches a debugger-attached
+                // host, so keep the full exception rather than just its message.
+                Debug.WriteLine(exception is null
+                    ? $"[{m_categoryName}] {message}"
+                    : $"[{m_categoryName}] {message}\n{exception}");
             }
 
             /// <inheritdoc/>
