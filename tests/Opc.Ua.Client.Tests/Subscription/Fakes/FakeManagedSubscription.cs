@@ -48,27 +48,9 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         /// <summary>
         /// ISubscription / IMessageProcessor settable state
         /// </summary>
-        public uint Id
-        {
-            get;
-            set
-            {
-                if (value != 0)
-                {
-                    LastServerId = value;
-                }
-                field = value;
-            }
-        }
+        public uint Id { get; set; }
 
         public uint ServerId => Id;
-
-        /// <summary>
-        /// Mirrors <c>MessageProcessor.LastServerId</c>: latches the last
-        /// non-zero <see cref="Id"/> so tests can simulate the server side
-        /// delete that resets <see cref="Id"/> back to zero.
-        /// </summary>
-        public uint LastServerId { get; set; }
 
         public bool Created { get; set; }
         public TimeSpan CurrentPublishingInterval { get; set; }

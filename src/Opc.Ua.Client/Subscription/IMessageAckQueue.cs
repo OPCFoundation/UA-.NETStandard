@@ -49,22 +49,15 @@ namespace Opc.Ua.Client.Subscriptions
             CancellationToken ct = default);
 
         /// <summary>
-        /// Retire a subscription from the queue and the owning manager's
-        /// dispatch registry.
+        /// Complete subscription
         /// </summary>
-        /// <remarks>
-        /// The subscription is passed by instance rather than by server
-        /// identifier because a subscription resets its
-        /// <see cref="IMessageProcessor.Id"/> to <c>0</c> when it is
-        /// deleted on the server, which happens before its message
-        /// processor drains and completes. Resolving the subscription by
-        /// identifier would therefore match an arbitrary other
-        /// subscription that has been added but not yet created.
-        /// </remarks>
-        /// <param name="subscription">The subscription to retire.</param>
+        /// <param name="subscription">The completing subscription.</param>
+        /// <param name="subscriptionId">The last server-assigned id of the
+        /// subscription (0 when it was never created).</param>
         /// <param name="ct"></param>
         /// <returns></returns>
         ValueTask CompleteAsync(IMessageProcessor subscription,
+            uint subscriptionId,
             CancellationToken ct = default);
 
         /// <summary>

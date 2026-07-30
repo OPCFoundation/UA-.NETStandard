@@ -403,21 +403,14 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <inheritdoc/>
-        public ValueTask CompleteAsync(IMessageProcessor subscription,
-            CancellationToken ct)
+        public ValueTask CompleteAsync(IMessageProcessor completing,
+            uint subscriptionId, CancellationToken ct)
         {
-            if (subscription is not IManagedSubscription partition)
+            if (completing is not IManagedSubscription partition)
             {
                 return default;
             }
 
-            //
-            // A subscription resets its Id to 0 as soon as it has been
-            // deleted on the server, which happens before its message
-            // processor drains and completes. LastServerId therefore
-            // carries the identifier that is actually being retired.
-            //
-            uint retiredId = partition.LastServerId;
             LogicalSubscription? logical = null;
             lock (m_subscriptionLock)
             {
@@ -435,7 +428,7 @@ namespace Opc.Ua.Client.Subscriptions
                 // the partition as removed before the identifier is
                 // known to be retired and mistake a late response for an
                 // orphaned server side subscription.
-                RetireSubscriptionId(retiredId);
+                RetireSubscriptionId(subscriptionId);
 
                 // If the removed partition was the primary of any
                 // logical wrapper, the wrapper has no usable
@@ -459,7 +452,7 @@ namespace Opc.Ua.Client.Subscriptions
                     m_logicals.Remove(logical);
                 }
             }
-            m_logger.SubscriptionRemoved(retiredId);
+            m_logger.SubscriptionRemoved(subscriptionId);
             m_publishControl.Set();
             return default;
         }

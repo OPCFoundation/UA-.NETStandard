@@ -47,19 +47,17 @@ namespace Opc.Ua.Client.Subscriptions
         /// <inheritdoc/>
         public uint Id
         {
-            get;
+            get => m_id;
             internal set
             {
+                m_id = value;
                 if (value != 0)
                 {
-                    LastServerId = value;
+                    // Save non-zero server id for completion
+                    m_lastServerId = value;
                 }
-                field = value;
             }
         }
-
-        /// <inheritdoc/>
-        public uint LastServerId { get; private set; }
 
         /// <summary>
         /// Number of notification messages detected as missing during
@@ -289,7 +287,7 @@ namespace Opc.Ua.Client.Subscriptions
                 // to be removed
                 throw;
             }
-            await AckQueue.CompleteAsync(this, default).ConfigureAwait(false);
+            await AckQueue.CompleteAsync(this, m_lastServerId, default).ConfigureAwait(false);
             OnPublishStateChanged(PublishState.Completed);
         }
 
@@ -659,6 +657,8 @@ namespace Opc.Ua.Client.Subscriptions
         internal long LastNotificationTimestamp;
         internal uint LastSequenceNumberProcessed;
         internal uint LastDataSequenceNumberProcessed;
+        private uint m_id;
+        private uint m_lastServerId;
         internal long m_missingCount;
         internal long m_republishCount;
         internal IReadOnlyList<uint> AvailableInRetransmissionQueue;
