@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -54,7 +55,7 @@ namespace Opc.Ua.Di.Tests
     public sealed class PumpHostedReferenceTests
     {
         [Test]
-        public async Task MasterBrowseOrganizesBothPumpsAsync()
+        public async Task HostedPumpsBrowseSimulateAndReportEventsAsync()
         {
             CaptureServer.Reset();
             var services = new ServiceCollection();
@@ -131,7 +132,7 @@ namespace Opc.Ua.Di.Tests
                     NUnitTelemetryContext.Create());
                 string clientPkiRoot = System.IO.Path.Combine(
                     TestContext.CurrentContext.WorkDirectory,
-                    nameof(MasterBrowseOrganizesBothPumpsAsync),
+                    nameof(HostedPumpsBrowseSimulateAndReportEventsAsync),
                     "client-pki");
                 await clientFixture.LoadClientConfigurationAsync(clientPkiRoot)
                     .ConfigureAwait(false);
@@ -161,6 +162,156 @@ namespace Opc.Ua.Di.Tests
                         ExpandedNodeId.ToNodeId(
                             reference.ReferenceTypeId,
                             session.NamespaceUris) == Opc.Ua.Types.ReferenceTypeIds.Organizes));
+
+                ushort clientDiNamespaceIndex = (ushort)session.NamespaceUris.GetIndex(
+                    Opc.Ua.Di.Namespaces.OpcUaDi);
+                var pump1PressureId = new NodeId(
+                    "5001_Pump #1_Operational_Measurements_DifferentialPressure",
+                    clientDiNamespaceIndex);
+                var pump2PressureId = new NodeId(
+                    "5001_Pump #2_Operational_Measurements_DifferentialPressure",
+                    clientDiNamespaceIndex);
+                var pump2Id = new NodeId("5001_Pump #2", clientDiNamespaceIndex);
+
+                DataValue initialPump1 = await session.ReadValueAsync(
+                    pump1PressureId,
+                    CancellationToken.None).ConfigureAwait(false);
+                DataValue initialPump2 = await session.ReadValueAsync(
+                    pump2PressureId,
+                    CancellationToken.None).ConfigureAwait(false);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(initialPump1.WrappedValue.TryGetValue(out double pump1Value), Is.True);
+                    Assert.That(initialPump2.WrappedValue.TryGetValue(out double pump2Value), Is.True);
+                    Assert.That(pump1Value, Is.GreaterThan(0));
+                    Assert.That(pump2Value, Is.GreaterThan(0));
+                    Assert.That(pump2Value, Is.Not.EqualTo(pump1Value));
+                });
+
+                using var subscription = new Opc.Ua.Client.Subscription(
+                    session.DefaultSubscription)
+                {
+                    DisplayName = "Pump simulation and events",
+                    PublishingEnabled = true,
+                    PublishingInterval = 250,
+                    KeepAliveCount = 10
+                };
+                session.AddSubscription(subscription);
+                await subscription.CreateAsync(CancellationToken.None)
+                    .ConfigureAwait(false);
+
+                var pump1Values = new ConcurrentDictionary<double, bool>();
+                var pump2Values = new ConcurrentDictionary<double, bool>();
+                var pump1Changed = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                var pump2Changed = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                var eventReceived = new TaskCompletionSource<EventFieldList>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+
+                var pump1Item = new Opc.Ua.Client.MonitoredItem(subscription.DefaultItem)
+                {
+                    StartNodeId = pump1PressureId,
+                    AttributeId = Attributes.Value,
+                    DisplayName = "Pump #1 pressure",
+                    SamplingInterval = 100,
+                    QueueSize = 16
+                };
+                pump1Item.Notification += (item, _) =>
+                {
+                    foreach (DataValue value in item.DequeueValues())
+                    {
+                        if (value.WrappedValue.TryGetValue(out double current))
+                        {
+                            pump1Values.TryAdd(current, !value.SourceTimestamp.IsNull);
+                            if (pump1Values.Count >= 2)
+                            {
+                                pump1Changed.TrySetResult(true);
+                            }
+                        }
+                    }
+                };
+
+                var pump2Item = new Opc.Ua.Client.MonitoredItem(subscription.DefaultItem)
+                {
+                    StartNodeId = pump2PressureId,
+                    AttributeId = Attributes.Value,
+                    DisplayName = "Pump #2 pressure",
+                    SamplingInterval = 100,
+                    QueueSize = 16
+                };
+                pump2Item.Notification += (item, _) =>
+                {
+                    foreach (DataValue value in item.DequeueValues())
+                    {
+                        if (value.WrappedValue.TryGetValue(out double current))
+                        {
+                            pump2Values.TryAdd(current, !value.SourceTimestamp.IsNull);
+                            if (pump2Values.Count >= 2)
+                            {
+                                pump2Changed.TrySetResult(true);
+                            }
+                        }
+                    }
+                };
+
+                var eventFilter = new EventFilter();
+                eventFilter.AddSelectClause(
+                    Opc.Ua.Types.ObjectTypeIds.BaseEventType,
+                    QualifiedName.From("Message"));
+                var eventItem = new Opc.Ua.Client.MonitoredItem(subscription.DefaultItem)
+                {
+                    StartNodeId = pump2Id,
+                    AttributeId = Attributes.EventNotifier,
+                    DisplayName = "Pump #2 events",
+                    Filter = eventFilter,
+                    QueueSize = 16
+                };
+                eventItem.Notification += (_, args) =>
+                {
+                    if (args.NotificationValue is EventFieldList fields)
+                    {
+                        eventReceived.TrySetResult(fields);
+                    }
+                };
+
+                subscription.AddItem(pump1Item);
+                subscription.AddItem(pump2Item);
+                subscription.AddItem(eventItem);
+                await subscription.ApplyChangesAsync(CancellationToken.None)
+                    .ConfigureAwait(false);
+
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                using (timeout.Token.Register(() =>
+                {
+                    pump1Changed.TrySetCanceled(timeout.Token);
+                    pump2Changed.TrySetCanceled(timeout.Token);
+                    eventReceived.TrySetCanceled(timeout.Token);
+                }))
+                {
+                    await Task.WhenAll(
+                        pump1Changed.Task,
+                        pump2Changed.Task,
+                        eventReceived.Task).ConfigureAwait(false);
+                }
+                EventFieldList observedEvent = await eventReceived.Task.ConfigureAwait(false);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(
+                        pump1Values.Values,
+                        Has.All.True);
+                    Assert.That(
+                        pump2Values.Values,
+                        Has.All.True);
+                    Assert.That(observedEvent.EventFields, Has.Count.EqualTo(1));
+                    Assert.That(
+                        observedEvent.EventFields[0].GetLocalizedText().Text,
+                        Does.StartWith("Alarm "));
+                });
+
+                await session.RemoveSubscriptionAsync(subscription)
+                    .ConfigureAwait(false);
             }
             finally
             {

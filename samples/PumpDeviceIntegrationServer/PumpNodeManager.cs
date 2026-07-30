@@ -108,7 +108,10 @@ namespace Pumps
             QualifiedName pumpBrowseName,
             CancellationToken cancellationToken = default)
         {
-            return MaterialisePumpInstanceAsync(pumpBrowseName, cancellationToken);
+            return MaterialisePumpInstanceAsync(
+                pumpBrowseName,
+                cancellationToken,
+                RegisterPumpSimulation);
         }
 
         /// <inheritdoc/>
@@ -210,7 +213,8 @@ namespace Pumps
         /// </summary>
         private async ValueTask<PumpState> MaterialisePumpInstanceAsync(
             QualifiedName pumpBrowseName,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            Action<PumpState>? onRegistered = null)
         {
             NodeState? deviceSet = PredefinedNodes.FindById(NodeId.Create(
                 Opc.Ua.Di.Objects.DeviceSet,
@@ -249,6 +253,9 @@ namespace Pumps
 
             await AddPredefinedNodeAsync(SystemContext, pump, cancellationToken)
                 .ConfigureAwait(false);
+            await AddRootNotifierAsync(pump, cancellationToken)
+                .ConfigureAwait(false);
+            onRegistered?.Invoke(pump);
 
             m_logger.MaterialisedPump(pumpBrowseName.Name, pump.NodeId);
             return pump;
@@ -288,6 +295,17 @@ namespace Pumps
             // under SupervisionPumpOperation.
             pump.AddEvents(SystemContext);
             SupervisionState events = pump.Events!;
+            pump.EventNotifier |= EventNotifiers.SubscribeToEvents;
+            events.EventNotifier |= EventNotifiers.SubscribeToEvents;
+            pump.AddReference(
+                Opc.Ua.Types.ReferenceTypeIds.HasNotifier,
+                isInverse: false,
+                events.NodeId);
+            events.AddReference(
+                Opc.Ua.Types.ReferenceTypeIds.HasNotifier,
+                isInverse: true,
+                pump.NodeId);
+
             events.AddSupervisionProcessFluid(SystemContext);
             events.SupervisionProcessFluid!.AddCavitation(SystemContext);
 
