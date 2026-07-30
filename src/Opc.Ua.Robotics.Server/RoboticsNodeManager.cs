@@ -82,9 +82,18 @@ namespace Opc.Ua.Robotics.Server
         }
 
         /// <summary>
-        /// Gets the application-owned instance namespace index.
+        /// Gets the application-owned instance namespace index that Robotics
+        /// instances are created in.
         /// </summary>
-        public ushort InstanceNamespaceIndex
+        /// <remarks>
+        /// This is not the same value as
+        /// <see cref="DiNodeManager.InstanceNamespaceIndex"/>, which the base
+        /// derives from the server configuration. Robotics lets the
+        /// application pick its own instance namespace through
+        /// <see cref="RoboticsServerOptions.InstanceNamespaceUri"/>, and
+        /// requires it to be registered.
+        /// </remarks>
+        public ushort RoboticsInstanceNamespaceIndex
         {
             get
             {
@@ -102,7 +111,7 @@ namespace Opc.Ua.Robotics.Server
         }
 
         internal int ReservedNodeIdCount =>
-            m_buildCoordinator.GetReservedNodeIdCount(InstanceNamespaceIndex);
+            m_buildCoordinator.GetReservedNodeIdCount(RoboticsInstanceNamespaceIndex);
 
         /// <summary>
         /// Creates a build context for direct, non-hosted configuration.
@@ -129,7 +138,7 @@ namespace Opc.Ua.Robotics.Server
             {
                 return m_buildCoordinator.ReserveNodeId(
                     this,
-                    InstanceNamespaceIndex,
+                    RoboticsInstanceNamespaceIndex,
                     node);
             }
             return node.NodeId;

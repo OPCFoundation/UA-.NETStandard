@@ -284,13 +284,13 @@ namespace Opc.Ua.Robotics.Server.Tests
                 .NamespaceUris.GetIndex(Robotics.Namespaces.Robotics);
             Assert.That(
                 graph.System.State.NodeId.NamespaceIndex,
-                Is.EqualTo(m_fixture.Manager.InstanceNamespaceIndex));
+                Is.EqualTo(m_fixture.Manager.RoboticsInstanceNamespaceIndex));
             Assert.That(
                 graph.System.State.BrowseName.NamespaceIndex,
-                Is.EqualTo(m_fixture.Manager.InstanceNamespaceIndex));
+                Is.EqualTo(m_fixture.Manager.RoboticsInstanceNamespaceIndex));
             Assert.That(
                 graph.Controller.State.BrowseName.NamespaceIndex,
-                Is.EqualTo(m_fixture.Manager.InstanceNamespaceIndex));
+                Is.EqualTo(m_fixture.Manager.RoboticsInstanceNamespaceIndex));
             Assert.That(
                 graph.System.State.Controllers!.BrowseName.NamespaceIndex,
                 Is.EqualTo(roboticsNamespaceIndex));
@@ -449,11 +449,11 @@ namespace Opc.Ua.Robotics.Server.Tests
                 HashSet<NodeId> firstIds = AssertTreeRegisteredAndUnique(
                     manager,
                     systems[0].State,
-                    manager.InstanceNamespaceIndex);
+                    manager.RoboticsInstanceNamespaceIndex);
                 HashSet<NodeId> secondIds = AssertTreeRegisteredAndUnique(
                     manager,
                     systems[1].State,
-                    manager.InstanceNamespaceIndex);
+                    manager.RoboticsInstanceNamespaceIndex);
                 firstIds.IntersectWith(secondIds);
 
                 Assert.That(firstIds, Is.Empty);
@@ -588,7 +588,7 @@ namespace Opc.Ua.Robotics.Server.Tests
                     .ConfigureAwait(false);
 
                 Assert.That(systems, Has.Count.EqualTo(2));
-                ushort instanceNamespaceIndex = manager.InstanceNamespaceIndex;
+                ushort instanceNamespaceIndex = manager.RoboticsInstanceNamespaceIndex;
                 HashSet<NodeId> firstIds = AssertTreeRegisteredAndUnique(
                     manager,
                     systems[0].State,
@@ -652,7 +652,7 @@ namespace Opc.Ua.Robotics.Server.Tests
             await using var fixture = new RoboticsServerFixture();
             await fixture.StartAsync().ConfigureAwait(false);
 
-            ushort namespaceIndex = fixture.Manager.InstanceNamespaceIndex;
+            ushort namespaceIndex = fixture.Manager.RoboticsInstanceNamespaceIndex;
             var existing = new BaseObjectState(null)
             {
                 NodeId = new NodeId(1u, namespaceIndex),
@@ -676,7 +676,7 @@ namespace Opc.Ua.Robotics.Server.Tests
             await using var fixture = new RoboticsServerFixture();
             await fixture.StartAsync().ConfigureAwait(false);
 
-            ushort namespaceIndex = fixture.Manager.InstanceNamespaceIndex;
+            ushort namespaceIndex = fixture.Manager.RoboticsInstanceNamespaceIndex;
             var existing = new BaseObjectState(null)
             {
                 NodeId = new NodeId(1u, namespaceIndex),
@@ -703,7 +703,7 @@ namespace Opc.Ua.Robotics.Server.Tests
             await using var fixture = new RoboticsServerFixture();
             await fixture.StartAsync().ConfigureAwait(false);
 
-            ushort namespaceIndex = fixture.Manager.InstanceNamespaceIndex;
+            ushort namespaceIndex = fixture.Manager.RoboticsInstanceNamespaceIndex;
             NodeId reserved = fixture.Manager.New(
                 fixture.Manager.SystemContext,
                 new BaseObjectState(null));
@@ -795,7 +795,7 @@ namespace Opc.Ua.Robotics.Server.Tests
             _ = AssertTreeRegisteredAndUnique(
                 fixture.Manager,
                 system.State,
-                fixture.Manager.InstanceNamespaceIndex);
+                fixture.Manager.RoboticsInstanceNamespaceIndex);
             Assert.That(fixture.Manager.ReservedNodeIdCount, Is.Zero);
         }
 
@@ -896,11 +896,11 @@ namespace Opc.Ua.Robotics.Server.Tests
                 _ = AssertTreeRegisteredAndUnique(
                     manager,
                     first.State,
-                    manager.InstanceNamespaceIndex);
+                    manager.RoboticsInstanceNamespaceIndex);
                 _ = AssertTreeRegisteredAndUnique(
                     manager,
                     second.State,
-                    manager.InstanceNamespaceIndex);
+                    manager.RoboticsInstanceNamespaceIndex);
                 List<BaseInstanceState> deviceSetChildren =
                     GetChildren(context.Context, context.DeviceSet);
                 Assert.That(
@@ -1875,7 +1875,7 @@ namespace Opc.Ua.Robotics.Server.Tests
             _ = AssertTreeRegisteredAndUnique(
                 m_fixture.Manager,
                 root,
-                m_fixture.Manager.InstanceNamespaceIndex);
+                m_fixture.Manager.RoboticsInstanceNamespaceIndex);
         }
 
         private static HashSet<NodeId> AssertTreeRegisteredAndUnique(
@@ -2073,7 +2073,7 @@ namespace Opc.Ua.Robotics.Server.Tests
             {
             }
 
-            public ushort InstanceNamespaceIndex =>
+            public ushort RoboticsInstanceNamespaceIndex =>
                 (ushort)SystemContext.NamespaceUris.GetIndex(InstanceNamespaceUri);
 
             public int PredefinedNodeCount => PredefinedNodes.Count;
@@ -2082,7 +2082,7 @@ namespace Opc.Ua.Robotics.Server.Tests
             {
                 return m_nodeIdAllocator.New(
                     this,
-                    InstanceNamespaceIndex,
+                    RoboticsInstanceNamespaceIndex,
                     node);
             }
 
@@ -2200,14 +2200,14 @@ namespace Opc.Ua.Robotics.Server.Tests
             {
             }
 
-            public ushort InstanceNamespaceIndex =>
+            public ushort RoboticsInstanceNamespaceIndex =>
                 (ushort)SystemContext.NamespaceUris.GetIndex(InstanceNamespaceUri);
 
             public override NodeId New(ISystemContext context, NodeState node)
             {
                 return m_nodeIdAllocator.New(
                     this,
-                    InstanceNamespaceIndex,
+                    RoboticsInstanceNamespaceIndex,
                     node);
             }
 
