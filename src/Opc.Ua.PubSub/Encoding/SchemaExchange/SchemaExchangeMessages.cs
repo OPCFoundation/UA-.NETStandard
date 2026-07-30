@@ -99,6 +99,7 @@ namespace Opc.Ua.PubSub.Encoding
                 context,
                 envelope.DataSetClassId);
             List<AvroSchemaField> fields = CollectSchemaFields(dataSetMessage, metaData);
+            var resolver = new AvroMetaDataTypeResolver(metaData);
 
             // The runtime body types of Variant fields are an input to schema generation (§6.1), so
             // they are merged into the lineage before the schema is built. Without this a Variant
@@ -115,7 +116,8 @@ namespace Opc.Ua.PubSub.Encoding
             return AvroSchemaBuilder.Build(
                 DataSetSchemaName(dataSetMessage, metaData),
                 fields,
-                accumulated);
+                accumulated,
+                resolver);
         }
 
         /// <summary>
@@ -179,25 +181,19 @@ namespace Opc.Ua.PubSub.Encoding
             DataSetFieldContentMask mask = (DataSetFieldContentMask)FieldContentMask(dataSetMessage);
             var fields = new List<AvroSchemaField>();
 
-            if (metaData?.Fields is { Count: > 0 } metaFields)
+            if (metaData?.Fields is { Count: > 0 })
             {
                 // Metadata-driven: describe every declared key, so a full key frame and any sparse
-                // subset share one schema and therefore one SchemaId. The field framing is uniform
-                // per writer, so it is taken from the first present field.
-                PubSubFieldEncoding declared = dataSetMessage.Fields.Count > 0
-                    ? dataSetMessage.Fields[0].Encoding
-                    : PubSubFieldEncoding.Variant;
-                PubSubFieldEncoding encoding = SelectFieldEncoding(declared, mask);
-                for (int i = 0; i < metaFields.Count; i++)
+                // subset share one schema and therefore one SchemaId. This delegates to the §6.7
+                // projection so the encode-time schema and a metadata-derived schema are the same
+                // document by construction rather than by coincidence.
+                DataSetFieldContentMask effective = mask;
+                if (dataSetMessage.Fields.Count > 0
+                    && dataSetMessage.Fields[0].Encoding == PubSubFieldEncoding.RawData)
                 {
-                    FieldMetaData field = metaFields[i];
-                    fields.Add(new AvroSchemaField(
-                        field.Name,
-                        (BuiltInType)field.BuiltInType,
-                        field.ValueRank,
-                        encoding));
+                    effective |= DataSetFieldContentMask.RawData;
                 }
-                return fields;
+                return AvroDataSetSchema.CollectFields(metaData, effective);
             }
 
             for (int i = 0; i < dataSetMessage.Fields.Count; i++)

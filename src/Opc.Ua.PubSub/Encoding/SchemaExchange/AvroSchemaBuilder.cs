@@ -51,12 +51,34 @@ namespace Opc.Ua.PubSub.Encoding
             BuiltInType builtInType,
             int valueRank,
             PubSubFieldEncoding encoding)
+            : this(name, builtInType, valueRank, encoding, default)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="AvroSchemaField"/> struct.
+        /// </summary>
+        /// <param name="name">The DataSet field name.</param>
+        /// <param name="builtInType">The OPC UA built-in type of the field value.</param>
+        /// <param name="valueRank">The OPC UA ValueRank (-1 scalar, 1 array, >= 2 matrix).</param>
+        /// <param name="encoding">The field framing selected by the DataSetFieldContentMask.</param>
+        /// <param name="dataType">The declared DataType NodeId, used to resolve custom types.</param>
+        public AvroSchemaField(
+            string? name,
+            BuiltInType builtInType,
+            int valueRank,
+            PubSubFieldEncoding encoding,
+            NodeId dataType)
         {
             Name = name;
             BuiltInType = builtInType;
             ValueRank = valueRank;
             Encoding = encoding;
+            DataType = dataType;
         }
+
+        /// <summary>Gets the declared DataType NodeId, when known.</summary>
+        public NodeId DataType { get; }
 
         /// <summary>Gets the DataSet field name.</summary>
         public string? Name { get; }
@@ -121,12 +143,17 @@ namespace Opc.Ua.PubSub.Encoding
         /// its union index in every later schema of the lineage. Pass <see langword="null"/> to use
         /// <paramref name="fields"/> alone.
         /// </param>
+        /// <param name="resolver">
+        /// Resolves custom DataTypes declared by a DataSetMetaData (§6.7). Pass
+        /// <see langword="null"/> to map built-in types only.
+        /// </param>
         /// <returns>The Avro schema document as JSON.</returns>
         /// <exception cref="ArgumentNullException">A required argument is null.</exception>
         public static string Build(
             string dataSetName,
             IReadOnlyList<AvroSchemaField> fields,
-            IReadOnlyList<AvroSchemaField>? lineage = null)
+            IReadOnlyList<AvroSchemaField>? lineage = null,
+            AvroMetaDataTypeResolver? resolver = null)
         {
             if (fields is null)
             {
@@ -153,7 +180,7 @@ namespace Opc.Ua.PubSub.Encoding
                 builder.Append("{\"name\":\"")
                     .Append(SanitizeName(field.Name, "Field" + i.ToString(CultureInfo.InvariantCulture)))
                     .Append("\",\"type\":")
-                    .Append(FieldType(field, branchSources, emitted))
+                    .Append(FieldType(field, branchSources, emitted, resolver))
                     .Append('}');
             }
 
@@ -196,38 +223,228 @@ namespace Opc.Ua.PubSub.Encoding
         private static string FieldType(
             AvroSchemaField field,
             IReadOnlyList<AvroSchemaField> allFields,
-            HashSet<string> emitted)
+            HashSet<string> emitted,
+            AvroMetaDataTypeResolver? resolver)
         {
             switch (field.Encoding)
             {
                 case PubSubFieldEncoding.DataValue:
                     return DataValueType(allFields, emitted);
                 case PubSubFieldEncoding.RawData:
-                    return RankedType(field.BuiltInType, field.ValueRank, emitted);
+                    return RankedType(field, emitted, resolver);
                 case PubSubFieldEncoding.Variant:
                 default:
                     return VariantType(allFields, emitted);
             }
         }
 
-        private static string RankedType(BuiltInType builtInType, int valueRank, HashSet<string> emitted)
+        private static string RankedType(
+            AvroSchemaField field,
+            HashSet<string> emitted,
+            AvroMetaDataTypeResolver? resolver)
         {
-            string element = ScalarType(builtInType, emitted);
-            if (valueRank >= 2)
+            string element = CustomOrScalarType(field, emitted, resolver);
+            if (field.ValueRank >= 2)
             {
                 // §5.5 matrix: row-major values plus a dimensions vector, nullable as a whole.
                 return "[\"null\",{\"type\":\"record\",\"name\":\""
-                    + MatrixName(builtInType)
+                    + MatrixName(field.BuiltInType)
                     + "\",\"namespace\":\"" + AvroNamespace + "\",\"fields\":["
                     + "{\"name\":\"dimensions\",\"type\":{\"type\":\"array\",\"items\":\"int\"}},"
                     + "{\"name\":\"values\",\"type\":{\"type\":\"array\",\"items\":" + element + "}}]}]";
             }
-            if (valueRank == 1)
+            if (field.ValueRank == 1)
             {
                 // §5.4 array: nullable array of possibly-null elements.
                 return "[\"null\",{\"type\":\"array\",\"items\":" + element + "}]";
             }
             return element;
+        }
+
+        /// <summary>
+        /// Maps a field to a custom type declared by the DataSetMetaData (§6.7) when one applies,
+        /// and otherwise to the built-in mapping of §5.2.
+        /// </summary>
+        /// <param name="field">The field being mapped.</param>
+        /// <param name="emitted">The named types already inlined in this document.</param>
+        /// <param name="resolver">The metadata type resolver, when available.</param>
+        /// <returns>The Avro type for the field element.</returns>
+        /// <exception cref="InvalidOperationException">
+        /// Thrown when the declared DataType is neither a built-in nor declared by the metadata.
+        /// </exception>
+        private static string CustomOrScalarType(
+            AvroSchemaField field,
+            HashSet<string> emitted,
+            AvroMetaDataTypeResolver? resolver)
+        {
+            if (resolver is not null && !field.DataType.IsNull && !IsBuiltInNodeId(field.DataType))
+            {
+                if (resolver.TryGetEnum(field.DataType, out EnumDescription? enumeration))
+                {
+                    // §5.3: enumerations carry the numeric value, never a symbolic Avro enum, so an
+                    // unknown value stays forward-compatible.
+                    _ = enumeration;
+                    return "\"int\"";
+                }
+                if (resolver.TryGetSimpleType(field.DataType, out SimpleTypeDescription? simple))
+                {
+                    return ScalarType((BuiltInType)simple!.BuiltInType, emitted);
+                }
+                if (resolver.TryGetStructure(field.DataType, out StructureDescription? structure))
+                {
+                    return StructureRecord(structure!, emitted, resolver, new HashSet<string>(StringComparer.Ordinal));
+                }
+                if (field.BuiltInType is BuiltInType.ExtensionObject or BuiltInType.Null)
+                {
+                    // §6.7: a DataType that is neither a built-in nor declared by the metadata
+                    // cannot be mapped. Substituting an opaque type here would produce a schema
+                    // that looks correct and silently loses the structure, so fail instead.
+                    throw new InvalidOperationException(
+                        FormattableString.Invariant(
+                            $"DataSetMetaData does not declare DataType '{field.DataType}' for field '{field.Name}', so no Avro schema can be generated for it."));
+                }
+            }
+            return ScalarType(field.BuiltInType, emitted);
+        }
+
+        private static bool IsBuiltInNodeId(NodeId dataType)
+        {
+            return dataType.NamespaceIndex == 0
+                && dataType.IdType == IdType.Numeric
+                && Convert.ToUInt32(dataType.Identifier, CultureInfo.InvariantCulture) <= 25;
+        }
+
+        /// <summary>
+        /// Emits an Avro record for a structured DataType declared by the metadata (§5.6, §5.7).
+        /// </summary>
+        /// <param name="structure">The structure description.</param>
+        /// <param name="emitted">The named types already inlined in this document.</param>
+        /// <param name="resolver">The metadata type resolver.</param>
+        /// <param name="open">The structures currently being expanded, used to break cycles.</param>
+        /// <returns>The Avro type for the structure.</returns>
+        private static string StructureRecord(
+            StructureDescription structure,
+            HashSet<string> emitted,
+            AvroMetaDataTypeResolver resolver,
+            HashSet<string> open)
+        {
+            string name = SanitizeName(structure.Name.Name, "Structure");
+            if (emitted.Contains(name) || !open.Add(name))
+            {
+                // A recursive structure references the enclosing record by name, which is what
+                // keeps the generated document finite.
+                return "\"" + AvroNamespace + "." + name + "\"";
+            }
+            emitted.Add(name);
+
+            StructureDefinition definition = structure.StructureDefinition;
+            bool isUnion = definition.StructureType is StructureType.Union
+                or StructureType.UnionWithSubtypedValues;
+            var builder = new StringBuilder();
+
+            if (isUnion)
+            {
+                // §5.7: a Union DataType is a record with `switch` and `value`, where each branch is
+                // wrapped in its own record so Avro branch resolution stays deterministic even when
+                // two union fields share an Avro primitive type.
+                builder.Append("{\"type\":\"record\",\"name\":\"").Append(name)
+                    .Append("\",\"namespace\":\"").Append(AvroNamespace).Append("\",\"fields\":[")
+                    .Append("{\"name\":\"switch\",\"type\":[\"null\",\"string\"],\"default\":null},")
+                    .Append("{\"name\":\"value\",\"type\":[\"null\"");
+                for (int i = 0; i < definition.Fields.Count; i++)
+                {
+                    StructureField field = definition.Fields[i];
+                    string branch = name + "_" + SanitizeName(field.Name, "Field") + "_Branch";
+                    emitted.Add(branch);
+                    builder.Append(",{\"type\":\"record\",\"name\":\"").Append(branch)
+                        .Append("\",\"namespace\":\"").Append(AvroNamespace).Append("\",\"fields\":[")
+                        .Append("{\"name\":\"").Append(SanitizeName(field.Name, "Field"))
+                        .Append("\",\"type\":")
+                        .Append(StructureFieldType(field, emitted, resolver, open))
+                        .Append("}]}");
+                }
+                builder.Append("],\"default\":null}]}");
+                open.Remove(name);
+                return builder.ToString();
+            }
+
+            builder.Append("{\"type\":\"record\",\"name\":\"").Append(name)
+                .Append("\",\"namespace\":\"").Append(AvroNamespace).Append("\",\"fields\":[");
+            for (int i = 0; i < definition.Fields.Count; i++)
+            {
+                if (i > 0)
+                {
+                    builder.Append(',');
+                }
+                StructureField field = definition.Fields[i];
+                string fieldName = SanitizeName(field.Name, "Field");
+                string fieldType = StructureFieldType(field, emitted, resolver, open);
+                if (field.IsOptional)
+                {
+                    // §5.6: an optional field uses a nullable wrapper record with a single `value`,
+                    // so "absent" and "present but null" stay distinguishable.
+                    string wrapper = name + "_" + fieldName + "_Optional";
+                    emitted.Add(wrapper);
+                    builder.Append("{\"name\":\"").Append(fieldName)
+                        .Append("\",\"type\":[\"null\",{\"type\":\"record\",\"name\":\"").Append(wrapper)
+                        .Append("\",\"namespace\":\"").Append(AvroNamespace)
+                        .Append("\",\"fields\":[{\"name\":\"value\",\"type\":").Append(fieldType)
+                        .Append("}]}],\"default\":null}");
+                    continue;
+                }
+                builder.Append("{\"name\":\"").Append(fieldName)
+                    .Append("\",\"type\":").Append(fieldType).Append('}');
+            }
+            builder.Append("]}");
+            open.Remove(name);
+            return builder.ToString();
+        }
+
+        private static string StructureFieldType(
+            StructureField field,
+            HashSet<string> emitted,
+            AvroMetaDataTypeResolver resolver,
+            HashSet<string> open)
+        {
+            string element;
+            if (resolver.TryGetEnum(field.DataType, out _))
+            {
+                element = "\"int\"";
+            }
+            else if (resolver.TryGetSimpleType(field.DataType, out SimpleTypeDescription? simple))
+            {
+                element = ScalarType((BuiltInType)simple!.BuiltInType, emitted);
+            }
+            else if (resolver.TryGetStructure(field.DataType, out StructureDescription? nested))
+            {
+                element = StructureRecord(nested!, emitted, resolver, open);
+            }
+            else
+            {
+                element = ScalarType(BuiltInTypeOf(field.DataType), emitted);
+            }
+
+            if (field.ValueRank >= 2)
+            {
+                return "[\"null\",{\"type\":\"array\",\"items\":" + element + "}]";
+            }
+            if (field.ValueRank == 1)
+            {
+                return "{\"type\":\"array\",\"items\":" + element + "}";
+            }
+            return element;
+        }
+
+        private static BuiltInType BuiltInTypeOf(NodeId dataType)
+        {
+            if (dataType.IsNull
+                || dataType.NamespaceIndex != 0
+                || dataType.IdType != IdType.Numeric)
+            {
+                return BuiltInType.ExtensionObject;
+            }
+            uint id = Convert.ToUInt32(dataType.Identifier, CultureInfo.InvariantCulture);
+            return id is >= 1 and <= 25 ? (BuiltInType)id : BuiltInType.ExtensionObject;
         }
 
         private static string MatrixName(BuiltInType builtInType)

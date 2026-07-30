@@ -928,9 +928,60 @@ namespace Opc.Ua.PubSub.Encoding.Tests
         /// <summary>
         /// Defines the Avro dataset fields and configuration version expected by the test network message.
         /// </summary>
-        private static DataSetMetaDataType CreateMetaData()
+        [Test]
+        public async Task MetaDataDerivedSchemaMatchesTheEncodeTimeSchema()
         {
-            return new DataSetMetaDataType
+            // §6.7: deriving from DataSetMetaData is a different source of inputs, not a different
+            // algorithm, so it must produce the identical document - and therefore the identical
+            // SchemaId - that the encoder produces for the same DataSet. If the two disagreed, a
+            // SchemaId would no longer identify one canonical schema and §6.3 would not hold.
+            PublisherId publisherId = PublisherId.FromString("publisher-avro-6-7");
+            Uuid dataSetClassId = new(new Guid("2f1b0a44-9f1e-4e6a-9d0f-2a1d3c4b5e6f"));
+            DataSetMetaDataType metaData = CreateMetaData();
+            PubSubNetworkMessageContext context = CreateContext(
+                publisherId,
+                writerGroupId: 8,
+                dataSetClassId,
+                metaData,
+                dataSetWriterIds: SingleWriterId,
+                new PubSubDiagnostics(PubSubDiagnosticsLevel.High));
+
+            AvroNetworkMessage message = new()
+            {
+                PublisherId = publisherId,
+                WriterGroupId = 8,
+                DataSetClassId = dataSetClassId,
+                DataSetMessages =
+                [
+                    new AvroDataSetMessage
+                    {
+                        DataSetWriterId = 201,
+                        SequenceNumber = 1,
+                        Timestamp = new DateTimeUtc(new DateTime(2026, 7, 30, 6, 0, 0, DateTimeKind.Utc)),
+                        Status = (StatusCode)StatusCodes.Good,
+                        MessageType = PubSubDataSetMessageType.KeyFrame,
+                        MetaDataVersion = new ConfigurationVersionDataType { MajorVersion = 1, MinorVersion = 2 },
+                        FieldContentMask = DataSetFieldContentMask.RawData,
+                        Fields =
+                        [
+                            CreateField("Enabled", new Variant(true), PubSubFieldEncoding.RawData),
+                            CreateField("Temperature", new Variant(21.5), PubSubFieldEncoding.RawData)
+                        ]
+                    }
+                ]
+            };
+
+            string encodeTime = SchemaExchangeMessages.BuildAvroDataSetSchema(
+                message,
+                message.DataSetMessages[0],
+                context);
+            string fromMetaData = AvroDataSetSchema.Create(metaData, DataSetFieldContentMask.RawData);
+
+            Assert.That(fromMetaData, Is.EqualTo(encodeTime));
+        }
+
+        private static DataSetMetaDataType CreateMetaData()
+        {            return new DataSetMetaDataType
             {
                 Name = "AvroDataSet",
                 ConfigurationVersion = new ConfigurationVersionDataType
