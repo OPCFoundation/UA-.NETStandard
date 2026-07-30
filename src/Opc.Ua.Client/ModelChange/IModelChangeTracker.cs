@@ -42,7 +42,7 @@ namespace Opc.Ua.Client.ModelChange
     /// <param name="TypeDefinition">Type definition NodeId of the
     /// affected node. <see cref="NodeId.Null"/> when the server did not
     /// report one.</param>
-    public record struct ModelChange(
+    public readonly record struct ModelChange(
         ModelChangeVerb Verb,
         NodeId AffectedNode,
         NodeId TypeDefinition);

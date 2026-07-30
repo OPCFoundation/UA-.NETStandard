@@ -429,6 +429,14 @@ namespace Opc.Ua.Client.Subscriptions
                     return default;
                 }
 
+                // Record the retired identifier while the registry lock
+                // is still held. A publish worker resolves incoming
+                // responses under the same lock, so it can never observe
+                // the partition as removed before the identifier is
+                // known to be retired and mistake a late response for an
+                // orphaned server side subscription.
+                RetireSubscriptionId(retiredId);
+
                 // If the removed partition was the primary of any
                 // logical wrapper, the wrapper has no usable
                 // partitions left — drop it from the public registry
@@ -451,7 +459,6 @@ namespace Opc.Ua.Client.Subscriptions
                     m_logicals.Remove(logical);
                 }
             }
-            RetireSubscriptionId(retiredId);
             m_logger.SubscriptionRemoved(retiredId);
             m_publishControl.Set();
             return default;
@@ -610,11 +617,14 @@ namespace Opc.Ua.Client.Subscriptions
             lock (m_subscriptionLock)
             {
                 m_subscriptions.Remove(partition);
+                // Retire the identifier under the registry lock so a
+                // publish worker cannot observe the partition as removed
+                // before the identifier is known to be retired.
+                RetireSubscriptionId(partitionId);
             }
             if (partitionId != 0)
             {
                 DropPendingForSubscription(partitionId);
-                RetireSubscriptionId(partitionId);
             }
             try
             {
@@ -633,6 +643,12 @@ namespace Opc.Ua.Client.Subscriptions
         /// retired identifier are dropped instead of being mistaken
         /// for an orphaned server side subscription.
         /// </summary>
+        /// <remarks>
+        /// Callers record the identifier in the same critical section
+        /// that drops the subscription from the dispatch registry, so
+        /// the removal and the retirement are observed atomically by a
+        /// publish worker resolving an incoming response.
+        /// </remarks>
         /// <param name="subscriptionId">The retired identifier. Zero
         /// is ignored because it never identifies a subscription on
         /// the server.</param>
