@@ -92,7 +92,9 @@ namespace Opc.Ua.Mcp.Serialization
         {
             if (string.IsNullOrWhiteSpace(qualifiedNameString))
             {
-                throw new ArgumentException("QualifiedName string cannot be null or empty.", nameof(qualifiedNameString));
+                throw new ArgumentException(
+                    "QualifiedName string cannot be null or empty.",
+                    nameof(qualifiedNameString));
             }
 
             return QualifiedName.Parse(qualifiedNameString);
@@ -119,31 +121,143 @@ namespace Opc.Ua.Mcp.Serialization
         /// </summary>
         public static object? VariantToObject(Variant variant)
         {
-            if (variant == Variant.Null)
+            if (variant.TypeInfo.BuiltInType == BuiltInType.Null)
             {
                 return null;
             }
 
-            object? value = variant.AsBoxedObject();
-            return value switch
+            if (variant.TypeInfo.IsArray)
             {
-                null => null,
-                bool b => b,
-                sbyte or byte or short or ushort or int or uint or long or ulong => value,
-                float f => f,
-                double d => d,
-                string s => s,
-                DateTime dt => dt.ToString("o", CultureInfo.InvariantCulture),
-                Uuid uuid => uuid.ToString(),
-                byte[] bytes => Convert.ToBase64String(bytes),
-                NodeId nodeId => nodeId.ToString(),
-                ExpandedNodeId expNodeId => expNodeId.ToString(),
-                QualifiedName qn => qn.ToString(),
-                LocalizedText lt => lt.Text,
-                StatusCode sc => StatusCodeToString(sc),
-                ExtensionObject ext => ExtensionObjectToDict(ext),
-                Array array => ArrayToList(array),
-                _ => value.ToString()
+                return VariantArrayToObject(variant);
+            }
+
+            if (variant.TypeInfo.IsMatrix)
+            {
+                return VariantMatrixToObject(variant);
+            }
+
+            switch (variant.TypeInfo.BuiltInType)
+            {
+                case BuiltInType.Boolean when variant.TryGetValue(out bool value):
+                    return value;
+                case BuiltInType.SByte when variant.TryGetValue(out sbyte value):
+                    return value;
+                case BuiltInType.Byte when variant.TryGetValue(out byte value):
+                    return value;
+                case BuiltInType.Int16 when variant.TryGetValue(out short value):
+                    return value;
+                case BuiltInType.UInt16 when variant.TryGetValue(out ushort value):
+                    return value;
+                case BuiltInType.Int32 when variant.TryGetValue(out int value):
+                    return value;
+                case BuiltInType.UInt32 when variant.TryGetValue(out uint value):
+                    return value;
+                case BuiltInType.Int64 when variant.TryGetValue(out long value):
+                    return value;
+                case BuiltInType.UInt64 when variant.TryGetValue(out ulong value):
+                    return value;
+                case BuiltInType.Float when variant.TryGetValue(out float value):
+                    return value;
+                case BuiltInType.Double when variant.TryGetValue(out double value):
+                    return value;
+                case BuiltInType.String when variant.TryGetValue(out string value):
+                    return value;
+                case BuiltInType.DateTime when variant.TryGetValue(out DateTimeUtc value):
+                    return value.ToDateTime().ToString("o", CultureInfo.InvariantCulture);
+                case BuiltInType.Guid when variant.TryGetValue(out Uuid value):
+                    return value.ToString();
+                case BuiltInType.ByteString when variant.TryGetValue(out ByteString value):
+                    return value.IsNull ? null : Convert.ToBase64String(value.ToArray());
+                case BuiltInType.NodeId when variant.TryGetValue(out NodeId value):
+                    return value.ToString();
+                case BuiltInType.ExpandedNodeId when variant.TryGetValue(out ExpandedNodeId value):
+                    return value.ToString();
+                case BuiltInType.QualifiedName when variant.TryGetValue(out QualifiedName value):
+                    return value.ToString();
+                case BuiltInType.LocalizedText when variant.TryGetValue(out LocalizedText value):
+                    return value.Text;
+                case BuiltInType.StatusCode when variant.TryGetValue(out StatusCode value):
+                    return StatusCodeToString(value);
+                case BuiltInType.ExtensionObject when variant.TryGetValue(out ExtensionObject value):
+                    return ExtensionObjectToDict(value);
+                case BuiltInType.XmlElement when variant.TryGetValue(out XmlElement value):
+                    return value.ToString();
+                case BuiltInType.DataValue when variant.TryGetValue(out DataValue value):
+                    return value.ToString();
+                default:
+                    return variant.ToString();
+            }
+        }
+
+        private static object? VariantArrayToObject(Variant variant)
+        {
+            return variant.TypeInfo.BuiltInType switch
+            {
+                BuiltInType.Boolean when variant.TryGetValue(out ArrayOf<bool> value) => ArrayToList(value),
+                BuiltInType.SByte when variant.TryGetValue(out ArrayOf<sbyte> value) => ArrayToList(value),
+                BuiltInType.Byte when variant.TryGetValue(out ArrayOf<byte> value) => ArrayToList(value),
+                BuiltInType.Int16 when variant.TryGetValue(out ArrayOf<short> value) => ArrayToList(value),
+                BuiltInType.UInt16 when variant.TryGetValue(out ArrayOf<ushort> value) => ArrayToList(value),
+                BuiltInType.Int32 when variant.TryGetValue(out ArrayOf<int> value) => ArrayToList(value),
+                BuiltInType.UInt32 when variant.TryGetValue(out ArrayOf<uint> value) => ArrayToList(value),
+                BuiltInType.Int64 when variant.TryGetValue(out ArrayOf<long> value) => ArrayToList(value),
+                BuiltInType.UInt64 when variant.TryGetValue(out ArrayOf<ulong> value) => ArrayToList(value),
+                BuiltInType.Float when variant.TryGetValue(out ArrayOf<float> value) => ArrayToList(value),
+                BuiltInType.Double when variant.TryGetValue(out ArrayOf<double> value) => ArrayToList(value),
+                BuiltInType.String when variant.TryGetValue(out ArrayOf<string> value) => ArrayToList(value),
+                BuiltInType.DateTime when variant.TryGetValue(out ArrayOf<DateTimeUtc> value) => ArrayToList(value),
+                BuiltInType.Guid when variant.TryGetValue(out ArrayOf<Uuid> value) => ArrayToList(value),
+                BuiltInType.ByteString when variant.TryGetValue(out ArrayOf<ByteString> value) => ArrayToList(value),
+                BuiltInType.XmlElement when variant.TryGetValue(out ArrayOf<XmlElement> value) => ArrayToList(value),
+                BuiltInType.NodeId when variant.TryGetValue(out ArrayOf<NodeId> value) => ArrayToList(value),
+                BuiltInType.ExpandedNodeId when variant.TryGetValue(out ArrayOf<ExpandedNodeId> value) =>
+                    ArrayToList(value),
+                BuiltInType.StatusCode when variant.TryGetValue(out ArrayOf<StatusCode> value) => ArrayToList(value),
+                BuiltInType.QualifiedName when variant.TryGetValue(out ArrayOf<QualifiedName> value) =>
+                    ArrayToList(value),
+                BuiltInType.LocalizedText when variant.TryGetValue(out ArrayOf<LocalizedText> value) =>
+                    ArrayToList(value),
+                BuiltInType.ExtensionObject when variant.TryGetValue(out ArrayOf<ExtensionObject> value) =>
+                    ArrayToList(value),
+                BuiltInType.DataValue when variant.TryGetValue(out ArrayOf<DataValue> value) => ArrayToList(value),
+                BuiltInType.Variant when variant.TryGetValue(out ArrayOf<Variant> value) => ArrayToList(value),
+                _ => variant.ToString()
+            };
+        }
+
+        private static object? VariantMatrixToObject(Variant variant)
+        {
+            return variant.TypeInfo.BuiltInType switch
+            {
+                BuiltInType.Boolean when variant.TryGetValue(out MatrixOf<bool> value) => MatrixToList(value),
+                BuiltInType.SByte when variant.TryGetValue(out MatrixOf<sbyte> value) => MatrixToList(value),
+                BuiltInType.Byte when variant.TryGetValue(out MatrixOf<byte> value) => MatrixToList(value),
+                BuiltInType.Int16 when variant.TryGetValue(out MatrixOf<short> value) => MatrixToList(value),
+                BuiltInType.UInt16 when variant.TryGetValue(out MatrixOf<ushort> value) => MatrixToList(value),
+                BuiltInType.Int32 when variant.TryGetValue(out MatrixOf<int> value) => MatrixToList(value),
+                BuiltInType.UInt32 when variant.TryGetValue(out MatrixOf<uint> value) => MatrixToList(value),
+                BuiltInType.Int64 when variant.TryGetValue(out MatrixOf<long> value) => MatrixToList(value),
+                BuiltInType.UInt64 when variant.TryGetValue(out MatrixOf<ulong> value) => MatrixToList(value),
+                BuiltInType.Float when variant.TryGetValue(out MatrixOf<float> value) => MatrixToList(value),
+                BuiltInType.Double when variant.TryGetValue(out MatrixOf<double> value) => MatrixToList(value),
+                BuiltInType.String when variant.TryGetValue(out MatrixOf<string> value) => MatrixToList(value),
+                BuiltInType.DateTime when variant.TryGetValue(out MatrixOf<DateTimeUtc> value) => MatrixToList(value),
+                BuiltInType.Guid when variant.TryGetValue(out MatrixOf<Uuid> value) => MatrixToList(value),
+                BuiltInType.ByteString when variant.TryGetValue(out MatrixOf<ByteString> value) => MatrixToList(value),
+                BuiltInType.XmlElement when variant.TryGetValue(out MatrixOf<XmlElement> value) => MatrixToList(value),
+                BuiltInType.NodeId when variant.TryGetValue(out MatrixOf<NodeId> value) => MatrixToList(value),
+                BuiltInType.ExpandedNodeId when variant.TryGetValue(out MatrixOf<ExpandedNodeId> value) =>
+                    MatrixToList(value),
+                BuiltInType.StatusCode when variant.TryGetValue(out MatrixOf<StatusCode> value) => MatrixToList(value),
+                BuiltInType.QualifiedName when variant.TryGetValue(out MatrixOf<QualifiedName> value) =>
+                    MatrixToList(value),
+                BuiltInType.LocalizedText when variant.TryGetValue(out MatrixOf<LocalizedText> value) =>
+                    MatrixToList(value),
+                BuiltInType.ExtensionObject when variant.TryGetValue(out MatrixOf<ExtensionObject> value) =>
+                    MatrixToList(value),
+                BuiltInType.DataValue when variant.TryGetValue(out MatrixOf<DataValue> value) => MatrixToList(value),
+                BuiltInType.Variant when variant.TryGetValue(out MatrixOf<Variant> value) => MatrixToList(value),
+                _ => variant.ToString()
             };
         }
 
@@ -328,14 +442,62 @@ namespace Opc.Ua.Mcp.Serialization
             var list = new List<object?>(array.Length);
             foreach (object? item in array)
             {
-                list.Add(item switch
-                {
-                    Variant v => VariantToObject(v),
-                    DataValue dv => DataValueToDict(dv),
-                    _ => item.ToString()
-                });
+                list.Add(ElementToObject(item));
             }
             return list;
+        }
+
+        /// <summary>
+        /// Converts a single array element to a JSON-friendly value using the
+        /// same conventions as the scalar conversion, so that an array of
+        /// numbers or booleans keeps its JSON type instead of being
+        /// stringified.
+        /// </summary>
+        private static object? ElementToObject(object? item)
+        {
+            return item switch
+            {
+                null => null,
+                bool value => value,
+                sbyte value => value,
+                byte value => value,
+                short value => value,
+                ushort value => value,
+                int value => value,
+                uint value => value,
+                long value => value,
+                ulong value => value,
+                float value => value,
+                double value => value,
+                string value => value,
+                DateTimeUtc value => value.ToDateTime().ToString("o", CultureInfo.InvariantCulture),
+                DateTime value => value.ToString("o", CultureInfo.InvariantCulture),
+                Uuid value => value.ToString(),
+                Guid value => value.ToString(),
+                ByteString value => value.IsNull ? null : Convert.ToBase64String(value.ToArray()),
+                byte[] value => Convert.ToBase64String(value),
+                NodeId value => value.ToString(),
+                ExpandedNodeId value => value.ToString(),
+                QualifiedName value => value.ToString(),
+                LocalizedText value => value.Text,
+                StatusCode value => StatusCodeToString(value),
+                ExtensionObject value => ExtensionObjectToDict(value),
+                Variant value => VariantToObject(value),
+                DataValue value => DataValueToDict(value),
+                _ => item.ToString()
+            };
+        }
+
+        private static List<object?>? ArrayToList<T>(ArrayOf<T> value)
+        {
+            T[]? array = value.ToArray();
+            return array == null ? null : ArrayToList(array);
+        }
+
+        private static List<object?>? MatrixToList<T>(MatrixOf<T> value)
+        {
+            Array? array = value.CreateArrayInstance();
+            return array == null ? null : ArrayToList(array);
         }
 
         private static JsonSerializerOptions CreateJsonOptions()

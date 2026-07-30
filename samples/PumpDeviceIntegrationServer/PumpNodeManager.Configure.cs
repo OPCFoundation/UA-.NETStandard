@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Globalization;
 using System.Threading;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
@@ -55,11 +56,16 @@ namespace Pumps
             Server.Telemetry.CreateLogger<PumpNodeManager>()
                 .ConfiguringPumpNodeManagerFluentWiring();
 
-            PumpState pump = builder.Node<PumpState>("Pump #1").Node;
-            WithIdentification(builder);
-            RegisterPumpSimulation(builder, pump);
+            builder.UseHistorian()
+                .UseInMemoryProvider()
+                .RegisterAsDefault();
 
-            builder.Simulation(TimeSpan.FromMilliseconds(250))
+            foreach (PumpState pump in m_pumpStates)
+            {
+                RegisterPumpSimulation(builder, pump);
+            }
+
+            builder.Simulation(SimulationInterval)
                 .OnTick((ctx, elapsed) => AdvanceSimulation());
         }
 
@@ -74,7 +80,6 @@ namespace Pumps
                 Opc.Ua.Pumps.Namespaces.Pumps);
             NodeManagerBuilder builder = CreateFluentBuilder(pumpsNs);
             RegisterPumpSimulation(builder, pump);
-            // Seal starts the shared simulation registry; only seal successfully wired builders.
             builder.Seal();
         }
 
@@ -100,6 +105,8 @@ namespace Pumps
                 }
 
                 int profileIndex = m_nextSimulationProfile++;
+                WithIdentification(builder, pump, profileIndex + 1);
+                WithMaintenance(builder, pump);
                 PumpSimulationState simulation = CreatePumpSimulation(
                     builder,
                     pump,
@@ -116,19 +123,39 @@ namespace Pumps
             }
         }
 
-        /// <summary>
-        /// Configures the identification values demonstrated by the
-        /// hand-wired first pump.
-        /// </summary>
-        /// <param name="builder">The active fluent builder.</param>
-        private static void WithIdentification(INodeManagerBuilder builder)
+        private static void WithIdentification(
+            INodeManagerBuilder builder,
+            PumpState pump,
+            int pumpNumber)
         {
-            builder.Node("Pump #1/Identification")
-                .WithProperty("Manufacturer", "SimPump Corp")
-                .WithProperty("SerialNumber", "SN-001")
+            string serialNumber = "SN-" + pumpNumber.ToString("D3", CultureInfo.InvariantCulture);
+            builder.Node(pump.Identification!.NodeId)
+                .WithProperty("Manufacturer", Variant.From(new LocalizedText("SimPump Corp")))
+                .WithProperty("Model", Variant.From(new LocalizedText("PumpX-2000")))
+                .WithProperty("SerialNumber", serialNumber)
                 .WithProperty(
                     "ProductInstanceUri",
-                    "urn:simdevice:SimPump:PumpX-2000:SN-001");
+                    "urn:simdevice:SimPump:PumpX-2000:" + serialNumber)
+                .WithProperty("DeviceClass", "Pump")
+                .WithProperty("HardwareRevision", "1.0")
+                .WithProperty("SoftwareRevision", "2.5.3");
+        }
+
+        private void WithMaintenance(INodeManagerBuilder builder, PumpState pump)
+        {
+            NodeId functionalGroupType = NodeId.Create(
+                Opc.Ua.Di.ObjectTypes.FunctionalGroupType,
+                Opc.Ua.Di.Namespaces.OpcUaDi,
+                Server.NamespaceUris);
+            var generalMaintenance = new QualifiedName(
+                "GeneralMaintenance",
+                (ushort)Server.NamespaceUris.GetIndex(Opc.Ua.Pumps.Namespaces.Pumps));
+
+            builder.Node(pump.Maintenance!.NodeId)
+                .AddObject(generalMaintenance, functionalGroupType)
+                .WithProperty(
+                    "MaintenancePlan",
+                    Variant.From("Inspect seals and bearings every 30 days."));
         }
 
         private PumpSimulationState CreatePumpSimulation(
@@ -189,18 +216,16 @@ namespace Pumps
                 out IValueUpdater<double> level);
 
             builder.Variable<uint>(measurements.NumberOfStarts!.NodeId)
-                .Bind(out IValueUpdater<uint> numberOfStarts);
+                .Bind(out IValueUpdater<uint> numberOfStarts)
+                .Historize(historyAccessLevel: AccessLevels.HistoryRead);
 
             ushort pumpsNs = (ushort)Server.NamespaceUris.GetIndex(
                 Opc.Ua.Pumps.Namespaces.Pumps);
-            INodeBuilder<PumpState> pumpBuilder =
-                builder.Node<PumpState>(pump.NodeId);
-            INodeBuilder<SupervisionState> events =
-                pumpBuilder.Components().Events();
+            INodeBuilder<PumpState> pumpBuilder = builder.Node<PumpState>(pump.NodeId);
+            INodeBuilder<SupervisionState> events = pumpBuilder.Components().Events();
 
             IAlarmBuilder<NonExclusiveLimitAlarmState> overTempAlarm = events
-                .CreateLimitAlarm(
-                    new QualifiedName("OverTempAlarm", pumpsNs))
+                .CreateLimitAlarm(new QualifiedName("OverTempAlarm", pumpsNs))
                 .WithLimits(
                     highHigh: 373.15,
                     high: 363.15,
@@ -208,13 +233,25 @@ namespace Pumps
                     lowLow: 273.15)
                 .OnAcknowledge((ctx, c, eventId, comment) => ServiceResult.Good);
 
-            events.Components().SupervisionProcessFluid()
-                .Components().Cavitation()
-                .Bind(out IValueUpdater<bool> cavitation);
-            IVariableBuilder<bool> motorOverheatBuilder = events
-                .Components().SupervisionPumpOperation()
-                .Components().MotorOverheat()
-                .Bind(out IValueUpdater<bool> motorOverheat);
+            IVariableBuilder<bool> cavitationBuilder = events.Components()
+                .SupervisionProcessFluid()
+                .Components()
+                .Cavitation();
+            WireBoolean(
+                cavitationBuilder,
+                new LocalizedText("Cavitation"),
+                new LocalizedText("No cavitation"),
+                out IValueUpdater<bool> cavitation);
+
+            IVariableBuilder<bool> motorOverheatBuilder = events.Components()
+                .SupervisionPumpOperation()
+                .Components()
+                .MotorOverheat();
+            WireBoolean(
+                motorOverheatBuilder,
+                new LocalizedText("Motor overheat"),
+                new LocalizedText("No motor overheat"),
+                out IValueUpdater<bool> motorOverheat);
             overTempAlarm.MonitorVariable(motorOverheatBuilder.Node);
             motorOverheatBuilder.ActivatesAlarm(overTempAlarm);
 
@@ -243,7 +280,35 @@ namespace Pumps
             builder.Variable<double>(nodeId)
                 .Bind(out updater)
                 .WithEngineeringUnits(units)
-                .WithEURange(min, max);
+                .WithEURange(min, max)
+                .Historize(historyAccessLevel: AccessLevels.HistoryRead);
+        }
+
+        private static void WireBoolean(
+            IVariableBuilder<bool> variable,
+            LocalizedText trueState,
+            LocalizedText falseState,
+            out IValueUpdater<bool> updater)
+        {
+            variable.Bind(out updater)
+                .Historize(historyAccessLevel: AccessLevels.HistoryRead);
+
+            BaseVariableState variableState = variable.Node;
+            NodeState? trueStateNode = variableState.FindChild(
+                variable.Builder.Context,
+                new QualifiedName("TrueState"));
+            if (trueStateNode is BaseVariableState trueStateVariable)
+            {
+                trueStateVariable.WrappedValue = Variant.From(trueState);
+            }
+
+            NodeState? falseStateNode = variableState.FindChild(
+                variable.Builder.Context,
+                new QualifiedName("FalseState"));
+            if (falseStateNode is BaseVariableState falseStateVariable)
+            {
+                falseStateVariable.WrappedValue = Variant.From(falseState);
+            }
         }
 
         private void AdvanceSimulation()
@@ -306,37 +371,53 @@ namespace Pumps
 
             public void Initialize(long tick)
             {
-                Publish(tick, publishAll: true);
+                Publish(tick, publishAll: true, StatusCodes.BadWaitingForInitialData);
             }
 
             public void Advance(long tick)
             {
-                Publish(tick, publishAll: false);
+                Publish(tick, publishAll: !m_hasPublishedGoodValue, StatusCodes.Good);
+                m_hasPublishedGoodValue = true;
             }
 
-            private void Publish(long tick, bool publishAll)
+            private void Publish(long tick, bool publishAll, StatusCode statusCode)
             {
                 long localTick = tick + m_phaseOffset;
+                DateTime sourceTimestamp = DateTime.UtcNow;
                 m_pressure.SetValue(
-                    200_000.0 + (50_000.0 * Math.Sin(localTick * 0.03)));
+                    200_000.0 + (50_000.0 * Math.Sin(localTick * 0.03)),
+                    statusCode,
+                    sourceTimestamp);
                 m_fluidTemperature.SetValue(
-                    313.15 + (5.0 * Math.Sin(localTick * 0.01)));
+                    313.15 + (5.0 * Math.Sin(localTick * 0.01)),
+                    statusCode,
+                    sourceTimestamp);
                 m_bearingTemperature.SetValue(
-                    333.15 + (8.0 * Math.Cos(localTick * 0.008)));
+                    333.15 + (8.0 * Math.Cos(localTick * 0.008)),
+                    statusCode,
+                    sourceTimestamp);
                 m_power.SetValue(
-                    5_000.0 + (500.0 * Math.Sin(localTick * 0.02)));
+                    5_000.0 + (500.0 * Math.Sin(localTick * 0.02)),
+                    statusCode,
+                    sourceTimestamp);
                 m_flow.SetValue(
-                    0.05 + (0.005 * Math.Cos(localTick * 0.04)));
+                    0.05 + (0.005 * Math.Cos(localTick * 0.04)),
+                    statusCode,
+                    sourceTimestamp);
                 m_efficiency.SetValue(
-                    75.0 + (10.0 * Math.Sin(localTick * 0.015)));
+                    75.0 + (10.0 * Math.Sin(localTick * 0.015)),
+                    statusCode,
+                    sourceTimestamp);
                 m_level.SetValue(
-                    2.5 + (0.5 * Math.Sin(localTick * 0.02)));
+                    2.5 + (0.5 * Math.Sin(localTick * 0.02)),
+                    statusCode,
+                    sourceTimestamp);
 
                 uint numberOfStarts = checked((uint)(localTick / 3_600));
                 if (publishAll || numberOfStarts != m_currentNumberOfStarts)
                 {
                     m_currentNumberOfStarts = numberOfStarts;
-                    m_numberOfStarts.SetValue(numberOfStarts);
+                    m_numberOfStarts.SetValue(numberOfStarts, statusCode, sourceTimestamp);
                 }
 
                 long cavitationCycle = localTick % 40;
@@ -344,7 +425,7 @@ namespace Pumps
                 if (publishAll || cavitation != m_currentCavitation)
                 {
                     m_currentCavitation = cavitation;
-                    m_cavitation.SetValue(cavitation);
+                    m_cavitation.SetValue(cavitation, statusCode, sourceTimestamp);
                 }
 
                 long overheatCycle = localTick % 64;
@@ -352,7 +433,7 @@ namespace Pumps
                 if (publishAll || motorOverheat != m_currentMotorOverheat)
                 {
                     m_currentMotorOverheat = motorOverheat;
-                    m_motorOverheat.SetValue(motorOverheat);
+                    m_motorOverheat.SetValue(motorOverheat, statusCode, sourceTimestamp);
                 }
             }
 
@@ -370,10 +451,9 @@ namespace Pumps
             private uint m_currentNumberOfStarts;
             private bool m_currentCavitation;
             private bool m_currentMotorOverheat;
+            private bool m_hasPublishedGoodValue;
         }
 
-        // Registration is a compound operation protected by the lock; the concurrent dictionary
-        // allows the 250 ms tick to enumerate fully initialized states without taking that lock.
         private readonly ConcurrentDictionary<NodeId, PumpSimulationState> m_pumpSimulations = new();
         private readonly Lock m_simulationRegistrationLock = new();
         private long m_simulationTicks;
