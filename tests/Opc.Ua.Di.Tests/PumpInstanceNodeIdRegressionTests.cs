@@ -83,16 +83,10 @@ namespace Opc.Ua.Di.Tests
             "Events/OverTempAlarm/AckedState/Id",
             "Events/OverTempAlarm/Acknowledge",
             "Events/OverTempAlarm/Acknowledge/InputArguments",
-            // Empty argument properties on argument-less standard methods.
-            // The generated ConditionType declaration materialises
-            // InputArguments/OutputArguments even where the method takes
-            // none; pinned here so the deviation stays visible.
-            "Events/OverTempAlarm/Acknowledge/OutputArguments",
             "Events/OverTempAlarm/ActiveState",
             "Events/OverTempAlarm/ActiveState/Id",
             "Events/OverTempAlarm/AddComment",
             "Events/OverTempAlarm/AddComment/InputArguments",
-            "Events/OverTempAlarm/AddComment/OutputArguments",
             "Events/OverTempAlarm/BranchId",
             "Events/OverTempAlarm/ClientUserId",
             "Events/OverTempAlarm/Comment",
@@ -101,11 +95,7 @@ namespace Opc.Ua.Di.Tests
             "Events/OverTempAlarm/ConditionClassName",
             "Events/OverTempAlarm/ConditionName",
             "Events/OverTempAlarm/Disable",
-            "Events/OverTempAlarm/Disable/InputArguments",
-            "Events/OverTempAlarm/Disable/OutputArguments",
             "Events/OverTempAlarm/Enable",
-            "Events/OverTempAlarm/Enable/InputArguments",
-            "Events/OverTempAlarm/Enable/OutputArguments",
             "Events/OverTempAlarm/EnabledState",
             "Events/OverTempAlarm/EnabledState/Id",
             "Events/OverTempAlarm/EventId",
@@ -305,40 +295,24 @@ namespace Opc.Ua.Di.Tests
         }
 
         /// <summary>
-        /// A pump materialised without the fluent configuration must expose the
-        /// same generated model surface as the configured one, minus what the
-        /// fluent wiring adds on top (the alarm and the engineering-unit
-        /// properties). This proves the generated helpers materialise the model
-        /// identically for every instance of the type.
+        /// Every pump created after startup must receive the same fluent
+        /// simulation surface as the initially configured pump.
         /// </summary>
         [Test]
-        public void EveryPumpInstanceExposesTheSameGeneratedModelSurface()
+        public void EveryPumpInstanceExposesTheSameSimulationSurface()
         {
             IEnumerable<string> configured = CollectSubtree(m_configuredPump!)
-                .Select(node => node.Path)
-                .Where(path => !IsAddedByFluentConfiguration(path));
+                .Select(node => node.Path);
             IEnumerable<string> second = CollectSubtree(m_secondPump!)
                 .Select(node => node.Path);
 
             Assert.That(second, Is.EquivalentTo(configured));
             Assert.That(second, Contains.Item("Identification/SerialNumber"));
             Assert.That(second, Contains.Item("Operational/Measurements/PumpEfficiency"));
+            Assert.That(second, Contains.Item("Events/OverTempAlarm"));
             Assert.That(
                 second,
                 Contains.Item("Events/SupervisionPumpOperation/MotorOverheat/TrueState"));
-        }
-
-        /// <summary>
-        /// Paths that the fluent <c>Configure</c> pass adds on top of the
-        /// generated model surface, and which therefore only exist on the
-        /// configured pump.
-        /// </summary>
-        private static bool IsAddedByFluentConfiguration(string path)
-        {
-            return path == "Events/OverTempAlarm" ||
-                path.StartsWith(AlarmSubtreePrefix, StringComparison.Ordinal) ||
-                path.EndsWith("/EURange", StringComparison.Ordinal) ||
-                path.EndsWith("/EngineeringUnits", StringComparison.Ordinal);
         }
 
         /// <summary>
@@ -397,6 +371,54 @@ namespace Opc.Ua.Di.Tests
 
             Assert.That(nodeIds, Has.None.Matches<NodeId>(nodeId => nodeId.IsNull));
             Assert.That(nodeIds.Distinct().Count(), Is.EqualTo(nodeIds.Count));
+        }
+
+        [Test]
+        public void EveryPumpExposesTheEventNotifierHierarchy()
+        {
+            foreach (PumpState pump in new[] { m_configuredPump!, m_secondPump! })
+            {
+                SupervisionState events = pump.Events!;
+                Assert.Multiple(() =>
+                {
+                    Assert.That(
+                        pump.EventNotifier & EventNotifiers.SubscribeToEvents,
+                        Is.Not.Zero);
+                    Assert.That(
+                        events.EventNotifier & EventNotifiers.SubscribeToEvents,
+                        Is.Not.Zero);
+                });
+
+                var pumpReferences = new List<IReference>();
+                pump.GetReferences(m_manager!.SystemContext, pumpReferences);
+                Assert.That(
+                    pumpReferences,
+                    Has.Exactly(1).Matches<IReference>(reference =>
+                        reference.ReferenceTypeId == Opc.Ua.Types.ReferenceTypeIds.HasNotifier &&
+                        !reference.IsInverse &&
+                        reference.TargetId == events.NodeId));
+
+                BaseInstanceState alarm = CollectSubtree(pump)
+                    .Single(node => node.Path == "Events/OverTempAlarm")
+                    .State;
+                var eventReferences = new List<IReference>();
+                events.GetReferences(m_manager.SystemContext, eventReferences);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(
+                        eventReferences,
+                        Has.Exactly(1).Matches<IReference>(reference =>
+                            reference.ReferenceTypeId == Opc.Ua.Types.ReferenceTypeIds.HasNotifier &&
+                            reference.IsInverse &&
+                            reference.TargetId == pump.NodeId));
+                    Assert.That(
+                        eventReferences,
+                        Has.Exactly(1).Matches<IReference>(reference =>
+                            reference.ReferenceTypeId == Opc.Ua.Types.ReferenceTypeIds.HasEventSource &&
+                            !reference.IsInverse &&
+                            reference.TargetId == alarm.NodeId));
+                });
+            }
         }
 
         /// <summary>
