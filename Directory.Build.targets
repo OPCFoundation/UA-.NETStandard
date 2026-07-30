@@ -77,4 +77,28 @@
                 Condition="$([System.String]::Copy('%(Analyzer.Identity)').Contains('Microsoft.Gen.Logging'))" />
     </ItemGroup>
   </Target>
+  <!--
+    A `ProjectReference` with `OutputItemType=Analyzer` hands the compiler only the referenced
+    project's own assembly, never its runtime closure. The `Opc.Ua.SourceGeneration*` generators
+    need Opc.Ua.SourceGeneration.Core, Opc.Ua.Types and the Microsoft.Extensions.Logging /
+    System.Text.Json graph at generator-load time, so without those paths the compiler cannot
+    resolve them and the generators fail to initialize (CS8784).
+
+    Registering the closure as `Analyzer` items mirrors the `analyzers/dotnet/<roslyn>/cs`
+    payload the generator NuGet packages ship (see tools/SourceGeneratorPack.targets), which
+    NuGet registers the same way for package consumers. The closure is discovered by globbing
+    the generator's output directory, so a new dependency never needs a project file change.
+    Roslyn host assemblies are excluded because the compiler already provides them.
+  -->
+  <Target Name="AddSourceGeneratorAnalyzerDependencies" BeforeTargets="CoreCompile">
+    <ItemGroup>
+      <_SourceGeneratorAnalyzer Include="@(Analyzer)"
+                                Condition="'%(Analyzer.MSBuildSourceProjectFile)' != '' AND
+                                  $([System.String]::Copy('%(Analyzer.Filename)').StartsWith('Opc.Ua.SourceGeneration'))" />
+      <_SourceGeneratorAnalyzerDependency
+          Include="%(_SourceGeneratorAnalyzer.RootDir)%(_SourceGeneratorAnalyzer.Directory)*.dll"
+          Exclude="@(_SourceGeneratorAnalyzer);%(_SourceGeneratorAnalyzer.RootDir)%(_SourceGeneratorAnalyzer.Directory)Microsoft.CodeAnalysis*.dll" />
+      <Analyzer Include="@(_SourceGeneratorAnalyzerDependency->Distinct())" />
+    </ItemGroup>
+  </Target>
 </Project>

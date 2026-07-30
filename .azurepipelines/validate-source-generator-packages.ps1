@@ -91,30 +91,47 @@ function Test-PackageContents
         [string] $GeneratorAssembly
     )
 
-    $analyzerPath = "analyzers/dotnet/cs/"
+    $analyzerRoot = "analyzers/dotnet/"
     $requiredAssemblies = @(
         $GeneratorAssembly,
         "Opc.Ua.SourceGeneration.Core.dll",
-        "Opc.Ua.Types.dll",
-        "SourceGenerator.Foundations.Contracts.dll",
-        "SourceGenerator.Foundations.Windows.dll"
+        "Opc.Ua.Types.dll"
     )
-
-    foreach ($assembly in $requiredAssemblies)
-    {
-        Assert-Condition (
-            $Package.Entries -contains "$analyzerPath$assembly"
-        ) "Package '$($Package.Id)' is missing '$analyzerPath$assembly'."
-    }
 
     $dllEntries = @($Package.Entries |
         Where-Object { $_.EndsWith(".dll", [StringComparison]::OrdinalIgnoreCase) })
     Assert-Condition ($dllEntries.Count -gt 0) "Package '$($Package.Id)' contains no assemblies."
     Assert-Condition (
         @($dllEntries | Where-Object { -not $_.StartsWith(
-            $analyzerPath,
+            $analyzerRoot,
             [StringComparison]::OrdinalIgnoreCase) }).Count -eq 0
-    ) "Package '$($Package.Id)' contains assemblies outside '$analyzerPath'."
+    ) "Package '$($Package.Id)' contains assemblies outside '$analyzerRoot'."
+
+    # One folder per supported Roslyn API version; the .NET SDK loads the
+    # highest one its compiler supports.
+    $roslynFolders = @($dllEntries |
+        ForEach-Object { $_.Substring($analyzerRoot.Length).Split("/")[0] } |
+        Sort-Object -Unique)
+    Assert-Condition (
+        $roslynFolders.Count -ge 2
+    ) ("Package '$($Package.Id)' must ship one analyzer folder per supported Roslyn " +
+        "version; found: $($roslynFolders -join ', ').")
+    Assert-Condition (
+        @($roslynFolders | Where-Object { $_ -notmatch "^roslyn[0-9]+\.[0-9]+$" }).Count -eq 0
+    ) ("Package '$($Package.Id)' analyzer folders must be named 'roslyn<major>.<minor>'; " +
+        "found: $($roslynFolders -join ', ').")
+
+    foreach ($roslynFolder in $roslynFolders)
+    {
+        $analyzerPath = "$analyzerRoot$roslynFolder/cs/"
+        foreach ($assembly in $requiredAssemblies)
+        {
+            Assert-Condition (
+                $Package.Entries -contains "$analyzerPath$assembly"
+            ) "Package '$($Package.Id)' is missing '$analyzerPath$assembly'."
+        }
+    }
+
     Assert-Condition (
         @($dllEntries | Where-Object {
             [IO.Path]::GetFileName($_).StartsWith(
@@ -122,6 +139,13 @@ function Test-PackageContents
                 [StringComparison]::OrdinalIgnoreCase)
         }).Count -eq 0
     ) "Package '$($Package.Id)' must not ship Microsoft.CodeAnalysis host assemblies."
+    Assert-Condition (
+        @($dllEntries | Where-Object {
+            [IO.Path]::GetFileName($_).StartsWith(
+                "SourceGenerator.Foundations",
+                [StringComparison]::OrdinalIgnoreCase)
+        }).Count -eq 0
+    ) "Package '$($Package.Id)' must not ship SourceGenerator.Foundations assemblies."
     Assert-Condition (
         $Package.Dependencies.Count -eq 0
     ) "Package '$($Package.Id)' must carry its analyzer runtime closure privately."
@@ -257,9 +281,9 @@ $PackageDirectory = $resolvedPackageDirectory
 $repoRoot = Split-Path $PSScriptRoot -Parent
 $validationRoot = Join-Path (Join-Path $repoRoot "artifacts") "source-generator-consumer"
 Test-ConfigurationPackageIds (
-    Join-Path $repoRoot "tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj")
+    Join-Path $repoRoot "tools\Opc.Ua.SourceGeneration.Pack\Opc.Ua.SourceGeneration.Pack.csproj")
 Test-ConfigurationPackageIds (
-    Join-Path $repoRoot "tools\Opc.Ua.SourceGeneration.Stack\Opc.Ua.SourceGeneration.Stack.csproj")
+    Join-Path $repoRoot "tools\Opc.Ua.SourceGeneration.Stack.Pack\Opc.Ua.SourceGeneration.Stack.Pack.csproj")
 $modelPackage = Get-PackageInfo "OPCFoundation.NetStandard.Opc.Ua.SourceGeneration"
 $stackPackage = Get-PackageInfo "OPCFoundation.NetStandard.Opc.Ua.SourceGeneration.Stack"
 

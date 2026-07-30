@@ -1,16 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Visual Studio 2026 build of the OPC UA migration analyzer, and the project
+    that packs the whole migration package. The sibling
+    Opc.Ua.MigrationAnalyzer.Roslyn4_8 project produces the Visual Studio 2022
+    payload from the same sources.
+  -->
+  <!-- Already imported by Directory.Packages.props; the condition keeps this project self-contained. -->
+  <Import Project="..\RoslynVariants.props" Condition="'$(RoslynApiVersionVS2026)' == ''" />
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
-    <IncludeBuildOutput>false</IncludeBuildOutput>
-    <IsRoslynComponent>true</IsRoslynComponent>
-    <AssemblyName>$(AssemblyPrefix).MigrationAnalyzer</AssemblyName>
-    <RootNamespace>Opc.Ua.MigrationAnalyzer</RootNamespace>
-    <Description>OPC UA .NET Standard migration analyzers and code fixers (1.5.378 to 2.0).</Description>
-    <!-- RS1007: localizable resources not required for internal analyzer messages.
-         RS1038: shipping analyzers + code fixes in one assembly is supported - the
-                 NuGet host provides Workspaces in IDE scenarios, and the analyzer
-                 itself doesn't reference Workspaces types. -->
-    <NoWarn>$(NoWarn);RS1007;RS1038</NoWarn>
+    <RoslynApiVersion>$(RoslynApiVersionVS2026)</RoslynApiVersion>
   </PropertyGroup>
   <!-- Package as analyzer + code-fix provider + multi-TFM shim DLLs.
        Layout is driven by Opc.Ua.MigrationAnalyzer.nuspec so we can declare the six
@@ -39,25 +37,8 @@
          here in a static PropertyGroup would capture empty version. -->
   </PropertyGroup>
   <ItemGroup>
-    <!-- Analyzers must target the stable Microsoft.CodeAnalysis 4.x API surface so
-         they load in csc.exe (SDK 10 ships Roslyn 5.6 compiler, but its analyzer
-         host expects analyzers built against 4.x for forward compatibility). The
-         5.x packages in Directory.Packages.props are the *csc-host* version and
-         are NOT a stable analyzer API. Use VersionOverride to pin per-project. -->
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" VersionOverride="4.14.0" PrivateAssets="all" />
-  </ItemGroup>
-  <ItemGroup>
-    <PackageReference Update="NETStandard.Library" PrivateAssets="all" />
-  </ItemGroup>
-  <ItemGroup>
-    <InternalsVisibleTo Include="Opc.Ua.MigrationAnalyzer.Tests" />
-  </ItemGroup>
-  <ItemGroup>
     <!-- The build props is referenced in the nuspec; surface it in the IDE too. -->
     <None Include="OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer.props" Visible="false" Pack="false" />
-    <!-- Roslyn release tracking files. -->
-    <AdditionalFiles Include="AnalyzerReleases.Shipped.md" />
-    <AdditionalFiles Include="AnalyzerReleases.Unshipped.md" />
   </ItemGroup>
   <!-- The Core (shim) project carries the multi-TFM payload that ships in the
        nuspec; we need its package restored (for transitive metadata) and we want
@@ -89,18 +70,27 @@
       <PrivateAssets>all</PrivateAssets>
     </ProjectReference>
   </ItemGroup>
-  <!-- Ensure the multi-TFM Core (shim) DLL AND the CodeFixer + Generator DLLs are
-       built before pack consumes them. The Core ProjectReference above only triggers
+  <!-- Every Roslyn variant of every analyzer assembly that the nuspec ships.
+       Building them here keeps the pack step independent of solution ordering. -->
+  <ItemGroup>
+    <MigrationAnalyzerVariantProject Include="..\Opc.Ua.MigrationAnalyzer.Roslyn4_8\Opc.Ua.MigrationAnalyzer.Roslyn4_8.csproj" />
+    <MigrationAnalyzerVariantProject Include="..\Opc.Ua.MigrationAnalyzer.CodeFixer\Opc.Ua.MigrationAnalyzer.CodeFixer.csproj" />
+    <MigrationAnalyzerVariantProject Include="..\Opc.Ua.MigrationAnalyzer.CodeFixer.Roslyn4_8\Opc.Ua.MigrationAnalyzer.CodeFixer.Roslyn4_8.csproj" />
+    <MigrationAnalyzerVariantProject Include="..\Opc.Ua.MigrationAnalyzer.Generator\Opc.Ua.MigrationAnalyzer.Generator.csproj" />
+    <MigrationAnalyzerVariantProject Include="..\Opc.Ua.MigrationAnalyzer.Generator.Roslyn4_8\Opc.Ua.MigrationAnalyzer.Generator.Roslyn4_8.csproj" />
+  </ItemGroup>
+  <!-- Ensure the multi-TFM Core (shim) DLL AND every analyzer variant are built
+       before pack consumes them. The Core ProjectReference above only triggers
        a build of its single closest TFM; invoking the outer build here materializes
        every TFM under bin\$(Configuration)\<tfm>\ that the nuspec <files> entries
-       reference. CodeFixer + Generator cannot be ProjectReferences here (the former
-       back-references this analyzer for shared DiagnosticIds, which creates a NuGet
-       restore cycle; the latter has no compile dependency so a ProjectReference is
-       unneeded); we invoke their builds via MSBuild tasks instead.
+       reference. The analyzer variants cannot be ProjectReferences here (the
+       code fixer back-references this analyzer for shared DiagnosticIds, which
+       creates a NuGet restore cycle; the others have no compile dependency so a
+       ProjectReference is unneeded); we invoke their builds via MSBuild tasks instead.
 
        Skip when NoBuild=true (i.e. `dotnet pack` with the no-build switch): in
        that flow the caller has already built every TFM via a prior `dotnet build`
-       step on the containing solution (all four MigrationAnalyzer projects ship
+       step on the containing solution (all MigrationAnalyzer projects ship
        in UA.slnx and in the generated preview-pack.slnx), so the shim outputs
        already exist on disk. Invoking Build under NoBuild=true would error
        NETSDK1085. -->
@@ -109,11 +99,7 @@
              Targets="Build"
              Properties="Configuration=$(Configuration)"
              RemoveProperties="TargetFramework" />
-    <MSBuild Projects="..\Opc.Ua.MigrationAnalyzer.CodeFixer\Opc.Ua.MigrationAnalyzer.CodeFixer.csproj"
-             Targets="Build"
-             Properties="Configuration=$(Configuration)"
-             RemoveProperties="TargetFramework" />
-    <MSBuild Projects="..\Opc.Ua.MigrationAnalyzer.Generator\Opc.Ua.MigrationAnalyzer.Generator.csproj"
+    <MSBuild Projects="@(MigrationAnalyzerVariantProject)"
              Targets="Build"
              Properties="Configuration=$(Configuration)"
              RemoveProperties="TargetFramework" />
@@ -122,7 +108,17 @@
        inside GetBuildVersion). Static evaluation in a PropertyGroup is too early. -->
   <Target Name="_SetMigrationAnalyzerNuspecProperties" BeforeTargets="GenerateNuspec">
     <PropertyGroup>
-      <NuspecProperties>version=$(PackageVersion);configuration=$(Configuration);repoRoot=$(MSBuildThisFileDirectory)..\..;analyzerDll=$(MSBuildThisFileDirectory)bin\$(Configuration)\netstandard2.0\Opc.Ua.MigrationAnalyzer.dll;codeFixesDll=$(MSBuildThisFileDirectory)..\Opc.Ua.MigrationAnalyzer.CodeFixer\bin\$(Configuration)\netstandard2.0\Opc.Ua.MigrationAnalyzer.CodeFixer.dll;generatorDll=$(MSBuildThisFileDirectory)..\Opc.Ua.MigrationAnalyzer.Generator\bin\$(Configuration)\netstandard2.0\Opc.Ua.MigrationAnalyzer.Generator.dll;shimBin=$(MSBuildThisFileDirectory)..\Opc.Ua.MigrationAnalyzer.Core\bin\$(Configuration);readme=$(MSBuildThisFileDirectory)NugetREADME.md;propsFile=$(MSBuildThisFileDirectory)OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer.props</NuspecProperties>
+      <_MigrationAnalyzerToolsDir>$(MSBuildThisFileDirectory)..</_MigrationAnalyzerToolsDir>
+      <_MigrationAnalyzerBin50>$(MSBuildThisFileDirectory)bin\$(Configuration)\netstandard2.0</_MigrationAnalyzerBin50>
+      <_MigrationAnalyzerBin48>$(_MigrationAnalyzerToolsDir)\Opc.Ua.MigrationAnalyzer.Roslyn4_8\bin\$(Configuration)\netstandard2.0</_MigrationAnalyzerBin48>
+      <_MigrationCodeFixerBin50>$(_MigrationAnalyzerToolsDir)\Opc.Ua.MigrationAnalyzer.CodeFixer\bin\$(Configuration)\netstandard2.0</_MigrationCodeFixerBin50>
+      <_MigrationCodeFixerBin48>$(_MigrationAnalyzerToolsDir)\Opc.Ua.MigrationAnalyzer.CodeFixer.Roslyn4_8\bin\$(Configuration)\netstandard2.0</_MigrationCodeFixerBin48>
+      <_MigrationGeneratorBin50>$(_MigrationAnalyzerToolsDir)\Opc.Ua.MigrationAnalyzer.Generator\bin\$(Configuration)\netstandard2.0</_MigrationGeneratorBin50>
+      <_MigrationGeneratorBin48>$(_MigrationAnalyzerToolsDir)\Opc.Ua.MigrationAnalyzer.Generator.Roslyn4_8\bin\$(Configuration)\netstandard2.0</_MigrationGeneratorBin48>
+    </PropertyGroup>
+    <PropertyGroup>
+      <NuspecProperties>version=$(PackageVersion);configuration=$(Configuration);repoRoot=$(MSBuildThisFileDirectory)..\..;roslynFolderVS2022=$(RoslynAnalyzerFolderVS2022);roslynFolderVS2026=$(RoslynAnalyzerFolderVS2026);analyzerDllVS2026=$(_MigrationAnalyzerBin50)\Opc.Ua.MigrationAnalyzer.dll;analyzerDllVS2022=$(_MigrationAnalyzerBin48)\Opc.Ua.MigrationAnalyzer.dll;codeFixesDllVS2026=$(_MigrationCodeFixerBin50)\Opc.Ua.MigrationAnalyzer.CodeFixer.dll;codeFixesDllVS2022=$(_MigrationCodeFixerBin48)\Opc.Ua.MigrationAnalyzer.CodeFixer.dll;generatorDllVS2026=$(_MigrationGeneratorBin50)\Opc.Ua.MigrationAnalyzer.Generator.dll;generatorDllVS2022=$(_MigrationGeneratorBin48)\Opc.Ua.MigrationAnalyzer.Generator.dll;shimBin=$(MSBuildThisFileDirectory)..\Opc.Ua.MigrationAnalyzer.Core\bin\$(Configuration);readme=$(MSBuildThisFileDirectory)NugetREADME.md;propsFile=$(MSBuildThisFileDirectory)OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer.props</NuspecProperties>
     </PropertyGroup>
   </Target>
+  <Import Project="Opc.Ua.MigrationAnalyzer.Sources.targets" />
 </Project>

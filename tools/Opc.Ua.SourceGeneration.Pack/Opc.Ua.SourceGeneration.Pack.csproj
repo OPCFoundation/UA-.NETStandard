@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Produces the OPC UA model source generator NuGet package. The package ships
+    one analyzer folder per Roslyn variant; the .NET SDK picks the highest one
+    its compiler supports.
+  -->
+  <!-- Already imported by Directory.Packages.props; the condition keeps this project self-contained. -->
+  <Import Project="..\RoslynVariants.props" Condition="'$(RoslynApiVersionVS2026)' == ''" />
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <PackageId>$(PackagePrefix).Opc.Ua.SourceGeneration</PackageId>
+    <AssemblyName>$(AssemblyPrefix).SourceGeneration.Pack</AssemblyName>
+    <RootNamespace>Opc.Ua.SourceGeneration</RootNamespace>
+    <Description>OPC UA model source generator</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <SourceGeneratorVariant Include="..\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj"
+                            RoslynAnalyzerFolder="$(RoslynAnalyzerFolderVS2026)" />
+    <SourceGeneratorVariant Include="..\Opc.Ua.SourceGeneration.Roslyn4_8\Opc.Ua.SourceGeneration.Roslyn4_8.csproj"
+                            RoslynAnalyzerFolder="$(RoslynAnalyzerFolderVS2022)" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- NuGet only auto-imports build\<PackageId>.props, so the file has to be
+         renamed on the way into the package (the id gains a .Debug suffix in
+         Debug configuration). -->
+    <None Include="..\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props"
+          Visible="false" Pack="true" PackagePath="build\$(PackageId).props" />
+  </ItemGroup>
+  <Import Project="..\SourceGeneratorPack.targets" />
+</Project>

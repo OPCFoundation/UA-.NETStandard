@@ -1,0 +1,74 @@
+<Project>
+  <!--
+    Packaging shared by the source generator `*.Pack` projects.
+
+    A pack project owns nothing but the package identity; it lists the generator
+    variants it ships in `@(SourceGeneratorVariant)`, each stamped with the
+    `analyzers/dotnet/<folder>/cs` folder its Roslyn API version maps to.
+
+    The payload is collected by globbing each variant's output directory rather
+    than by enumerating assemblies, so any package or project added to a
+    generator's dependency tree flows into every Roslyn folder without touching
+    a project file. Roslyn host assemblies are excluded because the compiler
+    already provides them and loading a second copy breaks the analyzer host.
+
+    The `ProjectReference` entries exist purely for build ordering and NuGet
+    graph correctness. `ReferenceOutputAssembly` is off, the assemblies are
+    taken from disk. That also keeps packing with `NoBuild` working, where the
+    variants were built by a preceding solution build.
+  -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <IsPackable>true</IsPackable>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <!-- The analyzer payload is custom package content, so no build-output symbol package is produced. -->
+    <IncludeSymbols>false</IncludeSymbols>
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+    <DevelopmentDependency>true</DevelopmentDependency>
+    <NoPackageAnalysis>true</NoPackageAnalysis>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageLicenseFile></PackageLicenseFile>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <!-- The pack project carries no code and its assembly is never shipped, so
+         there is nothing for the analyzers to inspect. -->
+    <RunAnalyzers>false</RunAnalyzers>
+    <EnableNETAnalyzers>false</EnableNETAnalyzers>
+    <NoRoslynatorAnalzers>true</NoRoslynatorAnalzers>
+    <TargetsForTfmSpecificContentInPackage>
+      $(TargetsForTfmSpecificContentInPackage);IncludeSourceGeneratorAnalyzerAssets
+    </TargetsForTfmSpecificContentInPackage>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="@(SourceGeneratorVariant)">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <PrivateAssets>all</PrivateAssets>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+  <Target Name="IncludeSourceGeneratorAnalyzerAssets">
+    <PropertyGroup>
+      <_SourceGeneratorVariantTargetFramework>netstandard2.0</_SourceGeneratorVariantTargetFramework>
+    </PropertyGroup>
+    <ItemGroup>
+      <_SourceGeneratorVariantAssembly
+          Include="%(SourceGeneratorVariant.RootDir)%(SourceGeneratorVariant.Directory)bin\$(Configuration)\$(_SourceGeneratorVariantTargetFramework)\*.dll"
+          Exclude="%(SourceGeneratorVariant.RootDir)%(SourceGeneratorVariant.Directory)bin\$(Configuration)\$(_SourceGeneratorVariantTargetFramework)\Microsoft.CodeAnalysis*.dll">
+        <RoslynAnalyzerFolder>%(SourceGeneratorVariant.RoslynAnalyzerFolder)</RoslynAnalyzerFolder>
+      </_SourceGeneratorVariantAssembly>
+      <TfmSpecificPackageFile Include="@(_SourceGeneratorVariantAssembly)">
+        <PackagePath>analyzers/dotnet/%(_SourceGeneratorVariantAssembly.RoslynAnalyzerFolder)/cs/%(_SourceGeneratorVariantAssembly.Filename)%(_SourceGeneratorVariantAssembly.Extension)</PackagePath>
+      </TfmSpecificPackageFile>
+    </ItemGroup>
+    <Error Condition="'@(_SourceGeneratorVariantAssembly)' == ''"
+           Text="No source generator assemblies found for $(PackageId). Build the @(SourceGeneratorVariant->Count()) variant project(s) for configuration '$(Configuration)' first." />
+  </Target>
+</Project>

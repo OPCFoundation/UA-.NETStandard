@@ -27,40 +27,58 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.Diagnostics;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
 
 namespace Opc.Ua.SourceGeneration
 {
     /// <summary>
-    /// Captures compilation options.
+    /// Shared helpers for the source generator entry points. The file is
+    /// linked into every generator assembly, each of which supplies its own
+    /// diagnostic descriptors in the other half of the partial class.
     /// </summary>
-    internal record struct CompilationOptions(
-        LanguageVersion LanguageVersion,
-        string AssemblyName,
-        OptimizationLevel OptimizationLevel,
-        Platform Platform,
-        OutputKind OutputKind)
+    internal static partial class SourceGenerator
     {
         /// <summary>
-        /// True when the compilation targets C# 13 or newer. The underlying
-        /// value is compared because the <c>LanguageVersion.CSharp13</c> member
-        /// only exists in Roslyn 4.12 and later, while the generator is also
-        /// built against the Visual Studio 2022 baseline.
+        /// Runs a source output callback and converts an unhandled exception
+        /// into a diagnostic. Roslyn fails the whole compilation with a bare
+        /// stack trace when a generator throws, so every callback funnels
+        /// through here to report a well-formed diagnostic instead.
         /// </summary>
-        public readonly bool IsCSharp13OrLater => (int)LanguageVersion >= 1300;
+        public static void Guard(SourceProductionContext context, Action action)
+        {
+            try
+            {
+                action();
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                context.ReportDiagnostic(
+                    Diagnostic.Create(
+                        Exception,
+                        Location.None,
+                        ex.Message,
+                        ex.StackTrace));
+            }
+        }
 
         /// <summary>
-        /// Create options from a compilation.
+        /// Attaches a debugger to the compiler process hosting the generator.
+        /// Compiled away unless the generator is built with the DEBUGX
+        /// constant defined.
         /// </summary>
-        internal static CompilationOptions From(Compilation c)
+        [Conditional("DEBUGX")]
+        public static void AttachDebuggerIfRequested()
         {
-            return new CompilationOptions(
-                c is CSharpCompilation cs ? cs.LanguageVersion : LanguageVersion.CSharp1,
-                c.AssemblyName,
-                c.Options.OptimizationLevel,
-                c.Options.Platform,
-                c.Options.OutputKind);
+            if (!Debugger.IsAttached)
+            {
+                Debugger.Launch();
+            }
         }
     }
 }

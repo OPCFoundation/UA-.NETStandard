@@ -20,7 +20,7 @@ The C# language version is pinned (`LangVersion` 14) and analyzer/style rules ar
 | `src/` | The core stack and higher-level libraries: `Opc.Ua.Types`, `Opc.Ua.Core*`, `Opc.Ua.Client`, `Opc.Ua.Server`, `Opc.Ua.Configuration`, `Opc.Ua.PubSub` (+ transports), the GDS / DI / LDS / WoT libraries, and the `Opc.Ua.Redundancy*` family. |
 | `samples/` | Reference and sample apps: `ConsoleReferenceServer`, `ConsoleReferenceClient`, `Quickstarts.Servers`, the `Minimal*` / `PumpDeviceIntegrationServer` NativeAOT samples, `Redundant*`, etc. |
 | `tests/` | Unit and integration test projects, mirroring the library structure, plus shared test frameworks. |
-| `tools/` | Source generators, migration analyzers, and the installable `Opc.Ua.Mcp` tool. |
+| `tools/` | Source generators, migration analyzers, and the installable `Opc.Ua.Mcp` tool. Each analyzer and generator has a primary project (Visual Studio 2026 Roslyn API), a `*.Roslyn4_8` sibling that glob-links the same sources for the Visual Studio 2022 API, and — for the source generators — a `*.Pack` project that packages both. |
 | `docs/` | This documentation set (indexed by [docs/README.md](README.md)). |
 | `fuzzing/` | SharpFuzz / libFuzzer fuzz targets (see [Fuzzing.md](../fuzzing/Fuzzing.md)). |
 
@@ -51,6 +51,8 @@ Notes:
   ```
 
 - **Offline / restricted networks.** `NuGetAudit` is enabled and fails the build with `NU1900` when it cannot reach the audit service. If you build offline, pass `-p:NuGetAudit=false`.
+- **Source generators are consumed as project references.** Projects that use the in-repo generators reference `tools/Opc.Ua.SourceGeneration[.Stack]` with `OutputItemType=Analyzer`. MSBuild only hands the compiler the generator assembly itself, so `Directory.Build.targets` adds the generator's runtime closure (its output directory, minus the Roslyn host assemblies) as `Analyzer` items — the same payload the generator NuGet packages ship under `analyzers/dotnet/<roslyn>/cs`. Without it the generators cannot resolve their dependencies and fail to initialise with `CS8784`.
+- **Analyzers and generators are built once per supported Roslyn API version.** `tools/RoslynVariants.props` pins the two versions (Visual Studio 2022 and Visual Studio 2026); each analyzer has a primary project plus a `*.Roslyn4_8` sibling that glob-links the same sources, and a `*.Pack` project that ships both under `analyzers/dotnet/roslyn<major>.<minor>/cs`. See [Repository layout](#repository-layout) and the [support matrix](#supported-target-frameworks). Because the repository's own projects consume the Visual Studio 2026 variant, **building this repository requires a Roslyn 5.x host** (the .NET 10 SDK or Visual Studio 2026).
 
 ## Running tests
 
@@ -228,6 +230,17 @@ The class libraries currently target:
 7. .NET 10.0
 
 To keep pull-request CI fast, only (4) and (6) are part of the qualifying build; the other platforms are covered by scheduled or manual CI. See [Running tests](#running-tests) for how to build and test a specific framework locally with `CustomTestTarget` / `tests/customtest.bat`.
+
+### Supported analyzer and source generator hosts
+
+The analyzer and source generator packages ship one assembly per Roslyn API version under `analyzers/dotnet/roslyn<major>.<minor>/cs`; the .NET SDK loads the highest folder its compiler supports.
+
+| Roslyn API | Package folder | Minimum host |
+| --- | --- | --- |
+| 4.8 | `analyzers/dotnet/roslyn4.8/cs` | Visual Studio 2022 17.8 / .NET 8 SDK |
+| 5.0 | `analyzers/dotnet/roslyn5.0/cs` | Visual Studio 2026 18.0 / .NET 10 SDK |
+
+The versions are declared once in `tools/RoslynVariants.props`. Source that has to compile against both must avoid APIs added after the lower baseline — for example `LanguageVersion.CSharp13` only exists from Roslyn 4.12, so `CompilationOptions.IsCSharp13OrLater` compares the underlying value instead.
 
 ### Versioning
 

@@ -1,0 +1,21 @@
+<Project>
+  <!--
+    Single source of truth for the Roslyn API versions the OPC UA analyzers and
+    source generators are built against. Every analyzer ships one assembly per
+    entry, packaged under `analyzers/dotnet/<folder>/cs`; the .NET SDK then
+    loads the highest folder its compiler supports.
+
+    See https://learn.microsoft.com/visualstudio/extensibility/roslyn-version-support
+    for the Roslyn package version to Visual Studio mapping.
+  -->
+  <PropertyGroup>
+    <!-- Visual Studio 2022 17.8+ / .NET 8 SDK. -->
+    <RoslynApiVersionVS2022>4.8.0</RoslynApiVersionVS2022>
+    <!-- Visual Studio 2026 18.0+ / .NET 10 SDK. -->
+    <RoslynApiVersionVS2026>5.0.0</RoslynApiVersionVS2026>
+  </PropertyGroup>
+  <PropertyGroup>
+    <RoslynAnalyzerFolderVS2022>roslyn$(RoslynApiVersionVS2022.Substring(0, $(RoslynApiVersionVS2022.LastIndexOf('.'))))</RoslynAnalyzerFolderVS2022>
+    <RoslynAnalyzerFolderVS2026>roslyn$(RoslynApiVersionVS2026.Substring(0, $(RoslynApiVersionVS2026.LastIndexOf('.'))))</RoslynAnalyzerFolderVS2026>
+  </PropertyGroup>
+</Project>

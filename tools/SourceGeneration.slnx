@@ -3,7 +3,11 @@
     <Project Path="../tests/Opc.Ua.SourceGeneration.Stack.Tests/Opc.Ua.SourceGeneration.Stack.Tests.csproj" />
     <Project Path="../tests/Opc.Ua.SourceGeneration.Tests/Opc.Ua.SourceGeneration.Tests.csproj" />
     <Project Path="Opc.Ua.SourceGeneration.Stack/Opc.Ua.SourceGeneration.Stack.csproj" />
+    <Project Path="Opc.Ua.SourceGeneration.Stack.Roslyn4_8/Opc.Ua.SourceGeneration.Stack.Roslyn4_8.csproj" />
+    <Project Path="Opc.Ua.SourceGeneration.Stack.Pack/Opc.Ua.SourceGeneration.Stack.Pack.csproj" />
     <Project Path="Opc.Ua.SourceGeneration/Opc.Ua.SourceGeneration.csproj" />
+    <Project Path="Opc.Ua.SourceGeneration.Roslyn4_8/Opc.Ua.SourceGeneration.Roslyn4_8.csproj" />
+    <Project Path="Opc.Ua.SourceGeneration.Pack/Opc.Ua.SourceGeneration.Pack.csproj" />
   </Folder>
   <Folder Name="/Solution Items/">
     <File Path="../.editorconfig" />

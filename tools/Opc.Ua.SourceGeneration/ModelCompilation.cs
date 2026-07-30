@@ -36,8 +36,6 @@ using System.Threading;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Opc.Ua.SourceGeneration.Dependency;
-using ILogger = SGF.Diagnostics.ILogger;
-using SourceProductionContext = SGF.SgfSourceProductionContext;
 
 namespace Opc.Ua.SourceGeneration
 {
@@ -63,8 +61,7 @@ namespace Opc.Ua.SourceGeneration
             CompilationOptions compilationOptions,
             ImmutableArray<ModelDependencyReference> referencedModels,
             ImmutableArray<NodeManagerAttributeDiscovery> nodeManagerBindings,
-            ImmutableHashSet<string> availableStateTypeNames,
-            ILogger logger)
+            ImmutableHashSet<string> availableStateTypeNames)
         {
             m_context = context;
             m_input = inputFiles;
@@ -75,7 +72,7 @@ namespace Opc.Ua.SourceGeneration
             m_nodeManagerBindings = nodeManagerBindings;
             m_referencedModels = referencedModels;
             m_availableStateTypeNames = availableStateTypeNames;
-            m_telemetry = SourceGeneratorTelemetry.Create(logger, m_context);
+            m_telemetry = SourceGeneratorTelemetry.Create(m_context);
         }
 
         /// <summary>

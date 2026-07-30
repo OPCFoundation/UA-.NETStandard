@@ -31,9 +31,6 @@ using System;
 using System.Diagnostics;
 using Microsoft.CodeAnalysis;
 using Microsoft.Extensions.Logging;
-using ExternalLogLevel = SGF.Diagnostics.LogLevel;
-using IExternalLogger = SGF.Diagnostics.ILogger;
-using SourceProductionContext = SGF.SgfSourceProductionContext;
 
 namespace Opc.Ua.SourceGeneration
 {
@@ -60,17 +57,16 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <summary>
-        /// Create telemetry context
+        /// Create telemetry context. Warnings and errors raised by the
+        /// generator libraries surface as compiler diagnostics; anything
+        /// below is dropped because a generator has no build output sink.
         /// </summary>
-        /// <returns></returns>
-        public static SourceGeneratorTelemetry Create(
-            IExternalLogger logger,
-            SourceProductionContext context)
+        public static SourceGeneratorTelemetry Create(SourceProductionContext context)
         {
             ILoggerFactory factory = null;
             try
             {
-                factory = new LoggerFactoryAdapter(logger, context);
+                factory = new LoggerFactoryAdapter(context);
                 var result = new SourceGeneratorTelemetry(factory);
                 factory = null;
                 return result;
@@ -89,13 +85,9 @@ namespace Opc.Ua.SourceGeneration
             /// <summary>
             /// Create adapter
             /// </summary>
-            /// <param name="logger"></param>
             /// <param name="context"></param>
-            public LoggerFactoryAdapter(
-                IExternalLogger logger,
-                SourceProductionContext context)
+            public LoggerFactoryAdapter(SourceProductionContext context)
             {
-                m_logger = logger;
                 m_context = context;
             }
 
@@ -107,7 +99,7 @@ namespace Opc.Ua.SourceGeneration
             /// <inheritdoc/>
             public ILogger CreateLogger(string categoryName)
             {
-                return new LoggerAdapter(categoryName, m_context, m_logger);
+                return new LoggerAdapter(categoryName, m_context);
             }
 
             /// <inheritdoc/>
@@ -115,7 +107,6 @@ namespace Opc.Ua.SourceGeneration
             {
             }
 
-            private readonly IExternalLogger m_logger;
             private readonly SourceProductionContext m_context;
         }
 
@@ -129,12 +120,10 @@ namespace Opc.Ua.SourceGeneration
             /// </summary>
             public LoggerAdapter(
                 string categoryName,
-                SourceProductionContext context,
-                IExternalLogger logger)
+                SourceProductionContext context)
             {
                 m_categoryName = categoryName;
                 m_context = context;
-                m_logger = logger;
             }
 
             /// <inheritdoc/>
@@ -146,9 +135,6 @@ namespace Opc.Ua.SourceGeneration
             public bool IsEnabled(LogLevel logLevel)
             {
                 return logLevel > LogLevel.Information;
-#if UNUSED
-                return m_logger.IsEnabled(GetLogLevel(logLevel));
-#endif
             }
 
             /// <inheritdoc/>
@@ -175,13 +161,7 @@ namespace Opc.Ua.SourceGeneration
                     return;
                 }
 
-                message = $"[{m_categoryName}] {message}";
-                m_logger.Log(
-                    GetLogLevel(logLevel),
-                    exception,
-                    message);
-
-                Debug.WriteLine(message);
+                Debug.WriteLine($"[{m_categoryName}] {message}");
             }
 
             /// <inheritdoc/>
@@ -190,20 +170,7 @@ namespace Opc.Ua.SourceGeneration
                 return this;
             }
 
-            private static ExternalLogLevel GetLogLevel(LogLevel logLevel)
-            {
-                return logLevel switch
-                {
-                    LogLevel.Trace or LogLevel.Debug => ExternalLogLevel.Debug,
-                    LogLevel.Information => ExternalLogLevel.Information,
-                    LogLevel.Warning => ExternalLogLevel.Warning,
-                    LogLevel.Error or LogLevel.Critical => ExternalLogLevel.Error,
-                    _ => ExternalLogLevel.Information
-                };
-            }
-
             private readonly string m_categoryName;
-            private readonly IExternalLogger m_logger;
             private readonly SourceProductionContext m_context;
         }
 
