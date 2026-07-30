@@ -39,11 +39,13 @@ namespace Opc.Ua.Client.ModelChange
     /// </summary>
     /// <param name="Verb">The change verb.</param>
     /// <param name="AffectedNode">NodeId of the node affected.</param>
-    /// <param name="TypeDefinition">Optional type definition NodeId.</param>
-    public record struct ModelChange(
+    /// <param name="TypeDefinition">Type definition NodeId of the
+    /// affected node. <see cref="NodeId.Null"/> when the server did not
+    /// report one.</param>
+    public readonly record struct ModelChange(
         ModelChangeVerb Verb,
         NodeId AffectedNode,
-        NodeId? TypeDefinition);
+        NodeId TypeDefinition);
 
     /// <summary>
     /// The kind of address-space change reported.
@@ -99,14 +101,24 @@ namespace Opc.Ua.Client.ModelChange
         public bool RequiresFullCacheInvalidation { get; }
 
         /// <summary>
+        /// True when the tracker re-read the server namespace table
+        /// before raising this event because the change indicated that
+        /// the server namespace array may have changed. NodeIds from
+        /// namespaces added by the server resolve from this point on.
+        /// </summary>
+        public bool NamespaceTableRefreshed { get; }
+
+        /// <summary>
         /// Constructs new args.
         /// </summary>
         public ModelChangedEventArgs(
             IReadOnlyList<ModelChange> changes,
-            bool requiresFullCacheInvalidation)
+            bool requiresFullCacheInvalidation,
+            bool namespaceTableRefreshed = false)
         {
             Changes = changes ?? [];
             RequiresFullCacheInvalidation = requiresFullCacheInvalidation;
+            NamespaceTableRefreshed = namespaceTableRefreshed;
         }
     }
 
