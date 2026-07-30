@@ -91,6 +91,18 @@ namespace Opc.Ua.Bindings
         {
             _ = quotas;
             m_transportFactory.SetEndpointDescription(settings.Description);
+            m_transportFactory.SetClientCertificate(settings.ClientCertificate);
+        }
+
+        /// <inheritdoc/>
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                m_transportFactory.DisposeClientCertificate();
+            }
+
+            base.Dispose(disposing);
         }
 
         private readonly QuicByteTransportFactory m_transportFactory;

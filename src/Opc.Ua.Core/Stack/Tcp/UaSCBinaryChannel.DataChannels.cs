@@ -187,12 +187,17 @@ namespace Opc.Ua.Bindings
 
         /// <summary>
         /// Tracks how much of the SecureChannel SequenceNumber space
-        /// remains under the current SecurityToken. STR frames consume
-        /// SequenceNumbers at the data rate of the channel rather than at
-        /// Service call rate, which is what makes the budget of
-        /// Part 6 errata 5.1.1 necessary at all.
+        /// remains under the current SecurityToken. STR, MSG, OPN and CLO
+        /// chunks all consume the same sender SequenceNumber space.
         /// </summary>
-        public DataChannelSequenceBudget SequenceBudget => m_sequenceBudget;
+        public DataChannelSequenceBudget SequenceBudget
+        {
+            get
+            {
+                SynchronizeSequenceBudget();
+                return m_sequenceBudget;
+            }
+        }
 
         /// <summary>
         /// True when the SequenceNumber space remaining under the current
@@ -200,7 +205,14 @@ namespace Opc.Ua.Bindings
         /// channel should initiate OpenSecureChannel with
         /// RenewalRequest ahead of the normal lifetime based renewal.
         /// </summary>
-        public bool IsSequenceRenewalDue => m_sequenceBudget.ShouldRenew;
+        public bool IsSequenceRenewalDue
+        {
+            get
+            {
+                SynchronizeSequenceBudget();
+                return m_sequenceBudget.ShouldRenew;
+            }
+        }
 
         /// <summary>
         /// Writes one data channel frame as a STR chunk.
@@ -241,6 +253,8 @@ namespace Opc.Ua.Bindings
                     // a slow renewal can still be overtaken. A sender stalls
                     // its data channels rather than emitting a chunk that
                     // would reuse a SequenceNumber under the current TokenId.
+                    SynchronizeSequenceBudget();
+
                     if (!m_sequenceBudget.TryConsume())
                     {
                         throw ServiceResultException.Create(
@@ -310,6 +324,44 @@ namespace Opc.Ua.Bindings
                 "The transport was closed by the remote application.");
         }
 
+        private void SynchronizeSequenceBudget()
+        {
+            // m_sequenceNumber counts for the lifetime of the channel, but
+            // the budget is per SecurityToken, so what is consumed under the
+            // current token is the distance from the value the counter held
+            // when that token was activated. Observing the raw counter would
+            // undo every reset the moment it was made, leaving the budget
+            // permanently exhausted on a long lived channel even though each
+            // new token brings a fresh space.
+            long issued = Interlocked.Read(ref m_sequenceNumber);
+            long baseline = Interlocked.Read(ref m_sequenceBudgetBaseline);
+
+            if (issued < baseline)
+            {
+                // The space wrapped under this token, so the count restarts
+                // from the new origin rather than going negative.
+                Interlocked.Exchange(ref m_sequenceBudgetBaseline, 0);
+                baseline = 0;
+            }
+
+            m_sequenceBudget.ObserveConsumed(issued - baseline);
+        }
+
+        /// <summary>
+        /// Rebases the SequenceNumber budget on a newly activated
+        /// SecurityToken. The space is per token, so a new token restores
+        /// the budget the data channel sender stalls against
+        /// (Part 6 errata 5.1.1).
+        /// </summary>
+        private protected void ResetSequenceBudget()
+        {
+            Interlocked.Exchange(
+                ref m_sequenceBudgetBaseline,
+                Interlocked.Read(ref m_sequenceNumber));
+
+            m_sequenceBudget.OnTokenActivated();
+        }
+
         /// <summary>
         /// Adapts the UASC binary channel to the data channel engine.
         /// </summary>
@@ -352,6 +404,7 @@ namespace Opc.Ua.Bindings
 
         private DataChannelManager? m_dataChannels;
         private readonly DataChannelSequenceBudget m_sequenceBudget = new();
+        private long m_sequenceBudgetBaseline;
         private bool m_isDataChannelSource;
     }
 

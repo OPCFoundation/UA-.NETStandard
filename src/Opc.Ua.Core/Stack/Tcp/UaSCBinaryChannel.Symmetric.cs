@@ -202,7 +202,7 @@ namespace Opc.Ua.Bindings
             // The SequenceNumber space is per token, so a new token
             // restores the budget the data channel sender stalls against
             // (Part 6 errata 5.1.1).
-            m_sequenceBudget.OnTokenActivated();
+            ResetSequenceBudget();
 
             TokenActivatedCallback?.Invoke(token, PreviousToken);
 

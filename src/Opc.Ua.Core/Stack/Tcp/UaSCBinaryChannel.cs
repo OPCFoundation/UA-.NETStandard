@@ -404,6 +404,17 @@ namespace Opc.Ua.Bindings
                 ? newSeqNumber > kMaxValueLegacyTrue
                 : newSeqNumber > kMaxValueLegacyFalse;
 
+            // Every symmetric chunk - MSG, OPN, CLO and STR alike - draws from
+            // this one sequence space, and reusing a number under one TokenId
+            // reuses the AEAD nonce derived from it. Service traffic is
+            // accounted for by observing this counter rather than by calling
+            // into the budget on each send, but observation alone is passive:
+            // a channel carrying only Service traffic would never learn that
+            // it is close to exhaustion until a data channel asked. This hook
+            // pushes the transition so the client can renew ahead of the
+            // lifetime timer.
+            OnSequenceNumberIssued();
+
             // LegacySequenceNumbers are TRUE for non ECC profiles
             // https://reference.opcfoundation.org/Core/Part6/v105/docs/6.7.2.4
             if (isLegacy)
@@ -428,6 +439,15 @@ namespace Opc.Ua.Bindings
             Interlocked.Exchange(ref m_localSequenceNumber, retVal);
 
             return retVal;
+        }
+
+        /// <summary>
+        /// Called for every symmetric SequenceNumber issued on this channel.
+        /// Overridden where the channel can act on the budget by renewing the
+        /// SecurityToken early.
+        /// </summary>
+        protected virtual void OnSequenceNumberIssued()
+        {
         }
 
         /// <summary>

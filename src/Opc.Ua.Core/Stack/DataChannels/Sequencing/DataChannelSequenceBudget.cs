@@ -179,6 +179,45 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Accounts chunks emitted on another UASC send path under the
+        /// current token.
+        /// </summary>
+        /// <param name="consumed">The observed number of symmetric chunks
+        /// already emitted under the current token.</param>
+        public void ObserveConsumed(long consumed)
+        {
+            if (consumed <= 0)
+            {
+                return;
+            }
+
+            while (true)
+            {
+                long current = Interlocked.Read(ref m_consumed);
+
+                if (current >= consumed)
+                {
+                    return;
+                }
+
+                if (Interlocked.CompareExchange(ref m_consumed, consumed, current) == current)
+                {
+                    return;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Accounts a concrete SequenceNumber observed after a chunk was
+        /// emitted under the current token.
+        /// </summary>
+        /// <param name="sequenceNumber">The emitted SequenceNumber.</param>
+        public void ObserveSequenceNumber(uint sequenceNumber)
+        {
+            ObserveConsumed((long)sequenceNumber + 1);
+        }
+
+        /// <summary>
         /// Reports that a new SecurityToken is in force, which resets the
         /// budget and the rate estimate.
         /// </summary>

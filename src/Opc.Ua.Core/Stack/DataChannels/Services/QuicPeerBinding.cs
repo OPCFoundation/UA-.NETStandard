@@ -179,14 +179,65 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Verifies that the certificate presented in the TLS handshake
+        /// and the certificate carried by OpenSecureChannel carry the same
+        /// public key.
+        /// </summary>
+        /// <param name="tlsCertificate">The certificate the peer acting
+        /// as the TLS client presented.</param>
+        /// <param name="secureChannelCertificate">The certificate carried
+        /// by the OpenSecureChannel exchange, DER encoded.</param>
+        /// <returns>The outcome. Anything but
+        /// <see cref="QuicPeerBindingResult.Bound"/> obliges the verifier
+        /// to abort the SecureChannel.</returns>
+        public static QuicPeerBindingResult Verify(
+            X509Certificate2? tlsCertificate,
+            ReadOnlySpan<byte> secureChannelCertificate)
+        {
+            if (tlsCertificate == null)
+            {
+                return QuicPeerBindingResult.NoTlsCertificate;
+            }
+
+            if (secureChannelCertificate.IsEmpty)
+            {
+                return QuicPeerBindingResult.NoSecureChannelCertificate;
+            }
+
+            byte[] tlsKey;
+
+            try
+            {
+                tlsKey = ExportSubjectPublicKeyInfo(tlsCertificate);
+            }
+            catch (System.Security.Cryptography.CryptographicException)
+            {
+                return QuicPeerBindingResult.MalformedCertificate;
+            }
+
+            if (!TryGetPublicKey(secureChannelCertificate, out byte[]? channelKey))
+            {
+                return QuicPeerBindingResult.MalformedCertificate;
+            }
+
+            return AreEqual(tlsKey, channelKey)
+                ? QuicPeerBindingResult.Bound
+                : QuicPeerBindingResult.SecureChannelKeyMismatch;
+        }
+
+        /// <summary>
         /// The StatusCode a failed binding aborts the SecureChannel with.
         /// </summary>
         /// <param name="result">The outcome.</param>
         public static StatusCode ToStatusCode(QuicPeerBindingResult result)
         {
-            return result == QuicPeerBindingResult.Bound
-                ? StatusCodes.Good
-                : StatusCodes.BadCertificateInvalid;
+            return result switch
+            {
+                QuicPeerBindingResult.Bound => StatusCodes.Good,
+                QuicPeerBindingResult.EndpointKeyMismatch => StatusCodes.BadCertificateInvalid,
+                QuicPeerBindingResult.MalformedCertificate => StatusCodes.BadCertificateInvalid,
+                _ => StatusCodes.BadSecurityChecksFailed
+            };
         }
 
         private static bool TryGetPublicKey(ReadOnlySpan<byte> der, out byte[]? key)

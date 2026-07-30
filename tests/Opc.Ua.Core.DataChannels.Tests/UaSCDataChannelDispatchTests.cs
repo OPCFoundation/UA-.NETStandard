@@ -207,6 +207,105 @@ namespace Opc.Ua.Core.DataChannels.Tests
         }
 
         [Test]
+        public async Task SequenceBudgetCountsServiceChunksAndStreamChunks()
+        {
+            using var channel = TestChannel.Create("str-dispatch-budget");
+            var transport = new CapturingByteTransport();
+            channel.AttachTransport(transport);
+            channel.Activate(SecureChannelId, TokenId);
+
+            channel.EmitServiceChunk();
+            channel.EmitServiceChunk();
+
+            await SendFrameAsync(
+                    channel,
+                    DataChannelFrame.Data(
+                        DataChannelId,
+                        1,
+                        DataChannelFrameFlags.MessageStart,
+                        ExpectedPayload()))
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(transport.Chunks, Has.Count.EqualTo(3));
+                Assert.That(channel.SequenceBudget.Consumed, Is.EqualTo(3));
+            });
+        }
+
+        [Test]
+        public async Task SequenceBudgetIsScopedToTheTokenRatherThanTheChannelLifetime()
+        {
+            using var channel = TestChannel.Create("str-dispatch-budget-reset");
+            var transport = new CapturingByteTransport();
+            channel.AttachTransport(transport);
+            channel.Activate(SecureChannelId, TokenId);
+
+            channel.EmitServiceChunk();
+
+            await SendFrameAsync(
+                    channel,
+                    DataChannelFrame.Data(
+                        DataChannelId,
+                        1,
+                        DataChannelFrameFlags.MessageStart,
+                        ExpectedPayload()))
+                .ConfigureAwait(false);
+
+            Assert.That(
+                channel.SequenceBudget.Consumed,
+                Is.EqualTo(2),
+                "Both chunks draw from the space under the first token.");
+
+            // The SequenceNumber space is per SecurityToken, so activating a
+            // new one restores the whole budget. m_sequenceNumber keeps
+            // counting for the lifetime of the channel, so a budget that
+            // observed it directly would undo its own reset and leave a long
+            // lived channel permanently stalled.
+            channel.Activate(SecureChannelId, TokenId + 1);
+
+            Assert.That(
+                channel.SequenceBudget.Consumed,
+                Is.Zero,
+                "The new token brings a fresh SequenceNumber space.");
+
+            channel.EmitServiceChunk();
+
+            Assert.That(
+                channel.SequenceBudget.Consumed,
+                Is.EqualTo(1),
+                "Consumption under the new token counts from the new origin.");
+        }
+
+        [Test]
+        public async Task EverySymmetricChunkNotifiesTheSequenceNumberHook()
+        {
+            using var channel = TestChannel.Create("str-dispatch-budget-hook");
+            var transport = new CapturingByteTransport();
+            channel.AttachTransport(transport);
+            channel.Activate(SecureChannelId, TokenId);
+
+            int issuedAfterActivation = channel.SequenceNumbersIssued;
+
+            channel.EmitServiceChunk();
+
+            await SendFrameAsync(
+                    channel,
+                    DataChannelFrame.Data(
+                        DataChannelId,
+                        1,
+                        DataChannelFrameFlags.MessageStart,
+                        ExpectedPayload()))
+                .ConfigureAwait(false);
+
+            Assert.That(
+                channel.SequenceNumbersIssued - issuedAfterActivation,
+                Is.EqualTo(2),
+                "MSG and STR chunks alike draw from the one sequence space, " +
+                    "so both have to reach the hook that drives early renewal.");
+        }
+
+        [Test]
         public void OutboundOversizedStreamFrameIsRefusedBeforeWrite()
         {
             using var channel = TestChannel.Create("str-dispatch-limits");
@@ -328,6 +427,8 @@ namespace Opc.Ua.Core.DataChannels.Tests
 
             public List<ServiceResult> ProcessingErrors => m_processingErrors;
 
+            public int SequenceNumbersIssued => m_sequenceNumbersIssued;
+
             public static TestChannel Create(string contextId)
             {
                 ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -389,6 +490,36 @@ namespace Opc.Ua.Core.DataChannels.Tests
                 field.SetValue(this, (long)sequenceNumber - 1);
             }
 
+            public void EmitServiceChunk()
+            {
+                ChannelToken token = CurrentToken
+                    ?? throw new AssertionException("No active token.");
+
+                BufferCollection chunks = WriteSymmetricMessage(
+                    TcpMessageType.Message,
+                    requestId: 1,
+                    token,
+                    new ArraySegment<byte>(Array.Empty<byte>()),
+                    isRequest: true,
+                    out bool limitsExceeded);
+
+                Assert.That(limitsExceeded, Is.False);
+
+                try
+                {
+                    Transport!.SendChunkAsync(chunks, CancellationToken.None).AsTask().GetAwaiter().GetResult();
+                }
+                finally
+                {
+                    chunks.Release(BufferManager, nameof(EmitServiceChunk));
+                }
+            }
+
+            protected override void OnSequenceNumberIssued()
+            {
+                Interlocked.Increment(ref m_sequenceNumbersIssued);
+            }
+
             protected override void OnDataChannelProtocolFault(DataChannelFrameError error)
             {
                 m_protocolFaults.Add(error);
@@ -413,6 +544,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
 
             private readonly List<DataChannelFrameError> m_protocolFaults = [];
             private readonly List<ServiceResult> m_processingErrors = [];
+            private int m_sequenceNumbersIssued;
         }
 
         private sealed class CapturingByteTransport : IUaSCByteTransport

@@ -7,6 +7,7 @@
 
 using System;
 using System.Net.Quic;
+using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -267,6 +268,59 @@ namespace Opc.Ua.Core.DataChannels.Tests
             }
         }
 
+        [Test]
+        public async Task BindingAlreadyBoundStreamIsRejectedAndOriginalBindingRemainsAsync()
+        {
+            await using QuicLoopback loopback = await QuicLoopback
+                .StartAsync(m_certificate!, m_bufferManager!, m_telemetry!)
+                .ConfigureAwait(false);
+
+            await using var clientData = new QuicDataChannelTransport(
+                loopback.Client,
+                m_bufferManager!,
+                m_telemetry!);
+            await using var serverData = new QuicDataChannelTransport(
+                loopback.Server,
+                m_bufferManager!,
+                m_telemetry!);
+
+            const uint firstChannelId = 41;
+            const uint secondChannelId = 42;
+
+            // A QUIC stream does not reach the peer until something is
+            // written on it, so the frame is what makes the server's accept
+            // complete. Opening alone would leave the bind below waiting for
+            // a stream the peer cannot yet see.
+            ulong streamId = await OpenAndSendAsync(clientData, firstChannelId, 0x44)
+                .ConfigureAwait(false);
+
+            await serverData
+                .BindChannelAsync(
+                    firstChannelId,
+                    streamId,
+                    DataChannelDirection.SinkToSource,
+                    isOpcUaServer: true,
+                    TimeoutToken())
+                .ConfigureAwait(false);
+
+            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await serverData
+                    .BindChannelAsync(
+                        secondChannelId,
+                        streamId,
+                        DataChannelDirection.SinkToSource,
+                        isOpcUaServer: true,
+                        TimeoutToken())
+                    .ConfigureAwait(false))!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadDataChannelLimitsExceeded));
+                Assert.That(BoundStream(serverData, firstChannelId), Is.EqualTo(streamId));
+                Assert.That(IsChannelBound(serverData, secondChannelId), Is.False);
+            });
+        }
+
         private async Task<ulong> OpenAndSendAsync(
             QuicDataChannelTransport transport,
             uint channelId,
@@ -335,6 +389,44 @@ namespace Opc.Ua.Core.DataChannels.Tests
         private static int StreamKind(ulong streamId)
         {
             return (int)(streamId & 0x03);
+        }
+
+        private static ulong BoundStream(QuicDataChannelTransport transport, uint channelId)
+        {
+            object binding = ChannelBinding(transport, channelId)
+                ?? throw new AssertionException("Channel binding was not found.");
+            PropertyInfo property = binding.GetType().GetProperty("StreamId")
+                ?? throw new AssertionException("StreamId was not found.");
+
+            return (ulong)property.GetValue(binding)!;
+        }
+
+        private static bool IsChannelBound(QuicDataChannelTransport transport, uint channelId)
+        {
+            return ChannelBinding(transport, channelId) != null;
+        }
+
+        private static object? ChannelBinding(QuicDataChannelTransport transport, uint channelId)
+        {
+            FieldInfo field = typeof(QuicDataChannelTransport).GetField(
+                    "m_channelsByChannel",
+                    BindingFlags.Instance | BindingFlags.NonPublic)
+                ?? throw new AssertionException("m_channelsByChannel was not found.");
+
+            foreach (object entry in (System.Collections.IEnumerable)field.GetValue(transport)!)
+            {
+                PropertyInfo keyProperty = entry.GetType().GetProperty("Key")
+                    ?? throw new AssertionException("Key was not found.");
+                PropertyInfo valueProperty = entry.GetType().GetProperty("Value")
+                    ?? throw new AssertionException("Value was not found.");
+
+                if ((uint)keyProperty.GetValue(entry)! == channelId)
+                {
+                    return valueProperty.GetValue(entry);
+                }
+            }
+
+            return null;
         }
 
         private static CancellationToken TimeoutToken()

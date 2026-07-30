@@ -124,7 +124,18 @@ namespace Opc.Ua.Core.DataChannels.Tests
                         ServerAuthenticationOptions = new SslServerAuthenticationOptions
                         {
                             ApplicationProtocols = [QuicTransport.ApplicationProtocol],
-                            ServerCertificate = certificate
+                            ServerCertificate = certificate,
+
+                            // The loopback stands in for a conforming
+                            // deployment, and Part 6 errata §7.6.1 makes the
+                            // binding mutual: the TLS server requests a
+                            // client certificate, and a connection that
+                            // completes without one cannot carry data
+                            // channels. Leaving it off here would let the
+                            // data channel tests run in a configuration the
+                            // specification forbids.
+                            ClientCertificateRequired = true,
+                            RemoteCertificateValidationCallback = (_, _, _, _) => true
                         }
                     })
             };
@@ -147,7 +158,8 @@ namespace Opc.Ua.Core.DataChannels.Tests
                 telemetry,
                 new QuicClientOptions
                 {
-                    ServerCertificateValidation = (_, _, _, _) => true
+                    ServerCertificateValidation = (_, _, _, _) => true,
+                    ClientCertificate = certificate
                 });
 
             await connector

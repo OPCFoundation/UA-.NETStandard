@@ -461,6 +461,15 @@ namespace ConsoleDataChannelStreaming
         {
             ServerStreamingState state = PendingState ?? throw new InvalidOperationException("No sample state was provided.");
             DataChannelSources.Register(state);
+
+            // Registering a source in DataChannelSourceRegistry states that
+            // it exists, not that any given user may read it. The default
+            // authorizer resolves the source in the AddressSpace and applies
+            // its RolePermissions and AccessRestrictions; a source that is
+            // registry-only, as this sample's is, has no such metadata and is
+            // therefore denied. Supplying an authorizer is how an application
+            // states the rule for sources it keeps outside the AddressSpace.
+            DataChannelAuthorizer = new SampleDataChannelAuthorizer(state.SourceNodeId);
             DataChannelCapabilities = new DataChannelServerCapabilities
             {
                 MaxDataChannels = 16,
@@ -483,6 +492,33 @@ namespace ConsoleDataChannelStreaming
         }
 
         public static ServerStreamingState? PendingState { get; set; }
+    }
+
+    /// <summary>
+    /// Grants the one source this sample publishes to any activated Session
+    /// on a signed and encrypted SecureChannel.
+    /// </summary>
+    /// <remarks>
+    /// A real application would consult whatever authority actually governs
+    /// the source. What matters here is the shape: the decision is made per
+    /// request, it names the source explicitly rather than granting whatever
+    /// is asked for, and it refuses by default. It is re-evaluated for the
+    /// life of the channel, so withdrawing access closes the channel.
+    /// </remarks>
+    internal sealed class SampleDataChannelAuthorizer(NodeId sourceNodeId) : IDataChannelAuthorizer
+    {
+        public ValueTask<bool> IsAuthorizedAsync(
+            DataChannelRequestContext context,
+            NodeId requestedSourceNodeId,
+            CancellationToken ct)
+        {
+            bool authorized =
+                requestedSourceNodeId == sourceNodeId &&
+                context.IsSessionActivated &&
+                context.SecurityMode == MessageSecurityMode.SignAndEncrypt;
+
+            return new ValueTask<bool>(authorized);
+        }
     }
 
     internal sealed class TcpServerDataChannelTransport(ServerStreamingState state) : IServerDataChannelTransport

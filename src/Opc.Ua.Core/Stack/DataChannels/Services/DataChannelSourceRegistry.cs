@@ -43,7 +43,10 @@ namespace Opc.Ua.Bindings
     /// IDataChannelSourceType. The registry is what OpenDataChannel
     /// resolves sourceNodeId against, and is deliberately independent of
     /// the AddressSpace so that a channel can be opened before the model
-    /// is browsable.
+    /// is browsable. Registration only states that the source exists; when
+    /// the source is not owned by an AddressSpace NodeManager the server
+    /// must provide an explicit <see cref="IDataChannelAuthorizer"/> policy
+    /// before granting access.
     /// </remarks>
     public interface IDataChannelSource
     {

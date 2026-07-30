@@ -136,6 +136,26 @@ namespace Opc.Ua.Core.DataChannels.Tests
         }
 
         [Test]
+        public void MutualBindingComparesTlsClientCertificateToOpenSecureChannelCertificate()
+        {
+            using X509Certificate2 tls = CreateCertificate("CN=ClientTls");
+            using X509Certificate2 other = CreateCertificate("CN=ClientOpcUa");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    QuicPeerBinding.Verify(tls, tls.RawData),
+                    Is.EqualTo(QuicPeerBindingResult.Bound));
+                Assert.That(
+                    QuicPeerBinding.Verify(tls, other.RawData),
+                    Is.EqualTo(QuicPeerBindingResult.SecureChannelKeyMismatch));
+                Assert.That(
+                    QuicPeerBinding.Verify(null, tls.RawData),
+                    Is.EqualTo(QuicPeerBindingResult.NoTlsCertificate));
+            });
+        }
+
+        [Test]
         public void AMalformedCertificateIsRefused()
         {
             using X509Certificate2 certificate = CreateCertificate("CN=Peer");

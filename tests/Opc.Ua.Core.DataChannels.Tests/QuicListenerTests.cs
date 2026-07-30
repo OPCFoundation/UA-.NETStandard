@@ -123,7 +123,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
                 listener,
                 channel,
                 endpointUrl,
-                secure: false).ConfigureAwait(false);
+                secure: true).ConfigureAwait(false);
 
             IServiceResponse response = await channel.SendRequestAsync(
                 new ReadRequest
@@ -217,7 +217,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
                 listener,
                 channel,
                 endpointUrl,
-                secure: false).ConfigureAwait(false);
+                secure: true).ConfigureAwait(false);
             ListenerChannel liveChannel = GetSingleChannel(listener);
             var closedSource = new TaskCompletionSource<ConnectionStatusEventArgs>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
@@ -252,7 +252,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
                 listener,
                 channel,
                 endpointUrl,
-                secure: false).ConfigureAwait(false);
+                secure: true).ConfigureAwait(false);
             ListenerChannel liveChannel = GetSingleChannel(listener);
             await Task.Delay(TimeSpan.FromMilliseconds(50)).ConfigureAwait(false);
             int before = liveChannel.ElapsedSinceLastActiveTime;

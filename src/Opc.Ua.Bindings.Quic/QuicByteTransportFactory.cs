@@ -130,12 +130,18 @@ namespace Opc.Ua.Bindings
             int receiveBufferSize,
             ITelemetryContext telemetry)
         {
+            QuicClientOptions options = m_options with
+            {
+                EndpointDescription = m_endpointDescription,
+                ClientCertificate = m_options.ClientCertificate ?? m_clientCertificate
+            };
+
 #pragma warning disable CA2000 // QuicPeerBindingTransport owns and closes the inner transport.
             var transport = new QuicMultiplexedTransport(
                 bufferManager,
                 receiveBufferSize,
                 telemetry ?? m_telemetry,
-                m_options with { EndpointDescription = m_endpointDescription });
+                options);
 #pragma warning restore CA2000
 
             return new QuicPeerBindingTransport(
@@ -153,9 +159,33 @@ namespace Opc.Ua.Bindings
             m_endpointDescription = endpointDescription;
         }
 
+        /// <summary>
+        /// Supplies the OPC UA Application Instance Certificate to present
+        /// as the TLS client certificate when the listener requests mutual
+        /// authentication.
+        /// </summary>
+        /// <param name="clientCertificate">The selected client certificate.</param>
+        internal void SetClientCertificate(Certificate? clientCertificate)
+        {
+            X509Certificate2? previous = m_clientCertificate;
+            m_clientCertificate = clientCertificate?.AsX509Certificate2();
+            previous?.Dispose();
+        }
+
+        /// <summary>
+        /// Releases the cached TLS client certificate.
+        /// </summary>
+        internal void DisposeClientCertificate()
+        {
+            X509Certificate2? previous = m_clientCertificate;
+            m_clientCertificate = null;
+            previous?.Dispose();
+        }
+
         private readonly ITelemetryContext m_telemetry;
         private readonly QuicClientOptions m_options;
         private EndpointDescription? m_endpointDescription;
+        private X509Certificate2? m_clientCertificate;
     }
 
     /// <summary>
@@ -388,7 +418,8 @@ namespace Opc.Ua.Bindings
 
     internal sealed class QuicPeerBindingTransport :
         IUaSCByteTransport,
-        IMultiplexedByteTransport
+        IMultiplexedByteTransport,
+        IUaSCSecureChannelBoundTransport
     {
         public QuicPeerBindingTransport(
             QuicMultiplexedTransport inner,
@@ -507,6 +538,24 @@ namespace Opc.Ua.Bindings
             m_inner.Close();
         }
 
+        /// <summary>
+        /// Forwards the SecureChannel identifier to the wrapped transport.
+        /// </summary>
+        /// <remarks>
+        /// The wrapper is what the channel holds, so every optional
+        /// interface the inner transport relies on has to be forwarded
+        /// through it. Omitting this one is not a small loss: the QUIC
+        /// transport registers itself against the SecureChannel identifier
+        /// here, and without that registration OpenDataChannel cannot find
+        /// the connection and silently falls back to a Service-only
+        /// transport.
+        /// </remarks>
+        /// <param name="secureChannelId">The SecureChannel identifier.</param>
+        public void OnSecureChannelAttached(string secureChannelId)
+        {
+            m_inner.OnSecureChannelAttached(secureChannelId);
+        }
+
         private void VerifyOpenSecureChannelBinding(ArraySegment<byte> chunk)
         {
             if (m_bindingVerified ||
@@ -533,12 +582,28 @@ namespace Opc.Ua.Bindings
 
             m_bindingVerified = true;
             byte[] secureChannelCertificate = ReadSenderCertificate(data);
-            QuicPeerBindingResult result = QuicPeerBinding.Verify(
-                m_inner.PeerCertificate,
-                m_bindToOpenSecureChannelOnly
-                    ? secureChannelCertificate
-                    : m_endpointDescription!.ServerCertificate.ToArray(),
-                secureChannelCertificate);
+
+            if (m_bindToOpenSecureChannelOnly &&
+                m_inner.PeerCertificate == null &&
+                secureChannelCertificate.Length == 0)
+            {
+                // Neither layer named a certificate, which is what a
+                // SecurityPolicy None channel looks like: the Discovery
+                // Services run on one, and it is reachable by design. There
+                // is nothing to compare, and refusing here would make
+                // GetEndpoints unreachable over opc.quic. Such a connection
+                // still cannot carry data channels - §7.6.1 puts that
+                // refusal on OpenDataChannel, where the SecureChannel is
+                // known, rather than on the transport.
+                return;
+            }
+
+            QuicPeerBindingResult result = m_bindToOpenSecureChannelOnly
+                ? QuicPeerBinding.Verify(m_inner.PeerCertificate, secureChannelCertificate)
+                : QuicPeerBinding.Verify(
+                    m_inner.PeerCertificate,
+                    m_endpointDescription!.ServerCertificate.ToArray(),
+                    secureChannelCertificate);
 
             if (result != QuicPeerBindingResult.Bound)
             {

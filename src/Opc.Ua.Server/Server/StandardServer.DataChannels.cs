@@ -500,13 +500,14 @@ namespace Opc.Ua.Server
         /// Part 4 errata §7.2 requires that a Server "shall not grant a data
         /// channel where it would refuse a Read of the same content", and
         /// that the decision be re-evaluated rather than granted once. This
-        /// resolves the Session, builds the same OperationContext a Service
-        /// call would, and asks the owning NodeManager to validate
-        /// PermissionType.Read against the source Node — so RolePermissions,
-        /// UserRolePermissions and AccessRestrictions all apply without this
-        /// class reimplementing any of them. It fails closed: a Session that
-        /// cannot be resolved, a Node with no owning NodeManager, or any
-        /// error during validation denies the request.
+        /// resolves the Session, builds an OperationContext that carries the
+        /// request SecureChannel security properties, and applies the same
+        /// permission metadata composition as <see cref="MasterNodeManager"/>:
+        /// RolePermissions/UserRolePermissions first, then AccessRestrictions.
+        /// It fails closed: a Session that cannot be resolved, a source with
+        /// no owning NodeManager, or any error during validation denies the
+        /// request. Registry-only sources therefore require an explicit
+        /// <see cref="DataChannelAuthorizer"/> configured by the application.
         /// </remarks>
         private sealed class ReadEquivalentDataChannelAuthorizer(IServerInternal server)
             : IDataChannelAuthorizer
@@ -539,33 +540,52 @@ namespace Opc.Ua.Server
                         return false;
                     }
 
-                    (_, IAsyncNodeManager? nodeManager) = await server.NodeManager
+                    (object? nodeHandle, IAsyncNodeManager? nodeManager) = await server.NodeManager
                         .GetManagerHandleAsync(sourceNodeId, ct)
                         .ConfigureAwait(false);
 
-                    if (nodeManager == null)
+                    if (nodeManager == null || nodeHandle == null)
                     {
-                        // The source is not a Node in the AddressSpace, so
-                        // there are no RolePermissions or AccessRestrictions
-                        // to evaluate and the registration in
-                        // DataChannelSourceRegistry is the only authority —
-                        // a deliberate server-side act. This matches
-                        // ValidateRolePermissionsAsync, which likewise treats
-                        // an unknown Node as having nothing to enforce. A
-                        // source that *is* in the AddressSpace is still
-                        // checked below, which is the case that matters.
-                        return true;
+                        return false;
                     }
 
-                    var operationContext = new OperationContext(session, DiagnosticsMasks.None);
-
-                    ServiceResult result = await nodeManager
-                        .ValidateRolePermissionsAsync(
+                    var operationContext = CreateReadOperationContext(context, session);
+                    NodeMetadata? nodeMetadata = await nodeManager.GetPermissionMetadataAsync(
                             operationContext,
-                            sourceNodeId,
-                            PermissionType.Read,
+                            nodeHandle,
+                            BrowseResultMask.NodeClass,
+                            [],
+                            permissionsOnly: true,
                             ct)
                         .ConfigureAwait(false);
+
+                    nodeMetadata ??= await nodeManager.GetNodeMetadataAsync(
+                            operationContext,
+                            nodeHandle,
+                            BrowseResultMask.NodeClass,
+                            ct)
+                        .ConfigureAwait(false);
+
+                    if (nodeMetadata == null)
+                    {
+                        // Without metadata there is nothing to evaluate, and
+                        // an unevaluated source is not an authorized one.
+                        // Granting here would reopen the fail-open path that
+                        // treating an unknown Node as permitted created.
+                        return false;
+                    }
+
+                    ServiceResult result = MasterNodeManager.ValidateRolePermissions(
+                        operationContext,
+                        nodeMetadata,
+                        PermissionType.Read);
+
+                    if (ServiceResult.IsGood(result))
+                    {
+                        result = MasterNodeManager.ValidateAccessRestrictions(
+                            operationContext,
+                            nodeMetadata);
+                    }
 
                     return ServiceResult.IsGood(result);
                 }
@@ -576,6 +596,33 @@ namespace Opc.Ua.Server
                     // the NodeManager open the channel.
                     return false;
                 }
+            }
+
+            private static OperationContext CreateReadOperationContext(
+                DataChannelRequestContext context,
+                ISession session)
+            {
+                string transportProfileUri = string.IsNullOrEmpty(context.TransportProfileUri)
+                    ? Profiles.UaTcpTransport
+                    : context.TransportProfileUri;
+
+                var endpoint = new EndpointDescription
+                {
+                    SecurityMode = context.SecurityMode,
+                    TransportProfileUri = transportProfileUri
+                };
+
+                var secureChannel = new SecureChannelContext(
+                    session.SecureChannelId ?? string.Empty,
+                    endpoint,
+                    RequestEncoding.Binary);
+
+                return new OperationContext(
+                    new RequestHeader(),
+                    secureChannel,
+                    RequestType.Read,
+                    RequestLifetime.None,
+                    session);
             }
         }
 

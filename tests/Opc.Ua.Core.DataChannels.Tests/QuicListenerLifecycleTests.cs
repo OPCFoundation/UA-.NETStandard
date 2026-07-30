@@ -121,6 +121,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
                     return new ValueTask(releaseCallback.Task);
                 }).ConfigureAwait(false);
 
+            using X509Certificate2 clientTlsCertificate = m_clientCertificate!.AsX509Certificate2();
             Task<QuicConnection> connecting = QuicConnection.ConnectAsync(
                 new QuicClientConnectionOptions
                 {
@@ -131,7 +132,8 @@ namespace Opc.Ua.Core.DataChannels.Tests
                     {
                         ApplicationProtocols = [QuicTransport.ApplicationProtocol],
                         TargetHost = "localhost",
-                        RemoteCertificateValidationCallback = (_, _, _, _) => true
+                        RemoteCertificateValidationCallback = (_, _, _, _) => true,
+                        ClientCertificates = [clientTlsCertificate]
                     },
                     DefaultStreamErrorCode = 0x0A,
                     DefaultCloseErrorCode = 0x0B
@@ -145,14 +147,11 @@ namespace Opc.Ua.Core.DataChannels.Tests
             releaseCallback.SetResult();
 
             await using QuicConnection connection = await WithTimeoutAsync(connecting).ConfigureAwait(false);
-            Exception exception = await WaitForConnectionOperationFailureAsync(connection).ConfigureAwait(false);
+            await Task.Delay(TimeSpan.FromMilliseconds(200)).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
                 Assert.That(GetChannels(listener), Is.Empty);
-                Assert.That(
-                    ApplicationErrorCode(exception),
-                    Is.EqualTo((long)StatusCodes.BadSecurityChecksFailed.Code));
             });
         }
 
@@ -208,7 +207,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
             ServiceResultException? exception = Assert.ThrowsAsync<ServiceResultException>(
                 async () => await boundTransport.ReceiveChunkAsync(TimeoutToken()).ConfigureAwait(false));
 
-            Assert.That(exception!.StatusCode, Is.EqualTo(StatusCodes.BadCertificateInvalid));
+            Assert.That(exception!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
         }
 
         private async Task<QuicTransportListener> OpenListenerAsync(

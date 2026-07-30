@@ -90,6 +90,7 @@ namespace Opc.Ua.Bindings
             m_receiveBufferSize = receiveBufferSize;
             m_logger = telemetry.CreateLogger<QuicMultiplexedTransport>();
             m_options = new QuicClientOptions();
+            m_localInitiatorBit = QuicServerInitiatorBit;
         }
 
         /// <summary>
@@ -113,6 +114,7 @@ namespace Opc.Ua.Bindings
             m_receiveBufferSize = receiveBufferSize;
             m_logger = telemetry.CreateLogger<QuicMultiplexedTransport>();
             m_options = options ?? new QuicClientOptions();
+            m_localInitiatorBit = QuicClientInitiatorBit;
         }
 
         /// <summary>
@@ -321,6 +323,40 @@ namespace Opc.Ua.Bindings
                 {
                     return;
                 }
+            }
+        }
+
+        /// <summary>
+        /// Validates the transportChannelId rules that can be checked from
+        /// the QUIC binding before accepting an inbound data-channel stream.
+        /// </summary>
+        /// <param name="streamId">The stream id from transportChannelId.</param>
+        /// <param name="bidirectional">True when the data channel requires a bidirectional stream.</param>
+        internal void ValidateInboundDataChannelStream(ulong streamId, bool bidirectional)
+        {
+            QuicStream control = RequireControlStream();
+
+            if (streamId == (ulong)control.Id)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDataChannelLimitsExceeded,
+                    "The QUIC control stream cannot be bound to a data channel.");
+            }
+
+            if ((streamId & QuicInitiatorMask) == m_localInitiatorBit)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDataChannelLimitsExceeded,
+                    "The QUIC stream was initiated by the wrong endpoint for this data-channel direction.");
+            }
+
+            bool streamIsBidirectional = (streamId & QuicDirectionMask) == 0;
+
+            if (streamIsBidirectional != bidirectional)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDataChannelLimitsExceeded,
+                    "The QUIC stream directionality does not match the data-channel direction.");
             }
         }
 
@@ -616,7 +652,13 @@ namespace Opc.Ua.Bindings
         private readonly BufferManager m_bufferManager;
         private readonly int m_receiveBufferSize;
         private readonly ILogger m_logger;
+        private readonly ulong m_localInitiatorBit;
         private string? m_secureChannelId;
         private bool m_disposed;
+
+        private const ulong QuicInitiatorMask = 0x01;
+        private const ulong QuicDirectionMask = 0x02;
+        private const ulong QuicClientInitiatorBit = 0x00;
+        private const ulong QuicServerInitiatorBit = 0x01;
     }
 }

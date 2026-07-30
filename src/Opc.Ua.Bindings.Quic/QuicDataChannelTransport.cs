@@ -190,6 +190,10 @@ namespace Opc.Ua.Bindings
             bool isOpcUaServer,
             CancellationToken ct)
         {
+            m_transport.ValidateInboundDataChannelStream(
+                streamId,
+                IsBidirectionalStream(direction));
+
             await m_transport.BindInboundStreamAsync(streamId, ct).ConfigureAwait(false);
 
             RecordChannel(
@@ -216,7 +220,6 @@ namespace Opc.Ua.Bindings
             }
 
             ulong streamId = binding.StreamId;
-            m_channelsByStream.TryRemove(streamId, out _);
 
             if (StatusCode.IsBad(status))
             {
@@ -419,8 +422,24 @@ namespace Opc.Ua.Bindings
             bool canSend,
             bool canReceive)
         {
-            m_channelsByChannel[channelId] = new ChannelStreamBinding(streamId, canSend, canReceive);
-            m_channelsByStream[streamId] = channelId;
+            var binding = new ChannelStreamBinding(streamId, canSend, canReceive);
+
+            if (!m_channelsByStream.TryAdd(streamId, channelId))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDataChannelLimitsExceeded,
+                    "QUIC stream {0} is already bound to a data channel on this SecureChannel.",
+                    streamId);
+            }
+
+            if (!m_channelsByChannel.TryAdd(channelId, binding))
+            {
+                m_channelsByStream.TryRemove(streamId, out _);
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDataChannelLimitsExceeded,
+                    "ChannelId {0} is already bound to a QUIC stream.",
+                    channelId);
+            }
         }
 
         private static bool CanSend(DataChannelDirection direction, bool isOpcUaServer)

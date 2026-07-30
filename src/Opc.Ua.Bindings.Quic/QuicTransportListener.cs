@@ -215,7 +215,8 @@ namespace Opc.Ua.Bindings
                         {
                             ApplicationProtocols = [QuicTransport.ApplicationProtocol],
                             ServerCertificate = serverCertificate,
-                            ClientCertificateRequired = false,
+                            ClientCertificateRequired = true,
+                            RemoteCertificateValidationCallback = ValidatePeerCertificate,
                             AllowTlsResume = false
                         }
                     };
@@ -719,6 +720,11 @@ namespace Opc.Ua.Bindings
                     m_bufferManager!,
                     m_quotas!.MaxBufferSize,
                     Telemetry);
+                var boundTransport = new QuicPeerBindingTransport(
+                    transport,
+                    m_bufferManager!,
+                    endpointDescription: null,
+                    bindToOpenSecureChannelOnly: true);
 
                 channelId = NextChannelId();
 
@@ -745,7 +751,7 @@ namespace Opc.Ua.Bindings
 
                 // Ownership passes to the channel, which starts the
                 // receive loop on the control stream.
-                channel.Attach(channelId, transport);
+                channel.Attach(channelId, boundTransport);
                 transport = null;
 
                 ConnectionStatusChanged?.Invoke(
@@ -787,7 +793,7 @@ namespace Opc.Ua.Bindings
                 var options = new QuicClientOptions
                 {
                     ClientCertificate = ResolveTlsCertificate(),
-                    ServerCertificateValidation = ValidateReversePeerCertificate,
+                    ServerCertificateValidation = ValidatePeerCertificate,
                     HandshakeTimeout = timeout > 0
                         ? TimeSpan.FromMilliseconds(timeout)
                         : TimeSpan.FromSeconds(30)
@@ -849,13 +855,29 @@ namespace Opc.Ua.Bindings
             }
         }
 
-        private bool ValidateReversePeerCertificate(
+        private bool ValidatePeerCertificate(
             object sender,
             X509Certificate? certificate,
             X509Chain? chain,
             SslPolicyErrors sslPolicyErrors)
         {
-            if (certificate == null || m_quotas?.CertificateValidator == null)
+            if (certificate == null)
+            {
+                // §7.6.1 requires the TLS server to *request* a client
+                // certificate on every connection, and separately forbids
+                // accepting OpenDataChannel on a connection that completed
+                // without one. Refusing the handshake here would collapse
+                // those two obligations into one and make the Discovery
+                // Services unreachable: GetEndpoints and FindServers run on
+                // a SecurityPolicy None channel, which by construction has
+                // no client certificate to present. The absence is recorded
+                // and enforced where the specification puts it, at
+                // OpenDataChannel.
+                m_logger.QuicPeerCertificateMissing();
+                return true;
+            }
+
+            if (m_quotas?.CertificateValidator == null)
             {
                 return false;
             }
@@ -886,10 +908,19 @@ namespace Opc.Ua.Bindings
                     .GetAwaiter()
                     .GetResult();
 #pragma warning restore CA2025
+
+                if (!result.IsValid)
+                {
+                    m_logger.QuicPeerCertificateRejected(
+                        certificate.Subject,
+                        result.StatusCode.ToString());
+                }
+
                 return result.IsValid;
             }
-            catch (Exception)
+            catch (Exception e)
             {
+                m_logger.QuicPeerCertificateRejected(certificate.Subject, e.Message);
                 return false;
             }
         }
@@ -1250,5 +1281,17 @@ namespace Opc.Ua.Bindings
             this ILogger logger,
             Exception exception,
             uint requestId);
+
+        [LoggerMessage(EventId = 6, Level = LogLevel.Debug,
+            Message = "opc.quic peer presented no TLS certificate. The connection is accepted so the " +
+                "Discovery Services remain reachable, but it cannot carry data channels.")]
+        public static partial void QuicPeerCertificateMissing(this ILogger logger);
+
+        [LoggerMessage(EventId = 7, Level = LogLevel.Warning,
+            Message = "opc.quic rejected the TLS certificate of peer {Subject}: {Reason}.")]
+        public static partial void QuicPeerCertificateRejected(
+            this ILogger logger,
+            string subject,
+            string reason);
     }
 }

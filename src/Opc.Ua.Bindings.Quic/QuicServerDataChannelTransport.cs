@@ -52,6 +52,25 @@ namespace Opc.Ua.Bindings
                 return false;
             }
 
+            // Part 6 errata §7.6.1: the TLS server shall not accept
+            // OpenDataChannel on a SecureChannel whose connection completed
+            // without a TLS client certificate, because there is then
+            // nothing to bind the TLS peer to the OPC UA peer and the
+            // TransportSecured profile rests entirely on that binding. The
+            // connection itself is allowed to complete so the Discovery
+            // Services stay reachable on a SecurityPolicy None channel;
+            // this is where the absence becomes fatal. Refusing rather than
+            // falling back to a Service-only transport is deliberate - a
+            // silent downgrade is exactly the failure this binding exists
+            // to prevent.
+            if (binding.Transport.PeerCertificate == null)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "The opc.quic connection completed without a TLS client certificate, " +
+                        "so the TLS peer cannot be bound to the OPC UA peer.");
+            }
+
             lock (binding.SyncRoot)
             {
                 if (binding.Manager == null)
