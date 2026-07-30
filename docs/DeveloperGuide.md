@@ -258,7 +258,7 @@ Two things are deliberately *not* covered by the switch:
 - **macOS** always runs on GitHub-hosted runners, because Managed DevOps Pools provide no macOS image.
 - **`master378` and `develop/*`** keep running the GitHub Actions jobs regardless of the setting, since Azure Pipelines only builds `master`/`main` from this file.
 
-Because the individual matrix jobs are generated (and are skipped outright when Azure Pipelines owns them), branch protection should require the aggregate **`build-and-test summary`** check rather than any individual job. That job always runs and treats an intentionally skipped job as success.
+Because the individual matrix jobs are generated (and are skipped outright when Azure Pipelines owns them, or when a pull request touches no build-relevant files), branch protection should require the aggregate **`build-and-test summary`** check rather than any individual job. That job runs on every pull request — the workflow deliberately carries no `paths:` filter, because a workflow filtered out by `paths` never reports its checks and a required check that never reports blocks the pull request forever. The path allow-list is applied inside the `discover` job instead, and the summary treats an intentionally skipped job as success.
 
 ### Triggering a pipeline run on a pull request
 
