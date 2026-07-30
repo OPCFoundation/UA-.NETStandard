@@ -1,0 +1,40 @@
+{
+  "$comment": [
+    "Coverage gates for the UA .NET Standard stack. These replace the codecov/project",
+    "and codecov/patch status checks; see .azurepipelines/check-coverage.ps1 for the",
+    "implementation and docs/DeveloperGuide.md for the contributor-facing description.",
+    "Rates are percentages (0-100).",
+    "",
+    "'project' is an absolute floor over the whole merged coverage report and BLOCKS.",
+    "Ratchet minimumLineRate/minimumBranchRate upward (together with baselineLineRate)",
+    "as coverage improves - never downward to make a red build go green.",
+    "",
+    "The initial values are seeded from the last codecov project reading (73.61%) with",
+    "headroom, because the in-pipeline number had not been observed yet when the gate",
+    "was introduced. Confirm them against the first full Code Coverage run on master",
+    "and tighten them then - the gate prints the exact figure it computed.",
+    "",
+    "'patch' mirrors the old codecov/patch semantics: changed lines must reach",
+    "target percent, tolerating threshold percentage points. It BLOCKS.",
+    "",
+    "'ignore' carries over the exclusion list from the retired codecov.yml and is",
+    "applied to BOTH the project floor and the changed-lines gate."
+  ],
+  "project": {
+    "minimumLineRate": 70.0,
+    "minimumBranchRate": 60.0,
+    "baselineLineRate": 73.6,
+    "advisoryDeltaTolerance": 1.0
+  },
+  "patch": {
+    "target": 80.0,
+    "threshold": 5.0
+  },
+  "ignore": [
+    "tests/**",
+    "samples/**",
+    "**/obj/**",
+    "**/bin/**",
+    "**/*.g.cs"
+  ]
+}

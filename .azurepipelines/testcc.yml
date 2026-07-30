@@ -32,6 +32,10 @@ jobs:
     ${{ else }}:
       vmImage: ${{ parameters.poolImage }}
   steps:
+  # Full history: the coverage gate diffs the pull request against its base branch
+  # to compute changed-line (patch) coverage, which a shallow clone cannot do.
+  - checkout: self
+    fetchDepth: 0
   - task: UseDotNet@2
     displayName: 'Install .NET 8.0'
     condition: eq('${{parameters.framework}}', 'net8.0')
@@ -91,14 +95,6 @@ jobs:
       # note: /p:CollectCoverage=true is only used to disable deterministic builds
       arguments: '--no-restore ${{ variables.DotCliCommandline }} --configuration ${{ parameters.configuration }} /p:CollectCoverage=true --collect:"XPlat Code Coverage" --settings ./tests/coverlet.runsettings.xml --results-directory $(Agent.TempDirectory) --blame-hang-timeout 10m --blame-hang-dump-type none'
       publishTestResults: false
-  - script: |
-      bash <(curl -s https://codecov.io/bash) -s $(Agent.TempDirectory)
-
-    continueOnError: true
-    condition: ne( variables['CODECOV_TOKEN'], '')
-    env:
-      CODECOV_TOKEN: $(CODECOV_TOKEN)
-    displayName: 'Upload to codecov.io'
   - task: DotNetCoreCLI@2
     inputs:
       command: custom
@@ -131,3 +127,31 @@ jobs:
     condition: and(failed(), ne(variables['fuzzingartifacts.secureFilePath'], ''))
     inputs:
       PathtoPublish: '$(Agent.TempDirectory)/FuzzingArtifacts.zip'
+  # Coverage gate. Replaces the codecov/project and codecov/patch status checks:
+  # a blocking absolute floor over the whole report, a blocking changed-lines
+  # check on pull requests, and an advisory comparison against the recorded
+  # baseline. Runs last so the report is published and the diagnostic artifacts
+  # are uploaded even when the gate fails.
+  - task: PowerShell@2
+    displayName: 'Coverage gate'
+    inputs:
+      pwsh: true
+      targetType: inline
+      workingDirectory: '$(Build.SourcesDirectory)'
+      script: |
+        # Empty on anything that is not a pull request validation build, in which
+        # case check-coverage.ps1 enforces the project floor only.
+        $baseRef = $env:SYSTEM_PULLREQUEST_TARGETBRANCH
+        if ([string]::IsNullOrWhiteSpace($baseRef)) {
+            Write-Host 'Not a pull request build; the changed-lines gate is skipped.'
+        }
+        else {
+            Write-Host "Pull request targets '$baseRef'."
+        }
+
+        & ./.azurepipelines/check-coverage.ps1 `
+            -CoberturaPath '$(Build.SourcesDirectory)/CodeCoverage/Cobertura.xml' `
+            -ThresholdsPath '$(Build.SourcesDirectory)/coverage-thresholds.json' `
+            -RepoRoot '$(Build.SourcesDirectory)' `
+            -BaseRef $baseRef
+        exit $LASTEXITCODE

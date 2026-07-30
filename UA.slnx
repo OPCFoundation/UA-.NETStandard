@@ -112,6 +112,7 @@
     <File Path="azure-pipelines-preview.yml" />
     <File Path="azure-pipelines.yml" />
     <File Path="common.props" />
+    <File Path="coverage-thresholds.json" />
     <File Path="Directory.Build.props" />
     <File Path="Directory.Packages.props" />
     <File Path="README.md" />
@@ -131,6 +132,7 @@
     <File Path=".github/workflows/stability-test.yml" />
   </Folder>
   <Folder Name="/Solution Items/Azurepipelines/">
+    <File Path=".azurepipelines/check-coverage.ps1" />
     <File Path=".azurepipelines/ci.yml" />
     <File Path=".azurepipelines/get-matrix.ps1" />
     <File Path=".azurepipelines/get-root.ps1" />
