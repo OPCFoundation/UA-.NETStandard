@@ -205,12 +205,12 @@ The stack implements the following transport profiles:
   - TLS/SSL encryption only — no UA SecureChannel layer
   - Restricted to `MessageSecurityMode.None`; transport security is provided exclusively by TLS
 
-- **[WebSocket Secure (UA Binary)](http://opcfoundation.org/UA-Profile/Transport/uawss-uasc-uabinary)** (`opc.wss://` and `wss://`) - UA Binary + UASC over secure WebSockets (OPC UA Part 6 §7.5.2, sub-protocol `opcua+uacp`)
+- **[WebSocket Secure (UA Binary)](http://opcfoundation.org/UA-Profile/Transport/wss-uasc-uabinary)** (`opc.wss://` and `wss://`) - UA Binary + UASC over secure WebSockets (OPC UA Part 6 §7.5.2, sub-protocol `opcua+uacp`)
   - Same UASC SecureChannel pipeline as `opc.tcp` carried over WebSocket binary frames (one frame per MessageChunk)
   - Supports all security modes (None / Sign / SignAndEncrypt)
   - TLS/SSL encryption at the WebSocket layer
 
-- **WebSocket Secure (JSON)** (`opc.wss://` and `wss://`) - OPC UA JSON over secure WebSockets (Part 6 §7.5.2, sub-protocol `opcua+uajson`)
+- **[WebSocket Secure (JSON)](http://opcfoundation.org/UA-Profile/Transport/wss-uajson)** (`opc.wss://` and `wss://`) - OPC UA JSON over secure WebSockets (Part 6 §7.5.2, sub-protocol `opcua+uajson`)
   - Compact JSON encoding per WebSocket text frame
   - TLS/SSL encryption only — no UA SecureChannel layer
   - Restricted to `MessageSecurityMode.None`
