@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Threading;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
@@ -49,112 +50,209 @@ namespace Pumps
     /// </remarks>
     public partial class PumpNodeManager
     {
-        /// <summary>
-        /// ── Simulation state ────────────────────────────────────────
-        /// </summary>
-        private long m_simulationTicks;
-        private long m_numberOfStarts;
-
-        /// <summary>
-        /// ── Latest simulated values, updated by the simulation tick. ──
-        /// </summary>
-        private double m_currentPressure;
-        private double m_currentTemperature = 313.15;
-        private double m_currentBearingTemp = 333.15;
-        private double m_currentPower;
-        private double m_currentFlow;
-        private double m_currentEfficiency = 75.0;
-        private double m_currentLevel = 2.5;
-        private bool m_cavitation;
-        private bool m_motorOverheat;
-
         partial void Configure(INodeManagerBuilder builder)
         {
             Server.Telemetry.CreateLogger<PumpNodeManager>()
                 .ConfiguringPumpNodeManagerFluentWiring();
 
+            PumpState pump = builder.Node<PumpState>("Pump #1").Node;
             WithIdentification(builder);
-            WithMeasurements(builder);
-            WithSupervision(builder);
+            RegisterPumpSimulation(builder, pump);
 
-            // Single manager-owned simulation tick advances all live
-            // measurements at 250 ms intervals; lets time-based fault
-            // injection work cleanly.
             builder.Simulation(TimeSpan.FromMilliseconds(250))
                 .OnTick((ctx, elapsed) => AdvanceSimulation());
         }
 
         /// <summary>
-        /// ── Identification properties via WithProperty ──────────────
-        /// PumpType.Identification is a mandatory child of PumpType so
-        /// it is materialised by the source-generated factory used in
-        /// CreatePumpAsync. BrowsePathResolver's cross-namespace
-        /// name-only fallback (FB-3 phase 1) resolves the unqualified
-        /// 'Identification' segment to the DI-namespace child without
-        /// requiring an explicit ns= prefix in the path.
+        /// Wires a pump created after the initial fluent configuration into
+        /// the already-running manager simulation.
         /// </summary>
-        /// <param name="builder"></param>
-        private void WithIdentification(INodeManagerBuilder builder)
+        /// <param name="pump">The registered pump instance.</param>
+        private void RegisterPumpSimulation(PumpState pump)
+        {
+            ushort pumpsNs = (ushort)Server.NamespaceUris.GetIndex(
+                Opc.Ua.Pumps.Namespaces.Pumps);
+            NodeManagerBuilder builder = CreateFluentBuilder(pumpsNs);
+            RegisterPumpSimulation(builder, pump);
+            // Seal starts the shared simulation registry; only seal successfully wired builders.
+            builder.Seal();
+        }
+
+        /// <summary>
+        /// Configures the variable updaters, alarms, and phase profile for one
+        /// pump instance.
+        /// </summary>
+        /// <param name="builder">The active fluent builder.</param>
+        /// <param name="pump">The pump to configure.</param>
+        private void RegisterPumpSimulation(
+            INodeManagerBuilder builder,
+            PumpState pump)
+        {
+            lock (m_simulationRegistrationLock)
+            {
+                if (m_pumpSimulations.ContainsKey(pump.NodeId))
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadConfigurationError,
+                        "Pump '{0}' (id '{1}') already has a simulation registered.",
+                        pump.BrowseName,
+                        pump.NodeId);
+                }
+
+                int profileIndex = m_nextSimulationProfile++;
+                PumpSimulationState simulation = CreatePumpSimulation(
+                    builder,
+                    pump,
+                    profileIndex);
+                simulation.Initialize(Volatile.Read(ref m_simulationTicks));
+                if (!m_pumpSimulations.TryAdd(pump.NodeId, simulation))
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadConfigurationError,
+                        "Pump '{0}' (id '{1}') already has a simulation registered.",
+                        pump.BrowseName,
+                        pump.NodeId);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Configures the identification values demonstrated by the
+        /// hand-wired first pump.
+        /// </summary>
+        /// <param name="builder">The active fluent builder.</param>
+        private static void WithIdentification(INodeManagerBuilder builder)
         {
             builder.Node("Pump #1/Identification")
                 .WithProperty("Manufacturer", "SimPump Corp")
                 .WithProperty("SerialNumber", "SN-001")
-                .WithProperty("ProductInstanceUri",
+                .WithProperty(
+                    "ProductInstanceUri",
                     "urn:simdevice:SimPump:PumpX-2000:SN-001");
         }
 
-        /// <summary>
-        /// ── Measurements with engineering units ─────────────────────
-        /// All seven analog measurements live under
-        /// PumpType.Operational.Measurements and are materialised by
-        /// CreatePumpAsync via the generator-emitted AddXxx
-        /// helpers. The cross-namespace name-only resolver fallback
-        /// means the unqualified browse path resolves through the
-        /// Pumps -> Machinery (Operational) -> Pumps (Measurements +
-        /// analog states) namespace transitions transparently.
-        /// </summary>
-        /// <param name="builder"></param>
-        private void WithMeasurements(INodeManagerBuilder builder)
+        private PumpSimulationState CreatePumpSimulation(
+            INodeManagerBuilder builder,
+            PumpState pump,
+            int profileIndex)
         {
-            AddMeasurement(builder,
-                "Pump #1/Operational/Measurements/DifferentialPressure",
-                () => m_currentPressure,
-                EngineeringUnits.Pascal, min: 0, max: 1_000_000);
+            MeasurementsState measurements = pump.Operational!.Measurements!;
 
-            AddMeasurement(builder,
-                "Pump #1/Operational/Measurements/FluidTemperature",
-                () => m_currentTemperature,
-                EngineeringUnits.Kelvin, min: 233.15, max: 473.15);
+            AddMeasurement(
+                builder,
+                measurements.DifferentialPressure!.NodeId,
+                EngineeringUnits.Pascal,
+                min: 0,
+                max: 1_000_000,
+                out IValueUpdater<double> pressure);
+            AddMeasurement(
+                builder,
+                measurements.FluidTemperature!.NodeId,
+                EngineeringUnits.Kelvin,
+                min: 233.15,
+                max: 473.15,
+                out IValueUpdater<double> fluidTemperature);
+            AddMeasurement(
+                builder,
+                measurements.BearingTemperature!.NodeId,
+                EngineeringUnits.Kelvin,
+                min: 233.15,
+                max: 473.15,
+                out IValueUpdater<double> bearingTemperature);
+            AddMeasurement(
+                builder,
+                measurements.PumpPowerInput!.NodeId,
+                EngineeringUnits.Watt,
+                min: 0,
+                max: 50_000,
+                out IValueUpdater<double> power);
+            AddMeasurement(
+                builder,
+                measurements.MassFlow!.NodeId,
+                EngineeringUnits.KilogramsPerSecond,
+                min: 0,
+                max: 1.0,
+                out IValueUpdater<double> flow);
+            AddMeasurement(
+                builder,
+                measurements.PumpEfficiency!.NodeId,
+                EngineeringUnits.Percent,
+                min: 0,
+                max: 100,
+                out IValueUpdater<double> efficiency);
+            AddMeasurement(
+                builder,
+                measurements.Level!.NodeId,
+                EngineeringUnits.Metre,
+                min: 0,
+                max: 10,
+                out IValueUpdater<double> level);
 
-            AddMeasurement(builder,
-                "Pump #1/Operational/Measurements/BearingTemperature",
-                () => m_currentBearingTemp,
-                EngineeringUnits.Kelvin, min: 233.15, max: 473.15);
+            builder.Variable<uint>(measurements.NumberOfStarts!.NodeId)
+                .Bind(out IValueUpdater<uint> numberOfStarts);
 
-            AddMeasurement(builder,
-                "Pump #1/Operational/Measurements/PumpPowerInput",
-                () => m_currentPower,
-                EngineeringUnits.Watt, min: 0, max: 50_000);
+            ushort pumpsNs = (ushort)Server.NamespaceUris.GetIndex(
+                Opc.Ua.Pumps.Namespaces.Pumps);
+            INodeBuilder<PumpState> pumpBuilder =
+                builder.Node<PumpState>(pump.NodeId);
+            INodeBuilder<SupervisionState> events =
+                pumpBuilder.Components().Events();
 
-            AddMeasurement(builder,
-                "Pump #1/Operational/Measurements/MassFlow",
-                () => m_currentFlow,
-                EngineeringUnits.KilogramsPerSecond, min: 0, max: 1.0);
+            IAlarmBuilder<NonExclusiveLimitAlarmState> overTempAlarm = events
+                .CreateLimitAlarm(
+                    new QualifiedName("OverTempAlarm", pumpsNs))
+                .WithLimits(
+                    highHigh: 373.15,
+                    high: 363.15,
+                    low: 283.15,
+                    lowLow: 273.15)
+                .OnAcknowledge((ctx, c, eventId, comment) => ServiceResult.Good);
 
-            AddMeasurement(builder,
-                "Pump #1/Operational/Measurements/PumpEfficiency",
-                () => m_currentEfficiency,
-                EngineeringUnits.Percent, min: 0, max: 100);
+            events.Components().SupervisionProcessFluid()
+                .Components().Cavitation()
+                .Bind(out IValueUpdater<bool> cavitation);
+            IVariableBuilder<bool> motorOverheatBuilder = events
+                .Components().SupervisionPumpOperation()
+                .Components().MotorOverheat()
+                .Bind(out IValueUpdater<bool> motorOverheat);
+            overTempAlarm.MonitorVariable(motorOverheatBuilder.Node);
+            motorOverheatBuilder.ActivatesAlarm(overTempAlarm);
 
-            AddMeasurement(builder,
-                "Pump #1/Operational/Measurements/Level",
-                () => m_currentLevel,
-                EngineeringUnits.Metre, min: 0, max: 10);
+            return new PumpSimulationState(
+                profileIndex,
+                pressure,
+                fluidTemperature,
+                bearingTemperature,
+                power,
+                flow,
+                efficiency,
+                level,
+                numberOfStarts,
+                cavitation,
+                motorOverheat);
+        }
 
-            // Discrete count exposed alongside the analog measurements.
-            builder.Variable<uint>(
-                "Pump #1/Operational/Measurements/NumberOfStarts")
-                .OnRead(() => (uint)Interlocked.Read(ref m_numberOfStarts));
+        private static void AddMeasurement(
+            INodeManagerBuilder builder,
+            NodeId nodeId,
+            EUInformation units,
+            double min,
+            double max,
+            out IValueUpdater<double> updater)
+        {
+            builder.Variable<double>(nodeId)
+                .Bind(out updater)
+                .WithEngineeringUnits(units)
+                .WithEURange(min, max);
+        }
+
+        private void AdvanceSimulation()
+        {
+            long tick = Interlocked.Increment(ref m_simulationTicks);
+            foreach (PumpSimulationState simulation in m_pumpSimulations.Values)
+            {
+                simulation.Advance(tick);
+            }
         }
 
         private static class EngineeringUnits
@@ -178,100 +276,108 @@ namespace Pumps
                 new("m", "Metre", "http://www.opcfoundation.org/UA/units/un/cefact");
         }
 
-        /// <summary>
-        /// ── Supervision flags wired to NAMUR alarms ─────────────────
-        /// Demonstrates the FB-3 phase 3 typed accessor API: starting
-        /// from a typed INodeBuilder<PumpState> root, the generator-
-        /// emitted PumpStateComponents.Events extension walks to
-        /// SupervisionState (the type of PumpType.Events), and from
-        /// there the typed SupervisionStateComponents accessor walks
-        /// to SupervisionProcessFluid and SupervisionPumpOperation —
-        /// each step is compile-time checked against the model and
-        /// namespace-aware without forcing the author to spell out
-        /// browse-paths or QualifiedNames.
-        /// </summary>
-        /// <param name="builder"></param>
-        private void WithSupervision(INodeManagerBuilder builder)
+        private sealed class PumpSimulationState
         {
-            ushort pumpsNs = (ushort)Server.NamespaceUris.GetIndex(
-                Opc.Ua.Pumps.Namespaces.Pumps);
-
-            INodeBuilder<PumpState> pump =
-                builder.Node<PumpState>("Pump #1");
-
-            IAlarmBuilder<NonExclusiveLimitAlarmState> tempAlarm = pump
-                .Components().Events()
-                .CreateLimitAlarm(new QualifiedName("OverTempAlarm", pumpsNs))
-                .WithLimits(highHigh: 373.15, high: 363.15, low: 283.15, lowLow: 273.15)
-                .OnAcknowledge((ctx, c, eventId, comment) => ServiceResult.Good);
-
-            pump.Components().Events()
-                .Components().SupervisionProcessFluid()
-                .Components().Cavitation()
-                .OnRead(() => m_cavitation)
-                .ActivatesAlarm(tempAlarm);
-
-            pump.Components().Events()
-                .Components().SupervisionPumpOperation()
-                .Components().MotorOverheat()
-                .OnRead(() => m_motorOverheat);
-        }
-
-        /// <summary>
-        /// Direct measurement wiring — failures now propagate as
-        /// BadNodeIdUnknown ServiceResultException so wiring errors
-        /// surface at configuration time rather than getting silently
-        /// logged. The legacy TryAdd* helpers and their per-method
-        /// try/catch blocks were necessary while the optional pump
-        /// subtree was unmaterialised; CreatePumpAsync now
-        /// materialises every wired leaf so the wiring is unconditional.
-        /// </summary>
-        /// <param name="builder"></param>
-        /// <param name="browsePath"></param>
-        /// <param name="getter"></param>
-        /// <param name="units"></param>
-        /// <param name="min"></param>
-        /// <param name="max"></param>
-        private static void AddMeasurement(
-            INodeManagerBuilder builder,
-            string browsePath,
-            Func<double> getter,
-            EUInformation units,
-            double min,
-            double max)
-        {
-            builder.Variable<double>(browsePath)
-                .OnRead(getter)
-                .WithEngineeringUnits(units)
-                .WithEURange(min, max);
-        }
-
-        /// <summary>
-        /// ── Simulation tick — advances all live measurements ────────
-        /// </summary>
-        private void AdvanceSimulation()
-        {
-            long t = Interlocked.Increment(ref m_simulationTicks);
-
-            m_currentPressure = 200000.0 + (50000.0 * Math.Sin(t * 0.03));
-            m_currentTemperature = 313.15 + (5.0 * Math.Sin(t * 0.01));
-            m_currentBearingTemp = 333.15 + (8.0 * Math.Cos(t * 0.008));
-            m_currentPower = 5000.0 + (500.0 * Math.Sin(t * 0.02));
-            m_currentFlow = 0.05 + (0.005 * Math.Cos(t * 0.04));
-            m_currentEfficiency = 75.0 + (10.0 * Math.Sin(t * 0.015));
-            m_currentLevel = 2.5 + (0.5 * Math.Sin(t * 0.02));
-
-            // Fault injection — supervision flags transition true/false.
-            m_cavitation = (t % 120) > 100;
-            m_motorOverheat = (t % 200) > 190;
-
-            // Periodic restart simulation — every 3600 ticks (~15 min at 250ms).
-            if (t % 3600 == 0)
+            public PumpSimulationState(
+                int profileIndex,
+                IValueUpdater<double> pressure,
+                IValueUpdater<double> fluidTemperature,
+                IValueUpdater<double> bearingTemperature,
+                IValueUpdater<double> power,
+                IValueUpdater<double> flow,
+                IValueUpdater<double> efficiency,
+                IValueUpdater<double> level,
+                IValueUpdater<uint> numberOfStarts,
+                IValueUpdater<bool> cavitation,
+                IValueUpdater<bool> motorOverheat)
             {
-                Interlocked.Increment(ref m_numberOfStarts);
+                m_phaseOffset = profileIndex * 17L;
+                m_pressure = pressure;
+                m_fluidTemperature = fluidTemperature;
+                m_bearingTemperature = bearingTemperature;
+                m_power = power;
+                m_flow = flow;
+                m_efficiency = efficiency;
+                m_level = level;
+                m_numberOfStarts = numberOfStarts;
+                m_cavitation = cavitation;
+                m_motorOverheat = motorOverheat;
             }
+
+            public void Initialize(long tick)
+            {
+                Publish(tick, publishAll: true);
+            }
+
+            public void Advance(long tick)
+            {
+                Publish(tick, publishAll: false);
+            }
+
+            private void Publish(long tick, bool publishAll)
+            {
+                long localTick = tick + m_phaseOffset;
+                m_pressure.SetValue(
+                    200_000.0 + (50_000.0 * Math.Sin(localTick * 0.03)));
+                m_fluidTemperature.SetValue(
+                    313.15 + (5.0 * Math.Sin(localTick * 0.01)));
+                m_bearingTemperature.SetValue(
+                    333.15 + (8.0 * Math.Cos(localTick * 0.008)));
+                m_power.SetValue(
+                    5_000.0 + (500.0 * Math.Sin(localTick * 0.02)));
+                m_flow.SetValue(
+                    0.05 + (0.005 * Math.Cos(localTick * 0.04)));
+                m_efficiency.SetValue(
+                    75.0 + (10.0 * Math.Sin(localTick * 0.015)));
+                m_level.SetValue(
+                    2.5 + (0.5 * Math.Sin(localTick * 0.02)));
+
+                uint numberOfStarts = checked((uint)(localTick / 3_600));
+                if (publishAll || numberOfStarts != m_currentNumberOfStarts)
+                {
+                    m_currentNumberOfStarts = numberOfStarts;
+                    m_numberOfStarts.SetValue(numberOfStarts);
+                }
+
+                long cavitationCycle = localTick % 40;
+                bool cavitation = cavitationCycle >= 32 && cavitationCycle < 36;
+                if (publishAll || cavitation != m_currentCavitation)
+                {
+                    m_currentCavitation = cavitation;
+                    m_cavitation.SetValue(cavitation);
+                }
+
+                long overheatCycle = localTick % 64;
+                bool motorOverheat = overheatCycle >= 56 && overheatCycle < 60;
+                if (publishAll || motorOverheat != m_currentMotorOverheat)
+                {
+                    m_currentMotorOverheat = motorOverheat;
+                    m_motorOverheat.SetValue(motorOverheat);
+                }
+            }
+
+            private readonly long m_phaseOffset;
+            private readonly IValueUpdater<double> m_pressure;
+            private readonly IValueUpdater<double> m_fluidTemperature;
+            private readonly IValueUpdater<double> m_bearingTemperature;
+            private readonly IValueUpdater<double> m_power;
+            private readonly IValueUpdater<double> m_flow;
+            private readonly IValueUpdater<double> m_efficiency;
+            private readonly IValueUpdater<double> m_level;
+            private readonly IValueUpdater<uint> m_numberOfStarts;
+            private readonly IValueUpdater<bool> m_cavitation;
+            private readonly IValueUpdater<bool> m_motorOverheat;
+            private uint m_currentNumberOfStarts;
+            private bool m_currentCavitation;
+            private bool m_currentMotorOverheat;
         }
 
+        // Registration is a compound operation protected by the lock; the concurrent dictionary
+        // allows the 250 ms tick to enumerate fully initialized states without taking that lock.
+        private readonly ConcurrentDictionary<NodeId, PumpSimulationState> m_pumpSimulations = new();
+        private readonly Lock m_simulationRegistrationLock = new();
+        private long m_simulationTicks;
+        private int m_nextSimulationProfile;
     }
 
     internal static partial class PumpNodeManagerLog
