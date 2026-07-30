@@ -63,10 +63,10 @@ dotnet test UA.slnx
 Conventions and requirements:
 
 - **Frameworks.** Test projects use either **NUnit** (with `Assert.That` assertions and **Moq** for mocking) or **TUnit** (with its own assertions and mock helpers). Do not mix the two in one project, and do not use the classic NUnit asserts (`Assert.AreEqual`, …).
-- **Coverage.** Coverage is measured with **Coverlet** and must not regress; every non-application, non-test project should stay at or above **80 %**.
+- **Coverage.** Coverage is measured with **Coverlet** and must not regress; every non-application, non-test project should stay at or above **80 %**. Two gates enforce this in CI — see [Continuous integration](#continuous-integration).
 - **Before a pull request** the `UA.slnx` suite must pass on at least **.NET Framework 4.8** and **.NET 10.0**.
 - **Testing a specific target framework.** The libraries multi-target, but the test executables run on one framework at a time. To run the suite against a non-default framework, set `CustomTestTarget` (supported values: `netstandard2.0`, `netstandard2.1`, `net472`, `net48`, `net8.0`, `net9.0`, `net10.0`). The batch file [`tests/customtest.bat`](../tests/customtest.bat) cleans, restores, and runs the tests for a chosen target; in Visual Studio, uncomment and set the `CustomTestTarget` property in [`targets.props`](../targets.props). A clean build for the target is recommended when switching.
-- **CI matrix.** To keep pull-request builds fast, only **net48** and **net8.0** are exercised in the qualifying CI build; the other frameworks run in scheduled/manual CI. Fix all failing, flaky, and CodeQL findings in the pipelines.
+- **CI matrix.** The pull-request gate runs the test suite on **net48** and **net10.0**, and compiles the solution for *every* supported target framework; the remaining test matrices (Debug, .NET 9/8, .NET Framework 4.7.2, netstandard) run in scheduled or manual CI. Fix all failing, flaky, and CodeQL findings in the pipelines. See [Continuous integration](#continuous-integration).
 
 ## Coding standards (dos and don'ts)
 
@@ -227,13 +227,72 @@ The class libraries currently target:
 6. .NET 9.0
 7. .NET 10.0
 
-To keep pull-request CI fast, only (4) and (6) are part of the qualifying build; the other platforms are covered by scheduled or manual CI. See [Running tests](#running-tests) for how to build and test a specific framework locally with `CustomTestTarget` / `tests/customtest.bat`.
+The pull-request gate *compiles* every one of these targets, but only runs the test suite on (4) and (6) to keep the feedback loop short; the remaining test matrices are covered by scheduled or manual CI. See [Running tests](#running-tests) for how to build and test a specific framework locally with `CustomTestTarget` / `tests/customtest.bat`, and [Continuous integration](#continuous-integration) for how the matrices are split.
 
 ### Versioning
 
 From **2.0** onward, package versions are produced by [Nerdbank.GitVersioning](https://github.com/dotnet/Nerdbank.GitVersioning) (nbgv) from the `version.json` file at the repository root. That file holds the base version (currently `2.0-preview`) and requests [SemVer 2.0](https://semver.org/) package versions (`nugetPackageVersion.semVer: 2`); nbgv derives the version height, prerelease tag, and build metadata from the git history, and `version.props` maps the computed values onto the assembly and package version properties. Stable (public-release) versions are produced only on the `main`, `master`, `develop/*`, and `release/<x.y.z>` branches — every other branch yields a prerelease build.
 
 > The earlier 1.x packages used a different, spec-derived scheme in which the first two digits encoded the embedded NodeSet spec version (for example `1.5.378.x` corresponds to OPC UA spec V1.05, mapped to release branches such as `release/1.4.372`). That scheme no longer applies from 2.0 onward.
+
+## Continuous integration
+
+Two CI systems run against this repository:
+
+- **Azure Pipelines** ([`azure-pipelines.yml`](../azure-pipelines.yml) plus the templates in [`.azurepipelines/`](../.azurepipelines)) — the all-target-framework solution build, the cross-platform test matrices, Native AoT and the coverage gate.
+- **GitHub Actions** ([`.github/workflows/`](../.github/workflows)) — CodeQL, container images, the opt-in stress and stability suites, and the macOS legs of the build/test matrix.
+
+### Which system runs what
+
+A single conceptual switch decides who owns the all-TFM build, the cross-platform test matrix and the Native AoT run. It is checked into source in **two places that must be flipped together**:
+
+| File | Setting | Default |
+| --- | --- | --- |
+| [`azure-pipelines.yml`](../azure-pipelines.yml) | `parameters.ciBuildBackend` | `ado` |
+| [`.github/workflows/buildandtest.yml`](../.github/workflows/buildandtest.yml) | `env.CI_BUILD_BACKEND` | `ado` |
+
+With the default `ado`, Azure Pipelines runs that work on the `netstandard` Managed DevOps Pool and the equivalent GitHub Actions jobs stand down on `master`/`main`. Setting both to `actions` restores the previous split, where GitHub Actions ran the ubuntu test matrix, Native AoT and the all-TFM builds.
+
+Two things are deliberately *not* covered by the switch:
+
+- **macOS** always runs on GitHub-hosted runners, because Managed DevOps Pools provide no macOS image.
+- **`master378` and `develop/*`** keep running the GitHub Actions jobs regardless of the setting, since Azure Pipelines only builds `master`/`main` from this file.
+
+Because the individual matrix jobs are generated (and are skipped outright when Azure Pipelines owns them), branch protection should require the aggregate **`build-and-test summary`** check rather than any individual job. That job always runs and treats an intentionally skipped job as success.
+
+### Triggering a pipeline run on a pull request
+
+Azure Pipelines is configured with **Require a team member's comment before building a pull request**, scoped to *pull requests from non-team members*. Pull requests opened by outside contributors and by the **GitHub Copilot coding agent** therefore do **not** start a pipeline automatically — this mirrors the "Approve and run workflows" gate GitHub Actions already applies to those pull requests.
+
+To start the run, a repository owner or a collaborator with `Write` permission comments on the pull request:
+
+```text
+/azp run
+```
+
+`/azp run <pipeline-name>` targets a single pipeline. If a comment appears to do nothing, check that your GitHub organization membership is **public** — Azure Pipelines cannot see private organization members unless they are direct repository collaborators, and it silently ignores their commands.
+
+This setting lives in the Azure DevOps portal (pipeline → **More actions** → **Triggers** → **Pull request validation**), not in YAML.
+
+### Coverage gates
+
+Coverage is enforced by [`.azurepipelines/check-coverage.ps1`](../.azurepipelines/check-coverage.ps1), which runs at the end of the `Code Coverage` stage against the merged Cobertura report. Thresholds live in [`coverage-thresholds.json`](../coverage-thresholds.json):
+
+| Check | Behaviour |
+| --- | --- |
+| **Project floor** | *Blocking.* Total line and branch rates must meet the absolute floors in `coverage-thresholds.json`. The `ignore` globs are applied here too, so samples, tests and generated code do not count. |
+| **Patch coverage** | *Blocking on pull requests.* Lines you added or modified must reach `patch.target` percent, tolerating `patch.threshold` percentage points. |
+| **Baseline delta** | *Advisory only.* Reports how total coverage compares with the recorded `baselineLineRate` and never fails the build. |
+
+Ratchet `minimumLineRate`, `minimumBranchRate` and `baselineLineRate` **upward** as coverage improves; never lower them to turn a red build green.
+
+To reproduce a gate failure locally, generate the same report with [`tests/codecoverage.cmd`](../tests/codecoverage.cmd) (or [`tests/codecoverage.sh`](../tests/codecoverage.sh)) and run the script against it:
+
+```powershell
+./.azurepipelines/check-coverage.ps1 -CoberturaPath ./CodeCoverage/Cobertura.xml -BaseRef master
+```
+
+Omit `-BaseRef` to check only the project floor.
 
 ## Contributing and pull requests
 

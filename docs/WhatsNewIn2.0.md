@@ -418,7 +418,10 @@ loggers, meters, and activities all hang off the same context object, and
 log redaction is wired through the audit APIs. Tests have been
 reorganised for faster CI, with several integration suites separated from
 unit suites, and code-coverage gates apply to all non-test, non-application
-projects.
+projects. Those gates now run inside the pipeline itself - an absolute
+project floor plus a changed-lines check - instead of relying on an external
+coverage service; see
+[Continuous integration](DeveloperGuide.md#continuous-integration).
 
 ## Further reading
 
