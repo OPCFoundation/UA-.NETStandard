@@ -2115,8 +2115,9 @@ namespace Opc.Ua.Schema.Model
         /// </summary>
         public static string GetAccessLevelAsCode(this VariableDesign variable)
         {
-            return variable?.RawAccessLevel is { } raw
-                ? GetAccessLevelBitsAsCode(raw)
+            uint? rawAccessLevel = variable?.RawAccessLevel;
+            return rawAccessLevel != null
+                ? GetAccessLevelBitsAsCode(rawAccessLevel.Value)
                 : GetAccessLevelAsCode(variable?.AccessLevel ?? AccessLevel.None);
         }
 
