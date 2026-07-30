@@ -94,7 +94,19 @@ namespace Opc.Ua.PubSub.Encoding
         /// </exception>
         public void Add(ByteString schemaId, ByteString schema, string format)
         {
-            ByteString actual = ComputeSchemaId(schema, format);
+            ByteString actual;
+            try
+            {
+                actual = ComputeSchemaId(schema, format);
+            }
+            catch (Exception ex) when (ex is FormatException or System.Text.Json.JsonException)
+            {
+                // An announced document that does not parse in its declared format cannot be
+                // fingerprinted, so it can never be verified. Reject it on the ingest path rather
+                // than caching an unverifiable entry.
+                throw new InvalidOperationException(
+                    "The announced schema is not a valid document for its declared format.", ex);
+            }
             if (!schemaId.Span.SequenceEqual(actual.Span))
             {
                 throw new InvalidOperationException("The announced SchemaId does not match the schema fingerprint.");

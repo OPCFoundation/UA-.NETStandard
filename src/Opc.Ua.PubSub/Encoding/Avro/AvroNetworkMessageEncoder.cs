@@ -90,6 +90,12 @@ namespace Opc.Ua.PubSub.Encoding
         public IReadOnlyList<SchemaChangeNotification> LastSchemaChanges { get; private set; }
             = Array.Empty<SchemaChangeNotification>();
 
+        /// <summary>
+        /// Accumulated per-DataSet schema observations, so that a Variant body type first seen in a
+        /// later message <em>appends</em> a union branch instead of replacing the union (§5.8).
+        /// </summary>
+        private readonly AvroSchemaLineage _lineage = new();
+
         /// <inheritdoc/>
         public async ValueTask<ReadOnlyMemory<byte>> EncodeAsync(
             PubSubNetworkMessage networkMessage,
@@ -140,7 +146,7 @@ namespace Opc.Ua.PubSub.Encoding
                 }
 
                 AvroSchemaAnnouncement announcement =
-                    SchemaExchangeMessages.CreateAvroDataSetAnnouncement(message, dataSetMessage, context);
+                    SchemaExchangeMessages.CreateAvroDataSetAnnouncement(message, dataSetMessage, context, _lineage);
                 SchemaCache.Add(announcement);
                 if (SchemaCache.MarkAnnounced(DestinationId, announcement.SchemaId))
                 {

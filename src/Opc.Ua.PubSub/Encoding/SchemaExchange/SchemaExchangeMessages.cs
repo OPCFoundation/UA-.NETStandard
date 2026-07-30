@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Text.Json;
@@ -40,15 +41,17 @@ namespace Opc.Ua.PubSub.Encoding
     /// Builds schema-exchange announcements for experimental PubSub messages.
     /// </summary>
     /// <remarks>
-    /// NOTE (experimental limitation): the announcement body is a deterministic internal schema
-    /// <em>descriptor</em> (see <see cref="BuildSchemaDescriptor"/>) that captures the DataSet shape,
-    /// not the canonical schema the Part 14 mappings name (the Avro Parsing Canonical Form, §9.3, or
-    /// the serialized Arrow Schema IPC bytes, §5.2.1). The SchemaId fingerprint <em>algorithms</em>
-    /// are spec-correct, but because the fingerprint <em>input</em> is the descriptor, the resulting
-    /// SchemaId and body are consistent within this library only. This is sufficient to demonstrate
-    /// the announce-once / cache / verify-on-ingest handshake; emitting the canonical schema so a
-    /// spec-conformant peer computes the same SchemaId and can parse the body is a documented
-    /// follow-up for cross-implementation interoperability.
+    /// The Avro announcement body is the canonical Avro schema document for the DataSet, generated
+    /// by <see cref="AvroSchemaBuilder"/> from the DataSetMetaData (§5, §6.2), so the SchemaId is a
+    /// genuine CRC-64-AVRO fingerprint of the Avro Parsing Canonical Form (§6.3) and a
+    /// spec-conformant peer computes the same value. Arrow and JSON announcements still use the
+    /// deterministic internal <em>descriptor</em> of <see cref="BuildSchemaDescriptor"/>.
+    /// <para>
+    /// The experimental wire framing writes each DataSet field value as an opaque nested Avro blob,
+    /// so the announced schema is authoritative for identity and for sharing the DataSet shape while
+    /// decoding remains structural; emitting the typed body on the wire is the remaining step
+    /// towards a fully schema-driven decoder (§7).
+    /// </para>
     /// </remarks>
     internal static class SchemaExchangeMessages
     {
@@ -61,16 +64,178 @@ namespace Opc.Ua.PubSub.Encoding
         /// <param name="envelope">The Avro network message envelope.</param>
         /// <param name="dataSetMessage">The DataSetMessage whose schema is announced.</param>
         /// <param name="context">The encoding context (used to resolve DataSetMetaData).</param>
+        /// <param name="lineage">Optional lineage state used to grow unions append-only (§5.8).</param>
         /// <returns>The per-DataSet schema announcement.</returns>
         internal static AvroSchemaAnnouncement CreateAvroDataSetAnnouncement(
             AvroNetworkMessage envelope,
             PubSubDataSetMessage dataSetMessage,
-            PubSubNetworkMessageContext context)
+            PubSubNetworkMessageContext context,
+            AvroSchemaLineage? lineage = null)
         {
-            string schemaJson = BuildDataSetDescriptor(envelope, dataSetMessage, SchemaCache.AvroFormat, context);
+            string schemaJson = BuildAvroDataSetSchema(envelope, dataSetMessage, context, lineage);
             ByteString schemaBytes = ByteString.From(System.Text.Encoding.UTF8.GetBytes(schemaJson));
             ByteString schemaId = SchemaCache.ComputeSchemaId(schemaBytes, SchemaCache.AvroFormat);
             return new AvroSchemaAnnouncement(schemaId, schemaJson, null);
+        }
+
+        /// <summary>
+        /// Builds the canonical Avro schema document for one DataSet (§5, §6.2), from the
+        /// DataSetMetaData when it is available and otherwise from the runtime field values.
+        /// </summary>
+        /// <param name="envelope">The Avro network message envelope.</param>
+        /// <param name="dataSetMessage">The DataSetMessage whose DataSet is described.</param>
+        /// <param name="context">The encoding context used to resolve DataSetMetaData.</param>
+        /// <param name="lineage">Optional lineage state used to grow unions append-only (§5.8).</param>
+        /// <returns>The Avro schema document as JSON.</returns>
+        internal static string BuildAvroDataSetSchema(
+            AvroNetworkMessage envelope,
+            PubSubDataSetMessage dataSetMessage,
+            PubSubNetworkMessageContext context,
+            AvroSchemaLineage? lineage = null)
+        {
+            DataSetMetaDataType? metaData = PubSubMessageEncoding.ResolveMetaData(
+                envelope,
+                dataSetMessage,
+                context,
+                envelope.DataSetClassId);
+            List<AvroSchemaField> fields = CollectSchemaFields(dataSetMessage, metaData);
+
+            // The runtime body types of Variant fields are an input to schema generation (§6.1), so
+            // they are merged into the lineage before the schema is built. Without this a Variant
+            // field that starts carrying a new concrete type would produce a replaced - not
+            // grown - union.
+            IReadOnlyList<AvroSchemaField>? accumulated = null;
+            if (lineage is not null)
+            {
+                string lineageKey = FormattableString.Invariant(
+                    $"{envelope.PublisherId}|{envelope.WriterGroupId ?? 0}|{dataSetMessage.DataSetWriterId}|{dataSetMessage.MetaDataVersion.MajorVersion}");
+                accumulated = lineage.Accumulate(lineageKey, ObservedFields(dataSetMessage, fields));
+            }
+
+            return AvroSchemaBuilder.Build(
+                DataSetSchemaName(dataSetMessage, metaData),
+                fields,
+                accumulated);
+        }
+
+        /// <summary>
+        /// Projects the values actually present in a DataSetMessage onto field descriptors, so the
+        /// concrete runtime type of each Variant field is fed into the lineage (§6.1).
+        /// </summary>
+        /// <param name="dataSetMessage">The DataSetMessage being described.</param>
+        /// <param name="declared">The declared field descriptors.</param>
+        /// <returns>The observed field descriptors.</returns>
+        private static List<AvroSchemaField> ObservedFields(
+            PubSubDataSetMessage dataSetMessage,
+            List<AvroSchemaField> declared)
+        {
+            var observed = new List<AvroSchemaField>(declared);
+            DataSetFieldContentMask mask = (DataSetFieldContentMask)FieldContentMask(dataSetMessage);
+            for (int i = 0; i < dataSetMessage.Fields.Count; i++)
+            {
+                DataSetField field = dataSetMessage.Fields[i];
+                PubSubFieldEncoding encoding = SelectFieldEncoding(field.Encoding, mask);
+                if (encoding == PubSubFieldEncoding.RawData)
+                {
+                    continue;
+                }
+                TypeInfo typeInfo = field.Value.TypeInfo;
+                observed.Add(new AvroSchemaField(
+                    field.Name,
+                    typeInfo.BuiltInType,
+                    typeInfo.ValueRank,
+                    encoding));
+            }
+            return observed;
+        }
+
+        /// <summary>
+        /// Chooses the generated record name for a DataSet.
+        /// </summary>
+        /// <param name="dataSetMessage">The DataSetMessage being described.</param>
+        /// <param name="metaData">The resolved DataSetMetaData, when available.</param>
+        /// <returns>The record name.</returns>
+        private static string DataSetSchemaName(
+            PubSubDataSetMessage dataSetMessage,
+            DataSetMetaDataType? metaData)
+        {
+            if (metaData?.Name is { Length: > 0 } name)
+            {
+                return name;
+            }
+            return FormattableString.Invariant($"DataSet{dataSetMessage.DataSetWriterId}");
+        }
+
+        /// <summary>
+        /// Projects a DataSetMessage onto the field descriptors used for schema generation.
+        /// </summary>
+        /// <param name="dataSetMessage">The DataSetMessage being described.</param>
+        /// <param name="metaData">The resolved DataSetMetaData, when available.</param>
+        /// <returns>The ordered field descriptors.</returns>
+        private static List<AvroSchemaField> CollectSchemaFields(
+            PubSubDataSetMessage dataSetMessage,
+            DataSetMetaDataType? metaData)
+        {
+            DataSetFieldContentMask mask = (DataSetFieldContentMask)FieldContentMask(dataSetMessage);
+            var fields = new List<AvroSchemaField>();
+
+            if (metaData?.Fields is { Count: > 0 } metaFields)
+            {
+                // Metadata-driven: describe every declared key, so a full key frame and any sparse
+                // subset share one schema and therefore one SchemaId. The field framing is uniform
+                // per writer, so it is taken from the first present field.
+                PubSubFieldEncoding declared = dataSetMessage.Fields.Count > 0
+                    ? dataSetMessage.Fields[0].Encoding
+                    : PubSubFieldEncoding.Variant;
+                PubSubFieldEncoding encoding = SelectFieldEncoding(declared, mask);
+                for (int i = 0; i < metaFields.Count; i++)
+                {
+                    FieldMetaData field = metaFields[i];
+                    fields.Add(new AvroSchemaField(
+                        field.Name,
+                        (BuiltInType)field.BuiltInType,
+                        field.ValueRank,
+                        encoding));
+                }
+                return fields;
+            }
+
+            for (int i = 0; i < dataSetMessage.Fields.Count; i++)
+            {
+                DataSetField field = dataSetMessage.Fields[i];
+                TypeInfo typeInfo = field.Value.TypeInfo;
+                fields.Add(new AvroSchemaField(
+                    field.Name,
+                    typeInfo.BuiltInType,
+                    typeInfo.ValueRank,
+                    SelectFieldEncoding(field.Encoding, mask)));
+            }
+            return fields;
+        }
+
+        /// <summary>
+        /// Applies the same framing rule the Avro encoder uses, so the generated schema describes
+        /// the framing that is actually written.
+        /// </summary>
+        /// <param name="declared">The field's declared encoding.</param>
+        /// <param name="mask">The DataSetFieldContentMask of the DataSetMessage.</param>
+        /// <returns>The effective field framing.</returns>
+        private static PubSubFieldEncoding SelectFieldEncoding(
+            PubSubFieldEncoding declared,
+            DataSetFieldContentMask mask)
+        {
+            const DataSetFieldContentMask dataValueBits = DataSetFieldContentMask.StatusCode
+                | DataSetFieldContentMask.SourceTimestamp
+                | DataSetFieldContentMask.SourcePicoSeconds
+                | DataSetFieldContentMask.ServerTimestamp
+                | DataSetFieldContentMask.ServerPicoSeconds;
+            if (declared == PubSubFieldEncoding.DataValue || (mask & dataValueBits) != 0)
+            {
+                return PubSubFieldEncoding.DataValue;
+            }
+            return declared == PubSubFieldEncoding.RawData
+                ? PubSubFieldEncoding.RawData
+                : PubSubFieldEncoding.Variant;
         }
 
         /// <summary>

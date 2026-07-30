@@ -52,9 +52,13 @@ namespace Opc.Ua.PubSub.Encoding.Tests
             ByteString lastId = default;
             for (int i = 0; i < overflow; i++)
             {
-                // Distinct bytes per iteration; the Avro fingerprint provider falls back to a raw
-                // CRC-64 for non-schema bytes, so each produces a distinct content-addressed id.
-                ByteString schema = ByteString.From(BitConverter.GetBytes(i));
+                // A distinct real Avro schema per iteration. These must be genuine schema
+                // documents: the Avro SchemaId is the CRC-64-AVRO of the Parsing Canonical Form,
+                // so a non-schema input has no defined fingerprint and is now rejected instead of
+                // being hashed as raw bytes.
+                ByteString schema = ByteString.From(System.Text.Encoding.UTF8.GetBytes(
+                    "{\"type\":\"record\",\"name\":\"Bounded" + i.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                    + "\",\"fields\":[{\"name\":\"value\",\"type\":\"int\"}]}"));
                 ByteString id = SchemaCache.ComputeSchemaId(schema, SchemaCache.AvroFormat);
                 cache.Add(id, schema, SchemaCache.AvroFormat);
                 lastId = id;

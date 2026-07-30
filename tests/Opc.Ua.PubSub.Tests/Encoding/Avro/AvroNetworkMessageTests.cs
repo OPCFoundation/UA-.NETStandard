@@ -675,7 +675,12 @@ namespace Opc.Ua.PubSub.Encoding.Tests
                         Status = (StatusCode)StatusCodes.Good,
                         MessageType = PubSubDataSetMessageType.KeyFrame,
                         MetaDataVersion = new ConfigurationVersionDataType { MajorVersion = 1, MinorVersion = 3 },
-                        Fields = [CreateField("Enabled", new Variant(true), PubSubFieldEncoding.Variant)]
+                        // The same field now carries an Int32 body, so the Variant body union gains
+                        // a branch and the schema - and therefore the SchemaId - genuinely grows.
+                        // The SchemaId is a fingerprint of the schema alone (§6.3), so bumping the
+                        // ConfigurationVersion without changing the DataSet shape would correctly
+                        // produce no change at all.
+                        Fields = [CreateField("Enabled", new Variant(42), PubSubFieldEncoding.Variant)]
                     }
                 ]
             };
