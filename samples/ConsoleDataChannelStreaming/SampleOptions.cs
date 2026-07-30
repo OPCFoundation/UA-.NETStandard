@@ -54,7 +54,8 @@ namespace ConsoleDataChannelStreaming
     internal enum SampleRunMode
     {
         Server,
-        Direct
+        Direct,
+        Benchmark
     }
 
     /// <summary>
@@ -68,6 +69,18 @@ namespace ConsoleDataChannelStreaming
         public SampleTransport Transport { get; init; } = SampleTransport.Tcp;
 
         public SampleRunMode RunMode { get; init; } = SampleRunMode.Server;
+
+        /// <summary>
+        /// How many monitored items the benchmark subscribes to, which is
+        /// what sets the size of the competing Publish load.
+        /// </summary>
+        public int MonitoredItems { get; init; } = 100;
+
+        /// <summary>
+        /// How many measured runs the benchmark takes per case, after one
+        /// warm-up run that is discarded.
+        /// </summary>
+        public int Repeat { get; init; } = 3;
 
         /// <summary>
         /// How many frames to send.
@@ -132,10 +145,20 @@ namespace ConsoleDataChannelStreaming
                         {
                             options = options with { RunMode = SampleRunMode.Server };
                         }
+                        else if (mode.Equals("benchmark", StringComparison.OrdinalIgnoreCase))
+                        {
+                            options = options with { RunMode = SampleRunMode.Benchmark };
+                        }
                         else
                         {
                             options = options with { DeliveryMode = ParseDeliveryMode(mode) };
                         }
+                        break;
+                    case "--monitored-items":
+                        options = options with { MonitoredItems = ParseInt(Next(args, ref ii)) };
+                        break;
+                    case "--repeat":
+                        options = options with { Repeat = ParseInt(Next(args, ref ii)) };
                         break;
                     case "--delivery":
                         options = options with { DeliveryMode = ParseDeliveryMode(Next(args, ref ii)) };
@@ -157,12 +180,18 @@ namespace ConsoleDataChannelStreaming
             Console.WriteLine("usage: ConsoleDataChannelStreaming [options]");
             Console.WriteLine();
             Console.WriteLine("  --transport tcp|quic  framing to exercise (default tcp)");
-            Console.WriteLine("  --mode server|direct  real Session/OpenDataChannel or direct manager (default server)");
+            Console.WriteLine("  --mode server|direct|benchmark");
+            Console.WriteLine("                        real Session/OpenDataChannel, direct manager,");
+            Console.WriteLine("                        or the throughput matrix (default server)");
             Console.WriteLine("  --frames N            frames to send (default 300)");
             Console.WriteLine("  --size N              payload bytes per frame (default 1200,");
             Console.WriteLine("                        which fits one QUIC datagram without");
             Console.WriteLine("                        IP fragmentation)");
             Console.WriteLine("  --delivery reliable|reliable-unordered|partial|unreliable");
+            Console.WriteLine("  --monitored-items N   benchmark: items generating the competing");
+            Console.WriteLine("                        Publish load (default 100)");
+            Console.WriteLine("  --repeat N            benchmark: measured runs per case after one");
+            Console.WriteLine("                        discarded warm-up (default 3)");
             Console.WriteLine("  -h, --help            this text");
         }
 

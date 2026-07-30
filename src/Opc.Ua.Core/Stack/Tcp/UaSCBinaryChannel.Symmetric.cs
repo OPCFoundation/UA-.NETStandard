@@ -414,9 +414,11 @@ namespace Opc.Ua.Bindings
             ChannelToken token,
             object messageBody,
             bool isRequest,
-            out bool limitsExceeded)
+            out bool limitsExceeded,
+            out SendGateTicket sendTicket)
         {
             limitsExceeded = false;
+            sendTicket = null!;
             bool success = false;
             BufferCollection? chunksToProcess = null;
 
@@ -584,6 +586,7 @@ namespace Opc.Ua.Bindings
                     encoder.WriteUInt32(null, ChannelId);
                     encoder.WriteUInt32(null, token.TokenId);
 
+                    sendTicket ??= TakeSendTicket();
                     uint sequenceNumber = GetNewSequenceNumber();
                     encoder.WriteUInt32(null, sequenceNumber);
                     encoder.WriteUInt32(null, requestId);
@@ -625,6 +628,11 @@ namespace Opc.Ua.Bindings
             {
                 if (!success)
                 {
+                    if (sendTicket != null)
+                    {
+                        ReleaseSendTicket(sendTicket);
+                    }
+
                     chunksToProcess?.Release(BufferManager, "WriteSymmetricMessage");
                 }
             }

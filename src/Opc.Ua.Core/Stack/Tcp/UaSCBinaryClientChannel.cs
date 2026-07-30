@@ -634,7 +634,8 @@ namespace Opc.Ua.Bindings
                 ServerCertificate,
                 new ArraySegment<byte>(buffer, 0, buffer.Length),
                 m_oscRequestSignature,
-                out byte[] signature);
+                out byte[] signature,
+                out SendGateTicket sendTicket);
 
             // don't keep signature if secure channel enhancements are not used.
             m_oscRequestSignature = SecurityPolicy!.SecureChannelEnhancements ? signature : null;
@@ -645,7 +646,7 @@ namespace Opc.Ua.Bindings
             // write the message to the server.
             try
             {
-                BeginWriteMessage(chunksToSend, m_handshakeOperation);
+                BeginWriteMessage(chunksToSend, m_handshakeOperation, sendTicket);
                 chunksToSend = null;
             }
             finally
@@ -1248,9 +1249,10 @@ namespace Opc.Ua.Bindings
                     token,
                     request,
                     true,
-                    out bool limitsExceeded);
+                    out bool limitsExceeded,
+                    out SendGateTicket sendTicket);
 
-                BeginWriteMessage(buffers, operation);
+                BeginWriteMessage(buffers, operation, sendTicket);
                 buffers = null;
                 success = true;
 
@@ -1750,12 +1752,13 @@ namespace Opc.Ua.Bindings
                 currentToken,
                 request,
                 true,
-                out _);
+                out _,
+                out SendGateTicket sendTicket);
 
             // send the message.
             try
             {
-                BeginWriteMessage(buffers, operation);
+                BeginWriteMessage(buffers, operation, sendTicket);
                 buffers = null;
             }
             finally

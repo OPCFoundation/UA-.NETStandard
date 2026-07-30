@@ -769,10 +769,11 @@ namespace Opc.Ua.Bindings
                     token,
                     response,
                     false,
-                    out bool limitsExceeded);
+                    out bool limitsExceeded,
+                    out SendGateTicket sendTicket);
 
                 // send message.
-                BeginWriteMessage(buffers, null);
+                BeginWriteMessage(buffers, null, sendTicket);
                 buffers = null;
             }
             catch (Exception e)

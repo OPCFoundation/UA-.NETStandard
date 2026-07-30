@@ -227,6 +227,8 @@ namespace Opc.Ua.Bindings
             byte[] body = BufferManager.TakeBuffer(size, nameof(SendDataChannelFrameAsync), ct);
 
             BufferCollection? chunks = null;
+            SendGateTicket? sendTicket = null;
+            bool sendTurnAcquired = false;
 
             try
             {
@@ -270,7 +272,8 @@ namespace Opc.Ua.Bindings
                         token,
                         new ArraySegment<byte>(body, 0, written),
                         m_isDataChannelSource ? false : true,
-                        out bool limitsExceeded);
+                        out bool limitsExceeded,
+                        out sendTicket);
 
                     if (limitsExceeded)
                     {
@@ -281,10 +284,17 @@ namespace Opc.Ua.Bindings
                 }
 
                 IUaSCByteTransport transport = GetDataChannelTransport();
+                await AwaitSendTurnAsync(sendTicket, ct).ConfigureAwait(false);
+                sendTurnAcquired = true;
                 await transport.SendChunkAsync(chunks, ct).ConfigureAwait(false);
             }
             finally
             {
+                if (sendTurnAcquired)
+                {
+                    ReleaseSendTicket(sendTicket!);
+                }
+
                 chunks?.Release(BufferManager, nameof(SendDataChannelFrameAsync));
                 BufferManager.ReturnBuffer(body, nameof(SendDataChannelFrameAsync));
             }

@@ -5,6 +5,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -19,6 +20,8 @@ using Opc.Ua.Client.Discovery;
 using Opc.Ua.Configuration;
 using Opc.Ua.Server;
 using ClientSession = Opc.Ua.Client.ISession;
+using ClientMonitoredItem = Opc.Ua.Client.MonitoredItem;
+using ClientSubscription = Opc.Ua.Client.Subscription;
 
 namespace ConsoleDataChannelStreaming
 {
@@ -71,6 +74,81 @@ namespace ConsoleDataChannelStreaming
                 ? CreateDirectAsync(options, ct)
                 : CreateServerAsync(options, ct);
         }
+
+        /// <summary>
+        /// Starts a subscription whose Publish traffic competes with the
+        /// data channel, replacing any load already running.
+        /// </summary>
+        /// <remarks>
+        /// The benchmark varies the load on one long-lived harness rather
+        /// than standing up a Server per case. Several Servers in one
+        /// process share the process-wide SecureChannel registry the data
+        /// channel Services resolve through, and a Server that is still
+        /// shutting down is enough to make the next case send frames at a
+        /// channel that never enabled the feature.
+        /// </remarks>
+        /// <param name="publishingInterval">Interval in milliseconds.</param>
+        /// <param name="monitoredItems">How many items to monitor.</param>
+        /// <param name="ct">Cancellation token.</param>
+        public async Task StartPublishLoadAsync(
+            int publishingInterval,
+            int monitoredItems,
+            CancellationToken ct)
+        {
+            await StopPublishLoadAsync(ct).ConfigureAwait(false);
+
+            if (publishingInterval <= 0 || m_session == null || m_telemetry == null)
+            {
+                return;
+            }
+
+            var load = new PendingPublishLoad();
+            await load
+                .StartAsync(m_session, m_telemetry, publishingInterval, monitoredItems, ct)
+                .ConfigureAwait(false);
+
+            m_publishLoad = load;
+            MonitoredItemCount = monitoredItems;
+        }
+
+        /// <summary>
+        /// Removes the competing subscription, if one is running.
+        /// </summary>
+        /// <param name="ct">Cancellation token.</param>
+        public async Task StopPublishLoadAsync(CancellationToken ct)
+        {
+            PendingPublishLoad? load = m_publishLoad;
+            m_publishLoad = null;
+            MonitoredItemCount = 0;
+
+            if (load != null && m_session != null)
+            {
+                await load.StopAsync(m_session, ct).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// How many DataChange notifications the Client actually received
+        /// while the harness was alive.
+        /// </summary>
+        /// <remarks>
+        /// This is the benchmark's honesty check. If the monitored items do
+        /// not report, the competing load is imaginary and every comparison
+        /// against the unsubscribed case is meaningless while still looking
+        /// entirely plausible.
+        /// </remarks>
+        public long PublishNotifications => m_publishLoad?.Notifications ?? 0;
+
+        /// <summary>
+        /// The publishing interval the Server revised the request to, which
+        /// is the interval the load actually ran at.
+        /// </summary>
+        public double RevisedPublishingInterval => m_publishLoad?.RevisedPublishingInterval ?? 0;
+
+        /// <summary>
+        /// How many monitored items the harness subscribed to.
+        /// </summary>
+        public int MonitoredItemCount { get; private set; }
 
         public async ValueTask CloseDataChannelAsync(CancellationToken ct)
         {
@@ -126,14 +204,23 @@ namespace ConsoleDataChannelStreaming
                 0));
         }
 
-        private static async Task<StreamingHarness> CreateServerAsync(SampleOptions options, CancellationToken ct)
+        private static async Task<StreamingHarness> CreateServerAsync(
+            SampleOptions options,
+            CancellationToken ct)
         {
             var state = new ServerStreamingState(options);
             DataChannelSampleServer.PendingState = state;
 
+            // The benchmark stands up a fresh Server per run, and a fixed
+            // port makes a new run race the previous listener as it shuts
+            // down - the new Client then reaches the old Server, whose data
+            // channel state belongs to a harness that is being torn down.
+            // A port per instance removes the race entirely.
+            int port = Interlocked.Add(ref s_endpointPort, 2);
+
             string endpointUrl = options.Transport == SampleTransport.Quic
-                ? $"opc.quic://{Environment.MachineName}:62551/ConsoleDataChannelStreaming"
-                : "opc.tcp://localhost:62550/ConsoleDataChannelStreaming";
+                ? $"opc.quic://{Environment.MachineName}:{port + 1}/ConsoleDataChannelStreaming"
+                : $"opc.tcp://localhost:{port}/ConsoleDataChannelStreaming";
             HostApplicationBuilder builder = Host.CreateApplicationBuilder();
             builder.Logging.ClearProviders();
             builder.Logging.AddConsole();
@@ -143,13 +230,20 @@ namespace ConsoleDataChannelStreaming
             if (options.Transport == SampleTransport.Quic)
             {
                 opcUa.AddQuicTransport();
-                ClientChannelManager.DefaultChannelBindings.RegisterChannelFactory(
-                    new QuicTransportChannelFactory(
-                        DefaultBufferManagerFactory.Instance,
-                        new QuicClientOptions
-                        {
-                            ServerCertificateValidation = (_, _, _, _) => true
-                        }));
+
+                // The binding registry is process-wide, so registering it
+                // again for every harness the benchmark creates would stack
+                // up duplicate factories for one url scheme.
+                if (Interlocked.Exchange(ref s_quicFactoryRegistered, 1) == 0)
+                {
+                    ClientChannelManager.DefaultChannelBindings.RegisterChannelFactory(
+                        new QuicTransportChannelFactory(
+                            DefaultBufferManagerFactory.Instance,
+                            new QuicClientOptions
+                            {
+                                ServerCertificateValidation = (_, _, _, _) => true
+                            }));
+                }
             }
 
             opcUa.AddServer<DataChannelSampleServer>(o =>
@@ -166,6 +260,17 @@ namespace ConsoleDataChannelStreaming
                         "pki");
                     o.RejectSHA1Certificates = true;
                     o.MinCertificateKeySize = 2048;
+
+                    // The Server revises any PublishingInterval below its
+                    // minimum, and separately rounds it up to the publishing
+                    // resolution. Both default to 100 ms, so setting only the
+                    // minimum still leaves the benchmark's 10 ms case
+                    // silently revised to 100 ms and agreeing with the 100 ms
+                    // case for the wrong reason.
+                    o.ConfigureBuilder = server => server
+                        .SetMinPublishingInterval(10)
+                        .SetPublishingResolution(10);
+
                     o.EndpointUrls.Add(endpointUrl);
                 });
 
@@ -193,7 +298,16 @@ namespace ConsoleDataChannelStreaming
                     o.Session = new ManagedSessionOptions
                     {
                         SessionName = "ConsoleDataChannelStreaming",
-                        SessionTimeout = TimeSpan.FromSeconds(60)
+                        SessionTimeout = TimeSpan.FromSeconds(60),
+
+                        // The benchmark drives a subscription through the
+                        // classic Subscription/MonitoredItem API, which is
+                        // the one this stack exposes publicly. A managed
+                        // Session otherwise defaults to the newer engine,
+                        // where a classic Subscription is accepted, reports
+                        // itself created, and never causes a single Publish
+                        // request to be sent.
+                        SubscriptionEngineFactory = new ClassicSubscriptionEngineFactory()
                     };
                 })
                 .AddDiscoveryAndConnect(o =>
@@ -210,6 +324,7 @@ namespace ConsoleDataChannelStreaming
                 .ConfigureAwait(false);
 
             ITelemetryContext telemetry = host.Services.GetRequiredService<ITelemetryContext>();
+
             OpenDataChannelResponse opened = await session.OpenDataChannelAsync(
                 null,
                 state.SourceNodeId,
@@ -267,7 +382,7 @@ namespace ConsoleDataChannelStreaming
             clientManager.MarkOpen(opened.ChannelId);
 
             DataChannel source = await state.WaitForSourceAsync(ct).ConfigureAwait(false);
-            return new StreamingHarness(
+            var result = new StreamingHarness(
                 state.ServerManager,
                 clientManager,
                 source,
@@ -284,6 +399,10 @@ namespace ConsoleDataChannelStreaming
                     closeCt).ConfigureAwait(false),
                 new ServerHarnessOwner(host, session, clientDataTransport),
                 channelAttachTask);
+
+            result.m_session = session;
+            result.m_telemetry = telemetry;
+            return result;
         }
 
         public async ValueTask DisposeAsync()
@@ -397,6 +516,11 @@ namespace ConsoleDataChannelStreaming
         private readonly Func<CancellationToken, ValueTask>? m_closeService;
         private readonly IAsyncDisposable? m_owner;
         private readonly Task? m_channelAttachTask;
+        private PendingPublishLoad? m_publishLoad;
+        private ClientSession? m_session;
+        private ITelemetryContext? m_telemetry;
+        private static int s_endpointPort = 62550;
+        private static int s_quicFactoryRegistered;
     }
 
     internal sealed class ServerStreamingState : IDataChannelSource
@@ -452,6 +576,140 @@ namespace ConsoleDataChannelStreaming
 
         private DataChannel? m_channel;
         private readonly TaskCompletionSource<DataChannel> m_opened = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    }
+
+    /// <summary>
+    /// Creates the subscription whose Publish traffic competes with the
+    /// data channel for the SecureChannel, and counts what actually
+    /// arrived.
+    /// </summary>
+    /// <remarks>
+    /// The sample Server is a bare <see cref="StandardServer"/> with no
+    /// simulated nodes, so the load is generated by monitoring
+    /// <c>Server_ServerStatus_CurrentTime</c>, which changes continuously,
+    /// once per monitored item. The SamplingInterval is pinned to the
+    /// PublishingInterval so each item yields one notification per cycle and
+    /// the offered load is <c>items / interval</c> rather than whatever the
+    /// Server felt like sampling at.
+    /// </remarks>
+    internal sealed class PendingPublishLoad
+    {
+        public async Task StartAsync(
+            ClientSession session,
+            ITelemetryContext telemetry,
+            int publishingInterval,
+            int monitoredItems,
+            CancellationToken ct)
+        {
+            int count = Math.Max(monitoredItems, 1);
+
+            var subscription = new ClientSubscription(
+                telemetry,
+                new SubscriptionOptions
+                {
+                    DisplayName = "DataChannelBenchmarkLoad",
+                    PublishingInterval = publishingInterval,
+                    PublishingEnabled = true,
+                    KeepAliveCount = 100,
+                    LifetimeCount = 1000,
+                    MaxNotificationsPerPublish = 0
+                })
+            {
+                // Counted at the subscription rather than per item: the
+                // per-item Notification event is not carried when the stack
+                // clones a template item, so counting there can silently
+                // report zero while the Publish traffic is flowing normally
+                // - which would make the whole benchmark a lie that looks
+                // like a result.
+                FastDataChangeCallback = OnDataChange
+            };
+
+            if (!session.AddSubscription(subscription))
+            {
+                throw new InvalidOperationException("The subscription was not accepted by the Session.");
+            }
+
+            await subscription.CreateAsync(ct).ConfigureAwait(false);
+
+            for (int ii = 0; ii < count; ii++)
+            {
+                var item = new ClientMonitoredItem(
+                    telemetry,
+                    new MonitoredItemOptions
+                    {
+                        DisplayName = $"CurrentTime {ii}",
+                        StartNodeId = VariableIds.Server_ServerStatus_CurrentTime,
+                        AttributeId = Attributes.Value,
+                        MonitoringMode = MonitoringMode.Reporting,
+                        SamplingInterval = publishingInterval,
+                        QueueSize = 1,
+                        DiscardOldest = true
+                    });
+
+                subscription.AddItem(item);
+                m_items.Add(item);
+            }
+
+            await subscription.ApplyChangesAsync(ct).ConfigureAwait(false);
+
+            int refused = m_items.Count(i => ServiceResult.IsBad(i.Status.Error));
+            if (refused > 0)
+            {
+                throw new InvalidOperationException(
+                    $"The Server refused {refused} of {count} monitored items, so the " +
+                    "competing Publish load would not be what the benchmark reports.");
+            }
+
+            // Creating a subscription does not by itself put Publish requests
+            // on the wire in this stack - StartPublishing is otherwise only
+            // reached through the reconnect paths. Without this the
+            // subscription reports itself created and not stopped, the items
+            // report no error, and no notification ever arrives.
+            session.StartPublishing(session.OperationTimeout, false);
+
+            m_subscription = subscription;
+
+            // The Server revises the publishing interval against its own
+            // minimum, and it is the revised value the load actually runs
+            // at. Reporting the requested one would mislabel every row.
+            RevisedPublishingInterval = subscription.CurrentPublishingInterval;
+        }
+
+        /// <summary>
+        /// The publishing interval the Server revised the request to.
+        /// </summary>
+        public double RevisedPublishingInterval { get; private set; }
+
+        public async Task StopAsync(ClientSession session, CancellationToken ct)
+        {
+            ClientSubscription? subscription = m_subscription;
+            m_subscription = null;
+
+            if (subscription == null)
+            {
+                return;
+            }
+
+            subscription.FastDataChangeCallback = null;
+            m_items.Clear();
+
+            await session.RemoveSubscriptionAsync(subscription, ct).ConfigureAwait(false);
+            subscription.Dispose();
+        }
+
+        public long Notifications => Interlocked.Read(ref m_notifications);
+
+        private void OnDataChange(
+            ClientSubscription subscription,
+            DataChangeNotification notification,
+            ArrayOf<string> stringTable)
+        {
+            Interlocked.Add(ref m_notifications, notification.MonitoredItems.Count);
+        }
+
+        private readonly List<ClientMonitoredItem> m_items = [];
+        private ClientSubscription? m_subscription;
+        private long m_notifications;
     }
 
     internal sealed class DataChannelSampleServer : StandardServer

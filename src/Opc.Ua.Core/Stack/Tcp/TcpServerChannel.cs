@@ -995,10 +995,11 @@ namespace Opc.Ua.Bindings
                     ClientCertificate,
                     new ArraySegment<byte>(buffer, 0, buffer.Length),
                     !renew ? m_oscRequestSignature : null,
-                    out byte[] signature);
+                    out byte[] signature,
+                    out SendGateTicket sendTicket);
 
                 // write the message to the server.
-                BeginWriteMessage(chunksToSend, null);
+                BeginWriteMessage(chunksToSend, null, sendTicket);
                 chunksToSend = null;
             }
             catch (Exception e)
@@ -1054,7 +1055,8 @@ namespace Opc.Ua.Bindings
                 ClientCertificate,
                 new ArraySegment<byte>(buffer, 0, buffer.Length),
                 !renew ? m_oscRequestSignature : null,
-                out byte[] signature);
+                out byte[] signature,
+                out SendGateTicket sendTicket);
 
             if (!renew)
             {
@@ -1065,7 +1067,7 @@ namespace Opc.Ua.Bindings
             BufferCollection? chunksToRelease = chunksToSend;
             try
             {
-                BeginWriteMessage(chunksToSend, null);
+                BeginWriteMessage(chunksToSend, null, sendTicket);
                 chunksToRelease = null;
             }
             finally
@@ -1397,6 +1399,7 @@ namespace Opc.Ua.Bindings
 
                 m_eventLogger.CoreSendResponse((int)ChannelId, (int)requestId);
                 BufferCollection? buffers = null;
+                SendGateTicket sendTicket;
 
                 try
                 {
@@ -1408,7 +1411,8 @@ namespace Opc.Ua.Bindings
                         CurrentToken!,
                         response,
                         false,
-                        out bool limitsExceeded);
+                        out bool limitsExceeded,
+                        out sendTicket);
                 }
                 catch (Exception e)
                 {
@@ -1425,7 +1429,7 @@ namespace Opc.Ua.Bindings
 
                 try
                 {
-                    BeginWriteMessage(buffers, null);
+                    BeginWriteMessage(buffers, null, sendTicket);
                     buffers = null!;
                 }
                 catch (Exception)

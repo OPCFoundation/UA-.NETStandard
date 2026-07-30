@@ -65,7 +65,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             }
 
             Assert.That(
-                await CompletesWithinAsync(transport.AllSendsStarted, 30).ConfigureAwait(false),
+                await CompletesWithinAsync(transport.FirstSendStarted, 30).ConfigureAwait(false),
                 Is.True);
             Assert.That(pool.RentCount, Is.EqualTo(responseCount));
             Assert.That(pool.OutstandingCount, Is.EqualTo(responseCount));
@@ -152,7 +152,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             }
 
             Assert.That(
-                await CompletesWithinAsync(transport.AllSendsStarted, 30).ConfigureAwait(false),
+                await CompletesWithinAsync(transport.FirstSendStarted, 30).ConfigureAwait(false),
                 Is.True);
             Assert.That(pool.OutstandingCount, Is.EqualTo(responseCount));
 
@@ -182,7 +182,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 }
 
                 Assert.That(
-                    await CompletesWithinAsync(transport.AllSendsStarted, 30).ConfigureAwait(false),
+                    await CompletesWithinAsync(transport.FirstSendStarted, 30).ConfigureAwait(false),
                     Is.True);
                 Assert.That(pool.OutstandingCount, Is.EqualTo(responseCount));
 
@@ -526,6 +526,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
             public Task AllSendsStarted => m_allSendsStarted.Task;
 
+            public Task FirstSendStarted => m_firstSendStarted.Task;
+
             public byte[] LastSentChunk
             {
                 get
@@ -632,7 +634,12 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
             private async ValueTask WaitForCompletionAsync()
             {
-                if (Interlocked.Increment(ref m_sendCount) == m_expectedSendCount)
+                int sendCount = Interlocked.Increment(ref m_sendCount);
+                if (sendCount == 1)
+                {
+                    m_firstSendStarted.TrySetResult(true);
+                }
+                if (sendCount == m_expectedSendCount)
                 {
                     m_allSendsStarted.TrySetResult(true);
                 }
@@ -645,6 +652,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             private readonly List<byte[]> m_sentChunks = [];
 
             private readonly TaskCompletionSource<bool> m_allSendsStarted =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+            private readonly TaskCompletionSource<bool> m_firstSendStarted =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
 
             private readonly TaskCompletionSource<bool> m_completion =

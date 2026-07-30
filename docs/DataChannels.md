@@ -156,6 +156,61 @@ sample reports throughput, discarded frames and the credit-stall counter, and th
 stall counter staying at zero over `opc.quic` is the visible consequence of QUIC
 owning the flow control there.
 
+## Measuring throughput against a competing Publish load
+
+`--mode benchmark` answers a narrower question: what does a data channel sustain
+while the Session is also carrying Service traffic? It runs four cases — no
+subscription, then monitored items publishing at 10 ms, 100 ms and 1000 ms — for
+the transport given by `--transport`, and prints them as one table.
+
+```sh
+dotnet run -- --transport tcp  --mode benchmark --frames 60000 --size 1200 \
+  --monitored-items 100 --repeat 5
+dotnet run -- --transport quic --mode benchmark --frames 60000 --size 1200 \
+  --monitored-items 100 --repeat 5
+```
+
+Comparing inline framing against `opc.quic` means running it twice, which is
+deliberate: over inline framing the STR chunks share one SecureChannel and one
+SequenceNumber space with Publish, so the credit window is what keeps a media
+stream from starving the Service path; over `opc.quic` the channel owns its own
+stream and QUIC applies the flow control, so the two should barely interact.
+
+One Server, one Session and one data channel serve the whole matrix and only the
+subscription changes between cases, so every row runs on the same channel with
+the same negotiated credit. Each case takes one warm-up run that is discarded and
+then `--repeat` measured runs, reported as a median with the spread.
+
+### Reading the output honestly
+
+Three things will silently turn this measurement into a plausible-looking lie,
+so the benchmark checks for all three and says so in its output rather than
+leaving the reader to assume:
+
+- **The competing load may not exist.** If the monitored items do not report,
+  every "loaded" row is really a second baseline, the rows agree beautifully,
+  and any conclusion drawn from them is false. The `notif/s` column is the
+  evidence, and a row that received far fewer notifications than
+  `items x duration / interval` is called out.
+- **The Server revises the publishing interval.** `MinPublishingInterval`
+  defaults to 100 ms, so a requested 10 ms becomes 100 ms and two rows become
+  the same experiment however different the request column looks. The table
+  carries a `revised` column and warns when the two differ.
+- **The run may be shorter than a publishing cycle.** At 1000 ms a run of a few
+  hundred milliseconds contains no Publish traffic at all, so it understates the
+  load rather than measuring it. Raise `--frames` until a run lasts several
+  seconds.
+
+The figures are in-process loopback figures, bound by CPU and cryptography
+rather than by a network interface. They are for comparing the four cases
+against each other, not for quoting as link throughput. `DataChannel.Write`
+enqueues rather than blocking, so what is measured is the rate the pipeline
+drains at: first write to last frame received.
+
+Credit stalls are the mechanism rather than a fault. Over inline framing a
+stalled data channel is exactly what leaves the SecureChannel free for Publish,
+which is the property the credit window exists to provide.
+
 ## Design notes worth knowing
 
 **The single-chunk rule is the load-bearing constraint.** A data channel frame is

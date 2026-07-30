@@ -91,6 +91,12 @@ namespace ConsoleDataChannelStreaming
 
             try
             {
+                if (options.RunMode == SampleRunMode.Benchmark)
+                {
+                    await Benchmark.RunAsync(options, cts.Token).ConfigureAwait(false);
+                    return 0;
+                }
+
                 await RunAsync(options, cts.Token).ConfigureAwait(false);
                 return 0;
             }
@@ -117,11 +123,36 @@ namespace ConsoleDataChannelStreaming
                 .CreateAsync(options, ct)
                 .ConfigureAwait(false);
 
+            StreamingRun run = await StreamAsync(harness, options, verbose: true, closeChannel: true, ct)
+                .ConfigureAwait(false);
+
+            Report(harness.Source, harness.Sink, harness, options, run.Elapsed);
+
+            await harness.DisposeAsync().ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Streams <see cref="SampleOptions.FrameCount"/> frames and measures
+        /// how long the sink took to receive all of them.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="DataChannel.Write"/> enqueues rather than blocking, so
+        /// the window deliberately runs from the first write to the last
+        /// frame received: what is measured is the rate the pipeline drains
+        /// at, not the rate the producer can call Write at.
+        /// </remarks>
+        internal static async Task<StreamingRun> StreamAsync(
+            StreamingHarness harness,
+            SampleOptions options,
+            bool verbose,
+            bool closeChannel,
+            CancellationToken ct)
+        {
             DataChannel source = harness.Source;
             DataChannel sink = harness.Sink;
 
-            Task consumer = Task.Run(
-                async () => await ConsumeAsync(sink, options, ct).ConfigureAwait(false),
+            Task<int> consumer = Task.Run(
+                () => ConsumeAsync(sink, options, verbose, ct),
                 CancellationToken.None);
 
             var payload = new byte[options.FrameSize];
@@ -151,19 +182,28 @@ namespace ConsoleDataChannelStreaming
                 source.Write(payload, flags);
             }
 
-            await harness.CloseDataChannelAsync(ct).ConfigureAwait(false);
+            if (closeChannel)
+            {
+                await harness.CloseDataChannelAsync(ct).ConfigureAwait(false);
+            }
 
-            await consumer.ConfigureAwait(false);
+            int received = await consumer.ConfigureAwait(false);
             stopwatch.Stop();
 
-            Report(source, sink, harness, options, stopwatch.Elapsed);
-
-            await harness.DisposeAsync().ConfigureAwait(false);
+            return new StreamingRun(received, stopwatch.Elapsed);
         }
 
-        private static async Task ConsumeAsync(
+        /// <summary>
+        /// What one measured streaming run produced.
+        /// </summary>
+        /// <param name="FramesReceived">Frames the sink actually saw.</param>
+        /// <param name="Elapsed">First write to last frame received.</param>
+        internal readonly record struct StreamingRun(int FramesReceived, TimeSpan Elapsed);
+
+        private static async Task<int> ConsumeAsync(
             DataChannel sink,
             SampleOptions options,
+            bool verbose,
             CancellationToken ct)
         {
             int received = 0;
@@ -186,13 +226,21 @@ namespace ConsoleDataChannelStreaming
                 {
                     gaps++;
 
-                    Console.WriteLine(
-                        $"  gap: frames {message.GapFrom}..{message.GapTo} never arrived; " +
-                        $"resuming{(message.IsMarker ? " at a marker" : string.Empty)}");
+                    if (verbose)
+                    {
+                        Console.WriteLine(
+                            $"  gap: frames {message.GapFrom}..{message.GapTo} never arrived; " +
+                            $"resuming{(message.IsMarker ? " at a marker" : string.Empty)}");
+                    }
                 }
             }
 
-            Console.WriteLine($"consumed {received} frames, {gaps} reported gaps");
+            if (verbose)
+            {
+                Console.WriteLine($"consumed {received} frames, {gaps} reported gaps");
+            }
+
+            return received;
         }
 
         private static void Report(

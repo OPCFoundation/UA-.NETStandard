@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -306,6 +307,57 @@ namespace Opc.Ua.Core.DataChannels.Tests
         }
 
         [Test]
+        public async Task ConcurrentServiceAndStreamWritersReachTransportInSequenceOrder()
+        {
+            using var channel = TestChannel.Create("str-dispatch-send-order");
+            var transport = new ReorderingByteTransport();
+            channel.AttachTransport(transport);
+            channel.Activate(SecureChannelId, TokenId);
+            channel.SetNextSendSequenceNumber(100);
+
+            channel.BeginServiceChunk();
+            await transport.FirstCallStarted.Task.WaitAsync(TimeSpan.FromSeconds(2))
+                .ConfigureAwait(false);
+
+            Task? streamSend = null;
+            try
+            {
+#pragma warning disable CA2025
+                streamSend = SendFrameAsync(
+                    channel,
+                    DataChannelFrame.Data(
+                        DataChannelId,
+                        1,
+                        DataChannelFrameFlags.MessageStart,
+                        ExpectedPayload()));
+#pragma warning restore CA2025
+
+                await Task.Delay(100).ConfigureAwait(false);
+
+                Assert.That(
+                    transport.StartedCalls,
+                    Is.EqualTo(1),
+                    "The STR writer must wait for the earlier MSG ticket before reaching transport.");
+
+                transport.AllowFirstWrite();
+
+                await streamSend.WaitAsync(TimeSpan.FromSeconds(2)).ConfigureAwait(false);
+                await transport.TwoSequencesRecorded.Task.WaitAsync(TimeSpan.FromSeconds(2))
+                    .ConfigureAwait(false);
+
+                Assert.That(transport.SequenceNumbers, Is.EqualTo(new uint[] { 100, 101 }));
+            }
+            finally
+            {
+                transport.AllowFirstWrite();
+                if (streamSend != null)
+                {
+                    await streamSend.WaitAsync(TimeSpan.FromSeconds(2)).ConfigureAwait(false);
+                }
+            }
+        }
+
+        [Test]
         public void OutboundOversizedStreamFrameIsRefusedBeforeWrite()
         {
             using var channel = TestChannel.Create("str-dispatch-limits");
@@ -501,18 +553,51 @@ namespace Opc.Ua.Core.DataChannels.Tests
                     token,
                     new ArraySegment<byte>(Array.Empty<byte>()),
                     isRequest: true,
-                    out bool limitsExceeded);
+                    out bool limitsExceeded,
+                    out SendGateTicket sendTicket);
 
                 Assert.That(limitsExceeded, Is.False);
 
+                bool sendTurnAcquired = false;
                 try
                 {
-                    Transport!.SendChunkAsync(chunks, CancellationToken.None).AsTask().GetAwaiter().GetResult();
+                    AwaitSendTurnAsync(sendTicket, CancellationToken.None)
+                        .AsTask()
+                        .GetAwaiter()
+                        .GetResult();
+                    sendTurnAcquired = true;
+                    Transport!.SendChunkAsync(chunks, CancellationToken.None)
+                        .AsTask()
+                        .GetAwaiter()
+                        .GetResult();
                 }
                 finally
                 {
+                    if (sendTurnAcquired)
+                    {
+                        ReleaseSendTicket(sendTicket);
+                    }
+
                     chunks.Release(BufferManager, nameof(EmitServiceChunk));
                 }
+            }
+
+            public void BeginServiceChunk()
+            {
+                ChannelToken token = CurrentToken
+                    ?? throw new AssertionException("No active token.");
+
+                BufferCollection chunks = WriteSymmetricMessage(
+                    TcpMessageType.Message,
+                    requestId: 1,
+                    token,
+                    new ArraySegment<byte>(Array.Empty<byte>()),
+                    isRequest: true,
+                    out bool limitsExceeded,
+                    out SendGateTicket sendTicket);
+
+                Assert.That(limitsExceeded, Is.False);
+                BeginWriteMessage(chunks, null, sendTicket);
             }
 
             protected override void OnSequenceNumberIssued()
@@ -595,6 +680,109 @@ namespace Opc.Ua.Core.DataChannels.Tests
             }
 
             private readonly List<byte[]> m_chunks = [];
+        }
+
+        private sealed class ReorderingByteTransport : IUaSCByteTransport
+        {
+            public TaskCompletionSource<bool> FirstCallStarted { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            public TaskCompletionSource<bool> TwoSequencesRecorded { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            public IReadOnlyList<uint> SequenceNumbers
+            {
+                get
+                {
+                    lock (m_lock)
+                    {
+                        return [.. m_sequenceNumbers];
+                    }
+                }
+            }
+
+            public int StartedCalls => Volatile.Read(ref m_startedCalls);
+
+            public EndPoint? LocalEndpoint => null;
+
+            public EndPoint? RemoteEndpoint => null;
+
+            public TransportChannelFeatures Features => TransportChannelFeatures.None;
+
+            public string Implementation => "test";
+
+            public ValueTask ConnectAsync(Uri url, CancellationToken ct)
+            {
+                throw new NotSupportedException();
+            }
+
+            public async ValueTask SendChunkAsync(ReadOnlyMemory<byte> chunk, CancellationToken ct)
+            {
+                int call = Interlocked.Increment(ref m_startedCalls);
+                uint sequenceNumber = ReadSequenceNumber(chunk.Span);
+
+                if (call == 1)
+                {
+                    FirstCallStarted.TrySetResult(true);
+                    await m_allowFirstWrite.Task.WaitAsync(ct).ConfigureAwait(false);
+                }
+
+                Record(sequenceNumber);
+            }
+
+            public async ValueTask SendChunkAsync(BufferCollection buffers, CancellationToken ct)
+            {
+                int call = Interlocked.Increment(ref m_startedCalls);
+                uint sequenceNumber = ReadSequenceNumber(buffers[0].AsSpan());
+
+                if (call == 1)
+                {
+                    FirstCallStarted.TrySetResult(true);
+                    await m_allowFirstWrite.Task.WaitAsync(ct).ConfigureAwait(false);
+                }
+
+                Record(sequenceNumber);
+            }
+
+            public ValueTask<ArraySegment<byte>> ReceiveChunkAsync(CancellationToken ct)
+            {
+                throw new NotSupportedException();
+            }
+
+            public void Close()
+            {
+                m_allowFirstWrite.TrySetResult(true);
+            }
+
+            public void AllowFirstWrite()
+            {
+                m_allowFirstWrite.TrySetResult(true);
+            }
+
+            private static uint ReadSequenceNumber(ReadOnlySpan<byte> chunk)
+            {
+                // The span overload of BitConverter.ToUInt32 does not exist
+                // on the .NET Framework targets this suite also builds for.
+                return BinaryPrimitives.ReadUInt32LittleEndian(chunk.Slice(16, 4));
+            }
+
+            private void Record(uint sequenceNumber)
+            {
+                lock (m_lock)
+                {
+                    m_sequenceNumbers.Add(sequenceNumber);
+                    if (m_sequenceNumbers.Count == 2)
+                    {
+                        TwoSequencesRecorded.TrySetResult(true);
+                    }
+                }
+            }
+
+            private readonly Lock m_lock = new();
+            private readonly List<uint> m_sequenceNumbers = [];
+            private readonly TaskCompletionSource<bool> m_allowFirstWrite =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+            private int m_startedCalls;
         }
     }
 }
