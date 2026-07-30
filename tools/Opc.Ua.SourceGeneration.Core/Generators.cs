@@ -394,7 +394,30 @@ namespace Opc.Ua.SourceGeneration
             return string.Concat(parts.Select(part => part.ToSafeSymbolName().ToUpperCamelCase()));
         }
 
-        private static bool ValidateFluentAccessorsOnlyTarget(
+        /// <summary>
+        /// Returns whether a fluent-accessors-only build has a target it can
+        /// legitimately extend, reporting why through
+        /// <paramref name="reportDiagnostic"/> when it does not.
+        /// </summary>
+        /// <remarks>
+        /// Internal rather than private so the outcomes can be asserted
+        /// directly; running the whole generator to observe a single
+        /// validation branch would say much less about which branch fired.
+        /// </remarks>
+        /// <param name="modelUri">The target model URI.</param>
+        /// <param name="prefix">The target C# prefix.</param>
+        /// <param name="path">The design file path, for diagnostics.</param>
+        /// <param name="referencedModelProviders">
+        /// Referenced assemblies that produce models.
+        /// </param>
+        /// <param name="referencedAccessorProviders">
+        /// Referenced assemblies that already produce fluent accessors.
+        /// </param>
+        /// <param name="reportDiagnostic">
+        /// Receives model URI, prefix, path and the reason on rejection.
+        /// </param>
+        /// <returns>True when the target may be extended.</returns>
+        internal static bool ValidateFluentAccessorsOnlyTarget(
             string modelUri,
             string prefix,
             string path,

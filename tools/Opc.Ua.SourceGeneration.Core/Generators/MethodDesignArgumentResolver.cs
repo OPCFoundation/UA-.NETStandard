@@ -191,29 +191,52 @@ namespace Opc.Ua.SourceGeneration
 
             bool hasDeclaredArguments = HasDeclaredArguments(method);
             if (method.MethodType != null &&
-                (!hasDeclaredArguments ||
-                    HaveSameSignature(
-                        method.InputArguments ?? [],
-                        method.OutputArguments ?? [],
-                        ResolveMethodInputs(method.MethodType),
-                        ResolveMethodOutputs(method.MethodType))))
+                DelegatesTo(method, method.MethodType, hasDeclaredArguments))
             {
                 return ResolveMethodDefinition(method.MethodType, visited);
             }
 
             if (method.MethodDeclarationNode != null &&
                 !ReferenceEquals(method.MethodDeclarationNode, method) &&
-                (!hasDeclaredArguments ||
-                    HaveSameSignature(
-                        method.InputArguments ?? [],
-                        method.OutputArguments ?? [],
-                        ResolveMethodInputs(method.MethodDeclarationNode),
-                        ResolveMethodOutputs(method.MethodDeclarationNode))))
+                DelegatesTo(method, method.MethodDeclarationNode, hasDeclaredArguments))
             {
                 return ResolveMethodDefinition(method.MethodDeclarationNode, visited);
             }
 
             return method;
+        }
+
+        /// <summary>
+        /// Returns whether <paramref name="method"/> takes its signature from
+        /// <paramref name="target"/>, which is the case when it declares no
+        /// arguments of its own or declares exactly the target's effective
+        /// signature.
+        /// </summary>
+        /// <remarks>
+        /// The target is resolved once here rather than through
+        /// <see cref="ResolveMethodInputs"/> and
+        /// <see cref="ResolveMethodOutputs"/>, which would each walk the target
+        /// chain again from scratch with their own visited list. The resolution
+        /// is deliberately not cached across calls: the model is still being
+        /// mutated while it is validated, and a generator that carried state
+        /// between passes would stop being deterministic.
+        /// </remarks>
+        private static bool DelegatesTo(
+            MethodDesign method,
+            MethodDesign target,
+            bool hasDeclaredArguments)
+        {
+            if (!hasDeclaredArguments)
+            {
+                return true;
+            }
+
+            MethodDesign targetDefinition = ResolveMethodDefinition(target, []);
+            return HaveSameSignature(
+                method.InputArguments ?? [],
+                method.OutputArguments ?? [],
+                targetDefinition.InputArguments ?? [],
+                targetDefinition.OutputArguments ?? []);
         }
 
         private static bool HaveSameSignature(
