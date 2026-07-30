@@ -1049,4 +1049,4 @@ All Device Integration DataTypes (`DeviceHealthEnumeration`, `SoftwareClass`, `L
 ## See also
 
 - [FileSystemClient](FileSystemClient.md) — file-transfer client used by `SoftwareUpdateClient` and `FileSystemPackageStore`.
-- [Source-generated NodeManagers](SourceGeneratedNodeManagers.md) — the underlying source generator and fluent API.
+- [Source-generated NodeManagers](NodeManagers.md#source-generated-node-managers) — the underlying source generator and fluent API.

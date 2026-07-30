@@ -9,7 +9,7 @@ builder integration.
 The pump sample is the integration test for every fluent API extension
 shipped under `src/Opc.Ua.Server/Fluent/`. Each extension is
 documented in
-[Source-generated NodeManagers — Building richer node managers](../../docs/SourceGeneratedNodeManagers.md#building-richer-node-managers--the-fluent-extension-surface).
+[Source-generated NodeManagers — Building richer node managers](../../docs/NodeManagers.md#building-richer-node-managers--the-fluent-extension-surface).
 
 ## Running the sample
 

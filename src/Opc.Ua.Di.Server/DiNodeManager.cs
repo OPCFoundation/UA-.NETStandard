@@ -34,6 +34,8 @@ using System.Threading.Tasks;
 using Opc.Ua.Di.Server.Builders;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Fluent;
+using ConformanceUnitNames = Opc.Ua.Di.Server.ConformanceUnits;
+using ServerProfileUris = Opc.Ua.Di.Server.ServerProfiles;
 
 namespace Opc.Ua.Di.Server
 {
@@ -834,38 +836,40 @@ namespace Opc.Ua.Di.Server
             var units = new List<QualifiedName>();
             if (HasDeviceSet())
             {
-                units.Add(new QualifiedName("DI DeviceTopology"));
-                units.Add(new QualifiedName("DI Offline"));
+                units.Add(new QualifiedName(ConformanceUnitNames.DeviceTopology));
+                units.Add(new QualifiedName(ConformanceUnitNames.Offline));
             }
             if (HasWiredLockingService())
             {
-                units.Add(new QualifiedName("DI Locking"));
+                units.Add(new QualifiedName(ConformanceUnitNames.Locking));
                 if (HasWiredBreakLockService())
                 {
-                    units.Add(new QualifiedName("DI BreakLocking"));
+                    units.Add(new QualifiedName(ConformanceUnitNames.BreakLocking));
                 }
             }
             if (m_softwareUpdateLoadingModes.Count > 0)
             {
-                units.Add(new QualifiedName("DI SU Software Update"));
-                units.Add(new QualifiedName("DI SU PrepareForUpdate"));
-                units.Add(new QualifiedName("DI SU Resume Update"));
+                units.Add(new QualifiedName(ConformanceUnitNames.SoftwareUpdate));
+                units.Add(new QualifiedName(ConformanceUnitNames.SoftwareUpdatePrepareForUpdate));
+                units.Add(new QualifiedName(ConformanceUnitNames.SoftwareUpdateResumeUpdate));
             }
             if (m_softwareUpdateLoadingModes.Contains(SoftwareLoadingMode.Package))
             {
-                units.Add(new QualifiedName("DI SU FileSystem Loading"));
-                units.Add(new QualifiedName("DI SU Installation for File System"));
+                units.Add(new QualifiedName(ConformanceUnitNames.SoftwareUpdateFileSystemLoading));
+                units.Add(new QualifiedName(
+                    ConformanceUnitNames.SoftwareUpdateInstallationForFileSystem));
             }
             if (m_softwareUpdateLoadingModes.Contains(SoftwareLoadingMode.Direct))
             {
-                units.Add(new QualifiedName("DI SU DirectLoading"));
-                units.Add(new QualifiedName("DI SU UpdateStatus"));
+                units.Add(new QualifiedName(ConformanceUnitNames.SoftwareUpdateDirectLoading));
+                units.Add(new QualifiedName(ConformanceUnitNames.SoftwareUpdateUpdateStatus));
             }
             if (m_softwareUpdateLoadingModes.Contains(SoftwareLoadingMode.Cached))
             {
-                units.Add(new QualifiedName("DI SU CachedLoading"));
-                units.Add(new QualifiedName("DI SU Installation for Cached Loading"));
-                units.Add(new QualifiedName("DI SU UpdateStatus"));
+                units.Add(new QualifiedName(ConformanceUnitNames.SoftwareUpdateCachedLoading));
+                units.Add(new QualifiedName(
+                    ConformanceUnitNames.SoftwareUpdateInstallationForCachedLoading));
+                units.Add(new QualifiedName(ConformanceUnitNames.SoftwareUpdateUpdateStatus));
             }
             return units.ToArrayOf();
         }
@@ -875,27 +879,27 @@ namespace Opc.Ua.Di.Server
             var profiles = new List<string>();
             if (HasDeviceSet())
             {
-                profiles.Add("http://opcfoundation.org/UA-Profile/DI/Server/DeviceIntegrationHost");
+                profiles.Add(ServerProfileUris.DeviceIntegrationHost);
             }
             if (HasWiredLockingService())
             {
-                profiles.Add("http://opcfoundation.org/UA-Profile/DI/Server/Locking");
+                profiles.Add(ServerProfileUris.Locking);
             }
             if (m_softwareUpdateLoadingModes.Count > 0)
             {
-                profiles.Add("http://opcfoundation.org/UA-Profile/DI/Server/SoftwareUpdateBase");
+                profiles.Add(ServerProfileUris.SoftwareUpdateBase);
             }
             if (m_softwareUpdateLoadingModes.Contains(SoftwareLoadingMode.Package))
             {
-                profiles.Add("http://opcfoundation.org/UA-Profile/DI/Server/FileSystemLoading");
+                profiles.Add(ServerProfileUris.FileSystemLoading);
             }
             if (m_softwareUpdateLoadingModes.Contains(SoftwareLoadingMode.Direct))
             {
-                profiles.Add("http://opcfoundation.org/UA-Profile/DI/Server/DirectLoading");
+                profiles.Add(ServerProfileUris.DirectLoading);
             }
             if (m_softwareUpdateLoadingModes.Contains(SoftwareLoadingMode.Cached))
             {
-                profiles.Add("http://opcfoundation.org/UA-Profile/DI/Server/CachedLoading");
+                profiles.Add(ServerProfileUris.CachedLoading);
             }
             return profiles.ToArrayOf();
         }

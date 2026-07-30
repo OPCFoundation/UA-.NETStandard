@@ -56,9 +56,9 @@ namespace Pumps
             Server.Telemetry.CreateLogger<PumpNodeManager>()
                 .ConfiguringPumpNodeManagerFluentWiring();
 
-            var historian = builder.UseHistorian();
-            historian.UseInMemory();
-            historian.RegisterAsDefault();
+            builder.UseHistorian()
+                .UseInMemoryProvider()
+                .RegisterAsDefault();
 
             foreach (PumpState pump in m_pumpStates)
             {

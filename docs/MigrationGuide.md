@@ -95,7 +95,7 @@ NodeSet declared it, wire a historian instead of relying on the static
 flag: use `builder.UseHistorian()` and `.Historize(...)`, register a
 provider through the server-wide historian registry, or override
 `GetHistorianProvider(NodeState)` in the node manager. See
-[Server address-space metadata](ServerAddressSpaceMetadata.md) and
+[Server address-space metadata](NodeManagers.md#server-address-space-metadata) and
 [Historical Access](HistoricalAccess.md).
 
 ## Migrating from 1.05.377 to 1.05.378

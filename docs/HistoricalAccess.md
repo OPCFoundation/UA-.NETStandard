@@ -273,7 +273,7 @@ particular server instance may not archive those variables. Variables
 configured with `.Historize(...)`, `WithHistorian(...)`, a namespace or
 default historian registration, or a node-manager
 `GetHistorianProvider(...)` override keep their advertised history
-surface. See [Server address-space metadata](ServerAddressSpaceMetadata.md)
+surface. See [Server address-space metadata](NodeManagers.md#server-address-space-metadata)
 for the startup sequence.
 
 ### Annotations
