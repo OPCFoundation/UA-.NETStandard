@@ -10,26 +10,25 @@
   - [Managers supplied by server features](#managers-supplied-by-server-features)
   - [Runtime lifecycle provider](#runtime-lifecycle-provider)
 - [Core vs custom node managers](#core-vs-custom-node-managers)
-  - [1. Storage & Data Structures](#1-storage--data-structures)
-  - [2. Extensibility](#2-extensibility)
-  - [3. Operational Behavior](#3-operational-behavior)
+  - [Storage and data structures](#storage-and-data-structures)
+  - [Extensibility](#extensibility)
+  - [Operational behaviour](#operational-behaviour)
     - [Reading & Writing](#reading--writing)
     - [Method Calls](#method-calls)
     - [Runtime subtype replacement (IPredefinedNodeSubtypeReplacer)](#runtime-subtype-replacement-ipredefinednodesubtypereplacer)
-  - [4. Monitoring & Subscriptions](#4-monitoring--subscriptions)
-  - [5. History](#5-history)
-  - [6. Security](#6-security)
+  - [Monitoring and subscriptions](#monitoring-and-subscriptions)
+  - [History](#history)
+  - [Security](#security)
 - [Registering node managers](#registering-node-managers)
-  - [Where NodeManagers come from](#where-nodemanagers-come-from)
   - [Startup registration](#startup-registration)
   - [Runtime registration](#runtime-registration)
-  - [What happens to Clients](#what-happens-to-clients)
+  - [Node manager lifecycle impact on clients](#node-manager-lifecycle-impact-on-clients)
     - [MonitoredItems](#monitoreditems)
     - [Continuation points](#continuation-points)
     - [Namespaces](#namespaces)
     - [DataTypes](#datatypes)
     - [Change notifications](#change-notifications)
-  - [Requirements on a reloadable NodeManager](#requirements-on-a-reloadable-nodemanager)
+  - [How to make a node manager reloadable](#how-to-make-a-node-manager-reloadable)
   - [Related documentation](#related-documentation)
 - [Server address-space metadata](#server-address-space-metadata)
   - [NamespaceMetadata for every namespace](#namespacemetadata-for-every-namespace)
@@ -46,7 +45,7 @@
   - [Typed model-traversal — the Configure(I{Manager}NodeManagerBuilder) partial](#typed-model-traversal--the-configureimanagernodemanagerbuilder-partial)
     - [What the generator emits per model](#what-the-generator-emits-per-model)
     - [Methods with arguments — typed OnCall overloads](#methods-with-arguments--typed-oncall-overloads)
-  - [Event sources — typed Publish on notifier wrappers](#event-sources--typed-publish-on-notifier-wrappers)
+  - [Event sources — typed Publish&lt;TEvent&gt; on notifier wrappers](#event-sources--typed-publishtevent-on-notifier-wrappers)
     - [Where the typed overload appears](#where-the-typed-overload-appears)
     - [Two registration shapes](#two-registration-shapes)
     - [Tuning lifecycle with EventPublishOptions](#tuning-lifecycle-with-eventpublishoptions)
@@ -125,7 +124,7 @@ This document outlines the key differences in behavior and implementation betwee
 
 `CoreNodeManager` is typically used for managing the internal nodes of the Server (Namespace 0) or simple static node sets. `CustomNodeManager2` is designed as a base class for developers implementing custom node managers with specific business logic, dynamic behavior, or backing stores.
 
-### 1. Storage & Data Structures
+### Storage and data structures
 
 | Feature | CoreNodeManager | CustomNodeManager2 |
 | :--- | :--- | :--- |
@@ -135,7 +134,7 @@ This document outlines the key differences in behavior and implementation betwee
 | **Locking** | Uses `DataLock` (object). | Uses `Lock` (object). |
 | **Namespace** | Typically manages dynamic nodes in specific indexes or internal server nodes. | Designed to manage specific namespaces passed in the constructor. Uses `IsNodeIdInNamespace` checks. |
 
-### 2. Extensibility
+### Extensibility
 
 | Feature | CoreNodeManager | CustomNodeManager2 |
 | :--- | :--- | :--- |
@@ -143,7 +142,7 @@ This document outlines the key differences in behavior and implementation betwee
 | **Node Factory** | Does not implement `INodeIdFactory`. | Implements `INodeIdFactory` to generate new NodeIds for the system context. |
 | **Address Space** | `CreateAddressSpace` is often empty (`ImportNodes` is used instead). | `CreateAddressSpace` invokes `LoadPredefinedNodes` to load nodes from resources/assemblies. |
 
-### 3. Operational Behavior
+### Operational behaviour
 
 #### Reading & Writing
 
@@ -210,7 +209,7 @@ if (server.DiagnosticsNodeManager is IPredefinedNodeSubtypeReplacer replacer)
 
 The operation is deliberately exposed as a capability interface method rather than a construction-time fluent builder: the fluent `INodeBuilder` surface models building a node *before* it is registered, whereas subtype replacement mutates a node that is already live in the address space. Callers that already hold a fluent builder can still create the replacement instance with `CreateInstance<TState>(...)` and then pass the built node to the capability.
 
-### 4. Monitoring & Subscriptions
+### Monitoring and subscriptions
 
 | Feature | CoreNodeManager | CustomNodeManager2 |
 | :--- | :--- | :--- |
@@ -218,7 +217,7 @@ The operation is deliberately exposed as a capability interface method rather th
 | **Filter Validation** | Validates `DataChangeFilter` specifically (deadband, EU Range). | Delegates validation to `ValidateMonitoringFilter`, supports `AggregateFilter` (if supported by server) and `DataChangeFilter`. |
 | **Events** | Basic event subscription support (`SubscribeToEvents` checks `EventNotifier` bit). | **Full Event Support**: <br/>- Manages `RootNotifiers`. <br/>- Propagates events via `SubscribeToAllEvents`. <br/>- Implements `ConditionRefresh`. <br/>- Validates `PermissionType.ReceiveEvents`. |
 
-### 5. History
+### History
 
 * **CoreNodeManager**:
   * `HistoryRead` / `HistoryUpdate`: Iterates nodes and returns `BadNotReadable` / `BadNotWritable` (or `BadHistoryOperationUnsupported` implicit). No infrastructure for history.
@@ -227,7 +226,7 @@ The operation is deliberately exposed as a capability interface method rather th
   * Checks `AccessLevels.HistoryRead/Write` and `EventNotifier.HistoryRead/Write`.
   * Default implementation returns `BadHistoryOperationUnsupported`, but is structured for easy overriding in derived classes.
 
-### 6. Security
+### Security
 
 * **CoreNodeManager**:
   * Checks `AccessLevel`, `UserAccessLevel`, `WriteMask` in `Write`.
@@ -238,7 +237,7 @@ The operation is deliberately exposed as a capability interface method rather th
 
 ## Registering node managers
 
-A NodeManager owns a part of the server address space. This guide explains the three points at
+A NodeManager owns a part of the server address space. This section explains the three points at
 which a NodeManager can be registered with a server, and what the server guarantees when
 registrations change while the server is running.
 
@@ -246,7 +245,8 @@ For how to author a NodeManager, see [source-generated NodeManagers](#source-gen
 [runtime NodeSets](RuntimeNodeSets.md), and
 [CoreNodeManager vs CustomNodeManager2](#core-vs-custom-node-managers).
 
-### Where NodeManagers come from
+There are several ways a NodeManager originates and is added to a server, shown in the following
+table.
 
 | Registration point | API | When the address space is built |
 | --- | --- | --- |
@@ -317,7 +317,7 @@ A lifecycle operation is transactional. The replacement address space is built a
 anything becomes visible to Clients, and any failure is rolled back, so Clients never observe a
 partially applied model.
 
-### What happens to Clients
+### Node manager lifecycle impact on clients
 
 #### MonitoredItems
 
@@ -379,23 +379,101 @@ Every committed lifecycle transaction emits one compressed model-change notifica
 emits a semantic-change notification when values of Properties marked with the `SemanticChange`
 access-level bit changed.
 
-### Requirements on a reloadable NodeManager
+### How to make a node manager reloadable
 
-A NodeManager can be added and removed through the lifecycle provider without extra work.
+A NodeManager can be added and removed through the lifecycle provider without extra work. Reload
+needs more, because the references other NodeManagers hold into the retired address space have to be
+carried over to the replacement. A NodeManager can only be reloaded when it implements
+`INodeManagerReloadParticipant`; reloading one that does not fails with `NotSupportedException`
+before anything changes.
 
-Reload needs more, because the references other NodeManagers hold into the retired address space
-have to be carried over. A NodeManager can only be reloaded when it implements
-`INodeManagerReloadParticipant`, which re-adds the references it contributed to Nodes owned by
-other NodeManagers to the replacement and reports the inbound references whose target the
-replacement no longer contains, so the server can remove their counterparts. Reloading a NodeManager
-that does not implement it fails with `NotSupportedException` before anything changes.
+The contract is a single method:
 
-Today `RuntimeNodeSetNodeManager` is the only built-in NodeManager that implements the contract, so
-runtime NodeSets can be reloaded out of the box. A NodeManager derived from `CustomNodeManager2` or
-`AsyncCustomNodeManager` can be added and removed live, and becomes reloadable by implementing
-`INodeManagerReloadParticipant`: return the references your NodeManager added to Nodes it does not
-own, hand them to the replacement, and report the ones whose target NodeId the replacement no longer
-has.
+```csharp
+public interface INodeManagerReloadParticipant
+{
+    ValueTask<ArrayOf<LocalReference>> PrepareReloadAsync(
+        IAsyncNodeManager replacement,
+        CancellationToken ct = default);
+}
+```
+
+The server calls it on the outgoing generation, handing it the already-built replacement, before any
+routing changes. The implementation has two jobs:
+
+1. **Re-add the references your NodeManager contributed to Nodes it does not own.** These are the
+   cross-manager references you registered while building the address space — for example a
+   `Organizes` reference from the ns=0 `Objects` folder to your root. Track them as you add them, and
+   in `PrepareReloadAsync` push the same set into the replacement so the foreign Nodes keep pointing
+   at the new generation.
+2. **Return the inbound references the replacement can no longer satisfy.** For every reference whose
+   target NodeId the replacement does not contain, return a `LocalReference` describing the
+   *counterpart* edge so the server can delete it from the foreign Node. `LocalReference` is
+   `(NodeId sourceId, NodeId referenceTypeId, bool isInverse, NodeId targetId)`, so the counterpart is
+   the reference with source and target swapped and `isInverse` negated.
+
+A minimal implementation looks like this:
+
+```csharp
+public async ValueTask<ArrayOf<LocalReference>> PrepareReloadAsync(
+    IAsyncNodeManager replacement,
+    CancellationToken ct = default)
+{
+    if (replacement is not MyNodeManager target)
+    {
+        throw new NotSupportedException(
+            "This NodeManager can only be reloaded with another instance of the same type.");
+    }
+
+    // 1. hand the references we added to foreign Nodes to the replacement.
+    Dictionary<NodeId, IList<IReference>> addedReferences = GetAddedReferences();
+    await target.AddReferencesAsync(addedReferences, ct).ConfigureAwait(false);
+
+    // 2. report the counterparts whose target the replacement no longer has.
+    var dropped = new List<LocalReference>();
+    foreach (KeyValuePair<NodeId, IList<IReference>> entry in addedReferences)
+    {
+        if (target.ContainsNode(entry.Key))
+        {
+            continue;
+        }
+
+        foreach (IReference reference in entry.Value)
+        {
+            if (!reference.TargetId.IsAbsolute)
+            {
+                dropped.Add(new LocalReference(
+                    (NodeId)reference.TargetId,
+                    reference.ReferenceTypeId,
+                    !reference.IsInverse,
+                    entry.Key));
+            }
+        }
+    }
+
+    return new ArrayOf<LocalReference>(dropped.ToArray());
+}
+```
+
+Practical guidance:
+
+* **Keep a record of cross-manager references as you create them.** The base classes do not track
+  them for you. `AddExternalReference` populates the `externalReferences` dictionary handed to
+  `CreateAddressSpaceAsync`; keep that dictionary (or an equivalent map) in a field so
+  `PrepareReloadAsync` can replay it.
+* **Reject an incompatible replacement.** Throwing `NotSupportedException` when the replacement is
+  not the type you expect is safer than silently skipping the reference transfer, and the server
+  fails the reload cleanly.
+* **Do not mutate your own Nodes.** By the time this runs, the replacement generation owns the
+  address space; the retired generation is about to be disposed.
+* **Reload is transactional.** If your implementation throws, the whole operation is rolled back and
+  Clients never see a partially applied model, so it is safe to fail fast.
+
+`RuntimeNodeSetNodeManager` is the only built-in NodeManager that implements the contract, so runtime
+NodeSets are reloadable out of the box — see
+`src/Opc.Ua.Server/RuntimeNodeSet/RuntimeNodeSetNodeManager.cs` for the reference implementation. A
+NodeManager derived from `CustomNodeManager2` or `AsyncCustomNodeManager` can be added and removed
+live without any of this, and becomes reloadable once it implements the interface.
 
 ### Related documentation
 

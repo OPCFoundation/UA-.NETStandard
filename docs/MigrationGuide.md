@@ -43,43 +43,6 @@ Looking for the broader narrative (non-prescriptive overview of what
 changed in a release)? See
 [What's New in 2.0](WhatsNewIn2.0.md).
 
-## Migrating DI runtime instance NodeIds in 2.0 previews
-
-DI hosting now mints runtime-created device and topology instance
-NodeIds in the server's application namespace (`NamespaceArray[1]`,
-exposed as `DiNodeManager.InstanceNamespaceIndex`) instead of reusing
-the DI, Pumps, Machinery, or other companion-spec namespace of the
-parent node. This aligns with companion-spec namespace rules: standard
-BrowseNames remain in the standards body's namespace, but NodeIds for
-nodes defined by the local server use the Local Server URI namespace.
-
-Applications that cached DI device NodeIds from earlier 2.0 previews
-must refresh those caches. For example, a pump previously exposed as
-`ns=<DI>;s=5001_Pump #1` is now exposed as
-`ns=<application>;s=5001_Pump #1`. Vendor-specific BrowseNames should
-also use the application namespace; reserve DI or other companion
-namespaces for BrowseNames defined by those specifications.
-
-Recommended migration steps:
-
-1. Treat cached DI runtime instance NodeIds as invalid and rediscover
-   devices by browsing `DeviceSet`, `Machines`, or your own stable
-   topology entry point.
-2. Resolve namespace indexes from the server's `NamespaceArray` on each
-   connection. Do not persist numeric namespace indexes across servers
-   or restarts.
-3. When creating devices or vendor-defined functional groups, pass
-   `new QualifiedName(name, manager.InstanceNamespaceIndex)`. Keep DI,
-   Machinery, Pumps, or other companion-spec namespace indexes only for
-   BrowseNames the specification defines.
-4. Ensure `ApplicationConfiguration.ApplicationUri` is stable. DI uses
-   that URI as the namespace URI for server-owned instance NodeIds.
-
-This is runtime-breaking for clients that persisted NodeIds from 2.0
-previews. It is not an XML model change: standard DI, Machinery, and
-Pumps type NodeIds and spec-defined BrowseNames remain in their
-standard namespaces.
-
 ## Migrating servers that relied on unserved history advertisement
 
 Server startup now reconciles variables that advertise history with the
