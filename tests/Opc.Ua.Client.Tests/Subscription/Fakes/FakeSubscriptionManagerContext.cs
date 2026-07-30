@@ -59,6 +59,13 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         public IReadOnlyList<DeleteCall> DeleteCalls => Snapshot(m_deleteCalls);
 
         /// <summary>
+        /// Number of recorded calls to <see cref="DeleteSubscriptionsAsync"/>.
+        /// Polling loops use this instead of <see cref="DeleteCalls"/> so a
+        /// wait condition does not allocate a snapshot on every iteration.
+        /// </summary>
+        public int DeleteCallsCount => Count(m_deleteCalls);
+
+        /// <summary>
         /// Required factory for <see cref="CreateSubscription"/>. Tests must
         /// assign this before invoking the manager.
         /// </summary>
@@ -165,6 +172,18 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
             }
         }
 
+        /// <summary>
+        /// Reads the number of recorded calls without allocating a snapshot.
+        /// </summary>
+        /// <param name="recordings"></param>
+        private int Count<T>(List<T> recordings)
+        {
+            lock (m_recordLock)
+            {
+                return recordings.Count;
+            }
+        }
+
         internal readonly record struct CreateSubscriptionCall(
             ISubscriptionNotificationHandler Handler,
             IOptionsMonitor<SubscriptionOptions> Options,
@@ -186,6 +205,6 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         private readonly List<PublishCall> m_publishCalls = [];
         private readonly List<TransferCall> m_transferCalls = [];
         private readonly List<DeleteCall> m_deleteCalls = [];
-        private readonly Lock m_recordLock = new();
+        private readonly System.Threading.Lock m_recordLock = new();
     }
 }

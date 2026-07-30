@@ -32,6 +32,7 @@
 #pragma warning disable CA2000
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
@@ -978,9 +979,11 @@ namespace Opc.Ua.Client.Subscriptions
                 pending.Created = true;
                 sut.Update();
 
-                await WaitUntilAsync(() => session.DeleteCalls.Count > 0, testCt)
+                await WaitUntilAsync(() => session.DeleteCallsCount > 0, testCt)
                     .ConfigureAwait(false);
-                Assert.That(session.DeleteCalls[0].SubscriptionIds.ToList(),
+                IReadOnlyList<FakeSubscriptionManagerContext.DeleteCall> deleteCalls =
+                    session.DeleteCalls;
+                Assert.That(deleteCalls[0].SubscriptionIds.ToList(),
                     Does.Contain(4242u));
             }
         }
@@ -1077,13 +1080,15 @@ namespace Opc.Ua.Client.Subscriptions
                 sut.MaxPublishWorkerCount = 1;
                 sut.Resume();
 
-                await WaitUntilAsync(() => session.DeleteCalls.Count > 0, testCt)
+                await WaitUntilAsync(() => session.DeleteCallsCount > 0, testCt)
                     .ConfigureAwait(false);
                 await Task.Delay(500, testCt).ConfigureAwait(false);
 
-                Assert.That(session.DeleteCalls, Has.Count.EqualTo(1),
+                IReadOnlyList<FakeSubscriptionManagerContext.DeleteCall> deleteCalls =
+                    session.DeleteCalls;
+                Assert.That(deleteCalls, Has.Count.EqualTo(1),
                     "The orphaned subscription must be deleted exactly once.");
-                Assert.That(session.DeleteCalls[0].SubscriptionIds.ToList(),
+                Assert.That(deleteCalls[0].SubscriptionIds.ToList(),
                     Does.Contain(4242u));
             }
         }
