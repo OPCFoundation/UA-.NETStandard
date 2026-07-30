@@ -28,6 +28,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Opc.Ua.OpenUsd.Client\Opc.Ua.OpenUsd.Client.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.OpenUsd.Server\Opc.Ua.OpenUsd.Server.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.OpenUsdScene\Opc.Ua.OpenUsdScene.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.OpenUsdScene.Server\Opc.Ua.OpenUsdScene.Server.csproj" />
   </ItemGroup>

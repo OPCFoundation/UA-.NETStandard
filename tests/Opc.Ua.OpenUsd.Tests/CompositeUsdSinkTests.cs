@@ -142,6 +142,41 @@ namespace Opc.Ua.OpenUsd.Client.Tests
         }
 
         [Test]
+        public void AFailingTimeSampleSinkDoesNotStopTheOthers()
+        {
+            var failing = new ThrowingSink { Message = "sampler down" };
+            var healthy = new MockUsdSink();
+            var sink = new CompositeUsdSink(failing, healthy);
+
+            Assert.That(
+                () => sink.SetTimeSample(
+                    "/Cell",
+                    "custom:temperature",
+                    new DateTime(1970, 1, 1, 0, 0, 1, DateTimeKind.Utc),
+                    new Variant(21.5)),
+                Throws.InvalidOperationException.With.Message.EqualTo("sampler down"));
+            Assert.That(healthy.TimeSampleWrites, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void ABatchScopeClosesEveryInnerScopeEvenWhenOneThrowsOnDispose()
+        {
+            var failing = new ThrowingSink { FailOnScopeDispose = true, Message = "scope down" };
+            var healthy = new RecordingSink();
+            var sink = new CompositeUsdSink(failing, healthy);
+
+            IDisposable scope = sink.BeginBatch();
+
+            // The healthy sink is disposed first (reverse order) and the failure is rethrown
+            // only once every inner scope has been given the chance to close.
+            Assert.That(
+                () => scope.Dispose(),
+                Throws.InvalidOperationException.With.Message.EqualTo("scope down"));
+            Assert.That(healthy.ClosedBatches, Is.EqualTo(1));
+            Assert.That(healthy.OpenBatches, Is.Zero);
+        }
+
+        [Test]
         public void ConstructorRejectsNoSinks()
         {
             Assert.That(() => new CompositeUsdSink(), Throws.ArgumentException);
@@ -232,6 +267,8 @@ namespace Opc.Ua.OpenUsd.Client.Tests
 
             public bool FailOnBatch { get; init; }
 
+            public bool FailOnScopeDispose { get; init; }
+
             public void SetAttribute(string primPath, string propertyName, Variant value) =>
                 throw new InvalidOperationException(Message);
 
@@ -246,13 +283,25 @@ namespace Opc.Ua.OpenUsd.Client.Tests
             public IDisposable BeginBatch() =>
                 FailOnBatch
                     ? throw new InvalidOperationException(Message)
-                    : new NoOpScope();
+                    : FailOnScopeDispose ? new ThrowingScope(Message) : new NoOpScope();
 
             private sealed class NoOpScope : IDisposable
             {
                 public void Dispose()
                 {
                 }
+            }
+
+            private sealed class ThrowingScope : IDisposable
+            {
+                private readonly string m_message;
+
+                public ThrowingScope(string message)
+                {
+                    m_message = message;
+                }
+
+                public void Dispose() => throw new InvalidOperationException(m_message);
             }
         }
     }
