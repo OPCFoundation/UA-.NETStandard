@@ -42,15 +42,7 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         public static Parameter[] ResolveMethodInputs(MethodDesign method)
         {
-            if (method == null)
-            {
-                throw new ArgumentNullException(nameof(method));
-            }
-
-            return ResolveArguments(
-                method.InputArguments,
-                method.MethodDeclarationNode?.InputArguments,
-                method.MethodType?.InputArguments);
+            return ResolveMethodArguments(method).Inputs;
         }
 
         /// <summary>
@@ -58,15 +50,27 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         public static Parameter[] ResolveMethodOutputs(MethodDesign method)
         {
+            return ResolveMethodArguments(method).Outputs;
+        }
+
+        private static (Parameter[] Inputs, Parameter[] Outputs) ResolveMethodArguments(
+            MethodDesign method)
+        {
             if (method == null)
             {
                 throw new ArgumentNullException(nameof(method));
             }
 
-            return ResolveArguments(
+            Parameter[] inputs = ResolveArguments(
+                method.InputArguments,
+                method.MethodDeclarationNode?.InputArguments,
+                method.MethodType?.InputArguments);
+            Parameter[] outputs = ResolveArguments(
                 method.OutputArguments,
                 method.MethodDeclarationNode?.OutputArguments,
                 method.MethodType?.OutputArguments);
+            ModelDesignExtensions.AssignMethodArgumentCodeNames(inputs, outputs);
+            return (inputs, outputs);
         }
 
         private static Parameter[] ResolveArguments(
