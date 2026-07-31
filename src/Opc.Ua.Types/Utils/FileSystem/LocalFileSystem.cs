@@ -35,7 +35,7 @@ namespace Opc.Ua
     /// <summary>
     /// Default file system implementation that uses System.IO
     /// </summary>
-    public class LocalFileSystem : IFileSystem
+    public class LocalFileSystem : IFileSystem, IAtomicFileReplace
     {
         /// <summary>
         /// Get singleton instance
@@ -91,6 +91,26 @@ namespace Opc.Ua
         public long GetLength(string path)
         {
             return new FileInfo(path).Length;
+        }
+
+        /// <inheritdoc/>
+        public void Replace(string sourcePath, string destinationPath)
+        {
+            string? directoryName = Path.GetDirectoryName(destinationPath);
+            if (directoryName != null && !Directory.Exists(directoryName))
+            {
+                Directory.CreateDirectory(directoryName);
+            }
+
+            if (File.Exists(destinationPath))
+            {
+                // Replace keeps the destination's identity and discards the source, but
+                // it refuses to run when the two paths sit on different volumes.
+                File.Replace(sourcePath, destinationPath, null);
+                return;
+            }
+
+            File.Move(sourcePath, destinationPath);
         }
     }
 }

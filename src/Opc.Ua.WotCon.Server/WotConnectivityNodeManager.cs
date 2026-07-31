@@ -170,7 +170,10 @@ namespace Opc.Ua.WotCon.Server
             ISystemContext context,
             CancellationToken cancellationToken = default)
         {
-            return new ValueTask<NodeStateCollection>(new NodeStateCollection().AddOpcUaWotCon(context));
+            WotConModelPartition.EnsureXRegistryNamespace(context);
+            NodeStateCollection nodes = new NodeStateCollection().AddOpcUaWotCon(context);
+            WotConModelPartition.RetainLegacyNodes(nodes, context);
+            return new ValueTask<NodeStateCollection>(nodes);
         }
 
         /// <inheritdoc/>

@@ -36,6 +36,7 @@
     <ProjectReference Include="..\Opc.Ua.Server\Opc.Ua.Server.csproj" />
     <ProjectReference Include="..\Opc.Ua.Bindings.Https\Opc.Ua.Bindings.Https.csproj" />
     <ProjectReference Include="..\Opc.Ua.WotCon\Opc.Ua.WotCon.csproj" />
+    <ProjectReference Include="..\Opc.Ua.XRegistry.Server\Opc.Ua.XRegistry.Server.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="NugetREADME.md" Pack="true" PackagePath="\" />

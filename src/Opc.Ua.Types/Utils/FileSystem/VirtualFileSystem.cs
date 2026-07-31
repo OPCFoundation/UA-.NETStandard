@@ -40,7 +40,7 @@ namespace Opc.Ua
     /// <summary>
     /// Virtual file system
     /// </summary>
-    public class VirtualFileSystem : IFileSystem, IDisposable
+    public class VirtualFileSystem : IFileSystem, IAtomicFileReplace, IDisposable
     {
         /// <summary>
         /// Get created files in this file system
@@ -160,6 +160,30 @@ namespace Opc.Ua
             }
             // Either we loaded it already or it exists and can be mapped
             return m_files.ContainsKey(path) || SafeExists(path);
+        }
+
+        /// <inheritdoc/>
+        public void Replace(string sourcePath, string destinationPath)
+        {
+            if (!m_files.TryRemove(sourcePath, out VirtualFile? staged))
+            {
+                throw new FileNotFoundException(
+                    "The staged file to publish does not exist.",
+                    sourcePath);
+            }
+
+            // Re-keying the whole entry publishes the file in one step, so a reader sees
+            // either the previous content or the new content and never a partial write.
+            VirtualFile? replaced = null;
+            m_files.AddOrUpdate(
+                destinationPath,
+                staged,
+                (_, existing) =>
+                {
+                    replaced = existing;
+                    return staged;
+                });
+            replaced?.Dispose();
         }
 
         /// <inheritdoc/>
