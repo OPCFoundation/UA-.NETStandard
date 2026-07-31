@@ -335,10 +335,17 @@ namespace Opc.Ua
             var children = new List<BaseInstanceState>();
             source.GetChildren(context, children);
 
+            // Every child created below is initialized from its source right
+            // afterwards, which overwrites the NodeId a factory would hand out
+            // here, so the copy must not reach the factory at all.
+            ISystemContext childContext = children.Count > 0 && context.NodeIdFactory != null
+                ? new NodeIdFactorySuppressedContext(context)
+                : context;
+
             for (int ii = 0; ii < children.Count; ii++)
             {
                 BaseInstanceState sourceChild = children[ii];
-                BaseInstanceState? child = CreateChild(context, sourceChild.BrowseName);
+                BaseInstanceState? child = CreateChild(childContext, sourceChild.BrowseName);
 
                 if (child == null)
                 {

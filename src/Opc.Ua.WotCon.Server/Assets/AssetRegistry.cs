@@ -641,7 +641,7 @@ namespace Opc.Ua.WotCon.Server.Assets
                 BrowseName = new QualifiedName(name, ns),
                 DisplayName = new LocalizedText(property.Title ?? name),
                 Description = property.Description != null ? new LocalizedText(property.Description) : LocalizedText.Null,
-                DataType = mapped ? dataType : DataTypeIds.BaseDataType,
+                DataType = mapped ? dataType : Ua.DataTypeIds.BaseDataType,
                 ValueRank = mapped ? valueRank : ValueRanks.Scalar,
                 AccessLevel = property.ReadOnly ? AccessLevels.CurrentRead : AccessLevels.CurrentReadOrWrite,
                 UserAccessLevel = property.ReadOnly ? AccessLevels.CurrentRead : AccessLevels.CurrentReadOrWrite,
@@ -721,7 +721,7 @@ namespace Opc.Ua.WotCon.Server.Assets
                 inputProperty.NodeId = m_manager.AllocateChildNodeId(entry.Name, "actions", name + "_in");
                 inputProperty.BrowseName = new QualifiedName(Ua.BrowseNames.InputArguments);
                 inputProperty.DisplayName = new LocalizedText(Ua.BrowseNames.InputArguments);
-                inputProperty.DataType = DataTypeIds.Argument;
+                inputProperty.DataType = Ua.DataTypeIds.Argument;
                 inputProperty.ValueRank = ValueRanks.OneDimension;
                 inputProperty.ReferenceTypeId = Ua.ReferenceTypeIds.HasProperty;
                 inputProperty.TypeDefinitionId = VariableTypeIds.PropertyType;
@@ -741,7 +741,7 @@ namespace Opc.Ua.WotCon.Server.Assets
                 outputProperty.NodeId = m_manager.AllocateChildNodeId(entry.Name, "actions", name + "_out");
                 outputProperty.BrowseName = new QualifiedName(Ua.BrowseNames.OutputArguments);
                 outputProperty.DisplayName = new LocalizedText(Ua.BrowseNames.OutputArguments);
-                outputProperty.DataType = DataTypeIds.Argument;
+                outputProperty.DataType = Ua.DataTypeIds.Argument;
                 outputProperty.ValueRank = ValueRanks.OneDimension;
                 outputProperty.ReferenceTypeId = Ua.ReferenceTypeIds.HasProperty;
                 outputProperty.TypeDefinitionId = VariableTypeIds.PropertyType;

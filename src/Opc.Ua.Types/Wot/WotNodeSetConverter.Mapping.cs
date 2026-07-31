@@ -171,11 +171,7 @@ namespace Opc.Ua.Wot
             // ExpandedNodeId (WoT Binding Sections 5.1.2 and 5.3).
             var componentChildren = new List<string>();
             var componentParents = new List<string>();
-            var typedComponentLinks = new List<(
-                string Target,
-                string Rel,
-                string RefType,
-                string RefName)>();
+            var typedComponentLinks = new List<TypedComponentLink>();
 
             foreach (Reference reference in root.References)
             {
@@ -213,7 +209,7 @@ namespace Opc.Ua.Wot
                     }
                     (reference.IsForward ? componentChildren : componentParents)
                         .Add(portableTarget!);
-                    typedComponentLinks.Add((
+                    typedComponentLinks.Add(new TypedComponentLink(
                         portableTarget!,
                         ToReferenceTypeModelName(reference.ReferenceType)
                             ?? "ua:HasOrderedComponent",
@@ -302,11 +298,7 @@ namespace Opc.Ua.Wot
 
         private static void WriteTypedComponentLinks(
             Utf8JsonWriter writer,
-            List<(
-                string Target,
-                string Rel,
-                string RefType,
-                string RefName)> links)
+            List<TypedComponentLink> links)
         {
             if (links.Count == 0)
             {
@@ -314,17 +306,13 @@ namespace Opc.Ua.Wot
             }
             writer.WritePropertyName("links");
             writer.WriteStartArray();
-            foreach ((
-                string target,
-                string rel,
-                string refType,
-                string refName) in links)
+            foreach (TypedComponentLink link in links)
             {
                 writer.WriteStartObject();
-                writer.WriteString("rel", rel);
-                writer.WriteString("href", target);
-                writer.WriteString("uav:refId", refType);
-                writer.WriteString("uav:refName", refName);
+                writer.WriteString("rel", link.Rel);
+                writer.WriteString("href", link.Target);
+                writer.WriteString("uav:refId", link.RefType);
+                writer.WriteString("uav:refName", link.RefName);
                 writer.WriteEndObject();
             }
             writer.WriteEndArray();
@@ -800,15 +788,20 @@ namespace Opc.Ua.Wot
             WotNodeSetConverterOptions options,
             List<WotDiagnostic> diagnostics)
         {
-            foreach ((string href, string? referenceType, bool isExtends) in EnumerateResolvableThingReferences(
+            foreach (ResolvableThingReference thingReference in EnumerateResolvableThingReferences(
                 document,
                 componentTypedRefs,
                 diagnostics))
             {
-                if (isExtends)
+                if (thingReference.IsExtends)
                 {
                     if (TryResolveTargetNodeId(
-                        href, thingCatalog, resolutionContext, options, diagnostics, out string extendsTarget))
+                        thingReference.Reference,
+                        thingCatalog,
+                        resolutionContext,
+                        options,
+                        diagnostics,
+                        out string extendsTarget))
                     {
                         SetSuperType(rootReferences, extendsTarget);
                     }
@@ -816,11 +809,16 @@ namespace Opc.Ua.Wot
                 }
 
                 if (TryResolveTargetNodeId(
-                    href, thingCatalog, resolutionContext, options, diagnostics, out string linkTarget))
+                    thingReference.Reference,
+                    thingCatalog,
+                    resolutionContext,
+                    options,
+                    diagnostics,
+                    out string linkTarget))
                 {
                     rootReferences.Add(new Reference
                     {
-                        ReferenceType = referenceType!,
+                        ReferenceType = thingReference.ReferenceType!,
                         IsForward = true,
                         Value = linkTarget
                     });
@@ -828,7 +826,7 @@ namespace Opc.Ua.Wot
             }
         }
 
-        private static IEnumerable<(string Reference, string? ReferenceType, bool IsExtends)>
+        private static IEnumerable<ResolvableThingReference>
             EnumerateResolvableThingReferences(
                 WotDocument document,
                 Dictionary<string, string> componentTypedRefs,
@@ -845,7 +843,7 @@ namespace Opc.Ua.Wot
 
                 if (string.Equals(rel, "tm:extends", StringComparison.Ordinal))
                 {
-                    yield return (href, null, true);
+                    yield return new ResolvableThingReference(href, null, true);
                     continue;
                 }
 
@@ -869,7 +867,7 @@ namespace Opc.Ua.Wot
                     diagnostics,
                     out string referenceType))
                 {
-                    yield return (href, referenceType, false);
+                    yield return new ResolvableThingReference(href, referenceType, false);
                 }
             }
         }
@@ -2399,5 +2397,16 @@ namespace Opc.Ua.Wot
                 element.TryGetProperty(name, out JsonElement value) &&
                 value.ValueKind == JsonValueKind.True;
         }
+
+        private readonly record struct TypedComponentLink(
+            string Target,
+            string Rel,
+            string RefType,
+            string RefName);
+
+        private readonly record struct ResolvableThingReference(
+            string Reference,
+            string? ReferenceType,
+            bool IsExtends);
     }
 }

@@ -4,12 +4,24 @@
     sets `<RestrictForLegacyTfm>true</RestrictForLegacyTfm>` in its main
     `PropertyGroup`, this Directory.Build.targets makes the project a
     no-op build (empty Library, no compile items, no references) for
-    `dotnet build … /p:CustomTestTarget=<legacy>` invocations where
-    `<legacy>` is one of `net472` / `net48` / `netstandard2.0` /
-    `netstandard2.1`.  Use this for projects that are `.NET 8+` only
+    `dotnet build … /p:CustomTestTarget=<tfm>` invocations that the
+    project cannot take part in.  That is the case for
+    `<tfm>` in `net472` / `net48` / `netstandard2.0` / `netstandard2.1`,
+    and for any project that pins a single `TargetFramework` different
+    from `<tfm>`.  Use this for projects that are `.NET 8+` only
     (e.g. `PublishAot=true`, `ModelContextProtocol` server, TUnit AOT
     tests) and therefore can't participate in a `UA.slnx` build pinned
     to a legacy TFM via `CustomTestTarget`.
+
+    The single-`TargetFramework` case matters because `CustomTestTarget`
+    only redirects the shared TFM variables in `targets.props`; a project
+    that hardcodes, say, `net10.0` keeps compiling against its own
+    reference assemblies while the rest of the stack is built for
+    `<tfm>`.  Mixing the two surfaces as `CS0433` on every BCL type the
+    stack polyfills for older frameworks (`System.Threading.Lock` is
+    defined by `Opc.Ua.Types` on `net8.0` and by `System.Runtime` on
+    `net9.0+`), which is a property of the pinned build rather than of
+    the project's own sources.
 
     The project still loads in the `.slnx` graph so the matrix prep
     script discovers it, but `Compile` / `ProjectReference` /
@@ -32,6 +44,11 @@
   <PropertyGroup>
     <_RestrictedToLegacyTfm
         Condition="'$(RestrictForLegacyTfm)' == 'true' and ('$(CustomTestTarget)' == 'net48' or '$(CustomTestTarget)' == 'net472' or '$(CustomTestTarget)' == 'netstandard2.0' or '$(CustomTestTarget)' == 'netstandard2.1')">true</_RestrictedToLegacyTfm>
+    <!-- Multi-targeted projects follow CustomTestTarget through targets.props,
+         so only a project that pins exactly one TargetFramework can end up
+         building against a framework the rest of the solution is not using. -->
+    <_RestrictedToLegacyTfm
+        Condition="'$(RestrictForLegacyTfm)' == 'true' and '$(CustomTestTarget)' != '' and '$(TargetFrameworks)' == '' and '$(TargetFramework)' != '' and '$(CustomTestTarget)' != '$(TargetFramework)'">true</_RestrictedToLegacyTfm>
   </PropertyGroup>
   <PropertyGroup Condition="'$(_RestrictedToLegacyTfm)' == 'true'">
     <OutputType>Library</OutputType>

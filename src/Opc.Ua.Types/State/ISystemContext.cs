@@ -89,8 +89,15 @@ namespace Opc.Ua
         /// <summary>
         /// A factory that can be used to create node ids.
         /// </summary>
-        /// <value>The node identifiers factory.</value>
-        INodeIdFactory NodeIdFactory { get; }
+        /// <value>
+        /// The node identifiers factory, or <c>null</c> when the context
+        /// suppresses NodeId assignment. Callers that assign NodeIds must
+        /// check for <c>null</c>; see
+        /// <see cref="NodeIdFactorySuppressedContext"/>, which a node copy
+        /// uses so materialising its children does not consume identifiers
+        /// the copy immediately overwrites.
+        /// </value>
+        INodeIdFactory? NodeIdFactory { get; }
 
         /// <summary>
         /// A factory that can be used to create encodeable types.

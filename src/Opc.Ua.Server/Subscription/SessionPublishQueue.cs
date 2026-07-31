@@ -427,16 +427,15 @@ namespace Opc.Ua.Server
             {
                 lock (m_lock)
                 {
+                    // Flag the subscription as available and let the selection policy decide
+                    // which of the available subscriptions is handed to a waiting request.
                     queuedSubscription.Publishing = false;
+                    queuedSubscription.ReadyToPublish = moreNotifications;
+                    queuedSubscription.Timestamp = DateTime.UtcNow;
 
                     if (moreNotifications)
                     {
-                        AssignSubscriptionToRequest(queuedSubscription);
-                    }
-                    else
-                    {
-                        queuedSubscription.ReadyToPublish = false;
-                        queuedSubscription.Timestamp = DateTime.UtcNow;
+                        AssignSubscriptionsToRequests();
                     }
                 }
             }
@@ -484,6 +483,7 @@ namespace Opc.Ua.Server
         internal void PublishTimerExpired(IReadOnlyList<QueuedSubscription> queuedSubscriptions)
         {
             var subscriptionsToDelete = new List<ISubscription>();
+            List<QueuedSubscription>? notifyingSubscriptions = null;
 
             // check each available subscription.
             for (int ii = 0; ii < queuedSubscriptions.Count; ii++)
@@ -521,16 +521,34 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                // assign subscription to request if one is available.
+                // collect the subscription, it is assigned to a request further below.
                 if (!subscription.Publishing)
                 {
-                    lock (m_lock)
+                    (notifyingSubscriptions ??= []).Add(subscription);
+                }
+            }
+
+            if (notifyingSubscriptions != null)
+            {
+                lock (m_lock)
+                {
+                    // Flag every notifying subscription as available before any request is
+                    // served. Assigning them one by one while iterating would hand the
+                    // waiting requests out in the (unordered) iteration order of the
+                    // subscription dictionary and bypass the priority and timestamp based
+                    // selection policy applied by PublishAsync.
+                    foreach (QueuedSubscription subscription in notifyingSubscriptions)
                     {
-                        if (!subscription.Publishing)
+                        if (subscription.Publishing || subscription.ReadyToPublish)
                         {
-                            AssignSubscriptionToRequest(subscription);
+                            continue;
                         }
+
+                        subscription.ReadyToPublish = true;
+                        subscription.Timestamp = DateTime.UtcNow;
                     }
+
+                    AssignSubscriptionsToRequests();
                 }
             }
 
@@ -556,47 +574,77 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Checks the state of the subscriptions.
+        /// Hands the subscriptions that are ready to publish to the waiting publish
+        /// requests. The subscriptions are selected with the same priority and timestamp
+        /// based policy as <see cref="PublishAsync"/>, so the order in which subscriptions
+        /// became ready does not determine which one is published first.
         /// </summary>
-        private void AssignSubscriptionToRequest(QueuedSubscription subscription)
+        private void AssignSubscriptionsToRequests()
         {
-            lock (m_lock)
+            while (m_queuedRequests.Count > 0)
             {
-                // find a request.
-                while (m_queuedRequests.Count > 0)
+                QueuedSubscription? subscriptionToPublish = GetSubscriptionToPublish();
+
+                if (subscriptionToPublish == null)
                 {
-                    QueuedPublishRequest request = m_queuedRequests.First!.Value;
-                    m_queuedRequests.RemoveFirst();
-
-                    if (request.Tcs.Task.IsCompleted)
-                    {
-                        request.Dispose();
-                        continue;
-                    }
-
-                    // check secure channel.
-                    if (!m_session.IsSecureChannelValid(request.SecureChannelId))
-                    {
-                        m_logger.PublishAbandonedBecauseTheSecureChannelChanged();
-                        request.Tcs.TrySetException(new ServiceResultException(StatusCodes.BadSecureChannelIdInvalid));
-                        request.Dispose();
-                        continue;
-                    }
-
-                    m_logger.PUBLISHIdAssignedToSubscriptionSubscriptionId(
-                        request.SecureChannelId,
-                        subscription.Subscription.Id);
-
-                    subscription.Publishing = true;
-                    request.Tcs.TrySetResult(subscription.Subscription);
-                    request.Dispose();
-                    return;
+                    break;
                 }
 
-                // mark it as available.
-                subscription.ReadyToPublish = true;
-                subscription.Timestamp = DateTime.UtcNow;
+                if (!TryAssignSubscriptionToRequest(subscriptionToPublish))
+                {
+                    // no usable request left, keep the subscription available.
+                    subscriptionToPublish.Publishing = false;
+                    break;
+                }
             }
+        }
+
+        /// <summary>
+        /// Completes the next usable publish request with the subscription. Returns false
+        /// if no usable request is queued, in which case the subscription stays available.
+        /// </summary>
+        private bool TryAssignSubscriptionToRequest(QueuedSubscription subscription)
+        {
+            // find a request.
+            while (m_queuedRequests.Count > 0)
+            {
+                QueuedPublishRequest request = m_queuedRequests.First!.Value;
+                m_queuedRequests.RemoveFirst();
+
+                if (request.Tcs.Task.IsCompleted)
+                {
+                    request.Dispose();
+                    continue;
+                }
+
+                // check secure channel.
+                if (!m_session.IsSecureChannelValid(request.SecureChannelId))
+                {
+                    m_logger.PublishAbandonedBecauseTheSecureChannelChanged();
+                    request.Tcs.TrySetException(new ServiceResultException(StatusCodes.BadSecureChannelIdInvalid));
+                    request.Dispose();
+                    continue;
+                }
+
+                subscription.Publishing = true;
+
+                if (!request.Tcs.TrySetResult(subscription.Subscription))
+                {
+                    // the request was cancelled or timed out in the meantime.
+                    subscription.Publishing = false;
+                    request.Dispose();
+                    continue;
+                }
+
+                m_logger.PUBLISHIdAssignedToSubscriptionSubscriptionId(
+                    request.SecureChannelId,
+                    subscription.Subscription.Id);
+
+                request.Dispose();
+                return true;
+            }
+
+            return false;
         }
 
         /// <summary>

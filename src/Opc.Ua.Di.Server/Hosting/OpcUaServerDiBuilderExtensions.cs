@@ -61,8 +61,9 @@ namespace Microsoft.Extensions.DependencyInjection
     /// directly via
     /// <see cref="IOpcUaServerBuilder.AddNodeManager{TFactory}"/> and use
     /// <c>ConfigureDevicesFor</c> against the companion manager type.
-    /// Calling <c>AddOpcUaDi()</c> alongside a companion-spec manager
-    /// would double-register the DI namespace.
+    /// The companion hosting extension must register
+    /// <see cref="DiAddressSpaceOwnership"/> and fail if that marker is already
+    /// present, preventing two managers from owning the DI namespace.
     /// </para>
     /// </remarks>
     public static class OpcUaServerDiBuilderExtensions
@@ -89,21 +90,8 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 throw new ArgumentNullException(nameof(builder));
             }
-            // Add the shared runner exactly once. Multiple calls to
-            // ConfigureDevicesFor share the same runner.
+            ClaimDiAddressSpace(builder.Services);
             EnsureRunnerRegistered(builder);
-
-            // Fail fast on duplicate AddOpcUaDi calls.
-            foreach (ServiceDescriptor d in builder.Services)
-            {
-                if (d.ServiceType == typeof(DiNodeManagerRegistrationMarker))
-                {
-                    throw new InvalidOperationException(
-                        "AddOpcUaDi has already been called. " +
-                        "At most one DiNodeManagerFactory may be registered per service collection.");
-                }
-            }
-            builder.Services.AddSingleton<DiNodeManagerRegistrationMarker>();
 
             // Register the factory through the existing AddNodeManager
             // pipeline so the hosted service picks it up.
@@ -179,11 +167,26 @@ namespace Microsoft.Extensions.DependencyInjection
             builder.Services.TryAddSingleton<IDiPostSetupRunner, DiPostSetupRunner>();
         }
 
-        /// <summary>
-        /// Marker type used to detect duplicate <see cref="AddOpcUaDi"/>
-        /// calls.
-        /// </summary>
-        private sealed class DiNodeManagerRegistrationMarker;
+        private static void ClaimDiAddressSpace(IServiceCollection services)
+        {
+            foreach (ServiceDescriptor descriptor in services)
+            {
+                if (descriptor.ServiceType == typeof(DiAddressSpaceOwnership))
+                {
+                    string ownerName =
+                        (descriptor.ImplementationInstance as DiAddressSpaceOwnership)?.OwnerName ??
+                        "another DI-aware hosting registration";
+                    string duplicateMessage = ownerName == nameof(AddOpcUaDi)
+                        ? "AddOpcUaDi has already been called. "
+                        : string.Empty;
+                    throw new InvalidOperationException(
+                        $"{duplicateMessage}The OPC UA DI namespace and address space are already owned by " +
+                        $"'{ownerName}'. AddOpcUaDi cannot register a second DI-owning manager.");
+                }
+            }
+
+            services.AddSingleton(new DiAddressSpaceOwnership(nameof(AddOpcUaDi)));
+        }
 
         /// <summary>
         /// Delegate-backed configurator created by the
