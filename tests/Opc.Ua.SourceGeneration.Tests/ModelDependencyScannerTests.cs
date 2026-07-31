@@ -136,7 +136,6 @@ namespace Opc.Ua.SourceGeneration
         public void EmittedAssemblyContainsModelDependencyAttribute()
         {
             var generator = new ModelSourceGenerator();
-            var host = new ModelSourceGeneratorHoist(generator);
 
             CSharpCompilation compilation = OptimizationLevel.Release.CreateCompilation()
                 .AddCode(new Dictionary<string, string>().WithOpcUaGeneratedStack(),
@@ -149,7 +148,7 @@ namespace Opc.Ua.SourceGeneration
                     ["build_property.ModelSourceGeneratorExclude"] = "Draft"
                 });
 
-            GeneratorDriver driver = CSharpGeneratorDriver.Create(host)
+            GeneratorDriver driver = CSharpGeneratorDriver.Create(generator)
                 .WithUpdatedParseOptions(new CSharpParseOptions()
                     .WithKind(SourceCodeKind.Regular)
                     .WithLanguageVersion(LanguageVersion.CSharp11))
@@ -194,7 +193,6 @@ namespace Opc.Ua.SourceGeneration
                 }, LanguageVersion.CSharp11);
 
             var generator = new ModelSourceGenerator();
-            var host = new ModelSourceGeneratorHoist(generator);
 
             CSharpCompilation compilation = OptimizationLevel.Release.CreateCompilation()
                 .AddReferences(producer.ToMetadataReference())
@@ -208,7 +206,7 @@ namespace Opc.Ua.SourceGeneration
                     ["build_property.ModelSourceGeneratorExclude"] = "Draft"
                 });
 
-            GeneratorDriver driver = CSharpGeneratorDriver.Create(host)
+            GeneratorDriver driver = CSharpGeneratorDriver.Create(generator)
                 .WithUpdatedParseOptions(new CSharpParseOptions()
                     .WithKind(SourceCodeKind.Regular)
                     .WithLanguageVersion(LanguageVersion.CSharp11))

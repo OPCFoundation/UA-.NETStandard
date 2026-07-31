@@ -46,7 +46,6 @@ namespace Opc.Ua.SourceGeneration.Tests
         public void GeneratorWithUnsupportedAssemblyNameReportsError()
         {
             var generator = new StackSourceGenerator();
-            var host = new StackSourceGeneratorHoist(generator);
 
             CSharpCompilation compilation = OptimizationLevel.Debug
                 .CreateCompilation("UnknownAssembly")
@@ -54,7 +53,7 @@ namespace Opc.Ua.SourceGeneration.Tests
                     new Dictionary<string, string>().WithOpcUaCoreStubs(),
                     LanguageVersion.Latest);
 
-            GeneratorDriver driver = CSharpGeneratorDriver.Create(host);
+            GeneratorDriver driver = CSharpGeneratorDriver.Create(generator);
             driver = driver.RunGeneratorsAndUpdateCompilation(
                 compilation,
                 out Compilation outputCompilation,
@@ -72,7 +71,6 @@ namespace Opc.Ua.SourceGeneration.Tests
         public void GeneratorWithOpcUaCoreTypesAssemblyNameProducesModels()
         {
             var generator = new StackSourceGenerator();
-            var host = new StackSourceGeneratorHoist(generator);
 
             CSharpCompilation compilation = OptimizationLevel.Debug
                 .CreateCompilation("Opc.Ua.Core.Types")
@@ -80,7 +78,7 @@ namespace Opc.Ua.SourceGeneration.Tests
                     new Dictionary<string, string>().WithOpcUaCoreStubs(),
                     LanguageVersion.Latest);
 
-            GeneratorDriver driver = CSharpGeneratorDriver.Create(host);
+            GeneratorDriver driver = CSharpGeneratorDriver.Create(generator);
             driver = driver.RunGeneratorsAndUpdateCompilation(
                 compilation,
                 out _,
@@ -97,7 +95,6 @@ namespace Opc.Ua.SourceGeneration.Tests
         public void GeneratorWithOpcUaCoreAssemblyNameProducesStack()
         {
             var generator = new StackSourceGenerator();
-            var host = new StackSourceGeneratorHoist(generator);
 
             CSharpCompilation compilation = OptimizationLevel.Debug
                 .CreateCompilation("Opc.Ua.Core")
@@ -105,7 +102,7 @@ namespace Opc.Ua.SourceGeneration.Tests
                     new Dictionary<string, string>().WithOpcUaCoreStubs(),
                     LanguageVersion.Latest);
 
-            GeneratorDriver driver = CSharpGeneratorDriver.Create(host);
+            GeneratorDriver driver = CSharpGeneratorDriver.Create(generator);
             driver = driver.RunGeneratorsAndUpdateCompilation(
                 compilation,
                 out _,
@@ -122,7 +119,6 @@ namespace Opc.Ua.SourceGeneration.Tests
         public void GeneratorWithOldLanguageVersionReportsError()
         {
             var generator = new StackSourceGenerator();
-            var host = new StackSourceGeneratorHoist(generator);
 
             CSharpCompilation compilation = OptimizationLevel.Debug
                 .CreateCompilation("Opc.Ua.Test")
@@ -130,7 +126,7 @@ namespace Opc.Ua.SourceGeneration.Tests
                     new Dictionary<string, string>().WithOpcUaCoreStubs(),
                     LanguageVersion.CSharp12);
 
-            GeneratorDriver driver = CSharpGeneratorDriver.Create(host);
+            GeneratorDriver driver = CSharpGeneratorDriver.Create(generator);
             driver = driver.RunGeneratorsAndUpdateCompilation(
                 compilation,
                 out Compilation outputCompilation,
@@ -149,7 +145,6 @@ namespace Opc.Ua.SourceGeneration.Tests
         public void GeneratorWithReleaseOptimizationProducesOutput()
         {
             var generator = new StackSourceGenerator();
-            var host = new StackSourceGeneratorHoist(generator);
 
             CSharpCompilation compilation = OptimizationLevel.Release
                 .CreateCompilation("Opc.Ua.Test")
@@ -157,7 +152,7 @@ namespace Opc.Ua.SourceGeneration.Tests
                     new Dictionary<string, string>().WithOpcUaCoreStubs(),
                     LanguageVersion.Latest);
 
-            GeneratorDriver driver = CSharpGeneratorDriver.Create(host);
+            GeneratorDriver driver = CSharpGeneratorDriver.Create(generator);
             driver = driver.RunGeneratorsAndUpdateCompilation(
                 compilation,
                 out _,
