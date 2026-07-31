@@ -148,8 +148,10 @@ code-fixers in one assembly, which transitively referenced
 swallowed the Workspaces load failure → zero diagnostics across all samples
 even though `/analyzer:` was on the csc command line.
 
-**Status:** fixed (commit `861fa6ee1`). Analyzer split into two DLLs; analyzer
-DLL is Workspaces-free + targets stable Roslyn 4.14 API.
+**Status:** fixed (commit `861fa6ee1`). Analyzer split into two DLLs; the analyzer
+DLL is Workspaces-free. Each DLL now ships once per Roslyn band (`roslyn4.14`,
+`roslyn5.0`) so the host always loads a build it can run — see
+[`compatibility-matrix.md`](compatibility-matrix.md#roslyn-api-targeting-internal).
 
 **Verification:** if you ever suspect the analyzer isn't firing, run with
 `/p:ReportAnalyzer=true` and confirm `Opc.Ua.MigrationAnalyzer` and

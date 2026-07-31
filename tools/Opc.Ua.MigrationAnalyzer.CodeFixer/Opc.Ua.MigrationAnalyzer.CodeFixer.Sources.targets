@@ -1,0 +1,51 @@
+<Project>
+  <!--
+    Sources and identity of the OPC UA migration code-fix providers, shared by
+    every Roslyn variant.
+
+    This assembly hosts the CodeFixProvider implementations only; they reference
+    Microsoft.CodeAnalysis.CSharp.Workspaces which is NOT available in csc.exe's
+    analyzer host. The analyzer assembly stays Workspaces-free so csc.exe can
+    load and execute the diagnostics; this DLL is loaded only by Workspaces-aware
+    hosts (Visual Studio / dotnet format / dotnet test analyzers).
+  -->
+  <PropertyGroup>
+    <AssemblyName>$(AssemblyPrefix).MigrationAnalyzer.CodeFixer</AssemblyName>
+    <RootNamespace>Opc.Ua.MigrationAnalyzer.CodeFixer</RootNamespace>
+    <Description>OPC UA .NET Standard migration code-fix providers (1.5.378 to 2.0). Companion to Opc.Ua.MigrationAnalyzer analyzers.</Description>
+    <MigrationCodeFixerDirectory>$(MSBuildThisFileDirectory)</MigrationCodeFixerDirectory>
+    <NoWarn>$(NoWarn);RS1007;RS1038;RS2008</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" VersionOverride="$(RoslynApiVersion)" PrivateAssets="all" />
+    <!-- Same exact-range lockstep as Microsoft.CodeAnalysis.Common: the central
+         pin has to be overridden or restore fails with NU1109. -->
+    <PackageReference Include="Microsoft.CodeAnalysis.Workspaces.Common" VersionOverride="$(RoslynApiVersion)" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.MigrationAnalyzer.Tests" />
+  </ItemGroup>
+  <!-- Share source files with the analyzer assembly (via Link) instead of a
+       ProjectReference, which would create a NuGet restore cycle (the analyzer
+       csproj transitively builds this one as part of its pack pipeline). The
+       linked types are compiled into both DLLs but only one copy is loaded per
+       analyzer host, so no runtime collision. -->
+  <ItemGroup>
+    <Compile Include="$(MigrationCodeFixerDirectory)..\Opc.Ua.MigrationAnalyzer\Diagnostics\DiagnosticIds.cs"
+             Link="Diagnostics\DiagnosticIds.cs" />
+    <Compile Include="$(MigrationCodeFixerDirectory)..\Opc.Ua.MigrationAnalyzer\Diagnostics\DiagnosticDescriptors.cs"
+             Link="Diagnostics\DiagnosticDescriptors.cs" />
+    <Compile Include="$(MigrationCodeFixerDirectory)..\Opc.Ua.MigrationAnalyzer\Diagnostics\WellKnownProperties.cs"
+             Link="Diagnostics\WellKnownProperties.cs" />
+    <Compile Include="$(MigrationCodeFixerDirectory)..\Opc.Ua.MigrationAnalyzer\Helpers\SymbolExtensions.cs"
+             Link="Helpers\SymbolExtensions.cs" />
+    <Compile Include="$(MigrationCodeFixerDirectory)..\Opc.Ua.MigrationAnalyzer\Helpers\UaSymbols.cs"
+             Link="Helpers\UaSymbols.cs" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(MSBuildProjectDirectory)\' != '$(MigrationCodeFixerDirectory)'">
+    <Compile Include="$(MigrationCodeFixerDirectory)**\*.cs"
+             Exclude="$(MigrationCodeFixerDirectory)bin\**\*.cs;$(MigrationCodeFixerDirectory)obj\**\*.cs"
+             LinkBase="Shared" />
+  </ItemGroup>
+  <Import Project="$(MSBuildThisFileDirectory)..\MigrationAnalyzerVariant.targets" />
+</Project>
