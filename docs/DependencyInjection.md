@@ -44,6 +44,12 @@ you need finer control.
 | `Opc.Ua.Server` (node manager)| `builder.AddNodeManager<T>()`            | `IOpcUaServerBuilder`    | —       | —                        |
 | `Opc.Ua.Server` (runtime NodeSet) | `builder.AddRuntimeNodeSet(…)`       | `IOpcUaServerBuilder`    | —       | —                        |
 | `Opc.Ua.Server` (live NodeManagers) | resolve `INodeManagerLifecycle`   | `INodeManagerLifecycle`  | yes     | —                        |
+| `Opc.Ua.Positioning.Server`    | `serverBuilder.AddPositioningServer()` / `AddPositioningFor<T>()` | `IPositioningServerBuilder` | yes (via `AddServer`) | — |
+| `Opc.Ua.Positioning.Client`    | `clientBuilder.AddPositioningClient()`   | `IOpcUaClientBuilder`    | —       | —                        |
+| `Opc.Ua.Robotics.Server`       | `serverBuilder.AddRobotics(opt => …)`    | `IOpcUaServerBuilder`    | yes (via `AddServer`) | — |
+| `Opc.Ua.Robotics.Server` (model) | `serverBuilder.AddRoboticsModel<T>()`  | `IOpcUaServerBuilder`    | —       | —                        |
+| `Opc.Ua.Robotics.Server` (build) | `serverBuilder.ConfigureRobotics(…)` / `ConfigureRoboticsFor<T>(…)` | `IOpcUaServerBuilder` | — | — |
+| `Opc.Ua.Robotics.Client`       | `clientBuilder.AddRoboticsClient()`      | `IOpcUaClientBuilder`    | —       | —                        |
 | `Opc.Ua.Gds.Client.Common`     | `builder.AddGdsClient(opt => …)`         | `IGdsClientBuilder`      | —       | `OpcUa:Gds:Client`       |
 | `Opc.Ua.Gds.Server.Common`     | `builder.AddGdsServer(opt => …)`         | `IGdsServerBuilder`      | yes     | `OpcUa:Gds:Server`       |
 | `Opc.Ua.Lds.Server`            | `builder.AddLdsServer(opt => …)`         | `ILdsServerBuilder`      | yes     | `OpcUa:Lds`              |
@@ -682,6 +688,79 @@ services.AddOpcUa()
 `AddHistorianFileStore(provider, path)` combines the historian provider registration with a Part 20
 file-system mount for demo and lab servers.
 
+### Positioning
+
+Use `AddPositioningServer()` when Positioning owns its node manager. Use
+`AddPositioningFor<TNodeManager>()` when an existing companion node manager
+loads and owns the RSL/GPOS models:
+
+```csharp
+IPositioningServerBuilder positioning = services
+    .AddOpcUa()
+    .AddServer(options => { /* endpoint and application options */ })
+    .AddPositioningServer();
+
+positioning
+    .AddGeoLocationProvider<MyGpsProvider>()
+    .AddRelativeSpatialLocationProvider<MyRelativeLocationProvider>()
+    .ConfigurePositioningFor<PositioningNodeManager>(context =>
+    {
+        // Build and register RSL/GPOS instances through context.AddressSpace.
+        return default;
+    });
+```
+
+Client factories compose the generated proxies over the managed session:
+
+```csharp
+services.AddOpcUa()
+    .AddClient(options => { /* endpoint and application options */ })
+    .AddPositioningClient();
+```
+
+See [Relative Spatial Location and Global Positioning](Positioning.md).
+
+### Robotics
+
+`AddRobotics()` registers the stock `RoboticsNodeManager`, the built-in DI/IA/
+Robotics model provider, and the ordered Robotics configuration pipeline. It
+owns the DI namespace, so it cannot be combined with `AddOpcUaDi()`.
+
+```csharp
+services
+    .AddOpcUa()
+    .AddServer(options => { /* endpoint and application options */ })
+    .AddRobotics(options =>
+        options.InstanceNamespaceUri = "urn:example:robot-cell")
+    .AddRoboticsModel<MyExtraModelProvider>()
+    .ConfigureRobotics(async context =>
+    {
+        await context.AddMotionDeviceSystemAsync("RobotCell", system =>
+        {
+            // Add controllers, motion devices, axes, power trains, and
+            // safety states through the fluent Robotics builders.
+        }, context.CancellationToken);
+    });
+```
+
+Use `ConfigureRobotics<TConfigurator>()` for a dependency-injected class-based
+code-behind implementing `IRoboticsConfigurator`, and
+`ConfigureRoboticsFor<TNodeManager>(…)` when the application already owns a
+compatible `DiNodeManager`. Configurators run in registration order and share
+one `IRoboticsBuildContext` per manager startup.
+
+See the [Robotics developer guide](Robotics.md).
+
+Client factories compose the Robotics client over the managed session.
+`AddRoboticsClient()` also registers the DI client services because the Robotics
+client extends `DiTopologyClient`:
+
+```csharp
+services.AddOpcUa()
+    .AddClient(options => { /* endpoint and application options */ })
+    .AddRoboticsClient();
+```
+
 ## Client feature
 
 `builder.AddClient(opt => …)` registers a lazy `ManagedSession` factory
@@ -1313,5 +1392,6 @@ services.AddOpcUa()
 - [Source Generated NodeManagers](NodeManagers.md#source-generated-node-managers) — `IAsyncNodeManagerFactory` from a model design XML.
 - [Native AOT](NativeAoT.md) — AOT testing setup.
 - [GDS Developer Guide](GDS.md) — GDS service interfaces and provider patterns.
+- [Robotics](Robotics.md) — OPC 40010 hosting, model providers, and topology builders.
 - [WoT Connectivity](WoTConnectivity.md) — OPC 10100-1 information model.
 - [Diagnostics](Diagnostics.md) — `ITelemetryContext` end-to-end.

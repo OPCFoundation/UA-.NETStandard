@@ -241,6 +241,28 @@ namespace Opc.Ua.Features.Tests
         }
 
         [Test]
+        public async Task ExplicitlyQualifiedPathResolvesToTheSameNodeAsync()
+        {
+            FileSystemClient client = OpenClient();
+            UaDirectoryInfo created = await client.Root
+                .CreateSubdirectoryAsync("qualified")
+                .ConfigureAwait(false);
+
+            ushort namespaceIndex = created.NodeId.NamespaceIndex;
+            Assert.That(namespaceIndex, Is.Not.Zero,
+                "The provider is expected to own a namespace of its own.");
+
+            UaFileSystemInfo unqualified = await client
+                .GetInfoAsync("qualified").ConfigureAwait(false);
+            UaFileSystemInfo qualified = await client
+                .GetInfoAsync($"{namespaceIndex}:qualified").ConfigureAwait(false);
+
+            Assert.That(unqualified, Is.InstanceOf<UaDirectoryInfo>());
+            Assert.That(qualified, Is.InstanceOf<UaDirectoryInfo>());
+            Assert.That(qualified.NodeId, Is.EqualTo(created.NodeId));
+        }
+
+        [Test]
         public async Task DeleteFileRemovesFromEnumerationAsync()
         {
             FileSystemClient client = OpenClient();
