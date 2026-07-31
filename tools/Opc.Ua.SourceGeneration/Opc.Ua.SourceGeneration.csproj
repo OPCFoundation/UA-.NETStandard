@@ -7,7 +7,7 @@
     payload from the same sources, and Opc.Ua.SourceGeneration.Pack ships both.
   -->
   <!-- Already imported by Directory.Packages.props; the condition keeps this project self-contained. -->
-  <Import Project="..\RoslynVariants.props" Condition="'$(RoslynApiVersionVS2026)' == ''" />
+  <Import Project="..\..\roslyn.props" Condition="'$(RoslynApiVersionVS2026)' == ''" />
   <PropertyGroup>
     <RoslynApiVersion>$(RoslynApiVersionVS2026)</RoslynApiVersion>
   </PropertyGroup>

@@ -92,7 +92,7 @@
     Assemblies the compiler itself supplies are excluded. Handing the compiler a second copy
     of Microsoft.CodeAnalysis*, System.Collections.Immutable or System.Reflection.Metadata
     splits the identity of types that cross Roslyn's own API surface and breaks generator
-    initialization. See tools/RoslynVariants.props.
+    initialization. See roslyn.props.
   -->
   <Target Name="AddSourceGeneratorAnalyzerDependencies" BeforeTargets="CoreCompile">
     <ItemGroup>

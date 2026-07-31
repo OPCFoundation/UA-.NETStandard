@@ -5,7 +5,7 @@
     its compiler supports.
   -->
   <!-- Already imported by Directory.Packages.props; the condition keeps this project self-contained. -->
-  <Import Project="..\RoslynVariants.props" Condition="'$(RoslynApiVersionVS2026)' == ''" />
+  <Import Project="..\..\roslyn.props" Condition="'$(RoslynApiVersionVS2026)' == ''" />
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <PackageId>$(PackagePrefix).Opc.Ua.SourceGeneration</PackageId>

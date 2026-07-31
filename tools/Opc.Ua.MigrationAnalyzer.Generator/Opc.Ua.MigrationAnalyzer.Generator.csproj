@@ -6,7 +6,7 @@
     Studio 2022 payload from the same sources.
   -->
   <!-- Already imported by Directory.Packages.props; the condition keeps this project self-contained. -->
-  <Import Project="..\RoslynVariants.props" Condition="'$(RoslynApiVersionVS2026)' == ''" />
+  <Import Project="..\..\roslyn.props" Condition="'$(RoslynApiVersionVS2026)' == ''" />
   <PropertyGroup>
     <RoslynApiVersion>$(RoslynApiVersionVS2026)</RoslynApiVersion>
     <!-- Non-packable on its own; consumed by the parent Opc.Ua.MigrationAnalyzer nuspec by path. -->

@@ -17,7 +17,7 @@
     identity for types the compiler passes across its own API surface (most
     visibly ImmutableArray<T>), which fails at generator-initialization time with
     MissingMethodException - reported as warning CS8784, i.e. silently no
-    generated code. See tools/RoslynVariants.props for the full rationale.
+    generated code. See roslyn.props for the full rationale.
 
     The `ProjectReference` entries exist purely for build ordering and NuGet
     graph correctness. `ReferenceOutputAssembly` is off, the assemblies are

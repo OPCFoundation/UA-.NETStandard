@@ -1,0 +1,46 @@
+<Project>
+  <!--
+    The Roslyn API version the OPC UA analyzers and source generators are built
+    against, and the runtime assemblies that version implies.
+
+    Lives at the repository root, not under tools/, because Directory.Packages.props
+    imports it: a partial-copy context that only takes the root files (the sample
+    Dockerfiles do exactly that) must still be able to restore.
+
+    Each analyzer ships under `analyzers/dotnet/<folder>/cs`. The .NET SDK loads the
+    highest folder its compiler supports and silently ignores folders above it. Using a
+    versioned folder rather than a bare `analyzers/dotnet/cs` is deliberate: a host older
+    than the band below skips the analyzer instead of loading it and then failing at
+    generator-initialization time.
+
+    See https://learn.microsoft.com/visualstudio/extensibility/roslyn-version-support
+    for the Roslyn package version to Visual Studio mapping.
+
+    RoslynRuntimeVersion is the critical part. The compiler supplies
+    System.Collections.Immutable and System.Reflection.Metadata itself, and the version it
+    supplies is fixed by its Roslyn band (4.8 -> 7.x, 4.14 -> 8.x, 5.0 -> 9.x). An analyzer
+    must therefore reference a version at or BELOW its band's - .NET satisfies a reference
+    from a higher assembly version but never from a lower one - and must never ship a copy
+    of its own, because a second copy binds a separate ImmutableArray<T> identity and the
+    generator dies with MissingMethodException on its first Roslyn call. Either failure
+    surfaces only as warning CS8784, so the consumer silently gets no generated code.
+
+    Directory.Packages.props pins both packages to RoslynRuntimeVersion and central
+    transitive pinning propagates that through the whole analyzer closure - the generator,
+    Opc.Ua.SourceGeneration.Core and Opc.Ua.Types. Keeping the pin here rather than as a
+    loose version literal is what stops the closure drifting above the band again.
+
+    Adding a down-level band is therefore not just another entry in this file: the whole
+    closure, Opc.Ua.Types included, has to be built against that band's runtime version.
+  -->
+  <PropertyGroup>
+    <!-- Visual Studio 2026 18.0+ / .NET 10 SDK. -->
+    <RoslynApiVersionVS2026>5.0.0</RoslynApiVersionVS2026>
+    <!-- System.Collections.Immutable / System.Reflection.Metadata that
+         Microsoft.CodeAnalysis $(RoslynApiVersionVS2026) itself depends on. -->
+    <RoslynRuntimeVersionVS2026>9.0.0</RoslynRuntimeVersionVS2026>
+  </PropertyGroup>
+  <PropertyGroup>
+    <RoslynAnalyzerFolderVS2026>roslyn$(RoslynApiVersionVS2026.Substring(0, $(RoslynApiVersionVS2026.LastIndexOf('.'))))</RoslynAnalyzerFolderVS2026>
+  </PropertyGroup>
+</Project>
