@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 
 namespace Opc.Ua
@@ -42,6 +43,29 @@ namespace Opc.Ua
     /// </remarks>
     public static class NodeInstanceExtensions
     {
+        /// <summary>
+        /// Returns the context's <see cref="ISystemContext.NodeIdFactory"/>,
+        /// throwing when the context suppresses NodeId assignment.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="ISystemContext.NodeIdFactory"/> is nullable because a
+        /// node copy deliberately hides the factory from the children it
+        /// materialises. Builders that mint a fresh instance NodeId cannot
+        /// work without one, so they state that requirement here and fail with
+        /// a diagnosable error rather than a <see cref="NullReferenceException"/>.
+        /// </remarks>
+        /// <param name="context">The system context.</param>
+        /// <returns>The node id factory.</returns>
+        /// <exception cref="InvalidOperationException">
+        /// The context does not supply a factory.
+        /// </exception>
+        public static INodeIdFactory RequireNodeIdFactory(this ISystemContext context)
+        {
+            return context?.NodeIdFactory ?? throw new InvalidOperationException(
+                "The system context does not supply a NodeIdFactory, so a new " +
+                "instance NodeId cannot be assigned.");
+        }
+
         /// <summary>
         /// Recursively assigns per-instance NodeIds to every descendant of
         /// <paramref name="node"/> using the active

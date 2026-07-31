@@ -183,7 +183,7 @@ Client-side feature coverage:
   see [NodeSet Export](NodeSetExport.md).
 - **Source-generated typed proxies** — `*TypeClient` proxies for
   ObjectTypes inside loaded models give strongly-typed method-call
-  signatures; see [Source-Generated NodeManagers](SourceGeneratedNodeManagers.md).
+  signatures; see [Source-Generated NodeManagers](NodeManagers.md#source-generated-node-managers).
 - **Complex types** — Decode and consume server-defined structures and
   enumerations on the client; see [Complex Types](ComplexTypes.md).
 
@@ -205,12 +205,12 @@ The stack implements the following transport profiles:
   - TLS/SSL encryption only — no UA SecureChannel layer
   - Restricted to `MessageSecurityMode.None`; transport security is provided exclusively by TLS
 
-- **[WebSocket Secure (UA Binary)](http://opcfoundation.org/UA-Profile/Transport/uawss-uasc-uabinary)** (`opc.wss://` and `wss://`) - UA Binary + UASC over secure WebSockets (OPC UA Part 6 §7.5.2, sub-protocol `opcua+uacp`)
+- **[WebSocket Secure (UA Binary)](http://opcfoundation.org/UA-Profile/Transport/wss-uasc-uabinary)** (`opc.wss://` and `wss://`) - UA Binary + UASC over secure WebSockets (OPC UA Part 6 §7.5.2, sub-protocol `opcua+uacp`)
   - Same UASC SecureChannel pipeline as `opc.tcp` carried over WebSocket binary frames (one frame per MessageChunk)
   - Supports all security modes (None / Sign / SignAndEncrypt)
   - TLS/SSL encryption at the WebSocket layer
 
-- **WebSocket Secure (JSON)** (`opc.wss://` and `wss://`) - OPC UA JSON over secure WebSockets (Part 6 §7.5.2, sub-protocol `opcua+uajson`)
+- **[WebSocket Secure (JSON)](http://opcfoundation.org/UA-Profile/Transport/wss-uajson)** (`opc.wss://` and `wss://`) - OPC UA JSON over secure WebSockets (Part 6 §7.5.2, sub-protocol `opcua+uajson`)
   - Compact JSON encoding per WebSocket text frame
   - TLS/SSL encryption only — no UA SecureChannel layer
   - Restricted to `MessageSecurityMode.None`

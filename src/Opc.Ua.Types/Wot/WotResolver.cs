@@ -276,7 +276,8 @@ namespace Opc.Ua.Wot
         {
             Options = options ?? new WotResolverOptions();
             Options.Validate();
-            m_active = new HashSet<string>(StringComparer.Ordinal);
+            m_active = new HashSet<ResolutionKey>();
+            m_activeStack = [];
             m_diagnostics = [];
         }
 
@@ -328,7 +329,9 @@ namespace Opc.Ua.Wot
 
             var location = new WotLocation(reference: reference);
 
-            if (m_active.Contains(reference))
+            var key = new ResolutionKey(kind, reference);
+
+            if (m_active.Contains(key))
             {
                 diagnostic = Add(
                     WotDiagnosticSeverity.Error,
@@ -358,7 +361,8 @@ namespace Opc.Ua.Wot
                 return false;
             }
 
-            m_active.Add(reference);
+            m_active.Add(key);
+            m_activeStack.Add(key);
             m_depth++;
             m_documentCount++;
             diagnostic = null;
@@ -377,9 +381,18 @@ namespace Opc.Ua.Wot
             {
                 throw new ArgumentNullException(nameof(reference));
             }
-            if (m_active.Remove(reference))
+            for (int ii = m_activeStack.Count - 1; ii >= 0; ii--)
             {
-                m_depth--;
+                ResolutionKey key = m_activeStack[ii];
+                if (string.Equals(key.Reference, reference, StringComparison.Ordinal))
+                {
+                    m_activeStack.RemoveAt(ii);
+                    if (m_active.Remove(key))
+                    {
+                        m_depth--;
+                    }
+                    return;
+                }
             }
         }
 
@@ -431,7 +444,40 @@ namespace Opc.Ua.Wot
             return diagnostic;
         }
 
-        private readonly HashSet<string> m_active;
+        private readonly struct ResolutionKey : IEquatable<ResolutionKey>
+        {
+            public ResolutionKey(WotResolutionKind kind, string reference)
+            {
+                Kind = kind;
+                Reference = reference;
+            }
+
+            public WotResolutionKind Kind { get; }
+
+            public string Reference { get; }
+
+            public bool Equals(ResolutionKey other)
+            {
+                return Kind == other.Kind &&
+                    string.Equals(Reference, other.Reference, StringComparison.Ordinal);
+            }
+
+            public override bool Equals(object? obj)
+            {
+                return obj is ResolutionKey other && Equals(other);
+            }
+
+            public override int GetHashCode()
+            {
+                unchecked
+                {
+                    return ((int)Kind * 397) ^ StringComparer.Ordinal.GetHashCode(Reference);
+                }
+            }
+        }
+
+        private readonly HashSet<ResolutionKey> m_active;
+        private readonly List<ResolutionKey> m_activeStack;
         private readonly List<WotDiagnostic> m_diagnostics;
         private int m_depth;
         private int m_documentCount;

@@ -30,9 +30,11 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using NUnit.Framework;
 using Opc.Ua.Export;
 using Opc.Ua.Wot;
@@ -232,36 +234,46 @@ namespace Opc.Ua.Types.Tests.Wot
                 new WotNodeSetConverterOptions(),
                 new List<WotDiagnostic>());
 
-            string projectionText = Encoding.UTF8.GetString(projectionJson);
-
-            int extensionsIdx = projectionText.IndexOf(
-                "\"extensions\"",
-                System.StringComparison.Ordinal);
-
-            string patchedText;
-            if (extensionsIdx < 0)
+            JsonNode projection = JsonNode.Parse(Encoding.UTF8.GetString(projectionJson))!;
+            JsonArray nodes = projection["nodes"]!.AsArray();
+            int objectTypeIndex = -1;
+            for (int ii = 0; ii < nodes.Count; ii++)
             {
-                string objectTypePattern = "\"nodeClass\": \"ObjectType\"";
-                int ot = projectionText.IndexOf(objectTypePattern, System.StringComparison.Ordinal);
-                Assert.That(ot, Is.GreaterThan(0));
-                string insertionJson =
-                    ",\"extensions\":[\"<not xml at all>\"]";
-                patchedText = string.Concat(
-                    projectionText.Substring(0, ot + objectTypePattern.Length),
-                    insertionJson,
-                    projectionText.Substring(ot + objectTypePattern.Length));
+                if (nodes[ii] is JsonObject node &&
+                    string.Equals(
+                        node["nodeClass"]!.GetValue<string>(),
+                        "ObjectType",
+                        StringComparison.Ordinal))
+                {
+                    objectTypeIndex = ii;
+                    node["extensions"] = new JsonArray(JsonValue.Create("<not xml at all>"));
+                    break;
+                }
             }
-            else
-            {
-                patchedText = projectionText;
-            }
+            Assert.That(objectTypeIndex, Is.GreaterThanOrEqualTo(0));
+            string expectedPointer = "/uav:nodes/nodes/" +
+                objectTypeIndex.ToString(CultureInfo.InvariantCulture) +
+                "/extensions/0";
+            string patchedText = projection.ToJsonString();
 
             using JsonDocument doc = JsonDocument.Parse(patchedText);
             var diagnostics = new List<WotDiagnostic>();
 
-            WotNativeProjection.Read(doc.RootElement, new WotNodeSetConverterOptions(), diagnostics);
+            UANodeSet result = WotNativeProjection.Read(
+                doc.RootElement,
+                new WotNodeSetConverterOptions(),
+                diagnostics);
 
-            Assert.That(patchedText, Is.Not.Empty);
+            Assert.That(result, Is.Null);
+            WotDiagnostic diagnostic = diagnostics.SingleOrDefault(d =>
+                d.Severity == WotDiagnosticSeverity.Error &&
+                d.Code == WotDiagnosticCode.NativeProjectionInvalid &&
+                d.Location?.JsonPointer == expectedPointer);
+            Assert.That(
+                diagnostic,
+                Is.Not.Null,
+                "Malformed node extension XML should produce one error diagnostic at the extension value.");
+            Assert.That(diagnostic!.Message, Does.Contain("native XML fragment is malformed"));
         }
 
         [Test]
