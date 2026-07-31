@@ -175,7 +175,11 @@ namespace Opc.Ua.Server.RuntimeNodeSet
         /// Scans all sources and builds the deduped, ordered namespace URI list
         /// used by <see cref="NamespacesUris"/>.
         /// </summary>
-        /// <exception cref="InvalidOperationException"></exception>
+        /// <exception cref="InvalidOperationException">
+        /// A source is <see langword="null"/>, declares no owned model namespace
+        /// URIs, declares a null or empty URI, or declares a URI that another
+        /// source already declares.
+        /// </exception>
         private static ArrayOf<string> BuildNamespacesUris(
             ArrayOf<RuntimeNodeSetSource> sources)
         {
@@ -227,7 +231,11 @@ namespace Opc.Ua.Server.RuntimeNodeSet
         /// Opens each source stream, parses the UANodeSet, validates it, and
         /// returns the documents sorted in topological dependency order.
         /// </summary>
-        /// <exception cref="InvalidOperationException"></exception>
+        /// <exception cref="InvalidOperationException">
+        /// A source returns a <see langword="null"/> stream, does not produce a
+        /// valid <c>UANodeSet</c> document, or defines a model namespace URI that
+        /// another included source already defines.
+        /// </exception>
         private static async Task<ParsedNodeSetDocument[]> ParseAndSortAsync(
             ArrayOf<RuntimeNodeSetSource> sources,
             ILogger logger,
@@ -303,7 +311,11 @@ namespace Opc.Ua.Server.RuntimeNodeSet
         /// File sources declare URIs from their initial metadata scan; stream
         /// sources declare them explicitly when the source is created.
         /// </summary>
-        /// <exception cref="InvalidOperationException"></exception>
+        /// <exception cref="InvalidOperationException">
+        /// The parsed NodeSet defines a different number of model namespace URIs
+        /// than the source declares, or defines a URI that is absent from the
+        /// declared owned namespaces.
+        /// </exception>
         private static void ValidateOwnedUris(
             ArrayOf<string> parsedUris,
             ArrayOf<string> declaredUris,
@@ -340,7 +352,10 @@ namespace Opc.Ua.Server.RuntimeNodeSet
         /// silently ignored (external dependencies). Cycles among the
         /// included sources raise <see cref="InvalidOperationException"/>.
         /// </summary>
-        /// <exception cref="InvalidOperationException"></exception>
+        /// <exception cref="InvalidOperationException">
+        /// The <c>RequiredModel</c> declarations form a circular dependency among
+        /// the included NodeSet2 sources.
+        /// </exception>
         private static ParsedNodeSetDocument[] TopologicalSort(
             ParsedNodeSetDocument[] documents,
             Dictionary<string, int> modelUriToIndex)
@@ -465,7 +480,11 @@ namespace Opc.Ua.Server.RuntimeNodeSet
         /// Returns <c>null</c> when neither <c>Configure</c> nor
         /// <c>ConfigureAsync</c> is set (the builder is not used).
         /// </summary>
-        /// <exception cref="InvalidOperationException"></exception>
+        /// <exception cref="InvalidOperationException">
+        /// The default namespace URI cannot be inferred because the sources yield
+        /// more than one candidate leaf model, and
+        /// <see cref="RuntimeNodeSetOptions.DefaultNamespaceUri"/> was not set.
+        /// </exception>
         private static string? ResolveDefaultNamespace(
             ParsedNodeSetDocument[] sorted,
             string? explicitUri,

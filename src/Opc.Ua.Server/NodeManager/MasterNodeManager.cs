@@ -467,8 +467,7 @@ namespace Opc.Ua.Server
 
                 foreach (IAsyncNodeManager nodeManager in nodeManagers)
                 {
-                    if (m_shutdownCompletedNodeManagers.Any(completed =>
-                        ReferenceEquals(completed, nodeManager)))
+                    if (m_shutdownCompletedNodeManagers.Contains(nodeManager))
                     {
                         continue;
                     }
@@ -6105,6 +6104,7 @@ namespace Opc.Ua.Server
                 Func<int, bool> isProcessed)
         {
             List<(IAsyncNodeManager Owner, List<int> Indices)>? owners = null;
+            Dictionary<object, int>? ownerIndex = null;
             for (int ii = 0; ii < monitoredItems.Count; ii++)
             {
                 if (isProcessed(ii) || monitoredItems[ii] == null)
@@ -6119,20 +6119,12 @@ namespace Opc.Ua.Server
                 }
 
                 owners ??= [];
-                int group = -1;
-                for (int kk = 0; kk < owners.Count; kk++)
-                {
-                    if (ReferenceEquals(owners[kk].Owner, owner))
-                    {
-                        group = kk;
-                        break;
-                    }
-                }
-
-                if (group < 0)
+                ownerIndex ??= new Dictionary<object, int>(RefEqualityComparer.Default);
+                if (!ownerIndex.TryGetValue(owner, out int group))
                 {
                     owners.Add((owner, []));
                     group = owners.Count - 1;
+                    ownerIndex[owner] = group;
                 }
 
                 owners[group].Indices.Add(ii);
@@ -7473,7 +7465,8 @@ namespace Opc.Ua.Server
         private readonly SemaphoreSlim m_dynamicMutationSemaphore = new(1, 1);
         private readonly SemaphoreSlim m_startupShutdownSemaphoreSlim = new(1, 1);
         private readonly NodeManagerRoutingTable m_nodeManagers;
-        private readonly List<IAsyncNodeManager> m_shutdownCompletedNodeManagers = [];
+        private readonly HashSet<object> m_shutdownCompletedNodeManagers =
+            new(RefEqualityComparer.Default);
         private int m_shutdownCompletedNodeManagerCount;
         private readonly MonitoredItemIdFactory m_monitoredItemIdFactory = new();
         private readonly List<IAsyncNodeManager> m_preparingNodeManagers = [];
