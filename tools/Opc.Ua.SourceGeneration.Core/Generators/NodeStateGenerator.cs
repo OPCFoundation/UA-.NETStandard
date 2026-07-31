@@ -764,8 +764,9 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-            Parameter[] inputArguments = MethodDesignArgumentResolver.ResolveMethodInputs(method);
-            Parameter[] outputArguments = MethodDesignArgumentResolver.ResolveMethodOutputs(method);
+            (Parameter[] inputArguments, Parameter[] outputArguments) =
+                MethodDesignArgumentResolver.ResolveMethodArguments(method);
+            AssignMethodArgumentCodeNames(method, inputArguments, outputArguments);
             context.Out.WriteLine("global::Opc.Ua.ISystemContext _context,");
             context.Out.WriteLine("global::Opc.Ua.MethodState _method,");
             context.Out.Write("global::Opc.Ua.NodeId _objectId");
@@ -807,7 +808,9 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-            Parameter[] inputArguments = MethodDesignArgumentResolver.ResolveMethodInputs(method);
+            (Parameter[] inputArguments, Parameter[] outputArguments) =
+                MethodDesignArgumentResolver.ResolveMethodArguments(method);
+            AssignMethodArgumentCodeNames(method, inputArguments, outputArguments);
             context.Out.WriteLine("global::Opc.Ua.ISystemContext _context,");
             context.Out.WriteLine("global::Opc.Ua.MethodState _method,");
             context.Out.Write("global::Opc.Ua.NodeId _objectId");
@@ -889,8 +892,9 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-            Parameter[] inputArguments = MethodDesignArgumentResolver.ResolveMethodInputs(method);
-            Parameter[] outputArguments = MethodDesignArgumentResolver.ResolveMethodOutputs(method);
+            (Parameter[] inputArguments, Parameter[] outputArguments) =
+                MethodDesignArgumentResolver.ResolveMethodArguments(method);
+            AssignMethodArgumentCodeNames(method, inputArguments, outputArguments);
             context.Out.WriteLine("_result = OnCall(");
             context.Out.WriteLine("    _context,");
             context.Out.WriteLine("    this,");
@@ -919,7 +923,9 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-            Parameter[] inputArguments = MethodDesignArgumentResolver.ResolveMethodInputs(method);
+            (Parameter[] inputArguments, Parameter[] outputArguments) =
+                MethodDesignArgumentResolver.ResolveMethodArguments(method);
+            AssignMethodArgumentCodeNames(method, inputArguments, outputArguments);
             context.Out.WriteLine("_result = await OnCallAsync(");
             context.Out.WriteLine("    _context,");
             context.Out.WriteLine("    this,");
@@ -2072,14 +2078,16 @@ namespace Opc.Ua.SourceGeneration
             IWriteContext context,
             MethodDesign method)
         {
-            Parameter[] inputArguments = MethodDesignArgumentResolver.ResolveMethodInputs(method);
-            Parameter[] outputArguments = MethodDesignArgumentResolver.ResolveMethodOutputs(method);
+            (Parameter[] inputArguments, Parameter[] outputArguments) =
+                MethodDesignArgumentResolver.ResolveMethodArguments(method);
             string targetNamespace = m_context.ModelDesign.TargetNamespace.Value;
             string declaredClassName = method.GetNodeStateClassName(
                 targetNamespace,
                 [],
                 applyStandardFallback: false);
-            method.AssignMethodArgumentCodeNames(
+            ModelDesignExtensions.AssignMethodArgumentCodeNames(
+                inputArguments,
+                outputArguments,
                 s_methodArgumentCodeNameScope,
                 declaredClassName + "Result");
             // Declarations require an unqualified identifier, while fallback
@@ -3963,6 +3971,22 @@ namespace Opc.Ua.SourceGeneration
             return parameter.GetGeneratedCodeIdentifier(
                 upperCamelCase,
                 s_methodArgumentCodeNameScope);
+        }
+
+        private void AssignMethodArgumentCodeNames(
+            MethodDesign method,
+            Parameter[] inputArguments,
+            Parameter[] outputArguments)
+        {
+            string declaredClassName = method.GetNodeStateClassName(
+                m_context.ModelDesign.TargetNamespace.Value,
+                [],
+                applyStandardFallback: false);
+            ModelDesignExtensions.AssignMethodArgumentCodeNames(
+                inputArguments,
+                outputArguments,
+                s_methodArgumentCodeNameScope,
+                declaredClassName + "Result");
         }
 
         private sealed record MethodArgumentsToGenerate(
