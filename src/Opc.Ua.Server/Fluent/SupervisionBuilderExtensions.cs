@@ -153,7 +153,11 @@ namespace Opc.Ua.Server.Fluent
             AlarmConditionState alarm,
             bool active)
         {
-            if (!alarm.EnabledState!.Id!.Value)
+            // A Condition that is disabled or has no ActiveState must not
+            // report. EnabledState is mandatory on ConditionType, so a null
+            // here means the alarm is malformed rather than merely disabled.
+            if (alarm.ActiveState?.Id == null ||
+                alarm.EnabledState?.Id?.Value != true)
             {
                 return;
             }

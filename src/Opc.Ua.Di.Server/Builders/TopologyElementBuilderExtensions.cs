@@ -104,7 +104,7 @@ namespace Opc.Ua.Di.Server.Builders
                 builder,
                 new QualifiedName(
                     WellKnownFunctionalGroups.Diagnostics,
-                    builder.Manager.DiNamespaceIndex),
+                    builder.Manager.InstanceNamespaceIndex),
                 useIdentificationSlot: false,
                 configure);
         }

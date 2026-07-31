@@ -6,7 +6,7 @@ An MCP (Model Context Protocol) server that exposes OPC UA Part 4 service calls 
 
 - **Profile-based tool catalog** covering all OPC UA Part 4 service sets (except session management), plus PKI, configuration, NodeSet export, PubSub, and OPC UA-aware packet capture. The default `full` profile exposes every tool below; smaller profiles (`core`, `services`, `administration`, `pubsub`, `diagnostics`) expose a bounded subset — see [Tool Profiles](../../docs/McpServer.md#tool-profiles)
 - **Both stdio and Streamable HTTP** transports (HTTP is exposed only at `/mcp`; `--transport sse` is a deprecated alias for `--transport http`)
-- **JSON representation** of all OPC UA types for LLM-friendly interactions
+- **JSON representation** of all OPC UA types for LLM-friendly interactions; scalar `Variant` values preserve typed `false` and `0` values rather than treating default values as `null`
 - **Session management** via Connect/Disconnect tools
 
 ### Tool Inventory (`full` profile)
