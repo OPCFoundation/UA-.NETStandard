@@ -161,7 +161,7 @@ namespace Opc.Ua.WotCon.Server
     public sealed class WotConfigurationParameter
     {
         /// <summary>The OPC UA <c>DataType</c> for the parameter.</summary>
-        public NodeId DataType { get; init; } = DataTypeIds.String;
+        public NodeId DataType { get; init; } = Ua.DataTypeIds.String;
 
         /// <summary>The initial value (must be assignable to a <c>Variant</c>).</summary>
         public Variant? InitialValue { get; init; }

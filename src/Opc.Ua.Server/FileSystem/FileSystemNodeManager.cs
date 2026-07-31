@@ -55,7 +55,7 @@ namespace Opc.Ua.Server.FileSystem
     /// under <c>i=16314</c>.
     /// </para>
     /// </remarks>
-    public sealed class FileSystemNodeManager : AsyncCustomNodeManager
+    public sealed class FileSystemNodeManager : AsyncCustomNodeManager, IFileSystemHost
     {
         /// <summary>
         /// Base URI used to build the namespace URI of a mounted
@@ -91,6 +91,34 @@ namespace Opc.Ua.Server.FileSystem
         /// Namespace index assigned to this provider's nodes.
         /// </summary>
         public new ushort NamespaceIndex { get; }
+
+        bool IFileSystemHost.AllowCreate => true;
+
+        bool IFileSystemHost.AllowDelete => true;
+
+        bool IFileSystemHost.AllowMoveOrCopy => true;
+
+        bool IFileSystemHost.UsesVirtualDirectoryBrowsing => true;
+
+        string IFileSystemHost.CombineProviderPath(string parent, string name)
+        {
+            return CombineProviderPath(parent, name);
+        }
+
+        NodeId IFileSystemHost.GetParentNodeId(string providerPath)
+        {
+            return GetParentNodeId(providerPath);
+        }
+
+        FileHandle? IFileSystemHost.GetOrCreateHandle(NodeId nodeId, string providerPath)
+        {
+            return GetOrCreateHandle(nodeId, providerPath);
+        }
+
+        void IFileSystemHost.ForgetHandle(NodeId nodeId)
+        {
+            ForgetHandle(nodeId);
+        }
 
         /// <inheritdoc/>
         public override NodeId New(ISystemContext context, NodeState node)
@@ -397,6 +425,43 @@ namespace Opc.Ua.Server.FileSystem
                     m_handles.Remove(nodeId);
                 }
             }
+        }
+
+        NodeId IFileSystemHost.BuildDirectoryNodeId(string providerPath)
+        {
+            return string.IsNullOrEmpty(providerPath)
+                ? FileSystemNodeId.BuildRoot(NamespaceIndex)
+                : FileSystemNodeId.BuildDirectory(providerPath, NamespaceIndex);
+        }
+
+        NodeId IFileSystemHost.BuildFileNodeId(string providerPath)
+        {
+            return FileSystemNodeId.BuildFile(providerPath, NamespaceIndex);
+        }
+
+        ValueTask IFileSystemHost.OnProviderChangedAsync(CancellationToken cancellationToken)
+        {
+            return default;
+        }
+
+        bool IFileSystemHost.TryGetProviderPath(
+            NodeId nodeId,
+            out string providerPath,
+            out bool isDirectory,
+            out bool isRoot)
+        {
+            if (!FileSystemNodeId.TryParse(nodeId, out FileSystemNodeId parsed))
+            {
+                providerPath = string.Empty;
+                isDirectory = false;
+                isRoot = false;
+                return false;
+            }
+
+            providerPath = parsed.ProviderPath;
+            isDirectory = parsed.RootType != FileSystemNodeId.File;
+            isRoot = parsed.RootType == FileSystemNodeId.Root;
+            return true;
         }
 
         private static string BuildNamespaceUri(IFileSystemProvider provider)

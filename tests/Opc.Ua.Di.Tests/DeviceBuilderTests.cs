@@ -117,7 +117,7 @@ namespace Opc.Ua.Di.Tests
 
             Assert.That(builder.Device.NodeId.IsNull, Is.False);
             Assert.That(builder.Device.NodeId.NamespaceIndex,
-                Is.EqualTo(m_fixture.Manager.DiNamespaceIndex));
+                Is.EqualTo(m_fixture.Manager.InstanceNamespaceIndex));
         }
 
         [Test]

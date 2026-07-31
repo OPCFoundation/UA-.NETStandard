@@ -4450,6 +4450,121 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Returns whether history services are wired for the specified node.
+        /// </summary>
+        /// <remarks>
+        /// The default implementation honors the node-manager override and the
+        /// server-wide historian registry. Subclasses can override this when
+        /// history is provided by an implementation-specific route that is not
+        /// visible through either provider model.
+        /// </remarks>
+        protected virtual bool HasHistorianProvider(NodeState node)
+        {
+            NodeState? providerNode = node;
+            if (HistorianDispatcher.IsAnnotationsProperty(node))
+            {
+                providerNode = HistorianDispatcher.GetAnnotationsParent(node);
+            }
+
+            return providerNode != null && ResolveHistorianProvider(providerNode) != null;
+        }
+
+        /// <summary>
+        /// Clears historical-access advertisement from variables that do not
+        /// have a historian wired.
+        /// </summary>
+        internal void ReconcileHistoricalAccessAdvertisement()
+        {
+            foreach (NodeState node in PredefinedNodes.Values)
+            {
+                ReconcileHistoricalAccessAdvertisement(node);
+            }
+        }
+
+        private void ReconcileHistoricalAccessAdvertisement(NodeState node)
+        {
+            if (node is not BaseVariableState variable ||
+                !HasHistoricalAccessAdvertisement(variable) ||
+                HasHistorianProvider(variable))
+            {
+                return;
+            }
+
+            byte accessLevel = variable.AccessLevel;
+            byte userAccessLevel = variable.UserAccessLevel;
+            variable.Historizing = false;
+            variable.AccessLevel = ClearHistoryAccess(accessLevel);
+            variable.UserAccessLevel = ClearHistoryAccess(userAccessLevel);
+            MaskHistoricalAccessReadCallbacks(variable);
+
+            m_logger.HistoryAdvertisementCleared(variable.NodeId);
+        }
+
+        private static void MaskHistoricalAccessReadCallbacks(BaseVariableState variable)
+        {
+            NodeAttributeEventHandler<byte>? onReadAccessLevel = variable.OnReadAccessLevel;
+            variable.OnReadAccessLevel = (ISystemContext context, NodeState node, ref byte value) =>
+            {
+                ServiceResult result = onReadAccessLevel?.Invoke(context, node, ref value) ?? ServiceResult.Good;
+                if (ServiceResult.IsGood(result))
+                {
+                    value = ClearHistoryAccess(value);
+                }
+                return result;
+            };
+
+            NodeAttributeEventHandler<byte>? onReadUserAccessLevel = variable.OnReadUserAccessLevel;
+            variable.OnReadUserAccessLevel = (ISystemContext context, NodeState node, ref byte value) =>
+            {
+                ServiceResult result = onReadUserAccessLevel?.Invoke(context, node, ref value) ?? ServiceResult.Good;
+                if (ServiceResult.IsGood(result))
+                {
+                    value = ClearHistoryAccess(value);
+                }
+                return result;
+            };
+
+            NodeAttributeEventHandler<uint>? onReadAccessLevelEx = variable.OnReadAccessLevelEx;
+            variable.OnReadAccessLevelEx = (ISystemContext context, NodeState node, ref uint value) =>
+            {
+                ServiceResult result = onReadAccessLevelEx?.Invoke(context, node, ref value) ?? ServiceResult.Good;
+                if (ServiceResult.IsGood(result))
+                {
+                    value = ClearHistoryAccess(value);
+                }
+                return result;
+            };
+
+            NodeAttributeEventHandler<bool>? onReadHistorizing = variable.OnReadHistorizing;
+            variable.OnReadHistorizing = (ISystemContext context, NodeState node, ref bool value) =>
+            {
+                ServiceResult result = onReadHistorizing?.Invoke(context, node, ref value) ?? ServiceResult.Good;
+                if (ServiceResult.IsGood(result))
+                {
+                    value = false;
+                }
+                return result;
+            };
+        }
+
+        private static bool HasHistoricalAccessAdvertisement(BaseVariableState variable)
+        {
+            return variable.Historizing ||
+                (variable.AccessLevel & kHistoryAccessMask) != 0 ||
+                (variable.UserAccessLevel & kHistoryAccessMask) != 0;
+        }
+
+        private static byte ClearHistoryAccess(byte accessLevel)
+        {
+            return (byte)(accessLevel & ~kHistoryAccessMask);
+        }
+
+        private static uint ClearHistoryAccess(uint accessLevel)
+        {
+            return accessLevel & ~(uint)kHistoryAccessMask;
+        }
+
+        /// <summary>
         /// Releases the continuation points.
         /// </summary>
         protected virtual async ValueTask HistoryReleaseContinuationPointsAsync(
@@ -5709,24 +5824,9 @@ namespace Opc.Ua.Server
         /// </remarks>
         protected virtual async ValueTask AddRootNotifierAsync(NodeState notifier, CancellationToken cancellationToken = default)
         {
-            RootNotifiers.AddOrUpdate(notifier.NodeId, notifier, (key, _) => notifier);
-
-            // need to prevent recursion with the server object.
-            if (notifier.NodeId != ObjectIds.Server)
-            {
-                lock (notifier)
-                {
-                    notifier.OnReportEventAsync = OnReportEventAsync;
-
-                    if (!notifier.ReferenceExists(
-                        ReferenceTypeIds.HasNotifier,
-                        true,
-                        ObjectIds.Server))
-                    {
-                        notifier.AddReference(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server);
-                    }
-                }
-            }
+            AddRootNotifierSynchronously(notifier);
+            await PublishRootNotifierReferenceAsync(notifier, cancellationToken)
+                .ConfigureAwait(false);
 
             // subscribe to existing events.
             if (!SuppressExistingEventSubscriptions &&
@@ -5748,6 +5848,86 @@ namespace Opc.Ua.Server
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Synchronously registers a root event notifier owned by this node manager.
+        /// </summary>
+        protected internal void AddRootNotifierSynchronously(NodeState notifier)
+        {
+            if (notifier == null)
+            {
+                throw new ArgumentNullException(nameof(notifier));
+            }
+
+            RootNotifiers.AddOrUpdate(notifier.NodeId, notifier, (key, _) => notifier);
+
+            // need to prevent recursion with the server object.
+            if (notifier.NodeId != ObjectIds.Server)
+            {
+                lock (notifier)
+                {
+                    notifier.OnReportEventAsync = OnReportEventAsync;
+
+                    if (!notifier.ReferenceExists(
+                        ReferenceTypeIds.HasNotifier,
+                        true,
+                        ObjectIds.Server))
+                    {
+                        notifier.AddReference(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server);
+                    }
+                }
+
+                // The matching forward reference on the Server Object belongs
+                // to whichever node manager owns it, so it is published
+                // through PublishRootNotifierReferenceAsync rather than being
+                // written into the shared ServerObjectState from here.
+            }
+        }
+
+        internal async ValueTask PublishRootNotifierReferencesAsync(
+            CancellationToken cancellationToken = default)
+        {
+            foreach (NodeState notifier in RootNotifiers.Values)
+            {
+                await PublishRootNotifierReferenceAsync(notifier, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+        }
+
+        private async ValueTask PublishRootNotifierReferenceAsync(
+            NodeState notifier,
+            CancellationToken cancellationToken)
+        {
+            if (notifier.NodeId == ObjectIds.Server)
+            {
+                return;
+            }
+
+            ServerObjectState? serverObject = Server.ServerObject;
+            if (serverObject != null &&
+                serverObject.ReferenceExists(
+                    ReferenceTypeIds.HasNotifier,
+                    false,
+                    notifier.NodeId))
+            {
+                return;
+            }
+
+            IList<IReference> references =
+            [
+                new ReferenceNode
+                {
+                    ReferenceTypeId = ReferenceTypeIds.HasNotifier,
+                    IsInverse = false,
+                    TargetId = notifier.NodeId
+                }
+            ];
+
+            await Server.NodeManager.AddReferencesAsync(
+                ObjectIds.Server,
+                references,
+                cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -5775,6 +5955,19 @@ namespace Opc.Ua.Server
                             true,
                             ObjectIds.Server);
                     }
+                }
+
+                ServerObjectState? serverObject = Server.ServerObject;
+                if (serverObject != null &&
+                    serverObject.ReferenceExists(
+                        ReferenceTypeIds.HasNotifier,
+                        false,
+                        notifier.NodeId))
+                {
+                    serverObject.RemoveReference(
+                        ReferenceTypeIds.HasNotifier,
+                        false,
+                        notifier.NodeId);
                 }
             }
             return default;
@@ -7797,5 +7990,7 @@ namespace Opc.Ua.Server
         /// Counter for the NodeIdFactory.New Method
         /// </summary>
         private uint m_lastUsedNodeId;
+
+        private const byte kHistoryAccessMask = AccessLevels.HistoryRead | AccessLevels.HistoryWrite;
     }
 }
