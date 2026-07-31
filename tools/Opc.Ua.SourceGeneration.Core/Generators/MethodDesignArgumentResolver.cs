@@ -53,7 +53,10 @@ namespace Opc.Ua.SourceGeneration
             return ResolveMethodArguments(method).Outputs;
         }
 
-        private static (Parameter[] Inputs, Parameter[] Outputs) ResolveMethodArguments(
+        /// <summary>
+        /// Resolves the effective input and output arguments for a method design.
+        /// </summary>
+        public static (Parameter[] Inputs, Parameter[] Outputs) ResolveMethodArguments(
             MethodDesign method)
         {
             if (method == null)
@@ -69,7 +72,6 @@ namespace Opc.Ua.SourceGeneration
                 method.OutputArguments,
                 method.MethodDeclarationNode?.OutputArguments,
                 method.MethodType?.OutputArguments);
-            ModelDesignExtensions.AssignMethodArgumentCodeNames(inputs, outputs);
             return (inputs, outputs);
         }
 
