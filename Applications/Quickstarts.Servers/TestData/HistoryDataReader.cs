@@ -123,6 +123,7 @@ namespace TestData
 
             m_position = -1;
             m_complete = false;
+            m_pendingValue = null;
 
             // Position the cursor at the requested boundary. When bounds are
             // requested, first look on the opposite side of the boundary.
@@ -184,18 +185,57 @@ namespace TestData
                 {
                     // For a one-sided request the count defines the end of the
                     // time domain, so no continuation point is required.
-                    return m_isOneSided;
+                    if (m_isOneSided)
+                    {
+                        return true;
+                    }
+
+                    // Look ahead before returning a continuation point. Without
+                    // this check an exact page boundary produces a spurious empty
+                    // final page. The source position is advanced by NextRaw, so
+                    // retain a qualifying value for the next page.
+                    DataValue nextValue = m_source.NextRaw(
+                        m_lastTime,
+                        m_isForward,
+                        m_request.IsReadModified,
+                        ref m_position);
+
+                    if (nextValue == null)
+                    {
+                        m_complete = true;
+                        return true;
+                    }
+
+                    if (IsAtOrPastEnd(nextValue.ServerTimestamp) && !m_request.ReturnBounds)
+                    {
+                        m_complete = true;
+                        return true;
+                    }
+
+                    m_pendingValue = nextValue;
+                    return false;
                 }
 
-                DataValue value = m_source.NextRaw(
-                    m_lastTime,
-                    m_isForward,
-                    m_request.IsReadModified,
-                    ref m_position);
+                DataValue value;
+
+                if (m_pendingValue != null)
+                {
+                    value = m_pendingValue;
+                    m_pendingValue = null;
+                }
+                else
+                {
+                    value = m_source.NextRaw(
+                        m_lastTime,
+                        m_isForward,
+                        m_request.IsReadModified,
+                        ref m_position);
+                }
 
                 // no more data.
                 if (value == null)
                 {
+                    m_complete = true;
                     return true;
                 }
 
@@ -206,6 +246,7 @@ namespace TestData
                     {
                         AddValue(timestampsToReturn, indexRange, dataEncoding, values, value);
                     }
+                    m_complete = true;
                     return true;
                 }
 
@@ -292,5 +333,6 @@ namespace TestData
         private bool m_complete;
         private int m_position;
         private DateTime m_lastTime;
+        private DataValue m_pendingValue;
     }
 }

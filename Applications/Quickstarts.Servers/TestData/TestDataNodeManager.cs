@@ -554,6 +554,14 @@ namespace TestData
         {
             var serverContext = context as ServerSystemContext;
 
+            if (source.ValueRank == ValueRanks.Scalar &&
+                nodeToRead.ParsedIndexRange != NumericRange.Empty)
+            {
+                result.StatusCode = StatusCodes.BadIndexRangeNoData;
+                result.ContinuationPoint = null;
+                return ServiceResult.Good;
+            }
+
             var data = new HistoryData();
 
             HistoryDataReader reader;
@@ -619,7 +627,16 @@ namespace TestData
             if (!complete)
             {
                 SaveDataReader(serverContext, reader);
-                result.StatusCode = StatusCodes.GoodMoreData;
+                result.ContinuationPoint = reader.Id.ToByteArray();
+                result.StatusCode = StatusCodes.Good;
+            }
+            else
+            {
+                Utils.SilentDispose(reader);
+                result.ContinuationPoint = null;
+                result.StatusCode = data.DataValues.Count == 0 && !details.ReturnBounds
+                    ? StatusCodes.GoodNoData
+                    : StatusCodes.Good;
             }
 
             // return the dat.

@@ -118,6 +118,38 @@ namespace Quickstarts.ReferenceServer
             return new MasterNodeManager(server, configuration, null, asyncNodeManagers, nodeManagers);
         }
 
+        /// <inheritdoc/>
+        protected override void OnNodeManagerStarted(IServerInternal server)
+        {
+            base.OnNodeManagerStarted(server);
+
+            bool historicalAccessEnabled = server.NodeManager.NodeManagers
+                .Any(nodeManager => nodeManager is ReferenceNodeManager);
+            if (!historicalAccessEnabled)
+            {
+                return;
+            }
+
+            HistoryServerCapabilitiesState capabilities = server.DiagnosticsNodeManager
+                .GetDefaultHistoryCapabilities();
+
+            capabilities.AccessHistoryDataCapability.Value = true;
+            capabilities.AccessHistoryEventsCapability.Value = false;
+            capabilities.InsertDataCapability.Value = false;
+            capabilities.ReplaceDataCapability.Value = false;
+            capabilities.UpdateDataCapability.Value = false;
+            capabilities.DeleteRawCapability.Value = false;
+            capabilities.DeleteAtTimeCapability.Value = false;
+            capabilities.InsertEventCapability.Value = false;
+            capabilities.ReplaceEventCapability.Value = false;
+            capabilities.UpdateEventCapability.Value = false;
+            capabilities.InsertAnnotationCapability.Value = false;
+            capabilities.ServerTimestampSupported.Value = true;
+            capabilities.ClearChangeMasks(server.DefaultSystemContext, false);
+
+            server.DiagnosticsNodeManager.UpdateServerEventNotifier();
+        }
+
         protected override IMonitoredItemQueueFactory CreateMonitoredItemQueueFactory(
             IServerInternal server,
             ApplicationConfiguration configuration)

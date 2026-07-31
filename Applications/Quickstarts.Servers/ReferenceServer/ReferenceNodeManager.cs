@@ -273,13 +273,45 @@ namespace Quickstarts.ReferenceServer
                             "Int16",
                             DataTypeIds.Int16,
                             ValueRanks.Scalar));
-                    variables.Add(
-                        CreateVariable(
-                            staticFolder,
-                            scalarStatic + "Int32",
-                            "Int32",
-                            DataTypeIds.Int32,
-                            ValueRanks.Scalar));
+                    BaseDataVariableState int32Static = CreateVariable(
+                        staticFolder,
+                        scalarStatic + "Int32",
+                        "Int32",
+                        DataTypeIds.Int32,
+                        ValueRanks.Scalar);
+                    const uint cttTestNodePermissions =
+                        (uint)PermissionType.Browse |
+                        (uint)PermissionType.Read |
+                        (uint)PermissionType.Write |
+                        (uint)PermissionType.ReadHistory |
+                        (uint)PermissionType.ReadRolePermissions;
+                    var anonymousPermissions = new RolePermissionType
+                    {
+                        RoleId = ObjectIds.WellKnownRole_Anonymous,
+                        Permissions = cttTestNodePermissions
+                    };
+                    var authenticatedPermissions = new RolePermissionType
+                    {
+                        RoleId = ObjectIds.WellKnownRole_AuthenticatedUser,
+                        Permissions = cttTestNodePermissions
+                    };
+                    var securityAdminPermissions = new RolePermissionType
+                    {
+                        RoleId = ObjectIds.WellKnownRole_SecurityAdmin,
+                        Permissions = 0xFFFF
+                    };
+                    int32Static.RolePermissions =
+                    [
+                        anonymousPermissions,
+                        authenticatedPermissions,
+                        securityAdminPermissions
+                    ];
+                    int32Static.UserRolePermissions =
+                    [
+                        anonymousPermissions,
+                        authenticatedPermissions
+                    ];
+                    variables.Add(int32Static);
                     variables.Add(
                         CreateVariable(
                             staticFolder,
@@ -4563,9 +4595,10 @@ namespace Quickstarts.ReferenceServer
             {
                 variable.ArrayDimensions = new ReadOnlyList<uint>([0]);
             }
-            else if (valueRank == ValueRanks.TwoDimensions)
+            else if (valueRank >= ValueRanks.TwoDimensions)
             {
-                variable.ArrayDimensions = new ReadOnlyList<uint>([0, 0]);
+                variable.ArrayDimensions = new ReadOnlyList<uint>(
+                    CreateFixedArrayDimensions(valueRank));
             }
 
             parent?.AddChild(variable);
@@ -4949,13 +4982,17 @@ namespace Quickstarts.ReferenceServer
         {
             Debug.Assert(m_generator != null, "Need a random generator!");
 
+            IList<uint> dimensions = variable.ValueRank >= ValueRanks.TwoDimensions
+                ? CreateFixedArrayDimensions(variable.ValueRank)
+                : [DefaultArrayLength];
+
             object value = null;
             for (int retryCount = 0; value == null && retryCount < 10; retryCount++)
             {
                 value = m_generator.GetRandom(
                     variable.DataType,
                     variable.ValueRank,
-                    [10],
+                    dimensions,
                     Server.TypeTree);
                 // skip Variant Null
                 if (value is Variant variant && variant.Value == null)
@@ -4965,6 +5002,16 @@ namespace Quickstarts.ReferenceServer
             }
 
             return value;
+        }
+
+        private static uint[] CreateFixedArrayDimensions(int valueRank)
+        {
+            var dimensions = new uint[valueRank];
+            for (int ii = 0; ii < valueRank; ii++)
+            {
+                dimensions[ii] = MultiDimensionalArrayLength;
+            }
+            return dimensions;
         }
 
         private void DoSimulation(object state)
@@ -5045,6 +5092,14 @@ namespace Quickstarts.ReferenceServer
             HistoryReadValueId nodeToRead,
             HistoryReadResult result)
         {
+            if (variable.ValueRank == ValueRanks.Scalar &&
+                nodeToRead.ParsedIndexRange != NumericRange.Empty)
+            {
+                result.StatusCode = StatusCodes.BadIndexRangeNoData;
+                result.ContinuationPoint = null;
+                return ServiceResult.Good;
+            }
+
             var data = new HistoryData();
             HistoryDataReader reader;
 
@@ -5096,7 +5151,9 @@ namespace Quickstarts.ReferenceServer
                 result.ContinuationPoint = null;
             }
 
-            result.StatusCode = StatusCodes.Good;
+            result.StatusCode = complete && data.DataValues.Count == 0 && !details.ReturnBounds
+                ? StatusCodes.GoodNoData
+                : StatusCodes.Good;
             result.HistoryData = new ExtensionObject(data);
             return ServiceResult.Good;
         }
@@ -5248,6 +5305,9 @@ namespace Quickstarts.ReferenceServer
         private int m_simulationsRunning;
         private readonly List<BaseDataVariableState> m_dynamicNodes = [];
         private readonly HistoryArchive m_historyArchive;
+
+        private const uint DefaultArrayLength = 10;
+        private const uint MultiDimensionalArrayLength = 3;
 
         private static readonly string[] s_historicalNodeNames =
         [

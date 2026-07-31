@@ -187,6 +187,76 @@ namespace Opc.Ua.Server.Tests
                 Is.EqualTo(before.Select(value => value.Value)));
         }
 
+        [TestCase(true)]
+        [TestCase(false)]
+        public void RawReaderDoesNotCreateEmptyFinalPage(bool forward)
+        {
+            DateTime origin = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            var source = new ListHistoryDataSource(
+            [
+                CreateValue(1, origin.AddSeconds(1)),
+                CreateValue(2, origin.AddSeconds(2)),
+                CreateValue(3, origin.AddSeconds(3))
+            ]);
+            var details = new ReadRawModifiedDetails
+            {
+                StartTime = forward ? origin : origin.AddSeconds(4),
+                EndTime = forward ? origin.AddSeconds(4) : origin,
+                NumValuesPerNode = 1,
+                ReturnBounds = false
+            };
+            using var reader = new HistoryDataReader(
+                new NodeId("paged-history", 1),
+                source);
+
+            var pages = new List<DataValueCollection>();
+            var hasContinuationPoint = new List<bool>();
+            bool firstPage = true;
+            bool complete;
+            do
+            {
+                var values = new DataValueCollection();
+                if (firstPage)
+                {
+                    reader.BeginReadRaw(
+                        null,
+                        details,
+                        TimestampsToReturn.Both,
+                        NumericRange.Empty,
+                        QualifiedName.Null,
+                        values);
+                    firstPage = false;
+                }
+
+                complete = reader.NextReadRaw(
+                    null,
+                    TimestampsToReturn.Both,
+                    NumericRange.Empty,
+                    QualifiedName.Null,
+                    values);
+                pages.Add(values);
+                hasContinuationPoint.Add(!complete);
+            } while (!complete);
+
+            Assert.That(pages, Has.Count.EqualTo(3));
+            Assert.That(pages.All(page => page.Count == 1), Is.True);
+            Assert.That(hasContinuationPoint, Is.EqualTo(new[] { true, true, false }));
+            Assert.That(
+                pages.Select(page => (int)page[0].Value),
+                Is.EqualTo(forward ? new[] { 1, 2, 3 } : new[] { 3, 2, 1 }));
+        }
+
+        private static DataValue CreateValue(int value, DateTime timestamp)
+        {
+            return new DataValue
+            {
+                Value = value,
+                StatusCode = StatusCodes.Good,
+                SourceTimestamp = timestamp,
+                ServerTimestamp = timestamp
+            };
+        }
+
         private static List<DataValue> ReadAll(HistoryFile source)
         {
             var values = new List<DataValue>();
@@ -213,5 +283,74 @@ namespace Opc.Ua.Server.Tests
             "Boolean Historizing",
             "List`1 RawData"
         ];
+
+        private sealed class ListHistoryDataSource : IHistoryDataSource
+        {
+            public ListHistoryDataSource(IReadOnlyList<DataValue> values)
+            {
+                m_values = values;
+            }
+
+            public DataValue FirstRaw(
+                DateTime startTime,
+                bool isForward,
+                bool isReadModified,
+                out int position)
+            {
+                position = -1;
+                if (isForward)
+                {
+                    for (int ii = 0; ii < m_values.Count; ii++)
+                    {
+                        if (m_values[ii].ServerTimestamp >= startTime)
+                        {
+                            position = ii;
+                            break;
+                        }
+                    }
+                }
+                else
+                {
+                    for (int ii = m_values.Count - 1; ii >= 0; ii--)
+                    {
+                        if (m_values[ii].ServerTimestamp <= startTime)
+                        {
+                            position = ii;
+                            break;
+                        }
+                    }
+                }
+                return GetValue(position);
+            }
+
+            public DataValue NextRaw(
+                DateTime lastTime,
+                bool isForward,
+                bool isReadModified,
+                ref int position)
+            {
+                position += isForward ? 1 : -1;
+                return GetValue(position);
+            }
+
+            private DataValue GetValue(int position)
+            {
+                if (position < 0 || position >= m_values.Count)
+                {
+                    return null;
+                }
+
+                DataValue value = m_values[position];
+                return new DataValue
+                {
+                    WrappedValue = value.WrappedValue,
+                    StatusCode = value.StatusCode,
+                    SourceTimestamp = value.SourceTimestamp,
+                    ServerTimestamp = value.ServerTimestamp
+                };
+            }
+
+            private readonly IReadOnlyList<DataValue> m_values;
+        }
     }
 }
