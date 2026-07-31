@@ -113,8 +113,9 @@ function Test-PackageContents
         ForEach-Object { $_.Substring($analyzerRoot.Length).Split("/")[0] } |
         Sort-Object -Unique)
     Assert-Condition (
-        $roslynFolders.Count -ge 1
-    ) "Package '$($Package.Id)' ships no analyzer folder."
+        $roslynFolders.Count -ge 2
+    ) ("Package '$($Package.Id)' must ship one analyzer folder per supported Roslyn " +
+        "band; found: $($roslynFolders -join ', ').")
     Assert-Condition (
         @($roslynFolders | Where-Object { $_ -notmatch "^roslyn[0-9]+\.[0-9]+$" }).Count -eq 0
     ) ("Package '$($Package.Id)' analyzer folders must be named 'roslyn<major>.<minor>'; " +
@@ -162,6 +163,54 @@ function Test-PackageContents
     Assert-Condition (
         $Package.Dependencies.Count -eq 0
     ) "Package '$($Package.Id)' must carry its analyzer runtime closure privately."
+}
+
+function Test-AnalyzerBands
+{
+    <#
+    .SYNOPSIS
+        Asserts a package ships the expected analyzer assemblies in every Roslyn band.
+
+    .DESCRIPTION
+        For packages that Test-PackageContents cannot check because they also ship lib/
+        assemblies and carry dependencies - the migration analyzer, whose payload comes
+        from a hand-written nuspec rather than SourceGeneratorPack.targets. A band added
+        to one half of that nuspec and not the other is invisible at pack time.
+    #>
+    param(
+        [Parameter(Mandatory = $true)]
+        [PSCustomObject] $Package,
+
+        [Parameter(Mandatory = $true)]
+        [string[]] $ExpectedFolders,
+
+        [Parameter(Mandatory = $true)]
+        [string[]] $ExpectedAssemblies
+    )
+
+    $analyzerRoot = "analyzers/dotnet/"
+    foreach ($folder in $ExpectedFolders)
+    {
+        foreach ($assembly in $ExpectedAssemblies)
+        {
+            $path = "$analyzerRoot$folder/cs/$assembly"
+            Assert-Condition (
+                $Package.Entries -contains $path
+            ) "Package '$($Package.Id)' is missing '$path'."
+        }
+    }
+
+    $actualFolders = @($Package.Entries |
+        Where-Object {
+            $_.StartsWith($analyzerRoot, [StringComparison]::OrdinalIgnoreCase) -and
+            $_.EndsWith(".dll", [StringComparison]::OrdinalIgnoreCase)
+        } |
+        ForEach-Object { $_.Substring($analyzerRoot.Length).Split("/")[0] } |
+        Sort-Object -Unique)
+    Assert-Condition (
+        @(Compare-Object $actualFolders @($ExpectedFolders | Sort-Object -Unique)).Count -eq 0
+    ) ("Package '$($Package.Id)' analyzer bands are '$($actualFolders -join ', ')' but " +
+        "'$(($ExpectedFolders | Sort-Object -Unique) -join ', ')' was expected.")
 }
 
 function Test-PackageBuildProps
@@ -358,6 +407,147 @@ public static class GeneratedModelProbe
         "standalone NodeSet consumer.")
 }
 
+function Test-DownlevelAnalyzerHost
+{
+    <#
+    .SYNOPSIS
+        Loads the down-level analyzer payload in a real compiler of that Roslyn band.
+
+    .DESCRIPTION
+        The repository builds against the newest band, so nothing else here ever executes
+        the down-level payload. Every way it can be wrong is reported by the compiler as a
+        *warning*, which means a broken band ships silently and the consumer simply gets no
+        generated code:
+
+          CS9057 - built against a newer compiler than the host, so it is skipped entirely.
+          CS8784 - loaded but failed to initialize, e.g. MissingMethodException because a
+                   shipped System.Collections.Immutable bound a second ImmutableArray<T>.
+          CS8032 - the analyzer instance could not be created at all.
+
+        So run the matching csc over the packed payload and fail on any of them. Absence of
+        diagnostics is necessary but not sufficient - a generator that is never handed to
+        the compiler also produces none - so /reportanalyzer is used to additionally assert
+        that the generator positively executed.
+    #>
+    param(
+        [Parameter(Mandatory = $true)]
+        [PSCustomObject] $Package,
+
+        [Parameter(Mandatory = $true)]
+        [string] $ValidationRoot,
+
+        [Parameter(Mandatory = $true)]
+        [string] $RoslynFolder,
+
+        [Parameter(Mandatory = $true)]
+        [string] $CompilerToolsetVersion,
+
+        [Parameter(Mandatory = $true)]
+        [string] $GeneratorAssembly
+    )
+
+    $root = Join-Path $ValidationRoot "downlevel-$RoslynFolder-$($Package.Id)"
+    $analyzerDirectory = Join-Path $root "analyzers"
+    # Per package, and emptied first: a shared directory would leak the previous
+    # package's assemblies into this compilation and the assertion below would pass on
+    # someone else's generator.
+    Remove-Item -Path $analyzerDirectory -Recurse -Force -ErrorAction SilentlyContinue
+    New-Item -ItemType Directory -Path $analyzerDirectory -Force | Out-Null
+
+    $archive = [IO.Compression.ZipFile]::OpenRead($Package.Path)
+    try
+    {
+        $prefix = "analyzers/dotnet/$RoslynFolder/cs/"
+        $entries = @($archive.Entries |
+            Where-Object { $_.FullName.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase) } |
+            Where-Object { $_.FullName.EndsWith(".dll", [StringComparison]::OrdinalIgnoreCase) })
+        Assert-Condition (
+            $entries.Count -gt 0
+        ) "Package '$($Package.Id)' has no assemblies under '$prefix'."
+        foreach ($entry in $entries)
+        {
+            [IO.Compression.ZipFileExtensions]::ExtractToFile(
+                $entry, (Join-Path $analyzerDirectory ([IO.Path]::GetFileName($entry.FullName))), $true)
+        }
+    }
+    finally
+    {
+        $archive.Dispose()
+    }
+
+    # `dotnet tool`-free way to get a specific csc: restore the toolset package.
+    $toolsetProject = Join-Path $root "toolset.csproj"
+    @"
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Net.Compilers.Toolset"
+                      Version="$CompilerToolsetVersion" PrivateAssets="all" />
+  </ItemGroup>
+</Project>
+"@ | Set-Content -Path $toolsetProject -Encoding utf8
+
+    $packagesPath = Join-Path $ValidationRoot "packages"
+    Invoke-DotNet @(
+        "restore",
+        $toolsetProject,
+        "--configfile",
+        (Join-Path $ValidationRoot "NuGet.WithUpstream.Config"),
+        "--packages",
+        $packagesPath,
+        "--nologo"
+    )
+
+    $csc = Join-Path $packagesPath `
+        "microsoft.net.compilers.toolset/$CompilerToolsetVersion/tasks/netcore/bincore/csc.dll"
+    Assert-Condition (Test-Path $csc) "csc from Microsoft.Net.Compilers.Toolset $CompilerToolsetVersion not found at '$csc'."
+
+    $sourceFile = Join-Path $root "Probe.cs"
+    "namespace DownlevelProbe { public class Marker { } }" | Set-Content -Path $sourceFile -Encoding utf8
+
+    $referenceDirectory = @(Get-ChildItem -Path (
+        Join-Path $env:ProgramFiles "dotnet\packs\Microsoft.NETCore.App.Ref") -Directory -ErrorAction SilentlyContinue |
+        Sort-Object Name -Descending |
+        ForEach-Object { Get-ChildItem -Path (Join-Path $_.FullName "ref") -Directory -ErrorAction SilentlyContinue } |
+        Select-Object -First 1)
+    Assert-Condition (
+        $referenceDirectory.Count -eq 1
+    ) "Could not locate a Microsoft.NETCore.App reference assembly directory."
+
+    $arguments = @(
+        $csc, "/noconfig", "/nostdlib+", "/target:library",
+        "/out:$(Join-Path $root 'probe.dll')", "/reportanalyzer"
+    )
+    $arguments += @(Get-ChildItem (Join-Path $referenceDirectory[0].FullName "*.dll") |
+        ForEach-Object { "/r:$($_.FullName)" })
+    $arguments += @(Get-ChildItem (Join-Path $analyzerDirectory "*.dll") |
+        ForEach-Object { "/analyzer:$($_.FullName)" })
+    $arguments += $sourceFile
+
+    $output = & dotnet @arguments 2>&1
+    $loadDiagnostics = @($output | Where-Object { $_ -match "CS9057|CS8784|CS8032|CS8034" })
+    Assert-Condition (
+        $loadDiagnostics.Count -eq 0
+    ) ("Package '$($Package.Id)' analyzer folder '$RoslynFolder' does not load in " +
+        "Microsoft.Net.Compilers.Toolset $CompilerToolsetVersion. A consumer on that " +
+        "compiler silently gets no generated code:`n" + ($loadDiagnostics -join "`n"))
+
+    # /reportanalyzer lists every generator the compiler actually ran, so this turns
+    # "nothing complained" into "the generator executed".
+    $ran = @($output | Where-Object { $_ -match "(^|\s)$([Regex]::Escape($GeneratorAssembly)), Version=" })
+    Assert-Condition (
+        $ran.Count -gt 0
+    ) ("Package '$($Package.Id)' analyzer folder '$RoslynFolder' reported no execution of " +
+        "'$GeneratorAssembly' under Microsoft.Net.Compilers.Toolset $CompilerToolsetVersion. " +
+        "The payload loaded without complaint but the generator never ran:`n" +
+        ($output -join "`n"))
+
+    Write-Host "Analyzer folder '$RoslynFolder' of '$($Package.Id)' runs in csc $CompilerToolsetVersion."
+}
+
 function Invoke-DotNet
 {
     param(
@@ -493,9 +683,14 @@ Test-ConfigurationPackageIds (
     Join-Path $repoRoot "tools\Opc.Ua.SourceGeneration.Stack.Pack\Opc.Ua.SourceGeneration.Stack.Pack.csproj")
 $modelPackage = Get-PackageInfo "OPCFoundation.NetStandard.Opc.Ua.SourceGeneration"
 $stackPackage = Get-PackageInfo "OPCFoundation.NetStandard.Opc.Ua.SourceGeneration.Stack"
+$migrationPackage = Get-PackageInfo "OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer"
 
 Test-PackageContents $modelPackage "Opc.Ua.SourceGeneration.dll"
 Test-PackageContents $stackPackage "Opc.Ua.SourceGeneration.Stack.dll"
+Test-AnalyzerBands $migrationPackage @("roslyn4.14", "roslyn5.0") @(
+    "Opc.Ua.MigrationAnalyzer.dll",
+    "Opc.Ua.MigrationAnalyzer.CodeFixer.dll",
+    "Opc.Ua.MigrationAnalyzer.Generator.dll")
 
 # Only the model generator exposes MSBuild settings to consumers, so only it ships a
 # build/<PackageId>.props; the stack generator must not smuggle in stray build/ content.
@@ -545,6 +740,15 @@ try
     Test-CleanConsumer $modelPackage $validationRoot
     Test-CleanConsumer $stackPackage $validationRoot
     Test-SourceGeneratingConsumer $modelPackage $validationRoot $repoRoot
+    # The repository builds against the newest band, so the down-level payload is only
+    # ever exercised here. Every failure mode is a compiler *warning*, so without this
+    # a broken band ships silently.
+    Test-DownlevelAnalyzerHost $modelPackage $validationRoot "roslyn4.14" "4.14.0" "Opc.Ua.SourceGeneration"
+    Test-DownlevelAnalyzerHost $stackPackage $validationRoot "roslyn4.14" "4.14.0" "Opc.Ua.SourceGeneration.Stack"
+    # The migration analyzer ships the same two bands from a hand-written nuspec rather
+    # than SourceGeneratorPack.targets, so its down-level payload has its own way to rot.
+    Test-DownlevelAnalyzerHost $migrationPackage $validationRoot "roslyn4.14" "4.14.0" `
+        "Opc.Ua.MigrationAnalyzer.Generator"
 }
 finally
 {

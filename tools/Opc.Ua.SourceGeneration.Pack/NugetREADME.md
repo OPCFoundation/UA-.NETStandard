@@ -22,6 +22,7 @@ ignores it otherwise, so an older host cleanly skips the generator.
 
 | Roslyn API | Minimum host |
 | --- | --- |
+| 4.14 | Visual Studio 2022 17.14 / .NET 9 SDK |
 | 5.0 | Visual Studio 2026 18.0 / .NET 10 SDK |
 
 ## Getting started

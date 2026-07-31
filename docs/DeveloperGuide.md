@@ -239,11 +239,14 @@ The analyzer and source generator packages ship under `analyzers/dotnet/roslyn<m
 
 | Roslyn API | Package folder | Minimum host |
 | --- | --- | --- |
+| 4.14 | `analyzers/dotnet/roslyn4.14/cs` | Visual Studio 2022 17.14 / .NET 9 SDK |
 | 5.0 | `analyzers/dotnet/roslyn5.0/cs` | Visual Studio 2026 18.0 / .NET 10 SDK |
 
 The version is declared once in `roslyn.props`.
 
-> **Adding a down-level band is not just another entry in that file.** The analyzer closure — the generator, `Opc.Ua.SourceGeneration.Core` **and** `Opc.Ua.Types` — must bind against the Roslyn host's own `System.Collections.Immutable` and `System.Reflection.Metadata`, whose assembly versions are fixed per band (4.8 → 7.0.0.0, 4.14 → 8.0.0.0, 5.0 → 9.0.0.0). `Directory.Packages.props` pins both centrally with transitive pinning on, so today the whole closure references 10.0.0.0. On an older band the compiler cannot satisfy that: the generator either fails to load (`FileNotFoundException`) or, if a copy is shipped alongside, binds a second `ImmutableArray<T>` identity and dies with `MissingMethodException` on its first Roslyn call. Both surface only as warning `CS8784`, so the consumer silently gets no generated code. A down-level band therefore requires building that entire closure against the band's package versions, which is why `validate-source-generator-packages.ps1` fails any package that ships `Microsoft.CodeAnalysis*`, `System.Collections.Immutable` or `System.Reflection.Metadata`.
+> **Adding a band below 4.14 is not just another entry in that file.** The analyzer closure — the generator, `Opc.Ua.SourceGeneration.Core` **and** `Opc.Ua.Types` — must bind against the Roslyn host's own `System.Collections.Immutable` and `System.Reflection.Metadata`. .NET satisfies a reference from a *higher* assembly version but never from a lower one, and those assemblies are supplied by the compiler, so the closure must reference the lowest version across every supported band and must never ship a copy of its own. Roslyn 4.14 and 5.0 both depend on 9.0.0, which is why `$(RoslynRuntimeVersion)` in `roslyn.props` drives the central pin and one build of the non-Roslyn closure serves both bands. Going lower — Roslyn 4.8 wants 7.x — would mean building that whole closure, `Opc.Ua.Types` included, a second time.
+>
+> Get it wrong and the failure is silent: the generator is skipped (`CS9057`), fails to load (`CS8032`) or throws `MissingMethodException` while initializing (`CS8784`) — all *warnings*, so the consumer just gets no generated code. `validate-source-generator-packages.ps1` therefore refuses any package that ships `Microsoft.CodeAnalysis*`, `System.Collections.Immutable` or `System.Reflection.Metadata`, and runs the packed down-level payload through a real compiler of that band.
 
 ### Versioning
 

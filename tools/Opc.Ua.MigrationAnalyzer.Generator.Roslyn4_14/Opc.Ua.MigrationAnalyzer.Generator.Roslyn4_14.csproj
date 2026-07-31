@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Visual Studio 2022 build of the OPC UA migration source generator. Shares every source file with
+    ..\Opc.Ua.MigrationAnalyzer.Generator through a glob-link, so only the Roslyn API version differs.
+  -->
+  <Import Project="..\..\roslyn.props" Condition="'$(RoslynApiVersionVS2026)' == ''" />
+  <PropertyGroup>
+    <RoslynApiVersion>$(RoslynApiVersionVS2022)</RoslynApiVersion>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <Import Project="..\Opc.Ua.MigrationAnalyzer.Generator\Opc.Ua.MigrationAnalyzer.Generator.Sources.targets" />
+</Project>

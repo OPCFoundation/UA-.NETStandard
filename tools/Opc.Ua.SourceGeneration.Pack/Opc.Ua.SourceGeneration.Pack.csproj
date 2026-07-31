@@ -16,6 +16,8 @@
   <ItemGroup>
     <SourceGeneratorVariant Include="..\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj"
                             RoslynAnalyzerFolder="$(RoslynAnalyzerFolderVS2026)" />
+    <SourceGeneratorVariant Include="..\Opc.Ua.SourceGeneration.Roslyn4_14\Opc.Ua.SourceGeneration.Roslyn4_14.csproj"
+                            RoslynAnalyzerFolder="$(RoslynAnalyzerFolderVS2022)" />
   </ItemGroup>
   <ItemGroup>
     <!-- NuGet only auto-imports build\<PackageId>.props, so the file has to be
