@@ -241,7 +241,7 @@ namespace Opc.Ua.Wot
                         writer.WriteString("@type", WotVocabulary.EnvelopeType);
                         writer.WriteString("contentType", WotVocabulary.NodeSetContentType);
                         writer.WriteString("encoding", WotVocabulary.Base64Encoding);
-                        writer.WriteString("sha256", ToLowerHex(digest));
+                        writer.WriteString("sha256", CoreUtils.ToHexString(digest).ToLowerInvariant());
                         writer.WriteString("data", System.Convert.ToBase64String(nodeSetBytes));
                         writer.WriteString("profileVersion", WotVocabulary.ProfileVersion);
                         writer.WriteEndObject();

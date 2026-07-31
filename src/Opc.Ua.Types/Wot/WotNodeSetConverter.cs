@@ -123,25 +123,22 @@ namespace Opc.Ua.Wot
 #endif
         }
 
-        private static string ToLowerHex(byte[] data)
-        {
-            const string digits = "0123456789abcdef";
-            var chars = new char[data.Length * 2];
-            for (int ii = 0; ii < data.Length; ii++)
-            {
-                chars[ii * 2] = digits[data[ii] >> 4];
-                chars[(ii * 2) + 1] = digits[data[ii] & 0x0F];
-            }
-            return new string(chars);
-        }
+
 
         private static bool TryParseDigest(string text, out byte[] digest)
         {
             string trimmed = text.Trim();
-            if (trimmed.Length == 64 && IsHex(trimmed))
+            if (trimmed.Length == 64)
             {
-                digest = CoreUtils.FromHexString(trimmed);
-                return true;
+                try
+                {
+                    digest = CoreUtils.FromHexString(trimmed);
+                    return digest.Length == 32;
+                }
+                catch (FormatException)
+                {
+                    // Not hex; try base64 below.
+                }
             }
             try
             {
@@ -160,20 +157,7 @@ namespace Opc.Ua.Wot
             return false;
         }
 
-        private static bool IsHex(string text)
-        {
-            foreach (char character in text)
-            {
-                bool isHex = (character >= '0' && character <= '9') ||
-                    (character >= 'a' && character <= 'f') ||
-                    (character >= 'A' && character <= 'F');
-                if (!isHex)
-                {
-                    return false;
-                }
-            }
-            return true;
-        }
+
 
         private static bool FixedEquals(byte[] left, byte[] right)
         {
