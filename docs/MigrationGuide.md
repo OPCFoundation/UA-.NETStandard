@@ -43,6 +43,24 @@ Looking for the broader narrative (non-prescriptive overview of what
 changed in a release)? See
 [What's New in 2.0](WhatsNewIn2.0.md).
 
+## Migrating servers that relied on unserved history advertisement
+
+Server startup now reconciles variables that advertise history with the
+historian providers actually wired into the server. If a variable has
+`Historizing=true` or `HistoryRead` / `HistoryWrite` access-level bits
+from a NodeSet but no `IHistorianProvider` resolves for it, the server
+clears the advertisement and masks the attribute read callbacks before
+accepting clients. Variables with a provider keep their NodeSet-declared
+history surface.
+
+If a client or CTT setup expected `HistoryRead` solely because the
+NodeSet declared it, wire a historian instead of relying on the static
+flag: use `builder.UseHistorian()` and `.Historize(...)`, register a
+provider through the server-wide historian registry, or override
+`GetHistorianProvider(NodeState)` in the node manager. See
+[Server address-space metadata](NodeManagers.md#server-address-space-metadata) and
+[Historical Access](HistoricalAccess.md).
+
 ## Migrating from 1.05.377 to 1.05.378
 
 ### Asynchronous as default

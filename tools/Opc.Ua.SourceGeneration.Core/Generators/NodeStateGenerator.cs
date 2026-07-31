@@ -2278,10 +2278,10 @@ namespace Opc.Ua.SourceGeneration
 
             context.Template.AddReplacement(
                 Tokens.AccessLevelValue,
-                node.AccessLevel.GetAccessLevelAsCode());
+                node.GetAccessLevelAsCode());
             context.Template.AddReplacement(
                 Tokens.UserAccessLevelValue,
-                node.AccessLevel.GetAccessLevelAsCode());
+                node.GetUserAccessLevelAsCode());
             context.Template.AddReplacement(
                 Tokens.MinimumSamplingIntervalValue,
                 node.MinimumSamplingInterval.ToString(CultureInfo.InvariantCulture));

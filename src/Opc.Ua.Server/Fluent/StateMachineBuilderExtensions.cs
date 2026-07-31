@@ -167,7 +167,9 @@ namespace Opc.Ua.Server.Fluent
                 displayName: new LocalizedText(symbolicName),
                 assignNodeIds: false);
 
+            machine.ReferenceTypeId = ReferenceTypeIds.HasComponent;
             parent.Node.AddChild(machine);
+            FluentNodeRegistration.RegisterCreatedNode(parent.Builder, machine);
 
             if (parent.Builder is not NodeManagerBuilder root)
             {

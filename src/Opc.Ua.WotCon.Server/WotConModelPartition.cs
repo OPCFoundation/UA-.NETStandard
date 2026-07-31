@@ -32,20 +32,36 @@ using Opc.Ua.XRegistry;
 namespace Opc.Ua.WotCon.Server
 {
     /// <summary>
-    /// Splits the single combined WoT Connectivity 1.1 model into the disjoint
-    /// static-node slices owned by the legacy connectivity surface and the
-    /// additive registry surface.
+    /// Splits the single combined WoT Connectivity 1.1 model
+    /// (<c>http://opcfoundation.org/UA/WoT-Con/</c>) into the two disjoint
+    /// static-node slices its NodeManagers own, so the deprecated 1.02 surface
+    /// and the additive registry surface are never claimed twice when both the
+    /// <see cref="WotConnectivityNodeManager"/> and the
+    /// <c>WotRegistryNodeManager</c> operate on the same server.
     /// </summary>
+    /// <remarks>
+    /// The combined NodeSet incorporates the published OPC 10100-1 v1.02 model
+    /// at its original NodeIds (<c>1..172</c>, marked deprecated) plus the
+    /// additive registry nodes in the provisional <c>64000+</c> block.
+    /// Ownership is therefore decided by NodeId: the legacy asset manager owns
+    /// the incorporated 1.02 nodes and the registry manager owns the registry
+    /// nodes (together with the xRegistry base nodes it also loads).
+    /// </remarks>
     internal static class WotConModelPartition
     {
         /// <summary>
-        /// First NodeId of the additive registry block.
+        /// First NodeId of the additive registry block. NodeIds below this
+        /// value belong to the incorporated OPC 10100-1 v1.02 surface.
         /// </summary>
         public const uint FirstRegistryNodeId = 64000;
 
         /// <summary>
         /// Ensures the xRegistry namespace is present so the combined model's
-        /// registry nodes can be instantiated before the registry slice is removed.
+        /// registry nodes (which reference xRegistry base types while being
+        /// created) can be instantiated before the registry slice is removed.
+        /// The legacy manager does not own the xRegistry namespace; it merely
+        /// needs the URI registered so <see cref="NodeId.Create(uint, string,
+        /// NamespaceTable)"/> resolves during predefined-node creation.
         /// </summary>
         public static void EnsureXRegistryNamespace(ISystemContext context)
         {
@@ -57,13 +73,31 @@ namespace Opc.Ua.WotCon.Server
         /// OPC 10100-1 v1.02 surface for the legacy asset manager to own.
         /// </summary>
         public static NodeStateCollection RetainLegacyNodes(
-            NodeStateCollection nodes,
-            ISystemContext context)
+            NodeStateCollection nodes, ISystemContext context)
         {
             ushort modelNs = ModelNamespaceIndex(context);
             for (int i = nodes.Count - 1; i >= 0; i--)
             {
                 if (IsRegistryNode(nodes[i], modelNs))
+                {
+                    nodes.RemoveAt(i);
+                }
+            }
+            return nodes;
+        }
+
+        /// <summary>
+        /// Removes the incorporated OPC 10100-1 v1.02 nodes, retaining only the
+        /// additive registry nodes (and any xRegistry base nodes already in the
+        /// collection) for the registry manager to own.
+        /// </summary>
+        public static NodeStateCollection RetainRegistryNodes(
+            NodeStateCollection nodes, ISystemContext context)
+        {
+            ushort modelNs = ModelNamespaceIndex(context);
+            for (int i = nodes.Count - 1; i >= 0; i--)
+            {
+                if (IsLegacyNode(nodes[i], modelNs))
                 {
                     nodes.RemoveAt(i);
                 }
@@ -81,6 +115,13 @@ namespace Opc.Ua.WotCon.Server
             return node.NodeId.NamespaceIndex == modelNs &&
                 node.NodeId.TryGetValue(out uint id) &&
                 id >= FirstRegistryNodeId;
+        }
+
+        private static bool IsLegacyNode(NodeState node, ushort modelNs)
+        {
+            return node.NodeId.NamespaceIndex == modelNs &&
+                node.NodeId.TryGetValue(out uint id) &&
+                id < FirstRegistryNodeId;
         }
     }
 }
