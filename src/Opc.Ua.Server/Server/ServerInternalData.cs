@@ -155,20 +155,7 @@ namespace Opc.Ua.Server
         {
             if (disposing && Interlocked.Exchange(ref m_disposed, 1) == 0)
             {
-                m_roleStateBinding?.Dispose();
-                m_roleStateBinding = null;
-                (RoleManager as IDisposable)?.Dispose();
-                ResourceManager?.Dispose();
-                RequestManager?.Dispose();
-                AggregateManager?.Dispose();
-                ModellingRulesManager?.Dispose();
-                ConformanceUnitsManager?.Dispose();
-                (NodeManager as IDisposable)?.Dispose();
-                SessionManager?.Dispose();
-                SubscriptionManager?.Dispose();
-                MonitoredItemQueueFactory?.Dispose();
-                (AliasNameStoreRegistry as IDisposable)?.Dispose();
-                (HistorianRegistry as IDisposable)?.Dispose();
+                DisposeManagedResources();
             }
         }
 
@@ -182,16 +169,19 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            m_roleStateBinding?.Dispose();
-            m_roleStateBinding = null;
-            (RoleManager as IDisposable)?.Dispose();
-            ResourceManager?.Dispose();
-            RequestManager?.Dispose();
-            AggregateManager?.Dispose();
-            ModellingRulesManager?.Dispose();
-            ConformanceUnitsManager?.Dispose();
-            (NodeManager as IDisposable)?.Dispose();
-            SessionManager?.Dispose();
+            await DisposeManagedResourcesAsync().ConfigureAwait(false);
+        }
+
+        private void DisposeManagedResources()
+        {
+            DisposeManagedResourcesBeforeSubscriptionManager();
+            SubscriptionManager?.Dispose();
+            DisposeManagedResourcesAfterSubscriptionManager();
+        }
+
+        private async ValueTask DisposeManagedResourcesAsync()
+        {
+            DisposeManagedResourcesBeforeSubscriptionManager();
             if (SubscriptionManager is IAsyncDisposable asyncSubscriptionManager)
             {
                 await asyncSubscriptionManager.DisposeAsync().ConfigureAwait(false);
@@ -200,7 +190,39 @@ namespace Opc.Ua.Server
             {
                 SubscriptionManager?.Dispose();
             }
+            DisposeManagedResourcesAfterSubscriptionManager();
+        }
+
+        private void DisposeManagedResourcesBeforeSubscriptionManager()
+        {
+            m_roleStateBinding?.Dispose();
+            m_roleStateBinding = null;
+            (RoleManager as IDisposable)?.Dispose();
+            RoleManager = null!;
+            ResourceManager?.Dispose();
+            ResourceManager = null!;
+            RequestManager?.Dispose();
+            RequestManager = null!;
+            AggregateManager?.Dispose();
+            AggregateManager = null!;
+            ModellingRulesManager?.Dispose();
+            ModellingRulesManager = null!;
+            ConformanceUnitsManager?.Dispose();
+            ConformanceUnitsManager = null!;
+            (NodeManager as IDisposable)?.Dispose();
+            NodeManager = null!;
+            DiagnosticsNodeManager = null!;
+            ConfigurationNodeManager = null!;
+            CoreNodeManager = null!;
+            SessionManager?.Dispose();
+            SessionManager = null!;
+        }
+
+        private void DisposeManagedResourcesAfterSubscriptionManager()
+        {
+            SubscriptionManager = null!;
             MonitoredItemQueueFactory?.Dispose();
+            MonitoredItemQueueFactory = null!;
             (AliasNameStoreRegistry as IDisposable)?.Dispose();
             (HistorianRegistry as IDisposable)?.Dispose();
         }

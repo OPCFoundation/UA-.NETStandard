@@ -556,6 +556,20 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task DisposeAndDisposeAsyncLeaveSameObservableStateAsync()
+        {
+            ServerInternalData syncData = CreateServerInternalData();
+            ServerInternalData asyncData = CreateServerInternalData();
+            ConfigureDisposableState(syncData);
+            ConfigureDisposableState(asyncData);
+
+            syncData.Dispose();
+            await asyncData.DisposeAsync().ConfigureAwait(false);
+
+            Assert.That(CaptureDisposedState(asyncData), Is.EqualTo(CaptureDisposedState(syncData)));
+        }
+
+        [Test]
         public async Task DisposeAsyncIsIdempotentAsync()
         {
             ServerInternalData data = CreateServerInternalData();
@@ -585,6 +599,42 @@ namespace Opc.Ua.Server.Tests
             data.Dispose();
 
             Assert.DoesNotThrowAsync(async () => await data.DisposeAsync().ConfigureAwait(false));
+        }
+
+        private static void ConfigureDisposableState(ServerInternalData data)
+        {
+            var mockNodeManager = new Mock<IMasterNodeManager>();
+            mockNodeManager.Setup(m => m.DiagnosticsNodeManager).Returns((IDiagnosticsNodeManager)null);
+            mockNodeManager.Setup(m => m.ConfigurationNodeManager).Returns((IConfigurationNodeManager)null);
+            mockNodeManager.Setup(m => m.CoreNodeManager).Returns((ICoreNodeManager)null);
+            data.SetNodeManager(mockNodeManager.Object);
+
+            var mockSessionManager = new Mock<ISessionManager>();
+            var mockSubscriptionManager = new Mock<ISubscriptionManager>();
+            mockSubscriptionManager
+                .As<IAsyncDisposable>()
+                .Setup(manager => manager.DisposeAsync())
+                .Returns(default(ValueTask));
+            data.SetSessionManager(mockSessionManager.Object, mockSubscriptionManager.Object);
+
+            data.SetMonitoredItemQueueFactory(new Mock<IMonitoredItemQueueFactory>().Object);
+            data.SetRoleManager(new Mock<IRoleManager>().Object);
+        }
+
+        private static bool[] CaptureDisposedState(ServerInternalData data)
+        {
+            return
+            [
+                data.RoleManager == null,
+                data.NodeManager == null,
+                data.DiagnosticsNodeManager == null,
+                data.ConfigurationNodeManager == null,
+                data.CoreNodeManager == null,
+                data.SessionManager == null,
+                data.SubscriptionManager == null,
+                data.MonitoredItemQueueFactory == null,
+                data.RequestManager == null
+            ];
         }
     }
 }

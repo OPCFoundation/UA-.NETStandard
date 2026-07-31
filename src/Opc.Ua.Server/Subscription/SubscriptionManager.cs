@@ -133,11 +133,41 @@ namespace Opc.Ua.Server
             if (disposing && Interlocked.Exchange(ref m_disposed, 1) == 0)
             {
                 SignalConditionRefreshShutdown();
+                Task.WaitAll(
+                    m_publishSubscriptionsTask ?? Task.CompletedTask,
+                    m_conditionRefreshTask ?? Task.CompletedTask);
+                m_semaphoreSlim.Wait();
+                List<SessionPublishQueue> publishQueues;
+                List<ISubscription> subscriptions;
+                try
+                {
+                    CaptureManagedResources(out publishQueues, out subscriptions);
+                }
+                finally
+                {
+                    m_semaphoreSlim.Release();
+                }
+
+                DisposeManagedResources(publishQueues, subscriptions);
+                DisposeSynchronizationResources();
+            }
+        }
+
+        private async ValueTask<(
+            List<SessionPublishQueue> PublishQueues,
+            List<ISubscription> Subscriptions)> CaptureManagedResourcesAsync()
+        {
+            await m_semaphoreSlim.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+            try
+            {
                 CaptureManagedResources(
                     out List<SessionPublishQueue> publishQueues,
                     out List<ISubscription> subscriptions);
-                DisposeManagedResources(publishQueues, subscriptions);
-                DisposeSynchronizationResources();
+                return (publishQueues, subscriptions);
+            }
+            finally
+            {
+                m_semaphoreSlim.Release();
             }
         }
 
@@ -158,17 +188,9 @@ namespace Opc.Ua.Server
                     m_conditionRefreshTask ?? Task.CompletedTask)
                 .ConfigureAwait(false);
 
-            await m_semaphoreSlim.WaitAsync(CancellationToken.None).ConfigureAwait(false);
-            List<SessionPublishQueue> publishQueues;
-            List<ISubscription> subscriptions;
-            try
-            {
-                CaptureManagedResources(out publishQueues, out subscriptions);
-            }
-            finally
-            {
-                m_semaphoreSlim.Release();
-            }
+            (List<SessionPublishQueue> publishQueues, List<ISubscription> subscriptions)
+                = await CaptureManagedResourcesAsync()
+                .ConfigureAwait(false);
 
             DisposeManagedResources(publishQueues, subscriptions);
             DisposeSynchronizationResources();
@@ -1810,7 +1832,6 @@ namespace Opc.Ua.Server
                             if (destinationAdded && destinationPublishQueue != null)
                             {
                                 destinationPublishQueue.TryRemoveForTransfer(subscription);
-                                destinationPublishQueue.RemoveQueuedRequests();
                             }
 
                             if (preparedTransfer != null)
@@ -2766,6 +2787,16 @@ namespace Opc.Ua.Server
         internal void WakeConditionRefreshWorkerForTest()
         {
             m_conditionRefreshEvent.Set();
+        }
+
+        internal void EnqueueConditionRefreshForTest(
+            ISubscription subscription,
+            uint monitoredItemId = 0)
+        {
+            lock (m_conditionRefreshLock)
+            {
+                m_conditionRefreshQueue.Enqueue(new ConditionRefreshTask(subscription, monitoredItemId));
+            }
         }
 
         internal void StartConditionRefreshWorkerForTest()

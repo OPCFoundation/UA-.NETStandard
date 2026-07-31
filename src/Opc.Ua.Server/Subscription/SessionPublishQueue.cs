@@ -308,14 +308,13 @@ namespace Opc.Ua.Server
                 if (!m_transferClaims.TryGetValue(
                         subscriptionId,
                         out SubscriptionTransferClaim? currentClaim) ||
-                    !ReferenceEquals(currentClaim, claim) ||
-                    !m_queuedSubscriptions.TryAdd(subscriptionId, claim.Entry))
+                    !ReferenceEquals(currentClaim, claim))
                 {
                     return false;
                 }
 
                 m_transferClaims.Remove(subscriptionId);
-                return true;
+                return m_queuedSubscriptions.TryAdd(subscriptionId, claim.Entry);
             }
         }
 

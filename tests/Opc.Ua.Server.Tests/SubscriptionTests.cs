@@ -412,21 +412,7 @@ namespace Opc.Ua.Server.Tests
             SubscriptionManager manager,
             ISubscription subscription)
         {
-            Type taskType = typeof(SubscriptionManager).GetNestedType(
-                    "ConditionRefreshTask",
-                    BindingFlags.NonPublic)
-                ?? throw new InvalidOperationException(
-                    "ConditionRefreshTask type not found.");
-            object task = Activator.CreateInstance(taskType, subscription, 0u)
-                ?? throw new InvalidOperationException(
-                    "ConditionRefreshTask could not be created.");
-            object queue = GetPrivateField<object>(
-                manager,
-                "m_conditionRefreshQueue");
-            MethodInfo enqueue = queue.GetType().GetMethod("Enqueue")
-                ?? throw new InvalidOperationException(
-                    "ConditionRefreshTask queue Enqueue method not found.");
-            enqueue.Invoke(queue, [task]);
+            manager.EnqueueConditionRefreshForTest(subscription);
         }
 
         private static void ExpireOnNextPublishTimer(Subscription subscription)
@@ -1028,6 +1014,46 @@ namespace Opc.Ua.Server.Tests
             await manager.DisposeAsync().ConfigureAwait(false);
 
             Assert.That(refreshCompleted, Is.True);
+        }
+
+        [Test]
+        public void RestoreTransferClaimRemovesCurrentClaimWhenRestoreEntryAlreadyExists()
+        {
+            using Subscription subscription = CreateSubscription();
+            using var queue = new SessionPublishQueue(
+                m_serverMock.Object,
+                m_sessionMock.Object,
+                maxPublishRequests: 10);
+            queue.Add(subscription);
+
+            Assert.That(
+                queue.TryClaimForTransfer(
+                    subscription,
+                    m_sessionMock.Object,
+                    out SessionPublishQueue.SubscriptionTransferClaim claim),
+                Is.True);
+            Assert.That(claim, Is.Not.Null);
+
+            var collidingSubscription = new Mock<ISubscription>();
+            collidingSubscription.SetupGet(sub => sub.Id).Returns(subscription.Id);
+            queue.Add(collidingSubscription.Object);
+
+            Assert.That(queue.RestoreTransferClaim(claim!), Is.False);
+
+            subscription.AbortTransfer(m_sessionMock.Object);
+            queue.Remove(collidingSubscription.Object, removeQueuedRequests: false);
+            queue.Add(subscription);
+
+            Assert.That(
+                queue.TryClaimForTransfer(
+                    subscription,
+                    m_sessionMock.Object,
+                    out SessionPublishQueue.SubscriptionTransferClaim retryClaim),
+                Is.True,
+                "The failed restore must not leave a stale claim that blocks future transfers.");
+            Assert.That(retryClaim, Is.Not.Null);
+            queue.CompleteTransferClaim(retryClaim!);
+            subscription.AbortTransfer(m_sessionMock.Object);
         }
 
         [TestCase(0, 0L, 0L)]
@@ -1874,6 +1900,72 @@ namespace Opc.Ua.Server.Tests
             Assert.That(retried.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.DoesNotThrow(
                 () => subscription.ResendData(fixture.DestinationContext));
+        }
+
+        [Test]
+        public async Task FailedTransferPreservesDestinationQueuedPublishRequestsAsync()
+        {
+            var fixture = await CreateTransferSubscriptionAsync().ConfigureAwait(false);
+            using SubscriptionManager manager = fixture.Manager;
+            Subscription subscription = fixture.Subscription;
+            fixture.DestinationSession
+                .Setup(session => session.IsSecureChannelValid("destination-channel"))
+                .Returns(true);
+            CreateSubscriptionResponse destinationCreated = await manager
+                .CreateSubscriptionAsync(
+                    fixture.DestinationContext,
+                    requestedPublishingInterval: 1000,
+                    requestedLifetimeCount: 30,
+                    requestedMaxKeepAliveCount: 10,
+                    maxNotificationsPerPublish: 0,
+                    publishingEnabled: true,
+                    priority: 0)
+                .ConfigureAwait(false);
+            Assert.That(
+                manager.TryGetSubscription(
+                    destinationCreated.SubscriptionId,
+                    out ISubscription destinationSubscription),
+                Is.True);
+            Assert.That(destinationSubscription, Is.Not.Null);
+            SessionPublishQueue destinationQueue = GetPublishQueue(
+                manager,
+                fixture.DestinationContext.SessionId);
+            Task<ISubscription> destinationPublish = destinationQueue.PublishAsync(
+                "destination-channel",
+                DateTime.MaxValue,
+                requeue: false,
+                parkSink: null,
+                CancellationToken.None);
+            Assert.That(destinationPublish.IsCompleted, Is.False);
+            m_nodeManagerMock
+                .Setup(nodeManager => nodeManager.TransferMonitoredItemsAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<IList<IMonitoredItem>>(),
+                    It.IsAny<IList<ServiceResult>>(),
+                    It.IsAny<MonitoredItemTransferOptions>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask(Task.FromException(
+                    new ServiceResultException(StatusCodes.BadUnexpectedError))));
+
+            TransferSubscriptionsResponse failed = await manager
+                .TransferSubscriptionsAsync(
+                    fixture.DestinationContext,
+                    [subscription.Id],
+                    sendInitialValues: false)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(failed.Results, Has.Count.EqualTo(1));
+                Assert.That(ServiceResult.IsBad(failed.Results[0].StatusCode), Is.True);
+                Assert.That(destinationPublish.IsCompleted, Is.False);
+            });
+
+            destinationQueue.PublishCompleted(destinationSubscription!, moreNotifications: true);
+
+            ISubscription publishedSubscription = await destinationPublish.ConfigureAwait(false);
+            Assert.That(publishedSubscription, Is.SameAs(destinationSubscription!));
         }
 
         private async Task RegisterMonitoredItemsAsync(
