@@ -119,7 +119,7 @@ namespace Opc.Ua.WotCon.Client
             CallResponse response = await Session
                 .CallAsync(new RequestHeader(), [request], ct)
                 .ConfigureAwait(false);
-            CallMethodResult result = response.Results[0];
+            CallMethodResult result = GetFirstCallResult(response, "Validate");
             if (StatusCode.IsBad(result.StatusCode))
             {
                 throw new ServiceResultException(result.StatusCode);
@@ -134,6 +134,17 @@ namespace Opc.Ua.WotCon.Client
                     "Validate returned unexpected output arguments.");
             }
             return outcome;
+        }
+
+        private static CallMethodResult GetFirstCallResult(CallResponse response, string methodName)
+        {
+            if (response.Results.IsNull || response.Results.Count == 0)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadUnexpectedError,
+                    $"{methodName} returned no method result.");
+            }
+            return response.Results[0];
         }
 
         private bool TryDecodeStructure<T>(Variant value, out T? result)

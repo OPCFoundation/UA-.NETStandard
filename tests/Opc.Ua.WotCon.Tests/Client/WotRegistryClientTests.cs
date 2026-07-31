@@ -295,6 +295,25 @@ namespace Opc.Ua.WotCon.Tests.Client
         }
 
         [Test]
+        public async Task ValidateThrowsServiceResultExceptionForEmptyCallResultsAsync()
+        {
+            var mock = new WotRegistrySessionMock();
+            WotRegistryClient client = await WotRegistryClient
+                .ForServerAsync(mock.Session, CreateTelemetry())
+                .ConfigureAwait(false);
+            WotRegistryGroupClient group = await client
+                .CreateThingDescriptionGroupAsync().ConfigureAwait(false);
+            (WotRegistryResourceClient resource, _, _) = await group
+                .GetOrCreateResourceAsync("sensor").ConfigureAwait(false);
+            mock.ReturnEmptyCallResultsOnce = true;
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await resource.ValidateAsync().ConfigureAwait(false))!;
+
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
+        }
+
+        [Test]
         public async Task RefreshAllReportsFailuresWithoutThrowingAsync()
         {
             var mock = new WotRegistrySessionMock();
@@ -331,6 +350,24 @@ namespace Opc.Ua.WotCon.Tests.Client
 
             Assert.That(result.HasFailures, Is.False);
             Assert.That(result.EnsureSuccess, Throws.Nothing);
+        }
+
+        [Test]
+        public async Task RefreshAllThrowsServiceResultExceptionForEmptyCallResultsAsync()
+        {
+            var mock = new WotRegistrySessionMock();
+            WotRegistryClient client = await WotRegistryClient
+                .ForServerAsync(mock.Session, CreateTelemetry())
+                .ConfigureAwait(false);
+            WotRegistryGroupClient group = await client
+                .CreateThingDescriptionGroupAsync().ConfigureAwait(false);
+            await group.GetOrCreateResourceAsync("good").ConfigureAwait(false);
+            mock.ReturnEmptyCallResultsOnce = true;
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await client.RefreshAllAsync().ConfigureAwait(false))!;
+
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
         }
     }
 }

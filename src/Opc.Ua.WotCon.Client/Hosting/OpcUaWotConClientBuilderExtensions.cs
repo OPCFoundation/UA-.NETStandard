@@ -441,7 +441,11 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 lock (m_gate)
                 {
-                    m_connectTask ??= ConnectCoreAsync(ct);
+                    if (m_connectTask is null ||
+                        (m_connectTask.IsCompleted && m_connectTask.Status != TaskStatus.RanToCompletion))
+                    {
+                        m_connectTask = ConnectCoreAsync(ct);
+                    }
                     return m_connectTask;
                 }
             }
@@ -499,7 +503,11 @@ namespace Microsoft.Extensions.DependencyInjection
                     {
                         throw new ObjectDisposedException(nameof(WotRegistryClientAccessor));
                     }
-                    m_connectTask ??= ConnectCoreAsync(ct);
+                    if (m_connectTask is null ||
+                        (m_connectTask.IsCompleted && m_connectTask.Status != TaskStatus.RanToCompletion))
+                    {
+                        m_connectTask = ConnectCoreAsync(ct);
+                    }
                     return m_connectTask;
                 }
             }

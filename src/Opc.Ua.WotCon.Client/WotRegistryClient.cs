@@ -309,7 +309,7 @@ namespace Opc.Ua.WotCon.Client
             CallResponse response = await Session
                 .CallAsync(new RequestHeader(), [request], ct)
                 .ConfigureAwait(false);
-            CallMethodResult callResult = response.Results[0];
+            CallMethodResult callResult = GetFirstCallResult(response, "Refresh");
             if (StatusCode.IsBad(callResult.StatusCode))
             {
                 throw new ServiceResultException(callResult.StatusCode);
@@ -493,15 +493,11 @@ namespace Opc.Ua.WotCon.Client
                         $"the document for resource '{document.ResourceId}' declares {document.Kind}.");
                 }
 
-                (WotRegistryResourceClient resource, _, bool created) = await group
+                (WotRegistryResourceClient resource, string versionId, bool created) = await group
                     .GetOrCreateResourceAsync(document.ResourceId, document.VersionId, ct)
                     .ConfigureAwait(false);
                 await resource.UploadNewVersionAsync(document.Content, ct: ct).ConfigureAwait(false);
 
-                string versionId;
-                (_, versionId, _) = await group
-                    .GetOrCreateResourceAsync(document.ResourceId, document.VersionId, ct)
-                    .ConfigureAwait(false);
                 outcomes[i] = new WotRegistryDocumentLoadOutcome(
                     document, resource.ResourceNodeId, versionId, created);
             }
@@ -599,6 +595,17 @@ namespace Opc.Ua.WotCon.Client
             throw new ServiceResultException(
                 StatusCodes.BadUnexpectedError,
                 "Registry group has an unrecognised TypeDefinition.");
+        }
+
+        private static CallMethodResult GetFirstCallResult(CallResponse response, string methodName)
+        {
+            if (response.Results.IsNull || response.Results.Count == 0)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadUnexpectedError,
+                    $"{methodName} returned no method result.");
+            }
+            return response.Results[0];
         }
     }
 

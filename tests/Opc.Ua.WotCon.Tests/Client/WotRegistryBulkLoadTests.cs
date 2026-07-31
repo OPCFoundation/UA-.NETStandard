@@ -184,6 +184,37 @@ namespace Opc.Ua.WotCon.Tests.Client
             Assert.That(result.Refresh!.HasFailures, Is.True);
         }
 
+        [Test]
+        public async Task LoadDocumentsUsesSingleGetOrCreateResourceCallPerDocumentAsync()
+        {
+            var mock = new WotRegistrySessionMock();
+            WotRegistryClient client = await WotRegistryClient
+                .ForServerAsync(mock.Session, CreateTelemetry())
+                .ConfigureAwait(false);
+            ArrayOf<WotRegistryDocument> documents = new WotRegistryDocument[]
+            {
+                new(WoTDocumentKindEnum.ThingDescription, "thingdescriptions", "td1", Content("td1")),
+                new(WoTDocumentKindEnum.ThingDescription, "thingdescriptions", "td2", Content("td2"))
+            }.ToArrayOf();
+            NodeId getOrCreateResourceMethodId = FindGetOrCreateResourceMethodId(mock);
+
+            WotRegistryBulkLoadResult result = await client
+                .LoadDocumentsAsync(documents, refresh: false)
+                .ConfigureAwait(false);
+
+            int calls = 0;
+            foreach (CallMethodRequest request in mock.Capture)
+            {
+                if (request.MethodId == getOrCreateResourceMethodId)
+                {
+                    calls++;
+                }
+            }
+            Assert.That(calls, Is.EqualTo(documents.Count));
+            Assert.That(result.Uploaded[0].VersionId, Is.EqualTo("1"));
+            Assert.That(result.Uploaded[1].VersionId, Is.EqualTo("1"));
+        }
+
         private static NodeId FindGetOrCreateResourceMethodId(WotRegistrySessionMock mock)
         {
             return ExpandedNodeId.ToNodeId(

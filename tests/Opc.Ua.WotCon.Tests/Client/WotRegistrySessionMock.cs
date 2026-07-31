@@ -119,6 +119,16 @@ namespace Opc.Ua.WotCon.Tests.Client
                 .Returns<RequestHeader, ArrayOf<CallMethodRequest>, CancellationToken>(
                     (_, requests, _) =>
                     {
+                        if (ReturnEmptyCallResultsOnce)
+                        {
+                            ReturnEmptyCallResultsOnce = false;
+                            return new ValueTask<CallResponse>(new CallResponse
+                            {
+                                ResponseHeader = new ResponseHeader(),
+                                Results = [],
+                                DiagnosticInfos = default
+                            });
+                        }
                         var results = new CallMethodResult[requests.Count];
                         for (int i = 0; i < requests.Count; i++)
                         {
@@ -175,6 +185,11 @@ namespace Opc.Ua.WotCon.Tests.Client
         /// When set, the next matching mutation call fails with this status.
         /// </summary>
         public Dictionary<NodeId, StatusCode> FailNextCallOn { get; } = [];
+
+        /// <summary>
+        /// When set, the next service call returns no method results.
+        /// </summary>
+        public bool ReturnEmptyCallResultsOnce { get; set; }
 
         private BrowsePathResult ResolvePath(BrowsePath path)
         {
@@ -434,7 +449,7 @@ namespace Opc.Ua.WotCon.Tests.Client
             (_, ResourceState resource) = FindResource(req.ObjectId);
             req.InputArguments[0].TryGetValue(out byte mode);
             uint handle = ++m_nextHandle;
-            if (mode == 6)
+            if (mode == kWriteEraseExistingMode)
             {
                 m_writeBuffers[handle] = (resource, new List<byte>());
             }
@@ -556,6 +571,7 @@ namespace Opc.Ua.WotCon.Tests.Client
         private readonly Dictionary<uint, (ResourceState Resource, int Position)> m_readBuffers = [];
         private readonly NodeId m_thingModelGroupType;
         private readonly NodeId m_thingDescriptionGroupType;
+        private const byte kWriteEraseExistingMode = 2 | 4;
         private uint m_nextHandle;
         private uint m_generation;
     }

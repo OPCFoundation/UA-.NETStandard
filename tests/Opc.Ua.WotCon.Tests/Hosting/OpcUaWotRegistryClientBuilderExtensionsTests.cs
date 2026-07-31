@@ -159,5 +159,64 @@ namespace Opc.Ua.WotCon.Tests.Hosting
 
             Assert.That(managedSessionFields, Is.Empty);
         }
+
+        [Test]
+        public async Task RegistryFactoryRetriesAfterFaultedLazyConnectAsync()
+        {
+            IServiceCollection services = new ServiceCollection();
+            int calls = 0;
+            services.AddSingleton<Func<CancellationToken, Task<ManagedSession>>>(
+                _ => _ =>
+                {
+                    calls++;
+                    return Task.FromException<ManagedSession>(
+                        new InvalidOperationException("attempt " + calls));
+                });
+            services.AddOpcUa().AddWotRegistryClient();
+
+            await using ServiceProvider sp = services.BuildServiceProvider();
+            Func<CancellationToken, Task<WotRegistryClient>> factory =
+                sp.GetRequiredService<Func<CancellationToken, Task<WotRegistryClient>>>();
+
+            InvalidOperationException first = Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await factory(CancellationToken.None).ConfigureAwait(false))!;
+            InvalidOperationException second = Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await factory(CancellationToken.None).ConfigureAwait(false))!;
+
+            Assert.That(first.Message, Is.EqualTo("attempt 1"));
+            Assert.That(second.Message, Is.EqualTo("attempt 2"));
+            Assert.That(calls, Is.EqualTo(2));
+        }
+
+        [Test]
+        public async Task RegistryFactorySharesInFlightLazyConnectAsync()
+        {
+            IServiceCollection services = new ServiceCollection();
+            int calls = 0;
+            var pending = new TaskCompletionSource<ManagedSession>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            services.AddSingleton<Func<CancellationToken, Task<ManagedSession>>>(
+                _ => _ =>
+                {
+                    calls++;
+                    return pending.Task;
+                });
+            services.AddOpcUa().AddWotRegistryClient();
+
+            await using ServiceProvider sp = services.BuildServiceProvider();
+            Func<CancellationToken, Task<WotRegistryClient>> factory =
+                sp.GetRequiredService<Func<CancellationToken, Task<WotRegistryClient>>>();
+
+            Task<WotRegistryClient> first = factory(CancellationToken.None);
+            Task<WotRegistryClient> second = factory(CancellationToken.None);
+            pending.SetException(new InvalidOperationException("shared"));
+
+            Assert.That(calls, Is.EqualTo(1));
+            Assert.That(first, Is.SameAs(second));
+            Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await first.ConfigureAwait(false));
+            Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await second.ConfigureAwait(false));
+        }
     }
 }

@@ -34,6 +34,7 @@ using System.IO;
 using System.IO.MemoryMappedFiles;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading;
 
 namespace Opc.Ua
 {
@@ -172,6 +173,7 @@ namespace Opc.Ua
                     sourcePath);
             }
 
+            var spinner = new SpinWait();
             while (true)
             {
                 if (!m_files.TryGetValue(destinationPath, out VirtualFile? existing))
@@ -180,6 +182,7 @@ namespace Opc.Ua
                     {
                         return;
                     }
+                    spinner.SpinOnce();
                     continue;
                 }
 
@@ -188,6 +191,7 @@ namespace Opc.Ua
                     existing.Dispose();
                     return;
                 }
+                spinner.SpinOnce();
             }
         }
 
