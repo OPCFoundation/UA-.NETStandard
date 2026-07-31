@@ -524,8 +524,8 @@ namespace Opc.Ua.SourceGeneration
             Namespace[] namespaces = m_context.ModelDesign.Namespaces;
 
             string methodName = method.SymbolicName.Name;
-            Parameter[] inputs = MethodDesignArgumentResolver.ResolveMethodInputs(method);
-            Parameter[] outputs = MethodDesignArgumentResolver.ResolveMethodOutputs(method);
+            (Parameter[] inputs, Parameter[] outputs) =
+                MethodDesignArgumentResolver.ResolveMethodArguments(method);
             ModelDesignExtensions.AssignMethodArgumentCodeNames(
                 inputs,
                 outputs,
