@@ -19,8 +19,8 @@ on the negotiated endpoint:
 | `opc.tcp://` | `uatcp-uasc-uabinary` | §7.4.2 |
 | `opc.https://` (or `https://`) with binary body | `https-uabinary` | §7.4.4 |
 | `opc.https://` (or `https://`) with `application/opcua+uajson` body | `https-uajson` | §7.4.5 |
-| `opc.wss://` (or `wss://`) with `opcua+uacp` sub-protocol | `uawss-uasc-uabinary` | §7.5.2 |
-| `opc.wss://` (or `wss://`) with `opcua+uajson` sub-protocol | `uawss-uajson` | §7.5.2 |
+| `opc.wss://` (or `wss://`) with `opcua+uacp` sub-protocol | `wss-uasc-uabinary` | §7.5.2 |
+| `opc.wss://` (or `wss://`) with `opcua+uajson` sub-protocol | `wss-uajson` | §7.5.2 |
 
 Examples:
 
