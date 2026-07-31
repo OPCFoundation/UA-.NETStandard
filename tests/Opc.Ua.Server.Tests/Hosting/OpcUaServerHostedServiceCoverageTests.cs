@@ -146,17 +146,33 @@ namespace Opc.Ua.Server.Tests.Hosting
                 await WaitForAsync(
                     () => RegistryCaptureServer.StartedServer != null,
                     TimeSpan.FromSeconds(60)).ConfigureAwait(false),
-                Is.True);
+                Is.True,
+                "Hosted service post-start registry wiring did not complete.");
 
             IServerInternal server = RegistryCaptureServer.StartedServer ??
                 throw new InvalidOperationException("The server did not start.");
 
             var historianRegistryProvider = (IHistorianRegistryProvider)server;
+            var aliasRegistryProvider = (IAliasNameStoreRegistryProvider)server;
+
+            // OnServerStarted publishes StartedServer before the hosted service completes
+            // RegisterPostStartRegistries. Wait for all post-start registrations to become visible.
+            Assert.That(
+                await WaitForAsync(
+                    () =>
+                        historianRegistryProvider.HistorianRegistry.Providers.Contains(
+                            historian.Object) &&
+                        aliasRegistryProvider.AliasNameStoreRegistry.Stores.Contains(
+                            directStore.Object) &&
+                        aliasRegistryProvider.AliasNameStoreRegistry.Stores.Contains(
+                            registrySourcedStore.Object),
+                    TimeSpan.FromSeconds(60)).ConfigureAwait(false),
+                Is.True);
+
             Assert.That(
                 historianRegistryProvider.HistorianRegistry.Providers,
                 Has.Member(historian.Object));
 
-            var aliasRegistryProvider = (IAliasNameStoreRegistryProvider)server;
             Assert.That(
                 aliasRegistryProvider.AliasNameStoreRegistry.Stores,
                 Has.Member(directStore.Object));

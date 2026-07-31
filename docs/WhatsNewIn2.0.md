@@ -100,7 +100,7 @@ library hangs its own `.AddXxx(...)` extension off it. Servers run as
 `Action<T>` or `IConfiguration`; identity providers, certificate manager,
 secret store, file system, historian, alarms, and the GDS extensions all
 register through the same builder. Alongside DI, a
-[source-generated fluent server API](SourceGeneratedNodeManagers.md) lets
+[source-generated fluent server API](NodeManagers.md#source-generated-node-managers) lets
 applications stand up a server from a model design XML with a few
 `.AddXxx().WithYyy()` calls; the
 [`ManagedSession`](Sessions.md#3-managedsession--the-connection-state-machine-facade)
@@ -121,7 +121,7 @@ library.
 
 The new source-generation pipeline emits the typical OPC UA boilerplate
 from model design XML rather than hand-written code. The
-[NodeManager generator](SourceGeneratedNodeManagers.md) produces a fully
+[NodeManager generator](NodeManagers.md#source-generated-node-managers) produces a fully
 async, fluent NodeManager skeleton plus typed `*State` properties for every
 node; the [DataType generator](SourceGeneratedDataTypes.md) emits
 `IEncodeable` implementations from POCO classes; and a new generator emits
@@ -436,7 +436,7 @@ projects.
 - [Dependency Injection](DependencyInjection.md),
   [Native AOT](NativeAoT.md),
   [Diagnostics](Diagnostics.md),
-  [Source-Generated NodeManagers](SourceGeneratedNodeManagers.md),
+  [Source-Generated NodeManagers](NodeManagers.md#source-generated-node-managers),
   [Source-Generated DataTypes](SourceGeneratedDataTypes.md).
 - Companion specs:
   [Alarms and Conditions](AlarmsAndConditions.md),

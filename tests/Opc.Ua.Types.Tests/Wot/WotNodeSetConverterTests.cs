@@ -31,6 +31,7 @@
 using System;
 using System.IO;
 using System.Text;
+using System.Text.Json.Nodes;
 using System.Xml;
 using NUnit.Framework;
 using Opc.Ua.Export;
@@ -95,11 +96,12 @@ namespace Opc.Ua.Types.Tests.Wot
                 CreateNodeSet(),
                 options: AlwaysPreserve());
             string json = Encoding.UTF8.GetString(document.Utf8Json.ToArray());
-            const string marker = "\"data\": \"";
-            int valueIndex = json.IndexOf(marker, StringComparison.Ordinal) + marker.Length;
-            char[] characters = json.ToCharArray();
-            characters[valueIndex] = characters[valueIndex] == 'A' ? 'B' : 'A';
-            json = new string(characters);
+            JsonNode root = JsonNode.Parse(json)!;
+            JsonObject envelope = root["uav:nodeSet"]!.AsObject();
+            string data = envelope["data"]!.GetValue<string>();
+            char replacement = data[0] == 'A' ? 'B' : 'A';
+            envelope["data"] = replacement + data.Substring(1);
+            json = root.ToJsonString();
 
             Assert.Throws<FormatException>(
                 () => WotNodeSetConverter.ToNodeSet(Encoding.UTF8.GetBytes(json)));
