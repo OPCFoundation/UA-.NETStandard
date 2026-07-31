@@ -5515,6 +5515,7 @@ namespace Opc.Ua.Server
 
             var processedItems = new List<bool>(monitoredItems.Count);
             var originalErrors = new ServiceResult[errors.Count];
+            var resendStates = new bool[monitoredItems.Count];
             var effectiveTransferOptions = new MonitoredItemTransferOptions
             {
                 DeferInitialValues = sendInitialValues ||
@@ -5526,6 +5527,7 @@ namespace Opc.Ua.Server
             {
                 IMonitoredItem? monitoredItem = monitoredItems[ii];
                 originalErrors[ii] = errors[ii];
+                resendStates[ii] = monitoredItem?.IsResendData ?? false;
                 bool isDetached = monitoredItem is IDetachableMonitoredItem
                 {
                     IsDetached: true
@@ -5581,6 +5583,7 @@ namespace Opc.Ua.Server
                             monitoredItems,
                             errors,
                             originalErrors,
+                            resendStates,
                             participants,
                             effectiveTransferOptions);
                         try
@@ -5617,6 +5620,7 @@ namespace Opc.Ua.Server
                 monitoredItems,
                 errors,
                 originalErrors,
+                resendStates,
                 participants,
                 effectiveTransferOptions);
         }
@@ -5677,6 +5681,7 @@ namespace Opc.Ua.Server
                 IList<IMonitoredItem> monitoredItems,
                 IList<ServiceResult> errors,
                 ServiceResult[] originalErrors,
+                bool[] resendStates,
                 List<MonitoredItemTransferParticipant> participants,
                 MonitoredItemTransferOptions transferOptions)
             {
@@ -5685,6 +5690,7 @@ namespace Opc.Ua.Server
                 m_monitoredItems = monitoredItems;
                 m_errors = errors;
                 m_originalErrors = originalErrors;
+                m_resendStates = resendStates;
                 m_participants = participants;
                 m_transferOptions = transferOptions;
             }
@@ -5759,6 +5765,10 @@ namespace Opc.Ua.Server
 
                 for (int ii = 0; ii < m_monitoredItems.Count; ii++)
                 {
+                    if (m_monitoredItems[ii] is IMonitoredItemTransferState transferState)
+                    {
+                        transferState.RestoreResendDataTrigger(m_resendStates[ii]);
+                    }
                     m_errors[ii] = m_originalErrors[ii];
                 }
 
@@ -5775,6 +5785,7 @@ namespace Opc.Ua.Server
             private readonly IList<IMonitoredItem> m_monitoredItems;
             private readonly IList<ServiceResult> m_errors;
             private readonly ServiceResult[] m_originalErrors;
+            private readonly bool[] m_resendStates;
             private readonly List<MonitoredItemTransferParticipant> m_participants;
             private readonly MonitoredItemTransferOptions m_transferOptions;
             private int m_state;
