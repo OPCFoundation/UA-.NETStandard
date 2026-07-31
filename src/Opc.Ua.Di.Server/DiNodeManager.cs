@@ -33,6 +33,7 @@ using System.Threading.Tasks;
 using Opc.Ua.Di.Server.Builders;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Fluent;
+using Opc.Ua.Server.NodeManager;
 
 namespace Opc.Ua.Di.Server
 {
@@ -761,7 +762,8 @@ namespace Opc.Ua.Di.Server
                         }
                     }
                     return results;
-                });
+                },
+                dataTypeId => PredefinedNodes.Values.FindByDataType(dataTypeId));
 
             AttachToBuilder(m_builder);
             return m_builder;
