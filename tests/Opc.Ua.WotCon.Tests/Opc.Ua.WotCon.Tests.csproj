@@ -29,12 +29,16 @@
     <Compile Include="..\Common\Main.cs" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Remove="*.cs" />
+    <Compile Remove="Providers\**\*.cs" />
+    <Compile Remove="Hosting\*Server*.cs" />
+    <Compile Remove="Hosting\OpcUaWotConBuilderTests.cs" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\..\src\Opc.Ua.Core\Opc.Ua.Core.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Bindings.Https\Opc.Ua.Bindings.Https.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Client\Opc.Ua.Client.csproj" />
-    <ProjectReference Include="..\..\src\Opc.Ua.Server\Opc.Ua.Server.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.WotCon\Opc.Ua.WotCon.csproj" />
-    <ProjectReference Include="..\..\src\Opc.Ua.WotCon.Server\Opc.Ua.WotCon.Server.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.WotCon.Client\Opc.Ua.WotCon.Client.csproj" />
   </ItemGroup>
 </Project>

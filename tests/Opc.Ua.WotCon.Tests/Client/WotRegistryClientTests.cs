@@ -1,0 +1,336 @@
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using Moq;
+using NUnit.Framework;
+using Opc.Ua.Client;
+using Opc.Ua.WotCon.Client;
+
+namespace Opc.Ua.WotCon.Tests.Client
+{
+    /// <summary>
+    /// Session-mock unit tests for <see cref="WotRegistryClient"/>,
+    /// <see cref="WotRegistryGroupClient"/> and
+    /// <see cref="WotRegistryResourceClient"/>: browse resolution, method
+    /// argument/result shapes and chunked upload/commit semantics.
+    /// </summary>
+    [TestFixture]
+    [Category("WotCon")]
+    [Category("Client")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
+    public sealed class WotRegistryClientTests
+    {
+        private static ITelemetryContext CreateTelemetry()
+        {
+            return Mock.Of<ITelemetryContext>();
+        }
+
+        [Test]
+        public async Task ForServerAsyncResolvesTheWellKnownRegistryObjectAsync()
+        {
+            var mock = new WotRegistrySessionMock();
+
+            WotRegistryClient client = await WotRegistryClient
+                .ForServerAsync(mock.Session, CreateTelemetry())
+                .ConfigureAwait(false);
+
+            Assert.That(client.RegistryNodeId, Is.EqualTo(mock.RegistryNodeId));
+        }
+
+        [Test]
+        public void ForServerAsyncThrowsWhenRegistryIsMissing()
+        {
+            var sessionMock = new Mock<ISession>(MockBehavior.Strict);
+            var messageContext = ServiceMessageContext.Create(CreateTelemetry());
+            sessionMock.SetupGet(s => s.MessageContext).Returns(messageContext);
+            sessionMock.SetupGet(s => s.NamespaceUris).Returns(messageContext.NamespaceUris);
+            sessionMock
+                .Setup(s => s.TranslateBrowsePathsToNodeIdsAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ArrayOf<BrowsePath>>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new TranslateBrowsePathsToNodeIdsResponse
+                {
+                    ResponseHeader = new ResponseHeader(),
+                    Results = new[]
+                    {
+                        new BrowsePathResult { StatusCode = StatusCodes.BadNoMatch, Targets = [] }
+                    }.ToArrayOf(),
+                    DiagnosticInfos = default
+                });
+
+            Assert.That(
+                () => WotRegistryClient.ForServerAsync(sessionMock.Object, CreateTelemetry()).AsTask(),
+                Throws.InstanceOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(StatusCodes.BadNodeIdUnknown));
+        }
+
+        [Test]
+        public async Task CreateThingDescriptionGroupCreatesATdGroupAsync()
+        {
+            var mock = new WotRegistrySessionMock();
+            WotRegistryClient client = await WotRegistryClient
+                .ForServerAsync(mock.Session, CreateTelemetry())
+                .ConfigureAwait(false);
+
+            WotRegistryGroupClient group = await client
+                .CreateThingDescriptionGroupAsync()
+                .ConfigureAwait(false);
+
+            Assert.That(group.GroupId, Is.EqualTo(WotRegistryClient.ThingDescriptionsGroupId));
+            Assert.That(group.Kind, Is.EqualTo(WoTDocumentKindEnum.ThingDescription));
+        }
+
+        [Test]
+        public async Task CreateThingModelGroupCreatesATmGroupAsync()
+        {
+            var mock = new WotRegistrySessionMock();
+            WotRegistryClient client = await WotRegistryClient
+                .ForServerAsync(mock.Session, CreateTelemetry())
+                .ConfigureAwait(false);
+
+            WotRegistryGroupClient group = await client
+                .CreateThingModelGroupAsync()
+                .ConfigureAwait(false);
+
+            Assert.That(group.GroupId, Is.EqualTo(WotRegistryClient.ThingModelsGroupId));
+            Assert.That(group.Kind, Is.EqualTo(WoTDocumentKindEnum.ThingModel));
+        }
+
+        [Test]
+        public async Task GetOrCreateGroupReportsCreatedOnlyOnceAsync()
+        {
+            var mock = new WotRegistrySessionMock();
+            WotRegistryClient client = await WotRegistryClient
+                .ForServerAsync(mock.Session, CreateTelemetry())
+                .ConfigureAwait(false);
+
+            (WotRegistryGroupClient first, bool firstCreated) = await client
+                .GetOrCreateThingDescriptionGroupAsync().ConfigureAwait(false);
+            (WotRegistryGroupClient second, bool secondCreated) = await client
+                .GetOrCreateThingDescriptionGroupAsync().ConfigureAwait(false);
+
+            Assert.That(firstCreated, Is.True);
+            Assert.That(secondCreated, Is.False);
+            Assert.That(second.GroupNodeId, Is.EqualTo(first.GroupNodeId));
+        }
+
+        [Test]
+        public async Task OpenGroupResolvesAnExistingGroupAsync()
+        {
+            var mock = new WotRegistrySessionMock();
+            WotRegistryClient client = await WotRegistryClient
+                .ForServerAsync(mock.Session, CreateTelemetry())
+                .ConfigureAwait(false);
+            WotRegistryGroupClient created = await client
+                .CreateThingDescriptionGroupAsync().ConfigureAwait(false);
+
+            WotRegistryGroupClient opened = await client
+                .OpenGroupAsync(WotRegistryClient.ThingDescriptionsGroupId)
+                .ConfigureAwait(false);
+
+            Assert.That(opened.GroupNodeId, Is.EqualTo(created.GroupNodeId));
+        }
+
+        [Test]
+        public void OpenGroupThrowsForUnknownGroup()
+        {
+            var mock = new WotRegistrySessionMock();
+
+            Assert.That(
+                async () =>
+                {
+                    WotRegistryClient client = await WotRegistryClient
+                        .ForServerAsync(mock.Session, CreateTelemetry())
+                        .ConfigureAwait(false);
+                    await client.OpenGroupAsync("does-not-exist").ConfigureAwait(false);
+                },
+                Throws.InstanceOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(StatusCodes.BadNoMatch));
+        }
+
+        [Test]
+        public async Task GetOrCreateResourceReportsCreatedAndVersionIdAsync()
+        {
+            var mock = new WotRegistrySessionMock();
+            WotRegistryClient client = await WotRegistryClient
+                .ForServerAsync(mock.Session, CreateTelemetry())
+                .ConfigureAwait(false);
+            WotRegistryGroupClient group = await client
+                .CreateThingDescriptionGroupAsync().ConfigureAwait(false);
+
+            (WotRegistryResourceClient resource, string versionId, bool created) = await group
+                .GetOrCreateResourceAsync("sensor", "1.0.0").ConfigureAwait(false);
+
+            Assert.That(created, Is.True);
+            Assert.That(versionId, Is.EqualTo("1.0.0"));
+            Assert.That(resource.ResourceId, Is.EqualTo("sensor"));
+            Assert.That(resource.Kind, Is.EqualTo(WoTDocumentKindEnum.ThingDescription));
+
+            (_, _, bool createdAgain) = await group
+                .GetOrCreateResourceAsync("sensor", "1.0.0").ConfigureAwait(false);
+            Assert.That(createdAgain, Is.False);
+        }
+
+        [Test]
+        public async Task OpenResourceThrowsForUnknownResourceAsync()
+        {
+            var mock = new WotRegistrySessionMock();
+            WotRegistryClient client = await WotRegistryClient
+                .ForServerAsync(mock.Session, CreateTelemetry())
+                .ConfigureAwait(false);
+            WotRegistryGroupClient group = await client
+                .CreateThingDescriptionGroupAsync().ConfigureAwait(false);
+
+            Assert.That(
+                () => group.OpenResourceAsync("does-not-exist").AsTask(),
+                Throws.InstanceOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(StatusCodes.BadNoMatch));
+        }
+
+        [Test]
+        public async Task OpenResourceRejectsEmptyResourceIdAsync()
+        {
+            var mock = new WotRegistrySessionMock();
+            WotRegistryClient client = await WotRegistryClient
+                .ForServerAsync(mock.Session, CreateTelemetry())
+                .ConfigureAwait(false);
+            WotRegistryGroupClient group = await client
+                .CreateThingDescriptionGroupAsync().ConfigureAwait(false);
+
+            Assert.That(
+                () => group.OpenResourceAsync(string.Empty).AsTask(),
+                Throws.ArgumentException.With.Property("ParamName").EqualTo("resourceId"));
+        }
+
+        [Test]
+        public async Task ThingModelGroupCreatesThingModelResourceClientAsync()
+        {
+            var mock = new WotRegistrySessionMock();
+            WotRegistryClient client = await WotRegistryClient
+                .ForServerAsync(mock.Session, CreateTelemetry())
+                .ConfigureAwait(false);
+            WotRegistryGroupClient group = await client
+                .CreateThingModelGroupAsync().ConfigureAwait(false);
+
+            (WotRegistryResourceClient resource, _, _) = await group
+                .GetOrCreateResourceAsync("model").ConfigureAwait(false);
+
+            Assert.That(resource.Kind, Is.EqualTo(WoTDocumentKindEnum.ThingModel));
+            Assert.That(resource.Proxy, Is.InstanceOf<ThingModelFileTypeClient>());
+        }
+
+        [Test]
+        public async Task UploadNewVersionRoundTripsChunkedContentAsync()
+        {
+            var mock = new WotRegistrySessionMock();
+            WotRegistryClient client = await WotRegistryClient
+                .ForServerAsync(mock.Session, CreateTelemetry())
+                .ConfigureAwait(false);
+            WotRegistryGroupClient group = await client
+                .CreateThingDescriptionGroupAsync().ConfigureAwait(false);
+            (WotRegistryResourceClient resource, _, _) = await group
+                .GetOrCreateResourceAsync("sensor").ConfigureAwait(false);
+
+            byte[] content = Encoding.UTF8.GetBytes(new string('x', 10_000));
+            await resource.UploadNewVersionAsync(ByteString.From(content), chunkSize: 4096)
+                .ConfigureAwait(false);
+
+            ByteString downloaded = await resource.DownloadAsync(chunkSize: 4096).ConfigureAwait(false);
+            Assert.That(downloaded.ToArray(), Is.EqualTo(content));
+        }
+
+        [Test]
+        public async Task ValidateSetEnabledSetDefaultVersionAndDeleteInvokeExpectedMethodsAsync()
+        {
+            var mock = new WotRegistrySessionMock();
+            WotRegistryClient client = await WotRegistryClient
+                .ForServerAsync(mock.Session, CreateTelemetry())
+                .ConfigureAwait(false);
+            WotRegistryGroupClient group = await client
+                .CreateThingDescriptionGroupAsync().ConfigureAwait(false);
+            (WotRegistryResourceClient resource, _, _) = await group
+                .GetOrCreateResourceAsync("sensor").ConfigureAwait(false);
+
+            WoTValidationOutcomeDataType outcome = await resource.ValidateAsync().ConfigureAwait(false);
+            Assert.That(outcome.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Success));
+
+            await resource.SetEnabledAsync(false, expectedEpoch: 0).ConfigureAwait(false);
+            await resource.SetDefaultVersionAsync("2.0.0", expectedEpoch: 0).ConfigureAwait(false);
+            await resource.DeleteAsync(expectedEpoch: 0).ConfigureAwait(false);
+
+            Assert.That(
+                () => group.OpenResourceAsync("sensor").AsTask(),
+                Throws.InstanceOf<ServiceResultException>());
+        }
+
+        [Test]
+        public async Task RefreshAllReportsFailuresWithoutThrowingAsync()
+        {
+            var mock = new WotRegistrySessionMock();
+            WotRegistryClient client = await WotRegistryClient
+                .ForServerAsync(mock.Session, CreateTelemetry())
+                .ConfigureAwait(false);
+            WotRegistryGroupClient group = await client
+                .CreateThingDescriptionGroupAsync().ConfigureAwait(false);
+            await group.GetOrCreateResourceAsync("good").ConfigureAwait(false);
+            await group.GetOrCreateResourceAsync("bad").ConfigureAwait(false);
+            mock.InvalidResourceIds.Add("bad");
+
+            WotRegistryRefreshResult result = await client
+                .RefreshAllAsync(requestId: "req-1")
+                .ConfigureAwait(false);
+
+            Assert.That(result.Summary.RequestId, Is.EqualTo("req-1"));
+            Assert.That(result.HasFailures, Is.True);
+            Assert.That(result.EnsureSuccess, Throws.InstanceOf<ServiceResultException>());
+        }
+
+        [Test]
+        public async Task RefreshAllSucceedsWhenNothingFailedAsync()
+        {
+            var mock = new WotRegistrySessionMock();
+            WotRegistryClient client = await WotRegistryClient
+                .ForServerAsync(mock.Session, CreateTelemetry())
+                .ConfigureAwait(false);
+            WotRegistryGroupClient group = await client
+                .CreateThingDescriptionGroupAsync().ConfigureAwait(false);
+            await group.GetOrCreateResourceAsync("good").ConfigureAwait(false);
+
+            WotRegistryRefreshResult result = await client.RefreshAllAsync().ConfigureAwait(false);
+
+            Assert.That(result.HasFailures, Is.False);
+            Assert.That(result.EnsureSuccess, Throws.Nothing);
+        }
+    }
+}
