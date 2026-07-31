@@ -45,7 +45,7 @@ namespace Opc.Ua
     /// <summary>
     /// Encodes objects in a stream using the UA Binary encoding.
     /// </summary>
-    public class BinaryEncoder : IEncoder
+    public sealed class BinaryEncoder : IEncoder
     {
         /// <summary>
         /// Creates an encoder that writes to a memory buffer.
@@ -122,34 +122,22 @@ namespace Opc.Ua
         /// </summary>
         public void Dispose()
         {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        /// <summary>
-        /// An overrideable version of the Dispose.
-        /// </summary>
-        protected virtual void Dispose(bool disposing)
-        {
-            if (disposing)
+            if (m_writer != null)
             {
-                if (m_writer != null)
-                {
-                    m_writer.Flush();
-                    m_writer.Dispose();
-                    m_writer = null!;
-                }
-
-                if (!m_leaveOpen)
-                {
-                    m_ostrm?.Dispose();
-                    m_ostrm = null!;
-                }
-
-                m_ownedBufferWriter?.Dispose();
-                m_ownedBufferWriter = null;
-                m_bufferWriter = null;
+                m_writer.Flush();
+                m_writer.Dispose();
+                m_writer = null!;
             }
+
+            if (!m_leaveOpen)
+            {
+                m_ostrm?.Dispose();
+                m_ostrm = null!;
+            }
+
+            m_ownedBufferWriter?.Dispose();
+            m_ownedBufferWriter = null;
+            m_bufferWriter = null;
         }
 
         /// <summary>

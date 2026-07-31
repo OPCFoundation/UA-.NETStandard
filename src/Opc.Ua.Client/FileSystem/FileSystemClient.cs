@@ -931,7 +931,7 @@ namespace Opc.Ua.Client.FileSystem
             for (int i = 0; i < segments.Length; i++)
             {
                 bool isLast = i == segments.Length - 1;
-                QualifiedName segment = segments[i];
+                QualifiedName segment = Qualify(segments[i], currentParent);
                 NodeId? cached = m_pathCache.TryGet(currentParent, segment);
                 if (cached != null)
                 {
@@ -963,6 +963,21 @@ namespace Opc.Ua.Client.FileSystem
             }
             // segments.Length == 0 case is handled by callers.
             return null;
+        }
+
+        /// <summary>
+        /// A path segment written without a namespace prefix names a file or
+        /// directory of the provider that owns <paramref name="parent"/>, whose
+        /// BrowseNames live in that provider's namespace rather than in
+        /// namespace zero. Segments that already carry an index are left alone.
+        /// </summary>
+        private static QualifiedName Qualify(QualifiedName segment, NodeId parent)
+        {
+            if (segment.NamespaceIndex != 0 || parent.NamespaceIndex == 0)
+            {
+                return segment;
+            }
+            return new QualifiedName(segment.Name, parent.NamespaceIndex);
         }
 
         private async ValueTask<NodeId?> TryResolveSingleAsync(

@@ -556,5 +556,5 @@ with the spec; this is tracked but deliberately deferred.
   — the four DI SU state machines, the typed
   `SoftwareUpdateClient.StateMachine` partial, and the server-side
   `On*StateChanged` instrumentation hooks.
-- [Source-generated NodeManagers](SourceGeneratedNodeManagers.md) —
+- [Source-generated NodeManagers](NodeManagers.md#source-generated-node-managers) —
   how vendor NodeSets get their `*TypeClient` proxies emitted.

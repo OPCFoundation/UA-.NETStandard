@@ -694,27 +694,32 @@ namespace Opc.Ua.Client
             // deleted.
             if (subscription != null)
             {
-#if DEBUG
-                // Validate publish time and reject old values.
-                if (notificationMessage.PublishTime.AddMilliseconds(
-                    subscription.CurrentPublishingInterval * subscription.CurrentLifetimeCount) <
-                    DateTimeUtc.Now)
+                // The publish-time validation below is diagnostics only, so
+                // skip the comparisons and the local-time conversions unless
+                // the messages would actually be emitted.
+                if (m_logger.IsEnabled(LogLevel.Trace))
                 {
-                    m_logger.PublishTimePublishTimePublishResponseTooOld(
-                        notificationMessage.PublishTime.ToLocalTime(),
-                        subscription.Id);
+                    // Validate publish time and reject old values.
+                    if (notificationMessage.PublishTime.AddMilliseconds(
+                        subscription.CurrentPublishingInterval * subscription.CurrentLifetimeCount) <
+                        DateTimeUtc.Now)
+                    {
+                        m_logger.PublishTimePublishTimePublishResponseTooOld(
+                            notificationMessage.PublishTime.ToLocalTime(),
+                            subscription.Id);
+                    }
+
+                    // Validate publish time and reject future values.
+                    if (notificationMessage.PublishTime >
+                        DateTimeUtc.Now.AddMilliseconds(
+                            subscription.CurrentPublishingInterval * subscription.CurrentLifetimeCount))
+                    {
+                        m_logger.PublishTimePublishTimePublishResponseNewerThan(
+                            notificationMessage.PublishTime.ToLocalTime(),
+                            subscription.Id);
+                    }
                 }
 
-                // Validate publish time and reject future values.
-                if (notificationMessage.PublishTime >
-                    DateTimeUtc.Now.AddMilliseconds(
-                        subscription.CurrentPublishingInterval * subscription.CurrentLifetimeCount))
-                {
-                    m_logger.PublishTimePublishTimePublishResponseNewerThan(
-                        notificationMessage.PublishTime.ToLocalTime(),
-                        subscription.Id);
-                }
-#endif
                 // save the information that more notifications
                 // are expected
                 notificationMessage.MoreNotifications = moreNotifications;

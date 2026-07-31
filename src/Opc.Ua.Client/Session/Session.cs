@@ -68,6 +68,7 @@ namespace Opc.Ua.Client
     /// </para>
     /// </remarks>
     public partial class Session : SessionClientBatched, ISession,
+        ModelChange.INamespaceTableRefresher,
         ISnapshotRestore<SessionState>, ISnapshotRestore<SessionConfiguration>
     {
         private const int kReconnectTimeout = 15000;
