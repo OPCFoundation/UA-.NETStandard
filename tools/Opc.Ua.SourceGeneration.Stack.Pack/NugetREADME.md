@@ -19,6 +19,17 @@ just reference `Opc.Ua.Core` and `Opc.Ua.Types`).
 
 `netstandard2.0` (Roslyn analyzer host TFM).
 
+## Supported hosts
+
+The package ships the generator under a Roslyn-versioned analyzer folder.
+The .NET SDK loads it when its compiler supports that Roslyn API and
+ignores it otherwise, so an older host cleanly skips the generator.
+
+| Roslyn API | Minimum host |
+| --- | --- |
+| 4.14 | Visual Studio 2022 17.14 / .NET 9 SDK |
+| 5.0 | Visual Studio 2026 18.0 / .NET 10 SDK |
+
 ## Additional documentation
 
 See the [main repository README](https://github.com/OPCFoundation/UA-.NETStandard)
