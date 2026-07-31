@@ -47,7 +47,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             return new WotProtocolBinderRegistry(
                         [new ModbusBindingPlanner()],
-                        [new ModbusWotBindingExecutor()]);
+                        [new ModbusWotBindingExecutor()],
+                        endpointPolicy: new WotEndpointPolicy { AllowLoopback = true });
         }
 
         private static WotBindingPlan Plan(WotProtocolBinderRegistry registry, string td)

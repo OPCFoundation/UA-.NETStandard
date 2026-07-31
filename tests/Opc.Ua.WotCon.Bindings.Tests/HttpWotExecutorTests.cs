@@ -52,7 +52,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             return new WotProtocolBinderRegistry(
                         [new HttpBindingPlanner()],
                         [ new HttpWotBindingExecutor(options ??
-                            new HttpWotBindingOptions()) ]);
+                            new HttpWotBindingOptions()) ],
+                        endpointPolicy: new WotEndpointPolicy { AllowLoopback = true });
         }
 
         private static WotBindingPlan Plan(WotProtocolBinderRegistry registry, string td)

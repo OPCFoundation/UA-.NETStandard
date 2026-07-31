@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -304,13 +305,26 @@ namespace Opc.Ua.WotCon.Bindings.Http
             ReadOnlyMemory<byte>? content, CancellationToken cancellationToken)
         {
             using var request = new HttpRequestMessage(method, requestUri);
-            ApplyHeaders(request, sameOrigin);
+            string? headerError = ApplyHeaders(request, sameOrigin);
+            if (headerError is not null)
+            {
+                return HopResult.Terminal(StatusCodes.BadSecurityChecksFailed, [], headerError);
+            }
             if (content is { } body && method != HttpMethod.Get && method != HttpMethod.Head)
             {
-                var byteContent = new ByteArrayContent(body.ToArray());
-                if (!string.IsNullOrEmpty(Form.Payload.ContentType))
+                MediaTypeHeaderValue? mediaType = null;
+                if (!string.IsNullOrEmpty(Form.Payload.ContentType) &&
+                    !MediaTypeHeaderValue.TryParse(Form.Payload.ContentType, out mediaType))
                 {
-                    byteContent.Headers.TryAddWithoutValidation("Content-Type", Form.Payload.ContentType);
+                    return HopResult.Terminal(
+                        StatusCodes.BadInvalidArgument,
+                        [],
+                        "The form contentType is not a valid media type.");
+                }
+                var byteContent = new ByteArrayContent(body.ToArray());
+                if (mediaType is not null)
+                {
+                    byteContent.Headers.ContentType = mediaType;
                 }
                 request.Content = byteContent;
             }
@@ -446,7 +460,28 @@ namespace Opc.Ua.WotCon.Bindings.Http
             m_credential = credential;
         }
 
-        private void ApplyHeaders(HttpRequestMessage request, bool includeCredentials)
+        private static bool TryAddHeader(HttpRequestMessage request, KeyValuePair<string, string> header)
+        {
+            try
+            {
+                request.Headers.Add(header.Key, header.Value);
+                return true;
+            }
+            catch (FormatException)
+            {
+                return false;
+            }
+            catch (InvalidOperationException)
+            {
+                return false;
+            }
+            catch (ArgumentException)
+            {
+                return false;
+            }
+        }
+
+        private string? ApplyHeaders(HttpRequestMessage request, bool includeCredentials)
         {
             // A cross-origin redirect must not carry any custom (potentially
             // credential-bearing) header, so both the caller's default headers and
@@ -454,19 +489,26 @@ namespace Opc.Ua.WotCon.Bindings.Http
             // origin.
             if (!includeCredentials)
             {
-                return;
+                return null;
             }
             foreach (KeyValuePair<string, string> header in m_defaultHeaders)
             {
-                request.Headers.TryAddWithoutValidation(header.Key, header.Value);
+                if (!TryAddHeader(request, header))
+                {
+                    return "A configured default HTTP header is not valid.";
+                }
             }
             if (m_credential is { } credential)
             {
                 foreach (KeyValuePair<string, string> header in credential.Headers)
                 {
-                    request.Headers.TryAddWithoutValidation(header.Key, header.Value);
+                    if (!TryAddHeader(request, header))
+                    {
+                        return "A resolved credential HTTP header is not valid.";
+                    }
                 }
             }
+            return null;
         }
 
         private Uri AppendCredentialQuery(Uri target)

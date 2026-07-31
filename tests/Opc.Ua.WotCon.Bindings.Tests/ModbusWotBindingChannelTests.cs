@@ -61,7 +61,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 [new ModbusWotBindingExecutor(new ModbusWotBindingOptions
                 {
                     ObserveInterval = TimeSpan.FromMilliseconds(100)
-                })]);
+                })],
+                endpointPolicy: new WotEndpointPolicy { AllowLoopback = true });
         }
 
         private static WotBindingPlan Plan(WotProtocolBinderRegistry registry, string td)
@@ -340,7 +341,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             var registry = new WotProtocolBinderRegistry(
                 [new ModbusBindingPlanner()],
                 [new ModbusWotBindingExecutor(options)],
-                bounds: smallBounds);
+                bounds: smallBounds,
+                endpointPolicy: new WotEndpointPolicy { AllowLoopback = true });
 
             WotBindingPlan plan = Plan(registry, RegisterTd(server.Port, "holdingRegister", 0, 1, "uint16"));
             WotCompiledForm read = plan.CompiledForms.First(
@@ -394,7 +396,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             var registry = new WotProtocolBinderRegistry(
                 [new ModbusBindingPlanner()],
                 [new ModbusWotBindingExecutor(options)],
-                bounds: smallBounds);
+                bounds: smallBounds,
+                endpointPolicy: new WotEndpointPolicy { AllowLoopback = true });
 
             WotBindingPlan plan = Plan(registry, RegisterTd(server.Port, "holdingRegister", 0, 1, "uint16"));
             WotCompiledForm write = plan.CompiledForms.First(

@@ -61,7 +61,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             return new WotProtocolBinderRegistry(
                         [new MqttBindingPlanner()],
                         [ new MqttWotBindingExecutor(
-                    new MqttWotBindingOptions { ReadTimeout = TimeSpan.FromSeconds(5) }) ]);
+                    new MqttWotBindingOptions { ReadTimeout = TimeSpan.FromSeconds(5) }) ],
+                        endpointPolicy: new WotEndpointPolicy { AllowLoopback = true });
         }
 
         private static WotBindingPlan Plan(WotProtocolBinderRegistry registry, string td)

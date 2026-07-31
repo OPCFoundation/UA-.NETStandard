@@ -122,7 +122,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                         DisposeSession = false,
                         ObserveInterval = TimeSpan.FromMilliseconds(100)
                     })
-                ]);
+                ],
+                endpointPolicy: new WotEndpointPolicy { AllowLoopback = true });
 
             string ep = url.ToString();
             string td = BuildThingDescription(ep);

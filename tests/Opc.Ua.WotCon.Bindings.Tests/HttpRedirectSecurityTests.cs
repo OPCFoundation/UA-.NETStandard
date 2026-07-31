@@ -66,7 +66,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             return new WotProtocolBinderRegistry(
                         [new HttpBindingPlanner()],
                         [new HttpWotBindingExecutor(options ?? new HttpWotBindingOptions())],
-                        credentials: credentials);
+                        credentials: credentials,
+                        endpointPolicy: new WotEndpointPolicy { AllowLoopback = true });
         }
 
         private static WotCompiledForm ReadForm(WotProtocolBinderRegistry registry, string href)
@@ -477,7 +478,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 [
                     new HttpWotBindingExecutor(new HttpWotBindingOptions { ClientFactory = () => client })
                 ],
-                credentials: new HeaderQueryCredentialProvider());
+                credentials: new HeaderQueryCredentialProvider(),
+                endpointPolicy: new WotEndpointPolicy { AllowLoopback = true });
             WotCompiledForm read = ReadForm(registry, server.BaseUrl + "/p");
 
             Assert.ThrowsAsync<InvalidOperationException>(
@@ -512,7 +514,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                         ClientFactory = () => client,
                         DefaultHeaders = DefaultHeaderOptions().DefaultHeaders
                     })
-                ]);
+                ],
+                endpointPolicy: new WotEndpointPolicy { AllowLoopback = true });
             WotCompiledForm read = ReadFormNoSecurity(registry, originServer.BaseUrl + "/p");
 
             InvalidOperationException? exception = Assert.ThrowsAsync<InvalidOperationException>(
@@ -560,7 +563,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             }
             var registry = new WotProtocolBinderRegistry(
                 [new HttpBindingPlanner()],
-                [new HttpWotBindingExecutor(options)]);
+                [new HttpWotBindingExecutor(options)],
+                endpointPolicy: new WotEndpointPolicy { AllowLoopback = true });
             WotCompiledForm read = ReadFormNoSecurity(registry, server.BaseUrl + "/p");
 
             InvalidOperationException? exception = Assert.ThrowsAsync<InvalidOperationException>(
@@ -610,7 +614,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                             return client;
                         }
                     })
-                ]);
+                ],
+                endpointPolicy: new WotEndpointPolicy { AllowLoopback = true });
             WotCompiledForm read = ReadFormNoSecurity(registry, originServer.BaseUrl + "/p");
 
             InvalidOperationException? exception = Assert.ThrowsAsync<InvalidOperationException>(
@@ -665,7 +670,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             };
             var registry = new WotProtocolBinderRegistry(
                 [new HttpBindingPlanner()],
-                [new HttpWotBindingExecutor(options)]);
+                [new HttpWotBindingExecutor(options)],
+                endpointPolicy: new WotEndpointPolicy { AllowLoopback = true });
             IWotBindingChannel channel = await registry.OpenChannelAsync(
                 ReadFormNoSecurity(registry, originServer.BaseUrl + "/p")).ConfigureAwait(false);
 

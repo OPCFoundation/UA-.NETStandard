@@ -118,6 +118,10 @@ namespace Opc.Ua.WotCon.Bindings.Mqtt
             {
                 return new WotWriteResult(StatusCodes.BadTimeout, "The MQTT publish timed out.");
             }
+            catch (ArgumentException ex)
+            {
+                return new WotWriteResult(StatusCodes.BadInvalidArgument, ex.Message);
+            }
             catch (MqttCommunicationException ex)
             {
                 return new WotWriteResult(StatusCodes.BadCommunicationError, ex.Message);
@@ -145,6 +149,10 @@ namespace Opc.Ua.WotCon.Bindings.Mqtt
             catch (MqttCommunicationException ex)
             {
                 return new WotInvokeResult(StatusCodes.BadCommunicationError, null, ex.Message);
+            }
+            catch (ArgumentException ex)
+            {
+                return new WotInvokeResult(StatusCodes.BadInvalidArgument, null, ex.Message);
             }
         }
 
@@ -241,6 +249,10 @@ namespace Opc.Ua.WotCon.Bindings.Mqtt
 
         private async Task PublishAsync(byte[] payload, CancellationToken cancellationToken)
         {
+            if (ContainsMqttWildcard(m_topic))
+            {
+                throw new ArgumentException("MQTT publish topics must not contain wildcard characters.");
+            }
             MqttApplicationMessage message = new MqttApplicationMessageBuilder()
                 .WithTopic(m_topic)
                 .WithPayload(payload)
@@ -262,6 +274,11 @@ namespace Opc.Ua.WotCon.Bindings.Mqtt
         private static byte[] ToArray(ReadOnlySequence<byte> payload)
         {
             return payload.IsEmpty ? [] : payload.ToArray();
+        }
+
+        private static bool ContainsMqttWildcard(string topic)
+        {
+            return topic.Contains('#', StringComparison.Ordinal) || topic.Contains('+', StringComparison.Ordinal);
         }
 
         private static MqttQualityOfServiceLevel ParseQos(

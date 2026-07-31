@@ -126,7 +126,12 @@ namespace Opc.Ua.WotCon.Bindings.Modbus
         public async ValueTask WriteMultipleRegistersAsync(
             byte unitId, ushort address, ushort[] values, CancellationToken cancellationToken)
         {
+            if (values is null)
+            {
+                throw new ArgumentNullException(nameof(values));
+            }
             int count = values.Length;
+            ValidateRegisterRange(address, count, ModbusProtocolLimits.MaxWriteRegisters, nameof(values));
             byte byteCount = (byte)(count * 2);
             byte[] pdu = new byte[6 + byteCount];
             pdu[0] = 0x10;
@@ -226,6 +231,25 @@ namespace Opc.Ua.WotCon.Bindings.Modbus
                     parameterName,
                     quantity,
                     $"The Modbus range starting at {address} for {quantity} bits exceeds the maximum " +
+                    $"address {ModbusProtocolLimits.MaxAddress}.");
+            }
+        }
+
+        private static void ValidateRegisterRange(ushort address, int quantity, int maximum, string parameterName)
+        {
+            if (quantity is < 1 || quantity > maximum)
+            {
+                throw new ArgumentOutOfRangeException(
+                    parameterName,
+                    quantity,
+                    $"The Modbus register quantity must be between 1 and {maximum}.");
+            }
+            if (address + quantity - 1 > ModbusProtocolLimits.MaxAddress)
+            {
+                throw new ArgumentOutOfRangeException(
+                    parameterName,
+                    quantity,
+                    $"The Modbus range starting at {address} for {quantity} registers exceeds the maximum " +
                     $"address {ModbusProtocolLimits.MaxAddress}.");
             }
         }

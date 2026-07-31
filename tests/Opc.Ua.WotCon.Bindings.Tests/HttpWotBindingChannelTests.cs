@@ -61,7 +61,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                     ClientFactory = () => new HttpClient(),
                     CallerClientHandlesRedirectSafety = true
                 })],
-                bounds: bounds);
+                bounds: bounds,
+                endpointPolicy: new WotEndpointPolicy { AllowLoopback = true });
         }
 
         private static WotBindingPlan Plan(WotProtocolBinderRegistry registry, string td)

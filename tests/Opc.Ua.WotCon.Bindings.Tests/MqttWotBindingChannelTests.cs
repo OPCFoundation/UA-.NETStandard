@@ -73,12 +73,15 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             return broker;
         }
 
-        private static WotProtocolBinderRegistry Registry(TimeSpan? readTimeout = null)
+        private static WotProtocolBinderRegistry Registry(
+            TimeSpan? readTimeout = null, WotBindingBounds? bounds = null)
         {
             return new WotProtocolBinderRegistry(
                 [new MqttBindingPlanner()],
                 [new MqttWotBindingExecutor(
-                    new MqttWotBindingOptions { ReadTimeout = readTimeout ?? TimeSpan.FromSeconds(5) })]);
+                    new MqttWotBindingOptions { ReadTimeout = readTimeout ?? TimeSpan.FromSeconds(5) })],
+                bounds: bounds,
+                endpointPolicy: new WotEndpointPolicy { AllowLoopback = true });
         }
 
         private static WotBindingPlan Plan(WotProtocolBinderRegistry registry, string td)
@@ -165,6 +168,39 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                     WotInvokeResult result = await channel.InvokeAsync(
                         [new Variant(42L)]).ConfigureAwait(false);
                     Assert.That(result.Success, Is.True);
+                }
+            }
+            finally
+            {
+                await broker.StopAsync().ConfigureAwait(false);
+                broker.Dispose();
+            }
+        }
+
+        [Test]
+        public async Task MqttChannelRejectsWildcardPublishTopic()
+        {
+            int port = FreePort();
+            MqttServer broker = await StartBrokerAsync(port).ConfigureAwait(false);
+            try
+            {
+                WotProtocolBinderRegistry registry = Registry(
+                    bounds: new WotBindingBounds { AllowMqttWildcardTopics = true });
+                string td = "{\"@context\":\"https://www.w3.org/2022/wot/td/v1.1\",\"title\":\"t\"," +
+                    "\"properties\":{\"p\":{\"type\":\"number\",\"forms\":[{" +
+                    "\"href\":\"mqtt://127.0.0.1:" +
+                    port.ToString(System.Globalization.CultureInfo.InvariantCulture) +
+                    "\",\"mqv:topic\":\"#\",\"op\":[\"writeproperty\"]}]}}}";
+                WotBindingPlan plan = Plan(registry, td);
+                WotCompiledForm write = plan.CompiledForms.First(
+                    f => f.Operation == WoTBindingCapabilityEnum.WriteProperty);
+
+                IWotBindingChannel channel = await registry.OpenChannelAsync(write).ConfigureAwait(false);
+                await using (channel.ConfigureAwait(false))
+                {
+                    WotWriteResult result = await channel.WriteAsync(
+                        new DataValue(new Variant(42L))).ConfigureAwait(false);
+                    Assert.That(result.Status, Is.EqualTo(StatusCodes.BadInvalidArgument));
                 }
             }
             finally

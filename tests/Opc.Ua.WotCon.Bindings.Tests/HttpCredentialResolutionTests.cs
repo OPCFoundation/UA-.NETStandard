@@ -83,7 +83,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 [
                     new HttpWotBindingExecutor()
                 ],
-                credentials: credentials);
+                credentials: credentials,
+                endpointPolicy: new WotEndpointPolicy { AllowLoopback = true });
 
             IWotBindingChannel channel = await registry.OpenChannelAsync(ReadForm(registry, server.BaseUrl))
                 .ConfigureAwait(false);
@@ -112,7 +113,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 [
                     new HttpWotBindingExecutor()
                 ],
-                credentials: credentials);
+                credentials: credentials,
+                endpointPolicy: new WotEndpointPolicy { AllowLoopback = true });
 
             IWotBindingChannel channel = await registry.OpenChannelAsync(ReadForm(registry, server.BaseUrl))
                 .ConfigureAwait(false);
