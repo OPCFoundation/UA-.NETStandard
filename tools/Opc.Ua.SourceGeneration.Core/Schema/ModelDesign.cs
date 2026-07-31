@@ -965,6 +965,16 @@ namespace Opc.Ua.Schema.Model
         [XmlIgnore]
         public DataTypeDesign DataTypeNode { get; set; }
 
+        /// <summary>
+        /// The verbatim OPC UA AccessLevel bitmask imported from a
+        /// NodeSet2 model. The ModelDesign <see cref="AccessLevel"/>
+        /// enumeration cannot represent combinations such as
+        /// <c>CurrentRead | HistoryRead</c>, so the raw bits are carried
+        /// alongside it and preferred by code generation when present.
+        /// </summary>
+        [XmlIgnore]
+        public uint? RawAccessLevel { get; set; }
+
         /// <inheritdoc/>
         public override bool Equals(object obj)
         {
@@ -987,6 +997,7 @@ namespace Opc.Ua.Schema.Model
                 ArrayDimensions == other.ArrayDimensions &&
                 AccessLevel == other.AccessLevel &&
                 AccessLevelSpecified == other.AccessLevelSpecified &&
+                RawAccessLevel == other.RawAccessLevel &&
                 InstanceAccessLevel == other.InstanceAccessLevel &&
                 InstanceAccessLevelSpecified == other.InstanceAccessLevelSpecified &&
                 MinimumSamplingInterval == other.MinimumSamplingInterval &&
@@ -1006,6 +1017,7 @@ namespace Opc.Ua.Schema.Model
             hash.Add(ArrayDimensions);
             hash.Add(AccessLevel);
             hash.Add(AccessLevelSpecified);
+            hash.Add(RawAccessLevel);
             hash.Add(InstanceAccessLevel);
             hash.Add(InstanceAccessLevelSpecified);
             hash.Add(MinimumSamplingInterval);

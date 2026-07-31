@@ -62,7 +62,7 @@ Per-file behaviour is controlled with `AdditionalFiles` metadata:
 </ItemGroup>
 ```
 
-See [Source-Generated NodeManagers](../../docs/SourceGeneratedNodeManagers.md#mixing-modeldesign-and-nodeset2-in-one-project)
+See [Source-Generated NodeManagers](../../docs/NodeManagers.md#mixing-modeldesign-and-nodeset2-in-one-project)
 for the end-to-end pattern.
 
 ## Using DataType Generators

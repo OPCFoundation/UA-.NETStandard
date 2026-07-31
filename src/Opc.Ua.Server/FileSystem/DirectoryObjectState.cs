@@ -27,9 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -53,15 +51,27 @@ namespace Opc.Ua.Server.FileSystem
             string providerPath,
             string displayName,
             bool isRoot)
+            : this(context, nodeId, providerPath, displayName, isRoot, host: null)
+        {
+        }
+
+        public DirectoryObjectState(
+            ISystemContext context,
+            NodeId nodeId,
+            string providerPath,
+            string displayName,
+            bool isRoot,
+            IFileSystemHost? host)
             : base(null)
         {
+            m_host = host;
             ProviderPath = providerPath ?? string.Empty;
             IsRoot = isRoot;
 
             TypeDefinitionId = ObjectTypeIds.FileDirectoryType;
             SymbolicName = ProviderPath;
             NodeId = nodeId;
-            BrowseName = new QualifiedName(displayName);
+            BrowseName = new QualifiedName(displayName, nodeId.NamespaceIndex);
             DisplayName = new LocalizedText(displayName);
             Description = LocalizedText.Null;
             WriteMask = 0;
@@ -115,11 +125,17 @@ namespace Opc.Ua.Server.FileSystem
             QualifiedName browseName, IEnumerable<IReference>? additionalReferences,
             bool internalOnly)
         {
-            var manager = context?.SystemHandle as FileSystemNodeManager;
+            IFileSystemHost? host = ResolveHost(context);
+            if (host?.UsesVirtualDirectoryBrowsing != true)
+            {
+                return base.CreateBrowser(context, view, referenceType, includeSubtypes,
+                    browseDirection, browseName, additionalReferences, internalOnly);
+            }
+
             var browser = new DirectoryBrowser(
                 context!, view, referenceType, includeSubtypes,
                 browseDirection, browseName, additionalReferences,
-                internalOnly, manager!, this);
+                internalOnly, host, this);
             PopulateBrowser(context!, browser);
             return browser;
         }
@@ -128,7 +144,8 @@ namespace Opc.Ua.Server.FileSystem
         {
             base.PopulateBrowser(context, browser);
 
-            if (context?.SystemHandle is not FileSystemNodeManager manager)
+            IFileSystemHost? host = ResolveHost(context);
+            if (host == null)
             {
                 return;
             }
@@ -145,7 +162,7 @@ namespace Opc.Ua.Server.FileSystem
                 }
                 else
                 {
-                    NodeId parentId = manager.GetParentNodeId(ProviderPath);
+                    NodeId parentId = host.GetParentNodeId(ProviderPath);
                     if (!parentId.IsNull)
                     {
                         browser.Add(ReferenceTypeIds.HasComponent, true, parentId);
@@ -158,7 +175,8 @@ namespace Opc.Ua.Server.FileSystem
             ISystemContext context, MethodState method, NodeId objectId,
             string directoryName, CancellationToken cancellationToken)
         {
-            if (context?.SystemHandle is not FileSystemNodeManager manager)
+            IFileSystemHost? host = ResolveHost(context);
+            if (host == null)
             {
                 return new CreateDirectoryMethodStateResult
                 {
@@ -166,47 +184,17 @@ namespace Opc.Ua.Server.FileSystem
                         "Node manager unavailable.")
                 };
             }
-            if (string.IsNullOrEmpty(directoryName))
-            {
-                return new CreateDirectoryMethodStateResult
-                {
-                    ServiceResult = ServiceResult.Create(StatusCodes.BadInvalidArgument,
-                        "Directory name required.")
-                };
-            }
-            string newPath = manager.CombineProviderPath(ProviderPath, directoryName);
-            try
-            {
-                await manager.Provider.CreateDirectoryAsync(newPath, cancellationToken).ConfigureAwait(false);
-                return new CreateDirectoryMethodStateResult
-                {
-                    ServiceResult = ServiceResult.Good,
-                    DirectoryNodeId = FileSystemNodeId.BuildDirectory(newPath, manager.NamespaceIndex)
-                };
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                return new CreateDirectoryMethodStateResult
-                {
-                    ServiceResult = ServiceResult.Create(ex, StatusCodes.BadUserAccessDenied,
-                        "Failed to create directory.")
-                };
-            }
-            catch (IOException ex)
-            {
-                return new CreateDirectoryMethodStateResult
-                {
-                    ServiceResult = ServiceResult.Create(ex, StatusCodes.BadBrowseNameDuplicated,
-                        "Directory or file with same name exists.")
-                };
-            }
+
+            return await FileSystemDirectoryOperations.CreateDirectoryAsync(
+                host, ProviderPath, directoryName, cancellationToken).ConfigureAwait(false);
         }
 
         private async ValueTask<CreateFileMethodStateResult> OnCreateFileAsync(
             ISystemContext context, MethodState method, NodeId objectId,
             string fileName, bool requestFileOpen, CancellationToken cancellationToken)
         {
-            if (context?.SystemHandle is not FileSystemNodeManager manager)
+            IFileSystemHost? host = ResolveHost(context);
+            if (host == null)
             {
                 return new CreateFileMethodStateResult
                 {
@@ -214,89 +202,17 @@ namespace Opc.Ua.Server.FileSystem
                         "Node manager unavailable.")
                 };
             }
-            if (string.IsNullOrEmpty(fileName))
-            {
-                return new CreateFileMethodStateResult
-                {
-                    ServiceResult = ServiceResult.Create(StatusCodes.BadInvalidArgument,
-                        "File name required.")
-                };
-            }
 
-            NodeId sessionId = NodeId.Null;
-            if (requestFileOpen)
-            {
-                if (!FileSystemNodeManager.TryGetSessionId(
-                        context,
-                        out NodeId validSessionId,
-                        out ServiceResult sessionResult))
-                {
-                    return new CreateFileMethodStateResult
-                    {
-                        ServiceResult = sessionResult
-                    };
-                }
-
-                sessionId = validSessionId;
-            }
-
-            string newPath = manager.CombineProviderPath(ProviderPath, fileName);
-            try
-            {
-                if (!requestFileOpen)
-                {
-                    await manager.Provider.CreateFileAsync(newPath, cancellationToken).ConfigureAwait(false);
-                    return new CreateFileMethodStateResult
-                    {
-                        ServiceResult = ServiceResult.Good,
-                        FileNodeId = FileSystemNodeId.BuildFile(newPath, manager.NamespaceIndex),
-                        FileHandle = 0u
-                    };
-                }
-
-                NodeId fileNodeId = FileSystemNodeId.BuildFile(newPath, manager.NamespaceIndex);
-                FileHandle? handle = manager.GetOrCreateHandle(fileNodeId, newPath);
-                if (handle == null)
-                {
-                    return new CreateFileMethodStateResult
-                    {
-                        ServiceResult = ServiceResult.Create(StatusCodes.BadInvalidState,
-                            "Failed to obtain file handle.")
-                    };
-                }
-                // Open with write + erase to mirror the spec's
-                // "create + open for write" semantics.
-                ServiceResult openResult = handle.Open(sessionId, 0x6, out uint fileHandle);
-                return new CreateFileMethodStateResult
-                {
-                    ServiceResult = openResult,
-                    FileNodeId = fileNodeId,
-                    FileHandle = fileHandle
-                };
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                return new CreateFileMethodStateResult
-                {
-                    ServiceResult = ServiceResult.Create(ex, StatusCodes.BadUserAccessDenied,
-                        "Failed to create file.")
-                };
-            }
-            catch (IOException ex)
-            {
-                return new CreateFileMethodStateResult
-                {
-                    ServiceResult = ServiceResult.Create(ex, StatusCodes.BadBrowseNameDuplicated,
-                        "Directory or file with same name exists.")
-                };
-            }
+            return await FileSystemDirectoryOperations.CreateFileAsync(
+                host, context, ProviderPath, fileName, requestFileOpen, cancellationToken).ConfigureAwait(false);
         }
 
         private async ValueTask<DeleteFileMethodStateResult> OnDeleteFileSystemObjectAsync(
             ISystemContext context, MethodState method, NodeId objectId,
             NodeId objectToDelete, CancellationToken cancellationToken)
         {
-            if (context?.SystemHandle is not FileSystemNodeManager manager)
+            IFileSystemHost? host = ResolveHost(context);
+            if (host == null)
             {
                 return new DeleteFileMethodStateResult
                 {
@@ -304,60 +220,9 @@ namespace Opc.Ua.Server.FileSystem
                         "Node manager unavailable.")
                 };
             }
-            if (!FileSystemNodeId.TryParse(objectToDelete, out FileSystemNodeId parsed))
-            {
-                return new DeleteFileMethodStateResult
-                {
-                    ServiceResult = ServiceResult.Create(StatusCodes.BadInvalidState,
-                        "Not a file-system object.")
-                };
-            }
-            if (parsed.RootType == FileSystemNodeId.Root)
-            {
-                return new DeleteFileMethodStateResult
-                {
-                    ServiceResult = ServiceResult.Create(StatusCodes.BadUserAccessDenied,
-                        "Cannot delete the file-system root.")
-                };
-            }
-            try
-            {
-                await manager.Provider.DeleteAsync(parsed.ProviderPath, cancellationToken).ConfigureAwait(false);
-                manager.ForgetHandle(objectToDelete);
-                return new DeleteFileMethodStateResult { ServiceResult = ServiceResult.Good };
-            }
-            catch (FileNotFoundException ex)
-            {
-                return new DeleteFileMethodStateResult
-                {
-                    ServiceResult = ServiceResult.Create(ex, StatusCodes.BadNotFound,
-                        "File-system object not found.")
-                };
-            }
-            catch (DirectoryNotFoundException ex)
-            {
-                return new DeleteFileMethodStateResult
-                {
-                    ServiceResult = ServiceResult.Create(ex, StatusCodes.BadNotFound,
-                        "File-system object not found.")
-                };
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                return new DeleteFileMethodStateResult
-                {
-                    ServiceResult = ServiceResult.Create(ex, StatusCodes.BadUserAccessDenied,
-                        "Failed to delete file-system object.")
-                };
-            }
-            catch (IOException ex)
-            {
-                return new DeleteFileMethodStateResult
-                {
-                    ServiceResult = ServiceResult.Create(ex, StatusCodes.BadUserAccessDenied,
-                        "Failed to delete file-system object.")
-                };
-            }
+
+            return await FileSystemDirectoryOperations.DeleteAsync(
+                host, objectToDelete, cancellationToken).ConfigureAwait(false);
         }
 
         private async ValueTask<MoveOrCopyMethodStateResult> OnMoveOrCopyAsync(
@@ -365,7 +230,8 @@ namespace Opc.Ua.Server.FileSystem
             NodeId objectToMoveOrCopy, NodeId targetDirectory,
             bool createCopy, string newName, CancellationToken cancellationToken)
         {
-            if (context?.SystemHandle is not FileSystemNodeManager manager)
+            IFileSystemHost? host = ResolveHost(context);
+            if (host == null)
             {
                 return new MoveOrCopyMethodStateResult
                 {
@@ -373,94 +239,37 @@ namespace Opc.Ua.Server.FileSystem
                         "Node manager unavailable.")
                 };
             }
-            if (!FileSystemNodeId.TryParse(objectToMoveOrCopy, out FileSystemNodeId source) ||
-                source.RootType == FileSystemNodeId.Root)
-            {
-                return new MoveOrCopyMethodStateResult
-                {
-                    ServiceResult = ServiceResult.Create(StatusCodes.BadInvalidArgument,
-                        "Source is not a directory or file.")
-                };
-            }
-            if (!FileSystemNodeId.TryParse(targetDirectory, out FileSystemNodeId target) ||
-                target.RootType == FileSystemNodeId.File)
-            {
-                return new MoveOrCopyMethodStateResult
-                {
-                    ServiceResult = ServiceResult.Create(StatusCodes.BadInvalidArgument,
-                        "Target is not a directory.")
-                };
-            }
 
-            string sourceName = ProviderPathName(source.ProviderPath);
-            string finalName = !string.IsNullOrEmpty(newName) ? newName : sourceName;
-            string targetPath = manager.CombineProviderPath(target.ProviderPath, finalName);
-
-            try
-            {
-                if (createCopy)
-                {
-                    await manager.Provider.CopyAsync(source.ProviderPath, targetPath, cancellationToken)
-                        .ConfigureAwait(false);
-                }
-                else
-                {
-                    await manager.Provider.MoveAsync(source.ProviderPath, targetPath, cancellationToken)
-                        .ConfigureAwait(false);
-                    manager.ForgetHandle(objectToMoveOrCopy);
-                }
-
-                NodeId newNodeId = source.RootType == FileSystemNodeId.File
-                    ? FileSystemNodeId.BuildFile(targetPath, manager.NamespaceIndex)
-                    : FileSystemNodeId.BuildDirectory(targetPath, manager.NamespaceIndex);
-                return new MoveOrCopyMethodStateResult
-                {
-                    ServiceResult = ServiceResult.Good,
-                    NewNodeId = newNodeId
-                };
-            }
-            catch (FileNotFoundException ex)
-            {
-                return new MoveOrCopyMethodStateResult
-                {
-                    ServiceResult = ServiceResult.Create(ex, StatusCodes.BadNotFound,
-                        "Source not found.")
-                };
-            }
-            catch (DirectoryNotFoundException ex)
-            {
-                return new MoveOrCopyMethodStateResult
-                {
-                    ServiceResult = ServiceResult.Create(ex, StatusCodes.BadNotFound,
-                        "Source not found.")
-                };
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                return new MoveOrCopyMethodStateResult
-                {
-                    ServiceResult = ServiceResult.Create(ex, StatusCodes.BadUserAccessDenied,
-                        "Failed to move or copy.")
-                };
-            }
-            catch (IOException ex)
-            {
-                return new MoveOrCopyMethodStateResult
-                {
-                    ServiceResult = ServiceResult.Create(ex, StatusCodes.BadBrowseNameDuplicated,
-                        "Failed to move or copy.")
-                };
-            }
+            return await FileSystemDirectoryOperations.MoveOrCopyAsync(
+                host, objectToMoveOrCopy, targetDirectory, createCopy, newName, cancellationToken)
+                .ConfigureAwait(false);
         }
 
-        private static string ProviderPathName(string providerPath)
+        internal void DetachCallbacks()
         {
-            if (string.IsNullOrEmpty(providerPath))
+            if (DeleteFileSystemObject != null)
             {
-                return string.Empty;
+                DeleteFileSystemObject.OnCallAsync = null;
             }
-            int slash = providerPath.LastIndexOf('/');
-            return slash < 0 ? providerPath : providerPath[(slash + 1)..];
+            if (CreateFile != null)
+            {
+                CreateFile.OnCallAsync = null;
+            }
+            if (CreateDirectory != null)
+            {
+                CreateDirectory.OnCallAsync = null;
+            }
+            if (MoveOrCopy != null)
+            {
+                MoveOrCopy.OnCallAsync = null;
+            }
         }
+
+        private IFileSystemHost? ResolveHost(ISystemContext context)
+        {
+            return m_host ?? context?.SystemHandle as IFileSystemHost;
+        }
+
+        private readonly IFileSystemHost? m_host;
     }
 }

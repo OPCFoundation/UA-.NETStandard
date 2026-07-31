@@ -1157,6 +1157,15 @@ namespace Opc.Ua.Server
             await DiagnosticsNodeManager.UpdateServerEventNotifierAsync(cancellationToken)
                 .ConfigureAwait(false);
 
+            foreach (IAsyncNodeManager nodeManager in NodeManager.AsyncNodeManagers)
+            {
+                if (nodeManager is AsyncCustomNodeManager customNodeManager)
+                {
+                    await customNodeManager.PublishRootNotifierReferencesAsync(cancellationToken)
+                        .ConfigureAwait(false);
+                }
+            }
+
             Auditing = m_configuration.ServerConfiguration.AuditingEnabled;
             PropertyState<bool>? auditing = serverObject.Auditing;
             auditing!.OnSimpleWriteValue += OnWriteAuditing;
