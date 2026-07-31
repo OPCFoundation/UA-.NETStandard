@@ -151,7 +151,7 @@ namespace Opc.Ua.SourceGeneration
             byte[] utf8Json;
             try
             {
-                utf8Json = Encoding.UTF8.GetBytes(sourceText.ToString());
+                utf8Json = GetUtf8Bytes(sourceText, cancellationToken);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -293,6 +293,16 @@ namespace Opc.Ua.SourceGeneration
                 $"{ex.GetType().Name}: {ex.Message}");
         }
 
+        private static byte[] GetUtf8Bytes(SourceText sourceText, CancellationToken cancellationToken)
+        {
+            using var stream = new MemoryStream();
+            using (var writer = new StreamWriter(stream, new UTF8Encoding(false), 4096, leaveOpen: true))
+            {
+                sourceText.Write(writer, cancellationToken);
+            }
+            return stream.ToArray();
+        }
+
         /// <summary>
         /// Creates a location anchored at the start of the given file. Used
         /// when no more precise position is available.
@@ -319,13 +329,66 @@ namespace Opc.Ua.SourceGeneration
                 line = (int)lineNumber.Value;
                 if (bytePositionInLine >= 0)
                 {
-                    character = Math.Min((int)bytePositionInLine.Value, text.Lines[line].Span.Length);
+                    character = GetCharacterIndexFromUtf8ByteOffset(text, line, bytePositionInLine.Value);
                 }
             }
             var position = new LinePosition(line, character);
             int offset = text.Lines[line].Start + character;
             var span = new TextSpan(offset, 0);
             return Location.Create(path, span, new LinePositionSpan(position, position));
+        }
+
+        private static int GetCharacterIndexFromUtf8ByteOffset(SourceText text, int line, long byteOffset)
+        {
+            if (byteOffset <= 0)
+            {
+                return 0;
+            }
+
+            TextLine textLine = text.Lines[line];
+            int lineLength = textLine.Span.Length;
+            long bytesSeen = 0;
+            int character = 0;
+            while (character < lineLength)
+            {
+                char current = text[textLine.Start + character];
+                int characterCount = 1;
+                int byteCount;
+                if (char.IsHighSurrogate(current) &&
+                    character + 1 < lineLength &&
+                    char.IsLowSurrogate(text[textLine.Start + character + 1]))
+                {
+                    characterCount = 2;
+                    byteCount = 4;
+                }
+                else if (current <= '\u007F')
+                {
+                    byteCount = 1;
+                }
+                else if (current <= '\u07FF')
+                {
+                    byteCount = 2;
+                }
+                else
+                {
+                    byteCount = 3;
+                }
+
+                long nextBytes = bytesSeen + byteCount;
+                if (byteOffset < nextBytes)
+                {
+                    return character;
+                }
+
+                character += characterCount;
+                bytesSeen = nextBytes;
+                if (byteOffset == bytesSeen)
+                {
+                    return character;
+                }
+            }
+
+            return lineLength;
         }
 
         private static string GetNodeSetPath(string sourcePath)

@@ -121,6 +121,14 @@ namespace Opc.Ua.WotCon.Bindings.Planners
                     form.Pointer("mqv:topic"), "mqv:topic"));
                 return WotBindingCompilation.Unsupported([.. diagnostics]);
             }
+            if (!context.Bounds.AllowMqttWildcardTopics && ContainsMqttWildcard(topic))
+            {
+                diagnostics.Add(WotBindingDiagnostic.Error(
+                    WotBindingDiagnosticCode.InvalidFieldValue,
+                    "MQTT topic wildcards are not permitted for a WoT affordance unless explicitly enabled.",
+                    form.Pointer("mqv:topic"), "mqv:topic"));
+                return WotBindingCompilation.Unsupported([.. diagnostics]);
+            }
 
             int qos = 0;
             if (form.TryGetInt32("mqv:qos", out int parsedQos))
@@ -150,7 +158,10 @@ namespace Opc.Ua.WotCon.Bindings.Planners
                 controlPacket = packet;
             }
 
-            ResolveCodec(form, context, out WotPayloadDescriptor payload);
+            if (!ResolveCodec(form, context, diagnostics, out WotPayloadDescriptor payload))
+            {
+                return WotBindingCompilation.Unsupported([.. diagnostics]);
+            }
             WotEndpointDescriptor endpoint = MakeEndpoint(uri);
             var addressing = new WotAddressingDescriptor(topic,
                 ImmutableDictionary<string, string>.Empty
@@ -184,6 +195,11 @@ namespace Opc.Ua.WotCon.Bindings.Planners
                 WoTBindingCapabilityEnum.InvokeAction => "publish",
                 _ => "subscribe"
             };
+        }
+
+        private static bool ContainsMqttWildcard(string topic)
+        {
+            return topic.Contains('#', StringComparison.Ordinal) || topic.Contains('+', StringComparison.Ordinal);
         }
     }
 }

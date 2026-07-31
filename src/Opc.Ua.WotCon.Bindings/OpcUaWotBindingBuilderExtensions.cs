@@ -128,6 +128,25 @@ namespace Microsoft.Extensions.DependencyInjection
             return builder;
         }
 
+        /// <summary>
+        /// Registers the endpoint policy enforced before a WoT binding executor opens an outbound channel.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static IOpcUaBuilder AddWotEndpointPolicy(
+            this IOpcUaBuilder builder, WotEndpointPolicy policy)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (policy is null)
+            {
+                throw new ArgumentNullException(nameof(policy));
+            }
+            builder.Services.AddSingleton(policy);
+            return builder;
+        }
+
         private static void EnsureRegistry(IServiceCollection services)
         {
             services.EnsureWotBinderRegistry();
@@ -165,7 +184,9 @@ namespace Microsoft.Extensions.DependencyInjection
                 sp.GetServices<IWotProtocolBinder>(),
                 sp.GetServices<IWotBindingExecutor>(),
                 sp.GetService<IWotCredentialProvider>(),
-                sp.GetService<IWotCodecRegistry>()));
+                sp.GetService<IWotCodecRegistry>(),
+                sp.GetService<WotBindingBounds>(),
+                sp.GetService<WotEndpointPolicy>()));
             services.TryAddSingleton<IWotBinderRegistry>(
                 sp => sp.GetRequiredService<WotProtocolBinderRegistry>());
             services.TryAddSingleton<IWotBindingChannelFactory>(

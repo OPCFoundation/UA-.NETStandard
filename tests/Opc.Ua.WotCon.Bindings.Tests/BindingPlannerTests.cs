@@ -260,6 +260,38 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 d.Code == WotBindingDiagnosticCode.BoundsExceeded), Is.True);
         }
 
+        [TestCase("#")]
+        [TestCase("tenant/+/temperature")]
+        public void MqttPlannerRejectsWildcardTopicByDefault(string topic)
+        {
+            var planner = new MqttBindingPlanner();
+            WotAffordanceForm form = MakePropertyForm(
+                "{\"href\":\"mqtt://broker.example.com:1883\",\"mqv:topic\":\"" + topic +
+                "\",\"op\":\"observeproperty\"}",
+                ops: ["observeproperty"]);
+
+            WotBindingCompilation result = planner.Compile(form, DefaultContext());
+
+            Assert.That(result.IsSupported, Is.False);
+            Assert.That(result.Diagnostics.Any(d =>
+                d.Code == WotBindingDiagnosticCode.InvalidFieldValue), Is.True);
+        }
+
+        [Test]
+        public void MqttPlannerAllowsWildcardTopicWhenPolicyOptsIn()
+        {
+            var planner = new MqttBindingPlanner();
+            WotAffordanceForm form = MakePropertyForm(
+                """{"href":"mqtt://broker.example.com:1883","mqv:topic":"tenant/+","op":"observeproperty"}""",
+                ops: ["observeproperty"]);
+            var context = new WotBindingPlanContext(bounds: new WotBindingBounds { AllowMqttWildcardTopics = true });
+
+            WotBindingCompilation result = planner.Compile(form, context);
+
+            Assert.That(result.IsSupported, Is.True);
+            Assert.That(result.Entries[0].Addressing.Target, Is.EqualTo("tenant/+"));
+        }
+
         [Test]
         public void MqttPlannerWarnsOnUnknownControlPacket()
         {
@@ -311,6 +343,35 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             var planner = new MqttBindingPlanner();
             Assert.That(planner.Identity.Id, Is.EqualTo("w3c.mqtt"));
+        }
+
+        [Test]
+        public void HttpPlannerRejectsUnsafeContentType()
+        {
+            var planner = new HttpBindingPlanner();
+            WotAffordanceForm form = MakePropertyForm(
+                """{"href":"http://example.com/p","contentType":"application/json\r\nX-Injected: pwned"}""",
+                ops: ["writeproperty"]);
+
+            WotBindingCompilation result = planner.Compile(form, DefaultContext());
+
+            Assert.That(result.IsSupported, Is.False);
+            Assert.That(result.Diagnostics.Any(d =>
+                d.Code == WotBindingDiagnosticCode.InvalidFieldValue), Is.True);
+        }
+
+        [Test]
+        public void HttpPlannerAcceptsSafeContentType()
+        {
+            var planner = new HttpBindingPlanner();
+            WotAffordanceForm form = MakePropertyForm(
+                """{"href":"http://example.com/p","contentType":"application/json; charset=utf-8"}""",
+                ops: ["writeproperty"]);
+
+            WotBindingCompilation result = planner.Compile(form, DefaultContext());
+
+            Assert.That(result.IsSupported, Is.True);
+            Assert.That(result.Entries[0].Payload.ContentType, Is.EqualTo("application/json; charset=utf-8"));
         }
 
         [Test]
