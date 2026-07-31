@@ -78,7 +78,7 @@ namespace Opc.Ua.Di.Server.Builders
                 Historizing = false,
                 ReferenceTypeId = Types.ReferenceTypeIds.HasComponent
             };
-            variable.NodeId = device.Context.NodeIdFactory.New(device.Context, variable);
+            variable.NodeId = device.Context.RequireNodeIdFactory().New(device.Context, variable);
 
             device.Device.AddChild(variable);
             device.Manager.AddPredefinedNodeAsync(variable, CancellationToken.None)

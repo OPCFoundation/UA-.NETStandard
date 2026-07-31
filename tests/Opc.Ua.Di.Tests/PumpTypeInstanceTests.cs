@@ -63,8 +63,6 @@ namespace Opc.Ua.Di.Tests
                 var externalReferences = new Dictionary<NodeId, IList<IReference>>();
                 await manager.CreateAddressSpaceAsync(externalReferences).ConfigureAwait(false);
 
-                ushort pumpsNamespaceIndex = (ushort)server.CurrentInstance.NamespaceUris.GetIndex(
-                    global::Opc.Ua.Pumps.Namespaces.Pumps);
                 BaseObjectState deviceSet = manager.FindPredefinedNode<BaseObjectState>(
                     NodeId.Create(
                         global::Opc.Ua.Di.Objects.DeviceSet,
@@ -72,11 +70,10 @@ namespace Opc.Ua.Di.Tests
                         server.CurrentInstance.NamespaceUris));
                 PumpState pump1 = manager.FindPredefinedNode<PumpState>(
                     new NodeId(
-                        "5001_Pump #1",
-                        manager.DiNamespaceIndex));
-                PumpState pump = await manager.CreatePumpAsync(
-                    new QualifiedName("Pump #2", pumpsNamespaceIndex),
-                    default).ConfigureAwait(false);
+                        "5001_Pump_1",
+                        manager.InstanceNamespaceIndex));
+                PumpState pump = manager.FindPredefinedNode<PumpState>(
+                    new NodeId("5001_Pump_2", manager.InstanceNamespaceIndex));
                 IReadOnlyList<ReferenceDescription> deviceSetReferences =
                     await BrowseForwardAsync(manager, deviceSet.NodeId)
                         .ConfigureAwait(false);

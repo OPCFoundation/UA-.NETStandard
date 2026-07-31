@@ -265,7 +265,8 @@ namespace Opc.Ua.Subscriptions.Tests
             SubscriptionManager manager = CreateManager(context);
             await using (manager.ConfigureAwait(false))
             {
-                await manager.CompleteAsync(999u, CancellationToken.None).ConfigureAwait(false);
+                await manager.CompleteAsync(new StubManagedSubscription { Id = 999u }, 999u,
+                    CancellationToken.None).ConfigureAwait(false);
                 Assert.That(manager.Count, Is.Zero);
             }
             Assert.That(context.PublishCallCount, Is.Zero);
@@ -500,7 +501,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 manager.Add(handler, SinglePartitionOptions());
                 Assert.That(manager.Count, Is.EqualTo(1));
 
-                await manager.CompleteAsync(1u, CancellationToken.None).ConfigureAwait(false);
+                await manager.CompleteAsync(subscription, 1u, CancellationToken.None).ConfigureAwait(false);
 
                 Assert.That(manager.Count, Is.Zero);
                 Assert.That(manager.Items, Is.Empty);

@@ -115,10 +115,16 @@ namespace Opc.Ua.Di.Tests
             "Events/SupervisionPumpOperation/MotorOverheat/FalseState",
             "Events/SupervisionPumpOperation/MotorOverheat/TrueState",
             "Identification",
+            "Identification/DeviceClass",
+            "Identification/HardwareRevision",
             "Identification/Manufacturer",
+            "Identification/Model",
             "Identification/ProductInstanceUri",
             "Identification/SerialNumber",
+            "Identification/SoftwareRevision",
             "Maintenance",
+            "Maintenance/GeneralMaintenance",
+            "Maintenance/GeneralMaintenance/MaintenancePlan",
             "Operational",
             "Operational/Measurements",
             "Operational/Measurements/BearingTemperature",
@@ -168,13 +174,9 @@ namespace Opc.Ua.Di.Tests
             await m_manager.CreateAddressSpaceAsync(externalReferences).ConfigureAwait(false);
 
             m_configuredPump = m_manager.FindPredefinedNode<PumpState>(
-                new NodeId("5001_Pump #1", m_manager.DiNamespaceIndex));
-
-            ushort pumpsNamespaceIndex = (ushort)server.CurrentInstance.NamespaceUris
-                .GetIndex(global::Opc.Ua.Pumps.Namespaces.Pumps);
-            m_secondPump = await m_manager.CreatePumpAsync(
-                new QualifiedName("Pump #2", pumpsNamespaceIndex),
-                default).ConfigureAwait(false);
+                new NodeId("5001_Pump_1", m_manager.InstanceNamespaceIndex));
+            m_secondPump = m_manager.FindPredefinedNode<PumpState>(
+                new NodeId("5001_Pump_2", m_manager.InstanceNamespaceIndex));
         }
 
         [OneTimeTearDown]
@@ -202,47 +204,32 @@ namespace Opc.Ua.Di.Tests
         }
 
         /// <summary>
-        /// A pump materialised without the fluent configuration must expose the
-        /// same generated model surface as the configured one, minus what the
-        /// fluent wiring adds on top (the alarm and the engineering-unit
-        /// properties). This proves the generated helpers materialise the model
-        /// identically for every instance of the type.
+        /// Every configured pump, including pumps created after startup, must
+        /// expose the same generated and fluent-wired simulation surface as the
+        /// initially configured pump.
         /// </summary>
         [Test]
-        public void EveryPumpInstanceExposesTheSameGeneratedModelSurface()
+        public void EveryPumpInstanceExposesTheSameSimulationSurface()
         {
             IEnumerable<string> configured = CollectSubtree(m_configuredPump!)
-                .Select(node => node.Path)
-                .Where(path => !IsAddedByFluentConfiguration(path));
+                .Select(node => node.Path);
             IEnumerable<string> second = CollectSubtree(m_secondPump!)
                 .Select(node => node.Path);
 
             Assert.That(second, Is.EquivalentTo(configured));
             Assert.That(second, Contains.Item("Identification/SerialNumber"));
             Assert.That(second, Contains.Item("Operational/Measurements/PumpEfficiency"));
+            Assert.That(second, Contains.Item("Events/OverTempAlarm"));
             Assert.That(
                 second,
                 Contains.Item("Events/SupervisionPumpOperation/MotorOverheat/TrueState"));
         }
 
         /// <summary>
-        /// Paths that the fluent <c>Configure</c> pass adds on top of the
-        /// generated model surface, and which therefore only exist on the
-        /// configured pump.
-        /// </summary>
-        private static bool IsAddedByFluentConfiguration(string path)
-        {
-            return path == "Events/OverTempAlarm" ||
-                path.StartsWith(AlarmSubtreePrefix, StringComparison.Ordinal) ||
-                path.EndsWith("/EURange", StringComparison.Ordinal) ||
-                path.EndsWith("/EngineeringUnits", StringComparison.Ordinal);
-        }
-
-        /// <summary>
         /// Every node the generated helpers materialise must carry a NodeId
         /// minted by <see cref="PumpNodeManager.New"/> - that is
-        /// <c>{parentIdentifier}_{symbolicName}</c> in the parent's namespace -
-        /// rather than the type-level declaration NodeId the model ships.
+        /// <c>{parentIdentifier}_{symbolicName}</c> in the server instance
+        /// namespace - rather than the type-level declaration NodeId the model ships.
         /// </summary>
         [Test]
         public void MaterialisedPumpNodeIdsComeFromTheNodeIdFactory()
@@ -262,7 +249,7 @@ namespace Opc.Ua.Di.Tests
                             "{0}_{1}",
                             node.Parent.NodeId.IdentifierAsString,
                             node.State.SymbolicName),
-                        node.Parent.NodeId.NamespaceIndex);
+                        m_manager!.InstanceNamespaceIndex);
                     if (node.State.NodeId != expected)
                     {
                         offenders.Add($"{pump.BrowseName.Name}/{node.Path}: " +
@@ -294,6 +281,54 @@ namespace Opc.Ua.Di.Tests
 
             Assert.That(nodeIds, Has.None.Matches<NodeId>(nodeId => nodeId.IsNull));
             Assert.That(nodeIds.Distinct().Count(), Is.EqualTo(nodeIds.Count));
+        }
+
+        [Test]
+        public void EveryPumpExposesTheEventNotifierHierarchy()
+        {
+            foreach (PumpState pump in new[] { m_configuredPump!, m_secondPump! })
+            {
+                SupervisionState events = pump.Events!;
+                Assert.Multiple(() =>
+                {
+                    Assert.That(
+                        pump.EventNotifier & EventNotifiers.SubscribeToEvents,
+                        Is.Not.Zero);
+                    Assert.That(
+                        events.EventNotifier & EventNotifiers.SubscribeToEvents,
+                        Is.Not.Zero);
+                });
+
+                var pumpReferences = new List<IReference>();
+                pump.GetReferences(m_manager!.SystemContext, pumpReferences);
+                Assert.That(
+                    pumpReferences,
+                    Has.Exactly(1).Matches<IReference>(reference =>
+                        reference.ReferenceTypeId == Opc.Ua.Types.ReferenceTypeIds.HasNotifier &&
+                        !reference.IsInverse &&
+                        reference.TargetId == events.NodeId));
+
+                BaseInstanceState alarm = CollectSubtree(pump)
+                    .Single(node => node.Path == "Events/OverTempAlarm")
+                    .State;
+                var eventReferences = new List<IReference>();
+                events.GetReferences(m_manager.SystemContext, eventReferences);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(
+                        eventReferences,
+                        Has.Exactly(1).Matches<IReference>(reference =>
+                            reference.ReferenceTypeId == Opc.Ua.Types.ReferenceTypeIds.HasNotifier &&
+                            reference.IsInverse &&
+                            reference.TargetId == pump.NodeId));
+                    Assert.That(
+                        eventReferences,
+                        Has.Exactly(1).Matches<IReference>(reference =>
+                            reference.ReferenceTypeId == Opc.Ua.Types.ReferenceTypeIds.HasEventSource &&
+                            !reference.IsInverse &&
+                            reference.TargetId == alarm.NodeId));
+                });
+            }
         }
 
         /// <summary>
@@ -330,24 +365,21 @@ namespace Opc.Ua.Di.Tests
                     global::Opc.Ua.Di.Objects.DeviceSet,
                     global::Opc.Ua.Di.Namespaces.OpcUaDi,
                     m_manager.Server.NamespaceUris));
-            ushort pumpsNamespaceIndex = (ushort)m_manager.Server.NamespaceUris
-                .GetIndex(global::Opc.Ua.Pumps.Namespaces.Pumps);
-
             // Deliberately not registered with the manager - this asserts the
             // state the source-generated factory produces on its own.
             PumpState pump = m_manager.SystemContext.CreateInstanceOfPumpType(
                 deviceSet,
-                new QualifiedName("Pump #3", pumpsNamespaceIndex));
+                new QualifiedName("Pump_3", m_manager.InstanceNamespaceIndex));
 
             Assert.That(
                 pump.NodeId,
-                Is.EqualTo(new NodeId("5001_Pump #3", m_manager.DiNamespaceIndex)));
+                Is.EqualTo(new NodeId("5001_Pump_3", m_manager.InstanceNamespaceIndex)));
             Assert.That(pump.Identification, Is.Not.Null);
             Assert.That(
                 ((NodeState)pump.Identification!).NodeId,
                 Is.EqualTo(new NodeId(
-                    "5001_Pump #3_Identification",
-                    m_manager.DiNamespaceIndex)));
+                    "5001_Pump_3_Identification",
+                    m_manager.InstanceNamespaceIndex)));
 
             List<PumpNode> nodes = CollectSubtree(pump);
             Assert.That(nodes, Is.Not.Empty);
@@ -359,7 +391,7 @@ namespace Opc.Ua.Di.Tests
                         "{0}_{1}",
                         node.Parent.NodeId.IdentifierAsString,
                         node.State.SymbolicName),
-                    node.Parent.NodeId.NamespaceIndex)));
+                    m_manager.InstanceNamespaceIndex)));
         }
 
         private static bool IsGeneratedHelperNode(PumpNode node)

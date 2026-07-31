@@ -56,7 +56,8 @@ namespace Opc.Ua.Client
     /// delegated to the inner session.
     /// </para>
     /// </remarks>
-    public partial class ManagedSession : IManagedSession
+    public partial class ManagedSession : IManagedSession,
+        ModelChange.INamespaceTableRefresher
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="ManagedSession"/>
