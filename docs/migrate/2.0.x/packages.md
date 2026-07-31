@@ -42,7 +42,6 @@ The minimum SDK is the **.NET 10 SDK**, and projects compile with **`LangVersion
 | `Microsoft.Extensions.Options.ConfigurationExtensions` 10.0.8 | Added (pinned) | Centralised pin |
 | `ModelContextProtocol` 1.3.0 | Added | `tools/Opc.Ua.Mcp/Opc.Ua.Mcp.csproj` |
 | `ModelContextProtocol.AspNetCore` 1.3.0 | Added | `tools/Opc.Ua.Mcp/Opc.Ua.Mcp.csproj` |
-| `SourceGenerator.Foundations` 2.0.14 | Added | `tools/Opc.Ua.SourceGeneration.Stack/Opc.Ua.SourceGeneration.Stack.csproj` |
 | `System.CommandLine` 2.0.8 | Added | `tools/Opc.Ua.Mcp/Opc.Ua.Mcp.csproj` |
 | `System.Threading.Channels` 10.0.8 | Added | `src/Opc.Ua.Lds.Server/Opc.Ua.Lds.Server.csproj` |
 | `TUnit` 1.45.8 | Added (test-only) | `tests/Opc.Ua.Server.Tests/Opc.Ua.Server.Tests.csproj` |

@@ -294,11 +294,18 @@
     <Project Path="tools/Opc.Ua.MigrationAnalyzer.Core/Opc.Ua.MigrationAnalyzer.Core.csproj" />
     <Project Path="tools/Opc.Ua.MigrationAnalyzer.Generator/Opc.Ua.MigrationAnalyzer.Generator.csproj" />
     <Project Path="tools/Opc.Ua.MigrationAnalyzer/Opc.Ua.MigrationAnalyzer.csproj" />
+    <Project Path="tools/Opc.Ua.MigrationAnalyzer.Roslyn4_14/Opc.Ua.MigrationAnalyzer.Roslyn4_14.csproj" />
+    <Project Path="tools/Opc.Ua.MigrationAnalyzer.CodeFixer.Roslyn4_14/Opc.Ua.MigrationAnalyzer.CodeFixer.Roslyn4_14.csproj" />
+    <Project Path="tools/Opc.Ua.MigrationAnalyzer.Generator.Roslyn4_14/Opc.Ua.MigrationAnalyzer.Generator.Roslyn4_14.csproj" />
   </Folder>
   <Folder Name="/tools/SourceGeneration/">
     <Project Path="tools/Opc.Ua.SourceGeneration.Core/Opc.Ua.SourceGeneration.Core.csproj" />
+    <Project Path="tools/Opc.Ua.SourceGeneration.Pack/Opc.Ua.SourceGeneration.Pack.csproj" />
     <Project Path="tools/Opc.Ua.SourceGeneration.Stack/Opc.Ua.SourceGeneration.Stack.csproj" />
+    <Project Path="tools/Opc.Ua.SourceGeneration.Stack.Pack/Opc.Ua.SourceGeneration.Stack.Pack.csproj" />
     <Project Path="tools/Opc.Ua.SourceGeneration.Tester/Opc.Ua.SourceGeneration.Tester.csproj" />
     <Project Path="tools/Opc.Ua.SourceGeneration/Opc.Ua.SourceGeneration.csproj" />
+    <Project Path="tools/Opc.Ua.SourceGeneration.Roslyn4_14/Opc.Ua.SourceGeneration.Roslyn4_14.csproj" />
+    <Project Path="tools/Opc.Ua.SourceGeneration.Stack.Roslyn4_14/Opc.Ua.SourceGeneration.Stack.Roslyn4_14.csproj" />
   </Folder>
 </Solution>
