@@ -50,7 +50,7 @@ namespace Quickstarts.ReferenceServer
     /// <summary>
     /// A node manager for a server that exposes several variables.
     /// </summary>
-    public class ReferenceNodeManager : CustomNodeManager2
+    public class ReferenceNodeManager : CustomNodeManager2, IConformanceContributor
     {
         /// <summary>
         /// Initializes the node manager.
@@ -71,6 +71,12 @@ namespace Quickstarts.ReferenceServer
 
             // use suitable defaults if no configuration exists.
         }
+
+        /// <inheritdoc/>
+        public IReadOnlyList<QualifiedName> ConformanceUnits => s_conformanceUnits;
+
+        /// <inheritdoc/>
+        public IReadOnlyList<string> ServerProfiles => s_serverProfiles;
 
         /// <summary>
         /// An overrideable version of the Dispose.
@@ -5308,6 +5314,81 @@ namespace Quickstarts.ReferenceServer
 
         private const uint DefaultArrayLength = 10;
         private const uint MultiDimensionalArrayLength = 3;
+
+        private static readonly QualifiedName[] s_conformanceUnits =
+        [
+            new("Address Space Atomicity"),
+            new("Address Space Base"),
+            new("Address Space Full Array Only"),
+            new("Address Space Method"),
+            new("Attribute Read"),
+            new("Base Info Base Types"),
+            new("Base Info Core Structure 2"),
+            new("Base Info Core Types Folders"),
+            new("Base Info Date DataTypes"),
+            new("Base Info Decimal DataType"),
+            new("Base Info GetMonitoredItems Method"),
+            new("Base Info Method Argument DataType"),
+            new("Base Info Method Capabilities"),
+            new("Base Info ResendData Method"),
+            new("Base Info SemanticChange Bit"),
+            new("Base Info Server Capabilities 2"),
+            new("Base Info Server Capabilities MaxMonitoredItemsQueueSize"),
+            new("Base Info Server Capabilities Subscriptions"),
+            new("Base Info ServerType"),
+            new("Base Info Type Information"),
+            new("Data Access DataItems"),
+            new("Discovery Find Servers Self"),
+            new("Discovery Get Endpoints"),
+            new("Discovery Register"),
+            new("Discovery Register2"),
+            new("Documentation - Core Capacities"),
+            new("Method Call"),
+            new("Monitor Basic"),
+            new("Monitor Items 2"),
+            new("Monitor Queueing"),
+            new("Monitor Triggering"),
+            new("Monitor Value Change V2"),
+            new("Monitored Items Deadband Filter"),
+            new("Protocol Reverse Connect Server"),
+            new("Protocol UA TCP"),
+            new("Push Model for Global Certificate and TrustList Management"),
+            new("Security Default ApplicationInstance Certificate"),
+            new("Security ECC Policy"),
+            new("Security Invalid user token"),
+            new("Security Policy Required"),
+            new("Security User Name Password 2"),
+            new("Security User X509"),
+            new("SecurityPolicy Support"),
+            new("Session Base"),
+            new("Session Cancel"),
+            new("Session General Service Behaviour"),
+            new("Session Multiple"),
+            new("Subscription Basic"),
+            new("Subscription Multiple"),
+            new("Subscription Publish Basic"),
+            new("Subscription PublishRequest Queue Overflow"),
+            new("Subscription Retransmission Queue"),
+            new("Subscription Transfer"),
+            new("Time Sync - Support"),
+            new("UA Binary Encoding"),
+            new("UA Secure Conversation"),
+            new("View Basic 2"),
+            new("View RegisterNodes"),
+            new("View TranslateBrowsePath"),
+            new("Aggregate Master Configuration"),
+            new("Attribute Historical Read"),
+            new("Base Info History Read Capabilities"),
+            new("Base Info History ReadData Capabilities"),
+            new("Historical Access Aggregates"),
+            new("Historical Access Read Raw")
+        ];
+
+        private static readonly string[] s_serverProfiles =
+        [
+            "http://opcfoundation.org/UA-Profile/Server/HistoricalRawData2022",
+            "http://opcfoundation.org/UA-Profile/Server/AggregateHistorical2022"
+        ];
 
         private static readonly string[] s_historicalNodeNames =
         [

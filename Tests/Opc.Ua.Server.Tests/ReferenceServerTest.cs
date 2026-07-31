@@ -1121,6 +1121,71 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public void ReferenceServerPublishesHistoricalConformanceMetadata()
+        {
+            ServerCapabilitiesState capabilities = m_server.CurrentInstance.DiagnosticsNodeManager
+                .FindPredefinedNode<ServerCapabilitiesState>(
+                    ObjectIds.Server_ServerCapabilities);
+            string[] profiles = capabilities.ServerProfileArray.Value;
+            QualifiedName[] units = capabilities.ConformanceUnits.Value;
+
+            Assert.AreEqual(
+                1,
+                profiles.Count(profile =>
+                    profile == "http://opcfoundation.org/UA-Profile/Server/HistoricalRawData2022"));
+            Assert.AreEqual(
+                1,
+                profiles.Count(profile =>
+                    profile == "http://opcfoundation.org/UA-Profile/Server/AggregateHistorical2022"));
+            Assert.IsTrue(units.Any(unit => unit.Name == "Historical Access Read Raw"));
+            Assert.IsTrue(units.Any(unit => unit.Name == "Historical Access Aggregates"));
+            Assert.IsTrue(units.Any(unit => unit.Name == "Address Space Base"));
+
+            HistoryServerCapabilitiesState historyCapabilities = m_server.CurrentInstance
+                .DiagnosticsNodeManager.GetDefaultHistoryCapabilities();
+            Assert.IsTrue(historyCapabilities.AccessHistoryDataCapability.Value);
+            Assert.IsTrue(historyCapabilities.ServerTimestampSupported.Value);
+            Assert.IsFalse(historyCapabilities.AccessHistoryEventsCapability.Value);
+            Assert.IsFalse(historyCapabilities.InsertDataCapability.Value);
+            Assert.IsFalse(historyCapabilities.ReplaceDataCapability.Value);
+            Assert.IsFalse(historyCapabilities.UpdateDataCapability.Value);
+
+            ServerObjectState serverObject = m_server.CurrentInstance.DiagnosticsNodeManager
+                .FindPredefinedNode<ServerObjectState>(ObjectIds.Server);
+            Assert.IsTrue((serverObject.EventNotifier & EventNotifiers.HistoryRead) != 0);
+            Assert.IsFalse((serverObject.EventNotifier & EventNotifiers.HistoryWrite) != 0);
+
+            ReferenceNodeManager nodeManager = m_server.CurrentInstance.NodeManager.NodeManagers
+                .OfType<ReferenceNodeManager>()
+                .Single();
+            ushort namespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(
+                Quickstarts.ReferenceServer.Namespaces.ReferenceServer);
+            BaseVariableState int32Static = nodeManager.FindPredefinedNode<BaseVariableState>(
+                new NodeId("Scalar_Static_Int32", namespaceIndex));
+            uint expectedPermissions =
+                (uint)PermissionType.Browse |
+                (uint)PermissionType.Read |
+                (uint)PermissionType.Write |
+                (uint)PermissionType.ReadHistory |
+                (uint)PermissionType.ReadRolePermissions;
+            Assert.IsTrue(int32Static.RolePermissions.Any(permission =>
+                permission.RoleId == ObjectIds.WellKnownRole_Anonymous &&
+                permission.Permissions == expectedPermissions));
+            Assert.IsTrue(int32Static.RolePermissions.Any(permission =>
+                permission.RoleId == ObjectIds.WellKnownRole_AuthenticatedUser &&
+                permission.Permissions == expectedPermissions));
+            Assert.IsTrue(int32Static.RolePermissions.Any(permission =>
+                permission.RoleId == ObjectIds.WellKnownRole_SecurityAdmin &&
+                permission.Permissions == 0xFFFF));
+            Assert.IsTrue(int32Static.UserRolePermissions.Any(permission =>
+                permission.RoleId == ObjectIds.WellKnownRole_Anonymous &&
+                permission.Permissions == expectedPermissions));
+            Assert.IsTrue(int32Static.UserRolePermissions.Any(permission =>
+                permission.RoleId == ObjectIds.WellKnownRole_AuthenticatedUser &&
+                permission.Permissions == expectedPermissions));
+        }
+
+        [Test]
         public void ReferenceHistoricalConfigurationsHaveUniqueInstanceNodeIds()
         {
             ReferenceNodeManager nodeManager = m_server.CurrentInstance.NodeManager.NodeManagers
@@ -1949,6 +2014,16 @@ namespace Opc.Ua.Server.Tests
             }
             Assert.IsTrue(hasEndpointWithoutAnonymous,
                 "At least one endpoint should not allow anonymous authentication in provisioning mode");
+
+            string[] profiles = server.CurrentInstance.ServerObject.ServerCapabilities
+                .ServerProfileArray.Value;
+            Assert.IsFalse(profiles.Contains(
+                "http://opcfoundation.org/UA-Profile/Server/HistoricalRawData2022"));
+            Assert.IsFalse(profiles.Contains(
+                "http://opcfoundation.org/UA-Profile/Server/AggregateHistorical2022"));
+            HistoryServerCapabilitiesState historyCapabilities = server.CurrentInstance
+                .DiagnosticsNodeManager.GetDefaultHistoryCapabilities();
+            Assert.IsFalse(historyCapabilities.AccessHistoryDataCapability.Value);
 
             // Clean up
             await fixture.StopAsync().ConfigureAwait(false);

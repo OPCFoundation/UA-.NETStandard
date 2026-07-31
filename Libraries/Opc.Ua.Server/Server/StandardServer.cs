@@ -54,6 +54,12 @@ namespace Opc.Ua.Server
         {
             if (disposing)
             {
+                if (m_conformanceUnitsManager != null)
+                {
+                    Utils.SilentDispose(m_conformanceUnitsManager);
+                    m_conformanceUnitsManager = null;
+                }
+
                 // halt any outstanding timer.
                 if (m_registrationTimer != null)
                 {
@@ -3102,6 +3108,16 @@ namespace Opc.Ua.Server
                 m_serverInternal.SetModellingRulesManager(
                     CreateModellingRulesManager(m_serverInternal, configuration));
 
+                // create and publish the conformance units and server profiles
+                // contributed by the installed node managers.
+                m_logger.LogInformation(
+                    Utils.TraceMasks.StartStop,
+                    "Server - CreateConformanceUnitsManager.");
+                m_conformanceUnitsManager = await CreateConformanceUnitsManagerAsync(
+                    m_serverInternal,
+                    configuration,
+                    cancellationToken).ConfigureAwait(false);
+
                 // start the session manager.
                 m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateSessionManager.");
                 ISessionManager sessionManager = CreateSessionManager(
@@ -3627,6 +3643,32 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Creates and publishes the manager used to aggregate conformance units
+        /// and server profiles from the installed node managers.
+        /// </summary>
+        protected virtual async ValueTask<ConformanceUnitsManager> CreateConformanceUnitsManagerAsync(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            CancellationToken cancellationToken = default)
+        {
+            var manager = new ConformanceUnitsManager(server);
+
+            foreach (IAsyncNodeManager nodeManager in server.NodeManager.AsyncNodeManagers)
+            {
+                IConformanceContributor contributor = nodeManager as IConformanceContributor ??
+                    nodeManager.SyncNodeManager as IConformanceContributor;
+
+                if (contributor != null)
+                {
+                    manager.Register(contributor);
+                }
+            }
+
+            await manager.PublishAsync(cancellationToken).ConfigureAwait(false);
+            return manager;
+        }
+
+        /// <summary>
         /// Creates the resource manager for the server.
         /// </summary>
         /// <param name="server">The server.</param>
@@ -3834,6 +3876,7 @@ namespace Opc.Ua.Server
         private bool m_registeredWithDiscoveryServer;
         private int m_minNonceLength;
         private bool m_useRegisterServer2;
+        private ConformanceUnitsManager m_conformanceUnitsManager;
         private readonly List<INodeManagerFactory> m_nodeManagerFactories = [];
         private readonly List<IAsyncNodeManagerFactory> m_asyncNodeManagerFactories = [];
     }
