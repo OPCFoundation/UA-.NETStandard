@@ -107,7 +107,13 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Generators
                     OutputKind.DynamicallyLinkedLibrary,
                     nullableContextOptions: NullableContextOptions.Enable));
 
-            GeneratorDriver driver = CSharpGeneratorDriver.Create(new MigrationGenerator());
+            // Hand the driver the same parse options as the input trees; the
+            // default language version tracks the Roslyn API version, so an
+            // implicit default makes the generated trees inconsistent with the
+            // compilation as soon as the SDK moves to a newer C#.
+            GeneratorDriver driver = CSharpGeneratorDriver.Create(
+                [new MigrationGenerator().AsSourceGenerator()],
+                parseOptions: parseOptions);
             driver = driver.RunGeneratorsAndUpdateCompilation(
                 compilation,
                 out _,

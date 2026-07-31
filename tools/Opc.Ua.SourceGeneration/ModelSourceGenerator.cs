@@ -29,30 +29,19 @@
 
 using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
-using IIncrementalGenerator = SGF.IncrementalGenerator;
-using IncrementalGeneratorAttribute = SGF.IncrementalGeneratorAttribute;
-using IncrementalGeneratorInitializationContext = SGF.SgfInitializationContext;
 
 namespace Opc.Ua.SourceGeneration
 {
     /// <summary>
     /// Generates server and client models using the model generator library
     /// </summary>
-    [IncrementalGenerator]
-    public class ModelSourceGenerator : IIncrementalGenerator
+    [Generator(LanguageNames.CSharp)]
+    public sealed class ModelSourceGenerator : IIncrementalGenerator
     {
         /// <inheritdoc/>
-        public ModelSourceGenerator()
-            : base(SourceGenerator.Name)
+        public void Initialize(IncrementalGeneratorInitializationContext context)
         {
-        }
-
-        /// <inheritdoc/>
-        public override void OnInitialize(IncrementalGeneratorInitializationContext context)
-        {
-#if DEBUGX
-            AttachDebugger();
-#endif
+            SourceGenerator.AttachDebuggerIfRequested();
             IncrementalValueProvider<ImmutableArray<(AdditionalText Left, NodesetFileOptions)>> inputFiles =
                 context.AdditionalTextsProvider
                     .Where(f => f.IsDesignOrNodeset2File())
@@ -155,17 +144,18 @@ namespace Opc.Ua.SourceGeneration
 
             context.RegisterSourceOutput(
                 modelCompilationInput,
-                (context, input) => new ModelCompilation(
+                static (context, input) => SourceGenerator.Guard(
                     context,
-                    input.InputFiles,
-                    input.CsvFiles,
-                    input.IdentifierFiles,
-                    input.Options,
-                    input.CompilationOptions,
-                    input.ReferencedModels,
-                    input.NodeManagerBindings,
-                    input.AvailableStateTypeNames,
-                    Logger).Emit(context.CancellationToken));
+                    () => new ModelCompilation(
+                        context,
+                        input.InputFiles,
+                        input.CsvFiles,
+                        input.IdentifierFiles,
+                        input.Options,
+                        input.CompilationOptions,
+                        input.ReferencedModels,
+                        input.NodeManagerBindings,
+                        input.AvailableStateTypeNames).Emit(context.CancellationToken)));
 
             IncrementalValueProvider<bool> publicDataTypeExtensions =
                 context.AnalyzerConfigOptionsProvider
@@ -179,8 +169,10 @@ namespace Opc.Ua.SourceGeneration
                 .Where(static m => m is not null)
                 .Collect()
                 .Combine(publicDataTypeExtensions),
-                static (spc, pair) => DataTypeCompilation.EmitBatch(
-                    spc, pair.Left, pair.Right));
+                static (spc, pair) => SourceGenerator.Guard(
+                    spc,
+                    () => DataTypeCompilation.EmitBatch(
+                        spc, pair.Left, pair.Right)));
         }
 
         private readonly record struct ModelCompilationInput(

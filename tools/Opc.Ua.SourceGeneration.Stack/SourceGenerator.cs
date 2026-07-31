@@ -32,7 +32,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.SourceGeneration
 {
-    internal static class SourceGenerator
+    internal static partial class SourceGenerator
     {
         /// <summary>
         /// The namespace prefix for generated code
