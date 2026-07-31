@@ -35,7 +35,11 @@ plugs it together.
 
 The running example is `samples/PumpDeviceIntegrationServer`, a
 companion-spec server with full simulation and a second generated
-`PumpType` configured through the topology-element builder.
+`PumpType` configured through the topology-element builder. The
+simulated asset is specified by its own product datasheet,
+[`samples/PumpDeviceIntegrationServer/DATASHEET.md`](../samples/PumpDeviceIntegrationServer/DATASHEET.md),
+which maps every nameplate field, engineering range and alarm trip point
+to its OPC UA browse path.
 
 ## Quick start
 
@@ -93,8 +97,11 @@ builder.Services
         ushort diNamespaceIndex = manager.DiNamespaceIndex;
         pump.WithIdentificationGroup(group => group.Configure(node =>
             node.WithProperty(
-                new QualifiedName("SerialNumber", diNamespaceIndex),
-                Variant.From("SN-DI-2"))));
+                    new QualifiedName("Manufacturer", diNamespaceIndex),
+                    Variant.From(new LocalizedText("SimPump Corp")))
+                .WithProperty(
+                    new QualifiedName("SerialNumber", diNamespaceIndex),
+                    Variant.From("SN-002"))));
     });
 ```
 

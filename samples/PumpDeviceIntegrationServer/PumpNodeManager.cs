@@ -273,6 +273,8 @@ namespace Pumps
         private void MaterialisePumpOptionalChildren(
             PumpState pump)
         {
+            MaterialiseNameplate(pump.Identification!);
+
             pump.AddOperational(SystemContext);
             OperationalGroupState operational = pump.Operational!;
             operational.AddMeasurements(SystemContext);
@@ -316,6 +318,47 @@ namespace Pumps
             // typed-accessor generator (FB-3 phase 3) ships materialisable
             // leaves for ConditionBasedMaintenance / BreakdownMaintenance.
             pump.AddMaintenance(SystemContext);
+        }
+
+        /// <summary>
+        /// Materialises the optional nameplate properties that carry the
+        /// PumpX-2000 datasheet identification data. <c>Manufacturer</c>
+        /// and <c>SerialNumber</c> are mandatory on
+        /// <c>PumpIdentificationType</c> and are already created by the
+        /// generated factory; every other field is optional and is added
+        /// here through the generator-emitted <c>AddXxx(context)</c>
+        /// helpers so each property keeps the browse name, namespace and
+        /// DataType declared by the DI, Machinery and Pumps models. The
+        /// values themselves are assigned by the fluent
+        /// <c>WithProperty</c> wiring (Pump #1) and by the topology-element
+        /// builder (Pump #2).
+        /// </summary>
+        private void MaterialiseNameplate(PumpIdentificationState identification)
+        {
+            // OPC 10000-100 (DI) nameplate.
+            identification.AddManufacturerUri(SystemContext);
+            identification.AddModel(SystemContext);
+            identification.AddProductCode(SystemContext);
+            identification.AddDeviceClass(SystemContext);
+            identification.AddHardwareRevision(SystemContext);
+            identification.AddSoftwareRevision(SystemContext);
+            identification.AddProductInstanceUri(SystemContext);
+            identification.AddAssetId(SystemContext);
+            identification.AddComponentName(SystemContext);
+
+            // OPC 40001-1 (Machinery) nameplate.
+            identification.AddLocation(SystemContext);
+            identification.AddYearOfConstruction(SystemContext);
+            identification.AddMonthOfConstruction(SystemContext);
+
+            // OPC 40223 (Pumps) nameplate.
+            identification.AddDayOfConstruction(SystemContext);
+            identification.AddArticleNumber(SystemContext);
+            identification.AddOrderProductCode(SystemContext);
+            identification.AddTypeOfProduct(SystemContext);
+            identification.AddSupplier(SystemContext);
+            identification.AddCountryOfOrigin(SystemContext);
+            identification.AddFabricationNumber(SystemContext);
         }
 
         /// <summary>

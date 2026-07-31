@@ -82,25 +82,78 @@ builder.Services
             ctx.TopologyElement<PumpState>(pumpState.NodeId);
 
         ushort diNamespaceIndex = ctx.Manager.DiNamespaceIndex;
+        ushort machineryNamespaceIndex = (ushort)manager.Server.NamespaceUris.GetIndex(
+            Opc.Ua.Machinery.Namespaces.Machinery);
+
+        // Nameplate of unit SN-002 as published in DATASHEET.md. The
+        // properties are materialised by the node manager; the topology
+        // element builder only assigns their values.
         pump.WithIdentificationGroup(id => id.Configure(node =>
             node.WithProperty(
                     new QualifiedName("Manufacturer", diNamespaceIndex),
-                    Variant.From(new LocalizedText("Acme Pumps Inc.")))
+                    Variant.From(
+                        new LocalizedText(PumpDatasheet.Nameplate.Manufacturer)))
+                .WithProperty(
+                    new QualifiedName("ManufacturerUri", diNamespaceIndex),
+                    Variant.From(PumpDatasheet.Nameplate.ManufacturerUri))
                 .WithProperty(
                     new QualifiedName("Model", diNamespaceIndex),
-                    Variant.From(new LocalizedText("PumpX-2000 (declarative)")))
+                    Variant.From(new LocalizedText(PumpDatasheet.Nameplate.Model)))
                 .WithProperty(
-                    new QualifiedName("SerialNumber", diNamespaceIndex),
-                    Variant.From("SN-DI-2"))
+                    new QualifiedName("ProductCode", diNamespaceIndex),
+                    Variant.From(PumpDatasheet.Nameplate.ProductCode))
                 .WithProperty(
                     new QualifiedName("DeviceClass", diNamespaceIndex),
-                    Variant.From("Pump"))
+                    Variant.From(PumpDatasheet.Nameplate.DeviceClass))
                 .WithProperty(
                     new QualifiedName("HardwareRevision", diNamespaceIndex),
-                    Variant.From("1.0"))
+                    Variant.From(PumpDatasheet.Nameplate.HardwareRevision))
                 .WithProperty(
                     new QualifiedName("SoftwareRevision", diNamespaceIndex),
-                    Variant.From("2.5.3"))));
+                    Variant.From(PumpDatasheet.Nameplate.SoftwareRevision))
+                .WithProperty(
+                    new QualifiedName("SerialNumber", diNamespaceIndex),
+                    Variant.From("SN-002"))
+                .WithProperty(
+                    new QualifiedName("ProductInstanceUri", diNamespaceIndex),
+                    Variant.From(
+                        PumpDatasheet.Nameplate.ProductInstanceUriPrefix + "SN-002"))
+                .WithProperty(
+                    new QualifiedName("AssetId", diNamespaceIndex),
+                    Variant.From("PMP-1002"))
+                .WithProperty(
+                    new QualifiedName("ComponentName", diNamespaceIndex),
+                    Variant.From(new LocalizedText("Feed Pump B")))
+                .WithProperty(
+                    new QualifiedName("Location", machineryNamespaceIndex),
+                    Variant.From("Plant 1 / Utility Skid / Bay 4"))
+                .WithProperty(
+                    new QualifiedName("YearOfConstruction", machineryNamespaceIndex),
+                    Variant.From(PumpDatasheet.Nameplate.YearOfConstruction))
+                .WithProperty(
+                    new QualifiedName("MonthOfConstruction", machineryNamespaceIndex),
+                    Variant.From(PumpDatasheet.Nameplate.MonthOfConstruction))
+                .WithProperty(
+                    new QualifiedName("DayOfConstruction", pumpsNamespaceIndex),
+                    Variant.From(PumpDatasheet.Nameplate.DayOfConstruction))
+                .WithProperty(
+                    new QualifiedName("ArticleNumber", pumpsNamespaceIndex),
+                    Variant.From(PumpDatasheet.Nameplate.ArticleNumber))
+                .WithProperty(
+                    new QualifiedName("OrderProductCode", pumpsNamespaceIndex),
+                    Variant.From(PumpDatasheet.Nameplate.OrderProductCode))
+                .WithProperty(
+                    new QualifiedName("TypeOfProduct", pumpsNamespaceIndex),
+                    Variant.From(PumpDatasheet.Nameplate.TypeOfProduct))
+                .WithProperty(
+                    new QualifiedName("Supplier", pumpsNamespaceIndex),
+                    Variant.From(PumpDatasheet.Nameplate.Supplier))
+                .WithProperty(
+                    new QualifiedName("CountryOfOrigin", pumpsNamespaceIndex),
+                    Variant.From(PumpDatasheet.Nameplate.CountryOfOrigin))
+                .WithProperty(
+                    new QualifiedName("FabricationNumber", pumpsNamespaceIndex),
+                    Variant.From("F-2025-0002"))));
 
         // Demonstrate the non-typed WithFunctionalGroup(QualifiedName)
         // builder for ad-hoc groups not covered by the 8 well-known
