@@ -1,0 +1,436 @@
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+using System;
+using System.Collections.Immutable;
+using System.Globalization;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using NUnit.Framework;
+using Opc.Ua.WotCon.Bindings.Modbus;
+using Opc.Ua.WotCon.Bindings.Planners;
+using Opc.Ua.WotCon.Bindings.Tests.Support;
+
+namespace Opc.Ua.WotCon.Bindings.Tests
+{
+    /// <summary>
+    /// Executor-level hardening tests for the Modbus binding: a function-only form
+    /// maps end-to-end onto the exact function code, and the executor re-validates
+    /// the address / quantity range before the ushort casts so a hand-built,
+    /// out-of-range compiled form fails fast instead of silently truncating.
+    /// </summary>
+    [TestFixture]
+    public sealed class ModbusWotExecutorHardeningTests
+    {
+        private static WotProtocolBinderRegistry Registry()
+        {
+            return new WotProtocolBinderRegistry(
+                        [new ModbusBindingPlanner()],
+                        [new ModbusWotBindingExecutor()]);
+        }
+
+        [Test]
+        public async Task ModbusFunctionOnlyFormReadsHoldingRegisterEndToEnd()
+        {
+            using var server = new TestModbusServer();
+            server.HoldingRegisters[100] = 0x1234;
+            server.HoldingRegisters[101] = 0x5678;
+
+            // Function-only form: modv:function 3 (read holding registers), no
+            // modv:entity. The planner must map it onto the holding-register space.
+            string td = "{\"@context\":\"https://www.w3.org/2022/wot/td/v1.1\",\"title\":\"t\"," +
+                "\"properties\":{\"level\":{\"type\":\"number\",\"forms\":[{\"href\":\"modbus+tcp://127.0.0.1:" +
+                server.Port +
+                "/1\",\"modv:function\":3,\"modv:address\":100," +
+                "\"modv:quantity\":2,\"modv:type\":\"int32\"}]}}}";
+
+            WotProtocolBinderRegistry registry = Registry();
+            WotBindingPlan plan = registry.Prepare(WotBindingPlanRequest.FromDocument(
+                "xid", WoTDocumentKindEnum.ThingDescription, Encoding.UTF8.GetBytes(td)));
+            WotCompiledForm read = plan.CompiledForms.First(f => f.Operation == WoTBindingCapabilityEnum.ReadProperty);
+            Assert.That(read.Addressing.Metadata["entity"], Is.EqualTo("holdingRegister"));
+            Assert.That(read.OperationInfo.Method, Is.EqualTo("readHoldingRegisters"));
+
+            IWotBindingChannel channel = await registry.OpenChannelAsync(read).ConfigureAwait(false);
+            await using (channel.ConfigureAwait(false))
+            {
+                WotReadResult result = await channel.ReadAsync().ConfigureAwait(false);
+                Assert.That(result.Success, Is.True);
+                Assert.That(result.Value.WrappedValue.AsBoxedObject(), Is.EqualTo(0x12345678));
+            }
+        }
+
+        [Test]
+        public void ModbusExecutorRevalidatesOutOfRangeAddressBeforeCast()
+        {
+            // A hand-built compiled form whose address is beyond the 16-bit Modbus
+            // space would truncate to a valid ushort without the executor's
+            // re-validation. The executor must refuse it before opening a socket.
+            var addressing = new WotAddressingDescriptor(
+                "holdingRegister:70000:1@1",
+                ImmutableDictionary<string, string>.Empty
+                    .Add("entity", "holdingRegister")
+                    .Add("address", "70000")
+                    .Add("quantity", "1")
+                    .Add("unitId", "1"));
+            var payload = new WotPayloadDescriptor(
+                "application/octet-stream", "octet-stream",
+                ImmutableDictionary<string, string>.Empty.Add("type", "uint16"));
+            var form = new WotCompiledForm(
+                new WotBindingIdentity("w3c.modbus", "1.0-ed", ModbusBindingPlanner.BindingUri),
+                WotAffordanceKind.Property, "p", "/properties/p/forms/0",
+                WoTBindingCapabilityEnum.ReadProperty, "readproperty",
+                new WotEndpointDescriptor("modbus+tcp", "127.0.0.1", 502, "modbus+tcp://127.0.0.1:502"),
+                addressing,
+                new WotOperationDescriptor(
+                    WoTBindingCapabilityEnum.ReadProperty, "readproperty", "readHoldingRegisters"),
+                payload,
+                [], isExecutable: true);
+
+            var executor = new ModbusWotBindingExecutor();
+            Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+                async () => await executor.ActivateAsync(form, new WotExecutorContext()).ConfigureAwait(false));
+        }
+
+        [Test]
+        public void ModbusExecutorRevalidatesRangeOverflowBeforeCast()
+        {
+            var addressing = new WotAddressingDescriptor(
+                "holdingRegister:65530:10@1",
+                ImmutableDictionary<string, string>.Empty
+                    .Add("entity", "holdingRegister")
+                    .Add("address", "65530")
+                    .Add("quantity", "10")
+                    .Add("unitId", "1"));
+            var payload = new WotPayloadDescriptor(
+                "application/octet-stream", "octet-stream",
+                ImmutableDictionary<string, string>.Empty.Add("type", "uint16"));
+            var form = new WotCompiledForm(
+                new WotBindingIdentity("w3c.modbus", "1.0-ed", ModbusBindingPlanner.BindingUri),
+                WotAffordanceKind.Property, "p", "/properties/p/forms/0",
+                WoTBindingCapabilityEnum.ReadProperty, "readproperty",
+                new WotEndpointDescriptor("modbus+tcp", "127.0.0.1", 502, "modbus+tcp://127.0.0.1:502"),
+                addressing,
+                new WotOperationDescriptor(
+                    WoTBindingCapabilityEnum.ReadProperty, "readproperty", "readHoldingRegisters"),
+                payload,
+                [], isExecutable: true);
+
+            var executor = new ModbusWotBindingExecutor();
+            Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+                async () => await executor.ActivateAsync(form, new WotExecutorContext()).ConfigureAwait(false));
+        }
+
+        [Test]
+        public void ModbusExecutorRejectsQuantityThatWouldTruncateToZero()
+        {
+            var addressing = new WotAddressingDescriptor(
+                "holdingRegister:0:65536@1",
+                ImmutableDictionary<string, string>.Empty
+                    .Add("entity", "holdingRegister")
+                    .Add("address", "0")
+                    .Add("quantity", "65536")
+                    .Add("unitId", "1"));
+            var payload = new WotPayloadDescriptor(
+                "application/octet-stream", "octet-stream",
+                ImmutableDictionary<string, string>.Empty.Add("type", "uint16"));
+            var form = new WotCompiledForm(
+                new WotBindingIdentity("w3c.modbus", "1.0-ed", ModbusBindingPlanner.BindingUri),
+                WotAffordanceKind.Property, "p", "/properties/p/forms/0",
+                WoTBindingCapabilityEnum.ReadProperty, "readproperty",
+                new WotEndpointDescriptor(
+                    "modbus+tcp", "127.0.0.1", 502, "modbus+tcp://127.0.0.1:502"),
+                addressing,
+                new WotOperationDescriptor(
+                    WoTBindingCapabilityEnum.ReadProperty,
+                    "readproperty",
+                    "readHoldingRegisters"),
+                payload,
+                [],
+                isExecutable: true);
+
+            var executor = new ModbusWotBindingExecutor();
+            Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+                async () => await executor
+                    .ActivateAsync(form, new WotExecutorContext())
+                    .ConfigureAwait(false));
+        }
+
+        [Test]
+        public void ModbusExecutorRevalidatesConfiguredCoilBound()
+        {
+            WotCompiledForm form = BitForm(
+                quantity: 9,
+                operation: WoTBindingCapabilityEnum.ReadProperty,
+                method: "readCoil");
+            var context = new WotExecutorContext(
+                bounds: new WotBindingBounds { MaxCoilQuantity = 8 });
+
+            var executor = new ModbusWotBindingExecutor();
+            Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+                async () => await executor.ActivateAsync(form, context).ConfigureAwait(false));
+        }
+
+        [Test]
+        public void ModbusExecutorRevalidatesMultipleCoilWriteProtocolBound()
+        {
+            WotCompiledForm form = BitForm(
+                quantity: 1969,
+                operation: WoTBindingCapabilityEnum.WriteProperty,
+                method: "writeMultipleCoils");
+
+            var executor = new ModbusWotBindingExecutor();
+            ArgumentOutOfRangeException? exception = Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+                async () => await executor
+                    .ActivateAsync(form, new WotExecutorContext())
+                    .ConfigureAwait(false));
+            Assert.That(exception!.Message, Does.Contain("1968"));
+        }
+
+        [Test]
+        public void ModbusExecutorRejectsSingleCoilQuantityMismatch()
+        {
+            WotCompiledForm form = BitForm(
+                quantity: 2,
+                operation: WoTBindingCapabilityEnum.WriteProperty,
+                method: "writeSingleCoil");
+
+            var executor = new ModbusWotBindingExecutor();
+            ArgumentOutOfRangeException? exception = Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+                async () => await executor
+                    .ActivateAsync(form, new WotExecutorContext())
+                    .ConfigureAwait(false));
+            Assert.That(exception!.Message, Does.Contain("quantity of 1"));
+        }
+
+        [TestCase(
+            "holdingRegister",
+            WoTBindingCapabilityEnum.WriteProperty,
+            "writeSingleCoil")]
+        [TestCase(
+            "coil",
+            WoTBindingCapabilityEnum.ReadProperty,
+            "writeSingleCoil")]
+        [TestCase(
+            "coil",
+            WoTBindingCapabilityEnum.WriteProperty,
+            "unknownCoilMethod")]
+        public void ModbusExecutorRejectsInconsistentEntityDirectionOrMethod(
+            string entity,
+            WoTBindingCapabilityEnum operation,
+            string method)
+        {
+            WotCompiledForm form = BitForm(
+                quantity: 1,
+                operation: operation,
+                method: method,
+                entity: entity);
+
+            var executor = new ModbusWotBindingExecutor();
+            Assert.ThrowsAsync<ArgumentException>(
+                async () => await executor
+                    .ActivateAsync(form, new WotExecutorContext())
+                    .ConfigureAwait(false));
+        }
+
+        [Test]
+        public void ModbusExecutorRejectsOperationDescriptorMismatch()
+        {
+            WotCompiledForm form = BitForm(
+                quantity: 1,
+                operation: WoTBindingCapabilityEnum.WriteProperty,
+                method: "writeSingleCoil",
+                descriptorOperation: WoTBindingCapabilityEnum.ReadProperty);
+
+            var executor = new ModbusWotBindingExecutor();
+            Assert.ThrowsAsync<ArgumentException>(
+                async () => await executor
+                    .ActivateAsync(form, new WotExecutorContext())
+                    .ConfigureAwait(false));
+        }
+
+        [Test]
+        public void ModbusExecutorRejectsFunctionCodeMismatch()
+        {
+            WotCompiledForm form = BitForm(
+                quantity: 1,
+                operation: WoTBindingCapabilityEnum.WriteProperty,
+                method: "writeSingleCoil",
+                functionCode: 15);
+
+            var executor = new ModbusWotBindingExecutor();
+            Assert.ThrowsAsync<ArgumentException>(
+                async () => await executor
+                    .ActivateAsync(form, new WotExecutorContext())
+                    .ConfigureAwait(false));
+        }
+
+        [TestCase(3, "uint64")]
+        [TestCase(2, null)]
+        public void ModbusExecutorRejectsRegisterWriteWidthMismatch(int quantity, string? type)
+        {
+            WotCompiledForm form = RegisterWriteForm(quantity, type, 502);
+
+            var executor = new ModbusWotBindingExecutor();
+            ArgumentException? exception = Assert.ThrowsAsync<ArgumentException>(
+                async () => await executor
+                    .ActivateAsync(form, new WotExecutorContext())
+                    .ConfigureAwait(false));
+            Assert.That(exception!.Message, Does.Contain("does not match quantity"));
+            Assert.That(exception.Message, Does.Contain($"type '{type ?? "uint16"}'"));
+        }
+
+        [TestCase(1, "uint16")]
+        [TestCase(2, "uint32")]
+        [TestCase(4, "uint64")]
+        public async Task ModbusExecutorAcceptsMatchingRegisterWriteWidth(int quantity, string type)
+        {
+            using var server = new TestModbusServer();
+            WotCompiledForm form = RegisterWriteForm(quantity, type, server.Port);
+
+            var executor = new ModbusWotBindingExecutor();
+            IWotBindingChannel channel = await executor
+                .ActivateAsync(form, new WotExecutorContext())
+                .ConfigureAwait(false);
+            await using (channel.ConfigureAwait(false))
+            {
+                Variant value = quantity switch
+                {
+                    1 => new Variant((ushort)0x1234),
+                    2 => new Variant(0x12345678u),
+                    _ => new Variant(0x0123456789ABCDEFul)
+                };
+                WotWriteResult result = await channel
+                    .WriteAsync(new DataValue(value))
+                    .ConfigureAwait(false);
+                Assert.That(result.Success, Is.True, result.Error);
+            }
+            ushort[] expected = quantity switch
+            {
+                1 => [0x1234],
+                2 => [0x1234, 0x5678],
+                _ => [0x0123, 0x4567, 0x89AB, 0xCDEF]
+            };
+            Assert.That(server.HoldingRegisters.Take(quantity), Is.EqualTo(expected));
+        }
+
+        private static WotCompiledForm RegisterWriteForm(int quantity, string? type, int port)
+        {
+            ImmutableDictionary<string, string> payloadMetadata =
+                ImmutableDictionary<string, string>.Empty;
+            if (type is not null)
+            {
+                payloadMetadata = payloadMetadata.Add("type", type);
+            }
+            var addressing = new WotAddressingDescriptor(
+                $"holdingRegister:0:{quantity}@1",
+                ImmutableDictionary<string, string>.Empty
+                    .Add("entity", "holdingRegister")
+                    .Add("address", "0")
+                    .Add("quantity", quantity.ToString(CultureInfo.InvariantCulture))
+                    .Add("unitId", "1"));
+            var payload = new WotPayloadDescriptor(
+                "application/octet-stream",
+                OctetStreamWotPayloadCodec.Instance.Id,
+                payloadMetadata);
+            string method = quantity == 1
+                ? "writeSingleHoldingRegister"
+                : "writeMultipleHoldingRegisters";
+            return new WotCompiledForm(
+                new WotBindingIdentity("w3c.modbus", "1.0-ed", ModbusBindingPlanner.BindingUri),
+                WotAffordanceKind.Property,
+                "p",
+                "/properties/p/forms/0",
+                WoTBindingCapabilityEnum.WriteProperty,
+                "writeproperty",
+                new WotEndpointDescriptor(
+                    "modbus+tcp",
+                    "127.0.0.1",
+                    port,
+                    $"modbus+tcp://127.0.0.1:{port}"),
+                addressing,
+                new WotOperationDescriptor(
+                    WoTBindingCapabilityEnum.WriteProperty,
+                    "writeproperty",
+                    method),
+                payload,
+                [],
+                isExecutable: true);
+        }
+
+        private static WotCompiledForm BitForm(
+            int quantity,
+            WoTBindingCapabilityEnum operation,
+            string method,
+            string entity = "coil",
+            WoTBindingCapabilityEnum? descriptorOperation = null,
+            int? functionCode = null)
+        {
+            ImmutableDictionary<string, string> metadata = ImmutableDictionary<string, string>.Empty
+                .Add("entity", entity)
+                .Add("address", "0")
+                .Add("quantity", quantity.ToString(CultureInfo.InvariantCulture))
+                .Add("unitId", "1");
+            if (functionCode is not null)
+            {
+                metadata = metadata.Add(
+                    "functionCode",
+                    functionCode.Value.ToString(CultureInfo.InvariantCulture));
+            }
+            var addressing = new WotAddressingDescriptor(
+                $"{entity}:0:{quantity}@1",
+                metadata);
+            var payload = new WotPayloadDescriptor(
+                "application/octet-stream",
+                OctetStreamWotPayloadCodec.Instance.Id,
+                ImmutableDictionary<string, string>.Empty.Add(
+                    "type",
+                    quantity == 1 ? "boolean" : "boolean[]"));
+            WoTBindingCapabilityEnum operationInfo = descriptorOperation ?? operation;
+            return new WotCompiledForm(
+                new WotBindingIdentity("w3c.modbus", "1.0-ed", ModbusBindingPlanner.BindingUri),
+                WotAffordanceKind.Property,
+                "p",
+                "/properties/p/forms/0",
+                operation,
+                operation == WoTBindingCapabilityEnum.WriteProperty ? "writeproperty" : "readproperty",
+                new WotEndpointDescriptor(
+                    "modbus+tcp", "127.0.0.1", 502, "modbus+tcp://127.0.0.1:502"),
+                addressing,
+                new WotOperationDescriptor(
+                    operationInfo,
+                    operationInfo == WoTBindingCapabilityEnum.WriteProperty ? "writeproperty" : "readproperty",
+                    method),
+                payload,
+                [],
+                isExecutable: true);
+        }
+    }
+}
