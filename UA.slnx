@@ -142,7 +142,6 @@
     <File Path=".azurepipelines/signlistRelease.txt" />
     <File Path=".azurepipelines/sln.yml" />
     <File Path=".azurepipelines/test.yml" />
-    <File Path=".azurepipelines/testcc.yml" />
   </Folder>
   <Folder Name="/Solution Items/Nuget/">
     <File Path="nuget/Opc.Ua.nuspec" />

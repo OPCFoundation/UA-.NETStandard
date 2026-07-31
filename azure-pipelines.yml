@@ -67,7 +67,7 @@ pr:
 # forces the run even when there are no commits since the previous one so
 # the badge in README.md reflects a recent green build.  All stages that
 # are gated on `ScheduledBuild` (AOT, Debug, .NET 9/8/472/netstandard,
-# Coverage, mac matrix) are automatically included because Build.Reason
+# mac matrix) are automatically included because Build.Reason
 # is 'Schedule' for these runs.
 schedules:
 - cron: '0 2 * * 0'
@@ -81,10 +81,9 @@ variables:
   FullBuild: ${{ ne(variables['Build.Reason'], 'PullRequest') }}
   ScheduledBuild: ${{ in(variables['Build.Reason'], 'Schedule', 'Manual') }}
   # 'True' when Azure Pipelines owns the build/test matrix that GitHub Actions
-  # used to run (see the ciBuildBackend parameter).  Stages that were previously
-  # Schedule/Manual-only - Native AoT and Coverage - additionally run on pull
-  # requests while this is True, because they are now the only place that work
-  # happens.
+  # used to run (see the ciBuildBackend parameter).  Native AoT, previously
+  # Schedule/Manual-only, additionally runs on pull requests while this is True,
+  # because it is then the only place that work happens.
   AdoOwnsMatrix: ${{ eq(parameters.ciBuildBackend, 'ado') }}
   # macOS jobs always run on Microsoft-hosted agents because Managed DevOps Pools
   # does not provide macOS images.
@@ -174,6 +173,8 @@ stages:
       jobnamesuffix: net48
       poolName: ${{ variables.mgdPoolName }}
       windowsImage: ${{ variables.mgdWindowsImage }}
+      coveragePoolName: ${{ variables.hostPoolName }}
+      coverageImage: ${{ variables.hostLinuxImage }}
   - template: .azurepipelines/test.yml
     parameters:
       configuration: Release
@@ -190,6 +191,14 @@ stages:
       customtestarget: net10.0
       poolName: ${{ variables.mgdPoolName }}
       windowsImage: ${{ variables.mgdWindowsImage }}
+      coveragePoolName: ${{ variables.hostPoolName }}
+      coverageImage: ${{ variables.hostLinuxImage }}
+      # The reference leg: net10.0 Release is the configuration the thresholds in
+      # coverage-thresholds.json are calibrated against, so this is the only one
+      # whose coverage gate blocks, and the only one that publishes the merged
+      # report to the build summary and to Codacy.
+      enforceCoverage: true
+      publishCoverage: true
   - template: .azurepipelines/test.yml
     parameters:
       configuration: Release
@@ -200,9 +209,14 @@ stages:
       hosted: true
       poolName: ${{ variables.mgdPoolName }}
       windowsImage: ${{ variables.mgdWindowsImage }}
+      coveragePoolName: ${{ variables.hostPoolName }}
+      coverageImage: ${{ variables.hostLinuxImage }}
       # macOS runs only on Schedule/Manual (nightly + on-demand), not on
       # PR or master push, to keep the PR gate fast and Windows-focused.
-      condition: and(succeeded(), ne(variables.ScheduledBuild, 'False'))
+      # Passed bare: test.yml wraps it in succeeded() for the test jobs and in
+      # not(canceled()) for the coverage gate, which has to report a failure
+      # rather than skip when a test job failed.
+      condition: ne(variables.ScheduledBuild, 'False')
 - stage: testaot
   dependsOn: []
   displayName: 'Test Native AoT'
@@ -230,6 +244,8 @@ stages:
       jobnamesuffix: net100debug
       poolName: ${{ variables.hostPoolName }}
       windowsImage: ${{ variables.hostWindowsImage }}
+      coveragePoolName: ${{ variables.hostPoolName }}
+      coverageImage: ${{ variables.hostLinuxImage }}
       agents: '@{ windows = "${{ variables.hostWindowsImage }}"; linux = "${{ variables.hostLinuxImage }}" }'
   - template: .azurepipelines/test.yml
     parameters:
@@ -240,6 +256,8 @@ stages:
       hosted: true
       poolName: ${{ variables.hostPoolName }}
       windowsImage: ${{ variables.hostWindowsImage }}
+      coveragePoolName: ${{ variables.hostPoolName }}
+      coverageImage: ${{ variables.hostLinuxImage }}
 - stage: testnet90
   dependsOn: [build]
   displayName: 'Test .NET 9.0'
@@ -252,6 +270,8 @@ stages:
       jobnamesuffix: net90
       poolName: ${{ variables.mgdPoolName }}
       windowsImage: ${{ variables.mgdWindowsImage }}
+      coveragePoolName: ${{ variables.hostPoolName }}
+      coverageImage: ${{ variables.hostLinuxImage }}
       agents: '@{ windows = "${{ variables.mgdWindowsImage }}"; linux = "${{ variables.mgdLinuxImage }}" }'
   - template: .azurepipelines/test.yml
     parameters:
@@ -262,6 +282,8 @@ stages:
       hosted: true
       poolName: ${{ variables.mgdPoolName }}
       windowsImage: ${{ variables.mgdWindowsImage }}
+      coveragePoolName: ${{ variables.hostPoolName }}
+      coverageImage: ${{ variables.hostLinuxImage }}
 - stage: testnet80
   dependsOn: [build]
   displayName: 'Test .NET 8.0'
@@ -274,6 +296,8 @@ stages:
       jobnamesuffix: net80
       poolName: ${{ variables.hostPoolName }}
       windowsImage: ${{ variables.hostWindowsImage }}
+      coveragePoolName: ${{ variables.hostPoolName }}
+      coverageImage: ${{ variables.hostLinuxImage }}
       agents: '@{ windows = "${{ variables.hostWindowsImage }}"; linux = "${{ variables.hostLinuxImage }}" }'
   - template: .azurepipelines/test.yml
     parameters:
@@ -284,6 +308,8 @@ stages:
       hosted: true
       poolName: ${{ variables.hostPoolName }}
       windowsImage: ${{ variables.hostWindowsImage }}
+      coveragePoolName: ${{ variables.hostPoolName }}
+      coverageImage: ${{ variables.hostLinuxImage }}
 - stage: testnet472
   dependsOn: [build]
   displayName: 'Test .NET 4.7.2'
@@ -298,6 +324,8 @@ stages:
       customtestarget: net472
       poolName: ${{ variables.hostPoolName }}
       windowsImage: ${{ variables.hostWindowsImage }}
+      coveragePoolName: ${{ variables.hostPoolName }}
+      coverageImage: ${{ variables.hostLinuxImage }}
 - stage: testnetstandard20
   dependsOn: [build]
   displayName: 'Test .NETStandard 2.0'
@@ -312,6 +340,8 @@ stages:
       customtestarget: netstandard2.0
       poolName: ${{ variables.mgdPoolName }}
       windowsImage: ${{ variables.mgdWindowsImage }}
+      coveragePoolName: ${{ variables.hostPoolName }}
+      coverageImage: ${{ variables.hostLinuxImage }}
 - stage: testnetstandard21
   dependsOn: [build]
   displayName: 'Test .NETStandard 2.1'
@@ -325,6 +355,8 @@ stages:
       customtestarget: netstandard2.1
       poolName: ${{ variables.mgdPoolName }}
       windowsImage: ${{ variables.mgdWindowsImage }}
+      coveragePoolName: ${{ variables.hostPoolName }}
+      coverageImage: ${{ variables.hostLinuxImage }}
       agents: '@{ windows = "${{ variables.mgdWindowsImage }}"; linux = "${{ variables.mgdLinuxImage }}" }'
   - template: .azurepipelines/test.yml
     parameters:
@@ -336,24 +368,46 @@ stages:
       hosted: true
       poolName: ${{ variables.mgdPoolName }}
       windowsImage: ${{ variables.mgdWindowsImage }}
-- stage: coverage
-  ${{ if eq(parameters.ciBuildBackend, 'ado') }}:
-    # testdebug is Schedule/Manual-only, so keeping it as a dependency would
-    # skip coverage on every pull request.  Coverage consumes nothing from
-    # testdebug - it runs its own dotnet test over UA.slnx - so the dependency
-    # is dropped when this stage has to gate PRs.
-    dependsOn: [testfastpr]
-  ${{ else }}:
-    dependsOn: [testdebug,testfastpr]
-  displayName: 'Code Coverage'
-  # Runs on pull requests once ADO owns the matrix, because this stage hosts the
-  # coverage gate that replaced the codecov/project and codecov/patch checks.
-  condition: and(succeeded(), or(ne(variables.ScheduledBuild, 'False'), ne(variables.AdoOwnsMatrix, 'False')))
+      coveragePoolName: ${{ variables.hostPoolName }}
+      coverageImage: ${{ variables.hostLinuxImage }}
+- stage: testnightly
+  dependsOn: [build]
+  displayName: 'Test long-running tiers'
+  # Tiers that the fast legs deliberately filter out and that used to be dragged
+  # in only by the combined coverage job that re-ran the whole suite.  That job
+  # is gone, so they get their own Schedule/Manual stage here.  The stress tier
+  # keeps running from .github/workflows/stress-test.yml.
+  condition: and(succeeded(), ne(variables.ScheduledBuild, 'False'))
   jobs:
-  - template: .azurepipelines/testcc.yml
+  # Mainline projects with no category filter, so the LongRunning tier (today
+  # Opc.Ua.Subscriptions.Tests) is exercised.  A single Linux leg is enough -
+  # the cross-platform matrix is already covered by the filtered stages.
+  - template: .azurepipelines/test.yml
     parameters:
-      configuration: Release
-      poolImage: ${{ variables.hostLinuxImage }}
       framework: net10.0
-      jobnamesuffix: net100cc
+      configuration: Release
+      jobnamesuffix: net100longrunning
+      customtestarget: net10.0
+      testfilter: ''
+      hangtimeout: '30m'
+      # A tier, not a (framework, configuration) leg: its numbers cannot be
+      # merged into the pull-request gate, so skip the coverage job here.
+      coverage: false
+      agents: '@{ linux = "${{ variables.hostLinuxImage }}" }'
       poolName: ${{ variables.hostPoolName }}
+      windowsImage: ${{ variables.hostWindowsImage }}
+  # Durable-subscription tier, kept out of the mainline matrix by #3810.
+  - template: .azurepipelines/test.yml
+    parameters:
+      framework: net10.0
+      configuration: Release
+      jobnamesuffix: net100durable
+      customtestarget: net10.0
+      projectfilename: 'Opc.Ua.Subscriptions.Durable.Tests.csproj'
+      excludeprojects: ''
+      testfilter: ''
+      hangtimeout: '30m'
+      coverage: false
+      agents: '@{ windows = "${{ variables.hostWindowsImage }}"; linux = "${{ variables.hostLinuxImage }}" }'
+      poolName: ${{ variables.hostPoolName }}
+      windowsImage: ${{ variables.hostWindowsImage }}

@@ -258,6 +258,17 @@ Two things are deliberately *not* covered by the switch:
 - **macOS** always runs on GitHub-hosted runners, because Managed DevOps Pools provide no macOS image.
 - **`master378` and `develop/*`** keep running the GitHub Actions jobs regardless of the setting, since Azure Pipelines only builds `master`/`main` from this file.
 
+### Test tiers
+
+The fast test stages fan every `*.Tests.csproj` out across matrix jobs and filter out `TestCategory=LongRunning` and `TestCategory=Stress`. The tiers that this leaves out run elsewhere:
+
+| Tier | Where it runs |
+| --- | --- |
+| `LongRunning` categories in mainline projects | `Test long-running tiers` stage, Schedule/Manual only |
+| `Opc.Ua.Subscriptions.Durable.Tests` | `Test long-running tiers` stage, Schedule/Manual only |
+| `Opc.Ua.Stress.Tests` | [`.github/workflows/stress-test.yml`](../.github/workflows/stress-test.yml), opt-in |
+| `Opc.Ua.Aot.Tests` | `Test Native AoT` stage |
+
 Because the individual matrix jobs are generated (and are skipped outright when Azure Pipelines owns them, or when a pull request touches no build-relevant files), branch protection should require the aggregate **`build-and-test summary`** check rather than any individual job. That job runs on every pull request — the workflow deliberately carries no `paths:` filter, because a workflow filtered out by `paths` never reports its checks and a required check that never reports blocks the pull request forever. The path allow-list is applied inside the `discover` job instead, and the summary treats an intentionally skipped job as success.
 
 ### Triggering a pipeline run on a pull request
@@ -276,7 +287,17 @@ This setting lives in the Azure DevOps portal (pipeline → **More actions** →
 
 ### Coverage gates
 
-Coverage is enforced by [`.azurepipelines/check-coverage.ps1`](../.azurepipelines/check-coverage.ps1), which runs at the end of the `Code Coverage` stage against the merged Cobertura report. Thresholds live in [`coverage-thresholds.json`](../coverage-thresholds.json):
+Every test stage ends in a **`Coverage <configuration> (<framework>)`** job. Each test matrix entry collects coverage while it runs and publishes its raw Cobertura fragment as a pipeline artifact; the coverage job then re-assembles those fragments with ReportGenerator and evaluates them. It never re-runs the tests — doing so would serialise a suite that was deliberately fanned out across matrix jobs and blow the stage timeout.
+
+That job is the single per-(framework, configuration) signal, so it — not an individual matrix entry — is what the GitHub branch ruleset should require. It fails when:
+
+- any test job in its stage failed, was cancelled or never ran,
+- no coverage was produced at all,
+- or, on the reference leg, the merged report misses the thresholds.
+
+Only the **net10.0 Release** leg (`enforceCoverage: true` in [`azure-pipelines.yml`](../azure-pipelines.yml)) blocks on the thresholds and publishes the merged report to the build summary and Codacy — it is the configuration [`coverage-thresholds.json`](../coverage-thresholds.json) is calibrated against. The other legs report their numbers as a warning and still block on test failures. Every leg publishes its merged report as the `coverage-report-<suffix>` artifact.
+
+The thresholds are enforced by [`.azurepipelines/check-coverage.ps1`](../.azurepipelines/check-coverage.ps1):
 
 | Check | Behaviour |
 | --- | --- |
