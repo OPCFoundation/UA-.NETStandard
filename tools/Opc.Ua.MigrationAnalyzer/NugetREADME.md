@@ -137,21 +137,32 @@ whole block once the MigrationAnalyzer package is removed.
 
 ## Packaging note
 
-The package ships **two analyzer DLLs** under `analyzers/dotnet/cs/`:
+The package ships **three Roslyn component DLLs** under
+`analyzers/dotnet/roslyn<major>.<minor>/cs/`. The .NET SDK loads that folder when its
+compiler supports the Roslyn API and ignores it otherwise, so an older host cleanly
+skips the analyzer rather than failing to load it:
 
-- `Opc.Ua.MigrationAnalyzer.dll` — the analyzer assembly. Targets `Microsoft.CodeAnalysis 4.x`
-  (the stable analyzer API) and references **only** `Microsoft.CodeAnalysis.CSharp` so it
-  loads cleanly in csc.exe's analyzer host (which ships only `Microsoft.CodeAnalysis.dll`
-  + `CSharp.dll`, not `Workspaces`). All `DiagnosticAnalyzer` types live here.
+| Roslyn API | Minimum host |
+| --- | --- |
+| 4.14 | Visual Studio 2022 17.14 / .NET 9 SDK |
+| 5.0 | Visual Studio 2026 18.0 / .NET 10 SDK |
+
+- `Opc.Ua.MigrationAnalyzer.dll` — the analyzer assembly. References **only**
+  `Microsoft.CodeAnalysis.CSharp` so it loads cleanly in csc.exe's analyzer host
+  (which ships only `Microsoft.CodeAnalysis.dll` + `CSharp.dll`, not `Workspaces`).
+  All `DiagnosticAnalyzer` types live here.
 - `Opc.Ua.MigrationAnalyzer.CodeFixer.dll` — the code-fix assembly. References
   `Microsoft.CodeAnalysis.CSharp.Workspaces` and hosts all `CodeFixProvider` types.
   Loaded only by Workspaces-aware hosts (Visual Studio / `dotnet format`).
+- `Opc.Ua.MigrationAnalyzer.Generator.dll` — the source generator that emits the
+  `<Type>Collection` shims.
 
-This split is necessary because shipping a single DLL that references `Workspaces`
-silently fails to load in csc.exe at command-line build time — csc loads the assembly
-but JIT-resolution of `Workspaces` types fails (DLL not in bincore), and the analyzer
-host swallows the load failure, producing zero diagnostics. Splitting keeps the
-analyzer host happy while preserving full IDE/`dotnet format` code-fix functionality.
+The analyzer / code-fix split is necessary because shipping a single DLL that
+references `Workspaces` silently fails to load in csc.exe at command-line build time —
+csc loads the assembly but JIT-resolution of `Workspaces` types fails (DLL not in
+bincore), and the analyzer host swallows the load failure, producing zero diagnostics.
+Splitting keeps the analyzer host happy while preserving full IDE/`dotnet format`
+code-fix functionality.
 
 `RS1038` (suggesting separation) is the Roslyn rule that recommends this layout;
 it is satisfied implicitly by the two-DLL design.

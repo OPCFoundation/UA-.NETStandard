@@ -14,6 +14,17 @@ the generator to emit C# proxies at build time. The generator
 participates in the standard `dotnet build` pipeline; no separate
 tool invocation is required.
 
+## Supported hosts
+
+The package ships the generator under a Roslyn-versioned analyzer folder.
+The .NET SDK loads it when its compiler supports that Roslyn API and
+ignores it otherwise, so an older host cleanly skips the generator.
+
+| Roslyn API | Minimum host |
+| --- | --- |
+| 4.14 | Visual Studio 2022 17.14 / .NET 9 SDK |
+| 5.0 | Visual Studio 2026 18.0 / .NET 10 SDK |
+
 ## Getting started
 
 Reference the generator as an **analyzer** (no runtime dependency):

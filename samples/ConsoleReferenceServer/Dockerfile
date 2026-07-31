@@ -7,9 +7,14 @@ WORKDIR /src
 # copy csproj and restore as distinct layers
 COPY *.* .
 COPY ["samples/ConsoleReferenceServer/ConsoleReferenceServer.csproj", "samples/ConsoleReferenceServer/"]
+# The generator projects import shared MSBuild logic; restore fails with
+# "Invalid framework identifier ''" if these are not part of the restore layer.
+COPY ["tools/SourceGeneratorVariant.targets", "tools/"]
 COPY ["tools/Opc.Ua.SourceGeneration.Core/Opc.Ua.SourceGeneration.Core.csproj", "tools/Opc.Ua.SourceGeneration.Core/"]
 COPY ["tools/Opc.Ua.SourceGeneration.Stack/Opc.Ua.SourceGeneration.Stack.csproj", "tools/Opc.Ua.SourceGeneration.Stack/"]
+COPY ["tools/Opc.Ua.SourceGeneration.Stack/Opc.Ua.SourceGeneration.Stack.Sources.targets", "tools/Opc.Ua.SourceGeneration.Stack/"]
 COPY ["tools/Opc.Ua.SourceGeneration/Opc.Ua.SourceGeneration.csproj", "tools/Opc.Ua.SourceGeneration/"]
+COPY ["tools/Opc.Ua.SourceGeneration/Opc.Ua.SourceGeneration.Sources.targets", "tools/Opc.Ua.SourceGeneration/"]
 COPY ["src/Opc.Ua.Core.Types/Opc.Ua.Core.Types.csproj", "src/Opc.Ua.Core.Types/"]
 COPY ["src/Opc.Ua.Core/Opc.Ua.Core.csproj", "src/Opc.Ua.Core/"]
 COPY ["src/Opc.Ua.Core.Schema/Opc.Ua.Core.Schema.csproj", "src/Opc.Ua.Core.Schema/"]

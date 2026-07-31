@@ -43,6 +43,14 @@ namespace Opc.Ua.SourceGeneration
         OutputKind OutputKind)
     {
         /// <summary>
+        /// True when the compilation targets C# 13 or newer. The underlying
+        /// value is compared because the <c>LanguageVersion.CSharp13</c> member
+        /// only exists in Roslyn 4.12 and later, while the generator is also
+        /// built against the Visual Studio 2022 baseline.
+        /// </summary>
+        public readonly bool IsCSharp13OrLater => (int)LanguageVersion >= 1300;
+
+        /// <summary>
         /// Create options from a compilation.
         /// </summary>
         internal static CompilationOptions From(Compilation c)
