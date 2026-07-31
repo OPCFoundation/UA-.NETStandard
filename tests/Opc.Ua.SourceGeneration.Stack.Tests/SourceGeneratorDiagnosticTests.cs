@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using Microsoft.CodeAnalysis;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
@@ -144,6 +145,26 @@ namespace Opc.Ua.SourceGeneration.Tests
         public void SourceGeneratorNameIsStackSourceGenerator()
         {
             Assert.That(SourceGenerator.Name, Is.EqualTo(nameof(StackSourceGenerator)));
+        }
+
+        [Test]
+        public void GuardRunsTheActionWhenItDoesNotThrow()
+        {
+            bool invoked = false;
+
+            SourceGenerator.Guard(default, () => invoked = true);
+
+            Assert.That(invoked, Is.True);
+        }
+
+        [Test]
+        public void GuardRethrowsCancellationSoRoslynCanAbortTheRun()
+        {
+            Assert.That(
+                () => SourceGenerator.Guard(
+                    default,
+                    () => throw new OperationCanceledException()),
+                Throws.InstanceOf<OperationCanceledException>());
         }
     }
 }
