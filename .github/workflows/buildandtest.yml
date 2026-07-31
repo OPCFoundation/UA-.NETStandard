@@ -129,7 +129,14 @@ jobs:
       run: ./.azurepipelines/set-version.ps1
 
     - name: Build
-      run: dotnet build ${{ env.CSPROJECT }} --framework ${{ matrix.framework }} --configuration ${{ matrix.configuration }} /p:CustomTestTarget=${{ matrix.customtesttarget }} /p:UseSharedCompilation=false -maxcpucount:1
+      # Build in parallel with the shared compiler (both `dotnet build` defaults).
+      # These were previously pinned to `-maxcpucount:1 /p:UseSharedCompilation=false`
+      # to work around a race in the SourceGenerator.Foundations assembly resolver that
+      # surfaced as intermittent CS8784; that dependency was removed, so the generators
+      # now resolve through Roslyn's own analyzer loader and the workaround only cost
+      # build time. Do not re-add without evidence - re-loading the ~19-assembly
+      # analyzer closure for every project is expensive.
+      run: dotnet build ${{ env.CSPROJECT }} --framework ${{ matrix.framework }} --configuration ${{ matrix.configuration }} /p:CustomTestTarget=${{ matrix.customtesttarget }}
 
     - name: Test
       # note: /p:CollectCoverage=true is only used to disable deterministic builds
@@ -270,7 +277,7 @@ jobs:
         $failed = @()
         foreach ($tfm in $tfms) {
           Write-Host "::group::Build UA.slnx ($tfm)"
-          dotnet build UA.slnx --configuration Release /p:CustomTestTarget=$tfm /p:UseSharedCompilation=false
+          dotnet build UA.slnx --configuration Release /p:CustomTestTarget=$tfm
           if ($LASTEXITCODE -ne 0) {
             $failed += $tfm
             Write-Host "::error::UA.slnx build failed for $tfm"
@@ -313,7 +320,7 @@ jobs:
         $failed = @()
         foreach ($tfm in $tfms) {
           Write-Host "::group::Build UA.slnx ($tfm)"
-          dotnet build UA.slnx --configuration Release /p:CustomTestTarget=$tfm /p:UseSharedCompilation=false
+          dotnet build UA.slnx --configuration Release /p:CustomTestTarget=$tfm
           if ($LASTEXITCODE -ne 0) {
             $failed += $tfm
             Write-Host "::error::UA.slnx build failed for $tfm"
