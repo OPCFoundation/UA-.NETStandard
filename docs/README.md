@@ -13,6 +13,7 @@ Here is a list of available documentation for different topics:
 * [Migration Guide](MigrationGuide.md) - How to migrate from a previous version.
 * [Sessions, Reconnection, and Subscription Engines](Sessions.md) - Architectural overview of `Session`, `ManagedSession`, `SessionReconnectHandler`, and the classic / V2 subscription engines, including guidance on which to use.
 * About [.NET platform support, NuGet packages and versioning](DeveloperGuide.md#packages-platform-support-and-versioning).
+* About [continuous integration](DeveloperGuide.md#continuous-integration) — which pipeline runs what, how to start a validation build on a pull request with `/azp run`, and the coverage gates a change has to satisfy.
 * How X.509 [Certificates](Certificates.md) are used in the certificate stores.
 * [CertificateManager](CertificateManager.md) - Centralized certificate lifecycle management, server-side push certificate rotation, and the OPC UA Part 12 PushManagement transaction model (`ApplyChanges`/`CancelChanges`, staged TrustList/Certificate updates, `DeleteCertificate`, pending-key persistence).
 * Using the [Reverse Connect](ReverseConnect.md) for the UA-TCP and WSS transports.
