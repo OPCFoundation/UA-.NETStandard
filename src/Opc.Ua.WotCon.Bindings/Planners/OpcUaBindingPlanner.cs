@@ -139,7 +139,10 @@ namespace Opc.Ua.WotCon.Bindings.Planners
                 metadata = metadata.Add("eventFields", string.Join("|", eventFields));
             }
 
-            ResolveCodec(form, context, out WotPayloadDescriptor payload);
+            if (!ResolveCodec(form, context, diagnostics, out WotPayloadDescriptor payload))
+            {
+                return WotBindingCompilation.Unsupported([.. diagnostics]);
+            }
             var addressing = new WotAddressingDescriptor(nodeId!, metadata);
             ImmutableArray<WotCredentialReference> security = ResolveSecurity(form, context, authority, diagnostics);
 

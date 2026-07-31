@@ -55,12 +55,14 @@ namespace Opc.Ua.WotCon.Bindings
         /// <param name="credentials">The credential provider used at activation time.</param>
         /// <param name="codecs">The codec registry used to select payload codecs.</param>
         /// <param name="bounds">The safety bounds enforced during planning.</param>
+        /// <param name="endpointPolicy">The endpoint policy enforced before opening live channels.</param>
         public WotProtocolBinderRegistry(
             IEnumerable<IWotProtocolBinder> binders,
             IEnumerable<IWotBindingExecutor>? executors = null,
             IWotCredentialProvider? credentials = null,
             IWotCodecRegistry? codecs = null,
-            WotBindingBounds? bounds = null)
+            WotBindingBounds? bounds = null,
+            WotEndpointPolicy? endpointPolicy = null)
         {
             if (binders is null)
             {
@@ -69,6 +71,7 @@ namespace Opc.Ua.WotCon.Bindings
             m_credentials = credentials ?? NullWotCredentialProvider.Instance;
             m_codecs = codecs ?? WotPayloadCodecRegistry.Default;
             m_bounds = bounds ?? WotBindingBounds.Default;
+            m_endpointPolicy = endpointPolicy ?? WotEndpointPolicy.Default;
 
             var seenBinderKeys = new HashSet<string>(StringComparer.Ordinal);
             foreach (IWotProtocolBinder binder in binders)
@@ -277,8 +280,30 @@ namespace Opc.Ua.WotCon.Bindings
                 throw new InvalidOperationException(
                     $"No executor is registered for binding '{form.Binding.Key}'.");
             }
-            var context = new WotExecutorContext(m_credentials, m_codecs, m_bounds);
+            string endpoint = GetExecutableEndpoint(form);
+            ServiceResult validation = WotEndpointValidator.Validate(endpoint, m_endpointPolicy, out _);
+            if (ServiceResult.IsBad(validation))
+            {
+                throw new ServiceResultException(validation);
+            }
+
+            var context = new WotExecutorContext(m_credentials, m_codecs, m_bounds, m_endpointPolicy);
             return executor.ActivateAsync(form, context, cancellationToken);
+        }
+
+        private static string GetExecutableEndpoint(WotCompiledForm form)
+        {
+            if (string.Equals(form.Binding.Id, "w3c.http", StringComparison.Ordinal))
+            {
+                return form.Addressing.Target;
+            }
+            if (string.Equals(form.Binding.Id, "w3c.modbus", StringComparison.Ordinal) ||
+                string.Equals(form.Binding.Id, "w3c.mqtt", StringComparison.Ordinal) ||
+                string.Equals(form.Binding.Id, "opc.opcua", StringComparison.Ordinal))
+            {
+                return form.Endpoint.BaseUri;
+            }
+            return form.Endpoint.BaseUri;
         }
 
         private IWotProtocolBinder? Select(WotAffordanceForm form, WotBindingSelectionContext selection)
@@ -430,6 +455,7 @@ namespace Opc.Ua.WotCon.Bindings
         private readonly IWotCredentialProvider m_credentials;
         private readonly IWotCodecRegistry m_codecs;
         private readonly WotBindingBounds m_bounds;
+        private readonly WotEndpointPolicy m_endpointPolicy;
 
         private readonly Dictionary<string, IWotProtocolBinder> m_binders =
             new(StringComparer.Ordinal);
