@@ -171,7 +171,7 @@ namespace Opc.Ua.Server.Fluent
         ///     .Configure(Configure)
         ///     .Seal();
         /// </code>
-        /// The three root/nodeId/typeId lookups default to scanning the
+        /// The root/nodeId/typeId/dataTypeId lookups default to scanning the
         /// manager's <see cref="CustomNodeManager2.PredefinedNodes"/>
         /// dictionary, mirroring the resolver wiring that the
         /// source-generated <c>NodeManagerBase.CreateAddressSpaceAsync</c>
@@ -196,7 +196,8 @@ namespace Opc.Ua.Server.Fluent
                 defaultNamespaceIndex,
                 browseName => PredefinedNodes.Values.FindByBrowseName(browseName)!,
                 nodeId => PredefinedNodes.FindById(nodeId)!,
-                PredefinedNodes.Values.FindByTypeDefinition);
+                PredefinedNodes.Values.FindByTypeDefinition,
+                PredefinedNodes.Values.FindByDataType);
             AttachToBuilder(builder);
             return builder;
         }
