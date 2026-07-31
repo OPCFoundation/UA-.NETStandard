@@ -338,6 +338,59 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         }
 
         [Test]
+        [TestCase("http://169.254.169.254/latest/meta-data/")]
+        [TestCase("http://10.0.0.1/admin")]
+        [TestCase("http://192.168.1.1/admin")]
+        [TestCase("http://[fc00::1]/admin")]
+        public async Task RedirectToPolicyBlockedEndpointIsRejectedAsync(string blockedTarget)
+        {
+            // The endpoint policy is applied to the form's own target before the channel
+            // opens. A permitted origin that redirects to a link-local or private address
+            // would otherwise reach it, so every hop must be re-validated.
+            using var server = new TestHttpServer(_ => TestHttpResponse.Redirect(blockedTarget));
+
+            WotProtocolBinderRegistry registry = OwnedRegistry();
+            IWotBindingChannel channel = await registry.OpenChannelAsync(
+                ReadFormNoSecurity(registry, server.BaseUrl + "/p")).ConfigureAwait(false);
+            await using (channel.ConfigureAwait(false))
+            {
+                WotReadResult result = await channel.ReadAsync().ConfigureAwait(false);
+                Assert.That(result.Success, Is.False);
+                Assert.That(result.Status, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+            }
+        }
+
+        [Test]
+        public async Task RedirectToPrivateEndpointIsAllowedWhenPolicyOptsInAsync()
+        {
+            var target = new Recorder();
+            using var targetServer = new TestHttpServer(request =>
+            {
+                target.Record(request);
+                return TestHttpResponse.Json(200, "7");
+            });
+            using var originServer = new TestHttpServer(
+                _ => TestHttpResponse.Redirect(targetServer.BaseUrl + "/p"));
+
+            var registry = new WotProtocolBinderRegistry(
+                [new HttpBindingPlanner()],
+                [new HttpWotBindingExecutor(new HttpWotBindingOptions())],
+                endpointPolicy: new WotEndpointPolicy
+                {
+                    AllowLoopback = true,
+                    AllowPrivateAddresses = true
+                });
+
+            IWotBindingChannel channel = await registry.OpenChannelAsync(
+                ReadFormNoSecurity(registry, originServer.BaseUrl + "/p")).ConfigureAwait(false);
+            await using (channel.ConfigureAwait(false))
+            {
+                WotReadResult result = await channel.ReadAsync().ConfigureAwait(false);
+                Assert.That(result.Success, Is.True, "An operator opt-in must still permit the redirect.");
+            }
+        }
+
+        [Test]
         public async Task RedirectLimitIsEnforced()
         {
             int counter = 0;

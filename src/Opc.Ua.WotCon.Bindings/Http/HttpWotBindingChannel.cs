@@ -382,6 +382,20 @@ namespace Opc.Ua.WotCon.Bindings.Http
                 error = "The HTTP redirect downgrades https to http, which is refused.";
                 return null;
             }
+
+            // The endpoint policy is applied to the form's own target before the channel
+            // opens, but a redirect chooses a new target after that check. Re-apply the
+            // policy to every hop, otherwise a permitted host can bounce the request to a
+            // loopback or link-local address that the initial validation would have refused.
+            ServiceResult validation = WotEndpointValidator.Validate(
+                location.AbsoluteUri,
+                m_context.EndpointPolicy,
+                out _);
+            if (ServiceResult.IsBad(validation))
+            {
+                error = $"The HTTP redirect targets an endpoint refused by policy: {validation.StatusCode}.";
+                return null;
+            }
             return location;
         }
 
