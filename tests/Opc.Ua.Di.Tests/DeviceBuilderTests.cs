@@ -31,6 +31,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Di.Server;
 using Opc.Ua.Di.Server.Builders;
+using Opc.Ua.Server.Fluent;
 
 namespace Opc.Ua.Di.Tests
 {
@@ -132,6 +133,30 @@ namespace Opc.Ua.Di.Tests
                 .FindPredefinedNode(builder.Device.NodeId);
 
             Assert.That(resolved, Is.SameAs(builder.Device));
+        }
+
+        [Test]
+        public void VariableFromDataTypeIdResolvesUniquePredefinedVariable()
+        {
+            ushort namespaceIndex = m_fixture.Manager.DiNamespaceIndex;
+            var predefined = new BaseDataVariableState(null)
+            {
+                NodeId = new NodeId("UniqueDataTypeVariable", namespaceIndex),
+                BrowseName = new QualifiedName("UniqueDataTypeVariable", namespaceIndex),
+                DisplayName = new LocalizedText("UniqueDataTypeVariable"),
+                DataType = Types.DataTypeIds.String,
+                ValueRank = ValueRanks.Scalar,
+                Value = "value"
+            };
+            m_fixture.Manager.AddPlainPredefinedNodeSynchronously(predefined);
+            NodeManagerBuilder builder = m_fixture.Manager.GetOrCreateBuilder();
+
+            IVariableBuilder<string> variable =
+                builder.VariableFromDataTypeId<string>(
+                    Types.DataTypeIds.String,
+                    predefined.BrowseName);
+
+            Assert.That(variable.Node, Is.SameAs(predefined));
         }
 
         [Test]
