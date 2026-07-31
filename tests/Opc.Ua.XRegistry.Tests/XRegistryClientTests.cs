@@ -162,6 +162,7 @@ namespace Opc.Ua.XRegistry.Tests
             await client.CreateGroupAsync(client.RegistryNodeId, "things")
                 .ConfigureAwait(false);
 
+            Assert.That(calls, Has.Count.EqualTo(1));
             Assert.That(calls[0].ObjectId, Is.EqualTo(domainRoot),
                 "The lifecycle Methods must be invoked on the explicit root, not the well-known one.");
         }
