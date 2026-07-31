@@ -57,6 +57,24 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         [Test]
+        public void ResolutionContextAllowsSameReferenceUnderDifferentKinds()
+        {
+            var context = new WotResolutionContext();
+
+            Assert.That(context.TryEnter(WotResolutionKind.Context, "urn:shared", out _), Is.True);
+            Assert.That(
+                context.TryEnter(WotResolutionKind.Schema, "urn:shared", out WotDiagnostic diagnostic),
+                Is.True);
+            Assert.That(diagnostic, Is.Null);
+            Assert.That(context.Depth, Is.EqualTo(2));
+
+            context.Leave("urn:shared");
+            context.Leave("urn:shared");
+
+            Assert.That(context.Depth, Is.Zero);
+        }
+
+        [Test]
         public void ResolutionContextEnforcesDepthLimit()
         {
             var context = new WotResolutionContext(new WotResolverOptions { MaxDepth = 1 });

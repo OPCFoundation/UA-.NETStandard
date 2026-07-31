@@ -30,7 +30,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Security.Cryptography;
 using System.Threading;
@@ -83,10 +82,6 @@ namespace Opc.Ua.Wot
         /// <param name="title">An optional document title.</param>
         /// <param name="options">Resource limits; defaults are used when omitted.</param>
         /// <returns>The conversion result and its diagnostics.</returns>
-        [SuppressMessage(
-            "Reliability",
-            "CA2000:Dispose objects before losing scope",
-            Justification = "Ownership of the returned WotDocument is transferred to the caller through the result.")]
         public static WotConversionResult<WotDocument> FromNodeSetResult(
             UANodeSet nodeSet,
             string? title = null,
@@ -254,7 +249,9 @@ namespace Opc.Ua.Wot
                     $"{options.MaxJsonDocumentSize} byte limit."));
                 return new WotConversionResult<WotDocument>(null, diagnostics);
             }
+#pragma warning disable CA2000 // Ownership of the returned WotDocument transfers to the caller through the result.
             WotDocument document = WotDocument.FromOwnedBytes(json, options);
+#pragma warning restore CA2000
             return new WotConversionResult<WotDocument>(document, diagnostics);
         }
 

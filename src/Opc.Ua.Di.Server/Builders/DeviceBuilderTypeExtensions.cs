@@ -117,7 +117,7 @@ namespace Opc.Ua.Di.Server.Builders
             child.SymbolicName = browseName.Name ?? string.Empty;
             child.BrowseName = browseName;
             child.DisplayName = new LocalizedText(browseName.Name ?? string.Empty);
-            child.NodeId = device.Context.NodeIdFactory.New(device.Context, child);
+            child.NodeId = device.Context.RequireNodeIdFactory().New(device.Context, child);
             child.ReferenceTypeId = Types.ReferenceTypeIds.HasComponent;
 
             device.Device.AddChild(child);

@@ -379,9 +379,7 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             var result = new List<INode>();
             var nodesToBrowse = new List<ExpandedNodeId> { dataType };
-#if DEBUG
             long startTimestamp = m_timeProvider.GetTimestamp();
-#endif
             if (addRootNode)
             {
                 INode? rootNode = await GetNodeAsync(dataType, ct).ConfigureAwait(false);
@@ -420,11 +418,12 @@ namespace Opc.Ua.Client.ComplexTypes
                 }
                 nodesToBrowse = nextNodesToBrowse;
             }
-#if DEBUG
-            m_logger.LoadDataTypesReturnsCountNodesDurationMs(
-                result.Count,
-                (long)m_timeProvider.GetElapsedTime(startTimestamp).TotalMilliseconds);
-#endif
+            if (m_logger.IsEnabled(LogLevel.Information))
+            {
+                m_logger.LoadDataTypesReturnsCountNodesDurationMs(
+                    result.Count,
+                    (long)m_timeProvider.GetElapsedTime(startTimestamp).TotalMilliseconds);
+            }
             return result;
         }
 

@@ -61,6 +61,7 @@ namespace Opc.Ua
         public const int MonitoredItem = 230;
         public const int MonitoredItemQueue = 250;
         public const int MonitoredNode = 260;
+        public const int NamespaceMetadataPublisher = 270;
         public const int NodeManager = 280;
         public const int OpcUaServerHostedService = 290;
         public const int PushConfigurationTransactionCoordinator = 300;

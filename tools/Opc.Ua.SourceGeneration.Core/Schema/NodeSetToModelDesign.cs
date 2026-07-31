@@ -971,6 +971,12 @@ namespace Opc.Ua.Schema.Model
             output.AccessLevel = ImportAccessLevel(input.AccessLevel);
             output.AccessLevelSpecified = true;
 
+            // The ModelDesign AccessLevel enumeration cannot express
+            // combinations such as CurrentRead | HistoryRead (5), so the
+            // verbatim bitmask is carried alongside it and preferred by
+            // code generation. See GetAccessLevelAsCode.
+            output.RawAccessLevel = input.AccessLevel;
+
             if (input.Value != null)
             {
                 XmlDecoder decoder = CreateDecoder(input.Value);
