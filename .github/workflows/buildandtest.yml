@@ -119,7 +119,11 @@ jobs:
         # summary job still reports.
         $relevantChanges = $true
         if ($env:EVENT_NAME -eq 'pull_request' -and -not [string]::IsNullOrWhiteSpace($env:BASE_SHA)) {
-            $changed = @(& git diff --name-only "$($env:BASE_SHA)" HEAD)
+            # Triple-dot: diff from the merge base, not from the current base
+            # branch head. A two-dot diff would also report commits that landed
+            # on the base branch after this one was cut, which would make an
+            # unrelated base-branch change look like a build-relevant change here.
+            $changed = @(& git diff --name-only "$($env:BASE_SHA)...HEAD")
             $relevantChanges = $false
             foreach ($file in $changed) {
                 $name = [System.IO.Path]::GetFileName($file)

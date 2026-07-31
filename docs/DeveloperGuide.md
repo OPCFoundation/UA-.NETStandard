@@ -227,7 +227,7 @@ The class libraries currently target:
 6. .NET 9.0
 7. .NET 10.0
 
-The pull-request gate *compiles* every one of these targets, but only runs the test suite on (4) and (6) to keep the feedback loop short; the remaining test matrices are covered by scheduled or manual CI. See [Running tests](#running-tests) for how to build and test a specific framework locally with `CustomTestTarget` / `tests/customtest.bat`, and [Continuous integration](#continuous-integration) for how the matrices are split.
+The pull-request gate *compiles* every one of these targets, but only runs the test suite on (4) and (7) to keep the feedback loop short; the remaining test matrices are covered by scheduled or manual CI. See [Running tests](#running-tests) for how to build and test a specific framework locally with `CustomTestTarget` / `tests/customtest.bat`, and [Continuous integration](#continuous-integration) for how the matrices are split.
 
 ### Versioning
 
