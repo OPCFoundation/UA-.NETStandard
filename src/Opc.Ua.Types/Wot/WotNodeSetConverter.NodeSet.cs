@@ -142,64 +142,126 @@ namespace Opc.Ua.Wot
                     ? nodeSet.Models[0].ModelUri!
                     : "OPC UA NodeSet");
 
-            byte[] digest = ComputeSha256(nodeSetBytes);
-            var nativeDiagnostics = new List<WotDiagnostic>();
-            byte[] nativeProjection = WotNativeProjection.Write(
+            byte[] json = WriteReadableDocument(
                 nodeSet,
+                root,
+                resolvedTitle,
+                nodeSetBytes,
+                null,
+                emitEnvelope: false,
                 options,
-                nativeDiagnostics);
-            bool nativeComplete = false;
-            string? nativeDifference = null;
-            if (!HasErrors(nativeDiagnostics))
+                diagnostics);
+            json = WotJsonResidue.Apply(json, nodeSet, options, diagnostics);
+
+            if (!IsReadableMappingComplete(json, nodeSet, options))
             {
-                using JsonDocument nativeDocument = JsonDocument.Parse(nativeProjection);
-                var reconstructionDiagnostics = new List<WotDiagnostic>();
-                UANodeSet? reconstructed = WotNativeProjection.Read(
-                    nativeDocument.RootElement,
+                var nativeDiagnostics = new List<WotDiagnostic>();
+                byte[] nativeProjection = WotNativeProjection.Write(
+                    nodeSet,
                     options,
-                    reconstructionDiagnostics);
-                if (reconstructed is not null && !HasErrors(reconstructionDiagnostics))
+                    nativeDiagnostics);
+                bool nativeComplete = false;
+                string? nativeDifference = null;
+                if (!HasErrors(nativeDiagnostics))
                 {
-                    NodeSetComparisonResult comparison =
-                        NodeSetComparer.Compare(nodeSet, reconstructed, options);
-                    nativeComplete = comparison.AreEquivalent;
-                    if (!nativeComplete && comparison.Differences.Count > 0)
+                    using JsonDocument nativeDocument = JsonDocument.Parse(nativeProjection);
+                    var reconstructionDiagnostics = new List<WotDiagnostic>();
+                    UANodeSet? reconstructed = WotNativeProjection.Read(
+                        nativeDocument.RootElement,
+                        options,
+                        reconstructionDiagnostics);
+                    if (reconstructed is not null && !HasErrors(reconstructionDiagnostics))
                     {
-                        nativeDifference = comparison.Differences[0];
+                        NodeSetComparisonResult comparison =
+                            NodeSetComparer.Compare(nodeSet, reconstructed, options);
+                        nativeComplete = comparison.AreEquivalent;
+                        if (!nativeComplete && comparison.Differences.Count > 0)
+                        {
+                            nativeDifference = comparison.Differences[0];
+                        }
+                    }
+                    else
+                    {
+                        nativeDifference = FirstDiagnosticMessage(reconstructionDiagnostics);
                     }
                 }
                 else
                 {
-                    nativeDifference = FirstDiagnosticMessage(reconstructionDiagnostics);
+                    nativeDifference = FirstDiagnosticMessage(nativeDiagnostics);
                 }
-            }
-            else
-            {
-                nativeDifference = FirstDiagnosticMessage(nativeDiagnostics);
-            }
 
-            bool emitEnvelope = options.PreservationMode ==
-                WotNodeSetPreservationMode.Always;
-            if (!nativeComplete)
-            {
-                string reason = nativeDifference ??
-                    "The structured native projection did not reproduce the source NodeSet.";
-                if (options.PreservationMode == WotNodeSetPreservationMode.Never)
+                bool emitEnvelope = options.PreservationMode ==
+                    WotNodeSetPreservationMode.Always;
+                if (!nativeComplete)
                 {
+                    string reason = nativeDifference ??
+                        "The structured native projection did not reproduce the source NodeSet.";
+                    if (options.PreservationMode == WotNodeSetPreservationMode.Never)
+                    {
+                        diagnostics.Add(new WotDiagnostic(
+                            WotDiagnosticSeverity.Error,
+                            WotDiagnosticCode.NativeProjectionIncomplete,
+                            reason));
+                        return new WotConversionResult<WotDocument>(null, diagnostics);
+                    }
+                    emitEnvelope = true;
                     diagnostics.Add(new WotDiagnostic(
-                        WotDiagnosticSeverity.Error,
+                        WotDiagnosticSeverity.Warning,
                         WotDiagnosticCode.NativeProjectionIncomplete,
-                        reason));
-                    return new WotConversionResult<WotDocument>(null, diagnostics);
+                        reason + " The uav:nodeSet fallback was emitted."));
                 }
-                emitEnvelope = true;
-                diagnostics.Add(new WotDiagnostic(
-                    WotDiagnosticSeverity.Warning,
-                    WotDiagnosticCode.NativeProjectionIncomplete,
-                    reason + " The uav:nodeSet fallback was emitted."));
+
+                json = WriteReadableDocument(
+                    nodeSet,
+                    root,
+                    resolvedTitle,
+                    nodeSetBytes,
+                    nativeProjection,
+                    emitEnvelope,
+                    options,
+                    diagnostics);
+                json = WotJsonResidue.Apply(json, nodeSet, options, diagnostics);
+            }
+            else if (options.PreservationMode == WotNodeSetPreservationMode.Always)
+            {
+                json = WriteReadableDocument(
+                    nodeSet,
+                    root,
+                    resolvedTitle,
+                    nodeSetBytes,
+                    null,
+                    emitEnvelope: true,
+                    options,
+                    diagnostics);
+                json = WotJsonResidue.Apply(json, nodeSet, options, diagnostics);
             }
 
-            byte[] json;
+            if (json.Length > options.MaxJsonDocumentSize)
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.JsonDocumentTooLarge,
+                    $"Generated WoT document exceeds the configured " +
+                    $"{options.MaxJsonDocumentSize} byte limit."));
+                return new WotConversionResult<WotDocument>(null, diagnostics);
+            }
+#pragma warning disable CA2000 // Ownership of the returned WotDocument transfers to the caller through the result.
+            WotDocument document = WotDocument.FromOwnedBytes(json, options);
+#pragma warning restore CA2000
+            return new WotConversionResult<WotDocument>(document, diagnostics);
+        }
+
+        private static byte[] WriteReadableDocument(
+            UANodeSet nodeSet,
+            UANode? root,
+            string resolvedTitle,
+            byte[] nodeSetBytes,
+            byte[]? nativeProjection,
+            bool emitEnvelope,
+            WotNodeSetConverterOptions options,
+            List<WotDiagnostic> diagnostics)
+        {
+            byte[]? digest = emitEnvelope ? ComputeSha256(nodeSetBytes) : null;
             using (var output = new MemoryStream())
             {
                 using (var writer = new Utf8JsonWriter(
@@ -241,41 +303,25 @@ namespace Opc.Ua.Wot
                         writer.WriteString("@type", WotVocabulary.EnvelopeType);
                         writer.WriteString("contentType", WotVocabulary.NodeSetContentType);
                         writer.WriteString("encoding", WotVocabulary.Base64Encoding);
-                        writer.WriteString("sha256", CoreUtils.ToHexString(digest).ToLowerInvariant());
+                        writer.WriteString("sha256", CoreUtils.ToHexString(digest!).ToLowerInvariant());
                         writer.WriteString("data", System.Convert.ToBase64String(nodeSetBytes));
                         writer.WriteString("profileVersion", WotVocabulary.ProfileVersion);
                         writer.WriteEndObject();
                     }
 
-                    writer.WritePropertyName("uav:nodes");
-                    using (JsonDocument nativeDocument = JsonDocument.Parse(nativeProjection))
+                    if (nativeProjection is not null)
                     {
-                        nativeDocument.RootElement.WriteTo(writer);
+                        writer.WritePropertyName("uav:nodes");
+                        using (JsonDocument nativeDocument = JsonDocument.Parse(nativeProjection))
+                        {
+                            nativeDocument.RootElement.WriteTo(writer);
+                        }
                     }
 
                     writer.WriteEndObject();
                 }
-                json = output.ToArray();
+                return output.ToArray();
             }
-
-            json = WotJsonResidue.Apply(json, nodeSet, options, diagnostics);
-            if (IsReadableMappingComplete(json, nodeSet, options))
-            {
-                json = RemoveRootMembers(json, options, "uav:nodes");
-            }
-            if (json.Length > options.MaxJsonDocumentSize)
-            {
-                diagnostics.Add(new WotDiagnostic(
-                    WotDiagnosticSeverity.Error,
-                    WotDiagnosticCode.JsonDocumentTooLarge,
-                    $"Generated WoT document exceeds the configured " +
-                    $"{options.MaxJsonDocumentSize} byte limit."));
-                return new WotConversionResult<WotDocument>(null, diagnostics);
-            }
-#pragma warning disable CA2000 // Ownership of the returned WotDocument transfers to the caller through the result.
-            WotDocument document = WotDocument.FromOwnedBytes(json, options);
-#pragma warning restore CA2000
-            return new WotConversionResult<WotDocument>(document, diagnostics);
         }
 
         private static bool IsReadableMappingComplete(
