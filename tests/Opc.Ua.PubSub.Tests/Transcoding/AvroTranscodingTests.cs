@@ -194,7 +194,7 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
         }
 
         [Test]
-        public async Task AvroEncoder_MetaDataVersionChange_ReAnnouncesSchema()
+        public async Task AvroEncoder_MetaDataVersionChange_DoesNotReAnnounceUnlessShapeChanges()
         {
             var encoder = new AvroNetworkMessageEncoder();
             TranscodeContext context = NewContext();
@@ -203,10 +203,21 @@ namespace Opc.Ua.PubSub.Tests.Transcoding
                 NewAvroMessage(1, Field("x", new Variant(9))), context.EncodingContext);
             Assert.That(encoder.LastSchemaAnnouncement, Is.Not.Null);
 
+            // The SchemaId is the fingerprint of the schema itself (§6.3) and is explicitly not a
+            // function of the PubSub ConfigurationVersion, so bumping the version while the DataSet
+            // shape is unchanged yields the same SchemaId and nothing to re-announce. The causality
+            // runs the other way: a schema change is what advances the ConfigurationVersion (§8.4).
             await encoder.EncodeAsync(
                 NewAvroMessage(2, Field("x", new Variant(9))), context.EncodingContext);
+            Assert.That(encoder.LastSchemaAnnouncement, Is.Null,
+                "A version bump alone is not a schema change.");
+
+            // A genuine shape change - the same field carrying a new body type - grows the Variant
+            // union, which is a new schema and therefore a new announcement.
+            await encoder.EncodeAsync(
+                NewAvroMessage(3, Field("x", new Variant("nine"))), context.EncodingContext);
             Assert.That(encoder.LastSchemaAnnouncement, Is.Not.Null,
-                "A DataSet MetaData version change should re-announce the schema.");
+                "A grown DataSet shape re-announces.");
         }
 
         [Test]

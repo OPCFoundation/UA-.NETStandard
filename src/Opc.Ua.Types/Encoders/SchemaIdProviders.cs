@@ -173,20 +173,19 @@ namespace Opc.Ua
             public byte[] ComputeSchemaId(ReadOnlySpan<byte> schema)
             {
                 // Canonical Avro SchemaId: CRC-64-AVRO over the Avro Parsing Canonical Form
-                // (Part 6 §6.6). Non-schema inputs fall back to the raw bytes.
-                ulong fingerprint;
-                try
-                {
-                    string canonical = AvroParsingCanonicalForm.Compute(
-                        System.Text.Encoding.UTF8.GetString(schema.ToArray()));
-                    fingerprint = SchemaId.RabinCrc64Avro(System.Text.Encoding.UTF8.GetBytes(canonical));
-                }
-                catch (Exception ex) when (ex is FormatException
-                    or System.Text.Json.JsonException
-                    || SchemaExchangePayload.IsMalformedPayload(ex))
-                {
-                    fingerprint = SchemaId.RabinCrc64Avro(schema);
-                }
+                // (Part 6 §6.3). The input must therefore be a document that actually parses as an
+                // Avro schema.
+                //
+                // This deliberately does NOT fall back to fingerprinting the raw bytes. A silent
+                // fallback here previously let a non-schema document produce a well-formed-looking
+                // SchemaId, so the value was stable and self-consistent within this library while
+                // being wrong for every other implementation - a defect that is invisible in tests
+                // that only round-trip against themselves. Failing loudly keeps a non-schema input
+                // from being mistaken for a conformant one.
+                string canonical = AvroParsingCanonicalForm.Compute(
+                    System.Text.Encoding.UTF8.GetString(schema.ToArray()));
+                ulong fingerprint = SchemaId.RabinCrc64Avro(
+                    System.Text.Encoding.UTF8.GetBytes(canonical));
 
                 byte[] id = new byte[8];
                 for (int ii = 0; ii < id.Length; ii++)

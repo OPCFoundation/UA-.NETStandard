@@ -51,6 +51,16 @@
   <ItemGroup>
     <EmbeddedResource Include="SchemaRegistry\Opc.Ua.SchemaRegistry.NodeSet2.xml" LogicalName="Opc.Ua.PubSub.SchemaRegistry.Opc.Ua.SchemaRegistry.NodeSet2.xml" />
     <AdditionalFiles Include="SchemaRegistry\Opc.Ua.SchemaRegistry.NodeSet2.xml" />
+    <!-- Part 14 configuration model additions for the Avro message mapping (Avro companion
+         specification §9). Shipped as an independent Information Model extension so it can be
+         adopted without changing the Part 14 NodeSet. Configuration only: no DataTypeEncoding
+         Objects, because "Default Avro" has no AddressSpace representation (§4.2). -->
+    <EmbeddedResource Include="Encoding\Avro\Opc.Ua.Avro.NodeSet2.xml" LogicalName="Opc.Ua.PubSub.Encoding.Avro.Opc.Ua.Avro.NodeSet2.xml" />
+    <AdditionalFiles Include="Encoding\Avro\Opc.Ua.Avro.NodeSet2.xml" />
+    <!-- Part 14 configuration model additions for the Arrow message mapping (Arrow companion
+         specification §6.5). -->
+    <EmbeddedResource Include="Encoding\Arrow\Opc.Ua.Arrow.NodeSet2.xml" LogicalName="Opc.Ua.PubSub.Encoding.Arrow.Opc.Ua.Arrow.NodeSet2.xml" />
+    <AdditionalFiles Include="Encoding\Arrow\Opc.Ua.Arrow.NodeSet2.xml" />
     <!-- The Schema Registry NodeSet declares a RequiredModel on the abstract xRegistry base model.
          Opc.Ua.XRegistry compiles that model into its assembly and no longer ships it as a runtime
          NodeSet, so embed the base document here to keep the runtime import path self-contained. -->
