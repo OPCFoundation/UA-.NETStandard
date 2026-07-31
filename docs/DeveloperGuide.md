@@ -20,7 +20,7 @@ The C# language version is pinned (`LangVersion` 14) and analyzer/style rules ar
 | `src/` | The core stack and higher-level libraries: `Opc.Ua.Types`, `Opc.Ua.Core*`, `Opc.Ua.Client`, `Opc.Ua.Server`, `Opc.Ua.Configuration`, `Opc.Ua.PubSub` (+ transports), the GDS / DI / LDS / WoT libraries, and the `Opc.Ua.Redundancy*` family. |
 | `samples/` | Reference and sample apps: `ConsoleReferenceServer`, `ConsoleReferenceClient`, `Quickstarts.Servers`, the `Minimal*` / `PumpDeviceIntegrationServer` NativeAOT samples, `Redundant*`, etc. |
 | `tests/` | Unit and integration test projects, mirroring the library structure, plus shared test frameworks. |
-| `tools/` | Source generators, migration analyzers, and the installable `Opc.Ua.Mcp` tool. |
+| `tools/` | Source generators, migration analyzers, and the installable `Opc.Ua.Mcp` tool. Each analyzer and generator has a build project and — for the source generators — a `*.Pack` project that packages it under a Roslyn-versioned analyzer folder. |
 | `docs/` | This documentation set (indexed by [docs/README.md](README.md)). |
 | `fuzzing/` | SharpFuzz / libFuzzer fuzz targets (see [Fuzzing.md](../fuzzing/Fuzzing.md)). |
 
@@ -51,6 +51,8 @@ Notes:
   ```
 
 - **Offline / restricted networks.** `NuGetAudit` is enabled and fails the build with `NU1900` when it cannot reach the audit service. If you build offline, pass `-p:NuGetAudit=false`.
+- **Source generators are consumed as project references.** Projects that use the in-repo generators reference `tools/Opc.Ua.SourceGeneration[.Stack]` with `OutputItemType=Analyzer`. MSBuild only hands the compiler the generator assembly itself, so `Directory.Build.targets` adds the generator's runtime closure (its output directory, minus the Roslyn host assemblies) as `Analyzer` items — the same payload the generator NuGet packages ship under `analyzers/dotnet/<roslyn>/cs`. Without it the generators cannot resolve their dependencies and fail to initialise with `CS8784`.
+- **Analyzers and generators are shipped under a Roslyn-versioned analyzer folder.** `roslyn.props` pins the Roslyn API version, and each generator has a `*.Pack` project that ships it under `analyzers/dotnet/roslyn<major>.<minor>/cs`. See [Repository layout](#repository-layout) and the [support matrix](#supported-analyzer-and-source-generator-hosts). Because the repository's own projects consume that same build, **building this repository requires a Roslyn 5.x host** (the .NET 10 SDK or Visual Studio 2026).
 
 ## Running tests
 
@@ -216,6 +218,8 @@ The following NuGet packages are released on a monthly cadence (with hot fixes f
 
 For improved source-level debugging, symbol packages are published on nuget.org in `snupkg` format, and `Debug`-compiled packages are available with a `.Debug` suffix. In addition, every successful `master` build publishes preview packages to the [Azure DevOps preview feed](https://opcfoundation.visualstudio.com/opcua-netstandard/_artifacts/feed/opcua-preview).
 
+The full set of packages the preview pipeline produces is pinned in [`.azurepipelines/expected-packages.txt`](../.azurepipelines/expected-packages.txt). `.azurepipelines/validate-source-generator-packages.ps1` fails the build when the packed output does not match it, so adding, removing or renaming a shipped package has to be done deliberately in the same pull request. That script also validates the analyzer packages: their `analyzers/dotnet/roslyn<major>.<minor>/cs` layout, that they carry their runtime closure privately, that the model generator's auto-imported `build/<PackageId>.props` is named after the package id, and — end to end — that a standalone project consuming the packed generator with a NodeSet actually gets code generated.
+
 ### Supported target frameworks
 
 The class libraries currently target:
@@ -229,6 +233,21 @@ The class libraries currently target:
 7. .NET 10.0
 
 To keep pull-request CI fast, only (4) and (6) are part of the qualifying build; the other platforms are covered by scheduled or manual CI. See [Running tests](#running-tests) for how to build and test a specific framework locally with `CustomTestTarget` / `tests/customtest.bat`.
+
+### Supported analyzer and source generator hosts
+
+The analyzer and source generator packages ship under `analyzers/dotnet/roslyn<major>.<minor>/cs`. The .NET SDK loads the highest folder its compiler supports and **ignores** folders above it, so an older host cleanly skips the analyzer instead of loading it and failing at generator-initialization time.
+
+| Roslyn API | Package folder | Minimum host |
+| --- | --- | --- |
+| 4.14 | `analyzers/dotnet/roslyn4.14/cs` | Visual Studio 2022 17.14 / .NET 9 SDK |
+| 5.0 | `analyzers/dotnet/roslyn5.0/cs` | Visual Studio 2026 18.0 / .NET 10 SDK |
+
+The version is declared once in `roslyn.props`.
+
+> **Adding a band below 4.14 is not just another entry in that file.** The analyzer closure — the generator, `Opc.Ua.SourceGeneration.Core` **and** `Opc.Ua.Types` — must bind against the Roslyn host's own `System.Collections.Immutable` and `System.Reflection.Metadata`. .NET satisfies a reference from a *higher* assembly version but never from a lower one, and those assemblies are supplied by the compiler, so the closure must reference the lowest version across every supported band and must never ship a copy of its own. Roslyn 4.14 and 5.0 both depend on 9.0.0, which is why `$(RoslynRuntimeVersion)` in `roslyn.props` drives the central pin and one build of the non-Roslyn closure serves both bands. Going lower — Roslyn 4.8 wants 7.x — would mean building that whole closure, `Opc.Ua.Types` included, a second time.
+>
+> Get it wrong and the failure is silent: the generator is skipped (`CS9057`), fails to load (`CS8032`) or throws `MissingMethodException` while initializing (`CS8784`) — all *warnings*, so the consumer just gets no generated code. `validate-source-generator-packages.ps1` therefore refuses any package that ships `Microsoft.CodeAnalysis*`, `System.Collections.Immutable` or `System.Reflection.Metadata`, and runs the packed down-level payload through a real compiler of that band.
 
 ### Versioning
 
