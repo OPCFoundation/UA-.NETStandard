@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -210,7 +211,7 @@ namespace Opc.Ua.Di.Tests
         /// <c>P = Δp · Q / η</c> at every instant.
         /// </summary>
         [Test]
-        public void SimulatedValuesAreHydraulicallyConsistent()
+        public async Task SimulatedValuesAreHydraulicallyConsistentAsync()
         {
             MeasurementsState measurements = m_pump!.Operational!.Measurements!;
 
@@ -219,6 +220,7 @@ namespace Opc.Ua.Di.Tests
             // taken between two ticks; a genuinely inconsistent model fails
             // every attempt.
             double deviation = double.MaxValue;
+            bool sampled = false;
             for (int attempt = 0; attempt < MaxSampleAttempts; attempt++)
             {
                 double massFlow = measurements.MassFlow!.Value;
@@ -226,17 +228,33 @@ namespace Opc.Ua.Di.Tests
                 double efficiency = measurements.PumpEfficiency!.Value;
                 double shaftPower = measurements.PumpPowerInput!.Value;
 
+                // Guard against the initial defaults: a pump that has not
+                // published a complete sample yet would turn the ratio below
+                // into NaN or Infinity and mask the actual assertion.
+                if (massFlow <= 0.0 || efficiency <= 0.0 || shaftPower <= 0.0)
+                {
+                    await Task.Delay(SampleRetryDelayMilliseconds)
+                        .ConfigureAwait(false);
+                    continue;
+                }
+
+                sampled = true;
+
                 // Volumetric flow in m³/s from the published mass flow.
                 double volumeFlow = massFlow / FluidDensity;
                 double expectedPower = differentialPressure * volumeFlow /
                     (efficiency / 100.0);
-                deviation = System.Math.Abs(expectedPower - shaftPower) / shaftPower;
+                deviation = Math.Abs(expectedPower - shaftPower) / shaftPower;
                 if (deviation <= ConsistencyTolerance)
                 {
                     break;
                 }
             }
 
+            Assert.That(
+                sampled,
+                Is.True,
+                "The simulation never published a complete sample.");
             Assert.That(
                 deviation,
                 Is.LessThanOrEqualTo(ConsistencyTolerance),
@@ -282,6 +300,7 @@ namespace Opc.Ua.Di.Tests
         private const double FluidDensity = 998.0;
         private const double ConsistencyTolerance = 1e-9;
         private const int MaxSampleAttempts = 10;
+        private const int SampleRetryDelayMilliseconds = 50;
 
         private ServerFixture<StandardServer>? m_fixture;
         private PumpNodeManager? m_manager;
