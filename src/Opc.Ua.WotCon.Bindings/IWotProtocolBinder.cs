@@ -308,13 +308,45 @@ namespace Opc.Ua.WotCon.Bindings
         /// <summary>
         /// Selects a codec for a content type, reporting when none is available.
         /// </summary>
-        protected string ResolveCodec(
-            WotAffordanceForm form, WotBindingPlanContext context, out WotPayloadDescriptor payload)
+        protected bool ResolveCodec(
+            WotAffordanceForm form,
+            WotBindingPlanContext context,
+            ICollection<WotBindingDiagnostic> diagnostics,
+            out WotPayloadDescriptor payload)
         {
             string contentType = string.IsNullOrEmpty(form.ContentType) ? "application/json" : form.ContentType!;
+            if (!ValidateContentType(form, contentType, diagnostics))
+            {
+                payload = new WotPayloadDescriptor(contentType, string.Empty);
+                return false;
+            }
             context.Codecs.TrySelect(form.ContentType, out IWotPayloadCodec codec);
             payload = new WotPayloadDescriptor(contentType, codec.Id);
-            return codec.Id;
+            return true;
+        }
+
+        /// <summary>
+        /// Validates a WoT <c>contentType</c> value before it reaches protocol sinks.
+        /// </summary>
+        protected static bool ValidateContentType(
+            WotAffordanceForm form,
+            string contentType,
+            ICollection<WotBindingDiagnostic> diagnostics)
+        {
+            for (int i = 0; i < contentType.Length; i++)
+            {
+                char ch = contentType[i];
+                if (ch is '\r' or '\n' or '\0' || ch > 0x7F)
+                {
+                    diagnostics.Add(WotBindingDiagnostic.Error(
+                        WotBindingDiagnosticCode.InvalidFieldValue,
+                        "The contentType contains characters that are not permitted in an HTTP header value.",
+                        form.Pointer("contentType"),
+                        "contentType"));
+                    return false;
+                }
+            }
+            return true;
         }
 
         /// <summary>

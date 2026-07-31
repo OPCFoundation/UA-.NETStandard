@@ -28,8 +28,10 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.WotCon.Bindings.Planners;
@@ -247,6 +249,57 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         }
 
         [Test]
+        public void OpenChannelAsyncRejectsEndpointBeforeExecutorActivation()
+        {
+            var executor = new TestExecutor(new HttpBindingPlanner().Identity);
+            var registry = new WotProtocolBinderRegistry([new HttpBindingPlanner()], [executor]);
+            var form = new WotCompiledForm(
+                new HttpBindingPlanner().Identity,
+                WotAffordanceKind.Property,
+                "p",
+                "/properties/p/forms/0",
+                WoTBindingCapabilityEnum.ReadProperty,
+                "readproperty",
+                new WotEndpointDescriptor("http", "169.254.169.254", 80, "http://169.254.169.254"),
+                new WotAddressingDescriptor("http://169.254.169.254/latest/meta-data/"),
+                new WotOperationDescriptor(WoTBindingCapabilityEnum.ReadProperty, "readproperty", "GET"),
+                new WotPayloadDescriptor("application/json", "json"),
+                [],
+                isExecutable: true);
+
+            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await registry.OpenChannelAsync(form).ConfigureAwait(false))!;
+
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+            Assert.That(executor.Activations, Is.Zero);
+        }
+
+        [Test]
+        public async Task OpenChannelAsyncAcceptsPublicEndpoint()
+        {
+            var executor = new TestExecutor(new HttpBindingPlanner().Identity);
+            var registry = new WotProtocolBinderRegistry([new HttpBindingPlanner()], [executor]);
+            var form = new WotCompiledForm(
+                new HttpBindingPlanner().Identity,
+                WotAffordanceKind.Property,
+                "p",
+                "/properties/p/forms/0",
+                WoTBindingCapabilityEnum.ReadProperty,
+                "readproperty",
+                new WotEndpointDescriptor("http", "example.com", 80, "http://example.com"),
+                new WotAddressingDescriptor("http://example.com/p"),
+                new WotOperationDescriptor(WoTBindingCapabilityEnum.ReadProperty, "readproperty", "GET"),
+                new WotPayloadDescriptor("application/json", "json"),
+                [],
+                isExecutable: true);
+
+            await using IWotBindingChannel channel = await registry.OpenChannelAsync(form).ConfigureAwait(false);
+
+            Assert.That(channel.Form, Is.SameAs(form));
+            Assert.That(executor.Activations, Is.EqualTo(1));
+        }
+
+        [Test]
         public void RegistryConstructorIgnoresNullBinders()
         {
             var registry = new WotProtocolBinderRegistry(
@@ -326,6 +379,89 @@ namespace Opc.Ua.WotCon.Bindings.Tests
 
             Assert.That(plan.Diagnostics.Any(d =>
                 d.Code == WotBindingDiagnosticCode.TargetMappingNotOnProperty), Is.True);
+        }
+
+        private sealed class TestExecutor : IWotBindingExecutor
+        {
+            public TestExecutor(WotBindingIdentity identity)
+            {
+                Identity = identity;
+            }
+
+            public WotBindingIdentity Identity { get; }
+
+            public int Activations { get; private set; }
+
+            public bool CanExecute(WotCompiledForm form)
+            {
+                return string.Equals(form.Binding.Id, Identity.Id, StringComparison.Ordinal);
+            }
+
+            public ValueTask<IWotBindingChannel> ActivateAsync(
+                WotCompiledForm form, WotExecutorContext context, CancellationToken cancellationToken = default)
+            {
+                Activations++;
+                return new ValueTask<IWotBindingChannel>(new TestChannel(form));
+            }
+        }
+
+        private sealed class TestChannel : IWotBindingChannel
+        {
+            public TestChannel(WotCompiledForm form)
+            {
+                Form = form;
+            }
+
+            public WotCompiledForm Form { get; }
+
+            public ValueTask DisposeAsync()
+            {
+                return default;
+            }
+
+            public ValueTask<WotReadResult> ReadAsync(CancellationToken cancellationToken = default)
+            {
+                return new ValueTask<WotReadResult>(
+                    new WotReadResult(StatusCodes.Good, new DataValue(Variant.Null)));
+            }
+
+            public ValueTask<WotWriteResult> WriteAsync(DataValue value, CancellationToken cancellationToken = default)
+            {
+                return new ValueTask<WotWriteResult>(new WotWriteResult(StatusCodes.Good));
+            }
+
+            public ValueTask<WotInvokeResult> InvokeAsync(
+                IReadOnlyList<Variant> inputs, CancellationToken cancellationToken = default)
+            {
+                return new ValueTask<WotInvokeResult>(new WotInvokeResult(StatusCodes.Good));
+            }
+
+            public ValueTask<IWotSubscription> ObserveAsync(
+                Action<WotNotification> onNotification, CancellationToken cancellationToken = default)
+            {
+                return new ValueTask<IWotSubscription>(new TestSubscription(Form));
+            }
+
+            public ValueTask<IWotSubscription> SubscribeEventAsync(
+                Action<WotNotification> onEvent, CancellationToken cancellationToken = default)
+            {
+                return new ValueTask<IWotSubscription>(new TestSubscription(Form));
+            }
+        }
+
+        private sealed class TestSubscription : IWotSubscription
+        {
+            public TestSubscription(WotCompiledForm form)
+            {
+                Form = form;
+            }
+
+            public WotCompiledForm Form { get; }
+
+            public ValueTask DisposeAsync()
+            {
+                return default;
+            }
         }
     }
 }

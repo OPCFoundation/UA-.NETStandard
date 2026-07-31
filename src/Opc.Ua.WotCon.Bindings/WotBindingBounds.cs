@@ -54,6 +54,11 @@ namespace Opc.Ua.WotCon.Bindings
         public int MaxTopicLength { get; set; } = 65535;
 
         /// <summary>
+        /// Gets or sets whether MQTT subscribe topics may contain the <c>#</c> or <c>+</c> wildcard characters.
+        /// </summary>
+        public bool AllowMqttWildcardTopics { get; set; }
+
+        /// <summary>
         /// Gets or sets the maximum accepted request / response payload size (bytes).
         /// </summary>
         public int MaxPayloadBytes { get; set; } = 1024 * 1024;

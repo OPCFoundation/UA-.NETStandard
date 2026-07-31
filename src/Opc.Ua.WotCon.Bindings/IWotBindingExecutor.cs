@@ -48,11 +48,13 @@ namespace Opc.Ua.WotCon.Bindings
         public WotExecutorContext(
             IWotCredentialProvider? credentials = null,
             IWotCodecRegistry? codecs = null,
-            WotBindingBounds? bounds = null)
+            WotBindingBounds? bounds = null,
+            WotEndpointPolicy? endpointPolicy = null)
         {
             Credentials = credentials ?? NullWotCredentialProvider.Instance;
             Codecs = codecs ?? WotPayloadCodecRegistry.Default;
             Bounds = bounds ?? WotBindingBounds.Default;
+            EndpointPolicy = endpointPolicy ?? WotEndpointPolicy.Default;
         }
 
         /// <summary>
@@ -69,6 +71,11 @@ namespace Opc.Ua.WotCon.Bindings
         /// Gets the enforced safety bounds.
         /// </summary>
         public WotBindingBounds Bounds { get; }
+
+        /// <summary>
+        /// Gets the endpoint policy enforced before opening a live channel.
+        /// </summary>
+        public WotEndpointPolicy EndpointPolicy { get; }
     }
 
     /// <summary>

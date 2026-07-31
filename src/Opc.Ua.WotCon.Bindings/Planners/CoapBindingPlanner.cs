@@ -123,7 +123,10 @@ namespace Opc.Ua.WotCon.Bindings.Planners
                     form.Pointer("cov:contentFormat"), "cov:contentFormat"));
             }
 
-            ResolveCodec(form, context, out WotPayloadDescriptor payload);
+            if (!ResolveCodec(form, context, diagnostics, out WotPayloadDescriptor payload))
+            {
+                return WotBindingCompilation.Unsupported([.. diagnostics]);
+            }
             WotEndpointDescriptor endpoint = MakeEndpoint(uri);
             var addressing = new WotAddressingDescriptor(uri.AbsoluteUri);
             ImmutableArray<WotCredentialReference> security =

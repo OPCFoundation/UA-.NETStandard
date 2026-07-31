@@ -286,13 +286,18 @@ namespace Opc.Ua.WotCon.Bindings.Planners
                     .Add("functionCode", function.Value.Code.ToString(CultureInfo.InvariantCulture));
             }
 
+            string contentType = string.IsNullOrEmpty(form.ContentType) ? "application/octet-stream" : form.ContentType!;
+            if (!ValidateContentType(form, contentType, diagnostics))
+            {
+                return WotBindingCompilation.Unsupported([.. diagnostics]);
+            }
+
             ImmutableDictionary<string, string> payloadMetadata = ImmutableDictionary<string, string>.Empty
                 .Add("type", dataType)
                 .Add("mostSignificantByte", msbFirst ? "true" : "false")
                 .Add("mostSignificantWord", mswFirst ? "true" : "false");
             var payload = new WotPayloadDescriptor(
-                string.IsNullOrEmpty(form.ContentType) ? "application/octet-stream" : form.ContentType!,
-                OctetStreamWotPayloadCodec.Instance.Id, payloadMetadata);
+                contentType, OctetStreamWotPayloadCodec.Instance.Id, payloadMetadata);
 
             WotEndpointDescriptor endpoint = MakeEndpoint(uri);
             var addressing = new WotAddressingDescriptor(

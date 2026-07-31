@@ -100,7 +100,10 @@ namespace Opc.Ua.WotCon.Bindings.Planners
                 $"{subslot.ToString(CultureInfo.InvariantCulture)}/index:" +
                 index.ToString(CultureInfo.InvariantCulture), metadata);
             WotEndpointDescriptor endpoint = MakeEndpointOrSynthetic(form.Href, "profinet");
-            ResolveCodec(form, context, out WotPayloadDescriptor payload);
+            if (!ResolveCodec(form, context, diagnostics, out WotPayloadDescriptor payload))
+            {
+                return WotBindingCompilation.Unsupported([.. diagnostics]);
+            }
 
             ImmutableArray<WotCompiledForm>.Builder entries = ImmutableArray.CreateBuilder<WotCompiledForm>();
             foreach ((string op, WoTBindingCapabilityEnum capability) in ResolveOperations(form, diagnostics))
