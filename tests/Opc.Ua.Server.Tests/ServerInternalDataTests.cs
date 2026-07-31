@@ -30,6 +30,7 @@
 using System;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
@@ -542,6 +543,48 @@ namespace Opc.Ua.Server.Tests
         {
             using ServerInternalData data = CreateServerInternalData();
             Assert.DoesNotThrow(() => data.ReportAuditEvent(data.DefaultSystemContext, null));
+        }
+
+        [Test]
+        public async Task DisposeAsyncCompletesAsync()
+        {
+            ServerInternalData data = CreateServerInternalData();
+
+            await data.DisposeAsync().ConfigureAwait(false);
+
+            Assert.That(data.RequestManager, Is.Null);
+        }
+
+        [Test]
+        public async Task DisposeAsyncIsIdempotentAsync()
+        {
+            ServerInternalData data = CreateServerInternalData();
+
+            await data.DisposeAsync().ConfigureAwait(false);
+
+            Assert.DoesNotThrowAsync(async () => await data.DisposeAsync().ConfigureAwait(false));
+        }
+
+        [Test]
+        public async Task DisposeAfterDisposeAsyncDoesNotDisposeTwiceAsync()
+        {
+            ServerInternalData data = CreateServerInternalData();
+
+            await data.DisposeAsync().ConfigureAwait(false);
+
+            // The synchronous path shares the disposed guard with the asynchronous one, so a
+            // Dispose that follows DisposeAsync must be a no-op rather than releasing a second time.
+            Assert.DoesNotThrow(data.Dispose);
+        }
+
+        [Test]
+        public void DisposeAsyncAfterDisposeDoesNotDisposeTwice()
+        {
+            ServerInternalData data = CreateServerInternalData();
+
+            data.Dispose();
+
+            Assert.DoesNotThrowAsync(async () => await data.DisposeAsync().ConfigureAwait(false));
         }
     }
 }
