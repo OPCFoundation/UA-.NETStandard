@@ -440,8 +440,14 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
+                // do nothing if subscription has already been flagged as available.
+                if (subscription.ReadyToPublish)
+                {
+                    continue;
+                }
+
                 // assign subscription to request if one is available.
-                if (!subscription.Publishing)
+                if (!subscription.Publishing && !subscription.ReadyToPublish)
                 {
                     lock (m_lock)
                     {
