@@ -15,8 +15,8 @@ to integrate with web-based tooling.
 | `https-uabinary` | `opc.https://`, `https://` | UA Binary in HTTP body (`application/octet-stream`) | yes (one chunk per POST) | `None`, `Sign`, `SignAndEncrypt` |
 | `https-uajson` | `opc.https://`, `https://` | UA JSON in HTTP body (`application/opcua+uajson`) | **no** — TLS only | `None` only |
 | [`https-uajson-openapi`](https://profiles.opcfoundation.org/profile/2338) | `opc.https://`, `https://` | OpenAPI Mapping (Part 6 §G.3): per-service `POST /<service>` with body = `<Service>Request` JSON (`application/json; encoding=compact\|verbose`) | **no** — TLS only | `None` only |
-| `uawss-uasc-uabinary` | `opc.wss://`, `wss://` | UA Binary in WebSocket binary frame (sub-protocol `opcua+uacp`) | yes | `None`, `Sign`, `SignAndEncrypt` |
-| `uawss-uajson` | `opc.wss://`, `wss://` | UA JSON in WebSocket text frame (sub-protocol `opcua+uajson`) | **no** — TLS only | `None` only |
+| `wss-uasc-uabinary` | `opc.wss://`, `wss://` | UA Binary in WebSocket binary frame (sub-protocol `opcua+uacp`) | yes | `None`, `Sign`, `SignAndEncrypt` |
+| `wss-uajson` | `opc.wss://`, `wss://` | UA JSON in WebSocket text frame (sub-protocol `opcua+uajson`) | **no** — TLS only | `None` only |
 | [`wss-uajson-openapi`](https://profiles.opcfoundation.org/profile/2339) | `opc.wss://`, `wss://` | OpenAPI Mapping over WebSocket text frame (sub-protocol `opcua+openapi` / `opcua+openapi+<accesstoken>`) | **no** — TLS only | `None` only |
 
 The JSON / OpenAPI profiles do not negotiate a UA SecureChannel; transport
@@ -191,7 +191,7 @@ A few notes:
 `GetEndpoints` and `FindServers` return the `EndpointDescription` list
 declared by the listener for each base address. For TCP, HTTPS-binary,
 and WSS+uacp the description includes the correct `TransportProfileUri`
-(`uatcp-uasc-uabinary`, `https-uabinary`, `uawss-uasc-uabinary`
+(`uatcp-uasc-uabinary`, `https-uabinary`, `wss-uasc-uabinary`
 respectively). The JSON sub-protocols are reachable on the same URL as
 their binary counterparts and clients select them explicitly via the
 `Content-Type` header (HTTPS) or the `Sec-WebSocket-Protocol` header
