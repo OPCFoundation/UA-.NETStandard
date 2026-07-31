@@ -70,7 +70,9 @@ namespace Opc.Ua.Server.RuntimeNodeSet
     /// <see cref="Hosting.IOpcUaServerBuilder.AddNodeManager{TFactory}"/>.
     /// </para>
     /// </remarks>
-    public sealed class RuntimeNodeSetNodeManagerFactory : IAsyncNodeManagerFactory
+    public sealed class RuntimeNodeSetNodeManagerFactory :
+        IAsyncNodeManagerFactory,
+        IRequestCallbackSafeNodeManagerFactory
     {
         /// <summary>
         /// Initializes the factory from the supplied
@@ -80,7 +82,7 @@ namespace Opc.Ua.Server.RuntimeNodeSet
         /// </summary>
         /// <param name="options">
         /// Configuration describing the NodeSet2 sources and optional
-        /// fluent <c>Configure</c> callback.
+        /// fluent <c>Configure</c>/<c>ConfigureAsync</c> callbacks.
         /// </param>
         /// <exception cref="ArgumentNullException">
         /// <paramref name="options"/> is <c>null</c>.
@@ -105,6 +107,8 @@ namespace Opc.Ua.Server.RuntimeNodeSet
             m_sources = [.. options.Sources];
             m_defaultNamespaceUri = options.DefaultNamespaceUri;
             m_configure = options.Configure;
+            m_configureAsync = options.ConfigureAsync;
+            AllowLifecycleFromRequestCallback = options.AllowLifecycleFromRequestCallback;
             NamespacesUris = BuildNamespacesUris(m_sources);
 
             if (!string.IsNullOrEmpty(m_defaultNamespaceUri) &&
@@ -118,6 +122,9 @@ namespace Opc.Ua.Server.RuntimeNodeSet
 
         /// <inheritdoc/>
         public ArrayOf<string> NamespacesUris { get; }
+
+        /// <inheritdoc/>
+        public bool AllowLifecycleFromRequestCallback { get; }
 
         /// <inheritdoc/>
         public async ValueTask<IAsyncNodeManager> CreateAsync(
@@ -142,7 +149,7 @@ namespace Opc.Ua.Server.RuntimeNodeSet
             string? defaultNs = ResolveDefaultNamespace(
                 sorted,
                 m_defaultNamespaceUri,
-                m_configure is not null);
+                m_configure is not null || m_configureAsync is not null);
 
             string[] modelUris = new string[NamespacesUris.Count];
 
@@ -159,7 +166,8 @@ namespace Opc.Ua.Server.RuntimeNodeSet
                 modelUris,
                 sorted,
                 defaultNs,
-                m_configure);
+                m_configure,
+                m_configureAsync);
 #pragma warning restore CA2000
         }
 
@@ -167,6 +175,7 @@ namespace Opc.Ua.Server.RuntimeNodeSet
         /// Scans all sources and builds the deduped, ordered namespace URI list
         /// used by <see cref="NamespacesUris"/>.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         private static ArrayOf<string> BuildNamespacesUris(
             ArrayOf<RuntimeNodeSetSource> sources)
         {
@@ -180,13 +189,9 @@ namespace Opc.Ua.Server.RuntimeNodeSet
 
             for (int i = 0; i < sources.Count; i++)
             {
-                RuntimeNodeSetSource source = sources[i];
-
-                if (source is null)
-                {
+                RuntimeNodeSetSource source = sources[i] ??
                     throw new InvalidOperationException(
                         $"Sources[{i}] is null.");
-                }
 
                 ArrayOf<string> modelUris = source.ModelNamespaceUris;
                 if (modelUris.IsNull || modelUris.Count == 0)
@@ -222,6 +227,7 @@ namespace Opc.Ua.Server.RuntimeNodeSet
         /// Opens each source stream, parses the UANodeSet, validates it, and
         /// returns the documents sorted in topological dependency order.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         private static async Task<ParsedNodeSetDocument[]> ParseAndSortAsync(
             ArrayOf<RuntimeNodeSetSource> sources,
             ILogger logger,
@@ -239,13 +245,9 @@ namespace Opc.Ua.Server.RuntimeNodeSet
                 logger.RuntimeNodeSetParsingSourceSource(sourceName);
 
                 Stream stream = await source.OpenReadAsync(cancellationToken)
-                    .ConfigureAwait(false);
-
-                if (stream is null)
-                {
+                    .ConfigureAwait(false) ??
                     throw new InvalidOperationException(
                         $"The NodeSet2 source '{sourceName}' returned a null stream.");
-                }
 
                 UANodeSet? nodeSet;
                 try
@@ -301,6 +303,7 @@ namespace Opc.Ua.Server.RuntimeNodeSet
         /// File sources declare URIs from their initial metadata scan; stream
         /// sources declare them explicitly when the source is created.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         private static void ValidateOwnedUris(
             ArrayOf<string> parsedUris,
             ArrayOf<string> declaredUris,
@@ -337,6 +340,7 @@ namespace Opc.Ua.Server.RuntimeNodeSet
         /// silently ignored (external dependencies). Cycles among the
         /// included sources raise <see cref="InvalidOperationException"/>.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         private static ParsedNodeSetDocument[] TopologicalSort(
             ParsedNodeSetDocument[] documents,
             Dictionary<string, int> modelUriToIndex)
@@ -441,14 +445,14 @@ namespace Opc.Ua.Server.RuntimeNodeSet
                             cycleNames.Append(", ");
                         }
 
-                        cycleNames.Append('\'');
-                        cycleNames.Append(documents[i].SourceName);
-                        cycleNames.Append('\'');
+                        cycleNames.Append('\'')
+                            .Append(documents[i].SourceName)
+                            .Append('\'');
                     }
                 }
 
                 throw new InvalidOperationException(
-                    $"A circular dependency was detected among the following included " +
+                    "A circular dependency was detected among the following included " +
                     $"NodeSet2 sources: {cycleNames}. Verify the RequiredModel declarations " +
                     "in each source and ensure there are no cycles.");
             }
@@ -458,9 +462,10 @@ namespace Opc.Ua.Server.RuntimeNodeSet
 
         /// <summary>
         /// Determines the default namespace URI for the fluent builder.
-        /// Returns <c>null</c> when no <c>Configure</c> callback is set
-        /// (the builder is not used).
+        /// Returns <c>null</c> when neither <c>Configure</c> nor
+        /// <c>ConfigureAsync</c> is set (the builder is not used).
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         private static string? ResolveDefaultNamespace(
             ParsedNodeSetDocument[] sorted,
             string? explicitUri,
@@ -555,12 +560,19 @@ namespace Opc.Ua.Server.RuntimeNodeSet
         private readonly ArrayOf<RuntimeNodeSetSource> m_sources;
         private readonly string? m_defaultNamespaceUri;
         private readonly Action<INodeManagerBuilder>? m_configure;
+        private readonly Func<INodeManagerBuilder, CancellationToken, ValueTask<IAsyncDisposable?>>? m_configureAsync;
 
         /// <summary>
         /// Internal representation of a parsed NodeSet2 document and its metadata.
         /// </summary>
         internal sealed class ParsedNodeSetDocument
         {
+            /// <summary>
+            /// Initializes a parsed RuntimeNodeSet source and the namespace models it owns.
+            /// </summary>
+            /// <param name="nodeSet">The parsed UANodeSet document.</param>
+            /// <param name="ownedModelUris">The model URIs owned by the source.</param>
+            /// <param name="sourceName">The name used for diagnostics that mention the source.</param>
             public ParsedNodeSetDocument(
                 UANodeSet nodeSet,
                 ArrayOf<string> ownedModelUris,
@@ -571,10 +583,33 @@ namespace Opc.Ua.Server.RuntimeNodeSet
                 SourceName = sourceName;
             }
 
+            /// <summary>
+            /// Gets the parsed UANodeSet document.
+            /// </summary>
             public UANodeSet NodeSet { get; }
+
+            /// <summary>
+            /// Gets the namespace model URIs contributed by the document.
+            /// </summary>
             public ArrayOf<string> OwnedModelUris { get; }
+
+            /// <summary>
+            /// Gets the source name used in parser and lifecycle diagnostics.
+            /// </summary>
             public string SourceName { get; }
         }
+    }
+
+    /// <summary>
+    /// Marks a RuntimeNodeSet factory whose lifecycle entry points can safely run while a request
+    /// callback is suspended.
+    /// </summary>
+    internal interface IRequestCallbackSafeNodeManagerFactory
+    {
+        /// <summary>
+        /// Gets whether request callbacks may enter lifecycle work without deadlocking request drains.
+        /// </summary>
+        bool AllowLifecycleFromRequestCallback { get; }
     }
 
     /// <summary>
@@ -582,9 +617,11 @@ namespace Opc.Ua.Server.RuntimeNodeSet
     /// </summary>
     internal static partial class RuntimeNodeSetNodeManagerFactoryLog
     {
+        /// <summary>
+        /// Logs that a RuntimeNodeSet source is about to be parsed.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.RuntimeNodeSetNodeManagerFactory + 0, Level = LogLevel.Information,
             Message = "RuntimeNodeSet: parsing source '{Source}'.")]
         public static partial void RuntimeNodeSetParsingSourceSource(this ILogger logger, string? source);
     }
-
 }

@@ -1040,6 +1040,7 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<bool>(),
                     It.IsAny<IList<IMonitoredItem>>(),
                     It.IsAny<IList<ServiceResult>>(),
+                    It.IsAny<MonitoredItemTransferOptions>(),
                     It.IsAny<CancellationToken>()))
                 .Callback(() => transferEntered.TrySetResult(true))
                 .Returns(() => new ValueTask(releaseTransfer.Task));
@@ -1312,6 +1313,7 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<bool>(),
                     It.IsAny<IList<IMonitoredItem>>(),
                     It.IsAny<IList<ServiceResult>>(),
+                    It.IsAny<MonitoredItemTransferOptions>(),
                     It.IsAny<CancellationToken>()))
                 .Returns(
                     () => Interlocked.Increment(ref transferCalls) == 1

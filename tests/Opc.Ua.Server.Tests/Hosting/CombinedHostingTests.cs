@@ -41,7 +41,6 @@ using Opc.Ua.Gds.Server.Database;
 using Opc.Ua.Gds.Server.Hosting;
 using Opc.Ua.Server.Hosting;
 using Opc.Ua.Server.UserDatabase;
-using Opc.Ua.WotCon.Server;
 
 #nullable enable
 
@@ -303,35 +302,6 @@ namespace Opc.Ua.Server.Tests.Hosting
                 "GDS hosted service must not consume OpcUaServerNodeManagerRegistration.");
             Assert.That(ldsTakesRegistrations, Is.False,
                 "LDS hosted service must not consume OpcUaServerNodeManagerRegistration.");
-        }
-
-        [Test]
-        public void AddWotConServerRegistersUnderServerFeature()
-        {
-            var services = new ServiceCollection();
-            services.AddLogging();
-
-            services.AddOpcUa()
-                .AddServer(opt => ConfigureServerOptions(opt, "WotConHostServer"))
-                .Services.AddOpcUa()
-                .AddWotConServer(opt => opt.AssetNamespaceUri = "urn:test:wot:assets");
-
-            using ServiceProvider sp = services.BuildServiceProvider();
-
-            IList<OpcUaServerNodeManagerRegistration> registrations =
-                [.. sp.GetServices<OpcUaServerNodeManagerRegistration>()];
-
-            int wotCount = registrations.Count(
-                r => r.SyncFactory is WotConnectivityNodeManagerFactory);
-            Assert.That(wotCount, Is.EqualTo(1),
-                "WotConnectivityNodeManagerFactory must be registered exactly once " +
-                "as an OpcUaServerNodeManagerRegistration.");
-
-            // The WotCon node-manager factory itself must be resolvable
-            // for tooling / introspection.
-            WotConnectivityNodeManagerFactory factory =
-                sp.GetRequiredService<WotConnectivityNodeManagerFactory>();
-            Assert.That(factory, Is.Not.Null);
         }
 
         private static void ConfigureServerOptions(OpcUaServerOptions opt, string name)

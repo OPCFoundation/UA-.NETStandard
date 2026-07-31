@@ -462,6 +462,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     monitoredItems,
                     transferProcessed,
                     transferErrors,
+                    It.IsAny<MonitoredItemTransferOptions>(),
                     It.IsAny<CancellationToken>()))
                 .Returns(default(ValueTask));
             manager.Setup(m => m.SetMonitoringModeAsync(

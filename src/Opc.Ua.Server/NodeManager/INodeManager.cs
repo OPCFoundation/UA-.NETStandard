@@ -323,14 +323,31 @@ namespace Opc.Ua.Server
         /// Transfers a set of monitored items.
         /// </summary>
         /// <remarks>
-        /// Queue initial values from monitored items in the node managers.
+        /// Queue initial values from monitored items in the node managers unless
+        /// <paramref name="transferOptions"/> requests deferred initial values.
         /// </remarks>
         void TransferMonitoredItems(
             OperationContext context,
             bool sendInitialValues,
             IList<IMonitoredItem> monitoredItems,
             IList<bool> processedItems,
-            IList<ServiceResult> errors);
+            IList<ServiceResult> errors,
+            MonitoredItemTransferOptions? transferOptions = null);
+
+        /// <summary>
+        /// Rolls back side effects produced by a failed monitored-item transfer.
+        /// </summary>
+        /// <remarks>
+        /// Implementations should undo owner-side effects recorded during
+        /// <see cref="TransferMonitoredItems"/> and must not apply the forward
+        /// transfer notification a second time.
+        /// </remarks>
+        void RollbackMonitoredItemsTransfer(
+            OperationContext context,
+            IList<IMonitoredItem> monitoredItems,
+            IList<bool> processedItems,
+            IList<ServiceResult> errors,
+            MonitoredItemTransferOptions? transferOptions = null);
 
         /// <summary>
         /// Changes the monitoring mode for a set of monitored items.
@@ -616,7 +633,8 @@ namespace Opc.Ua.Server
         /// Transfers a set of monitored items.
         /// </summary>
         /// <remarks>
-        /// Queue initial values from monitored items in the node managers.
+        /// Queue initial values from monitored items in the node managers unless
+        /// <paramref name="transferOptions"/> requests deferred initial values.
         /// </remarks>
         ValueTask TransferMonitoredItemsAsync(
             OperationContext context,
@@ -624,7 +642,81 @@ namespace Opc.Ua.Server
             IList<IMonitoredItem> monitoredItems,
             IList<bool> processedItems,
             IList<ServiceResult> errors,
+            MonitoredItemTransferOptions? transferOptions = null,
             CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Rolls back side effects produced by a failed monitored-item transfer.
+        /// </summary>
+        /// <remarks>
+        /// Implementations should undo owner-side effects recorded during
+        /// <see cref="TransferMonitoredItemsAsync"/> and must not apply the forward
+        /// transfer notification a second time.
+        /// </remarks>
+        ValueTask RollbackMonitoredItemsTransferAsync(
+            OperationContext context,
+            IList<IMonitoredItem> monitoredItems,
+            IList<bool> processedItems,
+            IList<ServiceResult> errors,
+            MonitoredItemTransferOptions? transferOptions = null,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// Describes how a monitored-item transfer callback is being executed.
+    /// </summary>
+    public sealed class MonitoredItemTransferOptions
+    {
+        /// <summary>
+        /// Gets or sets a value indicating whether node managers shall defer
+        /// calls to <see cref="IMonitoredItem.SetupResendDataTrigger"/> until
+        /// the owning subscription commits the transfer.
+        /// </summary>
+        /// <remarks>
+        /// This explicit option takes precedence over the ambient
+        /// <see cref="MonitoredItemTransferExecution.DeferInitialValues"/> fallback.
+        /// </remarks>
+        public bool DeferInitialValues { get; set; }
+    }
+
+    /// <summary>
+    /// Ambient monitored-item transfer state used as a fallback for legacy
+    /// transfer implementations that have not been updated to consume
+    /// <see cref="MonitoredItemTransferOptions"/>.
+    /// </summary>
+    public static class MonitoredItemTransferExecution
+    {
+        /// <summary>
+        /// Gets a value indicating whether current transfer callbacks should
+        /// defer initial values until the transaction commits.
+        /// </summary>
+        public static bool DeferInitialValues => s_deferInitialValues.Value > 0;
+
+        /// <summary>
+        /// Begins an ambient scope that asks legacy transfer callbacks to defer
+        /// initial values until the transaction commits.
+        /// </summary>
+        /// <returns>A disposable scope that restores the previous ambient state.</returns>
+        public static IDisposable BeginDeferredInitialValues()
+        {
+            s_deferInitialValues.Value++;
+            return new DeferredInitialValuesScope();
+        }
+
+        private sealed class DeferredInitialValuesScope : IDisposable
+        {
+            public void Dispose()
+            {
+                if (Interlocked.Exchange(ref m_disposed, 1) == 0)
+                {
+                    s_deferInitialValues.Value--;
+                }
+            }
+
+            private int m_disposed;
+        }
+
+        private static readonly AsyncLocal<int> s_deferInitialValues = new();
     }
 
     /// <summary>

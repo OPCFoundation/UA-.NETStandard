@@ -783,7 +783,13 @@ namespace Opc.Ua.Server
             }
 
             await m_server.NodeManager
-                .TransferMonitoredItemsAsync(context, sendInitialValues, monitoredItems, errors, cancellationToken)
+                .TransferMonitoredItemsAsync(
+                    context,
+                    sendInitialValues,
+                    monitoredItems,
+                    errors,
+                    transferOptions: null,
+                    cancellationToken)
                 .ConfigureAwait(false);
 
             int badTransfers = 0;
