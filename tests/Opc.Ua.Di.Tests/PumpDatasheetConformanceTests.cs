@@ -64,7 +64,7 @@ namespace Opc.Ua.Di.Tests
             await m_manager.CreateAddressSpaceAsync(externalReferences).ConfigureAwait(false);
 
             m_pump = m_manager.FindPredefinedNode<PumpState>(
-                new NodeId("5001_Pump #1", m_manager.DiNamespaceIndex));
+                new NodeId("5001_Pump_1", m_manager.InstanceNamespaceIndex));
         }
 
         [OneTimeTearDown]

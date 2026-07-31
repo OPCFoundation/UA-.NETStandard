@@ -78,7 +78,10 @@ prefixes below map to `http://opcfoundation.org/UA/DI/` (DI),
 | `FabricationNumber` | Pumps | `String` | F-2025-0001 | F-2025-0002 |
 
 Both units are the same product; they differ only in serial number, fabrication
-number, asset identifier, component name and installation bay.
+number, asset identifier, component name and installation bay. The sample
+server materialises two units by default and derives the same per-unit fields
+for any further unit when started with `--pumps N` (`SN-00n`, `PMP-100n`,
+`Feed Pump A/B/…`, `F-2025-000n`, `Bay n+2`).
 
 ---
 
@@ -267,7 +270,7 @@ a single independent variable — volumetric flow. Every other published value i
 derived from the characteristic curves in section 3.2, so the published values
 are mutually consistent at all times. The simulation advances on one shared
 250 ms tick; each pump uses a fixed phase offset of 17 ticks per instance so the
-two units never move in lockstep.
+units never move in lockstep.
 
 | Signal | Model | Simulated range |
 |---|---|---|

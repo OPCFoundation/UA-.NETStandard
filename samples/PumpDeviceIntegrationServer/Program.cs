@@ -28,7 +28,9 @@
  * ======================================================================*/
 
 using System;
+using System.Globalization;
 using System.IO;
+using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -46,10 +48,21 @@ builder.Logging.AddConsole();
 
 int port = int.TryParse(builder.Configuration["port"], out int p) ? p : 62542;
 
+if (!TryReadPumpCount(builder.Configuration["pumps"], out int pumpCount, out string? pumpError))
+{
+    Console.Error.WriteLine(pumpError);
+    return 2;
+}
+
 // Bind host for the OPC UA endpoint. Defaults to 0.0.0.0 so the server is
 // reachable from outside a container; override with --host / host env var
 // (e.g. "localhost" for local-only development).
 string host = builder.Configuration["host"] is { Length: > 0 } h ? h : "0.0.0.0";
+
+builder.Services.Configure<PumpDeviceIntegrationOptions>(options =>
+{
+    options.PumpCount = pumpCount;
+});
 
 builder.Services
     .AddOpcUa()
@@ -66,112 +79,60 @@ builder.Services
         o.EndpointUrls.Add($"opc.tcp://{host}:{port}/PumpDeviceIntegrationServer");
     })
     .AddNodeManager<PumpNodeManagerFactory>()
-    // Materialise a second pump declaratively at server startup. The
-    // runner runs the delegate after the pump address space and
-    // fluent wiring are complete.
-    .ConfigureDevicesFor<PumpNodeManager>(async ctx =>
+    // Demonstrate the declarative DI topology-element builder after the
+    // node manager has materialised and fluently wired every pump. The
+    // ad-hoc Diagnostics group is added identically to each pump.
+    .ConfigureDevicesFor<PumpNodeManager>(ctx =>
     {
         var manager = (PumpNodeManager)ctx.Manager;
-        ushort pumpsNamespaceIndex = (ushort)manager.Server.NamespaceUris.GetIndex(
-            Opc.Ua.Pumps.Namespaces.Pumps);
-        PumpState pumpState = await manager.CreatePumpAsync(
-            new QualifiedName("Pump #2", pumpsNamespaceIndex),
-            ctx.CancellationToken)
-            .ConfigureAwait(false);
-        ITopologyElementBuilder<PumpState> pump =
-            ctx.TopologyElement<PumpState>(pumpState.NodeId);
+        foreach (NodeId pumpNodeId in manager.PumpNodeIds)
+        {
+            ITopologyElementBuilder<PumpState> pump =
+                ctx.TopologyElement<PumpState>(pumpNodeId);
 
-        ushort diNamespaceIndex = ctx.Manager.DiNamespaceIndex;
-        ushort machineryNamespaceIndex = (ushort)manager.Server.NamespaceUris.GetIndex(
-            Opc.Ua.Machinery.Namespaces.Machinery);
+            pump.WithFunctionalGroup(
+                new QualifiedName("Diagnostics", ctx.Manager.InstanceNamespaceIndex),
+                fg => fg.Configure(node =>
+                    node.WithProperty("LastError", Variant.From(string.Empty), p => p.Writable())
+                        .WithProperty("ErrorCount", 0)
+                        .WithProperty("LastSelfTest", (DateTimeUtc)DateTime.UtcNow)));
+        }
 
-        // Nameplate of unit SN-002 as published in DATASHEET.md. The
-        // properties are materialised by the node manager; the topology
-        // element builder only assigns their values.
-        pump.WithIdentificationGroup(id => id.Configure(node =>
-            node.WithProperty(
-                    new QualifiedName("Manufacturer", diNamespaceIndex),
-                    Variant.From(
-                        new LocalizedText(PumpDatasheet.Nameplate.Manufacturer)))
-                .WithProperty(
-                    new QualifiedName("ManufacturerUri", diNamespaceIndex),
-                    Variant.From(PumpDatasheet.Nameplate.ManufacturerUri))
-                .WithProperty(
-                    new QualifiedName("Model", diNamespaceIndex),
-                    Variant.From(new LocalizedText(PumpDatasheet.Nameplate.Model)))
-                .WithProperty(
-                    new QualifiedName("ProductCode", diNamespaceIndex),
-                    Variant.From(PumpDatasheet.Nameplate.ProductCode))
-                .WithProperty(
-                    new QualifiedName("DeviceClass", diNamespaceIndex),
-                    Variant.From(PumpDatasheet.Nameplate.DeviceClass))
-                .WithProperty(
-                    new QualifiedName("HardwareRevision", diNamespaceIndex),
-                    Variant.From(PumpDatasheet.Nameplate.HardwareRevision))
-                .WithProperty(
-                    new QualifiedName("SoftwareRevision", diNamespaceIndex),
-                    Variant.From(PumpDatasheet.Nameplate.SoftwareRevision))
-                .WithProperty(
-                    new QualifiedName("SerialNumber", diNamespaceIndex),
-                    Variant.From("SN-002"))
-                .WithProperty(
-                    new QualifiedName("ProductInstanceUri", diNamespaceIndex),
-                    Variant.From(
-                        PumpDatasheet.Nameplate.ProductInstanceUriPrefix + "SN-002"))
-                .WithProperty(
-                    new QualifiedName("AssetId", diNamespaceIndex),
-                    Variant.From("PMP-1002"))
-                .WithProperty(
-                    new QualifiedName("ComponentName", diNamespaceIndex),
-                    Variant.From(new LocalizedText("Feed Pump B")))
-                .WithProperty(
-                    new QualifiedName("Location", machineryNamespaceIndex),
-                    Variant.From("Plant 1 / Utility Skid / Bay 4"))
-                .WithProperty(
-                    new QualifiedName("YearOfConstruction", machineryNamespaceIndex),
-                    Variant.From(PumpDatasheet.Nameplate.YearOfConstruction))
-                .WithProperty(
-                    new QualifiedName("MonthOfConstruction", machineryNamespaceIndex),
-                    Variant.From(PumpDatasheet.Nameplate.MonthOfConstruction))
-                .WithProperty(
-                    new QualifiedName("DayOfConstruction", pumpsNamespaceIndex),
-                    Variant.From(PumpDatasheet.Nameplate.DayOfConstruction))
-                .WithProperty(
-                    new QualifiedName("ArticleNumber", pumpsNamespaceIndex),
-                    Variant.From(PumpDatasheet.Nameplate.ArticleNumber))
-                .WithProperty(
-                    new QualifiedName("OrderProductCode", pumpsNamespaceIndex),
-                    Variant.From(PumpDatasheet.Nameplate.OrderProductCode))
-                .WithProperty(
-                    new QualifiedName("TypeOfProduct", pumpsNamespaceIndex),
-                    Variant.From(PumpDatasheet.Nameplate.TypeOfProduct))
-                .WithProperty(
-                    new QualifiedName("Supplier", pumpsNamespaceIndex),
-                    Variant.From(PumpDatasheet.Nameplate.Supplier))
-                .WithProperty(
-                    new QualifiedName("CountryOfOrigin", pumpsNamespaceIndex),
-                    Variant.From(PumpDatasheet.Nameplate.CountryOfOrigin))
-                .WithProperty(
-                    new QualifiedName("FabricationNumber", pumpsNamespaceIndex),
-                    Variant.From("F-2025-0002"))));
-
-        // Demonstrate the non-typed WithFunctionalGroup(QualifiedName)
-        // builder for ad-hoc groups not covered by the 8 well-known
-        // DI typed extensions (WithMaintenanceGroup, WithOperationalGroup,
-        // ...). Pump #2 exposes a custom "Diagnostics" group that
-        // surfaces a few operational signals as plain properties so
-        // clients get a single browsable folder without having to chase
-        // the supervision alarm tree.
-        //
-        // WithProperty creates each property on the freshly built group
-        // (read-only by default); LastError is made writable via the
-        // fluent Writable() helper.
-        pump.WithFunctionalGroup(
-            new QualifiedName("Diagnostics", ctx.Manager.DiNamespaceIndex),
-            fg => fg.Configure(node =>
-                node.WithProperty("LastError", Variant.From(string.Empty), p => p.Writable())
-                    .WithProperty("ErrorCount", 0)
-                    .WithProperty("LastSelfTest", (DateTimeUtc)DateTime.UtcNow)));
+        return new ValueTask();
     });
 
 await builder.Build().RunAsync().ConfigureAwait(false);
+return 0;
+
+static bool TryReadPumpCount(string? value, out int pumpCount, out string? error)
+{
+    const int minPumpCount = 1;
+    const int maxPumpCount = 100;
+
+    pumpCount = 2;
+    error = null;
+
+    if (string.IsNullOrWhiteSpace(value))
+    {
+        return true;
+    }
+
+    if (!int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed))
+    {
+        error = "Invalid --pumps value '" + value + "'. Specify an integer between " +
+            minPumpCount.ToString(CultureInfo.InvariantCulture) + " and " +
+            maxPumpCount.ToString(CultureInfo.InvariantCulture) + ".";
+        return false;
+    }
+
+    if (parsed < minPumpCount || parsed > maxPumpCount)
+    {
+        error = "Invalid --pumps value '" + value + "'. Specify an integer between " +
+            minPumpCount.ToString(CultureInfo.InvariantCulture) + " and " +
+            maxPumpCount.ToString(CultureInfo.InvariantCulture) + ".";
+        return false;
+    }
+
+    pumpCount = parsed;
+    return true;
+}

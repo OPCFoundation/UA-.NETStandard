@@ -34,9 +34,12 @@ plugs it together.
 | `Opc.Ua.Di.Client` | Client: `DiDeviceClient`, `DiDiscoveryClient`, `DiTopologyClient`, `DiLockClient`, `SoftwareUpdateClient`, hosting integration. |
 
 The running example is `samples/PumpDeviceIntegrationServer`, a
-companion-spec server with full simulation and a second generated
-`PumpType` configured through the topology-element builder. The
-simulated asset is specified by its own product datasheet,
+companion-spec server that exposes a configurable number of fully
+simulated `PumpType` instances. The sample uses the hand-written fluent
+node-manager style for the common pump model and simulation wiring, then
+uses `ConfigureDevicesFor` with the topology-element builder to add an
+ad-hoc Diagnostics functional group to each pump. The simulated asset is
+specified by its own product datasheet,
 [`samples/PumpDeviceIntegrationServer/DATASHEET.md`](../samples/PumpDeviceIntegrationServer/DATASHEET.md),
 which maps every nameplate field, engineering range and alarm trip point
 to its OPC UA browse path.
@@ -61,7 +64,7 @@ builder.Services
     .ConfigureDevicesFor<DiNodeManager>(async ctx =>
     {
         var device = await ctx.CreateDeviceAsync(
-            new QualifiedName("Sensor #1", ctx.Manager.DiNamespaceIndex));
+            new QualifiedName("Sensor_1", ctx.Manager.InstanceNamespaceIndex));
         device.WithIdentification(id =>
         {
             id.Manufacturer = new LocalizedText("Acme");
@@ -83,25 +86,20 @@ builder.Services
     // Pump factory already loads OPC UA Device Integration via its LoadPredefinedNodesAsync
     // direct chain; do NOT call AddOpcUaDi() — that would
     // double-register the OPC UA Device Integration namespace.
-    .ConfigureDevicesFor<Pumps.PumpNodeManager>(async ctx =>
+    .ConfigureDevicesFor<Pumps.PumpNodeManager>(ctx =>
     {
         var manager = (Pumps.PumpNodeManager)ctx.Manager;
-        ushort pumpsNamespaceIndex = (ushort)manager.Server.NamespaceUris.GetIndex(
-            Opc.Ua.Pumps.Namespaces.Pumps);
-        PumpState state = await manager.CreatePumpAsync(
-            new QualifiedName("Pump #2", pumpsNamespaceIndex),
-            ctx.CancellationToken);
-        ITopologyElementBuilder<PumpState> pump =
-            ctx.TopologyElement<PumpState>(state.NodeId);
+        foreach (NodeId pumpNodeId in manager.PumpNodeIds)
+        {
+            ITopologyElementBuilder<PumpState> pump =
+                ctx.TopologyElement<PumpState>(pumpNodeId);
+            pump.WithFunctionalGroup(
+                new QualifiedName("Diagnostics", manager.InstanceNamespaceIndex),
+                group => group.Configure(node =>
+                    node.WithProperty("LastError", Variant.From(string.Empty))));
+        }
 
-        ushort diNamespaceIndex = manager.DiNamespaceIndex;
-        pump.WithIdentificationGroup(group => group.Configure(node =>
-            node.WithProperty(
-                    new QualifiedName("Manufacturer", diNamespaceIndex),
-                    Variant.From(new LocalizedText("SimPump Corp")))
-                .WithProperty(
-                    new QualifiedName("SerialNumber", diNamespaceIndex),
-                    Variant.From("SN-002"))));
+        return ValueTask.CompletedTask;
     });
 ```
 
@@ -137,6 +135,19 @@ The `IDeviceBuilder<TDevice>` fluent surface is the recommended way
 to create and configure Device Integration device instances programmatically. It
 lives in `Opc.Ua.Di.Server.Builders` and integrates with the broader
 fluent API for node managers.
+
+> **Runtime-created NodeIds use the server namespace.** `DiNodeManager`
+> now mints NodeIds for device and topology instances in
+> `InstanceNamespaceIndex`, the server application's namespace derived
+> from `ApplicationConfiguration.ApplicationUri`, rather than in the
+> DI or companion-spec namespace of the parent. This follows the
+> companion-spec boilerplate rule (for example OPC 10000-100 §13.4 and
+> OPC 40223) that nodes not defined by a specification do not use the
+> standard namespace; the Local Server URI namespace is the namespace
+> for nodes defined by the local server. BrowseNames defined by DI or a
+> companion specification keep their specification namespace, while
+> application-defined instance names, functional groups, and properties
+> should use `InstanceNamespaceIndex`.
 
 ### Entry points
 
@@ -197,14 +208,23 @@ ITopologyElementBuilder<TElement> TopologyElementByBrowseName<TElement>(
    `DeviceManual`, `SerialNumber`, `RevisionCounter`) with correct
    DI-namespace BrowseNames — plus the type's `HasInterface`
    references. Because a browse name is supplied, the factory also
-   rebases the whole subtree onto per-instance NodeIds from the active
-   `Context.NodeIdFactory`, so multiple instances of the same type
-   never collide on the TYPE NodeIds emitted by the generator. It then
+   rebases the whole subtree onto per-instance NodeIds in the server's
+   application namespace (`DiNodeManager.InstanceNamespaceIndex`, the
+   Local Server URI namespace), so multiple instances of the
+   same type never collide on the TYPE NodeIds emitted by the generator
+   and never mint application nodes in DI or other companion-spec
+   namespaces. It then
    sets BrowseName/SymbolicName/DisplayName and stamps the
    `TypeDefinitionId`.
 5. Calls the real `AsyncCustomNodeManager.AddPredefinedNodeAsync` so
    subscription wiring, type-tree registration, and root-notifier
    propagation all happen exactly as for nodes loaded from a NodeSet2.
+
+Machinery-aware subclasses can additionally reference managed machines
+from the OPC 40001 `Machines` entry point. `DiNodeManager`'s helper adds
+an `Organizes` reference to the existing instance instead of re-parenting
+it, so the same machine remains organized by `DeviceSet` while also being
+browsable from `Machines`.
 
 ### Fluent surface
 
@@ -278,8 +298,14 @@ omissions/extensions rather than modelling errors.
 
 #### Functional groups
 
-The 8 well-known Device Integration functional groups have typed builder methods.
-Arbitrary group names go through `WithFunctionalGroup(qualifiedName, action)`.
+Common Device Integration functional groups have typed builder methods.
+Spec-defined groups keep their standard BrowseName namespace, for
+example `Identification`, `Maintenance`, and `Operational` in the DI
+namespace and `Events` in the Pumps namespace. Application-defined
+groups use the server instance namespace; the diagnostics helper follows
+that rule because the diagnostics group it creates is vendor-defined.
+Arbitrary group names go through `WithFunctionalGroup(qualifiedName,
+action)`.
 Each call is idempotent: invoking the same accessor twice reuses the
 existing group. The order of operations inside the builder is:
 
@@ -298,17 +324,18 @@ device.WithMaintenanceGroup(fg =>
 });
 ```
 
-For groups outside the eight well-known set, use the non-typed
+For vendor-specific groups, use the non-typed
 `WithFunctionalGroup(QualifiedName, action)` overload. The browse
-name's namespace index controls where the group lives — pass the DI
-namespace for parity with the well-known groups, or any other
-namespace for a vendor-specific extension. The
+name's namespace index controls where the group lives; pass
+`DiNodeManager.InstanceNamespaceIndex` for application-defined groups.
+Reserve DI, Pumps, Machinery, or other companion-spec BrowseName
+namespaces for nodes that are defined by those specifications. The
 `PumpDeviceIntegrationServer` sample demonstrates this on `Pump #2`
 to surface a custom `Diagnostics` folder:
 
 ```csharp
 pump.WithFunctionalGroup(
-    new QualifiedName("Diagnostics", ctx.Manager.DiNamespaceIndex),
+    new QualifiedName("Diagnostics", ctx.Manager.InstanceNamespaceIndex),
     fg => fg.Configure(node =>
         node.WithProperty("LastError", string.Empty)
             .WithProperty("ErrorCount", 0)
@@ -538,6 +565,27 @@ The runner is injected into the manager via the factory. The base
   The runner fires automatically once `OnAddressSpaceReadyAsync`
   returns — subclasses do not need to call `PostSetupRunner.RunAsync`
   themselves.
+
+### Runtime conformance advertisement
+
+`DiNodeManager` implements `IConformanceContributor`, so the hosted
+server publishes the DI facets and conformance units that are actually
+wired at startup. The server merges these contributions into
+`Server/ServerCapabilities/ServerProfileArray` and
+`Server/ServerCapabilities/ConformanceUnits` alongside the base server
+profiles.
+
+The current gating is implementation-derived:
+
+| Runtime condition | Server profile URI | Conformance units |
+| --- | --- | --- |
+| DI `DeviceSet` exists | `http://opcfoundation.org/UA-Profile/DI/Server/DeviceIntegrationHost` | `DI DeviceTopology`, `DI Offline` |
+| A `LockingServicesState` has `InitLock`, `RenewLock`, or `ExitLock` wired | `http://opcfoundation.org/UA-Profile/DI/Server/Locking` | `DI Locking` |
+| The same lock service also wires `BreakLock` | same `Locking` profile | `DI BreakLocking` |
+| Any software-update loading mode is recorded | `http://opcfoundation.org/UA-Profile/DI/Server/SoftwareUpdateBase` | `DI SU Software Update`, `DI SU PrepareForUpdate`, `DI SU Resume Update` |
+| `SoftwareLoadingMode.Package` | `http://opcfoundation.org/UA-Profile/DI/Server/FileSystemLoading` | `DI SU FileSystem Loading`, `DI SU Installation for File System` |
+| `SoftwareLoadingMode.Direct` | `http://opcfoundation.org/UA-Profile/DI/Server/DirectLoading` | `DI SU DirectLoading`, `DI SU UpdateStatus` |
+| `SoftwareLoadingMode.Cached` | `http://opcfoundation.org/UA-Profile/DI/Server/CachedLoading` | `DI SU CachedLoading`, `DI SU Installation for Cached Loading`, `DI SU UpdateStatus` |
 
 ### Client-side surface
 
@@ -1005,4 +1053,4 @@ All Device Integration DataTypes (`DeviceHealthEnumeration`, `SoftwareClass`, `L
 ## See also
 
 - [FileSystemClient](FileSystemClient.md) — file-transfer client used by `SoftwareUpdateClient` and `FileSystemPackageStore`.
-- [Source-generated NodeManagers](SourceGeneratedNodeManagers.md) — the underlying source generator and fluent API.
+- [Source-generated NodeManagers](NodeManagers.md#source-generated-node-managers) — the underlying source generator and fluent API.

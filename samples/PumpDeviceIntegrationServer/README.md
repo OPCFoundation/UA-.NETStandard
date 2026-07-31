@@ -9,7 +9,7 @@ builder integration.
 The pump sample is the integration test for every fluent API extension
 shipped under `src/Opc.Ua.Server/Fluent/`. Each extension is
 documented in
-[Source-generated NodeManagers — Building richer node managers](../../docs/SourceGeneratedNodeManagers.md#building-richer-node-managers--the-fluent-extension-surface).
+[Source-generated NodeManagers — Building richer node managers](../../docs/NodeManagers.md#building-richer-node-managers--the-fluent-extension-surface).
 
 The simulated asset is a *SimPump Corp PumpX-2000*. Its nameplate,
 engineering ranges, alarm trip points and simulation profile are all
@@ -27,7 +27,7 @@ so document and address space cannot drift apart.
 | Rated duty point | 25 m³/h (6.93 kg/s) at 25.5 m head (2.5 bar Δp) |
 | Rated efficiency / shaft power | 72 % / 2.41 kW |
 | Motor | 3.0 kW, 400 V 3~ 50 Hz, 2900 min⁻¹ |
-| Units in the address space | SN-001 (`Pump #1`), SN-002 (`Pump #2`) |
+| Units in the address space | SN-001 (`Pump_1`), SN-002 (`Pump_2`), … (`--pumps N`) |
 | Bearing-temperature trip points | 363.15 K high, 373.15 K high-high |
 | Full specification | [`DATASHEET.md`](./DATASHEET.md) |
 
@@ -46,7 +46,9 @@ dotnet run -c Release
 ```
 
 The server listens on `opc.tcp://localhost:62542/PumpDeviceIntegrationServer`
-by default. Override with `--port 62550`.
+by default. Override with `--host localhost`, `--port 62550`, and
+`--pumps N` (or the matching `host`, `port`, and `pumps` environment
+variables). `--pumps` defaults to `2` and accepts values from 1 to 100.
 
 Sample console output:
 
@@ -54,28 +56,31 @@ Sample console output:
 info: Opc.Ua.Server.MasterNodeManager
       MasterNodeManager.Startup - NodeManagers=3
 info: Opc.Ua.Di.Server.DiNodeManager
-      Materialised 'Pump #1' (PumpType) under DeviceSet, NodeId=ns=4;s=5001_Pump #1.
+      Materialised 'Pump_1' (PumpType) under DeviceSet, NodeId=ns=1;s=5001_Pump_1.
+info: Opc.Ua.Di.Server.DiNodeManager
+      Materialised 'Pump_2' (PumpType) under DeviceSet, NodeId=ns=1;s=5001_Pump_2.
 info: Pumps.PumpNodeManager
       Configuring PumpNodeManager fluent wiring...
 info: Opc.Ua.Di.Server.DiNodeManager
-      PumpNodeManager: address space ready (10196 predefined nodes).
-info: Opc.Ua.Di.Server.DiNodeManager
-      Materialised 'Pump #2' (PumpType) under DeviceSet, NodeId=ns=4;s=5001_Pump #2.
+      PumpNodeManager: address space ready (10293 predefined nodes).
 info: Opc.Ua.Server.Hosting.OpcUaServerHostedService
       OPC UA server listening at opc.tcp://localhost:62542/PumpDeviceIntegrationServer.
 ```
 
-Browse to `Objects > DeviceSet > Pump #1` in any OPC UA client (e.g.
-UaExpert) to explore the simulated pump. A second declarative pump,
-`Pump #2`, is organized alongside it by the same `DeviceSet` — it
-demonstrates the DI hosting `ConfigureDevicesFor` flow and automatically
-joins the same live simulation. Both pumps are units of the same
-PumpX-2000 product and differ only in serial number, asset id, component
-name and installation bay. They publish monitored data changes every
-250 ms, with deterministic phase offsets so their values do not move
-in lockstep.
+Browse to `Objects > DeviceSet > Pump_1` in any OPC UA client (e.g.
+UaExpert) to explore the first simulated pump. BrowseNames use
+identifier-safe names (`Pump_1`, `Pump_2`, ...); DisplayNames keep the
+operator-friendly labels (`Pump #1`, `Pump #2`, ...). Pass `--pumps N`
+or set `pumps=N` to materialise more instances. Every pump is wired
+through the same simulation, alarm, history, identification, maintenance,
+and declarative DI `ConfigureDevicesFor` flow, so pumps added after
+startup automatically join the same live simulation. All pumps are units
+of the same PumpX-2000 product and differ only in serial number, asset
+id, component name and installation bay. They publish monitored data
+changes every 250 ms, with deterministic phase offsets so their values do
+not move in lockstep.
 
-Subscribe to the `EventNotifier` attribute on either pump to receive alarm
+Subscribe to the `EventNotifier` attribute on any pump to receive alarm
 condition events when its simulated `MotorOverheat` state activates or
 clears. Each pump is also registered as a root notifier, so the same events
 are available from a subscription on the Server object.
@@ -86,13 +91,13 @@ are available from a subscription on the Server object.
 flowchart TD
     Objects["Objects"]
     DeviceSet["DeviceSet<br/><i>OPC 10000-100 (DI)</i>"]
-    P1["Pump #1 · SN-001<br/><i>PumpType, hand-wired</i>"]
-    P2["Pump #2 · SN-002<br/><i>PumpType, declarative</i>"]
+    P1["Pump_1 · SN-001<br/><i>PumpType, DisplayName 'Pump #1'</i>"]
+    P2["Pump_2 · SN-002<br/><i>PumpType, DisplayName 'Pump #2'</i>"]
     Id["Identification<br/><i>21 nameplate properties</i>"]
     Op["Operational<br/><i>OPC 40001-1 (Machinery)</i>"]
     Meas["Measurements"]
     Ev["Events<br/><i>EventNotifier</i>"]
-    Maint["Maintenance"]
+    Maint["Maintenance<br/>└ GeneralMaintenance"]
     Diag["Diagnostics<br/><i>ad-hoc FunctionalGroup</i>"]
     Vals["DifferentialPressure · FluidTemperature<br/>BearingTemperature · PumpPowerInput<br/>MassFlow · PumpEfficiency · Level<br/>NumberOfStarts"]
     Alarm["OverTempAlarm<br/><i>NonExclusiveLimitAlarmType</i>"]
@@ -106,7 +111,7 @@ flowchart TD
     P1 -->|HasComponent| Op
     P1 -->|HasComponent| Ev
     P1 -->|HasComponent| Maint
-    P2 -->|HasComponent| Diag
+    P1 -->|HasComponent| Diag
     Op -->|HasComponent| Meas
     Meas --> Vals
     Ev -->|HasComponent| Alarm
@@ -116,11 +121,11 @@ flowchart TD
     Alarm -.->|SourceNode| Vals
 ```
 
-`Pump #2` carries the identical `Identification` / `Operational` /
-`Events` / `Maintenance` subtree; only its extra `Diagnostics` group is
-drawn above, because that group is created by the non-typed
-`WithFunctionalGroup(QualifiedName, ...)` overload rather than by the
-model.
+Only the subtree of `Pump_1` is drawn; every further pump (`Pump_2`, …,
+up to `--pumps N`) carries an identical one. `Diagnostics` is the one
+group that is not part of the model — it is added declaratively per pump
+by the non-typed `WithFunctionalGroup(QualifiedName, ...)` overload from
+`Program.cs`.
 
 ## Startup and hosting flow
 
@@ -132,20 +137,22 @@ sequenceDiagram
     participant NM as PumpNodeManager
     participant Runner as IDiPostSetupRunner
 
+    Host->>DI: Configure<PumpDeviceIntegrationOptions>(--pumps N)
     Host->>DI: AddNodeManager<PumpNodeManagerFactory>()
     Host->>DI: ConfigureDevicesFor<PumpNodeManager>(...)
     DI->>Factory: CreateAsync(server, configuration)
-    Factory->>NM: new PumpNodeManager(.., postSetupRunner)
+    Factory->>NM: new PumpNodeManager(.., postSetupRunner, options)
     NM->>NM: LoadPredefinedNodesAsync<br/>AddOpcUaDi + Machinery + Pumps
     NM->>NM: OnAddressSpaceReadyAsync
-    NM->>NM: ConfigureInstancesAsync → Pump #1 (PumpType)
-    NM->>NM: MaterialiseNameplate + optional children
+    loop for each of N pumps
+        NM->>NM: ConfigureInstancesAsync → Pump_n (PumpType)
+        NM->>NM: MaterialiseNameplate + optional children
+    end
     NM->>NM: CreateFluentBuilder().Configure(Configure).Seal()
+    Note over NM: Configure wires identification, maintenance,<br/>measurements, alarms and history per pump
     Note over NM: Seal starts the 250 ms simulation loop
     NM->>Runner: post-setup pipeline
-    Runner->>NM: CreatePumpAsync("Pump #2")
-    NM->>NM: RegisterPumpSimulation(Pump #2)
-    Runner->>NM: WithIdentificationGroup / WithFunctionalGroup
+    Runner->>NM: TopologyElement(pumpNodeId).WithFunctionalGroup("Diagnostics")
 ```
 
 ## Simulation and alarm dataflow
@@ -203,7 +210,7 @@ publish output on the .NET **AzureLinux 3** base images and runs it as a
 non-root user.
 
 > **Build from the repository root**, not from this folder. The image
-> needs the full source tree (`src/`, `src/`, `tools/`), so the
+> needs the full source tree (`src/`, `samples/`, `tools/`), so the
 > Docker build context must be the repo root and the Dockerfile is
 > selected with `-f`. Running `docker build .` from inside this folder
 > fails fast with a message telling you the correct command.
@@ -225,7 +232,7 @@ from the host. Override the bind host and port via environment variables:
 
 ```pwsh
 docker run --rm -p 62550:62550 `
-           -e host=0.0.0.0 -e port=62550 `
+           -e host=0.0.0.0 -e port=62550 -e pumps=4 `
            pumpdeviceintegrationserver:local
 ```
 
@@ -253,20 +260,22 @@ workflow on every push to `master` and on manual dispatch.
 | Optional-child materialisation via generator-emitted `AddXxx(context)` helpers (Operational / Measurements / Events / SupervisionProcessFluid / SupervisionPumpOperation / Maintenance) | `PumpNodeManager.cs` `MaterialisePumpOptionalChildren` |
 | Engineering units / EURange via `WithEngineeringUnits` / `WithEURange` | `CreatePumpSimulation` |
 | Push-style monitored value updates via `Bind(out IValueUpdater<T>)` | `CreatePumpSimulation` |
+| Discrete `NumberOfStarts` counter published on change | `CreatePumpSimulation` |
 | One 250 ms simulation tick for all phase-shifted pumps | `Configure` → `AdvanceSimulation` |
 | Datasheet-driven simulation (one independent variable, derived values) | `PumpDatasheet.cs` + `PumpSimulationState.Publish` |
-| Limit alarm with thresholds and acknowledge handler via `CreateLimitAlarm(...).WithLimits(...).MonitorVariable(...)` | `CreatePumpSimulation` |
-| Boolean supervision → reported alarm condition events via `.ActivatesAlarm(...)` | `CreatePumpSimulation` |
+| Browsable/subscribable limit alarm with thresholds and acknowledge handler via `CreateLimitAlarm(...).WithLimits(...).MonitorVariable(...)` | `CreatePumpSimulation` |
+| Boolean supervision (TwoStateDiscreteState) → alarm activation, condition raise/clear, and reported events via `.ActivatesAlarm(...)` | `CreatePumpSimulation` |
 | `EventNotifier`, `HasNotifier`, and `HasEventSource` instance wiring | `PumpNodeManager.cs` + fluent alarm builders |
-| Cross-namespace path resolution (Pump #1 in Pumps NS → Operational in Machinery NS → Measurements in Pumps NS, all in one unqualified browse path) | `src/Opc.Ua.Server/Fluent/BrowsePathResolver.cs` |
-| Generated `PumpType` instance + typed Identification group configuration | `Program.cs` (`Pump #2`) |
+| Cross-namespace path resolution (Pump_1 in Pumps NS → Operational in Machinery NS → Measurements in Pumps NS, all in one unqualified browse path) | `src/Opc.Ua.Server/Fluent/BrowsePathResolver.cs` |
+| Declarative `ConfigureDevicesFor` topology-element configuration adding an application-namespace Diagnostics functional group to every generated `PumpType` instance | `Program.cs` |
+| In-memory historian wiring so NodeSet-declared historical access is genuinely serviceable for all analog measurements and historized supervision booleans | `PumpNodeManager.Configure.cs` `UseHistorian()` / `Historize()` |
 
 ## Architecture
 
 ```
 PumpDeviceIntegrationServer/
 ├── Program.cs                          # AddOpcUa().AddServer(...).AddNodeManager<T>()
-│                                       # + ConfigureDevicesFor declarative Pump #2
+│                                       # + ConfigureDevicesFor diagnostics for every pump
 ├── PumpNodeManager.cs                  # Hand-written FluentNodeManagerBase
 │                                       # + LoadPredefinedNodesAsync (multi-model)
 │                                       # + CreateAddressSpaceAsync (builder setup)
@@ -321,15 +330,22 @@ hierarchy and `ReportEvent`.
   datasheet.
 - **Add an alarm**: create it from the typed `Events` builder in
   `CreatePumpSimulation` and wire the triggering boolean variable via
-  `.ActivatesAlarm(...)`. Document its trip points in section 7.
+  `.ActivatesAlarm(...)`. Document its trip points in section 7 of the
+  datasheet.
 - **Add a nameplate field**: materialise it with the generator-emitted
   `AddXxx(context)` helper in `PumpNodeManager.MaterialiseNameplate`,
-  assign the value in `WithIdentification` (Pump #1) and in the
-  `WithIdentificationGroup` block of `Program.cs` (Pump #2), and add the
-  row to section 2 of the datasheet.
-- **Add a second pump**: two patterns are demonstrated in the sample.
-  - **Hand-rolled** (used for `Pump #1`): in `PumpNodeManager.CreatePumpAsync`, create the generated `PumpState`, attach it to the DI `DeviceSet` with `Organizes`, and register it. The fluent `Configure.cs` then wires its measurements, alarms, and simulation by browse path.
-  - **DI declarative** (used for `Pump #2`): in `Program.cs`, call `PumpNodeManager.CreatePumpAsync(...)` from a `ConfigureDevicesFor<PumpNodeManager>` block, wrap the generated `PumpState` with `ctx.TopologyElement<PumpState>(...)`, then configure the mandatory `Identification` group. `CreatePumpAsync` also registers the new instance with the shared simulation.
+  assign its value in `WithIdentification`, and add the row to section 2
+  of the datasheet.
+- **Add pumps**: pass `--pumps N` (or set `pumps=N`) to materialise N
+  identical simulated `PumpType` instances. `PumpNodeManager` demonstrates
+  the hand-written fluent style by creating every pump, wiring
+  Identification, Measurements, Supervision, Maintenance, engineering
+  units, alarms, history, and the simulation callbacks. `Program.cs` keeps
+  the declarative DI style by wrapping each generated pump with
+  `ctx.TopologyElement<PumpState>(...)` and adding the ad-hoc Diagnostics
+  functional group through `ConfigureDevicesFor<PumpNodeManager>`.
+  `CreatePumpAsync` registers each new instance with the shared simulation,
+  so pumps created after startup join the same live tick.
 
 ## NativeAOT publishing
 
