@@ -112,6 +112,16 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public void DisposeCanBeCalledMoreThanOnce()
+        {
+            TestableStandardServer server = CreateServer();
+
+            server.Dispose();
+
+            Assert.DoesNotThrow(server.Dispose);
+        }
+
+        [Test]
         public void LoadComplexTypesDefaultsToTrue()
         {
             using TestableStandardServer server = CreateServer();
