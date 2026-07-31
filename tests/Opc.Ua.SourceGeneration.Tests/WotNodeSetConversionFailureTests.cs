@@ -173,6 +173,42 @@ namespace Opc.Ua.SourceGeneration
         }
 
         [Test]
+        public void ConvertMapsUtf8ByteOffsetAfterAccentedCharacterToSourceTextColumn()
+        {
+            const string prefix = "{ \"title\": \"Café\", \"base\": ";
+            const string json = prefix + "}";
+
+            WotConversionOutcome outcome = WotNodeSetAdditionalText.Convert(
+                EmbeddedText.Create("BadAccent.tm.json", json),
+                new NodesetFileOptions(),
+                CancellationToken.None);
+
+            Diagnostic diagnostic = SingleDiagnostic(outcome, "MODELGEN030");
+            FileLinePositionSpan span = diagnostic.Location.GetLineSpan();
+            Assert.That(span.Path, Is.EqualTo("BadAccent.tm.json"));
+            Assert.That(span.StartLinePosition.Line, Is.Zero);
+            Assert.That(span.StartLinePosition.Character, Is.EqualTo(prefix.Length));
+        }
+
+        [Test]
+        public void ConvertMapsUtf8ByteOffsetAfterEmojiToSourceTextColumn()
+        {
+            const string prefix = "{ \"title\": \"Boiler 🔥\", \"base\": ";
+            const string json = prefix + "}";
+
+            WotConversionOutcome outcome = WotNodeSetAdditionalText.Convert(
+                EmbeddedText.Create("BadEmoji.tm.json", json),
+                new NodesetFileOptions(),
+                CancellationToken.None);
+
+            Diagnostic diagnostic = SingleDiagnostic(outcome, "MODELGEN030");
+            FileLinePositionSpan span = diagnostic.Location.GetLineSpan();
+            Assert.That(span.Path, Is.EqualTo("BadEmoji.tm.json"));
+            Assert.That(span.StartLinePosition.Line, Is.Zero);
+            Assert.That(span.StartLinePosition.Character, Is.EqualTo(prefix.Length));
+        }
+
+        [Test]
         public void ConvertReportsParseErrorForEmptyDocument()
         {
             WotConversionOutcome outcome = WotNodeSetAdditionalText.Convert(

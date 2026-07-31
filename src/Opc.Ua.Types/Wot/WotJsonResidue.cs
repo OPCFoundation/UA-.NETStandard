@@ -558,7 +558,9 @@ namespace Opc.Ua.Wot
                     WotVocabulary.VocabularyNamespace);
                 member.SetAttribute("Pointer", entry.Pointer);
                 member.SetAttribute("Encoding", WotVocabulary.Base64Encoding);
-                member.SetAttribute("Sha256", ToLowerHex(ComputeSha256(bytes)));
+                member.SetAttribute(
+                    "Sha256",
+                    CoreUtils.ToHexString(ComputeSha256(bytes)).ToLowerInvariant());
                 SetOptionalAttribute(member, "LinkRel", entry.LinkRel);
                 SetOptionalAttribute(member, "LinkHref", entry.LinkHref);
                 SetOptionalAttribute(member, "LinkRefId", entry.LinkRefId);
@@ -674,7 +676,7 @@ namespace Opc.Ua.Wot
                     string digest = member.GetAttribute("Sha256");
                     if (!string.Equals(
                         digest,
-                        ToLowerHex(ComputeSha256(bytes)),
+                        CoreUtils.ToHexString(ComputeSha256(bytes)).ToLowerInvariant(),
                         StringComparison.Ordinal))
                     {
                         diagnostics.Add(new WotDiagnostic(
@@ -1101,14 +1103,6 @@ namespace Opc.Ua.Wot
 #endif
         }
 
-        private static string ToLowerHex(byte[] data)
-        {
-            var builder = new StringBuilder(data.Length * 2);
-            foreach (byte value in data)
-            {
-                builder.Append(value.ToString("x2", CultureInfo.InvariantCulture));
-            }
-            return builder.ToString();
-        }
+
     }
 }

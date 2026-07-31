@@ -549,12 +549,17 @@ namespace Opc.Ua.Schema.Model
         {
             string name = field?.Name;
             scope ??= s_defaultMethodArgumentCodeNameScope;
-            if (field != null &&
-                s_generatedCodeNames.TryGetValue(field, out GeneratedCodeNameState state) &&
-                state.Names.TryGetValue(scope, out string generatedName) &&
-                !string.IsNullOrEmpty(generatedName))
+            if (field != null)
             {
-                name = generatedName;
+                lock (s_generatedCodeNamesLock)
+                {
+                    if (s_generatedCodeNames.TryGetValue(field, out GeneratedCodeNameState state) &&
+                        state.TryGetName(scope, out string generatedName) &&
+                        !string.IsNullOrEmpty(generatedName))
+                    {
+                        name = generatedName;
+                    }
+                }
             }
             return name.ToCSharpIdentifier(upperCamelCase);
         }
@@ -585,22 +590,25 @@ namespace Opc.Ua.Schema.Model
             params string[] additionalReservedNames)
         {
             scope ??= s_defaultMethodArgumentCodeNameScope;
-            ClearGeneratedCodeNames(inputArguments, scope);
-            ClearGeneratedCodeNames(outputArguments, scope);
+            lock (s_generatedCodeNamesLock)
+            {
+                ClearGeneratedCodeNames(inputArguments, scope);
+                ClearGeneratedCodeNames(outputArguments, scope);
 
-            var usedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            AddReservedMethodArgumentNames(usedNames, scope.ReservedNames);
-            AddReservedMethodArgumentNames(usedNames, additionalReservedNames);
-            AssignUniqueGeneratedCodeNames(
-                inputArguments,
-                usedNames,
-                output: false,
-                scope);
-            AssignUniqueGeneratedCodeNames(
-                outputArguments,
-                usedNames,
-                output: true,
-                scope);
+                var usedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                AddReservedMethodArgumentNames(usedNames, scope.ReservedNames);
+                AddReservedMethodArgumentNames(usedNames, additionalReservedNames);
+                AssignUniqueGeneratedCodeNames(
+                    inputArguments,
+                    usedNames,
+                    output: false,
+                    scope);
+                AssignUniqueGeneratedCodeNames(
+                    outputArguments,
+                    usedNames,
+                    output: true,
+                    scope);
+            }
         }
 
         private static void AddReservedMethodArgumentNames(
@@ -720,7 +728,7 @@ namespace Opc.Ua.Schema.Model
                         argument,
                         out GeneratedCodeNameState state))
                 {
-                    state.Names.Remove(scope);
+                    state.ClearName(scope);
                 }
             }
         }
@@ -735,16 +743,36 @@ namespace Opc.Ua.Schema.Model
             string name,
             MethodArgumentCodeNameScope scope)
         {
-            s_generatedCodeNames.GetOrCreateValue(argument).Names[scope] = name;
+            s_generatedCodeNames.GetOrCreateValue(argument).SetName(scope, name);
         }
 
         private sealed class GeneratedCodeNameState
         {
-            public Dictionary<MethodArgumentCodeNameScope, string> Names { get; } = [];
+            public bool TryGetName(
+                MethodArgumentCodeNameScope scope,
+                out string name)
+            {
+                return m_names.TryGetValue(scope, out name);
+            }
+
+            public void SetName(
+                MethodArgumentCodeNameScope scope,
+                string name)
+            {
+                m_names[scope] = name;
+            }
+
+            public void ClearName(MethodArgumentCodeNameScope scope)
+            {
+                m_names.Remove(scope);
+            }
+
+            private readonly Dictionary<MethodArgumentCodeNameScope, string> m_names = [];
         }
 
         private static readonly MethodArgumentCodeNameScope
             s_defaultMethodArgumentCodeNameScope = new();
+        private static readonly System.Threading.Lock s_generatedCodeNamesLock = new();
         private static readonly ConditionalWeakTable<Parameter, GeneratedCodeNameState>
             s_generatedCodeNames = new();
 

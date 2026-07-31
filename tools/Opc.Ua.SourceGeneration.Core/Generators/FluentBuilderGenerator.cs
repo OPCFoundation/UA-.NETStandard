@@ -469,18 +469,19 @@ namespace Opc.Ua.SourceGeneration
             string leafName = ResolveLeafName(root, relativePath, method);
             string parentKey = ResolveParentKey(root, relativePath, leafName);
             string className = ComposeWrapperClassName(leafName, suffix: "MethodBuilder");
+            (Parameter[] inputs, Parameter[] outputs) =
+                MethodDesignArgumentResolver.ResolveMethodArguments(method);
             m_methodWrappers[key] = new MethodWrapper
             {
                 Key = key,
                 ClassName = className,
                 LeafName = leafName,
                 ParentKey = parentKey,
-                Inputs = MethodDesignArgumentResolver.ResolveMethodInputs(method),
-                Outputs = MethodDesignArgumentResolver.ResolveMethodOutputs(method)
+                Inputs = inputs,
+                Outputs = outputs
             };
         }
 
-        // Validation
         /// <summary>
         /// Wires each wrapper to its direct child object/method wrappers
         /// so the recursive emitter can walk the tree depth-first. Sorts
