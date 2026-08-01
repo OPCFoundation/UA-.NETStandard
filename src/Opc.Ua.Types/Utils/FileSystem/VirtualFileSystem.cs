@@ -163,6 +163,35 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public void Replace(string sourcePath, string destinationPath)
+        {
+            if (!m_files.TryRemove(sourcePath, out VirtualFile? staged))
+            {
+                throw new FileNotFoundException(
+                    "The staged file to publish does not exist.",
+                    sourcePath);
+            }
+
+            while (true)
+            {
+                if (!m_files.TryGetValue(destinationPath, out VirtualFile? existing))
+                {
+                    if (m_files.TryAdd(destinationPath, staged))
+                    {
+                        return;
+                    }
+                    continue;
+                }
+
+                if (m_files.TryUpdate(destinationPath, staged, existing))
+                {
+                    existing.Dispose();
+                    return;
+                }
+            }
+        }
+
+        /// <inheritdoc/>
         public DateTime GetLastWriteTime(string path)
         {
             if (m_files.TryGetValue(path, out VirtualFile? file))

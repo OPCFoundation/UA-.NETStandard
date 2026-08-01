@@ -57,7 +57,6 @@ namespace Opc.Ua
     /// OPC UA data-types.
     /// <br/></para>
     /// </remarks>
-    // [Union]
     public readonly struct Variant :
         INullable,
         IFormattable,
@@ -1887,6 +1886,40 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Tries to get a structure value, converting a dynamically decoded
+        /// structure to the requested generated type when necessary.
+        /// </summary>
+        /// <typeparam name="T">The requested structure type.</typeparam>
+        /// <param name="context">The message context used for binary conversion.</param>
+        /// <param name="value">The converted structure value.</param>
+        /// <returns><c>true</c> when the structure could be converted.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        public bool TryGetStructure<T>(
+            IServiceMessageContext context,
+            [MaybeNullWhen(false)] out T value)
+            where T : class, IEncodeable, new()
+        {
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
+            if (TryGetStructure(out value))
+            {
+                return true;
+            }
+
+            if (TryGetValue(out ExtensionObject extension) &&
+                extension.TryGetValue(out value, context))
+            {
+                return true;
+            }
+
+            value = default;
+            return false;
+        }
+
+        /// <summary>
         /// Try convert the variant to a <see cref="EnumValue"/> value.
         /// </summary>
         /// <param name="value">The <see cref="EnumValue"/> value to get
@@ -2304,6 +2337,51 @@ namespace Opc.Ua
         public bool TryGetStructure<T>(out ArrayOf<T> value) where T : IEncodeable
         {
             return TryGetValue(out value, null);
+        }
+
+        /// <summary>
+        /// Tries to get an array of structure values, converting dynamically
+        /// decoded structures to the requested generated type when necessary.
+        /// </summary>
+        /// <typeparam name="T">The requested structure element type.</typeparam>
+        /// <param name="context">The message context used for binary conversion.</param>
+        /// <param name="value">The converted structure values.</param>
+        /// <returns><c>true</c> when every structure could be converted.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        public bool TryGetStructure<T>(
+            IServiceMessageContext context,
+            out ArrayOf<T> value)
+            where T : class, IEncodeable, new()
+        {
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
+            if (TryGetStructure(out value))
+            {
+                return true;
+            }
+
+            if (!TryGetValue(out ArrayOf<ExtensionObject> extensions))
+            {
+                value = default;
+                return false;
+            }
+
+            var structures = new T[extensions.Count];
+            for (int ii = 0; ii < extensions.Count; ii++)
+            {
+                if (!extensions[ii].TryGetValue(out T? structure, context))
+                {
+                    value = default;
+                    return false;
+                }
+                structures[ii] = structure;
+            }
+
+            value = new ArrayOf<T>(structures);
+            return true;
         }
 
         /// <summary>
@@ -8207,42 +8285,81 @@ namespace Opc.Ua
                     typeof(T).Name));
         }
 
+        /// <summary>
+        /// Stores the primitive Variant payload or array slice metadata without allocating boxed values.
+        /// </summary>
         [StructLayout(LayoutKind.Explicit, Size = 8)]
         internal struct Union
         {
+            /// <summary>
+            /// Stores a Boolean payload.
+            /// </summary>
             [FieldOffset(0)]
             public bool Boolean;
 
+            /// <summary>
+            /// Stores a signed byte payload.
+            /// </summary>
             [FieldOffset(0)]
             public sbyte SByte;
 
+            /// <summary>
+            /// Stores an unsigned byte payload.
+            /// </summary>
             [FieldOffset(0)]
             public byte Byte;
 
+            /// <summary>
+            /// Stores a 16-bit signed integer payload.
+            /// </summary>
             [FieldOffset(0)]
             public short Int16;
 
+            /// <summary>
+            /// Stores a 16-bit unsigned integer payload.
+            /// </summary>
             [FieldOffset(0)]
             public ushort UInt16;
 
+            /// <summary>
+            /// Stores a 32-bit signed integer payload.
+            /// </summary>
             [FieldOffset(0)]
             public int Int32;
 
+            /// <summary>
+            /// Stores a 32-bit unsigned integer payload.
+            /// </summary>
             [FieldOffset(0)]
             public uint UInt32;
 
+            /// <summary>
+            /// Stores a 64-bit signed integer payload.
+            /// </summary>
             [FieldOffset(0)]
             public long Int64;
 
+            /// <summary>
+            /// Stores a 64-bit unsigned integer payload.
+            /// </summary>
             [FieldOffset(0)]
             public ulong UInt64;
 
+            /// <summary>
+            /// Stores a single-precision floating-point payload.
+            /// </summary>
             [FieldOffset(0)]
             public float Float;
 
+            /// <summary>
+            /// Stores a double-precision floating-point payload.
+            /// </summary>
             [FieldOffset(0)]
             public double Double;
 
+            /// <summary>
+            /// Stores a DateTime payload.
+            /// </summary>
             [FieldOffset(0)]
             public DateTimeUtc DateTime;
 

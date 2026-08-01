@@ -28,7 +28,9 @@
  * ======================================================================*/
 
 using System;
+using System.Text.Json;
 using NUnit.Framework;
+using Opc.Ua.Tests;
 
 #pragma warning disable IDE0028 // Simplify collection initialization
 #pragma warning disable IDE0305 // Simplify collection initialization
@@ -397,6 +399,142 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var withBody = new ExtensionObject(typeId, bytes);
             Assert.That(bodyless, Is.Not.EqualTo(withBody));
             Assert.That(withBody, Is.Not.EqualTo(bodyless));
+        }
+
+        [Test]
+        public void TryGetValueDecodesBinaryBodyWithContext()
+        {
+            IServiceMessageContext context = CreateMessageContext();
+            var argument = new Argument();
+            ExtensionObject extension = CreateBinaryArgument(context, "Binary", argument.BinaryEncodingId);
+
+            bool success = extension.TryGetValue(out Argument actual, context);
+
+            Assert.That(success, Is.True);
+            Assert.That(actual!.Name, Is.EqualTo("Binary"));
+            Assert.That(actual.DataType, Is.EqualTo(DataTypeIds.Double));
+        }
+
+        [Test]
+        public void TryGetValueDecodesXmlBodyWithContext()
+        {
+            IServiceMessageContext context = CreateMessageContext();
+            ExtensionObject extension = CreateXmlArgument(context, "Xml");
+
+            bool success = extension.TryGetValue(out Argument actual, context);
+
+            Assert.That(success, Is.True);
+            Assert.That(actual!.Name, Is.EqualTo("Xml"));
+            Assert.That(actual.DataType, Is.EqualTo(DataTypeIds.Double));
+        }
+
+        [Test]
+        public void TryGetValueDecodesJsonBodyWithContext()
+        {
+            IServiceMessageContext context = CreateMessageContext();
+            ExtensionObject extension = CreateJsonArgument(context, "Json");
+
+            bool success = extension.TryGetValue(out Argument actual, context);
+
+            Assert.That(success, Is.True);
+            Assert.That(actual!.Name, Is.EqualTo("Json"));
+            Assert.That(actual.DataType, Is.EqualTo(DataTypeIds.Double));
+        }
+
+        [Test]
+        public void TryGetValueReturnsFalseForRawBodyWithoutContext()
+        {
+            IServiceMessageContext context = CreateMessageContext();
+            var argument = new Argument();
+            ExtensionObject extension = CreateBinaryArgument(context, "Binary", argument.BinaryEncodingId);
+
+            bool success = extension.TryGetValue(out Argument actual);
+
+            Assert.That(success, Is.False);
+            Assert.That(actual, Is.Null);
+        }
+
+        [Test]
+        public void TryGetValueReturnsFalseForUnknownType()
+        {
+            IServiceMessageContext context = CreateMessageContext();
+            var argument = new Argument();
+            ExtensionObject known = CreateBinaryArgument(context, "Unknown", argument.BinaryEncodingId);
+            Assert.That(known.TryGetAsBinary(out ByteString binary), Is.True);
+            var unknown = new ExtensionObject(new ExpandedNodeId(999_999u), binary);
+
+            bool success = unknown.TryGetValue(out IEncodeable actual, context);
+
+            Assert.That(success, Is.False);
+            Assert.That(actual, Is.Null);
+        }
+
+        [Test]
+        public void TryGetValueMatchesDataTypeIdentifierForBinaryBody()
+        {
+            IServiceMessageContext context = CreateMessageContext();
+            var argument = new Argument();
+            ExtensionObject extension = CreateBinaryArgument(context, "DataType", argument.TypeId);
+
+            bool success = extension.TryGetValue(out Argument actual, context);
+
+            Assert.That(success, Is.True);
+            Assert.That(actual!.Name, Is.EqualTo("DataType"));
+        }
+
+        [Test]
+        public void VariantTryGetStructureDelegatesToExtensionObjectDecoding()
+        {
+            IServiceMessageContext context = CreateMessageContext();
+            var variant = new Variant(CreateJsonArgument(context, "Variant"));
+
+            bool success = variant.TryGetStructure(context, out Argument actual);
+
+            Assert.That(success, Is.True);
+            Assert.That(actual.Name, Is.EqualTo("Variant"));
+        }
+
+        private static ServiceMessageContext CreateMessageContext()
+        {
+            return ServiceMessageContext.Create(NUnitTelemetryContext.Create());
+        }
+
+        private static Argument CreateArgument(string name)
+        {
+            return new Argument
+            {
+                Name = name,
+                DataType = DataTypeIds.Double,
+                ValueRank = ValueRanks.Scalar
+            };
+        }
+
+        private static ExtensionObject CreateBinaryArgument(
+            IServiceMessageContext context,
+            string name,
+            ExpandedNodeId typeId)
+        {
+            Argument argument = CreateArgument(name);
+            using var encoder = new BinaryEncoder(context);
+            argument.Encode(encoder);
+            return new ExtensionObject(typeId, ByteString.From(encoder.CloseAndReturnBuffer()));
+        }
+
+        private static ExtensionObject CreateXmlArgument(IServiceMessageContext context, string name)
+        {
+            Argument argument = CreateArgument(name);
+            XmlElement body = EncodeableObject.EncodeXml(argument, context);
+            return new ExtensionObject(argument.XmlEncodingId, body);
+        }
+
+        private static ExtensionObject CreateJsonArgument(IServiceMessageContext context, string name)
+        {
+            Argument argument = CreateArgument(name);
+            using var encoder = new JsonEncoder(context);
+            encoder.WriteEncodeable("UaBody", argument, argument.TypeId);
+            using JsonDocument document = JsonDocument.Parse(encoder.CloseAndReturnText());
+            string body = document.RootElement.GetProperty("UaBody").GetRawText();
+            return new ExtensionObject(argument.TypeId, body);
         }
     }
 }

@@ -14,6 +14,7 @@
  *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
  * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -27,32 +28,40 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
+using System;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Reattaches detached MonitoredItems from a synchronous NodeManager callback.
-    /// <para>
-    /// `CustomNodeManager2.AddPredefinedNode` is synchronous and cannot await, so this entry
-    /// point is kept separate from the asynchronous
-    /// <see cref="IDynamicNodeManagerHost.RecoverDetachedMonitoredItemsAsync"/> that every other
-    /// caller uses. The implementation still routes through the asynchronous
-    /// <see cref="INodeManagerMonitoredItemLifecycle"/> that `AsyncNodeManagerAdapter` exposes
-    /// for synchronous NodeManagers, and requires those operations to complete in memory rather
-    /// than blocking on them.
-    /// </para>
+    /// Reports a reload failure that occurred after the replacement generation
+    /// was committed and provides its authoritative registration.
     /// </summary>
-    internal interface ISyncNodeManagerMonitoredItemRecovery
+    [SuppressMessage(
+        "Design",
+        "CA1032:Implement standard exception constructors",
+        Justification = "A committed reload exception is meaningful only with its authoritative registration.")]
+    public sealed class NodeManagerReloadCommittedException : InvalidOperationException
     {
         /// <summary>
-        /// Reattaches MonitoredItems that were detached because their Node disappeared, once a
-        /// compatible Node with the same NodeId is visible again.
+        /// Initializes an exception for a reload whose replacement registration already became authoritative.
         /// </summary>
-        /// <param name="nodeManager">The NodeManager that gained the Nodes.</param>
-        /// <param name="nodeIds">The Nodes that became available.</param>
-        void RecoverDetachedMonitoredItems(
-            IAsyncNodeManager nodeManager,
-            IReadOnlyCollection<NodeId> nodeIds);
+        /// <param name="registration">The committed replacement registration that callers must keep.</param>
+        /// <param name="message">The failure message describing the post-commit error.</param>
+        /// <param name="innerException">The exception raised after commit completed.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="registration"/> is <c>null</c>.</exception>
+        public NodeManagerReloadCommittedException(
+            NodeManagerRegistration registration,
+            string message,
+            Exception innerException)
+            : base(message, innerException)
+        {
+            Registration = registration ?? throw new ArgumentNullException(nameof(registration));
+        }
+
+        /// <summary>
+        /// Gets the committed replacement registration that remains the active NodeManager generation.
+        /// </summary>
+        public NodeManagerRegistration Registration { get; }
     }
 }

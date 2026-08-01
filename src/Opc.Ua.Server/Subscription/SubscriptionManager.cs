@@ -41,7 +41,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// A generic session manager object for a server.
     /// </summary>
-    public class SubscriptionManager : ISubscriptionManager
+    public class SubscriptionManager : ISubscriptionManager, IAsyncDisposable
     {
         /// <summary>
         /// Initializes the manager with its configuration.
@@ -100,6 +100,7 @@ namespace Opc.Ua.Server
 
             // create a event to signal shutdown.
             m_shutdownEvent = new ManualResetEvent(true);
+            m_workerShutdown = new CancellationTokenSource();
 
             // create queue and event for condition refresh worker
             m_conditionRefreshEvent = new ManualResetEvent(false);
@@ -116,44 +117,118 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Frees managed resources that require asynchronous shutdown.
+        /// </summary>
+        public async ValueTask DisposeAsync()
+        {
+            await DisposeAsyncCore().ConfigureAwait(false);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
         /// An overrideable version of the Dispose.
         /// </summary>
         protected virtual void Dispose(bool disposing)
         {
-            if (disposing)
+            if (disposing && Interlocked.Exchange(ref m_disposed, 1) == 0)
             {
-                List<ISubscription>? subscriptions = null;
-                List<SessionPublishQueue>? publishQueues = null;
-
+                SignalConditionRefreshShutdown();
+                Task.WaitAll(
+                    m_publishSubscriptionsTask ?? Task.CompletedTask,
+                    m_conditionRefreshTask ?? Task.CompletedTask);
                 m_semaphoreSlim.Wait();
+                List<SessionPublishQueue> publishQueues;
+                List<ISubscription> subscriptions;
                 try
                 {
-                    publishQueues = [.. m_publishQueues.Values];
-                    m_publishQueues.Clear();
-
-                    subscriptions = [.. m_subscriptions.Values];
-                    m_subscriptions.Clear();
-                    m_expiringSubscriptions.Clear();
+                    CaptureManagedResources(out publishQueues, out subscriptions);
                 }
                 finally
                 {
                     m_semaphoreSlim.Release();
                 }
 
-                foreach (SessionPublishQueue publishQueue in publishQueues)
-                {
-                    publishQueue?.Dispose();
-                }
-
-                foreach (ISubscription subscription in subscriptions)
-                {
-                    subscription?.Dispose();
-                }
-
-                m_shutdownEvent.Dispose();
-                m_conditionRefreshEvent.Dispose();
-                m_semaphoreSlim.Dispose();
+                DisposeManagedResources(publishQueues, subscriptions);
+                DisposeSynchronizationResources();
             }
+        }
+
+        private async ValueTask<(
+            List<SessionPublishQueue> PublishQueues,
+            List<ISubscription> Subscriptions)> CaptureManagedResourcesAsync()
+        {
+            await m_semaphoreSlim.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+            try
+            {
+                CaptureManagedResources(
+                    out List<SessionPublishQueue> publishQueues,
+                    out List<ISubscription> subscriptions);
+                return (publishQueues, subscriptions);
+            }
+            finally
+            {
+                m_semaphoreSlim.Release();
+            }
+        }
+
+        /// <summary>
+        /// An overrideable version of the asynchronous dispose.
+        /// </summary>
+        protected virtual async ValueTask DisposeAsyncCore()
+        {
+            if (Interlocked.Exchange(ref m_disposed, 1) != 0)
+            {
+                return;
+            }
+
+            SignalConditionRefreshShutdown();
+
+            await Task.WhenAll(
+                    m_publishSubscriptionsTask ?? Task.CompletedTask,
+                    m_conditionRefreshTask ?? Task.CompletedTask)
+                .ConfigureAwait(false);
+
+            (List<SessionPublishQueue> publishQueues, List<ISubscription> subscriptions)
+                = await CaptureManagedResourcesAsync()
+                .ConfigureAwait(false);
+
+            DisposeManagedResources(publishQueues, subscriptions);
+            DisposeSynchronizationResources();
+        }
+
+        private void CaptureManagedResources(
+            out List<SessionPublishQueue> publishQueues,
+            out List<ISubscription> subscriptions)
+        {
+            publishQueues = [.. m_publishQueues.Values];
+            m_publishQueues.Clear();
+
+            subscriptions = [.. m_subscriptions.Values];
+            m_subscriptions.Clear();
+            m_expiringSubscriptions.Clear();
+        }
+
+        private static void DisposeManagedResources(
+            List<SessionPublishQueue> publishQueues,
+            List<ISubscription> subscriptions)
+        {
+            foreach (SessionPublishQueue publishQueue in publishQueues)
+            {
+                publishQueue?.Dispose();
+            }
+
+            foreach (ISubscription subscription in subscriptions)
+            {
+                subscription?.Dispose();
+            }
+        }
+
+        private void DisposeSynchronizationResources()
+        {
+            m_shutdownEvent.Dispose();
+            m_conditionRefreshEvent.Dispose();
+            m_workerShutdown.Dispose();
+            m_semaphoreSlim.Dispose();
         }
 
         /// <summary>
@@ -251,23 +326,32 @@ namespace Opc.Ua.Server
                 await RestoreSubscriptionsAsync(cancellationToken)
                     .ConfigureAwait(false);
 
-                m_shutdownEvent.Reset();
+                if (m_workerShutdown.IsCancellationRequested)
+                {
+                    m_workerShutdown.Dispose();
+                    m_workerShutdown = new CancellationTokenSource();
+                }
 
-                // TODO: Ensure shutdown awaits completion and a cancellation token is passed
-                _ = Task.Factory.StartNew(
-                    () => PublishSubscriptionsAsync(m_publishingResolution),
-                    default,
-                    TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach,
-                    TaskScheduler.Default);
+                m_shutdownEvent.Reset();
+                CancellationToken workerCancellationToken = m_workerShutdown.Token;
+
+                m_publishSubscriptionsTask = Task.Factory.StartNew(
+                        () => PublishSubscriptionsAsync(
+                            m_publishingResolution,
+                            workerCancellationToken).AsTask(),
+                        default,
+                        TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach,
+                        TaskScheduler.Default)
+                    .Unwrap();
 
                 m_conditionRefreshEvent.Reset();
 
-                // TODO: Ensure shutdown awaits completion and a cancellation token is passed
-                _ = Task.Factory.StartNew(
-                    ConditionRefreshWorkerAsync,
-                    default,
-                    TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach,
-                    TaskScheduler.Default);
+                m_conditionRefreshTask = Task.Factory.StartNew(
+                        ConditionRefreshWorkerAsync,
+                        default,
+                        TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach,
+                        TaskScheduler.Default)
+                    .Unwrap();
             }
             finally
             {
@@ -280,15 +364,30 @@ namespace Opc.Ua.Server
         /// </summary>
         public virtual async ValueTask ShutdownAsync(CancellationToken cancellationToken = default)
         {
+            Task publishSubscriptionsTask;
+            Task conditionRefreshTask;
             await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                // stop the publishing thread.
-                m_shutdownEvent.Set();
+                // stop the publishing and condition refresh workers.
+                SignalConditionRefreshShutdown();
+                publishSubscriptionsTask =
+                    m_publishSubscriptionsTask ?? Task.CompletedTask;
+                conditionRefreshTask =
+                    m_conditionRefreshTask ?? Task.CompletedTask;
+            }
+            finally
+            {
+                m_semaphoreSlim.Release();
+            }
 
-                // trigger the condition refresh thread.
-                m_conditionRefreshEvent.Set();
+            await Task.WhenAll(publishSubscriptionsTask, conditionRefreshTask)
+                .WaitAsync(cancellationToken)
+                .ConfigureAwait(false);
 
+            await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
                 // dispose of publish queues.
                 foreach (SessionPublishQueue queue in m_publishQueues.Values)
                 {
@@ -1503,10 +1602,15 @@ namespace Opc.Ua.Server
                     }
 
                     ISession ownerSession = null!;
+                    var concreteSubscription = subscription as Subscription;
                     SessionPublishQueue? sourcePublishQueue = null;
+                    SessionPublishQueue.SubscriptionTransferClaim? sourceQueueClaim = null;
                     bool sourceIsAbandoned = false;
                     bool sourceRemoved = false;
-                    bool transferCompleted = false;
+                    bool transferStarted = false;
+                    Subscription.PreparedSessionTransfer? preparedTransfer = null;
+                    SessionPublishQueue? destinationPublishQueue = null;
+                    bool destinationAdded = false;
                     await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
                     try
                     {
@@ -1569,15 +1673,15 @@ namespace Opc.Ua.Server
                             continue;
                         }
 
-                        // Validate the exact current source while holding the same
-                        // semaphore used by expiration claims.
+                        // Claim the exact current source before any fallible monitored-item
+                        // callback can run. Lock order is manager semaphore, then queue lock,
+                        // then subscription lock; rollback follows the same order.
                         if (ownerSession != null)
                         {
                             if (!m_publishQueues.TryGetValue(
                                     ownerSession.Id,
                                     out sourcePublishQueue) ||
-                                sourcePublishQueue == null ||
-                                !sourcePublishQueue.ContainsSubscription(subscription))
+                                sourcePublishQueue == null)
                             {
                                 result.StatusCode = StatusCodes.BadSubscriptionIdInvalid;
                                 results.Add(result);
@@ -1587,10 +1691,67 @@ namespace Opc.Ua.Server
                                 }
                                 continue;
                             }
+
+                            if (concreteSubscription != null)
+                            {
+                                if (!sourcePublishQueue.TryClaimForTransfer(
+                                        concreteSubscription,
+                                        ownerSession,
+                                        out sourceQueueClaim))
+                                {
+                                    result.StatusCode = StatusCodes.BadSubscriptionIdInvalid;
+                                    results.Add(result);
+                                    if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
+                                    {
+                                        diagnosticInfos.Add(null!);
+                                    }
+                                    continue;
+                                }
+                                sourceRemoved = true;
+                                transferStarted = true;
+                            }
+                            else
+                            {
+                                sourceRemoved = sourcePublishQueue.TryRemoveForTransfer(subscription);
+                                if (!sourceRemoved)
+                                {
+                                    result.StatusCode = StatusCodes.BadSubscriptionIdInvalid;
+                                    results.Add(result);
+                                    if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
+                                    {
+                                        diagnosticInfos.Add(null!);
+                                    }
+                                    continue;
+                                }
+                            }
                         }
                         else if (ContainsAbandonedSubscription(subscription))
                         {
                             sourceIsAbandoned = true;
+                            if (concreteSubscription != null &&
+                                !concreteSubscription.TryBeginTransfer(null))
+                            {
+                                result.StatusCode = StatusCodes.BadSubscriptionIdInvalid;
+                                results.Add(result);
+                                if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
+                                {
+                                    diagnosticInfos.Add(null!);
+                                }
+                                continue;
+                            }
+                            transferStarted = concreteSubscription != null;
+                            sourceRemoved = TryRemoveAbandonedSubscription(subscription);
+                            if (!sourceRemoved)
+                            {
+                                concreteSubscription?.AbortTransfer(null);
+                                result.StatusCode = StatusCodes.BadSubscriptionIdInvalid;
+                                results.Add(result);
+                                if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
+                                {
+                                    diagnosticInfos.Add(null!);
+                                }
+                                continue;
+                            }
                         }
                         else if (m_abandonedSubscriptions.ContainsKey(subscription.Id))
                         {
@@ -1602,85 +1763,137 @@ namespace Opc.Ua.Server
                             }
                             continue;
                         }
+                        else if (concreteSubscription != null)
+                        {
+                            if (!concreteSubscription.TryBeginTransfer(null))
+                            {
+                                result.StatusCode = StatusCodes.BadSubscriptionIdInvalid;
+                                results.Add(result);
+                                if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
+                                {
+                                    diagnosticInfos.Add(null!);
+                                }
+                                continue;
+                            }
+                            transferStarted = true;
+                        }
 
                         try
                         {
-                            // transfer session, add subscription to publish queue
-                            await subscription.TransferSessionAsync(
-                                    context,
-                                    sendInitialValues,
-                                    cancellationToken)
-                                .ConfigureAwait(false);
-
-                            if (sourcePublishQueue != null)
+                            if (concreteSubscription != null)
                             {
-                                sourceRemoved =
-                                    sourcePublishQueue.TryRemoveForTransfer(subscription);
+                                preparedTransfer = await concreteSubscription
+                                    .PrepareSessionTransferAsync(
+                                        context,
+                                        ownerSession,
+                                        sendInitialValues,
+                                        cancellationToken)
+                                    .ConfigureAwait(false);
+                                preparedTransfer.CommitOwnership();
                             }
-                            else if (sourceIsAbandoned)
+                            else
                             {
-                                sourceRemoved =
-                                    TryRemoveAbandonedSubscription(subscription);
-                            }
-
-                            if ((sourcePublishQueue != null || sourceIsAbandoned) &&
-                                !sourceRemoved)
-                            {
-                                throw new ServiceResultException(
-                                    StatusCodes.BadSubscriptionIdInvalid,
-                                    "Subscription source changed during transfer.");
+                                await subscription.TransferSessionAsync(
+                                        context,
+                                        sendInitialValues,
+                                        cancellationToken)
+                                    .ConfigureAwait(false);
                             }
 
                             // add to queue in new session, create queue if necessary
                             if (!m_publishQueues.TryGetValue(
                                     context.SessionId,
-                                    out SessionPublishQueue? publishQueue) ||
-                                publishQueue == null)
+                                    out destinationPublishQueue) ||
+                                destinationPublishQueue == null)
                             {
                                 m_publishQueues[context.SessionId]
-                                    = publishQueue = new SessionPublishQueue(
+                                    = destinationPublishQueue = new SessionPublishQueue(
                                     m_server,
                                     context.Session,
                                     m_maxPublishRequestCount,
                                     m_timeProvider);
                             }
-                            publishQueue.Add(subscription);
-                            transferCompleted = true;
-                        }
-                        finally
-                        {
-                            if (!transferCompleted)
+                            destinationPublishQueue.Add(subscription);
+                            destinationAdded = true;
+                            preparedTransfer?.CommitMonitoredItemEffects();
+                            if (concreteSubscription != null)
                             {
-                                bool ownershipRestored =
-                                    ReferenceEquals(subscription.Session, ownerSession);
-                                if (!ownershipRestored && subscription is Subscription concrete)
-                                {
-                                    ownershipRestored =
-                                        concrete.TryRestoreSessionAfterFailedTransfer(
-                                            context.Session,
-                                            ownerSession);
-                                }
+                                concreteSubscription.CompleteTransfer(context.Session);
+                            }
+                            if (sourceQueueClaim != null)
+                            {
+                                sourcePublishQueue!.CompleteTransferClaim(sourceQueueClaim);
+                            }
+                            preparedTransfer?.Complete();
+                        }
+                        catch (Exception transferError)
+                        {
+                            var rollbackErrors = new List<Exception>();
+                            if (destinationAdded && destinationPublishQueue != null)
+                            {
+                                destinationPublishQueue.TryRemoveForTransfer(subscription);
+                            }
 
-                                if (ownershipRestored)
+                            if (preparedTransfer != null)
+                            {
+                                try
                                 {
-                                    if (sourceRemoved &&
-                                        sourcePublishQueue != null &&
-                                        ownerSession != null &&
-                                        m_publishQueues.TryGetValue(
-                                            ownerSession.Id,
-                                            out SessionPublishQueue? currentOwnerQueue) &&
-                                        ReferenceEquals(currentOwnerQueue, sourcePublishQueue))
-                                    {
-                                        sourcePublishQueue.Add(subscription);
-                                    }
-                                    else if (sourceRemoved && sourceIsAbandoned)
-                                    {
-                                        m_abandonedSubscriptions.TryAdd(
-                                            subscription.Id,
-                                            subscription);
-                                    }
+                                    await preparedTransfer.RollbackAsync(CancellationToken.None)
+                                        .ConfigureAwait(false);
+                                }
+                                catch (Exception rollbackError)
+                                {
+                                    rollbackErrors.Add(rollbackError);
                                 }
                             }
+                            else if (!ReferenceEquals(subscription.Session, ownerSession) &&
+                                concreteSubscription != null &&
+                                !concreteSubscription.TryRestoreSessionAfterFailedTransfer(
+                                    context.Session,
+                                    ownerSession))
+                            {
+                                rollbackErrors.Add(
+                                    new ServiceResultException(
+                                        StatusCodes.BadSubscriptionIdInvalid,
+                                        "Subscription ownership could not be restored."));
+                            }
+
+                            if (sourceQueueClaim != null &&
+                                !sourcePublishQueue!.RestoreTransferClaim(sourceQueueClaim))
+                            {
+                                rollbackErrors.Add(
+                                    new ServiceResultException(
+                                        StatusCodes.BadSubscriptionIdInvalid,
+                                        "Subscription source queue could not be restored."));
+                            }
+                            else if (sourceQueueClaim == null &&
+                                sourceRemoved &&
+                                sourcePublishQueue != null)
+                            {
+                                sourcePublishQueue.Add(subscription);
+                            }
+                            else if (sourceRemoved && sourceIsAbandoned &&
+                                !m_abandonedSubscriptions.TryAdd(
+                                    subscription.Id,
+                                    subscription))
+                            {
+                                rollbackErrors.Add(
+                                    new ServiceResultException(
+                                        StatusCodes.BadSubscriptionIdInvalid,
+                                        "Abandoned subscription source could not be restored."));
+                            }
+
+                            if (transferStarted)
+                            {
+                                concreteSubscription!.AbortTransfer(ownerSession);
+                            }
+
+                            if (rollbackErrors.Count > 0)
+                            {
+                                rollbackErrors.Insert(0, transferError);
+                                throw new AggregateException(rollbackErrors);
+                            }
+                            throw;
                         }
                     }
                     finally
@@ -2318,6 +2531,10 @@ namespace Opc.Ua.Server
             {
                 m_logger.SubscriptionPublishTaskTaskIdX8ExitedNormally2(Task.CurrentId);
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                m_logger.SubscriptionPublishTaskTaskIdX8ExitedNormally2(Task.CurrentId);
+            }
             catch (Exception e)
             {
                 m_logger.SubscriptionPublishTaskTaskIdX8ExitedUnexpectedly(e, Task.CurrentId);
@@ -2347,7 +2564,8 @@ namespace Opc.Ua.Server
             for (int ii = 0; ii < abandonedSubscriptions.Count; ii++)
             {
                 ISubscription subscription = abandonedSubscriptions[ii];
-                if (subscription.PublishTimerExpired() != PublishingState.Expired ||
+                if (!ContainsAbandonedSubscription(subscription) ||
+                    subscription.PublishTimerExpired() != PublishingState.Expired ||
                     !TryClaimAbandonedSubscriptionExpiration(subscription))
                 {
                     continue;
@@ -2369,28 +2587,48 @@ namespace Opc.Ua.Server
             try
             {
                 m_logger.SubscriptionConditionRefreshTaskTaskIdX8Started(Task.CurrentId);
+                WaitHandle[] waitHandles = [m_conditionRefreshEvent, m_shutdownEvent];
 
                 while (true)
                 {
                     ConditionRefreshTask? conditionRefreshTask = null;
+                    bool shutdown;
 
                     lock (m_conditionRefreshLock)
                     {
-                        if (m_conditionRefreshQueue.Count > 0)
+                        shutdown = m_shutdownEvent.WaitOne(0);
+                        if (!shutdown && m_conditionRefreshQueue.Count > 0)
                         {
                             conditionRefreshTask = m_conditionRefreshQueue.Dequeue();
                         }
-                        else
+                        else if (!shutdown)
                         {
-                            m_conditionRefreshEvent.Reset();
+                            BeforeConditionRefreshResetForTest?.Invoke();
+                            shutdown = m_shutdownEvent.WaitOne(0);
+                            if (!shutdown)
+                            {
+                                m_conditionRefreshEvent.Reset();
+                            }
                         }
+                    }
+
+                    if (shutdown)
+                    {
+                        m_logger.SubscriptionConditionRefreshTaskTaskIdX8Exited(Task.CurrentId);
+                        break;
                     }
 
                     if (conditionRefreshTask == null)
                     {
-                        m_conditionRefreshEvent.WaitOne();
+                        if (WaitHandle.WaitAny(waitHandles) == 1)
+                        {
+                            m_logger.SubscriptionConditionRefreshTaskTaskIdX8Exited(Task.CurrentId);
+                            break;
+                        }
+                        continue;
                     }
-                    else if (conditionRefreshTask.MonitoredItemId == 0)
+
+                    if (conditionRefreshTask.MonitoredItemId == 0)
                     {
                         await DoConditionRefreshAsync(conditionRefreshTask.Subscription)
                             .ConfigureAwait(false);
@@ -2403,12 +2641,6 @@ namespace Opc.Ua.Server
                             .ConfigureAwait(false);
                     }
 
-                    // use shutdown event to end loop
-                    if (m_shutdownEvent.WaitOne(0))
-                    {
-                        m_logger.SubscriptionConditionRefreshTaskTaskIdX8Exited(Task.CurrentId);
-                        break;
-                    }
                 }
             }
             catch (ObjectDisposedException)
@@ -2418,6 +2650,17 @@ namespace Opc.Ua.Server
             catch (Exception e)
             {
                 m_logger.SubscriptionConditionRefreshTaskTaskIdX8Exited3(e, Task.CurrentId);
+            }
+        }
+
+        private void SignalConditionRefreshShutdown()
+        {
+            BeforeConditionRefreshShutdownSignalForTest?.Invoke();
+            lock (m_conditionRefreshLock)
+            {
+                m_shutdownEvent.Set();
+                m_workerShutdown.Cancel();
+                m_conditionRefreshEvent.Set();
             }
         }
 
@@ -2534,6 +2777,40 @@ namespace Opc.Ua.Server
         private readonly ManualResetEvent m_shutdownEvent;
         private readonly Queue<ConditionRefreshTask> m_conditionRefreshQueue;
         private readonly ManualResetEvent m_conditionRefreshEvent;
+        private CancellationTokenSource m_workerShutdown;
+        private Task? m_publishSubscriptionsTask;
+        private Task? m_conditionRefreshTask;
+        private int m_disposed;
+        internal Action? BeforeConditionRefreshResetForTest { get; set; }
+        internal Action? BeforeConditionRefreshShutdownSignalForTest { get; set; }
+
+        internal void WakeConditionRefreshWorkerForTest()
+        {
+            m_conditionRefreshEvent.Set();
+        }
+
+        internal void EnqueueConditionRefreshForTest(
+            ISubscription subscription,
+            uint monitoredItemId = 0)
+        {
+            lock (m_conditionRefreshLock)
+            {
+                m_conditionRefreshQueue.Enqueue(new ConditionRefreshTask(subscription, monitoredItemId));
+            }
+        }
+
+        internal void StartConditionRefreshWorkerForTest()
+        {
+            m_shutdownEvent.Reset();
+            m_conditionRefreshEvent.Reset();
+            m_conditionRefreshTask = Task.Factory.StartNew(
+                    ConditionRefreshWorkerAsync,
+                    default,
+                    TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach,
+                    TaskScheduler.Default)
+                .Unwrap();
+        }
+
         private readonly ISubscriptionStore m_subscriptionStore;
 
         private readonly Lock m_statusMessagesLock = new();

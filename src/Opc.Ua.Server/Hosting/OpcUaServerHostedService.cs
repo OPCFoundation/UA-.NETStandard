@@ -40,6 +40,7 @@ using Opc.Ua.Bindings;
 using Opc.Ua.Configuration;
 using Opc.Ua.Identity;
 using Opc.Ua.Schema;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server.AliasNames;
 using Opc.Ua.Server.Historian;
 
@@ -427,7 +428,7 @@ namespace Opc.Ua.Server.Hosting
                 configuration.SecurityConfiguration,
                 configuration.ApplicationUri,
                 ct).ConfigureAwait(false);
-            using var certificates =
+            using CertificateEntryCollection certificates =
                 certificateManager.SnapshotApplicationCertificates();
             return certificates.Count > 0;
         }
@@ -514,7 +515,6 @@ namespace Opc.Ua.Server.Hosting
             m_server?.Dispose();
             base.Dispose();
         }
-
     }
 
     /// <summary>
@@ -547,5 +547,4 @@ namespace Opc.Ua.Server.Hosting
             Message = "Error while stopping OPC UA server.")]
         public static partial void ErrorWhileStoppingOPCUAServer(this ILogger logger, Exception ex);
     }
-
 }
