@@ -81,7 +81,8 @@ namespace Opc.Ua.WotCon.Server.Assets
             file.Write?.OnCall = new WriteMethodStateMethodCallHandler(OnWrite);
             file.GetPosition?.OnCall = new GetPositionMethodStateMethodCallHandler(OnGetPosition);
             file.SetPosition?.OnCall = new SetPositionMethodStateMethodCallHandler(OnSetPosition);
-            file.CloseAndUpdate?.OnCall = new CloseAndUpdateIWoTAssetTypeWoTFileMethodStateMethodCallHandler(OnCloseAndUpdate);
+            file.CloseAndUpdate?.OnCall =
+                new CloseAndUpdateIWoTAssetTypeWoTFileMethodStateMethodCallHandler(OnCloseAndUpdate);
         }
 
         /// <summary>
