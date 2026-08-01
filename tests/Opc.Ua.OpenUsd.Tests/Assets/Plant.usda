@@ -1,0 +1,119 @@
+#usda 1.0
+(
+    doc = """Base pump asset for the OPC UA - OpenUSD Bindings pump end-to-end.
+
+    Authored by the '3D / USD asset author' actor (Annex B). It carries only
+    geometry and materials; it contains NO live values. The live OPC UA values
+    are composed on top by `live.usda` (see `stage.usda`), which a connector
+    authors at runtime. The prim paths and attribute names here are the contract
+    the OpenUSD bindings target:
+
+      /Plant/Pumps/P101/Impeller       xformOp:rotateZ      (MassFlow -> Rotation)
+      /Plant/Pumps/P101/Body           primvars:displayColor(BearingTemperature -> DisplayColor)
+      /Plant/Pumps/P101/StatusLight/Mat/Surface.inputs:emissiveColor
+                                                            (DifferentialPressure -> EmissiveColor)
+      /Plant/Pumps/P101/StatusLight.visibility              (alarm ActiveState -> Visibility)
+      /Plant/Pumps/P101/Impeller.inputs:speedSetpoint       (opt-in command intent -> UA write)
+    """
+    defaultPrim = "Plant"
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "Plant"
+{
+    def Scope "Pumps"
+    {
+        def Xform "P101" (
+            kind = "component"
+        )
+        {
+            double3 xformOp:translate = (0, 0, 0)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+
+            # Static pump casing/body. Its displayColor is driven by bearing
+            # temperature at runtime (blue = cool, red = hot).
+            def Cylinder "Body"
+            {
+                uniform token axis = "Z"
+                double height = 1.0
+                double radius = 0.5
+                color3f[] primvars:displayColor = [(0, 0, 1)]
+                double3 xformOp:translate = (0, 0, 0.5)
+                uniform token[] xformOpOrder = ["xformOp:translate"]
+            }
+
+            # Bearing sub-component (1:1 composition: the pump is composed of a
+            # Bearing component Object mapped to this child prim, §5.12).
+            def Sphere "Bearing"
+            {
+                double radius = 0.12
+                color3f[] primvars:displayColor = [(0.3, 0.3, 0.32)]
+                double3 xformOp:translate = (0, 0, 0.15)
+                uniform token[] xformOpOrder = ["xformOp:translate"]
+            }
+
+            # Impeller that spins about the pump's vertical (Z) axis. Its
+            # xformOp:rotateZ angle is driven by mass flow at runtime.
+            def Xform "Impeller"
+            {
+                double xformOp:rotateZ = 0
+                double3 xformOp:translate = (0, 0, 1.05)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateZ"]
+
+                # Opt-in command intent: a controller writes this setpoint on the
+                # USD side; the connector maps it to a UA write (UsdToUaCommand).
+                custom double inputs:speedSetpoint = 0
+
+                def Cube "BladeA"
+                {
+                    double size = 1.0
+                    color3f[] primvars:displayColor = [(0.8, 0.8, 0.82)]
+                    double3 xformOp:scale = (0.9, 0.12, 0.04)
+                    uniform token[] xformOpOrder = ["xformOp:scale"]
+                }
+                def Cube "BladeB"
+                {
+                    double size = 1.0
+                    color3f[] primvars:displayColor = [(0.8, 0.8, 0.82)]
+                    double3 xformOp:scale = (0.12, 0.9, 0.04)
+                    uniform token[] xformOpOrder = ["xformOp:scale"]
+                }
+            }
+
+            # Status indicator whose emissive colour is driven by differential
+            # pressure at runtime (glows in an RTX renderer).
+            def Xform "StatusLight"
+            {
+                double3 xformOp:translate = (0.6, 0, 0.6)
+                uniform token[] xformOpOrder = ["xformOp:translate"]
+
+                # Driven by a UaAlarmToUsd binding: the supervision alarm
+                # ActiveState toggles this prim's visibility ("inherited" when
+                # active, "invisible" when clear).
+                token visibility = "inherited"
+
+                def Sphere "Bulb" (
+                    prepend apiSchemas = ["MaterialBindingAPI"]
+                )
+                {
+                    double radius = 0.15
+                    rel material:binding = </Plant/Pumps/P101/StatusLight/Mat>
+                }
+
+                def Material "Mat"
+                {
+                    token outputs:surface.connect = </Plant/Pumps/P101/StatusLight/Mat/Surface.outputs:surface>
+
+                    def Shader "Surface"
+                    {
+                        uniform token info:id = "UsdPreviewSurface"
+                        color3f inputs:diffuseColor = (0.1, 0.1, 0.1)
+                        color3f inputs:emissiveColor = (0, 0, 0)
+                        token outputs:surface
+                    }
+                }
+            }
+        }
+    }
+}

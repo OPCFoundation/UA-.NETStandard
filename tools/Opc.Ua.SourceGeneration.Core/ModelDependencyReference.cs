@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.IO;
 using System.Runtime.CompilerServices;
 using Opc.Ua.SourceGeneration.Dependency;
 
@@ -118,15 +119,37 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-            return s_decoded.GetValue(Payload, DecodePayload);
+            return s_decoded.GetValue(Payload, DecodePayload).Value;
         }
 
-        private static ModelDependencyV1 DecodePayload(string payload)
+        private static DecodedDependency DecodePayload(string payload)
         {
-            return ModelDependencyV1.FromBase64Payload(payload);
+            try
+            {
+                return new DecodedDependency(ModelDependencyV1.FromBase64Payload(payload));
+            }
+            catch (Exception ex) when (
+                ex is InvalidDataException ||
+                ex is IOException ||
+                ex is ArgumentException ||
+                ex is FormatException ||
+                ex is OverflowException)
+            {
+                return new DecodedDependency(null);
+            }
         }
 
-        private static readonly ConditionalWeakTable<string, ModelDependencyV1> s_decoded
+        private sealed class DecodedDependency
+        {
+            public DecodedDependency(ModelDependencyV1 value)
+            {
+                Value = value;
+            }
+
+            public ModelDependencyV1 Value { get; }
+        }
+
+        private static readonly ConditionalWeakTable<string, DecodedDependency> s_decoded
             = new();
 
         /// <inheritdoc/>
