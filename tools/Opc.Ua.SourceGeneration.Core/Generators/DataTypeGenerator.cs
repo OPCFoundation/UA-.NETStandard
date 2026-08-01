@@ -531,10 +531,12 @@ namespace Opc.Ua.SourceGeneration
                 Tokens.NamespacePrefix,
                 m_context.ModelDesign.Namespaces.GetNamespacePrefix(
                     dataType.SymbolicId.Namespace));
+            string xmlNamespaceUri =
+                m_context.ModelDesign.Namespaces.GetConstantForXmlNamespace(
+                    dataType.SymbolicId.Namespace);
             context.Template.AddReplacement(
                 Tokens.XmlNamespaceUri,
-                m_context.ModelDesign.Namespaces.GetConstantForXmlNamespace(
-                    dataType.SymbolicId.Namespace));
+                xmlNamespaceUri);
 
             context.Template.AddBrowseNameReplacement(
                 Tokens.BrowseName,
@@ -606,7 +608,28 @@ namespace Opc.Ua.SourceGeneration
 
             context.Template.AddReplacement(
                 Tokens.EncodingMaskModifier,
-                hasAncestorWithOptionalFields ? "new " : string.Empty);
+                hasAncestorWithOptionalFields ? "override " : "virtual ");
+            context.Template.AddReplacement(
+                Tokens.EncodingMaskFieldNamesModifier,
+                hasAncestorWithOptionalFields ? "override " : "virtual ");
+            context.Template.AddReplacement(
+                Tokens.EncodingMaskEncode,
+                hasAncestorWithOptionalFields
+                    ? string.Empty
+                    : $$"""
+                    encoder.PushNamespace({{xmlNamespaceUri}});
+                    encoder.WriteEncodingMask((uint)EncodingMask);
+                    encoder.PopNamespace();
+                    """);
+            context.Template.AddReplacement(
+                Tokens.EncodingMaskDecode,
+                hasAncestorWithOptionalFields
+                    ? string.Empty
+                    : $$"""
+                    decoder.PushNamespace({{xmlNamespaceUri}});
+                    EncodingMask = decoder.ReadEncodingMask(EncodingMaskFieldNames);
+                    decoder.PopNamespace();
+                    """);
 
             // TODO: context.Template.AddReplacement(
             // TODO:     Tokens.IsAbstract,
