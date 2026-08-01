@@ -56,7 +56,7 @@ namespace Opc.Ua.WotCon.Bindings
             ResourceXid = resourceXid ?? string.Empty;
             Kind = kind;
             Forms = forms.IsDefault ? [] : forms;
-            SecurityDefinitions = securityDefinitions ?? [];
+            SecurityDefinitions = securityDefinitions ?? ImmutableDictionary<string, WotSecurityDefinition>.Empty;
             BaseUri = baseUri;
             Selection = selection ?? WotBindingSelectionContext.Empty;
         }

@@ -279,9 +279,9 @@ namespace Opc.Ua.WotCon.Bindings
             IReadOnlyList<X509Certificate2>? trustedCertificates = null)
         {
             Scheme = scheme;
-            Headers = headers ?? [];
-            QueryParameters = queryParameters ?? [];
-            Properties = properties ?? [];
+            Headers = headers ?? ImmutableDictionary<string, string>.Empty;
+            QueryParameters = queryParameters ?? ImmutableDictionary<string, string>.Empty;
+            Properties = properties ?? ImmutableDictionary<string, string>.Empty;
             ClientCertificate = clientCertificate;
             TrustedCertificates = trustedCertificates is null
                 ? []
