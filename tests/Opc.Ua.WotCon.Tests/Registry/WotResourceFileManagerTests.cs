@@ -297,6 +297,34 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
+        public async Task WriteAfterSeekingBackOverwritesInPlaceAtMaxSize()
+        {
+            byte[]? committed = null;
+            using var harness = new Harness(
+                maxDocumentSize: 4,
+                onCommit: (bytes, _, _) =>
+                {
+                    committed = bytes;
+                    return new ValueTask<ServiceResult>(ServiceResult.Good);
+                });
+            uint handle = 0;
+            harness.Open(ModeWriteErase, ref handle);
+            harness.Write(handle, ByteString.From(new byte[] { 1, 2, 3, 4 }));
+            ServiceResult setPosition = harness.SetPosition(handle, 2);
+
+            ServiceResult write = harness.Write(handle, ByteString.From(new byte[] { 9, 8 }));
+            ServiceResult close = await harness.CloseAsync(handle).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(setPosition), Is.True);
+                Assert.That(ServiceResult.IsGood(write), Is.True);
+                Assert.That(ServiceResult.IsGood(close), Is.True);
+                Assert.That(committed, Is.EqualTo(new byte[] { 1, 2, 9, 8 }));
+            });
+        }
+
+        [Test]
         public async Task WriteEmptyByteStringIsNoOp()
         {
             using var harness = new Harness();
@@ -648,22 +676,32 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public void DisposeClosesAllOpenHandles()
+        public void DisposeClosesAllOpenHandlesAndResetsState()
         {
             var harness = new Harness();
-            uint h1 = 0;
-            uint h2 = 0;
-            harness.Open(ModeRead, ref h1);
-            harness.Open(ModeRead, ref h2);
+            uint readHandle = 0;
+            uint writeHandle = 0;
+            harness.Open(ModeRead, ref readHandle);
+            harness.Open(ModeWriteErase, ref writeHandle);
 
             harness.Dispose();
 
-            // After dispose the Manager should not throw and operations on old
-            // handles now return BadInvalidArgument (handles dict was cleared).
             ByteString data = default;
-            ServiceResult result = harness.Read(h1, 1, ref data);
-            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument),
-                "Old handles must be invalid after the manager is disposed.");
+            ServiceResult readResult = harness.Read(readHandle, 1, ref data);
+            ushort openCountAfterDispose = harness.File.OpenCount!.Value;
+            ServiceResult writeResult = harness.Manager.TryOpenWriteHandle(NodeId.Null, out uint newWriteHandle);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(readResult.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument),
+                    "Old handles must be invalid after the manager is disposed.");
+                Assert.That(openCountAfterDispose, Is.Zero);
+                Assert.That(ServiceResult.IsGood(writeResult), Is.True,
+                    "Disposal must clear the exclusive writer state.");
+                Assert.That(newWriteHandle, Is.GreaterThan(0u));
+            });
+
+            harness.Dispose();
         }
 
         [Test]
@@ -767,5 +805,3 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
     }
 }
-
-

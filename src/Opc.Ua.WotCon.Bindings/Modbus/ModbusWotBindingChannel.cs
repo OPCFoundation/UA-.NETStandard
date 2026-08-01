@@ -51,6 +51,7 @@ namespace Opc.Ua.WotCon.Bindings.Modbus
         {
             m_client = client;
             Form = form;
+            m_context = context;
             m_options = options;
 
             m_operation = addressing.Operation;
@@ -283,7 +284,8 @@ namespace Opc.Ua.WotCon.Bindings.Modbus
                 // so consumers observe the fault without the poll loop faulting.
                 onError: _ => onNotification(new WotNotification(
                     DataValue.FromStatusCode(StatusCodes.BadCommunicationError))),
-                retryPolicy: m_options.RetryPolicy);
+                retryPolicy: m_options.RetryPolicy,
+                telemetry: m_context.Telemetry);
             return new ValueTask<IWotSubscription>(subscription);
         }
 
@@ -307,6 +309,7 @@ namespace Opc.Ua.WotCon.Bindings.Modbus
         }
 
         private readonly ModbusTcpClient m_client;
+        private readonly WotExecutorContext m_context;
         private readonly ModbusWotBindingOptions m_options;
         private readonly ModbusOperation m_operation;
         private readonly ushort m_address;

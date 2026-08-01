@@ -48,6 +48,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests.Support
             m_listener.Start();
             Port = ((IPEndPoint)m_listener.LocalEndpoint).Port;
             m_loop = Task.Run(AcceptLoopAsync);
+            ObserveLoopFaults(m_loop);
         }
 
         public int Port { get; }
@@ -80,24 +81,15 @@ namespace Opc.Ua.WotCon.Bindings.Tests.Support
 
         public void Dispose()
         {
-            m_cts.Cancel();
+            Volatile.Write(ref m_stopped, 1);
             DisconnectClients();
             m_listener.Stop();
             m_listener.Dispose();
-            try
-            {
-                m_loop.Wait(2000);
-            }
-            catch (AggregateException)
-            {
-                // Ignore teardown faults.
-            }
-            m_cts.Dispose();
         }
 
         private async Task AcceptLoopAsync()
         {
-            while (!m_cts.IsCancellationRequested)
+            while (!IsStopped)
             {
                 TcpClient client;
                 try
@@ -136,7 +128,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests.Support
                 {
                     try
                     {
-                        while (!m_cts.IsCancellationRequested)
+                        while (!IsStopped)
                         {
                             byte[]? header = await ReadExactAsync(stream, 6).ConfigureAwait(false);
                             if (header is null)
@@ -289,12 +281,23 @@ namespace Opc.Ua.WotCon.Bindings.Tests.Support
             return buffer;
         }
 
+        private bool IsStopped => Volatile.Read(ref m_stopped) != 0;
+
+        private static void ObserveLoopFaults(Task loop)
+        {
+            _ = loop.ContinueWith(
+                static task => _ = task.Exception,
+                CancellationToken.None,
+                TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
+        }
+
         private readonly TcpListener m_listener;
         private readonly Task m_loop;
-        private readonly CancellationTokenSource m_cts = new();
         private readonly ConcurrentDictionary<int, TcpClient> m_clients = new();
         private int m_acceptedConnectionCount;
         private int m_lastFunctionCode;
         private int m_rejectConnections;
+        private int m_stopped;
     }
 }

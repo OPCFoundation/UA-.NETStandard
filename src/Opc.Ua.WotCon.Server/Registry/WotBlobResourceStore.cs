@@ -242,7 +242,14 @@ namespace Opc.Ua.WotCon.Server.Registry
         private async ValueTask<byte[]> ReadAllAsync(string path, CancellationToken ct)
         {
             using Stream stream = m_fileSystem.OpenRead(path);
-            var buffer = new byte[stream.Length];
+            if (stream.Length > int.MaxValue)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadOutOfMemory,
+                    "The blob is too large to stage in memory.");
+            }
+
+            var buffer = new byte[(int)stream.Length];
             int read = 0;
             while (read < buffer.Length)
             {

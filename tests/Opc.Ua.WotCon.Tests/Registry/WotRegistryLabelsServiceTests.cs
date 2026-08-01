@@ -217,11 +217,12 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public void AddGroupLabelUnknownGroupFails()
+        public async Task AddGroupLabelUnknownGroupFails()
         {
             using var service = new WotRegistryService();
-            WotRegistryMutationResult result = service.AddGroupLabelAsync(
-                "missing", "k", "v").AsTask().GetAwaiter().GetResult();
+            WotRegistryMutationResult result = await service.AddGroupLabelAsync(
+                    "missing", "k", "v")
+                .ConfigureAwait(false);
             Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Failed));
         }
 

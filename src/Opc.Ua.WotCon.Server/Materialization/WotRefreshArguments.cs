@@ -130,7 +130,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 if (element is null)
                 {
-                    continue;
+                    return ServiceResult.Create(
+                        StatusCodes.BadInvalidArgument,
+                        "The Selection argument must be an array of WoTResourceSelectorDataType.");
                 }
                 ServiceResult status = TryCoerce(
                     element, context, out WoTResourceSelectorDataType? selector);

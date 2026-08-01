@@ -141,6 +141,17 @@ namespace Opc.Ua.WotCon.Tests.Hosting
         }
 
         [Test]
+        public void AddWotRegistryServerWithNullBuilderAndConfigurationThrowsArgumentNull()
+        {
+            IConfiguration configuration = new ConfigurationBuilder().Build();
+
+            Assert.That(
+                () => OpcUaWotRegistryServerBuilderExtensions.AddWotRegistryServer(
+                    null!, configuration),
+                Throws.ArgumentNullException);
+        }
+
+        [Test]
         public void AddWotRegistryServerWithConfigurationSectionBindsOptions()
         {
             var configData = new Dictionary<string, string?>

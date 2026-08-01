@@ -93,6 +93,10 @@ namespace Microsoft.Extensions.DependencyInjection
             this IOpcUaBuilder builder,
             IConfiguration configuration)
         {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
             if (configuration is null)
             {
                 throw new ArgumentNullException(nameof(configuration));

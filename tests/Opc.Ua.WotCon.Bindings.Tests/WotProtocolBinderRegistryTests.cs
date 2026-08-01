@@ -300,6 +300,42 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         }
 
         [Test]
+        public async Task OpenChannelAsyncPassesTelemetryToExecutorContext()
+        {
+            ITelemetryContext telemetry = DefaultTelemetry.Create(_ => { });
+            try
+            {
+                var executor = new TestExecutor(new HttpBindingPlanner().Identity);
+                var registry = new WotProtocolBinderRegistry(
+                    [new HttpBindingPlanner()],
+                    [executor],
+                    telemetry: telemetry);
+                var form = new WotCompiledForm(
+                    new HttpBindingPlanner().Identity,
+                    WotAffordanceKind.Property,
+                    "p",
+                    "/properties/p/forms/0",
+                    WoTBindingCapabilityEnum.ReadProperty,
+                    "readproperty",
+                    new WotEndpointDescriptor("http", "example.com", 80, "http://example.com"),
+                    new WotAddressingDescriptor("http://example.com/p"),
+                    new WotOperationDescriptor(WoTBindingCapabilityEnum.ReadProperty, "readproperty", "GET"),
+                    new WotPayloadDescriptor("application/json", "json"),
+                    [],
+                    isExecutable: true);
+
+                await using IWotBindingChannel channel = await registry.OpenChannelAsync(form).ConfigureAwait(false);
+
+                Assert.That(executor.LastContext, Is.Not.Null);
+                Assert.That(executor.LastContext!.Telemetry, Is.SameAs(telemetry));
+            }
+            finally
+            {
+                (telemetry as IDisposable)?.Dispose();
+            }
+        }
+
+        [Test]
         public void RegistryConstructorIgnoresNullBinders()
         {
             var registry = new WotProtocolBinderRegistry(
@@ -392,6 +428,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
 
             public int Activations { get; private set; }
 
+            public WotExecutorContext? LastContext { get; private set; }
+
             public bool CanExecute(WotCompiledForm form)
             {
                 return string.Equals(form.Binding.Id, Identity.Id, StringComparison.Ordinal);
@@ -401,6 +439,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 WotCompiledForm form, WotExecutorContext context, CancellationToken cancellationToken = default)
             {
                 Activations++;
+                LastContext = context;
                 return new ValueTask<IWotBindingChannel>(new TestChannel(form));
             }
         }

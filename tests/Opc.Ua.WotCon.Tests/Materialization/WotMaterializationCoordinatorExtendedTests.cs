@@ -167,6 +167,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
             Assert.That(result.Results.All(r => r.ResourceId == "td-a"), Is.True,
                 "Filtered refresh must only return results for selected resources.");
+            Assert.That(result.Results.Single().Xid, Is.EqualTo(tdAXid));
         }
 
         [Test]
@@ -341,7 +342,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         [Test]
-        public async Task BindingCapabilitiesIsNonNullEvenWithNoBinders()
+        public void BindingCapabilitiesIsNonNullEvenWithNoBinders()
         {
             Assert.That(m_coordinator.BindingCapabilities, Is.Not.Null);
             Assert.That(m_coordinator.BindingCapabilities, Is.Empty);
