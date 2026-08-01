@@ -173,26 +173,18 @@ namespace Opc.Ua
                     sourcePath);
             }
 
-            var spinner = new SpinWait();
-            while (true)
-            {
-                if (!m_files.TryGetValue(destinationPath, out VirtualFile? existing))
+            // Re-keying the whole entry publishes the file in one step, so a reader sees
+            // either the previous content or the new content and never a partial write.
+            VirtualFile? replaced = null;
+            m_files.AddOrUpdate(
+                destinationPath,
+                staged,
+                (_, existing) =>
                 {
-                    if (m_files.TryAdd(destinationPath, staged))
-                    {
-                        return;
-                    }
-                    spinner.SpinOnce();
-                    continue;
-                }
-
-                if (m_files.TryUpdate(destinationPath, staged, existing))
-                {
-                    existing.Dispose();
-                    return;
-                }
-                spinner.SpinOnce();
-            }
+                    replaced = existing;
+                    return staged;
+                });
+            replaced?.Dispose();
         }
 
         /// <inheritdoc/>

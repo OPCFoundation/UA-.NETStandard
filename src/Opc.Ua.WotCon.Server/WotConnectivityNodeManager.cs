@@ -455,7 +455,7 @@ namespace Opc.Ua.WotCon.Server
             }
         }
 
-        private async ValueTask<CreateAssetMethodStateResult> OnCreateAssetAsync(
+        private async ValueTask<CreateAssetWoTAssetConnectionManagementTypeMethodStateResult> OnCreateAssetAsync(
             ISystemContext context,
             MethodState method,
             NodeId objectId,
@@ -465,10 +465,14 @@ namespace Opc.Ua.WotCon.Server
             EnforceManagementAccess(context, "CreateAsset");
             (ServiceResult status, NodeId assetId) = await m_registry
                 .CreateAssetAsync(assetName, cancellationToken).ConfigureAwait(false);
-            return new CreateAssetMethodStateResult { ServiceResult = status, AssetId = assetId.IsNull ? NodeId.Null : assetId };
+            return new CreateAssetWoTAssetConnectionManagementTypeMethodStateResult
+            {
+                ServiceResult = status,
+                AssetId = assetId.IsNull ? NodeId.Null : assetId
+            };
         }
 
-        private async ValueTask<DeleteAssetMethodStateResult> OnDeleteAssetAsync(
+        private async ValueTask<DeleteAssetWoTAssetConnectionManagementTypeMethodStateResult> OnDeleteAssetAsync(
             ISystemContext context,
             MethodState method,
             NodeId objectId,
@@ -478,10 +482,10 @@ namespace Opc.Ua.WotCon.Server
             EnforceManagementAccess(context, "DeleteAsset");
             ServiceResult status = await m_registry
                 .DeleteAssetAsync(assetId, cancellationToken).ConfigureAwait(false);
-            return new DeleteAssetMethodStateResult { ServiceResult = status };
+            return new DeleteAssetWoTAssetConnectionManagementTypeMethodStateResult { ServiceResult = status };
         }
 
-        private async ValueTask<DiscoverAssetsMethodStateResult> OnDiscoverAssetsAsync(
+        private async ValueTask<DiscoverAssetsWoTAssetConnectionManagementTypeMethodStateResult> OnDiscoverAssetsAsync(
             ISystemContext context,
             MethodState method,
             NodeId objectId,
@@ -495,14 +499,14 @@ namespace Opc.Ua.WotCon.Server
             {
                 arr[i] = endpoints[i];
             }
-            return new DiscoverAssetsMethodStateResult
+            return new DiscoverAssetsWoTAssetConnectionManagementTypeMethodStateResult
             {
                 ServiceResult = status,
                 AssetEndpoints = new ArrayOf<string>(arr)
             };
         }
 
-        private async ValueTask<CreateAssetForEndpointMethodStateResult> OnCreateAssetForEndpointAsync(
+        private async ValueTask<CreateAssetForEndpointWoTAssetConnectionManagementTypeMethodStateResult> OnCreateAssetForEndpointAsync(
             ISystemContext context,
             MethodState method,
             NodeId objectId,
@@ -514,14 +518,14 @@ namespace Opc.Ua.WotCon.Server
             (ServiceResult status, NodeId assetId) = await m_registry
                 .CreateAssetForEndpointAsync(assetName, assetEndpoint, cancellationToken)
                 .ConfigureAwait(false);
-            return new CreateAssetForEndpointMethodStateResult
+            return new CreateAssetForEndpointWoTAssetConnectionManagementTypeMethodStateResult
             {
                 ServiceResult = status,
                 AssetId = assetId.IsNull ? NodeId.Null : assetId
             };
         }
 
-        private async ValueTask<ConnectionTestMethodStateResult> OnConnectionTestAsync(
+        private async ValueTask<ConnectionTestWoTAssetConnectionManagementTypeMethodStateResult> OnConnectionTestAsync(
             ISystemContext context,
             MethodState method,
             NodeId objectId,
@@ -531,7 +535,7 @@ namespace Opc.Ua.WotCon.Server
             EnforceManagementAccess(context, "ConnectionTest");
             (ServiceResult status, bool success, string text) = await m_registry
                 .ConnectionTestAsync(assetEndpoint, cancellationToken).ConfigureAwait(false);
-            return new ConnectionTestMethodStateResult
+            return new ConnectionTestWoTAssetConnectionManagementTypeMethodStateResult
             {
                 ServiceResult = status,
                 Success = success,
