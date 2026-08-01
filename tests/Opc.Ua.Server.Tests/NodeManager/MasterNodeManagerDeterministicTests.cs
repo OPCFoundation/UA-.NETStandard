@@ -1237,7 +1237,6 @@ namespace Opc.Ua.Server.Tests
 
 
         [Test]
-        [Ignore("Resend trigger rollback is covered by the monitored-item transfer stack slice.")]
         public async Task TransferMonitoredItemsAsyncFailureRollsBackOwnerAndResendAsync()
         {
             var sourceSession = new Mock<ISession>();

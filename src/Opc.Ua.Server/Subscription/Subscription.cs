@@ -483,7 +483,7 @@ namespace Opc.Ua.Server
                     {
                         IsDetached: true
                     } &&
-                    AreSameNodeManager(monitoredItem.Value.NodeManager, nodeManager));
+                    IsOwnedBy(monitoredItem.Value, nodeManager));
             }
         }
 
@@ -503,7 +503,7 @@ namespace Opc.Ua.Server
                             {
                                 IsDetached: true
                             } &&
-                            AreSameNodeManager(monitoredItem.NodeManager, nodeManager))
+                            IsOwnedBy(monitoredItem, nodeManager))
                 ];
             }
         }
@@ -560,12 +560,25 @@ namespace Opc.Ua.Server
             }
         }
 
-        private static bool AreSameNodeManager(
-            IAsyncNodeManager first,
-            IAsyncNodeManager second)
+        private static bool IsOwnedBy(
+            IMonitoredItem monitoredItem,
+            IAsyncNodeManager nodeManager)
         {
-            return ReferenceEquals(first, second) ||
-                ReferenceEquals(first.SyncNodeManager, second.SyncNodeManager);
+            IAsyncNodeManager? monitoredItemOwner = monitoredItem.NodeManager;
+            if (monitoredItemOwner is null)
+            {
+                return false;
+            }
+            if (ReferenceEquals(monitoredItemOwner, nodeManager))
+            {
+                return true;
+            }
+
+            INodeManager? monitoredItemSync = monitoredItemOwner.SyncNodeManager;
+            INodeManager? nodeManagerSync = nodeManager.SyncNodeManager;
+            return monitoredItemSync is not null &&
+                nodeManagerSync is not null &&
+                ReferenceEquals(monitoredItemSync, nodeManagerSync);
         }
 
         /// <summary>
@@ -619,6 +632,13 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
+                // OPC 10000-4 §5.14.1.2, Table 79 handles TransferSubscriptions as a single transition
+                // that sets the new Session, returns the response and issues Good_SubscriptionTransferred.
+                if (m_transferInProgress)
+                {
+                    return PublishingState.Idle;
+                }
+
                 long currentTime = m_timeProvider.GetTimestampMilliseconds();
 
                 // check if publish interval has elapsed.
@@ -782,14 +802,13 @@ namespace Opc.Ua.Server
                 errors.Add(null!);
             }
 
-            await m_server.NodeManager
-                .TransferMonitoredItemsAsync(
-                    context,
-                    sendInitialValues,
-                    monitoredItems,
-                    errors,
-                    transferOptions: null,
-                    cancellationToken)
+            await m_server.NodeManager.TransferMonitoredItemsAsync(
+                context,
+                sendInitialValues,
+                monitoredItems,
+                errors,
+                null,
+                cancellationToken)
                 .ConfigureAwait(false);
 
             int badTransfers = 0;
@@ -827,6 +846,7 @@ namespace Opc.Ua.Server
             }
         }
 
+
         /// <inheritdoc/>
         public bool IsTransferIdentityCompatible(ISession targetSession)
         {
@@ -858,6 +878,376 @@ namespace Opc.Ua.Server
                     m_ownerClientUserId,
                     targetClientUserId,
                     StringComparison.Ordinal);
+        }
+
+        /// <summary>
+        /// Reserves the subscription for transfer while it is still owned by the expected source session.
+        /// </summary>
+        /// <param name="sourceSession">The session that currently owns the subscription.</param>
+        /// <returns><c>true</c> when the transfer reservation was acquired.</returns>
+        internal bool TryBeginTransfer(ISession? sourceSession)
+        {
+            lock (m_lock)
+            {
+                if (m_transferInProgress ||
+                    m_expired ||
+                    !ReferenceEquals(Session, sourceSession))
+                {
+                    return false;
+                }
+
+                m_transferInProgress = true;
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Prepares monitored item state for a session transfer without making the new owner visible yet.
+        /// </summary>
+        /// <param name="context">The operation context for the destination session.</param>
+        /// <param name="sourceSession">The session that currently owns the subscription.</param>
+        /// <param name="sendInitialValues">Whether initial values should be sent after transfer commits.</param>
+        /// <param name="cancellationToken">The token that aborts transfer preparation.</param>
+        /// <returns>A prepared transfer that can be committed or rolled back by the caller.</returns>
+        /// <exception cref="ServiceResultException">
+        /// The subscription is no longer reserved by the source session.
+        /// </exception>
+        internal async ValueTask<PreparedSessionTransfer> PrepareSessionTransferAsync(
+            OperationContext context,
+            ISession? sourceSession,
+            bool sendInitialValues,
+            CancellationToken cancellationToken)
+        {
+            List<IMonitoredItem> monitoredItems;
+            lock (m_lock)
+            {
+                if (!m_transferInProgress ||
+                    !ReferenceEquals(Session, sourceSession))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadSubscriptionIdInvalid,
+                        "Subscription source changed during transfer.");
+                }
+                monitoredItems = m_monitoredItems.Select(v => v.Value.Value).ToList();
+            }
+
+            var errors = new List<ServiceResult>(monitoredItems.Count);
+            for (int ii = 0; ii < monitoredItems.Count; ii++)
+            {
+                errors.Add(null!);
+            }
+
+            OperationContext? sourceContext = null;
+            IMonitoredItemTransferTransaction? monitoredItemTransaction = null;
+            try
+            {
+                if (m_server.NodeManager is IMonitoredItemTransferCoordinator coordinator)
+                {
+                    sourceContext = sourceSession != null
+                        ? new OperationContext(sourceSession, context.DiagnosticsMask)
+                        : new OperationContext(
+                            new RequestHeader(),
+                            null!,
+                            RequestType.Unknown,
+                            RequestLifetime.None);
+                    monitoredItemTransaction = await coordinator.PrepareMonitoredItemsTransferAsync(
+                        context,
+                        sourceContext,
+                        sendInitialValues,
+                        monitoredItems,
+                        errors,
+                        new MonitoredItemTransferOptions
+                        {
+                            DeferInitialValues = sendInitialValues
+                        },
+                        cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                else
+                {
+                    var fallbackTransaction = new ResendStateTransferTransaction(
+                        monitoredItems);
+                    try
+                    {
+                        // The non-coordinator contract has no commit callback.
+                        // Keep legacy eager resend semantics instead of
+                        // requesting deferral that cannot be committed here.
+                        await m_server.NodeManager.TransferMonitoredItemsAsync(
+                            context,
+                            sendInitialValues,
+                            monitoredItems,
+                            errors,
+                            transferOptions: null,
+                            cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                    catch
+                    {
+                        await fallbackTransaction.RollbackAsync(CancellationToken.None)
+                            .ConfigureAwait(false);
+                        throw;
+                    }
+                    monitoredItemTransaction = fallbackTransaction;
+                }
+            }
+            catch
+            {
+                sourceContext?.Dispose();
+                throw;
+            }
+
+            int badTransfers = 0;
+            for (int ii = 0; ii < errors.Count; ii++)
+            {
+                if (ServiceResult.IsBad(errors[ii]))
+                {
+                    badTransfers++;
+                }
+            }
+            if (badTransfers > 0)
+            {
+                m_logger.FailedToTransferCountMonitoredItems(badTransfers);
+            }
+
+            return new PreparedSessionTransfer(
+                this,
+                sourceSession,
+                context.Session,
+                monitoredItemTransaction,
+                sourceContext);
+        }
+
+        /// <summary>
+        /// Releases the transfer reservation after the destination session is already the owner.
+        /// </summary>
+        /// <param name="destinationSession">The session that must currently own the subscription.</param>
+        /// <exception cref="ServiceResultException">Ownership changed before transfer completion.</exception>
+        internal void CompleteTransfer(ISession destinationSession)
+        {
+            lock (m_lock)
+            {
+                if (!m_transferInProgress ||
+                    !ReferenceEquals(Session, destinationSession))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadSubscriptionIdInvalid,
+                        "Subscription ownership changed while completing transfer.");
+                }
+                m_transferInProgress = false;
+            }
+        }
+
+        /// <summary>
+        /// Releases a transfer reservation without changing ownership when preparation cannot continue.
+        /// </summary>
+        /// <param name="sourceSession">The source session that still owns the subscription.</param>
+        internal void AbortTransfer(ISession? sourceSession)
+        {
+            lock (m_lock)
+            {
+                if (m_transferInProgress &&
+                    ReferenceEquals(Session, sourceSession))
+                {
+                    m_transferInProgress = false;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Represents a prepared subscription transfer whose ownership and monitored item effects can
+        /// still be committed or rolled back.
+        /// </summary>
+        internal sealed class PreparedSessionTransfer
+        {
+            /// <summary>
+            /// Initializes a prepared transfer with the source context and monitored item transaction to dispose.
+            /// </summary>
+            /// <param name="subscription">The subscription being transferred.</param>
+            /// <param name="sourceSession">The session that owned the subscription when preparation started.</param>
+            /// <param name="destinationSession">The session that will own the subscription after commit.</param>
+            /// <param name="monitoredItemTransaction">The prepared monitored item transfer, if one was needed.</param>
+            /// <param name="sourceContext">The source operation context created for monitored item callbacks.</param>
+            public PreparedSessionTransfer(
+                Subscription subscription,
+                ISession? sourceSession,
+                ISession destinationSession,
+                IMonitoredItemTransferTransaction? monitoredItemTransaction,
+                OperationContext? sourceContext)
+            {
+                m_subscription = subscription;
+                m_sourceSession = sourceSession;
+                m_destinationSession = destinationSession;
+                m_monitoredItemTransaction = monitoredItemTransaction;
+                m_sourceContext = sourceContext;
+            }
+
+            /// <summary>
+            /// Moves subscription ownership and diagnostics to the destination session.
+            /// </summary>
+            /// <exception cref="ServiceResultException">
+            /// The subscription is no longer owned by the source session.
+            /// </exception>
+            public void CommitOwnership()
+            {
+                lock (m_subscription.m_lock)
+                {
+                    if (!m_subscription.m_transferInProgress ||
+                        !ReferenceEquals(m_subscription.Session, m_sourceSession))
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadSubscriptionIdInvalid,
+                            "Subscription ownership changed during transfer.");
+                    }
+                    m_subscription.Session = m_destinationSession;
+                }
+
+                lock (m_subscription.DiagnosticsWriteLock)
+                {
+                    m_subscription.Diagnostics.SessionId = m_destinationSession.Id;
+                }
+            }
+
+            /// <summary>
+            /// Makes the prepared monitored item transfer effects visible after ownership commits.
+            /// </summary>
+            public void CommitMonitoredItemEffects()
+            {
+                m_monitoredItemTransaction?.Commit();
+            }
+
+            /// <summary>
+            /// Restores source ownership and monitored item state when a later transfer step fails.
+            /// </summary>
+            /// <param name="cancellationToken">The token that aborts monitored item rollback.</param>
+            /// <returns>A task that completes when rollback has finished.</returns>
+            /// <exception cref="AggregateException">One or more rollback steps failed.</exception>
+            public async ValueTask RollbackAsync(CancellationToken cancellationToken)
+            {
+                var rollbackErrors = new List<Exception>();
+                try
+                {
+                    try
+                    {
+                        lock (m_subscription.m_lock)
+                        {
+                            if (ReferenceEquals(m_subscription.Session, m_destinationSession))
+                            {
+                                m_subscription.Session = m_sourceSession!;
+                            }
+                            else if (!ReferenceEquals(m_subscription.Session, m_sourceSession))
+                            {
+                                throw new ServiceResultException(
+                                    StatusCodes.BadSubscriptionIdInvalid,
+                                    "Subscription ownership changed while rolling back transfer.");
+                            }
+                        }
+
+                        lock (m_subscription.DiagnosticsWriteLock)
+                        {
+                            m_subscription.Diagnostics.SessionId = m_sourceSession?.Id ?? default;
+                        }
+                    }
+                    catch (Exception error)
+                    {
+                        rollbackErrors.Add(error);
+                    }
+
+                    if (m_monitoredItemTransaction != null)
+                    {
+                        try
+                        {
+                            await m_monitoredItemTransaction.RollbackAsync(cancellationToken)
+                                .ConfigureAwait(false);
+                        }
+                        catch (Exception error)
+                        {
+                            rollbackErrors.Add(error);
+                        }
+                    }
+                }
+                finally
+                {
+                    DisposeSourceContext();
+                }
+
+                if (rollbackErrors.Count > 0)
+                {
+                    throw new AggregateException(
+                        "The subscription transfer could not be fully rolled back.",
+                        rollbackErrors);
+                }
+            }
+
+            /// <summary>
+            /// Releases the source operation context after a successful transfer.
+            /// </summary>
+            public void Complete()
+            {
+                DisposeSourceContext();
+            }
+
+            private void DisposeSourceContext()
+            {
+                Interlocked.Exchange(ref m_sourceContext, null)?.Dispose();
+            }
+
+            private readonly Subscription m_subscription;
+            private readonly ISession? m_sourceSession;
+            private readonly ISession m_destinationSession;
+            private readonly IMonitoredItemTransferTransaction? m_monitoredItemTransaction;
+            private OperationContext? m_sourceContext;
+        }
+
+        private sealed class ResendStateTransferTransaction :
+            IMonitoredItemTransferTransaction
+        {
+            /// <summary>
+            /// Captures resend-data state so the legacy transfer path can be rolled back.
+            /// </summary>
+            /// <param name="monitoredItems">The monitored items whose resend state is captured.</param>
+            public ResendStateTransferTransaction(IList<IMonitoredItem> monitoredItems)
+            {
+                m_monitoredItems = monitoredItems;
+                m_resendStates = new bool[monitoredItems.Count];
+                for (int ii = 0; ii < monitoredItems.Count; ii++)
+                {
+                    m_resendStates[ii] = monitoredItems[ii]?.IsResendData ?? false;
+                }
+            }
+
+            /// <summary>
+            /// Completes the legacy transfer transaction; no deferred work is required.
+            /// </summary>
+            public void Commit()
+            {
+            }
+
+            /// <summary>
+            /// Restores each monitored item's resend-data trigger to the captured value.
+            /// </summary>
+            /// <param name="cancellationToken">Unused token; rollback is synchronous and idempotent.</param>
+            /// <returns>A completed task.</returns>
+            public ValueTask RollbackAsync(CancellationToken cancellationToken)
+            {
+                if (Interlocked.Exchange(ref m_rolledBack, 1) != 0)
+                {
+                    return default;
+                }
+
+                for (int ii = 0; ii < m_monitoredItems.Count; ii++)
+                {
+                    if (m_monitoredItems[ii] is IMonitoredItemTransferState transferState)
+                    {
+                        transferState.RestoreResendDataTrigger(m_resendStates[ii]);
+                    }
+                }
+                return default;
+            }
+
+            private readonly IList<IMonitoredItem> m_monitoredItems;
+            private readonly bool[] m_resendStates;
+            private int m_rolledBack;
+
         }
 
         /// <summary>
@@ -2937,6 +3327,13 @@ namespace Opc.Ua.Server
                 throw new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid);
             }
 
+            if (m_transferInProgress)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSubscriptionIdInvalid,
+                    "Subscription transfer is in progress.");
+            }
+
             if (!ReferenceEquals(context.Session, Session))
             {
                 throw new ServiceResultException(
@@ -3075,6 +3472,7 @@ namespace Opc.Ua.Server
         private readonly NodeId m_diagnosticsId;
         private bool m_refreshInProgress;
         private bool m_expired;
+        private bool m_transferInProgress;
         private readonly Dictionary<uint, List<ITriggeredMonitoredItem>> m_itemsToTrigger;
         private readonly bool m_supportsDurable;
         private readonly ILogger m_logger;
@@ -3085,18 +3483,30 @@ namespace Opc.Ua.Server
     /// </summary>
     internal static partial class SubscriptionLog
     {
+        /// <summary>
+        /// Logs that deleting monitored items for a subscription failed.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.Subscription + 0, Level = LogLevel.Error,
             Message = "Delete items for subscription failed.")]
         public static partial void DeleteItemsForSubscriptionFailed(this ILogger logger, Exception ex);
 
+        /// <summary>
+        /// Logs the number of monitored items that could not be transferred.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.Subscription + 1, Level = LogLevel.Trace,
             Message = "Failed to transfer {Count} Monitored Items")]
         public static partial void FailedToTransferCountMonitoredItems(this ILogger logger, int count);
 
+        /// <summary>
+        /// Logs an invariant violation where monitored items were queued without available notifications.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.Subscription + 2, Level = LogLevel.Error,
             Message = "Oops! MonitoredItems queued but no notifications available.")]
         public static partial void OopsMonitoredItemsQueuedButNoNotificationsAvailable(this ILogger logger);
 
+        /// <summary>
+        /// Logs that durable subscription setup was requested without a durable monitored item queue factory.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.Subscription + 3, Level = LogLevel.Error,
             Message = "SetSubscriptionDurable requested for subscription with id {SubscriptionId}, but no " +
                 "IMonitoredItemQueueFactory that supports durable queues was registered")]

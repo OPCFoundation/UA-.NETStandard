@@ -63,6 +63,7 @@ namespace Opc.Ua.Server
             m_session = session ?? throw new ArgumentNullException(nameof(session));
             m_queuedRequests = new LinkedList<QueuedPublishRequest>();
             m_queuedSubscriptions = new ConcurrentDictionary<uint, QueuedSubscription>();
+            m_transferClaims = [];
             m_maxRequestCount = maxPublishRequests;
             m_timeProvider = timeProvider
                 ?? (server as ITimeProviderProvider)?.TimeProvider
@@ -104,6 +105,7 @@ namespace Opc.Ua.Server
                     }
 
                     m_queuedSubscriptions.Clear();
+                    m_transferClaims.Clear();
                 }
             }
         }
@@ -193,6 +195,7 @@ namespace Opc.Ua.Server
 
                 // clear the queue.
                 m_queuedSubscriptions.Clear();
+                m_transferClaims.Clear();
             }
 
             foreach (ISubscription subscription in queuedSubscriptions)
@@ -257,19 +260,93 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Removes the exact subscription entry so a transfer can claim it.
+        /// Claims and removes the exact subscription entry before transfer callbacks run.
         /// </summary>
+        internal bool TryClaimForTransfer(
+            Subscription subscription,
+            ISession sourceSession,
+            out SubscriptionTransferClaim? claim)
+        {
+            lock (m_lock)
+            {
+                claim = null;
+                if (!m_queuedSubscriptions.TryGetValue(
+                        subscription.Id,
+                        out QueuedSubscription? queuedSubscription) ||
+                    !ReferenceEquals(queuedSubscription.Subscription, subscription) ||
+                    m_transferClaims.ContainsKey(subscription.Id))
+                {
+                    return false;
+                }
+
+                if (!subscription.TryBeginTransfer(sourceSession))
+                {
+                    return false;
+                }
+                if (!TryRemoveExact(queuedSubscription))
+                {
+                    subscription.AbortTransfer(sourceSession);
+                    return false;
+                }
+
+                claim = new SubscriptionTransferClaim(queuedSubscription);
+                m_transferClaims.Add(subscription.Id, claim);
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Restores a previously claimed subscription entry when transfer preparation fails before ownership changes.
+        /// </summary>
+        /// <param name="claim">The queue entry claim to return to active publishing.</param>
+        /// <returns><c>true</c> when the claim was current and the entry was restored.</returns>
+        internal bool RestoreTransferClaim(SubscriptionTransferClaim claim)
+        {
+            lock (m_lock)
+            {
+                uint subscriptionId = claim.Entry.Subscription.Id;
+                if (!m_transferClaims.TryGetValue(
+                        subscriptionId,
+                        out SubscriptionTransferClaim? currentClaim) ||
+                    !ReferenceEquals(currentClaim, claim))
+                {
+                    return false;
+                }
+
+                m_transferClaims.Remove(subscriptionId);
+                return m_queuedSubscriptions.TryAdd(subscriptionId, claim.Entry);
+            }
+        }
+
+        /// <summary>
+        /// Removes a transfer claim after the destination session has accepted the subscription.
+        /// </summary>
+        /// <param name="claim">The queue entry claim that completed.</param>
+        internal void CompleteTransferClaim(SubscriptionTransferClaim claim)
+        {
+            lock (m_lock)
+            {
+                uint subscriptionId = claim.Entry.Subscription.Id;
+                if (m_transferClaims.TryGetValue(
+                        subscriptionId,
+                        out SubscriptionTransferClaim? currentClaim) &&
+                    ReferenceEquals(currentClaim, claim))
+                {
+                    m_transferClaims.Remove(subscriptionId);
+                }
+            }
+        }
+
         internal bool TryRemoveForTransfer(ISubscription subscription)
         {
-            if (!m_queuedSubscriptions.TryGetValue(
-                    subscription.Id,
-                    out QueuedSubscription? queuedSubscription) ||
-                !ReferenceEquals(queuedSubscription.Subscription, subscription))
+            lock (m_lock)
             {
-                return false;
+                return m_queuedSubscriptions.TryGetValue(
+                        subscription.Id,
+                        out QueuedSubscription? queuedSubscription) &&
+                    ReferenceEquals(queuedSubscription.Subscription, subscription) &&
+                    TryRemoveExact(queuedSubscription);
             }
-
-            return TryRemoveExact(queuedSubscription);
         }
 
         /// <summary>
@@ -380,12 +457,11 @@ namespace Opc.Ua.Server
 
                         if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                         {
-                            DiagnosticInfo? diagnosticInfo = ServerUtils
-                                .CreateDiagnosticInfo(
-                                    m_server,
-                                    context,
-                                    result,
-                                    m_logger);
+                            DiagnosticInfo? diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
+                                m_server,
+                                context,
+                                result,
+                                m_logger);
                             acknowledgeDiagnosticInfoList.Add(diagnosticInfo!);
                             diagnosticsExist = true;
                         }
@@ -422,10 +498,23 @@ namespace Opc.Ua.Server
         /// </summary>
         public void PublishCompleted(ISubscription subscription, bool moreNotifications)
         {
-            if (m_queuedSubscriptions.TryGetValue(subscription.Id,
-                out QueuedSubscription? queuedSubscription))
+            if (!m_queuedSubscriptions.TryGetValue(
+                    subscription.Id,
+                    out QueuedSubscription? queuedSubscription))
             {
                 lock (m_lock)
+                {
+                    PublishCompletedTransferClaimNoLock(subscription, moreNotifications);
+                }
+                return;
+            }
+
+            lock (m_lock)
+            {
+                if (m_queuedSubscriptions.TryGetValue(
+                        subscription.Id,
+                        out QueuedSubscription? currentSubscription) &&
+                    ReferenceEquals(currentSubscription, queuedSubscription))
                 {
                     // Flag the subscription as available and let the selection policy decide
                     // which of the available subscriptions is handed to a waiting request.
@@ -437,7 +526,10 @@ namespace Opc.Ua.Server
                     {
                         AssignSubscriptionsToRequests();
                     }
+                    return;
                 }
+
+                PublishCompletedTransferClaimNoLock(subscription, moreNotifications);
             }
         }
 
@@ -446,13 +538,30 @@ namespace Opc.Ua.Server
         /// </summary>
         public void Requeue(ISubscription subscription)
         {
-            if (m_queuedSubscriptions.TryGetValue(subscription.Id, out QueuedSubscription? queuedSubscription))
+            if (!m_queuedSubscriptions.TryGetValue(
+                    subscription.Id,
+                    out QueuedSubscription? queuedSubscription))
             {
                 lock (m_lock)
                 {
+                    RequeueTransferClaimNoLock(subscription);
+                }
+                return;
+            }
+
+            lock (m_lock)
+            {
+                if (m_queuedSubscriptions.TryGetValue(
+                        subscription.Id,
+                        out QueuedSubscription? currentSubscription) &&
+                    ReferenceEquals(currentSubscription, queuedSubscription))
+                {
                     queuedSubscription.Publishing = false;
                     queuedSubscription.ReadyToPublish = true;
+                    return;
                 }
+
+                RequeueTransferClaimNoLock(subscription);
             }
         }
 
@@ -489,6 +598,11 @@ namespace Opc.Ua.Server
             for (int ii = 0; ii < queuedSubscriptions.Count; ii++)
             {
                 QueuedSubscription subscription = queuedSubscriptions[ii];
+                if (!IsCurrentSubscription(subscription))
+                {
+                    continue;
+                }
+
                 PublishingState state = subscription.Subscription.PublishTimerExpired();
 
                 // check for expired subscription.
@@ -511,7 +625,13 @@ namespace Opc.Ua.Server
                 // check if idle.
                 if (state == PublishingState.Idle)
                 {
-                    subscription.ReadyToPublish = false;
+                    lock (m_lock)
+                    {
+                        if (IsCurrentSubscriptionNoLock(subscription))
+                        {
+                            subscription.ReadyToPublish = false;
+                        }
+                    }
                     continue;
                 }
 
@@ -539,7 +659,9 @@ namespace Opc.Ua.Server
                     // selection policy applied by PublishAsync.
                     foreach (QueuedSubscription subscription in notifyingSubscriptions)
                     {
-                        if (subscription.Publishing || subscription.ReadyToPublish)
+                        if (!IsCurrentSubscriptionNoLock(subscription) ||
+                            subscription.Publishing ||
+                            subscription.ReadyToPublish)
                         {
                             continue;
                         }
@@ -561,7 +683,49 @@ namespace Opc.Ua.Server
         /// </summary>
         internal bool TryRemoveForExpiration(QueuedSubscription queuedSubscription)
         {
-            return TryRemoveExact(queuedSubscription);
+            lock (m_lock)
+            {
+                return TryRemoveExact(queuedSubscription);
+            }
+        }
+
+        private bool IsCurrentSubscription(QueuedSubscription queuedSubscription)
+        {
+            return IsCurrentSubscriptionNoLock(queuedSubscription);
+        }
+
+        private void PublishCompletedTransferClaimNoLock(
+            ISubscription subscription,
+            bool moreNotifications)
+        {
+            if (m_transferClaims.TryGetValue(
+                    subscription.Id,
+                    out SubscriptionTransferClaim? transferClaim) &&
+                ReferenceEquals(transferClaim.Entry.Subscription, subscription))
+            {
+                transferClaim.Entry.Publishing = false;
+                transferClaim.Entry.ReadyToPublish = moreNotifications;
+            }
+        }
+
+        private void RequeueTransferClaimNoLock(ISubscription subscription)
+        {
+            if (m_transferClaims.TryGetValue(
+                    subscription.Id,
+                    out SubscriptionTransferClaim? transferClaim) &&
+                ReferenceEquals(transferClaim.Entry.Subscription, subscription))
+            {
+                transferClaim.Entry.Publishing = false;
+                transferClaim.Entry.ReadyToPublish = true;
+            }
+        }
+
+        private bool IsCurrentSubscriptionNoLock(QueuedSubscription queuedSubscription)
+        {
+            return m_queuedSubscriptions.TryGetValue(
+                    queuedSubscription.Subscription.Id,
+                    out QueuedSubscription? currentSubscription) &&
+                ReferenceEquals(currentSubscription, queuedSubscription);
         }
 
         private bool TryRemoveExact(QueuedSubscription queuedSubscription)
@@ -744,6 +908,10 @@ namespace Opc.Ua.Server
         /// </summary>
         internal sealed class QueuedSubscription
         {
+            /// <summary>
+            /// Initializes the queue entry for a subscription owned by this session.
+            /// </summary>
+            /// <param name="subscription">The subscription tracked by the publish queue.</param>
             public QueuedSubscription(ISubscription subscription)
             {
                 Subscription = subscription;
@@ -751,10 +919,45 @@ namespace Opc.Ua.Server
                 Timestamp = DateTime.UtcNow;
             }
 
+            /// <summary>
+            /// Gets the subscription associated with the queue entry.
+            /// </summary>
             public ISubscription Subscription { get; }
+
+            /// <summary>
+            /// Gets or sets the UTC timestamp used for publish scheduling and timeout decisions.
+            /// </summary>
             public DateTime Timestamp { get; set; }
+
+            /// <summary>
+            /// Gets or sets whether the subscription has notifications ready for a publish response.
+            /// </summary>
             public bool ReadyToPublish { get; set; }
+
+            /// <summary>
+            /// Gets or sets whether the queue entry is currently assigned to an outstanding publish request.
+            /// </summary>
             public bool Publishing { get; set; }
+        }
+
+        /// <summary>
+        /// Holds the exact queue entry removed while a subscription is being transferred to another session.
+        /// </summary>
+        internal sealed class SubscriptionTransferClaim
+        {
+            /// <summary>
+            /// Initializes a transfer claim for the removed queue entry.
+            /// </summary>
+            /// <param name="entry">The queue entry held outside active publishing during transfer.</param>
+            public SubscriptionTransferClaim(QueuedSubscription entry)
+            {
+                Entry = entry;
+            }
+
+            /// <summary>
+            /// Gets the queue entry that must be restored or completed exactly once.
+            /// </summary>
+            public QueuedSubscription Entry { get; }
         }
 
         /// <summary>
@@ -821,6 +1024,7 @@ namespace Opc.Ua.Server
         private readonly ISession m_session;
         private readonly LinkedList<QueuedPublishRequest> m_queuedRequests;
         private readonly ConcurrentDictionary<uint, QueuedSubscription> m_queuedSubscriptions;
+        private readonly Dictionary<uint, SubscriptionTransferClaim> m_transferClaims;
         private readonly int m_maxRequestCount;
         private readonly TimeProvider m_timeProvider;
     }
@@ -830,10 +1034,16 @@ namespace Opc.Ua.Server
     /// </summary>
     internal static partial class SessionPublishQueueLog
     {
+        /// <summary>
+        /// Logs that a publish request was abandoned because its secure channel no longer matches the queued request.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.SessionPublishQueue + 0, Level = LogLevel.Warning,
             Message = "Publish abandoned because the secure channel changed.")]
         public static partial void PublishAbandonedBecauseTheSecureChannelChanged(this ILogger logger);
 
+        /// <summary>
+        /// Logs the trace-level assignment of a queued publish request to a subscription.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.SessionPublishQueue + 1, Level = LogLevel.Trace,
             Message = "PUBLISH: #{Id} Assigned To Subscription({SubscriptionId}).")]
         public static partial void PUBLISHIdAssignedToSubscriptionSubscriptionId(
@@ -841,6 +1051,9 @@ namespace Opc.Ua.Server
             string id,
             uint subscriptionId);
 
+        /// <summary>
+        /// Logs a trace-level snapshot of the publish queue counters for diagnostics.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.SessionPublishQueue + 2, Level = LogLevel.Trace,
             Message = "PublishQueue {Context}, SessionId={SessionId}, SubscriptionCount={SubscriptionCount}, " +
                 "RequestCount={RequestCount}, ReadyToPublishCount={ReadyToPublishCount}, " +

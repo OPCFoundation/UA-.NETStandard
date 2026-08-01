@@ -35,7 +35,7 @@ namespace Opc.Ua
     /// <summary>
     /// Default file system implementation that uses System.IO
     /// </summary>
-    public class LocalFileSystem : IFileSystem, IAtomicFileReplace
+    public class LocalFileSystem : IFileSystem
     {
         /// <summary>
         /// Get singleton instance
