@@ -31,11 +31,13 @@ permissions:
 # switch - the other half is the ciBuildBackend parameter in
 # azure-pipelines.yml.  BOTH MUST BE FLIPPED TOGETHER.
 #
-#   ado     - (default) Azure Pipelines owns the work on master/main: the jobs
-#             below stand down there and run only on the branches Azure
-#             Pipelines does not cover (master378, develop/*).
-#   actions - restores the previous behaviour: every job below runs here on
-#             GitHub-hosted runners for every triggering branch.
+#   ado     - Azure Pipelines owns the work on master/main: the jobs below stand
+#             down there and run only on the branches Azure Pipelines does not
+#             cover (master378, develop/*).
+#   actions - (default) the work is split with Azure Pipelines: every job below
+#             runs here on GitHub-hosted runners for every triggering branch,
+#             while Azure Pipelines keeps the fast PR test legs and the coverage
+#             gate.
 #
 # The macOS legs are deliberately exempt from this switch: Managed DevOps Pools
 # provide no macOS image, so macOS coverage has to stay on GitHub-hosted
@@ -45,7 +47,7 @@ permissions:
 # conditions, so the switch is resolved once in the `discover` job below and
 # re-exported as job outputs.
 env:
-  CI_BUILD_BACKEND: ado
+  CI_BUILD_BACKEND: actions
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}

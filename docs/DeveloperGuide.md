@@ -259,8 +259,8 @@ From **2.0** onward, package versions are produced by [Nerdbank.GitVersioning](h
 
 Two CI systems run against this repository:
 
-- **Azure Pipelines** ([`azure-pipelines.yml`](../azure-pipelines.yml) plus the templates in [`.azurepipelines/`](../.azurepipelines)) — the all-target-framework solution build, the cross-platform test matrices, Native AoT and the coverage gate.
-- **GitHub Actions** ([`.github/workflows/`](../.github/workflows)) — CodeQL, container images, the opt-in stress and stability suites, and the macOS legs of the build/test matrix.
+- **Azure Pipelines** ([`azure-pipelines.yml`](../azure-pipelines.yml) plus the templates in [`.azurepipelines/`](../.azurepipelines)) — the fast pull-request test legs, the per-framework test matrices and the coverage gate, on the `netstandard` Managed DevOps Pool and Microsoft-hosted agents.
+- **GitHub Actions** ([`.github/workflows/`](../.github/workflows)) — the all-target-framework solution builds, the ubuntu test matrix, Native AoT, CodeQL, container images, the opt-in stress and stability suites, and the macOS legs of the build/test matrix.
 
 ### Which system runs what
 
@@ -268,15 +268,16 @@ A single conceptual switch decides who owns the all-TFM build, the cross-platfor
 
 | File | Setting | Default |
 | --- | --- | --- |
-| [`azure-pipelines.yml`](../azure-pipelines.yml) | `parameters.ciBuildBackend` | `ado` |
-| [`.github/workflows/buildandtest.yml`](../.github/workflows/buildandtest.yml) | `env.CI_BUILD_BACKEND` | `ado` |
+| [`azure-pipelines.yml`](../azure-pipelines.yml) | `parameters.ciBuildBackend` | `actions` |
+| [`.github/workflows/buildandtest.yml`](../.github/workflows/buildandtest.yml) | `env.CI_BUILD_BACKEND` | `actions` |
 
-With the default `ado`, Azure Pipelines runs that work on the `netstandard` Managed DevOps Pool and the equivalent GitHub Actions jobs stand down on `master`/`main`. Setting both to `actions` restores the previous split, where GitHub Actions ran the ubuntu test matrix, Native AoT and the all-TFM builds.
+With the default `actions` the load is split across both systems: GitHub Actions runs the all-TFM builds, the ubuntu test matrix and Native AoT, while Azure Pipelines runs the fast pull-request test legs on the managed pool and hosts the coverage gate. Setting both to `ado` moves that work onto the Managed DevOps Pool as well, and the equivalent GitHub Actions jobs stand down on `master`/`main`.
 
-Two things are deliberately *not* covered by the switch:
+Three things are deliberately *not* covered by the switch:
 
 - **macOS** always runs on GitHub-hosted runners, because Managed DevOps Pools provide no macOS image.
 - **`master378` and `develop/*`** keep running the GitHub Actions jobs regardless of the setting, since Azure Pipelines only builds `master`/`main` from this file.
+- **The coverage gate** always runs in the Azure Pipelines `Fast PR test` stage, because it is the required status check (see [Coverage gates](#coverage-gates)).
 
 ### Test tiers
 
