@@ -12,6 +12,9 @@
     <Project Path="samples/MinimalCalcServer/MinimalCalcServer.csproj" />
     <Project Path="samples/MinimalClient/MinimalClient.csproj" />
     <Project Path="samples/PumpDeviceIntegrationServer/PumpDeviceIntegrationServer.csproj" />
+    <Project Path="samples/WotCon/AggregationClient/AggregationClient.csproj" />
+    <Project Path="samples/WotCon/AggregationServer/AggregationServer.csproj" />
+    <Project Path="samples/WotCon/FlatTagServer/FlatTagServer.csproj" />
     <Project Path="samples/Quickstarts.Servers/Quickstarts.Servers.csproj" />
     <Project Path="samples/RedundantClient/RedundantClient.csproj" />
   </Folder>
@@ -265,6 +268,7 @@
     <Project Path="tests/Opc.Ua.Types.Tests/Opc.Ua.Types.Tests.csproj" />
     <Project Path="tests/Opc.Ua.WotCon.Tests/Opc.Ua.WotCon.Tests.csproj" />
     <Project Path="tests/Opc.Ua.WotCon.Bindings.Tests/Opc.Ua.WotCon.Bindings.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.WotCon.Samples.Tests/Opc.Ua.WotCon.Samples.Tests.csproj" />
   </Folder>
   <Folder Name="/tests/TestFramework/">
     <Project Path="tests/Opc.Ua.Test.Common/Opc.Ua.Test.Common.csproj" />
