@@ -1530,6 +1530,14 @@ namespace Opc.Ua
                         return ExpandedNodeId.ToNodeId(encodeable!.TypeId, namespaceUris);
                     }
 
+                    var extensionTypeId = ExpandedNodeId.ToNodeId(
+                        extension.TypeId,
+                        namespaceUris);
+                    if (typeTree.IsKnown(extensionTypeId))
+                    {
+                        return extensionTypeId;
+                    }
+
                     return typeTree.FindDataTypeId(extension.TypeId);
                 }
 
