@@ -375,6 +375,68 @@ namespace Opc.Ua.SourceGeneration
         }
 
         [Test]
+        public void VendorRoboticsSubtypeExtensionCompilesAgainstReferencedModelAndAccessorProvider()
+        {
+            CSharpCompilation roboticsModel = CreateGeneratedRoboticsModelProducer();
+            CSharpCompilation roboticsAccessorProvider =
+                CreateGeneratedRoboticsAccessorProvider(roboticsModel);
+
+            CSharpCompilation vendorBase = CreateStackCompilation("VendorRobotics")
+                .AddReferences(
+                    s_diProducer.Value.ToMetadataReference(),
+                    roboticsModel.ToMetadataReference(),
+                    roboticsAccessorProvider.ToMetadataReference());
+
+            (GeneratorRunResult result, Compilation outputCompilation,
+                ImmutableArray<Diagnostic> diagnostics) = RunVendorRoboticsGenerator(vendorBase);
+
+            ImmutableArray<Diagnostic> outputDiagnostics = outputCompilation.GetDiagnostics();
+            string generated = string.Join(
+                Environment.NewLine,
+                result.GeneratedSources.Select(source => source.SourceText.ToString()));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    diagnostics.Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error),
+                    Is.Empty,
+                    string.Join(Environment.NewLine, diagnostics));
+                Assert.That(
+                    outputDiagnostics.Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error),
+                    Is.Empty,
+                    string.Join(Environment.NewLine, outputDiagnostics));
+                Assert.That(
+                    generated,
+                    Does.Match(
+                        @"public\s+partial\s+class\s+VendorMotionDeviceState\s*:\s*" +
+                        @"global::Opc\.Ua\.Robotics\.MotionDeviceState"));
+                Assert.That(
+                    generated,
+                    Does.Match(
+                        @"public\s+partial\s+class\s+VendorAxisState\s*:\s*" +
+                        @"global::Opc\.Ua\.Robotics\.AxisState"));
+                Assert.That(generated, Does.Contain("namespace Vendor.Robotics"));
+                Assert.That(generated, Does.Contain("public static partial class ObjectTypeIds"));
+                Assert.That(generated, Does.Contain("VendorMotionDeviceType"));
+                Assert.That(generated, Does.Contain("VendorAxisType"));
+                Assert.That(
+                    generated,
+                    Does.Match(@"public\s+static\s+partial\s+class\s+VendorMotionDeviceStateComponents\b"));
+                Assert.That(
+                    generated,
+                    Does.Match(@"public\s+static\s+partial\s+class\s+VendorAxisStateComponents\b"));
+                Assert.That(generated, Does.Not.Match(@"public\s+partial\s+class\s+MotionDeviceState\b"));
+                Assert.That(generated, Does.Not.Match(@"public\s+partial\s+class\s+AxisState\b"));
+                Assert.That(
+                    generated,
+                    Does.Not.Match(@"public\s+static\s+partial\s+class\s+MotionDeviceStateComponents\b"));
+                Assert.That(
+                    generated,
+                    Does.Not.Match(@"public\s+static\s+partial\s+class\s+AxisStateComponents\b"));
+            });
+        }
+
+        [Test]
         public void PayloadlessTransitiveReexportDoesNotWinOrRejectSelfProducer()
         {
             CSharpCompilation reexport = CreateModelMetadataAssembly(
@@ -564,31 +626,6 @@ namespace Opc.Ua.SourceGeneration
             });
         }
 
-        private static CSharpCompilation GenerateModelCompilation(
-            string assemblyName,
-            string nodeSetResource,
-            string prefix)
-        {
-            CSharpCompilation compilation = CreateStackCompilation(assemblyName);
-            (GeneratorRunResult _, Compilation output, ImmutableArray<Diagnostic> diagnostics) =
-                RunModelGenerator(compilation, nodeSetResource, prefix);
-            ImmutableArray<Diagnostic> outputDiagnostics = output.GetDiagnostics();
-            Assert.Multiple(() =>
-            {
-                Assert.That(
-                    diagnostics.Where(diagnostic =>
-                        diagnostic.Severity == DiagnosticSeverity.Error),
-                    Is.Empty,
-                    string.Join(Environment.NewLine, diagnostics));
-                Assert.That(
-                    outputDiagnostics.Where(diagnostic =>
-                        diagnostic.Severity == DiagnosticSeverity.Error),
-                    Is.Empty,
-                    string.Join(Environment.NewLine, outputDiagnostics));
-            });
-            return (CSharpCompilation)output;
-        }
-
         private static (GeneratorRunResult Result, Compilation OutputCompilation,
             ImmutableArray<Diagnostic> Diagnostics) RunFluentAccessorsOnly(
                 CSharpCompilation producer,
@@ -662,6 +699,63 @@ namespace Opc.Ua.SourceGeneration
         }
 
         private static (GeneratorRunResult Result, Compilation OutputCompilation,
+            ImmutableArray<Diagnostic> Diagnostics) RunVendorRoboticsGenerator(
+                CSharpCompilation compilation)
+        {
+            var options = new AnalyzerOptionsProvider(
+                new Dictionary<string, string>
+                {
+                    ["build_property.ModelSourceGeneratorVersion"] = "v105",
+                    ["build_property.ModelSourceGeneratorStartId"] = "9000",
+                    ["build_property.ModelSourceGeneratorUseAllowSubtypes"] = "true"
+                });
+            options.TextOptions["VendorRobotics.NodeSet2.xml"] = new Dictionary<string, string>
+            {
+                ["build_metadata.AdditionalFiles.ModelSourceGeneratorPrefix"] = "Vendor.Robotics"
+            };
+
+            var generator = new ModelSourceGenerator();
+            GeneratorDriver driver = CSharpGeneratorDriver.Create(generator)
+                .WithUpdatedParseOptions(new CSharpParseOptions()
+                    .WithKind(SourceCodeKind.Regular)
+                    .WithLanguageVersion(LanguageVersion.CSharp11))
+                .AddAdditionalTexts([EmbeddedText.From("VendorRobotics.NodeSet2.xml")])
+                .WithUpdatedAnalyzerConfigOptions(options);
+
+            driver = driver.RunGeneratorsAndUpdateCompilation(
+                compilation,
+                out Compilation outputCompilation,
+                out ImmutableArray<Diagnostic> diagnostics);
+
+            return (driver.GetRunResult().Results[0], outputCompilation, diagnostics);
+        }
+
+        private static CSharpCompilation GenerateModelCompilation(
+            string assemblyName,
+            string nodeSetResource,
+            string prefix)
+        {
+            CSharpCompilation compilation = CreateStackCompilation(assemblyName);
+            (GeneratorRunResult _, Compilation output, ImmutableArray<Diagnostic> diagnostics) =
+                RunModelGenerator(compilation, nodeSetResource, prefix);
+            ImmutableArray<Diagnostic> outputDiagnostics = output.GetDiagnostics();
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    diagnostics.Where(diagnostic =>
+                        diagnostic.Severity == DiagnosticSeverity.Error),
+                    Is.Empty,
+                    string.Join(Environment.NewLine, diagnostics));
+                Assert.That(
+                    outputDiagnostics.Where(diagnostic =>
+                        diagnostic.Severity == DiagnosticSeverity.Error),
+                    Is.Empty,
+                    string.Join(Environment.NewLine, outputDiagnostics));
+            });
+            return (CSharpCompilation)output;
+        }
+
+        private static (GeneratorRunResult Result, Compilation OutputCompilation,
             ImmutableArray<Diagnostic> Diagnostics) RunModelGenerator(
                 CSharpCompilation compilation,
                 string nodeSetResource,
@@ -693,6 +787,131 @@ namespace Opc.Ua.SourceGeneration
             return (driver.GetRunResult().Results[0], outputCompilation, diagnostics);
         }
 
+        private static CSharpCompilation CreateGeneratedRoboticsModelProducer()
+        {
+            CSharpCompilation compilation = CreateStackCompilation("RoboticsProducer")
+                .AddReferences(s_diProducer.Value.ToMetadataReference());
+            compilation = compilation.WithOptions(
+                compilation.Options.WithSpecificDiagnosticOptions(
+                    new Dictionary<string, ReportDiagnostic>
+                    {
+                        ["CS0108"] = ReportDiagnostic.Suppress
+                    }));
+            var options = new AnalyzerOptionsProvider(
+                new Dictionary<string, string>
+                {
+                    ["build_property.ModelSourceGeneratorVersion"] = "v105",
+                    ["build_property.ModelSourceGeneratorStartId"] = "2000",
+                    ["build_property.ModelSourceGeneratorUseAllowSubtypes"] = "true",
+                    ["build_property.ModelSourceGeneratorOmitFluentApi"] = "true"
+                });
+            options.TextOptions["Opc.Ua.IA.NodeSet2.xml"] = new Dictionary<string, string>
+            {
+                ["build_metadata.AdditionalFiles.ModelSourceGeneratorPrefix"] = "Opc.Ua.IA"
+            };
+            options.TextOptions["Opc.Ua.Robotics.NodeSet2.xml"] = new Dictionary<string, string>
+            {
+                ["build_metadata.AdditionalFiles.ModelSourceGeneratorPrefix"] = "Opc.Ua.Robotics"
+            };
+
+            var generator = new ModelSourceGenerator();
+            GeneratorDriver driver = CSharpGeneratorDriver.Create(generator)
+                .WithUpdatedParseOptions(new CSharpParseOptions()
+                    .WithKind(SourceCodeKind.Regular)
+                    .WithLanguageVersion(LanguageVersion.CSharp11))
+                .AddAdditionalTexts(
+                [
+                    CreateRoboticsModelText("Opc.Ua.IA.NodeSet2.xml"),
+                    CreateRoboticsModelText("Opc.Ua.Robotics.NodeSet2.xml")
+                ])
+                .WithUpdatedAnalyzerConfigOptions(options);
+
+            driver = driver.RunGeneratorsAndUpdateCompilation(
+                compilation,
+                out Compilation outputCompilation,
+                out ImmutableArray<Diagnostic> diagnostics);
+
+            Assert.That(
+                diagnostics.Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error),
+                Is.Empty,
+                string.Join(Environment.NewLine, diagnostics));
+            Assert.That(
+                outputCompilation.GetDiagnostics().Where(diagnostic =>
+                    diagnostic.Severity == DiagnosticSeverity.Error),
+                Is.Empty,
+                string.Join(Environment.NewLine, outputCompilation.GetDiagnostics()));
+            return (CSharpCompilation)outputCompilation;
+        }
+
+        private static CSharpCompilation CreateGeneratedRoboticsAccessorProvider(
+            CSharpCompilation roboticsModel)
+        {
+            CSharpCompilation compilation = CreateStackCompilation("RoboticsAccessorProvider")
+                .AddReferences(
+                    s_diProducer.Value.ToMetadataReference(),
+                    roboticsModel.ToMetadataReference());
+            var options = new AnalyzerOptionsProvider(
+                new Dictionary<string, string>
+                {
+                    ["build_property.ModelSourceGeneratorVersion"] = "v105",
+                    ["build_property.ModelSourceGeneratorUseAllowSubtypes"] = "true",
+                    ["build_property.ModelSourceGeneratorFluentAccessorsOnly"] = "true"
+                });
+            options.TextOptions["Opc.Ua.Robotics.NodeSet2.xml"] = new Dictionary<string, string>
+            {
+                ["build_metadata.AdditionalFiles.ModelSourceGeneratorPrefix"] = "Opc.Ua.Robotics"
+            };
+
+            var generator = new ModelSourceGenerator();
+            GeneratorDriver driver = CSharpGeneratorDriver.Create(generator)
+                .WithUpdatedParseOptions(new CSharpParseOptions()
+                    .WithKind(SourceCodeKind.Regular)
+                    .WithLanguageVersion(LanguageVersion.CSharp11))
+                .AddAdditionalTexts([CreateRoboticsModelText("Opc.Ua.Robotics.NodeSet2.xml")])
+                .WithUpdatedAnalyzerConfigOptions(options);
+
+            driver = driver.RunGeneratorsAndUpdateCompilation(
+                compilation,
+                out Compilation outputCompilation,
+                out ImmutableArray<Diagnostic> diagnostics);
+
+            Assert.That(
+                diagnostics.Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error),
+                Is.Empty,
+                string.Join(Environment.NewLine, diagnostics));
+            Assert.That(
+                outputCompilation.GetDiagnostics().Where(diagnostic =>
+                    diagnostic.Severity == DiagnosticSeverity.Error),
+                Is.Empty,
+                string.Join(Environment.NewLine, outputCompilation.GetDiagnostics()));
+            return (CSharpCompilation)outputCompilation;
+        }
+
+        private static StringAdditionalText CreateRoboticsModelText(string fileName)
+        {
+            string repositoryRoot = FindRepositoryRoot();
+            string path = Path.Combine(
+                repositoryRoot,
+                "src",
+                "Opc.Ua.Robotics",
+                "Model",
+                fileName);
+            return new StringAdditionalText(fileName, File.ReadAllText(path));
+        }
+
+        private static string FindRepositoryRoot()
+        {
+            string assemblyDirectory =
+                Path.GetDirectoryName(typeof(ModelDependencyScannerTests).Assembly.Location)
+                ?? throw new InvalidOperationException("Test assembly directory was not found.");
+            var directory = new DirectoryInfo(assemblyDirectory);
+            for (int i = 0; i < 5; i++)
+            {
+                directory = directory.Parent
+                    ?? throw new InvalidOperationException("Repository root was not found.");
+            }
+            return directory.FullName;
+        }
 
         private static CSharpCompilation CreateGeneratedDemoModelProducer(bool omitFluentApi)
         {
@@ -862,5 +1081,23 @@ namespace Opc.Ua.SourceGeneration
 
         private static readonly Lazy<CSharpCompilation> s_producerWithAccessors =
             new(() => CreateGeneratedDemoModelProducer(omitFluentApi: false));
+
+        private sealed class StringAdditionalText : AdditionalText
+        {
+            public StringAdditionalText(string path, string text)
+            {
+                Path = path;
+                m_text = SourceText.From(text);
+            }
+
+            public override string Path { get; }
+
+            public override SourceText GetText(System.Threading.CancellationToken cancellationToken = default)
+            {
+                return m_text;
+            }
+
+            private readonly SourceText m_text;
+        }
     }
 }
