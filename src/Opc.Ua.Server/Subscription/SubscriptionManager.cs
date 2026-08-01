@@ -283,6 +283,8 @@ namespace Opc.Ua.Server
             await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                BeforeConditionRefreshShutdownSignalForTest?.Invoke();
+
                 // stop the publishing thread.
                 m_shutdownEvent.Set();
 
@@ -2382,6 +2384,7 @@ namespace Opc.Ua.Server
                         }
                         else
                         {
+                            BeforeConditionRefreshResetForTest?.Invoke();
                             m_conditionRefreshEvent.Reset();
                         }
                     }
@@ -2541,6 +2544,26 @@ namespace Opc.Ua.Server
         private readonly Lock m_conditionRefreshLock = new();
         private event SubscriptionEventHandler? m_SubscriptionCreated;
         private event SubscriptionEventHandler? m_SubscriptionDeleted;
+
+        internal Action? BeforeConditionRefreshResetForTest { get; set; }
+
+        internal Action? BeforeConditionRefreshShutdownSignalForTest { get; set; }
+
+        internal void WakeConditionRefreshWorkerForTest()
+        {
+            m_conditionRefreshEvent.Set();
+        }
+
+        internal void StartConditionRefreshWorkerForTest()
+        {
+            m_shutdownEvent.Reset();
+            m_conditionRefreshEvent.Reset();
+            _ = Task.Factory.StartNew(
+                ConditionRefreshWorkerAsync,
+                default,
+                TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach,
+                TaskScheduler.Default);
+        }
     }
 
     /// <summary>

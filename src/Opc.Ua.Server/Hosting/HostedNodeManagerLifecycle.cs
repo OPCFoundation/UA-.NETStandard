@@ -80,6 +80,42 @@ namespace Opc.Ua.Server.Hosting
         }
 
         /// <inheritdoc/>
+        public ValueTask<NodeManagerRegistration> ShadowReloadAsync(
+            NodeManagerRegistration registration,
+            IAsyncNodeManagerFactory replacement,
+            CancellationToken ct = default)
+        {
+            return Current.ShadowReloadAsync(registration, replacement, ct);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<NodeManagerRegistration> ShadowReloadAsync(
+            NodeManagerRegistration registration,
+            INodeManagerFactory replacement,
+            CancellationToken ct = default)
+        {
+            return Current.ShadowReloadAsync(registration, replacement, ct);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<NodeManagerRegistration> ImmediateReloadAsync(
+            NodeManagerRegistration registration,
+            IAsyncNodeManagerFactory replacement,
+            CancellationToken ct = default)
+        {
+            return Current.ImmediateReloadAsync(registration, replacement, ct);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<NodeManagerRegistration> ImmediateReloadAsync(
+            NodeManagerRegistration registration,
+            INodeManagerFactory replacement,
+            CancellationToken ct = default)
+        {
+            return Current.ImmediateReloadAsync(registration, replacement, ct);
+        }
+
+        /// <inheritdoc/>
         public ValueTask RemoveAsync(
             NodeManagerRegistration registration,
             CancellationToken ct = default)

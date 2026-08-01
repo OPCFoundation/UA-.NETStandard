@@ -5747,15 +5747,19 @@ namespace Opc.Ua.Server
         /// <param name="monitoredItems">The set of monitoring items to update.</param>
         /// <param name="processedItems">The list of bool with items that were already processed.</param>
         /// <param name="errors">Any errors.</param>
+        /// <param name="transferOptions">Options that describe the transfer execution.</param>
         public virtual void TransferMonitoredItems(
             OperationContext context,
             bool sendInitialValues,
             IList<IMonitoredItem> monitoredItems,
             IList<bool> processedItems,
-            IList<ServiceResult> errors)
+            IList<ServiceResult> errors,
+            MonitoredItemTransferOptions? transferOptions = null)
         {
             ServerSystemContext systemContext = SystemContext.Copy(context);
             var transferredItems = new List<IMonitoredItem>();
+            bool deferInitialValues = transferOptions?.DeferInitialValues
+                ?? MonitoredItemTransferExecution.DeferInitialValues;
             lock (Lock)
             {
                 for (int ii = 0; ii < monitoredItems.Count; ii++)
@@ -5776,7 +5780,8 @@ namespace Opc.Ua.Server
                     // owned by this node manager.
                     processedItems[ii] = true;
                     transferredItems.Add(monitoredItems[ii]);
-                    if (sendInitialValues)
+                    if (sendInitialValues &&
+                        !deferInitialValues)
                     {
                         monitoredItems[ii].SetupResendDataTrigger();
                     }
@@ -5789,11 +5794,64 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Rolls back side effects produced by a failed monitored-item transfer.
+        /// </summary>
+        /// <param name="context">The source context to restore.</param>
+        /// <param name="monitoredItems">The set of monitoring items to roll back.</param>
+        /// <param name="processedItems">The list of bool with items that were already processed.</param>
+        /// <param name="errors">Any errors.</param>
+        /// <param name="transferOptions">Options that describe the transfer execution.</param>
+        public virtual void RollbackMonitoredItemsTransfer(
+            OperationContext context,
+            IList<IMonitoredItem> monitoredItems,
+            IList<bool> processedItems,
+            IList<ServiceResult> errors,
+            MonitoredItemTransferOptions? transferOptions = null)
+        {
+            ServerSystemContext systemContext = SystemContext.Copy(context);
+            var rolledBackItems = new List<IMonitoredItem>();
+            lock (Lock)
+            {
+                for (int ii = 0; ii < monitoredItems.Count; ii++)
+                {
+                    if (processedItems[ii] || monitoredItems[ii] == null)
+                    {
+                        continue;
+                    }
+
+                    NodeHandle? handle = IsHandleInNamespace(monitoredItems[ii].ManagerHandle);
+                    if (handle == null)
+                    {
+                        continue;
+                    }
+
+                    processedItems[ii] = true;
+                    rolledBackItems.Add(monitoredItems[ii]);
+                    errors[ii] = StatusCodes.Good;
+                }
+            }
+
+            OnMonitoredItemsTransferRolledBack(systemContext, rolledBackItems);
+        }
+
+        /// <summary>
         /// Called after transfer of MonitoredItems.
         /// </summary>
         /// <param name="context">The context.</param>
         /// <param name="monitoredItems">The transferred monitored items.</param>
         protected virtual void OnMonitoredItemsTransferred(
+            ServerSystemContext context,
+            IList<IMonitoredItem> monitoredItems)
+        {
+            // defined by the sub-class
+        }
+
+        /// <summary>
+        /// Called after rollback of a failed monitored-item transfer.
+        /// </summary>
+        /// <param name="context">The source context restored by rollback.</param>
+        /// <param name="monitoredItems">The monitored items rolled back.</param>
+        protected virtual void OnMonitoredItemsTransferRolledBack(
             ServerSystemContext context,
             IList<IMonitoredItem> monitoredItems)
         {
