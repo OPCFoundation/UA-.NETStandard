@@ -271,13 +271,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                     await output.FlushAsync(ct).ConfigureAwait(false);
                 }
 
-                if (m_fileSystem is not IAtomicFileReplace atomic)
-                {
-                    throw new IOException(
-                        "Durable WoT blob storage requires a file system that supports atomic file replacement.");
-                }
-
-                atomic.Replace(tempPath, path);
+                m_fileSystem.Replace(tempPath, path);
             }
             finally
             {

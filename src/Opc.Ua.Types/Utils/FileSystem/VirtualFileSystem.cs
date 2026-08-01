@@ -40,7 +40,7 @@ namespace Opc.Ua
     /// <summary>
     /// Virtual file system
     /// </summary>
-    public class VirtualFileSystem : IFileSystem, IAtomicFileReplace, IDisposable
+    public class VirtualFileSystem : IFileSystem, IDisposable
     {
         /// <summary>
         /// Get created files in this file system

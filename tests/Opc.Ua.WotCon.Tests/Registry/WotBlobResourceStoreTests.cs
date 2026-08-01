@@ -123,25 +123,6 @@ namespace Opc.Ua.XRegistry
         }
 
         [Test]
-        public void WriteWithoutAtomicReplaceCapabilityFailsClearly()
-        {
-            using var fileSystem = new VirtualFileSystem();
-            using var store = new WotBlobResourceStore("blobs", new NonAtomicFileSystem(fileSystem));
-
-            IOException ex = Assert.ThrowsAsync<IOException>(
-                async () => await store.WriteAsync("blob", 0, ByteString.From([1, 2, 3]))
-                    .ConfigureAwait(false))!;
-
-            Assert.Multiple(() =>
-            {
-                Assert.That(
-                    ex.Message,
-                    Does.Contain("requires a file system that supports atomic file replacement"));
-                Assert.That(fileSystem.Exists(Path.Combine("blobs", "blob.bin")), Is.False);
-            });
-        }
-
-        [Test]
         public async Task WriteUsesAtomicReplaceCapabilityAsync()
         {
             using var fileSystem = new VirtualFileSystem();
@@ -155,45 +136,14 @@ namespace Opc.Ua.XRegistry
             {
                 Assert.That(atomic.ReplaceCount, Is.EqualTo(1));
                 Assert.That(read.Span.ToArray(), Is.EqualTo(new byte[] { 4, 5, 6 }));
-                Assert.That(LocalFileSystem.Instance, Is.AssignableTo<IAtomicFileReplace>());
-                Assert.That(fileSystem, Is.AssignableTo<IAtomicFileReplace>());
             });
         }
 
-        private sealed class NonAtomicFileSystem : IFileSystem
-        {
-            public NonAtomicFileSystem(IFileSystem inner)
-            {
-                m_inner = inner;
-            }
-
-            public bool Exists(string path, bool isDirectory = false)
-                => m_inner.Exists(path, isDirectory);
-
-            public void Delete(string path, bool isDirectory = false)
-                => m_inner.Delete(path, isDirectory);
-
-            public Stream OpenRead(string path)
-                => m_inner.OpenRead(path);
-
-            public Stream OpenWrite(string path)
-                => m_inner.OpenWrite(path);
-
-            public System.DateTime GetLastWriteTime(string path)
-                => m_inner.GetLastWriteTime(path);
-
-            public long GetLength(string path)
-                => m_inner.GetLength(path);
-
-            private readonly IFileSystem m_inner;
-        }
-
-        private sealed class CountingAtomicFileSystem : IFileSystem, IAtomicFileReplace
+        private sealed class CountingAtomicFileSystem : IFileSystem
         {
             public CountingAtomicFileSystem(IFileSystem inner)
             {
                 m_inner = inner;
-                m_atomic = (IAtomicFileReplace)inner;
             }
 
             public int ReplaceCount { get; private set; }
@@ -219,11 +169,10 @@ namespace Opc.Ua.XRegistry
             public void Replace(string sourcePath, string destinationPath)
             {
                 ReplaceCount++;
-                m_atomic.Replace(sourcePath, destinationPath);
+                m_inner.Replace(sourcePath, destinationPath);
             }
 
             private readonly IFileSystem m_inner;
-            private readonly IAtomicFileReplace m_atomic;
         }
     }
 }

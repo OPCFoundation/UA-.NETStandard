@@ -35,7 +35,7 @@ namespace Opc.Ua
     /// <summary>
     /// Default file system implementation that uses System.IO
     /// </summary>
-    public class LocalFileSystem : IFileSystem, IAtomicFileReplace
+    public class LocalFileSystem : IFileSystem
     {
         /// <summary>
         /// Get singleton instance
@@ -102,6 +102,9 @@ namespace Opc.Ua
                 Directory.CreateDirectory(directoryName);
             }
 
+#if NETCOREAPP3_0_OR_GREATER
+            File.Move(sourcePath, destinationPath, overwrite: true);
+#else
             if (File.Exists(destinationPath))
             {
                 // Replace keeps the destination's identity and discards the source, but
@@ -111,6 +114,7 @@ namespace Opc.Ua
             }
 
             File.Move(sourcePath, destinationPath);
+#endif
         }
     }
 }
