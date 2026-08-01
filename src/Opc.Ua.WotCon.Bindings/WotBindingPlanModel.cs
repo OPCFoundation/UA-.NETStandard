@@ -113,7 +113,7 @@ namespace Opc.Ua.WotCon.Bindings
             Host = host;
             Port = port;
             BaseUri = baseUri ?? string.Empty;
-            Metadata = metadata ?? [];
+            Metadata = metadata ?? ImmutableDictionary<string, string>.Empty;
         }
 
         /// <summary>
@@ -153,7 +153,7 @@ namespace Opc.Ua.WotCon.Bindings
         public WotAddressingDescriptor(string target, ImmutableDictionary<string, string>? metadata = null)
         {
             Target = target ?? string.Empty;
-            Metadata = metadata ?? [];
+            Metadata = metadata ?? ImmutableDictionary<string, string>.Empty;
         }
 
         /// <summary>
@@ -186,7 +186,7 @@ namespace Opc.Ua.WotCon.Bindings
             Operation = operation;
             OpToken = opToken ?? string.Empty;
             Method = method ?? string.Empty;
-            Metadata = metadata ?? [];
+            Metadata = metadata ?? ImmutableDictionary<string, string>.Empty;
             PollInterval = pollInterval;
         }
 
@@ -235,7 +235,7 @@ namespace Opc.Ua.WotCon.Bindings
         {
             ContentType = contentType ?? string.Empty;
             CodecId = codecId ?? string.Empty;
-            Metadata = metadata ?? [];
+            Metadata = metadata ?? ImmutableDictionary<string, string>.Empty;
         }
 
         /// <summary>
