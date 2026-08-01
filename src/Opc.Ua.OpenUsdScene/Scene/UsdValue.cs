@@ -425,7 +425,7 @@ namespace Opc.Ua.OpenUsdScene.Scene
                 case UsdValueKind.Tuple:
                 case UsdValueKind.Array:
                 case UsdValueKind.Matrix:
-                    ReadOnlySpan<UsdValue> items = m_items.Span;
+                    System.ReadOnlySpan<UsdValue> items = m_items.Span;
                     hash.Add(items.Length);
                     for (int ii = 0; ii < items.Length; ii++)
                     {
@@ -505,7 +505,7 @@ namespace Opc.Ua.OpenUsdScene.Scene
 
         private string JoinItems()
         {
-            ReadOnlySpan<UsdValue> items = m_items.Span;
+            System.ReadOnlySpan<UsdValue> items = m_items.Span;
             var builder = new System.Text.StringBuilder();
             for (int ii = 0; ii < items.Length; ii++)
             {
@@ -520,8 +520,8 @@ namespace Opc.Ua.OpenUsdScene.Scene
 
         private static bool ItemsEqual(ArrayOf<UsdValue> left, ArrayOf<UsdValue> right)
         {
-            ReadOnlySpan<UsdValue> a = left.Span;
-            ReadOnlySpan<UsdValue> b = right.Span;
+            System.ReadOnlySpan<UsdValue> a = left.Span;
+            System.ReadOnlySpan<UsdValue> b = right.Span;
             if (a.Length != b.Length)
             {
                 return false;

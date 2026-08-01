@@ -752,52 +752,60 @@ namespace Opc.Ua.OpenUsdScene.Conversion
         }
 
         /// <summary>
-        /// Parses a scalar attribute value token into a CLR value (port of <c>_parse_value</c>).
+        /// Parses a scalar attribute value token into a <see cref="UsdValue"/>
+        /// (port of <c>_parse_value</c>).
         /// </summary>
         /// <remarks>
-        /// Integers become <see cref="long"/>, floating point values <see cref="double"/>,
-        /// tuples <c>(a, b, c)</c> become <c>object?[]</c>, arrays <c>[a, b, c]</c> become
-        /// <c>List&lt;object?&gt;</c>, path references <c>&lt;/Path&gt;</c> and asset paths
-        /// <c>@asset@</c> become the inner string, and unquoted words become token strings.
+        /// Integers become <see cref="UsdValueKind.Integer"/>, floating point values
+        /// <see cref="UsdValueKind.Double"/>, tuples <c>(a, b, c)</c>
+        /// <see cref="UsdValueKind.Tuple"/>, arrays <c>[a, b, c]</c>
+        /// <see cref="UsdValueKind.Array"/>, path references <c>&lt;/Path&gt;</c> and asset
+        /// paths <c>@asset@</c> their own kinds carrying the inner text, and unquoted words
+        /// <see cref="UsdValueKind.Token"/>.
         /// </remarks>
         /// <param name="raw">The raw value text, or <c>null</c>.</param>
-        /// <returns>The parsed value, or <c>null</c> when the text is empty.</returns>
-        internal static object? ParseValue(string? raw)
+        /// <returns>The parsed value, or <see cref="UsdValue.Null"/> when the text is empty.</returns>
+        internal static UsdValue ParseValue(string? raw)
         {
             string v = (raw ?? string.Empty).Trim().TrimEnd(',').Trim();
             if (v.Length == 0)
             {
-                return null;
+                return UsdValue.Null;
             }
             if (v.Length >= 2 && v[0] == '<' && v[v.Length - 1] == '>')
             {
-                return v.Substring(1, v.Length - 2);
+                return UsdValue.FromPathReference(v.Substring(1, v.Length - 2));
             }
             if (v.Length >= 2 && v[0] == '@' && v[v.Length - 1] == '@')
             {
-                return v.Substring(1, v.Length - 2);
+                return UsdValue.FromAssetPath(v.Substring(1, v.Length - 2));
             }
             if (string.Equals(v, "true", StringComparison.Ordinal))
             {
-                return true;
+                return UsdValue.From(true);
             }
             if (string.Equals(v, "false", StringComparison.Ordinal))
             {
-                return false;
+                return UsdValue.From(false);
             }
-            if (TryParseLiteral(v, out object? literal))
+            if (TryParseLiteral(v, out UsdValue literal))
             {
                 return literal;
             }
             if (IntRegex().IsMatch(v))
             {
-                return long.Parse(v, CultureInfo.InvariantCulture);
+                return UsdValue.From(long.Parse(v, CultureInfo.InvariantCulture));
             }
             if (FloatRegex().IsMatch(v))
             {
-                return double.Parse(v, NumberStyles.Float, CultureInfo.InvariantCulture);
+                return UsdValue.From(
+                    double.Parse(v, NumberStyles.Float, CultureInfo.InvariantCulture));
             }
-            return v.Trim('"');
+            // A bare word is a token; anything that still carries quotes is a string whose
+            // quoting the literal parser could not resolve (for example an unterminated one).
+            return v.IndexOf('"') >= 0
+                ? UsdValue.FromString(v.Trim('"'))
+                : UsdValue.FromToken(v);
         }
 
         private static List<string> ParseTargets(string raw)
@@ -812,24 +820,35 @@ namespace Opc.Ua.OpenUsdScene.Conversion
                 string trimmed = raw.Trim();
                 if (trimmed.Length > 0 && !string.Equals(trimmed, "[]", StringComparison.Ordinal))
                 {
-                    object? parsed = ParseValue(raw);
-                    if (parsed is string single)
-                    {
-                        targets.Add(single);
-                    }
-                    else if (parsed is List<object?> list)
-                    {
-                        foreach (object? item in list)
-                        {
-                            if (item is string s)
-                            {
-                                targets.Add(s);
-                            }
-                        }
-                    }
+                    UsdValue parsed = ParseValue(raw);
+                    AppendTextTargets(parsed, targets);
                 }
             }
             return targets;
+        }
+
+        /// <summary>
+        /// Collects the target paths carried by a parsed value, accepting either a single
+        /// textual value or a list of them.
+        /// </summary>
+        private static void AppendTextTargets(UsdValue parsed, List<string> targets)
+        {
+            if (parsed.TryGetText(out string single))
+            {
+                targets.Add(single);
+                return;
+            }
+            if (parsed.TryGetArray(out ArrayOf<UsdValue> list))
+            {
+                System.ReadOnlySpan<UsdValue> items = list.Span;
+                for (int ii = 0; ii < items.Length; ii++)
+                {
+                    if (items[ii].TryGetText(out string s))
+                    {
+                        targets.Add(s);
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -841,21 +860,7 @@ namespace Opc.Ua.OpenUsdScene.Conversion
         private static List<string> ParseConnectionTargets(string? valueText)
         {
             var targets = new List<string>();
-            object? parsed = ParseValue(valueText);
-            if (parsed is string single)
-            {
-                targets.Add(single);
-            }
-            else if (parsed is List<object?> list)
-            {
-                foreach (object? item in list)
-                {
-                    if (item is string s)
-                    {
-                        targets.Add(s);
-                    }
-                }
-            }
+            AppendTextTargets(ParseValue(valueText), targets);
             return targets;
         }
 
@@ -1129,7 +1134,7 @@ namespace Opc.Ua.OpenUsdScene.Conversion
 
         // ----- literal parsing (numbers / quoted strings / tuples / arrays) -----
 
-        private static bool TryParseLiteral(string s, out object? result)
+        private static bool TryParseLiteral(string s, out UsdValue result)
         {
             int pos = 0;
             if (!TryParseLiteralValue(s, ref pos, out result))
@@ -1140,9 +1145,9 @@ namespace Opc.Ua.OpenUsdScene.Conversion
             return pos == s.Length;
         }
 
-        private static bool TryParseLiteralValue(string s, ref int pos, out object? result)
+        private static bool TryParseLiteralValue(string s, ref int pos, out UsdValue result)
         {
-            result = null;
+            result = UsdValue.Null;
             SkipWhitespace(s, ref pos);
             if (pos >= s.Length)
             {
@@ -1151,11 +1156,11 @@ namespace Opc.Ua.OpenUsdScene.Conversion
             char c = s[pos];
             if (c == '(')
             {
-                return TryParseSequence(s, ref pos, '(', ')', asTuple: true, out result);
+                return TryParseSequence(s, ref pos, ')', asTuple: true, out result);
             }
             if (c == '[')
             {
-                return TryParseSequence(s, ref pos, '[', ']', asTuple: false, out result);
+                return TryParseSequence(s, ref pos, ']', asTuple: false, out result);
             }
             if (c == '"' || c == '\'')
             {
@@ -1178,49 +1183,50 @@ namespace Opc.Ua.OpenUsdScene.Conversion
 
         // A USD asset-path element inside a bracketed array literal is authored '@path@'
         // (symmetric with the writer's asset[] rendering, §6.2), so accept it as a leaf.
-        private static bool TryParseAssetReference(string s, ref int pos, out object? result)
+        private static bool TryParseAssetReference(string s, ref int pos, out UsdValue result)
         {
-            result = null;
+            result = UsdValue.Null;
             int end = s.IndexOf('@', pos + 1);
             if (end < 0)
             {
                 return false;
             }
-            result = s.Substring(pos + 1, end - pos - 1);
+            result = UsdValue.FromAssetPath(s.Substring(pos + 1, end - pos - 1));
             pos = end + 1;
             return true;
         }
 
         // A path-reference element inside a bracketed list is authored '<path>' — used by a
         // multi-target '.connect' list (§5.4). Accept it so the list re-parses to its targets.
-        private static bool TryParsePathReference(string s, ref int pos, out object? result)
+        private static bool TryParsePathReference(string s, ref int pos, out UsdValue result)
         {
-            result = null;
+            result = UsdValue.Null;
             int end = s.IndexOf('>', pos + 1);
             if (end < 0)
             {
                 return false;
             }
-            result = s.Substring(pos + 1, end - pos - 1);
+            result = UsdValue.FromPathReference(s.Substring(pos + 1, end - pos - 1));
             pos = end + 1;
             return true;
         }
 
-        private static bool TryParseSequence(string s, ref int pos, char open, char close, bool asTuple, out object? result)
+        private static bool TryParseSequence(
+            string s, ref int pos, char close, bool asTuple, out UsdValue result)
         {
-            result = null;
+            result = UsdValue.Null;
             pos++; // consume opening bracket
-            var items = new List<object?>();
+            var items = new List<UsdValue>();
             SkipWhitespace(s, ref pos);
             if (pos < s.Length && s[pos] == close)
             {
                 pos++;
-                result = asTuple ? (object)items.ToArray() : items;
+                result = Compose(items, asTuple);
                 return true;
             }
             while (true)
             {
-                if (!TryParseLiteralValue(s, ref pos, out object? item))
+                if (!TryParseLiteralValue(s, ref pos, out UsdValue item))
                 {
                     return false;
                 }
@@ -1248,13 +1254,19 @@ namespace Opc.Ua.OpenUsdScene.Conversion
                 }
                 return false;
             }
-            result = asTuple ? (object)items.ToArray() : items;
+            result = Compose(items, asTuple);
             return true;
         }
 
-        private static bool TryParseQuoted(string s, ref int pos, out object? result)
+        private static UsdValue Compose(List<UsdValue> items, bool asTuple)
         {
-            result = null;
+            ArrayOf<UsdValue> values = items.ToArrayOf();
+            return asTuple ? UsdValue.FromTuple(values) : UsdValue.FromArray(values);
+        }
+
+        private static bool TryParseQuoted(string s, ref int pos, out UsdValue result)
+        {
+            result = UsdValue.Null;
             char quote = s[pos];
             pos++;
             var sb = new StringBuilder();
@@ -1277,7 +1289,7 @@ namespace Opc.Ua.OpenUsdScene.Conversion
                 if (c == quote)
                 {
                     pos++;
-                    result = sb.ToString();
+                    result = UsdValue.FromString(sb.ToString());
                     return true;
                 }
                 sb.Append(c);
@@ -1286,9 +1298,9 @@ namespace Opc.Ua.OpenUsdScene.Conversion
             return false;
         }
 
-        private static bool TryParseNumber(string s, ref int pos, out object? result)
+        private static bool TryParseNumber(string s, ref int pos, out UsdValue result)
         {
-            result = null;
+            result = UsdValue.Null;
             int start = pos;
             while (pos < s.Length)
             {
@@ -1303,12 +1315,13 @@ namespace Opc.Ua.OpenUsdScene.Conversion
             string token = s.Substring(start, pos - start);
             if (IntRegex().IsMatch(token))
             {
-                result = long.Parse(token, CultureInfo.InvariantCulture);
+                result = UsdValue.From(long.Parse(token, CultureInfo.InvariantCulture));
                 return true;
             }
             if (FloatRegex().IsMatch(token))
             {
-                result = double.Parse(token, NumberStyles.Float, CultureInfo.InvariantCulture);
+                result = UsdValue.From(
+                    double.Parse(token, NumberStyles.Float, CultureInfo.InvariantCulture));
                 return true;
             }
             return false;
@@ -1577,7 +1590,7 @@ namespace Opc.Ua.OpenUsdScene.Conversion
         private static void ApplyCustomPrimMeta(UsdPrim prim, string block)
         {
             int pos = 0;
-            while (TryReadMetaEntry(block, ref pos, out string key, out object? value, out bool qualified))
+            while (TryReadMetaEntry(block, ref pos, out string key, out UsdValue value, out bool qualified))
             {
                 if (key.Length == 0 || qualified || s_wellKnownPrimMeta.Contains(key))
                 {
@@ -1592,10 +1605,10 @@ namespace Opc.Ua.OpenUsdScene.Conversion
         // 'key = value' (for example leftover list-op arc text), it still advances <paramref
         // name="pos"/> and returns true with an empty key so the caller skips it and keeps scanning.
         private static bool TryReadMetaEntry(
-            string s, ref int pos, out string key, out object? value, out bool qualified)
+            string s, ref int pos, out string key, out UsdValue value, out bool qualified)
         {
             key = string.Empty;
-            value = null;
+            value = UsdValue.Null;
             qualified = false;
 
             SkipMetaSeparators(s, ref pos);
@@ -1667,14 +1680,14 @@ namespace Opc.Ua.OpenUsdScene.Conversion
         }
 
         // Reads a single metadata value: a nested '{ … }' dictionary (parsed recursively into a
-        // Dictionary<string, object?>), or a scalar/tuple/array/asset/path token read up to the next
+        // Dictionary<string, UsdValue>), or a scalar/tuple/array/asset/path token read up to the next
         // depth-0 ',' or newline and parsed by ParseValue. Honours quoted and '@…@' spans.
-        private static object? ReadMetaValue(string s, ref int pos)
+        private static UsdValue ReadMetaValue(string s, ref int pos)
         {
             SkipInlineMetaWhitespace(s, ref pos);
             if (pos >= s.Length)
             {
-                return null;
+                return UsdValue.Null;
             }
             if (s[pos] == '{')
             {
@@ -1683,16 +1696,16 @@ namespace Opc.Ua.OpenUsdScene.Conversion
                 int innerLen = Math.Max(0, end - 1 - innerStart);
                 string inner = s.Substring(innerStart, innerLen);
                 pos = end;
-                var dict = new Dictionary<string, object?>(StringComparer.Ordinal);
+                var dict = new Dictionary<string, UsdValue>(StringComparer.Ordinal);
                 int innerPos = 0;
-                while (TryReadMetaEntry(inner, ref innerPos, out string k, out object? v, out _))
+                while (TryReadMetaEntry(inner, ref innerPos, out string k, out UsdValue v, out _))
                 {
                     if (k.Length > 0)
                     {
                         dict[k] = v;
                     }
                 }
-                return dict;
+                return UsdValue.FromDictionary(dict);
             }
 
             int valueStart = pos;
@@ -1959,7 +1972,7 @@ namespace Opc.Ua.OpenUsdScene.Conversion
                 }
                 clone.VariantSets.Add(clonedSet);
             }
-            foreach (KeyValuePair<string, object?> kv in source.Metadata)
+            foreach (KeyValuePair<string, UsdValue> kv in source.Metadata)
             {
                 clone.Metadata[kv.Key] = kv.Value;
             }
@@ -1984,7 +1997,7 @@ namespace Opc.Ua.OpenUsdScene.Conversion
             {
                 clone.Connections.Add(connection);
             }
-            foreach (KeyValuePair<double, object?> sample in source.TimeSamples)
+            foreach (KeyValuePair<double, UsdValue> sample in source.TimeSamples)
             {
                 clone.TimeSamples[sample.Key] = sample.Value;
             }

@@ -31,6 +31,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
+using Opc.Ua.OpenUsdScene.Scene;
 
 namespace Opc.Ua.OpenUsdScene.Conversion
 {
@@ -68,14 +69,14 @@ namespace Opc.Ua.OpenUsdScene.Conversion
         /// <param name="result">The coerced value.</param>
         /// <returns><c>true</c> when the value could be represented.</returns>
         public static bool TryCoerce(
-            object? value, UsdValueTypeMapping mapping, uint componentCount, out Variant result)
+            UsdValue value, UsdValueTypeMapping mapping, uint componentCount, out Variant result)
         {
             result = default;
             if (mapping == null)
             {
                 throw new ArgumentNullException(nameof(mapping));
             }
-            if (value == null)
+            if (value.IsNull)
             {
                 return false;
             }
@@ -103,15 +104,15 @@ namespace Opc.Ua.OpenUsdScene.Conversion
             }
             if (mapping.ValueRank == ValueRanks.OneDimension)
             {
-                IReadOnlyList<object?> items;
+                UsdValue[] items;
                 if (width > 0)
                 {
                     // A fixed-size math type is a flat array of components, but USD authors a
                     // matrix4d as four nested 4-tuples, so flatten to the leaves before the arity
                     // check (mirrors the reference converter's _flat). Otherwise a matrix4d would
                     // report four items against a width of sixteen and be dropped.
-                    items = Flatten(value);
-                    if (items.Count != width)
+                    items = [.. Flatten(value)];
+                    if (items.Length != width)
                     {
                         // A fixed-size math type authored with the wrong arity cannot be honoured.
                         return false;
@@ -125,124 +126,274 @@ namespace Opc.Ua.OpenUsdScene.Conversion
             }
             if (mapping.ValueRank == ValueRanks.TwoDimensions && width > 0)
             {
-                IReadOnlyList<object?> rows = AsSequence(value);
-                var flat = new List<object?>(rows.Count * width);
-                foreach (object? row in rows)
+                UsdValue[] rows = AsSequence(value);
+                var flat = new List<UsdValue>(rows.Length * width);
+                foreach (UsdValue row in rows)
                 {
                     // Flatten each element to its leaves so an array of matrix4d (each authored as
                     // four nested 4-tuples) is honoured. The outer array stays grouped one row per
                     // element — only the element shape is flattened, so a genuinely nested
                     // array-of-tuples such as color3f[] keeps its per-tuple grouping.
-                    List<object?> cells = Flatten(row);
+                    List<UsdValue> cells = Flatten(row);
                     if (cells.Count != width)
                     {
                         return false;
                     }
-                    foreach (object? cell in cells)
+                    foreach (UsdValue cell in cells)
                     {
                         flat.Add(cell);
                     }
                 }
-                return TryMatrix(flat, mapping.ElementType, rows.Count, width, out result);
+                return TryMatrix(flat, mapping.ElementType, rows.Length, width, out result);
             }
             return false;
         }
 
         /// <summary>
-        /// Reads a materialized value back into the plain shape used by the scene document
-        /// model, so an export reproduces the authored form (§7.2).
+        /// Reads a materialized value back into the shape used by the scene document model, so an
+        /// export reproduces the authored form (§7.2).
         /// </summary>
+        /// <remarks>
+        /// Takes the <see cref="Variant"/> straight from the Variable and reads it through its
+        /// typed accessors, so no boxing accessor is needed and an <c>ArrayOf&lt;T&gt;</c> or
+        /// <c>MatrixOf&lt;T&gt;</c> keeps its shape: a matrix is regrouped into the per-row tuples
+        /// the document model uses for an array-of-tuples type.
+        /// </remarks>
         /// <param name="value">The value read from the materialized Variable.</param>
         /// <returns>The USD-shaped value.</returns>
-        public static object? Decoerce(object? value)
+        public static UsdValue Decoerce(in Variant value)
         {
-            if (value is string || value == null)
+            TypeInfo typeInfo = value.TypeInfo;
+            if (typeInfo.ValueRank == ValueRanks.TwoDimensions)
             {
-                return value;
+                return DecoerceMatrix(value, typeInfo.BuiltInType);
             }
-            if (value is Array array)
+            if (typeInfo.ValueRank == ValueRanks.OneDimension)
             {
-                if (array.Rank == 2)
-                {
-                    // An array-of-tuples type comes back as a rectangular matrix; regroup it
-                    // into the per-tuple rows the scene document model uses.
-                    int rows = array.GetLength(0);
-                    int width = array.GetLength(1);
-                    var grouped = new object?[rows];
-                    for (int r = 0; r < rows; r++)
-                    {
-                        var cells = new object?[width];
-                        for (int c = 0; c < width; c++)
-                        {
-                            cells[c] = array.GetValue(r, c);
-                        }
-                        grouped[r] = cells;
-                    }
-                    return grouped;
-                }
-                var items = new object?[array.Length];
-                array.CopyTo(items, 0);
-                return items;
+                return DecoerceArray(value, typeInfo.BuiltInType);
             }
-            return value;
+            return DecoerceScalar(value, typeInfo.BuiltInType);
         }
 
-        private static bool TryScalar(object value, BuiltInType elementType, out Variant result)
+        private static UsdValue DecoerceScalar(in Variant value, BuiltInType elementType)
+        {
+            switch (elementType)
+            {
+                case BuiltInType.Boolean:
+                    return value.TryGetValue(out bool b) ? UsdValue.From(b) : UsdValue.Null;
+                case BuiltInType.SByte:
+                    return value.TryGetValue(out sbyte sb)
+                        ? UsdValue.From(sb)
+                        : UsdValue.Null;
+                case BuiltInType.Int32:
+                    return value.TryGetValue(out int i) ? UsdValue.From(i) : UsdValue.Null;
+                case BuiltInType.Int64:
+                    return value.TryGetValue(out long l) ? UsdValue.From(l) : UsdValue.Null;
+                case BuiltInType.UInt32:
+                    return value.TryGetValue(out uint ui) ? UsdValue.From(ui) : UsdValue.Null;
+                case BuiltInType.UInt64:
+                    return value.TryGetValue(out ulong ul)
+                        ? UsdValue.From((long)ul)
+                        : UsdValue.Null;
+                case BuiltInType.Float:
+                    return value.TryGetValue(out float f) ? UsdValue.From(f) : UsdValue.Null;
+                case BuiltInType.Double:
+                    return value.TryGetValue(out double d) ? UsdValue.From(d) : UsdValue.Null;
+                case BuiltInType.String:
+                    return value.TryGetValue(out string s)
+                        ? UsdValue.FromString(s)
+                        : UsdValue.Null;
+                default:
+                    return UsdValue.Null;
+            }
+        }
+
+        private static UsdValue DecoerceArray(in Variant value, BuiltInType elementType)
+        {
+            switch (elementType)
+            {
+                case BuiltInType.Boolean:
+                    return value.TryGetValue(out ArrayOf<bool> b)
+                        ? Wrap(b, static x => UsdValue.From(x))
+                        : UsdValue.Null;
+                case BuiltInType.SByte:
+                    return value.TryGetValue(out ArrayOf<sbyte> sb)
+                        ? Wrap(sb, static x => UsdValue.From(x))
+                        : UsdValue.Null;
+                case BuiltInType.Int32:
+                    return value.TryGetValue(out ArrayOf<int> i)
+                        ? Wrap(i, static x => UsdValue.From(x))
+                        : UsdValue.Null;
+                case BuiltInType.Int64:
+                    return value.TryGetValue(out ArrayOf<long> l)
+                        ? Wrap(l, static x => UsdValue.From(x))
+                        : UsdValue.Null;
+                case BuiltInType.UInt32:
+                    return value.TryGetValue(out ArrayOf<uint> ui)
+                        ? Wrap(ui, static x => UsdValue.From(x))
+                        : UsdValue.Null;
+                case BuiltInType.UInt64:
+                    return value.TryGetValue(out ArrayOf<ulong> ul)
+                        ? Wrap(ul, static x => UsdValue.From((long)x))
+                        : UsdValue.Null;
+                case BuiltInType.Float:
+                    return value.TryGetValue(out ArrayOf<float> f)
+                        ? Wrap(f, static x => UsdValue.From(x))
+                        : UsdValue.Null;
+                case BuiltInType.Double:
+                    return value.TryGetValue(out ArrayOf<double> d)
+                        ? Wrap(d, static x => UsdValue.From(x))
+                        : UsdValue.Null;
+                case BuiltInType.String:
+                    return value.TryGetValue(out ArrayOf<string> s)
+                        ? Wrap(s, static x => UsdValue.FromString(x))
+                        : UsdValue.Null;
+                default:
+                    return UsdValue.Null;
+            }
+        }
+
+        private static UsdValue DecoerceMatrix(in Variant value, BuiltInType elementType)
+        {
+            switch (elementType)
+            {
+                case BuiltInType.Boolean:
+                    return value.TryGetValue(out MatrixOf<bool> b)
+                        ? Regroup(b, static x => UsdValue.From(x))
+                        : UsdValue.Null;
+                case BuiltInType.SByte:
+                    return value.TryGetValue(out MatrixOf<sbyte> sb)
+                        ? Regroup(sb, static x => UsdValue.From(x))
+                        : UsdValue.Null;
+                case BuiltInType.Int32:
+                    return value.TryGetValue(out MatrixOf<int> i)
+                        ? Regroup(i, static x => UsdValue.From(x))
+                        : UsdValue.Null;
+                case BuiltInType.Int64:
+                    return value.TryGetValue(out MatrixOf<long> l)
+                        ? Regroup(l, static x => UsdValue.From(x))
+                        : UsdValue.Null;
+                case BuiltInType.UInt32:
+                    return value.TryGetValue(out MatrixOf<uint> ui)
+                        ? Regroup(ui, static x => UsdValue.From(x))
+                        : UsdValue.Null;
+                case BuiltInType.UInt64:
+                    return value.TryGetValue(out MatrixOf<ulong> ul)
+                        ? Regroup(ul, static x => UsdValue.From((long)x))
+                        : UsdValue.Null;
+                case BuiltInType.Float:
+                    return value.TryGetValue(out MatrixOf<float> f)
+                        ? Regroup(f, static x => UsdValue.From(x))
+                        : UsdValue.Null;
+                case BuiltInType.Double:
+                    return value.TryGetValue(out MatrixOf<double> d)
+                        ? Regroup(d, static x => UsdValue.From(x))
+                        : UsdValue.Null;
+                case BuiltInType.String:
+                    return value.TryGetValue(out MatrixOf<string> s)
+                        ? Regroup(s, static x => UsdValue.FromString(x))
+                        : UsdValue.Null;
+                default:
+                    return UsdValue.Null;
+            }
+        }
+
+        private static UsdValue Wrap<T>(ArrayOf<T> source, Func<T, UsdValue> project)
+        {
+            System.ReadOnlySpan<T> span = source.Span;
+            var items = new UsdValue[span.Length];
+            for (int ii = 0; ii < span.Length; ii++)
+            {
+                items[ii] = project(span[ii]);
+            }
+            return UsdValue.FromArray(items.ToArrayOf());
+        }
+
+        /// <summary>
+        /// Regroups a rectangular matrix into one tuple per row, which is how the scene document
+        /// model carries an array-of-tuples type such as <c>color3f[]</c>.
+        /// </summary>
+        /// <typeparam name="T">The matrix element type.</typeparam>
+        /// <param name="source">The matrix read from the Variable.</param>
+        /// <param name="project">Projects one element onto a USD value.</param>
+        /// <returns>An array of per-row tuples.</returns>
+        private static UsdValue Regroup<T>(MatrixOf<T> source, Func<T, UsdValue> project)
+        {
+            int[] dimensions = source.Dimensions;
+            int rows = dimensions.Length > 0 ? dimensions[0] : 0;
+            int width = dimensions.Length > 1 ? dimensions[1] : 0;
+            System.ReadOnlySpan<T> flat = source.Memory.Span;
+            var grouped = new UsdValue[rows];
+            for (int r = 0; r < rows; r++)
+            {
+                var cells = new UsdValue[width];
+                for (int c = 0; c < width; c++)
+                {
+                    int index = (r * width) + c;
+                    cells[c] = index < flat.Length ? project(flat[index]) : UsdValue.Null;
+                }
+                grouped[r] = UsdValue.FromTuple(cells.ToArrayOf());
+            }
+            return UsdValue.FromArray(grouped.ToArrayOf());
+        }
+
+
+        private static bool TryScalar(UsdValue value, BuiltInType elementType, out Variant result)
         {
             result = default;
             switch (elementType)
             {
                 case BuiltInType.Boolean:
-                    if (!TryConvert(value, Convert.ToBoolean, out bool b))
+                    if (!TryAsBoolean(value, out bool b))
                     {
                         return false;
                     }
                     result = Variant.From(b);
                     return true;
                 case BuiltInType.SByte:
-                    if (!TryConvert(value, Convert.ToSByte, out sbyte sb))
+                    if (!TryAsSByte(value, out sbyte sb))
                     {
                         return false;
                     }
                     result = Variant.From(sb);
                     return true;
                 case BuiltInType.Int32:
-                    if (!TryConvert(value, Convert.ToInt32, out int i))
+                    if (!TryAsInt32(value, out int i))
                     {
                         return false;
                     }
                     result = Variant.From(i);
                     return true;
                 case BuiltInType.Int64:
-                    if (!TryConvert(value, Convert.ToInt64, out long l))
+                    if (!TryAsInt64(value, out long l))
                     {
                         return false;
                     }
                     result = Variant.From(l);
                     return true;
                 case BuiltInType.UInt32:
-                    if (!TryConvert(value, Convert.ToUInt32, out uint ui))
+                    if (!TryAsUInt32(value, out uint ui))
                     {
                         return false;
                     }
                     result = Variant.From(ui);
                     return true;
                 case BuiltInType.UInt64:
-                    if (!TryConvert(value, Convert.ToUInt64, out ulong ul))
+                    if (!TryAsUInt64(value, out ulong ul))
                     {
                         return false;
                     }
                     result = Variant.From(ul);
                     return true;
                 case BuiltInType.Float:
-                    if (!TryConvert(value, Convert.ToSingle, out float f))
+                    if (!TryAsSingle(value, out float f))
                     {
                         return false;
                     }
                     result = Variant.From(f);
                     return true;
                 case BuiltInType.Double:
-                    if (!TryConvert(value, Convert.ToDouble, out double d))
+                    if (!TryAsDouble(value, out double d))
                     {
                         return false;
                     }
@@ -261,70 +412,70 @@ namespace Opc.Ua.OpenUsdScene.Conversion
         }
 
         private static bool TryArray(
-            IReadOnlyList<object?> items, BuiltInType elementType, out Variant result)
+            UsdValue[] items, BuiltInType elementType, out Variant result)
         {
             result = default;
             switch (elementType)
             {
                 case BuiltInType.Boolean:
-                    if (!TryFill(items, Convert.ToBoolean, out bool[] b))
+                    if (!TryFill(items, TryAsBoolean, out bool[] b))
                     {
                         return false;
                     }
                     result = Variant.From((ArrayOf<bool>)b);
                     return true;
                 case BuiltInType.SByte:
-                    if (!TryFill(items, Convert.ToSByte, out sbyte[] sb))
+                    if (!TryFill(items, TryAsSByte, out sbyte[] sb))
                     {
                         return false;
                     }
                     result = Variant.From((ArrayOf<sbyte>)sb);
                     return true;
                 case BuiltInType.Int32:
-                    if (!TryFill(items, Convert.ToInt32, out int[] i))
+                    if (!TryFill(items, TryAsInt32, out int[] i))
                     {
                         return false;
                     }
                     result = Variant.From((ArrayOf<int>)i);
                     return true;
                 case BuiltInType.Int64:
-                    if (!TryFill(items, Convert.ToInt64, out long[] l))
+                    if (!TryFill(items, TryAsInt64, out long[] l))
                     {
                         return false;
                     }
                     result = Variant.From((ArrayOf<long>)l);
                     return true;
                 case BuiltInType.UInt32:
-                    if (!TryFill(items, Convert.ToUInt32, out uint[] ui))
+                    if (!TryFill(items, TryAsUInt32, out uint[] ui))
                     {
                         return false;
                     }
                     result = Variant.From((ArrayOf<uint>)ui);
                     return true;
                 case BuiltInType.UInt64:
-                    if (!TryFill(items, Convert.ToUInt64, out ulong[] ul))
+                    if (!TryFill(items, TryAsUInt64, out ulong[] ul))
                     {
                         return false;
                     }
                     result = Variant.From((ArrayOf<ulong>)ul);
                     return true;
                 case BuiltInType.Float:
-                    if (!TryFill(items, Convert.ToSingle, out float[] f))
+                    if (!TryFill(items, TryAsSingle, out float[] f))
                     {
                         return false;
                     }
                     result = Variant.From((ArrayOf<float>)f);
                     return true;
                 case BuiltInType.Double:
-                    if (!TryFill(items, Convert.ToDouble, out double[] d))
+                    if (!TryFill(items, TryAsDouble, out double[] d))
                     {
                         return false;
                     }
                     result = Variant.From((ArrayOf<double>)d);
                     return true;
                 case BuiltInType.String:
-                    var strings = new string[items.Count];
-                    for (int n = 0; n < items.Count; n++)
+                    var strings = new string[items.Length];
+                    for (int n = 0; n < items.Length; n++)
                     {
                         if (!TryStringifyLeaf(items[n], out string element))
                         {
@@ -340,7 +491,7 @@ namespace Opc.Ua.OpenUsdScene.Conversion
         }
 
         private static bool TryMatrix(
-            List<object?> flat,
+            List<UsdValue> flat,
             BuiltInType elementType,
             int rows,
             int width,
@@ -350,56 +501,56 @@ namespace Opc.Ua.OpenUsdScene.Conversion
             switch (elementType)
             {
                 case BuiltInType.Boolean:
-                    if (!TryFill(flat, Convert.ToBoolean, out bool[] b))
+                    if (!TryFill(flat, TryAsBoolean, out bool[] b))
                     {
                         return false;
                     }
                     result = Variant.From((MatrixOf<bool>)Reshape(b, rows, width));
                     return true;
                 case BuiltInType.SByte:
-                    if (!TryFill(flat, Convert.ToSByte, out sbyte[] sb))
+                    if (!TryFill(flat, TryAsSByte, out sbyte[] sb))
                     {
                         return false;
                     }
                     result = Variant.From((MatrixOf<sbyte>)Reshape(sb, rows, width));
                     return true;
                 case BuiltInType.Int32:
-                    if (!TryFill(flat, Convert.ToInt32, out int[] i))
+                    if (!TryFill(flat, TryAsInt32, out int[] i))
                     {
                         return false;
                     }
                     result = Variant.From((MatrixOf<int>)Reshape(i, rows, width));
                     return true;
                 case BuiltInType.Int64:
-                    if (!TryFill(flat, Convert.ToInt64, out long[] l))
+                    if (!TryFill(flat, TryAsInt64, out long[] l))
                     {
                         return false;
                     }
                     result = Variant.From((MatrixOf<long>)Reshape(l, rows, width));
                     return true;
                 case BuiltInType.UInt32:
-                    if (!TryFill(flat, Convert.ToUInt32, out uint[] ui))
+                    if (!TryFill(flat, TryAsUInt32, out uint[] ui))
                     {
                         return false;
                     }
                     result = Variant.From((MatrixOf<uint>)Reshape(ui, rows, width));
                     return true;
                 case BuiltInType.UInt64:
-                    if (!TryFill(flat, Convert.ToUInt64, out ulong[] ul))
+                    if (!TryFill(flat, TryAsUInt64, out ulong[] ul))
                     {
                         return false;
                     }
                     result = Variant.From((MatrixOf<ulong>)Reshape(ul, rows, width));
                     return true;
                 case BuiltInType.Float:
-                    if (!TryFill(flat, Convert.ToSingle, out float[] f))
+                    if (!TryFill(flat, TryAsSingle, out float[] f))
                     {
                         return false;
                     }
                     result = Variant.From((MatrixOf<float>)Reshape(f, rows, width));
                     return true;
                 case BuiltInType.Double:
-                    if (!TryFill(flat, Convert.ToDouble, out double[] d))
+                    if (!TryFill(flat, TryAsDouble, out double[] d))
                     {
                         return false;
                     }
@@ -422,87 +573,166 @@ namespace Opc.Ua.OpenUsdScene.Conversion
             }
         }
 
-        private static IReadOnlyList<object?> AsSequence(object? value)
+        private static UsdValue[] AsSequence(UsdValue value)
         {
-            if (value is IReadOnlyList<object?> list)
+            if (value.TryGetItems(out ArrayOf<UsdValue> items))
             {
-                return list;
+                return items.ToArray() ?? [];
             }
-            if (value is string || value == null)
-            {
-                return new[] { value };
-            }
-            if (value is IEnumerable enumerable)
-            {
-                var items = new List<object?>();
-                foreach (object? item in enumerable)
-                {
-                    items.Add(item);
-                }
-                return items;
-            }
-            return new object?[] { value };
+            return [value];
         }
 
         /// <summary>
         /// Recursively flattens nested tuples and arrays to their scalar leaves, mirroring the
-        /// reference converter's <c>_flat</c>. A string is treated as a leaf, not a character
-        /// sequence. Used to reconcile a fixed-size math type (matrix4d authored as nested tuples)
-        /// with its flat component count before the arity check.
+        /// reference converter's <c>_flat</c>. Used to reconcile a fixed-size math type (matrix4d
+        /// authored as nested tuples) with its flat component count before the arity check.
         /// </summary>
-        private static List<object?> Flatten(object? value)
+        private static List<UsdValue> Flatten(UsdValue value)
         {
-            var sink = new List<object?>();
+            var sink = new List<UsdValue>();
             FlattenInto(value, sink);
             return sink;
         }
 
-        private static void FlattenInto(object? value, List<object?> sink)
+        private static void FlattenInto(UsdValue value, List<UsdValue> sink)
         {
-            if (value is string || value == null)
+            if (value.TryGetItems(out ArrayOf<UsdValue> items))
             {
-                sink.Add(value);
-                return;
-            }
-            if (value is IEnumerable enumerable)
-            {
-                foreach (object? item in enumerable)
+                System.ReadOnlySpan<UsdValue> span = items.Span;
+                for (int ii = 0; ii < span.Length; ii++)
                 {
-                    FlattenInto(item, sink);
+                    FlattenInto(span[ii], sink);
                 }
                 return;
             }
             sink.Add(value);
         }
 
-        private static bool TryConvert<T>(
-            object value, Func<object, IFormatProvider, T> convert, out T result)
+        private delegate bool UsdConverter<T>(UsdValue value, out T result);
+
+        private static bool TryAsBoolean(UsdValue value, out bool result)
         {
-            try
+            if (value.TryGetBoolean(out result))
             {
-                result = convert(value, CultureInfo.InvariantCulture);
                 return true;
             }
-            catch (Exception ex) when (ex is InvalidCastException or FormatException
-                or OverflowException or ArgumentException)
+            if (value.TryGetNumber(out double number))
             {
-                result = default!;
+                result = number != 0.0;
+                return true;
+            }
+            if (value.TryGetText(out string text))
+            {
+                return bool.TryParse(text, out result);
+            }
+            result = false;
+            return false;
+        }
+
+        private static bool TryAsDouble(UsdValue value, out double result)
+        {
+            if (value.TryGetNumber(out result))
+            {
+                return true;
+            }
+            if (value.TryGetText(out string text))
+            {
+                return double.TryParse(
+                    text, NumberStyles.Float, CultureInfo.InvariantCulture, out result);
+            }
+            result = 0.0;
+            return false;
+        }
+
+        private static bool TryAsSingle(UsdValue value, out float result)
+        {
+            if (!TryAsDouble(value, out double number))
+            {
+                result = 0.0f;
                 return false;
             }
+            result = (float)number;
+            return !float.IsInfinity(result) || double.IsInfinity(number);
+        }
+
+        private static bool TryAsInt64(UsdValue value, out long result)
+        {
+            if (value.TryGetInteger(out result))
+            {
+                return true;
+            }
+            if (!TryAsDouble(value, out double number))
+            {
+                result = 0L;
+                return false;
+            }
+            if (number is < long.MinValue or > long.MaxValue)
+            {
+                result = 0L;
+                return false;
+            }
+            result = (long)number;
+            return true;
+        }
+
+        private static bool TryAsUInt64(UsdValue value, out ulong result)
+        {
+            if (!TryAsInt64(value, out long signed) || signed < 0L)
+            {
+                result = 0UL;
+                return false;
+            }
+            result = (ulong)signed;
+            return true;
+        }
+
+        private static bool TryAsSByte(UsdValue value, out sbyte result)
+        {
+            if (!TryAsInt64(value, out long signed) ||
+                signed is < sbyte.MinValue or > sbyte.MaxValue)
+            {
+                result = 0;
+                return false;
+            }
+            result = (sbyte)signed;
+            return true;
+        }
+
+        private static bool TryAsInt32(UsdValue value, out int result)
+        {
+            if (!TryAsInt64(value, out long signed) ||
+                signed is < int.MinValue or > int.MaxValue)
+            {
+                result = 0;
+                return false;
+            }
+            result = (int)signed;
+            return true;
+        }
+
+        private static bool TryAsUInt32(UsdValue value, out uint result)
+        {
+            if (!TryAsInt64(value, out long signed) || signed is < 0L or > uint.MaxValue)
+            {
+                result = 0U;
+                return false;
+            }
+            result = (uint)signed;
+            return true;
         }
 
         private static bool TryFill<T>(
-            IReadOnlyList<object?> items, Func<object, IFormatProvider, T> convert, out T[] result)
+            IReadOnlyList<UsdValue> items, UsdConverter<T> convert, out T[] result)
         {
             var target = new T[items.Count];
             for (int i = 0; i < items.Count; i++)
             {
-                if (items[i] == null)
+                if (items[i].IsNull)
                 {
                     target[i] = default!;
                     continue;
                 }
-                if (!TryConvert(items[i]!, convert, out T converted))
+                if (!convert(items[i], out T converted))
                 {
                     result = Array.Empty<T>();
                     return false;
@@ -526,32 +756,40 @@ namespace Opc.Ua.OpenUsdScene.Conversion
         /// <summary>
         /// Renders a single scalar leaf to its faithful invariant-culture string for a
         /// <c>string</c>/<c>token</c>/<c>asset</c> attribute. Succeeds only for a value that has a
-        /// well-defined textual form — <c>null</c>, a string, a bool (as its USD <c>true</c>/
-        /// <c>false</c> spelling) or an <see cref="IFormattable"/> (numbers, timestamps). It fails
-        /// closed for a structured value (a tuple/array modelled as <c>object?[]</c> or
-        /// <c>List&lt;object?&gt;</c>) or any other object, because emitting <c>value.ToString()</c>
-        /// there would publish a CLR type name such as <c>"System.Object[]"</c> — a plausible but
-        /// wrong value. The caller returns <c>false</c> so the attribute is left unresolved instead.
+        /// well-defined textual form — an absent value, text, a bool (as its USD <c>true</c>/
+        /// <c>false</c> spelling) or a number. It fails closed for a structured value (a tuple,
+        /// array, matrix or dictionary), because rendering one here would publish a plausible but
+        /// wrong scalar. The caller returns <c>false</c> so the attribute is left unresolved.
         /// </summary>
-        private static bool TryStringifyLeaf(object? value, out string result)
+        private static bool TryStringifyLeaf(UsdValue value, out string result)
         {
-            switch (value)
+            switch (value.Kind)
             {
-                case null:
+                case UsdValueKind.Null:
                     result = string.Empty;
                     return true;
-                case string s:
-                    result = s;
+                case UsdValueKind.String:
+                case UsdValueKind.Token:
+                case UsdValueKind.AssetPath:
+                case UsdValueKind.PathReference:
+                    value.TryGetText(out result);
                     return true;
-                case bool b:
+                case UsdValueKind.Boolean:
+                    value.TryGetBoolean(out bool b);
                     result = b ? "true" : "false";
                     return true;
-                case IFormattable f:
-                    result = f.ToString(null, CultureInfo.InvariantCulture);
+                case UsdValueKind.Integer:
+                    value.TryGetInteger(out long l);
+                    result = l.ToString(CultureInfo.InvariantCulture);
                     return true;
+                case UsdValueKind.Double:
+                    value.TryGetDouble(out double d);
+                    result = d.ToString("R", CultureInfo.InvariantCulture);
+                    return true;
+                default:
+                    result = string.Empty;
+                    return false;
             }
-            result = string.Empty;
-            return false;
         }
     }
 }

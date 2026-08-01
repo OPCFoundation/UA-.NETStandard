@@ -119,8 +119,8 @@ namespace Opc.Ua.OpenUsdScene.Scene
         /// Metadata authored on the prim that has no well-known typed member; materialized
         /// under the prim's <c>Metadata</c> folder (§6.1).
         /// </summary>
-        public IDictionary<string, object?> Metadata { get; } =
-            new Dictionary<string, object?>(StringComparer.Ordinal);
+        public IDictionary<string, UsdValue> Metadata { get; } =
+            new Dictionary<string, UsdValue>(StringComparer.Ordinal);
 
         /// <summary>
         /// The child prims, in authored order.
