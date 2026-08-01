@@ -344,6 +344,22 @@ turn together — as they do on the real machine. The gauge needles use the
 same trick with `xformOp:rotateX = 90`, because their dials face the
 plant Y axis.
 
+Which op a bound prim has to declare depends on the render target, and
+getting it wrong fails silently. A connector accumulates `Translation`,
+`Rotation` and `Scale` into a *single* `xformOp:transform` matrix, so
+that it never has to rewrite `xformOpOrder` — the list is `uniform`, and
+an opinion in the asset layer cannot be cleared from the stronger layer a
+connector edits. Every other `xformOp:` property, such as the scalar
+`xformOp:rotateZ` above, is authored under its own name. USD evaluates
+only the ops named in `xformOpOrder`, so a prim bound to a `Translation`
+target must declare `xformOp:transform` — the pump root and the suction
+vessel's fluid surface both do. Naming `xformOp:translate` there instead
+makes USD discard every value written to it: the pumps keep reporting
+their bay positions over OPC UA, and every one of them renders on the
+origin, so the hall looks like it holds a single machine.
+`TransformBindingsTargetDeclaredXformOpsAsync` checks each transform
+binding against the op the served asset actually declares.
+
 Because the render targets expect degrees Celsius and bar while OPC
 40223 publishes Kelvin and Pascal, the colour bindings declare the
 conversion themselves (`offset: -273.15` and `scale: 1e-5`); §5.8

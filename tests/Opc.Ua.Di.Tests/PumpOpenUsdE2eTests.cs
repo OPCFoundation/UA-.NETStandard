@@ -717,6 +717,159 @@ namespace Opc.Ua.Di.Tests
                 "Every pump must integrate its own shaft angle.");
         }
 
+        /// <summary>
+        /// Asserts that every prim a transform binding targets declares the op the
+        /// connector actually authors in its <c>xformOpOrder</c>.
+        /// A Translation, Rotation or Scale render target resolves to a single
+        /// <c>xformOp:transform</c> matrix; every other <c>xformOp:</c> property is
+        /// authored under its own name. USD only evaluates ops named in
+        /// <c>xformOpOrder</c>, and the list is uniform, so a connector cannot add
+        /// itself to it from a stronger layer. When the asset named the wrong op the
+        /// value was silently discarded, which parked every composed pump on the
+        /// origin - the hall rendered N stacked machines and looked like it held one.
+        /// </summary>
+        [Test]
+        public async Task TransformBindingsTargetDeclaredXformOpsAsync()
+        {
+            var connector = new OpenUsdConnector(m_session!, new MockUsdSink());
+            string cacheDir = System.IO.Path.Combine(
+                System.IO.Path.GetTempPath(), "PumpXformOps", System.IO.Path.GetRandomFileName());
+            try
+            {
+                System.Collections.Generic.List<OpenUsdConnector.FetchedAsset> assets =
+                    await connector.FetchServedAssetsAsync(cacheDir, CancellationToken.None).ConfigureAwait(false);
+                OpenUsdConnector.FetchedAsset? component = assets.Find(a => a.Identifier == "pump.usda");
+                Assert.That(component, Is.Not.Null, "pump.usda was not served.");
+                string layer = System.IO.File.ReadAllText(component!.LocalPath);
+
+                OpenUsdConnector.RepresentationInfo? pump = await PumpRepAsync(connector).ConfigureAwait(false);
+                Assert.That(pump, Is.Not.Null);
+
+                System.Collections.Generic.List<OpenUsdConnector.BindingInfo> transforms =
+                    pump!.Bindings.FindAll(b => b.PropertyName != null &&
+                        b.PropertyName.StartsWith("xformOp:", StringComparison.Ordinal));
+                Assert.That(transforms, Is.Not.Empty, "The pump publishes no transform bindings.");
+
+                Assert.Multiple(() =>
+                {
+                    foreach (OpenUsdConnector.BindingInfo binding in transforms)
+                    {
+                        // Bindings address the composed stage (/Plant/Pumps/Pump_1/...);
+                        // the asset authors the same prims under its own root (/Pump/...).
+                        string assetPath = "/Pump" + binding.PrimPath![pump.PrimPath!.Length..];
+                        string authored = AuthoredOpFor(binding.PropertyName!);
+                        Assert.That(
+                            DeclaredXformOps(layer, assetPath),
+                            Does.Contain(authored),
+                            $"{assetPath} is bound to {binding.PropertyName}, which a connector authors as " +
+                            $"{authored}, but it does not list {authored} in xformOpOrder - so USD discards " +
+                            "every value written to it.");
+                    }
+                });
+            }
+            finally
+            {
+                if (System.IO.Directory.Exists(cacheDir))
+                {
+                    System.IO.Directory.Delete(cacheDir, recursive: true);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Returns the xform op a connector authors for a bound op name. Translation,
+        /// rotation and scale are accumulated into one matrix so that the op order
+        /// never has to be rewritten from a stronger layer; anything else, such as the
+        /// scalar <c>xformOp:rotateZ</c> a shaft uses, is authored under its own name.
+        /// </summary>
+        private static string AuthoredOpFor(string propertyName)
+        {
+            return propertyName is "xformOp:translate" or "xformOp:rotateXYZ" or "xformOp:scale"
+                ? "xformOp:transform"
+                : propertyName;
+        }
+
+        /// <summary>
+        /// Reads the <c>xformOpOrder</c> declared on a prim in a USD text layer.
+        /// </summary>
+        private static System.Collections.Generic.List<string> DeclaredXformOps(
+            string layer, string primPath)
+        {
+            var names = new System.Collections.Generic.List<string>();
+            var openedAt = new System.Collections.Generic.List<int>();
+            var ops = new System.Collections.Generic.List<string>();
+            string? pending = null;
+            int depth = 0;
+            bool collecting = false;
+
+            foreach (string line in layer.Split('\n'))
+            {
+                string text = line.Trim();
+                bool inTarget = names.Count > 0 &&
+                    string.Equals("/" + string.Join("/", names), primPath, StringComparison.Ordinal);
+
+                if (text.StartsWith("def ", StringComparison.Ordinal) ||
+                    text.StartsWith("over ", StringComparison.Ordinal) ||
+                    text.StartsWith("class ", StringComparison.Ordinal))
+                {
+                    pending = QuotedTokens(text).FirstOrDefault();
+                }
+
+                // The op list may wrap over several lines, and the declaration itself
+                // contains a bracket pair ("uniform token[]"), so only the text after
+                // the assignment decides whether the list is already closed.
+                if (inTarget && text.Contains("xformOpOrder", StringComparison.Ordinal))
+                {
+                    int assign = text.IndexOf('=', StringComparison.Ordinal);
+                    string tail = assign >= 0 ? text[(assign + 1)..] : text;
+                    ops.AddRange(QuotedTokens(tail));
+                    collecting = !tail.Contains(']', StringComparison.Ordinal);
+                }
+                else if (collecting)
+                {
+                    ops.AddRange(QuotedTokens(text));
+                    collecting = !text.Contains(']', StringComparison.Ordinal);
+                }
+
+                foreach (char c in line)
+                {
+                    if (c == '{')
+                    {
+                        depth++;
+                        if (pending != null)
+                        {
+                            names.Add(pending);
+                            openedAt.Add(depth);
+                            pending = null;
+                        }
+                    }
+                    else if (c == '}')
+                    {
+                        if (openedAt.Count > 0 && openedAt[^1] == depth)
+                        {
+                            names.RemoveAt(names.Count - 1);
+                            openedAt.RemoveAt(openedAt.Count - 1);
+                        }
+                        depth--;
+                    }
+                }
+            }
+
+            return ops;
+        }
+
+        /// <summary>
+        /// Splits the double-quoted tokens out of a line of USD text.
+        /// </summary>
+        private static System.Collections.Generic.IEnumerable<string> QuotedTokens(string line)
+        {
+            string[] parts = line.Split('"');
+            for (int i = 1; i < parts.Length; i += 2)
+            {
+                yield return parts[i];
+            }
+        }
+
         private static async Task<OpenUsdConnector.RepresentationInfo?> PumpRepAsync(OpenUsdConnector connector)
         {
             System.Collections.Generic.List<OpenUsdConnector.RepresentationInfo> all =

@@ -92,6 +92,9 @@ def Xform "Pump" (
     kind = "component"
 )
 {{
+    matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 0, 0, 1) )
+    uniform token[] xformOpOrder = ["xformOp:transform"]
+
 {body}
 }}
 '''
@@ -112,7 +115,15 @@ PUMP_DOC = """Reusable single-pump USD asset for the OPC UA - OpenUSD Bindings
     The asset carries its own instrumentation and indications - pressure and
     bearing-temperature gauges, suction vessel, cooling fan, the alarm ring and
     the two fault halos - because each composed pump is driven by its own
-    bindings and has to show its own state."""
+    bindings and has to show its own state.
+
+    The root prim declares an identity xformOp:transform and lists it in
+    xformOpOrder because that is what makes the bay position binding work. A
+    connector resolves a Translation render target into a single matrix op, and
+    USD only evaluates ops named in xformOpOrder - a list that is uniform, so the
+    connector cannot add itself to it from a stronger layer. If the asset omits
+    the op, the bay position is silently discarded, every composed pump renders
+    on the origin, and the hall looks like it holds a single machine."""
 
 
 def main():

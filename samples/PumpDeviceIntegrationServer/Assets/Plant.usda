@@ -757,8 +757,8 @@ def Xform "Plant"
                     double radius = 0.285
                     color3f[] primvars:displayColor = [(0.10, 0.42, 0.72)]
                     rel material:binding = </Plant/Looks/PumpBlue>
-                    double3 xformOp:translate = (0, 0, 0.5)
-                    uniform token[] xformOpOrder = ["xformOp:translate"]
+                    matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 0, 0.5, 1) )
+                    uniform token[] xformOpOrder = ["xformOp:transform"]
                 }
 
                 def Cylinder "DownPipe" (
