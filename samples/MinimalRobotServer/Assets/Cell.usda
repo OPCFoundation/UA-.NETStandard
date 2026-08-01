@@ -1,0 +1,782 @@
+#usda 1.0
+(
+    doc = """Base robot-cell asset for the OPC UA - OpenUSD Bindings Robotics end-to-end.
+
+    Authored by the 3D / USD asset author actor. It carries only the static cell environment. The generic connector composes the aggregated robot references into live.usda; this base layer provides only positioned /Cell/Robots/R1 and /Cell/Robots/R2 mount-point Xforms.
+
+    The cell is sized to contain the real motion envelope: each robot base travels +/-0.6 m in X about +/-1.2 m and each KR 16-2 arm reaches 1.611 m, so the floor spans 7.2 x 4.8 m with the guarding at x = +/-3.4 and y = +/-2.2.
+
+    Every gprim carries both a material binding and a matching primvars:displayColor, so the cell reads correctly on renderers that ignore the material graph.
+    """
+    defaultPrim = "Cell"
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "Cell"
+{
+    custom double inputs:speedOverride = 100
+
+    def Xform "Floor"
+    {
+        def Cube "Slab" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            double size = 1
+            color3f[] primvars:displayColor = [(0.34, 0.35, 0.36)]
+            rel material:binding = </Cell/Materials/Concrete>
+            double3 xformOp:translate = (0, 0, -0.030)
+            double3 xformOp:scale = (7.2, 4.8, 0.030)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+
+        def Cube "WorkZone" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            double size = 1
+            color3f[] primvars:displayColor = [(0.42, 0.44, 0.45)]
+            rel material:binding = </Cell/Materials/FloorPaint>
+            double3 xformOp:translate = (0, 0, -0.0138)
+            double3 xformOp:scale = (6.6, 4.2, 0.0015)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+
+        def Cube "HazardStripeFront" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            double size = 1
+            color3f[] primvars:displayColor = [(0.92, 0.74, 0.05)]
+            rel material:binding = </Cell/Materials/SafetyYellow>
+            double3 xformOp:translate = (0, -2.28, -0.0132)
+            double3 xformOp:scale = (6.8, 0.12, 0.0015)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+
+        def Cube "HazardStripeBack" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            double size = 1
+            color3f[] primvars:displayColor = [(0.92, 0.74, 0.05)]
+            rel material:binding = </Cell/Materials/SafetyYellow>
+            double3 xformOp:translate = (0, 2.28, -0.0132)
+            double3 xformOp:scale = (6.8, 0.12, 0.0015)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+    }
+
+    # Perimeter guarding: posts, top and bottom rails, and infill panels. Modelled as thin
+    # solids rather than transparent sheets so it reads on every renderer.
+    def Xform "Fence"
+    {
+        def Xform "Back"
+        {
+            double3 xformOp:translate = (0, 2.2, 0)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+
+            def Cube "RailTop" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                double size = 1
+                color3f[] primvars:displayColor = [(0.92, 0.74, 0.05)]
+                rel material:binding = </Cell/Materials/SafetyYellow>
+                double3 xformOp:translate = (0, 0, 1.98)
+                double3 xformOp:scale = (6.8, 0.045, 0.045)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            }
+
+            def Cube "RailBottom" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                double size = 1
+                color3f[] primvars:displayColor = [(0.92, 0.74, 0.05)]
+                rel material:binding = </Cell/Materials/SafetyYellow>
+                double3 xformOp:translate = (0, 0, 0.16)
+                double3 xformOp:scale = (6.8, 0.045, 0.040)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            }
+
+            def Cube "PostA" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                double size = 1
+                color3f[] primvars:displayColor = [(0.92, 0.74, 0.05)]
+                rel material:binding = </Cell/Materials/SafetyYellow>
+                double3 xformOp:translate = (-3.35, 0, 1.0)
+                double3 xformOp:scale = (0.055, 0.055, 2.0)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            }
+
+            def Cube "PostB" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                double size = 1
+                color3f[] primvars:displayColor = [(0.92, 0.74, 0.05)]
+                rel material:binding = </Cell/Materials/SafetyYellow>
+                double3 xformOp:translate = (-1.68, 0, 1.0)
+                double3 xformOp:scale = (0.055, 0.055, 2.0)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            }
+
+            def Cube "PostC" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                double size = 1
+                color3f[] primvars:displayColor = [(0.92, 0.74, 0.05)]
+                rel material:binding = </Cell/Materials/SafetyYellow>
+                double3 xformOp:translate = (0, 0, 1.0)
+                double3 xformOp:scale = (0.055, 0.055, 2.0)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            }
+
+            def Cube "PostD" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                double size = 1
+                color3f[] primvars:displayColor = [(0.92, 0.74, 0.05)]
+                rel material:binding = </Cell/Materials/SafetyYellow>
+                double3 xformOp:translate = (1.68, 0, 1.0)
+                double3 xformOp:scale = (0.055, 0.055, 2.0)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            }
+
+            def Cube "PostE" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                double size = 1
+                color3f[] primvars:displayColor = [(0.92, 0.74, 0.05)]
+                rel material:binding = </Cell/Materials/SafetyYellow>
+                double3 xformOp:translate = (3.35, 0, 1.0)
+                double3 xformOp:scale = (0.055, 0.055, 2.0)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            }
+
+            def Cube "MeshPanel" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                double size = 1
+                color3f[] primvars:displayColor = [(0.30, 0.31, 0.33)]
+                rel material:binding = </Cell/Materials/WireMesh>
+                double3 xformOp:translate = (0, 0, 1.07)
+                double3 xformOp:scale = (6.7, 0.008, 1.78)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            }
+        }
+
+        def Xform "Left"
+        {
+            double3 xformOp:translate = (-3.4, 0, 0)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+
+            def Cube "RailTop" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                double size = 1
+                color3f[] primvars:displayColor = [(0.92, 0.74, 0.05)]
+                rel material:binding = </Cell/Materials/SafetyYellow>
+                double3 xformOp:translate = (0, 0, 1.98)
+                double3 xformOp:scale = (0.045, 4.4, 0.045)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            }
+
+            def Cube "RailBottom" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                double size = 1
+                color3f[] primvars:displayColor = [(0.92, 0.74, 0.05)]
+                rel material:binding = </Cell/Materials/SafetyYellow>
+                double3 xformOp:translate = (0, 0, 0.16)
+                double3 xformOp:scale = (0.045, 4.4, 0.040)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            }
+
+            def Cube "PostFront" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                double size = 1
+                color3f[] primvars:displayColor = [(0.92, 0.74, 0.05)]
+                rel material:binding = </Cell/Materials/SafetyYellow>
+                double3 xformOp:translate = (0, -2.15, 1.0)
+                double3 xformOp:scale = (0.055, 0.055, 2.0)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            }
+
+            def Cube "PostMid" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                double size = 1
+                color3f[] primvars:displayColor = [(0.92, 0.74, 0.05)]
+                rel material:binding = </Cell/Materials/SafetyYellow>
+                double3 xformOp:translate = (0, 0, 1.0)
+                double3 xformOp:scale = (0.055, 0.055, 2.0)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            }
+
+            def Cube "MeshPanel" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                double size = 1
+                color3f[] primvars:displayColor = [(0.30, 0.31, 0.33)]
+                rel material:binding = </Cell/Materials/WireMesh>
+                double3 xformOp:translate = (0, 0, 1.07)
+                double3 xformOp:scale = (0.008, 4.3, 1.78)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            }
+        }
+
+        def Xform "Right"
+        {
+            double3 xformOp:translate = (3.4, 0, 0)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+
+            def Cube "RailTop" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                double size = 1
+                color3f[] primvars:displayColor = [(0.92, 0.74, 0.05)]
+                rel material:binding = </Cell/Materials/SafetyYellow>
+                double3 xformOp:translate = (0, 0, 1.98)
+                double3 xformOp:scale = (0.045, 4.4, 0.045)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            }
+
+            def Cube "RailBottom" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                double size = 1
+                color3f[] primvars:displayColor = [(0.92, 0.74, 0.05)]
+                rel material:binding = </Cell/Materials/SafetyYellow>
+                double3 xformOp:translate = (0, 0, 0.16)
+                double3 xformOp:scale = (0.045, 4.4, 0.040)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            }
+
+            def Cube "PostFront" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                double size = 1
+                color3f[] primvars:displayColor = [(0.92, 0.74, 0.05)]
+                rel material:binding = </Cell/Materials/SafetyYellow>
+                double3 xformOp:translate = (0, -2.15, 1.0)
+                double3 xformOp:scale = (0.055, 0.055, 2.0)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            }
+
+            def Cube "PostMid" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                double size = 1
+                color3f[] primvars:displayColor = [(0.92, 0.74, 0.05)]
+                rel material:binding = </Cell/Materials/SafetyYellow>
+                double3 xformOp:translate = (0, 0, 1.0)
+                double3 xformOp:scale = (0.055, 0.055, 2.0)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            }
+
+            def Cube "MeshPanel" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                double size = 1
+                color3f[] primvars:displayColor = [(0.30, 0.31, 0.33)]
+                rel material:binding = </Cell/Materials/WireMesh>
+                double3 xformOp:translate = (0, 0, 1.07)
+                double3 xformOp:scale = (0.008, 4.3, 1.78)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            }
+        }
+
+        # Front guarding either side of the operator access gate.
+        def Xform "Front"
+        {
+            double3 xformOp:translate = (0, -2.2, 0)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+
+            def Cube "PanelLeft" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                double size = 1
+                color3f[] primvars:displayColor = [(0.30, 0.31, 0.33)]
+                rel material:binding = </Cell/Materials/WireMesh>
+                double3 xformOp:translate = (-2.25, 0, 1.07)
+                double3 xformOp:scale = (2.2, 0.008, 1.78)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            }
+
+            def Cube "PanelRight" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                double size = 1
+                color3f[] primvars:displayColor = [(0.30, 0.31, 0.33)]
+                rel material:binding = </Cell/Materials/WireMesh>
+                double3 xformOp:translate = (2.25, 0, 1.07)
+                double3 xformOp:scale = (2.2, 0.008, 1.78)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            }
+
+            def Cube "RailLeft" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                double size = 1
+                color3f[] primvars:displayColor = [(0.92, 0.74, 0.05)]
+                rel material:binding = </Cell/Materials/SafetyYellow>
+                double3 xformOp:translate = (-2.25, 0, 1.98)
+                double3 xformOp:scale = (2.3, 0.045, 0.045)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            }
+
+            def Cube "RailRight" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                double size = 1
+                color3f[] primvars:displayColor = [(0.92, 0.74, 0.05)]
+                rel material:binding = </Cell/Materials/SafetyYellow>
+                double3 xformOp:translate = (2.25, 0, 1.98)
+                double3 xformOp:scale = (2.3, 0.045, 0.045)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            }
+
+            def Cube "GatePostLeft" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                double size = 1
+                color3f[] primvars:displayColor = [(0.92, 0.74, 0.05)]
+                rel material:binding = </Cell/Materials/SafetyYellow>
+                double3 xformOp:translate = (-1.1, 0, 1.0)
+                double3 xformOp:scale = (0.06, 0.06, 2.0)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            }
+
+            def Cube "GatePostRight" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                double size = 1
+                color3f[] primvars:displayColor = [(0.92, 0.74, 0.05)]
+                rel material:binding = </Cell/Materials/SafetyYellow>
+                double3 xformOp:translate = (1.1, 0, 1.0)
+                double3 xformOp:scale = (0.06, 0.06, 2.0)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            }
+
+            def Cube "GateSill" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                double size = 1
+                color3f[] primvars:displayColor = [(0.20, 0.21, 0.22)]
+                rel material:binding = </Cell/Materials/Steel>
+                double3 xformOp:translate = (0, 0, 0.012)
+                double3 xformOp:scale = (1.1, 0.07, 0.012)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            }
+        }
+    }
+
+    # Stack light on a post beside the gate. The cell safety state drives visibility on
+    # this prim, and the whole subtree follows because visibility is inherited.
+    def Xform "SafetyBeacon"
+    {
+        token visibility = "invisible"
+        double3 xformOp:translate = (0, -2.05, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+
+        def Cylinder "Post" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            uniform token axis = "Z"
+            double height = 2.1
+            double radius = 0.030
+            color3f[] primvars:displayColor = [(0.24, 0.25, 0.26)]
+            rel material:binding = </Cell/Materials/Steel>
+            double3 xformOp:translate = (0, 0, 1.05)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "LampBase" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            uniform token axis = "Z"
+            double height = 0.07
+            double radius = 0.070
+            color3f[] primvars:displayColor = [(0.12, 0.12, 0.13)]
+            rel material:binding = </Cell/Materials/Steel>
+            double3 xformOp:translate = (0, 0, 2.13)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "LampRed" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            uniform token axis = "Z"
+            double height = 0.13
+            double radius = 0.068
+            color3f[] primvars:displayColor = [(1.0, 0.08, 0.06)]
+            rel material:binding = </Cell/Materials/WarnRed>
+            double3 xformOp:translate = (0, 0, 2.23)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Sphere "LampDome" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            double radius = 0.068
+            color3f[] primvars:displayColor = [(1.0, 0.20, 0.10)]
+            rel material:binding = </Cell/Materials/WarnRed>
+            double3 xformOp:translate = (0, 0, 2.295)
+            double3 xformOp:scale = (1, 1, 0.6)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+    }
+
+    # Robot controller cabinet, KR C4 proportions, standing outside the guarding.
+    def Xform "Controller"
+    {
+        double3 xformOp:translate = (-3.05, -2.85, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+
+        def Cube "Cabinet" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            double size = 1
+            color3f[] primvars:displayColor = [(0.38, 0.39, 0.40)]
+            rel material:binding = </Cell/Materials/CabinetGrey>
+            double3 xformOp:translate = (0, 0, 0.505)
+            double3 xformOp:scale = (0.550, 0.550, 0.950)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+
+        def Cube "VentPanel" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            double size = 1
+            color3f[] primvars:displayColor = [(0.20, 0.21, 0.22)]
+            rel material:binding = </Cell/Materials/Steel>
+            double3 xformOp:translate = (0, -0.2775, 0.72)
+            double3 xformOp:scale = (0.200, 0.006, 0.170)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+
+        def Cube "Plinth" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            double size = 1
+            color3f[] primvars:displayColor = [(0.16, 0.17, 0.18)]
+            rel material:binding = </Cell/Materials/Steel>
+            double3 xformOp:translate = (0, 0, 0.015)
+            double3 xformOp:scale = (0.580, 0.580, 0.030)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+
+        def Cylinder "MainSwitch" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            uniform token axis = "Y"
+            double height = 0.02
+            double radius = 0.032
+            color3f[] primvars:displayColor = [(0.92, 0.74, 0.05)]
+            rel material:binding = </Cell/Materials/SafetyYellow>
+            double3 xformOp:translate = (0.16, -0.2850, 0.80)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+    }
+
+    # Shared work table the two arms transfer parts across. Placed clear of the AGV
+    # drive lane, which spans |y| <= 0.77 as the platforms trace their figure-eight.
+    def Xform "WorkTable"
+    {
+        double3 xformOp:translate = (0, 1.45, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+
+        def Cube "Top" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            double size = 1
+            color3f[] primvars:displayColor = [(0.46, 0.47, 0.49)]
+            rel material:binding = </Cell/Materials/Steel>
+            double3 xformOp:translate = (0, 0, 0.760)
+            double3 xformOp:scale = (0.700, 0.450, 0.020)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+
+        def Cube "LegA" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            double size = 1
+            color3f[] primvars:displayColor = [(0.24, 0.25, 0.26)]
+            rel material:binding = </Cell/Materials/Steel>
+            double3 xformOp:translate = (-0.31, -0.185, 0.375)
+            double3 xformOp:scale = (0.030, 0.030, 0.750)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+
+        def Cube "LegB" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            double size = 1
+            color3f[] primvars:displayColor = [(0.24, 0.25, 0.26)]
+            rel material:binding = </Cell/Materials/Steel>
+            double3 xformOp:translate = (0.31, -0.185, 0.375)
+            double3 xformOp:scale = (0.030, 0.030, 0.750)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+
+        def Cube "LegC" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            double size = 1
+            color3f[] primvars:displayColor = [(0.24, 0.25, 0.26)]
+            rel material:binding = </Cell/Materials/Steel>
+            double3 xformOp:translate = (0.31, 0.185, 0.375)
+            double3 xformOp:scale = (0.030, 0.030, 0.750)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+
+        def Cube "LegD" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            double size = 1
+            color3f[] primvars:displayColor = [(0.24, 0.25, 0.26)]
+            rel material:binding = </Cell/Materials/Steel>
+            double3 xformOp:translate = (-0.31, 0.185, 0.375)
+            double3 xformOp:scale = (0.030, 0.030, 0.750)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+
+        def Cube "PartA" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            double size = 1
+            color3f[] primvars:displayColor = [(0.20, 0.42, 0.62)]
+            rel material:binding = </Cell/Materials/PartBlue>
+            double3 xformOp:translate = (-0.22, 0.06, 0.7875)
+            double3 xformOp:scale = (0.070, 0.070, 0.035)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+
+        def Cube "PartB" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            double size = 1
+            color3f[] primvars:displayColor = [(0.20, 0.42, 0.62)]
+            rel material:binding = </Cell/Materials/PartBlue>
+            double3 xformOp:translate = (0.24, -0.05, 0.7875)
+            double3 xformOp:scale = (0.070, 0.070, 0.035)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+    }
+
+    # The two robot mount points. Their pose is live data owned by the connector, so they
+    # declare a single matrix transform op rather than translate/rotate ops: the connector
+    # authors into the root layer and cannot clear an op order declared here in a weaker
+    # sublayer, which is what MakeMatrixXform would otherwise have to do.
+    def Xform "Robots"
+    {
+        def Xform "R1"
+        {
+            custom double inputs:longitude = 11.576124
+            custom double inputs:latitude = 48.137154
+            custom double inputs:elevation = 520
+            matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (-1.2, 0, 0, 1) )
+            uniform token[] xformOpOrder = ["xformOp:transform"]
+        }
+
+        def Xform "R2"
+        {
+            custom double inputs:longitude = 11.576124
+            custom double inputs:latitude = 48.137154
+            custom double inputs:elevation = 520
+            matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (1.2, 0, 0, 1) )
+            uniform token[] xformOpOrder = ["xformOp:transform"]
+        }
+    }
+
+    # Overhead camera framing the whole cell. Hosts can start on it by prim path.
+    def Camera "TopDownCamera"
+    {
+        token projection = "perspective"
+        float focalLength = 24
+        float horizontalAperture = 20.955
+        float verticalAperture = 13.97
+        float2 clippingRange = (0.1, 100)
+        double3 xformOp:translate = (0, 0, 9)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+    }
+
+    def DistantLight "KeyLight"
+    {
+        float intensity = 650
+        double3 xformOp:rotateXYZ = (-45, 0, 35)
+        uniform token[] xformOpOrder = ["xformOp:rotateXYZ"]
+    }
+
+    def DistantLight "FillLight"
+    {
+        float intensity = 240
+        color3f inputs:color = (0.80, 0.86, 1.0)
+        double3 xformOp:rotateXYZ = (-25, 0, -120)
+        uniform token[] xformOpOrder = ["xformOp:rotateXYZ"]
+    }
+
+    def DomeLight "AmbientLight"
+    {
+        float intensity = 190
+        color3f inputs:color = (0.72, 0.76, 0.82)
+    }
+
+    def Scope "Materials"
+    {
+        def Material "Concrete"
+        {
+            token outputs:surface.connect = </Cell/Materials/Concrete/Surface.outputs:surface>
+
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.34, 0.35, 0.36)
+                float inputs:roughness = 0.92
+                float inputs:metallic = 0
+                token outputs:surface
+            }
+        }
+
+        def Material "FloorPaint"
+        {
+            token outputs:surface.connect = </Cell/Materials/FloorPaint/Surface.outputs:surface>
+
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.42, 0.44, 0.45)
+                float inputs:roughness = 0.70
+                float inputs:metallic = 0
+                token outputs:surface
+            }
+        }
+
+        def Material "SafetyYellow"
+        {
+            token outputs:surface.connect = </Cell/Materials/SafetyYellow/Surface.outputs:surface>
+
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.92, 0.74, 0.05)
+                float inputs:roughness = 0.55
+                float inputs:metallic = 0
+                token outputs:surface
+            }
+        }
+
+        def Material "WireMesh"
+        {
+            token outputs:surface.connect = </Cell/Materials/WireMesh/Surface.outputs:surface>
+
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.30, 0.31, 0.33)
+                float inputs:roughness = 0.45
+                float inputs:metallic = 0.8
+                float inputs:opacity = 0.45
+                token outputs:surface
+            }
+        }
+
+        def Material "Steel"
+        {
+            token outputs:surface.connect = </Cell/Materials/Steel/Surface.outputs:surface>
+
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.42, 0.43, 0.45)
+                float inputs:roughness = 0.35
+                float inputs:metallic = 1
+                token outputs:surface
+            }
+        }
+
+        def Material "CabinetGrey"
+        {
+            token outputs:surface.connect = </Cell/Materials/CabinetGrey/Surface.outputs:surface>
+
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.38, 0.39, 0.40)
+                float inputs:roughness = 0.50
+                float inputs:metallic = 0.3
+                token outputs:surface
+            }
+        }
+
+        def Material "PartBlue"
+        {
+            token outputs:surface.connect = </Cell/Materials/PartBlue/Surface.outputs:surface>
+
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.20, 0.42, 0.62)
+                float inputs:roughness = 0.45
+                float inputs:metallic = 0
+                token outputs:surface
+            }
+        }
+
+        def Material "WarnRed"
+        {
+            token outputs:surface.connect = </Cell/Materials/WarnRed/Surface.outputs:surface>
+
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (1.0, 0.08, 0.06)
+                color3f inputs:emissiveColor = (0.75, 0.05, 0.03)
+                float inputs:roughness = 0.40
+                token outputs:surface
+            }
+        }
+    }
+}

@@ -1,0 +1,22 @@
+<Project>
+  <!--
+    Sources and identity of the OPC UA model source generator, shared by every
+    Roslyn variant. The primary project lives in this folder and picks the
+    sources up through the SDK's default globs; variants live in a sibling
+    folder and glob-link them, so a new source file never needs a project edit.
+  -->
+  <PropertyGroup>
+    <AssemblyName>$(AssemblyPrefix).SourceGeneration</AssemblyName>
+    <ModelSourceGeneratorDirectory>$(MSBuildThisFileDirectory)</ModelSourceGeneratorDirectory>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.SourceGeneration.Tests" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(MSBuildProjectDirectory)\' != '$(ModelSourceGeneratorDirectory)'">
+    <Compile Include="$(ModelSourceGeneratorDirectory)**\*.cs"
+             Exclude="$(ModelSourceGeneratorDirectory)bin\**\*.cs;$(ModelSourceGeneratorDirectory)obj\**\*.cs"
+             LinkBase="Shared" />
+    <AdditionalFiles Include="$(ModelSourceGeneratorDirectory)AnalyzerReleases.*.md" />
+  </ItemGroup>
+  <Import Project="$(MSBuildThisFileDirectory)..\SourceGeneratorVariant.targets" />
+</Project>
