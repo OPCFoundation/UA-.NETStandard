@@ -9,6 +9,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="Moq" />
     <PackageReference Include="NUnit" />
@@ -34,11 +35,20 @@
     <ProjectReference Include="..\..\src\Opc.Ua.Server\Opc.Ua.Server.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Di\Opc.Ua.Di.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Di.Server\Opc.Ua.Di.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Robotics.Server\Opc.Ua.Robotics.Server.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Di.Client\Opc.Ua.Di.Client.csproj" />
     <!-- PumpDeviceIntegrationServer matches AppTargetFrameworks (net48/net8.0/net9.0/net10.0).
          The DI tests also target net472 where PumpDeviceIntegrationServer does not exist,
          so the reference and the Pump-specific fixtures are skipped on net472. -->
     <ProjectReference Include="..\..\samples\PumpDeviceIntegrationServer\PumpDeviceIntegrationServer.csproj"
+                      Condition="'$(TargetFramework)' != 'net472'" />
+    <ProjectReference Include="..\..\src\Opc.Ua.OpenUsd.Client\Opc.Ua.OpenUsd.Client.csproj"
+                      Condition="'$(TargetFramework)' != 'net472'" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Positioning.Client\Opc.Ua.Positioning.Client.csproj"
+                      Condition="'$(TargetFramework)' != 'net472'" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Positioning.Server\Opc.Ua.Positioning.Server.csproj"
+                      Condition="'$(TargetFramework)' != 'net472'" />
+    <ProjectReference Include="..\..\samples\MinimalRobotServer\MinimalRobotServer.csproj"
                       Condition="'$(TargetFramework)' != 'net472'" />
     <ProjectReference Include="..\Opc.Ua.Client.TestFramework\Opc.Ua.Client.TestFramework.csproj" />
     <ProjectReference Include="..\Opc.Ua.Server.TestFramework\Opc.Ua.Server.TestFramework.csproj" />
@@ -51,6 +61,9 @@
     <Compile Remove="PumpNodeManagerFactoryTests.cs" />
     <Compile Remove="PumpTypeInstanceTests.cs" />
     <Compile Remove="PumpsNodeSetLoadingTests.cs" />
+    <Compile Remove="PumpOpenUsdE2eTests.cs" />
+    <Compile Remove="RobotOpenUsdE2eTests.cs" />
+    <Compile Remove="RobotMobilityTests.cs" />
     <Compile Remove="TopologyElementBuilderTests.cs" />
   </ItemGroup>
 </Project>
