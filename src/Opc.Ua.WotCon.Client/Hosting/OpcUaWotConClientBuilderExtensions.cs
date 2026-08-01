@@ -64,6 +64,13 @@ namespace Microsoft.Extensions.DependencyInjection
         public const string DefaultConfigurationSection = "OpcUa:WotCon:Client";
 
         /// <summary>
+        /// Default <see cref="IConfiguration"/> section name used by the
+        /// <see cref="AddWotRegistryClient(IOpcUaBuilder, IConfiguration)"/>
+        /// overload.
+        /// </summary>
+        public const string DefaultRegistryConfigurationSection = "OpcUa:WotCon:RegistryClient";
+
+        /// <summary>
         /// Registers WoT Connectivity client services and a lazy
         /// factory delegate that resolves a
         /// <see cref="WotConnectivityClient"/> rooted at the connected
@@ -175,6 +182,118 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         /// <summary>
+        /// Registers WoT Connectivity 1.1 registry client services and a
+        /// lazy factory delegate that resolves a
+        /// <see cref="WotRegistryClient"/> rooted at the connected
+        /// server's <c>WoTRegistry</c> entry point.
+        /// </summary>
+        /// <param name="builder">The OPC UA builder.</param>
+        /// <param name="configure">Optional callback used to populate
+        /// <see cref="WotRegistryClientOptions"/>.</param>
+        /// <returns>The same <paramref name="builder"/> instance for
+        /// fluent chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/>
+        /// is <c>null</c>.</exception>
+        public static IOpcUaBuilder AddWotRegistryClient(
+            this IOpcUaBuilder builder,
+            Action<WotRegistryClientOptions>? configure = null)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (configure is null)
+            {
+                builder.Services.AddOptions<WotRegistryClientOptions>();
+            }
+            else
+            {
+                builder.Services.AddOptions<WotRegistryClientOptions>().Configure(configure);
+            }
+
+            RegisterRegistryCoreServices(builder.Services);
+
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers WoT Connectivity 1.1 registry client services with
+        /// options bound from the supplied <paramref name="configuration"/>
+        /// section <see cref="DefaultRegistryConfigurationSection"/>
+        /// (<c>OpcUa:WotCon:RegistryClient</c>).
+        /// </summary>
+        /// <remarks>
+        /// AOT-safe: bound by the .NET 8+ configuration binding source
+        /// generator (<c>EnableConfigurationBindingGenerator</c>).
+        /// </remarks>
+        /// <param name="builder">The OPC UA builder.</param>
+        /// <param name="configuration">Configuration root containing
+        /// the <c>OpcUa:WotCon:RegistryClient</c> section.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/>
+        /// or <paramref name="configuration"/> is <c>null</c>.</exception>
+        public static IOpcUaBuilder AddWotRegistryClient(
+            this IOpcUaBuilder builder,
+            IConfiguration configuration)
+        {
+            if (configuration is null)
+            {
+                throw new ArgumentNullException(nameof(configuration));
+            }
+            return builder.AddWotRegistryClient(
+                configuration.GetSection(DefaultRegistryConfigurationSection));
+        }
+
+        /// <summary>
+        /// Registers WoT Connectivity 1.1 registry client services with
+        /// options bound from the supplied <paramref name="section"/>.
+        /// </summary>
+        /// <remarks>
+        /// AOT-safe: bound by the .NET 8+ configuration binding source
+        /// generator (<c>EnableConfigurationBindingGenerator</c>).
+        /// </remarks>
+        /// <param name="builder">The OPC UA builder.</param>
+        /// <param name="section">Configuration section to bind.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/>
+        /// or <paramref name="section"/> is <c>null</c>.</exception>
+        public static IOpcUaBuilder AddWotRegistryClient(
+            this IOpcUaBuilder builder,
+            IConfigurationSection section)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (section is null)
+            {
+                throw new ArgumentNullException(nameof(section));
+            }
+            builder.Services.AddOptions<WotRegistryClientOptions>().Bind(section);
+            RegisterRegistryCoreServices(builder.Services);
+
+            return builder;
+        }
+
+        private static void RegisterRegistryCoreServices(IServiceCollection services)
+        {
+            services.TryAddSingleton<ITelemetryContext>(
+                sp => new ServiceProviderTelemetryContext(sp));
+
+            services.TryAddSingleton<Func<ManagedSession, CancellationToken, Task<WotRegistryClient>>>(sp =>
+            {
+                ITelemetryContext telemetry = sp.GetRequiredService<ITelemetryContext>();
+                return async (session, ct) => await WotRegistryClient
+                    .ForServerAsync(session, telemetry, ct)
+                    .ConfigureAwait(false);
+            });
+
+            services.TryAddSingleton<WotRegistryClientAccessor>();
+            services.TryAddSingleton<Func<CancellationToken, Task<WotRegistryClient>>>(
+                sp => sp.GetRequiredService<WotRegistryClientAccessor>().ConnectAsync);
+
+            services.AddOpcUa();
+        }
+
+        /// <summary>
         /// Registers WoT Connectivity client services on an existing OPC UA client builder.
         /// </summary>
         /// <exception cref="ArgumentNullException"></exception>
@@ -233,6 +352,68 @@ namespace Microsoft.Extensions.DependencyInjection
             return builder;
         }
 
+        /// <summary>
+        /// Registers WoT Connectivity 1.1 registry client services on an
+        /// existing OPC UA client builder.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static IOpcUaClientBuilder AddWotRegistryClient(
+            this IOpcUaClientBuilder builder,
+            Action<WotRegistryClientOptions>? configure = null)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            new BuilderAdapter(builder.Services).AddWotRegistryClient(configure);
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers WoT Connectivity 1.1 registry client services on an
+        /// existing OPC UA client builder.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static IOpcUaClientBuilder AddWotRegistryClient(
+            this IOpcUaClientBuilder builder,
+            IConfiguration configuration)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (configuration is null)
+            {
+                throw new ArgumentNullException(nameof(configuration));
+            }
+
+            new BuilderAdapter(builder.Services).AddWotRegistryClient(configuration);
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers WoT Connectivity 1.1 registry client services on an
+        /// existing OPC UA client builder.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static IOpcUaClientBuilder AddWotRegistryClient(
+            this IOpcUaClientBuilder builder,
+            IConfigurationSection section)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (section is null)
+            {
+                throw new ArgumentNullException(nameof(section));
+            }
+
+            new BuilderAdapter(builder.Services).AddWotRegistryClient(section);
+            return builder;
+        }
+
         private sealed class BuilderAdapter : IOpcUaBuilder
         {
             public BuilderAdapter(IServiceCollection services)
@@ -260,7 +441,11 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 lock (m_gate)
                 {
-                    m_connectTask ??= ConnectCoreAsync(ct);
+                    if (m_connectTask is null ||
+                        (m_connectTask.IsCompleted && m_connectTask.Status != TaskStatus.RanToCompletion))
+                    {
+                        m_connectTask = ConnectCoreAsync(ct);
+                    }
                     return m_connectTask;
                 }
             }
@@ -295,6 +480,91 @@ namespace Microsoft.Extensions.DependencyInjection
             private readonly IServiceProvider m_sp;
             private Task<WotConnectivityClient>? m_connectTask;
             private readonly Lock m_gate = new();
+        }
+
+        /// <summary>
+        /// Lazily resolves the registered <see cref="ManagedSession"/>
+        /// factory delegate, awaits it once and wraps the resulting
+        /// session in a <see cref="WotRegistryClient"/>. The wrapper is
+        /// cached so repeated awaiters share the same instance.
+        /// </summary>
+        private sealed class WotRegistryClientAccessor : IAsyncDisposable
+        {
+            public WotRegistryClientAccessor(IServiceProvider sp)
+            {
+                m_sp = sp;
+            }
+
+            public Task<WotRegistryClient> ConnectAsync(CancellationToken ct)
+            {
+                lock (m_gate)
+                {
+                    if (m_disposed)
+                    {
+                        throw new ObjectDisposedException(nameof(WotRegistryClientAccessor));
+                    }
+                    if (m_connectTask is null ||
+                        (m_connectTask.IsCompleted && m_connectTask.Status != TaskStatus.RanToCompletion))
+                    {
+                        m_connectTask = ConnectCoreAsync(ct);
+                    }
+                    return m_connectTask;
+                }
+            }
+
+            public ValueTask DisposeAsync()
+            {
+                lock (m_gate)
+                {
+                    if (m_disposed)
+                    {
+                        return default;
+                    }
+                    m_disposed = true;
+                }
+                return default;
+            }
+
+            private async Task<WotRegistryClient> ConnectCoreAsync(CancellationToken ct)
+            {
+                WotRegistryClientOptions options =
+                    m_sp.GetRequiredService<IOptions<WotRegistryClientOptions>>().Value;
+                if (!options.LazyConnect)
+                {
+                    throw new InvalidOperationException(
+                        "WotRegistryClientOptions.LazyConnect is false. Resolve " +
+                        "Func<ManagedSession, CancellationToken, Task<WotRegistryClient>> " +
+                        "and supply an already connected ManagedSession.");
+                }
+
+                Func<CancellationToken, Task<ManagedSession>> sessionFactory =
+                    m_sp.GetService<Func<CancellationToken, Task<ManagedSession>>>()
+                    ?? throw new InvalidOperationException(
+                        "AddWotRegistryClient requires AddClient to have been called first " +
+                        "so a ManagedSession factory is registered.");
+
+                ITelemetryContext telemetry =
+                    m_sp.GetRequiredService<ITelemetryContext>();
+
+                ManagedSession session =
+                    await sessionFactory(ct).ConfigureAwait(false);
+                WotRegistryClient client = await WotRegistryClient
+                    .ForServerAsync(session, telemetry, ct)
+                    .ConfigureAwait(false);
+                lock (m_gate)
+                {
+                    if (m_disposed)
+                    {
+                        throw new ObjectDisposedException(nameof(WotRegistryClientAccessor));
+                    }
+                }
+                return client;
+            }
+
+            private readonly IServiceProvider m_sp;
+            private Task<WotRegistryClient>? m_connectTask;
+            private readonly Lock m_gate = new();
+            private bool m_disposed;
         }
     }
 }
