@@ -32,7 +32,7 @@ Run the commands below from the repository root with the .NET 10 SDK. The sample
 Start Source A in the first terminal:
 
 ```powershell
-dotnet run --project samples\WotCon\FlatTagServer\FlatTagServer.csproj -f net10.0 -- `
+dotnet run --project samples/WotCon/FlatTagServer/FlatTagServer.csproj -f net10.0 -- `
   --port 62551 `
   --instanceName SourceA `
   --applicationName FlatTagServerSourceA `
@@ -47,7 +47,7 @@ dotnet run --project samples\WotCon\FlatTagServer\FlatTagServer.csproj -f net10.
 Start Source B in the second terminal:
 
 ```powershell
-dotnet run --project samples\WotCon\FlatTagServer\FlatTagServer.csproj -f net10.0 -- `
+dotnet run --project samples/WotCon/FlatTagServer/FlatTagServer.csproj -f net10.0 -- `
   --port 62552 `
   --instanceName SourceB `
   --applicationName FlatTagServerSourceB `
@@ -62,7 +62,7 @@ dotnet run --project samples\WotCon\FlatTagServer\FlatTagServer.csproj -f net10.
 Start the generic aggregation server in the third terminal:
 
 ```powershell
-dotnet run --project samples\WotCon\AggregationServer\AggregationServer.csproj -f net10.0 -- `
+dotnet run --project samples/WotCon/AggregationServer/AggregationServer.csproj -f net10.0 -- `
   --port 62550 `
   --applicationName AggregationServer
 ```
@@ -70,11 +70,11 @@ dotnet run --project samples\WotCon\AggregationServer\AggregationServer.csproj -
 Run the loader/client in a fourth terminal after all three servers are listening:
 
 ```powershell
-dotnet run --project samples\WotCon\AggregationClient\AggregationClient.csproj -f net10.0 -- `
+dotnet run --project samples/WotCon/AggregationClient/AggregationClient.csproj -f net10.0 -- `
   --aggregationEndpoint opc.tcp://localhost:62550/AggregationServer `
   --sourceAEndpoint opc.tcp://localhost:62551/SourceA `
   --sourceBEndpoint opc.tcp://localhost:62552/SourceB `
-  --documentsDirectory .\samples\WotCon\AggregationClient\Documents
+  --documentsDirectory ./samples/WotCon/AggregationClient/Documents
 ```
 
 The client should report four uploaded resources, a successful refresh generation, the recursively browsed Pump hierarchy, and ten Good values.
@@ -238,7 +238,7 @@ An existing monitored item intentionally remains on the retired generation until
 The real sample tests launch all three servers in process with isolated ports and PKI roots:
 
 ```powershell
-dotnet test Tests\Opc.Ua.WotCon.Samples.Tests\Opc.Ua.WotCon.Samples.Tests.csproj -f net10.0 --filter "Category=Samples"
+dotnet test tests/Opc.Ua.WotCon.Samples.Tests/Opc.Ua.WotCon.Samples.Tests.csproj -f net10.0 --filter "Category=Samples"
 ```
 
 The suite covers successful upload and refresh, companion-model hierarchy, values from both sources, local monitored items, version replacement and shadow drain, invalid documents, missing manifest dependencies, invalid target mappings, and unavailable upstream endpoints.
@@ -248,9 +248,9 @@ The suite covers successful upload and refresh, companion-model hierarchy, value
 All three server/client sample projects set `PublishAot` for `net10.0`. Publish each process for the target runtime identifier; for Windows x64:
 
 ```powershell
-dotnet publish samples\WotCon\FlatTagServer\FlatTagServer.csproj -c Release -f net10.0 -r win-x64 --self-contained true
-dotnet publish samples\WotCon\AggregationServer\AggregationServer.csproj -c Release -f net10.0 -r win-x64 --self-contained true
-dotnet publish samples\WotCon\AggregationClient\AggregationClient.csproj -c Release -f net10.0 -r win-x64 --self-contained true
+dotnet publish samples/WotCon/FlatTagServer/FlatTagServer.csproj -c Release -f net10.0 -r win-x64 --self-contained true
+dotnet publish samples/WotCon/AggregationServer/AggregationServer.csproj -c Release -f net10.0 -r win-x64 --self-contained true
+dotnet publish samples/WotCon/AggregationClient/AggregationClient.csproj -c Release -f net10.0 -r win-x64 --self-contained true
 ```
 
 Use the published `FlatTagServer.exe` twice with the Source A and Source B arguments above. The client project includes the checked-in `Documents` tree in its publish output, so omit `--documentsDirectory` to use `<publish-directory>\Documents` or pass an explicit external copy.

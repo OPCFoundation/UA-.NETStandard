@@ -240,12 +240,10 @@ namespace Opc.Ua.WotCon.Samples.Tests
             {
                 await host.StopAsync(CancellationToken.None).ConfigureAwait(false);
             }
-#pragma warning disable RCS1075 // intentional best-effort swallow during teardown (see comment)
-            catch (Exception)
+            catch (Exception ex)
             {
-                // Cleanup is best effort after a failed startup or test.
+                TestContext.Out.WriteLine("Ignoring best-effort teardown failure: {0}", ex);
             }
-#pragma warning restore RCS1075
         }
 
         private async Task WaitForAggregationAsync(CancellationToken cancellationToken)

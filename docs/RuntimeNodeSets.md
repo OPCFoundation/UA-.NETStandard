@@ -10,7 +10,7 @@ Use `AddRuntimeNodeSet` when:
 - Your information model changes frequently enough that rebuilding the source-generated manager for every XML update would be disruptive.
 - You are prototyping or testing a new NodeSet2 design.
 
-Use the [source-generated path](SourceGeneratedNodeManagers.md) when you want compile-time safety, strong typing, and AOT-safe named constants for every node in your model. The runtime path gives you generic `NodeState` objects and untyped browse-path wiring.
+Use the [source-generated path](NodeManagers.md#source-generated-node-managers) when you want compile-time safety, strong typing, and AOT-safe named constants for every node in your model. The runtime path gives you generic `NodeState` objects and untyped browse-path wiring.
 
 ## Startup and live lifecycle semantics
 
@@ -53,7 +53,7 @@ public sealed class ModelLoader(INodeManagerLifecycle lifecycle)
 
 Each add returns an immutable `NodeManagerRegistration`, and reload returns the next generation while invalidating the previous handle.
 
-The rules that apply to every NodeManager registered at runtime -- what happens to MonitoredItems, Browse continuation points, namespace indexes, DataTypes, and change notifications, and which NodeManagers may be reloaded at all -- are described once in [Registering NodeManagers](NodeManagerRegistration.md). Runtime NodeSets follow those rules, and the built-in runtime NodeSet manager already implements the `INodeManagerReloadParticipant` contract that reload requires.
+The rules that apply to every NodeManager registered at runtime -- what happens to MonitoredItems, Browse continuation points, namespace indexes, DataTypes, and change notifications, and which NodeManagers may be reloaded at all -- are described once in [Registering NodeManagers](NodeManagers.md#registering-node-managers). Runtime NodeSets follow those rules, and the built-in runtime NodeSet manager already implements the `INodeManagerReloadParticipant` contract that reload requires.
 
 ### Shadow reload
 
@@ -230,6 +230,6 @@ Source-generated managers are the recommended path for production code where typ
 
 ## Related documentation
 
-- [Source-Generated NodeManagers](SourceGeneratedNodeManagers.md) — strongly typed alternative.
+- [Source-Generated NodeManagers](NodeManagers.md#source-generated-node-managers) — strongly typed alternative.
 - [Dependency Injection](DependencyInjection.md) — `IOpcUaServerBuilder` and service registration.
 - [ComplexTypes.md](ComplexTypes.md) — server-side complex type loading and client-side decoding.
