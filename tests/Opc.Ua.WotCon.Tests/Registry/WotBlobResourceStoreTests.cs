@@ -185,6 +185,9 @@ namespace Opc.Ua.XRegistry
             public long GetLength(string path)
                 => m_inner.GetLength(path);
 
+            public void Replace(string sourceFileName, string destinationFileName)
+                => m_inner.Replace(sourceFileName, destinationFileName);
+
             private readonly IFileSystem m_inner;
         }
 
