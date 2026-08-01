@@ -954,6 +954,12 @@ namespace Opc.Ua.Schema.Model
             output.AccessLevel = ImportAccessLevel(input.AccessLevel);
             output.AccessLevelSpecified = true;
 
+            // The ModelDesign AccessLevel enumeration cannot express
+            // combinations such as CurrentRead | HistoryRead (5), so the
+            // verbatim bitmask is carried alongside it and preferred by
+            // code generation. See GetAccessLevelAsCode.
+            output.RawAccessLevel = input.AccessLevel;
+
             if (input.Value != null)
             {
                 XmlDecoder decoder = CreateDecoder(input.Value);
@@ -1341,6 +1347,11 @@ namespace Opc.Ua.Schema.Model
             output.SymbolicName = ImportSymbolicName(input);
             output.Extensions = input.Extensions;
 
+            output.SymbolicName = NormalizeSymbolicNameNamespace(
+                input,
+                output.SymbolicId,
+                output.SymbolicName);
+
             if (input is UAType &&
                 output.SymbolicId.Name.EndsWith(
                     "_" + nodeId.IdentifierAsString, StringComparison.Ordinal))
@@ -1408,6 +1419,22 @@ namespace Opc.Ua.Schema.Model
             }
 
             return output;
+        }
+
+        internal static XmlQualifiedName NormalizeSymbolicNameNamespace(
+            UANode input,
+            XmlQualifiedName symbolicId,
+            XmlQualifiedName symbolicName)
+        {
+            if (input is UAType &&
+                symbolicId != null &&
+                symbolicName != null &&
+                symbolicId.Namespace != symbolicName.Namespace)
+            {
+                return new XmlQualifiedName(symbolicName.Name, symbolicId.Namespace);
+            }
+
+            return symbolicName;
         }
 
         private UANode FindNode(UANodeSet nodeset, ExpandedNodeId targetId)
@@ -2006,7 +2033,10 @@ namespace Opc.Ua.Schema.Model
             Dictionary<XmlQualifiedName, MethodDesign> methods = [];
             CollectMethodDefinitions(dictionary.TargetNamespace, methods);
 
-            items.AddRange(methods.Values);
+            items.AddRange(methods
+                .OrderBy(entry => entry.Key.Namespace, StringComparer.Ordinal)
+                .ThenBy(entry => entry.Key.Name, StringComparer.Ordinal)
+                .Select(entry => entry.Value));
 
             foreach (NodeDesign item in items)
             {
@@ -2142,45 +2172,129 @@ namespace Opc.Ua.Schema.Model
             string targetNamespace,
             Dictionary<XmlQualifiedName, MethodDesign> methods)
         {
-            foreach (NodeDesign node in m_settings.NodesById.Values)
+            MethodDesign[] candidates =
+            [
+                .. m_settings.NodesById.Values
+                    .OfType<MethodDesign>()
+                    .Where(method =>
+                        method.SymbolicId.Namespace == targetNamespace &&
+                        MethodDesignArgumentResolver.HasDeclaredArguments(method))
+                    .OrderBy(method => method.SymbolicId.Namespace, StringComparer.Ordinal)
+                    .ThenBy(method => method.SymbolicId.Name, StringComparer.Ordinal)
+            ];
+            var groupedCandidates =
+                new Dictionary<XmlQualifiedName, List<List<MethodDesign>>>();
+
+            foreach (MethodDesign method in candidates)
             {
-                if (node is MethodDesign method)
+                if (method.MethodDeclarationNode != null)
                 {
-                    if (node.SymbolicId.Namespace != targetNamespace)
+                    MethodDesign definition =
+                        MethodDesignArgumentResolver.ResolveMethodDefinition(
+                            method.MethodDeclarationNode);
+                    if (MethodDesignArgumentResolver.HaveSameDeclaredSignature(
+                        method,
+                        definition))
                     {
                         continue;
                     }
-                    if (method.HasArguments && method.MethodDeclarationNode == null)
+                }
+
+                var baseName = new XmlQualifiedName(
+                    method.SymbolicName.Name + "MethodType",
+                    method.SymbolicId.Namespace);
+                if (!groupedCandidates.TryGetValue(
+                    baseName,
+                    out List<List<MethodDesign>> signatureGroups))
+                {
+                    groupedCandidates.Add(baseName, signatureGroups = []);
+                }
+
+                List<MethodDesign> signatureGroup = signatureGroups.FirstOrDefault(
+                    group => MethodDesignArgumentResolver.HaveSameDeclaredSignature(
+                        group[0],
+                        method));
+                if (signatureGroup == null)
+                {
+                    signatureGroups.Add([method]);
+                }
+                else
+                {
+                    signatureGroup.Add(method);
+                }
+            }
+
+            var reservedNames = new HashSet<XmlQualifiedName>(
+                m_settings.NodesByQName.Keys);
+            foreach (KeyValuePair<XmlQualifiedName, List<List<MethodDesign>>> entry
+                in groupedCandidates
+                    .OrderBy(entry => entry.Key.Namespace, StringComparer.Ordinal)
+                    .ThenBy(entry => entry.Key.Name, StringComparer.Ordinal))
+            {
+                bool qualifyWithOwner = entry.Value.Count > 1 ||
+                    reservedNames.Contains(entry.Key);
+                foreach (List<MethodDesign> signatureGroup in entry.Value)
+                {
+                    MethodDesign representative = signatureGroup[0];
+                    string preferredName = qualifyWithOwner
+                        ? GetOwnerQualifiedMethodTypeName(representative)
+                        : entry.Key.Name;
+                    var name = new XmlQualifiedName(
+                        preferredName,
+                        representative.SymbolicId.Namespace);
+                    int suffix = 2;
+                    while (reservedNames.Contains(name) || methods.ContainsKey(name))
                     {
-                        var name = new XmlQualifiedName(
-                            node.SymbolicName.Name + "MethodType",
-                            node.SymbolicId.Namespace);
+                        string stem = preferredName.EndsWith(
+                            "MethodType",
+                            StringComparison.Ordinal)
+                                ? preferredName[..^"MethodType".Length]
+                                : preferredName;
+                        name = new XmlQualifiedName(
+                            stem +
+                                suffix.ToString(CultureInfo.InvariantCulture) +
+                                "MethodType",
+                            representative.SymbolicId.Namespace);
+                        suffix++;
+                    }
 
-                        if (methods.ContainsKey(name))
+                    var declaration = new MethodDesign
+                    {
+                        SymbolicId = name,
+                        SymbolicName = name,
+                        BrowseName = name.Name,
+                        DisplayName = new LocalizedText
                         {
-                            continue;
-                        }
+                            Value = name.Name,
+                            IsAutogenerated = true
+                        },
+                        InputArguments = representative.InputArguments,
+                        OutputArguments = representative.OutputArguments,
+                        HasArguments = true
+                    };
 
-                        var declaration = new MethodDesign
-                        {
-                            SymbolicId = name,
-                            SymbolicName = name,
-                            BrowseName = name.Name,
-                            DisplayName = new LocalizedText
-                            {
-                                Value = name.Name,
-                                IsAutogenerated = true
-                            },
-                            InputArguments = method.InputArguments,
-                            OutputArguments = method.OutputArguments,
-                            HasArguments = true
-                        };
-
-                        methods.Add(declaration.SymbolicName, declaration);
+                    methods.Add(declaration.SymbolicName, declaration);
+                    reservedNames.Add(declaration.SymbolicName);
+                    foreach (MethodDesign method in signatureGroup)
+                    {
                         method.MethodDeclarationNode = declaration;
+                        method.TypeDefinition = null;
+                        method.MethodType = null;
                     }
                 }
             }
+        }
+
+        private static string GetOwnerQualifiedMethodTypeName(MethodDesign method)
+        {
+            string ownerName = method.SymbolicId.Name;
+            string methodSuffix = "_" + method.SymbolicName.Name;
+            if (ownerName.EndsWith(methodSuffix, StringComparison.Ordinal))
+            {
+                ownerName = ownerName[..^methodSuffix.Length];
+            }
+            ownerName = ownerName.Replace("_", string.Empty, StringComparison.Ordinal);
+            return method.SymbolicName.Name + ownerName + "MethodType";
         }
 
         /// <summary>

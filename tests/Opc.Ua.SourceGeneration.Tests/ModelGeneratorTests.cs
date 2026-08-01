@@ -64,7 +64,6 @@ namespace Opc.Ua.SourceGeneration
             OptimizationLevel optimizationLevel)
         {
             var generator = new ModelSourceGenerator();
-            var host = new ModelSourceGeneratorHoist(generator);
 
             CSharpCompilation compilation = optimizationLevel.CreateCompilation()
                 .AddCode(new Dictionary<string, string>().WithOpcUaGeneratedStack(), languageVersion);
@@ -85,7 +84,7 @@ namespace Opc.Ua.SourceGeneration
                 });
 
             // Create the driver the executes the generator
-            GeneratorDriver driver = CSharpGeneratorDriver.Create(host)
+            GeneratorDriver driver = CSharpGeneratorDriver.Create(generator)
                 .WithUpdatedParseOptions(new CSharpParseOptions()
                     .WithKind(SourceCodeKind.Regular)
                     .WithLanguageVersion(languageVersion))
@@ -102,7 +101,6 @@ namespace Opc.Ua.SourceGeneration
             OptimizationLevel optimizationLevel)
         {
             var generator = new ModelSourceGenerator();
-            var host = new ModelSourceGeneratorHoist(generator);
 
             CSharpCompilation compilation = optimizationLevel.CreateCompilation()
                 .AddCode(new Dictionary<string, string>().WithOpcUaGeneratedStack(), languageVersion);
@@ -119,7 +117,7 @@ namespace Opc.Ua.SourceGeneration
                 });
 
             // Create the driver the executes the generator
-            GeneratorDriver driver = CSharpGeneratorDriver.Create(host)
+            GeneratorDriver driver = CSharpGeneratorDriver.Create(generator)
                 .WithUpdatedParseOptions(new CSharpParseOptions()
                     .WithKind(SourceCodeKind.Regular)
                     .WithLanguageVersion(languageVersion))
@@ -144,7 +142,6 @@ namespace Opc.Ua.SourceGeneration
             LanguageVersion languageVersion)
         {
             var generator = new ModelSourceGenerator();
-            var host = new ModelSourceGeneratorHoist(generator);
 
             CSharpCompilation compilation = OptimizationLevel.Release.CreateCompilation()
                 .AddCode(new Dictionary<string, string>().WithOpcUaGeneratedStack(), languageVersion);
@@ -156,7 +153,7 @@ namespace Opc.Ua.SourceGeneration
                     ["build_property.ModelSourceGeneratorOmitEventRecords"] = "true"
                 });
 
-            GeneratorDriver driver = CSharpGeneratorDriver.Create(host)
+            GeneratorDriver driver = CSharpGeneratorDriver.Create(generator)
                 .WithUpdatedParseOptions(new CSharpParseOptions()
                     .WithKind(SourceCodeKind.Regular)
                     .WithLanguageVersion(languageVersion))
@@ -235,7 +232,6 @@ namespace Opc.Ua.SourceGeneration
             LanguageVersion languageVersion)
         {
             var generator = new ModelSourceGenerator();
-            var host = new ModelSourceGeneratorHoist(generator);
 
             CSharpCompilation compilation = OptimizationLevel.Release.CreateCompilation()
                 .AddCode(new Dictionary<string, string>().WithOpcUaGeneratedStack(), languageVersion);
@@ -254,7 +250,7 @@ namespace Opc.Ua.SourceGeneration
                 });
 
             // Create the driver that executes the generator
-            GeneratorDriver driver = CSharpGeneratorDriver.Create(host)
+            GeneratorDriver driver = CSharpGeneratorDriver.Create(generator)
                 .WithUpdatedParseOptions(new CSharpParseOptions()
                     .WithKind(SourceCodeKind.Regular)
                     .WithLanguageVersion(languageVersion))
@@ -293,7 +289,6 @@ namespace Opc.Ua.SourceGeneration
             // generation fails with MODELGEN003 ("The TypeDefinition reference
             // for node Widget1 is not the expected type: ObjectTypeDesign.").
             var generator = new ModelSourceGenerator();
-            var host = new ModelSourceGeneratorHoist(generator);
 
             CSharpCompilation compilation = OptimizationLevel.Release.CreateCompilation()
                 .AddCode(new Dictionary<string, string>().WithOpcUaGeneratedStack(), languageVersion);
@@ -325,7 +320,7 @@ namespace Opc.Ua.SourceGeneration
                 };
 
             // Create the driver that executes the generator
-            GeneratorDriver driver = CSharpGeneratorDriver.Create(host)
+            GeneratorDriver driver = CSharpGeneratorDriver.Create(generator)
                 .WithUpdatedParseOptions(new CSharpParseOptions()
                     .WithKind(SourceCodeKind.Regular)
                     .WithLanguageVersion(languageVersion))
@@ -358,7 +353,6 @@ namespace Opc.Ua.SourceGeneration
             LanguageVersion languageVersion)
         {
             var generator = new ModelSourceGenerator();
-            var host = new ModelSourceGeneratorHoist(generator);
 
             CSharpCompilation compilation = OptimizationLevel.Release.CreateCompilation()
                 .AddCode(new Dictionary<string, string>().WithOpcUaGeneratedStack(), languageVersion);
@@ -384,7 +378,7 @@ namespace Opc.Ua.SourceGeneration
                         "http://test.org/UA/CrossModel/Instances"
                 };
 
-            GeneratorDriver driver = CSharpGeneratorDriver.Create(host)
+            GeneratorDriver driver = CSharpGeneratorDriver.Create(generator)
                 .WithUpdatedParseOptions(new CSharpParseOptions()
                     .WithKind(SourceCodeKind.Regular)
                     .WithLanguageVersion(languageVersion))
@@ -555,7 +549,6 @@ namespace Opc.Ua.SourceGeneration
             RunMixedModelGenerator(LanguageVersion languageVersion, string bindingSource)
         {
             var generator = new ModelSourceGenerator();
-            var host = new ModelSourceGeneratorHoist(generator);
 
             CSharpCompilation compilation = OptimizationLevel.Release.CreateCompilation()
                 .AddCode(new Dictionary<string, string>
@@ -583,7 +576,7 @@ namespace Opc.Ua.SourceGeneration
                         "http://test.org/UA/CrossModel/Instances"
                 };
 
-            GeneratorDriver driver = CSharpGeneratorDriver.Create(host)
+            GeneratorDriver driver = CSharpGeneratorDriver.Create(generator)
                 .WithUpdatedParseOptions(new CSharpParseOptions()
                     .WithKind(SourceCodeKind.Regular)
                     .WithLanguageVersion(languageVersion))

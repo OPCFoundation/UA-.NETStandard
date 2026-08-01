@@ -133,7 +133,8 @@ namespace Opc.Ua.Client
                 m_modelChangeTracker ??= new ModelChangeTracker(
                     DefaultStreaming,
                     NodeCache,
-                    m_logger);
+                    m_logger,
+                    namespaceTables: this);
                 m_modelChangeTrackingEnabled = true;
                 tracker = m_modelChangeTracker;
             }

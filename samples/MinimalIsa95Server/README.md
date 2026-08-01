@@ -16,7 +16,7 @@ The server listens on `opc.tcp://localhost:62545/MinimalIsa95Server` by default 
 
 - Server registration via `services.AddOpcUa().AddServer(...).AddIsa95Server().ConfigureModel(...)`.
 - Populating the OPC-10030 common model: Personnel, Equipment, PhysicalAsset, and the full Material class/definition/lot/sublot hierarchy, including `DefinedByMaterialClass` and `MadeUpOfMaterialSublot`.
-- Binding a `GeoSpatialLocationType` instance to an `Isa95GeoSpatialLocationProvider` seeded with a fixed WKT point.
+- Binding a `GeoSpatialLocationType` instance to the shared `InMemoryGeoLocationProvider`, seeded with a fixed WGS84 position that is published as WKT.
 - Seeding a Job Control V2 job order (`DemoJobSeeder`) with `StoreAndStart` followed by the automatic execution-controller `BeginExecution` transition to `Running`.
 
 See the [ISA-95 developer guide](../../docs/ISA95.md) for the full hosting model, the Job Control V1/V2 state engine, the two documented normative NodeSet repairs, and a conformance matrix.

@@ -20,7 +20,7 @@ The C# language version is pinned (`LangVersion` 14) and analyzer/style rules ar
 | `src/` | The core stack and higher-level libraries: `Opc.Ua.Types`, `Opc.Ua.Core*`, `Opc.Ua.Client`, `Opc.Ua.Server`, `Opc.Ua.Configuration`, `Opc.Ua.PubSub` (+ transports), the GDS / DI / LDS / WoT libraries, and the `Opc.Ua.Redundancy*` family. |
 | `samples/` | Reference and sample apps: `ConsoleReferenceServer`, `ConsoleReferenceClient`, `Quickstarts.Servers`, the `Minimal*` / `PumpDeviceIntegrationServer` NativeAOT samples, `Redundant*`, etc. |
 | `tests/` | Unit and integration test projects, mirroring the library structure, plus shared test frameworks. |
-| `tools/` | Source generators, migration analyzers, and the installable `Opc.Ua.Mcp` tool. |
+| `tools/` | Source generators, migration analyzers, and the installable `Opc.Ua.Mcp` tool. Each analyzer and generator has a build project and — for the source generators — a `*.Pack` project that packages it under a Roslyn-versioned analyzer folder. |
 | `docs/` | This documentation set (indexed by [docs/README.md](README.md)). |
 | `fuzzing/` | SharpFuzz / libFuzzer fuzz targets (see [Fuzzing.md](../fuzzing/Fuzzing.md)). |
 
@@ -51,6 +51,8 @@ Notes:
   ```
 
 - **Offline / restricted networks.** `NuGetAudit` is enabled and fails the build with `NU1900` when it cannot reach the audit service. If you build offline, pass `-p:NuGetAudit=false`.
+- **Source generators are consumed as project references.** Projects that use the in-repo generators reference `tools/Opc.Ua.SourceGeneration[.Stack]` with `OutputItemType=Analyzer`. MSBuild only hands the compiler the generator assembly itself, so `Directory.Build.targets` adds the generator's runtime closure (its output directory, minus the Roslyn host assemblies) as `Analyzer` items — the same payload the generator NuGet packages ship under `analyzers/dotnet/<roslyn>/cs`. Without it the generators cannot resolve their dependencies and fail to initialise with `CS8784`.
+- **Analyzers and generators are shipped under a Roslyn-versioned analyzer folder.** `roslyn.props` pins the Roslyn API version, and each generator has a `*.Pack` project that ships it under `analyzers/dotnet/roslyn<major>.<minor>/cs`. See [Repository layout](#repository-layout) and the [support matrix](#supported-analyzer-and-source-generator-hosts). Because the repository's own projects consume that same build, **building this repository requires a Roslyn 5.x host** (the .NET 10 SDK or Visual Studio 2026).
 
 ## Running tests
 
@@ -63,10 +65,10 @@ dotnet test UA.slnx
 Conventions and requirements:
 
 - **Frameworks.** Test projects use either **NUnit** (with `Assert.That` assertions and **Moq** for mocking) or **TUnit** (with its own assertions and mock helpers). Do not mix the two in one project, and do not use the classic NUnit asserts (`Assert.AreEqual`, …).
-- **Coverage.** Coverage is measured with **Coverlet** and must not regress; every non-application, non-test project should stay at or above **80 %**.
+- **Coverage.** Coverage is measured with **Coverlet** and must not regress; every non-application, non-test project should stay at or above **80 %**. Two gates enforce this in CI — see [Continuous integration](#continuous-integration).
 - **Before a pull request** the `UA.slnx` suite must pass on at least **.NET Framework 4.8** and **.NET 10.0**.
 - **Testing a specific target framework.** The libraries multi-target, but the test executables run on one framework at a time. To run the suite against a non-default framework, set `CustomTestTarget` (supported values: `netstandard2.0`, `netstandard2.1`, `net472`, `net48`, `net8.0`, `net9.0`, `net10.0`). The batch file [`tests/customtest.bat`](../tests/customtest.bat) cleans, restores, and runs the tests for a chosen target; in Visual Studio, uncomment and set the `CustomTestTarget` property in [`targets.props`](../targets.props). A clean build for the target is recommended when switching.
-- **CI matrix.** To keep pull-request builds fast, only **net48** and **net8.0** are exercised in the qualifying CI build; the other frameworks run in scheduled/manual CI. Fix all failing, flaky, and CodeQL findings in the pipelines.
+- **CI matrix.** The pull-request gate runs the test suite on **net48** and **net10.0**, and compiles the solution for *every* supported target framework; the remaining test matrices (Debug, .NET 9/8, .NET Framework 4.7.2, netstandard) run in scheduled or manual CI. Fix all failing, flaky, and CodeQL findings in the pipelines. See [Continuous integration](#continuous-integration).
 
 ## Coding standards (dos and don'ts)
 
@@ -193,7 +195,8 @@ logger.ReadArrayZeroDimension(index, dimensions);
 - **Add a document** — put it in `docs/` and link it from [docs/README.md](README.md).
 - **Add a dependency** — declare the version in `Directory.Packages.props` (Central Package Management), prefer AOT/trimmable and permissively licensed packages, and get maintainer approval first.
 - **Certificates and secrets** — see [Certificates.md](Certificates.md) and [CertificateManager.md](CertificateManager.md).
-- **Source-generated node managers / data types** — see [SourceGeneratedNodeManagers.md](SourceGeneratedNodeManagers.md) and [SourceGeneratedDataTypes.md](SourceGeneratedDataTypes.md).
+- **Source-generated node managers / data types** — see [NodeManagers.md](NodeManagers.md#source-generated-node-managers) and [SourceGeneratedDataTypes.md](SourceGeneratedDataTypes.md).
+- **Server namespace metadata / history advertisement** — see [NodeManagers.md](NodeManagers.md#server-address-space-metadata).
 - **Dependency injection** — see [DependencyInjection.md](DependencyInjection.md).
 - **NativeAOT** — see [NativeAoT.md](NativeAoT.md).
 
@@ -215,6 +218,8 @@ The following NuGet packages are released on a monthly cadence (with hot fixes f
 
 For improved source-level debugging, symbol packages are published on nuget.org in `snupkg` format, and `Debug`-compiled packages are available with a `.Debug` suffix. In addition, every successful `master` build publishes preview packages to the [Azure DevOps preview feed](https://opcfoundation.visualstudio.com/opcua-netstandard/_artifacts/feed/opcua-preview).
 
+The full set of packages the preview pipeline produces is pinned in [`.azurepipelines/expected-packages.txt`](../.azurepipelines/expected-packages.txt). `.azurepipelines/validate-source-generator-packages.ps1` fails the build when the packed output does not match it, so adding, removing or renaming a shipped package has to be done deliberately in the same pull request. That script also validates the analyzer packages: their `analyzers/dotnet/roslyn<major>.<minor>/cs` layout, that they carry their runtime closure privately, that the model generator's auto-imported `build/<PackageId>.props` is named after the package id, and — end to end — that a standalone project consuming the packed generator with a NodeSet actually gets code generated.
+
 ### Supported target frameworks
 
 The class libraries currently target:
@@ -227,13 +232,108 @@ The class libraries currently target:
 6. .NET 9.0
 7. .NET 10.0
 
-To keep pull-request CI fast, only (4) and (6) are part of the qualifying build; the other platforms are covered by scheduled or manual CI. See [Running tests](#running-tests) for how to build and test a specific framework locally with `CustomTestTarget` / `tests/customtest.bat`.
+The pull-request gate *compiles* every one of these targets, but only runs the test suite on (4) and (7) to keep the feedback loop short; the remaining test matrices are covered by scheduled or manual CI. See [Running tests](#running-tests) for how to build and test a specific framework locally with `CustomTestTarget` / `tests/customtest.bat`, and [Continuous integration](#continuous-integration) for how the matrices are split.
+
+### Supported analyzer and source generator hosts
+
+The analyzer and source generator packages ship under `analyzers/dotnet/roslyn<major>.<minor>/cs`. The .NET SDK loads the highest folder its compiler supports and **ignores** folders above it, so an older host cleanly skips the analyzer instead of loading it and failing at generator-initialization time.
+
+| Roslyn API | Package folder | Minimum host |
+| --- | --- | --- |
+| 4.14 | `analyzers/dotnet/roslyn4.14/cs` | Visual Studio 2022 17.14 / .NET 9 SDK |
+| 5.0 | `analyzers/dotnet/roslyn5.0/cs` | Visual Studio 2026 18.0 / .NET 10 SDK |
+
+The version is declared once in `roslyn.props`.
+
+> **Adding a band below 4.14 is not just another entry in that file.** The analyzer closure — the generator, `Opc.Ua.SourceGeneration.Core` **and** `Opc.Ua.Types` — must bind against the Roslyn host's own `System.Collections.Immutable` and `System.Reflection.Metadata`. .NET satisfies a reference from a *higher* assembly version but never from a lower one, and those assemblies are supplied by the compiler, so the closure must reference the lowest version across every supported band and must never ship a copy of its own. Roslyn 4.14 and 5.0 both depend on 9.0.0, which is why `$(RoslynRuntimeVersion)` in `roslyn.props` drives the central pin and one build of the non-Roslyn closure serves both bands. Going lower — Roslyn 4.8 wants 7.x — would mean building that whole closure, `Opc.Ua.Types` included, a second time.
+>
+> Get it wrong and the failure is silent: the generator is skipped (`CS9057`), fails to load (`CS8032`) or throws `MissingMethodException` while initializing (`CS8784`) — all *warnings*, so the consumer just gets no generated code. `validate-source-generator-packages.ps1` therefore refuses any package that ships `Microsoft.CodeAnalysis*`, `System.Collections.Immutable` or `System.Reflection.Metadata`, and runs the packed down-level payload through a real compiler of that band.
 
 ### Versioning
 
 From **2.0** onward, package versions are produced by [Nerdbank.GitVersioning](https://github.com/dotnet/Nerdbank.GitVersioning) (nbgv) from the `version.json` file at the repository root. That file holds the base version (currently `2.0-preview`) and requests [SemVer 2.0](https://semver.org/) package versions (`nugetPackageVersion.semVer: 2`); nbgv derives the version height, prerelease tag, and build metadata from the git history, and `version.props` maps the computed values onto the assembly and package version properties. Stable (public-release) versions are produced only on the `main`, `master`, `develop/*`, and `release/<x.y.z>` branches — every other branch yields a prerelease build.
 
 > The earlier 1.x packages used a different, spec-derived scheme in which the first two digits encoded the embedded NodeSet spec version (for example `1.5.378.x` corresponds to OPC UA spec V1.05, mapped to release branches such as `release/1.4.372`). That scheme no longer applies from 2.0 onward.
+
+## Continuous integration
+
+Two CI systems run against this repository:
+
+- **Azure Pipelines** ([`azure-pipelines.yml`](../azure-pipelines.yml) plus the templates in [`.azurepipelines/`](../.azurepipelines)) — the all-target-framework solution build, the cross-platform test matrices, Native AoT and the coverage gate.
+- **GitHub Actions** ([`.github/workflows/`](../.github/workflows)) — CodeQL, container images, the opt-in stress and stability suites, and the macOS legs of the build/test matrix.
+
+### Which system runs what
+
+A single conceptual switch decides who owns the all-TFM build, the cross-platform test matrix and the Native AoT run. It is checked into source in **two places that must be flipped together**:
+
+| File | Setting | Default |
+| --- | --- | --- |
+| [`azure-pipelines.yml`](../azure-pipelines.yml) | `parameters.ciBuildBackend` | `ado` |
+| [`.github/workflows/buildandtest.yml`](../.github/workflows/buildandtest.yml) | `env.CI_BUILD_BACKEND` | `ado` |
+
+With the default `ado`, Azure Pipelines runs that work on the `netstandard` Managed DevOps Pool and the equivalent GitHub Actions jobs stand down on `master`/`main`. Setting both to `actions` restores the previous split, where GitHub Actions ran the ubuntu test matrix, Native AoT and the all-TFM builds.
+
+Two things are deliberately *not* covered by the switch:
+
+- **macOS** always runs on GitHub-hosted runners, because Managed DevOps Pools provide no macOS image.
+- **`master378` and `develop/*`** keep running the GitHub Actions jobs regardless of the setting, since Azure Pipelines only builds `master`/`main` from this file.
+
+### Test tiers
+
+The fast test stages fan every `*.Tests.csproj` out across matrix jobs and filter out `TestCategory=LongRunning` and `TestCategory=Stress`. The tiers that this leaves out run elsewhere:
+
+| Tier | Where it runs |
+| --- | --- |
+| `LongRunning` categories in mainline projects | `Test long-running tiers` stage, Schedule/Manual only |
+| `Opc.Ua.Subscriptions.Durable.Tests` | `Test long-running tiers` stage, Schedule/Manual only |
+| `Opc.Ua.Stress.Tests` | [`.github/workflows/stress-test.yml`](../.github/workflows/stress-test.yml), opt-in |
+| `Opc.Ua.Aot.Tests` | `Test Native AoT` stage |
+
+Because the individual matrix jobs are generated (and are skipped outright when Azure Pipelines owns them, or when a pull request touches no build-relevant files), branch protection should require the aggregate **`build-and-test summary`** check rather than any individual job. That job runs on every pull request — the workflow deliberately carries no `paths:` filter, because a workflow filtered out by `paths` never reports its checks and a required check that never reports blocks the pull request forever. The path allow-list is applied inside the `discover` job instead, and the summary treats an intentionally skipped job as success.
+
+### Triggering a pipeline run on a pull request
+
+Azure Pipelines is configured with **Require a team member's comment before building a pull request**, scoped to *pull requests from non-team members*. Pull requests opened by outside contributors and by the **GitHub Copilot coding agent** therefore do **not** start a pipeline automatically — this mirrors the "Approve and run workflows" gate GitHub Actions already applies to those pull requests.
+
+To start the run, a repository owner or a collaborator with `Write` permission comments on the pull request:
+
+```text
+/azp run
+```
+
+`/azp run <pipeline-name>` targets a single pipeline. If a comment appears to do nothing, check that your GitHub organization membership is **public** — Azure Pipelines cannot see private organization members unless they are direct repository collaborators, and it silently ignores their commands.
+
+This setting lives in the Azure DevOps portal (pipeline → **More actions** → **Triggers** → **Pull request validation**), not in YAML.
+
+### Coverage gates
+
+Every test stage ends in a **`Coverage <configuration> (<framework>)`** job. Each test matrix entry collects coverage while it runs and publishes its raw Cobertura fragment as a pipeline artifact; the coverage job then re-assembles those fragments with ReportGenerator and evaluates them. It never re-runs the tests — doing so would serialise a suite that was deliberately fanned out across matrix jobs and blow the stage timeout.
+
+That job is the single per-(framework, configuration) signal, so it — not an individual matrix entry — is what the GitHub branch ruleset should require. It fails when:
+
+- any test job in its stage failed, was cancelled or never ran,
+- no coverage was produced at all,
+- or, on the reference leg, the merged report misses the thresholds.
+
+Only the **net10.0 Release** leg (`enforceCoverage: true` in [`azure-pipelines.yml`](../azure-pipelines.yml)) blocks on the thresholds and publishes the merged report to the build summary and Codacy — it is the configuration [`coverage-thresholds.json`](../coverage-thresholds.json) is calibrated against. The other legs report their numbers as a warning and still block on test failures. Every leg publishes its merged report as the `coverage-report-<suffix>` artifact.
+
+The thresholds are enforced by [`.azurepipelines/check-coverage.ps1`](../.azurepipelines/check-coverage.ps1):
+
+| Check | Behaviour |
+| --- | --- |
+| **Project floor** | *Blocking.* Total line and branch rates must meet the absolute floors in `coverage-thresholds.json`. The `ignore` globs are applied here too, so samples, tests and generated code do not count. |
+| **Patch coverage** | *Blocking on pull requests.* Lines you added or modified must reach `patch.target` percent, tolerating `patch.threshold` percentage points. |
+| **Baseline delta** | *Advisory only.* Reports how total coverage compares with the recorded `baselineLineRate` and never fails the build. |
+
+Ratchet `minimumLineRate`, `minimumBranchRate` and `baselineLineRate` **upward** as coverage improves; never lower them to turn a red build green.
+
+To reproduce a gate failure locally, generate the same report with [`tests/codecoverage.cmd`](../tests/codecoverage.cmd) (or [`tests/codecoverage.sh`](../tests/codecoverage.sh)) and run the script against it:
+
+```powershell
+./.azurepipelines/check-coverage.ps1 -CoberturaPath ./CodeCoverage/Cobertura.xml -BaseRef master
+```
+
+Omit `-BaseRef` to check only the project floor.
 
 ## Contributing and pull requests
 

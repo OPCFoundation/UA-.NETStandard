@@ -255,12 +255,22 @@ namespace Opc.Ua.ISA95.Server.Builders
         /// update loop stops when <paramref name="cancellationToken"/> is
         /// cancelled or the binding is disposed.
         /// </param>
+        /// <param name="sourceId">
+        /// The provider-local source whose location the variable publishes.
+        /// Required when <paramref name="provider"/> is supplied.
+        /// </param>
+        /// <param name="formatter">
+        /// Projects a provider sample into the location literals the variable
+        /// carries; defaults to <see cref="WktGeoLocationTextFormatter"/>.
+        /// </param>
         /// <param name="cancellationToken">A cancellation token.</param>
         /// <returns>The created variable and its optional provider binding.</returns>
         ValueTask<Isa95GeoSpatialLocationBinding> CreateGeoSpatialLocationAsync(
             NodeState parent,
             string name,
-            IIsa95GeoSpatialLocationProvider? provider = null,
+            IGeoLocationProvider? provider = null,
+            string? sourceId = null,
+            IGeoLocationTextFormatter? formatter = null,
             CancellationToken cancellationToken = default);
 
         /// <summary>
@@ -626,13 +636,22 @@ namespace Opc.Ua.ISA95.Server.Builders
         /// </summary>
         /// <param name="state">The geospatial location variable.</param>
         /// <param name="provider">The backing provider.</param>
+        /// <param name="sourceId">
+        /// The provider-local source whose location the variable publishes.
+        /// </param>
+        /// <param name="formatter">
+        /// Projects a provider sample into the location literals the variable
+        /// carries; defaults to <see cref="WktGeoLocationTextFormatter"/>.
+        /// </param>
         /// <param name="cancellationToken">
         /// A token that stops the optional update loop when cancelled.
         /// </param>
         /// <returns>A handle that stops the update loop when disposed.</returns>
         IDisposable BindGeoSpatialLocation(
             GeoSpatialLocationState state,
-            IIsa95GeoSpatialLocationProvider provider,
+            IGeoLocationProvider provider,
+            string sourceId,
+            IGeoLocationTextFormatter? formatter = null,
             CancellationToken cancellationToken = default);
 
         /// <summary>

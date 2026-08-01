@@ -53,7 +53,6 @@ namespace Opc.Ua.SourceGeneration
         public void GenerateAndCompileTest(OptimizationLevel optimizationLevel)
         {
             var generator = new StackSourceGenerator();
-            var host = new StackSourceGeneratorHoist(generator);
 
             CSharpCompilation compilation = optimizationLevel.CreateCompilation("Opc.Ua.Test")
                 .AddCode(
@@ -62,7 +61,7 @@ namespace Opc.Ua.SourceGeneration
                     LanguageVersion.Latest);
 
             // Create the driver the executes the generator
-            GeneratorDriver driver = CSharpGeneratorDriver.Create(host);
+            GeneratorDriver driver = CSharpGeneratorDriver.Create(generator);
             // Run it
             driver = driver.RunGeneratorsAndUpdateCompilation(
                 compilation,

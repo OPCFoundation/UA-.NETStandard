@@ -56,6 +56,10 @@ namespace Opc.Ua.SourceGeneration
 
             #nullable enable
 
+            [assembly: global::Opc.Ua.ModelFluentAccessorProviderAttribute(
+                "{{Tokens.ModelUri}}",
+                "{{Tokens.NamespacePrefix}}")]
+
             namespace {{Tokens.NamespacePrefix}}
             {
                 {{Tokens.ListOfTypes}}
