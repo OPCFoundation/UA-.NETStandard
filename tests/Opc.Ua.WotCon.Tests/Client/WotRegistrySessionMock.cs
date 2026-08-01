@@ -191,6 +191,38 @@ namespace Opc.Ua.WotCon.Tests.Client
         /// </summary>
         public bool ReturnEmptyCallResultsOnce { get; set; }
 
+        /// <summary>
+        /// When set, the next <c>HasTypeDefinition</c> Browse reports no
+        /// references, as a server that does not expose the group's type
+        /// would.
+        /// </summary>
+        public bool ReturnNoTypeDefinitionOnce { get; set; }
+
+        /// <summary>
+        /// When set, <c>HasTypeDefinition</c> Browse reports this
+        /// ObjectType instead of the one matching the group's kind.
+        /// </summary>
+        public NodeId TypeDefinitionOverride { get; set; }
+
+        /// <summary>
+        /// Replaces the handler for <paramref name="methodId"/> so a test
+        /// can script an output argument shape the in-memory registry
+        /// would never produce on its own.
+        /// </summary>
+        public void OverrideMethod(NodeId methodId, Func<CallMethodRequest, Variant[]> handler)
+        {
+            m_methods[methodId] = handler;
+        }
+
+        /// <summary>
+        /// Resolves <paramref name="methodId"/> against the mock session's
+        /// namespace table.
+        /// </summary>
+        public NodeId ResolveMethodId(ExpandedNodeId methodId)
+        {
+            return ExpandedNodeId.ToNodeId(methodId, Session.NamespaceUris);
+        }
+
         private BrowsePathResult ResolvePath(BrowsePath path)
         {
             NodeId current = path.StartingNode;
@@ -240,13 +272,21 @@ namespace Opc.Ua.WotCon.Tests.Client
 
         private BrowseResult ResolveBrowse(BrowseDescription description)
         {
+            if (ReturnNoTypeDefinitionOnce)
+            {
+                ReturnNoTypeDefinitionOnce = false;
+                return new BrowseResult { StatusCode = StatusCodes.Good, References = [] };
+            }
             foreach (GroupState group in m_groups.Values)
             {
                 if (group.NodeId == description.NodeId)
                 {
-                    NodeId typeId = group.Kind == WoTDocumentKindEnum.ThingModel
+                    NodeId kindTypeId = group.Kind == WoTDocumentKindEnum.ThingModel
                         ? m_thingModelGroupType
                         : m_thingDescriptionGroupType;
+                    NodeId typeId = TypeDefinitionOverride.IsNull
+                        ? kindTypeId
+                        : TypeDefinitionOverride;
                     return new BrowseResult
                     {
                         StatusCode = StatusCodes.Good,

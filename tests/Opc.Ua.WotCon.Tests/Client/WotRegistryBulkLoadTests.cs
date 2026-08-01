@@ -221,6 +221,85 @@ namespace Opc.Ua.WotCon.Tests.Client
                 XRegistry.MethodIds.GroupType_GetOrCreateResource, mock.Session.NamespaceUris);
         }
 
+        [Test]
+        public async Task LoadDocumentsRejectsANullDocumentArrayAsync()
+        {
+            var mock = new WotRegistrySessionMock();
+            WotRegistryClient client = await WotRegistryClient
+                .ForServerAsync(mock.Session, CreateTelemetry())
+                .ConfigureAwait(false);
+
+            Assert.That(
+                () => client.LoadDocumentsAsync(default, refresh: false).AsTask(),
+                Throws.ArgumentNullException
+                    .With.Property("ParamName").EqualTo("documents"));
+        }
+
+        [Test]
+        public void DocumentRejectsAMissingGroupId()
+        {
+            Assert.That(
+                () => new WotRegistryDocument(
+                    WoTDocumentKindEnum.ThingDescription, "  ", "td", Content("td")),
+                Throws.ArgumentException.With.Property("ParamName").EqualTo("groupId"));
+        }
+
+        [Test]
+        public void DocumentRejectsAMissingResourceId()
+        {
+            Assert.That(
+                () => new WotRegistryDocument(
+                    WoTDocumentKindEnum.ThingDescription, "thingdescriptions", string.Empty, Content("td")),
+                Throws.ArgumentException.With.Property("ParamName").EqualTo("resourceId"));
+        }
+
+        [Test]
+        public void DocumentRejectsMissingContent()
+        {
+            Assert.That(
+                () => new WotRegistryDocument(
+                    WoTDocumentKindEnum.ThingDescription, "thingdescriptions", "td", default),
+                Throws.ArgumentException.With.Property("ParamName").EqualTo("content"));
+        }
+
+        [Test]
+        public void DocumentDefaultsTheVersionIdToEmpty()
+        {
+            var document = new WotRegistryDocument(
+                WoTDocumentKindEnum.ThingModel, "thingmodels", "tm", Content("tm"), null!);
+
+            Assert.That(document.VersionId, Is.Empty);
+            Assert.That(document.Kind, Is.EqualTo(WoTDocumentKindEnum.ThingModel));
+            Assert.That(document.GroupId, Is.EqualTo("thingmodels"));
+            Assert.That(document.ResourceId, Is.EqualTo("tm"));
+            Assert.That(document.Content, Is.EqualTo(Content("tm")));
+        }
+
+        [Test]
+        public async Task LoadDocumentsReportsResourceNodeIdsAndCreationFlagsAsync()
+        {
+            var mock = new WotRegistrySessionMock();
+            WotRegistryClient client = await WotRegistryClient
+                .ForServerAsync(mock.Session, CreateTelemetry())
+                .ConfigureAwait(false);
+            ArrayOf<WotRegistryDocument> documents = new WotRegistryDocument[]
+            {
+                new(WoTDocumentKindEnum.ThingDescription, "thingdescriptions", "td1", Content("td1"))
+            }.ToArrayOf();
+
+            WotRegistryBulkLoadResult first = await client
+                .LoadDocumentsAsync(documents, refresh: false).ConfigureAwait(false);
+            WotRegistryBulkLoadResult second = await client
+                .LoadDocumentsAsync(documents, refresh: false).ConfigureAwait(false);
+
+            Assert.That(first.Uploaded[0].Created, Is.True);
+            Assert.That(second.Uploaded[0].Created, Is.False);
+            Assert.That(first.Uploaded[0].ResourceNodeId.IsNull, Is.False);
+            Assert.That(
+                second.Uploaded[0].ResourceNodeId,
+                Is.EqualTo(first.Uploaded[0].ResourceNodeId));
+        }
+
         private static readonly string[] s_expectedOrder = ["tm1", "tm2", "td1", "td2"];
     }
 }
