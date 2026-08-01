@@ -27,6 +27,7 @@ This document starts with the bindings that ship today and how to register them,
   - [Executors, channels, and disposal](#executors-channels-and-disposal)
   - [Payload codecs](#payload-codecs)
   - [Credentials and trust](#credentials-and-trust)
+  - [Endpoint policy and custom schemes](#endpoint-policy-and-custom-schemes)
   - [Registration](#registration)
   - [Monitoring and local sampling](#monitoring-and-local-sampling)
   - [Structured target mapping](#structured-target-mapping)
@@ -340,15 +341,33 @@ Thing Descriptions and registry nodes contain only `WotSecurityDefinition` and `
 
 Register a provider with `AddWotCredentialProvider`. Scope credentials by the reference's scheme name, binding URI, and endpoint. Fail closed when a form declares security but the provider cannot resolve the required material. Never serialize `WotCredential`, cache secret text in `WotCompiledForm`, or include secrets in diagnostics.
 
+### Endpoint policy and custom schemes
+
+`WotEndpointPolicy` is an allow-list that decides which endpoint URIs an executor may reach. It fails closed: the default set covers only the schemes the shipped bindings use (`http`, `https`, `modbus+tcp`, `modbus`, `mqtt`, `mqtts`, `opc.tcp`, `opc.https`, `opc.wss`), and it blocks loopback, RFC1918, CGNAT, link-local (including the cloud metadata address `169.254.169.254`) and IPv6 ULA ranges.
+
+A custom binding almost always introduces a scheme the default set does not know about, so opening a channel fails with `BadSecurityChecksFailed` and `Endpoint scheme '<scheme>' is not in the policy's AllowedSchemes set` until the scheme is opted in:
+
+```csharp
+var endpointPolicy = new WotEndpointPolicy();
+endpointPolicy.AllowedSchemes.Add("mem");
+```
+
+Add only the scheme your binding needs, and leave the address-range restrictions alone unless the deployment genuinely requires them relaxed — those blocks are what stop a Thing Description from steering an executor at the host's own listeners or at a cloud metadata endpoint.
+
 ### Registration
 
-The direct-construction path is useful in focused tests:
+The direct-construction path is useful in focused tests. Note the policy passed alongside the binder and executor, which is what lets the sample's `mem://` endpoints resolve:
 
 ```csharp
 var store = new MemoryWotStore();
+
+var endpointPolicy = new WotEndpointPolicy();
+endpointPolicy.AllowedSchemes.Add("mem");
+
 var registry = new WotProtocolBinderRegistry(
     [new MemoryWotBinder()],
-    [new MemoryWotBindingExecutor(store)]);
+    [new MemoryWotBindingExecutor(store)],
+    endpointPolicy: endpointPolicy);
 ```
 
 The normal host path uses `IOpcUaBuilder` extensions:
@@ -754,6 +773,7 @@ Conditionally exclude executor source on older TFMs rather than reducing the bas
 - [ ] Implement an executor only for operations the transport can actually perform.
 - [ ] Map expected failures to OPC UA status codes and keep caller cancellation distinct from executor timeout.
 - [ ] Resolve credentials out of band and verify that diagnostics never contain secrets.
+- [ ] Opt the binding's URI scheme into `WotEndpointPolicy.AllowedSchemes` and leave the address-range blocks intact.
 - [ ] Make channels, subscriptions, and in-flight activation safe under asynchronous disposal.
 - [ ] Register direct-construction and DI/fluent paths.
 - [ ] Add planner, diagnostics, executor, concurrency, disposal, and security tests.
