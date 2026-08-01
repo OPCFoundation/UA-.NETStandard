@@ -162,7 +162,8 @@ namespace Opc.Ua.WotCon.Bindings.Http
                 // so consumers observe the fault without the poll loop faulting.
                 onError: _ => onNotification(new WotNotification(
                     DataValue.FromStatusCode(StatusCodes.BadCommunicationError))),
-                retryPolicy: m_options.RetryPolicy);
+                retryPolicy: m_options.RetryPolicy,
+                telemetry: m_context.Telemetry);
             return new ValueTask<IWotSubscription>(subscription);
         }
 

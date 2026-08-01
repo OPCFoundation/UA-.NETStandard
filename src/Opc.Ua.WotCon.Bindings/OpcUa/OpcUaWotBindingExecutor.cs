@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client;
@@ -77,11 +78,49 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
                 throw new InvalidOperationException(
                     "No OPC UA session factory is configured on the executor options.");
             }
-            string endpoint = string.IsNullOrEmpty(form.Endpoint.BaseUri)
-                ? form.Endpoint.Scheme + "://" + (form.Endpoint.Host ?? string.Empty)
-                : form.Endpoint.BaseUri;
+            string endpoint = BuildEndpoint(form.Endpoint);
             ISession session = await m_options.SessionFactory(endpoint, cancellationToken).ConfigureAwait(false);
             return new OpcUaWotBindingChannel(session, m_options.DisposeSession, form, context, m_options);
+        }
+
+        private static string BuildEndpoint(WotEndpointDescriptor endpoint)
+        {
+            if (!string.IsNullOrEmpty(endpoint.BaseUri))
+            {
+                return endpoint.BaseUri;
+            }
+            string authority = FormatHost(endpoint.Host);
+            int defaultPort = GetDefaultPort(endpoint.Scheme);
+            if (endpoint.Port >= 0 && endpoint.Port != defaultPort)
+            {
+                authority += ":" + endpoint.Port.ToString(CultureInfo.InvariantCulture);
+            }
+            return endpoint.Scheme + "://" + authority;
+        }
+
+        private static string FormatHost(string? host)
+        {
+            if (string.IsNullOrEmpty(host) ||
+                host[0] == '[' ||
+                !host.Contains(':', StringComparison.Ordinal))
+            {
+                return host ?? string.Empty;
+            }
+            return "[" + host + "]";
+        }
+
+        private static int GetDefaultPort(string scheme)
+        {
+            if (string.Equals(scheme, "opc.tcp", StringComparison.OrdinalIgnoreCase))
+            {
+                return 4840;
+            }
+            if (string.Equals(scheme, "opc.https", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(scheme, "opc.wss", StringComparison.OrdinalIgnoreCase))
+            {
+                return 443;
+            }
+            return -1;
         }
 
         private readonly OpcUaWotBindingOptions m_options;

@@ -121,6 +121,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests.Support
             Port = ((IPEndPoint)m_listener.LocalEndpoint).Port;
             BaseUrl = $"http://127.0.0.1:{Port}";
             m_loop = Task.Run(AcceptLoopAsync);
+            ObserveLoopFaults(m_loop);
         }
 
         public string BaseUrl { get; }
@@ -129,23 +130,14 @@ namespace Opc.Ua.WotCon.Bindings.Tests.Support
 
         public void Dispose()
         {
-            m_cts.Cancel();
+            Volatile.Write(ref m_stopped, 1);
             m_listener.Stop();
             m_listener.Dispose();
-            try
-            {
-                m_loop.Wait(2000);
-            }
-            catch (AggregateException)
-            {
-                // Ignore teardown faults.
-            }
-            m_cts.Dispose();
         }
 
         private async Task AcceptLoopAsync()
         {
-            while (!m_cts.IsCancellationRequested)
+            while (!IsStopped)
             {
                 TcpClient client;
                 try
@@ -162,6 +154,17 @@ namespace Opc.Ua.WotCon.Bindings.Tests.Support
                 }
                 _ = Task.Run(() => HandleAsync(client));
             }
+        }
+
+        private bool IsStopped => Volatile.Read(ref m_stopped) != 0;
+
+        private static void ObserveLoopFaults(Task loop)
+        {
+            _ = loop.ContinueWith(
+                static task => _ = task.Exception,
+                CancellationToken.None,
+                TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
         }
 
         private async Task HandleAsync(TcpClient client)
@@ -293,6 +296,6 @@ namespace Opc.Ua.WotCon.Bindings.Tests.Support
         private readonly Func<TestHttpRequest, TestHttpResponse> m_handler;
         private readonly TcpListener m_listener;
         private readonly Task m_loop;
-        private readonly CancellationTokenSource m_cts = new();
+        private int m_stopped;
     }
 }
