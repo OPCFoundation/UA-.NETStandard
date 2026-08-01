@@ -124,6 +124,9 @@ namespace Opc.Ua.SourceGeneration
             IncrementalValueProvider<ImmutableArray<ModelDependencyReference>> referencedModels =
                 context.CompilationProvider
                     .Select((c, _) => ReferencedModelDependencyScanner.Scan(c));
+            IncrementalValueProvider<ImmutableArray<ModelFluentAccessorProviderReference>>
+                referencedAccessorProviders = context.CompilationProvider
+                    .Select((c, _) => ReferencedFluentAccessorProviderScanner.Scan(c));
             IncrementalValueProvider<ImmutableHashSet<string>> stateTypeIndex =
                 context.CompilationProvider
                     .Select((c, _) => OpcUaStateTypeIndex.Build(c));
@@ -157,21 +160,30 @@ namespace Opc.Ua.SourceGeneration
             IncrementalValueProvider<
                 (
                     ImmutableArray<ModelDependencyReference> ReferencedModels,
+                    ImmutableArray<ModelFluentAccessorProviderReference> ReferencedAccessorProviders,
                     ImmutableArray<NodeManagerAttributeDiscovery> NodeManagerBindings)>
                 modelReferences = referencedModels
-                .Combine(nodeManagerBindings)
+                .Combine(referencedAccessorProviders)
                 .Select(static (pair, _) => (
                     ReferencedModels: pair.Left,
+                    ReferencedAccessorProviders: pair.Right))
+                .Combine(nodeManagerBindings)
+                .Select(static (pair, _) => (
+                    ReferencedModels: pair.Left.ReferencedModels,
+                    ReferencedAccessorProviders: pair.Left.ReferencedAccessorProviders,
                     NodeManagerBindings: pair.Right));
             IncrementalValueProvider<
                 (
                     ImmutableArray<ModelDependencyReference> ReferencedModels,
+                    ImmutableArray<ModelFluentAccessorProviderReference> ReferencedAccessorProviders,
                     ImmutableArray<NodeManagerAttributeDiscovery> NodeManagerBindings,
                     ImmutableHashSet<string> AvailableStateTypeNames)> modelDependencies =
                 modelReferences
                 .Combine(stateTypeIndex)
-                .Select(static (pair, _) => (pair.Left.ReferencedModels,
-                    pair.Left.NodeManagerBindings,
+                .Select(static (pair, _) => (
+                    ReferencedModels: pair.Left.ReferencedModels,
+                    ReferencedAccessorProviders: pair.Left.ReferencedAccessorProviders,
+                    NodeManagerBindings: pair.Left.NodeManagerBindings,
                     AvailableStateTypeNames: pair.Right));
             IncrementalValueProvider<
                 (
@@ -196,6 +208,7 @@ namespace Opc.Ua.SourceGeneration
                         pair.Left.Options,
                         pair.Left.CompilationOptions,
                         pair.Right.ReferencedModels,
+                        pair.Right.ReferencedAccessorProviders,
                         pair.Right.NodeManagerBindings,
                         pair.Right.AvailableStateTypeNames));
 
@@ -211,6 +224,7 @@ namespace Opc.Ua.SourceGeneration
                         input.Options,
                         input.CompilationOptions,
                         input.ReferencedModels,
+                        input.ReferencedAccessorProviders,
                         input.NodeManagerBindings,
                         input.AvailableStateTypeNames).Emit(context.CancellationToken)));
 
@@ -239,6 +253,7 @@ namespace Opc.Ua.SourceGeneration
             ModelCompilationOptions Options,
             CompilationOptions CompilationOptions,
             ImmutableArray<ModelDependencyReference> ReferencedModels,
+            ImmutableArray<ModelFluentAccessorProviderReference> ReferencedAccessorProviders,
             ImmutableArray<NodeManagerAttributeDiscovery> NodeManagerBindings,
             ImmutableHashSet<string> AvailableStateTypeNames);
     }
