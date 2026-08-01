@@ -55,6 +55,7 @@ namespace Opc.Ua.WotCon.Bindings.Mqtt
             m_client = client;
             Form = form;
             m_options = options;
+            m_bounds = context.Bounds;
             m_topic = form.Addressing.Target;
             m_qos = ParseQos(form.Addressing.Metadata);
             m_retain = ParseBool(form.Addressing.Metadata, "retain");
@@ -67,7 +68,14 @@ namespace Opc.Ua.WotCon.Bindings.Mqtt
         public async ValueTask<WotReadResult> ReadAsync(CancellationToken cancellationToken = default)
         {
             var completion = new TaskCompletionSource<byte[]>(TaskCreationOptions.RunContinuationsAsynchronously);
-            Interlocked.Exchange(ref m_pendingRead, completion);
+            if (Interlocked.CompareExchange(ref m_pendingRead, completion, null) is not null)
+            {
+                var exception = new ServiceResultException(
+                    StatusCodes.BadInvalidState,
+                    "An MQTT read is already pending on this channel.");
+                completion.SetCanceled(CancellationToken.None);
+                throw exception;
+            }
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeout.CancelAfter(m_options.ReadTimeout);
             try
@@ -87,9 +95,20 @@ namespace Opc.Ua.WotCon.Bindings.Mqtt
             }
             catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
             {
+                completion.TrySetCanceled(timeout.Token);
                 return new WotReadResult(
                     StatusCodes.BadTimeout, DataValue.FromStatusCode(StatusCodes.BadTimeout),
                     "Timed out waiting for an MQTT message.");
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                completion.TrySetCanceled(cancellationToken);
+                throw;
+            }
+            catch
+            {
+                completion.TrySetCanceled(CancellationToken.None);
+                throw;
             }
             finally
             {
@@ -171,7 +190,15 @@ namespace Opc.Ua.WotCon.Bindings.Mqtt
                 m_handlers.Add(onNotification);
                 m_observing = true;
             }
-            await SubscribeAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await SubscribeAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch
+            {
+                RemoveHandler(onNotification);
+                throw;
+            }
             return new HandlerSubscription(this, onNotification);
         }
 
@@ -226,6 +253,7 @@ namespace Opc.Ua.WotCon.Bindings.Mqtt
 
         private async Task SubscribeAsync(CancellationToken cancellationToken)
         {
+            ValidateSubscribeTopic();
             MqttClientSubscribeOptions options = new MqttClientSubscribeOptionsBuilder()
                 .WithTopicFilter(m_topic, m_qos)
                 .Build();
@@ -260,6 +288,23 @@ namespace Opc.Ua.WotCon.Bindings.Mqtt
                 .WithRetainFlag(m_retain)
                 .Build();
             await m_client.PublishAsync(message, cancellationToken).ConfigureAwait(false);
+        }
+
+        private void ValidateSubscribeTopic()
+        {
+            WotBindingBounds.EnsurePositive(m_bounds.MaxTopicLength, nameof(WotBindingBounds.MaxTopicLength));
+            if (m_topic.Length > m_bounds.MaxTopicLength)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadOutOfRange,
+                    $"The MQTT subscribe topic exceeds the maximum length of {m_bounds.MaxTopicLength}.");
+            }
+            if (!m_bounds.AllowMqttWildcardTopics && ContainsMqttWildcard(m_topic))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidArgument,
+                    "MQTT subscribe topics must not contain wildcard characters unless explicitly allowed.");
+            }
         }
 
         private void RemoveHandler(Action<WotNotification> handler)
@@ -328,6 +373,7 @@ namespace Opc.Ua.WotCon.Bindings.Mqtt
 
         private readonly IMqttClient m_client;
         private readonly MqttWotBindingOptions m_options;
+        private readonly WotBindingBounds m_bounds;
         private readonly string m_topic;
         private readonly MqttQualityOfServiceLevel m_qos;
         private readonly bool m_retain;
