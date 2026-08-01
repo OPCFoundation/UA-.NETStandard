@@ -42,6 +42,20 @@ namespace Opc.Ua.WotCon.Bindings.Tests
     [TestFixture]
     public sealed class PollingWotSubscriptionTests
     {
+        private sealed class ThrowingReconnectPolicy : IChannelReconnectPolicy
+        {
+            public Task Faulted => m_faulted.Task;
+
+            public TimeSpan GetDelay(int attempt)
+            {
+                m_faulted.TrySetResult();
+                throw new InvalidOperationException("retry policy fault");
+            }
+
+            private readonly TaskCompletionSource m_faulted = new(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+        }
+
         private static WotCompiledForm Form()
         {
             return new WotCompiledForm(
@@ -255,6 +269,23 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             // Cooperative cancellation on dispose stops the loop cleanly without
             // surfacing an OperationCanceledException from DisposeAsync.
             Assert.DoesNotThrowAsync(async () => await subscription.DisposeAsync().ConfigureAwait(false));
+        }
+
+        [Test]
+        public async Task DisposeAsyncAfterRetryPolicyFaultCompletesCleanly()
+        {
+            var policy = new ThrowingReconnectPolicy();
+            var subscription = new PollingWotSubscription(
+                Form(),
+                _ => new ValueTask<bool>(false),
+                TimeSpan.FromMilliseconds(10),
+                retryPolicy: policy);
+
+            Task faulted = await Task.WhenAny(policy.Faulted, Task.Delay(5000)).ConfigureAwait(false);
+            Assert.That(faulted, Is.SameAs(policy.Faulted), "The retry policy fault must be observed first.");
+
+            Assert.DoesNotThrowAsync(async () => await subscription.DisposeAsync().ConfigureAwait(false),
+                "DisposeAsync must not rethrow residual non-cancellation loop faults.");
         }
     }
 }

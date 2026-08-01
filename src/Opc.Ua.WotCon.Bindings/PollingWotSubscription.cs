@@ -30,6 +30,8 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Opc.Ua.WotCon.Bindings
 {
@@ -70,18 +72,21 @@ namespace Opc.Ua.WotCon.Bindings
         /// <see cref="ExponentialBackoffChannelReconnectPolicy"/>. A policy that reports "stop
         /// retrying" (a negative delay) ends the poll loop.
         /// </param>
+        /// <param name="logger">The logger used for best-effort disposal diagnostics.</param>
         public PollingWotSubscription(
             WotCompiledForm form,
             Func<CancellationToken, ValueTask<bool>> pollAsync,
             TimeSpan interval,
             Action<Exception>? onError = null,
-            IChannelReconnectPolicy? retryPolicy = null)
+            IChannelReconnectPolicy? retryPolicy = null,
+            ILogger? logger = null)
         {
             Form = form ?? throw new ArgumentNullException(nameof(form));
             m_pollAsync = pollAsync ?? throw new ArgumentNullException(nameof(pollAsync));
             m_interval = interval <= TimeSpan.Zero ? TimeSpan.FromSeconds(1) : interval;
             m_onError = onError;
             m_retryPolicy = retryPolicy ?? new ExponentialBackoffChannelReconnectPolicy();
+            m_logger = logger ?? NullLogger.Instance;
             m_loop = RunAsync(m_cts.Token);
         }
 
@@ -110,6 +115,10 @@ namespace Opc.Ua.WotCon.Bindings
                 catch (OperationCanceledException)
                 {
                     // Expected on cancellation.
+                }
+                catch (Exception ex) when (ex is not OutOfMemoryException)
+                {
+                    m_logger.IgnoringResidualLoopExceptionDuringDispose(ex);
                 }
             }
             finally
@@ -195,8 +204,19 @@ namespace Opc.Ua.WotCon.Bindings
         private readonly TimeSpan m_interval;
         private readonly Action<Exception>? m_onError;
         private readonly IChannelReconnectPolicy m_retryPolicy;
+        private readonly ILogger m_logger;
         private readonly CancellationTokenSource m_cts = new();
         private readonly Task m_loop;
         private int m_consecutiveFailures;
+    }
+
+    internal static partial class PollingWotSubscriptionLog
+    {
+        [LoggerMessage(
+            EventId = WotConBindingsEventIds.PollingWotSubscription + 0,
+            Level = LogLevel.Warning,
+            Message = "Ignoring residual polling loop exception during disposal.")]
+        public static partial void IgnoringResidualLoopExceptionDuringDispose(
+            this ILogger logger, Exception exception);
     }
 }

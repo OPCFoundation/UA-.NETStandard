@@ -89,8 +89,10 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             builder.AddWotProtocolBinders();
             using ServiceProvider sp = services.BuildServiceProvider();
 
+            IWotProtocolBinder[] binders = [.. sp.GetServices<IWotProtocolBinder>()];
             WotProtocolBinderRegistry registry = sp.GetRequiredService<WotProtocolBinderRegistry>();
 
+            Assert.That(binders, Has.Length.EqualTo(8));
             Assert.That(registry.Binders, Has.Count.EqualTo(8));
         }
 
@@ -141,12 +143,16 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             var services = new ServiceCollection();
             IOpcUaBuilder builder = new TestBuilder(services);
-            builder.AddWotBinder(new ProfinetBindingPlanner());
+            var binder = new ProfinetBindingPlanner();
+            builder.AddWotBinder(binder);
             using ServiceProvider sp = services.BuildServiceProvider();
 
+            IWotProtocolBinder[] binders = [.. sp.GetServices<IWotProtocolBinder>()];
             WotProtocolBinderRegistry registry = sp.GetRequiredService<WotProtocolBinderRegistry>();
 
-            Assert.That(registry.Binders.Any(b => b.Identity.Id == "w3c.profinet"), Is.True);
+            Assert.That(binders, Has.Length.EqualTo(1));
+            Assert.That(binders[0], Is.SameAs(binder));
+            Assert.That(registry.Binders.Any(b => ReferenceEquals(b, binder)), Is.True);
         }
 
         [Test]
@@ -178,10 +184,13 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             builder.AddWotBindingExecutor(executor);
             using ServiceProvider sp = services.BuildServiceProvider();
 
-            System.Collections.Generic.IEnumerable<IWotBindingExecutor> executors =
-                sp.GetServices<IWotBindingExecutor>();
+            IWotBindingExecutor[] executors = [.. sp.GetServices<IWotBindingExecutor>()];
+            WotProtocolBinderRegistry registry = sp.GetRequiredService<WotProtocolBinderRegistry>();
 
-            Assert.That(executors.Any(e => e is TestExecutor), Is.True);
+            Assert.That(executors, Has.Length.EqualTo(1));
+            Assert.That(executors[0], Is.SameAs(executor));
+            Assert.That(registry.TryGetExecutor(executor.Identity, out IWotBindingExecutor? resolved), Is.True);
+            Assert.That(resolved, Is.SameAs(executor));
         }
 
         [Test]

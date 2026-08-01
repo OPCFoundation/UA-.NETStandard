@@ -64,7 +64,7 @@ namespace Microsoft.Extensions.DependencyInjection
             foreach (IWotProtocolBinder binder in WotBuiltInBinders.CreateAll())
             {
                 builder.Services.TryAddEnumerable(
-                    ServiceDescriptor.Singleton(binder));
+                    ServiceDescriptor.Singleton<IWotProtocolBinder>(binder));
             }
             EnsureRegistry(builder.Services);
             return builder;
@@ -84,7 +84,7 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 throw new ArgumentNullException(nameof(binder));
             }
-            builder.Services.TryAddEnumerable(ServiceDescriptor.Singleton(binder));
+            builder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<IWotProtocolBinder>(binder));
             EnsureRegistry(builder.Services);
             return builder;
         }
@@ -104,7 +104,7 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 throw new ArgumentNullException(nameof(executor));
             }
-            builder.Services.TryAddEnumerable(ServiceDescriptor.Singleton(executor));
+            builder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<IWotBindingExecutor>(executor));
             EnsureRegistry(builder.Services);
             return builder;
         }
