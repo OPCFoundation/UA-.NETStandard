@@ -28,6 +28,9 @@
     <ProjectReference Include="..\..\src\Opc.Ua.Client\Opc.Ua.Client.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Client.ComplexTypes\Opc.Ua.Client.ComplexTypes.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Positioning\Opc.Ua.Positioning.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Positioning.Client\Opc.Ua.Positioning.Client.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Positioning.Server\Opc.Ua.Positioning.Server.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Server\Opc.Ua.Server.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Redundancy.Server\Opc.Ua.Redundancy.Server.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Redundancy.Kubernetes\Opc.Ua.Redundancy.Kubernetes.csproj" />

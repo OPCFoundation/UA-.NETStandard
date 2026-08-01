@@ -5,20 +5,13 @@ on:
     branches: [ master, main, master378, develop/* ]
   pull_request:
     branches: [ master, main, master378, develop/* ]
-    paths:
-    - '**.cs'
-    - '**.csproj'
-    # Build/config files affect compilation across TFMs, so the all-TFM build
-    # jobs must run when they change (e.g. targets.props, Directory.Packages.props,
-    # Directory.Build.props/targets, the solution, and this workflow itself).
-    - '**.props'
-    - '**.targets'
-    - '**.slnx'
-    - '**.sln'
-    - 'global.json'
-    - 'nuget.config'
-    - 'NuGet.config'
-    - '.github/workflows/buildandtest.yml'
+    # NOTE: deliberately no `paths:` filter. A workflow that is filtered out by
+    # `paths` never reports its checks at all, and a required status check that
+    # never reports leaves a pull request permanently "Expected — waiting for
+    # status to be reported". Since `build-and-test summary` below is the check
+    # branch protection requires, this workflow has to trigger on every pull
+    # request. The path allow-list is applied inside the `discover` job instead,
+    # which skips the expensive jobs while still letting the summary report.
   # Weekly nightly run mirroring azure-pipelines.yml — Sun 02:00 UTC.
   schedule:
     - cron: '0 2 * * 0'
@@ -33,6 +26,27 @@ on:
 permissions:
   contents: read
 
+# Which CI system owns the all-TFM solution build, the cross-platform test
+# matrix and the Native AoT run.  This is one half of a single conceptual
+# switch - the other half is the ciBuildBackend parameter in
+# azure-pipelines.yml.  BOTH MUST BE FLIPPED TOGETHER.
+#
+#   ado     - (default) Azure Pipelines owns the work on master/main: the jobs
+#             below stand down there and run only on the branches Azure
+#             Pipelines does not cover (master378, develop/*).
+#   actions - restores the previous behaviour: every job below runs here on
+#             GitHub-hosted runners for every triggering branch.
+#
+# The macOS legs are deliberately exempt from this switch: Managed DevOps Pools
+# provide no macOS image, so macOS coverage has to stay on GitHub-hosted
+# runners regardless of the backend.
+#
+# Note: GitHub Actions does not expose the `env` context to job-level `if:`
+# conditions, so the switch is resolved once in the `discover` job below and
+# re-exported as job outputs.
+env:
+  CI_BUILD_BACKEND: ado
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -45,14 +59,23 @@ jobs:
       csprojs: ${{ steps.list.outputs.csprojs }}
       test_os: ${{ steps.list.outputs.test_os }}
       aot_matrix: ${{ steps.list.outputs.aot_matrix }}
+      gh_owns_build: ${{ steps.list.outputs.gh_owns_build }}
+      relevant_changes: ${{ steps.list.outputs.relevant_changes }}
     steps:
     - uses: actions/checkout@v7
+      with:
+        # Full history so the path-relevance check below can diff a pull request
+        # against its base commit.
+        fetch-depth: 0
     - name: Enumerate tests/Opc.Ua.*.Tests projects
       id: list
       shell: pwsh
       env:
         EVENT_NAME: ${{ github.event_name }}
         INCLUDE_MACOS: ${{ github.event.inputs.include_macos }}
+        # Base branch on pull_request, pushed/scheduled branch otherwise.
+        TARGET_REF: ${{ github.base_ref || github.ref_name }}
+        BASE_SHA: ${{ github.event.pull_request.base.sha }}
       run: |
         # Discover test projects from the filesystem so this matrix does
         # not have to be hand-maintained as projects are added/renamed.
@@ -77,15 +100,64 @@ jobs:
             'workflow_dispatch' { $env:INCLUDE_MACOS -eq 'true' }
             default { $true }
         }
-        $testOs = @('ubuntu-latest')
-        $aotMatrix = @(@{ os = 'ubuntu-latest'; rid = 'linux-x64' })
-        if ($includeMac) {
+
+        # CI backend switch (see CI_BUILD_BACKEND at the top of this file).
+        # Azure Pipelines only builds master/main, so the stand-down is scoped
+        # to those branches; master378 and develop/* keep running everything
+        # here. The macOS legs are exempt because Managed DevOps Pools have no
+        # macOS image.
+        $adoOwnsBuild = ($env:CI_BUILD_BACKEND -eq 'ado') -and
+            (@('master', 'main') -contains $env:TARGET_REF)
+        $ghOwnsBuild = -not $adoOwnsBuild
+        Write-Host "CI_BUILD_BACKEND=$($env:CI_BUILD_BACKEND); TARGET_REF=$($env:TARGET_REF); gh_owns_build=$ghOwnsBuild"
+
+        # Path relevance. This replaces the `paths:` filter that used to sit on
+        # the pull_request trigger: filtering the whole workflow out would stop
+        # `build-and-test summary` from ever reporting, and a required status
+        # check that never reports blocks the pull request forever. Applying the
+        # same allow-list here skips the expensive jobs instead, while the
+        # summary job still reports.
+        $relevantChanges = $true
+        if ($env:EVENT_NAME -eq 'pull_request' -and -not [string]::IsNullOrWhiteSpace($env:BASE_SHA)) {
+            # Triple-dot: diff from the merge base, not from the current base
+            # branch head. A two-dot diff would also report commits that landed
+            # on the base branch after this one was cut, which would make an
+            # unrelated base-branch change look like a build-relevant change here.
+            $changed = @(& git diff --name-only "$($env:BASE_SHA)...HEAD")
+            $relevantChanges = $false
+            foreach ($file in $changed) {
+                $name = [System.IO.Path]::GetFileName($file)
+                if ($name -like '*.cs' -or $name -like '*.csproj' -or
+                    # Build/config files affect compilation across TFMs, so the
+                    # all-TFM build jobs must run when they change (targets.props,
+                    # Directory.Packages.props, Directory.Build.props/targets, the
+                    # solution, and this workflow itself).
+                    $name -like '*.props' -or $name -like '*.targets' -or
+                    $name -like '*.slnx' -or $name -like '*.sln' -or
+                    $name -eq 'global.json' -or $name -ieq 'nuget.config' -or
+                    $file -eq '.github/workflows/buildandtest.yml') {
+                    $relevantChanges = $true
+                    break
+                }
+            }
+            Write-Host "Changed files: $(@($changed).Count); build-relevant: $relevantChanges"
+        }
+
+        $testOs = @()
+        $aotMatrix = @()
+        if ($ghOwnsBuild -and $relevantChanges) {
+            $testOs += 'ubuntu-latest'
+            $aotMatrix += @{ os = 'ubuntu-latest'; rid = 'linux-x64' }
+        }
+        if ($includeMac -and $relevantChanges) {
             $testOs += 'macOS-latest'
             $aotMatrix += @{ os = 'macos-13';     rid = 'osx-x64'  }
             $aotMatrix += @{ os = 'macos-latest'; rid = 'osx-arm64' }
         }
         Write-Host "Event=$($env:EVENT_NAME); include_macos=$includeMac"
         Write-Host "test_os=$($testOs -join ', ')"
+        "gh_owns_build=$($ghOwnsBuild.ToString().ToLowerInvariant())"       | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+        "relevant_changes=$($relevantChanges.ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
         "test_os=$(ConvertTo-Json -InputObject @($testOs) -Compress)"       | Out-File -FilePath $env:GITHUB_OUTPUT -Append
         "aot_matrix=$(ConvertTo-Json -InputObject @($aotMatrix) -Compress)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
@@ -93,11 +165,16 @@ jobs:
     needs: discover
     name: test-${{matrix.os}}-${{matrix.csproj}}
     runs-on: ${{ matrix.os }}
+    # test_os is empty when Azure Pipelines owns the Linux matrix and macOS is
+    # not included for this event; skip rather than fan out to nothing.
+    if: ${{ needs.discover.outputs.test_os != '[]' }}
     strategy:
       fail-fast: false
       matrix:
         # macOS is on by default for push/schedule/workflow_dispatch and
-        # off by default on pull_request; controlled via discover.test_os.
+        # off by default on pull_request; ubuntu drops out entirely when
+        # CI_BUILD_BACKEND hands the Linux matrix to Azure Pipelines.
+        # Both are computed by discover.test_os.
         os: ${{ fromJSON(needs.discover.outputs.test_os) }}
         csproj: ${{ fromJSON(needs.discover.outputs.csprojs) }}
         include:
@@ -174,29 +251,18 @@ jobs:
       # Use always() to always run this step to publish test results when there are test failures
       if: ${{ always() }}
 
-    - name: Upload to Codecov
-      uses: codecov/codecov-action@v7
-      with:
-        name: codecov-umbrella
-        token: ${{ secrets.CODECOV_TOKEN }}
-        directory: ${{ env.TESTRESULTS }}
-        env_vars: CSPROJ,OS,DOTNET_VERSION,CONFIGURATION
-        fail_ci_if_error: false
-        #path_to_write_report: "./coverage/codecov_report-${{matrix.os}}-${{matrix.framework}}-${{matrix.configuration}}/"
-        verbose: true
-      # Use always() to always run this step to publish test results when there are test failures
-      if: ${{ always() }}
-
   aot-test:
     needs: discover
     name: aot-${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    if: ${{ needs.discover.outputs.aot_matrix != '[]' }}
     strategy:
       fail-fast: false
       matrix:
         # OS + RID pairs computed by `discover` so macOS entries drop out
-        # entirely on pull_request (default off).  Windows AoT is covered
-        # by the AzDO testaot stage.
+        # entirely on pull_request (default off) and the ubuntu entry drops
+        # out when CI_BUILD_BACKEND hands AoT to Azure Pipelines.  Windows AoT
+        # is covered by the AzDO testaot stage.
         include: ${{ fromJSON(needs.discover.outputs.aot_matrix) }}
 
     env:
@@ -245,8 +311,14 @@ jobs:
   # Each TFM is built by pinning the solution to it via CustomTestTarget (the
   # same mechanism the Azure full build uses). All TFMs are attempted so a
   # single failure reports every broken TFM; the job fails if any TFM fails.
+  #
+  # Both legs stand down on master/main when CI_BUILD_BACKEND is 'ado' - the
+  # Azure Pipelines `build` stage then covers the same TFM split across its
+  # Windows and Linux legs.
   build-all-tfm-windows:
     name: build-windows-all-tfm
+    needs: discover
+    if: ${{ needs.discover.outputs.gh_owns_build == 'true' && needs.discover.outputs.relevant_changes == 'true' }}
     runs-on: windows-latest
     timeout-minutes: 120
     steps:
@@ -292,6 +364,8 @@ jobs:
 
   build-all-tfm-linux:
     name: build-linux-all-tfm
+    needs: discover
+    if: ${{ needs.discover.outputs.gh_owns_build == 'true' && needs.discover.outputs.relevant_changes == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
@@ -332,3 +406,63 @@ jobs:
           exit 1
         }
         Write-Host "UA.slnx built successfully for all target frameworks."
+
+  # Single stable status check for branch protection.  The individual jobs above
+  # are matrix-generated (their names change with the OS/project fan-out) and
+  # they are skipped entirely on master/main while CI_BUILD_BACKEND is 'ado', or
+  # when a pull request touches no build-relevant files.  A required status check
+  # that never reports would leave a PR pending forever, so protect on THIS job
+  # instead: this workflow has no `paths:` filter (which would suppress the whole
+  # run), the job is `always()`, and it treats an intentionally skipped job as
+  # success while still failing on a real failure or cancellation.
+  build-and-test-summary:
+    name: build-and-test summary
+    runs-on: ubuntu-latest
+    if: ${{ always() }}
+    needs:
+    - discover
+    - build-and-test
+    - aot-test
+    - build-all-tfm-windows
+    - build-all-tfm-linux
+    steps:
+    - name: Evaluate job results
+      shell: pwsh
+      env:
+        GH_OWNS_BUILD: ${{ needs.discover.outputs.gh_owns_build }}
+        DISCOVER_RESULT: ${{ needs.discover.result }}
+        TEST_RESULT: ${{ needs.build-and-test.result }}
+        AOT_RESULT: ${{ needs.aot-test.result }}
+        TFM_WINDOWS_RESULT: ${{ needs.build-all-tfm-windows.result }}
+        TFM_LINUX_RESULT: ${{ needs.build-all-tfm-linux.result }}
+      run: |
+        if ($env:GH_OWNS_BUILD -eq 'true') {
+          Write-Host 'GitHub Actions owns the build/test matrix for this branch.'
+        }
+        else {
+          Write-Host 'Azure Pipelines owns the build/test matrix for this branch; the jobs below are expected to be skipped.'
+        }
+
+        $results = [ordered]@{
+          'discover'              = $env:DISCOVER_RESULT
+          'build-and-test'        = $env:TEST_RESULT
+          'aot-test'              = $env:AOT_RESULT
+          'build-all-tfm-windows' = $env:TFM_WINDOWS_RESULT
+          'build-all-tfm-linux'   = $env:TFM_LINUX_RESULT
+        }
+
+        $bad = @()
+        foreach ($job in $results.GetEnumerator()) {
+          Write-Host "$($job.Key): $($job.Value)"
+          # 'skipped' is a valid outcome - either the backend switch stood the
+          # job down, or its matrix was empty for this event.
+          if (@('success', 'skipped') -notcontains $job.Value) {
+            $bad += "$($job.Key)=$($job.Value)"
+          }
+        }
+
+        if ($bad.Count -gt 0) {
+          Write-Host "::error::Build and test jobs did not succeed: $($bad -join ', ')"
+          exit 1
+        }
+        Write-Host 'All build and test jobs succeeded or were intentionally skipped.'
