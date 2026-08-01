@@ -259,11 +259,13 @@ namespace Pumps
                 firstPump ??= pump;
             }
 
-            // The OpenUSD twin follows the first pump.
-            if (firstPump != null)
-            {
-                OrganiseRepresentation(firstPump);
-            }
+            // Every pump is a twin in its own right, so every representation has to
+            // be discoverable — a connector finds them through this registry alone.
+            OrganiseRepresentations();
+
+            // Plant-level aggregation: composes one full-fidelity pump prim per
+            // configured pump, so the rendered scene scales with --pumps N.
+            await MaterialisePlantAggregationAsync(cancellationToken).ConfigureAwait(false);
 
             // Composition demo: a ProductionLine aggregating 1..n pumps (Many), with a
             // dynamically added/removed pump (model-change events) and a cross-server
@@ -323,7 +325,8 @@ namespace Pumps
             // mandatory children from the parent chain.
             PumpState pump = SystemContext
                 .CreateInstanceOfPumpType(deviceSet, pumpBrowseName);
-            pump.DisplayName = new LocalizedText(GetPumpDisplayName(m_pumpStates.Count + 1));
+            int pumpNumber = m_pumpStates.Count + 1;
+            pump.DisplayName = new LocalizedText(GetPumpDisplayName(pumpNumber));
 
             pump.ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.Organizes;
             deviceSet.AddChild(pump);
@@ -334,7 +337,7 @@ namespace Pumps
             // registration. Per-instance NodeIds are already assigned by the
             // generated CreateOrReplace/AddXxx helpers, so the binding source
             // NodeIds captured here are the instance ones.
-            AttachOpenUsdRepresentation(pump);
+            AttachOpenUsdRepresentation(pump, pumpNumber);
 
             await AddPredefinedNodeAsync(SystemContext, pump, cancellationToken)
                 .ConfigureAwait(false);

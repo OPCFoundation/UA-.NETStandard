@@ -52,18 +52,6 @@ namespace Pumps
     /// </remarks>
     public partial class PumpNodeManager
     {
-        /// <summary>
-        /// Shaft angular position of the primary pump, in degrees. This is what
-        /// makes the OpenUSD twin look like it is running.
-        /// </summary>
-        private double ShaftAngleDegrees =>
-            m_primarySimulation?.ShaftAngleDegrees ?? 0.0;
-
-        /// <summary>
-        /// The supervision alarm state the OpenUSD status-light binding follows.
-        /// </summary>
-        private bool AlarmActive => m_primarySimulation?.AlarmActive ?? false;
-
         partial void Configure(INodeManagerBuilder builder)
         {
             Server.Telemetry.CreateLogger<PumpNodeManager>()
@@ -134,8 +122,11 @@ namespace Pumps
                         pump.NodeId);
                 }
 
-                // The OpenUSD twin follows the first pump, so remember it.
-                m_primarySimulation ??= simulation;
+                // The OpenUSD twin of this pump renders this simulation.
+                if (m_twins.TryGetValue(pump.NodeId, out PumpTwin? twin))
+                {
+                    twin.Simulation = simulation;
+                }
             }
         }
 
@@ -427,12 +418,25 @@ namespace Pumps
                 variable.ClearChangeMasks(SystemContext, includeChildren: false);
             }
 
-            BaseDataVariableState? alarm = m_alarmActiveVar;
-            if (alarm != null)
+            foreach (PumpTwin twin in m_twins.Values)
             {
-                alarm.Value = AlarmActive;
-                alarm.Timestamp = now;
-                alarm.ClearChangeMasks(SystemContext, includeChildren: false);
+                BaseDataVariableState? alarm = twin.AlarmActive;
+                if (alarm != null)
+                {
+                    alarm.Value = twin.AlarmActiveState;
+                    alarm.Timestamp = now;
+                    alarm.ClearChangeMasks(SystemContext, includeChildren: false);
+                }
+
+                BaseDataVariableState? surface = twin.FluidSurface;
+                if (surface != null)
+                {
+                    surface.Value = new ExtensionObject(
+                        FluidSurfaceAt(twin.Simulation?.LevelMetres ??
+                            PumpDatasheet.Simulation.LevelNominal));
+                    surface.Timestamp = now;
+                    surface.ClearChangeMasks(SystemContext, includeChildren: false);
+                }
             }
         }
 
@@ -531,6 +535,7 @@ namespace Pumps
                 double level = PumpDatasheet.Simulation.LevelNominal +
                     (PumpDatasheet.Simulation.LevelAmplitude *
                         Math.Sin(localTick * PumpDatasheet.Simulation.LevelRate));
+                Volatile.Write(ref m_levelMetres, level);
 
                 m_pressure.SetValue(differentialPressure, statusCode, sourceTimestamp);
                 m_flow.SetValue(massFlow, statusCode, sourceTimestamp);
@@ -651,6 +656,12 @@ namespace Pumps
             /// </summary>
             public bool AlarmActive => m_currentCavitation || m_currentMotorOverheat;
 
+            /// <summary>
+            /// Suction vessel level in metres, as last published. Drives the
+            /// OpenUSD liquid-surface binding.
+            /// </summary>
+            public double LevelMetres => Volatile.Read(ref m_levelMetres);
+
             private readonly long m_phaseOffset;
             private readonly TimeSpan m_tickInterval;
             private readonly IValueUpdater<double> m_pressure;
@@ -667,6 +678,7 @@ namespace Pumps
             private bool m_currentCavitation;
             private bool m_currentMotorOverheat;
             private double m_shaftAngle;
+            private double m_levelMetres;
             private bool m_hasPublishedGoodValue;
         }
 
@@ -680,11 +692,6 @@ namespace Pumps
         /// with the getter that yields their latest simulated value.
         /// </summary>
         private readonly List<(BaseVariableState Variable, Func<double> Getter)> m_liveSignals = [];
-
-        /// <summary>
-        /// The simulation the OpenUSD twin follows.
-        /// </summary>
-        private PumpSimulationState? m_primarySimulation;
     }
 
     internal static partial class PumpNodeManagerLog

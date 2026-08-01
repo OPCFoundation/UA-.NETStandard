@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
@@ -57,6 +58,12 @@ namespace Opc.Ua.Di.Tests
     {
         private ITelemetryContext m_telemetry = null!;
         private IHost? m_host;
+        /// <summary>
+        /// Pumps the fixture's server materialises, which is the
+        /// PumpDeviceIntegrationOptions default.
+        /// </summary>
+        private const int ExpectedPumpCount = 2;
+
         private ISession? m_session;
         private ISession? m_privilegedSession;
         private ApplicationConfiguration m_clientConfig = null!;
@@ -343,12 +350,12 @@ namespace Opc.Ua.Di.Tests
             var connector = new OpenUsdConnector(m_session!, new MockUsdSink());
             OpenUsdConnector.RepresentationInfo? rep = await PumpRepAsync(connector).ConfigureAwait(false);
 
-            Assert.That(rep, Is.Not.Null, "OpenUsdRepresentation not discovered on Pump #1.");
-            Assert.That(rep!.PrimPath, Is.EqualTo("/Plant/Pumps/P101"));
+            Assert.That(rep, Is.Not.Null, "OpenUsdRepresentation not discovered on Pump_1.");
+            Assert.That(rep!.PrimPath, Is.EqualTo("/Plant/Pumps/Pump_1"));
             Assert.That(rep.StageNodeId.IsNull, Is.False);
             Assert.That(rep.RootLayerIdentifier, Is.EqualTo("asset-repo/Plant.usd"));
-            // 0.1 telemetry (3) + 0.2 alarm (1) + 0.2 command (1) = 5 bindings.
-            Assert.That(rep.Bindings, Has.Count.EqualTo(5));
+            // Layout (1) + telemetry (11) + supervision alarms (3) + command (1).
+            Assert.That(rep.Bindings, Has.Count.EqualTo(16));
         }
 
         [Test]
@@ -429,7 +436,7 @@ namespace Opc.Ua.Di.Tests
 
             // The UaAlarmToUsd binding subscribes the alarm-active aspect and authors
             // the status-light visibility token (initially "invisible" until an alarm).
-            Assert.That(sink.WasWritten("/Plant/Pumps/P101/StatusLight", "visibility"), Is.True,
+            Assert.That(sink.WasWritten("/Plant/Pumps/Pump_1/StatusLight", "visibility"), Is.True,
                 "Alarm binding did not author StatusLight visibility.");
         }
 
@@ -447,13 +454,23 @@ namespace Opc.Ua.Di.Tests
         {
             var connector = new OpenUsdConnector(
                 m_privilegedSession!, new MockUsdSink(), enableCommands: true);
-            OpenUsdConnector.RepresentationInfo? rep = await PumpRepAsync(connector).ConfigureAwait(false);
+            // Every pump declares a command binding, and the connector issues the
+            // command to the first one it discovers, so the assertion has to read
+            // that same target rather than assuming a particular pump.
+            System.Collections.Generic.List<OpenUsdConnector.RepresentationInfo> reps =
+                await connector.DiscoverAllRepresentationsAsync(CancellationToken.None)
+                    .ConfigureAwait(false);
             NodeId target = NodeId.Null;
-            foreach (OpenUsdConnector.BindingInfo b in rep!.Bindings)
+            foreach (OpenUsdConnector.RepresentationInfo r in reps)
             {
-                if (b.Intent == OpenUsdIntentProfile.UsdToUaCommand)
+                foreach (OpenUsdConnector.BindingInfo b in r.Bindings)
                 {
-                    target = b.CommandTargetNodeId;
+                    if (target.IsNull &&
+                        b.Intent == OpenUsdIntentProfile.UsdToUaCommand &&
+                        !b.CommandTargetNodeId.IsNull)
+                    {
+                        target = b.CommandTargetNodeId;
+                    }
                 }
             }
             Assert.That(target.IsNull, Is.False, "Command target NodeId missing.");
@@ -547,11 +564,11 @@ namespace Opc.Ua.Di.Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That(sink.WasWritten("/Plant/Pumps/P101/Impeller", "xformOp:rotateZ"), Is.True,
+                Assert.That(sink.WasWritten("/Plant/Pumps/Pump_1/Impeller", "xformOp:rotateZ"), Is.True,
                     "Rotation binding produced no value.");
-                Assert.That(sink.WasWritten("/Plant/Pumps/P101/Body/Mat/Surface", "inputs:diffuseColor"), Is.True,
+                Assert.That(sink.WasWritten("/Plant/Pumps/Pump_1/Body/Mat/Surface", "inputs:diffuseColor"), Is.True,
                     "DisplayColor binding produced no value.");
-                Assert.That(sink.WasWritten("/Plant/Pumps/P101/StatusLight/Mat/Surface", "inputs:emissiveColor"), Is.True,
+                Assert.That(sink.WasWritten("/Plant/Pumps/Pump_1/StatusLight/Mat/Surface", "inputs:emissiveColor"), Is.True,
                     "EmissiveColor binding produced no value.");
                 Assert.That(sink.TotalWrites, Is.GreaterThan(0));
             });
@@ -569,9 +586,9 @@ namespace Opc.Ua.Di.Tests
             {
                 Assert.Multiple(() =>
                 {
-                    Assert.That(sink.WasPrimComposed("/Plant/Pumps/P101/Impeller"), Is.True,
+                    Assert.That(sink.WasPrimComposed("/Plant/Pumps/Pump_1/Impeller"), Is.True,
                         "Impeller component prim not composed.");
-                    Assert.That(sink.WasPrimComposed("/Plant/Pumps/P101/Bearing"), Is.True,
+                    Assert.That(sink.WasPrimComposed("/Plant/Pumps/Pump_1/Bearing"), Is.True,
                         "Bearing component prim not composed.");
                 });
             }
@@ -666,7 +683,7 @@ namespace Opc.Ua.Di.Tests
             System.Collections.Generic.List<OpenUsdConnector.RepresentationInfo> reps =
                 await connector.DiscoverAllRepresentationsAsync(CancellationToken.None).ConfigureAwait(false);
 
-            OpenUsdConnector.RepresentationInfo? pump = reps.Find(r => r.PrimPath == "/Plant/Pumps/P101");
+            OpenUsdConnector.RepresentationInfo? pump = reps.Find(r => r.PrimPath == "/Plant/Pumps/Pump_1");
             OpenUsdConnector.RepresentationInfo? line = reps.Find(r => r.PrimPath == "/Plant/Line1");
 
             Assert.Multiple(() =>
@@ -681,11 +698,73 @@ namespace Opc.Ua.Di.Tests
             });
         }
 
+        /// <summary>
+        /// Every configured pump has to be a twin in its own right: its own prim,
+        /// discoverable through the registry, and driven by its own simulation.
+        /// The sample previously bound every pump to one hard-coded prim path and
+        /// registered only the first representation, so a server started with
+        /// <c>--pumps N</c> rendered a single machine.
+        /// </summary>
+        [Test]
+        public async Task EveryConfiguredPumpIsAnIndependentTwinAsync()
+        {
+            var connector = new OpenUsdConnector(m_session!, new MockUsdSink());
+            System.Collections.Generic.List<OpenUsdConnector.RepresentationInfo> reps =
+                await connector.DiscoverAllRepresentationsAsync(CancellationToken.None)
+                    .ConfigureAwait(false);
+
+            System.Collections.Generic.List<OpenUsdConnector.RepresentationInfo> pumps =
+                reps.FindAll(r => r.PrimPath != null &&
+                    r.PrimPath.StartsWith("/Plant/Pumps/", StringComparison.Ordinal) &&
+                    !r.PrimPath.EndsWith("/Impeller", StringComparison.Ordinal) &&
+                    !r.PrimPath.EndsWith("/Bearing", StringComparison.Ordinal));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(pumps, Has.Count.EqualTo(ExpectedPumpCount),
+                    "Every configured pump must publish a discoverable representation.");
+                Assert.That(
+                    pumps.ConvertAll(r => r.PrimPath).Distinct().Count(),
+                    Is.EqualTo(pumps.Count),
+                    "Two pumps must never share a prim.");
+                foreach (OpenUsdConnector.RepresentationInfo pump in pumps)
+                {
+                    string primPath = pump.PrimPath!;
+                    Assert.That(pump.Bindings, Is.Not.Empty, primPath);
+                    Assert.That(
+                        pump.Bindings.TrueForAll(b =>
+                            b.PrimPath != null &&
+                            b.PrimPath.StartsWith(primPath, StringComparison.Ordinal)),
+                        Is.True,
+                        primPath + " has a binding that targets another pump's prim.");
+                }
+            });
+
+            // The shaft angle is integrated per pump from its own phase-shifted
+            // duty point, so two pumps can never report the same angle.
+            System.Collections.Generic.List<double> angles = [];
+            foreach (OpenUsdConnector.RepresentationInfo pump in pumps)
+            {
+                OpenUsdConnector.BindingInfo? shaft = pump.Bindings.Find(
+                    b => b.PropertyName == "xformOp:rotateZ" &&
+                        b.PrimPath != null &&
+                        b.PrimPath.EndsWith("/Impeller", StringComparison.Ordinal));
+                Assert.That(shaft, Is.Not.Null, pump.PrimPath + " has no shaft binding.");
+                DataValue value = await m_session!.ReadValueAsync(
+                    shaft!.SourceNodeId, CancellationToken.None).ConfigureAwait(false);
+                Assert.That(value.WrappedValue.TryGetValue(out double angle), Is.True);
+                angles.Add(angle);
+            }
+
+            Assert.That(angles.Distinct().Count(), Is.EqualTo(angles.Count),
+                "Every pump must integrate its own shaft angle.");
+        }
+
         private static async Task<OpenUsdConnector.RepresentationInfo?> PumpRepAsync(OpenUsdConnector connector)
         {
             System.Collections.Generic.List<OpenUsdConnector.RepresentationInfo> all =
                 await connector.DiscoverAllRepresentationsAsync(CancellationToken.None).ConfigureAwait(false);
-            return all.Find(r => r.PrimPath == "/Plant/Pumps/P101");
+            return all.Find(r => r.PrimPath == "/Plant/Pumps/Pump_1");
         }
 
         private static async Task<bool> PollAsync(Func<bool> condition, TimeSpan timeout)
