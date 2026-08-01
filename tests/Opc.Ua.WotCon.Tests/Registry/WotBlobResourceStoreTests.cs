@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.IO;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -139,6 +140,17 @@ namespace Opc.Ua.XRegistry
             });
         }
 
+        [Test]
+        public void WriteWithOversizedExistingBlobThrowsServiceResultException()
+        {
+            using var store = new WotBlobResourceStore("blobs", new OversizedFileSystem());
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await store.WriteAsync("blob", 0, ByteString.From(new byte[] { 1 })));
+
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadOutOfMemory));
+        }
+
         private sealed class CountingAtomicFileSystem : IFileSystem
         {
             public CountingAtomicFileSystem(IFileSystem inner)
@@ -173,6 +185,66 @@ namespace Opc.Ua.XRegistry
             }
 
             private readonly IFileSystem m_inner;
+        }
+
+        private sealed class OversizedFileSystem : IFileSystem
+        {
+            public bool Exists(string path, bool isDirectory = false)
+                => true;
+
+            public void Delete(string path, bool isDirectory = false)
+            {
+            }
+
+            public Stream OpenRead(string path)
+                => new OversizedReadStream();
+
+            public Stream OpenWrite(string path)
+                => Stream.Null;
+
+            public DateTime GetLastWriteTime(string path)
+                => DateTime.UtcNow;
+
+            public long GetLength(string path)
+                => (long)int.MaxValue + 1;
+
+            public void Replace(string sourcePath, string destinationPath)
+            {
+            }
+        }
+
+        private sealed class OversizedReadStream : Stream
+        {
+            public override bool CanRead => true;
+            public override bool CanSeek => true;
+            public override bool CanWrite => false;
+            public override long Length => (long)int.MaxValue + 1;
+            public override long Position { get; set; }
+
+            public override void Flush()
+            {
+            }
+
+            public override int Read(byte[] buffer, int offset, int count)
+                => 0;
+
+            public override long Seek(long offset, SeekOrigin origin)
+            {
+                Position = origin switch
+                {
+                    SeekOrigin.Begin => offset,
+                    SeekOrigin.Current => Position + offset,
+                    SeekOrigin.End => Length + offset,
+                    _ => Position
+                };
+                return Position;
+            }
+
+            public override void SetLength(long value)
+                => throw new NotSupportedException();
+
+            public override void Write(byte[] buffer, int offset, int count)
+                => throw new NotSupportedException();
         }
     }
 }

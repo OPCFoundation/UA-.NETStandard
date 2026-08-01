@@ -147,7 +147,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         public ServiceResult TryOpenWriteHandle(NodeId sessionId, out uint fileHandle)
         {
             fileHandle = 0;
-            lock (m_handles)
+            lock (m_handlesLock)
             {
                 if (m_handles.Count >= m_maxHandles)
                 {
@@ -171,13 +171,18 @@ namespace Opc.Ua.WotCon.Server.Registry
 
         public void Dispose()
         {
-            lock (m_handles)
+            lock (m_handlesLock)
             {
                 foreach (Handle handle in m_handles.Values)
                 {
                     handle.Dispose();
                 }
                 m_handles.Clear();
+                m_writingHandle = 0;
+                if (m_file.OpenCount is not null)
+                {
+                    m_file.OpenCount.Value = 0;
+                }
             }
         }
 
@@ -203,7 +208,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 }
             }
             NodeId sessionId = SessionIdOf(context);
-            lock (m_handles)
+            lock (m_handlesLock)
             {
                 if (m_handles.Count >= m_maxHandles)
                 {
@@ -240,7 +245,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         {
             Handle handle;
             bool commit;
-            lock (m_handles)
+            lock (m_handlesLock)
             {
                 if (!TryGetHandleLocked(context, fileHandle, out handle, out ServiceResult err))
                 {
@@ -296,7 +301,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             ISystemContext context, MethodState method, NodeId objectId,
             uint fileHandle, int length, ref ByteString data)
         {
-            lock (m_handles)
+            lock (m_handlesLock)
             {
                 if (!TryGetHandleLocked(context, fileHandle, out Handle handle, out ServiceResult err))
                 {
@@ -345,7 +350,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             ISystemContext context, MethodState method, NodeId objectId,
             uint fileHandle, ByteString data)
         {
-            lock (m_handles)
+            lock (m_handlesLock)
             {
                 if (!TryGetHandleLocked(context, fileHandle, out Handle handle, out ServiceResult err))
                 {
@@ -366,7 +371,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                     return ServiceResult.Good;
                 }
                 ReadOnlySpan<byte> bytes = data.Span;
-                if (handle.Stream.Length + bytes.Length > m_maxSize)
+                long resultingLength = Math.Max(handle.Stream.Length, handle.Stream.Position + bytes.Length);
+                if (resultingLength > m_maxSize)
                 {
                     return ServiceResult.Create(StatusCodes.BadOutOfMemory,
                         "The document exceeds the configured maximum size.");
@@ -381,7 +387,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             ISystemContext context, MethodState method, NodeId objectId,
             uint fileHandle, ref ulong position)
         {
-            lock (m_handles)
+            lock (m_handlesLock)
             {
                 if (!TryGetHandleLocked(context, fileHandle, out Handle handle, out ServiceResult err))
                 {
@@ -396,7 +402,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             ISystemContext context, MethodState method, NodeId objectId,
             uint fileHandle, ulong position)
         {
-            lock (m_handles)
+            lock (m_handlesLock)
             {
                 if (!TryGetHandleLocked(context, fileHandle, out Handle handle, out ServiceResult err))
                 {
@@ -469,6 +475,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         private readonly int m_maxSize;
         private readonly Func<ISystemContext, string, ServiceResult> m_authorizeWrite;
         private readonly Func<byte[], NodeId, CancellationToken, ValueTask<ServiceResult>> m_onCommit;
+        private readonly Lock m_handlesLock = new();
         private readonly Dictionary<uint, Handle> m_handles = new();
         private uint m_nextHandle;
         private uint m_writingHandle;

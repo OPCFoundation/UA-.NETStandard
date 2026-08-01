@@ -85,9 +85,9 @@ namespace Opc.Ua.WotCon.Bindings
         public bool AllowPrivateAddresses { get; set; }
 
         /// <summary>
-        /// Exclusive allow-list of host names. When non-empty, only hosts that appear in this set
-        /// (case-insensitive comparison) pass the validator regardless of the scheme / loopback /
-        /// private-range gates. Use this to pin the server to a known set of devices.
+        /// Exclusive allow-list of host names. When non-empty, only hosts that appear in this set pass the host
+        /// allow-list check. The scheme, blocked-host, loopback, and private-range gates still apply. Use this to
+        /// pin the server to a known set of devices without weakening the other endpoint security checks.
         /// </summary>
         public ISet<string> AllowedHosts { get; }
             = new HashSet<string>(StringComparer.OrdinalIgnoreCase);

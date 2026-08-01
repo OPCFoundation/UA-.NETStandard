@@ -215,5 +215,20 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 "Labels must enumerate in ordinal key order.");
             Assert.That(keys[1], Is.EqualTo("beta"));
         }
+
+        [Test]
+        public void ValidateRejectsNonPositiveMaxOpenFileHandles()
+        {
+            var bounds = new WotRegistryPersistenceBounds
+            {
+                MaxOpenFileHandles = 0
+            };
+
+            Assert.That(
+                () => bounds.Validate(),
+                Throws.TypeOf<ArgumentOutOfRangeException>()
+                    .With.Property(nameof(ArgumentOutOfRangeException.ParamName))
+                    .EqualTo(nameof(WotRegistryPersistenceBounds.MaxOpenFileHandles)));
+        }
     }
 }

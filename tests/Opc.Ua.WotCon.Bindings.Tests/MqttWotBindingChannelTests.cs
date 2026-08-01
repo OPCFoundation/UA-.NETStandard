@@ -29,6 +29,8 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Immutable;
+using System.Globalization;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
@@ -107,6 +109,32 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 "\"actions\":{\"act\":{\"forms\":[{" +
                 "\"href\":\"mqtt://127.0.0.1:" + port.ToString(System.Globalization.CultureInfo.InvariantCulture) +
                 "/" + topic + "\",\"mqv:qos\":0}]}}}";
+        }
+
+        private static WotCompiledForm BuildRawForm(
+            int port, string topic, WoTBindingCapabilityEnum capability, string opToken)
+        {
+            var endpoint = new WotEndpointDescriptor(
+                "mqtt",
+                "127.0.0.1",
+                port,
+                "mqtt://127.0.0.1:" + port.ToString(CultureInfo.InvariantCulture));
+            var addressing = new WotAddressingDescriptor(topic);
+            var operation = new WotOperationDescriptor(capability, opToken, "subscribe");
+            var payload = new WotPayloadDescriptor("application/json", "json");
+            return new WotCompiledForm(
+                new WotBindingIdentity("w3c.mqtt", "1.0-ed", MqttBindingPlanner.BindingUri),
+                WotAffordanceKind.Property,
+                "p",
+                "/properties/p/forms/0",
+                capability,
+                opToken,
+                endpoint,
+                addressing,
+                operation,
+                payload,
+                ImmutableArray<WotCredentialReference>.Empty,
+                isExecutable: true);
         }
 
         private static async Task<bool> WaitForAsync(ConcurrentQueue<WotNotification> queue, int maxAttempts = 80)
@@ -201,6 +229,102 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                     WotWriteResult result = await channel.WriteAsync(
                         new DataValue(new Variant(42L))).ConfigureAwait(false);
                     Assert.That(result.Status, Is.EqualTo(StatusCodes.BadInvalidArgument));
+                }
+            }
+            finally
+            {
+                await broker.StopAsync().ConfigureAwait(false);
+                broker.Dispose();
+            }
+        }
+
+        [Test]
+        public async Task MqttChannelReadAsyncRejectsConcurrentReadWithoutAbandoningFirstAsync()
+        {
+            int port = FreePort();
+            MqttServer broker = await StartBrokerAsync(port).ConfigureAwait(false);
+            try
+            {
+                WotProtocolBinderRegistry registry = Registry(readTimeout: TimeSpan.FromSeconds(5));
+                WotBindingPlan plan = Plan(registry, PropertyTd(port, "things/concurrent"));
+                WotCompiledForm read = plan.CompiledForms.First(
+                    f => f.Operation == WoTBindingCapabilityEnum.ReadProperty);
+                WotCompiledForm write = plan.CompiledForms.First(
+                    f => f.Operation == WoTBindingCapabilityEnum.WriteProperty);
+
+                IWotBindingChannel channel = await registry.OpenChannelAsync(read).ConfigureAwait(false);
+                await using (channel.ConfigureAwait(false))
+                {
+                    Task<WotReadResult> firstRead = channel.ReadAsync().AsTask();
+
+                    Assert.That(
+                        async () => await channel.ReadAsync().ConfigureAwait(false),
+                        Throws.InstanceOf<ServiceResultException>());
+
+                    IWotBindingChannel publisher = await registry.OpenChannelAsync(write).ConfigureAwait(false);
+                    await using (publisher.ConfigureAwait(false))
+                    {
+                        WotWriteResult writeResult = await publisher
+                            .WriteAsync(new DataValue(new Variant(123L)))
+                            .ConfigureAwait(false);
+                        Assert.That(writeResult.Success, Is.True);
+                    }
+
+                    WotReadResult firstResult = await firstRead.WaitAsync(TimeSpan.FromSeconds(5))
+                        .ConfigureAwait(false);
+                    Assert.That(firstResult.Success, Is.True);
+                }
+            }
+            finally
+            {
+                await broker.StopAsync().ConfigureAwait(false);
+                broker.Dispose();
+            }
+        }
+
+        [Test]
+        public async Task MqttChannelReadAsyncRejectsHandBuiltTopicExceedingBoundsAsync()
+        {
+            int port = FreePort();
+            MqttServer broker = await StartBrokerAsync(port).ConfigureAwait(false);
+            try
+            {
+                WotProtocolBinderRegistry registry = Registry(bounds: new WotBindingBounds { MaxTopicLength = 5 });
+                WotCompiledForm read = BuildRawForm(
+                    port, "things/too-long", WoTBindingCapabilityEnum.ReadProperty, "readproperty");
+
+                IWotBindingChannel channel = await registry.OpenChannelAsync(read).ConfigureAwait(false);
+                await using (channel.ConfigureAwait(false))
+                {
+                    ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                        async () => await channel.ReadAsync().ConfigureAwait(false))!;
+                    Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadOutOfRange));
+                }
+            }
+            finally
+            {
+                await broker.StopAsync().ConfigureAwait(false);
+                broker.Dispose();
+            }
+        }
+
+        [Test]
+        public async Task MqttChannelObserveAsyncRejectsHandBuiltWildcardTopicWhenDisallowedAsync()
+        {
+            int port = FreePort();
+            MqttServer broker = await StartBrokerAsync(port).ConfigureAwait(false);
+            try
+            {
+                WotProtocolBinderRegistry registry = Registry();
+                WotCompiledForm observe = BuildRawForm(
+                    port, "things/+/value", WoTBindingCapabilityEnum.ObserveProperty, "observeproperty");
+
+                IWotBindingChannel channel = await registry.OpenChannelAsync(observe).ConfigureAwait(false);
+                await using (channel.ConfigureAwait(false))
+                {
+                    ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                        async () => await channel.ObserveAsync(_ => { }).ConfigureAwait(false))!;
+                    Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
                 }
             }
             finally

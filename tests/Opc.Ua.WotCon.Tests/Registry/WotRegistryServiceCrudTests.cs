@@ -158,11 +158,12 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public void ValidateNoDefaultVersionThrows()
+        public async Task ValidateNoDefaultVersionThrows()
         {
             using var service = new WotRegistryService();
-            _ = service.TryCreateResourceAsync(
-                "sensors", "empty", WoTDocumentKindEnum.ThingDescription).AsTask().GetAwaiter().GetResult();
+            _ = await service.TryCreateResourceAsync(
+                    "sensors", "empty", WoTDocumentKindEnum.ThingDescription)
+                .ConfigureAwait(false);
 
             ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
                 async () => await service.ValidateResourceAsync("sensors", "empty"));

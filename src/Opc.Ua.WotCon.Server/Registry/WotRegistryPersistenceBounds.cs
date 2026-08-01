@@ -97,6 +97,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             EnsurePositive(MaxVersionsPerResource, nameof(MaxVersionsPerResource));
             EnsurePositive(MaxResourcesPerGroup, nameof(MaxResourcesPerGroup));
             EnsurePositive(MaxGroups, nameof(MaxGroups));
+            EnsurePositive(MaxOpenFileHandles, nameof(MaxOpenFileHandles));
             EnsurePositive(MaxJsonDepth, nameof(MaxJsonDepth));
             EnsurePositive(MaxLabelsPerEntity, nameof(MaxLabelsPerEntity));
             EnsurePositive(MaxLabelKeyLength, nameof(MaxLabelKeyLength));
