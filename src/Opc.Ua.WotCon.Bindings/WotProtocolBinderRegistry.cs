@@ -74,7 +74,7 @@ namespace Opc.Ua.WotCon.Bindings
             m_codecs = codecs ?? WotPayloadCodecRegistry.Default;
             m_bounds = bounds ?? WotBindingBounds.Default;
             m_endpointPolicy = endpointPolicy ?? WotEndpointPolicy.Default;
-            m_telemetry = telemetry ?? TelemetryExtensions.InternalOnly__TelemetryHook();
+            m_telemetry = telemetry ?? AmbientMessageContext.Telemetry;
 
             var seenBinderKeys = new HashSet<string>(StringComparer.Ordinal);
             foreach (IWotProtocolBinder binder in binders)
@@ -459,7 +459,7 @@ namespace Opc.Ua.WotCon.Bindings
         private readonly IWotCodecRegistry m_codecs;
         private readonly WotBindingBounds m_bounds;
         private readonly WotEndpointPolicy m_endpointPolicy;
-        private readonly ITelemetryContext m_telemetry;
+        private readonly ITelemetryContext? m_telemetry;
 
         private readonly Dictionary<string, IWotProtocolBinder> m_binders =
             new(StringComparer.Ordinal);
