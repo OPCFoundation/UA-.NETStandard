@@ -462,12 +462,12 @@ namespace Opc.Ua.OpenUsdScene.Server
             // A prim of a known typed schema is instantiated as that generated ObjectType
             // subclass, so the node *is* the type it declares and carries the subtype's
             // members (§5.3). An unknown schema returns null here and degrades to a concrete
-            // UsdPrimType via AddxUsdPrim_, still keeping its TypeName token (§8.4).
+            // UsdPrimType via AddUsdPrim_Placeholder, still keeping its TypeName token (§8.4).
             UsdPrimState? primNode = CreateTypedPrimInstance(context, parent, prim.TypeName, browseName);
             primNode ??= parent switch
             {
-                UsdStageState stageParent => stageParent.AddxUsdPrim_(context, browseName),
-                UsdPrimState primParent => primParent.AddxUsdPrim_(context, browseName),
+                UsdStageState stageParent => stageParent.AddUsdPrim_Placeholder(context, browseName),
+                UsdPrimState primParent => primParent.AddUsdPrim_Placeholder(context, browseName),
                 _ => throw new ArgumentException(
                     "A prim can only be materialized under a stage or another prim.",
                     nameof(parent))
@@ -577,7 +577,7 @@ namespace Opc.Ua.OpenUsdScene.Server
 
         /// <summary>
         /// Instantiates a prim as the generated State subclass for a known typed schema (§5.3),
-        /// attached under <paramref name="parent"/> exactly as <c>AddxUsdPrim_</c> or the stage
+        /// attached under <paramref name="parent"/> exactly as <c>AddUsdPrim_Placeholder</c> or the stage
         /// attach idiom would attach a plain prim (<c>HasComponent</c> + a factory NodeId, so it
         /// is browsable and uniquely identified identically). Returns <c>null</c> for an unknown
         /// or untyped schema so the caller applies the §8.4 fallback — a concrete
@@ -621,7 +621,7 @@ namespace Opc.Ua.OpenUsdScene.Server
 
             // The instance factory leaves ReferenceTypeId = Null and seeds a type NodeId;
             // Attach makes it a HasComponent child with a fresh factory NodeId, matching how
-            // AddxUsdPrim_ and MaterializeUsdStage attach every other node (§7.1).
+            // AddUsdPrim_Placeholder and MaterializeUsdStage attach every other node (§7.1).
             Attach(context, parent, node, Opc.Ua.ReferenceTypeIds.HasComponent);
             return node;
         }
