@@ -259,12 +259,10 @@ Grundfos NK 65-200 / KSB Etanorm 65-200 family and driven by an
 
 Livery is KSB signal blue (RAL 5005) for the wetted castings and
 RAL 7035 light grey for the motor. `pump.usda` is that machine as a
-self-contained component asset, referenced once per configured pump and
-once per aggregated line pump; `remote-pump.usda` wears an OEM green
-livery so the pump federated from the *remote* server is obvious at a
-glance. Both are generated from the `/Plant/Pumps/P101` master by
+self-contained component asset, referenced once per configured pump. It is
+generated from the `/Plant/Pumps/P101` master by
 `Assets/generate_pump_assets.py` — edit the master and re-run the
-generator, never the generated layers. The master itself is authored
+generator, never the generated layer. The master itself is authored
 `active = false`, because the composed pumps are what render.
 
 Two departures from a real pump are deliberate, so the twin can be
@@ -275,28 +273,27 @@ turn.
 
 ### The hall
 
-| Aisle | Contents |
-| --- | --- |
-| Main aisle, `x ≈ 0` | the configured pumps, one bay every 2.4 m along +Y |
-| Behind them, `x = -1.35` | each pump's suction vessel |
-| Back aisle, `x = -7` | the `ProductionLine` aggregation demo and the cross-server pump |
+The rendered hall holds **exactly the pumps the connected server simulates** —
+one referenced `pump.usda` prim per configured pump, one bay every 2.4 m along
++Y, each with its suction vessel behind it. Nothing else is drawn: the
+`ProductionLine` aggregation and the cross-server component are address-space
+topology, not machines anyone is driving, so composing them put pumps in the
+twin that no client could account for, and a pump federated from *another*
+server is not this server's to show at all.
 
-The aggregation demo has its own aisle on purpose. Its pumps sit on 1.2 m
-centres, so sharing the main aisle would interleave them with the
-configured pumps and the hall would read as one jumbled row of machines
-that do not correspond to anything a client can browse.
-
-`HeroCamera` is an operator's viewpoint: eye height 1.65 m in the aisle on
-the discharge side, pitched 7° below horizontal, framing every configured
-pump at a three-quarter angle with the vessels behind them and the back
-aisle further back again. The framing holds from one pump up to eight, so
-it does not have to be retuned for `--pumps N`. Pass
+`HeroCamera` is an operator's viewpoint: eye height 1.65 m in the aisle on the
+discharge side, pitched 7° below horizontal, framing every configured pump at a
+three-quarter angle with the vessels behind them. The framing holds from one
+pump up to eight, so it does not have to be retuned for `--pumps N`. Pass
 `--camera /Plant/HeroCamera` to start on it.
 
-An unbound machine never shows an alarm: `StatusLight` is authored
-`invisible` and only a live supervision binding reveals it. Without that
-default an aggregated line pump — which nothing is bound to — would stand
-there showing a permanent alarm it never raised.
+An error draws a **red circle on the floor around the machine**. A ring reads
+from anywhere in the hall and from any camera angle; a lamp on a mast only reads
+when you happen to be looking straight at it. The ring says *that* a pump is in
+alarm; the two fault halos — at the suction eye for cavitation, on the bearing
+bracket for motor overheat — say *why*. All three are authored `invisible` and
+only a live supervision binding reveals them, so a machine nothing is bound to
+never shows an alarm it did not raise.
 
 ### Live bindings
 
@@ -310,14 +307,13 @@ own copy of every target.
 | `ShaftAngle` | `…/Motor/FanBlades.xformOp:rotateZ` | motor cooling fan |
 | `BearingTemperature` | `…/Body/Mat/Surface.inputs:diffuseColor` | casing colour, blue (cool) → red (hot) |
 | `BearingTemperature` | `…/PowerEnd/TempGauge/Needle.xformOp:rotateZ` | bearing-temperature gauge |
-| `DifferentialPressure` | `…/StatusLight/Mat/Surface.inputs:emissiveColor` | lamp glow tracks discharge pressure |
 | `DifferentialPressure` | `…/Discharge/Gauge/Needle.xformOp:rotateZ` | discharge pressure gauge |
 | `FluidSurfacePosition` | `…/SuctionVessel/Surface.xformOp:translate` | liquid surface rides on the published `Level` |
 | `FluidTemperature` | `…/Suction/Neck/Mat/Surface.inputs:diffuseColor` | suction line tint |
 | `MassFlow`, `PumpEfficiency`, `NumberOfStarts` | `…/Motor/Nameplate.inputs:*` | readouts a viewer shows on selection |
-| any supervision alarm | `…/StatusLight.visibility` | beacon alarm halo |
+| any supervision alarm | `…/AlarmRing.visibility` | red circle on the floor around the machine |
 | `Cavitation` | `…/Suction/CavitationHalo.visibility` | cavitation, at the suction eye where the fault is |
-| `MotorOverheat` | `…/Beacon/OverheatHalo.visibility` | overheat, distinct from cavitation |
+| `MotorOverheat` | `…/OverheatHalo.visibility` | overheat, on the bearing bracket |
 | `SpeedSetpoint` | `…/Impeller.inputs:speedSetpoint` | opt-in `UsdToUaCommand`, fail-closed |
 
 `MassFlow` is a *rate*, so binding it straight to a rotation op pins the
@@ -329,16 +325,12 @@ flow, so the impeller visibly slows and picks up with the duty point, and
 the phase offset the simulation gives each pump means no two shafts are
 ever at the same angle.
 
-The beacon mast, housing and lamp are permanently mounted; only the alarm
-halos are gated by `visibility`, so a cleared alarm still leaves a lamp
-whose glow tracks discharge pressure.
-
 The `OverTempAlarm` condition itself is deliberately not bound. The
 fluent alarm builder leaves the condition's state children on their
 standard namespace-0 declaration NodeIds — which
 `PumpInstanceNodeIdRegressionTests` pins — so every pump's alarm shares
 one `ActiveState`, `Severity` and `AckedState` node, and binding those
-would light every beacon in the plant at once. The per-pump supervision
+would ring every pump in the hall at once. The per-pump supervision
 states are the alarm indication instead: they are genuinely per instance,
 and they are what drives the condition through `ActivatesAlarm` in the
 first place.
@@ -467,8 +459,7 @@ PumpDeviceIntegrationServer/
 │   │                                   # master, deactivated so only the
 │   │                                   # composed pumps render)
 │   ├── pump.usda                       # generated component asset, one per pump
-│   ├── remote-pump.usda                # generated OEM-livery variant
-│   └── generate_pump_assets.py         # regenerates both from the P101 master
+│   └── generate_pump_assets.py         # regenerates it from the P101 master
 ├── Model/
 │   ├── Opc.Ua.Machinery.NodeSet2.xml   # AdditionalFiles — build-time only
 │   └── Opc.Ua.Pumps.NodeSet2.xml       # AdditionalFiles — build-time only

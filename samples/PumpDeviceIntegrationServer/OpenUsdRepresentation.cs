@@ -271,7 +271,6 @@ namespace Pumps
             {
                 new ServedAsset("Plant.usda", OpenUsdAssetKindEnum.RootLayer, ReadEmbeddedAsset("Plant.usda")),
                 new ServedAsset("pump.usda", OpenUsdAssetKindEnum.Reference, ReadEmbeddedAsset("pump.usda")),
-                new ServedAsset("remote-pump.usda", OpenUsdAssetKindEnum.Reference, ReadEmbeddedAsset("remote-pump.usda")),
             };
         }
 
@@ -449,14 +448,6 @@ namespace Pumps
                     (PumpDatasheet.Ranges.BearingTemperatureMax -
                         PumpDatasheet.Ranges.BearingTemperatureMin));
 
-            // DifferentialPressure is published in Pascal; the EmissiveColor
-            // render target brightens over 0..6 bar, so the binding scales
-            // Pascal to bar. The datasheet tops out at 4 bar, well inside it.
-            CreateBinding(rep, ns, "DiffPressureEmissive",
-                GuidFor("DiffPressureEmissive"),
-                diffPressure, primPath + "/StatusLight/Mat/Surface", "inputs:emissiveColor", "color3f",
-                OpenUsdRenderTargetKindEnum.EmissiveColor, PascalToBar);
-
             // Discharge pressure gauge needle over the datasheet pressure range.
             CreateBinding(rep, ns, "DischargePressureNeedle",
                 GuidFor("DischargePressureNeedle"),
@@ -559,17 +550,19 @@ namespace Pumps
             NodeId cavitation = events?.SupervisionProcessFluid?.Cavitation?.NodeId ?? NodeId.Null;
             NodeId motorOverheat = events?.SupervisionPumpOperation?.MotorOverheat?.NodeId ?? NodeId.Null;
 
-            // Any active supervision state lights the plant beacon halo.
-            CreateBinding(rep, ns, "AlarmActiveVisibility",
-                GuidFor("AlarmActiveVisibility"),
-                twin.AlarmActive!.NodeId, primPath + "/StatusLight", "visibility", "token",
+            // Any active supervision state draws a red circle on the floor around
+            // the machine. A ring reads from anywhere in the hall and from any
+            // camera angle; a lamp on a mast only reads when you happen to be
+            // looking straight at it.
+            CreateBinding(rep, ns, "AlarmRingVisibility",
+                GuidFor("AlarmRingVisibility"),
+                twin.AlarmActive!.NodeId, primPath + "/AlarmRing", "visibility", "token",
                 OpenUsdRenderTargetKindEnum.Visibility, 1.0,
                 bindingTypeId: Opc.Ua.OpenUsd.ObjectTypes.OpenUsdAlarmBindingType,
                 alarmAspect: OpenUsdAlarmAspectEnum.ActiveState);
 
-            // Distinct indications: the operator sees a cavitating pump and an
-            // overheating pump differently, at the place on the machine where the
-            // fault actually is.
+            // Which fault, at the place on the machine where it actually is: the
+            // ring says a pump is in alarm, these say why.
             CreateBinding(rep, ns, "CavitationHalo",
                 GuidFor("CavitationHalo"),
                 cavitation, primPath + "/Suction/CavitationHalo", "visibility", "token",
@@ -578,7 +571,7 @@ namespace Pumps
                 alarmAspect: OpenUsdAlarmAspectEnum.ActiveState);
             CreateBinding(rep, ns, "OverheatHalo",
                 GuidFor("OverheatHalo"),
-                motorOverheat, primPath + "/Beacon/OverheatHalo", "visibility", "token",
+                motorOverheat, primPath + "/OverheatHalo", "visibility", "token",
                 OpenUsdRenderTargetKindEnum.Visibility, 1.0,
                 bindingTypeId: Opc.Ua.OpenUsd.ObjectTypes.OpenUsdAlarmBindingType,
                 alarmAspect: OpenUsdAlarmAspectEnum.ActiveState);
@@ -588,8 +581,8 @@ namespace Pumps
             // standard namespace-0 declaration NodeIds - which
             // PumpInstanceNodeIdRegressionTests pins - so every pump's alarm shares
             // one ActiveState, Severity and AckedState node. Binding those would
-            // light every beacon in the plant at once. The per-pump supervision
-            // states above are the alarm indication instead: they are genuinely per
+            // ring every pump in the hall at once. The per-pump supervision states
+            // above are the alarm indication instead: they are genuinely per
             // instance, and they are what drives the condition through
             // ActivatesAlarm in the first place.
         }
@@ -619,8 +612,7 @@ namespace Pumps
             {
                 ["ShaftSpin"] = new Guid("6e63cf2c-f2de-4f78-a8f8-f0ccdbb7647a"),
                 ["BearingTempColor"] = new Guid("b1a1f6f0-5c2b-5a1e-9f3a-2b7c4d8e0011"),
-                ["DiffPressureEmissive"] = new Guid("c2b2a7e1-6d3c-5b2f-a04b-3c8d5e9f1122"),
-                ["AlarmActiveVisibility"] = new Guid("d3c3b8f2-7e4d-5c30-b15c-4d9e6a0b2233"),
+                ["AlarmRingVisibility"] = new Guid("d3c3b8f2-7e4d-5c30-b15c-4d9e6a0b2233"),
                 ["SpeedSetpointCommand"] = new Guid("e4d4c9a3-8f5e-5d41-c26d-5e0f7b1c3344"),
                 ["ImpellerComponent"] = new Guid("a1b2c3d4-0001-4000-8000-000000000001"),
                 ["BearingComponent"] = new Guid("a1b2c3d4-0001-4000-8000-000000000002"),
@@ -666,11 +658,6 @@ namespace Pumps
         /// Kelvin-to-Celsius shift the colour render targets expect.
         /// </summary>
         private const double KelvinOffset = 273.15;
-
-        /// <summary>
-        /// Pascal to bar. The EmissiveColor render target brightens over 0..6 bar.
-        /// </summary>
-        private const double PascalToBar = 1e-5;
 
         /// <summary>
         /// Metres of modelled vessel height per metre of published level. The

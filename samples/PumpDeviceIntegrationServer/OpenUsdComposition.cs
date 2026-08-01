@@ -156,7 +156,12 @@ namespace Pumps
             }
         }
 
-        // 1..n + dynamic + cross-server: a ProductionLine aggregating pumps.
+        // 1..n + dynamic aggregation: a ProductionLine aggregating pumps. The
+        // aggregation is an address-space demo only - it carries no OpenUSD
+        // representation, so the rendered hall holds exactly the pumps the
+        // connected server simulates and nothing else. A line pump is a static
+        // topology entry, not a machine anyone is driving; rendering it put
+        // phantom pumps in the twin that no client could account for.
         private async ValueTask MaterialiseProductionLineAsync(CancellationToken cancellationToken)
         {
             if (m_plantStage == null)
@@ -184,14 +189,6 @@ namespace Pumps
                 deviceSet.AddChild(line);
                 line.NodeId = SystemContext.NodeIdFactory.New(SystemContext, line);
 
-                OpenUsdRepresentationState lineRep = SystemContext.CreateInstanceOfOpenUsdRepresentationType(
-                    line, new QualifiedName("OpenUsdRepresentation", ns));
-                lineRep.ReferenceTypeId = ReferenceTypeIds.HasComponent;
-                line.AddChild(lineRep);
-                lineRep.NodeId = SystemContext.NodeIdFactory.New(SystemContext, lineRep);
-                lineRep.CreateOrReplaceStage(SystemContext, null!).Value = m_plantStage.NodeId;
-                lineRep.CreateOrReplacePrimPath(SystemContext, null!).Value = LinePrimPath;
-
                 var pumps = new FolderState(line)
                 {
                     SymbolicName = "Pumps",
@@ -204,38 +201,12 @@ namespace Pumps
                 pumps.NodeId = SystemContext.NodeIdFactory.New(SystemContext, pumps);
                 m_linePumps = pumps;
 
-                // Two static aggregated pumps (1..n baseline).
-                CreateRepresentedComponent(pumps, "P-201", ns,
-                    LinePrimPath + "/Pumps/P_201", ns, ReferenceTypeIds.Organizes);
-                CreateRepresentedComponent(pumps, "P-202", ns,
-                    LinePrimPath + "/Pumps/P_202", ns, ReferenceTypeIds.Organizes);
-
-                // Many <Component>: aggregate the Pumps as instanceable references, dynamic.
-                CreateComponentBinding(lineRep, ns, "PumpsAggregation",
-                    new Guid("a1b2c3d4-0002-4000-8000-000000000001"),
-                    OpenUsdCardinalityEnum.Many, OpenUsdCompositionArcEnum.Instance,
-                    LinePrimPath + "/Pumps",
-                    assetReference: "@pump.usda@</Pump>", dynamic: true,
-                    changeEventSource: Opc.Ua.ObjectIds.Server);
-
-                // Cross-server <Component>: an OEM pump on another server (federation).
-                CreateComponentBinding(lineRep, ns, "RemotePumpComponent",
-                    new Guid("a1b2c3d4-0003-4000-8000-000000000001"),
-                    OpenUsdCardinalityEnum.One, OpenUsdCompositionArcEnum.Reference,
-                    LinePrimPath + "/RemotePump",
-                    assetReference: "@remote-pump.usda@</Pump>",
-                    componentServerUri: RemoteServerUri, componentEndpointUrl: RemoteEndpointUrl);
+                // Two static aggregated entries (1..n baseline).
+                CreateAggregatedPump(pumps, "P-201", ns);
+                CreateAggregatedPump(pumps, "P-202", ns);
 
                 SystemContext.AssignInstanceChildNodeIds(line);
                 await AddPredefinedNodeAsync(SystemContext, line, cancellationToken).ConfigureAwait(false);
-
-                // Register the line representation in the discovery registry.
-                FolderState? registry = m_openUsdRoot?.Representations;
-                if (registry != null)
-                {
-                    registry.AddReference(ReferenceTypeIds.Organizes, false, lineRep.NodeId);
-                    lineRep.AddReference(ReferenceTypeIds.Organizes, true, registry.NodeId);
-                }
 
                 // Dynamic composition: emit model-change events on runtime add/remove.
                 ModelChangeEmissionEnabled = true;
@@ -250,11 +221,21 @@ namespace Pumps
             }
         }
 
-        // The cross-server component points at this same server process (a loopback
-        // stand-in for an OEM sub-asset server); a test overrides RemoteEndpointUrl.
-        private static string RemoteServerUri => "urn:localhost:OPCFoundation:PumpDeviceIntegrationServer";
-        private string RemoteEndpointUrl { get; set; } =
-            "opc.tcp://localhost:62810/PumpDeviceIntegrationServer";
+        // An aggregated line entry: a plain topology Object with no
+        // representation, because it is not a machine the server simulates.
+        private void CreateAggregatedPump(NodeState parent, string name, ushort ns)
+        {
+            var obj = new BaseObjectState(parent)
+            {
+                SymbolicName = name,
+                BrowseName = new QualifiedName(name, ns),
+                DisplayName = new LocalizedText(name),
+                ReferenceTypeId = ReferenceTypeIds.Organizes,
+                TypeDefinitionId = Opc.Ua.ObjectTypeIds.BaseObjectType
+            };
+            parent.AddChild(obj);
+            obj.NodeId = SystemContext.NodeIdFactory.New(SystemContext, obj);
+        }
 
         // Dynamic demo (§5.13): repeatedly add a pump (emits a GeneralModelChange),
         // hold, then remove it (emits again), so a connector observes both the add and
