@@ -106,6 +106,7 @@
     <Project Path="src/Opc.Ua.Redundancy.Kubernetes/Opc.Ua.Redundancy.Kubernetes.csproj" />
     <Project Path="src/Opc.Ua.WotCon/Opc.Ua.WotCon.csproj" />
     <Project Path="src/Opc.Ua.WotCon.Bindings/Opc.Ua.WotCon.Bindings.csproj" />
+    <Project Path="src/Opc.Ua.WotCon.Bindings.Mqtt/Opc.Ua.WotCon.Bindings.Mqtt.csproj" />
     <Project Path="src/Opc.Ua.WotCon.Client/Opc.Ua.WotCon.Client.csproj" />
     <Project Path="src/Opc.Ua.WotCon.Server/Opc.Ua.WotCon.Server.csproj" />
     <Project Path="src/Opc.Ua.Bindings.Https/Opc.Ua.Bindings.Https.csproj" />
