@@ -8,8 +8,8 @@ correctly.
 
 | Component | Minimum | Recommended | Notes |
 |---|---|---|---|
-| .NET SDK | 10.0.300 | latest 10.x | Earlier SDKs ship older Roslyn that has known incremental-generator bugs |
-| `dotnet format` | bundled with SDK 10.0.300+ | latest 10.x | The `analyzers` subcommand is what applies UA0002…UA0022 fixes |
+| .NET SDK | 9.0.100 | latest 10.x | 9.0.100 ships Roslyn 4.14, which the package's `roslyn4.14` band targets. Earlier SDKs ship older Roslyn that has known incremental-generator bugs |
+| `dotnet format` | bundled with SDK 10.0.300+ | latest 10.x | The `analyzers` subcommand is what applies UA0002…UA0022 fixes. Diagnostics alone need only SDK 9.0.100; the auto-fix pass needs 10.0.300+ |
 | C# language version | 13 | 14 (default in SDK 10) | Required for `extension` keyword the runtime shim uses |
 | Consumer project SDK | `Microsoft.NET.Sdk` (SDK-style) | same | Pre-SDK MSBuild XML projects (`xmlns="…/2003"`) cannot install the analyzer — see [`known-gaps.md` G1](known-gaps.md#g1--legacy-net-framework-winforms-projects-in-pre-sdk-msbuild-xml) |
 
@@ -37,19 +37,27 @@ and SDK-style csproj rewrites.
 
 ## Roslyn API targeting (internal)
 
-The migration package's Roslyn components are built against the **stable
-analyzer API surface**:
+Every Roslyn component ships twice, once per band, under
+`analyzers/dotnet/<band>/cs/`. The .NET SDK picks the highest band its compiler
+supports and ignores the rest, so a single package serves both hosts:
 
-| DLL | Roslyn API target | Why |
+| Band | Built against | Loaded by |
 |---|---|---|
-| `Opc.Ua.MigrationAnalyzer.dll` | `Microsoft.CodeAnalysis.CSharp 4.14.0` | csc-safe (loads in `csc.exe`); Workspaces-free |
-| `Opc.Ua.MigrationAnalyzer.Generator.dll` | `Microsoft.CodeAnalysis.CSharp 4.14.0` | csc-safe; needed for `IIncrementalGenerator` |
-| `Opc.Ua.MigrationAnalyzer.CodeFixer.dll` | `Microsoft.CodeAnalysis.CSharp 4.14.0` + `Microsoft.CodeAnalysis.CSharp.Workspaces 4.14.0` | Loaded only in Workspaces-aware hosts (Visual Studio, `dotnet format`) |
+| `roslyn4.14` | `Microsoft.CodeAnalysis.CSharp 4.14.0` | Visual Studio 2022 17.14+ / .NET 9 SDK |
+| `roslyn5.0` | `Microsoft.CodeAnalysis.CSharp 5.0.0` | Visual Studio 2026 18.0+ / .NET 10 SDK |
 
-> The repo's `Directory.Packages.props` pins all `Microsoft.CodeAnalysis.*`
-> packages to `4.14.0`. This is the **stable analyzer API**, not the
-> csc-internal version that the .NET SDK ships (which is `5.x` in SDK 10).
-> Analyzers built against 5.x silently fail to load in csc.exe — see
+Within a band, the three components differ only in what else they reference:
+
+| DLL | Extra reference | Why |
+|---|---|---|
+| `Opc.Ua.MigrationAnalyzer.dll` | none | csc-safe (loads in `csc.exe`); Workspaces-free |
+| `Opc.Ua.MigrationAnalyzer.Generator.dll` | none | csc-safe; needed for `IIncrementalGenerator` |
+| `Opc.Ua.MigrationAnalyzer.CodeFixer.dll` | `Microsoft.CodeAnalysis.CSharp.Workspaces` | Loaded only in Workspaces-aware hosts (Visual Studio, `dotnet format`) |
+
+> An analyzer built against a **newer** Roslyn than the host is skipped silently
+> with warning `CS9057` — the consumer simply gets no diagnostics and no
+> generated shims. That is why the package ships a band per supported host
+> rather than a single `analyzers/dotnet/cs/` folder; see
 > [`known-gaps.md` G9](known-gaps.md#g9--analyzer-silently-doesnt-load-under-cscexe-historical-fixed).
 
 ## Verifying analyzer + generator loaded under csc.exe
