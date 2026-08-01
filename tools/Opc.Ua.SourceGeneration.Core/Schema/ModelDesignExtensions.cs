@@ -32,6 +32,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Xml;
 using Opc.Ua.SourceGeneration;
 using Opc.Ua.Types;
@@ -57,6 +58,37 @@ namespace Opc.Ua.Schema.Model
         /// All types are nullable
         /// </summary>
         Nullable
+    }
+
+    /// <summary>
+    /// Identifies one generated method-argument symbol scope and the names
+    /// reserved by that scope's emitted scaffolding.
+    /// </summary>
+    internal sealed class MethodArgumentCodeNameScope
+    {
+        public MethodArgumentCodeNameScope(params string[] reservedNames)
+            : this(null, reservedNames)
+        {
+        }
+
+        public MethodArgumentCodeNameScope(
+            Func<string, bool, IEnumerable<string>> getCollisionIdentifiers,
+            params string[] reservedNames)
+        {
+            ReservedNames = reservedNames == null ? [] : [.. reservedNames];
+            m_getCollisionIdentifiers = getCollisionIdentifiers;
+        }
+
+        public IReadOnlyCollection<string> ReservedNames { get; }
+
+        public IEnumerable<string> GetCollisionIdentifiers(
+            string identifier,
+            bool output)
+        {
+            return m_getCollisionIdentifiers?.Invoke(identifier, output) ?? [identifier];
+        }
+
+        private readonly Func<string, bool, IEnumerable<string>> m_getCollisionIdentifiers;
     }
 
     /// <summary>
@@ -504,6 +536,222 @@ namespace Opc.Ua.Schema.Model
 
             return target?.Name;
         }
+
+        /// <summary>
+        /// Returns the canonical C# identifier for a method argument.
+        /// </summary>
+        internal static string GetGeneratedCodeIdentifier(
+            this Parameter field,
+            bool upperCamelCase = false,
+            MethodArgumentCodeNameScope scope = null)
+        {
+            string name = field?.Name;
+            scope ??= s_defaultMethodArgumentCodeNameScope;
+            lock (s_generatedCodeNamesLock)
+            {
+                if (field != null &&
+                    s_generatedCodeNames.TryGetValue(field, out GeneratedCodeNameState state) &&
+                    state.Names.TryGetValue(scope, out string generatedName) &&
+                    !string.IsNullOrEmpty(generatedName))
+                {
+                    name = generatedName;
+                }
+            }
+            return name.ToCSharpIdentifier(upperCamelCase);
+        }
+
+        /// <summary>
+        /// Assigns unique generated-code names against the requested scope while
+        /// preserving the authored OPC UA names.
+        /// </summary>
+        internal static void AssignMethodArgumentCodeNames(
+            this MethodDesign method,
+            MethodArgumentCodeNameScope scope = null,
+            params string[] additionalReservedNames)
+        {
+            AssignMethodArgumentCodeNames(
+                method?.InputArguments,
+                method?.OutputArguments,
+                scope,
+                additionalReservedNames);
+        }
+
+        /// <summary>
+        /// Assigns unique generated-code names for an effective method signature.
+        /// </summary>
+        internal static void AssignMethodArgumentCodeNames(
+            Parameter[] inputArguments,
+            Parameter[] outputArguments,
+            MethodArgumentCodeNameScope scope = null,
+            params string[] additionalReservedNames)
+        {
+            scope ??= s_defaultMethodArgumentCodeNameScope;
+            lock (s_generatedCodeNamesLock)
+            {
+                ClearGeneratedCodeNames(inputArguments, scope);
+                ClearGeneratedCodeNames(outputArguments, scope);
+
+                var usedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                AddReservedMethodArgumentNames(usedNames, scope.ReservedNames);
+                AddReservedMethodArgumentNames(usedNames, additionalReservedNames);
+                AssignUniqueGeneratedCodeNames(
+                    inputArguments,
+                    usedNames,
+                    output: false,
+                    scope);
+                AssignUniqueGeneratedCodeNames(
+                    outputArguments,
+                    usedNames,
+                    output: true,
+                    scope);
+            }
+        }
+
+        private static void AddReservedMethodArgumentNames(
+            HashSet<string> usedNames,
+            IEnumerable<string> reservedNames)
+        {
+            if (reservedNames == null)
+            {
+                return;
+            }
+            foreach (string reservedName in reservedNames)
+            {
+                if (!string.IsNullOrWhiteSpace(reservedName))
+                {
+                    usedNames.Add(GetIdentifierCollisionKey(
+                        reservedName.ToCSharpIdentifier()));
+                }
+            }
+        }
+
+        private static void AssignUniqueGeneratedCodeNames(
+            Parameter[] arguments,
+            HashSet<string> usedNames,
+            bool output,
+            MethodArgumentCodeNameScope scope)
+        {
+            if (arguments == null)
+            {
+                return;
+            }
+
+            foreach (Parameter argument in arguments)
+            {
+                if (argument == null)
+                {
+                    continue;
+                }
+
+                string identifier = argument.Name.ToCSharpIdentifier();
+                if (TryReserveGeneratedIdentifier(
+                    identifier,
+                    output,
+                    scope,
+                    usedNames))
+                {
+                    SetGeneratedCodeName(argument, identifier, scope);
+                    continue;
+                }
+
+                string stem = identifier.TrimStart('@');
+                int suffix = output ? 1 : 2;
+                while (true)
+                {
+                    string suffixText;
+                    if (output)
+                    {
+                        suffixText = suffix == 1 ?
+                            "Out" :
+                            "Out" + suffix.ToString(CultureInfo.InvariantCulture);
+                    }
+                    else
+                    {
+                        suffixText = suffix.ToString(CultureInfo.InvariantCulture);
+                    }
+
+                    string candidate = (stem + suffixText).ToCSharpIdentifier();
+                    suffix++;
+                    if (TryReserveGeneratedIdentifier(
+                        candidate,
+                        output,
+                        scope,
+                        usedNames))
+                    {
+                        SetGeneratedCodeName(argument, candidate, scope);
+                        break;
+                    }
+                }
+            }
+        }
+
+        private static bool TryReserveGeneratedIdentifier(
+            string identifier,
+            bool output,
+            MethodArgumentCodeNameScope scope,
+            HashSet<string> usedNames)
+        {
+            string[] collisionKeys =
+            [
+                .. scope.GetCollisionIdentifiers(identifier, output)
+                    .Where(name => !string.IsNullOrWhiteSpace(name))
+                    .Select(GetIdentifierCollisionKey)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+            ];
+            if (collisionKeys.Any(usedNames.Contains))
+            {
+                return false;
+            }
+            foreach (string collisionKey in collisionKeys)
+            {
+                usedNames.Add(collisionKey);
+            }
+            return true;
+        }
+
+        private static void ClearGeneratedCodeNames(
+            Parameter[] arguments,
+            MethodArgumentCodeNameScope scope)
+        {
+            if (arguments == null)
+            {
+                return;
+            }
+            foreach (Parameter argument in arguments)
+            {
+                if (argument != null &&
+                    s_generatedCodeNames.TryGetValue(
+                        argument,
+                        out GeneratedCodeNameState state))
+                {
+                    state.Names.Remove(scope);
+                }
+            }
+        }
+
+        private static string GetIdentifierCollisionKey(string identifier)
+        {
+            return identifier.TrimStart('@');
+        }
+
+        private static void SetGeneratedCodeName(
+            Parameter argument,
+            string name,
+            MethodArgumentCodeNameScope scope)
+        {
+            s_generatedCodeNames.GetOrCreateValue(argument).Names[scope] = name;
+        }
+
+        private sealed class GeneratedCodeNameState
+        {
+            public Dictionary<MethodArgumentCodeNameScope, string> Names { get; } = [];
+        }
+
+        private static readonly MethodArgumentCodeNameScope
+            s_defaultMethodArgumentCodeNameScope = new();
+        private static readonly System.Threading.Lock s_generatedCodeNamesLock = new();
+        private static readonly ConditionalWeakTable<Parameter, GeneratedCodeNameState>
+            s_generatedCodeNames = new();
 
         /// <summary>
         /// Returns the field name of a child node.

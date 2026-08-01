@@ -214,6 +214,11 @@ namespace Opc.Ua
                 return false;
             }
 
+            if (startId == targetId)
+            {
+                return true;
+            }
+
             lock (m_lock)
             {
                 if (!m_nodes.TryGetValue(startId, out TypeInfo? typeInfo))
@@ -348,6 +353,15 @@ namespace Opc.Ua
             if (value.IsNull)
             {
                 return false;
+            }
+
+            // In-memory encodeable bodies carry their DataTypeId directly,
+            // while decoded binary/xml bodies carry the encoding NodeId.
+            // Accept the direct DataTypeId (or one of its subtypes) before
+            // consulting the encoding map.
+            if (IsTypeOf(value.TypeId, expectedTypeId))
+            {
+                return true;
             }
 
             // may still match if the extension type is an encoding for the expected type.
@@ -778,7 +792,7 @@ namespace Opc.Ua
             /// </summary>
             /// <param name="nodeId">The node identifier.</param>
             /// <returns>
-            /// 	<c>true</c> if this node is type of the specified NodeId otherwise, <c>false</c>.
+            /// <c>true</c> if this node is type of the specified NodeId otherwise, <c>false</c>.
             /// </returns>
             public bool IsTypeOf(NodeId nodeId)
             {
