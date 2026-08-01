@@ -53,7 +53,6 @@
     <ProjectReference Include="..\..\src\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Lds.Server\Opc.Ua.Lds.Server.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Gds.Server.Common\Opc.Ua.Gds.Server.Common.csproj" />
-    <ProjectReference Include="..\..\src\Opc.Ua.WotCon.Server\Opc.Ua.WotCon.Server.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Bindings.Https\Opc.Ua.Bindings.Https.csproj" />
     <ProjectReference Include="..\Opc.Ua.Core.Tests\Opc.Ua.Core.Tests.csproj" />
     <ProjectReference Include="..\Opc.Ua.Server.TestFramework\Opc.Ua.Server.TestFramework.csproj" />
