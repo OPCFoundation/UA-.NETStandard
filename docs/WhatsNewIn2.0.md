@@ -179,6 +179,20 @@ server- and client-side implementations:
   sub-type extensions, lock service, software-update package store, and
   client helpers. See [Device Integration](DeviceIntegration.md) and
   [Software Update](SoftwareUpdate.md).
+- **Parts 210 and 211 — Relative Spatial Location and Global Positioning**:
+  source-generated released RSL/GPOS models, standalone and composed server
+  hosting, technology-neutral position providers, typed clients and streams,
+  frame-chain resolution, WGS84/ENU conversion, and rigid/similarity/affine
+  Zone fitting. The robot/OpenUSD sample publishes independently configurable
+  mobile robot poses. See [Positioning](Positioning.md).
+- **OPC 40010-1 — Robotics** (over **OPC 40001-1 — Industrial Automation**):
+  the `Opc.Ua.Robotics` / `Opc.Ua.Robotics.Server` / `Opc.Ua.Robotics.Client`
+  library trio over Device Integration, with source-generated Robotics 1.02
+  and IA models, `AddRobotics` / `ConfigureRobotics` hosting, ordered model
+  providers, and validated fluent topology builders that assemble motion
+  device systems, controllers, motion devices, axes, power trains, motors,
+  gears, drives, safety states, and task controls with the correct
+  companion-spec references. See [Robotics](Robotics.md).
 - **OPC 10100-1 — WoT Connectivity**: model, server, and client libraries
   for surfacing OPC UA servers as Web of Things Thing Descriptions, with
   the `WoTAssetConnectionManagement` server methods gated by a
@@ -418,7 +432,10 @@ loggers, meters, and activities all hang off the same context object, and
 log redaction is wired through the audit APIs. Tests have been
 reorganised for faster CI, with several integration suites separated from
 unit suites, and code-coverage gates apply to all non-test, non-application
-projects.
+projects. Those gates now run inside the pipeline itself - an absolute
+project floor plus a changed-lines check - instead of relying on an external
+coverage service; see
+[Continuous integration](DeveloperGuide.md#continuous-integration).
 
 ## Further reading
 
@@ -445,6 +462,7 @@ projects.
   [State Machines](StateMachines.md),
   [Alias Names](AliasNames.md),
   [Device Integration](DeviceIntegration.md),
+  [Relative Spatial Location and Global Positioning](Positioning.md),
   [Software Update](SoftwareUpdate.md),
   [WoT Connectivity](WoTConnectivity.md),
   [Subscriptions and Monitored Items](Subscriptions.md),

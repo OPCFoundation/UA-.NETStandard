@@ -121,6 +121,36 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(decoded.Nodes[0].ClassName, Is.EqualTo("Größentyp"));
         }
 
+        [TestCase(true)]
+        [TestCase(false)]
+        public void WriteThenRead_RoundTripsFluentAccessorCapability(bool emitted)
+        {
+            var dependency = new ModelDependencyV1
+            {
+                ModelUri = "http://example.org/UA/Capabilities/",
+                FluentAccessorsEmitted = emitted
+            };
+
+            var decoded = ModelDependencyV1.FromBase64Payload(dependency.ToBase64Payload());
+
+            Assert.That(decoded, Is.Not.Null);
+            Assert.That(decoded.FluentAccessorsEmitted, Is.EqualTo(emitted));
+        }
+
+        [Test]
+        public void WriteThenRead_OmittedCapabilityRemainsUnknown()
+        {
+            var dependency = new ModelDependencyV1
+            {
+                ModelUri = "http://example.org/UA/Legacy/"
+            };
+
+            var decoded = ModelDependencyV1.FromBase64Payload(dependency.ToBase64Payload());
+
+            Assert.That(decoded, Is.Not.Null);
+            Assert.That(decoded.FluentAccessorsEmitted, Is.Null);
+        }
+
         [Test]
         public void Read_ReturnsNullForWrongMagic()
         {

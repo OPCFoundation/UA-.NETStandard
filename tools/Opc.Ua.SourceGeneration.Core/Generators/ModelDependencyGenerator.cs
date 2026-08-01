@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Xml;
 using Opc.Ua.Schema.Model;
 using Opc.Ua.SourceGeneration.Dependency;
 
@@ -47,9 +48,12 @@ namespace Opc.Ua.SourceGeneration
     /// </summary>
     internal sealed class ModelDependencyGenerator : IGenerator
     {
-        public ModelDependencyGenerator(IGeneratorContext context)
+        public ModelDependencyGenerator(
+            IGeneratorContext context,
+            bool? fluentAccessorsEmitted = null)
         {
             m_context = context ?? throw new ArgumentNullException(nameof(context));
+            m_fluentAccessorsEmitted = fluentAccessorsEmitted;
         }
 
         /// <inheritdoc/>
@@ -163,7 +167,7 @@ namespace Opc.Ua.SourceGeneration
                 return null;
             }
             ModelDependencyV1 payload = BuildPayload(target);
-            if (payload.Nodes.Count == 0)
+            if (payload.Nodes.Count == 0 && !payload.FluentAccessorsEmitted.HasValue)
             {
                 return null;
             }
@@ -172,7 +176,11 @@ namespace Opc.Ua.SourceGeneration
 
         private ModelDependencyV1 BuildPayload(Namespace target)
         {
-            var payload = new ModelDependencyV1 { ModelUri = target.Value };
+            var payload = new ModelDependencyV1
+            {
+                ModelUri = target.Value,
+                FluentAccessorsEmitted = m_fluentAccessorsEmitted
+            };
             string targetUri = target.Value;
             foreach (NodeDesign node in m_context.ModelDesign.Nodes ?? [])
             {
@@ -282,8 +290,66 @@ namespace Opc.Ua.SourceGeneration
                             }
                             else if (child is MethodDesign method)
                             {
-                                entryChild.InputArguments = DependencyMethodArgs(method.InputArguments);
-                                entryChild.OutputArguments = DependencyMethodArgs(method.OutputArguments);
+                                var effectiveMethod =
+                                    (MethodDesign)method.GetMergedInstance();
+                                entryChild.TypeDefinitionName =
+                                    effectiveMethod.TypeDefinition?.Name ?? string.Empty;
+                                entryChild.TypeDefinitionNamespace =
+                                    effectiveMethod.TypeDefinition?.Namespace ?? string.Empty;
+                                entryChild.InputArguments = DependencyMethodArgs(
+                                    MethodDesignArgumentResolver.ResolveMethodInputs(
+                                        effectiveMethod));
+                                entryChild.OutputArguments = DependencyMethodArgs(
+                                    MethodDesignArgumentResolver.ResolveMethodOutputs(
+                                        effectiveMethod));
+                                if (MethodDesignArgumentResolver.HasMethodArguments(
+                                    effectiveMethod))
+                                {
+                                    XmlQualifiedName methodStateIdentity =
+                                        MethodDesignArgumentResolver.ResolveMethodStateIdentity(
+                                            effectiveMethod);
+                                    if (methodStateIdentity != null)
+                                    {
+                                        entryChild.MethodStateName =
+                                            methodStateIdentity.Name ?? string.Empty;
+                                        entryChild.MethodStateNamespace =
+                                            methodStateIdentity.Namespace ?? string.Empty;
+                                    }
+
+                                    MethodDesign declaration =
+                                        effectiveMethod.MethodDeclarationNode ??
+                                        (MethodDesignArgumentResolver.HasDeclaredArguments(
+                                            effectiveMethod)
+                                            ? effectiveMethod
+                                            : null);
+                                    if (declaration != null)
+                                    {
+                                        XmlQualifiedName declarationIdentity =
+                                            declaration.SymbolicId ?? declaration.SymbolicName;
+                                        if (declarationIdentity != null)
+                                        {
+                                            entryChild.MethodDeclarationName =
+                                                declarationIdentity.Name ?? string.Empty;
+                                            entryChild.MethodDeclarationNamespace =
+                                                declarationIdentity.Namespace ?? string.Empty;
+                                        }
+                                        entryChild.MethodDeclarationNumericId =
+                                            declaration.NumericIdSpecified
+                                                ? declaration.NumericId
+                                                : declarationIdentity ==
+                                                    effectiveMethod.SymbolicId &&
+                                                    effectiveMethod.NumericIdSpecified
+                                                    ? effectiveMethod.NumericId
+                                                    : 0;
+                                        entryChild.MethodDeclarationStringId =
+                                            string.IsNullOrEmpty(declaration.StringId)
+                                                ? declarationIdentity ==
+                                                    effectiveMethod.SymbolicId
+                                                    ? effectiveMethod.StringId
+                                                    : null
+                                                : declaration.StringId;
+                                    }
+                                }
                             }
                             children.Add(entryChild);
                         }
@@ -372,5 +438,6 @@ namespace Opc.Ua.SourceGeneration
             string Payload);
 
         private readonly IGeneratorContext m_context;
+        private readonly bool? m_fluentAccessorsEmitted;
     }
 }

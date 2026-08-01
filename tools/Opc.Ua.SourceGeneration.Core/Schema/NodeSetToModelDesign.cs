@@ -1366,6 +1366,11 @@ namespace Opc.Ua.Schema.Model
             output.SymbolicName = ImportSymbolicName(input);
             output.Extensions = input.Extensions;
 
+            output.SymbolicName = NormalizeSymbolicNameNamespace(
+                input,
+                output.SymbolicId,
+                output.SymbolicName);
+
             if (input is UAType &&
                 output.SymbolicId.Name.EndsWith(
                     "_" + nodeId.IdentifierAsString, StringComparison.Ordinal))
@@ -1433,6 +1438,22 @@ namespace Opc.Ua.Schema.Model
             }
 
             return output;
+        }
+
+        internal static XmlQualifiedName NormalizeSymbolicNameNamespace(
+            UANode input,
+            XmlQualifiedName symbolicId,
+            XmlQualifiedName symbolicName)
+        {
+            if (input is UAType &&
+                symbolicId != null &&
+                symbolicName != null &&
+                symbolicId.Namespace != symbolicName.Namespace)
+            {
+                return new XmlQualifiedName(symbolicName.Name, symbolicId.Namespace);
+            }
+
+            return symbolicName;
         }
 
         private UANode FindNode(UANodeSet nodeset, ExpandedNodeId targetId)
@@ -2044,7 +2065,10 @@ namespace Opc.Ua.Schema.Model
             Dictionary<XmlQualifiedName, MethodDesign> methods = [];
             CollectMethodDefinitions(dictionary.TargetNamespace, methods);
 
-            items.AddRange(methods.Values);
+            items.AddRange(methods
+                .OrderBy(entry => entry.Key.Namespace, StringComparer.Ordinal)
+                .ThenBy(entry => entry.Key.Name, StringComparer.Ordinal)
+                .Select(entry => entry.Value));
 
             foreach (NodeDesign item in items)
             {
@@ -2198,88 +2222,177 @@ namespace Opc.Ua.Schema.Model
                 }
             }
 
-            foreach (NodeDesign node in m_settings.NodesById.Values)
+            MethodDesign[] candidates =
+            [
+                .. m_settings.NodesById.Values
+                    .OfType<MethodDesign>()
+                    .Where(method =>
+                        method.SymbolicId.Namespace == targetNamespace &&
+                        MethodDesignArgumentResolver.HasDeclaredArguments(method))
+                    .OrderBy(method => method.SymbolicId.Namespace, StringComparer.Ordinal)
+                    .ThenBy(method => method.SymbolicId.Name, StringComparer.Ordinal)
+            ];
+            var groupedCandidates =
+                new Dictionary<XmlQualifiedName, List<List<MethodDesign>>>();
+
+            foreach (MethodDesign method in candidates)
             {
-                if (node is MethodDesign method)
+                if (method.MethodDeclarationNode != null)
                 {
-                    if (node.SymbolicId.Namespace != targetNamespace)
+                    MethodDesign definition =
+                        MethodDesignArgumentResolver.ResolveMethodDefinition(
+                            method.MethodDeclarationNode);
+                    if (MethodDesignArgumentResolver.HaveSameDeclaredSignature(
+                        method,
+                        definition))
                     {
                         continue;
                     }
+                }
 
-                    // Skip methods whose BrowseName belongs to a base namespace
-                    // (e.g. the Core FileType Open/Close/Read/Write methods that a
-                    // FileType instance re-declares): they are instances of a
-                    // base-type method and must reuse that base method type rather
-                    // than get a synthesized method type in this model.
-                    if (method.SymbolicName != null &&
-                        method.SymbolicName.Namespace != targetNamespace)
+                // Skip methods whose BrowseName belongs to a base namespace
+                // (e.g. the Core FileType Open/Close/Read/Write methods that a
+                // FileType instance re-declares): they are instances of a
+                // base-type method and must reuse that base method type rather
+                // than get a synthesized method type in this model.
+                if (method.SymbolicName != null &&
+                    method.SymbolicName.Namespace != targetNamespace)
+                {
+                    continue;
+                }
+
+                // Skip a standalone node that already is a method type (no owning
+                // parent and the conventional "MethodType" name, e.g. an
+                // incorporated companion specification method type.
+                // Synthesizing a declaration for it would emit a spurious
+                // "<Name>MethodTypeMethodType" node. A parentless method that is
+                // merely a declaration target of another method still needs one.
+                if (method.Parent == null &&
+                    method.SymbolicName != null &&
+                    method.SymbolicName.Name.EndsWith("MethodType", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                var baseName = new XmlQualifiedName(
+                    method.SymbolicName.Name + "MethodType",
+                    method.SymbolicId.Namespace);
+                if (!groupedCandidates.TryGetValue(
+                    baseName,
+                    out List<List<MethodDesign>> signatureGroups))
+                {
+                    groupedCandidates.Add(baseName, signatureGroups = []);
+                }
+
+                List<MethodDesign> signatureGroup = signatureGroups.FirstOrDefault(
+                    group => MethodDesignArgumentResolver.HaveSameDeclaredSignature(
+                        group[0],
+                        method));
+                if (signatureGroup == null)
+                {
+                    signatureGroups.Add([method]);
+                }
+                else
+                {
+                    signatureGroup.Add(method);
+                }
+            }
+
+            var reservedNames = new HashSet<XmlQualifiedName>(
+                m_settings.NodesByQName.Keys);
+            foreach (KeyValuePair<XmlQualifiedName, List<List<MethodDesign>>> entry
+                in groupedCandidates
+                    .OrderBy(entry => entry.Key.Namespace, StringComparer.Ordinal)
+                    .ThenBy(entry => entry.Key.Name, StringComparer.Ordinal))
+            {
+                bool qualifyWithOwner = entry.Value.Count > 1 ||
+                    reservedNames.Contains(entry.Key);
+                foreach (List<MethodDesign> signatureGroup in entry.Value)
+                {
+                    MethodDesign representative = signatureGroup[0];
+                    string preferredName = qualifyWithOwner
+                        ? GetOwnerQualifiedMethodTypeName(representative)
+                        : entry.Key.Name;
+                    var name = new XmlQualifiedName(
+                        preferredName,
+                        representative.SymbolicId.Namespace);
+                    int suffix = 2;
+                    while (reservedNames.Contains(name) || methods.ContainsKey(name))
                     {
-                        continue;
+                        string stem = preferredName.EndsWith(
+                            "MethodType",
+                            StringComparison.Ordinal)
+                                ? preferredName[..^"MethodType".Length]
+                                : preferredName;
+                        name = new XmlQualifiedName(
+                            stem +
+                                suffix.ToString(CultureInfo.InvariantCulture) +
+                                "MethodType",
+                            representative.SymbolicId.Namespace);
+                        suffix++;
                     }
 
-                    // Skip a standalone node that already is a method type (no owning
-                    // parent and the conventional "MethodType" name, e.g. an
-                    // incorporated companion specification method type.
-                    // Synthesizing a declaration for it would emit a spurious
-                    // "<Name>MethodTypeMethodType" node. A parentless method that is
-                    // merely a declaration target of another method still needs one.
-                    if (method.Parent == null &&
-                        method.SymbolicName != null &&
-                        method.SymbolicName.Name.EndsWith("MethodType", StringComparison.Ordinal))
+                    // Prefer an explicit method-type declaration already in
+                    // the model over synthesizing a colliding duplicate. The
+                    // concrete method carries the authoritative argument
+                    // definitions, so copy them onto the reused declaration
+                    // to guarantee code generation emits the correct method
+                    // signature and result even when the incorporated
+                    // NodeSet declares the method-type argument nodes apart
+                    // from the concrete method.
+                    if (existingByName.TryGetValue(name, out MethodDesign declared) &&
+                        !signatureGroup.Any(method => ReferenceEquals(declared, method)))
                     {
-                        continue;
-                    }
-
-                    if (method.HasArguments && method.MethodDeclarationNode == null)
-                    {
-                        var name = new XmlQualifiedName(
-                            node.SymbolicName.Name + "MethodType",
-                            node.SymbolicId.Namespace);
-
-                        if (methods.ContainsKey(name))
+                        declared.InputArguments = representative.InputArguments;
+                        declared.OutputArguments = representative.OutputArguments;
+                        declared.HasArguments = true;
+                        foreach (MethodDesign method in signatureGroup)
                         {
-                            continue;
-                        }
-
-                        // Prefer an explicit method-type declaration already in
-                        // the model over synthesizing a colliding duplicate. The
-                        // concrete method carries the authoritative argument
-                        // definitions, so copy them onto the reused declaration
-                        // to guarantee code generation emits the correct method
-                        // signature and result even when the incorporated
-                        // NodeSet declares the method-type argument nodes apart
-                        // from the concrete method.
-                        if (existingByName.TryGetValue(name, out MethodDesign declared) &&
-                            !ReferenceEquals(declared, method))
-                        {
-                            declared.InputArguments = method.InputArguments;
-                            declared.OutputArguments = method.OutputArguments;
-                            declared.HasArguments = method.HasArguments;
                             method.MethodDeclarationNode = declared;
-                            continue;
+                            method.TypeDefinition = null;
+                            method.MethodType = null;
                         }
+                        reservedNames.Add(name);
+                        continue;
+                    }
 
-                        var declaration = new MethodDesign
+                    var declaration = new MethodDesign
+                    {
+                        SymbolicId = name,
+                        SymbolicName = name,
+                        BrowseName = name.Name,
+                        DisplayName = new LocalizedText
                         {
-                            SymbolicId = name,
-                            SymbolicName = name,
-                            BrowseName = name.Name,
-                            DisplayName = new LocalizedText
-                            {
-                                Value = name.Name,
-                                IsAutogenerated = true
-                            },
-                            InputArguments = method.InputArguments,
-                            OutputArguments = method.OutputArguments,
-                            HasArguments = true
-                        };
+                            Value = name.Name,
+                            IsAutogenerated = true
+                        },
+                        InputArguments = representative.InputArguments,
+                        OutputArguments = representative.OutputArguments,
+                        HasArguments = true
+                    };
 
-                        methods.Add(declaration.SymbolicName, declaration);
+                    methods.Add(declaration.SymbolicName, declaration);
+                    reservedNames.Add(declaration.SymbolicName);
+                    foreach (MethodDesign method in signatureGroup)
+                    {
                         method.MethodDeclarationNode = declaration;
+                        method.TypeDefinition = null;
+                        method.MethodType = null;
                     }
                 }
             }
+        }
+
+        private static string GetOwnerQualifiedMethodTypeName(MethodDesign method)
+        {
+            string ownerName = method.SymbolicId.Name;
+            string methodSuffix = "_" + method.SymbolicName.Name;
+            if (ownerName.EndsWith(methodSuffix, StringComparison.Ordinal))
+            {
+                ownerName = ownerName[..^methodSuffix.Length];
+            }
+            ownerName = ownerName.Replace("_", string.Empty, StringComparison.Ordinal);
+            return method.SymbolicName.Name + ownerName + "MethodType";
         }
 
         /// <summary>

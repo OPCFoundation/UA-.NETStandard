@@ -48,91 +48,27 @@ namespace Opc.Ua.ISA95.Tests.Common
     [TestFixture]
     public class Isa95GeoSpatialLocationTests
     {
-        [Test]
-        public async Task StaticProviderReadReturnsCurrentValue()
-        {
-            using var provider = new Isa95GeoSpatialLocationProvider("Berlin");
-
-            Isa95GeoSpatialLocation location = await provider.GetCurrentAsync().ConfigureAwait(false);
-
-            Assert.That(location.Value, Is.EqualTo("Berlin"));
-            Assert.That(location.StatusCode, Is.EqualTo(StatusCodes.Good));
-        }
+        private const string SourceId = "plant";
+        private static readonly string[] s_berlin = ["Berlin"];
+        private static readonly string[] s_munich = ["Munich"];
+        private static readonly string[] s_zurichPlant = ["Building 4, Zurich Plant"];
+        private static readonly string[] s_wktWithHeight =
+            ["SRID=4326;POINT Z (8.5417 47.3769 408)"];
+        private static readonly string[] s_wktAndLabel =
+            ["POINT (8.5417 47.3769)", "Building 4, Zurich Plant"];
 
         [Test]
-        public async Task StaticProviderUpdateNotifiesSubscribersInOrder()
-        {
-            using var provider = new Isa95GeoSpatialLocationProvider("Berlin");
-            using var cts = new CancellationTokenSource();
-
-            await using IAsyncEnumerator<Isa95GeoSpatialLocation> enumerator =
-                provider.SubscribeAsync(cts.Token).GetAsyncEnumerator(cts.Token);
-
-            ValueTask<bool> first = enumerator.MoveNextAsync();
-            provider.Update(Isa95GeoSpatialLocation.Good("Munich"));
-            Assert.That(await first.ConfigureAwait(false), Is.True);
-            Assert.That(enumerator.Current.Value, Is.EqualTo("Munich"));
-
-            ValueTask<bool> second = enumerator.MoveNextAsync();
-            provider.Update("Hamburg", StatusCodes.Good, DateTime.UtcNow);
-            Assert.That(await second.ConfigureAwait(false), Is.True);
-            Assert.That(enumerator.Current.Value, Is.EqualTo("Hamburg"));
-
-            await cts.CancelAsync().ConfigureAwait(false);
-        }
-
-        [Test]
-        public async Task StaticProviderSubscriptionEndsOnCancellation()
-        {
-            using var provider = new Isa95GeoSpatialLocationProvider("Berlin");
-            using var cts = new CancellationTokenSource();
-
-            var consume = Task.Run(async () =>
-            {
-                await foreach (Isa95GeoSpatialLocation _ in provider.SubscribeAsync(cts.Token))
-                {
-                    // Drain until cancelled.
-                }
-            });
-
-            await cts.CancelAsync().ConfigureAwait(false);
-            await consume.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
-
-            Assert.That(consume.Status, Is.EqualTo(TaskStatus.RanToCompletion));
-        }
-
-        [Test]
-        public void StaticProviderFaultPropagatesToReader()
-        {
-            using var provider = new Isa95GeoSpatialLocationProvider("Berlin");
-            provider.Fault(new InvalidOperationException("boom"));
-
-            Assert.That(
-                async () => await provider.GetCurrentAsync().ConfigureAwait(false),
-                Throws.InvalidOperationException);
-        }
-
-        [Test]
-        public async Task StaticProviderUpdateClearsFault()
-        {
-            using var provider = new Isa95GeoSpatialLocationProvider("Berlin");
-            provider.Fault(new InvalidOperationException("boom"));
-
-            provider.Update(Isa95GeoSpatialLocation.Good("Cologne"));
-            Isa95GeoSpatialLocation location = await provider.GetCurrentAsync().ConfigureAwait(false);
-
-            Assert.That(location.Value, Is.EqualTo("Cologne"));
-        }
-
-        [Test]
-        public async Task BinderReadServesProviderValue()
+        public async Task BinderReadServesProviderLabels()
         {
             var fixture = new Isa95CommonTestContext();
             GeoSpatialLocationState state = CreateLocationVariable(fixture);
-            using var provider = new Isa95GeoSpatialLocationProvider("Berlin");
+            using InMemoryGeoLocationProvider provider = CreateProvider("Berlin");
             Isa95ModelBuilder builder = fixture.CreateBuilder();
 
-            using IDisposable binding = builder.BindGeoSpatialLocation(state, provider);
+            using IDisposable binding = builder.BindGeoSpatialLocation(
+                state,
+                provider,
+                SourceId);
 
             AttributeReadResult result = await state.OnReadValueAsync!(
                 fixture.Context,
@@ -142,8 +78,68 @@ namespace Opc.Ua.ISA95.Tests.Common
                 CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(result.Result), Is.True);
-            Assert.That(result.Value.TryGetValue(out string text), Is.True);
-            Assert.That(text, Is.EqualTo("Berlin"));
+            Assert.That(ReadLiterals(result.Value), Is.EqualTo(s_berlin));
+        }
+
+        [Test]
+        public async Task BinderProjectsAPositionAsWellKnownText()
+        {
+            var fixture = new Isa95CommonTestContext();
+            GeoSpatialLocationState state = CreateLocationVariable(fixture);
+            using var provider = new InMemoryGeoLocationProvider();
+            provider.Update(
+                SourceId,
+                new GeoPosition(47.3769, 8.5417, 408.0, EpsgCode: 4326));
+            Isa95ModelBuilder builder = fixture.CreateBuilder();
+
+            using IDisposable binding = builder.BindGeoSpatialLocation(
+                state,
+                provider,
+                SourceId);
+
+            AttributeReadResult result = await state.OnReadValueAsync!(
+                fixture.Context,
+                state,
+                NumericRange.Null,
+                QualifiedName.Null,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(
+                ReadLiterals(result.Value),
+                Is.EqualTo(s_wktWithHeight));
+        }
+
+        [Test]
+        public async Task BinderPublishesPositionAndLabelsTogether()
+        {
+            var fixture = new Isa95CommonTestContext();
+            GeoSpatialLocationState state = CreateLocationVariable(fixture);
+            using var provider = new InMemoryGeoLocationProvider();
+            provider.Update(
+                SourceId,
+                new GeoLocationSample(
+                    new GeoPosition(47.3769, 8.5417),
+                    null,
+                    s_zurichPlant.ToArrayOf(),
+                    StatusCodes.Good,
+                    DateTimeUtc.Now));
+            Isa95ModelBuilder builder = fixture.CreateBuilder();
+
+            using IDisposable binding = builder.BindGeoSpatialLocation(
+                state,
+                provider,
+                SourceId);
+
+            AttributeReadResult result = await state.OnReadValueAsync!(
+                fixture.Context,
+                state,
+                NumericRange.Null,
+                QualifiedName.Null,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(
+                ReadLiterals(result.Value),
+                Is.EqualTo(s_wktAndLabel));
         }
 
         [Test]
@@ -151,11 +147,14 @@ namespace Opc.Ua.ISA95.Tests.Common
         {
             var fixture = new Isa95CommonTestContext();
             GeoSpatialLocationState state = CreateLocationVariable(fixture);
-            using var provider = new Isa95GeoSpatialLocationProvider("Berlin");
-            provider.Fault(new InvalidOperationException("boom"));
+            using InMemoryGeoLocationProvider provider = CreateProvider("Berlin");
+            provider.Fault(SourceId, new InvalidOperationException("boom"));
             Isa95ModelBuilder builder = fixture.CreateBuilder();
 
-            using IDisposable binding = builder.BindGeoSpatialLocation(state, provider);
+            using IDisposable binding = builder.BindGeoSpatialLocation(
+                state,
+                provider,
+                SourceId);
 
             Assert.That(
                 async () => await state.OnReadValueAsync!(
@@ -174,11 +173,14 @@ namespace Opc.Ua.ISA95.Tests.Common
             GeoSpatialLocationState state = CreateLocationVariable(fixture);
             state.AccessLevel = AccessLevels.CurrentRead;
             state.UserAccessLevel = AccessLevels.CurrentRead;
-            using var provider = new Isa95GeoSpatialLocationProvider("Berlin");
-            provider.Fault(new InvalidOperationException("boom"));
+            using InMemoryGeoLocationProvider provider = CreateProvider("Berlin");
+            provider.Fault(SourceId, new InvalidOperationException("boom"));
             Isa95ModelBuilder builder = fixture.CreateBuilder();
 
-            using IDisposable binding = builder.BindGeoSpatialLocation(state, provider);
+            using IDisposable binding = builder.BindGeoSpatialLocation(
+                state,
+                provider,
+                SourceId);
 
             (ServiceResult result, DataValue value) = await state.ReadAttributeAsync(
                 fixture.Context,
@@ -197,9 +199,12 @@ namespace Opc.Ua.ISA95.Tests.Common
         {
             var fixture = new Isa95CommonTestContext();
             GeoSpatialLocationState state = CreateLocationVariable(fixture);
-            using var provider = new Isa95GeoSpatialLocationProvider("Berlin");
+            using InMemoryGeoLocationProvider provider = CreateProvider("Berlin");
             Isa95ModelBuilder builder = fixture.CreateBuilder();
-            using IDisposable binding = builder.BindGeoSpatialLocation(state, provider);
+            using IDisposable binding = builder.BindGeoSpatialLocation(
+                state,
+                provider,
+                SourceId);
             using var cts = new CancellationTokenSource();
             await cts.CancelAsync().ConfigureAwait(false);
 
@@ -218,15 +223,43 @@ namespace Opc.Ua.ISA95.Tests.Common
         {
             var fixture = new Isa95CommonTestContext();
             GeoSpatialLocationState state = CreateLocationVariable(fixture);
-            using var provider = new Isa95GeoSpatialLocationProvider("Berlin");
+            using InMemoryGeoLocationProvider provider = CreateProvider("Berlin");
             Isa95ModelBuilder builder = fixture.CreateBuilder();
 
-            using IDisposable binding = builder.BindGeoSpatialLocation(state, provider);
+            using IDisposable binding = builder.BindGeoSpatialLocation(
+                state,
+                provider,
+                SourceId);
 
-            bool applied = await WaitForValueAsync(state, "Munich", provider).ConfigureAwait(false);
+            bool applied = await WaitForValueAsync(state, "Munich", provider)
+                .ConfigureAwait(false);
             Assert.That(applied, Is.True);
-            Assert.That(state.Value.TryGetValue(out string text), Is.True);
-            Assert.That(text, Is.EqualTo("Munich"));
+            Assert.That(ReadLiterals(state.Value), Is.EqualTo(s_munich));
+        }
+
+        [Test]
+        public async Task BinderDoesNotSubscribeWhenTheProviderCannotPush()
+        {
+            var fixture = new Isa95CommonTestContext();
+            GeoSpatialLocationState state = CreateLocationVariable(fixture);
+            var provider = new PollOnlyProvider();
+            Isa95ModelBuilder builder = fixture.CreateBuilder();
+
+            using IDisposable binding = builder.BindGeoSpatialLocation(
+                state,
+                provider,
+                SourceId);
+
+            await Task.Delay(50).ConfigureAwait(false);
+
+            Assert.That(provider.WatchCallCount, Is.Zero);
+            AttributeReadResult result = await state.OnReadValueAsync!(
+                fixture.Context,
+                state,
+                NumericRange.Null,
+                QualifiedName.Null,
+                CancellationToken.None).ConfigureAwait(false);
+            Assert.That(ReadLiterals(result.Value), Is.EqualTo(s_berlin));
         }
 
         [Test]
@@ -254,7 +287,7 @@ namespace Opc.Ua.ISA95.Tests.Common
             var provider = new FaultingUpdateProvider();
 
             using IDisposable binding =
-                Isa95GeoSpatialLocationBinder.Bind(context, state, provider);
+                Isa95GeoSpatialLocationBinder.Bind(context, state, provider, SourceId);
 
             bool logged = false;
             for (int attempt = 0; attempt < 100 && !logged; attempt++)
@@ -292,13 +325,14 @@ namespace Opc.Ua.ISA95.Tests.Common
         {
             var fixture = new Isa95CommonTestContext();
             Isa95ModelBuilder builder = fixture.CreateBuilder();
-            using var provider = new Isa95GeoSpatialLocationProvider("Berlin");
+            using InMemoryGeoLocationProvider provider = CreateProvider("Berlin");
 
             using Isa95GeoSpatialLocationBinding binding =
                 await builder.CreateGeoSpatialLocationAsync(
                     fixture.Root,
                     "Location",
-                    provider).ConfigureAwait(false);
+                    provider,
+                    SourceId).ConfigureAwait(false);
 
             Assert.That(binding.State.OnReadValueAsync, Is.Not.Null);
             AttributeReadResult result = await binding.State.OnReadValueAsync!(
@@ -307,25 +341,57 @@ namespace Opc.Ua.ISA95.Tests.Common
                 NumericRange.Null,
                 QualifiedName.Null,
                 CancellationToken.None).ConfigureAwait(false);
-            Assert.That(result.Value.TryGetValue(out string text), Is.True);
-            Assert.That(text, Is.EqualTo("Berlin"));
+            Assert.That(ReadLiterals(result.Value), Is.EqualTo(s_berlin));
+        }
+
+        [Test]
+        public void CreateGeoSpatialLocationWithProviderRequiresASourceId()
+        {
+            var fixture = new Isa95CommonTestContext();
+            Isa95ModelBuilder builder = fixture.CreateBuilder();
+            using InMemoryGeoLocationProvider provider = CreateProvider("Berlin");
+
+            Assert.That(
+                async () => await builder.CreateGeoSpatialLocationAsync(
+                    fixture.Root,
+                    "Location",
+                    provider).ConfigureAwait(false),
+                Throws.ArgumentException);
+        }
+
+        private static InMemoryGeoLocationProvider CreateProvider(params string[] labels)
+        {
+            var provider = new InMemoryGeoLocationProvider();
+            provider.Update(SourceId, GeoLocationSample.Good(labels.ToArrayOf()));
+            return provider;
+        }
+
+        private static string[] ReadLiterals(Variant value)
+        {
+            return value.TryGetValue(out ArrayOf<string> literals)
+                ? [.. literals]
+                : [];
         }
 
         private static async Task<bool> WaitForValueAsync(
             GeoSpatialLocationState state,
             string expected,
-            Isa95GeoSpatialLocationProvider provider)
+            InMemoryGeoLocationProvider provider)
         {
             for (int attempt = 0; attempt < 100; attempt++)
             {
-                provider.Update(Isa95GeoSpatialLocation.Good(expected));
-                if (state.Value.TryGetValue(out string text) && text == expected)
+                provider.Update(
+                    SourceId,
+                    GeoLocationSample.Good(new[] { expected }.ToArrayOf()));
+                string[] literals = ReadLiterals(state.Value);
+                if (literals.Length == 1 && literals[0] == expected)
                 {
                     return true;
                 }
                 await Task.Delay(20).ConfigureAwait(false);
             }
-            return state.Value.TryGetValue(out string final) && final == expected;
+            string[] final = ReadLiterals(state.Value);
+            return final.Length == 1 && final[0] == expected;
         }
 
         private static GeoSpatialLocationState CreateLocationVariable(
@@ -336,24 +402,53 @@ namespace Opc.Ua.ISA95.Tests.Common
                 new QualifiedName("Location", fixture.InstanceNamespaceIndex));
         }
 
-        private sealed class FaultingUpdateProvider : IIsa95GeoSpatialLocationProvider
+        private sealed class FaultingUpdateProvider : IGeoLocationProvider
         {
-            public ValueTask<Isa95GeoSpatialLocation> GetCurrentAsync(
+            public bool SupportsPush => true;
+
+            public ValueTask<GeoLocationSample> ReadAsync(
+                string sourceId,
                 CancellationToken cancellationToken = default)
             {
-                return new ValueTask<Isa95GeoSpatialLocation>(
-                    Isa95GeoSpatialLocation.Good("Berlin"));
+                return new ValueTask<GeoLocationSample>(
+                    GeoLocationSample.Good(s_berlin.ToArrayOf()));
             }
 
-            public async IAsyncEnumerable<Isa95GeoSpatialLocation> SubscribeAsync(
+            public async IAsyncEnumerable<GeoLocationSample> WatchAsync(
+                string sourceId,
                 [EnumeratorCancellation] CancellationToken cancellationToken = default)
             {
-                yield return Isa95GeoSpatialLocation.Good("Munich");
+                yield return GeoLocationSample.Good(s_munich.ToArrayOf());
                 await Task.Yield();
                 throw new InvalidOperationException("stream boom");
             }
         }
 
+        private sealed class PollOnlyProvider : IGeoLocationProvider
+        {
+            public bool SupportsPush => false;
+
+            public int WatchCallCount => m_watchCallCount;
+
+            public ValueTask<GeoLocationSample> ReadAsync(
+                string sourceId,
+                CancellationToken cancellationToken = default)
+            {
+                return new ValueTask<GeoLocationSample>(
+                    GeoLocationSample.Good(s_berlin.ToArrayOf()));
+            }
+
+            public async IAsyncEnumerable<GeoLocationSample> WatchAsync(
+                string sourceId,
+                [EnumeratorCancellation] CancellationToken cancellationToken = default)
+            {
+                Interlocked.Increment(ref m_watchCallCount);
+                await Task.Yield();
+                yield break;
+            }
+
+            private int m_watchCallCount;
+        }
         private sealed class SimpleNodeIdFactory : INodeIdFactory
         {
             public NodeId New(ISystemContext context, NodeState node)
