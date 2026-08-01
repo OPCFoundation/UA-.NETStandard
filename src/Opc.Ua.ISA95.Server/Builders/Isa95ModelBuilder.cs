@@ -317,7 +317,9 @@ namespace Opc.Ua.ISA95.Server.Builders
         public async ValueTask<Isa95GeoSpatialLocationBinding> CreateGeoSpatialLocationAsync(
             NodeState parent,
             string name,
-            IIsa95GeoSpatialLocationProvider? provider = null,
+            IGeoLocationProvider? provider = null,
+            string? sourceId = null,
+            IGeoLocationTextFormatter? formatter = null,
             CancellationToken cancellationToken = default)
         {
             GeoSpatialLocationState state = await CreateAsync(
@@ -326,7 +328,14 @@ namespace Opc.Ua.ISA95.Server.Builders
                 OpcUaISA95Extensions.CreateInstanceOfGeoSpatialLocationType,
                 cancellationToken).ConfigureAwait(false);
             IDisposable? binding = provider != null
-                ? BindGeoSpatialLocation(state, provider, cancellationToken)
+                ? BindGeoSpatialLocation(
+                    state,
+                    provider,
+                    sourceId ?? throw new ArgumentException(
+                        "A source identifier is required when a provider is supplied.",
+                        nameof(sourceId)),
+                    formatter,
+                    cancellationToken)
                 : null;
             return new Isa95GeoSpatialLocationBinding(state, binding);
         }
@@ -820,13 +829,17 @@ namespace Opc.Ua.ISA95.Server.Builders
         /// <inheritdoc/>
         public IDisposable BindGeoSpatialLocation(
             GeoSpatialLocationState state,
-            IIsa95GeoSpatialLocationProvider provider,
+            IGeoLocationProvider provider,
+            string sourceId,
+            IGeoLocationTextFormatter? formatter = null,
             CancellationToken cancellationToken = default)
         {
             return Isa95GeoSpatialLocationBinder.Bind(
                 Context,
                 state,
                 provider,
+                sourceId,
+                formatter,
                 cancellationToken);
         }
 

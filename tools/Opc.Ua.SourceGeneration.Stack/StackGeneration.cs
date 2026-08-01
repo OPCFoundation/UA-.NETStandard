@@ -33,8 +33,6 @@ using System.Text;
 using System.Threading;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
-using ILogger = SGF.Diagnostics.ILogger;
-using SourceProductionContext = SGF.SgfSourceProductionContext;
 
 namespace Opc.Ua.SourceGeneration
 {
@@ -49,13 +47,12 @@ namespace Opc.Ua.SourceGeneration
         public StackGeneration(
             SourceProductionContext context,
             CompilationOptions compilationOptions,
-            StackGenerationOptions options,
-            ILogger logger)
+            StackGenerationOptions options)
         {
             m_context = context;
             m_options = options;
             m_compilationOptions = compilationOptions;
-            m_telemetry = SourceGeneratorTelemetry.Create(logger, m_context);
+            m_telemetry = SourceGeneratorTelemetry.Create(m_context);
         }
 
         /// <summary>
@@ -116,7 +113,7 @@ namespace Opc.Ua.SourceGeneration
                         SourceGenerator.Exception,
                         Location.None,
                         ex.Message,
-                        ex.StackTrace));
+                        ex.ToString()));
             }
         }
 
@@ -126,7 +123,7 @@ namespace Opc.Ua.SourceGeneration
         /// <returns></returns>
         private bool CheckCompilationOptions(out StackGenerationType type)
         {
-            if (m_compilationOptions.LanguageVersion < LanguageVersion.CSharp13)
+            if (!m_compilationOptions.IsCSharp13OrLater)
             {
                 type = StackGenerationType.None;
                 m_context.ReportDiagnostic(

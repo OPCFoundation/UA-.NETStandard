@@ -301,7 +301,8 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadDataValueWithInvalidServerPicoseconds()
         {
-            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{ "StatusCode": {}, "ServerPicoseconds": [] }"""));
+            using JsonDecoder reader = NewDecoder(
+                Body(/*lang=json,strict*/ """{ "Status": {}, "ServerPicoseconds": [] }"""));
             DataValue result = reader.ReadDataValue(JsonProperties.Value);
             Assert.That(result.IsNull, Is.True);
         }
@@ -309,7 +310,8 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadDataValueWithServerPicosecondsButNoServerTimestamp()
         {
-            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{ "StatusCode": {}, "ServerPicoseconds": 123 }"""));
+            using JsonDecoder reader = NewDecoder(
+                Body(/*lang=json,strict*/ """{ "Status": {}, "ServerPicoseconds": 123 }"""));
             DataValue result = reader.ReadDataValue(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(new DataValue(Variant.Null, StatusCodes.Good).WithServerPicoseconds(123)));
         }
@@ -317,7 +319,9 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadDataValueWithServerPicosecondsButNoServerTimestampStrict()
         {
-            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{ "StatusCode": {}, "ServerPicoseconds": 123 }"""), true);
+            using JsonDecoder reader = NewDecoder(
+                Body(/*lang=json,strict*/ """{ "Status": {}, "ServerPicoseconds": 123 }"""),
+                true);
             DataValue result = reader.ReadDataValue(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(new DataValue(Variant.Null, StatusCodes.Good).WithServerPicoseconds(0)));
         }
@@ -333,7 +337,8 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadDataValueWithInvalidSourcePicoseconds()
         {
-            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{ "StatusCode": {}, "SourcePicoseconds": [] }"""));
+            using JsonDecoder reader = NewDecoder(
+                Body(/*lang=json,strict*/ """{ "Status": {}, "SourcePicoseconds": [] }"""));
             DataValue result = reader.ReadDataValue(JsonProperties.Value);
             Assert.That(result.IsNull, Is.True);
         }
@@ -341,7 +346,8 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadDataValueWithSourcePicosecondsButNoServerTimestamp()
         {
-            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{ "StatusCode": {}, "SourcePicoseconds": 123 }"""));
+            using JsonDecoder reader = NewDecoder(
+                Body(/*lang=json,strict*/ """{ "Status": {}, "SourcePicoseconds": 123 }"""));
             DataValue result = reader.ReadDataValue(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(new DataValue(Variant.Null, StatusCodes.Good).WithSourcePicoseconds(123)));
         }
@@ -349,7 +355,9 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadDataValueWithSourcePicosecondsButNoServerTimestampStrict()
         {
-            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{ "StatusCode": {}, "SourcePicoseconds": 123 }"""), true);
+            using JsonDecoder reader = NewDecoder(
+                Body(/*lang=json,strict*/ """{ "Status": {}, "SourcePicoseconds": 123 }"""),
+                true);
             DataValue result = reader.ReadDataValue(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(new DataValue(Variant.Null, StatusCodes.Good).WithSourcePicoseconds(0)));
         }
@@ -365,9 +373,19 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadDataValueWithInvalidStatusCode()
         {
-            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{ "StatusCode": [] }"""));
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{ "Status": [] }"""));
             DataValue result = reader.ReadDataValue(JsonProperties.Value);
             Assert.That(result.IsNull, Is.True);
+        }
+
+        [Test]
+        public void ReadDataValueWithStatusMember()
+        {
+            string json =
+                $$"""{ "Status": { "Code": {{StatusCodes.BadNotWritable.Code}} } }""";
+            using JsonDecoder reader = NewDecoder(Body(json));
+            DataValue result = reader.ReadDataValue(JsonProperties.Value);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
         }
 
         [Test]

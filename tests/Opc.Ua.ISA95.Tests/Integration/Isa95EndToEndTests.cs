@@ -68,8 +68,10 @@ namespace Opc.Ua.ISA95.Tests.Integration
                 TestContext.CurrentContext.WorkDirectory,
                 nameof(Isa95EndToEndTests),
                 Guid.NewGuid().ToString("N"));
-            using var locationProvider = new Isa95GeoSpatialLocationProvider(
-                "POINT (8.5417 47.3769)");
+            using var locationProvider = new InMemoryGeoLocationProvider();
+            locationProvider.Update(
+                "plant",
+                new GeoPosition(47.3769, 8.5417, EpsgCode: 4326));
             using var jobProvider = new InMemoryIsa95JobControlProvider();
             var statusSource = new TrackingStatusSource(jobProvider);
             Isa95GeoSpatialLocationBinding? locationBinding = null;
@@ -138,7 +140,8 @@ namespace Opc.Ua.ISA95.Tests.Integration
                     model.Root,
                     "PlantLocation",
                     locationProvider,
-                    ct).ConfigureAwait(false);
+                    "plant",
+                    cancellationToken: ct).ConfigureAwait(false);
                 locationNodeId = locationBinding.State.NodeId;
                 PhysicalAssetPropertyState locationProperty =
                     await model.AddPropertyAsync(
@@ -348,10 +351,15 @@ namespace Opc.Ua.ISA95.Tests.Integration
             DataValue location = await session.ReadValueAsync(locationNodeId, ct)
                 .ConfigureAwait(false);
             Assert.That(location.StatusCode, Is.EqualTo(StatusCodes.Good));
+            // OPC 10030 declares GeoSpatialLocationType with ValueRank
+            // OneOrMoreDimensions, so the value is an array of literals.
             Assert.That(
-                location.WrappedValue.TryGetValue(out string? value),
+                location.WrappedValue.TryGetValue(out ArrayOf<string> literals),
                 Is.True);
-            Assert.That(value, Is.EqualTo("POINT (8.5417 47.3769)"));
+            Assert.That(literals.Count, Is.EqualTo(1));
+            Assert.That(
+                literals[0],
+                Is.EqualTo("SRID=4326;POINT (8.5417 47.3769)"));
         }
 
         private static async Task ExerciseJobControlAsync(

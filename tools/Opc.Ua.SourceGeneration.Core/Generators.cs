@@ -50,9 +50,59 @@ namespace Opc.Ua.SourceGeneration
         /// <param name="options">Generator options</param>
         /// <param name="useAllowSubtypes">allow subtypes</param>
         /// <param name="identifierFiles">Any additional csv files</param>
+        /// <param name="referencedModels">Models supplied by referenced assemblies.</param>
+        /// <param name="nodeManagerBindings">Optional node manager bindings.</param>
+        /// <param name="reportBindingDiagnostic">Optional binding diagnostic callback.</param>
+        /// <param name="sharedUsedBindings">Optional set that accumulates matched bindings.</param>
+        /// <param name="bindingModelCount">Total number of generatable models across all passes.</param>
+        public static void GenerateCode(
+            this DesignFileCollection designFiles,
+            IFileSystem fileSystem,
+            string outputDir,
+            ITelemetryContext telemetry,
+            GeneratorOptions options = null,
+            bool useAllowSubtypes = false,
+            List<string> identifierFiles = null,
+            IReadOnlyDictionary<string, ModelDependencyReference> referencedModels = null,
+            IReadOnlyList<NodeManagerAttributeBinding> nodeManagerBindings = null,
+            Action<NodeManagerAttributeBinding, string> reportBindingDiagnostic = null,
+            HashSet<NodeManagerAttributeBinding> sharedUsedBindings = null,
+            int bindingModelCount = 0)
+        {
+            GenerateCode(
+                designFiles,
+                fileSystem,
+                outputDir,
+                telemetry,
+                options,
+                useAllowSubtypes,
+                identifierFiles,
+                referencedModels,
+                nodeManagerBindings,
+                reportBindingDiagnostic,
+                sharedUsedBindings,
+                bindingModelCount,
+                null,
+                null,
+                null);
+        }
+
+        /// <summary>
+        /// Generate code from design files with fluent-accessor provider metadata.
+        /// </summary>
+        /// <param name="designFiles">Design files to process</param>
+        /// <param name="fileSystem">File system abstraction to use</param>
+        /// <param name="outputDir">Output folder or null</param>
+        /// <param name="telemetry">Telemetry context for logging</param>
+        /// <param name="options">Generator options</param>
+        /// <param name="useAllowSubtypes">allow subtypes</param>
+        /// <param name="identifierFiles">Any additional csv files</param>
         /// <param name="referencedModels">Models supplied by referenced
         /// assemblies (keyed by model URI). Used to seed the assembly
-        /// dependency closure and may be empty.</param>
+        /// dependency closure and may be empty. Targets supplied under the
+        /// same C# prefix are normally skipped; when
+        /// <see cref="GeneratorOptions.FluentAccessorsOnly"/> is enabled they are
+        /// instead loaded and used to emit typed fluent accessors only.</param>
         /// <param name="nodeManagerBindings">
         /// Optional <c>[NodeManager]</c> attribute bindings discovered in
         /// the consuming compilation. When supplied, each binding is
@@ -80,19 +130,34 @@ namespace Opc.Ua.SourceGeneration
         /// single-model binding fallback and ambiguity detection. When
         /// <c>0</c> the per-pass model count is used (single-pass callers).
         /// </param>
+        /// <param name="reportFluentAccessorsOnlyDiagnostic">
+        /// Optional callback invoked when a model cannot participate in
+        /// fluent-accessors-only generation. Arguments are model URI,
+        /// requested prefix, input path, and failure reason.
+        /// </param>
+        /// <param name="referencedModelProviders">
+        /// All model dependency declarations from referenced assemblies,
+        /// including payload-bearing producers and payloadless re-exports.
+        /// </param>
+        /// <param name="referencedAccessorProviders">
+        /// All referenced assemblies that declare generated fluent accessors.
+        /// </param>
         public static void GenerateCode(
             this DesignFileCollection designFiles,
             IFileSystem fileSystem,
             string outputDir,
             ITelemetryContext telemetry,
-            GeneratorOptions options = null,
-            bool useAllowSubtypes = false,
-            List<string> identifierFiles = null,
-            IReadOnlyDictionary<string, ModelDependencyReference> referencedModels = null,
-            IReadOnlyList<NodeManagerAttributeBinding> nodeManagerBindings = null,
-            Action<NodeManagerAttributeBinding, string> reportBindingDiagnostic = null,
-            HashSet<NodeManagerAttributeBinding> sharedUsedBindings = null,
-            int bindingModelCount = 0)
+            GeneratorOptions options,
+            bool useAllowSubtypes,
+            List<string> identifierFiles,
+            IReadOnlyDictionary<string, ModelDependencyReference> referencedModels,
+            IReadOnlyList<NodeManagerAttributeBinding> nodeManagerBindings,
+            Action<NodeManagerAttributeBinding, string> reportBindingDiagnostic,
+            HashSet<NodeManagerAttributeBinding> sharedUsedBindings,
+            int bindingModelCount,
+            Action<string, string, string, string> reportFluentAccessorsOnlyDiagnostic,
+            IReadOnlyList<ModelDependencyReference> referencedModelProviders,
+            IReadOnlyList<ModelFluentAccessorProviderReference> referencedAccessorProviders)
         {
             if (designFiles.Targets == null || designFiles.Targets.Count == 0)
             {
@@ -100,6 +165,8 @@ namespace Opc.Ua.SourceGeneration
             }
             options ??= new GeneratorOptions();
             referencedModels ??= ImmutableDictionary<string, ModelDependencyReference>.Empty;
+            referencedModelProviders ??= [.. referencedModels.Values];
+            referencedAccessorProviders ??= [];
 
             // Combine with embedded resources in this assembly.
             fileSystem = typeof(Generators).Assembly
@@ -126,12 +193,13 @@ namespace Opc.Ua.SourceGeneration
                 // provides this model under the same C# prefix, silently
                 // skip local generation to avoid duplicate type emission.
                 Namespace target = modelDesign.TargetNamespace;
-                if (target != null &&
+                bool targetProvidedByReference = target != null &&
                     !string.IsNullOrEmpty(target.Value) &&
                     referencedModels.TryGetValue(target.Value,
                         out ModelDependencyReference referenced) &&
                     string.Equals(referenced.Prefix, target.Prefix,
-                        StringComparison.Ordinal))
+                        StringComparison.Ordinal);
+                if (targetProvidedByReference && !options.FluentAccessorsOnly)
                 {
                     continue;
                 }
@@ -144,6 +212,7 @@ namespace Opc.Ua.SourceGeneration
                 // NodeSetToModelDesign) emit references like
                 // `global::Opc.Ua.DI.X` instead of `global::Opc.Ua.Di.X`.
                 OverrideDependencyPrefixes(modelDesign, referencedModels);
+                EnsureUniqueTargetNamespaceName(modelDesign);
 
                 DesignFileOptions effectiveOptions = ApplyNodeManagerBinding(
                     model,
@@ -151,6 +220,28 @@ namespace Opc.Ua.SourceGeneration
                     nodeManagerBindings,
                     usedBindings,
                     totalDesigns);
+                string modelPath = model.Targets.Count > 0
+                    ? model.Targets[0]
+                    : string.Empty;
+
+                if (options.FluentAccessorsOnly &&
+                    (!ValidateFluentAccessorsOnlyTarget(
+                        target?.Value,
+                        target?.Prefix,
+                        modelPath,
+                        referencedModelProviders,
+                        referencedAccessorProviders,
+                        reportFluentAccessorsOnlyDiagnostic) ||
+                    !ValidateFluentAccessorsOnlyOptions(
+                        target?.Value,
+                        target?.Prefix,
+                        modelPath,
+                        options,
+                        effectiveOptions,
+                        reportFluentAccessorsOnlyDiagnostic)))
+                {
+                    continue;
+                }
 
                 var context = new GeneratorContext
                 {
@@ -165,7 +256,11 @@ namespace Opc.Ua.SourceGeneration
                 context,
                 validateSchemas: false,
                 designOptions: effectiveOptions);
-                if (!options.OmitEventRecords)
+                // In fluent-accessors-only mode the model itself is already
+                // supplied by a referenced assembly, which carries its event
+                // records too. Emitting them again here would duplicate every
+                // record type the reference already exports (CS0436).
+                if (!options.OmitEventRecords && !options.FluentAccessorsOnly)
                 {
                     new EventRecordGenerator(context).Emit();
                 }
@@ -208,6 +303,7 @@ namespace Opc.Ua.SourceGeneration
             {
                 return;
             }
+
             string targetUri = modelDesign.TargetNamespace?.Value;
             foreach (Namespace ns in modelDesign.Namespaces)
             {
@@ -237,6 +333,222 @@ namespace Opc.Ua.SourceGeneration
                     ns.Name = dep.Name;
                 }
             }
+        }
+
+        internal static void EnsureUniqueTargetNamespaceName(IModelDesign modelDesign)
+        {
+            Namespace target = modelDesign?.TargetNamespace;
+            if (target == null ||
+                string.IsNullOrEmpty(target.Value) ||
+                string.IsNullOrEmpty(target.Name) ||
+                modelDesign.Namespaces == null)
+            {
+                return;
+            }
+
+            bool duplicate = modelDesign.Namespaces.Any(ns =>
+                ns != null &&
+                !string.Equals(ns.Value, target.Value, StringComparison.Ordinal) &&
+                string.Equals(ns.Name, target.Name, StringComparison.Ordinal));
+            if (!duplicate)
+            {
+                return;
+            }
+
+            string candidate = CreateNamespaceConstantName(target.Prefix);
+            if (string.IsNullOrEmpty(candidate) ||
+                string.Equals(candidate, target.Name, StringComparison.Ordinal))
+            {
+                candidate = target.Name + "Namespace";
+            }
+
+            HashSet<string> usedNames = [.. modelDesign.Namespaces
+                .Where(ns => ns != null &&
+                    !string.Equals(ns.Value, target.Value, StringComparison.Ordinal) &&
+                    !string.IsNullOrEmpty(ns.Name))
+                .Select(ns => ns.Name)];
+            string uniqueName = candidate;
+            int suffix = 2;
+            while (usedNames.Contains(uniqueName))
+            {
+                uniqueName = candidate + suffix.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                suffix++;
+            }
+            target.Name = uniqueName;
+            foreach (Namespace ns in modelDesign.Namespaces.Where(ns =>
+                ns != null &&
+                string.Equals(ns.Value, target.Value, StringComparison.Ordinal)))
+            {
+                ns.Name = uniqueName;
+            }
+        }
+
+        private static string CreateNamespaceConstantName(string prefix)
+        {
+            if (string.IsNullOrEmpty(prefix))
+            {
+                return null;
+            }
+
+            string[] parts = prefix.Split(['.', '-', '_', '/', ':'], StringSplitOptions.RemoveEmptyEntries);
+            return string.Concat(parts.Select(part => part.ToSafeSymbolName().ToUpperCamelCase()));
+        }
+
+        /// <summary>
+        /// Returns whether a fluent-accessors-only build has a target it can
+        /// legitimately extend, reporting why through
+        /// <paramref name="reportDiagnostic"/> when it does not.
+        /// </summary>
+        /// <remarks>
+        /// Internal rather than private so the outcomes can be asserted
+        /// directly; running the whole generator to observe a single
+        /// validation branch would say much less about which branch fired.
+        /// </remarks>
+        /// <param name="modelUri">The target model URI.</param>
+        /// <param name="prefix">The target C# prefix.</param>
+        /// <param name="path">The design file path, for diagnostics.</param>
+        /// <param name="referencedModelProviders">
+        /// Referenced assemblies that produce models.
+        /// </param>
+        /// <param name="referencedAccessorProviders">
+        /// Referenced assemblies that already produce fluent accessors.
+        /// </param>
+        /// <param name="reportDiagnostic">
+        /// Receives model URI, prefix, path and the reason on rejection.
+        /// </param>
+        /// <returns>True when the target may be extended.</returns>
+        internal static bool ValidateFluentAccessorsOnlyTarget(
+            string modelUri,
+            string prefix,
+            string path,
+            IReadOnlyList<ModelDependencyReference> referencedModelProviders,
+            IReadOnlyList<ModelFluentAccessorProviderReference> referencedAccessorProviders,
+            Action<string, string, string, string> reportDiagnostic)
+        {
+            if (string.IsNullOrEmpty(modelUri))
+            {
+                reportDiagnostic?.Invoke(
+                    modelUri ?? string.Empty,
+                    prefix ?? string.Empty,
+                    path ?? string.Empty,
+                    "no referenced assembly supplies the target model URI.");
+                return false;
+            }
+
+            ModelFluentAccessorProviderReference accessorProvider =
+                referencedAccessorProviders.FirstOrDefault(provider =>
+                    provider.IsValid &&
+                    string.Equals(provider.ModelUri, modelUri, StringComparison.Ordinal) &&
+                    string.Equals(provider.Prefix, prefix, StringComparison.Ordinal));
+            if (accessorProvider.IsValid)
+            {
+                reportDiagnostic?.Invoke(
+                    modelUri,
+                    prefix ?? string.Empty,
+                    path ?? string.Empty,
+                    "referenced assembly '" + accessorProvider.AssemblyName +
+                    "' already provides generated fluent accessors.");
+                return false;
+            }
+
+            var producers =
+                new List<(ModelDependencyReference Reference,
+                    Dependency.ModelDependencyV1 Dependency)>();
+            foreach (ModelDependencyReference reference in referencedModelProviders.Where(
+                reference =>
+                    reference.IsValid &&
+                    string.Equals(reference.ModelUri, modelUri, StringComparison.Ordinal)))
+            {
+                Dependency.ModelDependencyV1 dependency = reference.GetDependency();
+                if (string.Equals(reference.Prefix, prefix, StringComparison.Ordinal) &&
+                    !string.IsNullOrEmpty(reference.Payload) &&
+                    (dependency == null ||
+                        !string.Equals(
+                            dependency.ModelUri,
+                            modelUri,
+                            StringComparison.Ordinal)))
+                {
+                    reportDiagnostic?.Invoke(
+                        modelUri,
+                        prefix ?? string.Empty,
+                        path ?? string.Empty,
+                        "model producer '" + reference.AssemblyName +
+                        "' has a malformed model dependency payload.");
+                    return false;
+                }
+                if (dependency != null &&
+                    string.Equals(dependency.ModelUri, modelUri, StringComparison.Ordinal))
+                {
+                    producers.Add((reference, dependency));
+                }
+            }
+            List<(ModelDependencyReference Reference, Dependency.ModelDependencyV1 Dependency)>
+                matchingProducers = [.. producers.Where(entry =>
+                    string.Equals(entry.Reference.Prefix, prefix, StringComparison.Ordinal))];
+            if (matchingProducers.Count == 0)
+            {
+                string reason = producers.Count > 0
+                    ? "model producer '" + producers[0].Reference.AssemblyName +
+                        "' supplies prefix '" + producers[0].Reference.Prefix + "'."
+                    : "no payload-bearing referenced model producer supplies the target model.";
+                reportDiagnostic?.Invoke(
+                    modelUri,
+                    prefix ?? string.Empty,
+                    path ?? string.Empty,
+                    reason);
+                return false;
+            }
+
+            foreach ((ModelDependencyReference reference,
+                Dependency.ModelDependencyV1 dependency) in matchingProducers)
+            {
+                if (!dependency.FluentAccessorsEmitted.HasValue)
+                {
+                    reportDiagnostic?.Invoke(
+                        modelUri,
+                        prefix ?? string.Empty,
+                        path ?? string.Empty,
+                        "model producer '" + reference.AssemblyName +
+                        "' has unknown legacy fluent-accessor capability.");
+                    return false;
+                }
+                if (dependency.FluentAccessorsEmitted.Value)
+                {
+                    reportDiagnostic?.Invoke(
+                        modelUri,
+                        prefix ?? string.Empty,
+                        path ?? string.Empty,
+                        "model producer '" + reference.AssemblyName +
+                        "' already contains fluent accessors.");
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        private static bool ValidateFluentAccessorsOnlyOptions(
+            string modelUri,
+            string prefix,
+            string path,
+            GeneratorOptions options,
+            DesignFileOptions designOptions,
+            Action<string, string, string, string> reportDiagnostic)
+        {
+            string reason = options.OmitFluentApi
+                ? "OmitFluentApi is also enabled."
+                : designOptions?.GenerateNodeManager == true
+                    ? "NodeManager generation is also enabled."
+                    : null;
+            if (reason == null)
+            {
+                return true;
+            }
+            reportDiagnostic?.Invoke(
+                modelUri ?? string.Empty,
+                prefix ?? string.Empty,
+                path ?? string.Empty,
+                reason);
+            return false;
         }
 
         /// <summary>
@@ -382,11 +694,61 @@ namespace Opc.Ua.SourceGeneration
         /// <param name="telemetry">Telemetry context for logging</param>
         /// <param name="options">Generator options</param>
         /// <param name="useAllowSubtypes">allow subtypes</param>
+        /// <param name="referencedModels">Models supplied by referenced assemblies.</param>
+        /// <param name="nodeManagerBindings">Optional node manager bindings.</param>
+        /// <param name="reportBindingDiagnostic">Optional binding diagnostic callback.</param>
+        /// <param name="referencedDependencies">Per-URI model dependency payloads.</param>
+        /// <param name="sharedUsedBindings">Optional set that accumulates matched bindings.</param>
+        /// <param name="bindingModelCount">Total number of generatable models across all passes.</param>
+        public static void GenerateCode(
+            this NodesetFileCollection nodesets,
+            IFileSystem fileSystem,
+            string outputDir,
+            ITelemetryContext telemetry,
+            GeneratorOptions options = null,
+            bool useAllowSubtypes = false,
+            IReadOnlyDictionary<string, ModelDependencyReference> referencedModels = null,
+            IReadOnlyList<NodeManagerAttributeBinding> nodeManagerBindings = null,
+            Action<NodeManagerAttributeBinding, string> reportBindingDiagnostic = null,
+            IReadOnlyDictionary<string, Dependency.ModelDependencyV1> referencedDependencies = null,
+            HashSet<NodeManagerAttributeBinding> sharedUsedBindings = null,
+            int bindingModelCount = 0)
+        {
+            GenerateCode(
+                nodesets,
+                fileSystem,
+                outputDir,
+                telemetry,
+                options,
+                useAllowSubtypes,
+                referencedModels,
+                nodeManagerBindings,
+                reportBindingDiagnostic,
+                referencedDependencies,
+                sharedUsedBindings,
+                bindingModelCount,
+                null,
+                null,
+                null);
+        }
+
+        /// <summary>
+        /// Generate from nodesets with fluent-accessor provider metadata.
+        /// </summary>
+        /// <param name="nodesets">Nodesets to process</param>
+        /// <param name="fileSystem">File system abstraction to use</param>
+        /// <param name="outputDir">Output folder or null</param>
+        /// <param name="telemetry">Telemetry context for logging</param>
+        /// <param name="options">Generator options</param>
+        /// <param name="useAllowSubtypes">allow subtypes</param>
         /// <param name="referencedModels">Models supplied by referenced
         /// assemblies (keyed by model URI). When a target's model URI
-        /// is in this map the nodeset is skipped (referenced assembly
-        /// already supplies the types). Transitive nodeset dependencies
-        /// found in the map are also satisfied without erroring.</param>
+        /// is in this map under the same C# prefix the nodeset is normally
+        /// skipped because the referenced assembly already supplies the
+        /// types. When <see cref="GeneratorOptions.FluentAccessorsOnly"/> is
+        /// enabled the target is instead loaded and used to emit typed
+        /// fluent accessors only. Transitive nodeset dependencies found in
+        /// the map are also satisfied without erroring.</param>
         /// <param name="nodeManagerBindings">
         /// Optional <c>[NodeManager]</c> attribute bindings discovered in
         /// the consuming compilation. When supplied, each binding is
@@ -421,19 +783,34 @@ namespace Opc.Ua.SourceGeneration
         /// single-model binding fallback and ambiguity detection. When
         /// <c>0</c> the per-pass model count is used (single-pass callers).
         /// </param>
+        /// <param name="reportFluentAccessorsOnlyDiagnostic">
+        /// Optional callback invoked when a model cannot participate in
+        /// fluent-accessors-only generation. Arguments are model URI,
+        /// requested prefix, input path, and failure reason.
+        /// </param>
+        /// <param name="referencedModelProviders">
+        /// All model dependency declarations from referenced assemblies,
+        /// including payload-bearing producers and payloadless re-exports.
+        /// </param>
+        /// <param name="referencedAccessorProviders">
+        /// All referenced assemblies that declare generated fluent accessors.
+        /// </param>
         public static void GenerateCode(
             this NodesetFileCollection nodesets,
             IFileSystem fileSystem,
             string outputDir,
             ITelemetryContext telemetry,
-            GeneratorOptions options = null,
-            bool useAllowSubtypes = false,
-            IReadOnlyDictionary<string, ModelDependencyReference> referencedModels = null,
-            IReadOnlyList<NodeManagerAttributeBinding> nodeManagerBindings = null,
-            Action<NodeManagerAttributeBinding, string> reportBindingDiagnostic = null,
-            IReadOnlyDictionary<string, Dependency.ModelDependencyV1> referencedDependencies = null,
-            HashSet<NodeManagerAttributeBinding> sharedUsedBindings = null,
-            int bindingModelCount = 0)
+            GeneratorOptions options,
+            bool useAllowSubtypes,
+            IReadOnlyDictionary<string, ModelDependencyReference> referencedModels,
+            IReadOnlyList<NodeManagerAttributeBinding> nodeManagerBindings,
+            Action<NodeManagerAttributeBinding, string> reportBindingDiagnostic,
+            IReadOnlyDictionary<string, Dependency.ModelDependencyV1> referencedDependencies,
+            HashSet<NodeManagerAttributeBinding> sharedUsedBindings,
+            int bindingModelCount,
+            Action<string, string, string, string> reportFluentAccessorsOnlyDiagnostic,
+            IReadOnlyList<ModelDependencyReference> referencedModelProviders,
+            IReadOnlyList<ModelFluentAccessorProviderReference> referencedAccessorProviders)
         {
             if (nodesets.Files.Count == 0)
             {
@@ -441,6 +818,8 @@ namespace Opc.Ua.SourceGeneration
             }
             options ??= new GeneratorOptions();
             referencedModels ??= ImmutableDictionary<string, ModelDependencyReference>.Empty;
+            referencedModelProviders ??= [.. referencedModels.Values];
+            referencedAccessorProviders ??= [];
 
             // Combine with embedded resources in this assembly.
             fileSystem = typeof(Generators).Assembly
@@ -469,10 +848,11 @@ namespace Opc.Ua.SourceGeneration
                 // Override resolution: if a referenced assembly already
                 // provides this model under the same C# prefix, silently
                 // skip local generation to avoid duplicate type emission.
-                if (referencedModels.TryGetValue(modelUri,
+                bool targetProvidedByReference = referencedModels.TryGetValue(modelUri,
                         out ModelDependencyReference referenced) &&
                     string.Equals(referenced.Prefix, nodeset.Info.Prefix,
-                        StringComparison.Ordinal))
+                        StringComparison.Ordinal);
+                if (targetProvidedByReference && !options.FluentAccessorsOnly)
                 {
                     continue;
                 }
@@ -481,12 +861,26 @@ namespace Opc.Ua.SourceGeneration
                 {
                     Targets = designFilesForModel
                 };
+                IReadOnlyDictionary<string, Dependency.ModelDependencyV1>
+                    validationDependencies = referencedDependencies;
+                if (options.FluentAccessorsOnly &&
+                    referencedDependencies != null &&
+                    referencedDependencies.ContainsKey(modelUri))
+                {
+                    Dictionary<string, Dependency.ModelDependencyV1> dependenciesWithoutTarget =
+                        referencedDependencies.ToDictionary(
+                            entry => entry.Key,
+                            entry => entry.Value,
+                            StringComparer.Ordinal);
+                    dependenciesWithoutTarget.Remove(modelUri);
+                    validationDependencies = dependenciesWithoutTarget;
+                }
                 IModelDesign modelDesign = fileSystem.OpenModelDesign(
                     model,
                     options.Exclusions,
                     telemetry,
                     useAllowSubtypes,
-                    referencedDependencies);
+                    validationDependencies);
 
                 // Cross-namespace prefix override: when a referenced
                 // assembly publishes a model under a specific C# prefix,
@@ -494,6 +888,7 @@ namespace Opc.Ua.SourceGeneration
                 // generated type references resolve against the referenced
                 // assembly's actual prefix (not the auto-generated one).
                 OverrideDependencyPrefixes(modelDesign, referencedModels);
+                EnsureUniqueTargetNamespaceName(modelDesign);
 
                 DesignFileOptions effectiveOptions = ApplyNodeManagerBinding(
                     model,
@@ -501,6 +896,25 @@ namespace Opc.Ua.SourceGeneration
                     nodeManagerBindings,
                     usedBindings,
                     totalDesigns);
+
+                if (options.FluentAccessorsOnly &&
+                    (!ValidateFluentAccessorsOnlyTarget(
+                        modelUri,
+                        nodeset.Info.Prefix,
+                        nodeset.FileName,
+                        referencedModelProviders,
+                        referencedAccessorProviders,
+                        reportFluentAccessorsOnlyDiagnostic) ||
+                    !ValidateFluentAccessorsOnlyOptions(
+                        modelUri,
+                        nodeset.Info.Prefix,
+                        nodeset.FileName,
+                        options,
+                        effectiveOptions,
+                        reportFluentAccessorsOnlyDiagnostic)))
+                {
+                    continue;
+                }
 
                 var context = new GeneratorContext
                 {
@@ -515,7 +929,11 @@ namespace Opc.Ua.SourceGeneration
                 context,
                 validateSchemas: false,
                 designOptions: effectiveOptions);
-                if (!options.OmitEventRecords)
+                // In fluent-accessors-only mode the model itself is already
+                // supplied by a referenced assembly, which carries its event
+                // records too. Emitting them again here would duplicate every
+                // record type the reference already exports (CS0436).
+                if (!options.OmitEventRecords && !options.FluentAccessorsOnly)
                 {
                     new EventRecordGenerator(context).Emit();
                 }
@@ -660,6 +1078,16 @@ namespace Opc.Ua.SourceGeneration
             bool validateSchemas = false,
             DesignFileOptions designOptions = null)
         {
+            if (context.Options?.FluentAccessorsOnly == true)
+            {
+                new FluentBuilderGenerator(context)
+                {
+                    GenerateManagerWrappers = false,
+                    EmitFluentAccessors = true
+                }.Emit();
+                return;
+            }
+
             // Generate schemas
             var xmlSchemaGenerator = new XmlSchemaGenerator(context)
             {
@@ -731,7 +1159,9 @@ namespace Opc.Ua.SourceGeneration
             }
             if (context.Options?.EmitDependencyMetadata != false)
             {
-                var modelDependencyGenerator = new ModelDependencyGenerator(context);
+                var modelDependencyGenerator = new ModelDependencyGenerator(
+                    context,
+                    emitTypedAccessors);
                 modelDependencyGenerator.Emit();
             }
         }

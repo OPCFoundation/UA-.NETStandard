@@ -3660,6 +3660,12 @@ namespace Opc.Ua.Server
                 ServerInternal.SetConformanceUnitsManager(
                     await CreateConformanceUnitsManagerAsync(m_serverInternal, configuration, cancellationToken).ConfigureAwait(false));
 
+                // describe every namespace the server exposes with a
+                // NamespaceMetadata Object (OPC 10000-5) so clients can
+                // version-check the models they cache.
+                await PublishNamespaceMetadataAsync(m_serverInternal, cancellationToken)
+                    .ConfigureAwait(false);
+
                 // start the session manager.
                 m_logger.ServerCreateSessionManager();
                 ISessionManager sessionManager = CreateSessionManager(
@@ -4303,6 +4309,27 @@ namespace Opc.Ua.Server
             await manager.PublishAsync(cancellationToken).ConfigureAwait(false);
 
             return manager;
+        }
+
+        /// <summary>
+        /// Publishes a <c>NamespaceMetadataType</c> Object under
+        /// <c>Server/Namespaces</c> for every namespace in the server's
+        /// <c>NamespaceArray</c>.
+        /// </summary>
+        /// <remarks>
+        /// OPC 10000-5 requires the <c>Namespaces</c> Object to describe the
+        /// namespaces the server provides; clients use the published version and
+        /// publication date to validate the models they cache. Servers that
+        /// manage their namespace metadata themselves may override this to do
+        /// nothing.
+        /// </remarks>
+        /// <param name="server">The server.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        protected virtual ValueTask PublishNamespaceMetadataAsync(
+            IServerInternal server,
+            CancellationToken cancellationToken = default)
+        {
+            return new NamespaceMetadataPublisher(server).PublishAsync(cancellationToken);
         }
 
         /// <summary>

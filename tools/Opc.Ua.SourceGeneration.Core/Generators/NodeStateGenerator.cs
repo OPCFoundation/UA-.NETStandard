@@ -182,7 +182,8 @@ namespace Opc.Ua.SourceGeneration
                 case ObjectTypeDesign:
                 case VariableTypeDesign:
                 case MethodDesign method
-                    when method.HasArguments && method.IsMethodTypeDesign():
+                    when MethodDesignArgumentResolver.HasMethodArguments(method) &&
+                        method.IsMethodTypeDesign():
                     return context.TemplateString;
                 default:
                     return null;
@@ -236,7 +237,8 @@ namespace Opc.Ua.SourceGeneration
                     => NodeStateTemplates.ObjectType_Class,
                 VariableTypeDesign
                     => NodeStateTemplates.VariableType_Class,
-                MethodDesign method when method.HasArguments
+                MethodDesign method when
+                    MethodDesignArgumentResolver.HasMethodArguments(method)
                     => NodeStateTemplates.MethodType_Class,
                 _ => null
             };
@@ -599,7 +601,14 @@ namespace Opc.Ua.SourceGeneration
                 return null;
             }
 
-            if (node.IsNotExplicitlyDefined || instance.IsOverridden())
+            bool isMethodOverrideWithDifferentClass =
+                instance is MethodDesign &&
+                instance.IsOverridden() &&
+                !instance.IsOverriddenWithSameClass(
+                    m_context.ModelDesign.TargetNamespace.Value,
+                    m_context.ModelDesign.Namespaces);
+            if (node.IsNotExplicitlyDefined ||
+                (instance.IsOverridden() && !isMethodOverrideWithDifferentClass))
             {
                 return null;
             }
@@ -631,6 +640,10 @@ namespace Opc.Ua.SourceGeneration
                 return null;
             }
 
+            if (isMethodOverrideWithDifferentClass)
+            {
+                instance = instance.GetMergedInstance();
+            }
             context.Out.WriteLine(
                 "private {0}? {1};",
                 instance.GetNodeStateClassName(
@@ -1026,6 +1039,10 @@ namespace Opc.Ua.SourceGeneration
                 {
                     return null;
                 }
+                if (instance is MethodDesign)
+                {
+                    return NodeStateTemplates.Property;
+                }
                 return NodeStateTemplates.PropertyOverride;
             }
 
@@ -1246,6 +1263,12 @@ namespace Opc.Ua.SourceGeneration
             {
                 // No registering of children
                 return null;
+            }
+            if (node.Design is MethodDesign method)
+            {
+                return MethodDesignArgumentResolver.HasMethodArguments(method)
+                    ? NodeStateTemplates.AddMethod
+                    : null;
             }
             return NodeStateTemplates.Add;
         }
@@ -1641,7 +1664,7 @@ namespace Opc.Ua.SourceGeneration
                             forInstanceVariableValue);
                         return null;
                     case InstanceDesign parentInstance:
-                        if (HasChildDefined(parentInstance.TypeDefinitionNode, instance.SymbolicName.Name) ||
+                        if (HasFixedChildSlot(parentInstance.TypeDefinitionNode, instance.SymbolicName.Name) ||
                             IsBuiltInProperty(node))
                         {
                             // Children whose SymbolicName ends in "_Placeholder"
@@ -2269,10 +2292,10 @@ namespace Opc.Ua.SourceGeneration
 
             context.Template.AddReplacement(
                 Tokens.AccessLevelValue,
-                node.AccessLevel.GetAccessLevelAsCode());
+                node.GetAccessLevelAsCode());
             context.Template.AddReplacement(
                 Tokens.UserAccessLevelValue,
-                node.AccessLevel.GetAccessLevelAsCode());
+                node.GetUserAccessLevelAsCode());
             context.Template.AddReplacement(
                 Tokens.MinimumSamplingIntervalValue,
                 node.MinimumSamplingInterval.ToString(CultureInfo.InvariantCulture));
@@ -2655,8 +2678,12 @@ namespace Opc.Ua.SourceGeneration
                 }
                 GetChildren(entry, m_nodes, false);
 
+                bool isMethodWithArguments =
+                    node is MethodDesign method &&
+                    MethodDesignArgumentResolver.HasMethodArguments(method);
                 if ((node is not ObjectTypeDesign and not VariableTypeDesign) &&
-                    !node.IsMethodTypeDesign())
+                    !node.IsMethodTypeDesign() &&
+                    !isMethodWithArguments)
                 {
                     continue;
                 }
@@ -3083,7 +3110,7 @@ namespace Opc.Ua.SourceGeneration
             return false;
         }
 
-        private static bool HasChildDefined(TypeDesign typeDefinitionNode, string symbolicName)
+        internal static bool HasFixedChildSlot(TypeDesign typeDefinitionNode, string symbolicName)
         {
             if (typeDefinitionNode == null)
             {
@@ -3093,13 +3120,14 @@ namespace Opc.Ua.SourceGeneration
             {
                 foreach (InstanceDesign child in typeDefinitionNode.Children.Items)
                 {
-                    if (child.SymbolicName.Name == symbolicName)
+                    if (child.SymbolicName.Name == symbolicName &&
+                        child.ModellingRule is ModellingRule.Mandatory or ModellingRule.Optional)
                     {
                         return true;
                     }
                 }
             }
-            return HasChildDefined(typeDefinitionNode.BaseTypeNode, symbolicName);
+            return HasFixedChildSlot(typeDefinitionNode.BaseTypeNode, symbolicName);
         }
 
         /// <summary>

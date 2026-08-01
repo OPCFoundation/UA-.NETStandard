@@ -50,14 +50,25 @@ namespace Opc.Ua.Server.FileSystem
             NodeId nodeId,
             string providerPath,
             string displayName)
+            : this(context, nodeId, providerPath, displayName, host: null)
+        {
+        }
+
+        public FileObjectState(
+            ISystemContext context,
+            NodeId nodeId,
+            string providerPath,
+            string displayName,
+            IFileSystemHost? host)
             : base(null)
         {
+            m_host = host;
             ProviderPath = providerPath;
 
             TypeDefinitionId = ObjectTypeIds.FileType;
             SymbolicName = providerPath;
             NodeId = nodeId;
-            BrowseName = new QualifiedName(displayName);
+            BrowseName = new QualifiedName(displayName, nodeId.NamespaceIndex);
             DisplayName = new LocalizedText(displayName);
             Description = LocalizedText.Null;
             WriteMask = 0;
@@ -404,12 +415,12 @@ namespace Opc.Ua.Server.FileSystem
             }
 
             // Reverse reference to the parent directory.
-            FileSystemNodeManager? manager = ResolveManager(context);
-            if (manager == null)
+            IFileSystemHost? host = ResolveHost(context);
+            if (host == null)
             {
                 return;
             }
-            NodeId parentId = manager.GetParentNodeId(ProviderPath);
+            NodeId parentId = host.GetParentNodeId(ProviderPath);
             if (!parentId.IsNull)
             {
                 browser.Add(ReferenceTypeIds.HasComponent, true, parentId);
@@ -421,8 +432,8 @@ namespace Opc.Ua.Server.FileSystem
             [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out FileHandle? handle,
             out ServiceResult result)
         {
-            FileSystemNodeManager? manager = ResolveManager(context);
-            if (manager == null)
+            IFileSystemHost? host = ResolveHost(context);
+            if (host == null)
             {
                 handle = null;
                 result = ServiceResult.Create(
@@ -431,7 +442,7 @@ namespace Opc.Ua.Server.FileSystem
                 return false;
             }
 
-            handle = manager.GetOrCreateHandle(NodeId, ProviderPath);
+            handle = host.GetOrCreateHandle(NodeId, ProviderPath);
             if (handle == null)
             {
                 result = ServiceResult.Create(
@@ -443,9 +454,63 @@ namespace Opc.Ua.Server.FileSystem
             return true;
         }
 
-        private static FileSystemNodeManager? ResolveManager(ISystemContext context)
+        internal void DetachCallbacks()
         {
-            return context?.SystemHandle as FileSystemNodeManager;
+            if (OpenCount != null)
+            {
+                OpenCount.OnReadValue -= OnOpenCount;
+            }
+            if (Writable != null)
+            {
+                Writable.OnReadValue -= OnWritable;
+            }
+            if (UserWritable != null)
+            {
+                UserWritable.OnReadValue -= OnWritable;
+            }
+            if (Size != null)
+            {
+                Size.OnReadValue -= OnSize;
+            }
+            if (MimeType != null)
+            {
+                MimeType.OnReadValue -= OnMimeType;
+            }
+            if (LastModifiedTime != null)
+            {
+                LastModifiedTime.OnReadValue -= OnLastModifiedTime;
+            }
+            if (Open != null)
+            {
+                Open.OnCall = null;
+            }
+            if (Write != null)
+            {
+                Write.OnCall = null;
+            }
+            if (Read != null)
+            {
+                Read.OnCall = null;
+            }
+            if (Close != null)
+            {
+                Close.OnCall = null;
+            }
+            if (GetPosition != null)
+            {
+                GetPosition.OnCall = null;
+            }
+            if (SetPosition != null)
+            {
+                SetPosition.OnCall = null;
+            }
         }
+
+        private IFileSystemHost? ResolveHost(ISystemContext context)
+        {
+            return m_host ?? context?.SystemHandle as IFileSystemHost;
+        }
+
+        private readonly IFileSystemHost? m_host;
     }
 }
