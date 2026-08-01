@@ -76,10 +76,19 @@ namespace Opc.Ua.Di.Tests
             "Events/OverTempAlarm/AckedState/Id",
             "Events/OverTempAlarm/Acknowledge",
             "Events/OverTempAlarm/Acknowledge/InputArguments",
+            // Argument properties on argument-less standard methods. Typed
+            // NodeSet method signatures materialise InputArguments and
+            // OutputArguments from the ConditionType declaration even where
+            // the method takes none. Pinned so the deviation stays visible; it
+            // disappears once the pump model resolves its methods through a
+            // referenced model, which the OpenUSD change later in this stack
+            // introduces.
+            "Events/OverTempAlarm/Acknowledge/OutputArguments",
             "Events/OverTempAlarm/ActiveState",
             "Events/OverTempAlarm/ActiveState/Id",
             "Events/OverTempAlarm/AddComment",
             "Events/OverTempAlarm/AddComment/InputArguments",
+            "Events/OverTempAlarm/AddComment/OutputArguments",
             "Events/OverTempAlarm/BranchId",
             "Events/OverTempAlarm/ClientUserId",
             "Events/OverTempAlarm/Comment",
@@ -88,7 +97,11 @@ namespace Opc.Ua.Di.Tests
             "Events/OverTempAlarm/ConditionClassName",
             "Events/OverTempAlarm/ConditionName",
             "Events/OverTempAlarm/Disable",
+            "Events/OverTempAlarm/Disable/InputArguments",
+            "Events/OverTempAlarm/Disable/OutputArguments",
             "Events/OverTempAlarm/Enable",
+            "Events/OverTempAlarm/Enable/InputArguments",
+            "Events/OverTempAlarm/Enable/OutputArguments",
             "Events/OverTempAlarm/EnabledState",
             "Events/OverTempAlarm/EnabledState/Id",
             "Events/OverTempAlarm/EventId",

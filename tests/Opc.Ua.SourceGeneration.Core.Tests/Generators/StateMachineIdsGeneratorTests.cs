@@ -29,6 +29,8 @@
 
 using System;
 using System.Linq;
+using System.Text;
+using System.Xml;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Schema.Model;
@@ -103,6 +105,121 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             // Assert — no file opened, no resource produced.
             Assert.That(resources, Is.Empty);
             mockFileSystem.VerifyNoOtherCalls();
+        }
+
+        [Test]
+        public void Emit_NodeSetStyleNumberVariables_EmitsStateAndTransitionNumbers()
+        {
+            const string testNamespaceUri = "http://test.org/UA/";
+            const string uaNamespaceUri = "http://opcfoundation.org/UA/";
+
+            var finiteStateMachineType = new ObjectTypeDesign
+            {
+                SymbolicName = new XmlQualifiedName("FiniteStateMachineType", uaNamespaceUri)
+            };
+            var machineType = new ObjectTypeDesign
+            {
+                SymbolicId = new XmlQualifiedName("TestStateMachineType", testNamespaceUri),
+                SymbolicName = new XmlQualifiedName("TestStateMachineType", testNamespaceUri),
+                BrowseName = "TestStateMachineType",
+                BaseTypeNode = finiteStateMachineType,
+                Children = new ListOfChildren
+                {
+                    Items =
+                    [
+                        CreateState("Idle", 1),
+                        CreateTransition("IdleToReady", 101)
+                    ]
+                },
+                HasChildren = true
+            };
+
+            var targetNamespace = new Namespace
+            {
+                Value = testNamespaceUri,
+                Prefix = "Test",
+                Name = "TestNamespace"
+            };
+
+            var mockModelDesign = new Mock<IModelDesign>();
+            mockModelDesign.Setup(m => m.TargetNamespace).Returns(targetNamespace);
+            mockModelDesign.Setup(m => m.GetNodeDesigns()).Returns([machineType]);
+            mockModelDesign.Setup(m => m.IsExcluded(It.IsAny<NodeDesign>())).Returns(false);
+
+            using var fileSystem = new VirtualFileSystem();
+            var mockTelemetry = new Mock<ITelemetryContext>();
+            var context = new GeneratorContext
+            {
+                FileSystem = fileSystem,
+                OutputFolder = "out",
+                ModelDesign = mockModelDesign.Object,
+                Telemetry = mockTelemetry.Object,
+                Options = new GeneratorOptions()
+            };
+
+            var generator = new StateMachineIdsGenerator(context);
+
+            var resources = generator.Emit().ToList();
+
+            Assert.That(resources, Is.Not.Empty);
+            string output = Encoding.UTF8.GetString(fileSystem.Get(
+                System.IO.Path.Combine("out", "Test.StateMachineIds.g.cs")));
+            Assert.That(output, Does.Contain("public const uint Idle = 1u;"));
+            Assert.That(output, Does.Contain("public const uint IdleToReady = 101u;"));
+        }
+
+        private static ObjectDesign CreateState(string name, uint number)
+        {
+            return CreateStateMachineChild(name, "StateType", "StateNumber", number);
+        }
+
+        private static ObjectDesign CreateTransition(string name, uint number)
+        {
+            return CreateStateMachineChild(name, "TransitionType", "TransitionNumber", number);
+        }
+
+        private static ObjectDesign CreateStateMachineChild(
+            string name,
+            string typeDefinition,
+            string numberPropertyName,
+            uint number)
+        {
+            const string uaNamespaceUri = "http://opcfoundation.org/UA/";
+            const string testNamespaceUri = "http://test.org/UA/";
+
+            return new ObjectDesign
+            {
+                SymbolicName = new XmlQualifiedName(name, testNamespaceUri),
+                BrowseName = name,
+                TypeDefinition = new XmlQualifiedName(typeDefinition, uaNamespaceUri),
+                Children = new ListOfChildren
+                {
+                    Items =
+                    [
+                        new VariableDesign
+                        {
+                            SymbolicName = new XmlQualifiedName(numberPropertyName, testNamespaceUri),
+                            BrowseName = numberPropertyName,
+                            DecodedValue = number,
+                            DefaultValue = CreateUInt32Value(number)
+                        }
+                    ]
+                },
+                HasChildren = true
+            };
+        }
+
+        private static System.Xml.XmlElement CreateUInt32Value(uint number)
+        {
+            var document = new XmlDocument();
+            System.Xml.XmlElement value = document.CreateElement("Value");
+            System.Xml.XmlElement child = document.CreateElement(
+                "uax",
+                "UInt32",
+                "http://opcfoundation.org/UA/2008/02/Types.xsd");
+            child.InnerText = number.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            value.AppendChild(child);
+            return value;
         }
     }
 }
