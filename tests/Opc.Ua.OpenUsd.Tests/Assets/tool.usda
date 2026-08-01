@@ -1,0 +1,39 @@
+#usda 1.0
+(
+    doc = "Simple gripper tool dynamically referenced on R1's flange by the Robotics OpenUSD example."
+    defaultPrim = "Gripper"
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "Gripper" (
+    kind = "component"
+)
+{
+    def Cube "Body"
+    {
+        double size = 1
+        color3f[] primvars:displayColor = [(0.18, 0.20, 0.22)]
+        double3 xformOp:translate = (0.08, 0, 0)
+        double3 xformOp:scale = (0.08, 0.12, 0.06)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+    }
+
+    def Cube "JawUpper"
+    {
+        double size = 1
+        color3f[] primvars:displayColor = [(0.05, 0.05, 0.06)]
+        double3 xformOp:translate = (0.20, 0.08, 0)
+        double3 xformOp:scale = (0.12, 0.025, 0.025)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+    }
+
+    def Cube "JawLower"
+    {
+        double size = 1
+        color3f[] primvars:displayColor = [(0.05, 0.05, 0.06)]
+        double3 xformOp:translate = (0.20, -0.08, 0)
+        double3 xformOp:scale = (0.12, 0.025, 0.025)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+    }
+}

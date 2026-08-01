@@ -478,7 +478,6 @@ namespace TestApp.Incremental
     }
 }";
             var generator = new ModelSourceGenerator();
-            var host = new ModelSourceGeneratorHoist(generator);
             CSharpParseOptions parseOptions = new CSharpParseOptions()
                 .WithKind(SourceCodeKind.Regular)
                 .WithLanguageVersion(LanguageVersion.CSharp13);
@@ -492,7 +491,7 @@ namespace TestApp.Incremental
                     .WithOpcUaGeneratedStack(),
                     LanguageVersion.CSharp13);
 
-            GeneratorDriver driver = CSharpGeneratorDriver.Create(host)
+            GeneratorDriver driver = CSharpGeneratorDriver.Create(generator)
                 .WithUpdatedParseOptions(parseOptions);
 
             driver = driver.RunGeneratorsAndUpdateCompilation(
@@ -566,7 +565,6 @@ namespace TestApp.Incremental
             bool expectWarnings = false)
         {
             var generator = new ModelSourceGenerator();
-            var host = new ModelSourceGeneratorHoist(generator);
 
             CSharpCompilation compilation = OptimizationLevel.Release
                 .CreateCompilation()
@@ -576,7 +574,7 @@ namespace TestApp.Incremental
                     .WithOpcUaGeneratedStack(),
                     LanguageVersion.Preview);
 
-            GeneratorDriver driver = CSharpGeneratorDriver.Create(host)
+            GeneratorDriver driver = CSharpGeneratorDriver.Create(generator)
                 .WithUpdatedParseOptions(new CSharpParseOptions()
                     .WithKind(SourceCodeKind.Regular)
                     .WithLanguageVersion(LanguageVersion.Preview));

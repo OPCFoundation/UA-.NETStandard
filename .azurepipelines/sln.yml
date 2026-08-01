@@ -10,6 +10,12 @@
 #                TFM via `/p:CustomTestTarget=$(targetTfm)`.  When empty the
 #                matrix only spans solution × configuration and the solution
 #                is built for every TFM declared by its projects.
+#   configurations
+#              - Comma-separated list of build configurations to fan out
+#                across. Defaults to 'Debug,Release'. Callers that only need
+#                to prove a solution compiles - such as the Linux all-TFM leg
+#                that replaced the GitHub Actions build-all-tfm-linux job -
+#                pass 'Release' to halve the number of matrix jobs.
 #
 # Matrix entries supply these variables:
 #   file           - path of the .slnx file
@@ -21,6 +27,7 @@ parameters:
   jobnamesuffix: ''
   solutions: ''
   tfms: ''
+  configurations: 'Debug,Release'
   # See ci.yml: passing pool config via parameter because root-pipeline
   # variables defined in ${{ if ... }}: blocks aren't reliably visible to
   # included templates at compile-time.
@@ -43,7 +50,7 @@ jobs:
     inputs:
       targetType: filePath
       filePath: ./.azurepipelines/get-matrix.ps1
-      arguments: -FileName '*.slnx' -Configurations 'Debug,Release' -Files "${{ parameters.solutions }}" -Tfms "${{ parameters.tfms }}"
+      arguments: -FileName '*.slnx' -Configurations '${{ parameters.configurations }}' -Files "${{ parameters.solutions }}" -Tfms "${{ parameters.tfms }}"
 
 - job: buildallsln${{ parameters.jobnamesuffix }}
   displayName: Build Solution

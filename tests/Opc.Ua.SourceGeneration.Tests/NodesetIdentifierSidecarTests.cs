@@ -174,8 +174,7 @@ namespace Opc.Ua.SourceGeneration
             }
 
             var generator = new ModelSourceGenerator();
-            var host = new ModelSourceGeneratorHoist(generator);
-            GeneratorDriver driver = CSharpGeneratorDriver.Create(host)
+            GeneratorDriver driver = CSharpGeneratorDriver.Create(generator)
                 .WithUpdatedParseOptions(
                     new CSharpParseOptions()
                         .WithKind(SourceCodeKind.Regular)

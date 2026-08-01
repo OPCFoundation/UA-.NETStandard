@@ -154,9 +154,12 @@ namespace Opc.Ua.Schema.Model
             if (instance is MethodDesign method)
             {
                 string className;
-                if (method.TypeDefinition != null)
+                XmlQualifiedName methodStateIdentity =
+                    MethodDesignArgumentResolver.ResolveMethodStateIdentity(method);
+                if (methodStateIdentity != null)
                 {
-                    className = method.TypeDefinition.AsFullyQualifiedTypeSymbol(namespaces);
+                    className =
+                        methodStateIdentity.AsFullyQualifiedTypeSymbol(namespaces);
 
                     if (className.EndsWith("MethodType", StringComparison.Ordinal))
                     {
@@ -170,14 +173,9 @@ namespace Opc.Ua.Schema.Model
                 else
                 {
                     className = method.SymbolicName.AsFullyQualifiedTypeSymbol(namespaces);
-
-                    if (className.EndsWith("MethodType", StringComparison.Ordinal))
-                    {
-                        className = className[..^"MethodType".Length];
-                    }
                 }
 
-                if (method.HasArguments)
+                if (MethodDesignArgumentResolver.HasMethodArguments(method))
                 {
                     string typedClassName = CoreUtils.Format(
                         "{0}{1}MethodState",
@@ -549,12 +547,15 @@ namespace Opc.Ua.Schema.Model
         {
             string name = field?.Name;
             scope ??= s_defaultMethodArgumentCodeNameScope;
-            if (field != null &&
-                s_generatedCodeNames.TryGetValue(field, out GeneratedCodeNameState state) &&
-                state.Names.TryGetValue(scope, out string generatedName) &&
-                !string.IsNullOrEmpty(generatedName))
+            lock (s_generatedCodeNamesLock)
             {
-                name = generatedName;
+                if (field != null &&
+                    s_generatedCodeNames.TryGetValue(field, out GeneratedCodeNameState state) &&
+                    state.Names.TryGetValue(scope, out string generatedName) &&
+                    !string.IsNullOrEmpty(generatedName))
+                {
+                    name = generatedName;
+                }
             }
             return name.ToCSharpIdentifier(upperCamelCase);
         }
@@ -585,22 +586,25 @@ namespace Opc.Ua.Schema.Model
             params string[] additionalReservedNames)
         {
             scope ??= s_defaultMethodArgumentCodeNameScope;
-            ClearGeneratedCodeNames(inputArguments, scope);
-            ClearGeneratedCodeNames(outputArguments, scope);
+            lock (s_generatedCodeNamesLock)
+            {
+                ClearGeneratedCodeNames(inputArguments, scope);
+                ClearGeneratedCodeNames(outputArguments, scope);
 
-            var usedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            AddReservedMethodArgumentNames(usedNames, scope.ReservedNames);
-            AddReservedMethodArgumentNames(usedNames, additionalReservedNames);
-            AssignUniqueGeneratedCodeNames(
-                inputArguments,
-                usedNames,
-                output: false,
-                scope);
-            AssignUniqueGeneratedCodeNames(
-                outputArguments,
-                usedNames,
-                output: true,
-                scope);
+                var usedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                AddReservedMethodArgumentNames(usedNames, scope.ReservedNames);
+                AddReservedMethodArgumentNames(usedNames, additionalReservedNames);
+                AssignUniqueGeneratedCodeNames(
+                    inputArguments,
+                    usedNames,
+                    output: false,
+                    scope);
+                AssignUniqueGeneratedCodeNames(
+                    outputArguments,
+                    usedNames,
+                    output: true,
+                    scope);
+            }
         }
 
         private static void AddReservedMethodArgumentNames(
@@ -745,6 +749,7 @@ namespace Opc.Ua.Schema.Model
 
         private static readonly MethodArgumentCodeNameScope
             s_defaultMethodArgumentCodeNameScope = new();
+        private static readonly System.Threading.Lock s_generatedCodeNamesLock = new();
         private static readonly ConditionalWeakTable<Parameter, GeneratedCodeNameState>
             s_generatedCodeNames = new();
 
@@ -2358,8 +2363,9 @@ namespace Opc.Ua.Schema.Model
         /// </summary>
         public static string GetAccessLevelAsCode(this VariableDesign variable)
         {
-            return variable?.RawAccessLevel is { } raw
-                ? GetAccessLevelBitsAsCode(raw)
+            uint? rawAccessLevel = variable?.RawAccessLevel;
+            return rawAccessLevel != null
+                ? GetAccessLevelBitsAsCode(rawAccessLevel.Value)
                 : GetAccessLevelAsCode(variable?.AccessLevel ?? AccessLevel.None);
         }
 

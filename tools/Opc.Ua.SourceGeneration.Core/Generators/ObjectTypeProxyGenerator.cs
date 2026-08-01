@@ -524,8 +524,11 @@ namespace Opc.Ua.SourceGeneration
             Namespace[] namespaces = m_context.ModelDesign.Namespaces;
 
             string methodName = method.SymbolicName.Name;
+            MethodDesign effectiveMethod = method.IsOverridden()
+                ? (MethodDesign)method.GetMergedInstance()
+                : method;
             (Parameter[] inputs, Parameter[] outputs) =
-                MethodDesignArgumentResolver.ResolveMethodArguments(method);
+                MethodDesignArgumentResolver.ResolveMethodArguments(effectiveMethod);
             ModelDesignExtensions.AssignMethodArgumentCodeNames(
                 inputs,
                 outputs,

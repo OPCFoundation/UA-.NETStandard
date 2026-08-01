@@ -17,7 +17,8 @@ description: |
   errors after upgrading to v20".
 license: MIT
 compatibility: |
-  Requires .NET SDK 10.0.300+, a C# project, and resolvable access to the
+  Requires .NET SDK 9.0.100+ (10.0.300+ for the `dotnet format analyzers`
+  auto-fix pass), a C# project, and resolvable access to the
   OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer NuGet package (v2.0.*-*).
   IDE auto-fixes need a Workspaces-aware host (Visual Studio, Rider, or
   `dotnet format`). Generator + analyzers load in csc.exe too.
@@ -166,9 +167,9 @@ The single `OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer` NuGet contains
 
 | Component | Where | Loaded by | Purpose |
 |---|---|---|---|
-| `Opc.Ua.MigrationAnalyzer.dll` | `analyzers/dotnet/cs/` | csc.exe and IDE | 19 `DiagnosticAnalyzer`s (UA0001–UA0022). Targets stable Roslyn 4.14 API, no `Workspaces` reference, csc-safe. |
-| `Opc.Ua.MigrationAnalyzer.CodeFixer.dll` | `analyzers/dotnet/cs/` | Workspaces-aware hosts only (Visual Studio, Rider, `dotnet format analyzers`) | 14 `CodeFixProvider`s. |
-| `Opc.Ua.MigrationAnalyzer.Generator.dll` | `analyzers/dotnet/cs/` | csc.exe and IDE | `IIncrementalGenerator` that emits `internal sealed [Obsolete] class <Name>Collection : List<TElement>` shims into the consumer compilation for every `<Type>Collection` reference that fails to bind. |
+| `Opc.Ua.MigrationAnalyzer.dll` | `analyzers/dotnet/roslyn4.14/cs/` and `roslyn5.0/cs/` | csc.exe and IDE | 19 `DiagnosticAnalyzer`s (UA0001–UA0022). No `Workspaces` reference, csc-safe. |
+| `Opc.Ua.MigrationAnalyzer.CodeFixer.dll` | `analyzers/dotnet/roslyn4.14/cs/` and `roslyn5.0/cs/` | Workspaces-aware hosts only (Visual Studio, Rider, `dotnet format analyzers`) | 14 `CodeFixProvider`s. |
+| `Opc.Ua.MigrationAnalyzer.Generator.dll` | `analyzers/dotnet/roslyn4.14/cs/` and `roslyn5.0/cs/` | csc.exe and IDE | `IIncrementalGenerator` that emits `internal sealed [Obsolete] class <Name>Collection : List<TElement>` shims into the consumer compilation for every `<Type>Collection` reference that fails to bind. |
 | `Opc.Ua.MigrationAnalyzer.Core.dll` | `lib/<tfm>/` × 6 TFMs (`net472`, `net48`, `netstandard2.1`, `net8.0`, `net9.0`, `net10.0`) | Runtime | Re-supplies the obsolete extension surface 2.0 moved or removed so 1.5.378 call sites continue to compile with `[Obsolete]` warnings. |
 
 ### The 19 analyzer rules at a glance
