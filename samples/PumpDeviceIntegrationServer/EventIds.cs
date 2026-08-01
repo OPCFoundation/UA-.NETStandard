@@ -41,5 +41,7 @@ namespace Pumps
     internal static class PumpDeviceIntegrationServerEventIds
     {
         public const int PumpNodeManager = 0;
+        public const int OpenUsdComposition = 10;
+        public const int OpenUsdRepresentation = 20;
     }
 }

@@ -38,6 +38,7 @@ using Opc.Ua.Di;
 using Opc.Ua.Di.Server;
 using Opc.Ua.Di.Server.Hosting;
 using Opc.Ua.Machinery;
+using Opc.Ua.OpenUsd;
 using Opc.Ua.Pumps;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Fluent;
@@ -96,7 +97,8 @@ namespace Pumps
                   configuration,
                   postSetupRunner,
                   Opc.Ua.Pumps.Namespaces.Pumps,
-                  Opc.Ua.Machinery.Namespaces.Machinery)
+                  Opc.Ua.Machinery.Namespaces.Machinery,
+                  Opc.Ua.OpenUsd.Namespaces.OpenUSD)
         {
             // Base class constructor sets SystemContext.NodeIdFactory to
             // itself; our New() override takes over.
@@ -188,6 +190,7 @@ namespace Pumps
             nodes.AddOpcUaDi(context);
             nodes.AddOpcUaMachinery(context);
             nodes.AddOpcUaPumps(context);
+            nodes.AddOpcUaOpenUsd(context);
             return new ValueTask<NodeStateCollection>(nodes);
         }
 
@@ -240,14 +243,32 @@ namespace Pumps
         private async ValueTask ConfigureInstancesAsync(
             CancellationToken cancellationToken)
         {
+            // OpenUSD facility first so the pump representation can reference the stage.
+            await MaterialiseOpenUsdFacilityAsync(cancellationToken)
+                .ConfigureAwait(false);
+
+            PumpState? firstPump = null;
             for (int pumpNumber = 1; pumpNumber <= m_options.PumpCount; pumpNumber++)
             {
                 var pumpBrowseName = new QualifiedName(
                     GetPumpBrowseName(pumpNumber),
                     InstanceNamespaceIndex);
-                await MaterialisePumpInstanceAsync(pumpBrowseName, cancellationToken)
-                    .ConfigureAwait(false);
+                PumpState pump = await MaterialisePumpInstanceAsync(
+                    pumpBrowseName,
+                    cancellationToken).ConfigureAwait(false);
+                firstPump ??= pump;
             }
+
+            // The OpenUSD twin follows the first pump.
+            if (firstPump != null)
+            {
+                OrganiseRepresentation(firstPump);
+            }
+
+            // Composition demo: a ProductionLine aggregating 1..n pumps (Many), with a
+            // dynamically added/removed pump (model-change events) and a cross-server
+            // component (federation). See OpenUsdComposition.cs.
+            await MaterialiseProductionLineAsync(cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -309,11 +330,24 @@ namespace Pumps
 
             MaterialisePumpOptionalChildren(pump);
 
+            // Attach the OpenUSD representation + live bindings before
+            // registration. Per-instance NodeIds are already assigned by the
+            // generated CreateOrReplace/AddXxx helpers, so the binding source
+            // NodeIds captured here are the instance ones.
+            AttachOpenUsdRepresentation(pump);
+
             await AddPredefinedNodeAsync(SystemContext, pump, cancellationToken)
                 .ConfigureAwait(false);
             await AddRootNotifierAsync(pump, cancellationToken)
                 .ConfigureAwait(false);
             onRegistered?.Invoke(pump);
+
+            // Variables hand-built onto the pump (rather than materialised by the
+            // generated factory) are reachable by browse and read, but a monitored
+            // item never samples them unless they are registered in their own
+            // right -- register them explicitly so the OpenUSD bindings that use
+            // them are live.
+            await RegisterOpenUsdSignalsAsync(cancellationToken).ConfigureAwait(false);
 
             TryAddToMachinesFolder(pump);
             m_pumpStates.Add(pump);
@@ -467,7 +501,8 @@ namespace Pumps
         {
             Opc.Ua.Pumps.Namespaces.Pumps,
             Opc.Ua.Machinery.Namespaces.Machinery,
-            Opc.Ua.Di.Namespaces.OpcUaDi
+            Opc.Ua.Di.Namespaces.OpcUaDi,
+            Opc.Ua.OpenUsd.Namespaces.OpenUSD
         };
 
         /// <inheritdoc/>
