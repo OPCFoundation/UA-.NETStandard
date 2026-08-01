@@ -34,6 +34,7 @@ using System.IO;
 using System.IO.MemoryMappedFiles;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading;
 
 namespace Opc.Ua
 {
@@ -183,8 +184,7 @@ namespace Opc.Ua
                     replaced = existing;
                     return staged;
                 });
-            replaced?.Dispose();
-        }
+            replaced?.Dispose();        }
 
         /// <inheritdoc/>
         public DateTime GetLastWriteTime(string path)
