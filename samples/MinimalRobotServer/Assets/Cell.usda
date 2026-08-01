@@ -522,7 +522,7 @@ def Xform "Cell"
     # is approached from the aisle in front of it (y ~ 0.35), well inside the 1.61 m arm reach.
     def Xform "WorkTableA"
     {
-        double3 xformOp:translate = (-2.4, 1.2, 0)
+        double3 xformOp:translate = (-2.6, 1.2, 0)
         uniform token[] xformOpOrder = ["xformOp:translate"]
 
         def Cube "Top" (
@@ -626,7 +626,7 @@ def Xform "Cell"
 
     def Xform "WorkTableB"
     {
-        double3 xformOp:translate = (2.4, 1.2, 0)
+        double3 xformOp:translate = (2.6, 1.2, 0)
         uniform token[] xformOpOrder = ["xformOp:translate"]
 
         def Cube "Top" (
@@ -734,7 +734,7 @@ def Xform "Cell"
     {
         def Xform "Part01"
         {
-            matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (-2.62, 1.2, 0.7875, 1) )
+            matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (-2.82, 1.2, 0.7875, 1) )
             uniform token[] xformOpOrder = ["xformOp:transform"]
 
             def Cube "Body" (
@@ -751,7 +751,7 @@ def Xform "Cell"
 
         def Xform "Part02"
         {
-            matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (-2.4, 1.2, 0.7875, 1) )
+            matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (-2.6, 1.2, 0.7875, 1) )
             uniform token[] xformOpOrder = ["xformOp:transform"]
 
             def Cube "Body" (
@@ -768,7 +768,7 @@ def Xform "Cell"
 
         def Xform "Part03"
         {
-            matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (-2.18, 1.2, 0.7875, 1) )
+            matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (-2.38, 1.2, 0.7875, 1) )
             uniform token[] xformOpOrder = ["xformOp:transform"]
 
             def Cube "Body" (
@@ -790,7 +790,7 @@ def Xform "Cell"
     {
         def Xform "D1"
         {
-            double3 xformOp:translate = (-3.0, -1.6, 0)
+            double3 xformOp:translate = (-0.8, -2.0, 0)
             uniform token[] xformOpOrder = ["xformOp:translate"]
 
             def Cube "Pad" (
@@ -820,7 +820,7 @@ def Xform "Cell"
 
         def Xform "D2"
         {
-            double3 xformOp:translate = (3.0, -1.6, 0)
+            double3 xformOp:translate = (0.8, -2.0, 0)
             uniform token[] xformOpOrder = ["xformOp:translate"]
 
             def Cube "Pad" (
@@ -872,7 +872,7 @@ def Xform "Cell"
             double size = 1
             color3f[] primvars:displayColor = [(0.72, 0.73, 0.74)]
             rel material:binding = </Cell/Materials/FloorPaint>
-            double3 xformOp:translate = (0, -0.75, -0.0134)
+            double3 xformOp:translate = (0, -1.15, -0.0134)
             double3 xformOp:scale = (5.400, 0.060, 0.002)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
         }

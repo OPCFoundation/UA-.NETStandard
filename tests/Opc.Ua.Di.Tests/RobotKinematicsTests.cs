@@ -178,5 +178,91 @@ namespace Opc.Ua.Di.Tests
                 () => RobotKinematics.ComputeToolCentrePoint(mount, [0.0, 0.0]),
                 Throws.ArgumentException);
         }
+
+        /// <summary>
+        /// The solver is only worth having if the pose it returns actually lands the tool
+        /// where it was asked to, measured by the independent forward kinematics.
+        /// </summary>
+        [TestCase(0.90, 0.00, 0.7875)]
+        [TestCase(0.90, 0.22, 0.7875)]
+        [TestCase(0.90, -0.22, 0.7875)]
+        [TestCase(0.75, 0.10, 0.9500)]
+        [TestCase(1.10, -0.15, 0.8500)]
+        public void SolvedPoseLandsTheToolOnTheTarget(
+            double forward,
+            double lateral,
+            double height)
+        {
+            var axes = new double[RobotKinematics.AxisCount];
+            Assert.That(RobotArmSolver.TrySolve(forward, lateral, height, axes), Is.True,
+                "The target should be inside the arm's working envelope.");
+
+            RigidTransform mount = RobotKinematics.CreateMountPose(0.0, 0.0, 0.0, 0.0);
+            (double x, double y, double z) = RobotKinematics
+                .ComputeToolCentrePoint(mount, axes).Origin;
+
+            Assert.That(x, Is.EqualTo(forward).Within(1e-6));
+            Assert.That(y, Is.EqualTo(lateral).Within(1e-6));
+            Assert.That(z, Is.EqualTo(height).Within(1e-6));
+        }
+
+        /// <summary>
+        /// A robot parked in front of a table must be able to reach every slot on it, or the
+        /// cell layout and the arm disagree.
+        /// </summary>
+        [TestCase(CellStation.TableA, 0)]
+        [TestCase(CellStation.TableA, 1)]
+        [TestCase(CellStation.TableA, 2)]
+        [TestCase(CellStation.TableB, 0)]
+        [TestCase(CellStation.TableB, 1)]
+        [TestCase(CellStation.TableB, 2)]
+        public void EverySlotIsReachableFromTheTableApproach(CellStation table, int slot)
+        {
+            double approachX = table == CellStation.TableA
+                ? CellLayout.TableAX
+                : CellLayout.TableBX;
+            (double slotX, double slotY, double slotZ) = CellLayout.SlotPosition(table, slot);
+
+            // The robot parks facing north, so the arm's forward axis is world +Y.
+            double forward = slotY - CellLayout.TableApproachY;
+            double lateral = -(slotX - approachX);
+
+            var axes = new double[RobotKinematics.AxisCount];
+            Assert.That(RobotArmSolver.TrySolve(forward, lateral, slotZ, axes), Is.True,
+                $"Slot {slot} of {table} is out of reach from the approach pose.");
+
+            RigidTransform mount = RobotKinematics.CreateMountPose(
+                approachX, CellLayout.TableApproachY, 0.0, 90.0);
+            (double x, double y, double z) = RobotKinematics
+                .ComputeToolCentrePoint(mount, axes).Origin;
+
+            Assert.That(x, Is.EqualTo(slotX).Within(1e-6));
+            Assert.That(y, Is.EqualTo(slotY).Within(1e-6));
+            Assert.That(z, Is.EqualTo(slotZ).Within(1e-6));
+        }
+
+        /// <summary>
+        /// A deployed arm must stay inside its own end zone, which is what keeps it clear of
+        /// a robot passing through the corridor.
+        /// </summary>
+        [TestCase(CellStation.TableA, 0)]
+        [TestCase(CellStation.TableA, 2)]
+        [TestCase(CellStation.TableB, 0)]
+        [TestCase(CellStation.TableB, 2)]
+        public void ADeployedArmStaysWithinItsEndZone(CellStation table, int slot)
+        {
+            double approachX = table == CellStation.TableA
+                ? CellLayout.TableAX
+                : CellLayout.TableBX;
+            (double slotX, _, _) = CellLayout.SlotPosition(table, slot);
+
+            Assert.That(
+                Math.Abs(slotX - approachX),
+                Is.LessThanOrEqualTo(CellLayout.DeployedArmHalfWidthX));
+            Assert.That(
+                Math.Abs(slotX),
+                Is.GreaterThan(CellLayout.CorridorHalfWidthX),
+                "A slot must lie outside the shared corridor.");
+        }
     }
 }
