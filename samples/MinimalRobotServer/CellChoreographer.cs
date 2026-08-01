@@ -79,7 +79,9 @@ namespace Robotics
         private double m_now;
 
         /// <summary>
-        /// Creates the choreographer with three parts staged on table A.
+        /// Creates the choreographer with the cell staged warm: parts waiting on both
+        /// stations, so each robot has work from the first tick instead of one of them idling
+        /// until the other completes a full traverse.
         /// </summary>
         /// <param name="seed">Seed for the fault injection, so runs are reproducible.</param>
         /// <param name="faultProbability">
@@ -100,7 +102,7 @@ namespace Robotics
             [
                 new CellPart("Part01", CellStation.TableA, 0),
                 new CellPart("Part02", CellStation.TableA, 1),
-                new CellPart("Part03", CellStation.TableA, 2)
+                new CellPart("Part03", CellStation.TableB, 0)
             ];
             foreach (RobotAgent robot in m_robots)
             {

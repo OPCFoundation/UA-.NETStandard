@@ -215,13 +215,22 @@ namespace Opc.Ua.Di.Tests
         }
 
         /// <summary>
-        /// The interlock must not deadlock: parts have to actually make the round trip.
+        /// The interlock must not deadlock: a part staged on the western station has to
+        /// reach the eastern one and come back.
         /// </summary>
         [Test]
         public void PartsAreHandedOverBetweenBothStations()
         {
             var cell = new CellChoreographer();
-            var seenOnB = new HashSet<string>(StringComparer.Ordinal);
+            var startedOnA = new HashSet<string>(StringComparer.Ordinal);
+            foreach (CellPart part in cell.Parts)
+            {
+                if (part.Station == CellStation.TableA)
+                {
+                    _ = startedOnA.Add(part.Id);
+                }
+            }
+            var deliveredEast = new HashSet<string>(StringComparer.Ordinal);
             var returnedToA = new HashSet<string>(StringComparer.Ordinal);
 
             for (int i = 0; i < LongRunSteps; i++)
@@ -235,19 +244,22 @@ namespace Opc.Ua.Di.Tests
                     }
                     if (part.Station == CellStation.TableB)
                     {
-                        _ = seenOnB.Add(part.Id);
+                        if (startedOnA.Contains(part.Id))
+                        {
+                            _ = deliveredEast.Add(part.Id);
+                        }
                     }
-                    else if (seenOnB.Contains(part.Id))
+                    else if (deliveredEast.Contains(part.Id))
                     {
                         _ = returnedToA.Add(part.Id);
                     }
                 }
             }
 
-            Assert.That(seenOnB, Is.Not.Empty,
-                "R1 never delivered a part to the eastern station.");
+            Assert.That(deliveredEast, Is.Not.Empty,
+                "R1 never delivered a western part to the eastern station.");
             Assert.That(returnedToA, Is.Not.Empty,
-                "R2 never returned a part to the western station.");
+                "R2 never returned a delivered part to the western station.");
             Assert.That(cell.Kpis.PartsMoved, Is.GreaterThan(1));
         }
 

@@ -768,7 +768,7 @@ def Xform "Cell"
 
         def Xform "Part03"
         {
-            matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (-2.38, 1.2, 0.7875, 1) )
+            matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (2.38, 1.2, 0.7875, 1) )
             uniform token[] xformOpOrder = ["xformOp:transform"]
 
             def Cube "Body" (

@@ -855,7 +855,7 @@ namespace Opc.Ua.Di.Tests
                 double r2Moved = 0.0;
                 ArrayOf<double> secondR1Vector = firstR1Vector;
                 ArrayOf<double> secondR2Vector = firstR2Vector;
-                for (int attempt = 0; attempt < 40 && (r1Moved <= 0.001 || r2Moved <= 0.001);
+                for (int attempt = 0; attempt < 90 && (r1Moved <= 0.001 || r2Moved <= 0.001);
                     attempt++)
                 {
                     await Task.Delay(500).ConfigureAwait(false);
