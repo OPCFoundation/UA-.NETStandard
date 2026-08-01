@@ -112,9 +112,9 @@ ulong status = await jobControl.StoreAndStartAsync(
 - `AddIsa95Server(configure, configureJobControl)` registers `Isa95ServerOptions`, the default `InMemoryIsa95JobControlProvider` (unless overridden — see below), and adds `Isa95NodeManagerFactory` to the server's node-manager pipeline. It returns `IIsa95ServerBuilder`.
 - `IIsa95ServerBuilder.ConfigureModel(Func<IIsa95ModelBuilder, CancellationToken, ValueTask>)` registers a callback invoked once, after the ISA-95 root folder and Job Control endpoints exist, with a typed `IIsa95ModelBuilder` scoped to that node manager.
 - `Isa95NodeManager` (`Opc.Ua.ISA95.Server.Isa95NodeManager`) is a single `FluentNodeManagerBase` that owns all three namespaces at once (Common Model, Job Control V1, Job Control V2) — there is one node manager instance, not one per namespace.
-- The `GeoSpatialLocationType` variable exposed by the common model is provider-backed: `IIsa95GeoSpatialLocationProvider` supplies the current value and, optionally, a push-update stream; `Isa95GeoSpatialLocationBinder.Bind` wires an instance's async read hook and background update loop to a provider without ever blocking the stack on synchronous I/O.
+- The `GeoSpatialLocationType` variable exposed by the common model is provider-backed by the stack's shared `IGeoLocationProvider` seam, so one provider implementation serves both this model and OPC 10000-211 (GPOS); `Isa95GeoSpatialLocationBinder.Bind` wires an instance's async read hook and background update loop to a provider without ever blocking the stack on synchronous I/O.
 
-**Custom providers.** Register a cohesive custom Job Control provider set **before** calling `AddIsa95Server`. If any Job Control facet is already registered, `AddIsa95Server` does not backfill the other facets from the in-memory provider, preventing unrelated stores from being combined; adding a partial custom provider after the default registration is rejected when the provider aggregate resolves. A complete distributed provider commonly implements `IIsa95JobOrderReceiverV1/V2`, `IIsa95JobResponseProviderV1/V2`, `IIsa95JobResponseReceiverV1/V2`, `IIsa95JobStatusSourceV2`, `IIsa95JobExecutionController`, `IIsa95JobOrderCatalog`, and `IIsa95JobOrderCatalogChangeSource`. `IIsa95GeoSpatialLocationProvider` remains independently replaceable through `AddIsa95GeoSpatialLocationProvider`.
+**Custom providers.** Register a cohesive custom Job Control provider set **before** calling `AddIsa95Server`. If any Job Control facet is already registered, `AddIsa95Server` does not backfill the other facets from the in-memory provider, preventing unrelated stores from being combined; adding a partial custom provider after the default registration is rejected when the provider aggregate resolves. A complete distributed provider commonly implements `IIsa95JobOrderReceiverV1/V2`, `IIsa95JobResponseProviderV1/V2`, `IIsa95JobResponseReceiverV1/V2`, `IIsa95JobStatusSourceV2`, `IIsa95JobExecutionController`, `IIsa95JobOrderCatalog`, and `IIsa95JobOrderCatalogChangeSource`. The geospatial location seam is independent of Job Control: supply any `IGeoLocationProvider` to `CreateGeoSpatialLocationAsync` or `BindGeoSpatialLocation`.
 
 ## Common-model builder reference
 
@@ -182,11 +182,27 @@ V2 interrupted and ended sub-states use the standard two-entry state path: a top
 
 ## GeoSpatialLocationType provider seam
 
-OPC-10030's `GeoSpatialLocationType` models a location as a single value (in this implementation, a human-readable string literal such as Well-Known-Text or an address), not the structured GPOS/RSL coordinate model.
+OPC-10030's `GeoSpatialLocationType` models a location as **text**, not as coordinates: the type is `DataType=String` with `ValueRank=0 (OneOrMoreDimensions)`, so its value is an array of literals such as Well-Known-Text geometries or postal addresses.
 
-`IIsa95GeoSpatialLocationProvider` is intentionally a narrow seam: `GetCurrentAsync` returns an `Isa95GeoSpatialLocation` snapshot (value, `StatusCode`, source timestamp), and `SubscribeAsync` optionally returns an `IAsyncEnumerable` of subsequent updates (`null` when the provider only supports polling).
+The variable is backed by the stack's shared [`IGeoLocationProvider`](Positioning.md#server-authoring) seam, which lives in `Opc.Ua.Server` (namespace `Opc.Ua`) so it is available to every companion model that publishes location. `Isa95GeoSpatialLocationBinder.Bind` wires an instance's async read hook and background update loop to a provider without ever blocking the stack on synchronous I/O; the loop is only started when the provider reports `SupportsPush`.
 
-**RSL/GPOS follow-up.** Typed OPC UA Part 210 (Relative Spatial Location) and Part 211 (Global Positioning) support is tracked by [#4095](https://github.com/OPCFoundation/UA-.NETStandard/issues/4095). The planned work will source-generate the canonical spatial models, add typed client/server providers, and implement an adapter between structured `GlobalPositionType`/`GlobalLocationType` values and the legacy OPC-10030 `GeoSpatialLocationType` string without changing the ISA-95 NodeSet contract. This PR keeps the provider seam compatible with that follow-up while leaving structured coordinate data to the dedicated spatial implementation.
+**One provider serves both models.** Because the seam is shared, a single provider implementation drives ISA-95 `GeoSpatialLocationType` variables *and* OPC 10000-211 (GPOS) `GlobalLocation` variables. The projection is directional: a structured `GeoPosition` is rendered into text by an `IGeoLocationTextFormatter` (defaulting to `WktGeoLocationTextFormatter`, which emits `POINT Z (lon lat height)` and prefixes `SRID=<epsg>;` when the sample declares one), while a source that only knows a textual location publishes `Labels` and no coordinates. Such a text-only sample remains first class here, and is simply rejected by GPOS, which requires coordinates.
+
+```csharp
+using var provider = new InMemoryGeoLocationProvider();
+provider.Update("plant", new GeoPosition(47.3769, 8.5417, EpsgCode: 4326));
+
+Isa95GeoSpatialLocationBinding location =
+    await model.CreateGeoSpatialLocationAsync(
+        model.Root,
+        "PlantLocation",
+        provider,
+        "plant",
+        cancellationToken: ct);
+// The Variable publishes ["SRID=4326;POINT (8.5417 47.3769)"].
+```
+
+Pass a custom `IGeoLocationTextFormatter` to `CreateGeoSpatialLocationAsync` or `BindGeoSpatialLocation` to publish a different geometry encoding or a site-specific literal.
 
 ## Client
 
@@ -230,8 +246,8 @@ This matrix distinguishes **static NodeSet structure** (what the NodeSet2 XML de
 |---|---|---|---|---|
 | Common Model primary types and concrete property types (Person/Equipment/PhysicalAsset/Material class+instance hierarchy) | ✅ | ✅ | [`Isa95ModelBuilder`](../src/Opc.Ua.ISA95.Server/Builders/Isa95ModelBuilder.cs) | `ModelAssetTests`; `Isa95ModelBuilderTests`; `Isa95EndToEndTests` |
 | `DefinedByMaterialClass` / `AssembledFromSublot` repairs | ✅ | ✅ | [`Opc.ISA95.NodeSet2.xml`](../src/Opc.Ua.ISA95/Design/Common/Opc.ISA95.NodeSet2.xml) | `ModelAssetTests.CommonModelContainsNormativeMaterialReferenceRepairs` |
-| `GeoSpatialLocationType` (as a string-provider seam) | ✅ | ✅ | [`Isa95GeoSpatialLocationBinder`](../src/Opc.Ua.ISA95.Server/Builders/Isa95GeoSpatialLocationBinder.cs) | `Isa95GeoSpatialLocationTests`; `Isa95EndToEndTests` |
-| GPOS/RSL (Part 210/211) coordinate model | Planned in [#4095](https://github.com/OPCFoundation/UA-.NETStandard/issues/4095) | Planned | — | — |
+| `GeoSpatialLocationType` (String, ValueRank OneOrMoreDimensions), backed by the shared `IGeoLocationProvider` | ✅ | ✅ | [`Isa95GeoSpatialLocationBinder`](../src/Opc.Ua.ISA95.Server/Builders/Isa95GeoSpatialLocationBinder.cs) | `Isa95GeoSpatialLocationTests`; `Isa95EndToEndTests` |
+| GPOS/RSL (Part 210/211) coordinate model, shared with ISA-95 through `IGeoLocationProvider` | ✅ | ✅ | [`IGeoLocationProvider`](../src/Opc.Ua.Server/Location/IGeoLocationProvider.cs); [`Positioning`](Positioning.md) | `SharedGeoLocationProviderTests`; `InMemoryGeoLocationProviderTests` |
 | Job Control V1 `ReceiveJobOrder`/`RequestJobResponse`/`ReceiveJobResponse` (all mandatory, modelling rule `i=78`) | ✅ | ✅ | [`InMemoryIsa95JobControlProvider`](../src/Opc.Ua.ISA95.Server/Providers/InMemoryIsa95JobControlProvider.cs) | `ModelAssetTests.JobControlV1MethodsAreMandatory`; `InMemoryIsa95JobControlProviderV1Tests` |
 | Job Control V2 Job Order Receiver operations (Store/StoreAndStart/Start/Update/Stop/Pause/Resume/Abort/RevokeStart/Cancel/Clear — 🔲 optional, modelling rule `i=80`) | ✅ | ✅ | same | `ModelAssetTests.JobControlV2MethodRulesMatchPublishedModel`; `InMemoryIsa95JobControlProviderV2Tests` |
 | Job Control V2 response methods (`RequestJobResponseByJobOrderID`, `RequestJobResponseByJobOrderState`, `ReceiveJobResponse` — mandatory, modelling rule `i=78`) | ✅ | ✅ | same | same |
