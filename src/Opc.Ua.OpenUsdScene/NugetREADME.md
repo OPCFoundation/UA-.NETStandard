@@ -25,6 +25,42 @@ The value-role DataTypes follow the OPC UA idiom of conveying meaning by extendi
 (`Duration : Double`, `UtcTime : DateTime`), so a role such as *colour* versus *point* is discoverable
 from the type system while the built-in encoding stays unchanged for generic clients.
 
+## The scene value model
+
+An authored USD value is carried by `UsdValue`, a readonly struct that scopes a value to the shapes
+a `.usda` document can express. A `Variant` cannot stand in for it: the USD value model is recursive
+and ragged, with tuples (`float3`), arrays, *arrays of tuples* (`color3f[]`), matrices authored as a
+tuple of row tuples, and asset paths and prim path references that must round-trip as their own
+syntax.
+
+`UsdValue` implements `INullable`, so an attribute with no authored value is `UsdValue.Null` — never
+`UsdValue?`. Values are read through `TryGet*` accessors; there is no boxing accessor:
+
+```csharp
+UsdAttribute radius = prim.Attributes["radius"];
+
+if (radius.Value.TryGetDouble(out double r))
+{
+    // a double3 or color3f arrives as a tuple instead
+}
+
+if (radius.Value.TryGetTuple(out ArrayOf<UsdValue> components))
+{
+    foreach (UsdValue component in components.Span)
+    {
+        component.TryGetNumber(out double v);
+    }
+}
+```
+
+Construction mirrors the authored syntax — `UsdValue.From(1.5)`, `UsdValue.FromToken("vertex")`,
+`UsdValue.FromAssetPath("./tool.usda")`, `UsdValue.FromTuple(...)`, `UsdValue.FromArray(...)`. The
+attribute's `TypeName` stays authoritative for how a value is rendered back out, so the kind adds
+type safety without changing the emitted `.usda`.
+
+The same type carries `UsdAttribute.TimeSamples` and `UsdPrim.Metadata`, and a nested metadata
+dictionary is a `UsdValue` of kind `Dictionary`.
+
 ## Related packages
 
 - `Opc.Ua.OpenUsdScene.Server` — materializes a scene into a server address space and exports it back

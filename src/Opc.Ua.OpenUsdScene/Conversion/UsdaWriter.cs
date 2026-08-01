@@ -684,6 +684,16 @@ namespace Opc.Ua.OpenUsdScene.Conversion
                 return RenderArray(items, baseType);
             }
 
+            if (value.TryGetItems(out ArrayOf<UsdValue> components))
+            {
+                // A fixed-size math scalar (double3, color3f, matrix4d, ...) is authored as a
+                // single parenthesised tuple whatever composite kind carries it, because the
+                // TypeName decides the shape - not the kind. Rendering through PyStr instead
+                // would emit "[1.0, 2.0, 3.0]" for a value the coercion layer handed back as an
+                // array, which is the H-1 defect.
+                return "(" + JoinPyStr(components) + ")";
+            }
+
             return PyStr(value);
         }
 

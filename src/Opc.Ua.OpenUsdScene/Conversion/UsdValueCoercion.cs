@@ -298,6 +298,13 @@ namespace Opc.Ua.OpenUsdScene.Conversion
             }
         }
 
+        /// <summary>
+        /// Wraps a one dimensional value as an array.
+        /// </summary>
+        /// <typeparam name="T">The element type.</typeparam>
+        /// <param name="source">The array read from the Variable.</param>
+        /// <param name="project">Projects one element onto a USD value.</param>
+        /// <returns>The elements as an array.</returns>
         private static UsdValue Wrap<T>(ArrayOf<T> source, Func<T, UsdValue> project)
         {
             System.ReadOnlySpan<T> span = source.Span;

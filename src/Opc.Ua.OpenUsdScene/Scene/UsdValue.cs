@@ -82,7 +82,7 @@ namespace Opc.Ua.OpenUsdScene.Scene
         /// <returns>The USD value.</returns>
         public static UsdValue From(bool value)
         {
-            return new UsdValue(UsdValueKind.Boolean, value ? 1L : 0L, 0.0, null, default, null);
+            return new UsdValue(UsdValueKind.Boolean, value ? 1L : 0L, 0.0, null, null, null);
         }
 
         /// <summary>
@@ -92,7 +92,7 @@ namespace Opc.Ua.OpenUsdScene.Scene
         /// <returns>The USD value.</returns>
         public static UsdValue From(long value)
         {
-            return new UsdValue(UsdValueKind.Integer, value, 0.0, null, default, null);
+            return new UsdValue(UsdValueKind.Integer, value, 0.0, null, null, null);
         }
 
         /// <summary>
@@ -102,7 +102,7 @@ namespace Opc.Ua.OpenUsdScene.Scene
         /// <returns>The USD value.</returns>
         public static UsdValue From(double value)
         {
-            return new UsdValue(UsdValueKind.Double, 0L, value, null, default, null);
+            return new UsdValue(UsdValueKind.Double, 0L, value, null, null, null);
         }
 
         /// <summary>
@@ -114,7 +114,7 @@ namespace Opc.Ua.OpenUsdScene.Scene
         {
             return value == null
                 ? Null
-                : new UsdValue(UsdValueKind.String, 0L, 0.0, value, default, null);
+                : new UsdValue(UsdValueKind.String, 0L, 0.0, value, null, null);
         }
 
         /// <summary>
@@ -126,7 +126,7 @@ namespace Opc.Ua.OpenUsdScene.Scene
         {
             return value == null
                 ? Null
-                : new UsdValue(UsdValueKind.Token, 0L, 0.0, value, default, null);
+                : new UsdValue(UsdValueKind.Token, 0L, 0.0, value, null, null);
         }
 
         /// <summary>
@@ -138,7 +138,7 @@ namespace Opc.Ua.OpenUsdScene.Scene
         {
             return value == null
                 ? Null
-                : new UsdValue(UsdValueKind.AssetPath, 0L, 0.0, value, default, null);
+                : new UsdValue(UsdValueKind.AssetPath, 0L, 0.0, value, null, null);
         }
 
         /// <summary>
@@ -150,7 +150,7 @@ namespace Opc.Ua.OpenUsdScene.Scene
         {
             return value == null
                 ? Null
-                : new UsdValue(UsdValueKind.PathReference, 0L, 0.0, value, default, null);
+                : new UsdValue(UsdValueKind.PathReference, 0L, 0.0, value, null, null);
         }
 
         /// <summary>
@@ -160,7 +160,7 @@ namespace Opc.Ua.OpenUsdScene.Scene
         /// <returns>The USD value.</returns>
         public static UsdValue FromTuple(ArrayOf<UsdValue> items)
         {
-            return new UsdValue(UsdValueKind.Tuple, 0L, 0.0, null, items, null);
+            return new UsdValue(UsdValueKind.Tuple, 0L, 0.0, null, items.ToArray(), null);
         }
 
         /// <summary>
@@ -170,7 +170,7 @@ namespace Opc.Ua.OpenUsdScene.Scene
         /// <returns>The USD value.</returns>
         public static UsdValue FromArray(ArrayOf<UsdValue> items)
         {
-            return new UsdValue(UsdValueKind.Array, 0L, 0.0, null, items, null);
+            return new UsdValue(UsdValueKind.Array, 0L, 0.0, null, items.ToArray(), null);
         }
 
         /// <summary>
@@ -180,7 +180,7 @@ namespace Opc.Ua.OpenUsdScene.Scene
         /// <returns>The USD value.</returns>
         public static UsdValue FromMatrix(ArrayOf<UsdValue> rows)
         {
-            return new UsdValue(UsdValueKind.Matrix, 0L, 0.0, null, rows, null);
+            return new UsdValue(UsdValueKind.Matrix, 0L, 0.0, null, rows.ToArray(), null);
         }
 
         /// <summary>
@@ -192,7 +192,7 @@ namespace Opc.Ua.OpenUsdScene.Scene
         {
             return entries == null
                 ? Null
-                : new UsdValue(UsdValueKind.Dictionary, 0L, 0.0, null, default, entries);
+                : new UsdValue(UsdValueKind.Dictionary, 0L, 0.0, null, null, entries);
         }
 
         /// <summary>
@@ -317,7 +317,7 @@ namespace Opc.Ua.OpenUsdScene.Scene
         /// <returns><c>true</c> when this is a tuple.</returns>
         public bool TryGetTuple(out ArrayOf<UsdValue> value)
         {
-            value = m_items;
+            value = Items;
             return m_kind == UsdValueKind.Tuple;
         }
 
@@ -328,7 +328,7 @@ namespace Opc.Ua.OpenUsdScene.Scene
         /// <returns><c>true</c> when this is an array.</returns>
         public bool TryGetArray(out ArrayOf<UsdValue> value)
         {
-            value = m_items;
+            value = Items;
             return m_kind == UsdValueKind.Array;
         }
 
@@ -339,7 +339,7 @@ namespace Opc.Ua.OpenUsdScene.Scene
         /// <returns><c>true</c> when this is a matrix.</returns>
         public bool TryGetMatrix(out ArrayOf<UsdValue> value)
         {
-            value = m_items;
+            value = Items;
             return m_kind == UsdValueKind.Matrix;
         }
 
@@ -351,7 +351,7 @@ namespace Opc.Ua.OpenUsdScene.Scene
         /// <returns><c>true</c> when this value is composite.</returns>
         public bool TryGetItems(out ArrayOf<UsdValue> value)
         {
-            value = m_items;
+            value = Items;
             return m_kind is UsdValueKind.Tuple
                 or UsdValueKind.Array
                 or UsdValueKind.Matrix;
@@ -425,7 +425,7 @@ namespace Opc.Ua.OpenUsdScene.Scene
                 case UsdValueKind.Tuple:
                 case UsdValueKind.Array:
                 case UsdValueKind.Matrix:
-                    System.ReadOnlySpan<UsdValue> items = m_items.Span;
+                    System.ReadOnlySpan<UsdValue> items = Span;
                     hash.Add(items.Length);
                     for (int ii = 0; ii < items.Length; ii++)
                     {
@@ -492,7 +492,7 @@ namespace Opc.Ua.OpenUsdScene.Scene
             long integer,
             double number,
             string? text,
-            ArrayOf<UsdValue> items,
+            UsdValue[]? items,
             IReadOnlyDictionary<string, UsdValue>? entries)
         {
             m_kind = kind;
@@ -503,9 +503,13 @@ namespace Opc.Ua.OpenUsdScene.Scene
             m_entries = entries;
         }
 
+        private System.ReadOnlySpan<UsdValue> Span => m_items ?? [];
+
+        private ArrayOf<UsdValue> Items => (m_items ?? []).ToArrayOf();
+
         private string JoinItems()
         {
-            System.ReadOnlySpan<UsdValue> items = m_items.Span;
+            System.ReadOnlySpan<UsdValue> items = Span;
             var builder = new System.Text.StringBuilder();
             for (int ii = 0; ii < items.Length; ii++)
             {
@@ -518,10 +522,10 @@ namespace Opc.Ua.OpenUsdScene.Scene
             return builder.ToString();
         }
 
-        private static bool ItemsEqual(ArrayOf<UsdValue> left, ArrayOf<UsdValue> right)
+        private static bool ItemsEqual(UsdValue[]? left, UsdValue[]? right)
         {
-            System.ReadOnlySpan<UsdValue> a = left.Span;
-            System.ReadOnlySpan<UsdValue> b = right.Span;
+            System.ReadOnlySpan<UsdValue> a = left ?? [];
+            System.ReadOnlySpan<UsdValue> b = right ?? [];
             if (a.Length != b.Length)
             {
                 return false;
@@ -568,7 +572,7 @@ namespace Opc.Ua.OpenUsdScene.Scene
         private readonly long m_integer;
         private readonly double m_double;
         private readonly string? m_text;
-        private readonly ArrayOf<UsdValue> m_items;
+        private readonly UsdValue[]? m_items;
         private readonly IReadOnlyDictionary<string, UsdValue>? m_entries;
     }
 }

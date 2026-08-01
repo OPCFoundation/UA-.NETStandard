@@ -677,30 +677,20 @@ namespace Opc.Ua.OpenUsdScene.Server
             return haveLatitude && haveLongitude && haveHeight;
         }
 
-        private static bool TryToDouble(object? value, out double result)
+        private static bool TryToDouble(UsdValue value, out double result)
         {
-            switch (value)
+            if (value.TryGetNumber(out result))
             {
-                case double d:
-                    result = d;
-                    return true;
-                case float f:
-                    result = f;
-                    return true;
-                case long l:
-                    result = l;
-                    return true;
-                case int i:
-                    result = i;
-                    return true;
-                case string s when double.TryParse(
-                    s, NumberStyles.Float, CultureInfo.InvariantCulture, out double parsed):
-                    result = parsed;
-                    return true;
-                default:
-                    result = 0.0;
-                    return false;
+                return true;
             }
+            if (value.TryGetText(out string text) && double.TryParse(
+                text, NumberStyles.Float, CultureInfo.InvariantCulture, out double parsed))
+            {
+                result = parsed;
+                return true;
+            }
+            result = 0.0;
+            return false;
         }
 
         private static void Attach(

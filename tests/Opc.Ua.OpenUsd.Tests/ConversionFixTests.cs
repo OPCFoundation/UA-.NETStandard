@@ -52,7 +52,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
     [TestFixture]
     public class ConversionFixTests
     {
-        private static bool Coerce(string typeName, object? value, out Variant result)
+        private static bool Coerce(string typeName, UsdValue value, out Variant result)
         {
             UsdValueTypeMapping mapping = UsdValueTypeMap.Map(typeName, null);
             uint components = UsdValueTypeMap.ComponentCount(typeName);
@@ -66,7 +66,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
         {
             // color4f is not in the value-type table, so it is carried opaquely. A tuple must be
             // rendered as "(...)" rather than the literal "System.Object[]".
-            bool ok = Coerce("color4f", new object?[] { 0.1, 0.2, 0.3, 1.0 }, out Variant v);
+            bool ok = Coerce("color4f", UsdTestHelpers.NumberTuple(0.1, 0.2, 0.3, 1.0), out Variant v);
 
             Assert.That(ok, Is.True);
             Assert.That(v.TryGetValue(out string rendered), Is.True);
@@ -79,7 +79,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
         {
             // A [...] array is modelled as List<object?>; it must render as "[...]" rather than
             // the literal "System.Collections.Generic.List`1[System.Object]".
-            bool ok = Coerce("mvtype", new List<object?> { 1L, 2L, 3L }, out Variant v);
+            bool ok = Coerce("mvtype", UsdTestHelpers.IntegerArray(1L, 2L, 3L), out Variant v);
 
             Assert.That(ok, Is.True);
             Assert.That(v.TryGetValue(out string rendered), Is.True);
@@ -93,7 +93,9 @@ namespace Opc.Ua.OpenUsdScene.Tests
             // matrix2d authored as two nested 2-tuples must render every level.
             bool ok = Coerce(
                 "matrix2d",
-                new object?[] { new object?[] { 1L, 0L }, new object?[] { 0L, 1L } },
+                UsdTestHelpers.Tuple(
+                    UsdTestHelpers.IntegerTuple(1L, 0L),
+                    UsdTestHelpers.IntegerTuple(0L, 1L)),
                 out Variant v);
 
             Assert.That(ok, Is.True);
@@ -104,7 +106,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
         [Test]
         public void OpaqueStringLeaf_IsQuotedInsideStructure()
         {
-            bool ok = Coerce("mvtype", new List<object?> { "a", "b" }, out Variant v);
+            bool ok = Coerce("mvtype", UsdTestHelpers.StringArray("a", "b"), out Variant v);
 
             Assert.That(ok, Is.True);
             Assert.That(v.TryGetValue(out string rendered), Is.True);
@@ -117,7 +119,11 @@ namespace Opc.Ua.OpenUsdScene.Tests
             // A leaf the writer cannot render faithfully must leave the value unresolved rather
             // than publish a plausible-but-wrong string (fail closed).
             bool ok = Coerce(
-                "mvtype", new object?[] { 0.1, DateTime.UtcNow }, out Variant v);
+                "mvtype",
+                UsdTestHelpers.Array(
+                    UsdValue.From(0.1),
+                    UsdValue.FromDictionary(new Dictionary<string, UsdValue>(StringComparer.Ordinal))),
+                out Variant v);
 
             Assert.That(ok, Is.False);
             Assert.That(v.TryGetValue(out string _), Is.False);
@@ -128,13 +134,11 @@ namespace Opc.Ua.OpenUsdScene.Tests
         [Test]
         public void Matrix4d_NestedTuples_AreFlattenedAndHonoured()
         {
-            object?[] nested =
-            {
-                new object?[] { 1.0, 0.0, 0.0, 0.0 },
-                new object?[] { 0.0, 1.0, 0.0, 0.0 },
-                new object?[] { 0.0, 0.0, 1.0, 0.0 },
-                new object?[] { 0.0, 0.0, 0.0, 1.0 },
-            };
+            UsdValue nested = UsdTestHelpers.Tuple(
+                UsdTestHelpers.NumberTuple(1.0, 0.0, 0.0, 0.0),
+                UsdTestHelpers.NumberTuple(0.0, 1.0, 0.0, 0.0),
+                UsdTestHelpers.NumberTuple(0.0, 0.0, 1.0, 0.0),
+                UsdTestHelpers.NumberTuple(0.0, 0.0, 0.0, 1.0));
 
             bool ok = Coerce("matrix4d", nested, out Variant v);
 
@@ -152,13 +156,11 @@ namespace Opc.Ua.OpenUsdScene.Tests
         [Test]
         public void Matrix4d_AlreadyFlat_StillHonoured()
         {
-            object?[] flatAuthored =
-            {
+            UsdValue flatAuthored = UsdTestHelpers.NumberTuple(
                 1.0, 0.0, 0.0, 0.0,
                 0.0, 1.0, 0.0, 0.0,
                 0.0, 0.0, 1.0, 0.0,
-                0.0, 0.0, 0.0, 1.0,
-            };
+                0.0, 0.0, 0.0, 1.0);
 
             bool ok = Coerce("matrix4d", flatAuthored, out Variant v);
 
@@ -170,14 +172,12 @@ namespace Opc.Ua.OpenUsdScene.Tests
         [Test]
         public void Matrix4dArray_NestedTuples_AreFlattenedPerRow()
         {
-            object?[] identity =
-            {
-                new object?[] { 1.0, 0.0, 0.0, 0.0 },
-                new object?[] { 0.0, 1.0, 0.0, 0.0 },
-                new object?[] { 0.0, 0.0, 1.0, 0.0 },
-                new object?[] { 0.0, 0.0, 0.0, 1.0 },
-            };
-            var value = new List<object?> { identity, identity };
+            UsdValue identity = UsdTestHelpers.Tuple(
+                UsdTestHelpers.NumberTuple(1.0, 0.0, 0.0, 0.0),
+                UsdTestHelpers.NumberTuple(0.0, 1.0, 0.0, 0.0),
+                UsdTestHelpers.NumberTuple(0.0, 0.0, 1.0, 0.0),
+                UsdTestHelpers.NumberTuple(0.0, 0.0, 0.0, 1.0));
+            UsdValue value = UsdTestHelpers.Array(identity, identity);
 
             bool ok = Coerce("matrix4d[]", value, out Variant v);
 
@@ -192,11 +192,9 @@ namespace Opc.Ua.OpenUsdScene.Tests
             // The over-flatten guard: color3f[] is a sequence of 3-tuples. Flattening applies to
             // the element shape only, so the outer array must keep two rows of three, not collapse
             // to one flat run.
-            var value = new List<object?>
-            {
-                new object?[] { 1f, 2f, 3f },
-                new object?[] { 4f, 5f, 6f },
-            };
+            UsdValue value = UsdTestHelpers.Array(
+                UsdTestHelpers.NumberTuple(1.0, 2.0, 3.0),
+                UsdTestHelpers.NumberTuple(4.0, 5.0, 6.0));
 
             bool ok = Coerce("color3f[]", value, out Variant v);
 
@@ -210,7 +208,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
         {
             // Flattening must not paper over a genuinely wrong arity: float3 with two components
             // still cannot be honoured.
-            bool ok = Coerce("float3", new object?[] { 1f, 2f }, out Variant v);
+            bool ok = Coerce("float3", UsdTestHelpers.NumberTuple(1.0, 2.0), out Variant v);
 
             Assert.That(ok, Is.False);
             Assert.That(v.TryGetValue(out ArrayOf<float> _), Is.False);
@@ -223,7 +221,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
         {
             var stage = new UsdStage("Assets") { DefaultPrim = "P" };
             var prim = new UsdPrim("P", "Xform");
-            prim.Attributes.Add(new UsdAttribute("inputs:file", "asset") { Value = "./pump.usda" });
+            prim.Attributes.Add(new UsdAttribute("inputs:file", "asset") { Value = UsdValue.FromString("./pump.usda") });
             stage.AddRootPrim(prim);
 
             string usda = UsdaWriter.Write(stage);
@@ -240,7 +238,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
             prim.Attributes.Add(
                 new UsdAttribute("inputs:files", "asset[]")
                 {
-                    Value = new List<object?> { "./a.usda", "./b.usda" },
+                    Value = UsdTestHelpers.AssetArray("./a.usda", "./b.usda"),
                 });
             stage.AddRootPrim(prim);
 
@@ -256,7 +254,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
             // writer must emit it verbatim so the structured text survives the round trip.
             var stage = new UsdStage("Opaque") { DefaultPrim = "P" };
             var prim = new UsdPrim("P", "Xform");
-            prim.Attributes.Add(new UsdAttribute("extent", "color4f") { Value = "(0.1, 0.2, 0.3, 1.0)" });
+            prim.Attributes.Add(new UsdAttribute("extent", "color4f") { Value = UsdValue.FromString("(0.1, 0.2, 0.3, 1.0)") });
             stage.AddRootPrim(prim);
 
             string usda = UsdaWriter.Write(stage);
@@ -272,7 +270,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
         {
             var stage = new UsdStage("Conn") { DefaultPrim = "P" };
             var prim = new UsdPrim("P", "Xform");
-            var attr = new UsdAttribute("inputs:surface", "token") { Value = "fallback" };
+            var attr = new UsdAttribute("inputs:surface", "token") { Value = UsdValue.FromString("fallback") };
             attr.Connections.Add("/P/A.outputs:surface");
             attr.Connections.Add("/P/B.outputs:surface");
             prim.Attributes.Add(attr);

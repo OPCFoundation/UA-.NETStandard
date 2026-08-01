@@ -31,6 +31,7 @@ using System;
 using System.IO;
 using System.Linq;
 using NUnit.Framework;
+using Opc.Ua;
 using Opc.Ua.OpenUsdScene.Conversion;
 using Opc.Ua.OpenUsdScene.Scene;
 
@@ -77,11 +78,25 @@ namespace Opc.Ua.OpenUsdScene.Tests
         private static string Flatten(object? value) => value switch
         {
             null => string.Empty,
+            UsdValue usdValue => Flatten(usdValue),
             string text => text,
             System.Collections.IEnumerable items =>
                 string.Join(",", items.Cast<object?>().Select(Flatten)),
             _ => value.ToString() ?? string.Empty
         };
+
+        private static string Flatten(UsdValue value)
+        {
+            if (value.TryGetText(out string text))
+            {
+                return text;
+            }
+            if (value.TryGetItems(out ArrayOf<UsdValue> items))
+            {
+                return string.Join(",", items.ToArray()!.Select(Flatten));
+            }
+            return value.ToString();
+        }
 
         [Test]
         [TestCase("robot.usda", "Robot")]
@@ -143,8 +158,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
                 warning!.Attributes.FirstOrDefault(a => a.Name == "visibility");
             Assert.That(visibility, Is.Not.Null, "/Robot/Warning has no visibility attribute.");
             Assert.That(visibility!.TypeName, Is.EqualTo("token"));
-            Assert.That(visibility.Value, Is.EqualTo("invisible"),
-                "The warning halo must start hidden.");
+            UsdTestHelpers.AssertText(visibility.Value, "invisible");
         }
 
         [Test]
@@ -182,8 +196,7 @@ namespace Opc.Ua.OpenUsdScene.Tests
             UsdAttribute? visibility =
                 beacon!.Attributes.FirstOrDefault(a => a.Name == "visibility");
             Assert.That(visibility, Is.Not.Null, "/Cell/SafetyBeacon has no visibility attribute.");
-            Assert.That(visibility!.Value, Is.EqualTo("invisible"),
-                "The beacon must start hidden.");
+            UsdTestHelpers.AssertText(visibility!.Value, "invisible");
         }
 
         [Test]
@@ -255,9 +268,10 @@ namespace Opc.Ua.OpenUsdScene.Tests
                 prim!.Attributes.FirstOrDefault(a => a.Name == "xformOp:translate");
             Assert.That(translate, Is.Not.Null, $"{primPath} has no xformOp:translate.");
 
-            object?[]? components = translate!.Value as object?[];
-            Assert.That(components, Is.Not.Null.And.Length.EqualTo(3));
-            return Convert.ToDouble(components![0], System.Globalization.CultureInfo.InvariantCulture);
+            Assert.That(translate!.Value.TryGetItems(out ArrayOf<UsdValue> components), Is.True);
+            Assert.That(components.Count, Is.EqualTo(3));
+            Assert.That(components[0].TryGetNumber(out double x), Is.True);
+            return x;
         }
     }
 }
