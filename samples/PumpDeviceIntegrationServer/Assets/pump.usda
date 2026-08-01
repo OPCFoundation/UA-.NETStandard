@@ -1309,7 +1309,11 @@ def Xform "Pump" (
         double3 xformOp:translate = (0.10, -0.32, 0.12)
         uniform token[] xformOpOrder = ["xformOp:translate"]
 
-        token visibility = "inherited"
+        # Hidden until the supervision binding asserts. The default has to
+        # be invisible: a pump nothing is bound to - an aggregated line
+        # pump, or one federated from another server - would otherwise
+        # stand there showing a permanent alarm it never raised.
+        token visibility = "invisible"
 
         # Alarm halo - only this is gated by the supervision alarm, so a
         # cleared alarm leaves the beacon hardware and lamp on show.

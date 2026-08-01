@@ -151,20 +151,25 @@ def Xform "Plant"
         uniform token[] xformOpOrder = ["xformOp:rotateXYZ"]
     }
 
-    # Three-quarter view along the pump line. A horizontal end-suction pump is
-    # all profile, so an overhead camera shows little but baseplate; this one
-    # looks down the line from the front-right and slightly above, which reads
-    # the volute, the coupling guard and the motor. Hosts start on it by prim
-    # path (the connector's --camera option).
+    # Operator's viewpoint. A person stands in the aisle on the discharge side
+    # of the line at eye height and looks across the row: every configured pump
+    # is in shot at a three-quarter angle, so the volute, the coupling guard,
+    # the gauges and the turning shaft all read on each machine. The pitch is
+    # only 7 degrees below horizontal - the gantry view a steeper camera gives
+    # shows little but baseplate. The suction vessels stand behind the pumps
+    # from here and the aggregation aisle further back again, which gives the
+    # shot its depth. The framing holds from one pump up to eight, so it does
+    # not have to be retuned for --pumps N. Hosts start on it by prim path (the
+    # connector's --camera option).
     def Camera "HeroCamera"
     {
         token projection = "perspective"
-        float focalLength = 24
+        float focalLength = 20
         float horizontalAperture = 20.955
         float verticalAperture = 13.97
-        float2 clippingRange = (0.1, 200)
-        double3 xformOp:translate = (6.0, -5.94, 3.77)
-        double3 xformOp:rotateXYZ = (70, 0, 41)
+        float2 clippingRange = (0.1, 300)
+        double3 xformOp:translate = (8.0, -4.5, 1.65)
+        double3 xformOp:rotateXYZ = (83, 0, 45)
         uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ"]
     }
 
@@ -173,7 +178,7 @@ def Xform "Plant"
         int[] faceVertexCounts = [4]
         int[] faceVertexIndices = [0, 1, 2, 3]
         point3f[] points = [
-            (-4, -3.4, 0), (7, -3.4, 0), (7, 4.2, 0), (-4, 4.2, 0)
+            (-11, -8, 0), (11, -8, 0), (11, 20, 0), (-11, 20, 0)
         ]
         normal3f[] primvars:normals = [
             (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1)
@@ -1414,7 +1419,11 @@ def Xform "Plant"
                 double3 xformOp:translate = (0.10, -0.32, 0.12)
                 uniform token[] xformOpOrder = ["xformOp:translate"]
 
-                token visibility = "inherited"
+                # Hidden until the supervision binding asserts. The default has to
+                # be invisible: a pump nothing is bound to - an aggregated line
+                # pump, or one federated from another server - would otherwise
+                # stand there showing a permanent alarm it never raised.
+                token visibility = "invisible"
 
                 # Alarm halo - only this is gated by the supervision alarm, so a
                 # cleared alarm leaves the beacon hardware and lamp on show.
@@ -1448,6 +1457,14 @@ def Xform "Plant"
 
     def Xform "Line1"
     {
+        # The aggregation demo stands in its own aisle behind the suction
+        # vessels. The configured pumps march along +Y on the main aisle at
+        # 2.4 m centres, so a line row sharing that aisle would interleave with
+        # them and the hall would read as one jumbled row of machines that do
+        # not correspond to the pumps a client can browse.
+        double3 xformOp:translate = (-7.0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+
         def Scope "Pumps"
         {
             def Xform "P_201"

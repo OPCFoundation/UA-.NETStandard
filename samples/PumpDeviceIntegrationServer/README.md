@@ -273,6 +273,31 @@ Two departures from a real pump are deliberate, so the twin can be
 guard is a cage rather than a solid barrel. Both let you watch the shaft
 turn.
 
+### The hall
+
+| Aisle | Contents |
+| --- | --- |
+| Main aisle, `x ≈ 0` | the configured pumps, one bay every 2.4 m along +Y |
+| Behind them, `x = -1.35` | each pump's suction vessel |
+| Back aisle, `x = -7` | the `ProductionLine` aggregation demo and the cross-server pump |
+
+The aggregation demo has its own aisle on purpose. Its pumps sit on 1.2 m
+centres, so sharing the main aisle would interleave them with the
+configured pumps and the hall would read as one jumbled row of machines
+that do not correspond to anything a client can browse.
+
+`HeroCamera` is an operator's viewpoint: eye height 1.65 m in the aisle on
+the discharge side, pitched 7° below horizontal, framing every configured
+pump at a three-quarter angle with the vessels behind them and the back
+aisle further back again. The framing holds from one pump up to eight, so
+it does not have to be retuned for `--pumps N`. Pass
+`--camera /Plant/HeroCamera` to start on it.
+
+An unbound machine never shows an alarm: `StatusLight` is authored
+`invisible` and only a live supervision binding reveals it. Without that
+default an aggregated line pump — which nothing is bound to — would stand
+there showing a permanent alarm it never raised.
+
 ### Live bindings
 
 All paths are relative to the pump's own prim, so every pump drives its
