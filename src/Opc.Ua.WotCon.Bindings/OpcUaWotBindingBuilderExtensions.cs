@@ -186,7 +186,8 @@ namespace Microsoft.Extensions.DependencyInjection
                 sp.GetService<IWotCredentialProvider>(),
                 sp.GetService<IWotCodecRegistry>(),
                 sp.GetService<WotBindingBounds>(),
-                sp.GetService<WotEndpointPolicy>()));
+                sp.GetService<WotEndpointPolicy>(),
+                sp.GetService<ITelemetryContext>()));
             services.TryAddSingleton<IWotBinderRegistry>(
                 sp => sp.GetRequiredService<WotProtocolBinderRegistry>());
             services.TryAddSingleton<IWotBindingChannelFactory>(

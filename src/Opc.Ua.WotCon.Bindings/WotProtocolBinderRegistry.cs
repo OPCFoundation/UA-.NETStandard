@@ -56,13 +56,15 @@ namespace Opc.Ua.WotCon.Bindings
         /// <param name="codecs">The codec registry used to select payload codecs.</param>
         /// <param name="bounds">The safety bounds enforced during planning.</param>
         /// <param name="endpointPolicy">The endpoint policy enforced before opening live channels.</param>
+        /// <param name="telemetry">The telemetry context used for executor diagnostics.</param>
         public WotProtocolBinderRegistry(
             IEnumerable<IWotProtocolBinder> binders,
             IEnumerable<IWotBindingExecutor>? executors = null,
             IWotCredentialProvider? credentials = null,
             IWotCodecRegistry? codecs = null,
             WotBindingBounds? bounds = null,
-            WotEndpointPolicy? endpointPolicy = null)
+            WotEndpointPolicy? endpointPolicy = null,
+            ITelemetryContext? telemetry = null)
         {
             if (binders is null)
             {
@@ -72,6 +74,7 @@ namespace Opc.Ua.WotCon.Bindings
             m_codecs = codecs ?? WotPayloadCodecRegistry.Default;
             m_bounds = bounds ?? WotBindingBounds.Default;
             m_endpointPolicy = endpointPolicy ?? WotEndpointPolicy.Default;
+            m_telemetry = telemetry ?? TelemetryExtensions.InternalOnly__TelemetryHook();
 
             var seenBinderKeys = new HashSet<string>(StringComparer.Ordinal);
             foreach (IWotProtocolBinder binder in binders)
@@ -287,7 +290,7 @@ namespace Opc.Ua.WotCon.Bindings
                 throw new ServiceResultException(validation);
             }
 
-            var context = new WotExecutorContext(m_credentials, m_codecs, m_bounds, m_endpointPolicy);
+            var context = new WotExecutorContext(m_credentials, m_codecs, m_bounds, m_endpointPolicy, m_telemetry);
             return executor.ActivateAsync(form, context, cancellationToken);
         }
 
@@ -456,6 +459,7 @@ namespace Opc.Ua.WotCon.Bindings
         private readonly IWotCodecRegistry m_codecs;
         private readonly WotBindingBounds m_bounds;
         private readonly WotEndpointPolicy m_endpointPolicy;
+        private readonly ITelemetryContext m_telemetry;
 
         private readonly Dictionary<string, IWotProtocolBinder> m_binders =
             new(StringComparer.Ordinal);

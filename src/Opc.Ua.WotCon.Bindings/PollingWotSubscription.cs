@@ -31,7 +31,6 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Opc.Ua.WotCon.Bindings
 {
@@ -72,21 +71,23 @@ namespace Opc.Ua.WotCon.Bindings
         /// <see cref="ExponentialBackoffChannelReconnectPolicy"/>. A policy that reports "stop
         /// retrying" (a negative delay) ends the poll loop.
         /// </param>
-        /// <param name="logger">The logger used for best-effort disposal diagnostics.</param>
+        /// <param name="telemetry">
+        /// The telemetry context used for best-effort disposal diagnostics.
+        /// </param>
         public PollingWotSubscription(
             WotCompiledForm form,
             Func<CancellationToken, ValueTask<bool>> pollAsync,
             TimeSpan interval,
             Action<Exception>? onError = null,
             IChannelReconnectPolicy? retryPolicy = null,
-            ILogger? logger = null)
+            ITelemetryContext? telemetry = null)
         {
             Form = form ?? throw new ArgumentNullException(nameof(form));
             m_pollAsync = pollAsync ?? throw new ArgumentNullException(nameof(pollAsync));
             m_interval = interval <= TimeSpan.Zero ? TimeSpan.FromSeconds(1) : interval;
             m_onError = onError;
             m_retryPolicy = retryPolicy ?? new ExponentialBackoffChannelReconnectPolicy();
-            m_logger = logger ?? NullLogger.Instance;
+            m_logger = telemetry.CreateLogger<PollingWotSubscription>();
             m_loop = RunAsync(m_cts.Token);
         }
 

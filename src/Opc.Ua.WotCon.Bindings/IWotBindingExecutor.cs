@@ -49,12 +49,14 @@ namespace Opc.Ua.WotCon.Bindings
             IWotCredentialProvider? credentials = null,
             IWotCodecRegistry? codecs = null,
             WotBindingBounds? bounds = null,
-            WotEndpointPolicy? endpointPolicy = null)
+            WotEndpointPolicy? endpointPolicy = null,
+            ITelemetryContext? telemetry = null)
         {
             Credentials = credentials ?? NullWotCredentialProvider.Instance;
             Codecs = codecs ?? WotPayloadCodecRegistry.Default;
             Bounds = bounds ?? WotBindingBounds.Default;
             EndpointPolicy = endpointPolicy ?? WotEndpointPolicy.Default;
+            Telemetry = telemetry ?? TelemetryExtensions.InternalOnly__TelemetryHook();
         }
 
         /// <summary>
@@ -76,6 +78,11 @@ namespace Opc.Ua.WotCon.Bindings
         /// Gets the endpoint policy enforced before opening a live channel.
         /// </summary>
         public WotEndpointPolicy EndpointPolicy { get; }
+
+        /// <summary>
+        /// Gets the telemetry context used for executor diagnostics.
+        /// </summary>
+        public ITelemetryContext Telemetry { get; }
     }
 
     /// <summary>
