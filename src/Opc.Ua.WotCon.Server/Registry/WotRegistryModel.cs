@@ -466,7 +466,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         {
             GroupId = groupId ?? throw new ArgumentNullException(nameof(groupId));
             Kind = kind;
-            Resources = resources ?? [];
+            Resources = resources ?? ImmutableDictionary<string, WotResource>.Empty;
             Name = name ?? groupId;
             Description = description ?? string.Empty;
             Epoch = epoch;
@@ -548,7 +548,9 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// Gets the empty snapshot (generation 0, no groups).
         /// </summary>
         public static WotRegistrySnapshot Empty { get; } =
-            new WotRegistrySnapshot(0, []);
+            new WotRegistrySnapshot(
+                0,
+                ImmutableDictionary<string, WotResourceGroup>.Empty);
 
         /// <summary>
         /// Initializes a new immutable registry snapshot.
@@ -559,7 +561,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             ImmutableSortedDictionary<string, string>? labels = null)
         {
             Generation = generation;
-            Groups = groups ?? [];
+            Groups = groups ?? ImmutableDictionary<string, WotResourceGroup>.Empty;
             Labels = labels ?? WotLabels.Empty;
         }
 
