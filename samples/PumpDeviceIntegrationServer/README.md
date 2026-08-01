@@ -56,13 +56,17 @@ Sample console output:
 info: Opc.Ua.Server.MasterNodeManager
       MasterNodeManager.Startup - NodeManagers=3
 info: Opc.Ua.Di.Server.DiNodeManager
+      Materialised OpenUSD facility (root ns=4;s=OpenUSD, PlantStage ns=1;s=OpenUSD_Stages_PlantStage).
+info: Opc.Ua.Di.Server.DiNodeManager
       Materialised 'Pump_1' (PumpType) under DeviceSet, NodeId=ns=1;s=5001_Pump_1.
 info: Opc.Ua.Di.Server.DiNodeManager
       Materialised 'Pump_2' (PumpType) under DeviceSet, NodeId=ns=1;s=5001_Pump_2.
+info: Opc.Ua.Di.Server.DiNodeManager
+      Materialised ProductionLine (aggregates 1..n pumps).
 info: Pumps.PumpNodeManager
       Configuring PumpNodeManager fluent wiring...
 info: Opc.Ua.Di.Server.DiNodeManager
-      PumpNodeManager: address space ready (10293 predefined nodes).
+      PumpNodeManager: address space ready (10997 predefined nodes).
 info: Opc.Ua.Server.Hosting.OpcUaServerHostedService
       OPC UA server listening at opc.tcp://localhost:62542/PumpDeviceIntegrationServer.
 ```
@@ -99,6 +103,7 @@ flowchart TD
     Ev["Events<br/><i>EventNotifier</i>"]
     Maint["Maintenance<br/>└ GeneralMaintenance"]
     Diag["Diagnostics<br/><i>ad-hoc FunctionalGroup</i>"]
+    Usd["OpenUsdRepresentation<br/><i>twin bindings + ShaftAngle</i>"]
     Vals["DifferentialPressure · FluidTemperature<br/>BearingTemperature · PumpPowerInput<br/>MassFlow · PumpEfficiency · Level<br/>NumberOfStarts"]
     Alarm["OverTempAlarm<br/><i>NonExclusiveLimitAlarmType</i>"]
     SupF["SupervisionProcessFluid<br/>└ Cavitation"]
@@ -112,6 +117,7 @@ flowchart TD
     P1 -->|HasComponent| Ev
     P1 -->|HasComponent| Maint
     P1 -->|HasComponent| Diag
+    P1 -->|HasComponent| Usd
     Op -->|HasComponent| Meas
     Meas --> Vals
     Ev -->|HasComponent| Alarm
@@ -119,13 +125,15 @@ flowchart TD
     Ev -->|HasComponent| SupP
     P1 -.->|HasNotifier| Ev
     Alarm -.->|SourceNode| Vals
+    Vals -.->|bound signals| Usd
 ```
 
 Only the subtree of `Pump_1` is drawn; every further pump (`Pump_2`, …,
 up to `--pumps N`) carries an identical one. `Diagnostics` is the one
 group that is not part of the model — it is added declaratively per pump
 by the non-typed `WithFunctionalGroup(QualifiedName, ...)` overload from
-`Program.cs`.
+`Program.cs`. `OpenUsdRepresentation` carries the twin bindings described
+in [The OpenUSD twin](#the-openusd-twin).
 
 ## Startup and hosting flow
 
@@ -171,11 +179,15 @@ flowchart LR
     Alarm["OverTempAlarm<br/><i>ActivatesAlarm edge tracker</i>"]
     Notif["HasNotifier chain<br/>Pump → Server object"]
     Ev(["Condition events"])
+    Shaft["ShaftAngle<br/><i>∫ speed dt, speed ∝ ṁ / ṁ rated</i>"]
+    Usd(["OpenUSD twin bindings"])
 
     Tick --> Adv --> Sim --> Curves --> Upd --> Vars --> MI
     Sim --> Ovr --> Alarm --> Notif --> Ev
     Sim --> Cav --> Vars
     Vars -.->|SourceNode| Alarm
+    Curves --> Shaft --> Usd
+    Vars -.->|bound signals| Usd
 ```
 
 ## Validating the address space
@@ -202,6 +214,88 @@ opcua-check-address-space `
 
 The nightly check keeps the tool's default `auto` validation-view policy and
 fails on confirmed errors or any checker execution failure.
+
+## The OpenUSD twin
+
+The server also publishes an OpenUSD representation of the pump line
+(the draft OPC UA — OpenUSD Bindings companion model, see
+[`docs/OpenUsd.md`](../../docs/OpenUsd.md)) and serves its USD layers as
+embedded assets, so a connector can render the twin with no external
+asset resolver.
+
+`Assets/Plant.usda` models **P101** as a real machine: a horizontal
+long-coupled end-suction centrifugal pump built to **EN 733** (formerly
+DIN 24255), size **65-200**, following the published dimensions of the
+Grundfos NK 65-200 / KSB Etanorm 65-200 family and driven by an
+**IEC 160M** motor on a fabricated baseplate.
+
+| Item | Value |
+| --- | --- |
+| Baseplate | 1.80 × 0.46 × 0.12 m |
+| Shaft centreline above baseplate | 0.160 m (the IEC 160M frame number *is* the shaft height) |
+| Volute casing | 0.355 m outer diameter × 0.110 m wide |
+| Suction flange | DN80 axial, OD 0.200 m (EN 1092-2 PN16) |
+| Discharge flange | DN65 vertical, OD 0.185 m (EN 1092-2 PN16) |
+| Impeller | 0.198 m, six backward-curved vanes |
+| Motor frame | 0.254 m outer diameter × 0.615 m long |
+
+Livery is KSB signal blue (RAL 5005) for the wetted castings and
+RAL 7035 light grey for the motor. `pump.usda` is the same machine at a
+lower level of detail, referenced once per aggregated line pump;
+`remote-pump.usda` wears an OEM green livery so the pump federated from
+the *remote* server is obvious at a glance.
+
+Two departures from a real pump are deliberate, so the twin can be
+*seen*: the suction pipe is drawn as a stub leaving the casing eye open
+(a cutaway, as trade-show display pumps are presented) and the coupling
+guard is a cage rather than a solid barrel. Both let you watch the shaft
+turn.
+
+### Live bindings
+
+| Source | USD target | Effect |
+| --- | --- | --- |
+| `ShaftAngle` | `…/P101/Impeller.xformOp:rotateZ` | turns the shaft, impeller and coupling |
+| `BearingTemperature` | `…/P101/Body/Mat/Surface.inputs:diffuseColor` | casing colour, blue (cool) → red (hot) |
+| `DifferentialPressure` | `…/StatusLight/Mat/Surface.inputs:emissiveColor` | lamp glow tracks discharge pressure |
+| supervision alarm | `…/P101/StatusLight.visibility` | shows the alarm halo |
+
+`MassFlow` is a *rate*, so binding it straight to a rotation op pins the
+shaft at a fraction of a degree and the pump looks dead. The simulation
+integrates the running speed into a `ShaftAngle` instead, and the binding
+scales it down to a legible ~45°/s — a real 2900 rpm shaft would alias
+into a stroboscopic blur at any practical sampling rate. Speed follows
+flow, so the impeller visibly slows and picks up with the duty point.
+
+The beacon mast, housing and lamp are permanently mounted; only the alarm
+halo is gated by `visibility`, so a cleared alarm still leaves a lamp
+whose glow tracks discharge pressure.
+
+A real pump shaft is horizontal, but the binding contract fixes the
+driven operation as `xformOp:rotateZ`. `Impeller` therefore carries a
+static `xformOp:rotateY = 90` *ahead of* `xformOp:rotateZ` in
+`xformOpOrder`, which lays its local Z along the world shaft axis. The
+impeller and the coupling both hang off that one rotating prim, so they
+turn together — as they do on the real machine.
+
+Because the render targets expect degrees Celsius and bar while OPC
+40223 publishes Kelvin and Pascal, the two colour bindings declare the
+conversion themselves (`offset: -273.15` and `scale: 1e-5`); §5.8
+applies `Scale` then `Offset`.
+
+### Viewing it
+
+Run the server, then point the connector at it with `--view`:
+
+```pwsh
+Opc.Ua.OpenUsd.Connector --server opc.tcp://localhost:62542/PumpDeviceIntegrationServer `
+                         --insecure --view --fetch-assets .\stage-cache
+```
+
+The connector fetches the server-delivered layers, composes a
+self-contained stage and streams the live OPC UA values into
+`live.usda` and the viewport. See
+[`tools/Opc.Ua.OpenUsd.Connector`](../../tools/Opc.Ua.OpenUsd.Connector).
 
 ## Running in Docker
 

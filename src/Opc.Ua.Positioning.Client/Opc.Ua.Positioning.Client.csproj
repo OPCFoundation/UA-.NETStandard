@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>$(AssemblyPrefix).Positioning.Client</AssemblyName>
+    <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
+    <PackageId>$(PackagePrefix).Opc.Ua.Positioning.Client</PackageId>
+    <RootNamespace>Opc.Ua.Positioning.Client</RootNamespace>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <Nullable>enable</Nullable>
+    <Description>Client APIs for OPC UA Relative Spatial Location and Global Positioning.</Description>
+    <IsPackable>true</IsPackable>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageLicenseFile></PackageLicenseFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.Positioning.Tests" />
+  </ItemGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Opc.Ua.Client\Opc.Ua.Client.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Positioning\Opc.Ua.Positioning.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>

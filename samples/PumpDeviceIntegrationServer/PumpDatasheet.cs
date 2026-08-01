@@ -113,6 +113,18 @@ namespace Pumps
                 ShutoffHead - (HeadCurveCoefficient * RatedFlow * RatedFlow);
 
             /// <summary>
+            /// Mass flow at the best efficiency point in kg/s.
+            /// </summary>
+            public const double RatedMassFlow = FluidDensity * RatedFlow / 3600.0;
+
+            /// <summary>
+            /// Rated speed of the pump set in min<sup>-1</sup>. The simulated
+            /// shaft turns in proportion to how close the pump runs to its
+            /// rated mass flow.
+            /// </summary>
+            public const double RatedSpeed = 2900.0;
+
+            /// <summary>
             /// Shaft power at the best efficiency point in W.
             /// </summary>
             public const double RatedShaftPower =

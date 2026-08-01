@@ -15,7 +15,8 @@ ships full server- and client-side support for: Part 9 (Alarms &
 Conditions), Part 11 (Historical Access) + Part 13 (Aggregates), Part 16
 (State Machines), Part 17 (Alias Names), Part 18 (Role Management), Part 20
 (File Transfer), Part 100 (Device Integration / Software Update), OPC
-10100-1 (WoT Connectivity), and the Local Discovery Server. See
+10100-1 (WoT Connectivity), OPC 40001-1 (Industrial Automation), OPC
+40010-1 (Robotics), and the Local Discovery Server. See
 [What's New in 2.0](WhatsNewIn2.0.md) for the broader change narrative.
 
 The canonical list of all OPC UA profile and facet URIs is maintained by the
@@ -101,6 +102,19 @@ canonical URI string before claiming a facet):
   `Opc.Ua.Di.Client` library trio, including the lock service and the
   software-update package store. See [Device Integration](DeviceIntegration.md)
   and [Software Update](SoftwareUpdate.md).
+- **Relative Spatial Location and Global Positioning** (Parts 210 and 211) —
+  `Opc.Ua.Positioning` / `Opc.Ua.Positioning.Server` /
+  `Opc.Ua.Positioning.Client` implement the released RSL and GPOS models,
+  including RSL spatial lists and model changes plus the GPOS GlobalPosition,
+  GlobalLocation, and Zones conformance units. See
+  [Positioning](Positioning.md).
+- **Robotics** (OPC 40010-1) over **Industrial Automation** (OPC 40001-1) —
+  `Opc.Ua.Robotics` / `Opc.Ua.Robotics.Server` / `Opc.Ua.Robotics.Client`
+  library trio implementing the released Robotics 1.02 model over IA and
+  Device Integration, with validated fluent topology builders for motion
+  device systems, controllers, motion devices, axes, power trains, motors,
+  gears, drives, safety states, and task controls. See
+  [Robotics](Robotics.md).
 - **Role Management** (Part 18) — Server-side role administration plus a
   pluggable [identity-provider model](IdentityProviders.md) for anonymous,
   username, X.509, and token-issuer flows. The server automatically
@@ -205,12 +219,12 @@ The stack implements the following transport profiles:
   - TLS/SSL encryption only — no UA SecureChannel layer
   - Restricted to `MessageSecurityMode.None`; transport security is provided exclusively by TLS
 
-- **[WebSocket Secure (UA Binary)](http://opcfoundation.org/UA-Profile/Transport/uawss-uasc-uabinary)** (`opc.wss://` and `wss://`) - UA Binary + UASC over secure WebSockets (OPC UA Part 6 §7.5.2, sub-protocol `opcua+uacp`)
+- **[WebSocket Secure (UA Binary)](http://opcfoundation.org/UA-Profile/Transport/wss-uasc-uabinary)** (`opc.wss://` and `wss://`) - UA Binary + UASC over secure WebSockets (OPC UA Part 6 §7.5.2, sub-protocol `opcua+uacp`)
   - Same UASC SecureChannel pipeline as `opc.tcp` carried over WebSocket binary frames (one frame per MessageChunk)
   - Supports all security modes (None / Sign / SignAndEncrypt)
   - TLS/SSL encryption at the WebSocket layer
 
-- **WebSocket Secure (JSON)** (`opc.wss://` and `wss://`) - OPC UA JSON over secure WebSockets (Part 6 §7.5.2, sub-protocol `opcua+uajson`)
+- **[WebSocket Secure (JSON)](http://opcfoundation.org/UA-Profile/Transport/wss-uajson)** (`opc.wss://` and `wss://`) - OPC UA JSON over secure WebSockets (Part 6 §7.5.2, sub-protocol `opcua+uajson`)
   - Compact JSON encoding per WebSocket text frame
   - TLS/SSL encryption only — no UA SecureChannel layer
   - Restricted to `MessageSecurityMode.None`
@@ -536,6 +550,9 @@ for the variant selected by `--ctt`.
 - [GDS Developer Guide](GDS.md) (Part 12 full compliance)
 - [File System Client](FileSystemClient.md) (Part 20)
 - [Device Integration](DeviceIntegration.md) (Part 100)
+- [Relative Spatial Location and Global Positioning](Positioning.md)
+  (Parts 210 and 211)
+- [Robotics](Robotics.md) (OPC 40010-1 over OPC 40001-1)
 - [Software Update](SoftwareUpdate.md)
 - [WoT Connectivity](WoTConnectivity.md) (OPC 10100-1)
 - [Node Management](NodeManagement.md) (Part 4)
