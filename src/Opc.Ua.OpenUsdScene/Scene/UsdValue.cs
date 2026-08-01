@@ -433,8 +433,11 @@ namespace Opc.Ua.OpenUsdScene.Scene
                     }
                     break;
                 case UsdValueKind.Dictionary:
-                    // Order independent so two equal dictionaries hash alike.
+                    // The entry hashes are summed rather than sequenced, so two equal dictionaries
+                    // hash alike whatever order they enumerate in while dictionaries that differ
+                    // only in their entries - not in their size - still separate.
                     hash.Add(m_entries?.Count ?? 0);
+                    hash.Add(EntriesHashCode(m_entries));
                     break;
                 default:
                     break;
@@ -464,7 +467,13 @@ namespace Opc.Ua.OpenUsdScene.Scene
             return !left.Equals(right);
         }
 
-        /// <inheritdoc/>
+        /// <summary>
+        /// Renders this value to its invariant textual form, which is what a caller that cannot
+        /// carry the value in a typed shape falls back to. A composite renders its items and a
+        /// dictionary its entries ordered by key, so the text is deterministic and no value is
+        /// silently rendered as the empty string.
+        /// </summary>
+        /// <returns>The textual form.</returns>
         public override string ToString()
         {
             switch (m_kind)
@@ -482,6 +491,8 @@ namespace Opc.Ua.OpenUsdScene.Scene
                     return "(" + JoinItems() + ")";
                 case UsdValueKind.Array:
                     return "[" + JoinItems() + "]";
+                case UsdValueKind.Dictionary:
+                    return "{" + JoinEntries() + "}";
                 default:
                     return m_text ?? string.Empty;
             }
@@ -518,6 +529,33 @@ namespace Opc.Ua.OpenUsdScene.Scene
                     builder.Append(", ");
                 }
                 builder.Append(items[ii].ToString());
+            }
+            return builder.ToString();
+        }
+
+        private string JoinEntries()
+        {
+            if (m_entries == null || m_entries.Count == 0)
+            {
+                return string.Empty;
+            }
+            var keys = new List<string>(m_entries.Count);
+            foreach (KeyValuePair<string, UsdValue> entry in m_entries)
+            {
+                keys.Add(entry.Key);
+            }
+            // Ordered so the rendering of a dictionary does not depend on its enumeration order.
+            keys.Sort(StringComparer.Ordinal);
+            var builder = new System.Text.StringBuilder();
+            for (int ii = 0; ii < keys.Count; ii++)
+            {
+                if (ii > 0)
+                {
+                    builder.Append(", ");
+                }
+                builder.Append(keys[ii])
+                    .Append(": ")
+                    .Append(m_entries[keys[ii]].ToString());
             }
             return builder.ToString();
         }
@@ -563,6 +601,23 @@ namespace Opc.Ua.OpenUsdScene.Scene
                 }
             }
             return true;
+        }
+
+        private static int EntriesHashCode(IReadOnlyDictionary<string, UsdValue>? entries)
+        {
+            int combined = 0;
+            if (entries != null)
+            {
+                foreach (KeyValuePair<string, UsdValue> entry in entries)
+                {
+                    // Addition is commutative, so the result does not depend on the order the
+                    // entries enumerate in, which is what keeps this consistent with Equals.
+                    combined = unchecked(combined + HashCode.Combine(
+                        StringComparer.Ordinal.GetHashCode(entry.Key),
+                        entry.Value.GetHashCode()));
+                }
+            }
+            return combined;
         }
 
         private static readonly IReadOnlyDictionary<string, UsdValue> s_emptyEntries =

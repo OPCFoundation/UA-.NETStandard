@@ -61,6 +61,10 @@ type safety without changing the emitted `.usda`.
 The same type carries `UsdAttribute.TimeSamples` and `UsdPrim.Metadata`, and a nested metadata
 dictionary is a `UsdValue` of kind `Dictionary`.
 
+An integral value that does not fit a signed 64 bit integer — a `uint64` above `long.MaxValue` — has
+no integral kind to carry it, so it arrives as a `Token` holding its exact decimal digits rather than
+being wrapped into a negative `Integer`; the coercion layer reads that form back into a `uint64`.
+
 ## Related packages
 
 - `Opc.Ua.OpenUsdScene.Server` — materializes a scene into a server address space and exports it back

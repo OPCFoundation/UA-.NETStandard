@@ -193,7 +193,7 @@ namespace Opc.Ua.OpenUsdScene.Conversion
                     return value.TryGetValue(out uint ui) ? UsdValue.From(ui) : UsdValue.Null;
                 case BuiltInType.UInt64:
                     return value.TryGetValue(out ulong ul)
-                        ? UsdValue.From((long)ul)
+                        ? FromUInt64(ul)
                         : UsdValue.Null;
                 case BuiltInType.Float:
                     return value.TryGetValue(out float f) ? UsdValue.From(f) : UsdValue.Null;
@@ -234,7 +234,7 @@ namespace Opc.Ua.OpenUsdScene.Conversion
                         : UsdValue.Null;
                 case BuiltInType.UInt64:
                     return value.TryGetValue(out ArrayOf<ulong> ul)
-                        ? Wrap(ul, static x => UsdValue.From((long)x))
+                        ? Wrap(ul, FromUInt64)
                         : UsdValue.Null;
                 case BuiltInType.Float:
                     return value.TryGetValue(out ArrayOf<float> f)
@@ -279,7 +279,7 @@ namespace Opc.Ua.OpenUsdScene.Conversion
                         : UsdValue.Null;
                 case BuiltInType.UInt64:
                     return value.TryGetValue(out MatrixOf<ulong> ul)
-                        ? Regroup(ul, static x => UsdValue.From((long)x))
+                        ? Regroup(ul, FromUInt64)
                         : UsdValue.Null;
                 case BuiltInType.Float:
                     return value.TryGetValue(out MatrixOf<float> f)
@@ -296,6 +296,24 @@ namespace Opc.Ua.OpenUsdScene.Conversion
                 default:
                     return UsdValue.Null;
             }
+        }
+
+        /// <summary>
+        /// Reads an unsigned 64 bit value into a USD value.
+        /// </summary>
+        /// <remarks>
+        /// A value up to <see cref="long.MaxValue"/> stays integral. No USD kind can carry a
+        /// larger one integrally, so it is preserved as its invariant decimal text - which
+        /// <see cref="TryAsUInt64"/> reads back - rather than cast to <c>long</c>, which would
+        /// silently wrap it into a negative integer and author a wrong value on export.
+        /// </remarks>
+        /// <param name="value">The unsigned value read from the Variable.</param>
+        /// <returns>The USD value.</returns>
+        private static UsdValue FromUInt64(ulong value)
+        {
+            return value <= long.MaxValue
+                ? UsdValue.From((long)value)
+                : UsdValue.FromToken(value.ToString(CultureInfo.InvariantCulture));
         }
 
         /// <summary>
@@ -684,6 +702,14 @@ namespace Opc.Ua.OpenUsdScene.Conversion
 
         private static bool TryAsUInt64(UsdValue value, out ulong result)
         {
+            // A value above long.MaxValue has no integral USD kind to carry it, so Decoerce
+            // preserves it as its invariant decimal text (see FromUInt64); read that form back
+            // before falling back to the signed path.
+            if (value.TryGetText(out string text) &&
+                ulong.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out result))
+            {
+                return true;
+            }
             if (!TryAsInt64(value, out long signed) || signed < 0L)
             {
                 result = 0UL;

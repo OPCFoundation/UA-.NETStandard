@@ -233,6 +233,68 @@ namespace Opc.Ua.OpenUsdScene.Tests
         }
 
         [Test]
+        public void EqualDictionariesShareAHashCodeWhateverTheEntryOrder()
+        {
+            UsdValue first = UsdValue.FromDictionary(
+                new Dictionary<string, UsdValue>(System.StringComparer.Ordinal)
+                {
+                    ["author"] = UsdValue.FromString("acme"),
+                    ["order"] = UsdValue.From(3L)
+                });
+            UsdValue second = UsdValue.FromDictionary(
+                new Dictionary<string, UsdValue>(System.StringComparer.Ordinal)
+                {
+                    ["order"] = UsdValue.From(3L),
+                    ["author"] = UsdValue.FromString("acme")
+                });
+
+            Assert.That(first, Is.EqualTo(second));
+            Assert.That(first.GetHashCode(), Is.EqualTo(second.GetHashCode()));
+        }
+
+        [Test]
+        public void DictionariesOfTheSameSizeDoNotShareAHashCode()
+        {
+            // The hash must take the entries into account, not only their count, or every
+            // dictionary of the same size would collide in a hash based collection.
+            UsdValue first = UsdValue.FromDictionary(
+                new Dictionary<string, UsdValue>(System.StringComparer.Ordinal)
+                {
+                    ["author"] = UsdValue.FromString("acme"),
+                    ["order"] = UsdValue.From(3L)
+                });
+            UsdValue second = UsdValue.FromDictionary(
+                new Dictionary<string, UsdValue>(System.StringComparer.Ordinal)
+                {
+                    ["author"] = UsdValue.FromString("globex"),
+                    ["order"] = UsdValue.From(4L)
+                });
+
+            Assert.That(first, Is.Not.EqualTo(second));
+            Assert.That(first.GetHashCode(), Is.Not.EqualTo(second.GetHashCode()));
+        }
+
+        [Test]
+        public void DictionaryRendersItsEntriesOrderedByKey()
+        {
+            UsdValue value = UsdValue.FromDictionary(
+                new Dictionary<string, UsdValue>(System.StringComparer.Ordinal)
+                {
+                    ["order"] = UsdValue.From(3L),
+                    ["author"] = UsdValue.FromString("acme"),
+                    ["nested"] = UsdValue.FromDictionary(
+                        new Dictionary<string, UsdValue>(System.StringComparer.Ordinal)
+                        {
+                            ["depth"] = UsdValue.From(1L)
+                        })
+                });
+
+            // A dictionary must not stringify to the empty string: a caller that falls back to
+            // the textual form would silently drop the authored entries.
+            Assert.That(value.ToString(), Is.EqualTo("{author: acme, nested: {depth: 1}, order: 3}"));
+        }
+
+        [Test]
         public void ValuesOfDifferentKindsAreNotEqual()
         {
             Assert.That(UsdValue.From(1L), Is.Not.EqualTo(UsdValue.From(1.0)));

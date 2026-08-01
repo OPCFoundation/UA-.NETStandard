@@ -794,7 +794,7 @@ namespace Opc.Ua.OpenUsdScene.Conversion
             }
             if (IntRegex().IsMatch(v))
             {
-                return UsdValue.From(long.Parse(v, CultureInfo.InvariantCulture));
+                return ParseIntegral(v);
             }
             if (FloatRegex().IsMatch(v))
             {
@@ -803,9 +803,29 @@ namespace Opc.Ua.OpenUsdScene.Conversion
             }
             // A bare word is a token; anything that still carries quotes is a string whose
             // quoting the literal parser could not resolve (for example an unterminated one).
-            return v.IndexOf('"') >= 0
+            return v.Contains('"', StringComparison.Ordinal)
                 ? UsdValue.FromString(v.Trim('"'))
                 : UsdValue.FromToken(v);
+        }
+
+        /// <summary>
+        /// Parses an integral literal.
+        /// </summary>
+        /// <remarks>
+        /// A literal that does not fit a signed 64 bit integer - a <c>uint64</c> above
+        /// <see cref="long.MaxValue"/>, which is what the conversion layer authors as text - is
+        /// carried as a token holding its exact digits. It therefore neither overflows the parse
+        /// nor loses precision to a double, and the coercion layer reads it back into a
+        /// <c>uint64</c>.
+        /// </remarks>
+        /// <param name="text">The literal text.</param>
+        /// <returns>The parsed value.</returns>
+        private static UsdValue ParseIntegral(string text)
+        {
+            return long.TryParse(
+                text, NumberStyles.Integer, CultureInfo.InvariantCulture, out long parsed)
+                ? UsdValue.From(parsed)
+                : UsdValue.FromToken(text);
         }
 
         private static List<string> ParseTargets(string raw)
@@ -1315,7 +1335,7 @@ namespace Opc.Ua.OpenUsdScene.Conversion
             string token = s.Substring(start, pos - start);
             if (IntRegex().IsMatch(token))
             {
-                result = UsdValue.From(long.Parse(token, CultureInfo.InvariantCulture));
+                result = ParseIntegral(token);
                 return true;
             }
             if (FloatRegex().IsMatch(token))

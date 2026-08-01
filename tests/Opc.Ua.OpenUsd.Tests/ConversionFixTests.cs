@@ -47,6 +47,8 @@ namespace Opc.Ua.OpenUsdScene.Tests
     ///     string.</item>
     ///   <item>H4 — the writer emits a co-authored default value together with every connection
     ///     target, not just the first connection (§5.4).</item>
+    ///   <item>A <c>uint64</c> above <see cref="long.MaxValue"/> survives the export round trip as
+    ///     its invariant decimal text instead of wrapping into a negative integer.</item>
     /// </list>
     /// </summary>
     [TestFixture]
@@ -300,6 +302,61 @@ namespace Opc.Ua.OpenUsdScene.Tests
 
             Assert.That(usda, Does.Contain(".connect = </P/A.outputs:surface>"));
             Assert.That(usda, Does.Not.Contain("[</P/A.outputs:surface>]"));
+        }
+
+        // ---- A uint64 above long.MaxValue is preserved, never wrapped to a negative integer ----
+
+        [Test]
+        public void UInt64_WithinInt64Max_StaysIntegral()
+        {
+            UsdTestHelpers.AssertInteger(UsdValueCoercion.Decoerce(Variant.From(42UL)), 42L);
+        }
+
+        [Test]
+        public void UInt64_AboveInt64Max_IsPreservedAsInvariantText()
+        {
+            UsdValue decoerced = UsdValueCoercion.Decoerce(Variant.From(ulong.MaxValue));
+
+            // The unconditional cast this replaces authored "-1" for ulong.MaxValue.
+            UsdTestHelpers.AssertToken(decoerced, "18446744073709551615");
+        }
+
+        [Test]
+        public void UInt64_AboveInt64Max_RoundTripsBackToTheSameValue()
+        {
+            UsdValue decoerced = UsdValueCoercion.Decoerce(Variant.From(ulong.MaxValue));
+
+            bool ok = Coerce("uint64", decoerced, out Variant v);
+
+            Assert.That(ok, Is.True);
+            Assert.That(v.TryGetValue(out ulong recovered), Is.True);
+            Assert.That(recovered, Is.EqualTo(ulong.MaxValue));
+        }
+
+        [Test]
+        public void UInt64Array_AboveInt64Max_IsPreservedElementwise()
+        {
+            UsdValue decoerced = UsdValueCoercion.Decoerce(
+                Variant.From((ArrayOf<ulong>)new[] { 1UL, ulong.MaxValue }));
+
+            Assert.That(decoerced.TryGetArray(out ArrayOf<UsdValue> items), Is.True);
+            Assert.That(items.Count, Is.EqualTo(2));
+            UsdTestHelpers.AssertInteger(items[0], 1L);
+            UsdTestHelpers.AssertToken(items[1], "18446744073709551615");
+        }
+
+        [Test]
+        public void UInt64_AboveInt64Max_ReparsesFromItsAuthoredLiteral()
+        {
+            // The authored literal must neither overflow the reader's integral parse nor lose its
+            // digits to a double, so the coercion layer recovers the exact value.
+            UsdValue parsed = UsdaReader.ParseValue("18446744073709551615");
+
+            bool ok = Coerce("uint64", parsed, out Variant v);
+
+            Assert.That(ok, Is.True);
+            Assert.That(v.TryGetValue(out ulong recovered), Is.True);
+            Assert.That(recovered, Is.EqualTo(ulong.MaxValue));
         }
     }
 }
