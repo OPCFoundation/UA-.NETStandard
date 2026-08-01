@@ -80,6 +80,27 @@ namespace Opc.Ua.SourceGeneration
             helpLinkUri: "www.opcfoundation.org",
             customTags: ["opcua"]);
 
+        public static readonly DiagnosticDescriptor FluentAccessorsOnlyModelError = new(
+            id: "MODELGEN014",
+            title: "Fluent-accessors-only model cannot be generated",
+            messageFormat: (LocalizableString)("Cannot generate fluent accessors only for model " +
+                "URI '{0}', prefix '{1}', input '{2}': {3}"),
+            category: Name,
+            DiagnosticSeverity.Error,
+            isEnabledByDefault: true,
+            helpLinkUri: "www.opcfoundation.org",
+            customTags: ["opcua"]);
+
+        public static readonly DiagnosticDescriptor FluentAccessorsOnlyOptionsError = new(
+            id: "MODELGEN015",
+            title: "Invalid fluent-accessors-only configuration",
+            messageFormat: (LocalizableString)"Invalid fluent-accessors-only configuration: {0}",
+            category: Name,
+            DiagnosticSeverity.Error,
+            isEnabledByDefault: true,
+            helpLinkUri: "www.opcfoundation.org",
+            customTags: ["opcua"]);
+
         public static readonly DiagnosticDescriptor ModelDependencyTieBreak = new(
             id: "MODELGEN012",
             title: "Multiple referenced assemblies expose same model",

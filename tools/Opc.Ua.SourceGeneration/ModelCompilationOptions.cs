@@ -148,6 +148,19 @@ namespace Opc.Ua.SourceGeneration
         public bool OmitFluentApi { get; set; }
 
         /// <summary>
+        /// When set to <c>true</c>, a local model already supplied by a
+        /// referenced assembly under the same model URI and C# prefix is
+        /// loaded and validated, but only its per-ObjectType typed fluent
+        /// accessor extension classes are emitted. The accessors reference
+        /// the state types from the referenced model assembly. The referenced
+        /// model metadata must explicitly declare that its producer omitted
+        /// fluent accessors.
+        /// Surfaced from MSBuild via the
+        /// <c>ModelSourceGeneratorFluentAccessorsOnly</c> property.
+        /// </summary>
+        public bool FluentAccessorsOnly { get; set; }
+
+        /// <summary>
         /// Suppresses event-record generation.
         /// </summary>
         public bool OmitEventRecords { get; set; }
@@ -187,6 +200,8 @@ namespace Opc.Ua.SourceGeneration
                     nameof(EmitDependencyMetadata))),
                 OmitFluentApi = provider.GlobalOptions.GetBool(
                     nameof(OmitFluentApi)),
+                FluentAccessorsOnly = provider.GlobalOptions.GetBool(
+                    nameof(FluentAccessorsOnly)),
                 OmitEventRecords = provider.GlobalOptions.GetBool(
                     nameof(OmitEventRecords))
             };

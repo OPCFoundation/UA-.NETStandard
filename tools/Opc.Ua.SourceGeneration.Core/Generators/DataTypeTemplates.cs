@@ -704,6 +704,12 @@ namespace Opc.Ua.SourceGeneration
                 [global::System.Runtime.Serialization.DataMember(Name = "EncodingMask", IsRequired = true, Order = 0)]
                 public {{Tokens.EncodingMaskModifier}}uint EncodingMask { get; set; }
 
+                /// <summary>
+                /// The complete list of optional field names for this structure.
+                /// </summary>
+                protected {{Tokens.EncodingMaskFieldNamesModifier}}global::System.Collections.Generic.IList<string> EncodingMaskFieldNames
+                    => m_FieldNames;
+
                 /// <inheritdoc/>
                 public override global::Opc.Ua.ExpandedNodeId TypeId => DataTypeIds.{{Tokens.BrowseName}};
 
@@ -716,10 +722,7 @@ namespace Opc.Ua.SourceGeneration
                 /// <inheritdoc/>
                 public override void Encode(global::Opc.Ua.IEncoder encoder)
                 {
-                    encoder.PushNamespace({{Tokens.XmlNamespaceUri}});
-                    encoder.WriteEncodingMask((uint)EncodingMask);
-                    encoder.PopNamespace();
-
+                    {{Tokens.EncodingMaskEncode}}
                     base.Encode(encoder);
 
                     encoder.PushNamespace({{Tokens.XmlNamespaceUri}});
@@ -730,10 +733,7 @@ namespace Opc.Ua.SourceGeneration
                 /// <inheritdoc/>
                 public override void Decode(global::Opc.Ua.IDecoder decoder)
                 {
-                    decoder.PushNamespace({{Tokens.XmlNamespaceUri}});
-                    EncodingMask = decoder.ReadEncodingMask(m_FieldNames);
-                    decoder.PopNamespace();
-
+                    {{Tokens.EncodingMaskDecode}}
                     base.Decode(decoder);
 
                     decoder.PushNamespace({{Tokens.XmlNamespaceUri}});
@@ -886,6 +886,12 @@ namespace Opc.Ua.SourceGeneration
                 [global::System.Runtime.Serialization.DataMember(Name = "EncodingMask", IsRequired = true, Order = 0)]
                 public virtual uint EncodingMask { get; set; }
 
+                /// <summary>
+                /// The complete list of optional field names for this structure.
+                /// </summary>
+                protected virtual global::System.Collections.Generic.IList<string> EncodingMaskFieldNames
+                    => m_FieldNames;
+
                 {{Tokens.ListOfProperties}}
 
                 /// <inheritdoc/>
@@ -910,7 +916,7 @@ namespace Opc.Ua.SourceGeneration
                 public virtual void Decode(global::Opc.Ua.IDecoder decoder)
                 {
                     decoder.PushNamespace({{Tokens.XmlNamespaceUri}});
-                    EncodingMask = decoder.ReadEncodingMask(m_FieldNames);
+                    EncodingMask = decoder.ReadEncodingMask(EncodingMaskFieldNames);
                     {{Tokens.ListOfDecodedFields}}
                     decoder.PopNamespace();
                 }
