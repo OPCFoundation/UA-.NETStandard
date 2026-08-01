@@ -350,6 +350,35 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         }
 
         [Test]
+        public void StructureOutputUsesSessionMessageContext()
+        {
+            MethodDesign method = CreateMethod(
+                "Read",
+                outputs:
+                [
+                    CreateParameter(
+                        "payload",
+                        BasicDataType.UserDefined,
+                        symbolicName: "MyStruct")
+                ]);
+            ObjectTypeDesign objectType = CreateObjectType("FooType", method);
+            m_mockModelDesign.Setup(m => m.GetNodeDesigns()).Returns([objectType]);
+
+            using var stream = new MemoryStream();
+            m_mockFileSystem
+                .Setup(fs => fs.OpenWrite(It.IsAny<string>()))
+                .Returns(stream);
+
+            new ObjectTypeProxyGenerator(CreateContext()).Emit();
+            string content = Encoding.UTF8.GetString(stream.ToArray());
+
+            Assert.That(
+                content,
+                Does.Contain(
+                    "TryGetValue(out global::Test.MyStruct _payload, base.Session.MessageContext)"));
+        }
+
+        [Test]
         public void Emit_ObjectTypeWithBaseType_EmitsInheritance()
         {
             ObjectTypeDesign baseType = CreateObjectType("FooBaseType");
