@@ -139,6 +139,7 @@ namespace Opc.Ua.Di.Tests
             hostBuilder.Logging.SetMinimumLevel(LogLevel.Warning);
             hostBuilder.Services.AddOptions<global::Robotics.MobileRobotPositionOptions>();
             hostBuilder.Services.AddSingleton<global::Robotics.RobotPositioningScenario>();
+        hostBuilder.Services.AddSingleton<global::Robotics.CellChoreographer>();
             IPositioningServerBuilder positioning = hostBuilder.Services
                 .AddOpcUa()
                 .AddServer(o =>
@@ -845,25 +846,42 @@ namespace Opc.Ua.Di.Tests
                     Math.Abs(firstR1Vector[0] - firstR2Vector[0]),
                     Is.GreaterThan(1.0));
 
-                await Task.Delay(1200).ConfigureAwait(false);
-                Assert.That(
-                    sink.TryGetWritten(R1Prim, "xformOp:translate", out Variant secondR1),
-                    Is.True);
-                Assert.That(
-                    sink.TryGetWritten(R2Prim, "xformOp:translate", out Variant secondR2),
-                    Is.True);
-                Assert.That(secondR1.TryGetValue(out ArrayOf<double> secondR1Vector), Is.True);
-                Assert.That(secondR2.TryGetValue(out ArrayOf<double> secondR2Vector), Is.True);
+                // The robots now follow a coordinated duty cycle rather than a continuous
+                // sine path, so either of them can legitimately be standing still at any
+                // instant - gripping, dwelling at a station or charging. Poll until each has
+                // been seen to move instead of assuming it moves within a fixed window; the
+                // point of the assertion is that live positions reach the scene.
+                double r1Moved = 0.0;
+                double r2Moved = 0.0;
+                ArrayOf<double> secondR1Vector = firstR1Vector;
+                ArrayOf<double> secondR2Vector = firstR2Vector;
+                for (int attempt = 0; attempt < 40 && (r1Moved <= 0.001 || r2Moved <= 0.001);
+                    attempt++)
+                {
+                    await Task.Delay(500).ConfigureAwait(false);
+                    if (sink.TryGetWritten(R1Prim, "xformOp:translate", out Variant sampleR1) &&
+                        sampleR1.TryGetValue(out ArrayOf<double> sampleR1Vector))
+                    {
+                        secondR1Vector = sampleR1Vector;
+                        r1Moved = Math.Max(
+                            r1Moved,
+                            Math.Abs(sampleR1Vector[0] - firstR1Vector[0]) +
+                            Math.Abs(sampleR1Vector[1] - firstR1Vector[1]));
+                    }
+                    if (sink.TryGetWritten(R2Prim, "xformOp:translate", out Variant sampleR2) &&
+                        sampleR2.TryGetValue(out ArrayOf<double> sampleR2Vector))
+                    {
+                        secondR2Vector = sampleR2Vector;
+                        r2Moved = Math.Max(
+                            r2Moved,
+                            Math.Abs(sampleR2Vector[0] - firstR2Vector[0]) +
+                            Math.Abs(sampleR2Vector[1] - firstR2Vector[1]));
+                    }
+                }
                 Assert.Multiple(() =>
                 {
-                    Assert.That(
-                        Math.Abs(secondR1Vector[0] - firstR1Vector[0]) +
-                        Math.Abs(secondR1Vector[1] - firstR1Vector[1]),
-                        Is.GreaterThan(0.001));
-                    Assert.That(
-                        Math.Abs(secondR2Vector[0] - firstR2Vector[0]) +
-                        Math.Abs(secondR2Vector[1] - firstR2Vector[1]),
-                        Is.GreaterThan(0.001));
+                    Assert.That(r1Moved, Is.GreaterThan(0.001));
+                    Assert.That(r2Moved, Is.GreaterThan(0.001));
                     Assert.That(
                         Math.Abs(secondR1Vector[0] - secondR2Vector[0]),
                         Is.GreaterThan(1.0));

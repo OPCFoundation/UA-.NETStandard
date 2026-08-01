@@ -64,6 +64,8 @@
     <Compile Remove="PumpOpenUsdE2eTests.cs" />
     <Compile Remove="RobotOpenUsdE2eTests.cs" />
     <Compile Remove="RobotMobilityTests.cs" />
+    <Compile Remove="RobotKinematicsTests.cs" />
+    <Compile Remove="CellChoreographyTests.cs" />
     <Compile Remove="TopologyElementBuilderTests.cs" />
   </ItemGroup>
 </Project>

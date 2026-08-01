@@ -84,7 +84,7 @@ namespace Robotics
         private static readonly (string BrowseName, string PrimPath, bool HasTool, double PhaseSeconds)[] s_robots =
         [
             ("R1", "/Cell/Robots/R1", true, 0.0),
-            ("R2", "/Cell/Robots/R2", false, 3.0)
+            ("R2", "/Cell/Robots/R2", true, 3.0)
         ];
 
         private static readonly ConditionalWeakTable<AsyncCustomNodeManager, RobotCell> s_cells = new();
@@ -99,6 +99,7 @@ namespace Robotics
         private DiNodeManager? m_manager;
         private NodeId m_r1NodeId;
         private MotionDeviceSystemState? m_robotCell;
+        private readonly CellChoreographer? m_choreographer;
 
         /// <summary>
         /// Creates the sample Robotics configurator.
@@ -106,9 +107,10 @@ namespace Robotics
         /// <param name="logger">
         /// The configurator logger.
         /// </param>
-        public RobotCell(ILogger<RobotCell> logger)
+        public RobotCell(ILogger<RobotCell> logger, CellChoreographer? choreographer = null)
         {
             m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            m_choreographer = choreographer;
         }
 
         private DiNodeManager Manager => m_manager ?? throw new InvalidOperationException(
@@ -158,6 +160,7 @@ namespace Robotics
             public double Max;
             public double PhaseSeconds;
             public int Index;
+            public string RobotId = string.Empty;
         }
 
         internal sealed class RobotRuntime
@@ -327,7 +330,10 @@ namespace Robotics
 
             builder.Configure((state, ctx) =>
             {
-                if (robot.HasTool)
+                // Keyed on the robot itself, not on whether it carries a tool: both robots
+                // do now, and the dynamic tool demo and the speed-override command target
+                // are deliberately R1's.
+                if (string.Equals(robot.BrowseName, "R1", StringComparison.Ordinal))
                 {
                     m_r1NodeId = state.NodeId;
                     m_speedOverrideVar = FindRequiredChild<BaseDataVariableState>(
@@ -407,7 +413,8 @@ namespace Robotics
                     Min = axis.Min,
                     Max = axis.Max,
                     PhaseSeconds = robot.PhaseSeconds,
-                    Index = index
+                    Index = index,
+                    RobotId = robot.BrowseName
                 });
             });
         }
