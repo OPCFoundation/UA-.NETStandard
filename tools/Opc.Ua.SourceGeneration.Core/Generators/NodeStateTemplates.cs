@@ -1157,11 +1157,46 @@ namespace Opc.Ua.SourceGeneration
             {{Tokens.ListOfCreateOrReplaceChild}}
 
             /// <inheritdoc/>
+            protected override bool SupportsInstanceNodeIdAssignmentControl => true;
+
+            /// <inheritdoc/>
             protected override global::Opc.Ua.BaseInstanceState? FindChild(
                 global::Opc.Ua.ISystemContext context,
                 global::Opc.Ua.QualifiedName browseName,
                 bool createOrReplace,
                 global::Opc.Ua.BaseInstanceState? replacement)
+            {
+                if (browseName.IsNull)
+                {
+                    return null;
+                }
+                // A caller that did not state its intent gets per instance
+                // NodeIds, which is what materialising onto a live tree wants.
+                bool assignInstanceNodeIds = true;
+                global::Opc.Ua.BaseInstanceState? instance = null;
+
+                switch (browseName.Name)
+                {
+                    {{Tokens.ListOfFindChildCase}}
+                }
+
+                if (instance != null)
+
+                {
+
+                    return instance;
+
+                }
+                return base.FindChild(context, browseName, createOrReplace, replacement);
+            }
+
+            /// <inheritdoc/>
+            protected override global::Opc.Ua.BaseInstanceState? FindChild(
+                global::Opc.Ua.ISystemContext context,
+                global::Opc.Ua.QualifiedName browseName,
+                bool createOrReplace,
+                global::Opc.Ua.BaseInstanceState? replacement,
+                bool assignInstanceNodeIds)
             {
                 if (browseName.IsNull)
                 {
@@ -1181,7 +1216,8 @@ namespace Opc.Ua.SourceGeneration
                     return instance;
 
                 }
-                return base.FindChild(context, browseName, createOrReplace, replacement);
+                return base.FindChild(
+                    context, browseName, createOrReplace, replacement, assignInstanceNodeIds);
             }
 
             /// <inheritdoc/>
@@ -1210,7 +1246,8 @@ namespace Opc.Ua.SourceGeneration
             case "{{Tokens.ChildBrowseNameLiteral}}":
             {
                 instance = !createOrReplace ?
-                    {{Tokens.ChildName}} : CreateOrReplace{{Tokens.ChildName}}(context, replacement);
+                    {{Tokens.ChildName}} : CreateOrReplace{{Tokens.ChildName}}(
+                        context, replacement, assignInstanceNodeIds);
                 break;
             }
 

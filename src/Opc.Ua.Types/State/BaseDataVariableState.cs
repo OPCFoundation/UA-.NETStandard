@@ -165,6 +165,9 @@ namespace Opc.Ua
             base.GetChildren(context, children);
         }
 
+        /// <inheritdoc/>
+        protected override bool SupportsInstanceNodeIdAssignmentControl => true;
+
         /// <summary>
         /// Finds the child with the specified browse name.
         /// </summary>
@@ -179,15 +182,54 @@ namespace Opc.Ua
                 return null;
             }
 
-            BaseInstanceState? instance = null;
-            switch (browseName.Name)
+            return FindDeclaredChild(context, browseName, createOrReplace, replacement, true)
+                ?? base.FindChild(context, browseName, createOrReplace, replacement);
+        }
+
+        /// <inheritdoc/>
+        protected override BaseInstanceState? FindChild(
+            ISystemContext context,
+            QualifiedName browseName,
+            bool createOrReplace,
+            BaseInstanceState? replacement,
+            bool assignInstanceNodeIds)
+        {
+            if (browseName.IsNull)
             {
-                case BrowseNames.EnumStrings:
-                    instance = !createOrReplace ?
-                        EnumStrings : CreateOrReplaceEnumStrings(context, replacement);
-                    break;
+                return null;
             }
-            return instance ?? base.FindChild(context, browseName, createOrReplace, replacement);
+
+            return FindDeclaredChild(
+                    context, browseName, createOrReplace, replacement, assignInstanceNodeIds)
+                ?? base.FindChild(
+                    context, browseName, createOrReplace, replacement, assignInstanceNodeIds);
+        }
+
+        /// <summary>
+        /// Resolves the EnumStrings property declared by this type.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="browseName">The browse name to resolve.</param>
+        /// <param name="createOrReplace">Whether a missing child is created.</param>
+        /// <param name="replacement">The replacement to adopt, if any.</param>
+        /// <param name="assignInstanceNodeIds">
+        /// Whether a newly created child may be given a per-instance NodeId.
+        /// </param>
+        /// <returns>The child, or <c>null</c> when this type does not declare it.</returns>
+        private PropertyState<ArrayOf<LocalizedText>>? FindDeclaredChild(
+            ISystemContext context,
+            QualifiedName browseName,
+            bool createOrReplace,
+            BaseInstanceState? replacement,
+            bool assignInstanceNodeIds)
+        {
+            if (browseName.Name == BrowseNames.EnumStrings)
+            {
+                return !createOrReplace
+                    ? EnumStrings
+                    : CreateOrReplaceEnumStrings(context, replacement, assignInstanceNodeIds);
+            }
+            return null;
         }
 
         /// <summary>

@@ -337,15 +337,23 @@ namespace Opc.Ua
 
             // Every child created below is initialized from its source right
             // afterwards, which overwrites the NodeId a factory would hand out
-            // here, so the copy must not reach the factory at all.
-            ISystemContext childContext = children.Count > 0 && context.NodeIdFactory != null
-                ? new NodeIdFactorySuppressedContext(context)
-                : context;
+            // here, so the copy must not consume identifiers for them. Types
+            // that understand the request are told not to assign; the rest have
+            // the factory hidden from them for the duration of the copy because
+            // their FindChild override has no way to be told.
+            bool suppressViaContext = !SupportsInstanceNodeIdAssignmentControl;
+            ISystemContext childContext =
+                suppressViaContext && children.Count > 0 && context.NodeIdFactory != null
+                    ? new NodeIdFactorySuppressedContext(context)
+                    : context;
 
             for (int ii = 0; ii < children.Count; ii++)
             {
                 BaseInstanceState sourceChild = children[ii];
-                BaseInstanceState? child = CreateChild(childContext, sourceChild.BrowseName);
+                BaseInstanceState? child = CreateChild(
+                    childContext,
+                    sourceChild.BrowseName,
+                    assignInstanceNodeIds: false);
 
                 if (child == null)
                 {
@@ -636,6 +644,31 @@ namespace Opc.Ua
         /// The documentation for the node that is saved in the NodeSet.
         /// </summary>
         public bool DesignToolOnly { get; set; }
+
+        /// <summary>
+        /// Whether this type honours the <c>assignInstanceNodeIds</c> argument of
+        /// <see cref="FindChild(ISystemContext, QualifiedName, bool, BaseInstanceState, bool)"/>.
+        /// </summary>
+        /// <remarks>
+        /// Source generated node types override this to <c>true</c> because they
+        /// thread the argument through to their <c>CreateOrReplace&lt;Child&gt;</c>
+        /// helpers. A hand written type that overrides only the four argument
+        /// <c>FindChild</c> leaves it <c>false</c>, and a node copy then keeps
+        /// dispatching through
+        /// <see cref="CreateChild(ISystemContext, QualifiedName)"/> and hides the
+        /// <see cref="ISystemContext.NodeIdFactory"/> from it instead, so
+        /// identifiers are still not consumed for children whose NodeId is about
+        /// to be overwritten. Override this together with the five argument
+        /// <c>FindChild</c>, never on its own.
+        /// <para>
+        /// A hand written type deriving from a source generated one inherits
+        /// <c>true</c>. That is safe - the factory is still hidden from any four
+        /// argument override reached from here - but such a type only sees the
+        /// children its generated base does not itself declare. Override this
+        /// back to <c>false</c> if the four argument override must run first.
+        /// </para>
+        /// </remarks>
+        protected virtual bool SupportsInstanceNodeIdAssignmentControl => false;
 
         /// <summary>
         /// Exports a copy of the node to a node table.
@@ -4703,6 +4736,45 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Finds or creates the child with the specified browse name, stating
+        /// whether the child should be given a per-instance NodeId.
+        /// </summary>
+        /// <remarks>
+        /// A caller that overwrites the child's NodeId immediately afterwards -
+        /// a node copy is the canonical case - passes <c>false</c> so the
+        /// <see cref="ISystemContext.NodeIdFactory"/> is never asked for an
+        /// identifier that is about to be discarded. Only node types that report
+        /// <see cref="SupportsInstanceNodeIdAssignmentControl"/> honour the
+        /// request; for every other type this behaves exactly like
+        /// <see cref="CreateChild(ISystemContext, QualifiedName)"/>.
+        /// </remarks>
+        /// <param name="context">The context to use.</param>
+        /// <param name="browseName">The browse name.</param>
+        /// <param name="assignInstanceNodeIds">
+        /// Whether a newly created child may be given a per-instance NodeId.
+        /// </param>
+        /// <returns>The child if available. Null otherwise.</returns>
+        public virtual BaseInstanceState? CreateChild(
+            ISystemContext context,
+            QualifiedName browseName,
+            bool assignInstanceNodeIds)
+        {
+            if (browseName.IsNull)
+            {
+                return null;
+            }
+
+            if (!SupportsInstanceNodeIdAssignmentControl)
+            {
+                // Keep dispatching through the original virtual so a type that
+                // overrides only that one is still the thing that runs.
+                return CreateChild(context, browseName);
+            }
+
+            return FindChild(context, browseName, true, null, assignInstanceNodeIds);
+        }
+
+        /// <summary>
         /// Creates or replaces the child with the same browse name.
         /// </summary>
         /// <param name="context">The context to use.</param>
@@ -5350,6 +5422,55 @@ namespace Opc.Ua
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Finds the child with the specified browse name, stating whether a
+        /// newly created child should be given a per-instance NodeId.
+        /// </summary>
+        /// <remarks>
+        /// The base implementation forwards to
+        /// <see cref="FindChild(ISystemContext, QualifiedName, bool, BaseInstanceState)"/>,
+        /// so a type that overrides only that method keeps working unchanged. It
+        /// hides the <see cref="ISystemContext.NodeIdFactory"/> while doing so
+        /// when assignment was declined, because an override with no such
+        /// parameter cannot be told any other way.
+        /// <para>
+        /// A type that honours the request overrides this method and reports
+        /// <see cref="SupportsInstanceNodeIdAssignmentControl"/> as <c>true</c>,
+        /// which is what lets a node copy decline assignment outright while
+        /// still showing that type the real context.
+        /// </para>
+        /// </remarks>
+        /// <param name="context">The context for the system being accessed.</param>
+        /// <param name="browseName">The browse name of the children to add.</param>
+        /// <param name="createOrReplace">if set to <c>true</c> and the child does
+        /// not exist then the child is created or replaced with the provided
+        /// replacement.</param>
+        /// <param name="replacement">The replacement to use if createOrReplace is
+        /// true.</param>
+        /// <param name="assignInstanceNodeIds">
+        /// Whether a newly created child may be given a per-instance NodeId.
+        /// </param>
+        /// <returns>The child.</returns>
+        protected virtual BaseInstanceState? FindChild(
+            ISystemContext context,
+            QualifiedName browseName,
+            bool createOrReplace,
+            BaseInstanceState? replacement,
+            bool assignInstanceNodeIds)
+        {
+            // Control passes here to hand off to an override that has no way of
+            // being told not to assign - either because the type predates this
+            // overload, or because a derived type only overrides the four
+            // argument one. Hiding the factory is the only channel that reaches
+            // it, so a request not to assign is honoured even then.
+            ISystemContext childContext =
+                !assignInstanceNodeIds && context.NodeIdFactory != null
+                    ? new NodeIdFactorySuppressedContext(context)
+                    : context;
+
+            return FindChild(childContext, browseName, createOrReplace, replacement);
         }
 
         /// <summary>

@@ -83,6 +83,252 @@ namespace Opc.Ua.Types.Tests.State
             }
         }
 
+        /// <summary>
+        /// Records every identifier it hands out. A copy must not consume any,
+        /// because each child is initialized from its source right afterwards
+        /// and the assigned NodeId is discarded.
+        /// </summary>
+        private sealed class CountingNodeIdFactory : INodeIdFactory
+        {
+            public int Handouts { get; private set; }
+
+            public NodeId New(ISystemContext context, NodeState node)
+            {
+                Handouts++;
+                return new NodeId(++m_nextId, 3);
+            }
+
+            private uint m_nextId;
+        }
+
+        /// <summary>
+        /// A hand written type that declares a child through the four argument
+        /// <c>FindChild</c> only, standing in for a custom node manager written
+        /// before the assignment control overload existed.
+        /// </summary>
+        private sealed class LegacyOwnerState : BaseObjectState
+        {
+            public LegacyOwnerState(NodeState parent)
+                : base(parent)
+            {
+            }
+
+            public PropertyState Detail { get; private set; }
+
+            /// <summary>
+            /// Whether a NodeIdFactory was visible the last time a child was
+            /// created. A copy hides it from this type, because there is no way
+            /// to tell a four argument override not to assign.
+            /// </summary>
+            public bool SawNodeIdFactory { get; private set; }
+
+            public override void GetChildren(
+                ISystemContext context,
+                IList<BaseInstanceState> children)
+            {
+                if (Detail != null)
+                {
+                    children.Add(Detail);
+                }
+                base.GetChildren(context, children);
+            }
+
+            protected override BaseInstanceState FindChild(
+                ISystemContext context,
+                QualifiedName browseName,
+                bool createOrReplace,
+                BaseInstanceState replacement)
+            {
+                if (browseName.Name == "Detail")
+                {
+                    if (!createOrReplace)
+                    {
+                        return Detail;
+                    }
+                    SawNodeIdFactory = context.NodeIdFactory != null;
+                    Detail ??= new PropertyState(this)
+                    {
+                        SymbolicName = "Detail",
+                        BrowseName = new QualifiedName("Detail", 3),
+                        ReferenceTypeId = ReferenceTypeIds.HasProperty
+                    };
+                    if (context.NodeIdFactory != null && Detail.NodeId.IsNull)
+                    {
+                        Detail.NodeId = context.NodeIdFactory.New(context, Detail);
+                    }
+                    return Detail;
+                }
+                return base.FindChild(context, browseName, createOrReplace, replacement);
+            }
+        }
+
+        /// <summary>
+        /// A hand written type deriving from a type that already opts into
+        /// assignment control, overriding only the four argument
+        /// <c>FindChild</c>. It inherits the capability as <c>true</c>, so the
+        /// copy does not wrap the context up front - the factory must still be
+        /// hidden by the time control reaches this override.
+        /// </summary>
+        private sealed class DerivedMethodState : MethodState
+        {
+            public DerivedMethodState(NodeState parent)
+                : base(parent)
+            {
+            }
+
+            public PropertyState Extra { get; private set; }
+
+            public override void GetChildren(
+                ISystemContext context,
+                IList<BaseInstanceState> children)
+            {
+                if (Extra != null)
+                {
+                    children.Add(Extra);
+                }
+                base.GetChildren(context, children);
+            }
+
+            protected override BaseInstanceState FindChild(
+                ISystemContext context,
+                QualifiedName browseName,
+                bool createOrReplace,
+                BaseInstanceState replacement)
+            {
+                if (browseName.Name == "Extra")
+                {
+                    if (!createOrReplace)
+                    {
+                        return Extra;
+                    }
+                    Extra ??= new PropertyState(this)
+                    {
+                        SymbolicName = "Extra",
+                        BrowseName = new QualifiedName("Extra", 3),
+                        ReferenceTypeId = ReferenceTypeIds.HasProperty
+                    };
+                    if (context.NodeIdFactory != null && Extra.NodeId.IsNull)
+                    {
+                        Extra.NodeId = context.NodeIdFactory.New(context, Extra);
+                    }
+                    return Extra;
+                }
+                return base.FindChild(context, browseName, createOrReplace, replacement);
+            }
+        }
+
+        /// <summary>
+        /// A hand written type that intercepts child creation by overriding the
+        /// public <c>CreateChild</c> rather than <c>FindChild</c>.
+        /// </summary>
+        private sealed class CreateChildOverrideState : BaseObjectState
+        {
+            public CreateChildOverrideState(NodeState parent)
+                : base(parent)
+            {
+            }
+
+            public int CreateChildCalls { get; private set; }
+
+            public override BaseInstanceState CreateChild(
+                ISystemContext context,
+                QualifiedName browseName)
+            {
+                CreateChildCalls++;
+                return base.CreateChild(context, browseName);
+            }
+        }
+
+        /// <summary>
+        /// A hand written type that opts into assignment control, standing in
+        /// for what the source generator now emits.
+        /// </summary>
+        private sealed class ModernOwnerState : BaseObjectState
+        {
+            public ModernOwnerState(NodeState parent)
+                : base(parent)
+            {
+            }
+
+            public PropertyState Detail { get; private set; }
+
+            /// <summary>
+            /// Whether a NodeIdFactory was visible the last time a child was
+            /// created. This type is asked not to assign, so it keeps seeing
+            /// the real context.
+            /// </summary>
+            public bool SawNodeIdFactory { get; private set; }
+
+            protected override bool SupportsInstanceNodeIdAssignmentControl => true;
+
+            public override void GetChildren(
+                ISystemContext context,
+                IList<BaseInstanceState> children)
+            {
+                if (Detail != null)
+                {
+                    children.Add(Detail);
+                }
+                base.GetChildren(context, children);
+            }
+
+            protected override BaseInstanceState FindChild(
+                ISystemContext context,
+                QualifiedName browseName,
+                bool createOrReplace,
+                BaseInstanceState replacement)
+            {
+                // Never forward to the five argument overload: its unmatched
+                // path returns here through the base and would recurse forever.
+                return FindDeclaredChild(context, browseName, createOrReplace, true)
+                    ?? base.FindChild(context, browseName, createOrReplace, replacement);
+            }
+
+            protected override BaseInstanceState FindChild(
+                ISystemContext context,
+                QualifiedName browseName,
+                bool createOrReplace,
+                BaseInstanceState replacement,
+                bool assignInstanceNodeIds)
+            {
+                return FindDeclaredChild(
+                        context, browseName, createOrReplace, assignInstanceNodeIds)
+                    ?? base.FindChild(
+                        context, browseName, createOrReplace, replacement,
+                        assignInstanceNodeIds);
+            }
+
+            private PropertyState FindDeclaredChild(
+                ISystemContext context,
+                QualifiedName browseName,
+                bool createOrReplace,
+                bool assignInstanceNodeIds)
+            {
+                if (browseName.Name != "Detail")
+                {
+                    return null;
+                }
+                if (!createOrReplace)
+                {
+                    return Detail;
+                }
+                SawNodeIdFactory = context.NodeIdFactory != null;
+                Detail ??= new PropertyState(this)
+                {
+                    SymbolicName = "Detail",
+                    BrowseName = new QualifiedName("Detail", 3),
+                    ReferenceTypeId = ReferenceTypeIds.HasProperty
+                };
+                if (assignInstanceNodeIds &&
+                    context.NodeIdFactory != null &&
+                    Detail.NodeId.IsNull)
+                {
+                    Detail.NodeId = context.NodeIdFactory.New(context, Detail);
+                }
+                return Detail;
+            }
+        }
+
         private static SystemContext CreateContext(INodeIdFactory factory)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -347,6 +593,248 @@ namespace Opc.Ua.Types.Tests.State
 
             Assert.That(arguments.NodeId.IsNull, Is.True,
                 "Callers building declaration subtrees must keep control of the NodeIds.");
+        }
+
+        /// <summary>
+        /// A copy initializes every child from its source right after creating
+        /// it, which overwrites any NodeId handed out along the way. Consuming
+        /// identifiers for them therefore only burns - and for factories that
+        /// track outstanding allocations, leaks - them.
+        /// </summary>
+        [Test]
+        public void CopyOfTypeWithAssignmentControlConsumesNoNodeIds()
+        {
+            var factory = new CountingNodeIdFactory();
+            SystemContext context = CreateContext(factory);
+
+            MethodState source = CreateMethod("Start", 1);
+            source.CreateOrReplaceInputArguments(context, null);
+            source.CreateOrReplaceOutputArguments(context, null);
+            int handoutsAfterSource = factory.Handouts;
+
+            var copy = new MethodState(null);
+            copy.Create(context, source);
+
+            Assert.That(factory.Handouts, Is.EqualTo(handoutsAfterSource),
+                "Copying must not consume identifiers for children whose NodeId " +
+                "is overwritten from the source immediately afterwards.");
+        }
+
+        /// <summary>
+        /// The copy must still reproduce the source subtree while consuming
+        /// nothing, otherwise the optimisation would have changed behaviour.
+        /// </summary>
+        [Test]
+        public void CopyOfTypeWithAssignmentControlReproducesTheSource()
+        {
+            var factory = new CountingNodeIdFactory();
+            SystemContext context = CreateContext(factory);
+
+            MethodState source = CreateMethod("Start", 1);
+            PropertyState<ArrayOf<Argument>> sourceArguments =
+                source.CreateOrReplaceInputArguments(context, null);
+
+            var copy = new MethodState(null);
+            copy.Create(context, source);
+
+            Assert.That(copy.NodeId, Is.EqualTo(source.NodeId));
+            Assert.That(copy.InputArguments, Is.Not.Null);
+            Assert.That(copy.InputArguments.NodeId, Is.EqualTo(sourceArguments.NodeId),
+                "A copied child must carry the source NodeId, not a freshly minted one.");
+        }
+
+        /// <summary>
+        /// A type that predates the assignment control overload still reaches
+        /// its own four argument FindChild during a copy, and the factory is
+        /// hidden from it so it cannot consume identifiers either.
+        /// </summary>
+        [Test]
+        public void CopyOfLegacyTypeStillConsumesNoNodeIds()
+        {
+            var factory = new CountingNodeIdFactory();
+            SystemContext context = CreateContext(factory);
+
+            var source = new LegacyOwnerState(null)
+            {
+                NodeId = new NodeId("Owner", 3),
+                SymbolicName = "Owner",
+                BrowseName = new QualifiedName("Owner", 3)
+            };
+            source.CreateChild(context, new QualifiedName("Detail", 3));
+            Assert.That(source.Detail, Is.Not.Null);
+            int handoutsAfterSource = factory.Handouts;
+
+            var copy = new LegacyOwnerState(null);
+            copy.Create(context, source);
+
+            Assert.That(copy.Detail, Is.Not.Null,
+                "The legacy four argument override must still be reached by a copy.");
+            Assert.That(factory.Handouts, Is.EqualTo(handoutsAfterSource),
+                "The factory stays hidden from types that cannot be told not to assign.");
+        }
+
+        /// <summary>
+        /// The fallback works by hiding the factory, which is why it is only
+        /// used for types that cannot be told not to assign.
+        /// </summary>
+        [Test]
+        public void CopyOfLegacyTypeHidesTheNodeIdFactory()
+        {
+            var factory = new CountingNodeIdFactory();
+            SystemContext context = CreateContext(factory);
+
+            var source = new LegacyOwnerState(null)
+            {
+                NodeId = new NodeId("Owner", 3),
+                SymbolicName = "Owner",
+                BrowseName = new QualifiedName("Owner", 3)
+            };
+            source.CreateChild(context, new QualifiedName("Detail", 3));
+
+            var copy = new LegacyOwnerState(null);
+            copy.Create(context, source);
+
+            Assert.That(copy.SawNodeIdFactory, Is.False,
+                "A legacy override can only be stopped by hiding the factory from it.");
+        }
+
+        /// <summary>
+        /// A type that opts into assignment control is simply asked not to
+        /// assign, so it keeps seeing the real context. This is the point of
+        /// the overload: no wrapper misreports the factory as absent.
+        /// </summary>
+        [Test]
+        public void CopyOfTypeWithAssignmentControlSeesTheRealContext()
+        {
+            var factory = new CountingNodeIdFactory();
+            SystemContext context = CreateContext(factory);
+
+            var source = new ModernOwnerState(null)
+            {
+                NodeId = new NodeId("Owner", 3),
+                SymbolicName = "Owner",
+                BrowseName = new QualifiedName("Owner", 3)
+            };
+            source.CreateChild(context, new QualifiedName("Detail", 3));
+            int handoutsAfterSource = factory.Handouts;
+
+            var copy = new ModernOwnerState(null);
+            copy.Create(context, source);
+
+            Assert.That(copy.Detail, Is.Not.Null);
+            Assert.That(copy.SawNodeIdFactory, Is.True,
+                "The context must not misreport the factory to a type that " +
+                "understands the assignment request.");
+            Assert.That(factory.Handouts, Is.EqualTo(handoutsAfterSource),
+                "It was asked not to assign, so no identifier may be consumed.");
+        }
+
+        /// <summary>
+        /// A type deriving from one that opts into assignment control inherits
+        /// the capability, so the copy shows it the real context. Its four
+        /// argument override cannot be told to decline, so the factory must be
+        /// hidden by the time control reaches it - otherwise the inherited
+        /// <c>true</c> would quietly reintroduce the leak.
+        /// </summary>
+        [Test]
+        public void CopyOfDerivedLegacyOverrideConsumesNoNodeIds()
+        {
+            var factory = new CountingNodeIdFactory();
+            SystemContext context = CreateContext(factory);
+
+            var source = new DerivedMethodState(null)
+            {
+                NodeId = new NodeId("Start", 3),
+                SymbolicName = "Start",
+                BrowseName = new QualifiedName("Start", 3)
+            };
+            source.CreateChild(context, new QualifiedName("Extra", 3));
+            source.CreateOrReplaceInputArguments(context, null);
+            Assert.That(source.Extra, Is.Not.Null);
+            int handoutsAfterSource = factory.Handouts;
+
+            var copy = new DerivedMethodState(null);
+            copy.Create(context, source);
+
+            Assert.That(copy.Extra, Is.Not.Null,
+                "A four argument override on a derived type must still be reached.");
+            Assert.That(factory.Handouts, Is.EqualTo(handoutsAfterSource),
+                "An inherited assignment control capability must not let a four " +
+                "argument override consume identifiers.");
+        }
+
+        /// <summary>
+        /// A type that intercepts by overriding the public CreateChild rather
+        /// than FindChild must still be dispatched through by a copy.
+        /// </summary>
+        [Test]
+        public void CopyStillDispatchesThroughCreateChildOverride()
+        {
+            SystemContext context = CreateContext(new CountingNodeIdFactory());
+
+            var source = new CreateChildOverrideState(null)
+            {
+                NodeId = new NodeId("Owner", 3),
+                SymbolicName = "Owner",
+                BrowseName = new QualifiedName("Owner", 3)
+            };
+            var detail = new PropertyState(source)
+            {
+                NodeId = new NodeId("Owner_Detail", 3),
+                SymbolicName = "Detail",
+                BrowseName = new QualifiedName("Detail", 3),
+                ReferenceTypeId = ReferenceTypeIds.HasProperty
+            };
+            source.AddChild(detail);
+
+            var copy = new CreateChildOverrideState(null);
+            copy.Create(context, source);
+
+            Assert.That(copy.CreateChildCalls, Is.GreaterThan(0),
+                "Overriding CreateChild must keep working across a node copy.");
+        }
+
+        /// <summary>
+        /// Resolving a browse name no type in the hierarchy declares walks the
+        /// whole override chain. It must terminate.
+        /// </summary>
+        [Test]
+        public void FindingAnUndeclaredChildDoesNotRecurse()
+        {
+            SystemContext context = CreateContext(new CountingNodeIdFactory());
+            var owner = new ModernOwnerState(null)
+            {
+                NodeId = new NodeId("Owner", 3),
+                SymbolicName = "Owner",
+                BrowseName = new QualifiedName("Owner", 3)
+            };
+
+            BaseInstanceState found = null;
+            Assert.DoesNotThrow(
+                () => found = owner.CreateChild(
+                    context, new QualifiedName("NoSuchChild", 3), false));
+            Assert.That(found, Is.Null);
+        }
+
+        /// <summary>
+        /// Reading InputArguments must not return OutputArguments.
+        /// </summary>
+        [Test]
+        public void FindChildReturnsTheRequestedArgumentsProperty()
+        {
+            SystemContext context = CreateContext(new ChildIdFactory());
+            MethodState method = CreateMethod("Start", 1);
+            PropertyState<ArrayOf<Argument>> inputs =
+                method.CreateOrReplaceInputArguments(context, null);
+            PropertyState<ArrayOf<Argument>> outputs =
+                method.CreateOrReplaceOutputArguments(context, null);
+            Assert.That(inputs.NodeId, Is.Not.EqualTo(outputs.NodeId));
+
+            BaseInstanceState found = method.FindChild(
+                context, new QualifiedName(BrowseNames.InputArguments, 3));
+
+            Assert.That(found, Is.SameAs(inputs),
+                "InputArguments must resolve to the input arguments property.");
         }
 
         [Test]

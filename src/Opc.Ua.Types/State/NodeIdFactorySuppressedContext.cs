@@ -36,17 +36,20 @@ namespace Opc.Ua
     /// <see cref="ISystemContext.NodeIdFactory"/>, which is reported as absent.
     /// </summary>
     /// <remarks>
-    /// A node copy materialises its children through
-    /// <see cref="NodeState.CreateChild"/>, and the
-    /// <c>CreateOrReplace&lt;Child&gt;</c> plumbing behind it assigns a
-    /// per-instance NodeId whenever the context carries a factory. In a copy
-    /// every child is initialised from its source immediately afterwards, which
-    /// overwrites that NodeId, so the assignment only consumes identifiers -
-    /// and permanently leaks them for factories that track outstanding
-    /// allocations. Hiding the factory for the duration of the copy leaves
-    /// those identifiers unused; the <c>assignInstanceNodeIds</c> flag cannot
-    /// serve here because it is not part of the virtual <c>FindChild</c>
-    /// contract the copy goes through.
+    /// Compatibility fallback for the node copy in
+    /// <see cref="NodeState.Initialize(ISystemContext, NodeState)"/>. A copy
+    /// materialises its children and then initialises each one from its source,
+    /// which overwrites whatever NodeId was assigned along the way, so assigning
+    /// one only consumes identifiers - and permanently leaks them for factories
+    /// that track outstanding allocations.
+    /// <para>
+    /// A node type that reports
+    /// <c>NodeState.SupportsInstanceNodeIdAssignmentControl</c> is simply asked
+    /// not to assign, and never sees this wrapper. It exists only for types that
+    /// override the four argument <c>FindChild</c> and therefore have no way of
+    /// being told - hiding the factory is the one channel that reaches them.
+    /// Remove it once that overload is no longer supported.
+    /// </para>
     /// </remarks>
     internal sealed class NodeIdFactorySuppressedContext : ISystemContext
     {

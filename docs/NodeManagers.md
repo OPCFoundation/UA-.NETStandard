@@ -1592,6 +1592,45 @@ Notes:
   `ISystemContext.NodeIdFactory`. `AsyncCustomNodeManager` supplies one
   that allocates from the manager's namespace; override `New` to derive
   ids from the parent chain instead.
+* **A node copy never assigns.** `NodeState.Create(context, source)`
+  initialises each child from its source right after creating it, which
+  overwrites any NodeId minted along the way — so minting one would only
+  consume identifiers, and leak them for factories that track outstanding
+  allocations. The copy therefore calls
+  `CreateChild(context, browseName, assignInstanceNodeIds: false)`.
+
+#### Custom node types and assignment control
+
+`NodeState` carries a second `FindChild` overload that takes
+`assignInstanceNodeIds`, plus a `SupportsInstanceNodeIdAssignmentControl`
+property that states whether a type honours it. Source generated types
+override both, so a copy of a generated node consumes nothing.
+
+Hand-written types that override only the four argument `FindChild` keep
+working: for them the copy hides the `NodeIdFactory` for its duration, which
+is the only channel that reaches an override with no such parameter. To take
+the direct path instead, override both members:
+
+```csharp
+protected override bool SupportsInstanceNodeIdAssignmentControl => true;
+
+protected override BaseInstanceState? FindChild(
+    ISystemContext context,
+    QualifiedName browseName,
+    bool createOrReplace,
+    BaseInstanceState? replacement,
+    bool assignInstanceNodeIds)
+{
+    // ... thread assignInstanceNodeIds into your CreateOrReplace<Child> calls
+    return base.FindChild(
+        context, browseName, createOrReplace, replacement, assignInstanceNodeIds);
+}
+```
+
+Override the property only together with the five argument `FindChild`. A
+hand-written type deriving from a generated one inherits `true`; if it
+overrides only the four argument `FindChild` and needs that override to run
+during a copy, it must override the property back to `false`.
 
 ### Current limitations
 

@@ -518,6 +518,9 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        protected override bool SupportsInstanceNodeIdAssignmentControl => true;
+
+        /// <inheritdoc/>
         protected override BaseInstanceState? FindChild(
             ISystemContext context,
             QualifiedName browseName,
@@ -528,19 +531,61 @@ namespace Opc.Ua
             {
                 return null;
             }
-            BaseInstanceState? instance = null;
+            return FindDeclaredChild(context, browseName, createOrReplace, replacement, true)
+                ?? base.FindChild(context, browseName, createOrReplace, replacement);
+        }
+
+        /// <inheritdoc/>
+        protected override BaseInstanceState? FindChild(
+            ISystemContext context,
+            QualifiedName browseName,
+            bool createOrReplace,
+            BaseInstanceState? replacement,
+            bool assignInstanceNodeIds)
+        {
+            if (browseName.IsNull)
+            {
+                return null;
+            }
+            return FindDeclaredChild(
+                    context, browseName, createOrReplace, replacement, assignInstanceNodeIds)
+                ?? base.FindChild(
+                    context, browseName, createOrReplace, replacement, assignInstanceNodeIds);
+        }
+
+        /// <summary>
+        /// Resolves one of the arguments properties declared by this type.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="browseName">The browse name to resolve.</param>
+        /// <param name="createOrReplace">Whether a missing child is created.</param>
+        /// <param name="replacement">The replacement to adopt, if any.</param>
+        /// <param name="assignInstanceNodeIds">
+        /// Whether a newly created child may be given a per-instance NodeId.
+        /// </param>
+        /// <returns>The child, or <c>null</c> when this type does not declare it.</returns>
+        private PropertyState<ArrayOf<Argument>>? FindDeclaredChild(
+            ISystemContext context,
+            QualifiedName browseName,
+            bool createOrReplace,
+            BaseInstanceState? replacement,
+            bool assignInstanceNodeIds)
+        {
             switch (browseName.Name)
             {
                 case BrowseNames.InputArguments:
-                    instance = !createOrReplace ?
-                        OutputArguments : CreateOrReplaceInputArguments(context, replacement);
-                    break;
+                    return !createOrReplace
+                        ? InputArguments
+                        : CreateOrReplaceInputArguments(
+                            context, replacement, assignInstanceNodeIds);
                 case BrowseNames.OutputArguments:
-                    instance = !createOrReplace ?
-                        OutputArguments : CreateOrReplaceOutputArguments(context, replacement);
-                    break;
+                    return !createOrReplace
+                        ? OutputArguments
+                        : CreateOrReplaceOutputArguments(
+                            context, replacement, assignInstanceNodeIds);
+                default:
+                    return null;
             }
-            return instance ?? base.FindChild(context, browseName, createOrReplace, replacement);
         }
 
         /// <summary>
