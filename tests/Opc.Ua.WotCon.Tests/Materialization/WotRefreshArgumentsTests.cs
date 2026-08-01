@@ -133,6 +133,18 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         [Test]
+        public void RejectsNullElementInSelectionArray()
+        {
+            ArrayOf<string> selection = [null!];
+            ArrayOf<Variant> input = Args(Variant.From(selection));
+
+            ServiceResult status = WotRefreshArguments.TryDecode(
+                input, Context, out _);
+
+            Assert.That(status.StatusCode.Code, Is.EqualTo(StatusCodes.BadInvalidArgument));
+        }
+
+        [Test]
         public void RejectsOptionsOfWrongType()
         {
             ArrayOf<Variant> input = Args(

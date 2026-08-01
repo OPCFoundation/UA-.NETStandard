@@ -89,7 +89,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         [Test]
-        public async Task ResolveWithNullSnapshotReturnsNull()
+        public void ResolveWithNullSnapshotReturnsNull()
         {
             WotResource? result = WotDependencyGraph.Resolve(null!, "urn:some");
             Assert.That(result, Is.Null);
