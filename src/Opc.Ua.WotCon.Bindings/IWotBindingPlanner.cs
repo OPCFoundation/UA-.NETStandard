@@ -51,7 +51,7 @@ namespace Opc.Ua.WotCon.Bindings
             string? baseUri = null,
             WotBindingBounds? bounds = null)
         {
-            SecurityDefinitions = securityDefinitions ?? [];
+            SecurityDefinitions = securityDefinitions ?? ImmutableDictionary<string, WotSecurityDefinition>.Empty;
             Codecs = codecs ?? WotPayloadCodecRegistry.Default;
             DocumentKind = documentKind;
             BaseUri = baseUri;
