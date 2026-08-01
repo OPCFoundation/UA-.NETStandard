@@ -56,7 +56,7 @@ namespace Opc.Ua.WotCon.Bindings
             Codecs = codecs ?? WotPayloadCodecRegistry.Default;
             Bounds = bounds ?? WotBindingBounds.Default;
             EndpointPolicy = endpointPolicy ?? WotEndpointPolicy.Default;
-            Telemetry = telemetry ?? TelemetryExtensions.InternalOnly__TelemetryHook();
+            Telemetry = telemetry ?? AmbientMessageContext.Telemetry;
         }
 
         /// <summary>
@@ -82,7 +82,7 @@ namespace Opc.Ua.WotCon.Bindings
         /// <summary>
         /// Gets the telemetry context used for executor diagnostics.
         /// </summary>
-        public ITelemetryContext Telemetry { get; }
+        public ITelemetryContext? Telemetry { get; }
     }
 
     /// <summary>

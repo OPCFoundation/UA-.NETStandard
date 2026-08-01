@@ -39,13 +39,11 @@ namespace Opc.Ua.WotCon.Bindings.Tests
     public sealed class WotExecutorContextTests
     {
         [Test]
-        public void ConstructorWithoutTelemetryUsesDefaultTelemetryContext()
+        public void ConstructorWithoutTelemetryFallsBackToAmbientTelemetryContext()
         {
-            ITelemetryContext expected = TelemetryExtensions.InternalOnly__TelemetryHook();
-
             var context = new WotExecutorContext();
 
-            Assert.That(context.Telemetry, Is.SameAs(expected));
+            Assert.That(context.Telemetry, Is.SameAs(AmbientMessageContext.Telemetry));
         }
 
         [Test]
