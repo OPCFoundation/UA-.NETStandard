@@ -264,6 +264,32 @@ namespace Opc.Ua.Di.Tests
         }
 
         [Test]
+        public void EveryPartIsEventuallyCollectedSoNoneStarves()
+        {
+            var cell = new CellChoreographer();
+            var moved = new HashSet<string>(StringComparer.Ordinal);
+
+            for (int i = 0; i < LongRunSteps; i++)
+            {
+                cell.Advance(Step);
+                foreach (CellPart part in cell.Parts)
+                {
+                    if (!part.IsResting)
+                    {
+                        _ = moved.Add(part.Id);
+                    }
+                }
+            }
+
+            // The buffers are worked first-in-first-out. Collecting the lowest free slot
+            // instead starves a spare that never lands in it: with two parts seeded on
+            // TableA the second sat untouched for the life of the process, which reads in
+            // the twin as the robots ignoring a block sitting in front of them.
+            Assert.That(moved, Has.Count.EqualTo(cell.Parts.Count),
+                "A part was never collected across the run.");
+        }
+
+        [Test]
         public void KpisAccumulateOverTheRun()
         {
             var cell = new CellChoreographer();

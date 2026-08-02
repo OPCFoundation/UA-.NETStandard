@@ -77,6 +77,7 @@ namespace Robotics
         private readonly Random m_random;
         private readonly double m_faultProbability;
         private double m_now;
+        private long m_restingSequence;
 
         /// <summary>
         /// Creates the choreographer with the cell staged warm: parts waiting on both
@@ -104,6 +105,10 @@ namespace Robotics
                 new CellPart("Part02", CellStation.TableA, 1),
                 new CellPart("Part03", CellStation.TableB, 0)
             ];
+            foreach (CellPart part in m_parts)
+            {
+                part.RestingSequence = ++m_restingSequence;
+            }
             foreach (RobotAgent robot in m_robots)
             {
                 robot.HeldZone = ZoneAt(robot.X, robot.Y);
@@ -372,7 +377,7 @@ namespace Robotics
                 {
                     continue;
                 }
-                if (best == null || part.Slot < best.Slot)
+                if (best == null || part.RestingSequence < best.RestingSequence)
                 {
                     best = part;
                 }
@@ -535,6 +540,7 @@ namespace Robotics
                     part.CarriedBy = null;
                     part.Station = robot.Target;
                     part.Slot = robot.TargetSlot;
+                    part.RestingSequence = ++m_restingSequence;
                     (part.X, part.Y, part.Z) =
                         CellLayout.SlotPosition(part.Station, part.Slot);
                     part.HeadingDegrees = 0.0;

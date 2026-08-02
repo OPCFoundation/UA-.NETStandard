@@ -100,6 +100,16 @@ namespace Robotics
         /// Whether the part is resting somewhere rather than being carried.
         /// </summary>
         public bool IsResting => CarriedBy == null;
+
+        /// <summary>
+        /// The order in which the part came to rest on its current station.
+        /// </summary>
+        /// <remarks>
+        /// The cell works its buffers first-in-first-out. Picking by slot instead starves
+        /// whichever part never lands in the lowest slot: a spare seeded beside the one the
+        /// robots shuttle would sit untouched for the life of the process.
+        /// </remarks>
+        internal long RestingSequence { get; set; }
     }
 
     /// <summary>
