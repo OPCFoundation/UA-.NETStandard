@@ -33,6 +33,7 @@ using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.Connections;
 using Opc.Ua.PubSub.DataSets;
 using Opc.Ua.PubSub.Diagnostics;
@@ -174,10 +175,34 @@ namespace Opc.Ua.PubSub.Application
                     return;
                 }
                 m_registry.MetaDataChanged += OnMetaDataChanged;
+                m_application.ConfigurationChanged += OnConfigurationChanged;
                 m_subscribed = true;
             }
             SubscribeToDataSets();
             await PublishInitialAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Re-subscribe when the configuration is replaced.
+        /// </summary>
+        /// <remarks>
+        /// Per-dataset subscriptions were taken once, from
+        /// <see cref="StartAsync"/>. An application that is configured after it
+        /// starts therefore never subscribed to anything: at start there were
+        /// no writers to walk, and nothing looked again when they arrived. A
+        /// dataset added later was in the same position even on an application
+        /// configured up front.
+        /// </remarks>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void OnConfigurationChanged(object? sender,
+            PubSubConfigurationChangedEventArgs e)
+        {
+            if (Volatile.Read(ref m_disposed) != 0)
+            {
+                return;
+            }
+            SubscribeToDataSets();
         }
 
         /// <inheritdoc/>
@@ -192,6 +217,7 @@ namespace Opc.Ua.PubSub.Application
                 if (m_subscribed)
                 {
                     m_registry.MetaDataChanged -= OnMetaDataChanged;
+                    m_application.ConfigurationChanged -= OnConfigurationChanged;
                     m_subscribed = false;
                 }
                 foreach (DataSetSubscription subscription in m_dataSetSubscriptions)
@@ -214,6 +240,10 @@ namespace Opc.Ua.PubSub.Application
         /// rebuilds and raises <c>MetaDataChanged</c> when the source signals,
         /// but nothing carried that into the registry this publisher watches,
         /// so the empty announcement was the only one a consumer ever saw.
+        ///
+        /// This runs again whenever the configuration changes, so it must be
+        /// idempotent: a dataset already being watched is skipped, compared by
+        /// reference because that is the identity the handler is bound to.
         /// </remarks>
         private void SubscribeToDataSets()
         {
@@ -249,12 +279,17 @@ namespace Opc.Ua.PubSub.Application
                             {
                                 return;
                             }
+                            if (IsSubscribedLocked(dataSet))
+                            {
+                                continue;
+                            }
                         }
                         dataSet.MetaDataChanged += Handler;
                         bool keepSubscription;
                         lock (m_gate)
                         {
-                            keepSubscription = Volatile.Read(ref m_disposed) == 0;
+                            keepSubscription = Volatile.Read(ref m_disposed) == 0
+                                && !IsSubscribedLocked(dataSet);
                             if (keepSubscription)
                             {
                                 m_dataSetSubscriptions.Add(
@@ -264,11 +299,33 @@ namespace Opc.Ua.PubSub.Application
                         if (!keepSubscription)
                         {
                             dataSet.MetaDataChanged -= Handler;
-                            return;
+                            if (Volatile.Read(ref m_disposed) != 0)
+                            {
+                                return;
+                            }
                         }
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// True when this dataset is already being watched. Compared by
+        /// reference, because that is the identity the handler is bound to -
+        /// two datasets can carry equal metadata and still be different
+        /// sources.
+        /// </summary>
+        /// <param name="dataSet"></param>
+        private bool IsSubscribedLocked(IPublishedDataSet dataSet)
+        {
+            for (int index = 0; index < m_dataSetSubscriptions.Count; index++)
+            {
+                if (ReferenceEquals(m_dataSetSubscriptions[index].DataSet, dataSet))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private void OnDataSetMetaDataChanged(
