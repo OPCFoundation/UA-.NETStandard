@@ -264,6 +264,47 @@ namespace Opc.Ua.Di.Tests
         }
 
         [Test]
+        public void AStowedArmHoldsThePartAtAConstantOffsetFromThePlatform()
+        {
+            var cell = new CellChoreographer();
+            double minimum = double.MaxValue;
+            double maximum = double.MinValue;
+            int samples = 0;
+
+            for (int i = 0; i < LongRunSteps; i++)
+            {
+                cell.Advance(Step);
+                foreach (RobotAgent robot in cell.Robots)
+                {
+                    if (robot.HoldingPart == null || !robot.ArmStowed)
+                    {
+                        continue;
+                    }
+                    (double x, double y, double _) = CellChoreographer
+                        .ToolCentrePointOf(robot).Origin;
+                    double dx = x - robot.X;
+                    double dy = y - robot.Y;
+                    double distance = Math.Sqrt((dx * dx) + (dy * dy));
+                    minimum = Math.Min(minimum, distance);
+                    maximum = Math.Max(maximum, distance);
+                    samples++;
+                }
+            }
+
+            Assert.That(samples, Is.GreaterThan(0),
+                "The run never carried a part with the arm stowed.");
+
+            // The transport pose is fixed, so a carried part rides at a constant distance
+            // from the platform while the robot drives. The twin has to preserve that: the
+            // part pose and the platform pose leave the server on separate loops, and a
+            // part drawn against a stale platform floats out in front of the jaws by
+            // however far the robot travelled in between - a quarter of a metre at cruise,
+            // which is three part widths.
+            Assert.That(maximum - minimum, Is.LessThan(1e-9),
+                "The stowed transport offset is not constant.");
+        }
+
+        [Test]
         public void EveryPartIsEventuallyCollectedSoNoneStarves()
         {
             var cell = new CellChoreographer();

@@ -104,6 +104,13 @@ keeps it welded to the gripper: if the arm and the part were computed independen
 would drift apart. `RobotArmSolver` is checked against that same forward kinematics, so the
 arm provably reaches each slot to within a micrometre.
 
+It is computed from the platform pose that was **last published**, not the one the
+simulation currently holds. The platform and the workpiece leave the server as separate
+bindings, and publishing them from loops running at different rates floated the part a
+quarter of a metre out in front of the jaws while the robot drove — three part widths, and
+the first thing anyone notices in a viewport. `RobotOpenUsdE2eTests` rebuilds the tool
+centre point from the values authored into the scene and asserts a carried part sits on it.
+
 The buffers are worked **first-in-first-out**. Collecting the lowest free slot instead
 starves any part that never lands in it: with two parts seeded on `WorkTableA`, the second
 sat untouched for the life of the process while the robots shuttled the other one past it.
@@ -118,6 +125,14 @@ cleared from there. `RobotAssetContractTests` asserts this for every bound prim.
 
 The gripper jaws are one Xform each, owning their carrier *and* their finger. Driving the
 carrier alone would slide it out from under the finger it is bolted to.
+
+### The opening view
+
+The cell authors `/Cell/OverviewCamera` and a connector opens on it, because framing the
+bounds of an enclosed scene automatically puts the eye inside the fence, looking at whichever
+robot happens to be nearest. The **first** camera in the served root layer wins, so the
+establishing shot is authored before `/Cell/TopDownCamera`; `--camera` overrides the choice
+outright. `RobotAssetContractTests` asserts the ordering.
 
 ## Ideas for more realism
 
