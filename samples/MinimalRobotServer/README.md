@@ -31,7 +31,8 @@ A `MotionDeviceSystem` **"RobotCell"** (prim `/Cell`) composed recursively of:
   visibility (`UaAlarmToUsd`, `Visibility`).
 - An opt-in **SpeedOverride** command (`UsdToUaCommand`, fail-closed).
 - A **gripper tool** on each robot's flange, plus one mounted on R1 at runtime (`One` / `Reference`,
-  `Dynamic = true`) via a model-change event.
+  `Dynamic = true`) via a model-change event. R1 carries a `NodeVersion` property so that
+  mounting it is reportable at all — see [Dynamic components need a NodeVersion](#dynamic-components-need-a-nodeversion).
 - A **`CellTwin` folder** under `Objects` carrying the state that is neither a device nor
   an axis: a `ThreeDCartesianCoordinates` position and a `ThreeDOrientation` heading per
   workpiece, driving `/Cell/Parts/PartNN` (`Translation` and `Rotation`), and a jaw
@@ -125,6 +126,26 @@ cleared from there. `RobotAssetContractTests` asserts this for every bound prim.
 
 The gripper jaws are one Xform each, owning their carrier *and* their finger. Driving the
 carrier alone would slide it out from under the finger it is bolted to.
+
+### Dynamic components need a NodeVersion
+
+Part 5 §9.32.2 allows only a node that carries a **`NodeVersion`** property to trigger a
+`ModelChangeEvent`, and `AsyncCustomNodeManager` drops entries for nodes that lack one. A
+`Dynamic` component binding is reconciled from those events, so the node whose references
+change — here the robot the tool is mounted on — has to expose `NodeVersion`, via
+`EnableModelChangeTracking`. Without it the mount is filtered out and no client is ever told
+the gripper appeared.
+
+The failure this caused was quietly asymmetric, which is worth knowing about. **Removal**
+kept reporting, because a deleted node is no longer in the manager's index and so takes the
+"not mine, pass it through" branch of the filter; only **addition** was dropped. A connector
+that happened to start while the tool was mounted therefore looked correct and could still
+deactivate it, while one that started in the six-second gap never composed the tool at all
+and never recovered.
+
+`DynamicToolIsComposedAsync` asserts the transition — the prim observed both active and
+inactive across more than one full cycle — rather than a momentary state, so it cannot pass
+on a connector that only ever hears about one direction.
 
 ### The opening view
 

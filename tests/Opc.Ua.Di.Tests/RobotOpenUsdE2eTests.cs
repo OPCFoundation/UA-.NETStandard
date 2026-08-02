@@ -1343,15 +1343,48 @@ namespace Opc.Ua.Di.Tests
             // Dynamic composition (§5.13): the server attaches a gripper tool on R1's
             // flange at runtime (emitting model-change events); the connector reconciles
             // the tool reference prim.
+            //
+            // Asserted as a *transition*, not as a momentary state. The sample cycles the
+            // tool mount(12 s)/detach(6 s) forever, so whether the prim happens to be
+            // active at any instant depends only on the phase the connector started in -
+            // which is near-constant for a given fixture and made this test fail
+            // consistently rather than intermittently. Observing both states across more
+            // than one full cycle is phase-independent, and unlike the momentary check it
+            // actually proves reconciliation runs in both directions: a connector that
+            // never hears about the mount can only ever report one of them.
             var sink = new MockUsdSink();
             var connector = new OpenUsdConnector(m_session!, sink);
             await connector.StartAsync(CancellationToken.None).ConfigureAwait(false);
             try
             {
-                bool appeared = await PollAsync(
-                    () => sink.WasPrimComposed(ToolPrim) && sink.IsPrimActive(ToolPrim),
-                    TimeSpan.FromSeconds(30)).ConfigureAwait(false);
-                Assert.That(appeared, Is.True, "Dynamically attached gripper tool prim was not composed.");
+                bool sawActive = false;
+                bool sawInactive = false;
+                var deadline = System.Diagnostics.Stopwatch.StartNew();
+                while (deadline.Elapsed < TimeSpan.FromSeconds(75) && !(sawActive && sawInactive))
+                {
+                    if (sink.WasPrimComposed(ToolPrim))
+                    {
+                        if (sink.IsPrimActive(ToolPrim))
+                        {
+                            sawActive = true;
+                        }
+                        else
+                        {
+                            sawInactive = true;
+                        }
+                    }
+                    await Task.Delay(250).ConfigureAwait(false);
+                }
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(sawActive, Is.True,
+                        "The mounted gripper tool prim was never composed active - the connector " +
+                        "was never told the tool was added.");
+                    Assert.That(sawInactive, Is.True,
+                        "The gripper tool prim was never deactivated - the connector was never " +
+                        "told the tool was removed.");
+                });
             }
             finally
             {

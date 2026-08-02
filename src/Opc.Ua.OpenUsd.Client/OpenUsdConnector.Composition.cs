@@ -298,6 +298,17 @@ namespace Opc.Ua.OpenUsd.Client
             item.Notification += OnModelChangeEvent;
             subscription.AddItem(item);
             await subscription.ApplyChangesAsync(ct).ConfigureAwait(false);
+
+            // A rejected event item is not a degraded mode, it is a broken one: every
+            // Dynamic component would keep whatever composition it happened to resolve at
+            // start-up and silently never reconcile again. Say so rather than compose a
+            // twin that quietly stops matching the server.
+            if (ServiceResult.IsBad(item.Status.Error))
+            {
+                throw new InvalidOperationException(
+                    "OpenUSD model-change subscription was rejected by the server " +
+                    $"({item.Status.Error}) — Dynamic components could not be reconciled.");
+            }
             m_logger.ModelChangeSubscribed(eventSource);
         }
 

@@ -46,6 +46,7 @@ using Opc.Ua.Robotics.Server.Builders;
 using Opc.Ua.Rsl;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Fluent;
+using Opc.Ua.Server.NodeManager;
 using ReferenceTypeIds = Opc.Ua.ReferenceTypeIds;
 
 namespace Robotics
@@ -344,6 +345,16 @@ namespace Robotics
                         state.ParameterSet!,
                         "SpeedOverride");
                     m_speedOverrideVar.OnReadUserAccessLevel = OnReadCommandTargetUserAccessLevel;
+
+                    // Part 5 §9.32.2: only a node carrying a NodeVersion property may
+                    // trigger a ModelChangeEvent, and the framework drops entries for
+                    // nodes that lack one. Mounting the tool adds a reference to this
+                    // robot, so without this the addition is filtered out and no client
+                    // is ever told the gripper appeared - while the *removal* still
+                    // reports, because a deleted node is no longer in the manager's index
+                    // and takes the "not mine, pass it through" path. A connector that
+                    // starts while the tool is detached would then never compose it.
+                    _ = state.EnableModelChangeTracking(ns);
                 }
 
                 robotRep = AttachRepresentation(state, robot.PrimPath, usdNs);
