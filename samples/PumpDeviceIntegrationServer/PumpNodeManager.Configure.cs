@@ -405,13 +405,17 @@ namespace Pumps
         /// </remarks>
         private void TrackSignal(BaseVariableState variable, Func<double> getter)
         {
-            m_liveSignals.Add((variable, getter));
+            lock (m_simulationRegistrationLock)
+            {
+                m_liveSignals = [.. m_liveSignals, (variable, getter)];
+            }
         }
 
         private void PublishOpenUsdSignals()
         {
             DateTime now = DateTime.UtcNow;
-            foreach ((BaseVariableState variable, Func<double> getter) in m_liveSignals)
+            foreach ((BaseVariableState variable, Func<double> getter) in
+                Volatile.Read(ref m_liveSignals))
             {
                 variable.Value = getter();
                 variable.Timestamp = now;
@@ -691,7 +695,15 @@ namespace Pumps
         /// Measurement Variables created outside the fluent builder, paired
         /// with the getter that yields their latest simulated value.
         /// </summary>
-        private readonly List<(BaseVariableState Variable, Func<double> Getter)> m_liveSignals = [];
+        /// <remarks>
+        /// Held as an immutable snapshot that <see cref="TrackSignal"/> replaces
+        /// under <see cref="m_simulationRegistrationLock"/>. A pump can be added
+        /// through <c>CreatePumpAsync</c> while the simulation timer is running,
+        /// and mutating a list while the tick enumerates it would throw on the
+        /// timer thread and stop the simulation for every pump. Publishing from a
+        /// snapshot keeps the tick allocation-free and lock-free.
+        /// </remarks>
+        private (BaseVariableState Variable, Func<double> Getter)[] m_liveSignals = [];
     }
 
     internal static partial class PumpNodeManagerLog

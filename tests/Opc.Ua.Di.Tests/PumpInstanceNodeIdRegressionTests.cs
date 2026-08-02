@@ -31,6 +31,8 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Pumps;
@@ -461,6 +463,46 @@ namespace Opc.Ua.Di.Tests
             Assert.That(
                 second,
                 Contains.Item("Events/SupervisionPumpOperation/MotorOverheat/TrueState"));
+        }
+
+        /// <summary>
+        /// Every configured pump must contribute its shaft angle to the
+        /// simulation publish set exactly once.
+        /// </summary>
+        /// <remarks>
+        /// Signal registration runs once per pump as it is materialised, and the
+        /// twin is already in the dictionary by then. Registering by walking every
+        /// twin therefore re-registered each earlier pump, so the first pump ended
+        /// up published N times per tick for N pumps - redundant writes and
+        /// <c>ClearChangeMasks</c> calls growing as N(N+1)/2.
+        /// </remarks>
+        [Test]
+        public void EveryPumpPublishesItsShaftAngleExactlyOnce()
+        {
+            FieldInfo? field = typeof(PumpNodeManager).GetField(
+                "m_liveSignals", BindingFlags.NonPublic | BindingFlags.Instance);
+            Assert.That(field, Is.Not.Null,
+                "PumpNodeManager.m_liveSignals is gone - update this regression test.");
+
+            var signals = (Array)field!.GetValue(m_manager)!;
+            List<NodeId> published = signals
+                .Cast<object>()
+                .Select(entry => ((BaseVariableState)((ITuple)entry)[0]!).NodeId)
+                .ToList();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(published, Is.Unique,
+                    "A Variable is published more than once per simulation tick.");
+                foreach (PumpState pump in new[] { m_configuredPump!, m_secondPump! })
+                {
+                    NodeId shaftAngle = new(
+                        pump.NodeId.IdentifierAsString + "_ShaftAngle",
+                        pump.NodeId.NamespaceIndex);
+                    Assert.That(published.Count(id => id == shaftAngle), Is.EqualTo(1),
+                        pump.BrowseName.Name + " must publish its shaft angle exactly once.");
+                }
+            });
         }
 
         /// <summary>

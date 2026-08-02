@@ -136,31 +136,43 @@ namespace Pumps
         /// and read correctly but are never sampled, which leaves any binding that
         /// uses them frozen at its start-up value.
         /// </summary>
-        private async ValueTask RegisterOpenUsdSignalsAsync(CancellationToken cancellationToken)
+        /// <param name="pump">The pump whose signals to register.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        /// <remarks>
+        /// Registers one pump, not every pump materialised so far. This runs once
+        /// per pump as it is created, and the twin is already in the dictionary by
+        /// then, so walking the whole dictionary would re-register every earlier
+        /// pump and add its shaft angle to the publish set again - leaving the
+        /// first pump published N times per tick for N pumps.
+        /// </remarks>
+        private async ValueTask RegisterOpenUsdSignalsAsync(
+            PumpState pump, CancellationToken cancellationToken)
         {
-            foreach (PumpTwin twin in m_twins.Values)
+            if (!m_twins.TryGetValue(pump.NodeId, out PumpTwin? twin))
             {
-                foreach (BaseDataVariableState? signal in new[]
+                return;
+            }
+
+            foreach (BaseDataVariableState? signal in new[]
+            {
+                twin.AlarmActive, twin.ShaftAngle, twin.SpeedSetpoint,
+                twin.BayPosition, twin.FluidSurface
+            })
+            {
+                if (signal != null)
                 {
-                    twin.AlarmActive, twin.ShaftAngle, twin.SpeedSetpoint,
-                    twin.BayPosition, twin.FluidSurface
-                })
-                {
-                    if (signal != null)
-                    {
-                        await AddPredefinedNodeAsync(SystemContext, signal, cancellationToken)
-                            .ConfigureAwait(false);
-                    }
+                    await AddPredefinedNodeAsync(SystemContext, signal, cancellationToken)
+                        .ConfigureAwait(false);
                 }
-                // Push the shaft angle from the same loop that drives the generated
-                // measurement Variables, so it uses the one path proven to raise
-                // data-change notifications. The closure captures this pump's twin,
-                // so every pump reports its own angle.
-                if (twin.ShaftAngle != null)
-                {
-                    PumpTwin captured = twin;
-                    TrackSignal(captured.ShaftAngle!, () => captured.ShaftAngleDegrees);
-                }
+            }
+
+            // Push the shaft angle from the same loop that drives the generated
+            // measurement Variables, so it uses the one path proven to raise
+            // data-change notifications. The closure captures this pump's twin,
+            // so every pump reports its own angle.
+            if (twin.ShaftAngle != null)
+            {
+                TrackSignal(twin.ShaftAngle, () => twin.ShaftAngleDegrees);
             }
         }
 

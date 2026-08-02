@@ -350,7 +350,7 @@ namespace Pumps
             // item never samples them unless they are registered in their own
             // right -- register them explicitly so the OpenUSD bindings that use
             // them are live.
-            await RegisterOpenUsdSignalsAsync(cancellationToken).ConfigureAwait(false);
+            await RegisterOpenUsdSignalsAsync(pump, cancellationToken).ConfigureAwait(false);
 
             TryAddToMachinesFolder(pump);
             m_pumpStates.Add(pump);

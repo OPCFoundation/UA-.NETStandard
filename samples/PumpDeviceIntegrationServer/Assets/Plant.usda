@@ -192,9 +192,9 @@ def Xform "Plant"
         # one referenced </Pump> prim per configured pump into this scope, so
         # rendering the master as well would show a phantom extra machine that
         # no OPC UA object drives. It stays in the layer - deactivated - because
-        # generate_pump_assets.py extracts pump.usda and remote-pump.usda from
+        # generate_pump_assets.py extracts pump.usda from
         # it. Edit it, re-run the generator, never hand-edit the generated
-        # layers.
+        # layer.
         def Xform "P101" (
             active = false
             kind = "component"
