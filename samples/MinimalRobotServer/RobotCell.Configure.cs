@@ -76,6 +76,7 @@ namespace Robotics
             }
             cell.EmergencyStop = estop;
             cell.Advance(TickSeconds);
+            PublishTwinState(cell);
 
             // Publish the axis positions the choreography produced. They come from the arm
             // solver, so the arm genuinely reaches the slot it is working rather than

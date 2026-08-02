@@ -32,6 +32,12 @@ A `MotionDeviceSystem` **"RobotCell"** (prim `/Cell`) composed recursively of:
 - An opt-in **SpeedOverride** command (`UsdToUaCommand`, fail-closed).
 - A **gripper tool** on each robot's flange, plus one mounted on R1 at runtime (`One` / `Reference`,
   `Dynamic = true`) via a model-change event.
+- A **`CellTwin` folder** under `Objects` carrying the state that is neither a device nor
+  an axis: a `ThreeDCartesianCoordinates` position and a `ThreeDOrientation` heading per
+  workpiece, driving `/Cell/Parts/PartNN` (`Translation` and `Rotation`), and a jaw
+  position per robot driving `…/Flange/Tool/Jaw{Upper|Lower}`. Without these the
+  choreography is invisible — the robots mime a transfer while the blocks stay wherever
+  the asset authored them.
 - One RSL spatial-object list with a world frame, R1/R2 SpatialObject AddIns,
   each robot's PositionFrame, and R1's ToolFlange AttachPoint.
 - One GPOS Zone with ground-control points and one live GlobalLocation per robot. Both
@@ -97,6 +103,21 @@ server publishes (`RobotKinematics`), not from the script that produced them. Th
 keeps it welded to the gripper: if the arm and the part were computed independently they
 would drift apart. `RobotArmSolver` is checked against that same forward kinematics, so the
 arm provably reaches each slot to within a micrometre.
+
+The buffers are worked **first-in-first-out**. Collecting the lowest free slot instead
+starves any part that never lands in it: with two parts seeded on `WorkTableA`, the second
+sat untouched for the life of the process while the robots shuttled the other one past it.
+
+### Editing a live-bound prim
+
+Every prim the server drives declares **exactly one** `matrix4d xformOp:transform` and
+orders only that op — the parts and the gripper jaws included. A viewer composes the
+translate and rotate ops it receives into that single matrix, and an op order declared in a
+referenced asset sits in a weaker layer than the one a connector edits, so it could not be
+cleared from there. `RobotAssetContractTests` asserts this for every bound prim.
+
+The gripper jaws are one Xform each, owning their carrier *and* their finger. Driving the
+carrier alone would slide it out from under the finger it is bolted to.
 
 ## Ideas for more realism
 
@@ -166,10 +187,11 @@ on `/Robot/Base`; nothing else depends on it.
 ### Editing the assets
 
 The prim paths and rotate ops above are the **binding contract**: `RobotCell.cs` addresses
-them by name, and the connector writes each rotate op as a scalar `double`. Link offsets,
-geometry, materials and lighting are all free to change; the paths, op names,
+them by name, and the connector writes each joint rotate op as a scalar `double`. Link
+offsets, geometry, materials and lighting are all free to change; the paths, op names,
 `xformOpOrder` entries, `/Robot/Base/.../Flange`, `/Robot/Warning`, `/Cell/SafetyBeacon`,
-`/Cell.inputs:speedOverride` and the `R1`/`R2` mount attributes are not.
+`/Cell/Parts/PartNN`, `/Gripper/Jaw{Upper|Lower}`, `/Cell.inputs:speedOverride` and the
+`R1`/`R2` mount attributes are not.
 
 `RobotAssetContractTests` (in `tests/Opc.Ua.OpenUsd.Tests`) parses the shipped assets
 and asserts that contract, so an edit that breaks it fails the build instead of silently

@@ -134,6 +134,8 @@ namespace Robotics
             s_cells.Remove(context.Manager);
             s_cells.Add(context.Manager, this);
             await MaterialiseOpenUsdFacilityAsync(cancellationToken).ConfigureAwait(false);
+            await MaterialiseTwinNodesAsync(context.InstanceNamespaceIndex, cancellationToken)
+                .ConfigureAwait(false);
             await MaterialiseRobotCellAsync(context, cancellationToken).ConfigureAwait(false);
             Configure(context.Nodes);
             m_logger.RoboticsAddressSpaceReady(m_axes.Count + m_robots.Count + 1);
@@ -228,6 +230,8 @@ namespace Robotics
                             OpenUsdRenderTargetKindEnum.Visibility, 1.0,
                             bindingTypeId: Opc.Ua.OpenUsd.ObjectTypes.OpenUsdAlarmBindingType,
                             alarmAspect: OpenUsdAlarmAspectEnum.ActiveState);
+
+                        MaterialiseTwinBindings(cellRep, usdNs);
 
                         CreateBinding(cellRep, usdNs, "SpeedOverrideCommand",
                             new Guid("a1b2c3d4-0003-4a10-9c01-100000000003"),
