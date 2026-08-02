@@ -92,7 +92,7 @@ namespace Opc.Ua.Robotics.Tests
                     {
                         m_added.Add(node);
                     }
-                    return ValueTask.CompletedTask;
+                    return default;
                 },
                 Options());
             m_host.Start(m_context);
@@ -285,7 +285,15 @@ namespace Opc.Ua.Robotics.Tests
         [Test]
         public void EveryExecutionStateHasExactlyOnePartTenPairing()
         {
+            // The generic overload is net5+, and this test project also targets .NET
+            // Framework. Enumerating rather than listing the values is the point: a
+            // state added without a clause 6.3 pairing must fail here.
+#if NET5_0_OR_GREATER
             foreach (ExecutionStateEnum state in Enum.GetValues<ExecutionStateEnum>())
+#else
+            foreach (ExecutionStateEnum state in
+                Enum.GetValues(typeof(ExecutionStateEnum)).Cast<ExecutionStateEnum>())
+#endif
             {
                 Assert.DoesNotThrow(
                     () => IntentControllerHost.MapToProgramState(state),
@@ -600,7 +608,7 @@ namespace Opc.Ua.Robotics.Tests
                 new LocalizedText("Controller"),
                 true);
             var host = new IntentControllerHost(
-                controller, m_executor, (_, _) => ValueTask.CompletedTask, options);
+                controller, m_executor, (_, _) => default, options);
             host.Start(m_context);
             return host;
         }

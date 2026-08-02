@@ -122,7 +122,10 @@ namespace Opc.Ua.RobotIntent.Server
         /// </summary>
         public void Start(ISystemContext context)
         {
-            ArgumentNullException.ThrowIfNull(context);
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
             m_namespaceUris = context.NamespaceUris;
             m_intentsFolder = EnsureFolder(context, m_controller.Intents, BrowseNames.Intents);
             if (m_options.MissionsSupported)
@@ -167,7 +170,10 @@ namespace Opc.Ua.RobotIntent.Server
             string missionId,
             bool forceNewId)
         {
-            ArgumentNullException.ThrowIfNull(context);
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
 
             if (!HoldsAuthority(sessionId))
             {
@@ -201,9 +207,8 @@ namespace Opc.Ua.RobotIntent.Server
             if (ExceedsSafeSpeed(intent))
             {
                 return IntentAdmission.Refused(IntentFailureEnum.SafetyLimitExceeded,
-                    string.Create(CultureInfo.InvariantCulture,
-                        $"The requested speed exceeds the enforced safe limit of "
-                        + $"{m_safety.SafeSpeedLimit} m/s."));
+                    FormattableString.Invariant(
+                        $"The requested speed exceeds the enforced safe limit of {m_safety.SafeSpeedLimit} m/s."));
             }
 
             IntentCapabilityDataType? capability = FindCapability(intent);
@@ -235,7 +240,7 @@ namespace Opc.Ua.RobotIntent.Server
                 string id = forceNewId ? string.Empty : intent.IntentId ?? string.Empty;
                 if (string.IsNullOrEmpty(id))
                 {
-                    id = string.Create(CultureInfo.InvariantCulture,
+                    id = FormattableString.Invariant(
                         $"intent-{Interlocked.Increment(ref m_nextId)}");
                 }
                 else if (m_intents.TryGetValue(id, out IntentEntry? existing) &&
@@ -287,7 +292,10 @@ namespace Opc.Ua.RobotIntent.Server
         /// </remarks>
         public bool CancelIntent(ISystemContext context, NodeId? sessionId, string intentId)
         {
-            ArgumentNullException.ThrowIfNull(context);
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
             if (!HoldsAuthority(sessionId))
             {
                 return false;
@@ -308,7 +316,10 @@ namespace Opc.Ua.RobotIntent.Server
         /// </summary>
         public uint CancelAll(ISystemContext context, NodeId? sessionId)
         {
-            ArgumentNullException.ThrowIfNull(context);
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
             if (!HoldsAuthority(sessionId))
             {
                 return 0;
@@ -381,7 +392,10 @@ namespace Opc.Ua.RobotIntent.Server
         /// </summary>
         public bool Pause(ISystemContext context, NodeId? sessionId)
         {
-            ArgumentNullException.ThrowIfNull(context);
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
             if (!HoldsAuthority(sessionId))
             {
                 return false;
@@ -406,7 +420,10 @@ namespace Opc.Ua.RobotIntent.Server
         /// </summary>
         public bool Resume(ISystemContext context, NodeId? sessionId)
         {
-            ArgumentNullException.ThrowIfNull(context);
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
             if (!HoldsAuthority(sessionId))
             {
                 return false;
@@ -436,7 +453,10 @@ namespace Opc.Ua.RobotIntent.Server
         /// </remarks>
         public IntentAdmission Retry(ISystemContext context, NodeId? sessionId, string intentId)
         {
-            ArgumentNullException.ThrowIfNull(context);
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
             IntentDataType? intent;
             string missionId;
             lock (m_lock)
@@ -467,7 +487,10 @@ namespace Opc.Ua.RobotIntent.Server
         /// </remarks>
         public bool RequestControl(ISystemContext context, NodeId? sessionId, out NodeId? owner)
         {
-            ArgumentNullException.ThrowIfNull(context);
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
             lock (m_lock)
             {
                 if (ControlOwner == null || ControlOwner == sessionId)
@@ -487,7 +510,10 @@ namespace Opc.Ua.RobotIntent.Server
         /// </summary>
         public void ReleaseControl(ISystemContext context, NodeId? sessionId)
         {
-            ArgumentNullException.ThrowIfNull(context);
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
             lock (m_lock)
             {
                 if (ControlOwner == sessionId)
@@ -527,8 +553,14 @@ namespace Opc.Ua.RobotIntent.Server
         /// </remarks>
         public void UpdateSafetyState(ISystemContext context, SafetyStatus status)
         {
-            ArgumentNullException.ThrowIfNull(context);
-            ArgumentNullException.ThrowIfNull(status);
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            if (status == null)
+            {
+                throw new ArgumentNullException(nameof(status));
+            }
             lock (m_lock)
             {
                 m_safety = status;
@@ -763,7 +795,10 @@ namespace Opc.Ua.RobotIntent.Server
         public RealTimeLease OpenRealTimeChannel(
             ISystemContext context, NodeId? sessionId, string channelId, double requestedLeaseMs)
         {
-            ArgumentNullException.ThrowIfNull(context);
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
             if (!m_options.RealTimeChannelsSupported)
             {
                 return RealTimeLease.Refused("This Server brokers no real-time channels.");
@@ -816,7 +851,10 @@ namespace Opc.Ua.RobotIntent.Server
         /// </summary>
         public bool CloseRealTimeChannel(ISystemContext context, NodeId? sessionId, string channelId)
         {
-            ArgumentNullException.ThrowIfNull(context);
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
             lock (m_lock)
             {
                 if (!m_channels.TryGetValue(channelId ?? string.Empty, out ChannelEntry? channel) ||
@@ -921,7 +959,10 @@ namespace Opc.Ua.RobotIntent.Server
             NodeId? sessionId,
             MissionDataType? mission)
         {
-            ArgumentNullException.ThrowIfNull(context);
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
             if (!m_options.MissionsSupported)
             {
                 return MissionAdmission.Refused(MissionUpdateResultEnum.Rejected,
@@ -961,7 +1002,7 @@ namespace Opc.Ua.RobotIntent.Server
                 string id = mission.MissionId ?? string.Empty;
                 if (string.IsNullOrEmpty(id))
                 {
-                    id = string.Create(CultureInfo.InvariantCulture,
+                    id = FormattableString.Invariant(
                         $"mission-{Interlocked.Increment(ref m_nextId)}");
                 }
                 else if (m_missions.TryGetValue(id, out MissionEntry? existing) &&
@@ -995,7 +1036,10 @@ namespace Opc.Ua.RobotIntent.Server
             uint missionUpdateId,
             ArrayOf<MissionStepDataType> steps)
         {
-            ArgumentNullException.ThrowIfNull(context);
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
             if (!m_options.MissionHorizonSupported)
             {
                 return new MissionUpdateOutcome(MissionUpdateResultEnum.Rejected,
@@ -1053,7 +1097,10 @@ namespace Opc.Ua.RobotIntent.Server
         /// </summary>
         public bool CancelMission(ISystemContext context, NodeId? sessionId, string missionId)
         {
-            ArgumentNullException.ThrowIfNull(context);
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
             if (!HoldsAuthority(sessionId))
             {
                 return false;
@@ -1564,7 +1611,7 @@ namespace Opc.Ua.RobotIntent.Server
                 requestControl.OnCallAsync = (ctx, method, objectId, ct) =>
                 {
                     bool granted = RequestControl(context, SessionOf(ctx), out NodeId? owner);
-                    return ValueTask.FromResult(new RequestControlMethodStateResult
+                    return new ValueTask<RequestControlMethodStateResult>(new RequestControlMethodStateResult
                     {
                         Granted = granted,
                         CurrentOwner = owner ?? global::Opc.Ua.NodeId.Null
@@ -1581,7 +1628,7 @@ namespace Opc.Ua.RobotIntent.Server
                         throw ServiceResultException.Create(
                             StatusCodes.BadUserAccessDenied, admission.Message ?? "Refused.");
                     }
-                    return ValueTask.FromResult(new SubmitIntentMethodStateResult
+                    return new ValueTask<SubmitIntentMethodStateResult>(new SubmitIntentMethodStateResult
                     {
                         IntentId = admission.IntentId,
                         Operation = admission.Operation

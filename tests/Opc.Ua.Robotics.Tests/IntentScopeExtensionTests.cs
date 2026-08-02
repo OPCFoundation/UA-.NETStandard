@@ -531,7 +531,7 @@ namespace Opc.Ua.Robotics.Tests
                 new LocalizedText("Controller"),
                 true);
             var host = new IntentControllerHost(
-                controller, m_executor, (_, _) => ValueTask.CompletedTask, options ?? Options());
+                controller, m_executor, (_, _) => default, options ?? Options());
             host.Start(m_context);
             return host;
         }
@@ -613,10 +613,15 @@ namespace Opc.Ua.Robotics.Tests
                 StartedQueue.Enqueue(execution.Intent.IntentId ?? execution.IntentId);
                 if (AlwaysFail || (FailFirst && call == 1))
                 {
-                    return ValueTask.FromResult(
+                    return new ValueTask<IntentOutcome>(
                         IntentOutcome.Fail(IntentFailureEnum.Other, "scripted failure"));
                 }
-                return ValueTask.FromResult(IntentOutcome.Success);
+                return new ValueTask<IntentOutcome>(IntentOutcome.Success);
+            }
+
+            public bool CanCancel(IntentExecution execution)
+            {
+                return true;
             }
         }
     }

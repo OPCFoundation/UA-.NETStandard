@@ -562,7 +562,7 @@ namespace Opc.Ua.RobotIntent.Server
             if (options.MaxTrajectoryPoints > 0 &&
                 trajectory.Points.Count > (int)options.MaxTrajectoryPoints)
             {
-                return Bad(string.Create(CultureInfo.InvariantCulture,
+                return Bad(FormattableString.Invariant(
                     $"A trajectory may carry at most {options.MaxTrajectoryPoints} points."));
             }
             double previous = double.NegativeInfinity;
@@ -580,7 +580,7 @@ namespace Opc.Ua.RobotIntent.Server
                 previous = point.TimeFromStart;
                 if (point.Positions.IsNull || point.Positions.Count != (int)options.AxisCount)
                 {
-                    return Bad(string.Create(CultureInfo.InvariantCulture,
+                    return Bad(FormattableString.Invariant(
                         $"Points[{ii}].Positions must carry {options.AxisCount} values."));
                 }
             }
@@ -612,7 +612,7 @@ namespace Opc.Ua.RobotIntent.Server
             }
             if (Math.Abs(Math.Sqrt(norm) - 1.0) > OrientationTolerance)
             {
-                return Bad(string.Create(CultureInfo.InvariantCulture,
+                return Bad(FormattableString.Invariant(
                     $"{name}.Orientation must be a unit quaternion; its norm is {Math.Sqrt(norm)}."));
             }
             return Check.Pass;

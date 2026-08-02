@@ -215,10 +215,13 @@ namespace Opc.Ua.RobotIntent
         /// mid-release. Returning false refuses this one occasion; declaring
         /// CancelSupported false in the capability refuses the whole intent type in
         /// advance.
+        /// <para>
+        /// This has no default implementation because the library targets .NET
+        /// Framework, which has none, and because whether a motion can be safely
+        /// abandoned is a decision worth making deliberately. An executor that has no
+        /// such motions returns true.
+        /// </para>
         /// </remarks>
-        bool CanCancel(IntentExecution execution)
-        {
-            return true;
-        }
+        bool CanCancel(IntentExecution execution);
     }
 }
